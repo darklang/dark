@@ -1,19 +1,71 @@
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
+import sqlite3
 
 import server
 
-class Datastore(object):
+class DB(object):
   def __init__(self, name):
+    self.conn = sqlite3.connect(':memory:', check_same_thread=False)
+    self.name = name
+    self.create_table(name)
+
+  def exe(self, sql, *values):
+    print(sql)
+    self.conn.cursor().execute(sql, values)
+
+  def create_table(self, name):
+    self.exe("create table " + name + "(id)")
+
+  def update(self, value, key):
+    self.exe()
+
+  def fetch(self, num):
+    self.exe("select * from " + self.name + " limit " + str(num))
+
+  def fetch_by_key(self, key, keyname):
+    pass
+
+
+class Datastore(object):
+
+  def __init__(self, name):
+    self.db = DB(name) # TODO single DB for multiple DSs
     self.name = name
     self.fields = {}
-    self.addressable = None
+    self.primary = None
 
-  def add_field(self, name, tyype):
+  def add_field(self, name, tyype, primary=False):
     self.fields[name] = tyype
+    if primary:
+      self.primary = name
 
-  def set_addressable(self, name):
-    self.addressable = name
+
+  def validate_key(self, key):
+    self.fields[self.primary].validate(key)
+
+  def validate(self, value):
+    for k, v in value.items():
+      self.fields[k].validate(v)
+    if len(value.items()) != len(self.fields):
+      raise "this noise"
+
+
+  def insert(self, value):
+    self.validate(value)
+    self.db.insert(value)
+
+  def replace(key, value):
+    self.validate_key(key)
+    self.validate(value)
+    self.db.update(key, value, self.key)
+
+  def fetch(self, num=10):
+    self.db.fetch(num)
+
+  def fetch_one(self, key):
+    self.validate_key(key)
+    self.db.fetch_by_key(self.primary, key)[0]
 
 
 class Dark(server.Server):
@@ -49,7 +101,7 @@ class Dark(server.Server):
   def add_list(self, ds, route):
 
     def view(request, **values):
-      values = ds.entries[0:10]
+      values = ds.fetch(10)
       return self.render_template('list.html')
 
     rule = Rule(route, methods=["GET"], endpoint=view)
@@ -68,7 +120,7 @@ class Dark(server.Server):
       url = values.url
       new_value = request.values
       ds.validate(new_value)
-      datastore.replace(url)
+      datastore.replace(url, new_value)
       return Response()
 
     view_rule = Rule(route, methods=["GET"], endpoint=view)
@@ -79,7 +131,7 @@ class Dark(server.Server):
 
   def add_read(self, ds, route):
     def view(request, url):
-      value = ds.entries.by("url", url)
+      value = ds.find(url)
       return self.render_template('read.html', value=value)
 
     rule = Rule(route, methods=["GET"], endpoint=view)

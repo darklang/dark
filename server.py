@@ -1,6 +1,7 @@
 import os
 import urllib.parse
 
+from werkzeug.wrappers import Request, Response
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.wsgi import SharedDataMiddleware
 from werkzeug.utils import redirect
