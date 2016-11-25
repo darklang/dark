@@ -20,12 +20,17 @@
 - admin page: list entries, allow delete
 - sitemap
 - page: show story
-
 - 404 page which lists other blog posts
-
 
 
 Notes:
 - datastore is pretty much like a rails model
 - make an SEO thing with a sitemap.xml automatically
-
+- dont create pages for API endpoints, go for user actions (also allow creating API endpoints)
+- the important thing is not being able to zoom into your app, it's being able to zoom out
+- views / layers:
+ - API view
+ - system view
+ - errors view
+ - performance layer
+ - page view (see all the pages)

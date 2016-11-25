@@ -28,7 +28,8 @@ class Builtin(object):
     adapter = self.url_map.bind_to_environ(request.environ)
     try:
         endpoint, values = adapter.match()
-        return getattr(self, 'on_' + endpoint)(request, **values)
+        return endpoint(request, **values)
+        #return getattr(self, 'on_' + endpoint)(request, **values)
     except HTTPException as e:
       return e
 
@@ -40,50 +41,99 @@ class Builtin(object):
   def __call__(self, environ, start_response):
     return self.wsgi_app(environ, start_response)
 
-class Shortly(Builtin):
-  def __init__(self, config):
-    self.url_map = Map([
-      Rule('/', endpoint='homepage', methods=["GET"]),
-      Rule('/', endpoint='new_entry', methods=["POST"]),
-      Rule('/<short_id>/edit', endpoint='view_edit_entry', methods=["GET"]),
-      Rule('/<short_id>', endpoint='update_entry', methods=["PUT"]),
-      Rule('/<short_id>', endpoint='view_entry', methods=["GET"])
-    ])
-
-  def on_homepage(self, request):
-    values = datastore.entries[0:10]
-    self.render(homepage, values)
-
-  def on_new_entry(self, request):
-    new_value = request.values
-    self.validate(new_value)
-    datastore.entries.add(new_value)
-    return Response()
-
-  def on_view_entry(self, request, short_id):
-    value = datastore.entries.by_short_id(short_id)
-    self.render(view_page, value)
-
-  def on_update_entry(self, request, short_id):
-    value = request.values
-    datastore.entries.by_short_id(short_id).replace_with(value)
-    return Response()
-
-  def on_view_edit_entry(self, request, short_id):
-    value = request.values.by_short_id(short_id)
-    return self.render_template('edit_page.html', value)
-#    return self.render_template('new_url.html', error=error, url=url)
-
-class Model(object):
-  def __init__(self, contents, date, title):
-    self.contents = contents
-    self.date = date
-    self.title = title
-    self.short_url = re.replace(title, r"[-_!@#$%^&*()]+", "-")
 
 
+class Datastore(object):
+  def __init__(self, name):
+    self.name = name
+    self.fields = {}
+
+  def add_field(self, name, tyype):
+    self.fields[name] = tyype
+    return Field(self, name)
+
+
+
+class Dark(Builtin):
+
+  def __init__(self):
+    super(Builtin, self).__init__()
+    self.datastores = {}
+
+  def add_datastore(self, name):
+    ds = Datastore(name)
+    self.datastores[name] = ds
+    return ds
+
+  def add_create(self, ds, route):
+
+    def view(request, **values):
+      # TODO: something with ds
+      return self.render_template('create.html')
+
+    def action(request, **values):
+      new_value = request.values
+      ds.validate(new_value)
+      datastore.add(new_value)
+      return Response()
+
+    view_rule = Rule(route, methods=["GET"], endpoint=view)
+    action_rule = Rule(route, methods=["POST"], endpoint=action)
+    self.url_map.add(rule)
+    self.url_map.add(rule)
+
+
+  def add_list(self, ds, route):
+
+    def view(request, **values):
+      values = ds.entries[0:10]
+      return self.render_template('list.html')
+
+    rule = Rule(route, methods=["GET"], endpoint=view)
+    self.url_map.add(rule)
+
+
+
+  def add_edit(self, ds, route):
+
+    def view(request, **values):
+      url = request.values["url"]
+      value = request.values.by("url", url)
+      return self.render_template('edit.html', value=value)
+
+    def action(request, **values):
+      url = values.url
+      new_value = request.values
+      ds.validate(new_value)
+      datastore.replace(url)
+      return Response()
+
+    view_rule = Rule(route, methods=["GET"], endpoint=view)
+    action_rule = Rule(route, methods=["PUT"], endpoint=action)
+    self.url_map.add(view_rule)
+    self.url_map.add(action_rule)
+
+
+  def add_read(self, ds, route):
+    def view(request, url):
+      value = ds.entries.by("url", url)
+      return self.render_template('read.html', value=value)
+
+    rule = Rule(route, methods=["GET"], endpoint=view)
+    self.url_map.add(rule)
+
+
+
+blog = Dark()
+ds = blog.add_datastore("Entry")
+ds.add_field("contents", types.Markdown)
+ds.add_field("date", types.Date)
+ds.add_field("title", types.Title)
+ds.set_addressable("title")
+blog.add_create(ds, '/new')
+blog.add_edit(ds, '<url>/edit')
+blog.add_list(ds, '/')
+blog.add_read(ds, '/<url>')
 
 if __name__ == '__main__':
-  from werkzeug.serving import run_simple
-  app = Shortly()
-  run_simple('127.0.0.1', 3000, app, use_debugger=True, use_reloader=True)
+  werkzeug.serving.run_simple('127.0.0.1', 3000, blog, use_debugger=True, use_reloader=True)
