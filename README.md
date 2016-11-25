@@ -34,3 +34,18 @@ Notes:
  - errors view
  - performance layer
  - page view (see all the pages)
+
+features:
+- optimized page size
+- android and web page and ios app
+- static typing and error checking the whole way through
+- automatic sitemap
+- automatic AMP and FB-optimized page
+- 
+
+
+use cases:
+- build twitter
+- build a sales pipeline, semi-automated emails, calendering, check support tickets, build org structure
+- build bug tracking site which tells customers when their tickets are done, integrated with slack and github
+- build accounting reconsiliation pipeline, with human in the loop
