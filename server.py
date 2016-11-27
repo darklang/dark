@@ -10,13 +10,12 @@ from jinja2 import Environment, FileSystemLoader
 class Server(object):
 
   def __init__(self):
-    self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
-      '/static':  os.path.join(os.path.dirname(__file__), 'static')
-    })
-
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)
+    self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
+      '/static':  os.path.join(os.path.dirname(__file__), 'static')
+    })
 
 
   def render_template(self, template_name, **context):

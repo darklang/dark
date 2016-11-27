@@ -34,13 +34,15 @@ Notes:
  - errors view
  - performance layer
  - page view (see all the pages)
+ 
+ - the data flows one way. But we create a source from the defitinion of the sink. Then we type check changes along those arrows. The definition of "create" isn't magic, it's derived from the DS when it's instantiated.
 
 features:
 - optimized page size
 - android and web page and ios app
 - static typing and error checking the whole way through
-- automatic sitemap
-- automatic AMP and FB-optimized page
+- automatic sitemap, rss feed
+- automatic AMP, opengraph, twitter card, FB-optimized page
 - 
 
 

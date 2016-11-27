@@ -1,0 +1,18 @@
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Create</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/dark.css">
+  </head>
+  <body>
+    Create
+    <form>
+
+    </form>
+    {% for field in fields %}
+    {{field}}{{fields[field]}}
+    {% endfor %}
+  </body>
+</html>
