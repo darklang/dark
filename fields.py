@@ -11,11 +11,12 @@ class Tag:
     attrs = ""
     for a in self.attributes:
       attrs += " %s=\"%s\"" % (a, self.attributes[a])
-    return "<br>%s: <br><%s %s>%s</%s>" % (self.name,
-                                           self.tag,
-                                           attrs,
-                                           self.contents,
-                                           self.tag)
+    return "<br>%s: <br><%s %s name='%s'>%s</%s>" % (self.name,
+                                                     self.tag,
+                                                     attrs,
+                                                     self.name,
+                                                     self.contents,
+                                                     self.tag)
 
 class Field:
   def __init__(self, name, **props):
@@ -32,9 +33,6 @@ class Markdown(Field):
 class Date(Field):
   def validate(self, value):
     return True
-
-  def creation():
-    return datetime.datetime.now().time()
 
 class Title(Field):
   def validate(self, value):

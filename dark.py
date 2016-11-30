@@ -9,7 +9,7 @@ class Node:
     return False
 
   def __str__(self):
-    return "%s (%s)" % (self.name[0:8], type(self).__name__)
+    return self.name
 
 
 
@@ -32,12 +32,12 @@ class Dark(server.Server):
 
   def generate_name(self):
     import random
-    hash = random.getrandbits(128)
-    return ("%032x" % hash)
+    hash = random.getrandbits(32)
+    return ("%08x" % hash)
 
   def add(self, node):
     if not hasattr(node, "name"):
-      name = self.generate_name()
+      name = type(node).__name__ + "-" + self.generate_name()
       node.name = name
     self.nodes[node.name] = node
     return node
@@ -53,6 +53,17 @@ class Dark(server.Server):
       self.reverse_edges[n2.name] = []
     self.reverse_edges[n2.name].append(n1.name)
 
+  def print_graph(self):
+    print(self.nodes)
+    print(self.edges)
+    print(self.reverse_edges)
+
+  def get_children(self, node):
+    if node.is_datasource(): return []
+
+    children = self.edges[node.name] or []
+    return [self.nodes[c] for c in children]
+
   def get_parents(self, node):
     if node.is_datasource(): return []
 
@@ -60,7 +71,26 @@ class Dark(server.Server):
     return [self.nodes[p] for p in parents]
 
 
-  def execute(self, node, get_data, get_schema):
+  def run_input(self, node, inputs):
+    "Inputs are a discrete event, whereas outputs are continuous. This"
+    "changes how we think about the flow of data"
+
+    "Push the data down from the root. If we come to a fork, chase up the fork to get a value."
+
+    new_input = node.get_data(*inputs)
+    children = self.get_children(node)
+
+    for c in children:
+      inputs = [new_input]
+      parents = self.get_parents(c)
+      for p in parents:
+        if p != node:
+          inputs.append(self.run_output(p, True, False))
+
+      self.run_input(c, inputs)
+
+
+  def run_output(self, node, get_data, get_schema):
     # TODO: inputs pull schema the opposite way that data flows
 
     print("calling node: %s (%s)" % (node.name, type(node)))
@@ -85,7 +115,7 @@ class Dark(server.Server):
       raise Exception("Stopped getting both at %s" % node)
 
     for p in parents:
-      (data, schema) = self.execute(p, get_data, get_schema)
+      (data, schema) = self.run_output(p, get_data, get_schema)
       datas.append(data)
       schemas.append(schema)
 
@@ -109,7 +139,7 @@ class Dark(server.Server):
   def add_output(self, node, verb, url):
     self.add(node)
     def h(request):
-      (val1, val2) = self.execute(node, True, True)
+      (val1, val2) = self.run_output(node, True, True)
       return Response(val1 or val2, mimetype='text/html')
 
     self.url_map.add(Rule(url,
@@ -119,7 +149,7 @@ class Dark(server.Server):
   def add_input(self, node, verb, url):
     self.add(node)
     def h(request):
-      return self.execute(node)
+      return self.run_input(node, [request.values.to_dict()])
     self.url_map.add(Rule(url,
                           endpoint=h,
                           methods=[verb]))

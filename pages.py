@@ -11,8 +11,12 @@ class form_for(dark.Node):
     output = ""
     for tag in schema.values():
       output += tag.as_tag().to_html()
-    return "<form action='%s'><fieldset>%s</fieldset></form>" % (self.action,
-                                                                 output)
+    return ("<form action='%s' method='POST'>" % self.action
+            + "<fieldset>"
+            + output
+            + "<br><input type='submit' name='submit' value='Submit' />"
+            + "</fieldset>"
+            + "</form>")
 
 
 class to_page(dark.Node):
@@ -24,15 +28,16 @@ class to_page(dark.Node):
 
 
 class endpoint(dark.Node):
-  def exe(self, input):
-    raise
+  def get_data(self, *inputs):
+    output = inputs[0]
+    del output["submit"]
+    return output
 
 # class Create:
 #   def __init__(self, ds, route):
 #     def view(request, **values):
 #       return self.server.render_template('create.html',
 #                                          fields=ds.client_fields())
-
 #     def action(request, **values):
 #       new_value = request.values
 #       ds.validate(new_value)

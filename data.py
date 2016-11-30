@@ -1,3 +1,5 @@
+import datetime
+
 import dark
 
 class except_fields(dark.Node):
@@ -17,9 +19,11 @@ class date_now:
   def is_datasource(self):
     return True
 
-  def exe(self, input):
-    raise
+  def get_data(self, *inputs):
+    assert(len(inputs) == 0)
+    return datetime.datetime.now().time()
 
 class merge(dark.Node):
-  def exe(self, input):
+  def get_data(self, *input):
+    print(input)
     raise

@@ -21,15 +21,16 @@ entry.add_field(fields.Markdown("contents",
 ef = data.except_fields("url", "publication_date")
 blog.edge_from(ds, ef)
 
-form = pages.form_for("/new")
+form = pages.form_for('/new')
 blog.edge_from(ef, form)
 
+page = pages.to_page()
 blog.add_output(form, "GET", "/new")
 
 endpoint = pages.endpoint()
 blog.add_input(endpoint, "POST", "/new")
 
-dn = blog.add(data.date_now)
+dn = blog.add(data.date_now())
 
 merge = data.merge()
 blog.edge_from(dn, merge)
