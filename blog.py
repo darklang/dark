@@ -6,9 +6,10 @@ import dark
 import fields
 import pages
 import data
+import datastore
 
 blog = dark.Dark()
-entry = dark.Datastore("Entry")
+entry = datastore.Datastore("Entry")
 ds = blog.add(entry)
 
 entry.add_field(fields.Title("title"))
@@ -20,10 +21,9 @@ entry.add_field(fields.Markdown("contents",
 ef = data.except_fields("url", "publication_date")
 blog.edge_from(ds, ef)
 
-form = pages.form_for()
+form = pages.form_for("/new")
 blog.edge_from(ef, form)
 
-page = pages.to_page()
 blog.add_output(form, "GET", "/new")
 
 endpoint = pages.endpoint()

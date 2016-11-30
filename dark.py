@@ -1,78 +1,16 @@
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
-import sqlite3
 
 import server
+import copy
 
-class DB(object):
-  def __init__(self, name):
-    name = name.lower()
-    self.name = name
-    self.conn = sqlite3.connect(":memory:", check_same_thread=False)
-    self.create_table(name)
+class Node:
+  def is_datasource(self):
+    return False
 
-  def exe(self, sql, *values):
-    print(sql)
-    try:
-      return self.conn.execute(sql)
-    except Error as e:
-      print("error: " + e)
+  def __str__(self):
+    return "%s (%s)" % (self.name[0:8], type(self).__name__)
 
-  def create_table(self, name):
-    self.exe("create table " + name + "(id)")
-
-  def update(self, value, key):
-    raise "TODO"
-    self.exe()
-
-  def fetch(self, num):
-    return self.exe("select * from " + self.name + " limit " + str(num)).fetchall()
-
-  def fetch_by_key(self, key, keyname):
-    return self.exe("select * from " + self.name + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
-
-
-class Datastore(object):
-
-  def __init__(self, name):
-    self.db = DB(name) # TODO single DB for multiple DSs
-    self.name = name
-    self.fields = {}
-    self.derived = {}
-
-  def add_field(self, f, derived=None):
-    if derived:
-      self.derived[f.name] = derived
-
-    self.fields[f.name] = f
-
-  def client_fields(self):
-    return [ f for f in self.fields.values() if not f.client_facing() ]
-
-  def validate_key(self, key_name, value):
-    self.fields[key_name].validate(value)
-
-  def validate(self, value):
-    for k, v in value.items():
-      self.fields[k].validate(v)
-    if len(value.items()) != len(self.fields):
-      raise "either missing field declaration or missing value"
-
-
-  def insert(self, value):
-    self.validate(value)
-    self.db.insert(value)
-
-  def replace(key, value):
-    self.validate_key(key)
-    self.validate(value)
-    self.db.update(key, value, self.key)
-
-  def fetch(self, num=10):
-    return self.db.fetch(num)
-
-  def fetch_one(self, key, key_name):
-    self.db.fetch_by_key(key_name, key)
 
 
 class Dark(server.Server):
@@ -116,29 +54,64 @@ class Dark(server.Server):
     self.reverse_edges[n2.name].append(n1.name)
 
   def get_parents(self, node):
+    if node.is_datasource(): return []
+
     parents = self.reverse_edges[node.name] or []
     return [self.nodes[p] for p in parents]
 
 
-  def execute(self, node):
+  def execute(self, node, get_data, get_schema):
+    # TODO: inputs pull schema the opposite way that data flows
+
     print("calling node: %s (%s)" % (node.name, type(node)))
+
     parents = self.get_parents(node)
-    args = []
+
+    datas = []
+    schemas = []
+    get_data_orig, get_schema_orig = get_data, get_schema
+    get_data = get_data and hasattr(node, "get_data")
+    get_schema = get_schema and hasattr(node, "get_schema")
+
+    # error checking
+
+    if get_data_orig and not get_data:
+      print("No longer getting data for %s", node)
+
+    if get_schema_orig and not get_schema:
+      print("No longer getting schema for %s", node)
+
+    if not get_data and not get_schema:
+      raise Exception("Stopped getting both at %s" % node)
+
     for p in parents:
-      if hasattr(p, "exe"):
-        arg = self.execute(p)
-      else:
-        arg = p
-      args.append(arg)
-    res = node.exe(args)
-    print("%s (%s) returns %s" % (node.name, type(node), str(res)))
-    return clone(res)
+      (data, schema) = self.execute(p, get_data, get_schema)
+      datas.append(data)
+      schemas.append(schema)
+
+    data_out = None
+    if get_data:
+      data_out = node.get_data(*datas)
+
+    schema_out = None
+    if get_schema:
+      schema_out = node.get_schema(*schemas)
+
+    res = (data_out, schema_out)
+    if res == (None, None):
+      raise Exception("Both values can't be none for %s" % str(node))
+
+    print("%s returns %s" % (node.name, str(res)))
+
+    return copy.copy(res)
 
 
   def add_output(self, node, verb, url):
     self.add(node)
     def h(request):
-      return self.execute(node)
+      (val1, val2) = self.execute(node, True, True)
+      return Response(val1 or val2, mimetype='text/html')
+
     self.url_map.add(Rule(url,
                           endpoint=h,
                           methods=[verb]))

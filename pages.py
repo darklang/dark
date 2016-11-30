@@ -1,20 +1,29 @@
-from werkzeug.routing import Rule
-
-# There are two flows: schema and data
+import dark
 
 
-class form_for:
-  def exe(self, inputs):
-    print("inputs" + str(inputs))
-    assert(len(inputs) == 1)
-    fields = inputs[0].schema
-    return "<a form with the schema: " + str(fields)
 
-class to_page:
-  def exe(self, input):
-    raise
+class form_for(dark.Node):
 
-class endpoint:
+  def __init__(self, action):
+    self.action = action
+
+  def get_schema(self, schema):
+    output = ""
+    for tag in schema.values():
+      output += tag.as_tag().to_html()
+    return "<form action='%s'><fieldset>%s</fieldset></form>" % (self.action,
+                                                                 output)
+
+
+class to_page(dark.Node):
+  # TODO: this feels wrong. The schema is the markup? hmmm
+  # What if we need to combine schema and data to generate the page?
+  def get_schema(self, input):
+    return "<html><head></head><body>" + input + "</body></html>"
+
+
+
+class endpoint(dark.Node):
   def exe(self, input):
     raise
 

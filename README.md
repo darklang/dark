@@ -25,6 +25,7 @@
 
 Notes:
 - datastore is pretty much like a rails model
+- there are two "flows": schema and data
 - make an SEO thing with a sitemap.xml automatically
 - dont create pages for API endpoints, go for user actions (also allow creating API endpoints)
 - the important thing is not being able to zoom into your app, it's being able to zoom out
@@ -43,11 +44,10 @@ features:
 - static typing and error checking the whole way through
 - automatic sitemap, rss feed
 - automatic AMP, opengraph, twitter card, FB-optimized page
-- 
 
 
 use cases:
 - build twitter
 - build a sales pipeline, semi-automated emails, calendering, check support tickets, build org structure
 - build bug tracking site which tells customers when their tickets are done, integrated with slack and github
-- build accounting reconsiliation pipeline, with human in the loop
+- build accounting reconciliation pipeline, with human in the loop

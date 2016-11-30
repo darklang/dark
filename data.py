@@ -1,21 +1,25 @@
-# data manipulation fn
-class except_fields:
+import dark
+
+class except_fields(dark.Node):
   def __init__(self, *fields):
     self.fields = fields
 
-  def exe(self, inputs):
-    output = inputs[0]
+  def get_schema(self, input):
+    output = input
     for f in self.fields:
       if f in output:
         del output[f]
-    return input
+    return output
 
 
 # datasource
 class date_now:
+  def is_datasource(self):
+    return True
+
   def exe(self, input):
     raise
 
-class merge:
+class merge(dark.Node):
   def exe(self, input):
     raise
