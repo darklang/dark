@@ -31,10 +31,12 @@ endpoint = pages.endpoint()
 blog.add_input(endpoint, "POST", "/new")
 
 dn = blog.add(data.date_now())
+kvv = data.to_key_val_val("publication_date")
+blog.edge_from(dn, kvv)
 
 merge = data.merge()
-blog.edge_from(dn, merge)
 blog.edge_from(endpoint, merge)
+blog.edge_from(kvv, merge)
 
 blog.edge_from(merge, ds)
 

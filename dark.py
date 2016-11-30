@@ -11,6 +11,10 @@ class Node:
   def __str__(self):
     return self.name
 
+  def push_data(self, *inputs):
+    "Unless specified, this is just pulling data from the other direction"
+    return self.get_data(*inputs)
+
 
 
 class Dark(server.Server):
@@ -77,23 +81,28 @@ class Dark(server.Server):
 
     "Push the data down from the root. If we come to a fork, chase up the fork to get a value."
 
-    new_input = node.get_data(*inputs)
+    print("run_input: " + str(node))
+    new_input = node.push_data(*inputs)
     children = self.get_children(node)
 
     for c in children:
       inputs = [new_input]
       parents = self.get_parents(c)
       for p in parents:
+        print("node is %s" % node)
+        print("inputs are " + str(inputs))
         if p != node:
-          inputs.append(self.run_output(p, True, False))
+          (data, schema) = self.run_output(p, True, False)
+          inputs.append(data)
 
+      print("running on %s with %s" % (c, inputs))
       self.run_input(c, inputs)
 
 
   def run_output(self, node, get_data, get_schema):
     # TODO: inputs pull schema the opposite way that data flows
 
-    print("calling node: %s (%s)" % (node.name, type(node)))
+    print("run_output: %s" % node.name)
 
     parents = self.get_parents(node)
 

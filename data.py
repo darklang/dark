@@ -24,6 +24,17 @@ class date_now:
     return datetime.datetime.now().time()
 
 class merge(dark.Node):
-  def get_data(self, *input):
-    print(input)
-    raise
+  def get_data(self, *inputs):
+    x = {}
+    for dict_arg in inputs:
+      x.update(dict_arg)
+    return x
+
+class to_key_val_val(dark.Node):
+  def __init__(self, key):
+    self.key = key
+
+  def get_data(self, *inputs):
+    print("aASDASDASD")
+    print(inputs)
+    return {self.key: inputs[0]}

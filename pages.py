@@ -22,6 +22,8 @@ class form_for(dark.Node):
 class to_page(dark.Node):
   # TODO: this feels wrong. The schema is the markup? hmmm
   # What if we need to combine schema and data to generate the page?
+
+  "This should be a page object with a form object, and then it can get auto-converted to html, or a page in an ios app"
   def get_schema(self, input):
     return "<html><head></head><body>" + input + "</body></html>"
 

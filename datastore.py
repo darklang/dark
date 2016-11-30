@@ -63,6 +63,10 @@ class Datastore(dark.Node):
   def get_schema(self, *args):
     return {f.name: f for f in self.fields.values()}
 
+  def push_data(self, *args):
+    assert(len(args) == 1)
+    self.insert(args[0])
+
   def insert(self, value):
     self.validate(value)
     self.db.insert(value)
