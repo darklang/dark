@@ -38,12 +38,13 @@ class Datastore(object):
     self.db = DB(name) # TODO single DB for multiple DSs
     self.name = name
     self.fields = {}
+    self.derived = {}
 
-  def add_field(self, f):
+  def add_field(self, f, derived=None):
+    if derived:
+      self.derived[f.name] = derived
+
     self.fields[f.name] = f
-
-  def set_derived(self, ffrom, to):
-    pass
 
   def client_fields(self):
     return [ f for f in self.fields.values() if not f.client_facing() ]
@@ -79,21 +80,54 @@ class Dark(server.Server):
   def __init__(self):
     super().__init__()
     self.url_map = Map()
-    self.datastores = {}
-    self.add_standard_routes()
+    self.nodes = {}
+    self.edges = {}
+    self.reverse_edges = {}
+    #self.add_standard_routes()
 
   def add_standard_routes(self):
+    # TODO: move to a component
     def favico(*v): return Response()
     def sitemap(*v): return Response()
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
-  def add_datastore(self, ds):
-    self.datastores[ds.name] = ds
-    return ds
+  def generate_name(self):
+    import random
+    hash = random.getrandbits(128)
+    return ("hash value: %032x" % hash)
 
   def add(self, node):
-    for r in node.rules:
-      self.url_map.add(r)
-    node.server = self
+    if not hasattr(node, "name"):
+      name = self.generate_name()
+      node.name = name
+    self.nodes[node.name] = node
     return node
+
+  def edge_from(self, n1, n2):
+    self.add(n1)
+    self.add(n2)
+    if n1.name not in self.edges:
+      self.edges[n1.name] = []
+    self.edges[n1.name] = n2.name
+
+    if n2.name not in self.reverse_edges:
+      self.reverse_edges[n2.name] = []
+    self.reverse_edges[n2.name] = n1.name
+
+  def request_handler(self, node):
+    def h(request):
+      raise
+
+
+  def add_output(self, node, verb, url):
+    self.add(node)
+    self.url_map.add(Rule(url,
+                          endpoint=self.request_handler(node),
+                          methods=[verb]))
+
+  def add_input(self, node, verb, url):
+    self.add(node)
+    self.url_map.add(Rule(url,
+                          endpoint=self.request_handler(node),
+                          methods=[verb]))

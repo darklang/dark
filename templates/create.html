@@ -9,10 +9,9 @@
   <body>
     Create
     <form>
-
+      {% for field in fields %}
+        {{field}}{{fields[field]}}
+      {% endfor %}
     </form>
-    {% for field in fields %}
-    {{field}}{{fields[field]}}
-    {% endfor %}
   </body>
 </html>

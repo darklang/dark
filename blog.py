@@ -5,22 +5,44 @@ import werkzeug.serving
 import dark
 import fields
 import pages
+import data
 
 blog = dark.Dark()
-ds = blog.add_datastore(dark.Datastore("Entry"))
+entry = dark.Datastore("Entry")
+ds = blog.add(entry)
 
-ds.add_field(fields.Title("title"))
-ds.add_field(fields.Url("url", derived="title"))
-ds.add_field(fields.Date("publication_date",
-                         default=fields.Date.creation,
-                         automatic=True))
-ds.add_field(fields.Markdown("contents",
+entry.add_field(fields.Title("title"))
+entry.add_field(fields.Url("url"), derived="title")
+entry.add_field(fields.Date("publication_date"))
+entry.add_field(fields.Markdown("contents",
                              placeholder="Type in your dreams"))
 
-c = blog.add(pages.Create(ds, "/new"))
-e = blog.add(pages.Edit(ds, '/<url>/edit'))
-l = blog.add(pages.List(ds, '/'))
-r = blog.add(pages.Read(ds, '/<url>'))
+ef = data.except_fields("url", "publication_date")
+blog.edge_from(ds, ef)
+
+form = pages.form_for()
+blog.edge_from(ef, form)
+
+page = pages.to_page()
+blog.add_output(form, "GET", "/new")
+
+endpoint = pages.endpoint()
+blog.add_input(endpoint, "POST", "/new")
+
+dn = blog.add(data.date_now)
+
+merge = data.merge()
+blog.edge_from(dn, merge)
+blog.edge_from(endpoint, merge)
+
+blog.edge_from(merge, ds)
+
+
+
+# c = blog.add(pages.Create(ds, "/new"))
+# e = blog.add(ds, pages.Edit, '/<url>/edit')
+# l = blog.add(ds, pages.Listm '/')
+# r = blog.add(ds, pages.Read '/<url>')
 
 if __name__ == '__main__':
   werkzeug.serving.run_simple('127.0.0.1',
