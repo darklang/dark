@@ -95,7 +95,7 @@ class Dark(server.Server):
   def generate_name(self):
     import random
     hash = random.getrandbits(128)
-    return ("hash value: %032x" % hash)
+    return ("%032x" % hash)
 
   def add(self, node):
     if not hasattr(node, "name"):
@@ -109,25 +109,44 @@ class Dark(server.Server):
     self.add(n2)
     if n1.name not in self.edges:
       self.edges[n1.name] = []
-    self.edges[n1.name] = n2.name
+    self.edges[n1.name].append(n2.name)
 
     if n2.name not in self.reverse_edges:
       self.reverse_edges[n2.name] = []
-    self.reverse_edges[n2.name] = n1.name
+    self.reverse_edges[n2.name].append(n1.name)
 
-  def request_handler(self, node):
-    def h(request):
-      raise
+  def get_parents(self, node):
+    parents = self.reverse_edges[node.name] or []
+    return [self.nodes[p] for p in parents]
+
+
+  def execute(self, node):
+    print("calling node: %s (%s)" % (node.name, type(node)))
+    parents = self.get_parents(node)
+    args = []
+    for p in parents:
+      if hasattr(p, "exe"):
+        arg = self.execute(p)
+      else:
+        arg = p
+      args.append(arg)
+    res = node.exe(args)
+    print("%s (%s) returns %s" % (node.name, type(node), str(res)))
+    return clone(res)
 
 
   def add_output(self, node, verb, url):
     self.add(node)
+    def h(request):
+      return self.execute(node)
     self.url_map.add(Rule(url,
-                          endpoint=self.request_handler(node),
+                          endpoint=h,
                           methods=[verb]))
 
   def add_input(self, node, verb, url):
     self.add(node)
+    def h(request):
+      return self.execute(node)
     self.url_map.add(Rule(url,
-                          endpoint=self.request_handler(node),
+                          endpoint=h,
                           methods=[verb]))

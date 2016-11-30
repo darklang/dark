@@ -1,8 +1,14 @@
 from werkzeug.routing import Rule
 
+# There are two flows: schema and data
+
+
 class form_for:
-  def exe(self, input):
-    raise
+  def exe(self, inputs):
+    print("inputs" + str(inputs))
+    assert(len(inputs) == 1)
+    fields = inputs[0].schema
+    return "<a form with the schema: " + str(fields)
 
 class to_page:
   def exe(self, input):
