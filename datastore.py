@@ -47,16 +47,12 @@ class Datastore(dark.Node):
     self.db = DB(name) # TODO single DB for multiple DSs
     self.name = name
     self.fields = {}
-    self.derived = {}
 
 
   def is_datasource(self):
     return True
 
-  def add_field(self, f, derived=None):
-    if derived:
-      self.derived[f.name] = derived
-
+  def add_field(self, f):
     self.fields[f.name] = f
     self.db.add_column(f.name)
 
@@ -76,26 +72,15 @@ class Datastore(dark.Node):
   def get_schema(self, *args):
     return {f.name: f for f in self.fields.values()}
 
-  def add_derived(self, value):
-    for k,v in self.derived.items():
-      dk1 = type(self.fields[k]).__name__
-      dk2 = type(self.fields[v]).__name__
-      derivation = fields.derivations[dk2][dk1]
-      value[k] = derivation(value[v])
-      print("Deriving %s for %s from %s" % (value[k], k, value[v]))
-    return value
-
 
   def push_data(self, value):
     self.insert(value)
 
   def insert(self, value):
-    value = self.add_derived(value)
     self.validate(value)
     self.db.insert(value)
 
   def replace(key, value):
-    value = self.add_derived(value)
     self.validate_key(key)
     self.validate(value)
     self.db.update(key, value, self.key)

@@ -72,35 +72,41 @@ class Dark(server.Server):
   def get_parents(self, node):
     if node.is_datasource(): return []
 
-    parents = self.reverse_edges[node.name] or []
+    parents = self.reverse_edges.get(node.name, [])
     return [self.nodes[p] for p in parents]
 
 
   def run_input(self, node, inputs):
+
     "Inputs are a discrete event, whereas outputs are continuous. This"
     "changes how we think about the flow of data"
 
     "Push the data down from the root. If we come to a fork, chase up the fork to get a value."
 
-    print("run_input: " + str(node))
+    print("run_input %s(%s)" % (node, str(inputs)))
     new_input = node.push_data(*inputs)
-    children = self.get_children(node)
+    self.tracker[node] = new_input
 
+    children = self.get_children(node)
     for c in children:
       inputs = [new_input]
       parents = self.get_parents(c)
       for p in parents:
-        print("node is %s" % node)
-        print("inputs are " + str(inputs))
         if p != node:
+          print("parent node: %s" % (node))
           (data, schema) = self.run_output(p, True, False)
+          assert(schema == None)
+          print("return from parent node %s: %s" % (node, data))
           inputs.append(data)
 
-      print("running on %s with %s" % (c, inputs))
       self.run_input(c, inputs)
 
 
   def run_output(self, node, get_data, get_schema):
+    if node in self.tracker:
+      print("found existing val for %s: %s" % (node.name, self.tracker[node]))
+      return (self.tracker[node], None)
+
     # TODO: inputs pull schema the opposite way that data flows
 
     print("run_output: %s" % node.name)
@@ -125,13 +131,17 @@ class Dark(server.Server):
       raise Exception("Stopped getting both at %s" % node)
 
     for p in parents:
+      print("getting parent output")
       (data, schema) = self.run_output(p, get_data, get_schema)
+      print("parent %s has output %s" % (p, data))
       datas.append(data)
       schemas.append(schema)
 
     data_out = None
     if get_data:
+      print("current %s(%s)" % (node, datas))
       data_out = node.get_data(*datas)
+      print("has output %s" % data_out)
 
     schema_out = None
     if get_schema:
@@ -143,12 +153,14 @@ class Dark(server.Server):
 
     print("%s returns %s" % (node.name, str(res)))
 
+    self.tracker[node] = data_out
     return copy.copy(res)
 
 
   def add_output(self, node, verb, url):
     self.add(node)
     def h(request):
+      self.tracker = {}
       (val1, val2) = self.run_output(node, True, True)
       return Response(val1 or val2, mimetype='text/html')
 
@@ -159,6 +171,7 @@ class Dark(server.Server):
   def add_input(self, node, verb, url, redirect_url):
     self.add(node)
     def h(request):
+      self.tracker = {}
       self.run_input(node, [request.values.to_dict()])
       # TODO redirect to the blog post
       return redirect(redirect_url)

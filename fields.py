@@ -44,11 +44,3 @@ class Title(Field):
 class Url(Field):
   def validate(self, value):
     return True
-
-def title_to_slug(title):
-  from slugify import slugify
-  return slugify(title)
-
-derivations = {}
-derivations["Title"] = {}
-derivations["Title"]["Url"] = title_to_slug

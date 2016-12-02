@@ -1,6 +1,6 @@
+import copy
+
 import dark
-
-
 
 class form_for(dark.Node):
 
@@ -30,8 +30,8 @@ class to_page(dark.Node):
 
 
 class endpoint(dark.Node):
-  def get_data(self, *inputs):
-    output = inputs[0]
+  def get_data(self, input):
+    output = copy.deepcopy(input)
     del output["submit"]
     return output
 
