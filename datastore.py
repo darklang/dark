@@ -1,22 +1,34 @@
 import sqlite3
+
 import dark
+import fields
 
 class DB(object):
   def __init__(self, name):
     name = name.lower()
     self.name = name
     self.conn = sqlite3.connect(":memory:", check_same_thread=False)
-    self.create_table(name)
+    self.create_table()
 
   def exe(self, sql, *values):
     print(sql)
     try:
       return self.conn.execute(sql)
-    except Error as e:
-      print("error: " + e)
+    except BaseException as e:
+      print("error: " + str(e))
 
-  def create_table(self, name):
-    self.exe("create table " + name + "(id)")
+  def create_table(self):
+    self.exe("create table " + self.name + "(id INTEGER PRIMARY KEY AUTOINCREMENT) ")
+
+  def add_column(self, field):
+    self.exe("ALTER TABLE %s ADD %s" % (self.name, field))
+
+  def insert(self, value):
+    cols = value.keys()
+    vals = [str(v) for v in value.values()]
+
+    self.exe("insert into %s values (NULL, \"%s\")" % (self.name, "\",\"".join(vals)))
+
 
   def update(self, value, key):
     raise "TODO"
@@ -46,6 +58,7 @@ class Datastore(dark.Node):
       self.derived[f.name] = derived
 
     self.fields[f.name] = f
+    self.db.add_column(f.name)
 
   def validate_key(self, key_name, value):
     self.fields[key_name].validate(value)
@@ -63,15 +76,26 @@ class Datastore(dark.Node):
   def get_schema(self, *args):
     return {f.name: f for f in self.fields.values()}
 
-  def push_data(self, *args):
-    assert(len(args) == 1)
-    self.insert(args[0])
+  def add_derived(self, value):
+    for k,v in self.derived.items():
+      dk1 = type(self.fields[k]).__name__
+      dk2 = type(self.fields[v]).__name__
+      derivation = fields.derivations[dk2][dk1]
+      value[k] = derivation(value[v])
+      print("Deriving %s for %s from %s" % (value[k], k, value[v]))
+    return value
+
+
+  def push_data(self, value):
+    self.insert(value)
 
   def insert(self, value):
+    value = self.add_derived(value)
     self.validate(value)
     self.db.insert(value)
 
   def replace(key, value):
+    value = self.add_derived(value)
     self.validate_key(key)
     self.validate(value)
     self.db.update(key, value, self.key)
@@ -80,4 +104,4 @@ class Datastore(dark.Node):
     return self.db.fetch(num)
 
   def fetch_one(self, key, key_name):
-    self.db.fetch_by_key(key_name, key)
+    return self.db.fetch_by_key(key_name, key)

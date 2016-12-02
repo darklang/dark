@@ -28,7 +28,7 @@ page = pages.to_page()
 blog.add_output(form, "GET", "/new")
 
 endpoint = pages.endpoint()
-blog.add_input(endpoint, "POST", "/new")
+blog.add_input(endpoint, "POST", "/new", '/')
 
 dn = blog.add(data.date_now())
 kvv = data.to_key_val_val("publication_date")

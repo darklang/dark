@@ -1,5 +1,6 @@
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
+from werkzeug.utils import redirect
 
 import server
 import copy
@@ -155,10 +156,12 @@ class Dark(server.Server):
                           endpoint=h,
                           methods=[verb]))
 
-  def add_input(self, node, verb, url):
+  def add_input(self, node, verb, url, redirect_url):
     self.add(node)
     def h(request):
-      return self.run_input(node, [request.values.to_dict()])
+      self.run_input(node, [request.values.to_dict()])
+      # TODO redirect to the blog post
+      return redirect(redirect_url)
     self.url_map.add(Rule(url,
                           endpoint=h,
                           methods=[verb]))
