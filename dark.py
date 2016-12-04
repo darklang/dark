@@ -1,3 +1,4 @@
+#TODO: all inputs should be deecopied
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
 from werkzeug.utils import redirect
@@ -8,6 +9,60 @@ import termcolor
 
 import server
 
+class attrdict(dict):
+  def __init__(self, *args, **kwargs):
+    dict.__init__(self, *args, **kwargs)
+    self.__dict__ = self
+
+class createnode:
+  def __init__(meta, datasource=False, numinputs=None, fields=[], is_schema=False):
+    if isinstance(fields, str): fields = [fields]
+    meta.fields = fields
+    meta.numinputs = numinputs
+    meta.datasource = datasource
+    meta.is_schema = is_schema
+
+  def __call__(meta, func):
+    class ANode(Node):
+      def __init__(self, *args):
+        assert len(args) == len(meta.fields)
+        self.args = args
+
+      def is_datasource(self):
+        return meta.datasource
+
+      def _get(self, *inputs):
+        assert numinputs == len(inputs)
+        d = attrdict()
+        for i, f in enumerate(fields):
+          d[f] = self.args[i]
+        if len(d) > 0:
+
+          return func(d, *inputs)
+        else:
+          return func(*inputs)
+
+      def __getattr__(self, name):
+        if ((meta.is_schema and name == "get_schema")
+            or (not meta.is_schema and name == "get_data")):
+          return self._get
+        return None
+
+    return ANode
+
+class schema(createnode):
+  def __init__(self, **kwargs):
+    kwargs["is_schema"] = True
+    createnode.__init__(self, **kwargs)
+
+class data(createnode):
+  def __init__(self, **kwargs):
+    kwargs["is_schema"] = False
+    createnode.__init__(self, **kwargs)
+
+
+
+
 class Node:
   def is_datasource(self):
     return False
@@ -16,8 +71,8 @@ class Node:
     return self.name
 
   def push_data(self, *inputs):
-    "Unless specified, this is just pulling data from the other direction"
     return self.get_data(*inputs)
+
 
 def pr(ind, str):
   print("%s %s%s" % (ind, ind*". ", termcolor.colored(str, 'red')))
@@ -166,7 +221,8 @@ class Dark(server.Server):
       raise Exception("Stopped getting both at %s" % node)
 
     for p in parents:
-      (data, schema) = self.run_output(p, get_data, get_schema, ind+1)
+      data, schema = self.run_output(p, get_data, get_schema, ind+1)
+      data, schema = copy.deepcopy(data), copy.deepcopy(schema)
       pr(ind, "parent %s has output %s" % (p, (data, schema)))
       datas.append(data)
       schemas.append(schema)
@@ -207,8 +263,6 @@ class Dark(server.Server):
     def h(request):
       self.tracker = {}
       self.run_input(node, [request.values.to_dict()], 0)
-      # TODO redirect to the blog post
-      raise Exception("Refresh to retry")
       return redirect(redirect_url)
     self.url_map.add(Rule(url,
                           endpoint=h,
