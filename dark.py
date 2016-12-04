@@ -60,16 +60,29 @@ class Dark(server.Server):
     hash = random.getrandbits(32)
     return ("%08x" % hash)
 
-  def add(self, node):
-    if not hasattr(node, "name"):
+  def _add(self, node):
+    if not self.has(node):
       name = type(node).__name__ + "-" + self.generate_name()
       node.name = name
     self.nodes[node.name] = node
-    return node
 
-  def edge_from(self, n1, n2):
-    self.add(n1)
-    self.add(n2)
+  def has(self, node):
+    return hasattr(node, "name") and node.name in self.nodes
+
+  def add_edge(self, n1, n2):
+    result = None
+    if not self.has(n1):
+      self._add(n1)
+      result = n1
+
+    if not self.has(n2):
+      self._add(n2)
+      if result:
+        result = (n1, n2)
+      else:
+        result = n2
+
+
     if n1.name not in self.edges:
       self.edges[n1.name] = []
     self.edges[n1.name].append(n2.name)
@@ -77,6 +90,8 @@ class Dark(server.Server):
     if n2.name not in self.reverse_edges:
       self.reverse_edges[n2.name] = []
     self.reverse_edges[n2.name].append(n1.name)
+
+    return result
 
   def print_graph(self):
     print(self.nodes)
@@ -177,7 +192,7 @@ class Dark(server.Server):
 
 
   def add_output(self, node, verb, url):
-    self.add(node)
+    self._add(node)
     def h(request):
       self.tracker = {}
       (val1, val2) = self.run_output(node, True, True, 0)
@@ -188,7 +203,7 @@ class Dark(server.Server):
                           methods=[verb]))
 
   def add_input(self, node, verb, url, redirect_url):
-    self.add(node)
+    self._add(node)
     def h(request):
       self.tracker = {}
       self.run_input(node, [request.values.to_dict()], 0)
@@ -198,3 +213,4 @@ class Dark(server.Server):
     self.url_map.add(Rule(url,
                           endpoint=h,
                           methods=[verb]))
+    return node

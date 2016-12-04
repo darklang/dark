@@ -4,9 +4,9 @@ import dark
 import fields
 
 class DB(object):
-  def __init__(self, name):
-    name = name.lower()
-    self.name = name
+  def __init__(self, tablename):
+    tablename = tablename.lower()
+    self.tablename = tablename
     self.conn = sqlite3.connect(":memory:", check_same_thread=False)
     self.create_table()
 
@@ -18,16 +18,16 @@ class DB(object):
       print("error: " + str(e))
 
   def create_table(self):
-    self.exe("create table " + self.name + "(id INTEGER PRIMARY KEY AUTOINCREMENT) ")
+    self.exe("create table " + self.tablename + "(id INTEGER PRIMARY KEY AUTOINCREMENT) ")
 
   def add_column(self, field):
-    self.exe("ALTER TABLE %s ADD %s" % (self.name, field))
+    self.exe("ALTER TABLE %s ADD %s" % (self.tablename, field))
 
   def insert(self, value):
     cols = value.keys()
     vals = [str(v) for v in value.values()]
 
-    self.exe("insert into %s values (NULL, \"%s\")" % (self.name, "\",\"".join(vals)))
+    self.exe("insert into %s values (NULL, \"%s\")" % (self.tablename, "\",\"".join(vals)))
 
 
   def update(self, value, key):
@@ -35,10 +35,10 @@ class DB(object):
     self.exe()
 
   def fetch(self, num):
-    return self.exe("select * from " + self.name + " limit " + str(num)).fetchall()
+    return self.exe("select * from " + self.tablename + " limit " + str(num)).fetchall()
 
   def fetch_by_key(self, key, keyname):
-    return self.exe("select * from " + self.name + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
+    return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
 
 
 class Datastore(dark.Node):
