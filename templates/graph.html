@@ -42,8 +42,7 @@
        style: [{
          selector: 'node',
          style: {
-           content: 'data(id)',
-           padding: "30px",
+           label: 'data(id)',
            "background-color": "#eee",
            shape: "roundrectangle",
            width: 'label',
@@ -55,7 +54,7 @@
          selector: 'edge',
          style: {
            "curve-style": "bezier",
-           width: 6,
+           width: 4,
            'line-color': 'black',
            'target-arrow-color': 'black',
            'target-arrow-shape': 'triangle-backcurve'
@@ -63,9 +62,8 @@
        }],
        layout: {
          name: "breadthfirst",
-         fit: true,
+         padding: 10,
          directed: true,
-         avoidOverlap: true
        }
      });
     </script>
