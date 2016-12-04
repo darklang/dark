@@ -42,12 +42,13 @@ class DB(object):
 
 
 class Datastore(dark.Node):
-
-  def __init__(self, name):
-    self.db = DB(name) # TODO single DB for multiple DSs
-    self.name = name
+  def __init__(self, tablename):
+    self.db = DB(tablename) # TODO single DB connection for multiple DSs
+    self.tablename = tablename
     self.fields = {}
 
+  def name(self):
+    return "DS-" + self.tablename
 
   def is_datasource(self):
     return True

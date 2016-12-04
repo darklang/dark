@@ -1,4 +1,3 @@
-#TODO: all inputs should be deecopied
 from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
 from werkzeug.utils import redirect
@@ -31,6 +30,9 @@ class createnode:
       def is_datasource(self):
         return meta.datasource
 
+      def name(self):
+        return "%s-%x" % (func.__name__, id(self))
+
       def _get(self, *inputs):
         assert numinputs == len(inputs)
         d = attrdict()
@@ -61,14 +63,15 @@ class data(createnode):
     createnode.__init__(self, **kwargs)
 
 
-
-
 class Node:
   def is_datasource(self):
     return False
 
+  def name(self):
+    raise Exception("Must have a name")
+
   def __str__(self):
-    return self.name
+    return self.name()
 
   def push_data(self, *inputs):
     return self.get_data(*inputs)
@@ -82,6 +85,10 @@ def tojson(l):
     return None
   return json.dumps(l, default=default)
 
+def immut(v):
+  "To avoid errors, all data is immutable. For convenience, some functions may return mutable values, so we need to convert them"
+  print(v)
+  raise Exception("TODO: immutable")
 
 class Dark(server.Server):
 
@@ -110,43 +117,25 @@ class Dark(server.Server):
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
-  def generate_name(self):
-    import random
-    hash = random.getrandbits(32)
-    return ("%08x" % hash)
-
   def _add(self, node):
-    if not self.has(node):
-      name = type(node).__name__ + "-" + self.generate_name()
-      node.name = name
-    self.nodes[node.name] = node
+    self.nodes[node.name()] = node
 
   def has(self, node):
-    return hasattr(node, "name") and node.name in self.nodes
+    return node.name() in self.nodes
 
   def add_edge(self, n1, n2):
-    result = None
-    if not self.has(n1):
-      self._add(n1)
-      result = n1
+    self._add(n1)
+    self._add(n2)
 
-    if not self.has(n2):
-      self._add(n2)
-      if result:
-        result = (n1, n2)
-      else:
-        result = n2
+    if n1.name() not in self.edges:
+      self.edges[n1.name()] = []
+    self.edges[n1.name()].append(n2.name())
 
+    if n2.name() not in self.reverse_edges:
+      self.reverse_edges[n2.name()] = []
+    self.reverse_edges[n2.name()].append(n1.name())
 
-    if n1.name not in self.edges:
-      self.edges[n1.name] = []
-    self.edges[n1.name].append(n2.name)
-
-    if n2.name not in self.reverse_edges:
-      self.reverse_edges[n2.name] = []
-    self.reverse_edges[n2.name].append(n1.name)
-
-    return result
+    return (n1, n2)
 
   def print_graph(self):
     print(self.nodes)
@@ -156,13 +145,13 @@ class Dark(server.Server):
   def get_children(self, node):
     if node.is_datasource(): return []
 
-    children = self.edges[node.name] or []
+    children = self.edges[node.name()] or []
     return [self.nodes[c] for c in children]
 
   def get_parents(self, node):
     if node.is_datasource(): return []
 
-    parents = self.reverse_edges.get(node.name, [])
+    parents = self.reverse_edges.get(node.name(), [])
     return [self.nodes[p] for p in parents]
 
 
@@ -174,7 +163,7 @@ class Dark(server.Server):
     "Push the data down from the root. If we come to a fork, chase up the fork to get a value."
 
     pr(ind, "%s %s" % (node, str(inputs)))
-    new_input = node.push_data(*inputs)
+    new_input = immut(node.push_data(*inputs))
     self.tracker[node] = new_input
 
     children = self.get_children(node)
@@ -184,7 +173,7 @@ class Dark(server.Server):
       for p in parents:
         if p != node:
           pr(ind, "parent: %s" % (p))
-          (data, schema) = self.run_output(p, True, False, ind+1)
+          (data, schema) = immut(self.run_output(p, True, False, ind+1))
           assert(schema == None)
           pr(ind, "return from parent node %s: %s" % (p, data))
           inputs.append(data)
@@ -194,12 +183,10 @@ class Dark(server.Server):
 
   def run_output(self, node, get_data, get_schema, ind):
     if node in self.tracker:
-      pr(ind, "found existing val for %s: %s" % (node.name, self.tracker[node]))
+      pr(ind, "found existing val for %s: %s" % (node, self.tracker[node]))
       return (self.tracker[node], None)
 
-    # TODO: inputs pull schema the opposite way that data flows
-
-    pr(ind, "run_output: %s" % (node.name))
+    pr(ind, "run_output: %s" % (node))
 
     parents = self.get_parents(node)
 
@@ -221,8 +208,10 @@ class Dark(server.Server):
       raise Exception("Stopped getting both at %s" % node)
 
     for p in parents:
-      data, schema = self.run_output(p, get_data, get_schema, ind+1)
-      data, schema = copy.deepcopy(data), copy.deepcopy(schema)
+      data, schema = immut(self.run_output(p,
+                                           get_data,
+                                           get_schema,
+                                           ind+1))
       pr(ind, "parent %s has output %s" % (p, (data, schema)))
       datas.append(data)
       schemas.append(schema)
@@ -230,28 +219,27 @@ class Dark(server.Server):
     data_out = None
     if get_data:
       pr(ind, "current %s(%s)" % (node, datas))
-      data_out = node.get_data(*datas)
+      data_out = immut(node.get_data(*datas))
       pr(ind, "has output %s" % (data_out))
 
     schema_out = None
     if get_schema:
-      schema_out = node.get_schema(*schemas)
+      schema_out = immut(node.get_schema(*schemas))
 
     res = (data_out, schema_out)
     if res == (None, None):
       raise Exception("Both values can't be none for %s" % str(node))
 
-    pr(ind, "%s returns %s" % (node.name, str(res)))
+    pr(ind, "%s returns %s" % (node, str(res)))
 
     self.tracker[node] = data_out
-    return copy.copy(res)
-
+    return res
 
   def add_output(self, node, verb, url):
     self._add(node)
     def h(request):
       self.tracker = {}
-      (val1, val2) = self.run_output(node, True, True, 0)
+      (val1, val2) = immut(self.run_output(node, True, True, 0))
       return Response(val1 or val2, mimetype='text/html')
 
     self.url_map.add(Rule(url,
@@ -262,7 +250,7 @@ class Dark(server.Server):
     self._add(node)
     def h(request):
       self.tracker = {}
-      self.run_input(node, [request.values.to_dict()], 0)
+      self.run_input(node, [immut(request.values.to_dict())], 0)
       return redirect(redirect_url)
     self.url_map.add(Rule(url,
                           endpoint=h,
