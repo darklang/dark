@@ -1,3 +1,4 @@
 werkzeug
 jinja2
 python-slugify
+termcolor

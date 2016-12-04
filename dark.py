@@ -2,8 +2,11 @@ from werkzeug.wrappers import Request, Response
 from werkzeug.routing import Map, Rule
 from werkzeug.utils import redirect
 
-import server
+import json
 import copy
+import termcolor
+
+import server
 
 class Node:
   def is_datasource(self):
@@ -16,6 +19,13 @@ class Node:
     "Unless specified, this is just pulling data from the other direction"
     return self.get_data(*inputs)
 
+def pr(ind, str):
+  print("%s %s%s" % (ind, ind*". ", termcolor.colored(str, 'red')))
+
+def tojson(l):
+  def default(val):
+    return None
+  return json.dumps(l, default=default)
 
 
 class Dark(server.Server):
@@ -27,6 +37,16 @@ class Dark(server.Server):
     self.edges = {}
     self.reverse_edges = {}
     #self.add_standard_routes()
+    self.add_admin_routes()
+
+  def add_admin_routes(self):
+    def showgraph(request):
+      return self.render_template('graph.html',
+                                  nodes=tojson(list(self.nodes.keys())),
+                                  edges=tojson(self.edges),
+                                  reverse_edges=self.reverse_edges)
+
+    self.url_map.add(Rule('/admin/graph', endpoint=showgraph))
 
   def add_standard_routes(self):
     # TODO: move to a component
@@ -76,14 +96,14 @@ class Dark(server.Server):
     return [self.nodes[p] for p in parents]
 
 
-  def run_input(self, node, inputs):
+  def run_input(self, node, inputs, ind):
 
     "Inputs are a discrete event, whereas outputs are continuous. This"
     "changes how we think about the flow of data"
 
     "Push the data down from the root. If we come to a fork, chase up the fork to get a value."
 
-    print("run_input %s(%s)" % (node, str(inputs)))
+    pr(ind, "%s %s" % (node, str(inputs)))
     new_input = node.push_data(*inputs)
     self.tracker[node] = new_input
 
@@ -93,23 +113,23 @@ class Dark(server.Server):
       parents = self.get_parents(c)
       for p in parents:
         if p != node:
-          print("parent node: %s" % (node))
-          (data, schema) = self.run_output(p, True, False)
+          pr(ind, "parent: %s" % (p))
+          (data, schema) = self.run_output(p, True, False, ind+1)
           assert(schema == None)
-          print("return from parent node %s: %s" % (node, data))
+          pr(ind, "return from parent node %s: %s" % (p, data))
           inputs.append(data)
 
-      self.run_input(c, inputs)
+      self.run_input(c, inputs, ind+1)
 
 
-  def run_output(self, node, get_data, get_schema):
+  def run_output(self, node, get_data, get_schema, ind):
     if node in self.tracker:
-      print("found existing val for %s: %s" % (node.name, self.tracker[node]))
+      pr(ind, "found existing val for %s: %s" % (node.name, self.tracker[node]))
       return (self.tracker[node], None)
 
     # TODO: inputs pull schema the opposite way that data flows
 
-    print("run_output: %s" % node.name)
+    pr(ind, "run_output: %s" % (node.name))
 
     parents = self.get_parents(node)
 
@@ -122,26 +142,25 @@ class Dark(server.Server):
     # error checking
 
     if get_data_orig and not get_data:
-      print("No longer getting data for %s", node)
+      pr(ind, "No longer getting data for %s" % (node))
 
     if get_schema_orig and not get_schema:
-      print("No longer getting schema for %s", node)
+      pr(ind, "No longer getting schema for %s" % (node))
 
     if not get_data and not get_schema:
       raise Exception("Stopped getting both at %s" % node)
 
     for p in parents:
-      print("getting parent output")
-      (data, schema) = self.run_output(p, get_data, get_schema)
-      print("parent %s has output %s" % (p, data))
+      (data, schema) = self.run_output(p, get_data, get_schema, ind+1)
+      pr(ind, "parent %s has output %s" % (p, (data, schema)))
       datas.append(data)
       schemas.append(schema)
 
     data_out = None
     if get_data:
-      print("current %s(%s)" % (node, datas))
+      pr(ind, "current %s(%s)" % (node, datas))
       data_out = node.get_data(*datas)
-      print("has output %s" % data_out)
+      pr(ind, "has output %s" % (data_out))
 
     schema_out = None
     if get_schema:
@@ -151,7 +170,7 @@ class Dark(server.Server):
     if res == (None, None):
       raise Exception("Both values can't be none for %s" % str(node))
 
-    print("%s returns %s" % (node.name, str(res)))
+    pr(ind, "%s returns %s" % (node.name, str(res)))
 
     self.tracker[node] = data_out
     return copy.copy(res)
@@ -161,7 +180,7 @@ class Dark(server.Server):
     self.add(node)
     def h(request):
       self.tracker = {}
-      (val1, val2) = self.run_output(node, True, True)
+      (val1, val2) = self.run_output(node, True, True, 0)
       return Response(val1 or val2, mimetype='text/html')
 
     self.url_map.add(Rule(url,
@@ -172,8 +191,9 @@ class Dark(server.Server):
     self.add(node)
     def h(request):
       self.tracker = {}
-      self.run_input(node, [request.values.to_dict()])
+      self.run_input(node, [request.values.to_dict()], 0)
       # TODO redirect to the blog post
+      raise Exception("Refresh to retry")
       return redirect(redirect_url)
     self.url_map.add(Rule(url,
                           endpoint=h,
