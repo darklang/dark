@@ -3,3 +3,4 @@ jinja2
 python-slugify
 termcolor
 watchdog
+pyrsistent

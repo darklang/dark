@@ -66,11 +66,10 @@ class Datastore(dark.Node):
     if len(value.items()) != len(self.fields):
       raise "either missing field declaration or missing value"
 
-  def get_data(self, *args):
-    assert(len(args) == 0)
+  def get_data(self):
     return self.fetch(10000)
 
-  def get_schema(self, *args):
+  def get_schema(self):
     return {f.name: f for f in self.fields.values()}
 
 

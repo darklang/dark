@@ -1,6 +1,7 @@
 import datetime
 import copy
 from slugify import slugify
+import pyrsistent as pyr
 
 from dark import schema, data
 
@@ -26,14 +27,12 @@ def to_page(input):
 
 @data(numinputs=1)
 def endpoint(input):
-  del input["submit"]
-  return input
+  return input.discard("submit")
 
 @schema(fields="fields", numinputs=1)
 def except_fields(d, input):
   for f in d.fields:
-    if f in input:
-      del input[f]
+    input = input.discard(f)
   return input
 
 @data(datasource=True, numinputs=0)
@@ -41,10 +40,7 @@ def date_now(): return datetime.datetime.now().time()
 
 @data()
 def merge(*inputs):
-  x = {}
-  for dict_arg in inputs:
-    x.update(dict_arg)
-  return x
+  return pyr.m().update(*inputs)
 
 @data(fields="fieldname")
 def get_field(m, input): return input[m.fieldname]

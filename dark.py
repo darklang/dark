@@ -5,6 +5,7 @@ from werkzeug.utils import redirect
 import json
 import copy
 import termcolor
+import pyrsistent
 
 import server
 
@@ -34,9 +35,9 @@ class createnode:
         return "%s-%x" % (func.__name__, id(self))
 
       def _get(self, *inputs):
-        assert numinputs == len(inputs)
+        assert meta.numinputs == None or meta.numinputs == len(inputs)
         d = attrdict()
-        for i, f in enumerate(fields):
+        for i, f in enumerate(meta.fields):
           d[f] = self.args[i]
         if len(d) > 0:
 
@@ -48,7 +49,7 @@ class createnode:
         if ((meta.is_schema and name == "get_schema")
             or (not meta.is_schema and name == "get_data")):
           return self._get
-        return None
+        raise AttributeError()
 
     return ANode
 
@@ -86,9 +87,11 @@ def tojson(l):
   return json.dumps(l, default=default)
 
 def immut(v):
-  "To avoid errors, all data is immutable. For convenience, some functions may return mutable values, so we need to convert them"
-  print(v)
-  raise Exception("TODO: immutable")
+  # To avoid errors, all data is immutable. For convenience, some
+  # functions may return mutable values, so we need to convert them
+  if v == None:
+    return None
+  return pyrsistent.freeze(v)
 
 class Dark(server.Server):
 
