@@ -5,6 +5,7 @@ from werkzeug.wrappers import Request, Response
 from werkzeug.exceptions import HTTPException, NotFound
 from werkzeug.wsgi import SharedDataMiddleware
 from werkzeug.utils import redirect
+import werkzeug.serving
 from jinja2 import Environment, FileSystemLoader
 
 class Server(object):
@@ -16,6 +17,13 @@ class Server(object):
     self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
       '/static':  os.path.join(os.path.dirname(__file__), 'static')
     })
+
+  def serve(self):
+    werkzeug.serving.run_simple('127.0.0.1',
+                                3000,
+                                self,
+                                use_debugger=True,
+                                use_reloader=True)
 
 
   def render_template(self, template_name, **context):

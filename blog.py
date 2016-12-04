@@ -1,7 +1,5 @@
 import os
 
-import werkzeug.serving
-
 import dark
 import fields
 import pages
@@ -9,6 +7,8 @@ import data
 import datastore
 
 blog = dark.Dark()
+
+
 entry = datastore.Datastore("Entry")
 ds = blog.add(entry)
 
@@ -48,16 +48,4 @@ blog.edge_from(rewrap, merge)
 
 blog.edge_from(merge, ds)
 
-
-
-# c = blog.add(pages.Create(ds, "/new"))
-# e = blog.add(ds, pages.Edit, '/<url>/edit')
-# l = blog.add(ds, pages.Listm '/')
-# r = blog.add(ds, pages.Read '/<url>')
-
-if __name__ == '__main__':
-  werkzeug.serving.run_simple('127.0.0.1',
-                              3000,
-                              blog,
-                              use_debugger=True,
-                              use_reloader=True)
+blog.serve()
