@@ -14,12 +14,30 @@ class attrdict(dict):
     dict.__init__(self, *args, **kwargs)
     self.__dict__ = self
 
+
+class LazyValue(object):
+  def __init__(self, node, *args, **kwargs):
+    self.node = node
+    self.args = args
+    self.kwargs = kwargs
+
+  def deref(self):
+    args = [arg.deref() for arg in self.args]
+    kwargs = {k: v for (k,v) in self.kwargs}
+    return self.node.get(*args, **kwargs)
+
+
 class node:
-  def __init__(meta, datasource=False, numinputs=None, fields=[]):
-    if isinstance(fields, str): fields = [fields]
+  def __init__(meta,
+               datasource=False,
+               datasink=False,
+               numinputs=None,
+               fields=[]):
+    assert isinstance(fields, list)
     meta.fields = fields
     meta.numinputs = numinputs
     meta.datasource = datasource
+    meta.datasink = datasink
 
   def __call__(meta, func):
     class ANode(Node):
@@ -30,10 +48,14 @@ class node:
       def is_datasource(self):
         return meta.datasource
 
+      def is_datasink(self):
+        return meta.datasink
+
       def name(self):
         return "%s-%x" % (func.__name__, id(self))
 
       def get(self, *inputs):
+        # TODO: get numinputs from looking at the args of f
         assert meta.numinputs == None or meta.numinputs == len(inputs)
         d = attrdict()
         for i, f in enumerate(meta.fields):
@@ -50,18 +72,12 @@ class Node:
   def is_datasource(self):
     return False
 
-  def name(self):
-    raise Exception("Must have a name")
+  def is_datasink(self):
+    return False
 
   def __str__(self):
     return self.name()
 
-  def push(self, *inputs):
-    return self.get(*inputs)
-
-
-def pr(ind, str):
-  print("%s %s%s" % (ind, ind*". ", termcolor.colored(str, 'red')))
 
 def tojson(l):
   def default(val):
@@ -128,7 +144,7 @@ class Dark(server.Server):
     print(self.reverse_edges)
 
   def get_children(self, node):
-    if node.is_datasource(): return []
+    if node.is_datasink(): return []
 
     children = self.edges[node.name()] or []
     return [self.nodes[c] for c in children]
@@ -140,7 +156,7 @@ class Dark(server.Server):
     return [self.nodes[p] for p in parents]
 
 
-  def run_input(self, node, inputs, ind):
+  def input_value(self, node, inputs, ind):
 
     # Inputs are a discrete event, whereas outputs are continuous. This
     # changes how we think about the flow of data.
@@ -151,57 +167,56 @@ class Dark(server.Server):
     # But here's what we actually did: push the data down from the root.
     # If we come to a fork, chase up the fork to get a value.
 
-    pr(ind, "%s %s" % (node, inputs))
-    computed_value = immut(node.push(*inputs))
-    if node.is_datasource(): return
+    # TODO: The bug here is that it goes down both paths. It caches to
+    # stop the input being processed twice, but we still process the
+    # output twice. It's pushed down both paths until it hits the DB,
+    # and then it enters it twice. Problem: its a shit algorithm.
 
-    self.tracker[node] = computed_value
+    # Better algorithm: when we create the graph we create lazy values
+    # representing their inputs. Then when we get an input we fire the
+    # end state. I imagine this is how spreadsheets work.
+
+    thisval = LazyVal(node, *inputs)
+    self.tracker[node] = val
+    if node.is_datasource(): return
 
     children = self.get_children(node)
     for c in children:
-      inputs = []
-      parents = self.get_parents(c)
-      for p in parents:
-        if p == node:
-          inputs.append(computed_value)
-        else:
-          pr(ind, "parent: %s" % (p))
-          val = immut(self.run_output(p, ind+1))
-          pr(ind, "return from parent node %s: %s" % (p, val))
-          inputs.append(val)
+      if c.is_datasink():
+        inputs = [val]
+      else:
+        inputs = [thisval if p == node else self.output_value(p)
+                  for p in self.get_parents(c)]
 
-      if c.is_datasource():
-        assert parents == []
-        inputs = [computed_value]
-
-      self.run_input(c, inputs, ind+1)
+      self.input_value(c, inputs)
 
 
-  # Like _run_output, but with logging and assertions and caching
-  def run_output(self, node, ind):
+  # Like _output_value, but with logging and assertions and caching
+  def output_value(self, node):
     if node in self.tracker:
-      pr(ind, "found existing val for %s: %s" % (node,
-                                                 self.tracker[node]))
       return self.tracker[node]
 
-    pr(ind, "run_output: %s" % (node))
     result = self._run_output(node, ind)
     assert result != None
-    pr(ind, "%s returns %s" % (node, str(result)))
 
     self.tracker[node] = result
     return result
 
-  def _run_output(self, node, ind):
-    args = [immut(self.run_output(p, ind+1))
+  def _output_value(self, node):
+    args = [self.output_value(p)
             for p in self.get_parents(node)]
-    return immut(node.get(*args))
+    return LazyVal(node, *args)
+
+  def build_outval(self, node):
+
+
 
   def add_output(self, node, verb, url):
     self._add(node)
+    self.output_vals[node] = self.build_outval(node)
+
     def h(request):
-      self.tracker = {}
-      val = pyrsistent.thaw(self.run_output(node, 0))
+      val = self.outvals[node].deref()
       print(val)
       return Response(val, mimetype='text/html')
 
@@ -211,9 +226,11 @@ class Dark(server.Server):
 
   def add_input(self, node, verb, url, redirect_url):
     self._add(node)
+    self.invals[node] += self.build_inval(node)
     def h(request):
-      self.tracker = {}
-      self.run_input(node, [immut(request.values.to_dict())], 0)
+      val = request.values.to_dict()
+      for leaf in self.invals[node]:
+        leaf.deref(node, val)
       return redirect(redirect_url)
     self.url_map.add(Rule(url,
                           endpoint=h,

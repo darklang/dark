@@ -62,3 +62,6 @@ what happens when you want inputs of two different types?
 - to_table wants the schema as the header
   - maybe data should be transported with its schema?
   - two entry "ports" to a fn, being 2 params of different types
+
+
+

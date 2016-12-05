@@ -5,7 +5,7 @@ import pyrsistent as pyr
 
 from dark import node
 
-@node(fields="action")
+@node(fields=["action"])
 def form_for(m, schema):
   output = ""
   for tag in schema:
@@ -17,7 +17,7 @@ def form_for(m, schema):
           + "</fieldset>"
           + "</form>")
 
-@node(numinputs=1)
+@node(numinputs=1, datasink=True)
 def to_page(input):
   # TODO: this feels wrong. The schema is the markup? hmmm
   # What if we need to combine schema and data to generate the page?
@@ -25,11 +25,11 @@ def to_page(input):
   # auto-converted to html, or a page in an ios app.
   return "<html><head></head><body>" + input + "</body></html>"
 
-@node(numinputs=1)
+@node(numinputs=1, datasource=True)
 def endpoint(input):
   return input.discard("submit")
 
-@node(fields="fields")
+@node(fields=["fields"])
 def except_fields(m, fields):
   return [f for f in fields if f.name not in m.fields]
 
@@ -40,10 +40,10 @@ def date_now(): return datetime.datetime.now()
 def merge(*vals):
   return pyr.m().update(*vals)
 
-@node(fields="fieldname")
+@node(fields=["fieldname"])
 def get_field(m, obj): return obj[m.fieldname]
 
-@node(fields="key")
+@node(fields=["key"])
 def to_key_val_val(m, val):
   return { m.key: val }
 

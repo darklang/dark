@@ -43,4 +43,6 @@ _, page = E(table, fns.to_page())
 blog.add_output(page, "GET", "/")
 
 
+blog.print_graph()
+
 blog.serve()

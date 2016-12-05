@@ -54,6 +54,9 @@ class Datastore(dark.Node):
   def is_datasource(self):
     return True
 
+  def is_datasink(self):
+    return True
+
   def add_field(self, f):
     self.fields_by_name[f.name] = f
     self.fields.append(f)
