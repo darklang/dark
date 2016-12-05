@@ -9,6 +9,7 @@ class DB(object):
     self.tablename = tablename
     self.conn = sqlite3.connect(":memory:", check_same_thread=False)
     self.create_table()
+    self.fields = []
 
   def exe(self, sql, *values):
     print(sql)
@@ -18,16 +19,20 @@ class DB(object):
       print("error: " + str(e))
 
   def create_table(self):
-    self.exe("create table " + self.tablename + "(id INTEGER PRIMARY KEY AUTOINCREMENT) ")
+    self.exe("create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT) " %
+             (self.tablename))
 
   def add_column(self, field):
     self.exe("ALTER TABLE %s ADD %s" % (self.tablename, field))
+    self.fields.append(field)
 
   def insert(self, value):
-    cols = value.keys()
-    vals = [str(v) for v in value.values()]
+    cols = self.fields
+    vals = [str(value[f]) for f in self.fields if f in value]
 
-    self.exe("insert into %s values (NULL, \"%s\")" % (self.tablename, "\",\"".join(vals)))
+    self.exe("insert into %s values (NULL, \"%s\")" % (
+      self.tablename,
+      "\",\"".join(vals)))
 
 
   def update(self, value, key):
@@ -35,7 +40,10 @@ class DB(object):
     self.exe()
 
   def fetch(self, num):
-    return self.exe("select * from " + self.tablename + " limit " + str(num)).fetchall()
+    return self.exe("select %s from %s limit %d" % (
+      ",".join(self.fields),
+      self.tablename,
+      num)).fetchall()
 
   def fetch_by_key(self, key, keyname):
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()

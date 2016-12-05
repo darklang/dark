@@ -60,7 +60,7 @@ def to_table(schema, data):
 
   for row in data:
     body += "<tr>"
-    for cell in row[1:]:
+    for cell in row:
       body += "<td>%s</td>" % cell
     body += "</tr>"
 
