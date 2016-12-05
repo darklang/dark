@@ -41,7 +41,7 @@ class DB(object):
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
 
 
-class Datastore(dark.Node):
+class Datastore():
   def __init__(self, tablename):
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
     self.tablename = tablename
@@ -50,12 +50,6 @@ class Datastore(dark.Node):
 
   def name(self):
     return "DS-" + self.tablename
-
-  def is_datasource(self):
-    return True
-
-  def is_datasink(self):
-    return True
 
   def add_field(self, f):
     self.fields_by_name[f.name] = f
@@ -92,10 +86,15 @@ class Datastore(dark.Node):
   def fetch_one(self, key, key_name):
     return self.db.fetch_by_key(key_name, key)
 
-@dark.node()
-def fetch(ds):
-  return ds.db.fetch(1000)
+# TODO: make the graph display as if it's a node, by adding an Entry node and then schema, etc, nodes
+@dark.node(datasource=True, fields=["ds"])
+def fetch(m):
+  return m.ds.fetch()
 
-@dark.node()
-def schema(ds):
-  return ds.fields
+@dark.node(datasource=True, fields=["ds"])
+def schema(m):
+  return m.ds.fields
+
+@dark.node(datasink=True, fields=["ds"])
+def insert(m, value):
+  return m.ds.insert(value)

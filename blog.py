@@ -17,11 +17,10 @@ def E(*args):
   return blog.add_edge(*args)
 
 # new page
-_, sc = E(entry, datastore.schema())
-_, ef = E(sc, fns.except_fields(["url", "publication_date"]))
+sc, ef = E(datastore.schema(entry), fns.except_fields(["url", "publication_date"]))
 _, form = E(ef, fns.form_for('/new'))
-_, page = E(form, fns.to_page())
-blog.add_output(page, "GET", "/new")
+_, newpage = E(form, fns.to_page())
+blog.add_output(newpage, "GET", "/new")
 
 # new form upload
 endpoint = blog.add_input(fns.endpoint(), "POST", "/new", '/')
@@ -32,17 +31,19 @@ _, rewrap = E(to_slug, fns.to_key_val_val("url"))
 _, merge = E(endpoint, fns.merge())
 E(kvv, merge)
 E(rewrap, merge)
-E(merge, entry)
+E(merge, datastore.insert(entry))
 
 
 # list all blogs
 _, table = E(sc, fns.to_table())
-_, fetch = E(entry, datastore.fetch())
-_, _= E(fetch, table)
-_, page = E(table, fns.to_page())
-blog.add_output(page, "GET", "/")
+fetch, _= E(datastore.fetch(entry), table)
+_, listpage = E(table, fns.to_page())
+blog.add_output(listpage, "GET", "/")
 
 
-blog.print_graph()
+print("homepage: %s" % blog.run_output(listpage))
+print("new page: %s" % blog.run_output(newpage))
+blog.run_input(endpoint, {"content": "asdasdasd", "title": "title"})
+print("homepage: %s" % blog.run_output(listpage))
 
 blog.serve()

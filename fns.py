@@ -17,7 +17,7 @@ def form_for(m, schema):
           + "</fieldset>"
           + "</form>")
 
-@node(numinputs=1, datasink=True)
+@node(datasink=True)
 def to_page(input):
   # TODO: this feels wrong. The schema is the markup? hmmm
   # What if we need to combine schema and data to generate the page?
@@ -25,13 +25,13 @@ def to_page(input):
   # auto-converted to html, or a page in an ios app.
   return "<html><head></head><body>" + input + "</body></html>"
 
-@node(numinputs=1, datasource=True)
+@node(datasource=True)
 def endpoint(input):
   return input.discard("submit")
 
-@node(fields=["fields"])
+@node(fields=["exclude"])
 def except_fields(m, fields):
-  return [f for f in fields if f.name not in m.fields]
+  return [f for f in fields if f.name not in m.exclude]
 
 @node(datasource=True)
 def date_now(): return datetime.datetime.now()
