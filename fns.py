@@ -30,30 +30,44 @@ def endpoint(input):
   return input.discard("submit")
 
 @node(fields="fields", numinputs=1)
-def except_fields(m, input):
+def except_fields(m, obj):
   for f in m.fields:
-    input = input.discard(f)
-  return input
+    obj = obj.discard(f)
+  return obj
 
 @node(datasource=True, numinputs=0)
 def date_now(): return datetime.datetime.now().time()
 
 @node()
-def merge(*inputs):
-  return pyr.m().update(*inputs)
+def merge(*vals):
+  return pyr.m().update(*vals)
 
 @node(fields="fieldname")
-def get_field(m, input): return input[m.fieldname]
+def get_field(m, obj): return obj[m.fieldname]
 
 @node(fields="key")
-def to_key_val_val(m, input):
-  return { m.key: input }
+def to_key_val_val(m, val):
+  return { m.key: val }
 
 @node()
-def to_slug(input):
-  return slugify(input)
+def to_slug(str):
+  return slugify(str)
 
 @node()
-def to_table(inputs):
-  print(inputs)
-  raise
+def to_table(schema, data):
+  head = ""
+  body = ""
+  for field in schema.values():
+    head += "<th>%s</th>" % field.name
+
+  for row in data:
+    body += "<tr>"
+    for cell in row:
+      body += "<td>%s</td>" % cell
+    body += "</tr>"
+
+  return ("<table>"
+          + "<thead>" + head + "</thead>"
+          + "<tbody>" + body + "</tbody>")
+
+

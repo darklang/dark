@@ -36,8 +36,9 @@ E(merge, entry)
 
 
 # list all blogs
+_, table = E(sc, fns.to_table())
 _, fetch = E(entry, datastore.fetch())
-_, table = E(fetch, fns.to_table())
+_, _= E(fetch, table)
 _, page = E(table, fns.to_page())
 blog.add_output(page, "GET", "/")
 
