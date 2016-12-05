@@ -66,14 +66,10 @@ class Datastore(dark.Node):
     if len(value.items()) != len(self.fields):
       raise "either missing field declaration or missing value"
 
-  def get_data(self):
-    return self.fetch(10000)
+  def get(self):
+    return self
 
-  def get_schema(self):
-    return {f.name: f for f in self.fields.values()}
-
-
-  def push_data(self, value):
+  def push(self, value):
     self.insert(value)
 
   def insert(self, value):
@@ -90,3 +86,11 @@ class Datastore(dark.Node):
 
   def fetch_one(self, key, key_name):
     return self.db.fetch_by_key(key_name, key)
+
+@dark.node()
+def fetch(ds):
+  return ds.db.fetch(1000)
+
+@dark.node()
+def schema(ds):
+  return {f.name: f for f in ds.fields.values()}

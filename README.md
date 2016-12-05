@@ -51,3 +51,14 @@ use cases:
 - build a sales pipeline, semi-automated emails, calendering, check support tickets, build org structure
 - build bug tracking site which tells customers when their tickets are done, integrated with slack and github
 - build accounting reconciliation pipeline, with human in the loop
+
+
+
+schema is just another port 
+ah, we need multiple "output" ports from DSes!
+
+
+what happens when you want inputs of two different types?
+- to_table wants the schema as the header
+  - maybe data should be transported with its schema?
+  - two entry "ports" to a fn, being 2 params of different types

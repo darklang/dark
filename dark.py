@@ -14,13 +14,12 @@ class attrdict(dict):
     dict.__init__(self, *args, **kwargs)
     self.__dict__ = self
 
-class createnode:
-  def __init__(meta, datasource=False, numinputs=None, fields=[], is_schema=False):
+class node:
+  def __init__(meta, datasource=False, numinputs=None, fields=[]):
     if isinstance(fields, str): fields = [fields]
     meta.fields = fields
     meta.numinputs = numinputs
     meta.datasource = datasource
-    meta.is_schema = is_schema
 
   def __call__(meta, func):
     class ANode(Node):
@@ -34,7 +33,7 @@ class createnode:
       def name(self):
         return "%s-%x" % (func.__name__, id(self))
 
-      def _get(self, *inputs):
+      def get(self, *inputs):
         assert meta.numinputs == None or meta.numinputs == len(inputs)
         d = attrdict()
         for i, f in enumerate(meta.fields):
@@ -45,24 +44,7 @@ class createnode:
         else:
           return func(*inputs)
 
-      def __getattr__(self, name):
-        if ((meta.is_schema and name == "get_schema")
-            or (not meta.is_schema and name == "get_data")):
-          return self._get
-        raise AttributeError()
-
     return ANode
-
-class schema(createnode):
-  def __init__(self, **kwargs):
-    kwargs["is_schema"] = True
-    createnode.__init__(self, **kwargs)
-
-class data(createnode):
-  def __init__(self, **kwargs):
-    kwargs["is_schema"] = False
-    createnode.__init__(self, **kwargs)
-
 
 class Node:
   def is_datasource(self):
@@ -74,8 +56,8 @@ class Node:
   def __str__(self):
     return self.name()
 
-  def push_data(self, *inputs):
-    return self.get_data(*inputs)
+  def push(self, *inputs):
+    return self.get(*inputs)
 
 
 def pr(ind, str):
@@ -159,91 +141,60 @@ class Dark(server.Server):
 
 
   def run_input(self, node, inputs, ind):
+    # Inputs are a discrete event, whereas outputs are continuous. This
+    # changes how we think about the flow of data.
 
-    "Inputs are a discrete event, whereas outputs are continuous. This"
-    "changes how we think about the flow of data"
+    # We can have lazy values that "block" until a value is put in them.
+    # Then they all fire.
 
-    "Push the data down from the root. If we come to a fork, chase up the fork to get a value."
+    # But here's what we actually did: push the data down from the root.
+    # If we come to a fork, chase up the fork to get a value.
 
-    pr(ind, "%s %s" % (node, str(inputs)))
-    new_input = immut(node.push_data(*inputs))
-    self.tracker[node] = new_input
+    pr(ind, "%s %s" % (node, inputs))
+    computed_value = immut(node.push(*inputs))
+    self.tracker[node] = computed_value
 
     children = self.get_children(node)
     for c in children:
-      inputs = [new_input]
+      inputs = [computed_value]
       parents = self.get_parents(c)
       for p in parents:
         if p != node:
           pr(ind, "parent: %s" % (p))
-          (data, schema) = immut(self.run_output(p, True, False, ind+1))
-          assert(schema == None)
-          pr(ind, "return from parent node %s: %s" % (p, data))
-          inputs.append(data)
+          val = immut(self.run_output(p, ind+1))
+          pr(ind, "return from parent node %s: %s" % (p, val))
+          inputs.append(val)
 
       self.run_input(c, inputs, ind+1)
 
 
-  def run_output(self, node, get_data, get_schema, ind):
+  # Like _run_output, but with logging and assertions and caching
+  def run_output(self, node, ind):
     if node in self.tracker:
-      pr(ind, "found existing val for %s: %s" % (node, self.tracker[node]))
-      return (self.tracker[node], None)
+      pr(ind, "found existing val for %s: %s" % (node,
+                                                 self.tracker[node]))
+      return self.tracker[node]
 
     pr(ind, "run_output: %s" % (node))
+    result = self._run_output(node, ind)
+    assert result != None
+    pr(ind, "%s returns %s" % (node, str(result)))
 
-    parents = self.get_parents(node)
+    self.tracker[node] = result
+    return result
 
-    datas = []
-    schemas = []
-    get_data_orig, get_schema_orig = get_data, get_schema
-    get_data = get_data and hasattr(node, "get_data")
-    get_schema = get_schema and hasattr(node, "get_schema")
-
-    # error checking
-
-    if get_data_orig and not get_data:
-      pr(ind, "No longer getting data for %s" % (node))
-
-    if get_schema_orig and not get_schema:
-      pr(ind, "No longer getting schema for %s" % (node))
-
-    if not get_data and not get_schema:
-      raise Exception("Stopped getting both at %s" % node)
-
-    for p in parents:
-      data, schema = immut(self.run_output(p,
-                                           get_data,
-                                           get_schema,
-                                           ind+1))
-      pr(ind, "parent %s has output %s" % (p, (data, schema)))
-      datas.append(data)
-      schemas.append(schema)
-
-    data_out = None
-    if get_data:
-      pr(ind, "current %s(%s)" % (node, datas))
-      data_out = immut(node.get_data(*datas))
-      pr(ind, "has output %s" % (data_out))
-
-    schema_out = None
-    if get_schema:
-      schema_out = immut(node.get_schema(*schemas))
-
-    res = (data_out, schema_out)
-    if res == (None, None):
-      raise Exception("Both values can't be none for %s" % str(node))
-
-    pr(ind, "%s returns %s" % (node, str(res)))
-
-    self.tracker[node] = data_out
-    return res
+  def _run_output(self, node, ind):
+    args = [immut(self.run_output(p, ind+1))
+            for p in self.get_parents(node)]
+    return immut(node.get(*args))
 
   def add_output(self, node, verb, url):
     self._add(node)
     def h(request):
       self.tracker = {}
-      (val1, val2) = immut(self.run_output(node, True, True, 0))
-      return Response(val1 or val2, mimetype='text/html')
+      val = pyrsistent.thaw(self.run_output(node, 0))
+      print(val)
+      return Response(val, mimetype='text/html')
 
     self.url_map.add(Rule(url,
                           endpoint=h,
