@@ -8,7 +8,7 @@ from dark import node
 @node(fields="action")
 def form_for(m, schema):
   output = ""
-  for tag in schema.values():
+  for tag in schema:
     output += tag.as_tag().to_html()
   return ("<form action='%s' method='POST'>" % m.action
           + "<fieldset>"
@@ -29,14 +29,12 @@ def to_page(input):
 def endpoint(input):
   return input.discard("submit")
 
-@node(fields="fields", numinputs=1)
-def except_fields(m, obj):
-  for f in m.fields:
-    obj = obj.discard(f)
-  return obj
+@node(fields="fields")
+def except_fields(m, fields):
+  return [f for f in fields if f.name not in m.fields]
 
-@node(datasource=True, numinputs=0)
-def date_now(): return datetime.datetime.now().time()
+@node(datasource=True)
+def date_now(): return datetime.datetime.now()
 
 @node()
 def merge(*vals):
@@ -57,7 +55,7 @@ def to_slug(str):
 def to_table(schema, data):
   head = ""
   body = ""
-  for field in schema.values():
+  for field in schema:
     head += "<th>%s</th>" % field.name
 
   for row in data:

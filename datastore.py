@@ -45,7 +45,8 @@ class Datastore(dark.Node):
   def __init__(self, tablename):
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
     self.tablename = tablename
-    self.fields = {}
+    self.fields = []
+    self.fields_by_name = {}
 
   def name(self):
     return "DS-" + self.tablename
@@ -54,15 +55,16 @@ class Datastore(dark.Node):
     return True
 
   def add_field(self, f):
-    self.fields[f.name] = f
+    self.fields_by_name[f.name] = f
+    self.fields.append(f)
     self.db.add_column(f.name)
 
   def validate_key(self, key_name, value):
-    self.fields[key_name].validate(value)
+    self.fields_by_name[key_name].validate(value)
 
   def validate(self, value):
     for k, v in value.items():
-      self.fields[k].validate(v)
+      self.fields_by_name[k].validate(v)
     if len(value.items()) != len(self.fields):
       raise "either missing field declaration or missing value"
 
@@ -93,4 +95,4 @@ def fetch(ds):
 
 @dark.node()
 def schema(ds):
-  return {f.name: f for f in ds.fields.values()}
+  return ds.fields

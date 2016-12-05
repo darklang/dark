@@ -156,10 +156,12 @@ class Dark(server.Server):
 
     children = self.get_children(node)
     for c in children:
-      inputs = [computed_value]
+      inputs = []
       parents = self.get_parents(c)
       for p in parents:
-        if p != node:
+        if p == node:
+          inputs.append(computed_value)
+        else:
           pr(ind, "parent: %s" % (p))
           val = immut(self.run_output(p, ind+1))
           pr(ind, "return from parent node %s: %s" % (p, val))
