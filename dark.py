@@ -141,6 +141,7 @@ class Dark(server.Server):
 
 
   def run_input(self, node, inputs, ind):
+
     # Inputs are a discrete event, whereas outputs are continuous. This
     # changes how we think about the flow of data.
 
@@ -152,6 +153,8 @@ class Dark(server.Server):
 
     pr(ind, "%s %s" % (node, inputs))
     computed_value = immut(node.push(*inputs))
+    if node.is_datasource(): return
+
     self.tracker[node] = computed_value
 
     children = self.get_children(node)
@@ -166,6 +169,10 @@ class Dark(server.Server):
           val = immut(self.run_output(p, ind+1))
           pr(ind, "return from parent node %s: %s" % (p, val))
           inputs.append(val)
+
+      if c.is_datasource():
+        assert parents == []
+        inputs = [computed_value]
 
       self.run_input(c, inputs, ind+1)
 
