@@ -18,10 +18,7 @@
     <script>
      nodes = {{ nodes|safe }};
      nodes = nodes.map( n => ( {
-       data: {
-         name: n,
-         id: n,
-       }
+       data: n
      }));
      edges_json = {{ edges|safe }};
      edges = []

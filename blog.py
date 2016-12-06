@@ -17,6 +17,7 @@ def E(*args):
   return blog.add_edge(*args)
 
 # new page
+blog.add_datastore(entry)
 sc, ef = E(datastore.schema(entry), fns.except_fields(["url", "publication_date"]))
 _, form = E(ef, fns.form_for('/new'))
 _, newpage = E(form, fns.to_page())

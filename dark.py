@@ -41,6 +41,14 @@ class node:
       def name(self):
         return "%s-%x" % (func.__name__, id(self))
 
+      def cytonode(self):
+        result = {"id": self.name()}
+        if "ds" in meta.fields:
+          for i, f in enumerate(meta.fields):
+            if f == "ds":
+              result["parent"] = self.args[i].name()
+        return result
+
       def exe(self, *inputs):
         # error checking
         (args, varargs, _, _) = inspect.getargspec(func)
@@ -93,6 +101,7 @@ class Dark(server.Server):
     self.url_map = Map()
     self.nodes = {}
     self.edges = {}
+    self.datastores = []
     self.reverse_edges = {}
 
     #self.add_standard_routes()
@@ -100,8 +109,10 @@ class Dark(server.Server):
 
   def add_admin_routes(self):
     def showgraph(request):
+      nodes = [n.cytonode() for n in self.nodes.values()]
+      dses = [ds.cytonode() for ds in self.datastores]
       return self.render_template('graph.html',
-                                  nodes=tojson(list(self.nodes.keys())),
+                                  nodes=tojson(nodes + dses),
                                   edges=tojson(self.edges),
                                   reverse_edges=self.reverse_edges)
 
@@ -116,6 +127,9 @@ class Dark(server.Server):
 
   def _add(self, node):
     self.nodes[node.name()] = node
+
+  def add_datastore(self, ds):
+    self.datastores.append(ds)
 
   def has(self, node):
     return node.name() in self.nodes

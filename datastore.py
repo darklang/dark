@@ -64,6 +64,9 @@ class Datastore():
     self.fields.append(f)
     self.db.add_column(f.name)
 
+  def cytonode(self):
+    return { "id": self.name(), "name": self.name() }
+
   def validate_key(self, key_name, value):
     self.fields_by_name[key_name].validate(value)
 
