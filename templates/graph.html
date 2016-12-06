@@ -5,6 +5,8 @@
     <title>Admin - graph</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script src="/static/cytoscape.min.js"></script>
+    <script src="/static/dagre.min.js"></script>
+    <script src="/static/cytoscape-dagre.js"></script>
   </head>
   <body>
     <style>
@@ -58,7 +60,7 @@
          }
        }],
        layout: {
-         name: "breadthfirst",
+         name: "dagre",
          padding: 10,
          directed: true,
        }
