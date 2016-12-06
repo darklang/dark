@@ -9,14 +9,9 @@ import random
 
 import termcolor
 import pyrsistent as pyr
+from util import *
 
 import server
-
-class attrdict(dict):
-  def __init__(self, *args, **kwargs):
-    dict.__init__(self, *args, **kwargs)
-    self.__dict__ = self
-
 
 class node:
   def __init__(meta,
@@ -76,12 +71,6 @@ class node:
           return func(*inputs)
 
     return Node
-
-
-def tojson(l):
-  def default(val):
-    return None
-  return json.dumps(l, default=default)
 
 
 class Dark(server.Server):
