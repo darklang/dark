@@ -5,9 +5,10 @@ from werkzeug.utils import redirect
 import json
 import copy
 import inspect
+import random
 
 import termcolor
-import pyrsistent
+import pyrsistent as pyr
 
 import server
 
@@ -30,16 +31,20 @@ class node:
     meta.datasink = datasink
 
   def __call__(meta, func):
-    class ANode(Node):
+    class Node:
       def __init__(self, *args):
         assert len(args) == len(meta.fields)
         self.args = args
+        self.id = random.randint(0, 2**32)
 
       def is_datasource(self): return meta.datasource
       def is_datasink(self): return meta.datasink
 
-      def name(self):
-        return "%s-%x" % (func.__name__, id(self))
+      def __str__(self):
+        return self.name()
+
+      def __repr__(self):
+        return "<%s>" % self.name()
 
       def cytonode(self):
         result = {"id": self.name()}
@@ -48,6 +53,10 @@ class node:
             if f == "ds":
               result["parent"] = self.args[i].name()
         return result
+
+
+      def name(self):
+        return "%s-%04X" % (func.__name__, self.id % 2**16)
 
       def exe(self, *inputs):
         # error checking
@@ -66,32 +75,13 @@ class node:
         else:
           return func(*inputs)
 
-    return ANode
+    return Node
 
-class Node:
-  def is_datasource(self):
-    return False
-
-  def is_datasink(self):
-    return False
-
-  def __str__(self):
-    return self.name()
-
-  def __repr__(self):
-    return "<%s>" % self.name()
 
 def tojson(l):
   def default(val):
     return None
   return json.dumps(l, default=default)
-
-def immut(v):
-  # To avoid errors, all data is immutable. For convenience, some
-  # functions may return mutable values, so we need to convert them
-  if v == None:
-    return None
-  return pyrsistent.freeze(v)
 
 
 class Dark(server.Server):
@@ -169,12 +159,14 @@ class Dark(server.Server):
   def execute(self, node, only=None, eager={}):
     # print("executing node: %s" % (node))
     if node in eager:
-      return eager[node]
+      result = eager[node]
+    else:
+      args = [self.execute(p, eager=eager)
+              for p in self.get_parents(node)
+              if only in [None, p]]
+      result = node.exe(*args)
 
-    args = [self.execute(p, eager=eager)
-            for p in self.get_parents(node)
-            if only in [None, p]]
-    return node.exe(*args)
+    return pyr.freeze(result)
 
   def find_sink_edges(self, node):
     results = set()
