@@ -42,16 +42,25 @@ class node:
         return "<%s>" % self.name()
 
       def cytonode(self):
-        result = {"id": self.name()}
+        result = {"id": self.cytoid(), "name": self.cytolabel()}
         if "ds" in meta.fields:
           for i, f in enumerate(meta.fields):
             if f == "ds":
               result["parent"] = self.args[i].name()
         return result
 
+      def cytoid(self):
+        return "%s-%04X" % (func.__name__, self.id % 2**16)
+
+      def cytolabel(self):
+        result = self.cytoid()
+        for f in meta.fields:
+          result += "\n" + getattr(self, f)
+        return "%s\n%s" % (self.cytoid(), meta.fields)
+
 
       def name(self):
-        return "%s-%04X" % (func.__name__, self.id % 2**16)
+        return self.cytoid()
 
       def exe(self, *inputs):
         # error checking
