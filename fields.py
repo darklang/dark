@@ -23,6 +23,9 @@ class Field:
     self.name = name
     self.props = props
 
+  def __str__(self):
+    return self.name
+
 class Markdown(Field):
   def validate(self, value):
     return True

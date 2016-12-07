@@ -54,10 +54,10 @@ class node:
 
       def cytolabel(self):
         result = self.cytoid()
-        for f in meta.fields:
-          result += "\n" + getattr(self, f)
-        return "%s\n%s" % (self.cytoid(), meta.fields)
-
+        result += "\n"
+        for i, f in enumerate(meta.fields):
+          result += "\n%s: %s" % (f, self.args[i])
+        return result
 
       def name(self):
         return self.cytoid()

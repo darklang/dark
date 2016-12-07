@@ -56,6 +56,9 @@ class Datastore():
     self.fields = []
     self.fields_by_name = {}
 
+  def __str__(self):
+    return self.name()
+
   def name(self):
     return "DS-" + self.tablename
 
