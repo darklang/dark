@@ -103,8 +103,16 @@ class Dark(server.Server):
                                   nodes=tojson(nodes + dses),
                                   edges=tojson(self.edges),
                                   reverse_edges=self.reverse_edges)
+    def showgraph2(request):
+      nodes = [n.cytonode() for n in self.nodes.values()]
+      dses = [ds.cytonode() for ds in self.datastores]
+      return self.render_template('graph2.html',
+                                  nodes=tojson(nodes + dses),
+                                  edges=tojson(self.edges),
+                                  reverse_edges=self.reverse_edges)
 
-    self.url_map.add(Rule('/admin/graph', endpoint=showgraph))
+
+    self.url_map.add(Rule('/admin/graph2', endpoint=showgraph2))
 
   def add_standard_routes(self):
     # TODO: move to a component
