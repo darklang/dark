@@ -11,17 +11,21 @@ const graph = (state=[], action) => {
   }
 }
 
-class Circle extends React.Component {
+class Node extends React.Component {
   render() {
     return (
-        <circle cx={this.props.x} cy={this.props.y} r={10} fill="red" />
+        <g transform={"translate(" + this.props.x + ", " + this.props.y + ")"}>
+        <rect width={100} height={50} fill="red" />
+        <text fill="blue">Hello!</text>
+        <text fill="black">More</text>
+        </g>
     )
   }
 }
 
 const Graph = ({value, onCreate}) => (
     <svg onClick={onCreate} style={{width: "100%", height: "100%"}}>
-    {value.map(node => <Circle key={node.name} x={node.x} y={node.y}>{node.name}</Circle>)}
+    {value.map(node => <Node key={node.name} x={node.x} y={node.y}>{node.name}</Node>)}
     </svg>
 );
 
