@@ -1,16 +1,16 @@
-const counter = (state = 0, action) => {
+const graph = (state = 0, action) => {
   switch (action.type) {
-  case 'INCREMENT':
+  case 'CREATE':
     return state + 1;
   default:
     return state;
   }
 }
 
-const Counter = ({value, onIncrement}) => (
-    <div>
+const Graph = ({value, onCreate}) => (
+    <div onClick={onCreate} style={{height: "100%"}}>
     <h1>{value}</h1>
-    <button onClick={onIncrement}>+</button>
+    <button onClick={onCreate}>+</button>
     </div>
 );
 
@@ -20,18 +20,18 @@ const mapStateToProps = (state) => {
 
 const mapDispatchToProps = (dispatch) => {
   return {
-    onIncrement: () => {
+    onCreate: () => {
       dispatch({
-        type: 'INCREMENT'
+        type: 'CREATE'
       })
     }
   };
 };
 
-const CounterContainer = ReactRedux.connect(mapStateToProps, mapDispatchToProps)(Counter);
-const store = Redux.createStore(counter);
+const GraphContainer = ReactRedux.connect(mapStateToProps, mapDispatchToProps)(Graph);
+const store = Redux.createStore(graph);
 
 ReactDOM.render(
-    <CounterContainer store={store} />,
+    <GraphContainer store={store} />,
   document.getElementById('root')
 );
