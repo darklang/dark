@@ -1,17 +1,28 @@
 const graph = (state=[], action) => {
   switch (action.type) {
   case 'CREATE':
-    return state.concat([{name: "tbc" + state.length}])
+    return state.concat([{
+      name: "tbc" + state.length,
+      x: action.location.x,
+      y: action.location.y
+    }])
   default:
     return state;
   }
 }
 
+class Circle extends React.Component {
+  render() {
+    return (
+        <circle cx={this.props.x} cy={this.props.y} r={10} fill="red" />
+    )
+  }
+}
+
 const Graph = ({value, onCreate}) => (
-    <div onClick={onCreate} style={{height: "100%"}}>
-    {value.map(node => <h1 key={node.name}>{node.name}</h1>)}
-    <button onClick={onCreate}>+</button>
-    </div>
+    <svg onClick={onCreate} style={{width: "100%", height: "100%"}}>
+    {value.map(node => <Circle key={node.name} x={node.x} y={node.y}>{node.name}</Circle>)}
+    </svg>
 );
 
 const mapStateToProps = (state) => {
@@ -20,9 +31,10 @@ const mapStateToProps = (state) => {
 
 const mapDispatchToProps = (dispatch) => {
   return {
-    onCreate: () => {
+    onCreate: (event) => {
       dispatch({
-        type: 'CREATE'
+        type: 'CREATE',
+        location: {x: event.clientX, y: event.clientY}
       })
     }
   };
