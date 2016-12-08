@@ -1,11 +1,11 @@
-const graph = (state=[], action) => {
+const graph = (state={"nodes": []}, action) => {
   switch (action.type) {
   case 'CREATE':
-    return state.concat([{
+    return {nodes: state.nodes.concat([{
       name: "tbc" + state.length,
       x: action.location.x,
       y: action.location.y
-    }])
+    }])};
   default:
     return state;
   }
