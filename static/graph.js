@@ -1,14 +1,16 @@
 stage = new Facade(document.querySelector('#root > canvas'));
 textheight = 12;
 textwidth = 120
+starting_x = 200
+starting_y = 200
 
-function ds(name, fields) {
+function ds(name, fields, sx, sy) {
   numFields = Object.keys(fields).length;
   var group = new Facade.Group({
     width: textwidth,
     height: textheight * (numFields + 1),
-    x: 200,
-    y: 200
+    x: sx,
+    y: sy
   });
 
   name = new Facade.Text(name, {
@@ -54,4 +56,9 @@ function ds(name, fields) {
 
 
 
-ds("Post", {"name": "string", "email": "email", "password": "password", "handle": "username"})
+ds("Post", {"likes": "user", "comments": "comments", "date": "date", "handle": "username"}, starting_x, starting_y)
+starting_x += 300
+ds("User", {"name": "string", "email": "email", "password": "password", "handle": "username"}, starting_x, starting_y)
+
+Object for the DS, giving the location for the "port" for the inputs
+Facade.line
