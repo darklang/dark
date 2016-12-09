@@ -106,7 +106,7 @@ class Dark(server.Server):
     def showgraph2(request):
       nodes = [n.cytonode() for n in self.nodes.values()]
       dses = [ds.cytonode() for ds in self.datastores]
-      return self.render_template('graph2.html',
+      return self.render_template('graphelm.html',
                                   nodes=tojson(nodes + dses),
                                   edges=tojson(self.edges),
                                   reverse_edges=self.reverse_edges)
