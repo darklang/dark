@@ -1,4 +1,4 @@
-import Html
+import Html exposing (div, h1)
 import Keyboard
 import Mouse
 
@@ -45,15 +45,24 @@ subscriptions model =
 -- VIEW
 view : Model -> Html.Html Msg
 view model =
-    let
-        nodes = Html.div [] (nHeading :: allNodes)
-        current = Html.div [] [cHeading, cNode]
-        cHeading = Html.h1 [] [Html.text "Current node"]
-        cNode = case model.current of
-                    Maybe.Just val -> Html.div [] [displayNode val]
-                    _ -> Html.div [] [Html.text "None"]
-        allNodes = List.map displayNode model.nodes
-        nHeading = Html.h1 [] [Html.text "All nodes"]
-        displayNode node = Html.text node.name
+    Html.div [] [viewAllNodes model.nodes, viewCurrentNode model.current]
+
+
+displayNode node = Html.text node.name
+
+viewCurrentNode : Maybe DataStore -> Html.Html Msg
+viewCurrentNode current =
+    let nodeHtml = case current of
+                       Maybe.Nothing -> Html.text "None"
+                       Maybe.Just val -> displayNode val
+        node = div [] [nodeHtml]
+        heading = h1 [] [Html.text "Current node"]
+
+    in div [] [heading, node]
+
+viewAllNodes : List DataStore -> Html.Html Msg
+viewAllNodes nodes =
+    let allNodes = List.map displayNode nodes
+        nHeading = h1 [] [Html.text "All nodes"]
     in
-        Html.div [] [nodes, current]
+        div [] (nHeading :: allNodes)
