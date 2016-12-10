@@ -10,14 +10,15 @@ main = Html.program
        , subscriptions = subscriptions}
 
 -- MODEL
-type alias Model = { nodes : List DataStore }
+type alias Model = { nodes : List DataStore, current : Maybe DataStore }
 type alias DataStore = { name : String, fields : List (String, String) }
 
+emptyDS : DataStore
 emptyDS = { name = "new", fields = [] }
 
 init : ( Model, Cmd Msg )
 init =
-    ( { nodes = [] }, Cmd.none )
+    ( { nodes = [], current = Maybe.Nothing }, Cmd.none )
 
 -- UPDATE
 type Msg
@@ -29,7 +30,7 @@ update msg model =
   let new =
     case msg of
         MouseMsg _ ->
-            { model | nodes = emptyDS :: model.nodes }
+            { model | current = Maybe.Just emptyDS }
   in (new, Cmd.none )
 
 
@@ -44,5 +45,15 @@ subscriptions model =
 -- VIEW
 view : Model -> Html.Html Msg
 view model =
-    let displayNode node = [ Html.text node.name ]
-    in Html.div [] (List.concat ( List.map displayNode model.nodes ))
+    let
+        nodes = Html.div [] (nHeading :: allNodes)
+        current = Html.div [] [cHeading, cNode]
+        cHeading = Html.h1 [] [Html.text "Current node"]
+        cNode = case model.current of
+                    Maybe.Just val -> Html.div [] [displayNode val]
+                    _ -> Html.div [] [Html.text "None"]
+        allNodes = List.map displayNode model.nodes
+        nHeading = Html.h1 [] [Html.text "All nodes"]
+        displayNode node = Html.text node.name
+    in
+        Html.div [] [nodes, current]
