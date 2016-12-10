@@ -1,48 +1,48 @@
-import Html exposing (..)
-import Html.Attributes exposing (..)
-import Html.Events exposing (onInput)
+import Html
+import Keyboard
+import Mouse
 
-main =
-  Html.beginnerProgram
-    { model = model
-    , view = view
-    , update = update
-    }
-
+main : Program Never Model Msg
+main = Html.program
+       { init = init
+       , view = view
+       , update = update
+       , subscriptions = subscriptions}
 
 -- MODEL
-type alias Model =
-  { nodes : List DataStore }
+type alias Model = { nodes : List DataStore }
+type alias DataStore = { name : String, fields : List (String, String) }
 
-type alias Function =
-    { name : String }
+emptyDS = { name = "new", fields = [] }
 
-type alias DataStore =
-    { name : String,
-      fields : List (String, String) }
-
-model : Model
-model =
-  Model []
-
-
+init : ( Model, Cmd Msg )
+init =
+    ( { nodes = [] }, Cmd.none )
 
 -- UPDATE
 type Msg
-    = Create String
+    = MouseMsg Mouse.Position
+    -- | KeyMsg Keyboard.KeyCode
 
-
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  case msg of
-    Create name ->
-      { model | nodes = (DataStore name []) :: model.nodes }
+  let new =
+    case msg of
+        MouseMsg _ ->
+            { model | nodes = emptyDS :: model.nodes }
+  in (new, Cmd.none )
 
+
+-- SUBSCRIPTIONS
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Sub.batch
+        [ Mouse.clicks MouseMsg
+        -- , Keyboard.downs KeyMsg
+        ]
 
 -- VIEW
-view : Model -> Html Msg
+view : Model -> Html.Html Msg
 view model =
-    let
-        displayNode node = [ text node.name ]
-    in
-        div [] (List.concat ( List.map displayNode model.nodes ))
+    let displayNode node = [ Html.text node.name ]
+    in Html.div [] (List.concat ( List.map displayNode model.nodes ))
