@@ -1,9 +1,21 @@
+port module Main exposing (..)
+
 import Html exposing (div, h1)
 import Html.Attributes as Attrs
 import Html.Events as Events
 import Keyboard
 import Mouse
 import Json.Decode
+import Dom
+
+import Native.Timestamp
+import Task
+
+
+timestamp : () -> Int
+timestamp a = Native.Timestamp.timestamp a
+
+
 
 main : Program Never Model Msg
 main = Html.program
@@ -13,46 +25,54 @@ main = Html.program
        , subscriptions = subscriptions}
 
 -- MODEL
-type alias Model = { nodes : List DataStore, current : Maybe DataStore }
+type alias Model = { nodes : List DataStore, state : String, errors : List String }
 type alias DataStore = { name : String, fields : List (String, String) }
 
 emptyDS : DataStore
 emptyDS = { name = "", fields = [] }
 
+-- states
+state_NOTHING = "NOTHING"
+state_INITIAL = state_NOTHING
+state_ADDING_DS_NAME = "ADDING_DS_NAME"
+state_ADDING_DS_FIELD = "ADDING_DS_FIELD_NAME"
+state_ADDING_DS_TYPE = "ADDING_DS_FIELD_TYPE"
+
+
 init : ( Model, Cmd Msg )
-init =
-    ( { nodes = [], current = Maybe.Nothing }, Cmd.none )
+init = ( { nodes = []
+         , state = state_INITIAL
+         , errors = ["No errors"]
+         }, Cmd.none )
 
 -- UPDATE
-
-type CurrentMsg
-    = SetName String
-
 type Msg
     = MouseMsg Mouse.Position
-    | CurrentMsg CurrentMsg
-    | KeyMsg Keyboard.KeyCode String
+    | InputKeyMsg Keyboard.KeyCode String
+    | KeyMsg Keyboard.KeyCode
+    | FocusResult (Result Dom.Error ())
 
-updateCurrent : CurrentMsg -> DataStore -> DataStore
-updateCurrent msg current =
-    case msg of
-        SetName name ->
-            { current | name = name }
+focusInput = Dom.focus inputID |> Task.attempt FocusResult
+addError error model =
+    let time = timestamp ()
+               in
+    List.take 4 ((error ++ "-" ++ toString time) :: model.errors)
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-  let new_model =
     case msg of
         MouseMsg _ ->
-            { model | current = Maybe.Just emptyDS }
-        KeyMsg 13 target ->
-            { model | current = Maybe.map (updateCurrent (SetName target)) model.current }
-        CurrentMsg cmsg ->
-            { model | current = Maybe.map (updateCurrent cmsg) model.current }
-        _ -> model
-      cmd = Cmd.none
-
-  in (new_model, cmd )
+            ({ model | state = state_ADDING_DS_NAME
+                     , nodes = emptyDS :: model.nodes }
+             , focusInput)
+        InputKeyMsg 13 target ->
+            ({ model | errors = addError "TODO" model}, Cmd.none)
+        InputKeyMsg key _ ->
+            ({ model | errors = addError "Ignoring input" model}, Cmd.none)
+        KeyMsg key ->
+            ({ model | errors = addError "Not supported yet" model}, Cmd.none)
+        FocusResult result ->
+            ( model, Cmd.none )
 
 
 -- SUBSCRIPTIONS
@@ -60,35 +80,32 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ Mouse.clicks MouseMsg
-        -- , Keyboard.downs KeyMsg
+--        , Keyboard.downs KeyMsg
         ]
 
 -- VIEW
+view : Model -> Html.Html Msg
+view model =
+    Html.div [] [ viewInput
+                , viewErrors model.errors
+                , viewState model.state
+                , viewAllNodes model.nodes
+                ]
 
+inputID = "darkInput"
 
 onKeyDown : (Int -> String -> msg) -> Html.Attribute msg
 onKeyDown msg =
   Events.on "keydown" (Json.Decode.map2 msg Events.keyCode Events.targetValue)
 
-view : Model -> Html.Html Msg
-view model =
-    Html.div [] [viewAllNodes model.nodes, viewCurrentNode model.current]
+viewInput = div [] [ Html.input [ Attrs.id inputID
+                                , onKeyDown InputKeyMsg
+                                ] [] ]
 
+viewState state = div [] [ Html.text ("state: " ++ state) ]
+viewErrors errors = div [] ((Html.text "errors: ") :: (List.map (\x -> (Html.div [] [Html.text x])) errors))
 
 displayNode node = Html.text node.name
-
-nodeForm {name} = if name == ""
-                  then Html.input [Attrs.autofocus True, onKeyDown KeyMsg ] []
-                  else Html.text name
-
-viewCurrentNode : Maybe DataStore -> Html.Html Msg
-viewCurrentNode current =
-    let nodeHtml = case current of
-                       Maybe.Nothing -> Html.text "None"
-                       Maybe.Just val -> nodeForm val
-        node = div [] [nodeHtml]
-        heading = h1 [] [Html.text "Current node"]
-    in div [] [heading, node]
 
 viewAllNodes : List DataStore -> Html.Html Msg
 viewAllNodes nodes =
@@ -96,3 +113,5 @@ viewAllNodes nodes =
         nHeading = h1 [] [Html.text "All nodes"]
     in
         div [] (nHeading :: allNodes)
+
+-- Util

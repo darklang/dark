@@ -6,9 +6,11 @@
     "source-directories": [
         "."
     ],
-    "exposed-modules": [],
+  "exposed-modules": [],
+  "native-modules": true,
     "dependencies": {
         "elm-lang/core": "5.0.0 <= v < 6.0.0",
+        "elm-lang/dom": "1.1.1 <= v < 2.0.0",
         "elm-lang/html": "2.0.0 <= v < 3.0.0",
         "elm-lang/keyboard": "1.0.1 <= v < 2.0.0",
         "elm-lang/mouse": "1.0.1 <= v < 2.0.0"
