@@ -6,6 +6,7 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 import Json.Decode
 import Result
+import Char
 
 -- lib
 import Keyboard
@@ -27,7 +28,10 @@ main = Html.program
        , subscriptions = subscriptions}
 
 -- MODEL
-type alias Model = { nodes : List DataStore, state : State, errors : List String }
+type alias Model = { nodes : List DataStore
+                   , inputValue : String
+                   , state : State
+                   , errors : List String }
 type alias DataStore = { name : String, fields : List (String, String) }
 
 emptyDS : DataStore
@@ -42,6 +46,7 @@ type State
 
 init : ( Model, Cmd Msg )
 init = ( { nodes = [emptyDS]
+         , inputValue = ""
          , state = NOTHING
          , errors = ["No errors"]
          }, Cmd.none )
@@ -90,31 +95,38 @@ updateNode msg nodes =
         )
 
 update : Msg -> Model -> (Model, Cmd Msg)
-update msg model =
-    case (model.state, msg) of
+update msg m =
+    case (m.state, msg) of
         (NOTHING, MouseMsg _) ->
-            ({ model | state = ADDING_DS_NAME
-                     , nodes = emptyDS :: model.nodes }
+            ({ m | state = ADDING_DS_NAME
+                 , nodes = emptyDS :: m.nodes }
              , focusInput)
         (ADDING_DS_NAME, InputKeyMsg 13 target) ->
-            ({ model | state = ADDING_DS_FIELD_NAME
-                     , nodes = updateNode (SetName target) model.nodes }
-             , focusInput)
+            ({ m | state = ADDING_DS_FIELD_NAME
+                 , inputValue = ""
+                 , nodes = updateNode (SetName m.inputValue) m.nodes
+             }, focusInput)
         (ADDING_DS_FIELD_NAME, InputKeyMsg 13 target) ->
-            ({ model | state = ADDING_DS_FIELD_TYPE
-                     , nodes = updateNode (SetFieldType target) model.nodes }
-             , focusInput)
+            if target == ""
+            then ({ m | state = NOTHING
+                      , inputValue = ""
+                  }, Cmd.none)
+            else ({ m | state = ADDING_DS_FIELD_TYPE
+                      , inputValue = ""
+                      , nodes = updateNode (SetFieldName target) m.nodes
+                  }, focusInput)
         (ADDING_DS_FIELD_TYPE, InputKeyMsg 13 target) ->
-            ({ model | state = ADDING_DS_FIELD_NAME
-                     , nodes = updateNode (SetFieldName target) model.nodes }
-             , focusInput)
+            ({ m | state = ADDING_DS_FIELD_NAME
+                 , inputValue = ""
+                 , nodes = updateNode (SetFieldType target) m.nodes }
+                 , focusInput)
         (_, FocusResult (Ok ())) ->
-            ( model, Cmd.none )
+            ( m, Cmd.none )
+        (_, InputKeyMsg key _) ->
+            ({ m | inputValue = m.inputValue ++ (key |> Char.fromCode |> String.fromChar)}, Cmd.none)
         t ->
-            ({ model | errors = addError ("Nothing for " ++ (toString t)) model }, Cmd.none )
+            ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none )
 
-        -- InputKeyMsg key _ ->
-        --     ({ model | errors = addError "Ignoring input" model}, Cmd.none)
         -- KeyMsg key ->
         --     ({ model | errors = addError "Not supported yet" model}, Cmd.none)
 
@@ -129,7 +141,7 @@ subscriptions model =
 -- VIEW
 view : Model -> Html.Html Msg
 view model =
-    Html.div [] [ viewInput
+    Html.div [] [ viewInput model.inputValue
                 , viewErrors model.errors
                 , viewState model.state
                 , viewAllNodes model.nodes
@@ -141,9 +153,10 @@ onKeyDown : (Int -> String -> msg) -> Html.Attribute msg
 onKeyDown msg =
   Events.on "keydown" (Json.Decode.map2 msg Events.keyCode Events.targetValue)
 
-viewInput = div [] [ Html.input [ Attrs.id inputID
-                                , onKeyDown InputKeyMsg
-                                ] [] ]
+viewInput value = div [] [ Html.input [ Attrs.id inputID
+                                      , Attrs.value value
+                                      , onKeyDown InputKeyMsg
+                                      ] [] ]
 
 str2line str = div [] [Html.text str]
 viewState state = div [] [ Html.text ("state: " ++ toString state) ]
