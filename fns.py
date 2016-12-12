@@ -3,7 +3,7 @@ import copy
 from slugify import slugify
 import pyrsistent as pyr
 
-from dark import node
+from graph import node
 
 @node(fields=["action"])
 def form_for(m, schema):

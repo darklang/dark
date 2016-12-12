@@ -1,6 +1,6 @@
 import sqlite3
 
-import dark
+import graph
 import fields
 
 class DB(object):
@@ -67,6 +67,11 @@ class Datastore():
     self.fields.append(f)
     self.db.add_column(f.name)
 
+  def to_frontend(self):
+    return { "name": self.tablename,
+             "fields": { f.name: f for f in self.fields }
+    }
+
   def cytonode(self):
     return { "id": self.name(), "name": self.name() }
 
@@ -101,14 +106,14 @@ class Datastore():
     return self.db.fetch_by_key(key_name, key)
 
 # TODO: make the graph display as if it's a node, by adding an Entry node and then schema, etc, nodes
-@dark.node(datasource=True, fields=["ds"])
+@graph.node(datasource=True, fields=["ds"])
 def fetch(m):
   return m.ds.fetch()
 
-@dark.node(datasource=True, fields=["ds"])
+@graph.node(datasource=True, fields=["ds"])
 def schema(m):
   return m.ds.fields
 
-@dark.node(datasink=True, fields=["ds"])
+@graph.node(datasink=True, fields=["ds"])
 def insert(m, value):
   return m.ds.insert(value)
