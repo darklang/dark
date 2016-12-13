@@ -82,14 +82,14 @@ class Graph():
     super().__init__()
     self.nodes = {}
     self.edges = {}
-    self.datastores = []
+    self.datastores = {}
     self.reverse_edges = {}
 
   def _add(self, node):
     self.nodes[node.name()] = node
 
   def add_datastore(self, ds):
-    self.datastores.append(ds)
+    self.datastores[ds.name()] = ds
 
   def has(self, node):
     return node.name() in self.nodes

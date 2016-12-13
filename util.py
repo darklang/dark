@@ -9,5 +9,8 @@ class attrdict(dict):
 
 def tojson(l):
   def default(val):
-    return None
+    if getattr(val, "__str__"):
+      return str(val)
+
+    raise TypeError()
   return json.dumps(l, default=default)

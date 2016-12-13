@@ -24,27 +24,48 @@ class Dark(graph.Graph, server.Server):
 
   def graph_json(self, cursor):
     nodes = [n.to_frontend() for n in self.nodes.values()]
-    dses = [ds.to_frontend() for ds in self.datastores]
+    dses = [ds.to_frontend() for ds in self.datastores.values()]
     return tojson({"nodes": nodes + dses, "cursor": cursor.id()})
 
   def add_api_routes(self):
     def fn(request):
       str_response = request.data.decode('utf-8')
       params = json.loads(str_response)
+      print("Requesting: " + str(params))
+
+      cursorname = params["cursor"]
       command = params["command"]
-      params = params["payload"]
+      args = params["args"]
+
       if command == "add_datastore":
-        cursor = datastore.Datastore(params["name"])
+        name = args["name"]
+        cursor = datastore.Datastore(name)
         self.add_datastore(cursor)
+
+      elif command == "add_datastore_field":
+        ds = self.datastores[cursorname]
+        fieldname = args["name"]
+        typename = args["type"]
+        import fields
+        fieldFn = getattr(fields, typename)
+        ds.add_field(fieldFn(fieldname))
+        cursor = ds
+
       else:
         raise Exception("Invalid command: " + str(request.data))
-      return Response(response=self.graph_json(cursor))
+
+
+      response = self.graph_json(cursor)
+      print("Responding: " + str(response))
+      return Response(response=response)
+
+
     self.url_map.add(Rule('/admin/api/rpc', endpoint=fn))
 
   def add_graph_routes(self):
     def fn(request):
       nodes = [n.cytonode() for n in self.nodes.values()]
-      dses = [ds.cytonode() for ds in self.datastores]
+      dses = [ds.cytonode() for ds in self.datastores.values()]
       return self.render_template('graph.html',
                                   nodes=tojson(nodes + dses),
                                   edges=tojson(self.edges),
@@ -53,7 +74,7 @@ class Dark(graph.Graph, server.Server):
 
     def fn(request):
       nodes = [n.cytonode() for n in self.nodes.values()]
-      dses = [ds.cytonode() for ds in self.datastores]
+      dses = [ds.cytonode() for ds in self.datastores.values()]
       return self.render_template('graphelm.html',
                                   nodes=tojson(nodes + dses),
                                   edges=tojson(self.edges),

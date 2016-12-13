@@ -63,14 +63,15 @@ type RPC
     = AddDatastore String
     | AddDatastoreField String String
 
-rpc : RPC -> Cmd Msg
-rpc call =
-    let payload = encodeRPC call -- JSE.object [("name", JSE.string name)]
+rpc : Model -> RPC -> Cmd Msg
+rpc model call =
+    let payload = encodeRPC model call
         json = Http.jsonBody payload
         request = Http.post "/admin/api/rpc" json decodeGraph
     in Http.send RPCCallBack request
 
-encodeRPC call =
+encodeRPC : Model -> RPC -> JSE.Value
+encodeRPC m call =
     let (cmd, args) =
             case call of
                 AddDatastore name -> ("add_datastore"
@@ -79,7 +80,8 @@ encodeRPC call =
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("type", JSE.string type_)])
     in JSE.object [ ("command", JSE.string cmd)
-                  , ("payload", args)]
+                  , ("args", args)
+                  , ("cursor", JSE.string m.graph.cursor)]
 
 
 decodeNode : JSD.Decoder DataStore
@@ -121,14 +123,14 @@ update msg m =
         (ADDING_DS_NAME, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
-             }, Cmd.batch [focusInput, rpc <| AddDatastore m.inputValue])
+             }, Cmd.batch [focusInput, rpc m <| AddDatastore m.inputValue])
         (ADDING_DS_FIELD_NAME, SubmitMsg) ->
             if m.inputValue == ""
             then -- the DS has all its fields
                 ({ m | state = NOTHING
                      , inputValue = ""
                  }, Cmd.none)
-            else  -- save the field name, we'll submit it with the type
+            else  -- save the field name, we'll submit it later the type
                 ({ m | state = ADDING_DS_FIELD_TYPE
                      , inputValue = ""
                      , tempFieldName = m.inputValue
@@ -136,7 +138,7 @@ update msg m =
         (ADDING_DS_FIELD_TYPE, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
-             }, Cmd.batch [focusInput, rpc <| AddDatastoreField m.tempFieldName m.inputValue])
+             }, Cmd.batch [focusInput, rpc m <| AddDatastoreField m.tempFieldName m.inputValue])
 
         (_, RPCCallBack (Ok graph)) ->
             ({ m | graph = graph
@@ -144,7 +146,9 @@ update msg m =
         (_, RPCCallBack (Err error)) ->
             ({ m | errors = addError ("Bad RPC call: " ++ toString(error)) m
              }, Cmd.none)
+
         (_, FocusResult (Ok ())) ->
+            -- Yay, you focused a field! Ignore.
             ( m, Cmd.none )
         (_, InputMsg target) ->
             -- Syncs the form with the model. The actual submit is in SubmitMsg
