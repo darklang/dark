@@ -22,19 +22,24 @@ class Dark(graph.Graph, server.Server):
     nodes = []
     return tojson(nodes)
 
-  def graph_json(self):
+  def graph_json(self, cursor):
     nodes = [n.to_frontend() for n in self.nodes.values()]
     dses = [ds.to_frontend() for ds in self.datastores]
-    return tojson({"nodes": nodes + dses})
+    return tojson({"nodes": nodes + dses, "cursor": cursor.id()})
 
   def add_api_routes(self):
     def fn(request):
       str_response = request.data.decode('utf-8')
       params = json.loads(str_response)
-      ds = datastore.Datastore(params["name"])
-      self.add_datastore(ds)
-      return Response(response=self.graph_json())
-    self.url_map.add(Rule('/admin/api/add_datastore', endpoint=fn))
+      command = params["command"]
+      params = params["payload"]
+      if command == "add_datastore":
+        cursor = datastore.Datastore(params["name"])
+        self.add_datastore(cursor)
+      else:
+        raise Exception("Invalid command: " + str(request.data))
+      return Response(response=self.graph_json(cursor))
+    self.url_map.add(Rule('/admin/api/rpc', endpoint=fn))
 
   def add_graph_routes(self):
     def fn(request):

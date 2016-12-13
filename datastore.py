@@ -13,10 +13,7 @@ class DB(object):
 
   def exe(self, sql, *values):
     print(sql)
-    try:
-      return self.conn.execute(sql)
-    except BaseException as e:
-      print("error: " + str(e))
+    return self.conn.execute(sql)
 
   def create_table(self):
     self.exe("create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT) " %
@@ -69,8 +66,11 @@ class Datastore():
 
   def to_frontend(self):
     return { "name": self.tablename,
+             "id": self.id(),
              "fields": { f.name: f for f in self.fields }
     }
+  def id(self):
+    return self.name()
 
   def cytonode(self):
     return { "id": self.name(), "name": self.name() }
