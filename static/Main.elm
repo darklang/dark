@@ -6,6 +6,9 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 import Result
 import Char
+import Json.Encode as JSE
+import Json.Decode as JSD
+import Json.Decode.Pipeline as JSDP
 
 -- lib
 import Keyboard
@@ -13,10 +16,10 @@ import Mouse
 import Dom
 import Task
 import Http
-import Http
-import Json.Encode as JSE
-import Json.Decode as JSD
-import Json.Decode.Pipeline as JSDP
+import Collage
+import Element
+import Color
+
 
 -- mine
 import Native.Timestamp
@@ -38,10 +41,14 @@ type alias Model = { graph : Graph
                    , state : State
                    , tempFieldName : String
                    , errors : List String
+                   , lastX : Int
+                   , lastY : Int
                    }
 
 type alias DataStore = { name : String
                        , fields : List (String, String)
+                       , x : Int
+                       , y : Int
                        }
 
 type alias Graph = { nodes : List DataStore
@@ -54,6 +61,8 @@ init = ( { graph = {nodes = [], cursor = ""}
          , errors = ["No errors"]
          , inputValue = ""
          , tempFieldName = ""
+         , lastX = -1
+         , lastY = -1
          }, Cmd.none )
 
 
@@ -89,6 +98,8 @@ decodeNode =
   JSDP.decode DataStore
       |> JSDP.required "name" JSD.string
       |> JSDP.required "fields" (JSD.keyValuePairs JSD.string)
+      |> JSDP.hardcoded 0
+      |> JSDP.hardcoded 0
 
 decodeGraph : JSD.Decoder Graph
 decodeGraph =
@@ -117,7 +128,7 @@ type State
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     case (m.state, msg) of
-        (NOTHING, MouseMsg _) ->
+        (NOTHING, MouseMsg pos) ->
             ({ m | state = ADDING_DS_NAME
              }, focusInput)
         (ADDING_DS_NAME, SubmitMsg) ->
@@ -181,6 +192,7 @@ view model =
            , viewState model.state
            , viewErrors model.errors
            , viewAllNodes model.graph.nodes
+           , viewClick model.lastX model.lastY
            ]
 
 viewInput value = div [] [
@@ -197,6 +209,12 @@ viewInput value = div [] [
 viewState state = div [] [ text ("state: " ++ toString state) ]
 viewErrors errors = div [] ((text "errors: ") :: (List.map str2div errors))
 viewNode node = div [] (str2div ("'" ++ node.name ++ "'") :: (List.map (toString >> str2div) node.fields))
+viewClick x y =
+    Element.toHtml (Collage.collage 300 300 [Collage.ngon 4 75
+                                              |> Collage.filled clearGrey])
+clearGrey : Color.Color
+clearGrey =
+  Color.rgba 111 111 111 0.6
 
 viewAllNodes : List DataStore -> Html.Html Msg
 viewAllNodes nodes =
