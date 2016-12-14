@@ -52,6 +52,8 @@ class Datastore():
     self.tablename = tablename
     self.fields = []
     self.fields_by_name = {}
+    self.x = -1
+    self.y = -1
 
   def __str__(self):
     return self.name()
@@ -67,8 +69,11 @@ class Datastore():
   def to_frontend(self):
     return { "name": self.tablename,
              "id": self.id(),
-             "fields": { f.name: f for f in self.fields }
+             "fields": { f.name: f for f in self.fields},
+             "x": self.x,
+             "y": self.y
     }
+
   def id(self):
     return self.name()
 

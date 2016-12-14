@@ -40,6 +40,8 @@ class Dark(graph.Graph, server.Server):
       if command == "add_datastore":
         name = args["name"]
         cursor = datastore.Datastore(name)
+        cursor.x = args["x"]
+        cursor.y = args["y"]
         self.add_datastore(cursor)
 
       elif command == "add_datastore_field":

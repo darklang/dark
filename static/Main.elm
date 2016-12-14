@@ -42,8 +42,8 @@ type alias Model = { graph : Graph
                    , state : State
                    , tempFieldName : String
                    , errors : List String
-                   , lastX : Float
-                   , lastY : Float
+                   , lastX : Int
+                   , lastY : Int
                    }
 
 type alias DataStore = { name : String
@@ -70,7 +70,7 @@ init = ( { graph = {nodes = [], cursor = ""}
 
 -- RPC
 type RPC
-    = AddDatastore String
+    = AddDatastore String Int Int
     | AddDatastoreField String String
 
 rpc : Model -> RPC -> Cmd Msg
@@ -84,8 +84,10 @@ encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
     let (cmd, args) =
             case call of
-                AddDatastore name -> ("add_datastore"
-                                     , JSE.object [("name", JSE.string name)])
+                AddDatastore name x y -> ("add_datastore"
+                                         , JSE.object [ ("name", JSE.string name)
+                                                      , ("x", JSE.int x)
+                                                      , ("y", JSE.int y)])
                 AddDatastoreField name type_ -> ("add_datastore_field",
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("type", JSE.string type_)])
@@ -99,8 +101,8 @@ decodeNode =
   JSDP.decode DataStore
       |> JSDP.required "name" JSD.string
       |> JSDP.required "fields" (JSD.keyValuePairs JSD.string)
-      |> JSDP.hardcoded 0
-      |> JSDP.hardcoded 0
+      |> JSDP.required "x" JSD.int
+      |> JSDP.required "y" JSD.int
 
 decodeGraph : JSD.Decoder Graph
 decodeGraph =
@@ -130,16 +132,14 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     case (m.state, msg) of
         (NOTHING, MouseMsg pos) ->
-            let (x, y) = posToCollage pos
-                (x1, y1) = Debug.log ("new: " ++ (toString (x, y)) ++ ", old: " ++ (toString pos)) (x,y)
-            in ({ m | state = ADDING_DS_NAME
-                    , lastX = x1
-                    , lastY = y1
-                }, focusInput)
+            ({ m | state = ADDING_DS_NAME
+                 , lastX = pos.x
+                 , lastY = pos.y
+             }, focusInput)
         (ADDING_DS_NAME, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
-             }, Cmd.batch [focusInput, rpc m <| AddDatastore m.inputValue])
+             }, Cmd.batch [focusInput, rpc m <| AddDatastore m.inputValue m.lastX m.lastY])
         (ADDING_DS_FIELD_NAME, SubmitMsg) ->
             if m.inputValue == ""
             then -- the DS has all its fields
@@ -197,8 +197,7 @@ view model =
     div [] [ viewInput model.inputValue
            , viewState model.state
            , viewErrors model.errors
-           , viewAllNodes model.graph.nodes
-           , viewClick model.lastX model.lastY
+           , viewCanvas model
            ]
 
 viewInput value = div [] [
@@ -212,28 +211,39 @@ viewInput value = div [] [
                    ]
               ]
 
+
+
 viewState state = div [] [ text ("state: " ++ toString state) ]
 viewErrors errors = div [] (List.map str2div errors)
-viewNode node = div [] (str2div ("'" ++ node.name ++ "'") :: (List.map (toString >> str2div) node.fields))
-viewClick x y =
-    let (w, h) = windowSize () in
-    Element.toHtml (Collage.collage w h [Collage.ngon 4 75
-                                        |> Collage.filled clearGrey
-                                        |> Collage.move (x, y)])
+
+viewCanvas model =
+    let (w, h) = windowSize ()
+    in Element.toHtml
+        (Collage.collage w h
+             ([viewClick model.lastX model.lastY]
+             ++
+             viewAllNodes model.graph.nodes))
+
+viewClick mx my = Collage.circle 10
+                |> Collage.filled clearGrey
+                |> Collage.move (p2c (mx, my))
+
+viewAllNodes nodes = List.map viewNode nodes
+
+viewNode node = Collage.rect 100 50
+              |> Collage.filled clearGrey
+              |> Collage.move (p2c (node.x, node.y))
+
 clearGrey : Color.Color
 clearGrey =
-  Color.rgba 111 111 111 0.6
+  Color.rgba 111 111 111 0.2
 
-viewAllNodes : List DataStore -> Html.Html Msg
-viewAllNodes nodes =
-    let allNodes = List.map viewNode nodes
-    in
-        div [] (allNodes)
 
 
 
 
 -- UTIL
+
 timestamp : () -> Int
 timestamp a = Native.Timestamp.timestamp a
 
@@ -252,8 +262,7 @@ addError error model =
 str2div str = div [] [text str]
 
 
-posToCollage : Mouse.Position -> (Float, Float)
-posToCollage pos = let (w, h) = windowSize ()
-                       (x, y) = (pos.x, pos.y)
-                   in (toFloat x - toFloat w / 2,
-                       toFloat h / 2 - toFloat y + 77)
+p2c : (Int, Int) -> (Float, Float)
+p2c (x, y) = let (w, h) = windowSize ()
+                      in (toFloat x - toFloat w / 2,
+                          toFloat h / 2 - toFloat y + 77)
