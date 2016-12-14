@@ -49,19 +49,21 @@ type alias Model = { graph : Graph
                    }
 
 type alias DataStore = { name : Name
+                       , id : ID
                        , fields : List (String, String)
                        , x : Int
                        , y : Int
                        }
 
 type alias Graph = { nodes : List DataStore
-                   , cursor : Name
+                   , cursor : Maybe ID
                    }
 
 type alias Name = String
+type ID = ID String
 
 init : ( Model, Cmd Msg )
-init = let m = { graph = {nodes = [], cursor = ""}
+init = let m = { graph = {nodes = [], cursor = Nothing}
                , state = NOTHING
                , errors = [".", "."]
                , inputValue = ""
@@ -99,20 +101,31 @@ encodeRPC m call =
                                                             , ("type", JSE.string type_)])
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
-                  , ("cursor", JSE.string m.graph.cursor)]
+                  , ("cursor", case m.graph.cursor of
+                                   Just (ID id) -> JSE.string id
+                                   Nothing -> JSE.string "")]
 
 
 decodeNode : JSD.Decoder DataStore
 decodeNode =
-  JSDP.decode DataStore
+  let toDataStore : Name -> String -> List(String,String) -> Int -> Int -> DataStore
+      toDataStore name id fields x y =
+          DataStore name (ID id) fields x y
+  in JSDP.decode toDataStore
       |> JSDP.required "name" JSD.string
+      |> JSDP.required "id" JSD.string
       |> JSDP.required "fields" (JSD.keyValuePairs JSD.string)
       |> JSDP.required "x" JSD.int
       |> JSDP.required "y" JSD.int
+      -- |> JSDP.resolve
 
 decodeGraph : JSD.Decoder Graph
 decodeGraph =
-    JSDP.decode Graph
+    let toGraph : List DataStore -> String -> Graph
+        toGraph dses cursor = Graph dses (case cursor of
+                                              "" -> Nothing
+                                              str -> (Just (ID str)))
+    in JSDP.decode toGraph
         -- |> JSDP.required "edges" (JSD.list JSD.string)
         |> JSDP.required "nodes" (JSD.list decodeNode)
         |> JSDP.required "cursor" JSD.string
@@ -149,7 +162,7 @@ update msg m =
                                   , inputValue = ""
                                   , lastX = pos.x
                                   , lastY = pos.y
-                                  , graph = { g | cursor = node.name }
+                                  , graph = { g | cursor = Just node.id }
                               }, focusInput)
 
 
@@ -247,13 +260,13 @@ viewClick mx my = Collage.circle 10
                 |> Collage.filled clearGrey
                 |> Collage.move (p2c (mx, my))
 
-viewAllNodes : Name -> List DataStore -> List Collage.Form
+viewAllNodes : Maybe ID -> List DataStore -> List Collage.Form
 viewAllNodes cursor nodes = List.map (viewNode cursor) nodes
 
-viewNode : Name -> DataStore -> Collage.Form
+viewNode : Maybe ID -> DataStore -> Collage.Form
 viewNode cursor node =
     let (w, h) = (100, 50)
-        color = if node.name == cursor then clearRed else clearGrey
+        color = if (Just node.id) == cursor then clearRed else clearGrey
         box = Collage.rect w h
             |> Collage.filled color
         name = Collage.text (Text.fromString node.name)
