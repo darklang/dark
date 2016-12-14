@@ -23,27 +23,24 @@ class Field:
     self.name = name
     self.props = props
 
+  def validate(self, value):
+    return True
+
   def __str__(self):
     return self.name
 
 class Markdown(Field):
-  def validate(self, value):
-    return True
-
   def as_tag(self, value=""):
     return Tag(self.name, value, "textarea")
 
-class Date(Field):
-  def validate(self, value):
-    return True
-
 class Title(Field):
-  def validate(self, value):
-    return True
-
   def as_tag(self, value=""):
     return Tag(self.name, value, "input", type="text")
 
-class Url(Field):
-  def validate(self, value):
-    return True
+class Date(Field): pass
+class Url(Field): pass
+class Name(Field): pass
+class Email(Field): pass
+class Text(Field): pass
+class Image(Field): pass
+class Geo(Field): pass
