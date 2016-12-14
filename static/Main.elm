@@ -57,20 +57,21 @@ type alias Graph = { nodes : List DataStore
                    }
 
 init : ( Model, Cmd Msg )
-init = ( { graph = {nodes = [], cursor = ""}
-         , state = NOTHING
-         , errors = [".", "."]
-         , inputValue = ""
-         , tempFieldName = ""
-         , lastX = -1
-         , lastY = -1
-         }, Cmd.none )
+init = let m = { graph = {nodes = [], cursor = ""}
+               , state = NOTHING
+               , errors = [".", "."]
+               , inputValue = ""
+               , tempFieldName = ""
+               , lastX = -1
+               , lastY = -1}
+       in (m, rpc m <| LoadInitialGraph)
 
 
 
 -- RPC
 type RPC
-    = AddDatastore String Int Int
+    = LoadInitialGraph
+    | AddDatastore String Int Int
     | AddDatastoreField String String
 
 rpc : Model -> RPC -> Cmd Msg
@@ -84,6 +85,7 @@ encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
     let (cmd, args) =
             case call of
+                LoadInitialGraph -> ("load_initial_graph", JSE.object [])
                 AddDatastore name x y -> ("add_datastore"
                                          , JSE.object [ ("name", JSE.string name)
                                                       , ("x", JSE.int x)
@@ -230,9 +232,11 @@ viewClick mx my = Collage.circle 10
 
 viewAllNodes nodes = List.map viewNode nodes
 
-viewNode node = Collage.rect 100 50
-              |> Collage.filled clearGrey
-              |> Collage.move (p2c (node.x, node.y))
+viewNode node =
+    let (w, h) = (100, 50)
+    in Collage.rect w h
+        |> Collage.filled clearGrey
+        |> Collage.move (p2c (node.x, node.y))
 
 clearGrey : Color.Color
 clearGrey =

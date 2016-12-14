@@ -2,7 +2,8 @@ import inspect
 import random
 
 import pyrsistent as pyr
-from util import (attrdict)
+from util import (attrdict, tojson)
+
 
 class node:
   def __init__(meta,
@@ -155,3 +156,12 @@ class Graph():
   def run_output(self, node):
     # print("run_output on node: %s" % (node))
     return self.execute(node)
+
+  def to_json(self, cursor):
+    nodes = [n.to_frontend() for n in self.nodes.values()]
+    dses = [ds.to_frontend() for ds in self.datastores.values()]
+    if cursor == None:
+      cursor = ""
+    else:
+      cursor = cursor.id()
+    return tojson({"nodes": nodes + dses, "cursor": cursor})
