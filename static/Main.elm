@@ -45,6 +45,7 @@ type alias Model = { graph : Graph
                    , errors : List String
                    , lastX : Int
                    , lastY : Int
+                   -- , drag : Maybe Drag
                    }
 
 type alias DataStore = { name : String
@@ -134,11 +135,22 @@ type State
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     case (m.state, msg) of
-        (NOTHING, MouseMsg pos) ->
-            ({ m | state = ADDING_DS_NAME
-                 , lastX = pos.x
-                 , lastY = pos.y
-             }, focusInput)
+        (_, MouseMsg pos) ->
+            -- if the mouse is within a node, select the node. Else create a new one.
+            case withinNode m pos of
+                Nothing -> ({ m | state = ADDING_DS_NAME
+                                , lastX = pos.x
+                                , lastY = pos.y
+                            }, focusInput)
+                Just node -> let g = m.graph in
+                             ({ m | state = ADDING_DS_FIELD_NAME
+                                  , inputValue = ""
+                                  , lastX = pos.x
+                                  , lastY = pos.y
+                                  , graph = { g | cursor = node.name }
+                              }, focusInput)
+
+
         (ADDING_DS_NAME, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
@@ -291,3 +303,17 @@ p2c : (Int, Int) -> (Float, Float)
 p2c (x, y) = let (w, h) = windowSize ()
                       in (toFloat x - toFloat w / 2,
                           toFloat h / 2 - toFloat y + 77)
+
+withinNode : Model -> Mouse.Position -> Maybe DataStore
+withinNode model pos =
+
+    let _  =     Debug.log "pos" pos
+        distances = List.map
+                    (\n -> (n, abs (pos.x - n.x), abs (pos.y - n.y)))
+                    model.graph.nodes
+        expectedX = 50
+        expectedY = 25
+        candidates = List.filter (\(n, x, y) -> x <= expectedX && y <= expectedY) distances
+        sorted = List.sortBy (\(n, x, y) -> x + y) candidates
+        winner = List.head sorted
+    in Maybe.map (\(n, _, _) -> n) (Debug.log "winner" winner)
