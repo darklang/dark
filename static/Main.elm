@@ -22,6 +22,7 @@ import Color
 
 
 -- mine
+import Native.Window
 import Native.Timestamp
 
 
@@ -41,8 +42,8 @@ type alias Model = { graph : Graph
                    , state : State
                    , tempFieldName : String
                    , errors : List String
-                   , lastX : Int
-                   , lastY : Int
+                   , lastX : Float
+                   , lastY : Float
                    }
 
 type alias DataStore = { name : String
@@ -58,7 +59,7 @@ type alias Graph = { nodes : List DataStore
 init : ( Model, Cmd Msg )
 init = ( { graph = {nodes = [], cursor = ""}
          , state = NOTHING
-         , errors = ["No errors"]
+         , errors = [".", "."]
          , inputValue = ""
          , tempFieldName = ""
          , lastX = -1
@@ -129,8 +130,12 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     case (m.state, msg) of
         (NOTHING, MouseMsg pos) ->
-            ({ m | state = ADDING_DS_NAME
-             }, focusInput)
+            let (x, y) = posToCollage pos
+                (x1, y1) = Debug.log ("new: " ++ (toString (x, y)) ++ ", old: " ++ (toString pos)) (x,y)
+            in ({ m | state = ADDING_DS_NAME
+                    , lastX = x1
+                    , lastY = y1
+                }, focusInput)
         (ADDING_DS_NAME, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
@@ -154,8 +159,9 @@ update msg m =
         (_, RPCCallBack (Ok graph)) ->
             ({ m | graph = graph
              }, Cmd.none)
-        (_, RPCCallBack (Err error)) ->
-            ({ m | errors = addError ("Bad RPC call: " ++ toString(error)) m
+        (_, RPCCallBack (Err (Http.BadStatus error))) ->
+            ({ m | errors = addError ("Bad RPC call: " ++ toString(error.status.message)) m
+                 , state = NOTHING
              }, Cmd.none)
 
         (_, FocusResult (Ok ())) ->
@@ -207,11 +213,13 @@ viewInput value = div [] [
               ]
 
 viewState state = div [] [ text ("state: " ++ toString state) ]
-viewErrors errors = div [] ((text "errors: ") :: (List.map str2div errors))
+viewErrors errors = div [] (List.map str2div errors)
 viewNode node = div [] (str2div ("'" ++ node.name ++ "'") :: (List.map (toString >> str2div) node.fields))
 viewClick x y =
-    Element.toHtml (Collage.collage 300 300 [Collage.ngon 4 75
-                                              |> Collage.filled clearGrey])
+    let (w, h) = windowSize () in
+    Element.toHtml (Collage.collage w h [Collage.ngon 4 75
+                                        |> Collage.filled clearGrey
+                                        |> Collage.move (x, y)])
 clearGrey : Color.Color
 clearGrey =
   Color.rgba 111 111 111 0.6
@@ -219,9 +227,8 @@ clearGrey =
 viewAllNodes : List DataStore -> Html.Html Msg
 viewAllNodes nodes =
     let allNodes = List.map viewNode nodes
-        nHeading = h1 [] [text "All nodes"]
     in
-        div [] (nHeading :: allNodes)
+        div [] (allNodes)
 
 
 
@@ -230,12 +237,23 @@ viewAllNodes nodes =
 timestamp : () -> Int
 timestamp a = Native.Timestamp.timestamp a
 
+windowSize : () -> (Int, Int)
+windowSize a = let size = Native.Window.size a
+               in (size.width, size.height)
+
 inputID = "darkInput"
 focusInput = Dom.focus inputID |> Task.attempt FocusResult
 
 addError error model =
     let time = timestamp ()
                in
-    List.take 4 ((error ++ "-" ++ toString time) :: model.errors)
+    List.take 2 ((error ++ "-" ++ toString time) :: model.errors)
 
 str2div str = div [] [text str]
+
+
+posToCollage : Mouse.Position -> (Float, Float)
+posToCollage pos = let (w, h) = windowSize ()
+                       (x, y) = (pos.x, pos.y)
+                   in (toFloat x - toFloat w / 2,
+                       toFloat h / 2 - toFloat y + 77)
