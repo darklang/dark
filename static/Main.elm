@@ -48,15 +48,17 @@ type alias Model = { graph : Graph
                    -- , drag : Maybe Drag
                    }
 
-type alias DataStore = { name : String
+type alias DataStore = { name : Name
                        , fields : List (String, String)
                        , x : Int
                        , y : Int
                        }
 
 type alias Graph = { nodes : List DataStore
-                   , cursor : String
+                   , cursor : Name
                    }
+
+type alias Name = String
 
 init : ( Model, Cmd Msg )
 init = let m = { graph = {nodes = [], cursor = ""}
@@ -238,21 +240,22 @@ viewCanvas model =
         (Collage.collage w h
              ([viewClick model.lastX model.lastY]
              ++
-             viewAllNodes model.graph.nodes))
+             viewAllNodes model.graph.cursor model.graph.nodes))
 
 viewClick : Int -> Int -> Collage.Form
 viewClick mx my = Collage.circle 10
                 |> Collage.filled clearGrey
                 |> Collage.move (p2c (mx, my))
 
-viewAllNodes : List DataStore -> List Collage.Form
-viewAllNodes nodes = List.map viewNode nodes
+viewAllNodes : Name -> List DataStore -> List Collage.Form
+viewAllNodes cursor nodes = List.map (viewNode cursor) nodes
 
-viewNode : DataStore -> Collage.Form
-viewNode node =
+viewNode : Name -> DataStore -> Collage.Form
+viewNode cursor node =
     let (w, h) = (100, 50)
+        color = if node.name == cursor then clearRed else clearGrey
         box = Collage.rect w h
-            |> Collage.filled clearGrey
+            |> Collage.filled color
         name = Collage.text (Text.fromString node.name)
         fields = Collage.toForm (viewFields node.fields)
     in (Collage.group
@@ -275,6 +278,9 @@ clearGrey : Color.Color
 clearGrey =
   Color.rgba 111 111 111 0.2
 
+clearRed : Color.Color
+clearRed =
+  Color.rgba 0 111 111 0.2
 
 
 
