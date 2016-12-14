@@ -239,14 +239,25 @@ viewAllNodes nodes = List.map viewNode nodes
 viewNode : DataStore -> Collage.Form
 viewNode node =
     let (w, h) = (100, 50)
-
+        box = Collage.rect w h
+            |> Collage.filled clearGrey
+        name = Collage.text (Text.fromString node.name)
+        fields = Collage.toForm (viewFields node.fields)
     in (Collage.group
-        [
-         Collage.rect w h
-        |> Collage.filled clearGrey
-        , Collage.text (Text.fromString node.name)
+        [ box
+        , name
+        , fields
         ])
          |> Collage.move (p2c (node.x, node.y))
+
+viewFields fields =
+    Element.flow Element.down (List.map viewField fields)
+
+viewField (name, type_) =
+    (Element.flow
+        Element.right
+        [ Element.leftAligned (Text.fromString name)
+        , Element.rightAligned (Text.fromString type_)])
 
 clearGrey : Color.Color
 clearGrey =
