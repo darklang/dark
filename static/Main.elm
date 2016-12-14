@@ -18,6 +18,7 @@ import Task
 import Http
 import Collage
 import Element
+import Text
 import Color
 
 
@@ -218,6 +219,7 @@ viewInput value = div [] [
 viewState state = div [] [ text ("state: " ++ toString state) ]
 viewErrors errors = div [] (List.map str2div errors)
 
+viewCanvas : Model -> Html.Html msg
 viewCanvas model =
     let (w, h) = windowSize ()
     in Element.toHtml
@@ -226,17 +228,25 @@ viewCanvas model =
              ++
              viewAllNodes model.graph.nodes))
 
+viewClick : Int -> Int -> Collage.Form
 viewClick mx my = Collage.circle 10
                 |> Collage.filled clearGrey
                 |> Collage.move (p2c (mx, my))
 
+viewAllNodes : List DataStore -> List Collage.Form
 viewAllNodes nodes = List.map viewNode nodes
 
+viewNode : DataStore -> Collage.Form
 viewNode node =
     let (w, h) = (100, 50)
-    in Collage.rect w h
+
+    in (Collage.group
+        [
+         Collage.rect w h
         |> Collage.filled clearGrey
-        |> Collage.move (p2c (node.x, node.y))
+        , Collage.text (Text.fromString node.name)
+        ])
+         |> Collage.move (p2c (node.x, node.y))
 
 clearGrey : Color.Color
 clearGrey =
