@@ -416,30 +416,43 @@ str2div str = Html.div [] [Html.text str]
 p2c : Pos  -> (Float, Float)
 p2c pos = let (w, h) = windowSize ()
           in (toFloat pos.x - toFloat w / 2,
-                  toFloat h / 2 - toFloat pos.y + consts.toolbarOffset)
+              toFloat h / 2 - toFloat pos.y + consts.toolbarOffset)
 
 withinNode : Node -> Mouse.Position -> Bool
 withinNode node pos =
-    let estimatedY = consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
-        estimatedX = if node.is_datastore
-                     then 2 * consts.paramWidth
-                     else max consts.paramWidth (consts.letterWidth * String.length(node.name))
-    in node.pos.x >= pos.x - (estimatedX // 2)
-    && node.pos.x <= pos.x + (estimatedX // 2)
-    && node.pos.y >= pos.y - (estimatedY // 2)
-    && node.pos.y <= pos.y + (estimatedY // 2)
+    let height = nodeHeight node
+        width = nodeWidth node
+    in node.pos.x >= pos.x - (width // 2)
+    && node.pos.x <= pos.x + (width // 2)
+    && node.pos.y >= pos.y - (height // 2)
+    && node.pos.y <= pos.y + (height // 2)
+
+nodeWidth node =
+    if node.is_datastore
+    then 2 * consts.paramWidth
+    else max consts.paramWidth (consts.letterWidth * String.length(node.name))
+
+nodeHeight node =
+    consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
+
+-- If the click is on a slot, return the slot. Else return the node.
+slotOrNode : Node -> Pos -> NodeSlot
+slotOrNode node pos = NSNode node
+    -- we clicked on a slot if we're on the left edge, below the spacer.
+    -- let leftEdge = node.pos.x - consts.param
+        -- isLeftEdge = node.pos.x - node.
 
 findNode : Model -> Mouse.Position -> NodeSlot
 findNode model pos =
     let nodes = Dict.values model.nodes
         candidates = List.filter (\n -> withinNode n pos) nodes
         distances = List.map
-                    (\n -> (n, abs (pos.x - n.pos.x), abs (pos.y - n.pos.y)))
+                    (\n -> (n, abs (pos.x - n.pos.x) + abs (pos.y - n.pos.y)))
                     candidates
-        sorted = List.sortBy (\(n, x, y) -> x + y) distances
+        sorted = List.sortBy (\(n, dist) -> dist) distances
         winner = List.head sorted
     in case winner of
-           Just (node, _, _) -> NSNode node
+           Just (node, _) -> slotOrNode node pos
            Nothing -> NSNone
 
 dlMap : (b -> c) -> Dict comparable b -> List c
