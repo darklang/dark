@@ -9,11 +9,9 @@ class node:
   def __init__(meta,
                datasource=False,
                datasink=False,
-               numinputs=None,
                fields=[]):
     assert isinstance(fields, list)
     meta.fields = fields
-    meta.numinputs = numinputs
     meta.datasource = datasource
     meta.datasink = datasink
 
