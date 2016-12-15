@@ -64,6 +64,13 @@ class Graph():
   def add_datastore(self, ds):
     self.datastores[ds.name()] = ds
 
+  def get_node(self, id):
+    "Get the node or the DS"
+    n = self.nodes.get(id)
+    if not n:
+      n = self.datastores.get(id)
+    return n
+
   def has(self, node):
     return node.id() in self.nodes
 

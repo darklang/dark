@@ -85,6 +85,7 @@ type RPC
     | AddDatastore String Pos
     | AddDatastoreField String String
     | AddFunctionCall String Pos
+    | UpdatePosition ID Pos
 
 rpc : Model -> RPC -> Cmd Msg
 rpc model call =
@@ -108,8 +109,11 @@ encodeRPC m call =
                 AddFunctionCall name pos -> ("add_function_call",
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("x", JSE.int pos.x)
-                                                            , ("y", JSE.int pos.y)
-                                                            ])
+                                                            , ("y", JSE.int pos.y)])
+                UpdatePosition (ID id) pos -> ("update_position",
+                                                   JSE.object [ ("id", JSE.string id)
+                                                              , ("x", JSE.int pos.x)
+                                                              , ("y", JSE.int pos.y)])
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
                   , ("cursor", case m.cursor of
@@ -192,15 +196,13 @@ update msg m =
                 Just node -> ({ m | drag = Just node.id
                               }, Cmd.none)
         (_, DragMove pos) ->
-            let updateNodePos name pos nodes =
-                    Dict.update name (Maybe.map (\n -> {n | pos=pos})) nodes
-            in ({ m | nodes = case m.drag of
-                                  Just (ID name) -> updateNodePos name pos m.nodes
-                                  Nothing -> m.nodes
-                }, Cmd.none)
+            (updateDragPosition pos m, Cmd.none)
         (_, DragEnd pos) ->
-            -- TODO: tell the server
-            ({m | drag = Nothing}, Cmd.none)
+            let m_ = updateDragPosition pos m
+            in case m.drag of
+                   Nothing -> (m_, Cmd.none)
+                   Just id -> ({ m_ | drag = Nothing
+                               }, rpc m <| UpdatePosition id pos)
         (ADDING_FUNCTION, SubmitMsg) ->
             if String.toLower(m.inputValue) == "ds"
             then ({ m | state = ADDING_DS_NAME
@@ -396,3 +398,14 @@ withinNode model pos =
 
 dlMap : (b -> c) -> Dict comparable b -> List c
 dlMap fn d = List.map fn (Dict.values d)
+
+
+
+updateDragPosition : Pos -> Model -> Model
+updateDragPosition pos m =
+    { m | nodes =
+          case m.drag of
+              Just (ID name) ->
+                  Dict.update name (Maybe.map (\n -> {n | pos=pos})) m.nodes
+              Nothing -> m.nodes
+    }

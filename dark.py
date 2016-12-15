@@ -34,15 +34,18 @@ class Dark(server.Server):
       command = params["command"]
       args = params["args"]
 
+      G = self.graph
+      cursor = G.get_node(cursorname)
+
       if command == "add_datastore":
         name = args["name"]
         cursor = datastore.Datastore(name)
         cursor.x = args["x"]
         cursor.y = args["y"]
-        self.graph.add_datastore(cursor)
+        G.add_datastore(cursor)
 
       elif command == "add_datastore_field":
-        ds = self.graph.datastores[cursorname]
+        ds = G.datastores[cursorname]
         fieldname = args["name"]
         typename = args["type"]
         fieldFn = getattr(fields, typename)
@@ -54,7 +57,13 @@ class Dark(server.Server):
         cursor = graph.Node(nodename)
         cursor.x = args["x"]
         cursor.y = args["y"]
-        self.graph._add(cursor)
+        G._add(cursor)
+
+      elif command == "update_position":
+        nodeid = args["id"]
+        node = G.get_node(nodeid)
+        node.x = args["x"]
+        node.y = args["y"]
 
       elif command == "load_initial_graph":
         cursor = None
@@ -63,9 +72,9 @@ class Dark(server.Server):
         raise Exception("Invalid command: " + str(request.data))
 
 
-      response = self.graph.to_frontend(cursor)
+      response = G.to_frontend(cursor)
       print("Responding: " + str(response))
-      pickle.dump(self.graph, open( "dark.graph", "wb" ))
+      pickle.dump(G, open( "dark.graph", "wb" ))
       return Response(response=response)
 
 
