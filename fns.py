@@ -3,10 +3,7 @@ import copy
 from slugify import slugify
 import pyrsistent as pyr
 
-from graph import node
-
-@node(fields=["action"])
-def form_for(m, schema):
+def form_for(action, schema):
   output = ""
   for tag in schema:
     output += tag.as_tag().to_html()
@@ -17,41 +14,28 @@ def form_for(m, schema):
           + "</fieldset>"
           + "</form>")
 
-@node(datasink=True)
 def to_page(input):
   # TODO: this feels wrong. The schema is the markup? hmmm
   # What if we need to combine schema and data to generate the page?
   # This should be a page object with a form object, and then it can get
   # auto-converted to html, or a page in an ios app.
   return "<html><head></head><body>" + input + "</body></html>"
+to_page.datasink=True
 
-@node(datasource=True)
-def endpoint(input):
-  return input.discard("submit")
+def endpoint(input): return input.discard("submit")
+endpoint.datasource = True
 
-@node(fields=["exclude"])
-def except_fields(m, fields):
-  return [f for f in fields if f.name not in m.exclude]
+def except_fields(exclude, fields):
+  return [f for f in fields if f.name not in exclude]
 
-@node(datasource=True)
 def date_now(): return datetime.datetime.now()
+date_now.datasource = True
 
-@node()
-def merge(*vals):
-  return pyr.m().update(*vals)
+def merge(*vals): return pyr.m().update(*vals)
+def get_field(name, obj): return obj[name]
+def to_key_val_val(key, val): return { key: val }
+def to_slug(str): return slugify(str)
 
-@node(fields=["fieldname"])
-def get_field(m, obj): return obj[m.fieldname]
-
-@node(fields=["key"])
-def to_key_val_val(m, val):
-  return { m.key: val }
-
-@node()
-def to_slug(str):
-  return slugify(str)
-
-@node()
 def to_table(schema, data):
   head = ""
   body = ""
@@ -69,3 +53,11 @@ def to_table(schema, data):
           + "<tbody>" + body + "</tbody>")
 
 
+def fetch(ds): return ds.fetch()
+fetch.datasource=True
+
+def schema(ds): return ds.fields
+schema.datasource=True
+
+def insert(ds, value): return ds.insert(value)
+insert.datasink = True

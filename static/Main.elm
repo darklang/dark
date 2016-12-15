@@ -47,13 +47,17 @@ type alias Model = { graph : Graph
                    -- , drag : Maybe Drag
                    }
 
-type alias DataStore = { name : Name
-                       , id : ID
-                       , fields : List (String, String)
-                       , pos : Pos
-                       }
+type alias Node = { name : Name
+                  , id : ID
+                  , pos : Pos
+                  , is_datastore : Bool
+                  -- for DSes
+                  , fields : List (String, String)
+                  -- for functions
+                  , parameters : List String
+                  }
 
-type alias Graph = { nodes : List DataStore
+type alias Graph = { nodes : List Node
                    , cursor : Maybe ID
                    }
 
@@ -111,22 +115,30 @@ encodeRPC m call =
                                    Nothing -> JSE.string "")]
 
 
-decodeNode : JSD.Decoder DataStore
+decodeNode : JSD.Decoder Node
 decodeNode =
-  let toDataStore : Name -> String -> List(String,String) -> Int -> Int -> DataStore
-      toDataStore name id fields x y =
-          DataStore name (ID id) fields {x=x, y=y}
-  in JSDP.decode toDataStore
+  let toNode : Name -> String -> List(String,String) -> List String -> Bool -> Int -> Int -> Node
+      toNode name id fields parameters is_datastore x y =
+          { name=name
+          , id=ID id
+          , fields=fields
+          , parameters=parameters
+          , is_datastore=is_datastore
+          , pos={x=x, y=y}
+          }
+  in JSDP.decode toNode
       |> JSDP.required "name" JSD.string
       |> JSDP.required "id" JSD.string
-      |> JSDP.required "fields" (JSD.keyValuePairs JSD.string)
+      |> JSDP.optional "fields" (JSD.keyValuePairs JSD.string) []
+      |> JSDP.optional "parameters" (JSD.list JSD.string) []
+      |> JSDP.optional "is_datastore" JSD.bool False
       |> JSDP.required "x" JSD.int
       |> JSDP.required "y" JSD.int
       -- |> JSDP.resolve
 
 decodeGraph : JSD.Decoder Graph
 decodeGraph =
-    let toGraph : List DataStore -> String -> Graph
+    let toGraph : List Node -> String -> Graph
         toGraph dses cursor = Graph dses (case cursor of
                                               "" -> Nothing
                                               str -> (Just (ID str)))
@@ -272,10 +284,10 @@ viewClick pos = Collage.circle 10
                 |> Collage.filled clearGrey
                 |> Collage.move (p2c pos)
 
-viewAllNodes : Maybe ID -> List DataStore -> List Collage.Form
+viewAllNodes : Maybe ID -> List Node -> List Collage.Form
 viewAllNodes cursor nodes = List.map (viewNode cursor) nodes
 
-viewNode : Maybe ID -> DataStore -> Collage.Form
+viewNode : Maybe ID -> Node -> Collage.Form
 viewNode cursor node =
     let
         color = if (Just node.id) == cursor then clearRed else clearGrey
@@ -336,7 +348,7 @@ p2c pos = let (w, h) = windowSize ()
           in (toFloat pos.x - toFloat w / 2,
                   toFloat h / 2 - toFloat pos.y + 77)
 
-withinNode : Model -> Mouse.Position -> Maybe DataStore
+withinNode : Model -> Mouse.Position -> Maybe Node
 withinNode model pos =
     let distances = List.map
                     (\n -> (n, abs (pos.x - n.pos.x), abs (pos.y - n.pos.y)))

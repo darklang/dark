@@ -6,6 +6,7 @@ import json
 import pickle
 import os.path
 
+import fields
 import graph
 import server
 import datastore
@@ -44,17 +45,16 @@ class Dark(server.Server):
         ds = self.graph.datastores[cursorname]
         fieldname = args["name"]
         typename = args["type"]
-        import fields
         fieldFn = getattr(fields, typename)
         ds.add_field(fieldFn(fieldname))
         cursor = ds
 
       elif command == "add_function_call":
         nodename = args["name"]
-        import fns
-        func = getattr(fns, nodename)
-        node = self.graph._add(func())
-        cursor = node
+        cursor = graph.Node(nodename)
+        cursor.x = args["x"]
+        cursor.y = args["y"]
+        self.graph._add(cursor)
 
       elif command == "load_initial_graph":
         cursor = None

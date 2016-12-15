@@ -55,18 +55,17 @@ class Datastore():
     self.x = -1
     self.y = -1
 
+  # Pickling
   def __getstate__(self):
     return (self.tablename, self.fields, self.fields_by_name, self.x, self.y)
 
+  # Unpickling
   def __setstate__(self, state):
     self.tablename, self.fields, self.fields_by_name, self.x, self.y = state
     self.db = DB(self.tablename)
     for f in self.fields:
       self.db.add_column(f.name)
 
-
-  def __str__(self):
-    return self.name()
 
   def name(self):
     return "DS-" + self.tablename
@@ -78,17 +77,12 @@ class Datastore():
 
   def to_frontend(self):
     return { "name": self.tablename,
-             "id": self.id(),
+             "id": self.name(),
              "fields": { f.name: f.__class__.__name__ for f in self.fields},
+             "is_datastore": True,
              "x": self.x,
              "y": self.y
     }
-
-  def id(self):
-    return self.name()
-
-  def cytonode(self):
-    return { "id": self.name(), "name": self.name() }
 
   def validate_key(self, key_name, value):
     self.fields_by_name[key_name].validate(value)
@@ -120,15 +114,3 @@ class Datastore():
   def fetch_one(self, key, key_name):
     return self.db.fetch_by_key(key_name, key)
 
-# TODO: make the graph display as if it's a node, by adding an Entry node and then schema, etc, nodes
-@graph.node(datasource=True, fields=["ds"])
-def fetch(m):
-  return m.ds.fetch()
-
-@graph.node(datasource=True, fields=["ds"])
-def schema(m):
-  return m.ds.fields
-
-@graph.node(datasink=True, fields=["ds"])
-def insert(m, value):
-  return m.ds.insert(value)
