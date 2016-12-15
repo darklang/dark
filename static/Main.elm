@@ -1,7 +1,7 @@
 port module Main exposing (..)
 
 -- builtins
-import Html exposing (div, h1, text)
+import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import Result
@@ -285,27 +285,27 @@ subscriptions m =
 -- VIEW
 view : Model -> Html.Html Msg
 view model =
-    div [] [ viewInput model.inputValue
-           , viewState model.state
-           , viewErrors model.errors
-           , viewCanvas model
-           ]
+    Html.div [] [ viewInput model.inputValue
+                , viewState model.state
+                , viewErrors model.errors
+                , viewCanvas model
+                ]
 
-viewInput value = div [] [
-               Html.form [
-                    Events.onSubmit (SubmitMsg)
-                   ] [
-                    Html.input [ Attrs.id inputID
-                               , Events.onInput InputMsg
-                               , Attrs.value value
-                               ] []
-                   ]
-              ]
+viewInput value = Html.div [] [
+                   Html.form [
+                        Events.onSubmit (SubmitMsg)
+                       ] [
+                        Html.input [ Attrs.id inputID
+                                   , Events.onInput InputMsg
+                                   , Attrs.value value
+                                   ] []
+                       ]
+                  ]
 
 
 
-viewState state = div [] [ text ("state: " ++ toString state) ]
-viewErrors errors = div [] (List.map str2div errors)
+viewState state = Html.div [] [ Html.text ("state: " ++ toString state) ]
+viewErrors errors = Html.div [] (List.map str2div errors)
 
 viewCanvas : Model -> Html.Html msg
 viewCanvas model =
@@ -385,7 +385,7 @@ addError error model =
                in
     List.take 2 ((error ++ "-" ++ toString time) :: model.errors)
 
-str2div str = div [] [text str]
+str2div str = Html.div [] [Html.text str]
 
 
 p2c : Pos  -> (Float, Float)
@@ -417,8 +417,6 @@ findNode model pos =
 
 dlMap : (b -> c) -> Dict comparable b -> List c
 dlMap fn d = List.map fn (Dict.values d)
-
-
 
 updateDragPosition : Pos -> ID -> NodeDict -> NodeDict
 updateDragPosition pos (ID id) nodes =
