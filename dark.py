@@ -74,7 +74,11 @@ class Dark(server.Server):
 
       response = G.to_frontend(cursor)
       print("Responding: " + str(response))
+
+      # Roundtrip so we find bugs early
       pickle.dump(G, open( "dark.graph", "wb" ))
+      self.graph = pickle.load(open( "dark.graph", "rb"))
+
       return Response(response=response)
 
 
