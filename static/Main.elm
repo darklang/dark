@@ -419,7 +419,7 @@ withinNode node pos =
     let estimatedY = consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
         estimatedX = if node.is_datastore
                      then 2 * consts.paramWidth
-                     else consts.letterWidth * String.length(node.name)
+                     else max consts.paramWidth (consts.letterWidth * String.length(node.name))
     in node.pos.x >= pos.x - (estimatedX // 2)
     && node.pos.x <= pos.x + (estimatedX // 2)
     && node.pos.y >= pos.y - (estimatedY // 2)
