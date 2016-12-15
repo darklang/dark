@@ -46,7 +46,7 @@ type alias Model = { nodes : NodeDict
                    , tempFieldName : String
                    , errors : List String
                    , lastPos : Pos
-                   , drag : Cursor
+                   , drag : Bool
                    }
 
 type alias Node = { name : Name
@@ -73,7 +73,7 @@ init = let m = { nodes = Dict.empty
                , inputValue = ""
                , tempFieldName = ""
                , lastPos = {x=-1, y=-1}
-               , drag = Nothing
+               , drag = False
                }
        in (m, rpc m <| LoadInitialGraph)
 
@@ -85,7 +85,7 @@ type RPC
     | AddDatastore String Pos
     | AddDatastoreField String String
     | AddFunctionCall String Pos
-    | UpdatePosition ID Pos
+    | UpdatePosition ID
 
 rpc : Model -> RPC -> Cmd Msg
 rpc model call =
@@ -110,10 +110,13 @@ encodeRPC m call =
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("x", JSE.int pos.x)
                                                             , ("y", JSE.int pos.y)])
-                UpdatePosition (ID id) pos -> ("update_position",
-                                                   JSE.object [ ("id", JSE.string id)
-                                                              , ("x", JSE.int pos.x)
-                                                              , ("y", JSE.int pos.y)])
+                UpdatePosition (ID id) ->
+                    case Dict.get id m.nodes of
+                        Nothing -> Debug.crash "should never happen"
+                        Just node -> ("update_position",
+                                          JSE.object [ ("id", JSE.string id)
+                                                     , ("x", JSE.int node.pos.x)
+                                                     , ("y", JSE.int node.pos.y)])
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
                   , ("cursor", case m.cursor of
@@ -159,8 +162,8 @@ decodeGraph =
 type Msg
     = MouseMsg Mouse.Position
     | DragStart Mouse.Position
-    | DragMove Mouse.Position
-    | DragEnd Mouse.Position
+    | DragMove ID Mouse.Position
+    | DragEnd ID Mouse.Position
     | InputMsg String
     | SubmitMsg
     | KeyMsg Keyboard.KeyCode
@@ -193,23 +196,23 @@ update msg m =
         (_, DragStart pos) ->
             case withinNode m pos of
                 Nothing -> (m, Cmd.none)
-                Just node -> ({ m | drag = Just node.id
+                Just node -> ({ m | drag = True
+                                  , cursor = Just node.id
                               }, Cmd.none)
-        (_, DragMove pos) ->
-            (updateDragPosition pos m, Cmd.none)
-        (_, DragEnd pos) ->
-            let m_ = updateDragPosition pos m
-            in case m.drag of
-                   Nothing -> (m_, Cmd.none)
-                   Just id -> ({ m_ | drag = Nothing
-                               }, rpc m <| UpdatePosition id pos)
+        (_, DragMove id pos) ->
+            ({ m | nodes = updateDragPosition pos id m.nodes
+             }, Cmd.none)
+        (_, DragEnd id _) ->
+            -- to avoid moving when we just want to select, don't set to mouseUp position
+            ({ m | drag = False
+             }, rpc m <| UpdatePosition id)
         (ADDING_FUNCTION, SubmitMsg) ->
             if String.toLower(m.inputValue) == "ds"
             then ({ m | state = ADDING_DS_NAME
-                  , inputValue = ""
+                      , inputValue = ""
                   }, focusInput)
             else ({ m | state = NOTHING
-                  , inputValue = ""
+                      , inputValue = ""
                   }, Cmd.batch [focusInput, rpc m <| AddFunctionCall m.inputValue m.lastPos])
         (ADDING_DS_NAME, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
@@ -258,11 +261,13 @@ update msg m =
 
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    let dragSubs = case model.drag of
-                       Nothing -> []
-                       Just _ -> [ Mouse.moves DragMove
-                                 , Mouse.ups DragEnd]
+subscriptions m =
+    let dragSubs = if m.drag
+                   then case m.cursor of
+                            Just id -> [ Mouse.moves (DragMove id)
+                                       , Mouse.ups (DragEnd id)]
+                            Nothing -> []
+                   else []
         standardSubs = [ Mouse.clicks MouseMsg
                        , Mouse.downs DragStart]
     in Sub.batch
@@ -335,11 +340,9 @@ viewNode model node =
     in Collage.move (p2c node.pos) group
 
 nodeColor : Model -> Node -> Color.Color
-nodeColor m node = if (Just node.id) == m.drag
-                   then Color.lightGreen
-                   else if (Just node.id) == m.cursor
-                        then Color.lightRed
-                        else Color.lightGrey
+nodeColor m node = if (Just node.id) == m.cursor
+                   then Color.lightRed
+                   else Color.lightGrey
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -401,11 +404,6 @@ dlMap fn d = List.map fn (Dict.values d)
 
 
 
-updateDragPosition : Pos -> Model -> Model
-updateDragPosition pos m =
-    { m | nodes =
-          case m.drag of
-              Just (ID name) ->
-                  Dict.update name (Maybe.map (\n -> {n | pos=pos})) m.nodes
-              Nothing -> m.nodes
-    }
+updateDragPosition : Pos -> ID -> NodeDict -> NodeDict
+updateDragPosition pos (ID id) nodes =
+    Dict.update id (Maybe.map (\n -> {n | pos=pos})) nodes
