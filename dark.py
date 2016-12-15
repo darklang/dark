@@ -49,6 +49,13 @@ class Dark(server.Server):
         ds.add_field(fieldFn(fieldname))
         cursor = ds
 
+      elif command == "add_function_call":
+        nodename = args["name"]
+        import fns
+        func = getattr(fns, nodename)
+        node = self.graph._add(func())
+        cursor = node
+
       elif command == "load_initial_graph":
         cursor = None
 

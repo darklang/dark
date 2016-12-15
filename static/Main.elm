@@ -43,16 +43,14 @@ type alias Model = { graph : Graph
                    , state : State
                    , tempFieldName : String
                    , errors : List String
-                   , lastX : Int
-                   , lastY : Int
+                   , lastPos : Pos
                    -- , drag : Maybe Drag
                    }
 
 type alias DataStore = { name : Name
                        , id : ID
                        , fields : List (String, String)
-                       , x : Int
-                       , y : Int
+                       , pos : Pos
                        }
 
 type alias Graph = { nodes : List DataStore
@@ -61,6 +59,7 @@ type alias Graph = { nodes : List DataStore
 
 type alias Name = String
 type ID = ID String
+type alias Pos = {x: Int, y: Int}
 
 init : ( Model, Cmd Msg )
 init = let m = { graph = {nodes = [], cursor = Nothing}
@@ -68,8 +67,8 @@ init = let m = { graph = {nodes = [], cursor = Nothing}
                , errors = [".", "."]
                , inputValue = ""
                , tempFieldName = ""
-               , lastX = -1
-               , lastY = -1}
+               , lastPos = {x=-1, y=-1}
+               }
        in (m, rpc m <| LoadInitialGraph)
 
 
@@ -77,8 +76,9 @@ init = let m = { graph = {nodes = [], cursor = Nothing}
 -- RPC
 type RPC
     = LoadInitialGraph
-    | AddDatastore String Int Int
+    | AddDatastore String Pos
     | AddDatastoreField String String
+    | AddFunctionCall String Pos
 
 rpc : Model -> RPC -> Cmd Msg
 rpc model call =
@@ -92,13 +92,18 @@ encodeRPC m call =
     let (cmd, args) =
             case call of
                 LoadInitialGraph -> ("load_initial_graph", JSE.object [])
-                AddDatastore name x y -> ("add_datastore"
+                AddDatastore name pos -> ("add_datastore"
                                          , JSE.object [ ("name", JSE.string name)
-                                                      , ("x", JSE.int x)
-                                                      , ("y", JSE.int y)])
+                                                      , ("x", JSE.int pos.x)
+                                                      , ("y", JSE.int pos.y)])
                 AddDatastoreField name type_ -> ("add_datastore_field",
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("type", JSE.string type_)])
+                AddFunctionCall name pos -> ("add_function_call",
+                                                 JSE.object [ ("name", JSE.string name)
+                                                            , ("x", JSE.int pos.x)
+                                                            , ("y", JSE.int pos.y)
+                                                            ])
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
                   , ("cursor", case m.graph.cursor of
@@ -110,7 +115,7 @@ decodeNode : JSD.Decoder DataStore
 decodeNode =
   let toDataStore : Name -> String -> List(String,String) -> Int -> Int -> DataStore
       toDataStore name id fields x y =
-          DataStore name (ID id) fields x y
+          DataStore name (ID id) fields {x=x, y=y}
   in JSDP.decode toDataStore
       |> JSDP.required "name" JSD.string
       |> JSDP.required "id" JSD.string
@@ -143,6 +148,7 @@ type Msg
 
 type State
     = NOTHING
+    | ADDING_FUNCTION
     | ADDING_DS_NAME
     | ADDING_DS_FIELD_NAME
     | ADDING_DS_FIELD_TYPE
@@ -153,23 +159,29 @@ update msg m =
         (_, MouseMsg pos) ->
             -- if the mouse is within a node, select the node. Else create a new one.
             case withinNode m pos of
-                Nothing -> ({ m | state = ADDING_DS_NAME
-                                , lastX = pos.x
-                                , lastY = pos.y
+                Nothing -> ({ m | state = ADDING_FUNCTION
+                                , lastPos = pos
                             }, focusInput)
                 Just node -> let g = m.graph in
                              ({ m | state = ADDING_DS_FIELD_NAME
                                   , inputValue = ""
-                                  , lastX = pos.x
-                                  , lastY = pos.y
+                                  , lastPos = pos
                                   , graph = { g | cursor = Just node.id }
                               }, focusInput)
 
 
+        (ADDING_FUNCTION, SubmitMsg) ->
+            if String.toLower(m.inputValue) == "ds"
+            then ({ m | state = ADDING_DS_NAME
+                  , inputValue = ""
+                  }, focusInput)
+            else ({ m | state = NOTHING
+                  , inputValue = ""
+                  }, Cmd.batch [focusInput, rpc m <| AddFunctionCall m.inputValue m.lastPos])
         (ADDING_DS_NAME, SubmitMsg) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
-             }, Cmd.batch [focusInput, rpc m <| AddDatastore m.inputValue m.lastX m.lastY])
+             }, Cmd.batch [focusInput, rpc m <| AddDatastore m.inputValue m.lastPos])
         (ADDING_DS_FIELD_NAME, SubmitMsg) ->
             if m.inputValue == ""
             then -- the DS has all its fields
@@ -251,14 +263,14 @@ viewCanvas model =
     let (w, h) = windowSize ()
     in Element.toHtml
         (Collage.collage w h
-             ([viewClick model.lastX model.lastY]
+             ([viewClick model.lastPos]
              ++
              viewAllNodes model.graph.cursor model.graph.nodes))
 
-viewClick : Int -> Int -> Collage.Form
-viewClick mx my = Collage.circle 10
+viewClick : Pos -> Collage.Form
+viewClick pos = Collage.circle 10
                 |> Collage.filled clearGrey
-                |> Collage.move (p2c (mx, my))
+                |> Collage.move (p2c pos)
 
 viewAllNodes : Maybe ID -> List DataStore -> List Collage.Form
 viewAllNodes cursor nodes = List.map (viewNode cursor) nodes
@@ -277,7 +289,7 @@ viewNode cursor node =
                      |> Collage.filled color
         group = Collage.group [ box
                               , Collage.toForm entire]
-    in Collage.move (p2c (node.x, node.y)) group
+    in Collage.move (p2c node.pos) group
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -319,17 +331,15 @@ addError error model =
 str2div str = div [] [text str]
 
 
-p2c : (Int, Int) -> (Float, Float)
-p2c (x, y) = let (w, h) = windowSize ()
-                      in (toFloat x - toFloat w / 2,
-                          toFloat h / 2 - toFloat y + 77)
+p2c : Pos  -> (Float, Float)
+p2c pos = let (w, h) = windowSize ()
+          in (toFloat pos.x - toFloat w / 2,
+                  toFloat h / 2 - toFloat pos.y + 77)
 
 withinNode : Model -> Mouse.Position -> Maybe DataStore
 withinNode model pos =
-
-    let _  =     Debug.log "pos" pos
-        distances = List.map
-                    (\n -> (n, abs (pos.x - n.x), abs (pos.y - n.y)))
+    let distances = List.map
+                    (\n -> (n, abs (pos.x - n.pos.x), abs (pos.y - n.pos.y)))
                     model.graph.nodes
         expectedX = 50
         expectedY = 25
