@@ -36,6 +36,9 @@ main = Html.program
        , update = update
        , subscriptions = subscriptions}
 
+constants = { spacer = 5
+            , lineHeight = 18
+            , paramWidth = 50}
 
 
 -- MODEL
@@ -128,12 +131,12 @@ decodeNode : JSD.Decoder Node
 decodeNode =
   let toNode : Name -> String -> List(String,String) -> List String -> Bool -> Int -> Int -> Node
       toNode name id fields parameters is_datastore x y =
-          { name=name
-          , id=ID id
-          , fields=fields
-          , parameters=parameters
-          , is_datastore=is_datastore
-          , pos={x=x, y=y}
+          { name = name
+          , id = ID id
+          , fields = fields
+          , parameters = parameters
+          , is_datastore = is_datastore
+          , pos = {x=x, y=y}
           }
   in JSDP.decode toNode
       |> JSDP.required "name" JSD.string
@@ -182,7 +185,7 @@ update msg m =
     case (m.state, msg) of
         (_, MouseMsg pos) ->
             -- if the mouse is within a node, select the node. Else create a new one.
-            case withinNode m pos of
+            case findNode m pos of
                 Nothing -> ({ m | state = ADDING_FUNCTION
                                 , cursor = Nothing
                                 , lastPos = pos
@@ -194,7 +197,7 @@ update msg m =
                               }, focusInput)
 
         (_, DragStart pos) ->
-            case withinNode m pos of
+            case findNode m pos of
                 Nothing -> (m, Cmd.none)
                 Just node -> ({ m | drag = True
                                   , cursor = Just node.id
@@ -329,7 +332,7 @@ viewNode model node =
         fields = viewFields node.fields
         parameters = viewParameters node.parameters
         entire = Element.flow Element.down [ name
-                                           , Element.spacer 10 5
+                                           , Element.spacer constants.spacer constants.spacer
                                            , parameters
                                            , fields]
         (w, h) = Element.sizeOf entire
@@ -350,14 +353,17 @@ viewFields fields =
 viewField (name, type_) =
     (Element.flow
         Element.right
-         [ Element.container 50 18 Element.midLeft (Element.leftAligned (Text.fromString name))
-         , Element.container 50 18 Element.midRight (Element.rightAligned (Text.fromString type_))])
+         [ Element.container constants.paramWidth constants.lineHeight
+               Element.midLeft (Element.leftAligned (Text.fromString name))
+         , Element.container constants.paramWidth constants.lineHeight
+               Element.midRight (Element.rightAligned (Text.fromString type_))])
 
 viewParameters parameters =
     Element.flow Element.down (List.map viewParameter parameters)
 
 viewParameter name =
-    Element.container 50 18 Element.midLeft (Element.leftAligned (Text.fromString name))
+    Element.container constants.paramWidth constants.lineHeight
+        Element.midLeft (Element.leftAligned (Text.fromString name))
 
 
 
@@ -387,17 +393,27 @@ p2c pos = let (w, h) = windowSize ()
           in (toFloat pos.x - toFloat w / 2,
                   toFloat h / 2 - toFloat pos.y + 77)
 
-withinNode : Model -> Mouse.Position -> Maybe Node
-withinNode model pos =
-    let distances = List.map
+withinNode : Node -> Mouse.Position -> Bool
+withinNode node pos =
+    let estimatedY = constants.spacer + constants.lineHeight * (1 + List.length node.parameters + List.length node.fields)
+        estimatedX = if node.is_datastore
+                     then 2 * constants.paramWidth
+                     else 7 * String.length(node.name)
+    in node.pos.x >= pos.x - (estimatedX // 2)
+    && node.pos.x <= pos.x + (estimatedX // 2)
+    && node.pos.y >= pos.y - (estimatedY // 2)
+    && node.pos.y <= pos.y + (estimatedY // 2)
+
+findNode : Model -> Mouse.Position -> Maybe Node
+findNode model pos =
+    let nodes = Dict.values model.nodes
+        candidates = List.filter (\n -> withinNode n pos) nodes
+        distances = List.map
                     (\n -> (n, abs (pos.x - n.pos.x), abs (pos.y - n.pos.y)))
-                    (Dict.values model.nodes)
-        expectedX = 50
-        expectedY = 25
-        candidates = List.filter (\(n, x, y) -> x <= expectedX && y <= expectedY) distances
-        sorted = List.sortBy (\(n, x, y) -> x + y) candidates
+                    candidates
+        sorted = List.sortBy (\(n, x, y) -> x + y) distances
         winner = List.head sorted
-    in Maybe.map (\(n, _, _) -> n) (Debug.log "winner" winner)
+    in Maybe.map (\(n, _, _) -> n) winner
 
 dlMap : (b -> c) -> Dict comparable b -> List c
 dlMap fn d = List.map fn (Dict.values d)
@@ -406,4 +422,4 @@ dlMap fn d = List.map fn (Dict.values d)
 
 updateDragPosition : Pos -> ID -> NodeDict -> NodeDict
 updateDragPosition pos (ID id) nodes =
-    Dict.update id (Maybe.map (\n -> {n | pos=pos})) nodes
+    Dict.update id (Maybe.map (\n -> {n | pos = pos})) nodes
