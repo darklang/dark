@@ -36,9 +36,15 @@ main = Html.program
        , update = update
        , subscriptions = subscriptions}
 
-constants = { spacer = 5
-            , lineHeight = 18
-            , paramWidth = 50}
+consts = { spacer = 5
+         , lineHeight = 18
+         , paramWidth = 50
+         , dotRadius = 5
+         , dotWidth = 10
+         , dotContainer = 20
+         , toolbarOffset = 77
+         , letterWidth = 7
+         }
 
 
 -- MODEL
@@ -332,7 +338,7 @@ viewNode model node =
         fields = viewFields node.fields
         parameters = viewParameters node.parameters
         entire = Element.flow Element.down [ name
-                                           , Element.spacer constants.spacer constants.spacer
+                                           , Element.spacer consts.spacer consts.spacer
                                            , parameters
                                            , fields]
         (w, h) = Element.sizeOf entire
@@ -353,22 +359,30 @@ viewFields fields =
 viewField (name, type_) =
     (Element.flow
         Element.right
-         [ Element.container constants.paramWidth constants.lineHeight
-               Element.midLeft (Element.leftAligned (Text.fromString name))
-         , Element.container constants.paramWidth constants.lineHeight
-               Element.midRight (Element.rightAligned (Text.fromString type_))])
+         [ Element.container
+               consts.paramWidth consts.lineHeight
+               Element.midLeft
+                   (Element.leftAligned (Text.fromString name))
+         , Element.container
+               consts.paramWidth consts.lineHeight
+               Element.midRight
+                   (Element.rightAligned (Text.fromString type_))])
 
 viewParameters parameters =
     Element.flow Element.down (List.map viewParameter parameters)
 
 viewDot =
-    Collage.collage 10 20 [Collage.filled Color.red (Collage.circle 5)]
+    Collage.collage
+        consts.dotWidth
+        consts.dotContainer
+        [Collage.filled Color.red
+             (Collage.circle consts.dotRadius)]
 
 viewParameter name =
     Element.flow
         Element.right
             [ viewDot
-            , Element.container constants.paramWidth constants.lineHeight
+            , Element.container consts.paramWidth consts.lineHeight
                 Element.midLeft (Element.leftAligned (Text.fromString name))]
 
 
@@ -398,14 +412,14 @@ str2div str = Html.div [] [Html.text str]
 p2c : Pos  -> (Float, Float)
 p2c pos = let (w, h) = windowSize ()
           in (toFloat pos.x - toFloat w / 2,
-                  toFloat h / 2 - toFloat pos.y + 77)
+                  toFloat h / 2 - toFloat pos.y + consts.toolbarOffset)
 
 withinNode : Node -> Mouse.Position -> Bool
 withinNode node pos =
-    let estimatedY = constants.spacer + constants.lineHeight * (1 + List.length node.parameters + List.length node.fields)
+    let estimatedY = consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
         estimatedX = if node.is_datastore
-                     then 2 * constants.paramWidth
-                     else 7 * String.length(node.name)
+                     then 2 * consts.paramWidth
+                     else consts.letterWidth * String.length(node.name)
     in node.pos.x >= pos.x - (estimatedX // 2)
     && node.pos.x <= pos.x + (estimatedX // 2)
     && node.pos.y >= pos.y - (estimatedY // 2)
