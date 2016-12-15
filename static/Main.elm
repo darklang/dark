@@ -78,6 +78,7 @@ type Drag = NoDrag
           | Drag ID
 
 type NodeSlot = NSNode Node
+              | NSSlot Int
               | NSNone
 
 init : ( Model, Cmd Msg )
@@ -202,6 +203,7 @@ update msg m =
                                , cursor = Nothing
                                , lastPos = pos
                            }, focusInput)
+                NSSlot _ -> (m, Cmd.none)
                 NSNode node -> ({ m | state = ADDING_DS_FIELD_NAME
                                     , inputValue = ""
                                     , lastPos = pos
@@ -211,6 +213,7 @@ update msg m =
         (_, DragStart pos) ->
             case findNode m pos of
                 NSNone -> (m, Cmd.none)
+                NSSlot _ -> (m, Cmd.none)
                 NSNode node -> ({ m | drag = Drag node.id
                                 }, Cmd.none)
         (_, DragMove id pos) ->
@@ -310,8 +313,6 @@ viewInput value = Html.div [] [
                                    ] []
                        ]
                   ]
-
-
 
 viewState state = Html.div [] [ Html.text ("state: " ++ toString state) ]
 viewErrors errors = Html.div [] (List.map str2div errors)
@@ -437,10 +438,18 @@ nodeHeight node =
 
 -- If the click is on a slot, return the slot. Else return the node.
 slotOrNode : Node -> Pos -> NodeSlot
-slotOrNode node pos = NSNode node
+slotOrNode node pos =
     -- we clicked on a slot if we're on the left edge, below the spacer.
-    -- let leftEdge = node.pos.x - consts.param
-        -- isLeftEdge = node.pos.x - node.
+    let leftEdge = node.pos.x - (nodeWidth node // 2)
+    in if pos.x > (leftEdge + consts.dotWidth)
+       then NSNode node
+       -- ok it's along the left. Now find its slot
+       else let index = (pos.y - node.pos.y - consts.spacer) // consts.lineHeight
+            in if index < 0
+               then NSNode node
+               else NSSlot index
+
+
 
 findNode : Model -> Mouse.Position -> NodeSlot
 findNode model pos =
