@@ -55,6 +55,16 @@ class Datastore():
     self.x = -1
     self.y = -1
 
+  def __getstate__(self):
+    return (self.tablename, self.fields, self.fields_by_name, self.x, self.y)
+
+  def __setstate__(self, state):
+    self.tablename, self.fields, self.fields_by_name, self.x, self.y = state
+    self.db = DB(self.tablename)
+    for f in self.fields:
+      self.db.add_column(f.name)
+
+
   def __str__(self):
     return self.name()
 
