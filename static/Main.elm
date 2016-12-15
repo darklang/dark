@@ -6,6 +6,7 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 import Result
 import Char
+import Dict exposing (Dict)
 import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
@@ -44,7 +45,7 @@ type alias Model = { graph : Graph
                    , tempFieldName : String
                    , errors : List String
                    , lastPos : Pos
-                   -- , drag : Maybe Drag
+                   , drag : Maybe ID
                    }
 
 type alias Node = { name : Name
@@ -57,21 +58,23 @@ type alias Node = { name : Name
                   , parameters : List String
                   }
 
-type alias Graph = { nodes : List Node
+type alias Graph = { nodes : NodeDict
                    , cursor : Maybe ID
                    }
 
 type alias Name = String
 type ID = ID String
 type alias Pos = {x: Int, y: Int}
+type alias NodeDict = Dict Name Node
 
 init : ( Model, Cmd Msg )
-init = let m = { graph = {nodes = [], cursor = Nothing}
+init = let m = { graph = {nodes = Dict.empty, cursor = Nothing}
                , state = NOTHING
                , errors = [".", "."]
                , inputValue = ""
                , tempFieldName = ""
                , lastPos = {x=-1, y=-1}
+               , drag = Nothing
                }
        in (m, rpc m <| LoadInitialGraph)
 
@@ -138,13 +141,13 @@ decodeNode =
 
 decodeGraph : JSD.Decoder Graph
 decodeGraph =
-    let toGraph : List Node -> String -> Graph
+    let toGraph : NodeDict -> String -> Graph
         toGraph dses cursor = Graph dses (case cursor of
                                               "" -> Nothing
                                               str -> (Just (ID str)))
     in JSDP.decode toGraph
         -- |> JSDP.required "edges" (JSD.list JSD.string)
-        |> JSDP.required "nodes" (JSD.list decodeNode)
+        |> JSDP.required "nodes" (JSD.dict decodeNode)
         |> JSDP.required "cursor" JSD.string
 
 
@@ -152,6 +155,9 @@ decodeGraph =
 -- UPDATE
 type Msg
     = MouseMsg Mouse.Position
+    | DragStart Mouse.Position
+    | DragMove Mouse.Position
+    | DragEnd Mouse.Position
     | InputMsg String
     | SubmitMsg
     | KeyMsg Keyboard.KeyCode
@@ -181,7 +187,23 @@ update msg m =
                                   , graph = { g | cursor = Just node.id }
                               }, focusInput)
 
-
+        (_, DragStart pos) ->
+            case withinNode m pos of
+                Nothing -> (m, Cmd.none)
+                Just node -> ({ m | drag = Just node.id
+                              }, Cmd.none)
+        (_, DragMove pos) ->
+            let updateNodePos name pos graph = { graph | nodes = Dict.update
+                                                                 name
+                                                                 (Maybe.map (\n -> {n | pos=pos}))
+                                                                 graph.nodes}
+            in ({ m | graph = case m.drag of
+                                  Just (ID name) -> updateNodePos name pos m.graph
+                                  Nothing -> m.graph
+                }, Cmd.none)
+        (_, DragEnd pos) ->
+            -- TODO: tell the server
+            ({m | drag = Nothing}, Cmd.none)
         (ADDING_FUNCTION, SubmitMsg) ->
             if String.toLower(m.inputValue) == "ds"
             then ({ m | state = ADDING_DS_NAME
@@ -237,10 +259,17 @@ update msg m =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.batch
-        [ Mouse.clicks MouseMsg
+    let dragSubs = case model.drag of
+                       Nothing -> []
+                       Just _ -> [ Mouse.moves DragMove
+                                 , Mouse.ups DragEnd]
+        standardSubs = [ Mouse.clicks MouseMsg
+                       , Mouse.downs DragStart]
+    in Sub.batch
+        (List.concat [standardSubs, dragSubs])
+
 --        , Keyboard.downs KeyMsg
-        ]
+
 
 
 
@@ -277,20 +306,20 @@ viewCanvas model =
         (Collage.collage w h
              ([viewClick model.lastPos]
              ++
-             viewAllNodes model.graph.cursor model.graph.nodes))
+             viewAllNodes model model.graph.nodes))
 
 viewClick : Pos -> Collage.Form
 viewClick pos = Collage.circle 10
                 |> Collage.filled clearGrey
                 |> Collage.move (p2c pos)
 
-viewAllNodes : Maybe ID -> List Node -> List Collage.Form
-viewAllNodes cursor nodes = List.map (viewNode cursor) nodes
+viewAllNodes : Model -> Dict String Node -> List Collage.Form
+viewAllNodes model nodes = dlMap (viewNode model) nodes
 
-viewNode : Maybe ID -> Node -> Collage.Form
-viewNode cursor node =
+viewNode : Model -> Node -> Collage.Form
+viewNode model node =
     let
-        color = if (Just node.id) == cursor then clearRed else clearGrey
+        color = nodeColor model node
         name = Element.centered (node.name |> Text.fromString |> Text.bold)
         fields = viewFields node.fields
         parameters = viewParameters node.parameters
@@ -304,6 +333,13 @@ viewNode cursor node =
         group = Collage.group [ box
                               , Collage.toForm entire]
     in Collage.move (p2c node.pos) group
+
+nodeColor : Model -> Node -> Color.Color
+nodeColor m node = if (Just node.id) == m.drag
+                   then clearCyan
+                   else if (Just node.id) == m.graph.cursor
+                        then clearRed
+                        else clearGrey
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -327,8 +363,11 @@ clearGrey =
 
 clearRed : Color.Color
 clearRed =
-  Color.rgba 0 111 111 0.2
+  Color.rgba 111 11 11 0.2
 
+clearCyan : Color.Color
+clearCyan =
+  Color.rgba 0 111 111 0.2
 
 
 
@@ -361,10 +400,13 @@ withinNode : Model -> Mouse.Position -> Maybe Node
 withinNode model pos =
     let distances = List.map
                     (\n -> (n, abs (pos.x - n.pos.x), abs (pos.y - n.pos.y)))
-                    model.graph.nodes
+                    (Dict.values model.graph.nodes)
         expectedX = 50
         expectedY = 25
         candidates = List.filter (\(n, x, y) -> x <= expectedX && y <= expectedY) distances
         sorted = List.sortBy (\(n, x, y) -> x + y) candidates
         winner = List.head sorted
     in Maybe.map (\(n, _, _) -> n) (Debug.log "winner" winner)
+
+dlMap : (b -> c) -> Dict comparable b -> List c
+dlMap fn d = List.map fn (Dict.values d)

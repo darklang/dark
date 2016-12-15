@@ -63,7 +63,7 @@ class Dark(server.Server):
         raise Exception("Invalid command: " + str(request.data))
 
 
-      response = self.graph.to_json(cursor)
+      response = self.graph.to_frontend(cursor)
       print("Responding: " + str(response))
       pickle.dump(self.graph, open( "dark.graph", "wb" ))
       return Response(response=response)

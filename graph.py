@@ -129,12 +129,13 @@ class Graph():
     # print("run_output on node: %s" % (node))
     return self.execute(node)
 
-  def to_json(self, cursor):
+  def to_frontend(self, cursor):
     nodes = [n.to_frontend() for n in self.nodes.values()]
     dses = [ds.to_frontend() for ds in self.datastores.values()]
+    allnodes = {n["id"]: n for n in (nodes + dses)}
     if cursor == None:
       cursor = ""
     else:
       cursor = cursor.id()
     from util import (tojson)
-    return tojson({"nodes": nodes + dses, "cursor": cursor})
+    return tojson({"nodes": allnodes, "cursor": cursor})
