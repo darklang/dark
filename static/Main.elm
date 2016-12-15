@@ -44,6 +44,7 @@ consts = { spacer = 5
          , dotContainer = 20
          , toolbarOffset = 77
          , letterWidth = 7
+         , inputID = "darkInput"
          }
 
 
@@ -303,7 +304,7 @@ viewInput value = Html.div [] [
                    Html.form [
                         Events.onSubmit (SubmitMsg)
                        ] [
-                        Html.input [ Attrs.id inputID
+                        Html.input [ Attrs.id consts.inputID
                                    , Events.onInput InputMsg
                                    , Attrs.value value
                                    ] []
@@ -402,8 +403,7 @@ windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
                in (size.width, size.height)
 
-inputID = "darkInput"
-focusInput = Dom.focus inputID |> Task.attempt FocusResult
+focusInput = Dom.focus consts.inputID |> Task.attempt FocusResult
 
 addError error model =
     let time = timestamp ()
