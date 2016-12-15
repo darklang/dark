@@ -86,17 +86,8 @@ class Dark(server.Server):
 
   def add_graph_routes(self):
     def fn(request):
-      nodes = [n.cytonode() for n in self.graph.nodes.values()]
-      dses = [ds.cytonode() for ds in self.graph.datastores.values()]
-      return self.render_template('graph.html',
-                                  nodes=tojson(nodes + dses),
-                                  edges=tojson(self.graph.edges),
-                                  reverse_edges=self.graph.reverse_edges)
-    self.url_map.add(Rule('/admin/graph', endpoint=fn))
-
-    def fn(request):
       return self.render_template('graphelm.html')
-    self.url_map.add(Rule('/admin/graph2', endpoint=fn))
+    self.url_map.add(Rule('/admin/ui', endpoint=fn))
 
   def add_standard_routes(self):
     # TODO: move to a component
