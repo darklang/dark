@@ -293,9 +293,11 @@ viewNode cursor node =
         color = if (Just node.id) == cursor then clearRed else clearGrey
         name = Element.centered (node.name |> Text.fromString |> Text.bold)
         fields = viewFields node.fields
-        entire = Element.flow Element.down [name,
-                                                Element.spacer 10 5,
-                                                fields]
+        parameters = viewParameters node.parameters
+        entire = Element.flow Element.down [ name
+                                           , Element.spacer 10 5
+                                           , parameters
+                                           , fields]
         (w, h) = Element.sizeOf entire
         box = Collage.rect (toFloat w) (toFloat h)
                      |> Collage.filled color
@@ -311,6 +313,13 @@ viewField (name, type_) =
         Element.right
          [ Element.container 50 18 Element.midLeft (Element.leftAligned (Text.fromString name))
          , Element.container 50 18 Element.midRight (Element.rightAligned (Text.fromString type_))])
+
+viewParameters parameters =
+    Element.flow Element.down (List.map viewParameter parameters)
+
+viewParameter name =
+    Element.container 50 18 Element.midLeft (Element.leftAligned (Text.fromString name))
+
 
 clearGrey : Color.Color
 clearGrey =
