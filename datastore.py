@@ -66,9 +66,11 @@ class Datastore():
     for f in self.fields:
       self.db.add_column(f.name)
 
-
   def name(self):
     return "DS-" + self.tablename
+
+  def id(self):
+    return self.name()
 
   def add_field(self, f):
     self.fields_by_name[f.name] = f
@@ -77,7 +79,7 @@ class Datastore():
 
   def to_frontend(self):
     return { "name": self.tablename,
-             "id": self.name(),
+             "id": self.id(),
              "fields": { f.name: f.__class__.__name__ for f in self.fields},
              "is_datastore": True,
              "x": self.x,
