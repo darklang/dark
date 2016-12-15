@@ -177,6 +177,7 @@ update msg m =
             -- if the mouse is within a node, select the node. Else create a new one.
             case withinNode m pos of
                 Nothing -> ({ m | state = ADDING_FUNCTION
+                                , cursor = Nothing
                                 , lastPos = pos
                             }, focusInput)
                 Just node -> ({ m | state = ADDING_DS_FIELD_NAME
