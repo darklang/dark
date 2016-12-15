@@ -307,7 +307,7 @@ viewCanvas model =
 
 viewClick : Pos -> Collage.Form
 viewClick pos = Collage.circle 10
-                |> Collage.filled clearGrey
+                |> Collage.filled Color.lightCharcoal
                 |> Collage.move (p2c pos)
 
 viewAllNodes : Model -> Dict String Node -> List Collage.Form
@@ -333,10 +333,10 @@ viewNode model node =
 
 nodeColor : Model -> Node -> Color.Color
 nodeColor m node = if (Just node.id) == m.drag
-                   then clearCyan
+                   then Color.lightGreen
                    else if (Just node.id) == m.cursor
-                        then clearRed
-                        else clearGrey
+                        then Color.lightRed
+                        else Color.lightGrey
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -354,21 +354,9 @@ viewParameter name =
     Element.container 50 18 Element.midLeft (Element.leftAligned (Text.fromString name))
 
 
-clearGrey : Color.Color
-clearGrey =
-  Color.rgba 111 111 111 0.2
-
-clearRed : Color.Color
-clearRed =
-  Color.rgba 111 11 11 0.2
-
-clearCyan : Color.Color
-clearCyan =
-  Color.rgba 0 111 111 0.2
-
-
 
 -- UTIL
+
 
 timestamp : () -> Int
 timestamp a = Native.Timestamp.timestamp a
