@@ -39,13 +39,14 @@ main = Html.program
 
 
 -- MODEL
-type alias Model = { graph : Graph
+type alias Model = { nodes : NodeDict
+                   , cursor : Cursor
                    , inputValue : String
                    , state : State
                    , tempFieldName : String
                    , errors : List String
                    , lastPos : Pos
-                   , drag : Maybe ID
+                   , drag : Cursor
                    }
 
 type alias Node = { name : Name
@@ -58,17 +59,15 @@ type alias Node = { name : Name
                   , parameters : List String
                   }
 
-type alias Graph = { nodes : NodeDict
-                   , cursor : Maybe ID
-                   }
-
 type alias Name = String
 type ID = ID String
 type alias Pos = {x: Int, y: Int}
 type alias NodeDict = Dict Name Node
+type alias Cursor = Maybe ID
 
 init : ( Model, Cmd Msg )
-init = let m = { graph = {nodes = Dict.empty, cursor = Nothing}
+init = let m = { nodes = Dict.empty
+               , cursor = Nothing
                , state = NOTHING
                , errors = [".", "."]
                , inputValue = ""
@@ -113,7 +112,7 @@ encodeRPC m call =
                                                             ])
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
-                  , ("cursor", case m.graph.cursor of
+                  , ("cursor", case m.cursor of
                                    Just (ID id) -> JSE.string id
                                    Nothing -> JSE.string "")]
 
@@ -139,12 +138,12 @@ decodeNode =
       |> JSDP.required "y" JSD.int
       -- |> JSDP.resolve
 
-decodeGraph : JSD.Decoder Graph
+decodeGraph : JSD.Decoder (NodeDict, Cursor)
 decodeGraph =
-    let toGraph : NodeDict -> String -> Graph
-        toGraph dses cursor = Graph dses (case cursor of
+    let toGraph : NodeDict -> String -> (NodeDict, Cursor)
+        toGraph nodes cursor = (nodes, (case cursor of
                                               "" -> Nothing
-                                              str -> (Just (ID str)))
+                                              str -> (Just (ID str))))
     in JSDP.decode toGraph
         -- |> JSDP.required "edges" (JSD.list JSD.string)
         |> JSDP.required "nodes" (JSD.dict decodeNode)
@@ -162,7 +161,7 @@ type Msg
     | SubmitMsg
     | KeyMsg Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
-    | RPCCallBack (Result Http.Error Graph)
+    | RPCCallBack (Result Http.Error (NodeDict, Cursor))
 
 type State
     = NOTHING
@@ -180,11 +179,10 @@ update msg m =
                 Nothing -> ({ m | state = ADDING_FUNCTION
                                 , lastPos = pos
                             }, focusInput)
-                Just node -> let g = m.graph in
-                             ({ m | state = ADDING_DS_FIELD_NAME
+                Just node -> ({ m | state = ADDING_DS_FIELD_NAME
                                   , inputValue = ""
                                   , lastPos = pos
-                                  , graph = { g | cursor = Just node.id }
+                                  , cursor = Just node.id
                               }, focusInput)
 
         (_, DragStart pos) ->
@@ -193,13 +191,11 @@ update msg m =
                 Just node -> ({ m | drag = Just node.id
                               }, Cmd.none)
         (_, DragMove pos) ->
-            let updateNodePos name pos graph = { graph | nodes = Dict.update
-                                                                 name
-                                                                 (Maybe.map (\n -> {n | pos=pos}))
-                                                                 graph.nodes}
-            in ({ m | graph = case m.drag of
-                                  Just (ID name) -> updateNodePos name pos m.graph
-                                  Nothing -> m.graph
+            let updateNodePos name pos nodes =
+                    Dict.update name (Maybe.map (\n -> {n | pos=pos})) nodes
+            in ({ m | nodes = case m.drag of
+                                  Just (ID name) -> updateNodePos name pos m.nodes
+                                  Nothing -> m.nodes
                 }, Cmd.none)
         (_, DragEnd pos) ->
             -- TODO: tell the server
@@ -232,8 +228,9 @@ update msg m =
                  , inputValue = ""
              }, Cmd.batch [focusInput, rpc m <| AddDatastoreField m.tempFieldName m.inputValue])
 
-        (_, RPCCallBack (Ok graph)) ->
-            ({ m | graph = graph
+        (_, RPCCallBack (Ok (nodes, cursor))) ->
+            ({ m | nodes = nodes
+                 , cursor = cursor
              }, Cmd.none)
         (_, RPCCallBack (Err (Http.BadStatus error))) ->
             ({ m | errors = addError ("Bad RPC call: " ++ toString(error.status.message)) m
@@ -306,7 +303,7 @@ viewCanvas model =
         (Collage.collage w h
              ([viewClick model.lastPos]
              ++
-             viewAllNodes model model.graph.nodes))
+             viewAllNodes model model.nodes))
 
 viewClick : Pos -> Collage.Form
 viewClick pos = Collage.circle 10
@@ -337,7 +334,7 @@ viewNode model node =
 nodeColor : Model -> Node -> Color.Color
 nodeColor m node = if (Just node.id) == m.drag
                    then clearCyan
-                   else if (Just node.id) == m.graph.cursor
+                   else if (Just node.id) == m.cursor
                         then clearRed
                         else clearGrey
 
@@ -400,7 +397,7 @@ withinNode : Model -> Mouse.Position -> Maybe Node
 withinNode model pos =
     let distances = List.map
                     (\n -> (n, abs (pos.x - n.pos.x), abs (pos.y - n.pos.y)))
-                    (Dict.values model.graph.nodes)
+                    (Dict.values model.nodes)
         expectedX = 50
         expectedY = 25
         candidates = List.filter (\(n, x, y) -> x <= expectedX && y <= expectedY) distances
