@@ -265,18 +265,19 @@ viewAllNodes cursor nodes = List.map (viewNode cursor) nodes
 
 viewNode : Maybe ID -> DataStore -> Collage.Form
 viewNode cursor node =
-    let (w, h) = (100, 50)
+    let
         color = if (Just node.id) == cursor then clearRed else clearGrey
-        box = Collage.rect w h
-            |> Collage.filled color
-        name = Collage.text (Text.fromString node.name)
-        fields = Collage.toForm (viewFields node.fields)
-    in (Collage.group
-        [ box
-        , name
-        , fields
-        ])
-         |> Collage.move (p2c (node.x, node.y))
+        name = Element.centered (node.name |> Text.fromString |> Text.bold)
+        fields = viewFields node.fields
+        entire = Element.flow Element.down [name,
+                                                Element.spacer 10 5,
+                                                fields]
+        (w, h) = Element.sizeOf entire
+        box = Collage.rect (toFloat w) (toFloat h)
+                     |> Collage.filled color
+        group = Collage.group [ box
+                              , Collage.toForm entire]
+    in Collage.move (p2c (node.x, node.y)) group
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -284,8 +285,8 @@ viewFields fields =
 viewField (name, type_) =
     (Element.flow
         Element.right
-        [ Element.leftAligned (Text.fromString name)
-        , Element.rightAligned (Text.fromString type_)])
+         [ Element.container 50 18 Element.midLeft (Element.leftAligned (Text.fromString name))
+         , Element.container 50 18 Element.midRight (Element.rightAligned (Text.fromString type_))])
 
 clearGrey : Color.Color
 clearGrey =
