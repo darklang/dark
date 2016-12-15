@@ -55,7 +55,7 @@ type alias Model = { nodes : NodeDict
                    , tempFieldName : String
                    , errors : List String
                    , lastPos : Pos
-                   , drag : Bool
+                   , drag : Drag
                    }
 
 type alias Node = { name : Name
@@ -73,6 +73,11 @@ type ID = ID String
 type alias Pos = {x: Int, y: Int}
 type alias NodeDict = Dict Name Node
 type alias Cursor = Maybe ID
+type Drag = NoDrag
+          | Drag ID
+
+type NodeSlot = NSNode Node
+              | NSNone
 
 init : ( Model, Cmd Msg )
 init = let m = { nodes = Dict.empty
@@ -82,7 +87,7 @@ init = let m = { nodes = Dict.empty
                , inputValue = ""
                , tempFieldName = ""
                , lastPos = {x=-1, y=-1}
-               , drag = False
+               , drag = NoDrag
                }
        in (m, rpc m <| LoadInitialGraph)
 
@@ -169,7 +174,7 @@ decodeGraph =
 
 -- UPDATE
 type Msg
-    = MouseMsg Mouse.Position
+    = MouseDown Mouse.Position
     | DragStart Mouse.Position
     | DragMove ID Mouse.Position
     | DragEnd ID Mouse.Position
@@ -189,31 +194,30 @@ type State
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     case (m.state, msg) of
-        (_, MouseMsg pos) ->
+        (_, MouseDown pos) ->
             -- if the mouse is within a node, select the node. Else create a new one.
             case findNode m pos of
-                Nothing -> ({ m | state = ADDING_FUNCTION
-                                , cursor = Nothing
-                                , lastPos = pos
-                            }, focusInput)
-                Just node -> ({ m | state = ADDING_DS_FIELD_NAME
-                                  , inputValue = ""
-                                  , lastPos = pos
-                                  , cursor = Just node.id
-                              }, focusInput)
+                NSNone -> ({ m | state = ADDING_FUNCTION
+                               , cursor = Nothing
+                               , lastPos = pos
+                           }, focusInput)
+                NSNode node -> ({ m | state = ADDING_DS_FIELD_NAME
+                                    , inputValue = ""
+                                    , lastPos = pos
+                                    , cursor = Just node.id
+                                }, focusInput)
 
         (_, DragStart pos) ->
             case findNode m pos of
-                Nothing -> (m, Cmd.none)
-                Just node -> ({ m | drag = True
-                                  , cursor = Just node.id
-                              }, Cmd.none)
+                NSNone -> (m, Cmd.none)
+                NSNode node -> ({ m | drag = Drag node.id
+                                }, Cmd.none)
         (_, DragMove id pos) ->
             ({ m | nodes = updateDragPosition pos id m.nodes
              }, Cmd.none)
         (_, DragEnd id _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
-            ({ m | drag = False
+            ({ m | drag = NoDrag
              }, rpc m <| UpdatePosition id)
         (ADDING_FUNCTION, SubmitMsg) ->
             if String.toLower(m.inputValue) == "ds"
@@ -271,13 +275,11 @@ update msg m =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions m =
-    let dragSubs = if m.drag
-                   then case m.cursor of
-                            Just id -> [ Mouse.moves (DragMove id)
-                                       , Mouse.ups (DragEnd id)]
-                            Nothing -> []
-                   else []
-        standardSubs = [ Mouse.clicks MouseMsg
+    let dragSubs = case m.drag of
+                       Drag id -> [ Mouse.moves (DragMove id)
+                                  , Mouse.ups (DragEnd id)]
+                       NoDrag -> []
+        standardSubs = [ Mouse.downs MouseDown
                        , Mouse.downs DragStart]
     in Sub.batch
         (List.concat [standardSubs, dragSubs])
@@ -349,9 +351,11 @@ viewNode model node =
     in Collage.move (p2c node.pos) group
 
 nodeColor : Model -> Node -> Color.Color
-nodeColor m node = if (Just node.id) == m.cursor
+nodeColor m node = if (Drag node.id) == m.drag
                    then Color.lightRed
-                   else Color.lightGrey
+                   else if (Just node.id) == m.cursor
+                        then Color.lightGreen
+                        else Color.lightGrey
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -425,7 +429,7 @@ withinNode node pos =
     && node.pos.y >= pos.y - (estimatedY // 2)
     && node.pos.y <= pos.y + (estimatedY // 2)
 
-findNode : Model -> Mouse.Position -> Maybe Node
+findNode : Model -> Mouse.Position -> NodeSlot
 findNode model pos =
     let nodes = Dict.values model.nodes
         candidates = List.filter (\n -> withinNode n pos) nodes
@@ -434,7 +438,9 @@ findNode model pos =
                     candidates
         sorted = List.sortBy (\(n, x, y) -> x + y) distances
         winner = List.head sorted
-    in Maybe.map (\(n, _, _) -> n) winner
+    in case winner of
+           Just (node, _, _) -> NSNode node
+           Nothing -> NSNone
 
 dlMap : (b -> c) -> Dict comparable b -> List c
 dlMap fn d = List.map fn (Dict.values d)
