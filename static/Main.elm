@@ -361,9 +361,16 @@ viewField (name, type_) =
 viewParameters parameters =
     Element.flow Element.down (List.map viewParameter parameters)
 
+viewDot =
+    Collage.collage 10 20 [Collage.filled Color.red (Collage.circle 5)]
+
 viewParameter name =
-    Element.container constants.paramWidth constants.lineHeight
-        Element.midLeft (Element.leftAligned (Text.fromString name))
+    Element.flow
+        Element.right
+            [ viewDot
+            , Element.container constants.paramWidth constants.lineHeight
+                Element.midLeft (Element.leftAligned (Text.fromString name))]
+
 
 
 
