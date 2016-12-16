@@ -61,10 +61,10 @@ class Graph():
 
   def _add(self, node):
     self.nodes[node.id()] = node
-    if n.id() not in self.edges:
-      self.edges[n.id()] = []
-    if n.id() not in self.reverse_edges:
-      self.reverse_edges[n.id()] = []
+    if node.id() not in self.edges:
+      self.edges[node.id()] = []
+    if node.id() not in self.reverse_edges:
+      self.reverse_edges[node.id()] = []
 
   def add_datastore(self, ds):
     self.datastores[ds.name()] = ds
