@@ -251,8 +251,8 @@ update msg m =
         (_, MouseDown pos, _) ->
             -- if the mouse is within a node, select the node. Else create a new one.
             case findNode m pos of
-                Nothing -> ({ m | state = ADDING_FUNCTION
-                                , cursor = Nothing
+                Nothing -> ({ m | cursor = Nothing
+                                , inputValue = ""
                                 , lastPos = pos
                             }, focusInput)
                 Just node -> ({ m | state = if node.is_datastore then ADDING_DS_FIELD_NAME else ADDING_FUNCTION

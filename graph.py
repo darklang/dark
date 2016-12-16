@@ -11,6 +11,7 @@ class Node:
     self._id = random.randint(0, 2**32)
     self.x = -1
     self.y = -1
+    assert self._getfn()
 
   def _getfn(self):
     import fns
