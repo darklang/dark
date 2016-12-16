@@ -37,20 +37,21 @@ main = Html.program
        , update = update
        , subscriptions = subscriptions}
 
-consts = { spacer = 5
-         , lineHeight = 18
-         , paramWidth = 50
-         , dotRadius = 5
-         , dotWidth = 10
-         , dotContainer = 20
-         , toolbarOffset = 77
-         , letterWidth = 7
+consts = { spacer = round 5
+         , lineHeight = round 18
+         , paramWidth = round 50
+         , dotRadius = round 5
+         , dotWidth = round 10
+         , dotContainer = round 20
+         , toolbarOffset = round 77
+         , letterWidth = round 7
          , inputID = "darkInput"
          }
 
 
 -- MODEL
 type alias Model = { nodes : NodeDict
+                   , edges : List Edge
                    , cursor : Cursor
                    , inputValue : String
                    , state : State
@@ -68,6 +69,11 @@ type alias Node = { name : Name
                   , fields : List (FieldName, TypeName)
                   -- for functions
                   , parameters : List ParamName
+                  }
+
+type alias Edge = { source : ID
+                  , target : ID
+                  , targetParam : ParamName
                   }
 
 type alias Name = String
@@ -89,6 +95,7 @@ type NodeSlot = NSNode Node
 
 init : ( Model, Cmd Msg )
 init = let m = { nodes = Dict.empty
+               , edges = []
                , cursor = Nothing
                , state = NOTHING
                , errors = [".", "."]
@@ -174,15 +181,28 @@ decodeNode =
       |> JSDP.required "y" JSD.int
       -- |> JSDP.resolve
 
-decodeGraph : JSD.Decoder (NodeDict, Cursor)
+decodeEdge : JSD.Decoder Edge
+decodeEdge =
+    let toEdge : String -> String -> ParamName -> Edge
+        toEdge source target paramname =
+            { source = ID source
+            , target = ID target
+            , targetParam = paramname
+            }
+    in JSDP.decode toEdge
+        |> JSDP.required "source" JSD.string
+        |> JSDP.required "target" JSD.string
+        |> JSDP.required "paramname" JSD.string
+
+decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor)
 decodeGraph =
-    let toGraph : NodeDict -> String -> (NodeDict, Cursor)
-        toGraph nodes cursor = (nodes, (case cursor of
-                                              "" -> Nothing
-                                              str -> (Just (ID str))))
+    let toGraph : NodeDict -> List Edge -> String -> (NodeDict, List Edge, Cursor)
+        toGraph nodes edges cursor = (nodes, edges, case cursor of
+                                                        "" -> Nothing
+                                                        str -> Just (ID str))
     in JSDP.decode toGraph
-        -- |> JSDP.required "edges" (JSD.list JSD.string)
         |> JSDP.required "nodes" (JSD.dict decodeNode)
+        |> JSDP.required "edges" (JSD.list decodeEdge)
         |> JSDP.required "cursor" JSD.string
 
 
@@ -199,7 +219,7 @@ type Msg
     | SubmitMsg
     | KeyMsg Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
-    | RPCCallBack (Result Http.Error (NodeDict, Cursor))
+    | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor))
 
 type State
     = NOTHING
@@ -274,8 +294,9 @@ update msg m =
                  , inputValue = ""
              }, Cmd.batch [focusInput, rpc m <| AddDatastoreField m.tempFieldName m.inputValue])
 
-        (_, RPCCallBack (Ok (nodes, cursor))) ->
+        (_, RPCCallBack (Ok (nodes, edges, cursor))) ->
             ({ m | nodes = nodes
+                 , edges = edges
                  , cursor = cursor
              }, Cmd.none)
         (_, RPCCallBack (Err (Http.BadStatus error))) ->
@@ -346,6 +367,7 @@ viewCanvas : Model -> Html.Html msg
 viewCanvas m =
     let (w, h) = windowSize ()
         allNodes = viewAllNodes m m.nodes
+        edges = viewAllEdges m m.edges
         click = viewClick m.lastPos
         mDragEdge = viewDragEdge m.drag m.lastPos
         dragEdge = case mDragEdge of
@@ -354,7 +376,7 @@ viewCanvas m =
 
     in Element.toHtml
         (Collage.collage w h
-             ((Debug.log "dragEdge" dragEdge) ++ (click :: allNodes)))
+             ((Debug.log "dragEdge" dragEdge) ++ edges ++ (click :: allNodes)))
 
 
 
@@ -362,6 +384,22 @@ viewClick : Pos -> Collage.Form
 viewClick pos = Collage.circle 10
                 |> Collage.filled Color.lightCharcoal
                 |> Collage.move (p2c pos)
+
+viewAllEdges : Model -> List Edge -> List Collage.Form
+viewAllEdges model edges = List.map (viewEdge model) edges
+deID (ID x) = x
+viewEdge : Model -> Edge -> Collage.Form
+viewEdge m {source, target, targetParam} =
+    let mSourceN = Dict.get (deID source) m.nodes
+        mTargetN = Dict.get (deID target) m.nodes
+        (sourceN, targetN) = case (mSourceN, mTargetN) of
+                             (Just s, Just t) -> (s, t)
+                             _ -> Debug.crash "Can't happen"
+        sourcePos = sourceN.pos
+        targetPos = dotPos targetN targetParam
+        segment = Collage.segment (p2c sourcePos) (p2c targetPos)
+        trace = Collage.traced Collage.defaultLine segment
+    in trace
 
 viewDragEdge : Drag -> Pos -> Maybe Collage.Form
 viewDragEdge drag pos =
@@ -426,7 +464,7 @@ viewDot =
         consts.dotWidth
         consts.dotContainer
         [Collage.filled Color.red
-             (Collage.circle consts.dotRadius)]
+             (Collage.circle (toFloat consts.dotRadius))]
 
 viewParameter name =
     Element.flow
@@ -460,8 +498,8 @@ str2div str = Html.div [] [Html.text str]
 
 p2c : Pos  -> (Float, Float)
 p2c pos = let (w, h) = windowSize ()
-          in (toFloat pos.x - toFloat w / 2,
-              toFloat h / 2 - toFloat pos.y + consts.toolbarOffset)
+          in ((toFloat pos.x) - ((toFloat w) / 2),
+              ((toFloat h) / 2) - (toFloat pos.y) + (toFloat consts.toolbarOffset))
 
 withinNode : Node -> Mouse.Position -> Bool
 withinNode node pos =
@@ -498,6 +536,17 @@ slotOrNode node pos =
                then NSNode node
                else NSSlot node param
 
+dotPos : Node -> ParamName -> Pos
+dotPos node paramName =
+    let leftEdge = node.pos.x - (nodeWidth node // 2)
+        (index, param) = List.foldl
+                         (\p (i, p2) -> if p == paramName
+                                        then (i, p)
+                                        else (i+1, p2))
+                         (0, "")
+                         node.parameters
+    in { x = leftEdge + consts.dotRadius
+       , y = node.pos.y + consts.spacer + consts.lineHeight * (index + 1)}
 
 
 findNode : Model -> Mouse.Position -> Maybe Node

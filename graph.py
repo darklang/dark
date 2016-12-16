@@ -132,6 +132,13 @@ class Graph():
       # print("run_input on sink,parent: %s, %s" %(sink, parent))
       self.execute(sink, only=parent, eager={node: val})
 
+  def to_frontend_edges(self):
+    result = []
+    for s in self.edges.keys():
+      for (t,p) in self.edges[s]:
+        result.append({"source": s, "target": t, "paramname": p})
+    return result
+
   def run_output(self, node):
     # print("run_output on node: %s" % (node))
     return self.execute(node)
@@ -139,10 +146,11 @@ class Graph():
   def to_frontend(self, cursor):
     nodes = [n.to_frontend() for n in self.nodes.values()]
     dses = [ds.to_frontend() for ds in self.datastores.values()]
+    edges = self.to_frontend_edges()
     allnodes = {n["id"]: n for n in (nodes + dses)}
     if cursor == None:
       cursor = ""
     else:
       cursor = cursor.id()
     from util import (tojson)
-    return tojson({"nodes": allnodes, "cursor": cursor})
+    return tojson({"nodes": allnodes, "edges": edges, "cursor": cursor})
