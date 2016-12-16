@@ -1,5 +1,6 @@
 import inspect
 import random
+import json
 
 import pyrsistent as pyr
 
@@ -155,9 +156,8 @@ class Graph():
     dses = [ds.to_frontend() for ds in self.datastores.values()]
     edges = self.to_frontend_edges()
     allnodes = {n["id"]: n for n in (nodes + dses)}
-    if cursor == None:
-      cursor = ""
-    else:
-      cursor = cursor.id()
-    from util import (tojson)
-    return tojson({"nodes": allnodes, "edges": edges, "cursor": cursor})
+
+    result = {"nodes": allnodes, "edges": edges}
+    if cursor :
+      result["cursor"] = cursor.id()
+    return json.dumps(result)

@@ -203,7 +203,7 @@ decodeGraph =
     in JSDP.decode toGraph
         |> JSDP.required "nodes" (JSD.dict decodeNode)
         |> JSDP.required "edges" (JSD.list decodeEdge)
-        |> JSDP.required "cursor" JSD.string
+        |> JSDP.optional "cursor" JSD.string ""
 
 
 
@@ -240,8 +240,8 @@ update msg m =
             -- clear edges - C
             -- remove last field - L
         (_, KeyPress code, _) ->
-            _ -> let _ = Debug.log "code (no cursor)" code
-                 in (m, Cmd.none)
+            let _ = Debug.log "code (no cursor)" code
+            in (m, Cmd.none)
             -- ESCAPE - unfocus
             -- change to "function adding mode" - F
             -- change to "adding value" - V
@@ -312,10 +312,15 @@ update msg m =
              }, Cmd.batch [focusInput, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue])
 
         (_, RPCCallBack (Ok (nodes, edges, cursor)), _) ->
-            ({ m | nodes = nodes
-                 , edges = edges
-                 , cursor = cursor
-             }, Cmd.none)
+            -- if the new cursor is blank, keep the old cursor if it's valid
+            let oldCursor = Maybe.map (\(ID id) -> Dict.get id nodes) m.cursor
+                newCursor = case cursor of
+                                Nothing -> m.cursor
+                                _ -> cursor
+            in ({ m | nodes = nodes
+                    , edges = edges
+                    , cursor = newCursor
+                }, Cmd.none)
         (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
             ({ m | errors = addError ("Bad RPC call: " ++ toString(error.status.message)) m
                  , state = ADDING_FUNCTION
@@ -393,7 +398,7 @@ viewCanvas m =
                        Nothing -> []
     in Element.toHtml
         (Collage.collage w h
-             dragEdge ++ edges ++ (click :: allNodes)))
+             (dragEdge ++ edges ++ (click :: allNodes)))
 
 
 
