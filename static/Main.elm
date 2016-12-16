@@ -564,7 +564,7 @@ dotPos node paramName =
                                         else (i+1, p2))
                          (0, "")
                          node.parameters
-    in { x = leftEdge + consts.dotRadius
+    in { x = leftEdge
        , y = node.pos.y + consts.spacer + consts.lineHeight * index}
 
 
