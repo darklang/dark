@@ -60,6 +60,10 @@ class Graph():
 
   def _add(self, node):
     self.nodes[node.id()] = node
+    if n.id() not in self.edges:
+      self.edges[n.id()] = []
+    if n.id() not in self.reverse_edges:
+      self.reverse_edges[n.id()] = []
 
   def add_datastore(self, ds):
     self.datastores[ds.name()] = ds
@@ -74,16 +78,19 @@ class Graph():
   def has(self, node):
     return node.id() in self.nodes
 
+  def delete_node(self, node):
+    del self.nodes[node.id()]
+    del self.edges[node.id()]
+    for t in self.reverse_edges[node.id()]:
+      self.edges[t] = [n for n in self.edges[t] if n != node]
+    del self.reverse_edges[node.id()]
+
+
   def add_edge(self, n1, n2, n2param):
     self._add(n1)
     self._add(n2)
 
-    if n1.id() not in self.edges:
-      self.edges[n1.id()] = []
     self.edges[n1.id()].append((n2.id(), n2param))
-
-    if n2.id() not in self.reverse_edges:
-      self.reverse_edges[n2.id()] = []
     self.reverse_edges[n2.id()].append(n1.id())
 
     return (n1, n2)

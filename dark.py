@@ -30,6 +30,7 @@ class Dark(server.Server):
       params = json.loads(str_response)
       print("Requesting: " + str(params))
 
+      # TODO: remove the cursor, no need for it
       cursorname = params["cursor"]
       command = params["command"]
       args = params["args"]
@@ -71,6 +72,11 @@ class Dark(server.Server):
         paramname = args["param"]
         G.add_edge(src, target, paramname)
         cursor = G.get_node(cursorname)
+
+      elif command == "delete_node":
+        node = G.get_node(args["id"])
+        G.delete_node(node)
+        cursor = None
 
       elif command == "load_initial_graph":
         cursor = None

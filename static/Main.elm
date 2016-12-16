@@ -116,6 +116,7 @@ type RPC
     | AddFunctionCall Name Pos
     | UpdateNodePosition ID -- no pos cause it's in the node
     | AddEdge ID (ID, ParamName)
+    | DeleteNode
 
 rpc : Model -> RPC -> Cmd Msg
 rpc model call =
@@ -152,6 +153,10 @@ encodeRPC m call =
                                                                        , ("target", JSE.string target)
                                                                        , ("param", JSE.string param)
                                                                        ])
+                DeleteNode -> case m.cursor of
+                                  (Just (ID id)) -> ("delete_node",
+                                                         JSE.object [ ("id", JSE.string id) ])
+                                  _ -> Debug.crash "nothing"
 
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
@@ -217,7 +222,7 @@ type Msg
     | DragSlotEnd ID ParamName Mouse.Position Mouse.Position
     | InputMsg String
     | SubmitMsg
-    | KeyMsg Keyboard.KeyCode
+    | KeyPress Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor))
 
@@ -231,6 +236,19 @@ type State
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     case (m.state, msg) of
+        (_, KeyPress code) ->
+            case code of
+                -- backspace: delete node
+                8 -> (m, rpc m <| DeleteNode)
+                -- TODO
+                _ -> let _ = Debug.log "code" code
+                     in (m, Cmd.none)
+            -- clear edges - C
+            -- remove last field - L
+            -- change to "function adding mode" - F
+            -- change to "ds adding mode" - D
+            -- change to "input adding mode" - I
+            -- change to "output adding mode" - O
         (_, MouseDown pos) ->
             -- if the mouse is within a node, select the node. Else create a new one.
             case findNode m pos of
@@ -330,11 +348,12 @@ subscriptions m =
                                                   , Mouse.ups (DragSlotEnd id param start)]
                        NoDrag -> []
         standardSubs = [ Mouse.downs MouseDown
-                       , Mouse.downs DragStart]
+                       , Mouse.downs DragStart
+                       , Keyboard.downs KeyPress]
     in Sub.batch
         (List.concat [standardSubs, dragSubs])
 
---        , Keyboard.downs KeyMsg
+
 
 
 
@@ -546,7 +565,7 @@ dotPos node paramName =
                          (0, "")
                          node.parameters
     in { x = leftEdge + consts.dotRadius
-       , y = node.pos.y + consts.spacer + consts.lineHeight * (index + 1)}
+       , y = node.pos.y + consts.spacer + consts.lineHeight * index}
 
 
 findNode : Model -> Mouse.Position -> Maybe Node
