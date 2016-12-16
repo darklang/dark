@@ -228,6 +228,7 @@ type Msg
     | InputMsg String
     | SubmitMsg
     | KeyPress Keyboard.KeyCode
+    | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor))
 
@@ -244,7 +245,6 @@ type State
 forCharCode m char =
     let _ = Debug.log "char" char in
     case Char.fromCode char of
-        'A' -> (m, Cmd.none, Focus)
         'F' -> ({ m | state = ADD_FUNCTION}, Cmd.none, NoFocus)
         'V' -> ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
         'D' -> ({ m | state = ADD_DS}, Cmd.none, NoFocus)
@@ -273,12 +273,18 @@ type Focus = Focus | NoFocus | DropFocus
 update_ : Msg -> Model -> (Model, Cmd Msg, Focus)
 update_ msg m =
     case (m.state, msg, m.cursor) of
+        (_, CheckEscape code, _) ->
+            if code == 27 -- escape
+            then ({ m | cursor = Nothing }, Cmd.none, DropFocus)
+            else (m, Cmd.none, NoFocus)
+
         (_, KeyPress code, Just id) ->
             case code of
-                8 -> (m, rpc m <| DeleteNode id, NoFocus)
+                8 -> (m, rpc m <| DeleteNode id, NoFocus) -- backspace
                 _ -> case Char.fromCode code of
                          'C' -> (m, rpc m <| ClearEdges id, NoFocus)
                          'R' -> (m, rpc m <| RemoveLastField id, NoFocus)
+                         'N' -> (m, rpc m <| RemoveLastField id, NoFocus)
                          _ -> forCharCode m code
         (_, KeyPress code, _) ->
             forCharCode m code
@@ -348,7 +354,7 @@ update_ msg m =
                     , cursor = newCursor
                 }, Cmd.none, newFocus )
         (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
-            ({ m | errors = addError ("Bad RPC call: " ++ toString(error.status.message)) m
+            ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
                  , state = ADD_FUNCTION
              }, Cmd.none, NoFocus)
 
@@ -383,7 +389,8 @@ subscriptions m =
                   then []
                   else [Keyboard.downs KeyPress]
         standardSubs = [ Mouse.downs MouseDown
-                       , Mouse.downs DragStart]
+                       , Mouse.downs DragStart
+                       , Keyboard.downs CheckEscape]
     in Sub.batch
         (List.concat [standardSubs, keySubs, dragSubs])
 
@@ -544,7 +551,7 @@ unfocusInput = Dom.blur consts.inputID |> Task.attempt FocusResult
 addError error model =
     let time = timestamp ()
                in
-    List.take 2 ((error ++ "-" ++ toString time) :: model.errors)
+    List.take 2 ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
 
 str2div str = Html.div [] [Html.text str]
 
