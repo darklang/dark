@@ -75,6 +75,17 @@ class Dark(server.Server):
         node = G.get_node(args["id"])
         G.delete_node(node)
 
+      elif command == "clear_edges":
+        node = G.get_node(args["id"])
+        G.clear_edges(node)
+
+      elif command == "remove_last_field":
+        node = G.get_node(args["id"])
+        if node.is_datastore():
+          node.remove_last_field()
+        else:
+          node.remove_last_edge()
+
       elif command == "load_initial_graph":
         pass
 
