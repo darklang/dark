@@ -10,6 +10,7 @@ import Dict exposing (Dict)
 import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Array
 
 -- lib
 import Keyboard
@@ -53,7 +54,7 @@ type alias Model = { nodes : NodeDict
                    , cursor : Cursor
                    , inputValue : String
                    , state : State
-                   , tempFieldName : String
+                   , tempFieldName : FieldName
                    , errors : List String
                    , lastPos : Pos
                    , drag : Drag
@@ -64,21 +65,26 @@ type alias Node = { name : Name
                   , pos : Pos
                   , is_datastore : Bool
                   -- for DSes
-                  , fields : List (String, String)
+                  , fields : List (FieldName, TypeName)
                   -- for functions
-                  , parameters : List String
+                  , parameters : List ParamName
                   }
 
 type alias Name = String
+type alias FieldName = String
+type alias ParamName = String
+type alias TypeName = String
+
 type ID = ID String
 type alias Pos = {x: Int, y: Int}
 type alias NodeDict = Dict Name Node
 type alias Cursor = Maybe ID
 type Drag = NoDrag
-          | Drag ID
+          | DragNode ID
+          | DragSlot ID ParamName Pos -- starting point of edge
 
 type NodeSlot = NSNode Node
-              | NSSlot Int
+              | NSSlot Node ParamName
               | NSNone
 
 init : ( Model, Cmd Msg )
@@ -98,10 +104,11 @@ init = let m = { nodes = Dict.empty
 -- RPC
 type RPC
     = LoadInitialGraph
-    | AddDatastore String Pos
-    | AddDatastoreField String String
-    | AddFunctionCall String Pos
-    | UpdatePosition ID
+    | AddDatastore Name Pos
+    | AddDatastoreField FieldName TypeName
+    | AddFunctionCall Name Pos
+    | UpdateNodePosition ID -- no pos cause it's in the node
+    | AddEdge ID (ID, ParamName)
 
 rpc : Model -> RPC -> Cmd Msg
 rpc model call =
@@ -115,24 +122,30 @@ encodeRPC m call =
     let (cmd, args) =
             case call of
                 LoadInitialGraph -> ("load_initial_graph", JSE.object [])
-                AddDatastore name pos -> ("add_datastore"
+                AddDatastore name {x,y} -> ("add_datastore"
                                          , JSE.object [ ("name", JSE.string name)
-                                                      , ("x", JSE.int pos.x)
-                                                      , ("y", JSE.int pos.y)])
+                                                      , ("x", JSE.int x)
+                                                      , ("y", JSE.int y)])
                 AddDatastoreField name type_ -> ("add_datastore_field",
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("type", JSE.string type_)])
-                AddFunctionCall name pos -> ("add_function_call",
+                AddFunctionCall name {x,y} -> ("add_function_call",
                                                  JSE.object [ ("name", JSE.string name)
-                                                            , ("x", JSE.int pos.x)
-                                                            , ("y", JSE.int pos.y)])
-                UpdatePosition (ID id) ->
+                                                            , ("x", JSE.int x)
+                                                            , ("y", JSE.int y)])
+                UpdateNodePosition (ID id) ->
                     case Dict.get id m.nodes of
                         Nothing -> Debug.crash "should never happen"
-                        Just node -> ("update_position",
+                        Just node -> ("update_node_position",
                                           JSE.object [ ("id", JSE.string id)
                                                      , ("x", JSE.int node.pos.x)
                                                      , ("y", JSE.int node.pos.y)])
+                AddEdge (ID src) (ID target, param) -> ("add_edge",
+                                                            JSE.object [ ("src", JSE.string src)
+                                                                       , ("target", JSE.string target)
+                                                                       , ("param", JSE.string param)
+                                                                       ])
+
     in JSE.object [ ("command", JSE.string cmd)
                   , ("args", args)
                   , ("cursor", case m.cursor of
@@ -142,7 +155,7 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toNode : Name -> String -> List(String,String) -> List String -> Bool -> Int -> Int -> Node
+  let toNode : Name -> String -> List(FieldName,TypeName) -> List ParamName -> Bool -> Int -> Int -> Node
       toNode name id fields parameters is_datastore x y =
           { name = name
           , id = ID id
@@ -178,8 +191,10 @@ decodeGraph =
 type Msg
     = MouseDown Mouse.Position
     | DragStart Mouse.Position
-    | DragMove ID Mouse.Position
-    | DragEnd ID Mouse.Position
+    | DragNodeMove ID Mouse.Position
+    | DragNodeEnd ID Mouse.Position
+    | DragSlotMove ID ParamName Mouse.Position Mouse.Position
+    | DragSlotEnd ID ParamName Mouse.Position Mouse.Position
     | InputMsg String
     | SubmitMsg
     | KeyMsg Keyboard.KeyCode
@@ -199,30 +214,38 @@ update msg m =
         (_, MouseDown pos) ->
             -- if the mouse is within a node, select the node. Else create a new one.
             case findNode m pos of
-                NSNone -> ({ m | state = ADDING_FUNCTION
-                               , cursor = Nothing
-                               , lastPos = pos
-                           }, focusInput)
-                NSSlot _ -> (m, Cmd.none)
-                NSNode node -> ({ m | state = ADDING_DS_FIELD_NAME
-                                    , inputValue = ""
-                                    , lastPos = pos
-                                    , cursor = Just node.id
-                                }, focusInput)
-
+                Nothing -> ({ m | state = ADDING_FUNCTION
+                                , cursor = Nothing
+                                , lastPos = pos
+                            }, focusInput)
+                Just node -> ({ m | state = if node.is_datastore then ADDING_DS_FIELD_NAME else NOTHING
+                                  , inputValue = ""
+                                  , lastPos = pos
+                                  , cursor = Just node.id
+                              }, focusInput)
         (_, DragStart pos) ->
-            case findNode m pos of
+            case findNodeOrSlot m pos of
                 NSNone -> (m, Cmd.none)
-                NSSlot _ -> (m, Cmd.none)
-                NSNode node -> ({ m | drag = Drag node.id
-                                }, Cmd.none)
-        (_, DragMove id pos) ->
+                NSSlot node param -> ({ m | drag = DragSlot node.id param pos}, Cmd.none)
+                NSNode node -> ({ m | drag = DragNode node.id}, Cmd.none)
+        (_, DragNodeMove id pos) ->
             ({ m | nodes = updateDragPosition pos id m.nodes
              }, Cmd.none)
-        (_, DragEnd id _) ->
+        (_, DragNodeEnd id _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
             ({ m | drag = NoDrag
-             }, rpc m <| UpdatePosition id)
+             }, rpc m <| UpdateNodePosition id)
+        (_, DragSlotMove id param starting pos) ->
+            ({ m | lastPos = pos
+                 , drag = DragSlot id param starting
+             }, Cmd.none)
+        (_, DragSlotEnd id param starting pos) ->
+            -- to avoid moving when we just want to select, don't set to mouseUp position
+            let event = case findNode m pos of
+                            Just node -> rpc m <| AddEdge node.id (id, param)
+                            Nothing -> Cmd.none
+            in ({ m | drag = NoDrag}, event)
+
         (ADDING_FUNCTION, SubmitMsg) ->
             if String.toLower(m.inputValue) == "ds"
             then ({ m | state = ADDING_DS_NAME
@@ -280,8 +303,10 @@ update msg m =
 subscriptions : Model -> Sub Msg
 subscriptions m =
     let dragSubs = case m.drag of
-                       Drag id -> [ Mouse.moves (DragMove id)
-                                  , Mouse.ups (DragEnd id)]
+                       DragNode id -> [ Mouse.moves (DragNodeMove id)
+                                      , Mouse.ups (DragNodeEnd id)]
+                       DragSlot id param start -> [ Mouse.moves (DragSlotMove id param start)
+                                                  , Mouse.ups (DragSlotEnd id param start)]
                        NoDrag -> []
         standardSubs = [ Mouse.downs MouseDown
                        , Mouse.downs DragStart]
@@ -318,20 +343,38 @@ viewState state = Html.div [] [ Html.text ("state: " ++ toString state) ]
 viewErrors errors = Html.div [] (List.map str2div errors)
 
 viewCanvas : Model -> Html.Html msg
-viewCanvas model =
+viewCanvas m =
     let (w, h) = windowSize ()
+        allNodes = viewAllNodes m m.nodes
+        click = viewClick m.lastPos
+        mDragEdge = viewDragEdge m.drag m.lastPos
+        dragEdge = case mDragEdge of
+                       Just de -> [de]
+                       Nothing -> []
+
     in Element.toHtml
         (Collage.collage w h
-             ([viewClick model.lastPos]
-             ++
-             viewAllNodes model model.nodes))
+             ((Debug.log "dragEdge" dragEdge) ++ (click :: allNodes)))
+
+
 
 viewClick : Pos -> Collage.Form
 viewClick pos = Collage.circle 10
                 |> Collage.filled Color.lightCharcoal
                 |> Collage.move (p2c pos)
 
-viewAllNodes : Model -> Dict String Node -> List Collage.Form
+viewDragEdge : Drag -> Pos -> Maybe Collage.Form
+viewDragEdge drag pos =
+    case drag of
+        DragNode _ -> Nothing
+        NoDrag -> Nothing
+        DragSlot id param startingPos ->
+            let segment = Collage.segment (p2c startingPos) (p2c pos)
+                trace = Collage.traced Collage.defaultLine segment
+            in Just trace
+
+
+viewAllNodes : Model -> NodeDict -> List Collage.Form
 viewAllNodes model nodes = dlMap (viewNode model) nodes
 
 viewNode : Model -> Node -> Collage.Form
@@ -353,11 +396,12 @@ viewNode model node =
     in Collage.move (p2c node.pos) group
 
 nodeColor : Model -> Node -> Color.Color
-nodeColor m node = if (Drag node.id) == m.drag
+nodeColor m node = if (DragNode node.id) == m.drag
                    then Color.lightRed
                    else if (Just node.id) == m.cursor
                         then Color.lightGreen
                         else Color.lightGrey
+
 
 viewFields fields =
     Element.flow Element.down (List.map viewField fields)
@@ -445,24 +489,33 @@ slotOrNode node pos =
        then NSNode node
        -- ok it's along the left. Now find its slot
        else let index = (pos.y - node.pos.y - consts.spacer) // consts.lineHeight
+                asArray = Array.fromList node.parameters
+                mParam = Array.get index asArray
+                param = case mParam of
+                            Just p -> p
+                            Nothing -> Debug.crash "Can't happen"
             in if index < 0
                then NSNode node
-               else NSSlot index
+               else NSSlot node param
 
 
 
-findNode : Model -> Mouse.Position -> NodeSlot
-findNode model pos =
-    let nodes = Dict.values model.nodes
+findNode : Model -> Mouse.Position -> Maybe Node
+findNode m pos =
+    let nodes = Dict.values m.nodes
         candidates = List.filter (\n -> withinNode n pos) nodes
         distances = List.map
                     (\n -> (n, abs (pos.x - n.pos.x) + abs (pos.y - n.pos.y)))
                     candidates
-        sorted = List.sortBy (\(n, dist) -> dist) distances
+        sorted = List.sortBy Tuple.second distances
         winner = List.head sorted
-    in case winner of
-           Just (node, _) -> slotOrNode node pos
-           Nothing -> NSNone
+    in Maybe.map Tuple.first winner
+
+findNodeOrSlot : Model -> Mouse.Position -> NodeSlot
+findNodeOrSlot m pos = case findNode m pos of
+                           Just node -> slotOrNode node pos
+                           Nothing -> NSNone
+
 
 dlMap : (b -> c) -> Dict comparable b -> List c
 dlMap fn d = List.map fn (Dict.values d)

@@ -59,7 +59,7 @@ class Dark(server.Server):
         cursor.y = args["y"]
         G._add(cursor)
 
-      elif command == "update_position":
+      elif command == "update_node_position":
         nodeid = args["id"]
         node = G.get_node(nodeid)
         node.x = args["x"]
