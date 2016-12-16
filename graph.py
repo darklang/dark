@@ -78,11 +78,11 @@ class Graph():
     self._add(n1)
     self._add(n2)
 
-    if n1.name() not in self.edges:
+    if n1.id() not in self.edges:
       self.edges[n1.id()] = []
     self.edges[n1.id()].append((n2.id(), n2param))
 
-    if n2.name() not in self.reverse_edges:
+    if n2.id() not in self.reverse_edges:
       self.reverse_edges[n2.id()] = []
     self.reverse_edges[n2.id()].append(n1.id())
 

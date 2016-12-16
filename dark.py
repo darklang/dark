@@ -65,6 +65,13 @@ class Dark(server.Server):
         node.x = args["x"]
         node.y = args["y"]
 
+      elif command == "add_edge":
+        src = G.get_node(args["src"])
+        target = G.get_node(args["target"])
+        paramname = args["param"]
+        G.add_edge(src, target, paramname)
+        cursor = G.get_node(cursorname)
+
       elif command == "load_initial_graph":
         cursor = None
 
