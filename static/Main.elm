@@ -97,7 +97,7 @@ init : ( Model, Cmd Msg )
 init = let m = { nodes = Dict.empty
                , edges = []
                , cursor = Nothing
-               , state = NOTHING
+               , state = ADDING_FUNCTION
                , errors = [".", "."]
                , inputValue = ""
                , tempFieldName = ""
@@ -112,11 +112,11 @@ init = let m = { nodes = Dict.empty
 type RPC
     = LoadInitialGraph
     | AddDatastore Name Pos
-    | AddDatastoreField FieldName TypeName
+    | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos
     | UpdateNodePosition ID -- no pos cause it's in the node
     | AddEdge ID (ID, ParamName)
-    | DeleteNode
+    | DeleteNode ID
 
 rpc : Model -> RPC -> Cmd Msg
 rpc model call =
@@ -134,9 +134,10 @@ encodeRPC m call =
                                          , JSE.object [ ("name", JSE.string name)
                                                       , ("x", JSE.int x)
                                                       , ("y", JSE.int y)])
-                AddDatastoreField name type_ -> ("add_datastore_field",
-                                                 JSE.object [ ("name", JSE.string name)
-                                                            , ("type", JSE.string type_)])
+                AddDatastoreField (ID id) name type_ -> ("add_datastore_field",
+                                                             JSE.object [ ("id", JSE.string id)
+                                                                        , ("name", JSE.string name)
+                                                                        , ("type", JSE.string type_)])
                 AddFunctionCall name {x,y} -> ("add_function_call",
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("x", JSE.int x)
@@ -146,24 +147,18 @@ encodeRPC m call =
                         Nothing -> Debug.crash "should never happen"
                         Just node -> ("update_node_position",
                                           JSE.object [ ("id", JSE.string id)
-                                                     , ("x", JSE.int node.pos.x)
-                                                     , ("y", JSE.int node.pos.y)])
+                                                     , ("x" , JSE.int node.pos.x)
+                                                     , ("y" , JSE.int node.pos.y)])
                 AddEdge (ID src) (ID target, param) -> ("add_edge",
                                                             JSE.object [ ("src", JSE.string src)
                                                                        , ("target", JSE.string target)
                                                                        , ("param", JSE.string param)
                                                                        ])
-                DeleteNode -> case m.cursor of
-                                  (Just (ID id)) -> ("delete_node",
-                                                         JSE.object [ ("id", JSE.string id) ])
-                                  _ -> Debug.crash "nothing"
+                DeleteNode (ID id) -> ("delete_node",
+                                              JSE.object [ ("id", JSE.string id) ])
 
     in JSE.object [ ("command", JSE.string cmd)
-                  , ("args", args)
-                  , ("cursor", case m.cursor of
-                                   Just (ID id) -> JSE.string id
-                                   Nothing -> JSE.string "")]
-
+                  , ("args", args) ]
 
 decodeNode : JSD.Decoder Node
 decodeNode =
@@ -227,79 +222,83 @@ type Msg
     | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor))
 
 type State
-    = NOTHING
-    | ADDING_FUNCTION
+    = ADDING_FUNCTION
     | ADDING_DS_NAME
     | ADDING_DS_FIELD_NAME
     | ADDING_DS_FIELD_TYPE
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
-    case (m.state, msg) of
-        (_, KeyPress code) ->
+    case (m.state, msg, m.cursor) of
+        (_, KeyPress code, Just id) ->
             case code of
                 -- backspace: delete node
-                8 -> (m, rpc m <| DeleteNode)
+                8 -> (m, rpc m <| DeleteNode id)
                 -- TODO
                 _ -> let _ = Debug.log "code" code
                      in (m, Cmd.none)
             -- clear edges - C
             -- remove last field - L
+        (_, KeyPress code, _) ->
+            _ -> let _ = Debug.log "code (no cursor)" code
+                 in (m, Cmd.none)
+            -- ESCAPE - unfocus
             -- change to "function adding mode" - F
+            -- change to "adding value" - V
             -- change to "ds adding mode" - D
             -- change to "input adding mode" - I
             -- change to "output adding mode" - O
-        (_, MouseDown pos) ->
+        (_, MouseDown pos, _) ->
             -- if the mouse is within a node, select the node. Else create a new one.
             case findNode m pos of
                 Nothing -> ({ m | state = ADDING_FUNCTION
                                 , cursor = Nothing
                                 , lastPos = pos
                             }, focusInput)
-                Just node -> ({ m | state = if node.is_datastore then ADDING_DS_FIELD_NAME else NOTHING
+                Just node -> ({ m | state = if node.is_datastore then ADDING_DS_FIELD_NAME else ADDING_FUNCTION
                                   , inputValue = ""
                                   , lastPos = pos
                                   , cursor = Just node.id
                               }, focusInput)
-        (_, DragStart pos) ->
+        (_, DragStart pos, _) ->
             case findNodeOrSlot m pos of
                 NSNone -> (m, Cmd.none)
                 NSSlot node param -> ({ m | drag = DragSlot node.id param pos}, Cmd.none)
                 NSNode node -> ({ m | drag = DragNode node.id}, Cmd.none)
-        (_, DragNodeMove id pos) ->
+        (_, DragNodeMove id pos, _) ->
             ({ m | nodes = updateDragPosition pos id m.nodes
              }, Cmd.none)
-        (_, DragNodeEnd id _) ->
+        (_, DragNodeEnd id _, _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
             ({ m | drag = NoDrag
              }, rpc m <| UpdateNodePosition id)
-        (_, DragSlotMove id param starting pos) ->
+        (_, DragSlotMove id param starting pos, _) ->
             ({ m | lastPos = pos
                  , drag = DragSlot id param starting
              }, Cmd.none)
-        (_, DragSlotEnd id param starting pos) ->
+        (_, DragSlotEnd id param starting pos, _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
             let event = case findNode m pos of
                             Just node -> rpc m <| AddEdge node.id (id, param)
                             Nothing -> Cmd.none
             in ({ m | drag = NoDrag}, event)
 
-        (ADDING_FUNCTION, SubmitMsg) ->
+        (ADDING_FUNCTION, SubmitMsg, _) ->
             if String.toLower(m.inputValue) == "ds"
             then ({ m | state = ADDING_DS_NAME
                       , inputValue = ""
                   }, focusInput)
-            else ({ m | state = NOTHING
+            else ({ m | state = ADDING_FUNCTION
                       , inputValue = ""
                   }, Cmd.batch [focusInput, rpc m <| AddFunctionCall m.inputValue m.lastPos])
-        (ADDING_DS_NAME, SubmitMsg) ->
+        (ADDING_DS_NAME, SubmitMsg, _) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
              }, Cmd.batch [focusInput, rpc m <| AddDatastore m.inputValue m.lastPos])
-        (ADDING_DS_FIELD_NAME, SubmitMsg) ->
+        (ADDING_DS_FIELD_NAME, SubmitMsg, _) ->
             if m.inputValue == ""
             then -- the DS has all its fields
-                ({ m | state = NOTHING
+                ({ m | state = ADDING_FUNCTION
                      , inputValue = ""
                  }, Cmd.none)
             else  -- save the field name, we'll submit it later the type
@@ -307,25 +306,25 @@ update msg m =
                      , inputValue = ""
                      , tempFieldName = m.inputValue
                  }, focusInput)
-        (ADDING_DS_FIELD_TYPE, SubmitMsg) ->
+        (ADDING_DS_FIELD_TYPE, SubmitMsg, Just id) ->
             ({ m | state = ADDING_DS_FIELD_NAME
                  , inputValue = ""
-             }, Cmd.batch [focusInput, rpc m <| AddDatastoreField m.tempFieldName m.inputValue])
+             }, Cmd.batch [focusInput, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue])
 
-        (_, RPCCallBack (Ok (nodes, edges, cursor))) ->
+        (_, RPCCallBack (Ok (nodes, edges, cursor)), _) ->
             ({ m | nodes = nodes
                  , edges = edges
                  , cursor = cursor
              }, Cmd.none)
-        (_, RPCCallBack (Err (Http.BadStatus error))) ->
+        (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
             ({ m | errors = addError ("Bad RPC call: " ++ toString(error.status.message)) m
-                 , state = NOTHING
+                 , state = ADDING_FUNCTION
              }, Cmd.none)
 
-        (_, FocusResult (Ok ())) ->
+        (_, FocusResult (Ok ()), _) ->
             -- Yay, you focused a field! Ignore.
             ( m, Cmd.none )
-        (_, InputMsg target) ->
+        (_, InputMsg target, _) ->
             -- Syncs the form with the model. The actual submit is in SubmitMsg
             ({ m | inputValue = target
              }, Cmd.none)
@@ -392,10 +391,9 @@ viewCanvas m =
         dragEdge = case mDragEdge of
                        Just de -> [de]
                        Nothing -> []
-
     in Element.toHtml
         (Collage.collage w h
-             ((Debug.log "dragEdge" dragEdge) ++ edges ++ (click :: allNodes)))
+             dragEdge ++ edges ++ (click :: allNodes)))
 
 
 
@@ -506,6 +504,7 @@ windowSize a = let size = Native.Window.size a
                in (size.width, size.height)
 
 focusInput = Dom.focus consts.inputID |> Task.attempt FocusResult
+unfocusInput = Dom.blur consts.inputID |> Task.attempt FocusResult
 
 addError error model =
     let time = timestamp ()

@@ -30,35 +30,34 @@ class Dark(server.Server):
       params = json.loads(str_response)
       print("Requesting: " + str(params))
 
-      # TODO: remove the cursor, no need for it
-      cursorname = params["cursor"]
       command = params["command"]
       args = params["args"]
 
       G = self.graph
-      cursor = G.get_node(cursorname)
+      cursor = None
 
       if command == "add_datastore":
         name = args["name"]
-        cursor = datastore.Datastore(name)
-        cursor.x = args["x"]
-        cursor.y = args["y"]
-        G.add_datastore(cursor)
+        node = datastore.Datastore(name)
+        node.x = args["x"]
+        node.y = args["y"]
+        G.add_datastore(node)
+        cursor = node
 
       elif command == "add_datastore_field":
-        ds = G.datastores[cursorname]
+        ds = G.datastores[args["id"]]
         fieldname = args["name"]
         typename = args["type"]
         fieldFn = getattr(fields, typename)
         ds.add_field(fieldFn(fieldname))
-        cursor = ds
 
       elif command == "add_function_call":
         nodename = args["name"]
-        cursor = graph.Node(nodename)
-        cursor.x = args["x"]
-        cursor.y = args["y"]
-        G._add(cursor)
+        node = graph.Node(nodename)
+        node.x = args["x"]
+        node.y = args["y"]
+        G._add(node)
+        cursor = node
 
       elif command == "update_node_position":
         nodeid = args["id"]
@@ -71,15 +70,13 @@ class Dark(server.Server):
         target = G.get_node(args["target"])
         paramname = args["param"]
         G.add_edge(src, target, paramname)
-        cursor = G.get_node(cursorname)
 
       elif command == "delete_node":
         node = G.get_node(args["id"])
         G.delete_node(node)
-        cursor = None
 
       elif command == "load_initial_graph":
-        cursor = None
+        pass
 
       else:
         raise Exception("Invalid command: " + str(request.data))
