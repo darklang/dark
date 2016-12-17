@@ -31,7 +31,7 @@ def except_fields(exclude, fields):
 def date_now(): return datetime.datetime.now()
 date_now.datasource = True
 
-def merge(*vals): return pyr.m().update(*vals)
+def merge(vals): return pyr.m().update(vals)
 def get_field(name, obj): return obj[name]
 def to_key_val_val(key, val): return { key: val }
 def to_slug(str): return slugify(str)

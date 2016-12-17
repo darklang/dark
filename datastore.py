@@ -23,6 +23,10 @@ class DB(object):
     self.exe("ALTER TABLE %s ADD %s" % (self.tablename, field))
     self.fields.append(field)
 
+  def remove_column(self, field):
+    self.exe("ALTER TABLE %s DROP %s" % (self.tablename, field))
+    self.fields = [f for f in self.fields if field != f]
+
   def insert(self, value):
     cols = self.fields
     vals = [str(value[f]) for f in self.fields if f in value]
@@ -76,6 +80,11 @@ class Datastore():
     self.fields_by_name[f.name] = f
     self.fields.append(f)
     self.db.add_column(f.name)
+
+  def remove_last_field(self):
+    r = self.fields[-1]
+    self.fields = self.fields[:-1]
+    self.db.remove_column(r.name)
 
   def to_frontend(self):
     return { "name": self.tablename,

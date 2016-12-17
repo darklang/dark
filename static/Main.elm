@@ -118,6 +118,7 @@ type RPC
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos
+    | AddValue String Pos
     | UpdateNodePosition ID -- no pos cause it's in the node
     | AddEdge ID (ID, ParamName)
     | DeleteNode ID
@@ -148,6 +149,10 @@ encodeRPC m call =
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("x", JSE.int x)
                                                             , ("y", JSE.int y)])
+                AddValue str {x,y} -> ("add_value",
+                                           JSE.object [ ("value", JSE.string str)
+                                                      , ("x", JSE.int x)
+                                                      , ("y", JSE.int y)])
                 UpdateNodePosition (ID id) ->
                     case Dict.get id m.nodes of
                         Nothing -> Debug.crash "should never happen"
@@ -284,7 +289,7 @@ update_ msg m =
                 _ -> case Char.fromCode code of
                          'C' -> (m, rpc m <| ClearEdges id, NoFocus)
                          'R' -> (m, rpc m <| RemoveLastField id, NoFocus)
-                         'N' -> (m, rpc m <| RemoveLastField id, NoFocus)
+                         'A' -> ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
                          _ -> forCharCode m code
         (_, KeyPress code, _) ->
             forCharCode m code
@@ -324,10 +329,13 @@ update_ msg m =
 
         (ADD_FUNCTION, SubmitMsg, _) ->
             ({ m | state = ADD_FUNCTION
-             }, rpc m <| AddFunctionCall m.inputValue m.lastPos, Focus)
+             }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
+        (ADD_VALUE, SubmitMsg, _) ->
+            ({ m | state = ADD_VALUE
+             }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
         (ADD_DS, SubmitMsg, _) ->
             ({ m | state = ADD_DS_FIELD_NAME
-             }, rpc m <| AddDatastore m.inputValue m.lastPos, Focus)
+             }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
         (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
             if m.inputValue == ""
             then -- the DS has all its fields

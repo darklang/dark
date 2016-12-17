@@ -59,6 +59,14 @@ class Dark(server.Server):
       G._add(node)
       cursor = node
 
+    elif command == "add_value":
+      valuestr = args["value"]
+      node = graph.Value(valuestr)
+      node.x = args["x"]
+      node.y = args["y"]
+      G._add(node)
+      cursor = node
+
     elif command == "update_node_position":
       nodeid = args["id"]
       node = G.get_node(nodeid)
@@ -81,7 +89,7 @@ class Dark(server.Server):
 
     elif command == "remove_last_field":
       node = G.get_node(args["id"])
-      if node.is_datastore():
+      if node.__class__.__name__ == "Datastore":
         node.remove_last_field()
       else:
         node.remove_last_edge()

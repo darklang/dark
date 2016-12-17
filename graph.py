@@ -4,6 +4,30 @@ import json
 
 import pyrsistent as pyr
 
+class Value:
+  def __init__(self, valuestr):
+    self.name = valuestr
+    self.value = exec(valuestr)
+    self._id = random.randint(0, 2**32)
+
+  def is_datasource(self):
+    return True
+
+  def is_datasink(self):
+    return False
+
+  def exe(self):
+    return self.value
+
+  def to_frontend(self):
+    return { "name": self.name,
+             "parameters": [],
+             "id": self.id(),
+             "x": self.x,
+             "y": self.y}
+
+  def id(self):
+    return "%s-%04X" % (self.value, self._id % 2**16)
 
 class Node:
   def __init__(self, fnname):
