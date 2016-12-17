@@ -185,4 +185,4 @@ class Graph():
     result = {"nodes": allnodes, "edges": edges}
     if cursor :
       result["cursor"] = cursor.id()
-    return json.dumps(result)
+    return json.dumps(result, sort_keys=True, indent=2)
