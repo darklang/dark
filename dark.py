@@ -118,13 +118,23 @@ class Dark(server.Server):
 
       except BaseException as e:
         traceback.print_exc()
-        return Response(status=500, response=str(e))
+        eClass = e.__class__.__name__
+        stack = traceback.extract_tb(e.__traceback__)
+        frame = stack[-1]
+        eFile = frame.filename
+        eFile = os.path.basename(eFile)
+        eLine = frame.lineno
+        eFunc = frame.name
+        eMsg = str(e)
+        msg = "%s:%s:%s() %s: %s" % (eFile, eLine, eFunc, eClass, eMsg)
+
+        return Response(status=500, response=msg)
 
     self.url_map.add(Rule('/admin/api/rpc', endpoint=endpoint))
 
   def add_ui_route(self):
     def fn(request):
-      return self.render_template('graphelm.html')
+      return self.render_template('ui.html')
     self.url_map.add(Rule('/admin/ui', endpoint=fn))
 
   def add_standard_routes(self):
