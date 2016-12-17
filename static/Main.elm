@@ -229,7 +229,7 @@ decodeGraph =
 type Msg
     = MouseDown Mouse.Position
     | NodeClick Node
-    | DragStart Mouse.Position
+    | DragNodeStart Node
     | DragNodeMove ID Mouse.Position
     | DragNodeEnd ID Mouse.Position
     | DragSlotMove ID ParamName Mouse.Position Mouse.Position
@@ -307,11 +307,9 @@ update_ msg m =
           ({ m | cursor = Nothing
                , lastPos = pos
            }, Cmd.none, Focus)
-        (_, DragStart pos, _) ->
-            case findNodeOrSlot m pos of
-                NSNone -> (m, Cmd.none, NoFocus)
-                NSSlot node param -> ({ m | drag = DragSlot node.id param pos}, Cmd.none, NoFocus)
-                NSNode node -> ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
+        (_, DragNodeStart node, _) ->
+                -- NSSlot node param -> ({ m | drag = DragSlot node.id param pos}, Cmd.none, NoFocus)
+          ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
         (_, DragNodeMove id pos, _) ->
             ({ m | nodes = updateDragPosition pos id m.nodes
              }, Cmd.none, NoFocus)
@@ -396,7 +394,6 @@ subscriptions m =
                   then []
                   else [Keyboard.downs KeyPress]
         standardSubs = [ Mouse.downs MouseDown
-                       , Mouse.downs DragStart
                        , Keyboard.downs CheckEscape]
     in Sub.batch
         (List.concat [standardSubs, keySubs, dragSubs])
@@ -474,6 +471,7 @@ viewDS ds selected =
     Html.span
       [ Attrs.class "block description"
       , Events.onClick (NodeClick ds)
+      , Events.onMouseDown (DragNodeStart ds)
       ]
       [ Html.h3 [] [ Html.text ds.name ]
       , Html.span
@@ -491,6 +489,7 @@ viewFunction func selected =
     Html.span
       [ Attrs.class "block round"
       , Events.onClick (NodeClick func)
+      , Events.onMouseDown (DragNodeStart func)
       ]
       [ Html.text func.name
       -- , Html.span []
