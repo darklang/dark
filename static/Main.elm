@@ -608,10 +608,10 @@ dotPos : Node -> ParamName -> Pos
 dotPos node paramName =
     let leftEdge = node.pos.x - (nodeWidth node // 2)
         (index, param) = List.foldl
-                         (\p (i, p2) -> if p == paramName
-                                        then (i, p)
-                                        else (i+1, p2))
-                         (0, "")
+                         (\p (i, p2) -> if p2 == paramName
+                                        then (i, p2)
+                                        else (i+1, p))
+                         (-1, "")
                          node.parameters
     in { x = leftEdge
        , y = node.pos.y + consts.spacer + consts.lineHeight * index}
