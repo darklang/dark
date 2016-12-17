@@ -310,9 +310,10 @@ update_ msg m =
         (_, DragNodeStart node, _) ->
                 -- NSSlot node param -> ({ m | drag = DragSlot node.id param pos}, Cmd.none, NoFocus)
           ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
-        (_, DragNodeMove id pos, _) ->
-            ({ m | nodes = updateDragPosition pos id m.nodes
-             }, Cmd.none, NoFocus)
+        (_, DragNodeMove id {x,y}, _) ->
+          let pos = {x=x-30, y=y-consts.toolbarOffset-20}
+          in ({ m | nodes = updateDragPosition pos id m.nodes
+              }, Cmd.none, NoFocus)
         (_, DragNodeEnd id _, _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
             ({ m | drag = NoDrag
