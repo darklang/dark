@@ -22,6 +22,8 @@ import Collage
 import Element
 import Text
 import Color
+import Svg
+import Svg.Attributes as SA
 
 
 -- mine
@@ -67,7 +69,7 @@ type alias Model = { nodes : NodeDict
 type alias Node = { name : Name
                   , id : ID
                   , pos : Pos
-                  , is_datastore : Bool
+                  , isDatastore : Bool
                   -- for DSes
                   , fields : List (FieldName, TypeName)
                   -- for functions
@@ -178,12 +180,12 @@ encodeRPC m call =
 decodeNode : JSD.Decoder Node
 decodeNode =
   let toNode : Name -> String -> List(FieldName,TypeName) -> List ParamName -> Bool -> Int -> Int -> Node
-      toNode name id fields parameters is_datastore x y =
+      toNode name id fields parameters isDatastore x y =
           { name = name
           , id = ID id
           , fields = fields
           , parameters = parameters
-          , is_datastore = is_datastore
+          , isDatastore = isDatastore
           , pos = {x=x, y=y}
           }
   in JSDP.decode toNode
@@ -441,11 +443,72 @@ viewCanvas m =
         dragEdge = case mDragEdge of
                        Just de -> [de]
                        Nothing -> []
-    in Element.toHtml
-        (Collage.collage w h
-             (dragEdge ++ edges ++ (click :: allNodes)))
+        testDS = { fields = []
+                 , id = ID "DS-Entry"
+                 , isDatastore = True
+                 , name = "Entry"
+                 , parameters = []
+                 , pos = { x = 513, y = 93 }
+                 }
+
+    in Svg.svg
+        [ SA.width (toString w)
+        , SA.height (toString h)
+        , SA.fill "red" ]
+        ( List.map viewNewNode (Dict.values m.nodes))
+
+placeHtml : Pos -> Html.Html msg -> Svg.Svg msg
+placeHtml {x,y} html =
+  Svg.foreignObject
+    [ SA.x (toString x)
+    , SA.y (toString y)]
+    [ html ]
+
+viewNewNode : Node -> Svg.Svg msg
+viewNewNode node =
+  if node.isDatastore
+  then viewDS node
+  else viewFunction node
+
+viewDS : Node -> Svg.Svg msg
+viewDS ds =
+  let field (name, type_) = [ Html.text (name ++ " : " ++ type_)
+                            , Html.br [] []]
+  in placeHtml ds.pos <|
+    Html.span
+      [ Attrs.class "block description"]
+      [ Html.h3 [] [ Html.text ds.name ]
+      , Html.span
+        [ Attrs.class "list"]
+        (List.concat
+           (List.map field ds.fields))
+      ]
 
 
+viewFunction : Node -> Svg.Svg msg
+viewFunction func =
+  let br = Html.br [] []
+      param name = [Html.text name, br]
+  in placeHtml func.pos <|
+    Html.span
+      [ Attrs.class "block round"]
+      [ Html.text func.name
+      -- , Html.span []
+        -- (List.concat (List.map param func.parameters))
+      ]
+
+
+oneLine : Svg.Svg msg
+oneLine =
+    Svg.line
+        [ SA.x1 "0"
+        , SA.y1 "0"
+        , SA.x2 "200"
+        , SA.y2 "50"
+        , SA.fill "red"
+        , SA.style "stroke:rgb(255,0,0);stroke-width:2"
+        ]
+        []
 
 viewClick : Pos -> Collage.Form
 viewClick pos = Collage.circle 10
@@ -579,7 +642,7 @@ withinNode node pos =
     && node.pos.y <= pos.y + (height // 2)
 
 nodeWidth node =
-    if node.is_datastore
+    if node.isDatastore
     then 2 * consts.paramWidth
     else max consts.paramWidth (consts.letterWidth * String.length(node.name))
 
