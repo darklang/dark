@@ -1,3 +1,5 @@
 /__pycache__
 /static/elm-stuff/
 /templates/graphelm.html
+/templates/ui.html
+/dark.graph
