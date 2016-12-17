@@ -235,6 +235,7 @@ type Msg
     | DragSlotStart Node ParamName Mouse.Position
     | DragSlotMove ID ParamName Mouse.Position Mouse.Position
     | DragSlotEnd Node
+    | DragSlotStop Mouse.Position
     | InputMsg String
     | SubmitMsg
     | KeyPress Keyboard.KeyCode
@@ -309,7 +310,9 @@ update_ msg m =
                , lastPos = pos
            }, Cmd.none, Focus)
         (_, DragNodeStart node, _) ->
-          ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
+          if m.drag == NoDrag -- If we're dragging a slot don't change it
+            then ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
+            else (m, Cmd.none, NoFocus)
         (_, DragNodeMove id {x,y}, _) ->
           let pos = {x=x-30, y=y-consts.toolbarOffset-20}
           in ({ m | nodes = updateDragPosition pos id m.nodes
@@ -331,7 +334,8 @@ update_ msg m =
                   DragSlot id param starting -> rpc m <| AddEdge node.id (id, param)
                   _ -> Cmd.none
           in ({ m | drag = NoDrag}, event, NoFocus)
-
+        (_, DragSlotStop _, _) ->
+          ({ m | drag = NoDrag}, Cmd.none, NoFocus)
         (ADD_FUNCTION, SubmitMsg, _) ->
             ({ m | state = ADD_FUNCTION
              }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
@@ -390,7 +394,9 @@ subscriptions m =
     let dragSubs = case m.drag of
                        DragNode id -> [ Mouse.moves (DragNodeMove id)
                                       , Mouse.ups (DragNodeEnd id)]
-                       DragSlot id param start -> [ Mouse.moves (DragSlotMove id param start) ]
+                       DragSlot id param start ->
+                         [ Mouse.moves (DragSlotMove id param start)
+                         , Mouse.ups DragSlotStop]
                        NoDrag -> []
         -- dont trigger commands if we're typing
         keySubs = if m.focused
@@ -434,18 +440,18 @@ viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
     let  (w, h) = windowSize ()
         -- allNodes = viewAllNodes m m.nodes
-         allNodes = List.map (viewNewNode m) (Dict.values m.nodes)
+         allNodes = List.map (viewNode m) (Dict.values m.nodes)
         -- edges = viewAllEdges m m.edges
         -- click = viewClick m.lastPos
-        -- mDragEdge = viewDragEdge m.drag m.lastPos
-        -- dragEdge = case mDragEdge of
-                       -- Just de -> [de]
-                       -- Nothing -> []
+         mDragEdge = viewDragEdge m.drag m.lastPos
+         dragEdge = case mDragEdge of
+                      Just de -> [de]
+                      Nothing -> []
     in Svg.svg
         [ SA.width (toString w)
         , SA.height (toString h)
         ]
-        allNodes
+        (allNodes ++ dragEdge)
 
 
 placeHtml : Node -> Bool -> Html.Html Msg -> Svg.Svg Msg
@@ -457,8 +463,8 @@ placeHtml node selected html =
     ]
     [ html ]
 
-viewNewNode : Model -> Node -> Svg.Svg Msg
-viewNewNode m node =
+viewNode : Model -> Node -> Svg.Svg Msg
+viewNode m node =
   let selected = case m.cursor of
                        Just n -> n == node.id
                        _ -> False
@@ -487,20 +493,38 @@ viewDS ds selected =
 
 viewFunction : Node -> Bool -> Svg.Svg Msg
 viewFunction func selected =
-  let br = Html.br [] []
+  let clickHandler name = (decodeClickLocation (DragSlotStart func name))
       param name = Html.span
-                   [ Events.on "mousedown" (decodeClickLocation (DragSlotStart func name))
+                   [ Attrs.class "item-block"
+                   , Events.on "mousedown" (clickHandler name)
                    , Events.onMouseUp (DragSlotEnd func)]
-                   [Html.text name, br]
+                   [Html.text name]
   in placeHtml func selected <|
     Html.span
-      [ Attrs.class "block round"
+      [ Attrs.class "block description diamond"
       , Events.onClick (NodeClick func)
       , Events.onMouseDown (DragNodeStart func)
       ]
-      ((Html.text func.name)
-      ::
-      (List.map param func.parameters))
+      [ Html.span [Attrs.class "center"] [Html.text func.name]
+      , Html.span
+           [Attrs.class "list"]
+           (List.map param func.parameters)
+      ]
+
+viewDragEdge : Drag -> Pos -> Maybe (Svg.Svg Msg)
+viewDragEdge drag currentPos =
+  case drag of
+    DragNode _ -> Nothing
+    NoDrag -> Nothing
+    DragSlot id param startPos ->
+      Just <|
+        Svg.line [ SA.x1 (toString startPos.x)
+                 , SA.y1 (toString (startPos.y - consts.toolbarOffset))
+                 , SA.x2 (toString currentPos.x)
+                 , SA.y2 (toString (currentPos.y - consts.toolbarOffset))
+                 , SA.fill "red"
+                 , SA.style "stroke:rgb(255,0,0);stroke-width:2"
+                 ] []
 
 
 oneLine : Svg.Svg Msg
