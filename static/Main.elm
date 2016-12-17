@@ -24,6 +24,7 @@ import Text
 import Color
 import Svg
 import Svg.Attributes as SA
+import Svg.Events as SEvents
 
 
 -- mine
@@ -227,6 +228,7 @@ decodeGraph =
 -- UPDATE
 type Msg
     = MouseDown Mouse.Position
+    | NodeClick Node
     | DragStart Mouse.Position
     | DragNodeMove ID Mouse.Position
     | DragNodeEnd ID Mouse.Position
@@ -296,16 +298,15 @@ update_ msg m =
         (_, KeyPress code, _) ->
             forCharCode m code
             -- TODO: ESCAPE - unfocus
+        (_, NodeClick node, _) ->
+          ({ m | state = if node.isDatastore then ADD_DS_FIELD_NAME else ADD_FUNCTION
+               , cursor = Just node.id
+           }, Cmd.none, Focus)
         (_, MouseDown pos, _) ->
             -- if the mouse is within a node, select the node. Else create a new one.
-            case findNode m pos of
-                Nothing -> ({ m | cursor = Nothing
-                                , lastPos = pos
-                            }, Cmd.none, Focus)
-                Just node -> ({ m | state = ADD_FUNCTION
-                                  , lastPos = pos
-                                  , cursor = Just node.id
-                              }, Cmd.none, Focus)
+          ({ m | cursor = Nothing
+               , lastPos = pos
+           }, Cmd.none, Focus)
         (_, DragStart pos, _) ->
             case findNodeOrSlot m pos of
                 NSNone -> (m, Cmd.none, NoFocus)
@@ -378,10 +379,6 @@ update_ msg m =
         t -> -- All other cases
             ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none, NoFocus)
 
-        -- KeyMsg key -> -- Keyboard input
-        --     ({ model | errors = addError "Not supported yet" model}, Cmd.none)
-
-
 
 
 
@@ -433,50 +430,51 @@ viewInput value = Html.div [] [
 viewState state = Html.div [] [ Html.text ("state: " ++ toString state) ]
 viewErrors errors = Html.div [] (List.map str2div errors)
 
-viewCanvas : Model -> Html.Html msg
+viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
-    let (w, h) = windowSize ()
-        allNodes = viewAllNodes m m.nodes
-        edges = viewAllEdges m m.edges
-        click = viewClick m.lastPos
-        mDragEdge = viewDragEdge m.drag m.lastPos
-        dragEdge = case mDragEdge of
-                       Just de -> [de]
-                       Nothing -> []
-        testDS = { fields = []
-                 , id = ID "DS-Entry"
-                 , isDatastore = True
-                 , name = "Entry"
-                 , parameters = []
-                 , pos = { x = 513, y = 93 }
-                 }
-
+    let  (w, h) = windowSize ()
+        -- allNodes = viewAllNodes m m.nodes
+         allNodes = List.map (viewNewNode m) (Dict.values m.nodes)
+        -- edges = viewAllEdges m m.edges
+        -- click = viewClick m.lastPos
+        -- mDragEdge = viewDragEdge m.drag m.lastPos
+        -- dragEdge = case mDragEdge of
+                       -- Just de -> [de]
+                       -- Nothing -> []
     in Svg.svg
         [ SA.width (toString w)
         , SA.height (toString h)
-        , SA.fill "red" ]
-        ( List.map viewNewNode (Dict.values m.nodes))
+        ]
+        allNodes
 
-placeHtml : Pos -> Html.Html msg -> Svg.Svg msg
-placeHtml {x,y} html =
+
+placeHtml : Node -> Bool -> Html.Html Msg -> Svg.Svg Msg
+placeHtml node selected html =
   Svg.foreignObject
-    [ SA.x (toString x)
-    , SA.y (toString y)]
+    [ SA.x (toString node.pos.x)
+    , SA.y (toString node.pos.y)
+    , if selected then SA.color "red" else SA.class "asdasdasdnothing"
+    ]
     [ html ]
 
-viewNewNode : Node -> Svg.Svg msg
-viewNewNode node =
-  if node.isDatastore
-  then viewDS node
-  else viewFunction node
+viewNewNode : Model -> Node -> Svg.Svg Msg
+viewNewNode m node =
+  let selected = case m.cursor of
+                       Just n -> n == node.id
+                       _ -> False
+  in if node.isDatastore
+     then viewDS node selected
+     else viewFunction node selected
 
-viewDS : Node -> Svg.Svg msg
-viewDS ds =
+viewDS : Node -> Bool -> Svg.Svg Msg
+viewDS ds selected =
   let field (name, type_) = [ Html.text (name ++ " : " ++ type_)
                             , Html.br [] []]
-  in placeHtml ds.pos <|
+  in placeHtml ds selected <|
     Html.span
-      [ Attrs.class "block description"]
+      [ Attrs.class "block description"
+      , Events.onClick (NodeClick ds)
+      ]
       [ Html.h3 [] [ Html.text ds.name ]
       , Html.span
         [ Attrs.class "list"]
@@ -485,20 +483,22 @@ viewDS ds =
       ]
 
 
-viewFunction : Node -> Svg.Svg msg
-viewFunction func =
+viewFunction : Node -> Bool -> Svg.Svg Msg
+viewFunction func selected =
   let br = Html.br [] []
       param name = [Html.text name, br]
-  in placeHtml func.pos <|
+  in placeHtml func selected <|
     Html.span
-      [ Attrs.class "block round"]
+      [ Attrs.class "block round"
+      , Events.onClick (NodeClick func)
+      ]
       [ Html.text func.name
       -- , Html.span []
         -- (List.concat (List.map param func.parameters))
       ]
 
 
-oneLine : Svg.Svg msg
+oneLine : Svg.Svg Msg
 oneLine =
     Svg.line
         [ SA.x1 "0"
@@ -540,69 +540,6 @@ viewDragEdge drag pos =
             let segment = Collage.segment (p2c startingPos) (p2c pos)
                 trace = Collage.traced Collage.defaultLine segment
             in Just trace
-
-
-viewAllNodes : Model -> NodeDict -> List Collage.Form
-viewAllNodes model nodes = dlMap (viewNode model) nodes
-
-viewNode : Model -> Node -> Collage.Form
-viewNode model node =
-    let
-        color = nodeColor model node
-        name = Element.centered (node.name |> Text.fromString |> Text.bold)
-        fields = viewFields node.fields
-        parameters = viewParameters node.parameters
-        entire = Element.flow Element.down [ name
-                                           , Element.spacer consts.spacer consts.spacer
-                                           , parameters
-                                           , fields]
-        (w, h) = Element.sizeOf entire
-        box = Collage.rect (toFloat w) (toFloat h)
-                     |> Collage.filled color
-        group = Collage.group [ box
-                              , Collage.toForm entire]
-    in Collage.move (p2c node.pos) group
-
-nodeColor : Model -> Node -> Color.Color
-nodeColor m node = if (DragNode node.id) == m.drag
-                   then Color.lightRed
-                   else if (Just node.id) == m.cursor
-                        then Color.lightGreen
-                        else Color.lightGrey
-
-
-viewFields fields =
-    Element.flow Element.down (List.map viewField fields)
-
-viewField (name, type_) =
-    (Element.flow
-        Element.right
-         [ Element.container
-               consts.paramWidth consts.lineHeight
-               Element.midLeft
-                   (Element.leftAligned (Text.fromString name))
-         , Element.container
-               consts.paramWidth consts.lineHeight
-               Element.midRight
-                   (Element.rightAligned (Text.fromString type_))])
-
-viewParameters parameters =
-    Element.flow Element.down (List.map viewParameter parameters)
-
-viewDot =
-    Collage.collage
-        consts.dotWidth
-        consts.dotContainer
-        [Collage.filled Color.red
-             (Collage.circle (toFloat consts.dotRadius))]
-
-viewParameter name =
-    Element.flow
-        Element.right
-            [ viewDot
-            , Element.container consts.paramWidth consts.lineHeight
-                Element.midLeft (Element.leftAligned (Text.fromString name))]
-
 
 
 
@@ -703,3 +640,16 @@ dlMap fn d = List.map fn (Dict.values d)
 updateDragPosition : Pos -> ID -> NodeDict -> NodeDict
 updateDragPosition pos (ID id) nodes =
     Dict.update id (Maybe.map (\n -> {n | pos = pos})) nodes
+
+
+-- decodeClickLocation : JSD.Decoder (Int,Int)
+-- decodeClickLocation =
+--   JSD.object2 (,)
+--     (JSD.object2 (-)
+--        (JSD.at ["pageX"] JSD.int)
+--        (JSD.at ["target", "offsetLeft"] JSD.int)
+--     )
+--   (JSD.object2 (-)
+--      (JSD.at ["pageY"] JSD.int)
+--      (JSD.at ["target", "offsetTop"] JSD.int)
+--   )
