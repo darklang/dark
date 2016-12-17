@@ -27,7 +27,7 @@ class Value:
              "y": self.y}
 
   def id(self):
-    return "%s-%04X" % (self.value, self._id % 2**16)
+    return "VALUE-%04X" % (self._id % 2**16)
 
 class Node:
   def __init__(self, fnname):
@@ -105,11 +105,8 @@ class Graph():
     return node.id() in self.nodes
 
   def delete_node(self, node):
+    self.clear_edges(node)
     del self.nodes[node.id()]
-    del self.edges[node.id()]
-    for t in self.reverse_edges[node.id()]:
-      self.edges[t] = [n for n in self.edges[t] if n != node]
-    del self.reverse_edges[node.id()]
 
 
   def add_edge(self, n1, n2, n2param):
@@ -120,6 +117,21 @@ class Graph():
     self.reverse_edges[n2.id()].append(n1.id())
 
     return (n1, n2)
+
+  def clear_edges(self, node):
+    """As we develop, sometimes graphs get weird. So we actually check the whole
+    graph to fix it up, not just doing what we expect to find."""
+    E = self.edges
+    R = self.reverse_edges
+    id = node.id()
+    for s, ts in E.items():
+      E[s] = [(t,p) for (t, p) in ts if t != id]
+    for t, ss in R.items():
+      R[t] = [s for s in ss if s != id]
+    if id in E:
+      del E[id]
+    if id in R:
+      del R[id]
 
   def print_graph(self):
     print(self.nodes)
