@@ -69,27 +69,26 @@ class Dark(server.Server):
       cursor = node
 
     elif command == "update_node_position":
-      nodeid = args["id"]
-      node = G.get_node(nodeid)
+      node = G.nodes[args["id"]]
       node.x = args["x"]
       node.y = args["y"]
 
     elif command == "add_edge":
-      src = G.get_node(args["src"])
-      target = G.get_node(args["target"])
+      src = G.nodes[args["src"]]
+      target = G.nodes[args["target"]]
       paramname = args["param"]
       G.add_edge(src, target, paramname)
 
     elif command == "delete_node":
-      node = G.get_node(args["id"])
+      node = G.nodes[args["id"]]
       G.delete_node(node)
 
     elif command == "clear_edges":
-      node = G.get_node(args["id"])
+      node = G.nodes[args["id"]]
       G.clear_edges(node)
 
     elif command == "remove_last_field":
-      node = G.get_node(args["id"])
+      node = G.nodes[args["id"]]
       if node.__class__.__name__ == "Datastore":
         node.remove_last_field()
       else:
