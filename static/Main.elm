@@ -296,39 +296,47 @@ update_ msg m =
         (_, KeyPress code, _) ->
             forCharCode m code
             -- TODO: ESCAPE - unfocus
+
         (_, NodeClick node, _) ->
           ({ m | state = ADD_FUNCTION
                , cursor = Just node.id
            }, Cmd.none, DropFocus)
+
         (_, MouseDown mpos, _) ->
           ({ m | cursor = Nothing
                , lastPos = (mouse2pos mpos)
            }, Cmd.none, Focus)
+
         (_, DragNodeStart node, _) ->
           if m.drag == NoDrag -- If we're dragging a slot don't change it
             then ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
+
         (_, DragNodeMove id {x,y}, _) ->
           let mpos = {x=x-30, y=y-20}
           in ({ m | nodes = updateDragPosition (mouse2pos mpos) id m.nodes
               }, Cmd.none, NoFocus)
+
+        (_, DragNodeEnd id _, _) ->
+          ({ m | drag = NoDrag
+           }, rpc m <| UpdateNodePosition id, NoFocus)
+
         (_, DragSlotStart node param mpos, _) ->
           ({ m | drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
-        (_, DragNodeEnd id _, _) ->
-            -- to avoid moving when we just want to select, don't set to mouseUp position
-            ({ m | drag = NoDrag
-             }, rpc m <| UpdateNodePosition id, NoFocus)
+
         (_, DragSlotMove id param mStartPos mpos, _) ->
             ({ m | lastPos = mouse2pos mpos
+                 -- TODO: may not be necessary
                  , drag = DragSlot id param mStartPos
              }, Cmd.none, NoFocus)
+
         (_, DragSlotEnd node, _) ->
-            -- to avoid moving when we just want to select, don't set to mouseUp position
-          let event =
-              case m.drag of
-                  DragSlot id param starting -> rpc m <| AddEdge node.id (id, param)
-                  _ -> Cmd.none
-          in ({ m | drag = NoDrag}, event, NoFocus)
+          case m.drag of
+            DragSlot id param starting ->
+              ({ m | drag = NoDrag}
+              , rpc m <| AddEdge node.id (id, param), NoFocus)
+            _ -> (m, Cmd.none, NoFocus)
+
         (_, DragSlotStop _, _) ->
           ({ m | drag = NoDrag}, Cmd.none, NoFocus)
         (ADD_FUNCTION, SubmitMsg, _) ->
