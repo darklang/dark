@@ -81,8 +81,8 @@ class Graph():
     super().__init__()
     self.nodes = {}
     self.edges = {}
-    self.datastores = {}
     self.reverse_edges = {}
+    self.datastores = {}
 
   def _add(self, node):
     self.nodes[node.id()] = node
@@ -92,14 +92,8 @@ class Graph():
       self.reverse_edges[node.id()] = []
 
   def add_datastore(self, ds):
-    self.datastores[ds.name()] = ds
-
-  def get_node(self, id):
-    "Get the node or the DS"
-    n = self.nodes.get(id)
-    if not n:
-      n = self.datastores.get(id)
-    return n
+    self.datastores[ds.id()] = ds
+    self.nodes[ds.id()] = ds
 
   def has(self, node):
     return node.id() in self.nodes
@@ -189,12 +183,10 @@ class Graph():
     return self.execute(node)
 
   def to_frontend(self, cursor):
-    nodes = [n.to_frontend() for n in self.nodes.values()]
-    dses = [ds.to_frontend() for ds in self.datastores.values()]
+    nodes = {n.id(): n.to_frontend() for n in self.nodes.values()}
     edges = self.to_frontend_edges()
-    allnodes = {n["id"]: n for n in (nodes + dses)}
 
-    result = {"nodes": allnodes, "edges": edges}
+    result = {"nodes": nodes, "edges": edges}
     if cursor :
       result["cursor"] = cursor.id()
     return json.dumps(result, sort_keys=True, indent=2)
