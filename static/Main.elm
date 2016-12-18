@@ -88,17 +88,14 @@ type alias ParamName = String
 type alias TypeName = String
 
 type ID = ID String
-type alias Pos = {x: Int, y: Int}
+type alias Pos = {x: Int, y: Int, posCheck: Int}
+type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
+
 type alias NodeDict = Dict Name Node
 type alias Cursor = Maybe ID
 type Drag = NoDrag
           | DragNode ID
-          | DragSlot ID ParamName Pos -- starting point of edge
-
-type NodeSlot = NSNode Node
-              | NSSlot Node ParamName
-              | NSNone
-
+          | DragSlot ID ParamName Mouse.Position -- starting point of edge
 init : ( Model, Cmd Msg )
 init = let m = { nodes = Dict.empty
                , edges = []
@@ -108,7 +105,7 @@ init = let m = { nodes = Dict.empty
                , inputValue = ""
                , focused = False
                , tempFieldName = ""
-               , lastPos = {x=-1, y=-1}
+               , lastPos = {x=-1, y=-1, posCheck=0}
                , drag = NoDrag
                }
        in (m, rpc m <| LoadInitialGraph)
@@ -187,7 +184,7 @@ decodeNode =
           , fields = fields
           , parameters = parameters
           , isDatastore = isDatastore
-          , pos = {x=x, y=y}
+          , pos = {x=x, y=y, posCheck = 0}
           }
   in JSDP.decode toNode
       |> JSDP.required "name" JSD.string
@@ -197,7 +194,6 @@ decodeNode =
       |> JSDP.optional "is_datastore" JSD.bool False
       |> JSDP.required "x" JSD.int
       |> JSDP.required "y" JSD.int
-      -- |> JSDP.resolve
 
 decodeEdge : JSD.Decoder Edge
 decodeEdge =
@@ -301,31 +297,30 @@ update_ msg m =
             forCharCode m code
             -- TODO: ESCAPE - unfocus
         (_, NodeClick node, _) ->
-          ({ m | state = if node.isDatastore then ADD_DS_FIELD_NAME else ADD_FUNCTION
+          ({ m | state = ADD_FUNCTION
                , cursor = Just node.id
-           }, Cmd.none, Focus)
-        (_, MouseDown pos, _) ->
-            -- if the mouse is within a node, select the node. Else create a new one.
+           }, Cmd.none, DropFocus)
+        (_, MouseDown mpos, _) ->
           ({ m | cursor = Nothing
-               , lastPos = pos
+               , lastPos = (mouse2pos mpos)
            }, Cmd.none, Focus)
         (_, DragNodeStart node, _) ->
           if m.drag == NoDrag -- If we're dragging a slot don't change it
             then ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
         (_, DragNodeMove id {x,y}, _) ->
-          let pos = {x=x-30, y=y-consts.toolbarOffset-20}
-          in ({ m | nodes = updateDragPosition pos id m.nodes
+          let mpos = {x=x-30, y=y-20}
+          in ({ m | nodes = updateDragPosition (mouse2pos mpos) id m.nodes
               }, Cmd.none, NoFocus)
-        (_, DragSlotStart node param pos, _) ->
-          ({ m | drag = DragSlot node.id param pos}, Cmd.none, NoFocus)
+        (_, DragSlotStart node param mpos, _) ->
+          ({ m | drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
         (_, DragNodeEnd id _, _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
             ({ m | drag = NoDrag
              }, rpc m <| UpdateNodePosition id, NoFocus)
-        (_, DragSlotMove id param starting pos, _) ->
-            ({ m | lastPos = pos
-                 , drag = DragSlot id param starting
+        (_, DragSlotMove id param mStartPos mpos, _) ->
+            ({ m | lastPos = mouse2pos mpos
+                 , drag = DragSlot id param mStartPos
              }, Cmd.none, NoFocus)
         (_, DragSlotEnd node, _) ->
             -- to avoid moving when we just want to select, don't set to mouseUp position
@@ -441,7 +436,7 @@ viewCanvas m =
     let  (w, h) = windowSize ()
         -- allNodes = viewAllNodes m m.nodes
          allNodes = List.map (viewNode m) (Dict.values m.nodes)
-        -- edges = viewAllEdges m m.edges
+         edges = List.map (viewEdge m) m.edges
         -- click = viewClick m.lastPos
          mDragEdge = viewDragEdge m.drag m.lastPos
          dragEdge = case mDragEdge of
@@ -451,14 +446,15 @@ viewCanvas m =
         [ SA.width (toString w)
         , SA.height (toString h)
         ]
-        (allNodes ++ dragEdge)
+        (allNodes ++ dragEdge ++ edges)
 
 
 placeHtml : Node -> Bool -> Html.Html Msg -> Svg.Svg Msg
 placeHtml node selected html =
-  Svg.foreignObject
-    [ SA.x (toString node.pos.x)
-    , SA.y (toString node.pos.y)
+  let cpos = pos2canvas (node.pos)
+  in Svg.foreignObject
+    [ SA.x (toString cpos.x)
+    , SA.y (toString cpos.y)
     , if selected then SA.color "red" else SA.class "asdasdasdnothing"
     ]
     [ html ]
@@ -511,70 +507,57 @@ viewFunction func selected =
            (List.map param func.parameters)
       ]
 
+svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
+svgLine unadjustedP1 unadjustedP2 attrs =
+  let p1 = pos2canvas unadjustedP1
+      p2 = pos2canvas unadjustedP2
+  in Svg.line
+    ([ SA.x1 (toString p1.x)
+     , SA.y1 (toString p1.y)
+     , SA.x2 (toString p2.x)
+     , SA.y2 (toString p2.y)
+     ] ++ attrs)
+    []
+
 viewDragEdge : Drag -> Pos -> Maybe (Svg.Svg Msg)
 viewDragEdge drag currentPos =
   case drag of
     DragNode _ -> Nothing
     NoDrag -> Nothing
-    DragSlot id param startPos ->
+    DragSlot id param mStartPos ->
       Just <|
-        Svg.line [ SA.x1 (toString startPos.x)
-                 , SA.y1 (toString (startPos.y - consts.toolbarOffset))
-                 , SA.x2 (toString currentPos.x)
-                 , SA.y2 (toString (currentPos.y - consts.toolbarOffset))
-                 , SA.fill "red"
-                 , SA.style "stroke:rgb(255,0,0);stroke-width:2"
-                 ] []
+        svgLine (mouse2pos mStartPos)
+                currentPos
+                [ SA.fill "red"
+                , SA.style "stroke:rgb(255,0,0);stroke-width:2"
+                ]
+
+deID (ID x) = x
+viewEdge : Model -> Edge -> Svg.Svg Msg
+viewEdge m {source, target, targetParam} =
+    let mSourceN = Dict.get (deID source) m.nodes
+        mTargetN = Dict.get (deID target) m.nodes
+        (sourceN, targetN) = case (mSourceN, mTargetN) of
+                             (Just s, Just t) -> (s, t)
+                             _ -> Debug.crash "Can't happen"
+        sourcePos = Debug.log "source" (pos2canvas sourceN.pos)
+        targetPos = Debug.log "target" (pos2canvas (dotPos targetN targetParam))
+    in Svg.line [ SA.x1 (toString sourcePos.x)
+                , SA.y1 (toString sourcePos.y)
+                , SA.x2 (toString targetPos.x)
+                , SA.y2 (toString targetPos.y)
+                , SA.fill "red"
+                , SA.style "stroke:rgb(255,0,0);stroke-width:2"
+                ] []
 
 
-oneLine : Svg.Svg Msg
-oneLine =
-    Svg.line
-        [ SA.x1 "0"
-        , SA.y1 "0"
-        , SA.x2 "200"
-        , SA.y2 "50"
-        , SA.fill "red"
-        , SA.style "stroke:rgb(255,0,0);stroke-width:2"
-        ]
-        []
 
 -- viewClick : Pos -> Collage.Form
 -- viewClick pos = Collage.circle 10
 --                 |> Collage.filled Color.lightCharcoal
 --                 |> Collage.move (p2c pos)
 
--- viewAllEdges : Model -> List Edge -> List Collage.Form
--- viewAllEdges model edges = List.map (viewEdge model) edges
--- deID (ID x) = x
--- viewEdge : Model -> Edge -> Collage.Form
--- viewEdge m {source, target, targetParam} =
---     let mSourceN = Dict.get (deID source) m.nodes
---         mTargetN = Dict.get (deID target) m.nodes
---         (sourceN, targetN) = case (mSourceN, mTargetN) of
---                              (Just s, Just t) -> (s, t)
---                              _ -> Debug.crash "Can't happen"
---         sourcePos = sourceN.pos
---         targetPos = dotPos targetN targetParam
---         segment = Collage.segment (p2c sourcePos) (p2c targetPos)
---         trace = Collage.traced Collage.defaultLine segment
---     in trace
-
--- viewDragEdge : Drag -> Pos -> Maybe Collage.Form
--- viewDragEdge drag pos =
---     case drag of
---         DragNode _ -> Nothing
---         NoDrag -> Nothing
---         DragSlot id param startingPos ->
---             let segment = Collage.segment (p2c startingPos) (p2c pos)
---                 trace = Collage.traced Collage.defaultLine segment
---             in Just trace
-
-
-
 -- UTIL
-
-
 timestamp : () -> Int
 timestamp a = Native.Timestamp.timestamp a
 
@@ -593,43 +576,27 @@ addError error model =
 str2div str = Html.div [] [Html.text str]
 
 
--- nodeWidth node =
---     if node.isDatastore
---     then 2 * consts.paramWidth
---     else max consts.paramWidth (consts.letterWidth * String.length(node.name))
+nodeWidth node =
+  if node.isDatastore
+  then 2 * consts.paramWidth
+  else max consts.paramWidth (consts.letterWidth * String.length(node.name))
 
--- nodeHeight node =
---     consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
+nodeHeight node =
+  consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
 
--- If the click is on a slot, return the slot. Else return the node.
--- slotOrNode : Node -> Pos -> NodeSlot
--- slotOrNode node pos =
---     -- we clicked on a slot if we're on the left edge, below the spacer.
---     let leftEdge = node.pos.x - (nodeWidth node // 2)
---     in if pos.x > (leftEdge + consts.dotWidth)
---        then NSNode node
---        -- ok it's along the left. Now find its slot
---        else let index = (pos.y - node.pos.y - consts.spacer) // consts.lineHeight
---                 asArray = Array.fromList node.parameters
---                 mParam = Array.get index asArray
---                 param = case mParam of
---                             Just p -> p
---                             Nothing -> Debug.crash "Can't happen"
---             in if index < 0
---                then NSNode node
---                else NSSlot node param
 
--- dotPos : Node -> ParamName -> Pos
--- dotPos node paramName =
---     let leftEdge = node.pos.x - (nodeWidth node // 2)
---         (index, param) = List.foldl
---                          (\p (i, p2) -> if p2 == paramName
---                                         then (i, p2)
---                                         else (i+1, p))
---                          (-1, "")
---                          node.parameters
---     in { x = leftEdge
---        , y = node.pos.y + consts.spacer + consts.lineHeight * index}
+dotPos : Node -> ParamName -> Pos
+dotPos node paramName =
+  let leftEdge = node.pos.x
+      (index, param) = List.foldl
+                       (\p (i, p2) -> if p2 == paramName
+                                      then (i, p2)
+                                      else (i+1, p))
+                       (-1, "")
+                       node.parameters
+  in { x = leftEdge
+     , y = node.pos.y + consts.lineHeight * index
+     , posCheck = 0}
 
 
 dlMap : (b -> c) -> Dict comparable b -> List c
@@ -649,3 +616,15 @@ decodeClickLocation fn =
       |> JSDP.requiredAt ["target", "offsetLeft"] JSD.int
       |> JSDP.required "pageY" JSD.int
       |> JSDP.requiredAt ["target", "offsetTop"] JSD.int
+
+
+pos2canvas : Pos -> CanvasPos
+pos2canvas {x, y, posCheck} =
+  { x = x
+  , y = y - consts.toolbarOffset
+  , canvasPosCheck = posCheck}
+
+mouse2pos : Mouse.Position -> Pos
+mouse2pos {x,y} = { x = x
+                  , y = y
+                  , posCheck = 0}
