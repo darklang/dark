@@ -24,7 +24,7 @@ class DB(object):
     self.fields.append(field)
 
   def remove_column(self, field):
-    self.exe("ALTER TABLE %s DROP %s" % (self.tablename, field))
+    #self.exe("ALTER TABLE %s DROP %s" % (self.tablename, field)) - sqlite doesn't support dropping
     self.fields = [f for f in self.fields if field != f]
 
   def insert(self, value):
