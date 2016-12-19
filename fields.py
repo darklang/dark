@@ -44,3 +44,4 @@ class Email(Field): pass
 class Text(Field): pass
 class Image(Field): pass
 class Geo(Field): pass
+class Password(Field): pass
