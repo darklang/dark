@@ -539,9 +539,9 @@ svgLine unadjustedP1 unadjustedP2 attrs =
       p2 = pos2canvas unadjustedP2
   in Svg.line
     ([ SA.x1 (toString p1.x)
-     , SA.y1 (toString <| p1.y - 10)
+     , SA.y1 (toString p1.y)
      , SA.x2 (toString p2.x)
-     , SA.y2 (toString <| p2.y - 10)
+     , SA.y2 (toString p2.y)
      ] ++ attrs)
     []
 
