@@ -655,7 +655,7 @@ offset p x y = { p | x = p.x + x
 svgArrowHead =
   Svg.marker [ SA.id "triangle"
              , SA.viewBox "0 0 10 10"
-             , SA.refX "5"
+             , SA.refX "4"
              , SA.refY "5"
              , SA.markerUnits "strokeWidth"
              , SA.markerWidth "7"
