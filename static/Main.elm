@@ -217,8 +217,9 @@ decodeGraph =
 
 -- UPDATE
 type Msg
-    = MouseDown Mouse.Position
+    = ClearCursor Mouse.Position
     | NodeClick Node
+    | RecordClick Mouse.Position
     | DragNodeStart Node Mouse.Position
     | DragNodeMove ID Offset Mouse.Position
     | DragNodeEnd ID Mouse.Position
@@ -296,9 +297,12 @@ update_ msg m =
                , cursor = Just node.id
            }, Cmd.none, DropFocus)
 
-        (_, MouseDown mpos, _) ->
+        (_, RecordClick mpos, _) ->
+          ({ m | lastPos = mouse2pos mpos
+           }, Cmd.none, Focus)
+
+        (_, ClearCursor mpos, _) ->
           ({ m | cursor = Nothing
-               , lastPos = mouse2pos mpos
            }, Cmd.none, Focus)
 
         (_, DragNodeStart node mpos, _) ->
@@ -316,7 +320,8 @@ update_ msg m =
            }, rpc m <| UpdateNodePosition id, NoFocus)
 
         (_, DragSlotStart node param mpos, _) ->
-          ({ m | drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
+          ({ m | cursor = Just node.id
+               , drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
 
         (_, DragSlotMove id param mStartPos mpos, _) ->
             ({ m | lastPos = mouse2pos mpos
@@ -333,15 +338,18 @@ update_ msg m =
 
         (_, DragSlotStop _, _) ->
           ({ m | drag = NoDrag}, Cmd.none, NoFocus)
+
         (ADD_FUNCTION, SubmitMsg, _) ->
             ({ m | state = ADD_FUNCTION
              }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
         (ADD_VALUE, SubmitMsg, _) ->
             ({ m | state = ADD_VALUE
              }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
+
         (ADD_DS, SubmitMsg, _) ->
             ({ m | state = ADD_DS_FIELD_NAME
              }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
+
         (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
             if m.inputValue == ""
             then -- the DS has all its fields
@@ -352,6 +360,7 @@ update_ msg m =
                 ({ m | state = ADD_DS_FIELD_TYPE
                      , tempFieldName = m.inputValue
                  }, Cmd.none, Focus)
+
         (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
             ({ m | state = ADD_DS_FIELD_NAME
              }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
@@ -367,6 +376,7 @@ update_ msg m =
                     , edges = edges
                     , cursor = newCursor
                 }, Cmd.none, newFocus )
+
         (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
             ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
                  , state = ADD_FUNCTION
@@ -375,10 +385,12 @@ update_ msg m =
         (_, FocusResult (Ok ()), _) ->
             -- Yay, you focused a field! Ignore.
             (m, Cmd.none, NoFocus)
+
         (_, InputMsg target, _) ->
             -- Syncs the form with the model. The actual submit is in SubmitMsg
             ({ m | inputValue = target
              }, Cmd.none, NoFocus)
+
         t -> -- All other cases
             ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none, NoFocus)
 
@@ -394,13 +406,13 @@ subscriptions m =
                        DragSlot id param start ->
                          [ Mouse.moves (DragSlotMove id param start)
                          , Mouse.ups DragSlotStop]
-                       NoDrag -> []
+                       NoDrag -> [ Mouse.downs ClearCursor ]
         -- dont trigger commands if we're typing
         keySubs = if m.focused
                   then []
-                  else [Keyboard.downs KeyPress]
-        standardSubs = [ Mouse.downs MouseDown
-                       , Keyboard.downs CheckEscape]
+                  else [ Keyboard.downs KeyPress]
+        standardSubs = [ Keyboard.downs CheckEscape
+                       , Mouse.downs RecordClick]
     in Sub.batch
         (List.concat [standardSubs, keySubs, dragSubs])
 
