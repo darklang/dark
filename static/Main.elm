@@ -579,8 +579,11 @@ viewEdge m {source, target, targetParam} =
                              _ -> Debug.crash "Can't happen"
         targetPos = dotPos targetN targetParam
     in svgLine
-      (offset sourceN.pos 0 0)
-      (offset targetPos 0 0)
+      (offset sourceN.pos 50 20)
+      (if sourceN.pos.x > targetPos.x
+       then offset targetPos 100 20 -- right edge
+       else offset targetPos 0 20 --left edge
+      )
       edgeStyle
 
 
