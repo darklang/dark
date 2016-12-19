@@ -43,10 +43,7 @@ main = Html.program
 consts = { spacer = round 5
          , lineHeight = round 18
          , paramWidth = round 50
-         , dotRadius = round 5
-         , dotWidth = round 10
-         , dotContainer = round 20
-         , toolbarOffset = round 77
+         , toolbarOffset = round 19
          , letterWidth = round 7
          , backspaceKeycode = 8
          , escapeKeycode = 27
@@ -304,7 +301,7 @@ update_ msg m =
 
         (_, MouseDown mpos, _) ->
           ({ m | cursor = Nothing
-               , lastPos = (mouse2pos mpos)
+               , lastPos = mouse2pos mpos
            }, Cmd.none, Focus)
 
         (_, DragNodeStart node, _) ->
@@ -312,10 +309,9 @@ update_ msg m =
             then ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
 
-        (_, DragNodeMove id {x,y}, _) ->
-          let mpos = {x=x-30, y=y-20}
-          in ({ m | nodes = updateDragPosition (mouse2pos mpos) id m.nodes
-              }, Cmd.none, NoFocus)
+        (_, DragNodeMove id mpos, _) ->
+          ({ m | nodes = updateDragPosition (mouse2pos mpos) id m.nodes
+           }, Cmd.none, NoFocus)
 
         (_, DragNodeEnd id _, _) ->
           ({ m | drag = NoDrag
