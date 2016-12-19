@@ -18,10 +18,6 @@ import Mouse
 import Dom
 import Task
 import Http
-import Collage
-import Element
-import Text
-import Color
 import Svg
 import Svg.Attributes as SA
 import Svg.Events as SEvents
