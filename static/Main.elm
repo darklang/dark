@@ -512,13 +512,15 @@ viewFunction func selected =
       param name = Html.span
                    [ Attrs.class "item-block"
                    , Events.on "mousedown" (slotHandler name)
-                   , Events.onMouseUp (DragSlotEnd func)]
+                   ]
                    [Html.text name]
+
   in placeHtml func <|
     Html.span
       [ Attrs.class "block round-med funcdescription"
       , Events.onClick (NodeClick func)
       , Events.on "mousedown" nodeHandler
+      , Events.onMouseUp (DragSlotEnd func)
       ]
       (if selected
        then [ Html.span
