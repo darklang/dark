@@ -514,6 +514,13 @@ viewFunction func selected =
                    , Events.on "mousedown" (slotHandler name)
                    ]
                    [Html.text name]
+      class = if selected then "center title" else "center"
+      params = if selected && (List.length func.parameters) > 0
+               then
+                 [Html.span
+                    [Attrs.class "list"]
+                    (List.map param func.parameters)]
+               else []
 
   in placeHtml func <|
     Html.span
@@ -522,18 +529,11 @@ viewFunction func selected =
       , Events.on "mousedown" nodeHandler
       , Events.onMouseUp (DragSlotEnd func)
       ]
-      (if selected
-       then [ Html.span
-                [Attrs.class "center title"]
-                [Html.text func.name]
-            , Html.span
-              [Attrs.class "list"]
-              (List.map param func.parameters)
-            ]
-       else [ Html.span
-                [Attrs.class "center"]
-                [Html.text func.name]
-            ])
+    ((Html.span
+       [Attrs.class class]
+       [Html.text func.name])
+    :: params)
+
 
 dragEdgeStyle =
   [ SA.strokeWidth "2px"
