@@ -523,9 +523,8 @@ viewFunction func selected =
             ])
 
 dragEdgeStyle =
-  [ SA.strokeWidth "1px"
+  [ SA.strokeWidth "2px"
   , SA.stroke "red"
-  , SA.markerEnd "url(#triangle)"
   ]
 
 edgeStyle =
