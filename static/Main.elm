@@ -504,7 +504,7 @@ viewFunction func selected =
                    [Html.text name]
   in placeHtml func selected <|
     Html.span
-      [ Attrs.class "block description diamond"
+      [ Attrs.class "block round-med funcdescription"
       , Events.onClick (NodeClick func)
       , Events.onMouseDown (DragNodeStart func)
       ]
@@ -578,7 +578,7 @@ unfocusInput = Dom.blur consts.inputID |> Task.attempt FocusResult
 addError error model =
     let time = timestamp ()
                in
-    List.take 2 ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
+    List.take 1 ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
 
 str2div str = Html.div [] [Html.text str]
 

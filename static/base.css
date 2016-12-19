@@ -159,3 +159,31 @@ h3 {
 }
 
 
+/* Paul's additions */
+form {
+    display: inline;
+}
+
+/* Make the DSes fully line up */
+.block.description {
+    width: 200px;
+}
+
+/* Duplicate descption */
+.block.funcdescription {
+    width: 100px;
+}
+
+.funcdescription {
+  display: inline-block;
+}
+
+/* Reduce spacing */
+.item-block {
+  min-height: 0em;
+}
+
+/* Narrower borders */
+.block.round-med.funcdescription {
+    padding: 0.3em 1em;
+}
