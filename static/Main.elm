@@ -425,19 +425,18 @@ view model =
                 , viewCanvas model
                 ]
 
-viewInput value = Html.div [] [
-                   Html.form [
-                        Events.onSubmit (SubmitMsg)
-                       ] [
-                        Html.input [ Attrs.id consts.inputID
-                                   , Events.onInput InputMsg
-                                   , Attrs.value value
-                                   ] []
-                       ]
+viewInput value = Html.form [
+                   Events.onSubmit (SubmitMsg)
+                  ] [
+                   Html.input [ Attrs.id consts.inputID
+                              , Events.onInput InputMsg
+                              , Attrs.value value
+                              ] []
                   ]
 
-viewState state = Html.div [] [ Html.text ("state: " ++ toString state) ]
-viewErrors errors = Html.div [] (List.map str2div errors)
+
+viewState state = Html.text ("state: " ++ toString state)
+viewErrors errors = Html.span [] (List.map Html.text errors)
 
 viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
@@ -450,11 +449,11 @@ viewCanvas m =
          dragEdge = case mDragEdge of
                       Just de -> [de]
                       Nothing -> []
-    in Svg.svg
+    in Html.div [Attrs.id "grid"] [Svg.svg
         [ SA.width (toString w)
-        , SA.height (toString h)
+        , SA.height (toString (h - consts.toolbarOffset))
         ]
-        (allNodes ++ dragEdge ++ edges)
+        (allNodes ++ dragEdge ++ edges)]
 
 
 placeHtml : Node -> Bool -> Html.Html Msg -> Svg.Svg Msg
