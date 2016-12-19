@@ -41,10 +41,10 @@ main = Html.program
        , subscriptions = subscriptions}
 
 consts = { spacer = round 5
-         , lineHeight = round 18
-         , paramWidth = round 50
+         , lineHeight = round 0
+         , paramWidth = round 0
          , toolbarOffset = round 19
-         , letterWidth = round 7
+         , letterWidth = round 0
          , backspaceKeycode = 8
          , escapeKeycode = 27
          , inputID = "darkInput"
@@ -656,7 +656,7 @@ offset p x y = { p | x = p.x + x
 svgArrowHead =
   Svg.marker [ SA.id "triangle"
              , SA.viewBox "0 0 10 10"
-             , SA.refX "0"
+             , SA.refX "5"
              , SA.refY "5"
              , SA.markerUnits "strokeWidth"
              , SA.markerWidth "7"
