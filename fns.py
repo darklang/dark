@@ -14,13 +14,17 @@ def form_for(action, schema):
           + "</fieldset>"
           + "</form>")
 
-def to_page(input):
+def output(input):
   # TODO: this feels wrong. The schema is the markup? hmmm
   # What if we need to combine schema and data to generate the page?
   # This should be a page object with a form object, and then it can get
   # auto-converted to html, or a page in an ios app.
   return "<html><head></head><body>" + input + "</body></html>"
-to_page.datasink=True
+output.datasink=True
+
+def input(input, fields):
+  return ""
+input.datasource=True
 
 def endpoint(input): return input.discard("submit")
 endpoint.datasource = True

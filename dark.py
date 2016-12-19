@@ -151,7 +151,7 @@ class Dark(server.Server):
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
-  def add_output(self, node, verb, url):
+  def add_output(self, node, url):
     self.graph._add(node)
     assert node.is_datasink()
 
@@ -159,15 +159,15 @@ class Dark(server.Server):
       val = self.graph.run_output(node)
       return Response(val, mimetype='text/html')
 
-    self.url_map.add(Rule(url, endpoint=h, methods=[verb]))
+    self.url_map.add(Rule(url, endpoint=h, methods=["GET"]))
 
-  def add_input(self, node, verb, url, redirect_url):
+  def add_input(self, node, url):
     self.graph._add(node)
     assert node.is_datasource()
 
     def h(request):
       self.graph.run_input(node, request.values.to_dict())
-      return redirect(redirect_url)
+      return redirect("/")
 
-    self.url_map.add(Rule(url, endpoint=h, methods=[verb]))
+    self.url_map.add(Rule(url, endpoint=h, methods=["POST"]))
     return node
