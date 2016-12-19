@@ -86,19 +86,20 @@ type alias TypeName = String
 
 type ID = ID String
 type alias Pos = {x: Int, y: Int, posCheck: Int}
+type alias Offset = {x: Int, y: Int, offsetCheck: Int}
 type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
 
 type alias NodeDict = Dict Name Node
 type alias Cursor = Maybe ID
 type Drag = NoDrag
-          | DragNode ID
+          | DragNode ID Offset -- offset between the click and the node pos
           | DragSlot ID ParamName Mouse.Position -- starting point of edge
 init : ( Model, Cmd Msg )
 init = let m = { nodes = Dict.empty
                , edges = []
                , cursor = Nothing
                , state = ADD_FUNCTION
-               , errors = [".", "."]
+               , errors = ["."]
                , inputValue = ""
                , focused = False
                , tempFieldName = ""
@@ -222,8 +223,8 @@ decodeGraph =
 type Msg
     = MouseDown Mouse.Position
     | NodeClick Node
-    | DragNodeStart Node
-    | DragNodeMove ID Mouse.Position
+    | DragNodeStart Node Mouse.Position
+    | DragNodeMove ID Offset Mouse.Position
     | DragNodeEnd ID Mouse.Position
     | DragSlotStart Node ParamName Mouse.Position
     | DragSlotMove ID ParamName Mouse.Position Mouse.Position
@@ -304,13 +305,14 @@ update_ msg m =
                , lastPos = mouse2pos mpos
            }, Cmd.none, Focus)
 
-        (_, DragNodeStart node, _) ->
+        (_, DragNodeStart node mpos, _) ->
           if m.drag == NoDrag -- If we're dragging a slot don't change it
-            then ({ m | drag = DragNode node.id}, Cmd.none, NoFocus)
+            then ({ m | drag = DragNode node.id (findOffset node.pos mpos)}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
 
-        (_, DragNodeMove id mpos, _) ->
-          ({ m | nodes = updateDragPosition (mouse2pos mpos) id m.nodes
+        (_, DragNodeMove id offset currentMPos, _) ->
+          ({ m | nodes = updateDragPosition (mouse2pos currentMPos) offset id m.nodes
+               , lastPos = mouse2pos currentMPos -- debugging
            }, Cmd.none, NoFocus)
 
         (_, DragNodeEnd id _, _) ->
@@ -391,8 +393,8 @@ update_ msg m =
 subscriptions : Model -> Sub Msg
 subscriptions m =
     let dragSubs = case m.drag of
-                       DragNode id -> [ Mouse.moves (DragNodeMove id)
-                                      , Mouse.ups (DragNodeEnd id)]
+                       DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
+                                             , Mouse.ups (DragNodeEnd id)]
                        DragSlot id param start ->
                          [ Mouse.moves (DragSlotMove id param start)
                          , Mouse.ups DragSlotStop]
@@ -432,7 +434,7 @@ viewInput value = Html.form [
 
 
 viewState state = Html.text ("state: " ++ toString state)
-viewErrors errors = Html.span [] (List.map Html.text errors)
+viewErrors errors = Html.span [] <| (Html.text " -----> errors: ") :: (List.map Html.text errors)
 
 viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
@@ -480,7 +482,7 @@ viewDS ds selected =
     Html.span
       [ Attrs.class "block description"
       , Events.onClick (NodeClick ds)
-      , Events.onMouseDown (DragNodeStart ds)
+      , Events.on "mousedown" (decodeClickLocation (DragNodeStart ds))
       , Events.onMouseUp (DragSlotEnd ds)
       ]
       [ Html.h3
@@ -497,17 +499,18 @@ viewDS ds selected =
 
 viewFunction : Node -> Bool -> Svg.Svg Msg
 viewFunction func selected =
-  let clickHandler name = (decodeClickLocation (DragSlotStart func name))
+  let slotHandler name = (decodeClickLocation (DragSlotStart func name))
+      nodeHandler = (decodeClickLocation (DragNodeStart func))
       param name = Html.span
                    [ Attrs.class "item-block"
-                   , Events.on "mousedown" (clickHandler name)
+                   , Events.on "mousedown" (slotHandler name)
                    , Events.onMouseUp (DragSlotEnd func)]
                    [Html.text name]
   in placeHtml func <|
     Html.span
       [ Attrs.class "block round-med funcdescription"
       , Events.onClick (NodeClick func)
-      , Events.onMouseDown (DragNodeStart func)
+      , Events.on "mousedown" nodeHandler
       ]
       (if selected
        then [ Html.span
@@ -548,7 +551,7 @@ svgLine unadjustedP1 unadjustedP2 attrs =
 viewDragEdge : Drag -> Pos -> Maybe (Svg.Svg Msg)
 viewDragEdge drag currentPos =
   case drag of
-    DragNode _ -> Nothing
+    DragNode _ _ -> Nothing
     NoDrag -> Nothing
     DragSlot id param mStartPos ->
       Just <|
@@ -622,20 +625,18 @@ dotPos node paramName = node.pos
 dlMap : (b -> c) -> Dict comparable b -> List c
 dlMap fn d = List.map fn (Dict.values d)
 
-updateDragPosition : Pos -> ID -> NodeDict -> NodeDict
-updateDragPosition pos (ID id) nodes =
-    Dict.update id (Maybe.map (\n -> {n | pos = pos})) nodes
+updateDragPosition : Pos -> Offset -> ID -> NodeDict -> NodeDict
+updateDragPosition pos off (ID id) nodes =
+  Dict.update id (Maybe.map (\n -> {n | pos = offset pos off.x off.y})) nodes
 
 
 decodeClickLocation : (Mouse.Position -> a) -> JSD.Decoder a
 decodeClickLocation fn =
-  let toA : Int -> Int -> Int -> Int -> a
-      toA px ol py ot = fn {x=px - ol, y=py-ot}
+  let toA : Int -> Int -> a
+      toA px py = fn {x=px, y=py}
   in JSDP.decode toA
       |> JSDP.required "pageX" JSD.int
-      |> JSDP.requiredAt ["target", "offsetLeft"] JSD.int
       |> JSDP.required "pageY" JSD.int
-      |> JSDP.requiredAt ["target", "offsetTop"] JSD.int
 
 
 pos2canvas : Pos -> CanvasPos
@@ -648,6 +649,10 @@ mouse2pos : Mouse.Position -> Pos
 mouse2pos {x,y} = { x = x
                   , y = y
                   , posCheck = 0}
+
+findOffset : Pos -> Mouse.Position -> Offset
+findOffset pos mpos =
+ {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
 
 offset p x y = { p | x = p.x + x
                    , y = p.y + y }
