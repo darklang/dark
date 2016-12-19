@@ -16,15 +16,12 @@ import datastore
 class Dark(server.Server):
   def __init__(self):
     super().__init__()
-    self.url_map = Map()
 
-    #self.add_standard_routes()
     self.graph = graph.Graph()
     if os.path.isfile("dark.graph"):
       self.graph = pickle.load(open( "dark.graph", "rb"))
 
-    self.add_ui_route()
-    self.add_api_route()
+    self.init_url_map()
 
   def handler(self, request):
     str_response = request.data.decode('utf-8')
@@ -107,10 +104,11 @@ class Dark(server.Server):
     else:
       raise Exception("Invalid command: " + str(request.data))
 
+    self.init_url_map()
     return cursor
 
 
-  def add_api_route(self):
+  def add_admin_route(self):
     def endpoint(request):
       try:
         cursor = self.handler(request)
@@ -151,23 +149,41 @@ class Dark(server.Server):
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
-  def add_output(self, node, url):
-    self.graph._add(node)
-    assert node.is_datasink()
+  def init_url_map(self):
+    map = Map()
+    self.url_map = map
+    self.add_ui_route()
+    self.add_standard_routes()
+    self.add_admin_route()
+    self.add_app_routes()
 
+  def add_app_routes(self):
+    for p in self.graph.pages.values():
+      print("adding page")
+      urls = self.graph.get_named_parents(p, "url")
+      urls = [u.exe() for u in urls]
+      outputs = self.graph.get_named_parents(p, "outputs")
+      inputs = self.graph.get_named_parents(p, "inputs")
+      print("url, input, output:")
+      print(urls)
+      print(inputs)
+      print(outputs)
+      for url in urls:
+        if len(outputs) > 0:
+          self.set_output(p, url)
+        if len(inputs) > 0:
+          self.set_input(p, url)
+
+  def set_output(self, node, url):
+    print("Setting output: %s, %s" % (node, url))
     def h(request):
       val = self.graph.run_output(node)
       return Response(val, mimetype='text/html')
-
     self.url_map.add(Rule(url, endpoint=h, methods=["GET"]))
 
-  def add_input(self, node, url):
-    self.graph._add(node)
-    assert node.is_datasource()
-
+  def set_input(self, node, url):
+    print("Setting input: %s, %s" % (node, url))
     def h(request):
       self.graph.run_input(node, request.values.to_dict())
       return redirect("/")
-
     self.url_map.add(Rule(url, endpoint=h, methods=["POST"]))
-    return node

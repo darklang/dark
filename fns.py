@@ -3,11 +3,16 @@ import copy
 from slugify import slugify
 import pyrsistent as pyr
 
-def form_for(action, schema):
+
+def page(url, inputs=[], outputs=[]):
+  return "html"
+page.bothdata=True
+
+def form(schema):
   output = ""
   for tag in schema:
     output += tag.as_tag().to_html()
-  return ("<form action='%s' method='POST'>" % m.action
+  return ("<form action='%s' method='POST'>" % "/"
           + "<fieldset>"
           + output
           + "<br><input type='submit' name='submit' value='Submit' />"
@@ -15,20 +20,14 @@ def form_for(action, schema):
           + "</form>")
 
 
-def page(components):
-  return ""
-page.datasource=True
-page.datasink=True
-
-def form(schema): pass
 def urldata(key, page): pass
 def display(input): pass
 
 def endpoint(input): return input.discard("submit")
 endpoint.datasource = True
 
-def except_fields(exclude, fields):
-  return [f for f in fields if f.name not in exclude]
+def except_fields(exclude, data):
+  return [f for f in data if f.name not in exclude]
 
 def date_now(): return datetime.datetime.now()
 date_now.datasource = True
@@ -56,10 +55,7 @@ def to_table(schema, data):
 
 
 def fetch(ds): return ds.fetch()
-fetch.datasource=True
-
 def schema(ds): return ds.fields
-schema.datasource=True
 
 def insert(ds, value): return ds.insert(value)
 insert.datasink = True

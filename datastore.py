@@ -41,8 +41,11 @@ class DB(object):
     self.exe()
 
   def fetch(self, num):
+    fields = self.fields
+    if len(fields) == 0:
+      fields = ["*"]
     return self.exe("select %s from %s limit %d" % (
-      ",".join(self.fields),
+      ",".join(fields),
       self.tablename,
       num)).fetchall()
 
@@ -58,6 +61,9 @@ class Datastore():
     self.fields_by_name = {}
     self.x = -1
     self.y = -1
+
+  def is_datasource(self): return True
+  def is_datasink(self): return True
 
   # Pickling
   def __getstate__(self):
@@ -104,7 +110,8 @@ class Datastore():
     if len(value.items()) != len(self.fields):
       raise "either missing field declaration or missing value"
 
-  def get(self):
+  def exe(self):
+    print("ds returning self")
     return self
 
   def push(self, value):

@@ -240,8 +240,6 @@ type State
     | ADD_DS_FIELD_NAME
     | ADD_DS_FIELD_TYPE
     | ADD_VALUE
-    | ADD_INPUT
-    | ADD_OUTPUT
 
 -- simple updates for char codes
 forCharCode m char =
@@ -250,8 +248,6 @@ forCharCode m char =
         'F' -> ({ m | state = ADD_FUNCTION}, Cmd.none, NoFocus)
         'V' -> ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
         'D' -> ({ m | state = ADD_DS}, Cmd.none, NoFocus)
-        'I' -> ({ m | state = ADD_INPUT}, Cmd.none, NoFocus)
-        'O' -> ({ m | state = ADD_OUTPUT}, Cmd.none, NoFocus)
         _ -> let _ = Debug.log "nothing" (Char.fromCode char)
              in (m, Cmd.none, NoFocus)
 

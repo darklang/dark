@@ -4,10 +4,12 @@ import json
 
 import pyrsistent as pyr
 
+import fns
+
 class Value:
   def __init__(self, valuestr):
     self.name = valuestr
-    self.value = exec(valuestr)
+    self.value = eval(valuestr)
     self._id = random.randint(0, 2**32)
 
   def is_datasource(self):
@@ -27,7 +29,7 @@ class Value:
              "y": self.y}
 
   def id(self):
-    return "VALUE-%04X" % (self._id % 2**16)
+    return "VALUE-%04X (%s)" % ((self._id % 2**16), self.name)
 
 class Node:
   def __init__(self, fnname):
@@ -37,9 +39,13 @@ class Node:
     self.y = -1
     assert self._getfn()
 
+  def __str__(self):
+    return self.id()
+
+
   def _getfn(self):
     import fns
-    return getattr(fns, self.fnname)
+    return getattr(fns, self.fnname, None)
 
   def is_datasource(self):
     return getattr(self._getfn(), "datasource", False)
@@ -54,11 +60,15 @@ class Node:
 
   def exe(self, **args):
     func = self._getfn()
+    print(func)
     params = self.get_parameters()
+    print(params)
+    print(args)
 
-    assert len(params) == len(args)
-    for p in params:
-      assert p in args
+    # TODO: figure out page
+    # assert len(params) == len(args)
+    # for p in params:
+      # assert p in args
 
     # TODO: get named arguments here
     return func(**args)
@@ -83,6 +93,8 @@ class Graph():
     self.edges = {}
     self.reverse_edges = {}
     self.datastores = {}
+    self.pages = {}
+
 
   def _add(self, node):
     self.nodes[node.id()] = node
@@ -90,6 +102,8 @@ class Graph():
       self.edges[node.id()] = []
     if node.id() not in self.reverse_edges:
       self.reverse_edges[node.id()] = []
+    if node.__class__ == Node and node._getfn() == fns.page:
+      self.pages[node.id()] = node
 
   def add_datastore(self, ds):
     self.datastores[ds.id()] = ds
@@ -101,6 +115,8 @@ class Graph():
   def delete_node(self, node):
     self.clear_edges(node)
     del self.nodes[node.id()]
+    if node.id() in self.nodes:
+      del self.nodes[node.id()]
 
 
   def add_edge(self, n1, n2, n2param):
@@ -133,25 +149,43 @@ class Graph():
     print(self.reverse_edges)
 
   def get_children(self, node):
-    if node.is_datasink(): return []
+    if node.is_datasink(): return {}
 
     children = self.edges[node.id()] or []
     return {param: self.nodes[c] for (c, param) in children}
 
   def get_parents(self, node):
-    if node.is_datasource(): return []
+    if node.is_datasource(): return {}
 
     parents = self.reverse_edges.get(node.id(), [])
-    return [self.nodes[p] for p in parents]
+    result = []
+    for p in parents:
+      t = self.nodes[p]
+      paramname = self.get_target_param_name(node, t)
+      result += [(paramname, t)]
+    return {paramname: t for (paramname, t) in result}
 
+  def get_named_parents(self, node, paramname):
+    ps = self.get_parents(node)
+    result = []
+    for pparam, p in ps.items():
+      if pparam == paramname:
+        result += [p]
+    return result
+
+  def get_target_param_name(self, target, src):
+    for (c, p) in self.edges[src.id()]:
+      if c == target.id():
+        return p
+    assert(False and "Shouldnt happen")
 
   def execute(self, node, only=None, eager={}):
     # print("executing node: %s" % (node))
     if node in eager:
       result = eager[node]
     else:
-      args = {param: self.execute(p, eager=eager)
-              for (p, param) in self.get_parents(node).items()
+      args = {paramname: self.execute(p, eager=eager)
+              for paramname, p in self.get_parents(node).items()
               if only in [None, p]}
       result = node.exe(**args)
 
