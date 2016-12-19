@@ -89,7 +89,7 @@ class Datastore():
   def to_frontend(self):
     return { "name": self.tablename,
              "id": self.id(),
-             "fields": { f.name: f.__class__.__name__ for f in self.fields},
+             "fields": { f.name: f.to_frontend() for f in self.fields},
              "is_datastore": True,
              "x": self.x,
              "y": self.y

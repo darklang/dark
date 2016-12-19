@@ -19,15 +19,29 @@ class Tag:
                                                      self.tag)
 
 class Field:
-  def __init__(self, name, **props):
+  def __init__(self, name, is_list=False):
     self.name = name
-    self.props = props
+    self.is_list = is_list
 
   def validate(self, value):
     return True
 
   def __str__(self):
+    if self.is_list:
+      return "[ " + self.name + "]"
     return self.name
+
+  def to_frontend(self):
+    # Legacy graphs
+    if getattr(self, "is_list", None) == None:
+      self.is_list = False
+
+    cls = self.__class__.__name__
+    if self.__class__ == Foreign:
+      cls = self.typename
+    if self.is_list:
+      return "[ " + cls + " ]"
+    return cls
 
 class Markdown(Field):
   def as_tag(self, value=""):
@@ -45,3 +59,9 @@ class Text(Field): pass
 class Image(Field): pass
 class Geo(Field): pass
 class Password(Field): pass
+class Foreign(Field):
+  def __init__(self, name, typename, is_list=False):
+    # TODO: constructor
+    self.name = name
+    self.typename = typename
+    self.is_list = is_list

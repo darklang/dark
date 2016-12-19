@@ -49,8 +49,15 @@ class Dark(server.Server):
       ds = G.datastores[args["id"]]
       fieldname = args["name"]
       typename = args["type"]
-      fieldFn = getattr(fields, typename)
-      ds.add_field(fieldFn(fieldname))
+      is_list = False
+      if typename[0] == "[" and typename[-1] == "]":
+        is_list = True
+        typename = typename[1:-1]
+      fieldFn = getattr(fields, typename, None)
+      if fieldFn:
+        ds.add_field(fieldFn(fieldname, is_list=is_list))
+      else:
+        ds.add_field(fields.Foreign(fieldname, typename, is_list=is_list))
 
     elif command == "add_function_call":
       nodename = args["name"]
