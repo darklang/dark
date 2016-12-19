@@ -33,7 +33,7 @@ date_now.datasource = True
 
 def merge(vals): return pyr.m().update(vals)
 def get_field(name, obj): return obj[name]
-def to_key_val_val(key, val): return { key: val }
+def wrap(key, val): return { key: val }
 def to_slug(str): return slugify(str)
 
 def to_table(schema, data):
@@ -61,3 +61,12 @@ schema.datasource=True
 
 def insert(ds, value): return ds.insert(value)
 insert.datasink = True
+
+
+def fetch_by(data, key, val): pass
+def count(data): pass
+def take(data, count): pass
+def takeEnd(data, count): pass
+def concat(data): pass
+def inverse(fieldname, data): pass
+def each(data, fn): pass
