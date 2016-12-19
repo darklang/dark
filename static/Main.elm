@@ -449,11 +449,13 @@ viewCanvas m =
          dragEdge = case mDragEdge of
                       Just de -> [de]
                       Nothing -> []
-    in Html.div [Attrs.id "grid"] [Svg.svg
-        [ SA.width (toString w)
-        , SA.height (toString (h - consts.toolbarOffset))
-        ]
-        (allNodes ++ dragEdge ++ edges)]
+    in Html.div
+      [Attrs.id "grid"]
+      [Svg.svg
+         [ SA.width (toString w)
+         , SA.height (toString (h - consts.toolbarOffset))
+         ]
+         (svgArrowHead :: (allNodes ++ dragEdge ++ edges))]
 
 
 placeHtml : Node -> Html.Html Msg -> Svg.Svg Msg
@@ -527,11 +529,13 @@ viewFunction func selected =
 dragEdgeStyle =
   [ SA.strokeWidth "1px"
   , SA.stroke "red"
+  , SA.markerEnd "url(#triangle)"
   ]
 
 edgeStyle =
   [ SA.strokeWidth "2.25px"
   , SA.stroke "#777"
+  , SA.markerEnd "url(#triangle)"
   ]
 
 svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
@@ -540,9 +544,9 @@ svgLine unadjustedP1 unadjustedP2 attrs =
       p2 = pos2canvas unadjustedP2
   in Svg.line
     ([ SA.x1 (toString p1.x)
-     , SA.y1 (toString p1.y)
+     , SA.y1 (toString <| p1.y - 10)
      , SA.x2 (toString p2.x)
-     , SA.y2 (toString p2.y)
+     , SA.y2 (toString <| p2.y - 10)
      ] ++ attrs)
     []
 
@@ -567,8 +571,8 @@ viewEdge m {source, target, targetParam} =
                              _ -> Debug.crash "Can't happen"
         targetPos = dotPos targetN targetParam
     in svgLine
-      (offset sourceN.pos 50 20)
-      (offset targetPos 100 20)
+      (offset sourceN.pos 0 0)
+      (offset targetPos 0 0)
       edgeStyle
 
 
@@ -607,17 +611,17 @@ nodeHeight node =
 
 
 dotPos : Node -> ParamName -> Pos
-dotPos node paramName =
-  let leftEdge = node.pos.x
-      (index, param) = List.foldl
-                       (\p (i, p2) -> if p2 == paramName
-                                      then (i, p2)
-                                      else (i+1, p))
-                       (-1, "")
-                       node.parameters
-  in { x = leftEdge
-     , y = node.pos.y + consts.lineHeight * index
-     , posCheck = 0}
+dotPos node paramName = node.pos
+  -- let leftEdge = node.pos.x
+  --     (index, param) = List.foldl
+  --                      (\p (i, p2) -> if p2 == paramName
+  --                                     then (i, p2)
+  --                                     else (i+1, p))
+  --                      (-1, "")
+  --                      node.parameters
+  -- in { x = leftEdge
+  --    , y = node.pos.y + consts.lineHeight * index
+  --    , posCheck = 0}
 
 
 dlMap : (b -> c) -> Dict comparable b -> List c
@@ -652,3 +656,16 @@ mouse2pos {x,y} = { x = x
 
 offset p x y = { p | x = p.x + x
                    , y = p.y + y }
+
+svgArrowHead =
+  Svg.marker [ SA.id "triangle"
+             , SA.viewBox "0 0 10 10"
+             , SA.refX "0"
+             , SA.refY "5"
+             , SA.markerUnits "strokeWidth"
+             , SA.markerWidth "7"
+             , SA.markerHeight "7"
+             , SA.orient "auto"
+             , SA.fill "#777"
+             ]
+    [Svg.path [SA.d "M 0 0 L 5 5 L 0 10 z"] []]
