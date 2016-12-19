@@ -290,7 +290,7 @@ update_ msg m =
                 8 -> (m, rpc m <| DeleteNode id, NoFocus) -- backspace
                 _ -> case Char.fromCode code of
                          'C' -> (m, rpc m <| ClearEdges id, NoFocus)
-                         'R' -> (m, rpc m <| RemoveLastField id, NoFocus)
+                         'L' -> (m, rpc m <| RemoveLastField id, NoFocus)
                          'A' -> ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
                          _ -> forCharCode m code
         (_, KeyPress code, _) ->
