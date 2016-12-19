@@ -557,15 +557,12 @@ viewEdge m {source, target, targetParam} =
         (sourceN, targetN) = case (mSourceN, mTargetN) of
                              (Just s, Just t) -> (s, t)
                              _ -> Debug.crash "Can't happen"
-        sourcePos = Debug.log "source" (pos2canvas sourceN.pos)
-        targetPos = Debug.log "target" (pos2canvas (dotPos targetN targetParam))
-    in Svg.line [ SA.x1 (toString sourcePos.x)
-                , SA.y1 (toString sourcePos.y)
-                , SA.x2 (toString targetPos.x)
-                , SA.y2 (toString targetPos.y)
-                , SA.fill "red"
-                , SA.style "stroke:rgb(255,0,0);stroke-width:2"
-                ] []
+        targetPos = dotPos targetN targetParam
+    in svgLine
+      (offset sourceN.pos 50 20)
+      (offset targetPos 100 20)
+      [SA.fill "red"
+      , SA.style "stroke:rgb(255,0,0);stroke-width:2"]
 
 
 
@@ -645,3 +642,6 @@ mouse2pos : Mouse.Position -> Pos
 mouse2pos {x,y} = { x = x
                   , y = y
                   , posCheck = 0}
+
+offset p x y = { p | x = p.x + x
+                   , y = p.y + y }
