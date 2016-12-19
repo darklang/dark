@@ -524,6 +524,16 @@ viewFunction func selected =
                 [Html.text func.name]
             ])
 
+dragEdgeStyle =
+  [ SA.strokeWidth "1px"
+  , SA.stroke "red"
+  ]
+
+edgeStyle =
+  [ SA.strokeWidth "2.25px"
+  , SA.stroke "#777"
+  ]
+
 svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine unadjustedP1 unadjustedP2 attrs =
   let p1 = pos2canvas unadjustedP1
@@ -545,9 +555,7 @@ viewDragEdge drag currentPos =
       Just <|
         svgLine (mouse2pos mStartPos)
                 currentPos
-                [ SA.fill "red"
-                , SA.style "stroke:rgb(255,0,0);stroke-width:2"
-                ]
+                dragEdgeStyle
 
 deID (ID x) = x
 viewEdge : Model -> Edge -> Svg.Svg Msg
@@ -561,8 +569,7 @@ viewEdge m {source, target, targetParam} =
     in svgLine
       (offset sourceN.pos 50 20)
       (offset targetPos 100 20)
-      [SA.fill "red"
-      , SA.style "stroke:rgb(255,0,0);stroke-width:2"]
+      edgeStyle
 
 
 
