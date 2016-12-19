@@ -159,15 +159,10 @@ class Dark(server.Server):
 
   def add_app_routes(self):
     for p in self.graph.pages.values():
-      print("adding page")
       urls = self.graph.get_named_parents(p, "url")
       urls = [u.exe() for u in urls]
       outputs = self.graph.get_named_parents(p, "outputs")
       inputs = self.graph.get_named_parents(p, "inputs")
-      print("url, input, output:")
-      print(urls)
-      print(inputs)
-      print(outputs)
       for url in urls:
         if len(outputs) > 0:
           self.set_output(p, url)

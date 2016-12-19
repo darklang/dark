@@ -1,7 +1,6 @@
 import sqlite3
 
 import graph
-import fields
 
 class DB(object):
   def __init__(self, tablename):
@@ -41,13 +40,13 @@ class DB(object):
     self.exe()
 
   def fetch(self, num):
-    fields = self.fields
-    if len(fields) == 0:
-      fields = ["*"]
-    return self.exe("select %s from %s limit %d" % (
-      ",".join(fields),
+    if len(self.fields) == 0:
+      return {}
+    data = self.exe("select %s from %s limit %d" % (
+      ",".join(self.fields),
       self.tablename,
       num)).fetchall()
+    return data
 
   def fetch_by_key(self, key, keyname):
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
@@ -111,7 +110,6 @@ class Datastore():
       raise "either missing field declaration or missing value"
 
   def exe(self):
-    print("ds returning self")
     return self
 
   def push(self, value):
@@ -127,7 +125,9 @@ class Datastore():
     self.db.update(key, value, self.key)
 
   def fetch(self, num=10):
-    return self.db.fetch(num)
+    vals = self.db.fetch(num)
+    print(vals)
+    return {k: v for (k,v) in zip(self.fields, self.db.fetch(num))}
 
   def fetch_one(self, key, key_name):
     return self.db.fetch_by_key(key_name, key)

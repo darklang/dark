@@ -5,20 +5,19 @@ import pyrsistent as pyr
 
 
 def page(url, inputs=[], outputs=[]):
-  return "html"
+  return str(outputs)
 page.bothdata=True
 
 def form(schema):
   output = ""
   for tag in schema:
     output += tag.as_tag().to_html()
-  return ("<form action='%s' method='POST'>" % "/"
+  return ("<form action='URL_VAR' method='POST'>"
           + "<fieldset>"
           + output
           + "<br><input type='submit' name='submit' value='Submit' />"
           + "</fieldset>"
           + "</form>")
-
 
 def urldata(key, page): pass
 def display(input): pass
