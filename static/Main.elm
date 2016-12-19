@@ -456,13 +456,12 @@ viewCanvas m =
         (allNodes ++ dragEdge ++ edges)]
 
 
-placeHtml : Node -> Bool -> Html.Html Msg -> Svg.Svg Msg
-placeHtml node selected html =
+placeHtml : Node -> Html.Html Msg -> Svg.Svg Msg
+placeHtml node html =
   let cpos = pos2canvas (node.pos)
   in Svg.foreignObject
     [ SA.x (toString cpos.x)
     , SA.y (toString cpos.y)
-    , if selected then SA.color "red" else SA.class "asdasdasdnothing"
     ]
     [ html ]
 
@@ -479,14 +478,18 @@ viewDS : Node -> Bool -> Svg.Svg Msg
 viewDS ds selected =
   let field (name, type_) = [ Html.text (name ++ " : " ++ type_)
                             , Html.br [] []]
-  in placeHtml ds selected <|
+  in placeHtml ds <|
     Html.span
       [ Attrs.class "block description"
       , Events.onClick (NodeClick ds)
       , Events.onMouseDown (DragNodeStart ds)
       , Events.onMouseUp (DragSlotEnd ds)
       ]
-      [ Html.h3 [] [ Html.text ds.name ]
+      [ Html.h3
+          (if selected
+          then [SA.class "title"]
+          else [])
+          [ Html.text ds.name ]
       , Html.span
         [ Attrs.class "list"]
         (List.concat
@@ -502,17 +505,24 @@ viewFunction func selected =
                    , Events.on "mousedown" (clickHandler name)
                    , Events.onMouseUp (DragSlotEnd func)]
                    [Html.text name]
-  in placeHtml func selected <|
+  in placeHtml func <|
     Html.span
       [ Attrs.class "block round-med funcdescription"
       , Events.onClick (NodeClick func)
       , Events.onMouseDown (DragNodeStart func)
       ]
-      [ Html.span [Attrs.class "center"] [Html.text func.name]
-      , Html.span
-           [Attrs.class "list"]
-           (List.map param func.parameters)
-      ]
+      (if selected
+       then [ Html.span
+                [Attrs.class "center title"]
+                [Html.text func.name]
+            , Html.span
+              [Attrs.class "list"]
+              (List.map param func.parameters)
+            ]
+       else [ Html.span
+                [Attrs.class "center"]
+                [Html.text func.name]
+            ])
 
 svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine unadjustedP1 unadjustedP2 attrs =

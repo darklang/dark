@@ -187,3 +187,8 @@ form {
 .block.round-med.funcdescription {
     padding: 0.3em 1em;
 }
+
+/* highlight title */
+.title {
+    color: red;
+}
