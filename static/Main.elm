@@ -440,10 +440,8 @@ viewErrors errors = Html.span [] <| (Html.text " -----> errors: ") :: (List.map 
 viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
     let  (w, h) = windowSize ()
-        -- allNodes = viewAllNodes m m.nodes
          allNodes = List.map (viewNode m) (Dict.values m.nodes)
          edges = List.map (viewEdge m) m.edges
-        -- click = viewClick m.lastPos
          mDragEdge = viewDragEdge m.drag m.lastPos
          dragEdge = case mDragEdge of
                       Just de -> [de]
@@ -525,7 +523,6 @@ viewDS ds selected =
         (List.concat
            (List.map field ds.fields))
       ]
-
 
 viewFunction : Node -> Bool -> Svg.Svg Msg
 viewFunction func selected =
