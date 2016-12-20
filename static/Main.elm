@@ -472,11 +472,11 @@ nodeWidth node selected =
                node.parameters
            else []
       l3 = List.map
-           (\(n,t) -> String.length n + String.length t + 3)
+           (\(n,t) -> String.length n + String.length t + 2)
            node.fields
       charWidth = List.foldl max 0 (l1 ++ l2 ++ l3)
       width = charWidth * 11
-  in ((width // 20) + 1) * 20
+  in width
 
 nodeHeight : Node -> Bool -> Int
 nodeHeight node selected =
@@ -497,17 +497,17 @@ viewNode m n =
                        Just id -> id == n.id
                        _ -> False
       class = if n.isDatastore then "datastore" else "function"
-      -- [ Attrs.class ("block round-med function " ++ width)
       events =
         [ Events.onClick (NodeClick n)
         , Events.on "mousedown" (decodeClickLocation (DragNodeStart n))
         , Events.onMouseUp (DragSlotEnd n)
         ]
 
-      width = "width" ++ (toString (nodeWidth n selected))
+      width = Attrs.style [("width",
+                            (toString (nodeWidth n selected)) ++ "px")]
       selectedCl = if selected then ["selected"] else []
-      classes = String.join " " (["node", class, width] ++ selectedCl)
-      attrs = [Attrs.class classes ] ++ events
+      classes = String.join " " (["node", class] ++ selectedCl)
+      attrs = [Attrs.class classes, width ] ++ events
       heading = if n.isDatastore
                 then Html.h3 [Attrs.class "name"] [ Html.text n.name ]
                 else Html.span [Attrs.class "name"] [ Html.text n.name ]
@@ -539,7 +539,6 @@ viewNode m n =
       Html.span
         attrs
         (heading :: list)
-
 
 dragEdgeStyle =
   [ SA.strokeWidth "2px"
