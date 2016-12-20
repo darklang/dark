@@ -479,14 +479,17 @@ nodeWidth : Node -> Bool -> Int
 nodeWidth node selected =
   let l1 = [String.length node.name]
       l2 = if selected
-           then List.map String.length node.parameters
+           then
+             List.map
+               (\p -> (String.length p) + 2)
+               node.parameters
            else []
       l3 = List.map
            (\(n,t) -> String.length n + String.length t + 3)
            node.fields
       charWidth = List.foldl max 0 (l1 ++ l2 ++ l3)
-      width = charWidth * 13
-  in ((width // 40) + 1) * 40
+      width = charWidth * 11
+  in ((width // 20) + 1) * 20
 
 nodeHeight : Node -> Bool -> Int
 nodeHeight node selected =

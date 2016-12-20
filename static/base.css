@@ -165,20 +165,38 @@ form {
 }
 
 /* Make the DSes fully line up */
+.width20 {
+    width: 20px;
+}
 .width40 {
     width: 40px;
+}
+.width60 {
+    width: 60px;
 }
 .width80 {
     width: 80px;
 }
+.width100 {
+    width: 100px;
+}
 .width120 {
     width: 120px;
+}
+.width140 {
+    width: 140px;
 }
 .width160 {
     width: 160px;
 }
+.width180 {
+    width: 180px;
+}
 .width200 {
     width: 200px;
+}
+.width220 {
+    width: 220px;
 }
 .width240 {
     width: 240px;
