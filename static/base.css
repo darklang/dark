@@ -21,7 +21,7 @@ body {
 .node {
   position: relative;
   box-sizing: border-box;
-	border: 1px solid #777;
+  border: 1px solid #444;
 	padding: 0.8em 1em;
 	font-size: 1em;
   background: #272728;
