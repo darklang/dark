@@ -36,11 +36,8 @@ main = Html.program
        , update = update
        , subscriptions = subscriptions}
 
-consts = { spacer = round 5
-         , lineHeight = round 0
-         , paramWidth = round 0
+consts = { nodeHeight = round 31
          , toolbarOffset = round 19
-         , letterWidth = round 0
          , backspaceKeycode = 8
          , escapeKeycode = 27
          , inputID = "darkInput"
@@ -478,13 +475,39 @@ viewNode m node =
      then viewDS node selected
      else viewFunction node selected
 
+nodeWidth : Node -> Bool -> Int
+nodeWidth node selected =
+  let l1 = [String.length node.name]
+      l2 = if selected
+           then List.map String.length node.parameters
+           else []
+      l3 = List.map
+           (\(n,t) -> String.length n + String.length t + 3)
+           node.fields
+      charWidth = List.foldl max 0 (l1 ++ l2 ++ l3)
+      width = charWidth * 13
+  in ((width // 40) + 1) * 40
+
+nodeHeight : Node -> Bool -> Int
+nodeHeight node selected =
+  if node.isDatastore
+  then consts.nodeHeight * ( 1 + (List.length node.fields))
+  else
+    if selected
+    then consts.nodeHeight * ( 1 + (List.length node.parameters))
+    else consts.nodeHeight
+
+nodeSize node selected =
+  (nodeWidth node selected, nodeHeight node selected)
+
 viewDS : Node -> Bool -> Svg.Svg Msg
 viewDS ds selected =
   let field (name, type_) = [ Html.text (name ++ " : " ++ type_)
                             , Html.br [] []]
+      width = "width" ++ (toString (nodeWidth ds selected))
   in placeHtml ds <|
     Html.span
-      [ Attrs.class "block description"
+      [ Attrs.class ("block description " ++ width)
       , Events.onClick (NodeClick ds)
       , Events.on "mousedown" (decodeClickLocation (DragNodeStart ds))
       , Events.onMouseUp (DragSlotEnd ds)
@@ -517,10 +540,10 @@ viewFunction func selected =
                     [Attrs.class "list"]
                     (List.map param func.parameters)]
                else []
-
+      width = "width" ++ (toString (nodeWidth func selected))
   in placeHtml func <|
     Html.span
-      [ Attrs.class "block round-med funcdescription"
+      [ Attrs.class ("block round-med funcdescription " ++ width)
       , Events.onClick (NodeClick func)
       , Events.on "mousedown" nodeHandler
       , Events.onMouseUp (DragSlotEnd func)
@@ -573,21 +596,19 @@ viewEdge m {source, target, targetParam} =
         (sourceN, targetN) = case (mSourceN, mTargetN) of
                              (Just s, Just t) -> (s, t)
                              _ -> Debug.crash "Can't happen"
-        targetPos = dotPos targetN targetParam
+        targetPos = targetN.pos
+        (sourceW, sourceH) =
+          nodeSize sourceN (m.cursor == Just sourceN.id)
+        (targetW, targetH) =
+          nodeSize targetN (m.cursor == Just targetN.id)
+
     in svgLine
-      (offset sourceN.pos 50 20)
+      (offset sourceN.pos (sourceW // 2) (sourceH // 2))
       (if sourceN.pos.x > targetPos.x
-       then offset targetPos 100 20 -- right edge
-       else offset targetPos 0 20 --left edge
+       then offset targetPos (targetW) (targetH // 2) -- right edge
+       else offset targetPos 0 (targetH // 2) --left edge
       )
       edgeStyle
-
-
-
--- viewClick : Pos -> Collage.Form
--- viewClick pos = Collage.circle 10
---                 |> Collage.filled Color.lightCharcoal
---                 |> Collage.move (p2c pos)
 
 -- UTIL
 timestamp : () -> Int
@@ -604,31 +625,6 @@ addError error model =
     let time = timestamp ()
                in
     List.take 1 ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
-
-str2div str = Html.div [] [Html.text str]
-
-
-nodeWidth node =
-  if node.isDatastore
-  then 2 * consts.paramWidth
-  else max consts.paramWidth (consts.letterWidth * String.length(node.name))
-
-nodeHeight node =
-  consts.spacer + consts.lineHeight * (1 + List.length node.parameters + List.length node.fields)
-
-
-dotPos : Node -> ParamName -> Pos
-dotPos node paramName = node.pos
-  -- let leftEdge = node.pos.x
-  --     (index, param) = List.foldl
-  --                      (\p (i, p2) -> if p2 == paramName
-  --                                     then (i, p2)
-  --                                     else (i+1, p))
-  --                      (-1, "")
-  --                      node.parameters
-  -- in { x = leftEdge
-  --    , y = node.pos.y + consts.lineHeight * index
-  --    , posCheck = 0}
 
 
 dlMap : (b -> c) -> Dict comparable b -> List c

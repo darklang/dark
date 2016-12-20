@@ -116,34 +116,34 @@ body {
 }
 
 .arrow-up {
-  width: 0; 
-  height: 0; 
+  width: 0;
+  height: 0;
   border-left:    7px solid transparent;
   border-right:   7px solid transparent;
   border-bottom:  7px solid #777;
 }
 
 .arrow-down {
-  width: 0; 
-  height: 0; 
+  width: 0;
+  height: 0;
   border-left:    7px solid transparent;
   border-right:   7px solid transparent;
   border-top:     7px solid #777;
 }
 
 .arrow-right {
-  width: 0; 
-  height: 0; 
+  width: 0;
+  height: 0;
   border-top:     7px solid transparent;
   border-bottom:  7px solid transparent;
   border-left:    7px solid #777;
 }
 
 .arrow-left {
-  width: 0; 
-  height: 0; 
+  width: 0;
+  height: 0;
   border-top:     7px solid transparent;
-  border-bottom:  7px solid transparent; 
+  border-bottom:  7px solid transparent;
   border-right:   7px solid #777;
 }
 
@@ -165,13 +165,23 @@ form {
 }
 
 /* Make the DSes fully line up */
-.block.description {
-    width: 210px;
+.width40 {
+    width: 40px;
 }
-
-/* Duplicate descption */
-.block.funcdescription {
-    width: 100px;
+.width80 {
+    width: 80px;
+}
+.width120 {
+    width: 120px;
+}
+.width160 {
+    width: 160px;
+}
+.width200 {
+    width: 200px;
+}
+.width240 {
+    width: 240px;
 }
 
 .funcdescription {
