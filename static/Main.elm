@@ -37,7 +37,6 @@ main = Html.program
        , subscriptions = subscriptions}
 
 consts = { nodeHeight = round 31
-         , toolbarOffset = round 19
          , backspaceKeycode = 8
          , escapeKeycode = 27
          , inputID = "darkInput"
@@ -78,7 +77,7 @@ type alias ParamName = String
 type alias TypeName = String
 
 type ID = ID String
-type alias Pos = {x: Int, y: Int, posCheck: Int}
+type alias Pos = Mouse.Position
 type alias Offset = {x: Int, y: Int, offsetCheck: Int}
 type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
 
@@ -96,7 +95,7 @@ init = let m = { nodes = Dict.empty
                , inputValue = ""
                , focused = False
                , tempFieldName = ""
-               , lastPos = {x=-1, y=-1, posCheck=0}
+               , lastPos = {x=-1, y=-1}
                , drag = NoDrag
                }
        in (m, rpc m <| LoadInitialGraph)
@@ -175,7 +174,7 @@ decodeNode =
           , fields = fields
           , parameters = parameters
           , isDatastore = isDatastore
-          , pos = {x=x, y=y, posCheck = 0}
+          , pos={x=x, y=y}
           }
   in JSDP.decode toNode
       |> JSDP.required "name" JSD.string
@@ -290,8 +289,8 @@ update_ msg m =
                , cursor = Just node.id
            }, Cmd.none, DropFocus)
 
-        (_, RecordClick mpos, _) ->
-          ({ m | lastPos = mouse2pos mpos
+        (_, RecordClick pos, _) ->
+          ({ m | lastPos = pos
            }, Cmd.none, Focus)
 
         (_, ClearCursor mpos, _) ->
@@ -303,9 +302,9 @@ update_ msg m =
             then ({ m | drag = DragNode node.id (findOffset node.pos mpos)}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
 
-        (_, DragNodeMove id offset currentMPos, _) ->
-          ({ m | nodes = updateDragPosition (mouse2pos currentMPos) offset id m.nodes
-               , lastPos = mouse2pos currentMPos -- debugging
+        (_, DragNodeMove id offset currentPos, _) ->
+          ({ m | nodes = updateDragPosition currentPos offset id m.nodes
+               , lastPos = currentPos -- debugging
            }, Cmd.none, NoFocus)
 
         (_, DragNodeEnd id _, _) ->
@@ -317,7 +316,7 @@ update_ msg m =
                , drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
 
         (_, DragSlotMove id param mStartPos mpos, _) ->
-            ({ m | lastPos = mouse2pos mpos
+            ({ m | lastPos = mpos
                  -- TODO: may not be necessary
                  , drag = DragSlot id param mStartPos
              }, Cmd.none, NoFocus)
@@ -418,11 +417,18 @@ subscriptions m =
 -- VIEW
 view : Model -> Html.Html Msg
 view model =
-    Html.div [] [ viewInput model.inputValue
-                , viewState model.state
-                , viewErrors model.errors
-                , viewCanvas model
-                ]
+  let  (w, h) = windowSize ()
+  in
+    Html.div
+      [Attrs.id "grid"]
+      [ viewInput model.inputValue
+      , viewState model.state
+      -- , viewClick model.lastPos
+      , viewErrors model.errors
+      , (Svg.svg
+           [ SA.width (toString w) , SA.height (toString h)]
+           (viewCanvas model))
+      ]
 
 viewInput value = Html.form [
                    Events.onSubmit (SubmitMsg)
@@ -437,7 +443,7 @@ viewInput value = Html.form [
 viewState state = Html.text ("state: " ++ toString state)
 viewErrors errors = Html.span [] <| (Html.text " -----> errors: ") :: (List.map Html.text errors)
 
-viewCanvas : Model -> Html.Html Msg
+viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let  (w, h) = windowSize ()
          allNodes = List.map (viewNode m) (Dict.values m.nodes)
@@ -446,21 +452,14 @@ viewCanvas m =
          dragEdge = case mDragEdge of
                       Just de -> [de]
                       Nothing -> []
-    in Html.div
-      [Attrs.id "grid"]
-      [Svg.svg
-         [ SA.width (toString w)
-         , SA.height (toString (h - consts.toolbarOffset))
-         ]
-         (svgArrowHead :: (allNodes ++ dragEdge ++ edges))]
+    in svgArrowHead :: (allNodes ++ dragEdge ++ edges)
 
 
 placeHtml : Node -> Html.Html Msg -> Svg.Svg Msg
 placeHtml node html =
-  let cpos = pos2canvas (node.pos)
-  in Svg.foreignObject
-    [ SA.x (toString cpos.x)
-    , SA.y (toString cpos.y)
+  Svg.foreignObject
+    [ SA.x (toString node.pos.x)
+    , SA.y (toString node.pos.y)
     ]
     [ html ]
 
@@ -566,10 +565,8 @@ edgeStyle =
   ]
 
 svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
-svgLine unadjustedP1 unadjustedP2 attrs =
-  let p1 = pos2canvas unadjustedP1
-      p2 = pos2canvas unadjustedP2
-  in Svg.line
+svgLine p1 p2 attrs =
+  Svg.line
     ([ SA.x1 (toString p1.x)
      , SA.y1 (toString p1.y)
      , SA.x2 (toString p2.x)
@@ -584,7 +581,7 @@ viewDragEdge drag currentPos =
     NoDrag -> Nothing
     DragSlot id param mStartPos ->
       Just <|
-        svgLine (mouse2pos mStartPos)
+        svgLine mStartPos
                 currentPos
                 dragEdgeStyle
 
@@ -643,17 +640,6 @@ decodeClickLocation fn =
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
 
-
-pos2canvas : Pos -> CanvasPos
-pos2canvas {x, y, posCheck} =
-  { x = x
-  , y = y - consts.toolbarOffset
-  , canvasPosCheck = posCheck}
-
-mouse2pos : Mouse.Position -> Pos
-mouse2pos {x,y} = { x = x
-                  , y = y
-                  , posCheck = 0}
 
 findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
