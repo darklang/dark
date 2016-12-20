@@ -464,11 +464,12 @@ placeHtml pos html =
 
 nodeWidth : Node -> Bool -> Int
 nodeWidth node selected =
-  let l1 = [String.length node.name]
+  let multiple = if node.isDatastore then 1.7 else 1
+      l1 = [round (multiple * toFloat (String.length node.name))]
       l2 = if selected
            then
              List.map
-               (\p -> (String.length p) + 2)
+               (\p -> (String.length p) + 3)
                node.parameters
            else []
       l3 = List.map
