@@ -517,7 +517,7 @@ viewDS ds selected =
       ]
       [ Html.h3
           (if selected
-          then [SA.class "title"]
+          then [SA.class "selected"]
           else [])
           [ Html.text ds.name ]
       , Html.span
@@ -532,11 +532,11 @@ viewFunction func selected =
   let slotHandler name = (decodeClickLocation (DragSlotStart func name))
       nodeHandler = (decodeClickLocation (DragNodeStart func))
       param name = Html.span
-                   [ Attrs.class "item-block"
+                   [ Attrs.class "parameter"
                    , Events.on "mousedown" (slotHandler name)
                    ]
                    [Html.text name]
-      class = if selected then "center title" else "center"
+      class = if selected then "center selected" else "center"
       params = if selected && (List.length func.parameters) > 0
                then
                  [Html.span
