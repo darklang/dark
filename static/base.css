@@ -27,7 +27,7 @@ form {
   box-sizing: border-box;
   border: 1px solid #444;
 	padding: 0.8em 1em;
-	font-size: 1em;
+  font-size: 14px;
   background: #272728;
   display: inline-block;
 }

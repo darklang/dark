@@ -11,6 +11,7 @@ import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Array
+import Set
 
 -- lib
 import Keyboard
@@ -463,21 +464,24 @@ placeHtml pos html =
     [ html ]
 
 nodeWidth : Node -> Bool -> Int
-nodeWidth node selected =
-  let multiple = if node.isDatastore then 1.7 else 1
-      l1 = [round (multiple * toFloat (String.length node.name))]
-      l2 = if selected
+nodeWidth n selected =
+  let slimChars = Set.fromList ['i', '[', ',', ']', 'l', 'I', 't', ' ']
+      len name =
+        name
+          |> synonym
+          |> String.toList
+          |> List.map (\c -> if Set.member c slimChars then 0.3 else 1)
+          |> List.sum
+      multiple = if n.isDatastore then 1.7 else 1
+      ln = [multiple * len n.name]
+      lp = if selected
            then
-             List.map
-               (\p -> (String.length p) + 3)
-               node.parameters
+             List.map (\p -> len p + 3) n.parameters
            else []
-      l3 = List.map
-           (\(n,t) -> String.length n + String.length t + 2)
-           node.fields
-      charWidth = List.foldl max 0 (l1 ++ l2 ++ l3)
-      width = charWidth * 11
-  in width
+      lf = List.map (\(n,t) -> len n + len t + 2) n.fields
+      charWidth = List.foldl max 0 (ln ++ lp ++ lf)
+      width = charWidth * 10
+  in round(width)
 
 nodeHeight : Node -> Bool -> Int
 nodeHeight node selected =
@@ -492,9 +496,16 @@ nodeHeight node selected =
 nodeSize node selected =
   (nodeWidth node selected, nodeHeight node selected)
 
+synonym x =
+  case x of
+    "get_field" -> " ."
+    "wrap" -> " :"
+    _ -> x
+
 viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
-  let selected = case m.cursor of
+  let name = synonym n.name
+      selected = case m.cursor of
                        Just id -> id == n.id
                        _ -> False
       class = if n.isDatastore then "datastore" else "function"
@@ -510,8 +521,8 @@ viewNode m n =
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
       heading = if n.isDatastore
-                then Html.h3 [Attrs.class "name"] [ Html.text n.name ]
-                else Html.span [Attrs.class "name"] [ Html.text n.name ]
+                then Html.h3 [Attrs.class "name"] [ Html.text name ]
+                else Html.span [Attrs.class "name"] [ Html.text name ]
 
       includeList = n.isDatastore ||
                     (selected && (List.length n.parameters > 0))
