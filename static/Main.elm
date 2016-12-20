@@ -586,12 +586,24 @@ viewEdge m {source, target, targetParam} =
         (targetW, targetH) =
           nodeSize targetN (m.cursor == Just targetN.id)
 
+        -- find the shortest line and link to there
+        joins = [ (targetN.pos.x, targetN.pos.y + targetH // 2) -- left
+                , (targetN.pos.x + targetW // 2, targetN.pos.y) -- top
+                , (targetN.pos.x + targetW, targetN.pos.y + targetH // 2) -- right
+                , (targetN.pos.x + targetW // 2, targetN.pos.y + targetH) -- bottom
+                ]
+        sq x = toFloat (x*x)
+        spos = (offset sourceN.pos (sourceW // 2) (sourceH // 2))
+
+        join = List.head
+               (List.sortBy (\(x,y) -> sqrt ((sq (spos.x - x)) + (sq (spos.y - y))))
+                  joins)
+        (tx, ty) = case join of
+                     Nothing -> Debug.crash "not possible"
+                     Just j -> j
     in svgLine
-      (offset sourceN.pos (sourceW // 2) (sourceH // 2))
-      (if sourceN.pos.x > targetPos.x
-       then offset targetPos (targetW) (targetH // 2) -- right edge
-       else offset targetPos 0 (targetH // 2) --left edge
-      )
+      spos
+      {x=tx,y=ty}
       edgeStyle
 
 -- UTIL
