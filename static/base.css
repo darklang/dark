@@ -18,25 +18,38 @@ body {
   background-size:2em 2em;
 }
 
-.block {
+.node {
   position: relative;
   box-sizing: border-box;
 	border: 1px solid #777;
 	padding: 0.8em 1em;
 	font-size: 1em;
-	background: #272728;
+  background: #272728;
+  display: inline-block;
+}
+.node.function .name {
+  display: block;
+  text-align: center;
 }
 
-.block.round {
-  border-radius:					2em;
+.node.function {
+  border-radius: 2em;
+  padding: 0.3em 0.3em;
+  display: block;
 }
 
-.block.round-med {
-  border-radius:          0.5em;
+.node.function.selected {
+  border-radius: 0.5em;
 }
 
-.description {
-	display: inline-block;
+.selected .name {
+  color: red;
+}
+
+.datastore h3 {
+  margin: 0;
+  border-bottom: 1px solid #777;
+  padding-bottom: 0.25em;
 }
 
 .list {
@@ -45,12 +58,12 @@ body {
 	line-height: 1.5em;
 }
 
-.item-block {
+.parameter {
+  min-height: 0em;
   display: block;
-  min-height: 2em;
-  margin-left: -0.5em;
 }
-.item-block:before {
+
+.parameter:before {
   content:"";
   position:relative;
   top:0.2em;
@@ -61,28 +74,17 @@ body {
   width: 0.7em;
   display: inline-block;
 }
-.item-block:hover:before {
+.parameter:hover:before {
   border:1px solid #fff;
 }
-.item-block:active:before,
-.item-block:focus:before {
+
+.parameter:active:before,
+.parameter:focus:before {
   border:1px solid #fff;
   background: #fff;
 }
 
-.center {
-  display: block;
-  text-align: center;
-}
 
-h3 {
-	margin:0;
-	border-bottom: 1px solid #777;
-	padding-bottom: 0.25em;
-}
-
-
-/* Paul's additions */
 form {
     display: inline;
 }
@@ -123,23 +125,4 @@ form {
 }
 .width240 {
     width: 240px;
-}
-
-.funcdescription {
-  display: inline-block;
-}
-
-/* Reduce spacing */
-.parameter {
-  min-height: 0em;
-}
-
-/* Narrower borders */
-.block.round-med.funcdescription {
-    padding: 0.3em 1em;
-}
-
-/* highlight title */
-.selected {
-    color: red;
 }

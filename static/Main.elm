@@ -454,23 +454,13 @@ viewCanvas m =
                       Nothing -> []
     in svgArrowHead :: (allNodes ++ dragEdge ++ edges)
 
-
-placeHtml : Node -> Html.Html Msg -> Svg.Svg Msg
-placeHtml node html =
+placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
+placeHtml pos html =
   Svg.foreignObject
-    [ SA.x (toString node.pos.x)
-    , SA.y (toString node.pos.y)
+    [ SA.x (toString pos.x)
+    , SA.y (toString pos.y)
     ]
     [ html ]
-
-viewNode : Model -> Node -> Svg.Svg Msg
-viewNode m node =
-  let selected = case m.cursor of
-                       Just n -> n == node.id
-                       _ -> False
-  in if node.isDatastore
-     then viewDS node selected
-     else viewFunction node selected
 
 nodeWidth : Node -> Bool -> Int
 nodeWidth node selected =
@@ -492,65 +482,63 @@ nodeHeight : Node -> Bool -> Int
 nodeHeight node selected =
   if node.isDatastore
   then consts.nodeHeight * ( 1 + (List.length node.fields))
-  else
-    if selected
-    then consts.nodeHeight * ( 1 + (List.length node.parameters))
-    else consts.nodeHeight
+  else consts.nodeHeight
+    -- Don't move edges when the node opens
+    -- if selected
+    -- then consts.nodeHeight * ( 1 + (List.length node.parameters))
+    -- else consts.nodeHeight
 
 nodeSize node selected =
   (nodeWidth node selected, nodeHeight node selected)
 
-viewDS : Node -> Bool -> Svg.Svg Msg
-viewDS ds selected =
-  let field (name, type_) = [ Html.text (name ++ " : " ++ type_)
-                            , Html.br [] []]
-      width = "width" ++ (toString (nodeWidth ds selected))
-  in placeHtml ds <|
-    Html.span
-      [ Attrs.class ("block description " ++ width)
-      , Events.onClick (NodeClick ds)
-      , Events.on "mousedown" (decodeClickLocation (DragNodeStart ds))
-      , Events.onMouseUp (DragSlotEnd ds)
-      ]
-      [ Html.h3
-          (if selected
-          then [SA.class "selected"]
-          else [])
-          [ Html.text ds.name ]
-      , Html.span
-        [ Attrs.class "list"]
-        (List.concat
-           (List.map field ds.fields))
-      ]
+viewNode : Model -> Node -> Html.Html Msg
+viewNode m n =
+  let selected = case m.cursor of
+                       Just id -> id == n.id
+                       _ -> False
+      class = if n.isDatastore then "datastore" else "function"
+      -- [ Attrs.class ("block round-med function " ++ width)
+      events =
+        [ Events.onClick (NodeClick n)
+        , Events.on "mousedown" (decodeClickLocation (DragNodeStart n))
+        , Events.onMouseUp (DragSlotEnd n)
+        ]
 
-viewFunction : Node -> Bool -> Svg.Svg Msg
-viewFunction func selected =
-  let slotHandler name = (decodeClickLocation (DragSlotStart func name))
-      nodeHandler = (decodeClickLocation (DragNodeStart func))
+      width = "width" ++ (toString (nodeWidth n selected))
+      selectedCl = if selected then ["selected"] else []
+      classes = String.join " " (["node", class, width] ++ selectedCl)
+      attrs = [Attrs.class classes ] ++ events
+      heading = if n.isDatastore
+                then Html.h3 [Attrs.class "name"] [ Html.text n.name ]
+                else Html.span [Attrs.class "name"] [ Html.text n.name ]
+
+      includeList = n.isDatastore ||
+                    (selected && (List.length n.parameters > 0))
+      field (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
+                           , Html.br [] []]
+      slotHandler name = (decodeClickLocation (DragSlotStart n name))
       param name = Html.span
                    [ Attrs.class "parameter"
                    , Events.on "mousedown" (slotHandler name)
                    ]
                    [Html.text name]
-      class = if selected then "center selected" else "center"
-      params = if selected && (List.length func.parameters) > 0
-               then
-                 [Html.span
-                    [Attrs.class "list"]
-                    (List.map param func.parameters)]
-               else []
-      width = "width" ++ (toString (nodeWidth func selected))
-  in placeHtml func <|
-    Html.span
-      [ Attrs.class ("block round-med funcdescription " ++ width)
-      , Events.onClick (NodeClick func)
-      , Events.on "mousedown" nodeHandler
-      , Events.onMouseUp (DragSlotEnd func)
-      ]
-    ((Html.span
-       [Attrs.class class]
-       [Html.text func.name])
-    :: params)
+      params = [Html.span
+                  [Attrs.class "list"]
+                  (List.map param n.parameters)]
+      list = if includeList
+             then
+               [Html.span
+                 [ Attrs.class "list"]
+                 (List.concat
+                    (List.map field n.fields)
+                    ++ (List.map param n.parameters))]
+             else []
+  in
+    placeHtml
+      n.pos <|
+      Html.span
+        attrs
+        (heading :: list)
 
 
 dragEdgeStyle =
