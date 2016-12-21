@@ -5,7 +5,8 @@ import pyrsistent as pyr
 
 
 def page(url, inputs=[], outputs=[]):
-  return str(outputs)
+  inputs = inputs.replace("URL_VAR", url)
+  return str(outputs) + inputs
 page.bothdata=True
 
 def form(schema):
@@ -22,7 +23,7 @@ def form(schema):
 def urldata(key, page): pass
 def display(input): pass
 
-def endpoint(input): return input.discard("submit")
+def endpoint(input): return
 endpoint.datasource = True
 
 def except_fields(exclude, data):
@@ -32,7 +33,10 @@ def date_now(): return datetime.datetime.now()
 date_now.datasource = True
 
 def merge(vals): return pyr.m().update(vals)
-def get_field(name, obj): return obj[name]
+def get_field(obj, name): return obj[name]
+def select_fields(obj, names):
+  return {name: obj[name] for name in names}
+
 def wrap(key, val): return { key: val }
 def to_slug(str): return slugify(str)
 
@@ -56,14 +60,17 @@ def to_table(schema, data):
 def fetch(ds): return ds.fetch()
 def schema(ds): return ds.fields
 
-def insert(ds, value): return ds.insert(value)
+def insert(ds, value):
+  value = value.discard("submit")
+  print("inserting: %s" % value)
+  return ds.insert(value)
 insert.datasink = True
 
 
 def fetch_by(data, key, val): pass
 def count(data): pass
 def take(data, count): pass
-def takeEnd(data, count): pass
+def take_end(data, count): pass
 def concat(data): pass
 def inverse(fieldname, data): pass
 def each(data, fn): pass
