@@ -37,8 +37,9 @@ main = Html.program
        , update = update
        , subscriptions = subscriptions}
 
-consts = { nodeHeight = round 31
+consts = { nodeHeight = round 28
          , backspaceKeycode = 8
+         , strokeColor = "#444"
          , escapeKeycode = 27
          , inputID = "darkInput"
          }
@@ -470,16 +471,16 @@ nodeWidth n selected =
         name
           |> synonym
           |> String.toList
-          |> List.map (\c -> if Set.member c slimChars then 0.3 else 1)
+          |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
           |> List.sum
-      multiple = if n.isDatastore then 1.7 else 1
-      ln = [multiple * len n.name]
+      nameMultiple = if n.isDatastore then 2 else 1
+      ln = [nameMultiple * len n.name]
       lp = if selected
            then
              List.map (\p -> len p + 3) n.parameters
            else []
-      lf = List.map (\(n,t) -> len n + len t + 2) n.fields
-      charWidth = List.foldl max 0 (ln ++ lp ++ lf)
+      lf = List.map (\(n,t) -> len n + len t + 3) n.fields
+      charWidth = List.foldl max 2 (ln ++ lp ++ lf)
       width = charWidth * 10
   in round(width)
 
@@ -558,8 +559,8 @@ dragEdgeStyle =
   ]
 
 edgeStyle =
-  [ SA.strokeWidth "2.25px"
-  , SA.stroke "#777"
+  [ SA.strokeWidth "3.25px"
+  , SA.stroke consts.strokeColor
   , SA.markerEnd "url(#triangle)"
   ]
 
@@ -665,9 +666,9 @@ svgArrowHead =
              , SA.refX "4"
              , SA.refY "5"
              , SA.markerUnits "strokeWidth"
-             , SA.markerWidth "7"
-             , SA.markerHeight "7"
+             , SA.markerWidth "5"
+             , SA.markerHeight "5"
              , SA.orient "auto"
-             , SA.fill "#777"
+             , SA.fill consts.strokeColor
              ]
     [Svg.path [SA.d "M 0 0 L 5 5 L 0 10 z"] []]
