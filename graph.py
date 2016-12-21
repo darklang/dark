@@ -39,13 +39,18 @@ class Node:
     self.y = -1
     assert self._getfn()
 
+
   def __str__(self):
     return self.id()
 
 
   def _getfn(self):
     import fns
-    return getattr(fns, self.fnname, None)
+    fn = getattr(fns, self.fnname, None)
+    if not fn:
+      def fn(args):
+        return {}
+    return fn
 
   def is_datasource(self):
     return getattr(self._getfn(), "datasource", False)
@@ -102,7 +107,7 @@ class Graph():
       self.edges[node.id()] = []
     if node.id() not in self.reverse_edges:
       self.reverse_edges[node.id()] = []
-    if node.__class__ == Node and node._getfn() == fns.page:
+    if node.__class__ == Node and "page" in node.fnname:
       self.pages[node.id()] = node
 
   def add_datastore(self, ds):

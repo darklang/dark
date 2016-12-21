@@ -61,6 +61,7 @@ type alias Model = { nodes : NodeDict
 type alias Node = { name : Name
                   , id : ID
                   , pos : Pos
+                  , isPage : Bool
                   , isDatastore : Bool
                   -- for DSes
                   , fields : List (FieldName, TypeName)
@@ -175,6 +176,7 @@ decodeNode =
           , id = ID id
           , fields = fields
           , parameters = parameters
+          , isPage = String.contains "page" name
           , isDatastore = isDatastore
           , pos={x=x, y=y}
           }
@@ -466,23 +468,25 @@ placeHtml pos html =
 
 nodeWidth : Node -> Bool -> Int
 nodeWidth n selected =
-  let slimChars = Set.fromList ['i', '[', ',', ']', 'l', 'I', 't', ' ']
-      len name =
-        name
-          |> synonym
-          |> String.toList
-          |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
-          |> List.sum
-      nameMultiple = if n.isDatastore then 2 else 1
-      ln = [nameMultiple * len n.name]
-      lp = if selected
-           then
-             List.map (\p -> len p + 3) n.parameters
-           else []
-      lf = List.map (\(n,t) -> len n + len t + 3) n.fields
-      charWidth = List.foldl max 2 (ln ++ lp ++ lf)
-      width = charWidth * 10
-  in round(width)
+  let
+    slimChars = Set.fromList ['i', '[', ',', ']', 'l', 'I', 't', ' ']
+    len name =
+      name
+        |> synonym
+        |> String.toList
+        |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
+        |> List.sum
+    nameMultiple = if n.isDatastore then 2 else if n.isPage then 1.3 else 1
+    ln = [nameMultiple * len n.name]
+    lp = if selected
+         then
+           List.map (\p -> len p + 3) n.parameters
+         else []
+    lf = List.map (\(n,t) -> len n + len t + 3) n.fields
+    charWidth = List.foldl max 2 (ln ++ lp ++ lf)
+    width = charWidth * 10
+  in
+    round(width)
 
 nodeHeight : Node -> Bool -> Int
 nodeHeight node selected =
@@ -509,7 +513,11 @@ viewNode m n =
       selected = case m.cursor of
                        Just id -> id == n.id
                        _ -> False
-      class = if n.isDatastore then "datastore" else "function"
+      class = if n.isDatastore
+              then "datastore"
+              else if n.isPage
+                   then "page"
+                   else "function"
       events =
         [ Events.onClick (NodeClick n)
         , Events.on "mousedown" (decodeClickLocation (DragNodeStart n))
@@ -521,7 +529,7 @@ viewNode m n =
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
-      heading = if n.isDatastore
+      heading = if n.isDatastore || n.isPage
                 then Html.h3 [Attrs.class "name"] [ Html.text name ]
                 else Html.span [Attrs.class "name"] [ Html.text name ]
 

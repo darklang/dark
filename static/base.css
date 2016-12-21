@@ -51,6 +51,14 @@ form {
   color: red;
 }
 
+.node.page {
+  border-radius: 1em;
+  padding: 0.5em 1.7em;
+  text-align: center;
+  display: block;
+}
+
+
 .datastore h3 {
   margin: 0;
   border-bottom: 1px solid #777;
