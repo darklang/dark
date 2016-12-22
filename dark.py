@@ -7,23 +7,21 @@ import pickle
 import os.path
 import traceback
 import sys
+import os
+import re
 
 import fields
 import graph
 import server
 import datastore
 
+
 class Dark(server.Server):
   def __init__(self):
     super().__init__()
-
-    self.graph = graph.Graph()
-    if os.path.isfile("dark.graph"):
-      self.graph = pickle.load(open( "dark.graph", "rb"))
-
     self.init_url_map()
 
-  def handler(self, request):
+  def handler(self, G, request):
     str_response = request.data.decode('utf-8')
     params = json.loads(str_response)
     print("Requesting: " + str(params))
@@ -31,7 +29,6 @@ class Dark(server.Server):
     command = params["command"]
     args = params["args"]
 
-    G = self.graph
     cursor = None
 
     if command == "add_datastore":
@@ -104,20 +101,28 @@ class Dark(server.Server):
     else:
       raise Exception("Invalid command: " + str(request.data))
 
-    self.init_url_map()
     return cursor
 
+
+  def init_url_map(self):
+    map = Map()
+    self.url_map = map
+    self.add_ui_route()
+    self.add_standard_routes()
+    self.add_admin_route()
+    self.add_app_route()
 
   def add_admin_route(self):
     def endpoint(request):
       try:
-        cursor = self.handler(request)
-        response = self.graph.to_frontend(cursor)
+        name = self.subdomain(request)
+        G = self.load_graph(name)
+        cursor = self.handler(G, request)
+        response = G.to_frontend(cursor)
         print("Responding: " + str(response))
 
         # Roundtrip so we find bugs early
-        pickle.dump(self.graph, open( "dark.graph", "wb" ))
-        self.graph = pickle.load(open( "dark.graph", "rb"))
+        self.save_graph(name, G)
 
         return Response(response=response)
 
@@ -149,36 +154,47 @@ class Dark(server.Server):
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
-  def init_url_map(self):
-    map = Map()
-    self.url_map = map
-    self.add_ui_route()
-    self.add_standard_routes()
-    self.add_admin_route()
-    self.add_app_routes()
+  def add_app_route(self):
+    def dispatcher(request):
+      sub = self.subdomain(request)
+      path = request.path
+      values = request.values.to_dict()
+      G = self.load_graph(sub)
 
-  def add_app_routes(self):
-    for p in self.graph.pages.values():
-      urls = self.graph.get_named_parents(p, "url")
-      urls = [u.exe() for u in urls]
-      outputs = self.graph.get_named_parents(p, "outputs")
-      inputs = self.graph.get_named_parents(p, "inputs")
-      for url in urls:
-        if len(outputs) > 0:
-          self.set_output(p, url)
-        if len(inputs) > 0:
-          self.set_input(p, url)
+      for p in G.pages.values():
+        urls = G.get_named_parents(p, "url")
+        urls = [u.exe() for u in urls]
+        outputs = G.get_named_parents(p, "outputs")
+        inputs = G.get_named_parents(p, "inputs")
+        for url in urls:
+          if re.compile(url).match(path):
+            if len(outputs) > 0:
+              val = G.run_output(p)
+              return Response(val, mimetype='text/html')
+            if len(inputs) > 0:
+              G.run_input(p, request.values.to_dict())
+              return redirect("/")
 
-  def set_output(self, node, url):
-    print("Setting output: %s, %s" % (node, url))
-    def h(request):
-      val = self.graph.run_output(node)
-      return Response(val, mimetype='text/html')
-    self.url_map.add(Rule(url, endpoint=h, methods=["GET"]))
+      return Response(status=404)
 
-  def set_input(self, node, url):
-    print("Setting input: %s, %s" % (node, url))
-    def h(request):
-      self.graph.run_input(node, request.values.to_dict())
-      return redirect("/")
-    self.url_map.add(Rule(url, endpoint=h, methods=["POST"]))
+    self.url_map.add(Rule('/<path:path>', endpoint=dispatcher))
+
+  def subdomain(self, request):
+    return request.host.split('.')[0]
+
+  def graph_filename(self, name):
+    return "appdata/" + name + ".dark"
+
+  def load_graph(self, name):
+    filename =  self.graph_filename(name)
+    return pickle.load(open(filename, "rb"))
+
+  def save_graph(self, name, G):
+    filename =  self.graph_filename(name)
+    # dont use builtin - it tends to corrupt
+    data = pickle.dumps(G)
+    # TODO there's a pattern for this
+    file = open(filename, "wb")
+    file.write(data)
+    file.close()
+    self.load_graph(name) # saniy check

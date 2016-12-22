@@ -15,7 +15,7 @@ class Server(object):
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)
     self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
-      '/static':  os.path.join(os.path.dirname(__file__), 'static')
+      '/static': os.path.join(os.path.dirname(__file__), 'static')
     })
 
   def serve(self):
@@ -33,8 +33,8 @@ class Server(object):
   def dispatch_request(self, request):
     adapter = self.url_map.bind_to_environ(request.environ)
     try:
-        endpoint, values = adapter.match()
-        return endpoint(request, **values)
+      endpoint, values = adapter.match()
+      return endpoint(request, **values)
     except HTTPException as e:
       return e
 
