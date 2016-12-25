@@ -42,6 +42,7 @@ consts = { nodeHeight = round 28
          , strokeColor = "#444"
          , escapeKeycode = 27
          , inputID = "darkInput"
+         , leftButton = 0
          }
 
 
@@ -84,6 +85,7 @@ type alias TypeName = String
 
 type ID = ID String
 type alias Pos = Mouse.Position
+type alias MouseEvent = {pos: Mouse.Position, button: Int}
 type alias Offset = {x: Int, y: Int, offsetCheck: Int}
 type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
 
@@ -231,10 +233,10 @@ type Msg
     = ClearCursor Mouse.Position
     | NodeClick Node
     | RecordClick Mouse.Position
-    | DragNodeStart Node Mouse.Position LeftButton
+    | DragNodeStart Node MouseEvent
     | DragNodeMove ID Offset Mouse.Position
     | DragNodeEnd ID Mouse.Position
-    | DragSlotStart Node ParamName Mouse.Position LeftButton
+    | DragSlotStart Node ParamName MouseEvent
     | DragSlotMove ID ParamName Mouse.Position Mouse.Position
     | DragSlotEnd Node
     | DragSlotStop Mouse.Position
@@ -312,10 +314,10 @@ update_ msg m =
           ({ m | cursor = Nothing
            }, Cmd.none, Focus)
 
-        (_, DragNodeStart node mpos isLeftButton, _) ->
+        (_, DragNodeStart node event, _) ->
           if m.drag == NoDrag -- If we're dragging a slot don't change it
-          && isLeftButton
-            then ({ m | drag = DragNode node.id (findOffset node.pos mpos)}, Cmd.none, NoFocus)
+          && event.button == consts.leftButton
+            then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
 
         (_, DragNodeMove id offset currentPos, _) ->
@@ -327,10 +329,10 @@ update_ msg m =
           ({ m | drag = NoDrag
            }, rpc m <| UpdateNodePosition id, NoFocus)
 
-        (_, DragSlotStart node param mpos isLeftButton, _) ->
-          if isLeftButton
+        (_, DragSlotStart node param event, _) ->
+          if event.button == consts.leftButton
           then ({ m | cursor = Just node.id
-                , drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
+                , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
           else (m, Cmd.none, NoFocus)
 
         (_, DragSlotMove id param mStartPos mpos, _) ->
@@ -658,11 +660,11 @@ updateDragPosition pos off (ID id) nodes =
   Dict.update id (Maybe.map (\n -> {n | pos = offset pos off.x off.y})) nodes
 
 
-decodeClickEvent : (Mouse.Position -> Bool -> a) -> JSD.Decoder a
+decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
 decodeClickEvent fn =
   let toA : Int -> Int -> Int -> a
       toA px py button =
-        fn {x=px, y=py} (button == 0) -- true for Left click
+        fn {pos= {x=px, y=py}, button = button}
   in JSDP.decode toA
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
