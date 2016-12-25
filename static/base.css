@@ -32,18 +32,18 @@ form {
   display: inline-block;
 }
 
-.node.function .name {
+.node.function .name, .node.value .name {
   display: block;
   text-align: center;
 }
 
-.node.function {
+.node.function, .node.value {
   border-radius: 2em;
   padding: 0.3em 0.3em;
   display: block;
 }
 
-.node.function.selected {
+.node.function.selected, .node.value.selected {
   border-radius: 0.5em;
 }
 

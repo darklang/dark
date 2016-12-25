@@ -95,7 +95,7 @@ class Datastore():
     return { "name": self.tablename,
              "id": self.id(),
              "fields": [ (f.name, f.to_frontend()) for f in self.fields],
-             "is_datastore": True,
+             "type": "datastore",
              "x": self.x,
              "y": self.y
     }

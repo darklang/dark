@@ -173,17 +173,18 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toNode : Name -> String -> List(FieldName,TypeName) -> List ParamName -> Bool -> Int -> Int -> Node
-      toNode name id fields parameters isDatastore x y =
+  let toNode : Name -> String -> List(FieldName,TypeName) -> List ParamName -> String -> Int -> Int -> Node
+      toNode name id fields parameters tipe x y =
           { name = name
           , id = ID id
           , fields = fields
           , parameters = parameters
-          , tipe = if String.contains "page" name
-                   then Page
-                     else if isDatastore
-                          then Datastore
-                          else Function
+          , tipe = case tipe of
+                     "datastore" -> Datastore
+                     "function" -> Function
+                     "value" -> Value
+                     "page" -> Page
+                     _ -> Debug.crash "shouldnt happen"
           , pos={x=x, y=y}
           }
   in JSDP.decode toNode
@@ -194,7 +195,7 @@ decodeNode =
                                       (JSD.index 0 JSD.string)
                                       (JSD.index 1 JSD.string))) []
       |> JSDP.optional "parameters" (JSD.list JSD.string) []
-      |> JSDP.optional "is_datastore" JSD.bool False
+      |> JSDP.required "type" JSD.string
       |> JSDP.required "x" JSD.int
       |> JSDP.required "y" JSD.int
 
@@ -533,6 +534,7 @@ viewNode m n =
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
+      -- TODO: fix this crap
       heading = (case n.tipe of
                   Datastore -> Html.h3
                   Page -> Html.h3
@@ -541,24 +543,24 @@ viewNode m n =
 
       includeList = n.tipe == Datastore ||
                     (selected && (List.length n.parameters > 0))
-      field (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
-                           , Html.br [] []]
+      viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
+                               , Html.br [] []]
       slotHandler name = (decodeClickLocation (DragSlotStart n name))
-      param name = Html.span
-                   [ Attrs.class "parameter"
-                   , Events.on "mousedown" (slotHandler name)
-                   ]
+      viewParam name = Html.span
+                       [ Attrs.class "parameter"
+                       , Events.on "mousedown" (slotHandler name)
+                       ]
                    [Html.text name]
-      params = [Html.span
+      viewParams = [Html.span
                   [Attrs.class "list"]
-                  (List.map param n.parameters)]
+                  (List.map viewParam n.parameters)]
       list = if includeList
              then
                [Html.span
                  [ Attrs.class "list"]
                  (List.concat
-                    (List.map field n.fields)
-                    ++ (List.map param n.parameters))]
+                    (List.map viewField n.fields)
+                    ++ (List.map viewParam n.parameters))]
              else []
   in
     placeHtml

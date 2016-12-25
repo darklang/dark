@@ -25,6 +25,7 @@ class Value:
     return { "name": self.name,
              "parameters": [],
              "id": self.id(),
+             "type": "value",
              "x": self.x,
              "y": self.y}
 
@@ -39,10 +40,8 @@ class Node:
     self.y = -1
     assert self._getfn()
 
-
   def __str__(self):
     return self.id()
-
 
   def _getfn(self):
     import fns
@@ -82,6 +81,7 @@ class Node:
     return { "name": self.fnname,
              "parameters": self.get_parameters(),
              "id": self.id(),
+             "type": "page" if "page" in self.fnname else "function",
              "x": self.x,
              "y": self.y}
 
