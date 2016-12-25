@@ -57,12 +57,15 @@ type alias Model = { nodes : NodeDict
                    , lastPos : Pos
                    , drag : Drag
                    }
+type Type = Function
+          | Datastore
+          | Value
+          | Page
 
 type alias Node = { name : Name
                   , id : ID
                   , pos : Pos
-                  , isPage : Bool
-                  , isDatastore : Bool
+                  , tipe : Type
                   -- for DSes
                   , fields : List (FieldName, TypeName)
                   -- for functions
@@ -176,8 +179,11 @@ decodeNode =
           , id = ID id
           , fields = fields
           , parameters = parameters
-          , isPage = String.contains "page" name
-          , isDatastore = isDatastore
+          , tipe = if String.contains "page" name
+                   then Page
+                     else if isDatastore
+                          then Datastore
+                          else Function
           , pos={x=x, y=y}
           }
   in JSDP.decode toNode
@@ -479,7 +485,10 @@ nodeWidth n selected =
         |> String.toList
         |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
         |> List.sum
-    nameMultiple = if n.isDatastore then 2 else if n.isPage then 1.3 else 1
+    nameMultiple = case n.tipe of
+                     Datastore -> 2
+                     Page -> 1.3
+                     _ -> 1
     ln = [nameMultiple * len n.name]
     lp = if selected
          then
@@ -492,14 +501,10 @@ nodeWidth n selected =
     round(width)
 
 nodeHeight : Node -> Bool -> Int
-nodeHeight node selected =
-  if node.isDatastore
-  then consts.nodeHeight * ( 1 + (List.length node.fields))
-  else consts.nodeHeight
-    -- Don't move edges when the node opens
-    -- if selected
-    -- then consts.nodeHeight * ( 1 + (List.length node.parameters))
-    -- else consts.nodeHeight
+nodeHeight n selected =
+  case n.tipe of
+    Datastore -> consts.nodeHeight * ( 1 + (List.length n.fields))
+    _ -> consts.nodeHeight
 
 nodeSize node selected =
   (nodeWidth node selected, nodeHeight node selected)
@@ -516,11 +521,7 @@ viewNode m n =
       selected = case m.cursor of
                        Just id -> id == n.id
                        _ -> False
-      class = if n.isDatastore
-              then "datastore"
-              else if n.isPage
-                   then "page"
-                   else "function"
+      class = String.toLower (toString n.tipe)
       events =
         [ Events.onClick (NodeClick n)
         , Events.on "mousedown" (decodeClickLocation (DragNodeStart n))
@@ -532,11 +533,13 @@ viewNode m n =
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
-      heading = if n.isDatastore || n.isPage
-                then Html.h3 [Attrs.class "name"] [ Html.text name ]
-                else Html.span [Attrs.class "name"] [ Html.text name ]
+      heading = (case n.tipe of
+                  Datastore -> Html.h3
+                  Page -> Html.h3
+                  _ -> Html.span)
+                [Attrs.class "name"] [ Html.text name ]
 
-      includeList = n.isDatastore ||
+      includeList = n.tipe == Datastore ||
                     (selected && (List.length n.parameters > 0))
       field (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                            , Html.br [] []]
