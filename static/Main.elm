@@ -137,10 +137,10 @@ encodeRPC m call =
                                          , JSE.object [ ("name", JSE.string name)
                                                       , ("x", JSE.int x)
                                                       , ("y", JSE.int y)])
-                AddDatastoreField (ID id) name type_ -> ("add_datastore_field",
+                AddDatastoreField (ID id) name tipe -> ("add_datastore_field",
                                                              JSE.object [ ("id", JSE.string id)
                                                                         , ("name", JSE.string name)
-                                                                        , ("type", JSE.string type_)])
+                                                                        , ("tipe", JSE.string tipe)])
                 AddFunctionCall name {x,y} -> ("add_function_call",
                                                  JSE.object [ ("name", JSE.string name)
                                                             , ("x", JSE.int x)
