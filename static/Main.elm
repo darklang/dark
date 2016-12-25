@@ -183,7 +183,10 @@ decodeNode =
   in JSDP.decode toNode
       |> JSDP.required "name" JSD.string
       |> JSDP.required "id" JSD.string
-      |> JSDP.optional "fields" (JSD.keyValuePairs JSD.string) []
+      |> JSDP.optional "fields" (JSD.list
+                                   (JSD.map2 (,)
+                                      (JSD.index 0 JSD.string)
+                                      (JSD.index 1 JSD.string))) []
       |> JSDP.optional "parameters" (JSD.list JSD.string) []
       |> JSDP.optional "is_datastore" JSD.bool False
       |> JSDP.required "x" JSD.int
