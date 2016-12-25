@@ -488,7 +488,7 @@ nodeWidth n selected =
         |> List.sum
     nameMultiple = case n.tipe of
                      Datastore -> 2
-                     Page -> 1.3
+                     Page -> 2.2
                      _ -> 1
     ln = [nameMultiple * len n.name]
     lp = if selected

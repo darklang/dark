@@ -32,7 +32,7 @@ form {
   display: inline-block;
 }
 
-.node.function .name, .node.value .name {
+.node.function .name, .node.value .name, node.page .name {
   display: block;
   text-align: center;
 }
