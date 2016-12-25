@@ -65,12 +65,22 @@ form {
 }
 
 .datastore .name {
-  display: block;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: row;
   font-weight: bold;
   font-size: 1.37em;
   margin: 0;
   border-bottom: 1px solid #777;
   padding-bottom: 0.25em;
+}
+
+.datastore .dot {
+  content: "";
+  border: 1px solid #777;
+  border-radius: 0.7em;
+  height: 0.7em;
+  width: 0.7em;
 }
 
 .list {
@@ -85,11 +95,11 @@ form {
 }
 
 .parameter:before {
-  content:"";
-  position:relative;
-  top:0.2em;
-  margin-right:0.5em;
-  border:1px solid #777;
+  content: "";
+  position: relative;
+  top: 0.2em;
+  margin-right: 0.5em;
+  border: 1px solid #777;
   border-radius: 0.7em;
   height: 0.7em;
   width: 0.7em;
@@ -97,10 +107,4 @@ form {
 }
 .parameter:hover:before {
   border:1px solid #fff;
-}
-
-.parameter:active:before,
-.parameter:focus:before {
-  border:1px solid #fff;
-  background: #fff;
 }

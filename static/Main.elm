@@ -540,18 +540,20 @@ viewNode m n =
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
-      heading = Html.span [Attrs.class "name"] [ Html.text name ]
+      heading = Html.span [Attrs.class "name"]
+                (if n.tipe == Datastore
+                 then [ Html.text name, Html.span [Attrs.class "dot"] [] ]
+                 else [ Html.text name ])
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                                , Html.br [] []]
-      slotHandler name = (decodeClickLocation (DragSlotStart n name))
+      slotHandler name = (decodeClickEvent (DragSlotStart n name))
       viewParam name = Html.span
                        [ Attrs.class "parameter"
-                       , Events.on "mousedown" (slotHandler name)
-                       ]
+                       , Events.on "mousedown" (slotHandler name)]
                    [Html.text name]
       viewParams = [Html.span
-                  [Attrs.class "list"]
-                  (List.map viewParam n.parameters)]
+                      [Attrs.class "list"]
+                      (List.map viewParam n.parameters)]
       includeList = n.tipe == Datastore ||
                     (selected && (List.length n.parameters > 0))
       list = if includeList
