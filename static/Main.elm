@@ -226,14 +226,15 @@ decodeGraph =
 
 
 -- UPDATE
+type alias LeftButton = Bool
 type Msg
     = ClearCursor Mouse.Position
     | NodeClick Node
     | RecordClick Mouse.Position
-    | DragNodeStart Node Mouse.Position
+    | DragNodeStart Node Mouse.Position LeftButton
     | DragNodeMove ID Offset Mouse.Position
     | DragNodeEnd ID Mouse.Position
-    | DragSlotStart Node ParamName Mouse.Position
+    | DragSlotStart Node ParamName Mouse.Position LeftButton
     | DragSlotMove ID ParamName Mouse.Position Mouse.Position
     | DragSlotEnd Node
     | DragSlotStop Mouse.Position
@@ -311,8 +312,9 @@ update_ msg m =
           ({ m | cursor = Nothing
            }, Cmd.none, Focus)
 
-        (_, DragNodeStart node mpos, _) ->
+        (_, DragNodeStart node mpos isLeftButton, _) ->
           if m.drag == NoDrag -- If we're dragging a slot don't change it
+          && isLeftButton
             then ({ m | drag = DragNode node.id (findOffset node.pos mpos)}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
 
@@ -325,9 +327,11 @@ update_ msg m =
           ({ m | drag = NoDrag
            }, rpc m <| UpdateNodePosition id, NoFocus)
 
-        (_, DragSlotStart node param mpos, _) ->
-          ({ m | cursor = Just node.id
-               , drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
+        (_, DragSlotStart node param mpos isLeftButton, _) ->
+          if isLeftButton
+          then ({ m | cursor = Just node.id
+                , drag = DragSlot node.id param mpos}, Cmd.none, NoFocus)
+          else (m, Cmd.none, NoFocus)
 
         (_, DragSlotMove id param mStartPos mpos, _) ->
             ({ m | lastPos = mpos
@@ -522,7 +526,7 @@ viewNode m n =
       class = String.toLower (toString n.tipe)
       events =
         [ Events.onClick (NodeClick n)
-        , Events.on "mousedown" (decodeClickLocation (DragNodeStart n))
+        , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
         , Events.onMouseUp (DragSlotEnd n)
         ]
 
@@ -654,13 +658,15 @@ updateDragPosition pos off (ID id) nodes =
   Dict.update id (Maybe.map (\n -> {n | pos = offset pos off.x off.y})) nodes
 
 
-decodeClickLocation : (Mouse.Position -> a) -> JSD.Decoder a
-decodeClickLocation fn =
-  let toA : Int -> Int -> a
-      toA px py = fn {x=px, y=py}
+decodeClickEvent : (Mouse.Position -> Bool -> a) -> JSD.Decoder a
+decodeClickEvent fn =
+  let toA : Int -> Int -> Int -> a
+      toA px py button =
+        fn {x=px, y=py} (button == 0) -- true for Left click
   in JSDP.decode toA
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
+      |> JSDP.required "button" JSD.int
 
 
 findOffset : Pos -> Mouse.Position -> Offset
