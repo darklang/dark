@@ -519,9 +519,6 @@ synonym x =
 viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
   let name = synonym n.name
-      selected = case m.cursor of
-                       Just id -> id == n.id
-                       _ -> False
       class = String.toLower (toString n.tipe)
       events =
         [ Events.onClick (NodeClick n)
@@ -529,20 +526,15 @@ viewNode m n =
         , Events.onMouseUp (DragSlotEnd n)
         ]
 
+      selected = case m.cursor of
+                       Just id -> id == n.id
+                       _ -> False
       width = Attrs.style [("width",
                             (toString (nodeWidth n selected)) ++ "px")]
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
-      -- TODO: fix this crap
-      heading = (case n.tipe of
-                  Datastore -> Html.h3
-                  Page -> Html.h3
-                  _ -> Html.span)
-                [Attrs.class "name"] [ Html.text name ]
-
-      includeList = n.tipe == Datastore ||
-                    (selected && (List.length n.parameters > 0))
+      heading = Html.span [Attrs.class "name"] [ Html.text name ]
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                                , Html.br [] []]
       slotHandler name = (decodeClickLocation (DragSlotStart n name))
@@ -554,6 +546,8 @@ viewNode m n =
       viewParams = [Html.span
                   [Attrs.class "list"]
                   (List.map viewParam n.parameters)]
+      includeList = n.tipe == Datastore ||
+                    (selected && (List.length n.parameters > 0))
       list = if includeList
              then
                [Html.span

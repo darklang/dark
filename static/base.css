@@ -55,11 +55,19 @@ form {
   border-radius: 1em;
   padding: 0.5em 1.7em;
   text-align: center;
-  display: block;
 }
 
+.page .name {
+  display: block;
+  font-weight: bold;
+  font-size: 1.37em;
+  margin: 1em 0;
+}
 
-.datastore h3 {
+.datastore .name {
+  display: block;
+  font-weight: bold;
+  font-size: 1.37em;
   margin: 0;
   border-bottom: 1px solid #777;
   padding-bottom: 0.25em;
