@@ -472,7 +472,7 @@ viewCanvas m =
          dragEdge = case mDragEdge of
                       Just de -> [de]
                       Nothing -> []
-    in svgArrowHead :: (allNodes ++ dragEdge ++ edges)
+    in svgDefs :: svgArrowHead :: (allNodes ++ dragEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml pos html =
@@ -571,24 +571,75 @@ viewNode m n =
         attrs
         (heading :: list)
 
+-- Our edges should be a lineargradient from "darker" to "arrowColor". SVG
+-- gradients are weird, they don't allow you specify based on the line
+-- direction, but only on the absolute direction. So we define 8 linear
+-- gradients, one for each 45 degree angle/direction. We define this in terms of
+-- "rise over run" (eg like you'd calculate a slope). Then we translate the x,y
+-- source/target positions into (rise,run) in the integer range [-1,0,1].
+svgDefs =
+  Svg.defs []
+    [ linearGradient 0 1
+    , linearGradient 1 1
+    , linearGradient 1 0
+    , linearGradient 1 -1
+    , linearGradient 0 -1
+    , linearGradient -1 -1
+    , linearGradient -1 0
+    , linearGradient -1 1
+    ]
+
+coord2id rise run =
+  "linear-rise" ++ toString rise ++ "-run" ++ toString run
+
+
+linearGradient : Int -> Int -> Svg.Svg a
+linearGradient rise run =
+  -- edge case, lineargradients use positive integers
+  let (x1, x2) = if run == -1 then (1,0) else (0, run)
+      (y1, y2) = if rise == -1 then (1,0) else (0, rise)
+  in
+    Svg.linearGradient
+      [ SA.id (coord2id rise run)
+      , SA.x1 (toString x1)
+      , SA.y1 (toString y1)
+      , SA.x2 (toString x2)
+      , SA.y2 (toString y2)]
+    [ Svg.stop [ SA.offset "0%", SA.stopColor "#111"] []
+    , Svg.stop [ SA.offset "100%", SA.stopColor "#444"] []]
+
 dragEdgeStyle =
   [ SA.strokeWidth "2px"
   , SA.stroke "red"
   ]
 
-edgeStyle =
-  [ SA.strokeWidth "3.25px"
-  , SA.stroke consts.strokeColor
-  , SA.markerEnd "url(#triangle)"
-  ]
+edgeStyle x1 y1 x2 y2 =
+  -- edge case: We don't want to use a vertical gradient for really tiny rises,
+  -- or it'll just be one color (same for the run). 20 seems enough to avoid
+  -- this, empirically.
+  let rise = if y2 - y1 > 20 then 1 else if y2 - y1 < -20 then -1 else 0
+      run = if x2 - x1 > 20 then 1 else if x2 - x1 < -20 then -1 else 0
+      -- edge case: (0,0) is nothing; go in range.
+      amendedRise = if (rise,run) == (0,0)
+                    then if y2 - y1 > 0 then 1 else -1
+                    else rise
+  in [ SA.strokeWidth "3.25px"
+     , SA.stroke ("url(#" ++ coord2id amendedRise run ++ ")")
+     , SA.markerEnd "url(#triangle)"
+     ]
 
 svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine p1 p2 attrs =
+  -- edge case: avoid zero width/height lines, or they won't appear
+  let ( x1, y1, x2_, y2_ ) = (p1.x, p1.y, p2.x, p2.y)
+      x2 = if x1 == x2_ then x2_ + 1 else x2_
+      y2 = if y1 == y2_ then y2_ + 1 else y2_
+  in
   Svg.line
-    ([ SA.x1 (toString p1.x)
-     , SA.y1 (toString p1.y)
-     , SA.x2 (toString p2.x)
-     , SA.y2 (toString p2.y)
+    ([ SA.x1 (toString x1)
+     , SA.y1 (toString y1)
+     , SA.x2 (toString x2)
+     , SA.y2 (toString y2)
      ] ++ attrs)
     []
 
@@ -635,7 +686,7 @@ viewEdge m {source, target, targetParam} =
     in svgLine
       spos
       {x=tx,y=ty}
-      edgeStyle
+      (edgeStyle spos.x spos.y tx ty)
 
 -- UTIL
 timestamp : () -> Int
