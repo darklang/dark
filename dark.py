@@ -198,3 +198,8 @@ class Dark(server.Server):
     file.write(data)
     file.close()
     self.load_graph(name) # saniy check
+
+
+if __name__ == "__main__":
+  d = Dark()
+  d.serve()
