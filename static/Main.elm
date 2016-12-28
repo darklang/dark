@@ -237,7 +237,7 @@ type Msg
     | DragNodeMove ID Offset Mouse.Position
     | DragNodeEnd ID Mouse.Position
     | DragSlotStart Node ParamName MouseEvent
-    | DragSlotMove ID ParamName Mouse.Position Mouse.Position
+    | DragSlotMove Mouse.Position
     | DragSlotEnd Node
     | DragSlotStop Mouse.Position
     | InputMsg String
@@ -332,13 +332,11 @@ update_ msg m =
         (_, DragSlotStart node param event, _) ->
           if event.button == consts.leftButton
           then ({ m | cursor = Just node.id
-                , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
+                    , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
           else (m, Cmd.none, NoFocus)
 
-        (_, DragSlotMove id param mStartPos mpos, _) ->
+        (_, DragSlotMove mpos, _) ->
             ({ m | lastPos = mpos
-                 -- TODO: may not be necessary
-                 , drag = DragSlot id param mStartPos
              }, Cmd.none, NoFocus)
 
         (_, DragSlotEnd node, _) ->
@@ -415,8 +413,8 @@ subscriptions m =
     let dragSubs = case m.drag of
                        DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
                                              , Mouse.ups (DragNodeEnd id)]
-                       DragSlot id param start ->
-                         [ Mouse.moves (DragSlotMove id param start)
+                       DragSlot _ _ _ ->
+                         [ Mouse.moves DragSlotMove
                          , Mouse.ups DragSlotStop]
                        NoDrag -> [ Mouse.downs ClearCursor ]
         -- dont trigger commands if we're typing
