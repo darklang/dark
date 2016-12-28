@@ -1,4 +1,4 @@
-from werkzeug.wrappers import Request, Response
+from werkzeug.wrappers import Response
 from werkzeug.routing import Map, Rule
 from werkzeug.utils import redirect
 
@@ -6,8 +6,6 @@ import json
 import pickle
 import os.path
 import traceback
-import sys
-import os
 import re
 
 import fields
