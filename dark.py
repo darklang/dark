@@ -7,6 +7,7 @@ import pickle
 import os.path
 import traceback
 import re
+import sys
 
 import fields
 import graph
@@ -114,9 +115,9 @@ class Dark(server.Server):
       try:
         name = self.subdomain(request)
 
-        G = self.load_graph(name)
+        G = graph.load(name)
         cursor = self.handler(G, request)
-        self.save_graph(name, G)
+        graph.save(G)
 
         response = G.to_frontend(cursor)
         print("Responding: " + str(response))
@@ -153,10 +154,10 @@ class Dark(server.Server):
 
   def add_app_route(self):
     def dispatcher(request, path=""):
-      sub = self.subdomain(request)
+      name = self.subdomain(request)
       path = request.path
       values = request.values.to_dict()
-      G = self.load_graph(sub)
+      G = graph.load(name)
 
       for p in G.pages.values():
         urls = G.get_named_parents(p, "url")
@@ -181,26 +182,18 @@ class Dark(server.Server):
   def subdomain(self, request):
     return request.host.split('.')[0]
 
-  def graph_filename(self, name):
-    return "appdata/" + name + ".dark"
-
-  def load_graph(self, name):
-    filename = self.graph_filename(name)
-    return pickle.load(open(filename, "rb"))
-
-  def save_graph(self, name, G):
-    filename = self.graph_filename(name)
-
-    # dont use builtin - it tends to corrupt
-    data = pickle.dumps(G)
-
-    with open(filename, 'wb') as file:
-      file.write(data)
-
-    # sanity check
-    self.load_graph(name)
+  @staticmethod
+  def migrate_all_graphs():
+    for name in graph.get_all_graphnames():
+      G = graph.load(name)
+      print("Graph %s: v%s" % (G.name, G.version))
+      graph.save(G)
 
 
 if __name__ == "__main__":
-  d = Dark()
-  d.serve()
+  if len(sys.argv) > 1 and sys.argv[1] == "--migrate":
+    Dark.migrate_all_graphs()
+    sys.exit(0)
+  else:
+    d = Dark()
+    d.serve()

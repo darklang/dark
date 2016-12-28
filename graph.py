@@ -1,10 +1,39 @@
 import inspect
 import random
 import json
+import os
+import pickle
 
 import pyrsistent as pyr
 
 import fns
+
+def get_all_graphnames():
+  return [f[:-5] for f in os.listdir("appdata") if f.endswith(".dark")]
+
+def filename_for(name):
+  return "appdata/" + name + ".dark"
+
+def load(name):
+  filename = filename_for(name)
+  graph = pickle.load(open(filename, "rb"))
+  graph.migrate(name)
+  return graph
+
+def save(G):
+  filename = filename_for(G.name)
+
+  # dont use pickle.dump - it tends to corrupt
+  data = pickle.dumps(G)
+
+  with open(filename, 'wb') as file:
+    file.write(data)
+
+  # sanity check
+  load(G.name)
+
+
+
 
 class Value:
   def __init__(self, valuestr):
@@ -92,13 +121,13 @@ class Node:
 
 class Graph:
 
-  def __init__(self):
+  def __init__(self, name):
+    self.name = name
     self.nodes = {}
     self.edges = {}
     self.reverse_edges = {}
     self.datastores = {}
     self.pages = {}
-
 
   def _add(self, node):
     self.nodes[node.id()] = node
@@ -228,3 +257,8 @@ class Graph:
     if cursor :
       result["cursor"] = cursor.id()
     return json.dumps(result, sort_keys=True, indent=2)
+
+  def migrate(self, name):
+    if not getattr(self, "version", None):
+      self.name = name
+      self.version = 1
