@@ -5,8 +5,8 @@ import pyrsistent as pyr
 
 
 def page(url, inputs=[], outputs=[]):
-  inputs = inputs.replace("URL_VAR", url)
-  return str(outputs) + inputs
+  inputs = [i.replace("URL_VAR", url) for i in inputs]
+  return str(outputs) + str(inputs)
 page.bothdata=True
 
 def form(schema):

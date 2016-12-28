@@ -155,7 +155,7 @@ class Dark(server.Server):
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
   def add_app_route(self):
-    def dispatcher(request):
+    def dispatcher(request, path=""):
       sub = self.subdomain(request)
       path = request.path
       values = request.values.to_dict()
