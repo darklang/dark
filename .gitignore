@@ -1,5 +1,4 @@
-/__pycache__
-/static/elm-stuff/
-/dark.graph
-/static/elm.js
 /appdata
+server/static/elm.js
+server/static/elm-stuff/
+server/__pycache__/

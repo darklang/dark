@@ -180,7 +180,7 @@ decodeNode =
           { name = name
           , id = ID id
           , fields = fields
-          , parameters = parameters
+          , parameters = parameter
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> Function
