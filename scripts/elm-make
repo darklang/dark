@@ -1,0 +1,8 @@
+#!/bin/bash
+
+cd client
+
+while True; do
+  elm-make Main.elm --debug --output ../server/static/elm.js;
+  sleep 1;
+done
