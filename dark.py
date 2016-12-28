@@ -114,13 +114,16 @@ class Dark(server.Server):
     def endpoint(request):
       try:
         name = self.subdomain(request)
+
         G = self.load_graph(name)
         cursor = self.handler(G, request)
+        self.save_graph(name, G)
+
+        # Load it so we know it works
+        self.load_graph(name)
+
         response = G.to_frontend(cursor)
         print("Responding: " + str(response))
-
-        # Roundtrip so we find bugs early
-        self.save_graph(name, G)
 
         return Response(response=response)
 
