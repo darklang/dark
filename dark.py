@@ -103,8 +103,7 @@ class Dark(server.Server):
 
 
   def init_url_map(self):
-    map = Map()
-    self.url_map = map
+    self.url_map = Map()
     self.add_ui_route()
     self.add_standard_routes()
     self.add_admin_route()
@@ -179,6 +178,7 @@ class Dark(server.Server):
       return Response(status=404)
 
     self.url_map.add(Rule('/<path:path>', endpoint=dispatcher))
+    self.url_map.add(Rule('/', endpoint=dispatcher)) # not matched above for some reason
 
   def subdomain(self, request):
     return request.host.split('.')[0]
