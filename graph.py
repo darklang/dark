@@ -90,10 +90,9 @@ class Node:
 
 
 
-class Graph():
+class Graph:
 
   def __init__(self):
-    super().__init__()
     self.nodes = {}
     self.edges = {}
     self.reverse_edges = {}

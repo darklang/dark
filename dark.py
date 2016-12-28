@@ -118,9 +118,6 @@ class Dark(server.Server):
         cursor = self.handler(G, request)
         self.save_graph(name, G)
 
-        # Load it so we know it works
-        self.load_graph(name)
-
         response = G.to_frontend(cursor)
         print("Responding: " + str(response))
 
@@ -178,7 +175,8 @@ class Dark(server.Server):
       return Response(status=404)
 
     self.url_map.add(Rule('/<path:path>', endpoint=dispatcher))
-    self.url_map.add(Rule('/', endpoint=dispatcher)) # not matched above for some reason
+    # not matched above for some reason
+    self.url_map.add(Rule('/', endpoint=dispatcher))
 
   def subdomain(self, request):
     return request.host.split('.')[0]
@@ -187,18 +185,20 @@ class Dark(server.Server):
     return "appdata/" + name + ".dark"
 
   def load_graph(self, name):
-    filename =  self.graph_filename(name)
+    filename = self.graph_filename(name)
     return pickle.load(open(filename, "rb"))
 
   def save_graph(self, name, G):
-    filename =  self.graph_filename(name)
+    filename = self.graph_filename(name)
+
     # dont use builtin - it tends to corrupt
     data = pickle.dumps(G)
-    # TODO there's a pattern for this
-    file = open(filename, "wb")
-    file.write(data)
-    file.close()
-    self.load_graph(name) # saniy check
+
+    with open(filename, 'wb') as file:
+      file.write(data)
+
+    # sanity check
+    self.load_graph(name)
 
 
 if __name__ == "__main__":
