@@ -213,7 +213,7 @@ class Graph:
     assert(False and "Shouldnt happen")
 
   def execute(self, node, only=None, eager={}):
-    # print("executing node: %s" % (node))
+    # print("executing node: %s, with only=%s and eager=%s" % (node, only, eager))
     if node in eager:
       result = eager[node]
     else:
@@ -225,8 +225,9 @@ class Graph:
     return pyr.freeze(result)
 
   def find_sink_edges(self, node):
+    # print("finding sink edges: %s" % (node))
     results = set()
-    for c in self.get_children(node):
+    for _, c in self.get_children(node).items():
       if c.is_datasink():
         results |= {(node, c)}
       else:
@@ -234,6 +235,7 @@ class Graph:
     return results
 
   def run_input(self, node, val):
+    # print("running input: %s (%s)" % (node, val))
     for (parent, sink) in self.find_sink_edges(node):
       # print("run_input on sink,parent: %s, %s" %(sink, parent))
       self.execute(sink, only=parent, eager={node: val})
@@ -257,6 +259,16 @@ class Graph:
     if cursor :
       result["cursor"] = cursor.id()
     return json.dumps(result, sort_keys=True, indent=2)
+
+  def to_debug(self, cursor):
+    result = []
+    edges = self.to_frontend_edges()
+    for e in edges:
+      out = "%s(%s=%s)" % (e["target"], e["paramname"], e["source"])
+      result.append(out)
+    return "\n".join(sorted(result))
+
+
 
   def migrate(self, name):
     if not getattr(self, "version", None):

@@ -119,10 +119,9 @@ class Dark(server.Server):
         cursor = self.handler(G, request)
         graph.save(G)
 
-        response = G.to_frontend(cursor)
-        print("Responding: " + str(response))
+        print("Responding: \n" + G.to_debug(cursor))
 
-        return Response(response=response)
+        return Response(response=G.to_frontend(cursor))
 
       except BaseException as e:
         traceback.print_exc()
