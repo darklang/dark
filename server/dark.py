@@ -161,14 +161,13 @@ class Dark(server.Server):
       for p in G.pages.values():
         urls = G.get_named_parents(p, "url")
         urls = [u.exe() for u in urls]
-        outputs = G.get_named_parents(p, "outputs")
         inputs = G.get_named_parents(p, "inputs")
         for url in urls:
           if re.compile(url).match(path):
-            if len(outputs) > 0:
+            if request.method == "GET":
               val = G.run_output(p)
               return Response(val, mimetype='text/html')
-            if len(inputs) > 0:
+            if request.method == "POST":
               G.run_input(p, request.values.to_dict())
               return redirect("/")
 
