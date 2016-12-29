@@ -4,9 +4,6 @@ port module Main exposing (..)
 import Result
 import Char
 import Dict exposing (Dict)
-import Array
-import Json.Decode as JSD
-import Json.Decode.Pipeline as JSDP
 import Http
 import Html
 
@@ -233,6 +230,7 @@ focusInput = Dom.focus Consts.inputID |> Task.attempt FocusResult
 unfocusInput : Cmd Msg
 unfocusInput = Dom.blur Consts.inputID |> Task.attempt FocusResult
 
+addError : String -> Model -> List String
 addError error model =
     let time = Util.timestamp ()
     in
