@@ -62,9 +62,6 @@ init = let m = { nodes = Dict.empty
 forCharCode m char =
     let _ = Debug.log "char" char in
     case Char.fromCode char of
-        'F' -> ({ m | state = ADD_FUNCTION}, Cmd.none, NoFocus)
-        'V' -> ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
-        'D' -> ({ m | state = ADD_DS}, Cmd.none, NoFocus)
         _ -> let _ = Debug.log "nothing" (Char.fromCode char)
              in (m, Cmd.none, NoFocus)
 
@@ -73,7 +70,7 @@ update msg m =
     let (m2, cmd2, focus) = update_ msg m
         m3 = case focus of
                  Focus -> { m2 | inputValue = ""
-                          , focused = True}
+                               , focused = True}
                  NoFocus -> m2
                  DropFocus -> { m2 | focused = False }
         cmd3 = case focus of
@@ -84,6 +81,28 @@ update msg m =
 
 type Focus = Focus | NoFocus | DropFocus
 
+updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg, Focus)
+updateKeyPress m code cursor =
+  let char = Char.fromCode code
+  in case (char, code, cursor) of
+       (_, 8, Just id) -> -- backspace
+         (m, rpc m <| DeleteNode id, NoFocus)
+       ('C', _, Just id) ->
+         (m, rpc m <| ClearEdges id, NoFocus)
+       ('L', _, Just id) ->
+         (m, rpc m <| RemoveLastField id, NoFocus)
+       ('A', _, _) ->
+         ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
+       ('F', _, _) ->
+         ({ m | state = ADD_FUNCTION}, Cmd.none, NoFocus)
+       ('V', _, _) ->
+         ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
+       ('D', _, _) ->
+         ({ m | state = ADD_DS}, Cmd.none, NoFocus)
+       _ ->
+         let _ = Debug.log "nothing" char
+         in (m, Cmd.none, NoFocus)
+
 
 update_ : Msg -> Model -> (Model, Cmd Msg, Focus)
 update_ msg m =
@@ -93,17 +112,8 @@ update_ msg m =
             then ({ m | cursor = Nothing }, Cmd.none, DropFocus)
             else (m, Cmd.none, NoFocus)
 
-        (_, KeyPress code, Just id) ->
-            case code of
-                8 -> (m, rpc m <| DeleteNode id, NoFocus) -- backspace
-                _ -> case Char.fromCode code of
-                         'C' -> (m, rpc m <| ClearEdges id, NoFocus)
-                         'L' -> (m, rpc m <| RemoveLastField id, NoFocus)
-                         'A' -> ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
-                         _ -> forCharCode m code
-        (_, KeyPress code, _) ->
-            forCharCode m code
-            -- TODO: ESCAPE - unfocus
+        (_, KeyPress code, cursor) ->
+          updateKeyPress m code cursor
 
         (_, NodeClick node, _) ->
           ({ m | state = ADD_FUNCTION
@@ -232,7 +242,6 @@ subscriptions m =
 
 
 -- UTIL
-
 focusInput = Dom.focus consts.inputID |> Task.attempt FocusResult
 unfocusInput = Dom.blur consts.inputID |> Task.attempt FocusResult
 
