@@ -7,25 +7,15 @@ import Set
 
 import Svg
 import Svg.Attributes as SA
-import Svg.Events as SEvents
+
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
-import Mouse
 
 
+import Consts
 import Types exposing (..)
 import Util
-
-
-consts = { nodeHeight = round 28
-         , backspaceKeycode = 8
-         , strokeColor = "#444"
-         , escapeKeycode = 27
-         , inputID = "darkInput"
-         , leftButton = 0
-         }
-
 
 view : Model -> Html.Html Msg
 view model =
@@ -45,7 +35,7 @@ view model =
 viewInput value = Html.form [
                    Events.onSubmit (SubmitMsg)
                   ] [
-                   Html.input [ Attrs.id consts.inputID
+                   Html.input [ Attrs.id Consts.inputID
                               , Events.onInput InputMsg
                               , Attrs.value value
                               ] []
@@ -77,7 +67,7 @@ placeHtml pos html =
 nodeWidth : Node -> Bool -> Int
 nodeWidth n selected =
   let
-    slimChars = Set.fromList ['i', '[', ',', ']', 'l', 'I', 't', ' ']
+    slimChars = Set.fromList Consts.narrowChars
     len name =
       name
         |> synonym
@@ -102,8 +92,8 @@ nodeWidth n selected =
 nodeHeight : Node -> Bool -> Int
 nodeHeight n selected =
   case n.tipe of
-    Datastore -> consts.nodeHeight * ( 1 + (List.length n.fields))
-    _ -> consts.nodeHeight
+    Datastore -> Consts.nodeHeight * ( 1 + (List.length n.fields))
+    _ -> Consts.nodeHeight
 
 nodeSize node selected =
   (nodeWidth node selected, nodeHeight node selected)
@@ -187,7 +177,7 @@ coord2id rise run =
 
 linearGradient : Int -> Int -> Svg.Svg a
 linearGradient rise run =
-  -- edge case, lineargradients use positive integers
+  -- edge case, linearGradients use positive integers
   let (x1, x2) = if run == -1 then (1,0) else (0, run)
       (y1, y2) = if rise == -1 then (1,0) else (0, rise)
   in
@@ -197,12 +187,14 @@ linearGradient rise run =
       , SA.y1 (toString y1)
       , SA.x2 (toString x2)
       , SA.y2 (toString y2)]
-    [ Svg.stop [ SA.offset "0%", SA.stopColor "#111"] []
-    , Svg.stop [ SA.offset "100%", SA.stopColor "#444"] []]
+    [ Svg.stop [ SA.offset "0%"
+               , SA.stopColor Consts.edgeGradColor] []
+    , Svg.stop [ SA.offset "100%"
+               , SA.stopColor Consts.edgeColor] []]
 
 dragEdgeStyle =
-  [ SA.strokeWidth "2px"
-  , SA.stroke "red"
+  [ SA.strokeWidth Consts.dragEdgeSize
+  , SA.stroke Consts.dragEdgeStrokeColor
   ]
 
 edgeStyle x1 y1 x2 y2 =
@@ -215,7 +207,7 @@ edgeStyle x1 y1 x2 y2 =
       amendedRise = if (rise,run) == (0,0)
                     then if y2 - y1 > 0 then 1 else -1
                     else rise
-  in [ SA.strokeWidth "3.25px"
+  in [ SA.strokeWidth Consts.edgeSize
      , SA.stroke ("url(#" ++ coord2id amendedRise run ++ ")")
      , SA.markerEnd "url(#triangle)"
      ]
@@ -290,12 +282,9 @@ svgArrowHead =
              , SA.markerWidth "5"
              , SA.markerHeight "5"
              , SA.orient "auto"
-             , SA.fill consts.strokeColor
+             , SA.fill Consts.edgeColor
              ]
     [Svg.path [SA.d "M 0 0 L 5 5 L 0 10 z"] []]
-
-dlMap : (b -> c) -> Dict comparable b -> List c
-dlMap fn d = List.map fn (Dict.values d)
 
 decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
 decodeClickEvent fn =

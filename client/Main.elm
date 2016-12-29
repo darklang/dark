@@ -22,6 +22,7 @@ import RPC exposing (rpc)
 import Types exposing (..)
 import Util
 import View
+import Consts
 
 
 -- TOP-LEVEL
@@ -31,15 +32,6 @@ main = Html.program
        , view = View.view
        , update = update
        , subscriptions = subscriptions}
-
-consts = { nodeHeight = round 28
-         , backspaceKeycode = 8
-         , strokeColor = "#444"
-         , escapeKeycode = 27
-         , inputID = "darkInput"
-         , leftButton = 0
-         }
-
 
 -- MODEL
 init : ( Model, Cmd Msg )
@@ -58,13 +50,6 @@ init = let m = { nodes = Dict.empty
 
 
 -- UPDATE
--- simple updates for char codes
-forCharCode m char =
-    let _ = Debug.log "char" char in
-    case Char.fromCode char of
-        _ -> let _ = Debug.log "nothing" (Char.fromCode char)
-             in (m, Cmd.none, NoFocus)
-
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
     let (m2, cmd2, focus) = update_ msg m
@@ -108,7 +93,7 @@ update_ : Msg -> Model -> (Model, Cmd Msg, Focus)
 update_ msg m =
     case (m.state, msg, m.cursor) of
         (_, CheckEscape code, _) ->
-            if code == 27 -- escape
+            if code == Consts.escapeKeycode
             then ({ m | cursor = Nothing }, Cmd.none, DropFocus)
             else (m, Cmd.none, NoFocus)
 
@@ -129,8 +114,8 @@ update_ msg m =
            }, Cmd.none, Focus)
 
         (_, DragNodeStart node event, _) ->
-          if m.drag == NoDrag -- If we're dragging a slot don't change it
-          && event.button == consts.leftButton
+          if m.drag == NoDrag -- If we're already dragging a slot don't change the node
+          && event.button == Consts.leftButton
             then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none, NoFocus)
             else (m, Cmd.none, NoFocus)
 
@@ -144,7 +129,7 @@ update_ msg m =
            }, rpc m <| UpdateNodePosition id, NoFocus)
 
         (_, DragSlotStart node param event, _) ->
-          if event.button == consts.leftButton
+          if event.button == Consts.leftButton
           then ({ m | cursor = Just node.id
                     , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
           else (m, Cmd.none, NoFocus)
@@ -242,8 +227,11 @@ subscriptions m =
 
 
 -- UTIL
-focusInput = Dom.focus consts.inputID |> Task.attempt FocusResult
-unfocusInput = Dom.blur consts.inputID |> Task.attempt FocusResult
+focusInput : Cmd Msg
+focusInput = Dom.focus Consts.inputID |> Task.attempt FocusResult
+
+unfocusInput : Cmd Msg
+unfocusInput = Dom.blur Consts.inputID |> Task.attempt FocusResult
 
 addError error model =
     let time = Util.timestamp ()
