@@ -124,7 +124,9 @@ viewNode m n =
       attrs = [Attrs.class classes, width ] ++ events
       heading = Html.span [Attrs.class "name"]
                 (if n.tipe == Datastore
-                 then [ Html.text name, Html.span [Attrs.class "dot"] [] ]
+                 then [ Html.text name, Html.span [Attrs.class "dot"
+                                                  , Events.on "mousedown" (slotHandler "data")] [] ]
+
                  else [ Html.text name ])
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                                , Html.br [] []]
