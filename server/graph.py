@@ -93,10 +93,7 @@ class Node:
 
   def exe(self, **args):
     func = self._getfn()
-    print(func)
     params = self.get_parameters()
-    print(params)
-    print(args)
 
     # TODO: figure out page
     # assert len(params) == len(args)
@@ -264,8 +261,13 @@ class Graph:
     result = []
     edges = self.to_frontend_edges()
     for e in edges:
-      out = "%s(%s=%s)" % (e["target"], e["paramname"], e["source"])
+      out = "%s --(%s)---> %s)" % (e["source"], e["paramname"], e["target"])
       result.append(out)
+    for n in self.nodes.values():
+      if len(self.edges[n.id()]) == 0 and \
+         len(self.reverse_edges[n.id()]) == 0:
+        result.append("Solo node: " + n.id())
+
     return "\n".join(sorted(result))
 
 
