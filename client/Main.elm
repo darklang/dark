@@ -244,7 +244,8 @@ addError error model =
 
 updateDragPosition : Pos -> Offset -> ID -> NodeDict -> NodeDict
 updateDragPosition pos off (ID id) nodes =
-  Dict.update id (Maybe.map (\n -> {n | pos = View.offset pos off.x off.y})) nodes
+  Dict.update id (Maybe.map (\n -> {n | pos = {x=pos.x+off.x, y=pos.y+off.y}})) nodes
+
 
 findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =

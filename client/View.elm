@@ -1,4 +1,4 @@
-module View exposing (view, offset)
+module View exposing (view)
 
 import Dict exposing (Dict)
 import Json.Decode as JSD
@@ -267,7 +267,8 @@ viewEdge m {source, target, targetParam} =
                 , (targetN.pos.x + targetW // 2, targetN.pos.y + targetH) -- bottom
                 ]
         sq x = toFloat (x*x)
-        spos = (offset sourceN.pos (sourceW // 2) (sourceH // 2))
+        spos = { x = sourceN.pos.x + (sourceW // 2)
+               , y = sourceN.pos.y + (sourceH // 2)}
 
         join = List.head
                (List.sortBy (\(x,y) -> sqrt ((sq (spos.x - x)) + (sq (spos.y - y))))
@@ -279,9 +280,6 @@ viewEdge m {source, target, targetParam} =
       spos
       {x=tx,y=ty}
       (edgeStyle spos.x spos.y tx ty)
-
-offset p x y = { p | x = p.x + x
-                   , y = p.y + y }
 
 svgArrowHead =
   Svg.marker [ SA.id "triangle"
