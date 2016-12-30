@@ -161,9 +161,8 @@ class Dark(server.Server):
       for p in G.pages.values():
         urls = G.get_named_parents(p, "url")
         urls = [u.exe() for u in urls]
-        inputs = G.get_named_parents(p, "inputs")
         for url in urls:
-          if re.compile(url).match(path):
+          if re.compile("^%s$" % url).match(path):
             if request.method == "GET":
               val = G.run_output(p)
               return Response(val, mimetype='text/html')
