@@ -16,7 +16,8 @@ def filename_for(name):
 
 def load(name):
   filename = filename_for(name)
-  graph = pickle.load(open(filename, "rb"))
+  with open(filename, 'rb') as file:
+    graph = pickle.load(file)
   graph.migrate(name)
   return graph
 
