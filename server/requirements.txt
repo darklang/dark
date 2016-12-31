@@ -4,5 +4,5 @@ python-slugify
 termcolor
 watchdog
 pyrsistent
-mypy-lang
+git+git://github.com/python/mypy.git
 typed-ast # for mypy
