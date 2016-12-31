@@ -1,0 +1,9 @@
+from typing import Any
+
+class Rule:
+  def __init__(self, string, defaults=None, subdomain=None, methods=None, build_only=False, endpoint=None, strict_slashes=None, redirect_to=None, alias=False, host=None) -> None: ...
+
+
+class Map:
+  def __init__(self, rules=None, default_subdomain='', charset='', strict_slashes=True, redirect_defaults=True, converters=None, sort_parameters=False, sort_key=None, encoding_errors='', host_matching=False) -> None: ...
+  def add(self, rulefactory) -> None: ...

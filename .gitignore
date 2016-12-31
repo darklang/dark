@@ -3,3 +3,4 @@ server/static/elm.js
 server/static/elm-stuff/
 server/__pycache__/
 client/elm-stuff/
+server/.mypy_cache/

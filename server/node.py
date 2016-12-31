@@ -26,6 +26,9 @@ class Node:
   def exe(self, **args) -> Any:
     raise Exception("this is the base class")
 
+  def to_frontend(self) -> Any:
+    raise Exception("this is the base class")
+
 class Value(Node):
   def __init__(self, valuestr : str) -> None:
     self.name = valuestr

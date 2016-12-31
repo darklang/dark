@@ -2,9 +2,8 @@ import os
 import urllib.parse
 
 from werkzeug.wrappers import Request, Response
-from werkzeug.exceptions import HTTPException, NotFound
+from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import SharedDataMiddleware
-from werkzeug.utils import redirect
 import werkzeug.serving
 from jinja2 import Environment, FileSystemLoader
 
@@ -18,7 +17,7 @@ class Server(object):
       '/static': os.path.join(os.path.dirname(__file__), 'static')
     })
 
-  def serve(self):
+  def serve(self) -> None:
     werkzeug.serving.run_simple('127.0.0.1',
                                 3000,
                                 self,
@@ -26,7 +25,7 @@ class Server(object):
                                 use_reloader=True)
 
 
-  def render_template(self, template_name, **context):
+  def render_template(self, template_name : str, **context) -> Response:
     t = self.jinja_env.get_template(template_name)
     return Response(t.render(context), mimetype='text/html')
 

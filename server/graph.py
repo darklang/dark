@@ -7,7 +7,7 @@ import pyrsistent as pyr
 from node import Node
 import datastore
 
-from typing import Any, Callable, cast, Tuple, List, Dict
+from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set
 
 def debug(str : str) -> None:
   print(str.replace("\n", "\n  "))
@@ -138,9 +138,9 @@ class Graph:
 
     return pyr.freeze(result)
 
-  def find_sink_edges(self, node):
+  def find_sink_edges(self, node : Node) -> Set[Tuple[Node, Node]]:
     # debug("finding sink edges: %s" % (node))
-    results = set()
+    results = set() # type: Set[Tuple[Node, Node]]
     for _, c in self.get_children(node).items():
       if c.is_datasink():
         results |= {(node, c)}
@@ -148,24 +148,24 @@ class Graph:
         results |= self.find_sink_edges(c)
     return results
 
-  def run_input(self, node, val):
+  def run_input(self, node : Node, val : Any) -> None:
     # debug("running input: %s (%s)" % (node, val))
     for (parent, sink) in self.find_sink_edges(node):
       # debug("run_input on sink,parent: %s, %s" %(sink, parent))
       self.execute(sink, only=parent, eager={node: val})
 
-  def run_output(self, node):
+  def run_output(self, node : Node) -> Any:
     # print("run_output on node: %s" % (node))
     return self.execute(node)
 
-  def to_frontend_edges(self):
+  def to_frontend_edges(self) -> List[Dict[str, str]]:
     result = []
     for s in self.edges.keys():
       for (t,p) in self.edges[s]:
         result.append({"source": s, "target": t, "paramname": p})
     return result
 
-  def to_frontend(self, cursor):
+  def to_frontend(self, cursor : Optional[Node]) -> str:
     nodes = {n.id(): n.to_frontend() for n in self.nodes.values()}
     edges = self.to_frontend_edges()
 
@@ -174,7 +174,7 @@ class Graph:
       result["cursor"] = cursor.id()
     return json.dumps(result, sort_keys=True, indent=2)
 
-  def to_debug(self, cursor):
+  def to_debug(self, cursor : Optional[Node]) -> str:
     result = []
     edges = self.to_frontend_edges()
     for e in edges:
@@ -210,5 +210,17 @@ class Graph:
       del self.pages
       del self.datastores
       self.version = 3
+
+    # we made a Node into a FnNode
+    if self.version == 3:
+      ns = [n for n in self.nodes.values()]
+      for n in ns:
+        if hasattr(n, 'fnname'):
+          new = FnNode(n.fnname) # type: ignore
+          new.x = n.x
+          new.y = n.y
+          new._id = n._id # type: ignore
+          self.nodes[new.id()] = new
+      self.version = 4
 
     print("Migration: %s is now version %s" % (name, self.version))

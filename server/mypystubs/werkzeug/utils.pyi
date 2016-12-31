@@ -1,0 +1,3 @@
+from werkzeug.wrappers import Response
+
+def redirect(location, code=302, Response=None) -> Response: ...

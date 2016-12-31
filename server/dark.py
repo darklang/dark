@@ -9,8 +9,11 @@ import traceback
 import re
 import sys
 
+from typing import Optional
+
 import fields
 import graph
+from node import Node
 import server
 import datastore
 
@@ -20,23 +23,23 @@ class Dark(server.Server):
     super().__init__()
     self.init_url_map()
 
-  def handler(self, G : graph.Graph, request : Request) -> graph.Graph:
-    str_response = request.data.decode('utf-8')
-    params = json.loads(str_response)
+  def handler(self, G : graph.Graph, request : Request) -> Optional[Node]:
+    str_req = request.data().decode('utf-8')
+    params = json.loads(str_req)
     print("Requesting: " + str(params))
 
     command = params["command"]
     args = params["args"]
 
-    cursor = None
+    cursor = None # type: Optional[Node]
 
     if command == "add_datastore":
       name = args["name"]
-      node = datastore.Datastore(name)
-      node.x = args["x"]
-      node.y = args["y"]
-      G.add_datastore(node)
-      cursor = node
+      ds = datastore.Datastore(name)
+      ds.x = args["x"]
+      ds.y = args["y"]
+      G.add_datastore(ds)
+      cursor = ds
 
     elif command == "add_datastore_field":
       ds = G.datastores[args["id"]]
@@ -54,7 +57,7 @@ class Dark(server.Server):
 
     elif command == "add_function_call":
       nodename = args["name"]
-      node = graph.Node(nodename)
+      node = node.FnNode(nodename)
       node.x = args["x"]
       node.y = args["y"]
       G._add(node)
@@ -62,7 +65,7 @@ class Dark(server.Server):
 
     elif command == "add_value":
       valuestr = args["value"]
-      node = graph.Value(valuestr)
+      node = node.Value(valuestr)
       node.x = args["x"]
       node.y = args["y"]
       G._add(node)
@@ -128,10 +131,10 @@ class Dark(server.Server):
         eClass = e.__class__.__name__
         stack = traceback.extract_tb(e.__traceback__)
         frame = stack[-1]
-        eFile = frame.filename
+        eFile = frame.filename # type: ignore
         eFile = os.path.basename(eFile)
-        eLine = frame.lineno
-        eFunc = frame.name
+        eLine = frame.lineno # type: ignore
+        eFunc = frame.name # type: ignore
         eMsg = str(e)
         msg = "%s:%s:%s() %s: %s" % (eFile, eLine, eFunc, eClass, eMsg)
 
@@ -177,7 +180,7 @@ class Dark(server.Server):
     self.url_map.add(Rule('/', endpoint=dispatcher))
 
   def subdomain(self, request : Request) -> str:
-    return request.host.split('.')[0]
+    return request.host().split('.')[0]
 
   @staticmethod
   def migrate_all_graphs() -> None:
