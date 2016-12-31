@@ -1,7 +1,12 @@
 import datetime
 
+from typing import Any, cast
+
 class Tag:
-  def __init__(self, name, contents, tag, **attributes):
+  def __init__(self, name : str,
+               contents : str,
+               tag : str,
+               **attributes) -> None:
     self.name = name
     self.tag = tag
     self.contents = contents
@@ -38,7 +43,7 @@ class Field:
 
     cls = self.__class__.__name__
     if self.__class__ == Foreign:
-      cls = self.typename
+      cls = cast(Foreign, self).typename
     if self.is_list:
       return "[ " + cls + " ]"
     return cls

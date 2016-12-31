@@ -1,6 +1,6 @@
 import sqlite3
 
-from typing import Any
+from typing import Any, List
 
 import fields
 from fields import Field
@@ -113,7 +113,7 @@ class Datastore:
     if len(value.items()) != len(self.fields):
       raise Exception("either missing field declaration or missing value")
 
-  def exe(self) -> Datastore:
+  def exe(self) -> 'Datastore':
     return self
 
   def push(self, value : Any) -> None:
