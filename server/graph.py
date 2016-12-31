@@ -48,6 +48,9 @@ class Value:
   def is_datasink(self):
     return False
 
+  def is_page(self):
+    return False
+
   def exe(self):
     return self.value
 
@@ -73,10 +76,15 @@ class Node:
   def __str__(self):
     return self.id()
 
+  def is_page(self):
+    return "page" in self.fnname
+
   def _getfn(self):
     import fns
     fn = getattr(fns, self.fnname, None)
-    if not fn:
+    if not fn and "page" in self.fnname:
+      fn = fns.page
+    if fn == None:
       def fn(args):
         return {}
     return fn
@@ -123,21 +131,35 @@ class Graph:
     self.name = name
     self.nodes = {}
     self.edges = {}
-    self.reverse_edges = {}
-    self.datastores = {}
-    self.pages = {}
+
+  def __getattr__(self, name):
+    # pickling is weird with getattr
+    if name.startswith('__') and name.endswith('__'):
+      return super(Graph, self).__getattr__(key)
+
+    if name == "reverse_edges":
+      result = {}
+      for k,_ in self.nodes.items():
+        result[k] = []
+      for s,ts in self.edges.items():
+        for (t,_) in ts:
+          result[t] += [s]
+      return result
+
+    if name == "pages":
+      return {k: v for k,v in self.nodes.items() if v.is_page()}
+
+    if name == "datastores":
+      return {k: v for k,v in self.nodes.items() if v.is_datastore()}
+
+    return None
 
   def _add(self, node):
     self.nodes[node.id()] = node
     if node.id() not in self.edges:
       self.edges[node.id()] = []
-    if node.id() not in self.reverse_edges:
-      self.reverse_edges[node.id()] = []
-    if node.__class__ == Node and "page" in node.fnname:
-      self.pages[node.id()] = node
 
   def add_datastore(self, ds):
-    self.datastores[ds.id()] = ds
     self.nodes[ds.id()] = ds
 
   def has(self, node):
@@ -149,13 +171,11 @@ class Graph:
     if node.id() in self.nodes:
       del self.nodes[node.id()]
 
-
   def add_edge(self, n1, n2, n2param):
     self._add(n1)
     self._add(n2)
 
     self.edges[n1.id()].append((n2.id(), n2param))
-    self.reverse_edges[n2.id()].append(n1.id())
 
     return (n1, n2)
 
@@ -163,31 +183,17 @@ class Graph:
     """As we develop, sometimes graphs get weird. So we actually check the whole
     graph to fix it up, not just doing what we expect to find."""
     E = self.edges
-    R = self.reverse_edges
     id = node.id()
     for s, ts in E.items():
       E[s] = [(t,p) for (t, p) in ts if t != id]
-    for t, ss in R.items():
-      R[t] = [s for s in ss if s != id]
     if id in E:
       del E[id]
-    if id in R:
-      del R[id]
-
-  def print_graph(self):
-    print(self.nodes)
-    print(self.edges)
-    print(self.reverse_edges)
 
   def get_children(self, node):
-    if node.is_datasink(): return {}
-
     children = self.edges[node.id()] or []
     return {param: self.nodes[c] for (c, param) in children}
 
   def get_parents(self, node):
-    if node.is_datasource(): return {}
-
     parents = self.reverse_edges.get(node.id(), [])
     result = []
     for p in parents:
@@ -262,18 +268,37 @@ class Graph:
     result = []
     edges = self.to_frontend_edges()
     for e in edges:
-      out = "%s --(%s)---> %s)" % (e["source"], e["paramname"], e["target"])
+      out = "%s --(%s)--> %s)" % (e["source"], e["paramname"], e["target"])
       result.append(out)
     for n in self.nodes.values():
-      if len(self.edges[n.id()]) == 0 and \
+      if n.id() in self.edges and \
+         len(self.edges[n.id()]) == 0 and \
          len(self.reverse_edges[n.id()]) == 0:
         result.append("Solo node: " + n.id())
 
     return "\n".join(sorted(result))
 
-
-
   def migrate(self, name):
+    # no name and no version
     if not getattr(self, "version", None):
       self.name = name
       self.version = 1
+
+    print("Migrating %s from version %s" % (name, self.version))
+
+    # pages are double listed
+    if self.version == 1:
+      names = [n for n in self.pages.keys()]
+      for name in names:
+        if not name in self.nodes:
+          del self.pages[name]
+      self.version = 2
+
+    # let's avoid all denormalization for now
+    if self.version == 2:
+      del self.reverse_edges
+      del self.pages
+      del self.datastores
+      self.version = 3
+
+    print("Migration: %s is now version %s" % (name, self.version))

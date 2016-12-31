@@ -63,6 +63,7 @@ class Datastore():
 
   def is_datasource(self): return True
   def is_datasink(self): return True
+  def is_page(self): return False
 
   # Pickling
   def __getstate__(self):
