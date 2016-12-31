@@ -55,7 +55,7 @@ class DB:
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
 
 
-class Datastore:
+class Datastore(Node):
   def __init__(self, tablename : str) -> None:
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
     self.tablename = tablename
@@ -66,7 +66,6 @@ class Datastore:
 
   def is_datasource(self) -> bool: return True
   def is_datasink(self) -> bool: return True
-  def is_page(self) -> bool: return False
 
   # Pickling
   def __getstate__(self):

@@ -1,0 +1,3 @@
+from typing import Any
+
+def freeze(v : Any) -> Any: ...

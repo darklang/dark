@@ -7,24 +7,27 @@ import pickle
 import pyrsistent as pyr
 
 import fns
+import datastore
 
-def debug(str):
+from typing import Any, Callable, cast, Tuple
+
+def debug(str : str) -> None:
   print(str.replace("\n", "\n  "))
 
-def get_all_graphnames():
+def get_all_graphnames() -> List[str]:
   return [f[:-5] for f in os.listdir("appdata") if f.endswith(".dark")]
 
-def filename_for(name):
+def filename_for(name : str) -> str:
   return "appdata/" + name + ".dark"
 
-def load(name):
+def load(name : str) -> 'Graph':
   filename = filename_for(name)
   with open(filename, 'rb') as file:
     graph = pickle.load(file)
   graph.migrate(name)
   return graph
 
-def save(G):
+def save(G : 'Graph') -> None:
   filename = filename_for(G.name)
 
   # dont use pickle.dump - it tends to corrupt
@@ -37,27 +40,38 @@ def save(G):
   load(G.name)
 
 
+class Node:
+  def __init__(self) -> None:
+    # satisfy the type checker
+    self.x = -1
+    self.y = -1
 
+  def is_datasource(self) -> bool:
+    return True
 
-class Value:
-  def __init__(self, valuestr):
+  def is_datasink(self) -> bool:
+    return False
+
+  def is_page(self) -> bool:
+    return False
+
+  def id(self) -> str:
+    raise Exception("Base Node exists")
+
+  def exe(self, **args) -> Any:
+    raise Exception("this is the base class")
+
+class Value(Node):
+  def __init__(self, valuestr : str) -> None:
     self.name = valuestr
     self.value = eval(valuestr)
     self._id = random.randint(0, 2**32)
 
-  def is_datasource(self):
-    return True
-
-  def is_datasink(self):
-    return False
-
-  def is_page(self):
-    return False
-
-  def exe(self):
+  def exe(self, **args) -> Any:
+    assert len(args) == 0
     return self.value
 
-  def to_frontend(self):
+  def to_frontend(self) -> Dict[str, Any]:
     return { "name": self.name,
              "parameters": [],
              "id": self.id(),
@@ -65,24 +79,22 @@ class Value:
              "x": self.x,
              "y": self.y}
 
-  def id(self):
+  def id(self) -> str:
     return "VALUE-%04X (%s)" % ((self._id % 2**16), self.name)
 
-class Node:
-  def __init__(self, fnname):
+class FnNode(Node):
+  def __init__(self, fnname : str) -> None:
     self.fnname = fnname
     self._id = random.randint(0, 2**32)
-    self.x = -1
-    self.y = -1
     assert self._getfn()
 
-  def __str__(self):
+  def __str__(self) -> str:
     return self.id()
 
-  def is_page(self):
+  def is_page(self) -> bool:
     return "page" in self.fnname
 
-  def _getfn(self):
+  def _getfn(self) -> Callable[..., Any]:
     import fns
     fn = getattr(fns, self.fnname, None)
     if not fn and "page" in self.fnname:
@@ -92,18 +104,20 @@ class Node:
         return {}
     return fn
 
-  def is_datasource(self):
+  def is_datasource(self) -> bool:
     return self._getfn() in fns.datasources
 
-  def is_datasink(self):
+  def is_datasink(self) -> bool:
     return self._getfn() in fns.datasinks
 
-  def get_parameters(self):
+  def get_parameters(self) -> List[str]:
     func = self._getfn()
-    (params, _, _, _) = inspect.getargspec(func)
+    (params, _1, _2, _3) = inspect.getargspec(func)
+    # getargspec can return lists of lists (when there are tuples in the function
+    # definition. We don't use that, soignore.)
     return params
 
-  def exe(self, **args):
+  def exe(self, **args) -> Any:
     func = self._getfn()
     params = self.get_parameters()
 
@@ -115,7 +129,7 @@ class Node:
     # TODO: get named arguments here
     return func(**args)
 
-  def to_frontend(self):
+  def to_frontend(self) -> Dict[str, Any]:
     return { "name": self.fnname,
              "parameters": self.get_parameters(),
              "id": self.id(),
@@ -123,66 +137,60 @@ class Node:
              "x": self.x,
              "y": self.y}
 
-  def id(self):
+  def id(self) -> str:
     return "%s-%04X" % (self.fnname, self._id % 2**16)
 
 
-
 class Graph:
-
-  def __init__(self, name):
+  def __init__(self, name : str) -> None:
     self.name = name
-    self.nodes = {}
-    self.edges = {}
+    self.nodes = {} # type: Dict[str, Node]
+    # first Tuple arg is n2.id, 2nd one is param
+    self.edges = {} # type: Dict[str, List[Tuple[str, str]]]
 
-  def __getattr__(self, name):
+  def __getattr__(self, name : str) -> Any:
     # pickling is weird with getattr
     if name.startswith('__') and name.endswith('__'):
-      return super(Graph, self).__getattr__(key)
+      return super().__getattr__(name) # type: ignore
 
     if name == "reverse_edges":
-      result = {}
-      for k,_ in self.nodes.items():
+      result = {} # type: Dict[str, List[str]]
+      for k in self.nodes.keys():
         result[k] = []
       for s,ts in self.edges.items():
         for (t,_) in ts:
-          result[t] += [s]
+          result[t].append(s)
       return result
 
     if name == "pages":
       return {k: v for k,v in self.nodes.items() if v.is_page()}
 
     if name == "datastores":
-      return {k: v for k,v in self.nodes.items() if v.is_datastore()}
+      return {k: v for k,v in self.nodes.items() if isinstance(v, datastore.Datastore)}
 
     return None
 
-  def _add(self, node):
+  def _add(self, node : Node) -> None:
     self.nodes[node.id()] = node
     if node.id() not in self.edges:
       self.edges[node.id()] = []
 
-  def add_datastore(self, ds):
+  def add_datastore(self, ds : datastore.Datastore) -> None:
     self.nodes[ds.id()] = ds
 
-  def has(self, node):
+  def has(self, node : Node) -> bool:
     return node.id() in self.nodes
 
-  def delete_node(self, node):
+  def delete_node(self, node : Node) -> None:
     self.clear_edges(node)
     del self.nodes[node.id()]
     if node.id() in self.nodes:
       del self.nodes[node.id()]
 
-  def add_edge(self, n1, n2, n2param):
-    self._add(n1)
-    self._add(n2)
-
+  def add_edge(self, n1 : Node, n2 : Node, n2param : str) -> None:
     self.edges[n1.id()].append((n2.id(), n2param))
 
-    return (n1, n2)
-
-  def clear_edges(self, node):
+  def clear_edges(self, node : Node) -> None:
     """As we develop, sometimes graphs get weird. So we actually check the whole
     graph to fix it up, not just doing what we expect to find."""
     E = self.edges
@@ -192,30 +200,30 @@ class Graph:
     if id in E:
       del E[id]
 
-  def get_children(self, node):
+  def get_children(self, node : Node) -> Dict[str, Node]:
     children = self.edges[node.id()] or []
     return {param: self.nodes[c] for (c, param) in children}
 
-  def get_parents(self, node):
+  def get_parents(self, node : Node) -> Dict[str, Node]:
     parents = self.reverse_edges.get(node.id(), [])
-    result = []
+    result = [] # type: List[Tuple[str, Node]]
     for p in parents:
       t = self.nodes[p]
       paramname = self.get_target_param_name(node, t)
       result += [(paramname, t)]
     return {paramname: t for (paramname, t) in result}
 
-  def get_named_parents(self, node, paramname):
+  def get_named_parents(self, node : Node, paramname : str) -> List[Node]:
     return [v for k,v in self.get_parents(node).items()
             if paramname == k]
 
-  def get_target_param_name(self, target, src):
+  def get_target_param_name(self, target : Node, src : Node) -> str:
     for (c, p) in self.edges[src.id()]:
       if c == target.id():
         return p
     assert(False and "Shouldnt happen")
 
-  def execute(self, node, only=None, eager={}):
+  def execute(self, node : Node, only : Node = None, eager : Dict[Node, Any] = {}) -> Any:
     # debug("executing node: %s, with only=%s and eager=%s" % (node, only, eager))
     if node in eager:
       result = eager[node]
