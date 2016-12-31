@@ -14,7 +14,7 @@ class Server(object):
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)
-    self.wsgi_app = SharedDataMiddleware(self.wsgi_app, {
+    self.wsgi_app = SharedDataMiddleware(self.app, {
       '/static': os.path.join(os.path.dirname(__file__), 'static')
     })
 
@@ -38,7 +38,7 @@ class Server(object):
     except HTTPException as e:
       return e
 
-  def wsgi_app(self, environ, start_response):
+  def app(self, environ, start_response):
     request = Request(environ)
     response = self.dispatch_request(request)
     return response(environ, start_response)

@@ -3,11 +3,17 @@ import copy
 from slugify import slugify
 import pyrsistent as pyr
 
+from typing import Any
+
+datasinks = [] # type: List[Any]
+datasources = [] # type: List[Any]
+
 
 def page(url, inputs=[], outputs=[]):
   inputs = [i.replace("URL_VAR", url) for i in inputs]
   return str(outputs) + str(inputs)
-page.bothdata=True
+datasinks.append(page)
+datasources.append(page)
 
 def form(schema):
   output = ""
@@ -24,13 +30,13 @@ def urldata(key, page): pass
 def display(input): pass
 
 def endpoint(input): return
-endpoint.datasource = True
+datasources.append(endpoint)
 
 def except_fields(exclude, data):
   return [f for f in data if f.name not in exclude]
 
 def date_now(): return datetime.datetime.now()
-date_now.datasource = True
+datasources.append(date_now)
 
 def merge(vals): return pyr.m().update(vals)
 def get_field(obj, name): return obj[name]

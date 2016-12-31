@@ -93,10 +93,10 @@ class Node:
     return fn
 
   def is_datasource(self):
-    return getattr(self._getfn(), "datasource", False)
+    return self._getfn() in fns.datasources
 
   def is_datasink(self):
-    return getattr(self._getfn(), "datasink", False)
+    return self._getfn() in fns.datasinks
 
   def get_parameters(self):
     func = self._getfn()

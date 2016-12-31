@@ -4,3 +4,5 @@ python-slugify
 termcolor
 watchdog
 pyrsistent
+mypy-lang
+typed-ast # for mypy
