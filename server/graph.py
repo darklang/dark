@@ -283,7 +283,7 @@ class Graph:
 
     return "\n".join(sorted(result))
 
-  def migrate(self, name):
+  def migrate(self, name : str) -> None:
     # no name and no version
     if not getattr(self, "version", None):
       self.name = name

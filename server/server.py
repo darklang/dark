@@ -10,7 +10,7 @@ from jinja2 import Environment, FileSystemLoader
 
 class Server(object):
 
-  def __init__(self):
+  def __init__(self) -> None:
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)

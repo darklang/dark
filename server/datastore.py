@@ -1,32 +1,35 @@
 import sqlite3
 
-import graph
+from typing import Any
 
-class DB(object):
-  def __init__(self, tablename):
+import fields
+from fields import Field
+
+class DB:
+  def __init__(self, tablename : str) -> None:
     tablename = tablename.lower()
     self.tablename = tablename
     self.conn = sqlite3.connect(":memory:", check_same_thread=False)
     self.create_table()
-    self.fields = []
+    self.fields = [] # type: List[str]
 
-  def exe(self, sql, *values):
+  def exe(self, sql : str, *values) -> Any:
     print(sql)
     return self.conn.execute(sql)
 
-  def create_table(self):
+  def create_table(self) -> Any:
     self.exe("create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT) " %
              (self.tablename))
 
-  def add_column(self, field):
+  def add_column(self, field : str) -> None:
     self.exe("ALTER TABLE %s ADD %s" % (self.tablename, field))
     self.fields.append(field)
 
-  def remove_column(self, field):
+  def remove_column(self, field : str) -> None:
     #self.exe("ALTER TABLE %s DROP %s" % (self.tablename, field)) - sqlite doesn't support dropping
     self.fields = [f for f in self.fields if field != f]
 
-  def insert(self, value):
+  def insert(self, value : Any) -> Any:
     cols = self.fields
     vals = [str(value[f]) for f in self.fields if f in value]
 
@@ -35,35 +38,35 @@ class DB(object):
       "\",\"".join(vals)))
 
 
-  def update(self, value, key):
-    raise "TODO"
+  def update(self, value : Any, key : str) -> None:
+    raise Exception("TODO")
     self.exe()
 
-  def fetch(self, num):
+  def fetch(self, num) -> List[Any]:
     if len(self.fields) == 0:
-      return {}
+      return []
     data = self.exe("select %s from %s limit %d" % (
       ",".join(self.fields),
       self.tablename,
       num)).fetchall()
     return data
 
-  def fetch_by_key(self, key, keyname):
+  def fetch_by_key(self, key : Any, keyname : str) -> Any:
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
 
 
-class Datastore():
-  def __init__(self, tablename):
+class Datastore:
+  def __init__(self, tablename : str) -> None:
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
     self.tablename = tablename
-    self.fields = []
-    self.fields_by_name = {}
+    self.fields = [] # type: List[Field]
+    self.fields_by_name = {} # type: Dict[str, Field]
     self.x = -1
     self.y = -1
 
-  def is_datasource(self): return True
-  def is_datasink(self): return True
-  def is_page(self): return False
+  def is_datasource(self) -> bool: return True
+  def is_datasink(self) -> bool: return True
+  def is_page(self) -> bool: return False
 
   # Pickling
   def __getstate__(self):
@@ -76,23 +79,23 @@ class Datastore():
     for f in self.fields:
       self.db.add_column(f.name)
 
-  def name(self):
+  def name(self) -> str:
     return "DS-" + self.tablename
 
-  def id(self):
+  def id(self) -> str:
     return self.name()
 
-  def add_field(self, f):
+  def add_field(self, f : Field) -> None:
     self.fields_by_name[f.name] = f
     self.fields.append(f)
     self.db.add_column(f.name)
 
-  def remove_last_field(self):
+  def remove_last_field(self) -> None:
     r = self.fields[-1]
     self.fields = self.fields[:-1]
     self.db.remove_column(r.name)
 
-  def to_frontend(self):
+  def to_frontend(self) -> Any:
     return { "name": self.tablename,
              "id": self.id(),
              "fields": [ (f.name, f.to_frontend()) for f in self.fields],
@@ -101,35 +104,37 @@ class Datastore():
              "y": self.y
     }
 
-  def validate_key(self, key_name, value):
+  def validate_key(self, key_name : str, value : Any) -> None:
     self.fields_by_name[key_name].validate(value)
 
-  def validate(self, value):
+  def validate(self, value : Any) -> None:
     for k, v in value.items():
       self.fields_by_name[k].validate(v)
     if len(value.items()) != len(self.fields):
-      raise "either missing field declaration or missing value"
+      raise Exception("either missing field declaration or missing value")
 
-  def exe(self):
+  def exe(self) -> Datastore:
     return self
 
-  def push(self, value):
+  def push(self, value : Any) -> None:
     self.insert(value)
 
-  def insert(self, value):
+  def insert(self, value : Any) -> None:
     self.validate(value)
     self.db.insert(value)
 
-  def replace(key, value):
-    self.validate_key(key)
+  def replace(self, key : str, value : Any) -> None:
+    self.validate_key(key, value)
     self.validate(value)
-    self.db.update(key, value, self.key)
+    self.db.update(key, value)
 
-  def fetch(self, num=10):
+  def fetch(self, num : int = 10) -> List[Any]:
     vals = self.db.fetch(num)
     print(vals)
-    return {k: v for (k,v) in zip(self.fields, self.db.fetch(num))}
+    # this is wrong. Should be a list of objects
+    raise Exception("wtf am i doint here")
+    # return {k: v for (k,v) in zip(self.fields, self.db.fetch(num))}
 
-  def fetch_one(self, key, key_name):
+  def fetch_one(self, key : str, key_name : str ) -> Any:
     return self.db.fetch_by_key(key_name, key)
 

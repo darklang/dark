@@ -1,4 +1,4 @@
-from werkzeug.wrappers import Response
+from werkzeug.wrappers import Response, Request
 from werkzeug.routing import Map, Rule
 from werkzeug.utils import redirect
 
@@ -16,11 +16,11 @@ import datastore
 
 
 class Dark(server.Server):
-  def __init__(self):
+  def __init__(self) -> None:
     super().__init__()
     self.init_url_map()
 
-  def handler(self, G, request):
+  def handler(self, G : graph.Graph, request : Request) -> graph.Graph:
     str_response = request.data.decode('utf-8')
     params = json.loads(str_response)
     print("Requesting: " + str(params))
@@ -103,15 +103,15 @@ class Dark(server.Server):
     return cursor
 
 
-  def init_url_map(self):
+  def init_url_map(self) -> None:
     self.url_map = Map()
     self.add_ui_route()
     self.add_standard_routes()
     self.add_admin_route()
     self.add_app_route()
 
-  def add_admin_route(self):
-    def endpoint(request):
+  def add_admin_route(self) -> None:
+    def endpoint(request : Request) -> Response:
       try:
         name = self.subdomain(request)
 
@@ -139,19 +139,19 @@ class Dark(server.Server):
 
     self.url_map.add(Rule('/admin/api/rpc', endpoint=endpoint))
 
-  def add_ui_route(self):
-    def fn(request):
+  def add_ui_route(self) -> None:
+    def fn(request : Request) -> Response:
       return self.render_template('ui.html')
     self.url_map.add(Rule('/admin/ui', endpoint=fn))
 
-  def add_standard_routes(self):
+  def add_standard_routes(self) -> None:
     # TODO: move to a component
     def favico(*v): return Response()
     def sitemap(*v): return Response()
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
-  def add_app_route(self):
+  def add_app_route(self) -> None:
     def dispatcher(request, path=""):
       name = self.subdomain(request)
       path = request.path
@@ -176,11 +176,11 @@ class Dark(server.Server):
     # not matched above for some reason
     self.url_map.add(Rule('/', endpoint=dispatcher))
 
-  def subdomain(self, request):
+  def subdomain(self, request : Request) -> str:
     return request.host.split('.')[0]
 
   @staticmethod
-  def migrate_all_graphs():
+  def migrate_all_graphs() -> None:
     for name in graph.get_all_graphnames():
       G = graph.load(name)
       print("Graph %s: v%s" % (G.name, G.version))
