@@ -8,6 +8,9 @@ import pyrsistent as pyr
 
 import fns
 
+def debug(str):
+  print(str.replace("\n", "\n  "))
+
 def get_all_graphnames():
   return [f[:-5] for f in os.listdir("appdata") if f.endswith(".dark")]
 
@@ -203,12 +206,8 @@ class Graph:
     return {paramname: t for (paramname, t) in result}
 
   def get_named_parents(self, node, paramname):
-    ps = self.get_parents(node)
-    result = []
-    for pparam, p in ps.items():
-      if pparam == paramname:
-        result += [p]
-    return result
+    return [v for k,v in self.get_parents(node).items()
+            if paramname == k]
 
   def get_target_param_name(self, target, src):
     for (c, p) in self.edges[src.id()]:
@@ -217,19 +216,25 @@ class Graph:
     assert(False and "Shouldnt happen")
 
   def execute(self, node, only=None, eager={}):
-    # print("executing node: %s, with only=%s and eager=%s" % (node, only, eager))
+    # debug("executing node: %s, with only=%s and eager=%s" % (node, only, eager))
     if node in eager:
       result = eager[node]
     else:
-      args = {paramname: self.execute(p, eager=eager)
-              for paramname, p in self.get_parents(node).items()
-              if only in [None, p]}
+      args = {}
+      for paramname, p in self.get_parents(node).items():
+        # make sure we don't traverse beyond datasinks (see find_sink_edges)
+        if only in [None, p]:
+          # make sure we don't traverse beyond datasources
+          new_only = p if p.is_datasource() else None
+
+          args[paramname] = self.execute(p, eager=eager, only=new_only)
+
       result = node.exe(**args)
 
     return pyr.freeze(result)
 
   def find_sink_edges(self, node):
-    # print("finding sink edges: %s" % (node))
+    # debug("finding sink edges: %s" % (node))
     results = set()
     for _, c in self.get_children(node).items():
       if c.is_datasink():
@@ -239,10 +244,14 @@ class Graph:
     return results
 
   def run_input(self, node, val):
-    # print("running input: %s (%s)" % (node, val))
+    # debug("running input: %s (%s)" % (node, val))
     for (parent, sink) in self.find_sink_edges(node):
-      # print("run_input on sink,parent: %s, %s" %(sink, parent))
+      # debug("run_input on sink,parent: %s, %s" %(sink, parent))
       self.execute(sink, only=parent, eager={node: val})
+
+  def run_output(self, node):
+    # print("run_output on node: %s" % (node))
+    return self.execute(node)
 
   def to_frontend_edges(self):
     result = []
@@ -250,10 +259,6 @@ class Graph:
       for (t,p) in self.edges[s]:
         result.append({"source": s, "target": t, "paramname": p})
     return result
-
-  def run_output(self, node):
-    # print("run_output on node: %s" % (node))
-    return self.execute(node)
 
   def to_frontend(self, cursor):
     nodes = {n.id(): n.to_frontend() for n in self.nodes.values()}
