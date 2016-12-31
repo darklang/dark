@@ -3,6 +3,7 @@ import sqlite3
 from typing import Any, List
 
 import fields
+import node
 from fields import Field
 
 class DB:
@@ -55,7 +56,7 @@ class DB:
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
 
 
-class Datastore(Node):
+class Datastore(node.Node):
   def __init__(self, tablename : str) -> None:
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
     self.tablename = tablename
@@ -112,7 +113,8 @@ class Datastore(Node):
     if len(value.items()) != len(self.fields):
       raise Exception("either missing field declaration or missing value")
 
-  def exe(self) -> 'Datastore':
+  def exe(self, **args) -> 'Datastore':
+    assert len(args) == 0
     return self
 
   def push(self, value : Any) -> None:
