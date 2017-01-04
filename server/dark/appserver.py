@@ -10,15 +10,15 @@ from jinja2 import Environment, FileSystemLoader
 
 from typing import Optional, Union, Any
 
-class Server(object):
+class AppServer(object):
 
   def __init__(self) -> None:
     self.url_map = Map() # unused, here for Mypy
-    template_path = os.path.join(os.path.dirname(__file__), 'templates')
+    template_path = os.path.join(os.path.dirname(__file__), '..', '..', 'templates')
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)
     self.wsgi_app = SharedDataMiddleware(self.app, {
-      '/static': os.path.join(os.path.dirname(__file__), 'static')
+      '/static': os.path.join(os.path.dirname(__file__), '..', '..', 'static')
     })
 
   def serve(self) -> None:

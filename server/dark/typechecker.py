@@ -1,0 +1,2 @@
+class TypeConstraint:
+  pass

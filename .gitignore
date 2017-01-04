@@ -1,7 +1,7 @@
 /appdata
-server/static/elm.js
-server/static/elm-stuff/
-server/__pycache__/
+/static/elm.js
+/static/elm-stuff/
+/__pycache__/
 client/elm-stuff/
 server/.mypy_cache/
-.mypy_cache
+*.pyc

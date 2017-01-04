@@ -4,8 +4,8 @@ import pickle
 
 import pyrsistent as pyr
 
-from node import Node
-import datastore
+from dark.node import Node
+from . import datastore
 
 from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set
 

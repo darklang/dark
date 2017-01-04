@@ -11,14 +11,14 @@ import sys
 
 from typing import Optional
 
-import fields
-import graph
-from node import Node
-import server
-import datastore
+from . import fields
+from . import graph
+from .node import Node
+from . import appserver
+from . import datastore
 
 
-class Dark(server.Server):
+class Server(appserver.AppServer):
   def __init__(self) -> None:
     super().__init__()
     self.init_url_map()
@@ -181,19 +181,3 @@ class Dark(server.Server):
 
   def subdomain(self, request : Request) -> str:
     return request.host.split('.')[0]
-
-  @staticmethod
-  def migrate_all_graphs() -> None:
-    for name in graph.get_all_graphnames():
-      G = graph.load(name)
-      print("Graph %s: v%s" % (G.name, G.version))
-      graph.save(G)
-
-
-if __name__ == "__main__":
-  if len(sys.argv) > 1 and sys.argv[1] == "--migrate":
-    Dark.migrate_all_graphs()
-    sys.exit(0)
-  else:
-    d = Dark()
-    d.serve()

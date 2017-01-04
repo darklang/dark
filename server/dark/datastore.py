@@ -2,9 +2,9 @@ import sqlite3
 
 from typing import Any, List, Tuple, Dict
 
-import fields
-from fields import Field
-import node
+from . import fields
+from .fields import Field
+from . import node
 
 class DB:
   def __init__(self, tablename : str) -> None:

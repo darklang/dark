@@ -3,23 +3,32 @@ import copy
 from slugify import slugify
 import pyrsistent as pyr
 
-from typing import Any, List, Callable, Dict
+from typing import Any, List, Callable, Dict, Union
 
-import fields
-from datastore import Datastore
+from . import fields
+from .datastore import Datastore
 
-DarkObj = Dict[str,Any]
+from .typechecker import TypeConstraint
 
 datasinks = [] # type: List[Callable[...,Any]]
 datasources = [] # type: List[Callable[...,Any]]
+params = {} # type: Dict[str, Dict[str, TypeConstraint]]
+
+Obj = Dict[str, Any]
 
 
-def page(url : str, inputs : List[str]=[], outputs : List[str]=[]) -> str:
+def page(url, inputs=[], outputs=[]):
   inputs = [i.replace("URL_VAR", url) for i in inputs]
   return str(outputs) + str(inputs)
+
+# params["page"]["url"] = TypeConstraint()
+# params["page"]["inputs"] = TypeConstraint()
+# params["page"]["outputs"] = TypeConstraint()
+# params["page"]["return"] = TypeConstraint()
 datasinks.append(page)
 datasources.append(page)
 
+# TODO: no python objects allowed
 def form(schema : List[fields.Field]) -> str:
   output = ""
   for tag in schema:
@@ -31,21 +40,21 @@ def form(schema : List[fields.Field]) -> str:
           + "</fieldset>"
           + "</form>")
 
-def except_fields(exclude : List[str], data : List[Any]) -> List[Any]:
+def except_fields(exclude : List[str], data : List[Obj]) -> List[Any]:
   return [f for f in data if f.name not in exclude]
 
 def date_now() -> datetime.datetime: return datetime.datetime.now()
 datasources.append(date_now)
 
-def merge(vals : List[DarkObj]) -> DarkObj: return pyr.m().update(vals)
-def get_field(obj : DarkObj, name : str) -> Any: return obj[name]
-def select_fields(obj : DarkObj, names : List[str]) -> DarkObj:
+def merge(vals : List[Obj]) -> Obj: return pyr.m().update(vals)
+def get_field(obj : Obj, name : str) -> Any: return obj[name]
+def select_fields(obj : Obj, names : List[str]) -> Obj:
   return {name: obj[name] for name in names}
 
-def wrap(key : str, val : Any) -> DarkObj: return { key: val }
+def wrap(key : str, val : Any) -> Obj: return { key: val }
 def to_slug(str) -> str: return slugify(str)
 
-def to_table(schema : List[Any], data : DarkObj) -> str:
+def to_table(schema : List[Any], data : Obj) -> str:
   head = ""
   body = ""
   for field in schema:
@@ -62,12 +71,12 @@ def to_table(schema : List[Any], data : DarkObj) -> str:
           + "<tbody>" + body + "</tbody>")
 
 
-def fetch(ds : Datastore) -> List[DarkObj]: return ds.fetch()
+def fetch(ds : Datastore) -> List[Obj]: return ds.fetch()
 # TODO: fields are python objects, which makes no sense. Maybe ADTs would be
 # better, in which case I need to figure out case statements and destructuring.
 def schema(ds : Datastore) -> Any: return ds.fields
 
-def insert(ds : Datastore, value : DarkObj) -> Any:
+def insert(ds : Datastore, value : Obj) -> Any:
   value = value.discard("submit") # type: ignore
   print("inserting: %s" % value)
   def inserter(ds) -> Any:

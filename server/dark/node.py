@@ -61,7 +61,7 @@ class FnNode(Node):
     return "page" in self.fnname
 
   def _getfn(self) -> Callable[..., Any]:
-    import fns
+    from . import fns
     fn = getattr(fns, self.fnname, None)
     if not fn and "page" in self.fnname:
       fn = fns.page
@@ -71,11 +71,11 @@ class FnNode(Node):
     return fn
 
   def is_datasource(self) -> bool:
-    import fns
+    from . import fns
     return self._getfn() in fns.datasources
 
   def is_datasink(self) -> bool:
-    import fns
+    from . import fns
     return self._getfn() in fns.datasinks
 
   def get_parameters(self) -> List[str]:
@@ -88,9 +88,9 @@ class FnNode(Node):
     params = self.get_parameters()
 
     # TODO: figure out page
-    # assert len(params) == len(args)
-    # for p in params:
-      # assert p in args
+    assert len(params) == len(args)
+    for p in params:
+      assert p in args
 
     # TODO: get named arguments here
     return func(**args)
