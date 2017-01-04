@@ -29,7 +29,7 @@ datasinks.append(page)
 datasources.append(page)
 
 # TODO: no python objects allowed
-def form(schema : List[fields.Field]) -> str:
+def form(schema) -> str:
   output = ""
   for tag in schema:
     output += tag.as_tag().to_html()
@@ -40,21 +40,21 @@ def form(schema : List[fields.Field]) -> str:
           + "</fieldset>"
           + "</form>")
 
-def except_fields(exclude : List[str], data : List[Obj]) -> List[Any]:
+def except_fields(exclude, data):
   return [f for f in data if f.name not in exclude]
 
-def date_now() -> datetime.datetime: return datetime.datetime.now()
+def date_now(): return datetime.datetime.now()
 datasources.append(date_now)
 
-def merge(vals : List[Obj]) -> Obj: return pyr.m().update(vals)
-def get_field(obj : Obj, name : str) -> Any: return obj[name]
-def select_fields(obj : Obj, names : List[str]) -> Obj:
+def merge(vals): return pyr.m().update(vals)
+def get_field(obj, name) -> Any: return obj[name]
+def select_fields(obj, names):
   return {name: obj[name] for name in names}
 
-def wrap(key : str, val : Any) -> Obj: return { key: val }
-def to_slug(str) -> str: return slugify(str)
+def wrap(key, val): return { key: val }
+def to_slug(str): return slugify(str)
 
-def to_table(schema : List[Any], data : Obj) -> str:
+def to_table(schema, data):
   head = ""
   body = ""
   for field in schema:
@@ -71,23 +71,23 @@ def to_table(schema : List[Any], data : Obj) -> str:
           + "<tbody>" + body + "</tbody>")
 
 
-def fetch(ds : Datastore) -> List[Obj]: return ds.fetch()
+def fetch(ds): return ds.fetch()
 # TODO: fields are python objects, which makes no sense. Maybe ADTs would be
 # better, in which case I need to figure out case statements and destructuring.
-def schema(ds : Datastore) -> Any: return ds.fields
+def schema(ds): return ds.fields
 
-def insert(ds : Datastore, value : Obj) -> Any:
-  value = value.discard("submit") # type: ignore
+def insert(ds, value):
+  value = value.discard("submit")
   print("inserting: %s" % value)
   def inserter(ds) -> Any:
     ds.insert(value)
   return inserter
 
 
-def fetch_by(data, key, val) -> Any: pass
-def count(data) -> Any: pass
-def take(data, count) -> Any: pass
-def take_end(data, count) -> Any: pass
-def concat(data) -> Any: pass
-def inverse(fieldname, data) -> Any: pass
-def each(data, fn) -> Any: pass
+def fetch_by(data, key, val): pass
+def count(data): pass
+def take(data, count): pass
+def take_end(data, count): pass
+def concat(data): pass
+def inverse(fieldname, data): pass
+def each(data, fn): pass

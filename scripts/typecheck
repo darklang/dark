@@ -1,0 +1,3 @@
+#!/bin/bash
+
+cd server && mypy *.py --config-file=mypy.ini $@
