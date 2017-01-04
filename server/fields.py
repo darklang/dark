@@ -10,9 +10,9 @@ class Tag:
     self.name = name
     self.tag = tag
     self.contents = contents
-    self.attributes = attributes
+    self.attributes = attributes # type: Dict[str,str]
 
-  def to_html(self):
+  def to_html(self) -> str:
     attrs = ""
     for a in self.attributes:
       attrs += " %s=\"%s\"" % (a, self.attributes[a])
@@ -35,6 +35,9 @@ class Field:
     if self.is_list:
       return "[ " + self.name + "]"
     return self.name
+
+  def as_tag(self) -> Tag:
+    raise Exception("base class called")
 
   def to_frontend(self) -> str:
     # Legacy graphs

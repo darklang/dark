@@ -24,7 +24,7 @@ class Dark(server.Server):
     self.init_url_map()
 
   def handler(self, G : graph.Graph, request : Request) -> Optional[Node]:
-    str_req = request.data().decode('utf-8')
+    str_req = request.data.decode('utf-8')
     params = json.loads(str_req)
     print("Requesting: " + str(params))
 
@@ -149,13 +149,13 @@ class Dark(server.Server):
 
   def add_standard_routes(self) -> None:
     # TODO: move to a component
-    def favico(*v): return Response()
-    def sitemap(*v): return Response()
+    def favico(*v) -> Response: return Response()
+    def sitemap(*v) -> Response: return Response()
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
   def add_app_route(self) -> None:
-    def dispatcher(request, path=""):
+    def dispatcher(request : Request, path : str ="") -> Response:
       name = self.subdomain(request)
       path = request.path
       values = request.values.to_dict()
@@ -180,7 +180,7 @@ class Dark(server.Server):
     self.url_map.add(Rule('/', endpoint=dispatcher))
 
   def subdomain(self, request : Request) -> str:
-    return request.host().split('.')[0]
+    return request.host.split('.')[0]
 
   @staticmethod
   def migrate_all_graphs() -> None:

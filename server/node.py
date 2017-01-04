@@ -3,8 +3,6 @@ import inspect
 
 from typing import Any, Dict, Callable, List
 
-import fns
-
 class Node:
   def __init__(self) -> None:
     # satisfy the type checker
@@ -68,22 +66,22 @@ class FnNode(Node):
     if not fn and "page" in self.fnname:
       fn = fns.page
     if fn == None:
-      def fn(args):
+      def fn(args : Any) -> Dict[str,Any]:
         return {}
     return fn
 
   def is_datasource(self) -> bool:
+    import fns
     return self._getfn() in fns.datasources
 
   def is_datasink(self) -> bool:
+    import fns
     return self._getfn() in fns.datasinks
 
   def get_parameters(self) -> List[str]:
     func = self._getfn()
-    (params, _1, _2, _3) = inspect.getargspec(func)
-    # getargspec can return lists of lists (when there are tuples in the function
-    # definition. We don't use that, soignore.)
-    return params
+    argspec = inspect.getfullargspec(func)
+    return argspec.args
 
   def exe(self, **args) -> Any:
     func = self._getfn()

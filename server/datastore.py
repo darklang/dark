@@ -1,10 +1,10 @@
 import sqlite3
 
-from typing import Any, List
+from typing import Any, List, Tuple, Dict
 
 import fields
-import node
 from fields import Field
+import node
 
 class DB:
   def __init__(self, tablename : str) -> None:
@@ -69,11 +69,11 @@ class Datastore(node.Node):
   def is_datasink(self) -> bool: return True
 
   # Pickling
-  def __getstate__(self):
+  def __getstate__(self) -> Tuple[str,List[Field], Dict[str,Field],int,int]:
     return (self.tablename, self.fields, self.fields_by_name, self.x, self.y)
 
   # Unpickling
-  def __setstate__(self, state):
+  def __setstate__(self, state: Tuple[str,List[Field], Dict[str,Field],int,int]) -> None:
     self.tablename, self.fields, self.fields_by_name, self.x, self.y = state
     self.db = DB(self.tablename)
     for f in self.fields:

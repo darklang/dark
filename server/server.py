@@ -1,15 +1,19 @@
 import os
 import urllib.parse
 
+from werkzeug.routing import Map
 from werkzeug.wrappers import Request, Response
 from werkzeug.exceptions import HTTPException
 from werkzeug.wsgi import SharedDataMiddleware
 import werkzeug.serving
 from jinja2 import Environment, FileSystemLoader
 
+from typing import Optional, Union, Any
+
 class Server(object):
 
   def __init__(self) -> None:
+    self.url_map = Map() # unused, here for Mypy
     template_path = os.path.join(os.path.dirname(__file__), 'templates')
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)
@@ -29,7 +33,7 @@ class Server(object):
     t = self.jinja_env.get_template(template_name)
     return Response(t.render(context), mimetype='text/html')
 
-  def dispatch_request(self, request):
+  def dispatch_request(self, request : Request) -> Union[Response, HTTPException]:
     adapter = self.url_map.bind_to_environ(request.environ)
     try:
       endpoint, values = adapter.match()
@@ -37,10 +41,10 @@ class Server(object):
     except HTTPException as e:
       return e
 
-  def app(self, environ, start_response):
+  def app(self, environ, start_response) -> Any:
     request = Request(environ)
     response = self.dispatch_request(request)
     return response(environ, start_response)
 
-  def __call__(self, environ, start_response):
+  def __call__(self, environ, start_response) -> Any:
     return self.wsgi_app(environ, start_response)
