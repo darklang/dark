@@ -25,7 +25,7 @@ class AppServer(object):
     werkzeug.serving.run_simple('127.0.0.1',
                                 3000,
                                 self,
-                                use_debugger=True,
+                                use_debugger=False,
                                 use_reloader=True)
 
 
