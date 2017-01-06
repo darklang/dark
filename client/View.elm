@@ -281,8 +281,8 @@ svgArrowHead =
              , SA.refX "4"
              , SA.refY "5"
              , SA.markerUnits "strokeWidth"
-             , SA.markerWidth "5"
-             , SA.markerHeight "5"
+             , SA.markerWidth "4"
+             , SA.markerHeight "4"
              , SA.orient "auto"
              , SA.fill Consts.edgeColor
              ]
