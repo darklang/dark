@@ -3,8 +3,6 @@ import copy
 from slugify import slugify
 import pyrsistent as pyr
 
-from typing import Any, List, Callable, Dict, Union
-
 from . import fields
 from .datastore import Datastore
 
@@ -14,19 +12,16 @@ datasinks = [] # type: List[Callable[...,Any]]
 datasources = [] # type: List[Callable[...,Any]]
 params = {} # type: Dict[str, Dict[str, TypeConstraint]]
 
-Obj = Dict[str, Any]
-
-
 def page(url, inputs=[], outputs=[]):
   inputs = [i.replace("URL_VAR", url) for i in inputs]
   return str(outputs) + str(inputs)
+page.datasink = True
+page.datasource = True
 
 # params["page"]["url"] = TypeConstraint()
 # params["page"]["inputs"] = TypeConstraint()
 # params["page"]["outputs"] = TypeConstraint()
 # params["page"]["return"] = TypeConstraint()
-datasinks.append(page)
-datasources.append(page)
 
 # TODO: no python objects allowed
 def form(schema) -> str:
@@ -44,10 +39,10 @@ def except_fields(exclude, data):
   return [f for f in data if f.name not in exclude]
 
 def date_now(): return datetime.datetime.now()
-datasources.append(date_now)
+date_now.datasource = True
 
 def merge(vals): return pyr.m().update(vals)
-def get_field(obj, name) -> Any: return obj[name]
+def get_field(obj, name): return obj[name]
 def select_fields(obj, names):
   return {name: obj[name] for name in names}
 

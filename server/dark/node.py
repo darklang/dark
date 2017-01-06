@@ -71,12 +71,10 @@ class FnNode(Node):
     return fn
 
   def is_datasource(self) -> bool:
-    from . import fns
-    return self._getfn() in fns.datasources
+    return getattr(self._getfn(), "datasource", False)
 
   def is_datasink(self) -> bool:
-    from . import fns
-    return self._getfn() in fns.datasinks
+    return getattr(self._getfn(), "datasink", False)
 
   def get_parameters(self) -> List[str]:
     func = self._getfn()
