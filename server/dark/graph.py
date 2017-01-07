@@ -1,6 +1,7 @@
 import json
 import os
 import pickle
+import enum
 
 import pyrsistent as pyr
 
@@ -8,7 +9,7 @@ from dark.node import Node, FnNode, Value
 from . import datastore
 from . import fields
 
-from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set
+from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set, NamedTuple
 
 def debug(str : str) -> None:
   print(str.replace("\n", "\n  "))
@@ -38,12 +39,31 @@ def save(G : 'Graph') -> None:
   # sanity check
   load(G.name)
 
+class Ops(enum.Enum):
+  ADD_FNNODE=1
+  ADD_VALUE=2
+  ADD_DATASTORE=3
+  UPDATE_NODE_POSITION=4
+  DELETE_NODE=5
+  ADD_EDGE=6
+  DELETE_EDGE=7
+
+class Op:
+  pass
+
+class AddFnNode(NamedTuple):
+  name: str
+  x: int
+  y: int
+
+
 class Graph:
   def __init__(self, name : str) -> None:
     self.name = name
-    self.nodes = {} # type: Dict[str, Node]
+    self.ops : List[Op] = []
+    self.nodes : Dict[str,Node] = {}
     # first Tuple arg is n2.id, 2nd one is param
-    self.edges = {} # type: Dict[str, List[Tuple[str, str]]]
+    self.edges : Dict[str, List[Tuple[str,str]]] = {}
 
   def __getattr__(self, name : str) -> Any:
     # pickling is weird with getattr
@@ -51,7 +71,7 @@ class Graph:
       return super().__getattr__(name) # type: ignore
 
     if name == "reverse_edges":
-      result = {} # type: Dict[str, List[str]]
+      result : Dict[str, List[str]] = {}
       for k in self.nodes.keys():
         result[k] = []
       for s,ts in self.edges.items():
@@ -73,6 +93,8 @@ class Graph:
       self.edges[node.id()] = []
 
   def add_fnnode(self, name: str, x: int, y: int) -> Node:
+    op = AddFnNode(name, x, y)
+    n = self.add_and_apply(op)
     n = FnNode(name)
     n.x, n.y = x, y
     self._add(n)
@@ -144,7 +166,7 @@ class Graph:
 
   def get_parents(self, node : Node) -> Dict[str, Node]:
     parents = self.reverse_edges.get(node.id(), [])
-    result = [] # type: List[Tuple[str, Node]]
+    result : List[Tuple[str, Node]] = []
     for p in parents:
       t = self.nodes[p]
       paramname = self.get_target_param_name(node, t)
@@ -181,7 +203,7 @@ class Graph:
 
   def find_sink_edges(self, node : Node) -> Set[Tuple[Node, Node]]:
     # debug("finding sink edges: %s" % (node))
-    results = set() # type: Set[Tuple[Node, Node]]
+    results : Set[Tuple[Node, Node]] = set()
     for _, c in self.get_children(node).items():
       if c.is_datasink():
         results |= {(node, c)}

@@ -31,7 +31,7 @@ class Server(appserver.AppServer):
     command = params["command"]
     args = params["args"]
 
-    cursor = None # type: Optional[Node]
+    cursor : Optional[Node] = None
 
     if command == "add_datastore":
       name, x, y = pluck(args, "name", "x", "y")

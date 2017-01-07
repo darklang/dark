@@ -10,7 +10,7 @@ class Tag:
     self.name = name
     self.tag = tag
     self.contents = contents
-    self.attributes = attributes # type: Dict[str,str]
+    self.attributes : Dict[str,str] = attributes
 
   def to_html(self) -> str:
     attrs = ""

@@ -5,16 +5,17 @@ from typing import Any, List, Tuple, Dict
 from . import fields
 from .fields import Field
 from . import node
+from .node import ID
 
 class DB:
-  def __init__(self, tablename : str) -> None:
+  def __init__(self, tablename:str) -> None:
     tablename = tablename.lower()
     self.tablename = tablename
     self.conn = sqlite3.connect(":memory:", check_same_thread=False)
     self.create_table()
-    self.fields = [] # type: List[str]
+    self.fields : List[str] = []
 
-  def exe(self, sql : str, *values) -> Any:
+  def exe(self, sql:str, *values) -> Any:
     print(sql)
     return self.conn.execute(sql)
 
@@ -22,15 +23,15 @@ class DB:
     self.exe("create table %s (id INTEGER PRIMARY KEY AUTOINCREMENT) " %
              (self.tablename))
 
-  def add_column(self, field : str) -> None:
+  def add_column(self, field:str) -> None:
     self.exe("ALTER TABLE %s ADD %s" % (self.tablename, field))
     self.fields.append(field)
 
-  def remove_column(self, field : str) -> None:
+  def remove_column(self, field:str) -> None:
     #self.exe("ALTER TABLE %s DROP %s" % (self.tablename, field)) - sqlite doesn't support dropping
     self.fields = [f for f in self.fields if field != f]
 
-  def insert(self, value : Any) -> Any:
+  def insert(self, value:Any) -> Any:
     cols = self.fields
     vals = [str(value[f]) for f in self.fields if f in value]
 
@@ -39,7 +40,7 @@ class DB:
       "\",\"".join(vals)))
 
 
-  def update(self, value : Any, key : str) -> None:
+  def update(self, value:Any, key:str) -> None:
     raise Exception("TODO")
     self.exe()
 
@@ -52,18 +53,16 @@ class DB:
       num)).fetchall()
     return data
 
-  def fetch_by_key(self, key : Any, keyname : str) -> Any:
+  def fetch_by_key(self, key:Any, keyname:str) -> Any:
     return self.exe("select * from " + self.tablename + " where " + keyname + "=" + str(key) + " limit 1").fetchone()
 
 
 class Datastore(node.Node):
-  def __init__(self, tablename : str) -> None:
+  def __init__(self, tablename:str) -> None:
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
     self.tablename = tablename
-    self.fields = [] # type: List[Field]
-    self.fields_by_name = {} # type: Dict[str, Field]
-    self.x = -1
-    self.y = -1
+    self.fields : List[Field] = []
+    self.fields_by_name : Dict[str, Field] = {}
 
   def is_datasource(self) -> bool: return True
   def is_datasink(self) -> bool: return True
@@ -82,10 +81,10 @@ class Datastore(node.Node):
   def name(self) -> str:
     return "DS-" + self.tablename
 
-  def id(self) -> str:
-    return self.name()
+  def id(self) -> ID:
+    return ID(self.name())
 
-  def add_field(self, f : Field) -> None:
+  def add_field(self, f:Field) -> None:
     self.fields_by_name[f.name] = f
     self.fields.append(f)
     self.db.add_column(f.name)
@@ -104,10 +103,10 @@ class Datastore(node.Node):
              "y": self.y
     }
 
-  def validate_key(self, key_name : str, value : Any) -> None:
+  def validate_key(self, key_name:str, value:Any) -> None:
     self.fields_by_name[key_name].validate(value)
 
-  def validate(self, value : Any) -> None:
+  def validate(self, value:Any) -> None:
     for k, v in value.items():
       self.fields_by_name[k].validate(v)
     if len(value.items()) != len(self.fields):
@@ -117,25 +116,25 @@ class Datastore(node.Node):
     assert len(args) == 0
     return self
 
-  def push(self, value : Any) -> None:
+  def push(self, value:Any) -> None:
     self.insert(value)
 
-  def insert(self, value : Any) -> None:
+  def insert(self, value:Any) -> None:
     self.validate(value)
     self.db.insert(value)
 
-  def replace(self, key : str, value : Any) -> None:
+  def replace(self, key:str, value:Any) -> None:
     self.validate_key(key, value)
     self.validate(value)
     self.db.update(key, value)
 
-  def fetch(self, num : int = 10) -> List[Any]:
+  def fetch(self, num:int = 10) -> List[Any]:
     vals = self.db.fetch(num)
     print(vals)
     # this is wrong. Should be a list of objects
     raise Exception("wtf am i doint here")
     # return {k: v for (k,v) in zip(self.fields, self.db.fetch(num))}
 
-  def fetch_one(self, key : str, key_name : str ) -> Any:
+  def fetch_one(self, key:str, key_name:str ) -> Any:
     return self.db.fetch_by_key(key_name, key)
 
