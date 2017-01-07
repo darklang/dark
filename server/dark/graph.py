@@ -5,7 +5,7 @@ import enum
 
 import pyrsistent as pyr
 
-from dark.node import Node, FnNode, Value
+from dark.node import Node, FnNode, Value, ID
 from . import datastore
 from . import fields
 
@@ -61,9 +61,9 @@ class Graph:
   def __init__(self, name : str) -> None:
     self.name = name
     self.ops : List[Op] = []
-    self.nodes : Dict[str,Node] = {}
+    self.nodes : Dict[ID,Node] = {}
     # first Tuple arg is n2.id, 2nd one is param
-    self.edges : Dict[str, List[Tuple[str,str]]] = {}
+    self.edges : Dict[ID, List[Tuple[ID,str]]] = {}
 
   def __getattr__(self, name : str) -> Any:
     # pickling is weird with getattr
@@ -87,7 +87,7 @@ class Graph:
 
     return None
 
-  def _add(self, node : Node) -> None:
+  def _add(self, node:Node) -> None:
     self.nodes[node.id()] = node
     if node.id() not in self.edges:
       self.edges[node.id()] = []
@@ -107,14 +107,14 @@ class Graph:
     return v
 
 
-  def add_datastore(self, name : str, x : int, y : int) -> datastore.Datastore:
+  def add_datastore(self, name:ID, x : int, y : int) -> datastore.Datastore:
     ds = datastore.Datastore(name)
     ds.x, ds.y = x, y
     cursor = ds
     self._add(ds)
     return ds
 
-  def add_datastore_field(self, id_ : str, fieldname : str, typename : str, is_list : bool) -> None:
+  def add_datastore_field(self, id_:ID, fieldname : str, typename : str, is_list : bool) -> None:
     ds = self.datastores[id_]
     fieldFn = getattr(fields, typename, None)
     if fieldFn:
@@ -122,33 +122,33 @@ class Graph:
     else:
       ds.add_field(fields.Foreign(fieldname, typename, is_list=is_list))
 
-  def update_node_position(self, id_:str, x:int, y:int) -> None:
+  def update_node_position(self, id_:ID, x:int, y:int) -> None:
     n = self.nodes[id_]
     n.x, n.y = x, y
 
   def has(self, node : Node) -> bool:
     return node.id() in self.nodes
 
-  def delete_node(self, id_:str) -> None:
+  def delete_node(self, id_:ID) -> None:
     node = self.nodes[id_]
     self.clear_edges(id_)
     del self.nodes[node.id()]
     if node.id() in self.nodes:
       del self.nodes[node.id()]
 
-  def add_edge(self, src_id:str, target_id:str, param:str) -> None:
+  def add_edge(self, src_id:ID, target_id:ID, param:str) -> None:
     src = self.nodes[src_id]
     target = self.nodes[target_id]
     self.edges[src.id()].append((target.id(), param))
 
-  def delete_edge(self, src_id:str, target_id:str, param:str) -> None:
+  def delete_edge(self, src_id:ID, target_id:ID, param:str) -> None:
     E = self.edges
     ts = E[src_id]
     E[src_id] = [(t,p) for (t, p) in ts
                  if t != target_id and p != param]
 
 
-  def clear_edges(self, id_:str) -> None:
+  def clear_edges(self, id_:ID) -> None:
     """As we develop, sometimes graphs get weird. So we actually check the whole
     graph to fix it up, not just doing what we expect to find."""
     E = self.edges
@@ -160,7 +160,7 @@ class Graph:
     for (t,p) in E[id_]:
       self.delete_edge(id_, t, p)
 
-  def get_children(self, node : Node) -> Dict[str, Node]:
+  def get_children(self, node:Node) -> Dict[str, Node]:
     children = self.edges[node.id()] or []
     return {param: self.nodes[c] for (c, param) in children}
 
