@@ -37,7 +37,6 @@ def save(G : 'Graph') -> None:
   # sanity check
   load(G.name)
 
-
 class Graph:
   def __init__(self, name : str) -> None:
     self.name = name
@@ -72,8 +71,12 @@ class Graph:
     if node.id() not in self.edges:
       self.edges[node.id()] = []
 
-  def add_datastore(self, ds : datastore.Datastore) -> None:
+  def add_datastore(self, name : str, x : int, y : int) -> datastore.Datastore:
+    ds = datastore.Datastore(name)
+    ds.x, ds.y = x, y
+    cursor = ds
     self.nodes[ds.id()] = ds
+    return ds
 
   def has(self, node : Node) -> bool:
     return node.id() in self.nodes

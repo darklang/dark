@@ -16,7 +16,7 @@ from . import graph
 from .node import Node
 from . import appserver
 from . import datastore
-
+from .util import pluck
 
 class Server(appserver.AppServer):
   def __init__(self) -> None:
@@ -34,12 +34,8 @@ class Server(appserver.AppServer):
     cursor = None # type: Optional[Node]
 
     if command == "add_datastore":
-      name = args["name"]
-      ds = datastore.Datastore(name)
-      ds.x = args["x"]
-      ds.y = args["y"]
-      G.add_datastore(ds)
-      cursor = ds
+      name, x, y = pluck(args, "name", "x", "y")
+      cursor = G.add_datastore(name, x, y)
 
     elif command == "add_datastore_field":
       ds = G.datastores[args["id"]]
