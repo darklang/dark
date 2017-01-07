@@ -13,7 +13,7 @@ from typing import Optional, Any
 
 from . import fields
 from . import graph
-from .node import Node
+from .node import Node, ID
 from . import appserver
 from . import datastore
 from .util import pluck
@@ -23,7 +23,7 @@ class Server(appserver.AppServer):
     super().__init__()
     self.init_url_map()
 
-  def handler(self, G : graph.Graph, request : Request) -> Optional[Node]:
+  def handler(self, G:graph.Graph, request:Request) -> Optional[ID]:
     str_req = request.data.decode('utf-8')
     params = json.loads(str_req)
     print("Requesting: " + str(params))
@@ -31,7 +31,7 @@ class Server(appserver.AppServer):
     command = params["command"]
     args = params["args"]
 
-    cursor : Optional[Node] = None
+    cursor : Optional[ID] = None
 
     if command == "add_datastore":
       name, x, y = pluck(args, "name", "x", "y")
@@ -92,7 +92,7 @@ class Server(appserver.AppServer):
     self.add_app_route()
 
   def add_admin_route(self) -> None:
-    def endpoint(request : Request) -> Response:
+    def endpoint(request:Request) -> Response:
       try:
         name = self.subdomain(request)
 
@@ -121,7 +121,7 @@ class Server(appserver.AppServer):
     self.url_map.add(Rule('/admin/api/rpc', endpoint=endpoint))
 
   def add_ui_route(self) -> None:
-    def fn(request : Request) -> Response:
+    def fn(request:Request) -> Response:
       return self.render_template('ui.html')
     self.url_map.add(Rule('/admin/ui', endpoint=fn))
 
@@ -133,7 +133,7 @@ class Server(appserver.AppServer):
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 
   def add_app_route(self) -> None:
-    def dispatcher(request : Request, path : str ="") -> Response:
+    def dispatcher(request:Request, path:str ="") -> Response:
       name = self.subdomain(request)
       path = request.path
       values = request.values.to_dict()
@@ -157,5 +157,5 @@ class Server(appserver.AppServer):
     # not matched above for some reason
     self.url_map.add(Rule('/', endpoint=dispatcher))
 
-  def subdomain(self, request : Request) -> str:
+  def subdomain(self, request:Request) -> str:
     return request.host.split('.')[0]

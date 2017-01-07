@@ -11,23 +11,23 @@ from . import fields
 
 from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set, NamedTuple
 
-def debug(str : str) -> None:
+def debug(str:str) -> None:
   print(str.replace("\n", "\n  "))
 
 def get_all_graphnames() -> List[str]:
   return [f[:-5] for f in os.listdir("appdata") if f.endswith(".dark")]
 
-def filename_for(name : str) -> str:
+def filename_for(name:str) -> str:
   return "appdata/" + name + ".dark"
 
-def load(name : str) -> 'Graph':
+def load(name:str) -> 'Graph':
   filename = filename_for(name)
   with open(filename, 'rb') as file:
     graph = pickle.load(file)
   graph.migrate(name)
   return graph
 
-def save(G : 'Graph') -> None:
+def save(G:'Graph') -> None:
   filename = filename_for(G.name)
 
   # dont use pickle.dump - it tends to corrupt
@@ -58,14 +58,14 @@ class AddFnNode(NamedTuple):
 
 
 class Graph:
-  def __init__(self, name : str) -> None:
+  def __init__(self, name:str) -> None:
     self.name = name
     self.ops : List[Op] = []
     self.nodes : Dict[ID,Node] = {}
     # first Tuple arg is n2.id, 2nd one is param
     self.edges : Dict[ID, List[Tuple[ID,str]]] = {}
 
-  def __getattr__(self, name : str) -> Any:
+  def __getattr__(self, name:str) -> Any:
     # pickling is weird with getattr
     if name.startswith('__') and name.endswith('__'):
       return super().__getattr__(name) # type: ignore
@@ -92,29 +92,29 @@ class Graph:
     if node.id() not in self.edges:
       self.edges[node.id()] = []
 
-  def add_fnnode(self, name: str, x: int, y: int) -> Node:
+  def add_fnnode(self, name: str, x: int, y: int) -> ID:
     op = AddFnNode(name, x, y)
     n = self.add_and_apply(op)
     n = FnNode(name)
     n.x, n.y = x, y
     self._add(n)
-    return n
+    return n.id()
 
-  def add_value(self, valuestr: str, x: int, y: int) -> Node:
+  def add_value(self, valuestr: str, x: int, y: int) -> ID:
     v = Value(valuestr)
     v.x, v.y = x, y
     self._add(v)
-    return v
+    return v.id()
 
 
-  def add_datastore(self, name:ID, x : int, y : int) -> datastore.Datastore:
+  def add_datastore(self, name:ID, x:int, y:int) -> ID:
     ds = datastore.Datastore(name)
     ds.x, ds.y = x, y
     cursor = ds
     self._add(ds)
-    return ds
+    return ds.id()
 
-  def add_datastore_field(self, id_:ID, fieldname : str, typename : str, is_list : bool) -> None:
+  def add_datastore_field(self, id_:ID, fieldname:str, typename:str, is_list:bool) -> None:
     ds = self.datastores[id_]
     fieldFn = getattr(fields, typename, None)
     if fieldFn:
@@ -126,7 +126,7 @@ class Graph:
     n = self.nodes[id_]
     n.x, n.y = x, y
 
-  def has(self, node : Node) -> bool:
+  def has(self, node:Node) -> bool:
     return node.id() in self.nodes
 
   def delete_node(self, id_:ID) -> None:
@@ -164,7 +164,7 @@ class Graph:
     children = self.edges[node.id()] or []
     return {param: self.nodes[c] for (c, param) in children}
 
-  def get_parents(self, node : Node) -> Dict[str, Node]:
+  def get_parents(self, node:Node) -> Dict[str, Node]:
     parents = self.reverse_edges.get(node.id(), [])
     result : List[Tuple[str, Node]] = []
     for p in parents:
@@ -173,17 +173,17 @@ class Graph:
       result += [(paramname, t)]
     return {paramname: t for (paramname, t) in result}
 
-  def get_named_parents(self, node : Node, paramname : str) -> List[Node]:
+  def get_named_parents(self, node:Node, paramname:str) -> List[Node]:
     return [v for k,v in self.get_parents(node).items()
             if paramname == k]
 
-  def get_target_param_name(self, target : Node, src : Node) -> str:
+  def get_target_param_name(self, target:Node, src:Node) -> str:
     for (c, p) in self.edges[src.id()]:
       if c == target.id():
         return p
     assert(False and "Shouldnt happen")
 
-  def execute(self, node : Node, only : Node = None, eager : Dict[Node, Any] = {}) -> Any:
+  def execute(self, node:Node, only:Node = None, eager:Dict[Node, Any] = {}) -> Any:
     # debug("executing node: %s, with only=%s and eager=%s" % (node, only, eager))
     if node in eager:
       result = eager[node]
@@ -201,7 +201,7 @@ class Graph:
 
     return pyr.freeze(result)
 
-  def find_sink_edges(self, node : Node) -> Set[Tuple[Node, Node]]:
+  def find_sink_edges(self, node:Node) -> Set[Tuple[Node, Node]]:
     # debug("finding sink edges: %s" % (node))
     results : Set[Tuple[Node, Node]] = set()
     for _, c in self.get_children(node).items():
@@ -211,13 +211,13 @@ class Graph:
         results |= self.find_sink_edges(c)
     return results
 
-  def run_input(self, node : Node, val : Any) -> None:
+  def run_input(self, node:Node, val:Any) -> None:
     # debug("running input: %s (%s)" % (node, val))
     for (parent, sink) in self.find_sink_edges(node):
       # debug("run_input on sink,parent: %s, %s" %(sink, parent))
       self.execute(sink, only=parent, eager={node: val})
 
-  def run_output(self, node : Node) -> Any:
+  def run_output(self, node:Node) -> Any:
     # print("run_output on node: %s" % (node))
     return self.execute(node)
 
@@ -228,16 +228,16 @@ class Graph:
         result.append({"source": s, "target": t, "paramname": p})
     return result
 
-  def to_frontend(self, cursor : Optional[Node]) -> str:
+  def to_frontend(self, cursor_id:Optional[ID]) -> str:
     nodes = {n.id(): n.to_frontend() for n in self.nodes.values()}
     edges = self.to_frontend_edges()
 
     result = {"nodes": nodes, "edges": edges}
-    if cursor :
-      result["cursor"] = cursor.id()
+    if cursor_id:
+      result["cursor"] = cursor_id
     return json.dumps(result, sort_keys=True, indent=2)
 
-  def to_debug(self, cursor : Optional[Node]) -> str:
+  def to_debug(self, cursor:Optional[ID]) -> str:
     result = []
     edges = self.to_frontend_edges()
     for e in edges:
@@ -251,7 +251,7 @@ class Graph:
 
     return "\n".join(sorted(result))
 
-  def migrate(self, name : str) -> None:
+  def migrate(self, name:str) -> None:
     # no name and no version
     if not getattr(self, "version", None):
       self.name = name
