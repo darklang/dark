@@ -1,13 +1,20 @@
 import random
 import inspect
 
-from typing import Any, Dict, Callable, List
+from typing import Any, Dict, Callable, List, NewType
+
+# TODO:
+# - replace simple classes with typing.NamedTuple
+# - replace comment types with real types
+# - replace string types with named vars
+# - add ID type
+# we now have format strings
+
+ID = NewType("ID", str)
 
 class Node:
-  def __init__(self) -> None:
-    # satisfy the type checker
-    self.x = -1
-    self.y = -1
+  x:int
+  y:int
 
   def is_datasource(self) -> bool:
     return True
