@@ -38,60 +38,42 @@ class Server(appserver.AppServer):
       cursor = G.add_datastore(name, x, y)
 
     elif command == "add_datastore_field":
-      ds = G.datastores[args["id"]]
-      fieldname = args["name"]
-      typename = args["type"]
+      id_, fieldname, typename = pluck(args, "id", "name", "type")
       is_list = False
       if typename[0] == "[" and typename[-1] == "]":
         is_list = True
         typename = typename[1:-1]
-      fieldFn = getattr(fields, typename, None)
-      if fieldFn:
-        ds.add_field(fieldFn(fieldname, is_list=is_list))
-      else:
-        ds.add_field(fields.Foreign(fieldname, typename, is_list=is_list))
+      G.add_datastore_field(id_, fieldname, typename, is_list)
 
     elif command == "add_function_call":
-      nodename = args["name"]
-      node = node.FnNode(nodename)
-      node.x = args["x"]
-      node.y = args["y"]
-      G._add(node)
-      cursor = node
+      name, x, y = pluck(args, "name", "x", "y")
+      cursor = G.add_fnnode(name, x, y)
 
     elif command == "add_value":
-      valuestr = args["value"]
-      node = node.Value(valuestr)
-      node.x = args["x"]
-      node.y = args["y"]
-      G._add(node)
-      cursor = node
+      valuestr, x, y = pluck(args, "value", "x", "y")
+      cursor = G.add_value(valuestr, x, y)
 
     elif command == "update_node_position":
-      node = G.nodes[args["id"]]
-      node.x = args["x"]
-      node.y = args["y"]
+      id_, x, y = pluck(args, "id", "x", "y")
+      G.update_node_position(id_, x, y)
 
     elif command == "add_edge":
-      src = G.nodes[args["src"]]
-      target = G.nodes[args["target"]]
-      paramname = args["param"]
-      G.add_edge(src, target, paramname)
+      src, target, param = pluck(args, "src", "target", "param")
+      G.add_edge(src, target, param)
 
     elif command == "delete_node":
-      node = G.nodes[args["id"]]
-      G.delete_node(node)
+      G.delete_node(args["id"])
 
     elif command == "clear_edges":
-      node = G.nodes[args["id"]]
-      G.clear_edges(node)
+      G.clear_edges(args["id"])
 
     elif command == "remove_last_field":
+      raise Exception("TODO")
       node = G.nodes[args["id"]]
-      if node.__class__.__name__ == "Datastore":
-        node.remove_last_field()
-      else:
-        node.remove_last_edge()
+      # if node.__class__.__name__ == "Datastore":
+        # node.remove_last_field()
+      # else:
+        # node.remove_last_edge()
 
     elif command == "load_initial_graph":
       pass

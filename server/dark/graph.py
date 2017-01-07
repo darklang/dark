@@ -4,8 +4,9 @@ import pickle
 
 import pyrsistent as pyr
 
-from dark.node import Node
+from dark.node import Node, FnNode, Value
 from . import datastore
+from . import fields
 
 from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set
 
@@ -71,34 +72,71 @@ class Graph:
     if node.id() not in self.edges:
       self.edges[node.id()] = []
 
+  def add_fnnode(self, name: str, x: int, y: int) -> Node:
+    n = FnNode(name)
+    n.x, n.y = x, y
+    self._add(n)
+    return n
+
+  def add_value(self, valuestr: str, x: int, y: int) -> Node:
+    v = Value(valuestr)
+    v.x, v.y = x, y
+    self._add(v)
+    return v
+
+
   def add_datastore(self, name : str, x : int, y : int) -> datastore.Datastore:
     ds = datastore.Datastore(name)
     ds.x, ds.y = x, y
     cursor = ds
-    self.nodes[ds.id()] = ds
+    self._add(ds)
     return ds
+
+  def add_datastore_field(self, id_ : str, fieldname : str, typename : str, is_list : bool) -> None:
+    ds = self.datastores[id_]
+    fieldFn = getattr(fields, typename, None)
+    if fieldFn:
+      ds.add_field(fieldFn(fieldname, is_list=is_list))
+    else:
+      ds.add_field(fields.Foreign(fieldname, typename, is_list=is_list))
+
+  def update_node_position(self, id_:str, x:int, y:int) -> None:
+    n = self.nodes[id_]
+    n.x, n.y = x, y
 
   def has(self, node : Node) -> bool:
     return node.id() in self.nodes
 
-  def delete_node(self, node : Node) -> None:
-    self.clear_edges(node)
+  def delete_node(self, id_:str) -> None:
+    node = self.nodes[id_]
+    self.clear_edges(id_)
     del self.nodes[node.id()]
     if node.id() in self.nodes:
       del self.nodes[node.id()]
 
-  def add_edge(self, n1 : Node, n2 : Node, n2param : str) -> None:
-    self.edges[n1.id()].append((n2.id(), n2param))
+  def add_edge(self, src_id:str, target_id:str, param:str) -> None:
+    src = self.nodes[src_id]
+    target = self.nodes[target_id]
+    self.edges[src.id()].append((target.id(), param))
 
-  def clear_edges(self, node : Node) -> None:
+  def delete_edge(self, src_id:str, target_id:str, param:str) -> None:
+    E = self.edges
+    ts = E[src_id]
+    E[src_id] = [(t,p) for (t, p) in ts
+                 if t != target_id and p != param]
+
+
+  def clear_edges(self, id_:str) -> None:
     """As we develop, sometimes graphs get weird. So we actually check the whole
     graph to fix it up, not just doing what we expect to find."""
     E = self.edges
-    id = node.id()
     for s, ts in E.items():
-      E[s] = [(t,p) for (t, p) in ts if t != id]
-    if id in E:
-      del E[id]
+      for t,p in ts:
+        if t == id_:
+          self.delete_edge(s,id_,p)
+
+    for (t,p) in E[id_]:
+      self.delete_edge(id_, t, p)
 
   def get_children(self, node : Node) -> Dict[str, Node]:
     children = self.edges[node.id()] or []
