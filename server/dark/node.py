@@ -25,7 +25,7 @@ class Node:
   def is_page(self) -> bool:
     return False
 
-  def id(self) -> str:
+  def id(self) -> ID:
     raise Exception("Base Node exists")
 
   def exe(self, **args) -> Any:
@@ -52,11 +52,11 @@ class Value(Node):
              "x": self.x,
              "y": self.y}
 
-  def id(self) -> str:
-    return "VALUE-%04X (%s)" % ((self._id % 2**16), self.name)
+  def id(self) -> ID:
+    return ID("VALUE-%04X (%s)" % ((self._id % 2**16), self.name))
 
 class FnNode(Node):
-  def __init__(self, fnname : str) -> None:
+  def __init__(self, fnname:str) -> None:
     self.fnname = fnname
     self._id = random.randint(0, 2**32)
     assert self._getfn()
@@ -108,5 +108,5 @@ class FnNode(Node):
              "x": self.x,
              "y": self.y}
 
-  def id(self) -> str:
-    return "%s-%04X" % (self.fnname, self._id % 2**16)
+  def id(self) -> ID:
+    return ID("%s-%04X" % (self.fnname, self._id % 2**16))
