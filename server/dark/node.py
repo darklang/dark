@@ -11,6 +11,7 @@ from typing import Any, Dict, Callable, List, NewType
 # we now have format strings
 
 ID = NewType("ID", str)
+Val = Any
 
 class Node:
   x:int
@@ -28,7 +29,7 @@ class Node:
   def id(self) -> ID:
     raise Exception("Base Node exists")
 
-  def exe(self, **args) -> Any:
+  def exe(self, **args:Val) -> Val:
     raise Exception("this is the base class")
 
   def to_frontend(self) -> Any:
@@ -40,7 +41,7 @@ class Value(Node):
     self.value = eval(valuestr)
     self._id = random.randint(0, 2**32)
 
-  def exe(self, **args) -> Any:
+  def exe(self, **args:Val) -> Val:
     assert len(args) == 0
     return self.value
 
@@ -88,7 +89,7 @@ class FnNode(Node):
     argspec = inspect.getfullargspec(func)
     return argspec.args
 
-  def exe(self, **args) -> Any:
+  def exe(self, **args:Val) -> Val:
     func = self._getfn()
     params = self.get_parameters()
 

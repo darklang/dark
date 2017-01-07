@@ -29,7 +29,7 @@ class AppServer(object):
                                 use_reloader=True)
 
 
-  def render_template(self, template_name : str, **context) -> Response:
+  def render_template(self, template_name:str, **context:str) -> Response:
     t = self.jinja_env.get_template(template_name)
     return Response(t.render(context), mimetype='text/html')
 
@@ -41,10 +41,10 @@ class AppServer(object):
     except HTTPException as e:
       return e
 
-  def app(self, environ, start_response) -> Any:
+  def app(self, environ:Any, start_response:Any) -> Any:
     request = Request(environ)
     response = self.dispatch_request(request)
     return response(environ, start_response)
 
-  def __call__(self, environ, start_response) -> Any:
+  def __call__(self, environ:Any, start_response:Any) -> Any:
     return self.wsgi_app(environ, start_response)

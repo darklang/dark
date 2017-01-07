@@ -9,7 +9,7 @@ import traceback
 import re
 import sys
 
-from typing import Optional
+from typing import Optional, Any
 
 from . import fields
 from . import graph
@@ -127,8 +127,8 @@ class Server(appserver.AppServer):
 
   def add_standard_routes(self) -> None:
     # TODO: move to a component
-    def favico(*v) -> Response: return Response()
-    def sitemap(*v) -> Response: return Response()
+    def favico(*v:Any) -> Response: return Response()
+    def sitemap(*v:Any) -> Response: return Response()
     self.url_map.add(Rule('/favicon.ico', endpoint=favico))
     self.url_map.add(Rule('/sitemap.xml', endpoint=sitemap))
 

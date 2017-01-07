@@ -5,7 +5,7 @@ from typing import Any, List, Tuple, Dict
 from . import fields
 from .fields import Field
 from . import node
-from .node import ID
+from .node import ID, Val
 
 class DB:
   def __init__(self, tablename:str) -> None:
@@ -15,7 +15,7 @@ class DB:
     self.create_table()
     self.fields : List[str] = []
 
-  def exe(self, sql:str, *values) -> Any:
+  def exe(self, sql:str, *values:Val) -> Val:
     print(sql)
     return self.conn.execute(sql)
 
@@ -44,7 +44,7 @@ class DB:
     raise Exception("TODO")
     self.exe()
 
-  def fetch(self, num) -> List[Any]:
+  def fetch(self, num:int) -> List[Val]:
     if len(self.fields) == 0:
       return []
     data = self.exe("select %s from %s limit %d" % (
@@ -112,7 +112,7 @@ class Datastore(node.Node):
     if len(value.items()) != len(self.fields):
       raise Exception("either missing field declaration or missing value")
 
-  def exe(self, **args) -> 'Datastore':
+  def exe(self, **args:Val) -> 'Datastore':
     assert len(args) == 0
     return self
 

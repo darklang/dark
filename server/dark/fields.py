@@ -6,11 +6,11 @@ class Tag:
   def __init__(self, name : str,
                contents : str,
                tag : str,
-               **attributes) -> None:
+               **attributes : str) -> None:
     self.name = name
     self.tag = tag
     self.contents = contents
-    self.attributes : Dict[str,str] = attributes
+    self.attributes = attributes
 
   def to_html(self) -> str:
     attrs = ""
