@@ -1,10 +1,9 @@
 import json
 
-from typing import Dict, List, Iterator, TypeVar, Any
+from typing import Dict, List, Iterator, TypeVar, Any, Optional
 
 X = TypeVar('X')
 Y = TypeVar('Y')
-
 def pluck(dict : Dict[X,Y], *args : X) -> Iterator[Y]:
   return (dict[arg] for arg in args)
 
@@ -13,6 +12,12 @@ class attrdict(dict):
     dict.__init__(self, *args, **kwargs)
     self.__dict__ = self
 
+
+Z = TypeVar('Z')
+def req(v:Optional[Z]) -> Z:
+  if v is None:
+    raise Exception("Got None in optional, expected value")
+  return v
 
 def tojson(l:Any) -> str:
   def default(val:Any) -> Any:

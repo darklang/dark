@@ -47,7 +47,7 @@ class Server(appserver.AppServer):
 
     elif command == "add_function_call":
       name, x, y = pluck(args, "name", "x", "y")
-      cursor = G.add_fnnode(name, x, y)
+      cursor = G.add_fn(name, x, y)
 
     elif command == "add_value":
       valuestr, x, y = pluck(args, "value", "x", "y")

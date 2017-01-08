@@ -8,6 +8,7 @@ import pyrsistent as pyr
 from dark.node import Node, FnNode, Value, ID
 from . import datastore
 from . import fields
+from .util import req
 
 from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set, NamedTuple
 
@@ -39,23 +40,9 @@ def save(G:'Graph') -> None:
   # sanity check
   load(G.name)
 
-class Ops(enum.Enum):
-  ADD_FNNODE=1
-  ADD_VALUE=2
-  ADD_DATASTORE=3
-  UPDATE_NODE_POSITION=4
-  DELETE_NODE=5
-  ADD_EDGE=6
-  DELETE_EDGE=7
-
-class Op:
-  pass
-
-class AddFnNode(NamedTuple):
-  name: str
-  x: int
-  y: int
-
+class Op(NamedTuple):
+  op : str
+  args : Tuple[Any, ...]
 
 class Graph:
   def __init__(self, name:str) -> None:
@@ -85,6 +72,13 @@ class Graph:
     if name == "datastores":
       return {k: v for k,v in self.nodes.items() if isinstance(v, datastore.Datastore)}
 
+    # generalize the operations
+    if name in ["add_fn", "add_datastore", "add_datastore_field", "update_node_position", "delete_node", "add_edge", "delete_edge", "clear_edges"]:
+      def fn(*args : Any) -> None:
+        op = Op(name, args)
+        self.add_op(op)
+      return fn
+
     return None
 
   def _add(self, node:Node) -> None:
@@ -92,73 +86,76 @@ class Graph:
     if node.id() not in self.edges:
       self.edges[node.id()] = []
 
-  def add_fnnode(self, name: str, x: int, y: int) -> ID:
-    op = AddFnNode(name, x, y)
-    n = self.add_and_apply(op)
+  def has(self, node:Node) -> bool:
+    return node.id() in self.nodes
+
+  def apply_op(self, op:Op) -> Optional[ID]:
+    args = op.args
+    fn = getattr(self, "_" + op.op)
+    return fn(self, *args)
+
+  def add_op(self, op:Op) -> Optional[ID]:
+    self.ops.append(op)
+    return self.apply_op(op)
+
+  def _add_fn(self, name:str, x:int, y:int) -> ID:
     n = FnNode(name)
     n.x, n.y = x, y
     self._add(n)
     return n.id()
 
-  def add_value(self, valuestr: str, x: int, y: int) -> ID:
+  def _add_value(self, valuestr: str, x: int, y: int) -> ID:
     v = Value(valuestr)
     v.x, v.y = x, y
     self._add(v)
     return v.id()
 
-
-  def add_datastore(self, name:ID, x:int, y:int) -> ID:
+  def _add_datastore(self, name:ID, x:int, y:int) -> ID:
     ds = datastore.Datastore(name)
     ds.x, ds.y = x, y
-    cursor = ds
     self._add(ds)
     return ds.id()
 
-  def add_datastore_field(self, id_:ID, fieldname:str, typename:str, is_list:bool) -> None:
-    ds = self.datastores[id_]
+  def _add_datastore_field(self, id:ID, fieldname:str, typename:str, is_list:bool) -> None:
+    ds = self.datastores[id]
     fieldFn = getattr(fields, typename, None)
     if fieldFn:
       ds.add_field(fieldFn(fieldname, is_list=is_list))
     else:
       ds.add_field(fields.Foreign(fieldname, typename, is_list=is_list))
 
-  def update_node_position(self, id_:ID, x:int, y:int) -> None:
-    n = self.nodes[id_]
+  def _update_node_position(self, id:ID, x:int, y:int) -> None:
+    n = self.nodes[id]
     n.x, n.y = x, y
 
-  def has(self, node:Node) -> bool:
-    return node.id() in self.nodes
-
-  def delete_node(self, id_:ID) -> None:
-    node = self.nodes[id_]
-    self.clear_edges(id_)
+  def _delete_node(self, id:ID) -> None:
+    node = self.nodes[id]
+    self.clear_edges(id)
     del self.nodes[node.id()]
-    if node.id() in self.nodes:
-      del self.nodes[node.id()]
 
-  def add_edge(self, src_id:ID, target_id:ID, param:str) -> None:
+  def _add_edge(self, src_id:ID, target_id:ID, param:str) -> None:
     src = self.nodes[src_id]
     target = self.nodes[target_id]
     self.edges[src.id()].append((target.id(), param))
 
-  def delete_edge(self, src_id:ID, target_id:ID, param:str) -> None:
+  def _delete_edge(self, src_id:ID, target_id:ID, param:str) -> None:
     E = self.edges
     ts = E[src_id]
     E[src_id] = [(t,p) for (t, p) in ts
                  if t != target_id and p != param]
 
 
-  def clear_edges(self, id_:ID) -> None:
+  def _clear_edges(self, id:ID) -> None:
     """As we develop, sometimes graphs get weird. So we actually check the whole
     graph to fix it up, not just doing what we expect to find."""
     E = self.edges
     for s, ts in E.items():
       for t,p in ts:
-        if t == id_:
-          self.delete_edge(s,id_,p)
+        if t == id:
+          self._delete_edge(s,id,p)
 
-    for (t,p) in E[id_]:
-      self.delete_edge(id_, t, p)
+    for (t,p) in E[id]:
+      self._delete_edge(id, t, p)
 
   def get_children(self, node:Node) -> Dict[str, Node]:
     children = self.edges[node.id()] or []
@@ -285,5 +282,10 @@ class Graph:
           new._id = n._id # type: ignore
           self.nodes[new.id()] = new
       self.version = 4
+
+    # create ops
+    if self.version == 4:
+      self.ops = []
+      self.version = 5
 
     print("Migration: %s is now version %s" % (name, self.version))
