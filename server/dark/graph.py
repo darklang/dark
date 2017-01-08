@@ -23,10 +23,13 @@ def filename_for(name:str) -> str:
 
 def load(name:str) -> 'Graph':
   filename = filename_for(name)
-  with open(filename, 'rb') as file:
-    graph = pickle.load(file)
-  graph.migrate(name)
-  return graph
+  if os.path.isfile(filename):
+    with open(filename, 'rb') as file:
+      graph = pickle.load(file)
+    graph.migrate(name)
+    return graph
+  else:
+    return Graph(name)
 
 def save(G:'Graph') -> None:
   filename = filename_for(G.name)
@@ -47,6 +50,7 @@ class Op(NamedTuple):
 class Graph:
   def __init__(self, name:str) -> None:
     self.name = name
+    self.version = 5
     self.ops : List[Op] = []
     self.nodes : Dict[ID,Node] = {}
     # first Tuple arg is n2.id, 2nd one is param
@@ -92,7 +96,7 @@ class Graph:
   def apply_op(self, op:Op) -> Optional[ID]:
     args = op.args
     fn = getattr(self, "_" + op.op)
-    return fn(self, *args)
+    return fn(*args)
 
   def add_op(self, op:Op) -> Optional[ID]:
     self.ops.append(op)
