@@ -42,6 +42,7 @@ init = let m = { nodes = Dict.empty
                , tempFieldName = ""
                , lastPos = {x=-1, y=-1}
                , drag = NoDrag
+               , lastMsg = NoMsg
                }
        in (m, rpc m <| LoadInitialGraph)
 
@@ -59,7 +60,8 @@ update msg m =
                    Focus -> Cmd.batch [cmd2, focusInput]
                    NoFocus -> cmd2
                    DropFocus -> Cmd.batch [cmd2, unfocusInput]
-    in (m3, cmd3)
+        m4 = { m2 | lastMsg = msg }
+    in (m4, cmd3)
 
 type Focus = Focus | NoFocus | DropFocus
 

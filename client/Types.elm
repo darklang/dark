@@ -60,6 +60,7 @@ type Msg
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor))
+    | NoMsg -- use this for init
 
 type RPC
     = LoadInitialGraph
@@ -91,6 +92,7 @@ type alias Model = { nodes : NodeDict
                    , errors : List String
                    , lastPos : Pos
                    , drag : Drag
+                   , lastMsg : Msg
                    }
 type Drag = NoDrag
           | DragNode ID Offset -- offset between the click and the node pos
