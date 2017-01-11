@@ -38,12 +38,12 @@ class Server(appserver.AppServer):
       cursor = G.add_datastore(name, x, y)
 
     elif command == "add_datastore_field":
-      id_, fieldname, typename = pluck(args, "id", "name", "type")
+      id, fieldname, typename = pluck(args, "id", "name", "tipe")
       is_list = False
       if typename[0] == "[" and typename[-1] == "]":
         is_list = True
         typename = typename[1:-1]
-      G.add_datastore_field(id_, fieldname, typename, is_list)
+      G.add_datastore_field(id, fieldname, typename, is_list)
 
     elif command == "add_function_call":
       name, x, y = pluck(args, "name", "x", "y")
@@ -54,8 +54,8 @@ class Server(appserver.AppServer):
       cursor = G.add_value(valuestr, x, y)
 
     elif command == "update_node_position":
-      id_, x, y = pluck(args, "id", "x", "y")
-      G.update_node_position(id_, x, y)
+      id, x, y = pluck(args, "id", "x", "y")
+      G.update_node_position(id, x, y)
 
     elif command == "add_edge":
       src, target, param = pluck(args, "src", "target", "param")

@@ -16,6 +16,7 @@ Val = Any
 class Node:
   x:int
   y:int
+  _id:int
 
   def is_datasource(self) -> bool:
     return True
@@ -36,10 +37,12 @@ class Node:
     raise Exception("this is the base class")
 
 class Value(Node):
-  def __init__(self, valuestr : str) -> None:
+  def __init__(self, valuestr:str, x:int, y:int, id:int) -> None:
     self.name = valuestr
     self.value = eval(valuestr)
-    self._id = random.randint(0, 2**32)
+    self.x = x
+    self.y = y
+    self._id = id
 
   def exe(self, **args:Val) -> Val:
     assert len(args) == 0
@@ -57,9 +60,11 @@ class Value(Node):
     return ID("VALUE-%04X (%s)" % ((self._id % 2**16), self.name))
 
 class FnNode(Node):
-  def __init__(self, fnname:str) -> None:
+  def __init__(self, fnname:str, x:int, y:int, id:int) -> None:
     self.fnname = fnname
-    self._id = random.randint(0, 2**32)
+    self.x = x
+    self.y = y
+    self._id = id
     assert self._getfn()
 
   def __str__(self) -> str:

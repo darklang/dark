@@ -1,3 +1,4 @@
+import random
 import json
 import os
 import pickle
@@ -56,11 +57,29 @@ class Graph:
     # first Tuple arg is n2.id, 2nd one is param
     self.edges : Dict[ID, List[Tuple[ID,str]]] = {}
 
+
+  # Pickling
+  def __getstate__(self) -> Dict[str,Any]:
+    return {"name": self.name,
+            "version": self.version,
+            "ops": self.ops}
+
+  # Unpickling
+  def __setstate__(self, state: Dict[str,Any]) -> None:
+    self.name = state["name"]
+    self.version = state["version"]
+    self.ops = state["ops"]
+    self.nodes = {}
+    self.edges = {}
+    for op in self.ops:
+      self.apply_op(op)
+
   def __getattr__(self, name:str) -> Any:
     # pickling is weird with getattr
     if name.startswith('__') and name.endswith('__'):
       return super().__getattr__(name) # type: ignore
 
+    # dynamically build useful constructs
     if name == "reverse_edges":
       result : Dict[str, List[str]] = {}
       for k in self.nodes.keys():
@@ -76,11 +95,21 @@ class Graph:
     if name == "datastores":
       return {k: v for k,v in self.nodes.items() if isinstance(v, datastore.Datastore)}
 
+
     # generalize the operations
-    if name in ["add_fn", "add_datastore", "add_datastore_field", "update_node_position", "delete_node", "add_edge", "delete_edge", "clear_edges"]:
-      def fn(*args : Any) -> None:
+    if name in ["add_fn", "add_datastore", "add_value",
+                "add_datastore_field", "update_node_position",
+                "delete_node", "add_edge",
+                "delete_edge", "clear_edges"]:
+      def fn(*args : Any) -> Optional[ID]:
+        print("args are" + str(args))
+        id = None
+        print("name is: " + name)
+        if name in ["add_fn", "add_datastore", "add_value"]:
+          id = random.randint(0, 2**32)
+          args += (id,)
         op = Op(name, args)
-        self.add_op(op)
+        return self.add_op(op)
       return fn
 
     return None
@@ -93,30 +122,30 @@ class Graph:
   def has(self, node:Node) -> bool:
     return node.id() in self.nodes
 
+
+  #############
+  # operations
+  #############
   def apply_op(self, op:Op) -> Optional[ID]:
-    args = op.args
     fn = getattr(self, "_" + op.op)
-    return fn(*args)
+    return fn(*op.args)
 
   def add_op(self, op:Op) -> Optional[ID]:
     self.ops.append(op)
     return self.apply_op(op)
 
-  def _add_fn(self, name:str, x:int, y:int) -> ID:
-    n = FnNode(name)
-    n.x, n.y = x, y
-    self._add(n)
-    return n.id()
+  def _add_fn(self, name:str, x:int, y:int, id:int) -> ID:
+    fn = FnNode(name, x, y, id)
+    self._add(fn)
+    return fn.id()
 
-  def _add_value(self, valuestr: str, x: int, y: int) -> ID:
-    v = Value(valuestr)
-    v.x, v.y = x, y
+  def _add_value(self, valuestr: str, x:int, y:int, id:int) -> ID:
+    v = Value(valuestr, x, y, id)
     self._add(v)
     return v.id()
 
   def _add_datastore(self, name:ID, x:int, y:int) -> ID:
-    ds = datastore.Datastore(name)
-    ds.x, ds.y = x, y
+    ds = datastore.Datastore(name, x, y)
     self._add(ds)
     return ds.id()
 
@@ -161,6 +190,9 @@ class Graph:
     for (t,p) in E[id]:
       self._delete_edge(id, t, p)
 
+  #############
+  # execution
+  #############
   def get_children(self, node:Node) -> Dict[str, Node]:
     children = self.edges[node.id()] or []
     return {param: self.nodes[c] for (c, param) in children}
@@ -222,6 +254,10 @@ class Graph:
     # print("run_output on node: %s" % (node))
     return self.execute(node)
 
+
+  #############
+  # output and debugging
+  #############
   def to_frontend_edges(self) -> List[Dict[str, str]]:
     result = []
     for s in self.edges.keys():
@@ -252,44 +288,14 @@ class Graph:
 
     return "\n".join(sorted(result))
 
+  #############
+  # Migration
+  #############
   def migrate(self, name:str) -> None:
-    # no name and no version
-    if not getattr(self, "version", None):
-      self.name = name
-      self.version = 1
-
-    print("Migrating %s from version %s" % (name, self.version))
-
-    # pages are double listed
-    if self.version == 1:
-      names = [n for n in self.pages.keys()]
-      for name in names:
-        if not name in self.nodes:
-          del self.pages[name]
-      self.version = 2
-
-    # let's avoid all denormalization for now
-    if self.version == 2:
-      del self.reverse_edges
-      del self.pages
-      del self.datastores
-      self.version = 3
-
-    # we made a Node into a FnNode
-    if self.version == 3:
-      ns = [n for n in self.nodes.values()]
-      for n in ns:
-        if hasattr(n, 'fnname'):
-          new = FnNode(n.fnname) # type: ignore
-          new.x = n.x
-          new.y = n.y
-          new._id = n._id # type: ignore
-          self.nodes[new.id()] = new
-      self.version = 4
-
-    # create ops
-    if self.version == 4:
-      self.ops = []
-      self.version = 5
-
-    print("Migration: %s is now version %s" % (name, self.version))
+    # 1. no name and no version
+    # 2. pages are double listed
+    # 3. remove some fields to avoid denormalization
+    # 4. changed a Node into a FnNode
+    # 5. create ops array
+    # TODO: move existing structure into ops
+    pass

@@ -58,8 +58,10 @@ class DB:
 
 
 class Datastore(node.Node):
-  def __init__(self, tablename:str) -> None:
+  def __init__(self, tablename:str, x:int, y:int) -> None:
     self.db = DB(tablename) # TODO single DB connection for multiple DSs
+    self.x = x
+    self.y = y
     self.tablename = tablename
     self.fields : List[Field] = []
     self.fields_by_name : Dict[str, Field] = {}
