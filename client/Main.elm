@@ -106,11 +106,11 @@ update_ msg m =
 
     (_, RecordClick pos, _) ->
       ({ m | lastPos = pos
-       }, Cmd.none, Focus)
+       }, Cmd.none, NoFocus)
 
     (_, ClearCursor mpos, _) ->
       ({ m | cursor = Nothing
-       }, Cmd.none, Focus)
+       }, Cmd.none, NoFocus)
 
     (_, DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
