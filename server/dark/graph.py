@@ -105,7 +105,7 @@ class Graph:
         print("args are" + str(args))
         id = None
         print("name is: " + name)
-        if name in ["add_fn", "add_datastore", "add_value"]:
+        if name in ["add_fn", "add_value"]:
           id = random.randint(0, 2**32)
           args += (id,)
         op = Op(name, args)
