@@ -88,117 +88,117 @@ updateKeyPress m code cursor =
 
 update_ : Msg -> Model -> (Model, Cmd Msg, Focus)
 update_ msg m =
-    case (m.state, msg, m.cursor) of
-        (_, CheckEscape code, _) ->
-            if code == Consts.escapeKeycode
-            then ({ m | cursor = Nothing }, Cmd.none, DropFocus)
-            else (m, Cmd.none, NoFocus)
+  case (m.state, msg, m.cursor) of
+    (_, CheckEscape code, _) ->
+      if code == Consts.escapeKeycode
+      then ({ m | cursor = Nothing }, Cmd.none, DropFocus)
+      else (m, Cmd.none, NoFocus)
 
-        (_, KeyPress code, cursor) ->
-          updateKeyPress m code cursor
+    (_, KeyPress code, cursor) ->
+      updateKeyPress m code cursor
 
-        (_, NodeClick node, _) ->
-          ({ m | state = ADD_FUNCTION
-               , cursor = Just node.id
-           }, Cmd.none, DropFocus)
+    (_, NodeClick node, _) ->
+      ({ m | state = ADD_FUNCTION
+           , cursor = Just node.id
+       }, Cmd.none, DropFocus)
 
-        (_, RecordClick pos, _) ->
-          ({ m | lastPos = pos
-           }, Cmd.none, Focus)
+    (_, RecordClick pos, _) ->
+      ({ m | lastPos = pos
+       }, Cmd.none, Focus)
 
-        (_, ClearCursor mpos, _) ->
-          ({ m | cursor = Nothing
-           }, Cmd.none, Focus)
+    (_, ClearCursor mpos, _) ->
+      ({ m | cursor = Nothing
+       }, Cmd.none, Focus)
 
-        (_, DragNodeStart node event, _) ->
-          if m.drag == NoDrag -- If we're already dragging a slot don't change the node
-          && event.button == Consts.leftButton
-            then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none, NoFocus)
-            else (m, Cmd.none, NoFocus)
+    (_, DragNodeStart node event, _) ->
+      if m.drag == NoDrag -- If we're already dragging a slot don't change the node
+      && event.button == Consts.leftButton
+      then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none, NoFocus)
+      else (m, Cmd.none, NoFocus)
 
-        (_, DragNodeMove id offset currentPos, _) ->
-          ({ m | nodes = updateDragPosition currentPos offset id m.nodes
-               , lastPos = currentPos -- debugging
-           }, Cmd.none, NoFocus)
+    (_, DragNodeMove id offset currentPos, _) ->
+      ({ m | nodes = updateDragPosition currentPos offset id m.nodes
+           , lastPos = currentPos -- debugging
+       }, Cmd.none, NoFocus)
 
-        (_, DragNodeEnd id _, _) ->
-          ({ m | drag = NoDrag
-           }, rpc m <| UpdateNodePosition id, NoFocus)
+    (_, DragNodeEnd id _, _) ->
+      ({ m | drag = NoDrag
+       }, rpc m <| UpdateNodePosition id, NoFocus)
 
-        (_, DragSlotStart node param event, _) ->
-          if event.button == Consts.leftButton
-          then ({ m | cursor = Just node.id
-                    , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
-          else (m, Cmd.none, NoFocus)
+    (_, DragSlotStart node param event, _) ->
+      if event.button == Consts.leftButton
+      then ({ m | cursor = Just node.id
+                , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
+      else (m, Cmd.none, NoFocus)
 
-        (_, DragSlotMove mpos, _) ->
-            ({ m | lastPos = mpos
-             }, Cmd.none, NoFocus)
+    (_, DragSlotMove mpos, _) ->
+      ({ m | lastPos = mpos
+       }, Cmd.none, NoFocus)
 
-        (_, DragSlotEnd node, _) ->
-          case m.drag of
-            DragSlot id param starting ->
-              ({ m | drag = NoDrag}
-              , rpc m <| AddEdge node.id (id, param), NoFocus)
-            _ -> (m, Cmd.none, NoFocus)
+    (_, DragSlotEnd node, _) ->
+      case m.drag of
+        DragSlot id param starting ->
+          ({ m | drag = NoDrag}
+               , rpc m <| AddEdge node.id (id, param), NoFocus)
+        _ -> (m, Cmd.none, NoFocus)
 
-        (_, DragSlotStop _, _) ->
-          ({ m | drag = NoDrag}, Cmd.none, NoFocus)
+    (_, DragSlotStop _, _) ->
+      ({ m | drag = NoDrag}, Cmd.none, NoFocus)
 
-        (ADD_FUNCTION, SubmitMsg, _) ->
-            ({ m | state = ADD_FUNCTION
-             }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
-        (ADD_VALUE, SubmitMsg, _) ->
-            ({ m | state = ADD_VALUE
-             }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
+    (ADD_FUNCTION, SubmitMsg, _) ->
+      ({ m | state = ADD_FUNCTION
+       }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
+    (ADD_VALUE, SubmitMsg, _) ->
+      ({ m | state = ADD_VALUE
+       }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
 
-        (ADD_DS, SubmitMsg, _) ->
-            ({ m | state = ADD_DS_FIELD_NAME
-             }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
+    (ADD_DS, SubmitMsg, _) ->
+      ({ m | state = ADD_DS_FIELD_NAME
+       }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
 
-        (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
-            if m.inputValue == ""
-            then -- the DS has all its fields
-                ({ m | state = ADD_FUNCTION
-                     , inputValue = ""
-                 }, Cmd.none, NoFocus)
-            else  -- save the field name, we'll submit it later the type
-                ({ m | state = ADD_DS_FIELD_TYPE
-                     , tempFieldName = m.inputValue
-                 }, Cmd.none, Focus)
+    (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
+      if m.inputValue == ""
+      then -- the DS has all its fields
+        ({ m | state = ADD_FUNCTION
+             , inputValue = ""
+         }, Cmd.none, NoFocus)
+      else  -- save the field name, we'll submit it later the type
+        ({ m | state = ADD_DS_FIELD_TYPE
+             , tempFieldName = m.inputValue
+         }, Cmd.none, Focus)
 
-        (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
-            ({ m | state = ADD_DS_FIELD_NAME
-             }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
+    (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
+      ({ m | state = ADD_DS_FIELD_NAME
+       }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
 
-        (_, RPCCallBack (Ok (nodes, edges, cursor)), _) ->
-            -- if the new cursor is blank, keep the old cursor if it's valid
-            let oldCursor = Maybe.map (\(ID id) -> Dict.get id nodes) m.cursor
-                newCursor = case cursor of
-                                Nothing -> m.cursor
-                                _ -> cursor
-                newFocus = if m.state == ADD_DS_FIELD_NAME then Focus else DropFocus
-            in ({ m | nodes = nodes
-                    , edges = edges
-                    , cursor = newCursor
-                }, Cmd.none, newFocus )
+    (_, RPCCallBack (Ok (nodes, edges, cursor)), _) ->
+      -- if the new cursor is blank, keep the old cursor if it's valid
+      let oldCursor = Maybe.map (\(ID id) -> Dict.get id nodes) m.cursor
+          newCursor = case cursor of
+                        Nothing -> m.cursor
+                        _ -> cursor
+          newFocus = if m.state == ADD_DS_FIELD_NAME then Focus else DropFocus
+      in ({ m | nodes = nodes
+              , edges = edges
+              , cursor = newCursor
+          }, Cmd.none, newFocus )
 
-        (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
-            ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-                 , state = ADD_FUNCTION
-             }, Cmd.none, NoFocus)
+    (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
+      ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
+           , state = ADD_FUNCTION
+       }, Cmd.none, NoFocus)
 
-        (_, FocusResult (Ok ()), _) ->
-            -- Yay, you focused a field! Ignore.
-            (m, Cmd.none, NoFocus)
+    (_, FocusResult (Ok ()), _) ->
+      -- Yay, you focused a field! Ignore.
+      (m, Cmd.none, NoFocus)
 
-        (_, InputMsg target, _) ->
-            -- Syncs the form with the model. The actual submit is in SubmitMsg
-            ({ m | inputValue = target
-             }, Cmd.none, NoFocus)
+    (_, InputMsg target, _) ->
+      -- Syncs the form with the model. The actual submit is in SubmitMsg
+      ({ m | inputValue = target
+       }, Cmd.none, NoFocus)
 
-        t -> -- All other cases
-            ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none, NoFocus)
+    t -> -- All other cases
+      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none, NoFocus)
 
 
 
@@ -206,21 +206,21 @@ update_ msg m =
 -- SUBSCRIPTIONS
 subscriptions : Model -> Sub Msg
 subscriptions m =
-    let dragSubs = case m.drag of
-                       DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
-                                             , Mouse.ups (DragNodeEnd id)]
-                       DragSlot _ _ _ ->
-                         [ Mouse.moves DragSlotMove
-                         , Mouse.ups DragSlotStop]
-                       NoDrag -> [ Mouse.downs ClearCursor ]
-        -- dont trigger commands if we're typing
-        keySubs = if m.focused
-                  then []
-                  else [ Keyboard.downs KeyPress]
-        standardSubs = [ Keyboard.downs CheckEscape
-                       , Mouse.downs RecordClick]
-    in Sub.batch
-        (List.concat [standardSubs, keySubs, dragSubs])
+  let dragSubs = case m.drag of
+                   DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
+                                         , Mouse.ups (DragNodeEnd id)]
+                   DragSlot _ _ _ ->
+                     [ Mouse.moves DragSlotMove
+                     , Mouse.ups DragSlotStop]
+                   NoDrag -> [ Mouse.downs ClearCursor ]
+      -- dont trigger commands if we're typing
+      keySubs = if m.focused
+                then []
+                else [ Keyboard.downs KeyPress]
+      standardSubs = [ Keyboard.downs CheckEscape
+                     , Mouse.downs RecordClick]
+  in Sub.batch
+    (List.concat [standardSubs, keySubs, dragSubs])
 
 
 -- UTIL
@@ -232,10 +232,10 @@ unfocusInput = Dom.blur Consts.inputID |> Task.attempt FocusResult
 
 addError : String -> Model -> List String
 addError error model =
-    let time = Util.timestamp ()
-    in
-      List.take 1
-        ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
+  let time = Util.timestamp ()
+  in
+    List.take 1
+      ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
 
 updateDragPosition : Pos -> Offset -> ID -> NodeDict -> NodeDict
 updateDragPosition pos off (ID id) nodes =
