@@ -40,7 +40,7 @@ init = let m = { nodes = Dict.empty
                , inputValue = ""
                , focused = False
                , tempFieldName = ""
-               , lastPos = {x=-1, y=-1}
+               , lastPos = Consts.initialPos
                , drag = NoDrag
                , lastMsg = NoMsg
                }
@@ -93,7 +93,8 @@ update_ msg m =
   case (m.state, msg, m.cursor) of
     (_, CheckEscape code, _) ->
       if code == Consts.escapeKeycode
-      then ({ m | cursor = Nothing }, Cmd.none, DropFocus)
+      then ({ m | cursor = Nothing
+                , lastPos = Consts.initialPos}, Cmd.none, DropFocus)
       else (m, Cmd.none, NoFocus)
 
     (_, KeyPress code, cursor) ->

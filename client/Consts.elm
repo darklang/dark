@@ -12,3 +12,4 @@ edgeColor = "#444"
 edgeSize = "3.25px"
 dragEdgeStrokeColor = "red"
 dragEdgeSize = "2px"
+initialPos = {x=-50, y=-50}
