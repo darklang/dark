@@ -104,13 +104,6 @@ synonym x =
     "wrap" -> " :"
     _ -> x
 
--- <foreignObject x="339" y="191"><span class="node function" style="width: 50px;z-index: -1;">
---   <span class="name">merge</span>
---   <div class="param" style="color: red;font-size: 8px;margin-left: 28px;z-index: 1;font-weight: bold;position: relative;top: -28px;width: 61px;">
---     <span>◉</span>
---     <span>◉</span>
---   </div>
--- </foreignObject>
 viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
   let name = synonym n.name
@@ -157,7 +150,7 @@ viewNode m n =
                     (List.map viewField n.fields)
                     ++ (List.map viewParam n.parameters))]
              else []
-      container = Html.span attrs (heading :: list)
+      container = Html.div attrs (heading :: list)
   in
     placeHtml
       n.pos <|

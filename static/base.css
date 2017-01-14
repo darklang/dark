@@ -24,6 +24,7 @@ form {
 
 .node {
   position: relative;
+  top: -12px; /* space for params */
   box-sizing: border-box;
   border: 1px solid #444;
 	padding: 0.8em 1em;
@@ -117,6 +118,6 @@ form {
   z-index: 10; /* more than nodes */
   font-weight: bold;
   position: relative;
-  top: 6px;
+  top: -5px;
   width: 50px;
 }
