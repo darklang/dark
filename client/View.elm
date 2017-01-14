@@ -107,24 +107,37 @@ synonym x =
     "wrap" -> " :"
     _ -> x
 
+-- TODO: use a Dict
+slotIsConnected : Model -> ID -> ParamName -> Bool
+slotIsConnected m target param =
+  let matches edge = (edge.target == target) && (edge.targetParam == param)
+      all = List.map matches m.edges
+  in
+    List.any identity all
+
 -- TODO: if the param is connected, show in grey
 -- TODO: Allow selecting an edge, then highlight it and show it's source and target
 -- TODO: If there are default parameters, show them inline in the node body
 -- TODO: could maybe use little icons to denote the params
 viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
-  let name = synonym n.name
-
+  let
       -- params
       slotHandler name = (decodeClickEvent (DragSlotStart n name))
+      connected name = if slotIsConnected m n.id name
+                       then "connected"
+                       else "disconnected"
       viewParam name = Html.span
                        [ Events.on "mousedown" (slotHandler name)
-                       , Attrs.title name]
+                       , Attrs.title name
+                       , Attrs.class (connected name)]
                        [Html.text "◉"]
-      viewParams = List.map viewParam n.parameters
-      paramHolder = Html.div [Attrs.class "parameter"] viewParams
+      viewParams = Html.div
+                   [Attrs.class "parameters"]
+                   (List.map viewParam n.parameters)
 
       -- heading
+      name = synonym n.name
       heading = Html.span
                 [ Attrs.class "name"]
                 [ Html.text name ]
@@ -138,7 +151,7 @@ viewNode m n =
       list = if viewFields /= []
              then
                [Html.span
-                 [ Attrs.class "list"]
+                 [Attrs.class "list"]
                  (List.concat viewFields)]
              else []
 
@@ -167,8 +180,7 @@ viewNode m n =
 
       wrapper = Html.span
                 [ Attrs.class classes, width]
-                [ paramHolder, inner ]
-
+                [ viewParams, inner ]
   in
     placeHtml n.pos wrapper
 

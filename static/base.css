@@ -81,7 +81,7 @@ form {
 	line-height: 1.5em;
 }
 
-.parameter {
+.parameters {
   cursor: default;
   color: red;
   font-size: 8px;
@@ -89,4 +89,8 @@ form {
   font-weight: bold;
   position: relative;
   top: -5px;
+}
+
+.parameters .connected {
+  color: #888;
 }
