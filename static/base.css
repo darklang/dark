@@ -77,14 +77,6 @@ form {
   padding-bottom: 0.25em;
 }
 
-.datastore .dot {
-  content: "";
-  border: 1px solid #777;
-  border-radius: 0.7em;
-  height: 0.7em;
-  width: 0.7em;
-}
-
 .list {
   display: inline-block;
   margin-top: 0.5em;
@@ -92,26 +84,7 @@ form {
 }
 
 .parameter {
-  min-height: 0em;
-  display: block;
-}
-
-.parameter:before {
-  content: "";
-  position: relative;
-  top: 0.2em;
-  margin-right: 0.5em;
-  border: 1px solid #777;
-  border-radius: 0.7em;
-  height: 0.7em;
-  width: 0.7em;
-  display: inline-block;
-}
-.parameter:hover:before {
-  border:1px solid #fff;
-}
-
-.param {
+  cursor: default;
   color: red;
   font-size: 8px;
   margin-left: 28px; /* TODO: move into code */

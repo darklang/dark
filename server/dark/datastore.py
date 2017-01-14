@@ -100,6 +100,7 @@ class Datastore(node.Node):
     return { "name": self.tablename,
              "id": self.id(),
              "fields": [ (f.name, f.to_frontend()) for f in self.fields],
+             "parameters": ["ds"],
              "type": "datastore",
              "x": self.x,
              "y": self.y

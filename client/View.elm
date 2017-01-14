@@ -134,8 +134,12 @@ viewNode m n =
       attrs = [Attrs.class classes, width ] ++ events
 
       -- heading params
-      headingParams = List.map (\_ -> Html.span [] [Html.text "◉"]) n.parameters
-      headingParamHolder = Html.div [Attrs.class "param"] headingParams
+      slotHandler name = (decodeClickEvent (DragSlotStart n name))
+      viewHeadingParam name = Html.span
+                       [Events.on "mousedown" (slotHandler name)]
+                       [Html.text "◉"]
+      headingParams = List.map viewHeadingParam n.parameters
+      headingParamHolder = Html.div [Attrs.class "parameter"] headingParams
 
       -- heading
       heading = Html.span [Attrs.class "name"]
@@ -145,20 +149,16 @@ viewNode m n =
 
                  else [ Html.text name ])
 
-      -- fields
+      -- fields (in list)
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                                , Html.br [] []]
-      -- params
-      slotHandler name = (decodeClickEvent (DragSlotStart n name))
-      viewParam name = Html.span
-                       [ Attrs.class "parameter"
-                       , Events.on "mousedown" (slotHandler name)]
-                   [Html.text name]
+      -- params (in list)
+      viewParam name = Html.span [] [Html.text name]
       viewParams = [Html.span
                       [Attrs.class "list"]
                       (List.map viewParam n.parameters)]
 
-      -- expand list
+      -- list
       includeList = n.tipe == Datastore ||
                     (selected && (List.length n.parameters > 0))
       list = if includeList
