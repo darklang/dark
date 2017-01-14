@@ -136,7 +136,8 @@ viewNode m n =
       -- heading params
       slotHandler name = (decodeClickEvent (DragSlotStart n name))
       viewHeadingParam name = Html.span
-                       [Events.on "mousedown" (slotHandler name)]
+                       [ Events.on "mousedown" (slotHandler name)
+                       , Attrs.title name]
                        [Html.text "◉"]
       headingParams = List.map viewHeadingParam n.parameters
       headingParamHolder = Html.div [Attrs.class "parameter"] headingParams
