@@ -115,32 +115,14 @@ viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
   let name = synonym n.name
 
-      -- css classes
-      selected = case m.cursor of
-                       Just id -> id == n.id
-                       _ -> False
-      selectedCl = if selected then ["selected"] else []
-      class = String.toLower (toString n.tipe)
-      classes = String.join " " (["node", class] ++ selectedCl)
-
-      -- css attrs
-      width = Attrs.style [("width",
-                            (toString (nodeWidth n)) ++ "px")]
-      events =
-        [ Events.onClick (NodeClick n)
-        , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
-        , Events.onMouseUp (DragSlotEnd n)
-        ]
-      attrs = [Attrs.class classes, width ] ++ events
-
-      -- heading params
+      -- params
       slotHandler name = (decodeClickEvent (DragSlotStart n name))
-      viewHeadingParam name = Html.span
+      viewParam name = Html.span
                        [ Events.on "mousedown" (slotHandler name)
                        , Attrs.title name]
                        [Html.text "◉"]
-      headingParams = List.map viewHeadingParam n.parameters
-      headingParamHolder = Html.div [Attrs.class "parameter"] headingParams
+      viewParams = List.map viewParam n.parameters
+      paramHolder = Html.div [Attrs.class "parameter"] viewParams
 
       -- heading
       heading = Html.span
@@ -150,28 +132,45 @@ viewNode m n =
       -- fields (in list)
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                                , Html.br [] []]
-      -- params (in list)
-      viewParam name = Html.span [] [Html.text name]
-      viewParams = if n.tipe == Datastore
-                   then []
-                   else [Html.span
-                           [Attrs.class "list"]
-                           (List.map viewParam n.parameters)]
+      viewFields = List.map viewField n.fields
 
       -- list
-      includeList = n.tipe == Datastore
-      list = if includeList
+      list = if viewFields /= []
              then
                [Html.span
                  [ Attrs.class "list"]
-                 (List.concat
-                    (List.map viewField n.fields))]
+                 (List.concat viewFields)]
              else []
 
+       -- width
+      width = Attrs.style [("width",
+                            (toString (nodeWidth n)) ++ "px")]
+      -- events
+      events =
+        [ Events.onClick (NodeClick n)
+        , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
+        , Events.onMouseUp (DragSlotEnd n)]
+
+      -- inner node
+      inner = Html.div
+              (width :: (Attrs.class "inner") :: events)
+              (heading :: list)
+
+
+      -- outer node wrapper
+      selected = case m.cursor of
+                       Just id -> id == n.id
+                       _ -> False
+      selectedCl = if selected then ["selected"] else []
+      class = String.toLower (toString n.tipe)
+      classes = String.join " " (["node", class] ++ selectedCl)
+
+      wrapper = Html.span
+                [ Attrs.class classes, width]
+                [ paramHolder, inner ]
+
   in
-    placeHtml
-      n.pos <|
-      Html.span [] [headingParamHolder, Html.div attrs (heading :: list)]
+    placeHtml n.pos wrapper
 
 -- Our edges should be a lineargradient from "darker" to "arrowColor". SVG
 -- gradients are weird, they don't allow you specify based on the line

@@ -22,7 +22,7 @@ form {
   background-size:2em 2em;
 }
 
-.node {
+.node .inner {
   position: relative;
   top: -12px; /* space for params */
   box-sizing: border-box;
@@ -33,19 +33,19 @@ form {
   display: inline-block;
 }
 
-.node.function .name, .node.value .name, node.page .name {
+.node.function .inner .name, .node.value .inner .name, node.page .inner .name {
   display: block;
   text-align: center;
 }
 
-.node.function, .node.value {
+.node.function .inner, .node.value .inner {
   border-radius: 2em;
   padding: 0.3em 0.3em;
   display: block;
   z-index: 0; /* less than parameters, must not be negative (else events stop working */
 }
 
-.node.function.selected, .node.value.selected {
+.node.function.selected .inner, .node.value.selected .inner {
   border-radius: 0.5em;
 }
 
@@ -67,9 +67,7 @@ form {
 }
 
 .datastore .name {
-  display: flex;
-  justify-content: space-between;
-  flex-direction: row;
+  display: block; /* extend the line for the full width of the node */
   font-weight: bold;
   font-size: 1.37em;
   margin: 0;
@@ -87,10 +85,8 @@ form {
   cursor: default;
   color: red;
   font-size: 8px;
-  margin-left: 28px; /* TODO: move into code */
   z-index: 10; /* more than nodes */
   font-weight: bold;
   position: relative;
   top: -5px;
-  width: 50px;
 }
