@@ -41,6 +41,7 @@ form {
   border-radius: 2em;
   padding: 0.3em 0.3em;
   display: block;
+  z-index: 0; /* less than parameters, must not be negative (else events stop working */
 }
 
 .node.function.selected, .node.value.selected {
@@ -107,4 +108,15 @@ form {
 }
 .parameter:hover:before {
   border:1px solid #fff;
+}
+
+.node .param {
+  color: red;
+  font-size: 8px;
+  margin-left: 28px; /* TODO: move into code */
+  z-index: 10; /* more than nodes */
+  font-weight: bold;
+  position: relative;
+  top: -28px;
+  width: 50px;
 }

@@ -104,6 +104,13 @@ synonym x =
     "wrap" -> " :"
     _ -> x
 
+-- <foreignObject x="339" y="191"><span class="node function" style="width: 50px;z-index: -1;">
+--   <span class="name">merge</span>
+--   <div class="param" style="color: red;font-size: 8px;margin-left: 28px;z-index: 1;font-weight: bold;position: relative;top: -28px;width: 61px;">
+--     <span>◉</span>
+--     <span>◉</span>
+--   </div>
+-- </foreignObject>
 viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
   let name = synonym n.name
@@ -122,6 +129,8 @@ viewNode m n =
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
+      -- headingParams = List.map (\_ -> Html.span [] [Html.text "◉"]) n.parameters
+      -- headingParamHolder = Html.div [Attrs.class "param"] headingParams
       heading = Html.span [Attrs.class "name"]
                 (if n.tipe == Datastore
                  then [ Html.text name, Html.span [Attrs.class "dot"
