@@ -142,21 +142,20 @@ viewNode m n =
       headingParamHolder = Html.div [Attrs.class "parameter"] headingParams
 
       -- heading
-      heading = Html.span [Attrs.class "name"]
-                (if n.tipe == Datastore
-                 then [ Html.text name, Html.span [Attrs.class "dot"
-                                                  , Events.on "mousedown" (slotHandler "data")] [] ]
-
-                 else [ Html.text name ])
+      heading = Html.span
+                [ Attrs.class "name"]
+                [ Html.text name ]
 
       -- fields (in list)
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
                                , Html.br [] []]
       -- params (in list)
       viewParam name = Html.span [] [Html.text name]
-      viewParams = [Html.span
-                      [Attrs.class "list"]
-                      (List.map viewParam n.parameters)]
+      viewParams = if n.tipe == Datastore
+                   then []
+                   else [Html.span
+                           [Attrs.class "list"]
+                           (List.map viewParam n.parameters)]
 
       -- list
       includeList = n.tipe == Datastore ||
@@ -167,7 +166,7 @@ viewNode m n =
                  [ Attrs.class "list"]
                  (List.concat
                     (List.map viewField n.fields)
-                    ++ (List.map viewParam n.parameters))]
+                    ++ viewParams)]
              else []
 
   in
