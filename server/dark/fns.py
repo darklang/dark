@@ -6,22 +6,17 @@ import pyrsistent as pyr
 from . import fields
 from .datastore import Datastore
 
-from .typechecker import TypeConstraint
+# from .typechecker import tList
 
-datasinks = [] # type: List[Callable[...,Any]]
-datasources = [] # type: List[Callable[...,Any]]
-params = {} # type: Dict[str, Dict[str, TypeConstraint]]
+# TODO: merge these types with Fields
+class Url:
+  pass
 
 def page(url, inputs=[], outputs=[]):
   inputs = [i.replace("URL_VAR", url) for i in inputs]
   return str(outputs) + str(inputs)
 page.datasink = True
 page.datasource = True
-
-# params["page"]["url"] = TypeConstraint()
-# params["page"]["inputs"] = TypeConstraint()
-# params["page"]["outputs"] = TypeConstraint()
-# params["page"]["return"] = TypeConstraint()
 
 # TODO: no python objects allowed
 def form(schema) -> str:
@@ -41,7 +36,11 @@ def except_fields(exclude, data):
 def date_now(): return datetime.datetime.now()
 date_now.datasource = True
 
-def merge(vals): return pyr.m().update(vals)
+def merge(vals):
+  return pyr.m().update(vals)
+# merge.types = {vals: List(Obj("A", "B")),
+               # result: Obj("A","B")}
+
 def get_field(obj, name): return obj[name]
 def select_fields(obj, names):
   return {name: obj[name] for name in names}
