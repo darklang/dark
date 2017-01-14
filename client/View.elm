@@ -19,17 +19,17 @@ import Util
 
 view : Model -> Html.Html Msg
 view model =
+  -- TODO: recalculate this using Tasks
   let (w, h) = Util.windowSize ()
   in
     Html.div
       [Attrs.id "grid"]
-      [ viewInput model.inputValue
-      , viewState model.state
-      -- , viewClick model.lastPos
-      , viewErrors model.errors
-      , (Svg.svg
-           [ SA.width (toString w) , SA.height (toString h)]
+      [ (Svg.svg
+           [ SA.width (toString w) , SA.height (toString <| h - 30)]
            (viewCanvas model))
+      , viewInput model.inputValue
+      , viewState model.state
+      , viewErrors model.errors
       ]
 
 viewInput value = Html.form [
@@ -41,7 +41,7 @@ viewInput value = Html.form [
                               ] []
                   ]
 
-
+-- TODO: CSS this onto the bottom
 viewState state = Html.text ("state: " ++ toString state)
 viewErrors errors = Html.span [] <| (Html.text " -----> errors: ") :: (List.map Html.text errors)
 
@@ -54,7 +54,8 @@ viewCanvas m =
         dragEdge = case mDragEdge of
                      Just de -> [de]
                      Nothing -> []
-    in svgDefs :: svgArrowHead :: (allNodes ++ dragEdge ++ edges)
+        click = viewClick m.lastPos
+    in svgDefs :: svgArrowHead :: click :: (allNodes ++ dragEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml pos html =
@@ -63,6 +64,12 @@ placeHtml pos html =
     , SA.y (toString pos.y)
     ]
     [ html ]
+
+viewClick pos =
+  Svg.circle [ SA.r "10"
+             , SA.cx (toString pos.x)
+             , SA.cy (toString pos.y)
+             , SA.fill "#333"] []
 
 nodeWidth : Node -> Bool -> Int
 nodeWidth n selected =
