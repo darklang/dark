@@ -33,7 +33,7 @@ form {
   display: inline-block;
 }
 
-.node.function .inner .name, .node.value .inner .name, node.page .inner .name {
+.node.function .name, .node.value .name, node.page .name {
   display: block;
   text-align: center;
 }
@@ -53,7 +53,7 @@ form {
   color: red;
 }
 
-.node.page {
+.node.page .inner {
   border-radius: 1em;
   padding: 0.5em 1.7em;
   text-align: center;
