@@ -129,8 +129,8 @@ viewNode m n =
       selectedCl = if selected then ["selected"] else []
       classes = String.join " " (["node", class] ++ selectedCl)
       attrs = [Attrs.class classes, width ] ++ events
-      -- headingParams = List.map (\_ -> Html.span [] [Html.text "◉"]) n.parameters
-      -- headingParamHolder = Html.div [Attrs.class "param"] headingParams
+      headingParams = List.map (\_ -> Html.span [] [Html.text "◉"]) n.parameters
+      headingParamHolder = Html.div [Attrs.class "param"] headingParams
       heading = Html.span [Attrs.class "name"]
                 (if n.tipe == Datastore
                  then [ Html.text name, Html.span [Attrs.class "dot"
@@ -157,12 +157,11 @@ viewNode m n =
                     (List.map viewField n.fields)
                     ++ (List.map viewParam n.parameters))]
              else []
+      container = Html.span attrs (heading :: list)
   in
     placeHtml
       n.pos <|
-      Html.span
-        attrs
-        (heading :: list)
+      Html.span [] [headingParamHolder, container]
 
 -- Our edges should be a lineargradient from "darker" to "arrowColor". SVG
 -- gradients are weird, they don't allow you specify based on the line

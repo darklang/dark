@@ -110,13 +110,13 @@ form {
   border:1px solid #fff;
 }
 
-.node .param {
+.param {
   color: red;
   font-size: 8px;
   margin-left: 28px; /* TODO: move into code */
   z-index: 10; /* more than nodes */
   font-weight: bold;
   position: relative;
-  top: -28px;
+  top: 6px;
   width: 50px;
 }
