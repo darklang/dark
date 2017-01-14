@@ -60,7 +60,7 @@ update msg m =
                    Focus -> Cmd.batch [cmd2, focusInput]
                    NoFocus -> cmd2
                    DropFocus -> Cmd.batch [cmd2, unfocusInput]
-        m4 = { m2 | lastMsg = msg }
+        m4 = { m3 | lastMsg = msg }
     in (m4, cmd3)
 
 type Focus = Focus | NoFocus | DropFocus
@@ -107,7 +107,7 @@ update_ msg m =
 
     (_, RecordClick pos, _) ->
       ({ m | lastPos = pos
-       }, Cmd.none, NoFocus)
+       }, Cmd.none, Focus)
 
     (_, ClearCursor mpos, _) ->
       ({ m | cursor = Nothing
