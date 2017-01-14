@@ -107,6 +107,10 @@ synonym x =
     "wrap" -> " :"
     _ -> x
 
+-- TODO: if the param is connected, show in grey
+-- TODO: Allow selecting an edge, then highlight it and show it's source and target
+-- TODO: If there are default parameters, show them inline in the node body
+-- TODO: could maybe use little icons to denote the params
 viewNode : Model -> Node -> Html.Html Msg
 viewNode m n =
   let name = synonym n.name
