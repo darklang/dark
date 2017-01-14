@@ -71,8 +71,8 @@ viewClick pos =
              , SA.cy (toString pos.y)
              , SA.fill "#333"] []
 
-nodeWidth : Node -> Bool -> Int
-nodeWidth n selected =
+nodeWidth : Node -> Int
+nodeWidth n =
   let
     slimChars = Set.fromList Consts.narrowChars
     len name =
@@ -86,24 +86,20 @@ nodeWidth n selected =
                      Page -> 2.2
                      _ -> 1
     ln = [nameMultiple * len n.name]
-    lp = if selected
-         then
-           List.map (\p -> len p + 3) n.parameters
-         else []
     lf = List.map (\(n,t) -> len n + len t + 3) n.fields
-    charWidth = List.foldl max 2 (ln ++ lp ++ lf)
+    charWidth = List.foldl max 2 (ln ++ lf)
     width = charWidth * 10
   in
     round(width)
 
-nodeHeight : Node -> Bool -> Int
-nodeHeight n selected =
+nodeHeight : Node -> Int
+nodeHeight n =
   case n.tipe of
     Datastore -> Consts.nodeHeight * ( 1 + (List.length n.fields))
     _ -> Consts.nodeHeight
 
-nodeSize node selected =
-  (nodeWidth node selected, nodeHeight node selected)
+nodeSize node =
+  (nodeWidth node , nodeHeight node)
 
 synonym x =
   case x of
@@ -125,7 +121,7 @@ viewNode m n =
 
       -- css attrs
       width = Attrs.style [("width",
-                            (toString (nodeWidth n selected)) ++ "px")]
+                            (toString (nodeWidth n)) ++ "px")]
       events =
         [ Events.onClick (NodeClick n)
         , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
@@ -159,15 +155,13 @@ viewNode m n =
                            (List.map viewParam n.parameters)]
 
       -- list
-      includeList = n.tipe == Datastore ||
-                    (selected && (List.length n.parameters > 0))
+      includeList = n.tipe == Datastore
       list = if includeList
              then
                [Html.span
                  [ Attrs.class "list"]
                  (List.concat
-                    (List.map viewField n.fields)
-                    ++ viewParams)]
+                    (List.map viewField n.fields))]
              else []
 
   in
@@ -269,10 +263,8 @@ viewEdge m {source, target, targetParam} =
                              (Just s, Just t) -> (s, t)
                              _ -> Debug.crash "Can't happen"
         targetPos = targetN.pos
-        (sourceW, sourceH) =
-          nodeSize sourceN (m.cursor == Just sourceN.id)
-        (targetW, targetH) =
-          nodeSize targetN (m.cursor == Just targetN.id)
+        (sourceW, sourceH) = nodeSize sourceN
+        (targetW, targetH) = nodeSize targetN
 
         -- find the shortest line and link to there
         joins = [ (targetN.pos.x, targetN.pos.y + targetH // 2) -- left
