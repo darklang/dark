@@ -4,5 +4,4 @@ python-slugify
 termcolor
 watchdog
 pyrsistent
-git+git://github.com/python/mypy.git
-typed-ast # for mypy
+mypy==0.470
