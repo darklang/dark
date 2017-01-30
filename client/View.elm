@@ -4,6 +4,7 @@ import Dict exposing (Dict)
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Set
+import List.Extra
 
 import Svg
 import Svg.Attributes as SA
@@ -100,6 +101,12 @@ nodeHeight n =
 
 nodeSize node =
   (nodeWidth node , nodeHeight node)
+paramOffset : Node -> String -> Pos
+paramOffset node param =
+  let
+    index = deMaybe (List.Extra.elemIndex param node.parameters)
+  in
+    {x=index*10, y=-2}
 
 synonym x =
   case x of
@@ -116,7 +123,7 @@ slotIsConnected m target param =
     List.any identity all
 
 -- TODO: if the param is connected, show in grey
--- TODO: Allow selecting an edge, then highlight it and show it's source and target
+-- TODO: Allow selecting an edge, then highlight it and show its source and target
 -- TODO: If there are default parameters, show them inline in the node body
 -- TODO: could maybe use little icons to denote the params
 viewNode : Model -> Node -> Html.Html Msg
@@ -270,22 +277,27 @@ viewDragEdge drag currentPos =
                 dragEdgeStyle
 
 deID (ID x) = x
+deMaybe x = case x of
+              Nothing -> Debug.crash "not possible"
+              Just y -> y
+
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, targetParam} =
     let mSourceN = Dict.get (deID source) m.nodes
         mTargetN = Dict.get (deID target) m.nodes
-        (sourceN, targetN) = case (mSourceN, mTargetN) of
-                             (Just s, Just t) -> (s, t)
-                             _ -> Debug.crash "Can't happen"
+        (sourceN, targetN) = (deMaybe mSourceN, deMaybe mTargetN)
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
         (targetW, targetH) = nodeSize targetN
 
+        pOffset = paramOffset targetN targetParam
+        (tnx, tny) = (targetN.pos.x + pOffset.x, targetN.pos.y + pOffset.y)
+
         -- find the shortest line and link to there
-        joins = [ (targetN.pos.x, targetN.pos.y + targetH // 2) -- left
-                , (targetN.pos.x + targetW // 2, targetN.pos.y) -- top
-                , (targetN.pos.x + targetW, targetN.pos.y + targetH // 2) -- right
-                , (targetN.pos.x + targetW // 2, targetN.pos.y + targetH) -- bottom
+        joins = [ (tnx, tny) -- topleft
+                , (tnx + 5, tny) -- topright
+                , (tnx, tny + 5) -- bottomleft
+                , (tnx + 5, tny + 5) -- bottomright
                 ]
         sq x = toFloat (x*x)
         spos = { x = sourceN.pos.x + (sourceW // 2)
@@ -294,9 +306,7 @@ viewEdge m {source, target, targetParam} =
         join = List.head
                (List.sortBy (\(x,y) -> sqrt ((sq (spos.x - x)) + (sq (spos.y - y))))
                   joins)
-        (tx, ty) = case join of
-                     Nothing -> Debug.crash "not possible"
-                     Just j -> j
+        (tx, ty) = deMaybe join
     in svgLine
       spos
       {x=tx,y=ty}
