@@ -102,9 +102,7 @@ class Graph:
                 "delete_node", "add_edge",
                 "delete_edge", "clear_edges"]:
       def fn(*args : Any) -> Optional[ID]:
-        print("args are" + str(args))
         id = None
-        print("name is: " + name)
         if name in ["add_fn", "add_value"]:
           id = random.randint(0, 2**32)
           args += (id,)
