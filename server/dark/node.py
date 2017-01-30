@@ -89,12 +89,6 @@ class FnNode(Node):
   def is_datasink(self) -> bool:
     return getattr(self._getfn(), "datasink", False)
 
-  # here's the plan for something which takes a list of args: First, all args
-  # will be linked to "notches" on top of the node in the UI. *args will then
-  # be shown as just one notch, but when you add to it, another notch will
-  # appear. In the graph, they'll be "arg1", "arg2", etc. (Later you'll be able
-  # to rearrange them.) Unmatched notches are a different color, maybe. When you
-  # expand the node, we show you the name.
   def get_parameters(self) -> List[str]:
     func = self._getfn()
     argspec = inspect.getfullargspec(func)
