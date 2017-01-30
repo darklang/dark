@@ -132,11 +132,11 @@ class Datastore(node.Node):
     self.db.update(key, value)
 
   def fetch(self, num:int = 10) -> List[Any]:
-    vals = self.db.fetch(num)
-    print(vals)
-    # this is wrong. Should be a list of objects
-    raise Exception("wtf am i doint here")
-    # return {k: v for (k,v) in zip(self.fields, self.db.fetch(num))}
+    rows = self.db.fetch(num)
+    def to_obj(row, fields):
+      return {k: v for (k,v) in zip(row,fields)}
+    vals = [to_obj(r,self.db.fields) for r in rows]
+    return vals
 
   def fetch_one(self, key:str, key_name:str ) -> Any:
     return self.db.fetch_by_key(key_name, key)
