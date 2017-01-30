@@ -104,10 +104,11 @@ class FnNode(Node):
     func = self._getfn()
     params = self.get_parameters()
 
-    # TODO: figure out page
-    assert len(params) == len(args)
-    for p in params:
-      assert p in args
+    # TODO: pages can have less (probably do with default params)
+    if not self.is_page():
+      assert len(params) == len(args)
+      for p in params:
+        assert p in args
 
     # TODO: get named arguments here
     return func(**args)
