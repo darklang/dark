@@ -288,7 +288,6 @@ viewEdge m {source, target, targetParam} =
         (sourceN, targetN) = (deMaybe mSourceN, deMaybe mTargetN)
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
-        (targetW, targetH) = nodeSize targetN
 
         pOffset = paramOffset targetN targetParam
         (tnx, tny) = (targetN.pos.x + pOffset.x, targetN.pos.y + pOffset.y)
@@ -300,6 +299,10 @@ viewEdge m {source, target, targetParam} =
                 , (tnx + 5, tny + 5) -- bottomright
                 ]
         sq x = toFloat (x*x)
+        -- ideally to source pos would be at the bottom of the node. But, the
+        -- positioning of the node is a little bit off because css, and nodes
+        -- with parameters are in different relative offsets than nodes without
+        -- parameters. This makes it hard to line things up exactly.
         spos = { x = sourceN.pos.x + (sourceW // 2)
                , y = sourceN.pos.y + (sourceH // 2)}
 
