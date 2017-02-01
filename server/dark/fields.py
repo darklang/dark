@@ -3,7 +3,8 @@ import datetime
 from typing import Any, cast
 
 class Tag:
-  def __init__(self, name : str,
+  def __init__(self,
+               name : str,
                contents : str,
                tag : str,
                **attributes : str) -> None:
