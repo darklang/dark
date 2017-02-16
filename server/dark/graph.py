@@ -28,6 +28,9 @@ def load(name:str) -> 'Graph':
     with open(filename, 'rb') as file:
       graph = pickle.load(file)
     graph.migrate(name)
+    print("Graph %s: v%s" % (graph.name, graph.version))
+    for op in graph.ops:
+      graph.apply_op(op)
     return graph
   else:
     return Graph(name)
@@ -71,8 +74,6 @@ class Graph:
     self.ops = state["ops"]
     self.nodes = {}
     self.edges = {}
-    for op in self.ops:
-      self.apply_op(op)
 
   def __getattr__(self, name:str) -> Any:
     # pickling is weird with getattr
@@ -290,10 +291,78 @@ class Graph:
   # Migration
   #############
   def migrate(self, name:str) -> None:
+    if self.version == 5:
+      def rename (name : str) -> str:
+        m = {
+          "fetch": "DB_fetch",
+          "schema": "DB_schema",
+          "DS": "DS",
+
+          "date_now": "Date_now",
+
+          "except_fields": "Obj_dissoc",
+          "merge": "Obj_merge",
+          "get_field": "Obj_get",
+          "wrap": "Obj_wrap",
+
+          "list_page": "Page_list_page",
+          "form": "Page_to_form",
+          "to_form": "Page_to_form",
+          "new_page": "Page_new_page",
+          "to_slug": "Url_to_slug",
+
+          "[\"url\", \"date\"]": "[\"url\", \"date\"]",
+          "\"/new\"": "\"/new\"",
+          "\"url\"": "\"url\"",
+          "\"title\"": "\"title\"",
+          "\"date\"": "\"date\"",
+          "\"/\"": "\"/\"",
+
+          "to_list": "to_list",
+
+        }
+        return m[name]
+
+      def rename_pos(args, pos):
+        fn = args[pos]
+
+        if "-" in fn:
+          fn, num = fn.split("-")
+          if fn == "VALUE":
+            fn = fn + "-" + num
+          else:
+            fn = rename(fn)
+            fn = fn + "-" + num
+        else:
+          fn = rename(fn)
+
+        return args[0:pos] + (fn,) + args[pos+1:]
+
+      def translate(op):
+        if op.op == "add_datastore":
+          return op
+        if op.op == "add_value":
+          return op
+        if op.op == "add_edge":
+          first = rename_pos(op.args, 0)
+          second = rename_pos(first, 1)
+          return Op(op.op, second)
+
+        return Op(op.op, rename_pos(op.args, 0))
+
+      # debugging
+      for op in self.ops:
+        print(op)
+        nop = translate(op)
+        print(nop)
+
+      self.ops = [translate(op) for op in self.ops]
+      self.version = 6
+      # raise Exception("just in case")
+
     # 1. no name and no version
     # 2. pages are double listed
     # 3. remove some fields to avoid denormalization
     # 4. changed a Node into a FnNode
     # 5. create ops array
     # TODO: move existing structure into ops
-    pass

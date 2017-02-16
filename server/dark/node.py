@@ -76,8 +76,8 @@ class FnNode(Node):
   def _getfn(self) -> Callable[..., Any]:
     from . import fns
     fn = getattr(fns, self.fnname, None)
-    if not fn and "page" in self.fnname:
-      fn = fns.page
+    if not fn and "Page_page" in self.fnname:
+      fn = fns.Page_page
     if fn == None:
       def fn(args : Any) -> Dict[str,Any]:
         return {}
