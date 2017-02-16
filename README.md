@@ -65,3 +65,15 @@ what happens when you want inputs of two different types?
 
 
 
+typesystem:
+- DBs return objects
+- we must know that the value is a Url
+- therefore DBs must return Dict[str, Url]
+- the URL has a string representation
+- therefore it must be a tagged value
+- Blog entry must then return:
+ - {url: Url, title: Title, date: Date, content: Markdown}
+- we have to be able to easily extract the str from value
+- as implementation, Urls and Titles will have hidden values that you can only extract via functions.
+- User-defined types are all DB entries (not quite - should allow tagged types too)
+- you can extract the value via the name of the value. UI can make this sweet, including destructuring)
