@@ -131,9 +131,9 @@ class Datastore(node.Node):
     self.validate(value)
     self.db.update(key, value)
 
-  def fetch(self, num:int = 10) -> List[Any]:
+  def fetch(self, num:int = 10) -> List[Dict[str,Any]]:
     rows = self.db.fetch(num)
-    def to_obj(row, fields):
+    def to_obj(row : List[str], fields : List[str]) -> Dict[str,str]:
       return {k: v for (k,v) in zip(row,fields)}
     vals = [to_obj(r,self.db.fields) for r in rows]
     return vals
