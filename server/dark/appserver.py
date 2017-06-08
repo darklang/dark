@@ -26,7 +26,7 @@ class AppServer(object):
 
   def serve(self) -> None:
     werkzeug.serving.run_simple('127.0.0.1',
-                                3000,
+                                int(os.getenv("PORT", "3000")),
                                 self,
                                 use_debugger=False,
                                 use_reloader=True)
