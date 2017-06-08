@@ -54,7 +54,7 @@ class Op(NamedTuple):
 class Graph:
   def __init__(self, name:str) -> None:
     self.name = name
-    self.version = 5
+    self.version = 6
     self.ops : List[Op] = []
     self.nodes : Dict[ID,Node] = {}
     # first Tuple arg is n2.id, 2nd one is param
@@ -69,6 +69,7 @@ class Graph:
 
   # Unpickling
   def __setstate__(self, state: Dict[str,Any]) -> None:
+    print(state)
     self.name = state["name"]
     self.version = state["version"]
     self.ops = state["ops"]

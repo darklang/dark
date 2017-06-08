@@ -71,8 +71,8 @@ class DMarkdown(DVal):
 def Str_append(s1 : str, s2 : str) -> str:
   return s1 + s2
 
-def Url_to_slug(s : str) -> DUrl:
-  return DUrl(slugify(s))
+def Url_to_slug(str : str) -> DUrl:
+  return DUrl(slugify(str))
 
 def Date_now() -> DDate:
   return DDate(datetime.datetime.now().timestamp())

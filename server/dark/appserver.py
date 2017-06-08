@@ -14,6 +14,9 @@ class AppServer(object):
 
   def __init__(self) -> None:
     self.url_map = Map() # unused, here for Mypy
+
+    self.users = {"dark": "2DqMHguUfsAGCPerWgyHRxPi"}
+
     template_path = os.path.join(os.path.dirname(__file__), '..', '..', 'templates')
     self.jinja_env = Environment(loader=FileSystemLoader(template_path),
                                  autoescape=True)
@@ -43,8 +46,20 @@ class AppServer(object):
 
   def app(self, environ:Any, start_response:Any) -> Any:
     request = Request(environ)
-    response = self.dispatch_request(request)
+    auth = request.authorization
+    if not auth or not self.check_auth(auth.username, auth.password):
+      response = self.auth_required(request)
+    else:
+      response = self.dispatch_request(request)
     return response(environ, start_response)
+
+  def check_auth(self, username, password):
+    return username in self.users and self.users[username] == password
+
+  def auth_required(self, request):
+    return Response('Could not verify your access level for that URL.\n'
+                    'You have to login with proper credentials', 401,
+                    {'WWW-Authenticate': 'Basic realm="Dark"'})
 
   def __call__(self, environ:Any, start_response:Any) -> Any:
     return self.wsgi_app(environ, start_response)
