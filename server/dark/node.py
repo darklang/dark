@@ -65,7 +65,8 @@ class FnNode(Node):
     self.x = x
     self.y = y
     self._id = id
-    assert self._getfn()
+    if not self._getfn():
+      raise Exception("Error: no function named " + self.fnname)
 
   def __str__(self) -> str:
     return self.id()
@@ -78,9 +79,6 @@ class FnNode(Node):
     fn = getattr(fns, self.fnname, None)
     if not fn and "Page_page" in self.fnname:
       fn = fns.Page_page
-    if fn == None:
-      def fn(args : Any) -> Dict[str,Any]:
-        return {}
     return fn
 
   def is_datasource(self) -> bool:
