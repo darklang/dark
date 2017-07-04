@@ -38,7 +38,13 @@ class Node:
   def to_frontend(self) -> Any:
     raise Exception("this is the base class")
 
-  def name(self):
+  def name(self) -> str:
+    raise Exception("this is the base class")
+
+  def get_return_type(self) -> type:
+    raise Exception("this is the base class")
+
+  def get_parameter_type(self, param : str) -> type:
     raise Exception("this is the base class")
 
 class Value(Node):
@@ -49,7 +55,7 @@ class Value(Node):
     self.y = y
     self._id = id
 
-  def name(self):
+  def name(self) -> str:
     return self.valuestr
 
   def exe(self, **args:Val) -> Val:
@@ -67,7 +73,7 @@ class Value(Node):
   def id(self) -> ID:
     return ID("VALUE-%04X (%s)" % ((self._id % 2**16), self.name()))
 
-  def get_return_type(self):
+  def get_return_type(self) -> type:
     return self.value.__class__
 
 class FnNode(Node):
@@ -101,12 +107,12 @@ class FnNode(Node):
   def is_datasink(self) -> bool:
     return getattr(self._getfn(), "datasink", False)
 
-  def get_parameter_type(self, param : str):
+  def get_parameter_type(self, param : str) -> type:
     func = self._getfn()
     argspec = inspect.getfullargspec(func)
     return argspec.annotations[param]
 
-  def get_return_type(self):
+  def get_return_type(self) -> type:
     func = self._getfn()
     argspec = inspect.getfullargspec(func)
     return argspec.annotations['return']

@@ -53,18 +53,18 @@ class DMarkdown(DVal):
     self.val = val
 
 
-def py2dval(val):
+def py2dval(val : Any) -> DVal:
   if isinstance(val, int):
     return DInt(val)
   if isinstance(val, str):
     return DStr(val)
   raise Exception("Unknown type: " + str(val.__class__) + " in " + str(val))
 
-def prettify_type(t):
+def prettify_type(t : type) -> str:
   return t.__name__
 
 class DTypeError(Exception):
-  def __init__(self, t1, t2):
+  def __init__(self, t1 : type, t2 : type) -> None:
 
     # Call the base class constructor with the parameters it needs
     super(DTypeError, self).__init__("Type check exception")
@@ -73,7 +73,7 @@ class DTypeError(Exception):
     self.p1 = prettify_type(t1)
     self.p2 = prettify_type(t2)
 
-def check(a : type, b : type):
+def check(a : type, b : type) -> None:
   if not _check(a, b) and not _check(b, a):
     raise DTypeError(a, b)
 

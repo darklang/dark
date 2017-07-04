@@ -182,7 +182,7 @@ class Graph:
     try:
       types.check(src_type, target_type)
     except types.DTypeError as e:
-      raise Exception("Can't send a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name()))
+      raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name()))
 
 
     self.edges[src.id()].append((target.id(), param))

@@ -47,16 +47,16 @@ class AppServer(object):
   def app(self, environ:Any, start_response:Any) -> Any:
     request = Request(environ)
     auth = request.authorization
-    if not auth or not self.check_auth(auth.username, auth.password):
+    if not auth or not self.check_auth(auth.username, auth.password):  # type: ignore
       response = self.auth_required(request)
     else:
       response = self.dispatch_request(request)
     return response(environ, start_response)
 
-  def check_auth(self, username, password):
+  def check_auth(self, username : str, password : str) -> bool:
     return username in self.users and self.users[username] == password
 
-  def auth_required(self, request):
+  def auth_required(self, request : Any) -> Any:
     return Response('Could not verify your access level for that URL.\n'
                     'You have to login with proper credentials', 401,
                     {'WWW-Authenticate': 'Basic realm="Dark"'})
