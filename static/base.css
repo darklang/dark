@@ -15,6 +15,11 @@ body {
   width: 300px;
   margin-right: 5px;
 }
+
+#darkErrors {
+  margin-right: 250px;
+}
+
 form {
   display: inline;
 }

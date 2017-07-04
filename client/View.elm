@@ -44,7 +44,7 @@ viewInput value = Html.form [
 
 -- TODO: CSS this onto the bottom
 viewState state = Html.text ("state: " ++ toString state)
-viewErrors errors = Html.div [] <| (Html.text "Err: ") :: (List.map Html.text errors)
+viewErrors errors = Html.div [Attrs.id "darkErrors"] <| (Html.text "Err: ") :: (List.map Html.text errors)
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
