@@ -9,6 +9,7 @@ import pyrsistent as pyr
 from dark.node import Node, FnNode, Value, ID
 from . import datastore
 from . import fields
+from . import types
 from .util import req
 
 from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set, NamedTuple
@@ -169,6 +170,17 @@ class Graph:
   def _add_edge(self, src_id:ID, target_id:ID, param:str) -> None:
     src = self.nodes[src_id]
     target = self.nodes[target_id]
+
+    # Can't have two edges to the same target
+    if self.get_parents(target).get(param) != None:
+      # TODO: exception for datasinks like DBs and APIs
+      raise Exception("There's already an edge here")
+
+    # check the types at both ends of the edge are compatible
+    src_type = src.get_value_type()
+    target_type = target.get_parameter_type(param)
+    types.check(src_type, target_type)
+
     self.edges[src.id()].append((target.id(), param))
 
   def _delete_edge(self, src_id:ID, target_id:ID, param:str) -> None:

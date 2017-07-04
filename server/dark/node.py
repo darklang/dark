@@ -3,6 +3,8 @@ import inspect
 
 from typing import Any, Dict, Callable, List, NewType
 
+from . import types
+
 # TODO:
 # - replace simple classes with typing.NamedTuple
 # - replace comment types with real types
@@ -39,7 +41,7 @@ class Node:
 class Value(Node):
   def __init__(self, valuestr:str, x:int, y:int, id:int) -> None:
     self.name = valuestr
-    self.value = eval(valuestr)
+    self.value = types.py2dval(eval(valuestr))
     self.x = x
     self.y = y
     self._id = id
@@ -59,6 +61,9 @@ class Value(Node):
   def id(self) -> ID:
     return ID("VALUE-%04X (%s)" % ((self._id % 2**16), self.name))
 
+  def get_value_type(self):
+    return self.value.__class__
+
 class FnNode(Node):
   def __init__(self, fnname:str, x:int, y:int, id:int) -> None:
     self.fnname = fnname
@@ -72,12 +77,12 @@ class FnNode(Node):
     return self.id()
 
   def is_page(self) -> bool:
-    return "page" in self.fnname
+    return "Page_page" in self.fnname
 
   def _getfn(self) -> Callable[..., Any]:
     from . import fns
     fn = getattr(fns, self.fnname, None)
-    if not fn and "Page_page" in self.fnname:
+    if not fn and self.is_page():
       fn = fns.Page_page
     return fn
 
@@ -86,6 +91,11 @@ class FnNode(Node):
 
   def is_datasink(self) -> bool:
     return getattr(self._getfn(), "datasink", False)
+
+  def get_parameter_type(self, param : str):
+    func = self._getfn()
+    argspec = inspect.getfullargspec(func)
+    return argspec.annotations[param]
 
   def get_parameters(self) -> List[str]:
     func = self._getfn()

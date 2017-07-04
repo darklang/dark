@@ -141,11 +141,13 @@ class Server(appserver.AppServer):
 
       for p in G.pages.values():
         urls = G.get_named_parents(p, "url")
+        for u in urls:
+          assert u.__class__.__name__ == "Value"
         urls = [u.exe() for u in urls]
         for url in urls:
           if re.compile("^%s$" % url).match(path):
             if request.method == "GET":
-              val = G.run_output(p)
+              val = G.run_output(p).val
               return Response(val, mimetype='text/html')
             if request.method == "POST":
               G.run_input(p, request.values.to_dict())
