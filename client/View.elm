@@ -26,11 +26,11 @@ view model =
     Html.div
       [Attrs.id "grid"]
       [ (Svg.svg
-           [ SA.width (toString w) , SA.height (toString <| h - 30)]
+           [ SA.width (toString w) , SA.height (toString <| h - 50)]
            (viewCanvas model))
+      , viewErrors model.errors
       , viewInput model.inputValue
       , viewState model.state
-      , viewErrors model.errors
       ]
 
 viewInput value = Html.form [
@@ -44,7 +44,7 @@ viewInput value = Html.form [
 
 -- TODO: CSS this onto the bottom
 viewState state = Html.text ("state: " ++ toString state)
-viewErrors errors = Html.span [] <| (Html.text " -----> errors: ") :: (List.map Html.text errors)
+viewErrors errors = Html.div [] <| (Html.text "Err: ") :: (List.map Html.text errors)
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =

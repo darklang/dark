@@ -11,8 +11,12 @@ body {
   color:#fff;
 }
 
+#darkInput {
+  width: 300px;
+  margin-right: 5px;
+}
 form {
-    display: inline;
+  display: inline;
 }
 
 #grid {

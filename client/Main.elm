@@ -36,7 +36,7 @@ init = let m = { nodes = Dict.empty
                , edges = []
                , cursor = Nothing
                , state = ADD_FUNCTION
-               , errors = ["."]
+               , errors = ["None"]
                , inputValue = ""
                , focused = False
                , tempFieldName = ""
