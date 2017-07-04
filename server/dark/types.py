@@ -60,15 +60,25 @@ def py2dval(val):
     return DStr(val)
   raise Exception("Unknown type: " + str(val.__class__) + " in " + str(val))
 
+def prettify_type(t):
+  return t.__name__
+
+class DTypeError(Exception):
+  def __init__(self, t1, t2):
+
+    # Call the base class constructor with the parameters it needs
+    super(DTypeError, self).__init__("Type check exception")
+    self.t1 = t1
+    self.t2 = t2
+    self.p1 = prettify_type(t1)
+    self.p2 = prettify_type(t2)
 
 def check(a : type, b : type):
   if not _check(a, b) and not _check(b, a):
-    raise Exception("types mismatch: " + str(a) + " != " + str(b))
-    pass
+    raise DTypeError(a, b)
 
 def _check(a : type, b : type) -> bool:
   ts = (a, b)
-  print("types: " + str(ts))
 
   if a == b:
     return True

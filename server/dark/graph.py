@@ -177,9 +177,13 @@ class Graph:
       raise Exception("There's already an edge here")
 
     # check the types at both ends of the edge are compatible
-    src_type = src.get_value_type()
+    src_type = src.get_return_type()
     target_type = target.get_parameter_type(param)
-    types.check(src_type, target_type)
+    try:
+      types.check(src_type, target_type)
+    except types.DTypeError as e:
+      raise Exception("Can't send a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name()))
+
 
     self.edges[src.id()].append((target.id(), param))
 

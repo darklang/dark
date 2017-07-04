@@ -38,20 +38,26 @@ class Node:
   def to_frontend(self) -> Any:
     raise Exception("this is the base class")
 
+  def name(self):
+    raise Exception("this is the base class")
+
 class Value(Node):
   def __init__(self, valuestr:str, x:int, y:int, id:int) -> None:
-    self.name = valuestr
+    self.valuestr = valuestr
     self.value = types.py2dval(eval(valuestr))
     self.x = x
     self.y = y
     self._id = id
+
+  def name(self):
+    return self.valuestr
 
   def exe(self, **args:Val) -> Val:
     assert len(args) == 0
     return self.value
 
   def to_frontend(self) -> Dict[str, Any]:
-    return { "name": self.name,
+    return { "name": self.name(),
              "parameters": [],
              "id": self.id(),
              "type": "value",
@@ -59,9 +65,9 @@ class Value(Node):
              "y": self.y}
 
   def id(self) -> ID:
-    return ID("VALUE-%04X (%s)" % ((self._id % 2**16), self.name))
+    return ID("VALUE-%04X (%s)" % ((self._id % 2**16), self.name()))
 
-  def get_value_type(self):
+  def get_return_type(self):
     return self.value.__class__
 
 class FnNode(Node):
@@ -72,6 +78,9 @@ class FnNode(Node):
     self._id = id
     if not self._getfn():
       raise Exception("Error: no function named " + self.fnname)
+
+  def name(self) -> str:
+    return self.fnname
 
   def __str__(self) -> str:
     return self.id()
@@ -97,6 +106,11 @@ class FnNode(Node):
     argspec = inspect.getfullargspec(func)
     return argspec.annotations[param]
 
+  def get_return_type(self):
+    func = self._getfn()
+    argspec = inspect.getfullargspec(func)
+    return argspec.annotations['return']
+
   def get_parameters(self) -> List[str]:
     func = self._getfn()
     argspec = inspect.getfullargspec(func)
@@ -116,7 +130,7 @@ class FnNode(Node):
     return func(**args)
 
   def to_frontend(self) -> Dict[str, Any]:
-    return { "name": self.fnname,
+    return { "name": self.name(),
              "parameters": self.get_parameters(),
              "id": self.id(),
              "type": "page" if "page" in self.fnname else "function",
@@ -124,4 +138,4 @@ class FnNode(Node):
              "y": self.y}
 
   def id(self) -> ID:
-    return ID("%s-%04X" % (self.fnname, self._id % 2**16))
+    return ID("%s-%04X" % (self.name(), self._id % 2**16))
