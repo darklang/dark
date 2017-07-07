@@ -1,8 +1,8 @@
-open Lwt
-open Cohttp
-open Cohttp_lwt_unix
-open Cohttp.Auth
-open Logs
+module Clu = Cohttp_lwt_unix
+module C = Cohttp
+module S = Clu.Server
+module Request = Clu.Request
+module Header = C.Header
 
 let server =
   let callback _ req body =
@@ -16,7 +16,7 @@ let server =
       | (Some `Basic ("dark", "2DqMHguUfsAGCPerWgyHRxPi"))
         -> handler
       | _
-        -> Server.respond_need_auth (`Basic "dark") () in
+        -> Cohttp_lwt_unix.Server.respond_need_auth (`Basic "dark") () in
 
     let route_handler handler =
       let body =
@@ -28,12 +28,12 @@ let server =
         | _ -> "app routing" in
 
       let debug = Uri.path uri in
-      Server.respond_string ~status:`OK ~body:(Printf.sprintf "%s - '%s'" body debug) () in
+      S.respond_string ~status:`OK ~body:(Printf.sprintf "%s - '%s'" body debug) () in
 
     ()
     |> route_handler
     |> auth_handler
   in
-  Server.create ~mode:(`TCP (`Port 8000)) (Server.make ~callback ())
+  S.create ~mode:(`TCP (`Port 8000)) (S.make ~callback ())
 
-let () = ignore (Lwt_main.run server)
+let run () = ignore (Lwt_main.run server)

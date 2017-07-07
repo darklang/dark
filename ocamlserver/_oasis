@@ -12,7 +12,7 @@ Plugins: META (0.4), DevFiles (0.4)
 
 Executable "dark"
   Path: src
-  MainIs: dark.ml
+  MainIs: main.ml
   BuildDepends:
     cohttp.lwt
   CompiledObject: native
