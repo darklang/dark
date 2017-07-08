@@ -1,27 +1,59 @@
 #!/usr/bin/env python3
 
 import sys
-from subprocess import call
+import datetime
+import fileinput
+import subprocess
 
-for f in sys.argv:
+def anyof(_dir, _list, x):
+  for l in _list:
+    if (_dir + "/" + l) in x:
+      return True
+  return False
+
+def call(bash):
+  print("calling: " + bash)
+  subprocess.call(bash, shell=True)
+
+def reload_server():
+  call("scripts/runserver")
+  pass
+
+def reload_browser():
+  call("osascript scripts/chrome-reload")
+
+print ("Starting " + (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
+
+for f in sys.stdin:
   if False:
     pass
+
   # General stuff
   elif ".git" in f:
     pass
 
-  # Builder
-  elif "scripts/builder.py" in f:
+  # Ignore scripts
+  elif "scripts/" in f:
     pass
-  elif "scripts/.#builder.py" in f:
+
+  # Ignore logs
+  elif "logs/" in f:
     pass
 
   # Ocaml
   elif "ocamlserver/_build/" in f:
     pass
+  elif anyof("ocamlserver", ["setup.log", "main.native"], f):
+    pass
   elif "_oasis" in f:
-    call("cd ocamlserver && oasis setup -setup-update=weak", shell=True)
+    call("cd ocamlserver && oasis setup -setup-update=weak && make")
+    reload_server()
+    reload_browser();
   elif ".ml" in f:
-    call("cd ocamlserver && make", shell=True)
+    call("cd ocamlserver && make")
+    reload_server()
+    reload_browser();
   else:
     print("unknown file: " + f)
+
+print ("Done " + (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))

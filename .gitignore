@@ -2,6 +2,7 @@
 /static/elm.js
 /static/elm-stuff/
 /__pycache__/
+/logs/
 client/elm-stuff/
 server/.mypy_cache/
 *.pyc

@@ -1,3 +1,6 @@
+#!/bin/bash
+
+# Makes sure we always execute from the root directory
 cd "$(dirname "$0")"/..
 
-fswatch -0 . | xargs -0 -n 1 -I FILE scripts/builder.py FILE
+fswatch -r . | scripts/builder.py
