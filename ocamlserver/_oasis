@@ -8,7 +8,7 @@ Description: Dark is a next gen language and environment
 Homepage: http://paulbiggar.com/dark
 OASISFormat: 0.4
 BuildTools: ocamlbuild
-Plugins: META (0.4), DevFiles (0.4)
+Plugins: DevFiles (0.4)
 
 Executable "dark"
   Path: src
