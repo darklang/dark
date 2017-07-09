@@ -2,5 +2,12 @@
 
 #python server/main.py
 
-pkill main.native
-ocamlserver/main.native &
+ps aux | grep "main\.byte" | awk '{print $2}' | xargs kill
+
+# if it hasn't been compiled yet, wait for it
+while [ ! -f "ocamlserver/main.byte" ] ;
+do
+    sleep 0.1
+done
+
+ocamlserver/main.byte > logs/server.log 2>&1 &

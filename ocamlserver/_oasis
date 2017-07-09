@@ -15,4 +15,5 @@ Executable "dark"
   MainIs: main.ml
   BuildDepends:
     cohttp.lwt
-  CompiledObject: native
+  # use byte because osx wants us to click a button every time
+  CompiledObject: byte

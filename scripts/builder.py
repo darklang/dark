@@ -1,59 +1,109 @@
 #!/usr/bin/env python3
 
+import os
+import fcntl
 import sys
 import datetime
-import fileinput
 import subprocess
+import threading
 
-def anyof(_dir, _list, x):
-  for l in _list:
-    if (_dir + "/" + l) in x:
-      return True
-  return False
+def run(bash, color):
+  class ThreadWorker(threading.Thread):
+    def __init__(self, pipe):
+      super(ThreadWorker, self).__init__()
+      self.pipe = pipe
+      self.setDaemon(True)
+
+    def run(self):
+      for line in iter(self.pipe.readline, b''):
+        p(">>> " + line.decode("utf-8"), color=color)
+
+
+  proc = subprocess.Popen(bash, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, shell=True)
+  stdout_worker = ThreadWorker(proc.stdout)
+  stderr_worker = ThreadWorker(proc.stderr)
+  stdout_worker.start()
+  stderr_worker.start()
+
+  proc.wait()
+  stdout_worker.join()
+  stderr_worker.join()
+
+def consolecode(color):
+  return "\u001B[" + str(color) + "m"
+
+FIRST, LAST, WHITE, RED = 31, 37, 0, 32
+color = FIRST
+def nextcolor():
+  global color
+  color = color + 1
+  if color == LAST:
+    color = FIRST
+  return color
+
+def p(s, end=None, color=WHITE):
+  date = datetime.datetime.now().strftime("%H:%M:%S:%f")
+  newline = ""
+  if s[0] == "\n":
+    s = s[1:]
+    newline = "\n"
+  print(newline + consolecode(color) + date + ": " + s, end=end)
+  sys.stdout.flush()
 
 def call(bash):
-  print("calling: " + bash)
-  subprocess.call(bash, shell=True)
+  color = nextcolor()
+  p("$ " + bash, color=color)
+  run(bash, color=color)
+  p("X " + bash, color=color)
 
 def reload_server():
   call("scripts/runserver")
-  pass
 
 def reload_browser():
   call("osascript scripts/chrome-reload")
 
-print ("Starting " + (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
+def ignore(filename):
+  ignores = [".git", "scripts/", "logs/", "ocamlserver/setup.log", "ocamlserver/_build"]
+  for i in ignores:
+    if i in filename:
+      return True
+  if filename[-10:-8] == "/C":
+    return True
+  return False
 
-for f in sys.stdin:
-  if False:
-    pass
+def main():
+  p("Starting")
+  for f in sys.stdin:
+    if ignore(f):
+      continue
 
-  # General stuff
-  elif ".git" in f:
-    pass
+    p("\nDetected change: " + f, end="")
+    if False:
+      pass
 
-  # Ignore scripts
-  elif "scripts/" in f:
-    pass
 
-  # Ignore logs
-  elif "logs/" in f:
-    pass
+    # Server
+    if "main.byte" in f or "main.native" in f:
+      # ignore the trigger, the compile methods call this direct
+      pass
+    #   reload_server()
+    #   # TODO: might not sync up if server takes time to start
+    #   reload_browser();
 
-  # Ocaml
-  elif "ocamlserver/_build/" in f:
-    pass
-  elif anyof("ocamlserver", ["setup.log", "main.native"], f):
-    pass
-  elif "_oasis" in f:
-    call("cd ocamlserver && oasis setup -setup-update=weak && make")
-    reload_server()
-    reload_browser();
-  elif ".ml" in f:
-    call("cd ocamlserver && make")
-    reload_server()
-    reload_browser();
-  else:
-    print("unknown file: " + f)
+    # Ocaml
+    elif "_oasis" in f:
+      call("cd ocamlserver && oasis setup -setup-update=dynamic && make")
+      reload_server()
+      reload_browser();
+    elif ".ml" in f:
+      call("cd ocamlserver && make")
+      reload_server()
+      reload_browser();
 
-print ("Done " + (datetime.datetime.now().strftime("%I:%M%p on %B %d, %Y")))
+    # Other
+    else:
+      p("unknown file: " + f, end="")
+
+  p("Done")
+
+main()
