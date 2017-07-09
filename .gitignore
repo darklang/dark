@@ -6,4 +6,3 @@
 client/elm-stuff/
 server/.mypy_cache/
 *.pyc
-/ocamlserver/src/graph.ml

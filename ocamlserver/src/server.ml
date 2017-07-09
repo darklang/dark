@@ -4,12 +4,21 @@ module S = Clu.Server
 module Request = Clu.Request
 module Header = C.Header
 
+let p s = Printf.printf s;; flush stdout;;
+
 let server =
   let callback _ req body =
+    let () = p "tests" in
     let uri = req |> Request.uri in
     (* let meth = req |> Request.meth |> Code.string_of_method in *)
     (* let headers = req |> Request.headers |> Header.to_string in *)
     let auth = req |> Request.headers |> Header.get_authorization in
+
+    let admin_rpc_handler () =
+      let g = Graph.load "blog"
+      in
+      Graph.to_frontend g
+    in
 
     let auth_handler handler
       = match auth with
@@ -21,7 +30,7 @@ let server =
     let route_handler handler =
       let body =
         match (Uri.path uri) with
-        | "/admin/api/rpc" -> "rpc"
+        | "/admin/api/rpc" -> admin_rpc_handler ()
         | "/sitemap.xml" -> "sitemap"
         | "/favicon.ico" -> "favicon"
         | "/admin/ui" -> "admin ui"
