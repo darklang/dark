@@ -1,6 +1,9 @@
-type id = int
-type loc = { x : int; y : int }
-type param = string
+type id = Node.id
+type loc = Node.loc
+type param = Node.param
+
+module Map = Core.Map.Poly
+type json = Yojson.Basic.json
 
 type op = Add_fn of string * id * loc
         | Add_datastore of id * loc
@@ -8,31 +11,57 @@ type op = Add_fn of string * id * loc
         | Add_datastore_field of id * loc
         | Update_node_position of id * loc
         | Delete_node of id
-        | Add_edge of id * id * param
-        | Delete_edge of id * id * param
+        | Add_edge of id * id * Node.param
+        | Delete_edge of id * id * Node.param
         | Clear_edges of id
 
-(* graph ops *)
-type grops = {
-  name : string;
-  ops : op list;
-} ;
+let compare (a : int) (b : int) : bool = a < b
 
 type graph = {
-  nodes : (int, int) Hashtbl.t;
-  edges : (int, (int * string) list) Hashtbl.t;
-}
+  name : string;
+  ops : op list;
+  nodes : (Node.id, Node.node) Map.t;
+  edges : (Node.id, (Node.id * Node.param) list) Map.t;
+};;
 
-let create name : grops =
+
+let create (name : string) : graph =
   { name = name
   ; ops = []
+  ; nodes = Map.empty
+  ; edges = Map.empty
   }
 
-let create_graph : graph =
-  { nodes = Hashtbl.create 0
-  ; edges = Hashtbl.create 0
-}
+let add_node (g : graph) (node : Node.node) : graph =
+  { g with nodes = Map.add g.nodes (node#id) node }
+
+let apply_op (g : graph) (op : op) : graph =
+  match op with
+  | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc)
+  | _ -> failwith "other"
+
 
 let load name = create name
 
-let to_frontend graph = "";;
+let to_frontend_nodes g : json =
+  `Assoc (
+    List.map
+      (fun n -> (n#idstr, n#to_frontend))
+      (Map.data g.nodes)
+  )
+
+let to_frontend_edges g : json =
+  let toobj = fun s (t, p) -> `Assoc [ ("source", `Int s)
+                                  ; ("target", `Int t)
+                                  ; ("param", `String p)] in
+  let edges = Map.to_alist g.edges in
+  let jsons =
+    List.map
+      (fun (source, targets) ->
+         List.map (toobj source) targets) edges
+  in
+  `List (List.flatten jsons)
+
+let to_frontend (g : graph) : json =
+  `Assoc [ ("nodes", to_frontend_nodes g)
+         ; ("edges", to_frontend_edges g) ]

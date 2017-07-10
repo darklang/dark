@@ -17,7 +17,7 @@ let server =
     let admin_rpc_handler () =
       let g = Graph.load "blog"
       in
-      Graph.to_frontend g
+      Graph.to_frontend g |> Yojson.Basic.to_string
     in
 
     let auth_handler handler
