@@ -16,7 +16,7 @@ def run(bash, color):
 
     def run(self):
       for line in iter(self.pipe.readline, b''):
-        p(">>> " + line.decode("utf-8"), color=color)
+        p(">>> " + line.decode("utf-8"), color=color, end='')
 
 
   proc = subprocess.Popen(bash, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, shell=True)
@@ -43,6 +43,7 @@ def nextcolor():
 
 def p(s, end=None, color=WHITE):
   date = datetime.datetime.now().strftime("%H:%M:%S:%f")
+  date = ""
   newline = ""
   if s[0] == "\n":
     s = s[1:]
@@ -67,7 +68,11 @@ def ignore(filename):
   for i in ignores:
     if i in filename:
       return True
+  # ocaml build tempoary
   if filename[-10:-8] == "/C":
+    return True
+  # emacs thing
+  if "/.#" in filename:
     return True
   return False
 
