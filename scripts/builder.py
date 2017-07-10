@@ -64,7 +64,7 @@ def reload_browser():
   call("osascript scripts/chrome-reload")
 
 def ignore(filename):
-  ignores = [".git", "scripts/", "logs/", "ocamlserver/setup.log", "ocamlserver/_build"]
+  ignores = [".git", "scripts/", "logs/", "ocamlserver/setup.log", "ocamlserver/_build", "_tags", "client/elm-stuff"]
   for i in ignores:
     if i in filename:
       return True
@@ -94,6 +94,12 @@ def main():
     #   reload_server()
     #   # TODO: might not sync up if server takes time to start
     #   reload_browser();
+
+    # Frontend
+    elif ".elm" in f:
+      call("cd client && elm-make Main.elm --debug --output ../static/elm.js")
+      reload_browser();
+
 
     # Ocaml
     elif "_oasis" in f:

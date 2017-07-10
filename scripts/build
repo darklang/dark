@@ -3,4 +3,4 @@
 # Makes sure we always execute from the root directory
 cd "$(dirname "$0")"/..
 
-fswatch -m fsevents_monitor -r ocamlserver/ | scripts/builder.py
+fswatch -m fsevents_monitor -r * | scripts/builder.py
