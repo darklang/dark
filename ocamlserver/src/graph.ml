@@ -5,8 +5,11 @@ type param = Node.param
 module Map = Core.Map.Poly
 type json = Yojson.Basic.json
 
+(* ------------------------- *)
+(* Types *)
+(* ------------------------- *)
 type op = Add_fn of string * id * loc
-        | Add_datastore of id * loc
+        | Add_datastore of string * id * loc
         | Add_value of string * id * loc
         | Add_datastore_field of id * loc
         | Update_node_position of id * loc
@@ -15,8 +18,6 @@ type op = Add_fn of string * id * loc
         | Delete_edge of id * id * Node.param
         | Clear_edges of id
 
-let compare (a : int) (b : int) : bool = a < b
-
 type graph = {
   name : string;
   ops : op list;
@@ -24,7 +25,9 @@ type graph = {
   edges : (Node.id, (Node.id * Node.param) list) Map.t;
 };;
 
-
+(* ------------------------- *)
+(* Graph*)
+(* ------------------------- *)
 let create (name : string) : graph =
   { name = name
   ; ops = []
@@ -35,14 +38,27 @@ let create (name : string) : graph =
 let add_node (g : graph) (node : Node.node) : graph =
   { g with nodes = Map.add g.nodes (node#id) node }
 
+
+(* ------------------------- *)
+(* Ops *)
+(* ------------------------- *)
 let apply_op (g : graph) (op : op) : graph =
   match op with
   | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc)
+  | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
+  | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
   | _ -> failwith "other"
 
 
-let load name = create name
 
+(* ------------------------- *)
+(* Serialization *)
+let load name = create name
+let save name (g : graph) : unit = ()
+
+(* ------------------------- *)
+(* To JSON *)
+(* ------------------------- *)
 let to_frontend_nodes g : json =
   `Assoc (
     List.map
