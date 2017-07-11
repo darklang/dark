@@ -5,9 +5,18 @@
 ps aux | grep "main\.byte" | awk '{print $2}' | xargs kill
 
 # if it hasn't been compiled yet, wait for it
-while [ ! -f "ocamlserver/main.byte" ] ;
+for ((i=1;i<=100;i++));
 do
-    sleep 0.1
+  if [ ! -f "ocamlserver/main.byte" ]; then
+    sleep 0.01
+  fi
 done
 
-ocamlserver/main.byte > logs/server.log 2>&1 &
+
+if [ -f "ocamlserver/main.byte" ]; then
+  #COHTTP_DEBUG=true ocamlserver/main.byte > logs/server.log 2>&1 &
+  ocamlserver/main.byte > logs/server.log 2>&1 &
+else
+  echo "ocamlserver/main.byte doesn't exist"
+  exit -1
+fi
