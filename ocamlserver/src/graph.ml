@@ -11,7 +11,7 @@ type json = Yojson.Basic.json
 type op = Add_fn of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
-        | Add_datastore_field of id * loc
+        | Add_datastore_field of string * string * bool
         | Update_node_position of id * loc
         | Delete_node of id
         | Add_edge of id * id * Node.param
@@ -36,7 +36,12 @@ let create (name : string) : graph =
   }
 
 let add_node (g : graph) (node : Node.node) : graph =
-  { g with nodes = Map.add g.nodes (node#id) node }
+  let nodes = Map.add g.nodes (node#id) node in
+  let edges = if Map.mem g.edges (node#id)
+    then g.edges
+    else Map.add g.edges (node#id) []
+  in
+  { g with nodes = nodes; edges = edges }
 
 
 (* ------------------------- *)
@@ -48,6 +53,9 @@ let apply_op (g : graph) (op : op) : graph =
   | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
   | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
   | _ -> failwith "other"
+
+let add_op (g : graph) (op : op) : graph =
+  { g with ops = List.append g.ops [op]}
 
 
 
@@ -78,6 +86,10 @@ let to_frontend_edges g : json =
   in
   `List (List.flatten jsons)
 
-let to_frontend (g : graph) : json =
+let to_frontend (g : graph) (cursor : Node.node option) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)
-         ; ("edges", to_frontend_edges g) ]
+         ; ("edges", to_frontend_edges g)
+         ; ("cursor", match cursor with
+             | None -> `Null
+             | Some node -> `String (node#idstr))
+         ]
