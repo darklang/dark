@@ -6,6 +6,7 @@ module S = Clu.Server
 module Request = Clu.Request
 module Header = C.Header
 module J = Yojson.Basic.Util
+module G = Graph
 
 let p s = Printf.printf s;; flush stdout;;
 
@@ -20,14 +21,36 @@ let server =
       let () = "payload: " ^ body |> print_endline in
       let payload = body |> Yojson.Basic.from_string in
 
-      let g = Graph.load "blog" in
+      let g = G.load "blog" in
       let command = J.member "command" payload |> J.to_string in
       let args = J.member "args" payload in
-      let cursor : Node.node option = match command with
+      let id = Util.create_id in
+      let (op : Graph.op option) = match command with
         | "load_initial_graph" -> None
+        | "add_datastore" ->
+          let name = J.member "name" args |> J.to_string in
+          let x = J.member "x" args |> J.to_int in
+          let y = J.member "y" args |> J.to_int in
+          G.Add_datastore (name, id, { x = x; y = y }) |> Some
+        | "add_datastore_field" ->
+          let id = J.member "id" args |> J.to_int in
+          let name = J.member "name" args |> J.to_string in
+          let typename = J.member "tipe" args |> J.to_string in
+          let (is_list, typename) =
+            match Core.String.split_on_chars typename ~on:['['; ']'] with
+            | ["["; s; "]"] -> (true, s)
+            | [s] -> (false, s)
+            | _ -> failwith "other pattern"
+          in
+          G.Add_datastore_field (id, name, typename, is_list) |> Some
+        | "add_function_call" ->
+          let name = J.member "name" args |> J.to_string in
+          let x = J.member "x" args |> J.to_int in
+          let y = J.member "y" args |> J.to_int in
+          G.Add_fn (name, id, { x = x; y = y }) |> Some
         | _ -> failwith ("TODO: " ^ command)
       in
-      Graph.to_frontend g cursor |> Yojson.Basic.to_string
+      Graph.to_frontend g None |> Yojson.Basic.to_string
     in
 
     let admin_ui_handler () =

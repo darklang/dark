@@ -9,3 +9,6 @@ let slurp f =
   with e ->
     close_in_noerr ic;
     raise e
+
+let create_id : int =
+  Random.int (Core.Std.Int.pow 2 30)

@@ -11,7 +11,7 @@ type json = Yojson.Basic.json
 type op = Add_fn of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
-        | Add_datastore_field of string * string * bool
+        | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
         | Delete_node of id
         | Add_edge of id * id * Node.param
