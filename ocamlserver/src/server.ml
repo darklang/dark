@@ -24,33 +24,67 @@ let server =
       let g = G.load "blog" in
       let command = J.member "command" payload |> J.to_string in
       let args = J.member "args" payload in
+
+      let str field = J.member field args |> J.to_string in
+      let int field = J.member field args |> J.to_int in
+      let loc : (unit -> Node.loc) =
+        (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
       let id = Util.create_id in
-      let (op : Graph.op option) = match command with
-        | "load_initial_graph" -> None
+
+      let (op : Graph.op option), (cursor : int option) = match command with
+        | "load_initial_graph" ->
+          None,
+          None
+
         | "add_datastore" ->
-          let name = J.member "name" args |> J.to_string in
-          let x = J.member "x" args |> J.to_int in
-          let y = J.member "y" args |> J.to_int in
-          G.Add_datastore (name, id, { x = x; y = y }) |> Some
+          Some (G.Add_datastore (str "name", id, loc ())),
+          Some id
+
+        | "add_function_call" ->
+          Some (G.Add_fn (str "name", id, loc ())),
+          Some id
+
         | "add_datastore_field" ->
-          let id = J.member "id" args |> J.to_int in
-          let name = J.member "name" args |> J.to_string in
-          let typename = J.member "tipe" args |> J.to_string in
-          let (is_list, typename) =
-            match Core.String.split_on_chars typename ~on:['['; ']'] with
+          let (list, tipe) =
+            match Core.String.split_on_chars
+                    (str "tipe") ~on:['['; ']'] with
             | ["["; s; "]"] -> (true, s)
             | [s] -> (false, s)
             | _ -> failwith "other pattern"
           in
-          G.Add_datastore_field (id, name, typename, is_list) |> Some
-        | "add_function_call" ->
-          let name = J.member "name" args |> J.to_string in
-          let x = J.member "x" args |> J.to_int in
-          let y = J.member "y" args |> J.to_int in
-          G.Add_fn (name, id, { x = x; y = y }) |> Some
-        | _ -> failwith ("TODO: " ^ command)
+          Some
+            (G.Add_datastore_field (int "id", str "name", tipe, list)),
+          Some (int "id")
+
+        | "add_value" ->
+          Some (G.Add_value (str "value", id, loc ())),
+          Some id
+
+        | "update_node_position" ->
+          Some (G.Update_node_position (int "id", loc ())),
+          None
+
+        | "add_edge" ->
+          Some (G.Add_edge (int "src", int "target", str "param")),
+          None
+
+        | "delete_node" ->
+          Some (G.Delete_node (int "id")),
+          None
+
+        | "clear_edges" ->
+          Some (G.Clear_edges (int "id")),
+          None
+
+        | _ ->
+          let _ = failwith "Command not allowed: " ^ command in
+          None, None
+
       in
-      Graph.to_frontend g None |> Yojson.Basic.to_string
+      let g = match op with
+        | Some op -> G.add_op g op
+        | None -> g in
+      Graph.to_frontend g cursor |> Yojson.Basic.to_string
     in
 
     let admin_ui_handler () =
