@@ -77,8 +77,8 @@ let to_frontend_nodes g : json =
 
 let to_frontend_edges g : json =
   let toobj = fun s (t, p) -> `Assoc [ ("source", `Int s)
-                                  ; ("target", `Int t)
-                                  ; ("param", `String p)] in
+                                     ; ("target", `Int t)
+                                     ; ("param", `String p)] in
   let edges = Map.to_alist g.edges in
   let jsons =
     List.map
