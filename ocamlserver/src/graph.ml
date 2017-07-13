@@ -55,7 +55,8 @@ let apply_op (g : graph) (op : op) : graph =
   | _ -> failwith "other"
 
 let add_op (g : graph) (op : op) : graph =
-  { g with ops = List.append g.ops [op]}
+  let g = { g with ops = List.append g.ops [op]} in
+  apply_op g op
 
 
 
