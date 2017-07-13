@@ -64,30 +64,33 @@ let add_op (g : graph) (op : op) : graph =
 
 (* ------------------------- *)
 (* Serialization *)
-let json2op (optype : string) (args : json) =
-  let str field = J.member field args |> J.to_string in
-  let int field = J.member field args |> J.to_int in
-  let id = Util.create_id in
-  let loc : (unit -> Node.loc) =
-    (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
-  match optype with
-  | "add_datastore" -> Add_datastore (str "name", id, loc ())
-  | "add_function_call" -> Add_fn (str "name", id, loc ())
-  | "add_value" -> Add_value (str "value", id, loc ())
-  | "update_node_position" -> Update_node_position (int "id", loc ())
-  | "add_edge" -> Add_edge (int "src", int "target", str "param")
-  | "delete_node" -> Delete_node (int "id")
-  | "clear_edges" -> Clear_edges (int "id")
-  (* TODO: put this into the frontend *)
-  | "add_datastore_field" ->
-    let (list, tipe) =
-      match Core.String.split_on_chars
-              (str "tipe") ~on:['['; ']'] with
-      | ["["; s; "]"] -> (true, s)
-      | [s] -> (false, s)
-      | _ -> failwith "other pattern"
-    in
-    Add_datastore_field (int "id", str "name", tipe, list)
+let json2op (json : json) : op =
+  match json with
+  | `Assoc [optype, args] -> (
+    let str field = J.member field args |> J.to_string in
+    let int field = J.member field args |> J.to_int in
+    let id = Util.create_id in
+    let loc : (unit -> Node.loc) =
+      (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
+    match optype with
+    | "add_datastore" -> Add_datastore (str "name", id, loc ())
+    | "add_function_call" -> Add_fn (str "name", id, loc ())
+    | "add_value" -> Add_value (str "value", id, loc ())
+    | "update_node_position" -> Update_node_position (int "id", loc ())
+    | "add_edge" -> Add_edge (int "src", int "target", str "param")
+    | "delete_node" -> Delete_node (int "id")
+    | "clear_edges" -> Clear_edges (int "id")
+    (* TODO: put this into the frontend *)
+    | "add_datastore_field" ->
+      let (list, tipe) =
+        match Core.String.split_on_chars
+                (str "tipe") ~on:['['; ']'] with
+        | ["["; s; "]"] -> (true, s)
+        | [s] -> (false, s)
+        | _ -> failwith "other pattern"
+      in
+      Add_datastore_field (int "id", str "name", tipe, list)
+    | _ -> failwith "impossible")
   | _ -> failwith "impossible"
 
 
@@ -120,16 +123,29 @@ let op2json op : json =
   in `Assoc ((str "command" name)::args)
 
 
-let load name = create name
+let load name : graph =
+  let filename = "appdata/" ^ name ^ ".dark" in
+  let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
+  let file = Unix.openfile filename flags 0o640 in
+  let raw = Bytes.create 10000 in
+  let count = Unix.read file raw 0 10000 in
+  let str = Bytes.sub_string raw 0 count in
+  let jsonops = Yojson.Basic.from_string str in
+  let ops = match jsonops with
+  | `List ops -> List.map json2op ops
+  | _ -> failwith "unexpected deserialization" in
+  { (create name) with ops = ops }
+
+
+
 let save name (g : graph) : unit =
   let ops = List.map op2json g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
-  let name = "appdata/" ^ name ^ ".dark" in
-
-  let file = Unix.openfile name flags 0o640 in
+  let filename = "appdata/" ^ name ^ ".dark" in
+  let file = Unix.openfile filename flags 0o640 in
   let _ = Unix.write file str 0 (String.length str) in
-  ()
+  Unix.close file
 
 
 

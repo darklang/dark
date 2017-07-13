@@ -28,7 +28,7 @@ let server =
 
       let g = match command with
         | "load_initial_graph" -> g
-        | _ -> G.json2op command args |> G.add_op g in
+        | _ -> `Assoc [command, args] |> G.json2op |> G.add_op g in
 
       let _ = G.save "blog" g in
 
