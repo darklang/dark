@@ -117,6 +117,7 @@ let server =
          | "/sitemap.xml" -> ""
          | "/favicon.ico" -> ""
          | "/admin/ui" -> admin_ui_handler ()
+         | p when (String.length p) < 8 -> "app routing"
          | p when (String.equal (String.sub p 0 8) "/static/")
            -> static_handler p
          | _ -> "app routing")
