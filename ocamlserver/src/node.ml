@@ -17,11 +17,12 @@ class virtual node id loc =
     method is_datasource = false
     method to_frontend : Yojson.Basic.json =
       `Assoc [ ("name", `String self#name)
-             (* , ("parameters", `List (List.map `String self#parameters)) *)
-             (* , ("id", `String self#idstr) *)
-             (* , ("type", `String self#tipe) *)
-             (* , ("x", `Int loc.x) *)
-             (* , ("y", `Int loc.y) *)
+             ; ("parameters",
+                `List (List.map (fun s -> `String s) self#parameters))
+             ; ("id", `String self#idstr)
+             ; ("type", `String self#tipe)
+             ; ("x", `Int loc.x)
+             ; ("y", `Int loc.y)
              ]
   end;;
 
