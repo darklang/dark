@@ -17,64 +17,20 @@ let server =
 
     let admin_rpc_handler body : string =
       let () = "payload: " ^ body |> print_endline in
-      let payload = body |> Yojson.Basic.from_string in
-
-      let g = G.load "blog" in
+      let payload = Yojson.Basic.from_string body in
       let command = J.member "command" payload |> J.to_string in
       let args = J.member "args" payload in
 
-      let str field = J.member field args |> J.to_string in
-      let int field = J.member field args |> J.to_int in
-      let loc : (unit -> Node.loc) =
-        (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
-      let id = Util.create_id in
+      let g = G.load "blog" in
 
-      let (op : Graph.op option) = match command with
-        | "load_initial_graph" ->
-          None
+      let g = match command with
+        | "load_initial_graph" -> g
+        | _ -> G.json2op command args |> G.add_op g
 
-        | "add_datastore" ->
-          Some (G.Add_datastore (str "name", id, loc ()))
-
-        | "add_function_call" ->
-          Some (G.Add_fn (str "name", id, loc ()))
-
-        | "add_datastore_field" ->
-          let (list, tipe) =
-            match Core.String.split_on_chars
-                    (str "tipe") ~on:['['; ']'] with
-            | ["["; s; "]"] -> (true, s)
-            | [s] -> (false, s)
-            | _ -> failwith "other pattern"
-          in
-          Some (G.Add_datastore_field (int "id", str "name", tipe, list))
-
-        | "add_value" ->
-          Some (G.Add_value (str "value", id, loc ()))
-
-        | "update_node_position" ->
-          Some (G.Update_node_position (int "id", loc ()))
-
-        | "add_edge" ->
-          Some (G.Add_edge (int "src", int "target", str "param"))
-
-        | "delete_node" ->
-          Some (G.Delete_node (int "id"))
-
-        | "clear_edges" ->
-          Some (G.Clear_edges (int "id"))
-
-        | _ ->
-          let _ = failwith "Command not allowed: " ^ command in
-          None
-
-      in
-      let g = match op with
-        | Some op -> G.add_op g op
-        | None -> g in
-      let response = Graph.to_frontend g |> Yojson.Basic.to_string in
-      let () = print_endline response in
-      response
+      in g
+         |> Graph.to_frontend
+         |> Yojson.Basic.to_string
+         |> Util.inspect "response: "
 
     in
 

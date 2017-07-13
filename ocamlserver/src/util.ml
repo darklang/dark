@@ -12,3 +12,7 @@ let slurp f =
 
 let create_id : int =
   Random.int (Core.Std.Int.pow 2 29)
+
+let inspect (msg : string) (x : 'a) : 'a =
+  let () = print_endline ("inspect: " ^ msg ^ ": " ^ x) in
+  x

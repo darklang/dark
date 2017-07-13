@@ -4,6 +4,7 @@ type param = Node.param
 
 module Map = Core.Map.Poly
 type json = Yojson.Basic.json
+module J = Yojson.Basic.Util
 
 (* ------------------------- *)
 (* Types *)
@@ -11,6 +12,7 @@ type json = Yojson.Basic.json
 type op = Add_fn of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
+        (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
         | Delete_node of id
@@ -64,6 +66,63 @@ let add_op (g : graph) (op : op) : graph =
 (* Serialization *)
 let load name = create name
 let save name (g : graph) : unit = ()
+
+let json2op (optype : string) (args : json) =
+  let str field = J.member field args |> J.to_string in
+  let int field = J.member field args |> J.to_int in
+  let id = Util.create_id in
+  let loc : (unit -> Node.loc) =
+    (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
+  match optype with
+  | "add_datastore" -> Add_datastore (str "name", id, loc ())
+  | "add_function_call" -> Add_fn (str "name", id, loc ())
+  | "add_value" -> Add_value (str "value", id, loc ())
+  | "update_node_position" -> Update_node_position (int "id", loc ())
+  | "add_edge" -> Add_edge (int "src", int "target", str "param")
+  | "delete_node" -> Delete_node (int "id")
+  | "clear_edges" -> Clear_edges (int "id")
+  (* TODO: put this into the frontend *)
+  | "add_datastore_field" ->
+    let (list, tipe) =
+      match Core.String.split_on_chars
+              (str "tipe") ~on:['['; ']'] with
+      | ["["; s; "]"] -> (true, s)
+      | [s] -> (false, s)
+      | _ -> failwith "other pattern"
+    in
+    Add_datastore_field (int "id", str "name", tipe, list)
+  | _ -> failwith "impossible"
+
+
+let op2json op : json =
+  let str k v = (k, `String v) in
+  let int k v = (k, `Int v) in
+  let bool k v = (k, `Bool v) in
+  let id id = int "id" id in
+  let x (loc : Node.loc) = int "x" loc.x in
+  let y (loc : Node.loc) = int "y" loc.y in
+  let (name, args) = match op with
+    | Add_fn (name, _id, loc) ->
+      "add_function_call", [str "name" name; id _id; x loc; y loc]
+    | Add_datastore (name, _id, loc) ->
+      "add_datastore", [str "name" name; id _id; x loc; y loc]
+    | Add_value (expr, _id, loc) ->
+      "add_value", [str "value" expr; id _id; x loc; y loc]
+    | Add_datastore_field (_id, name, tipe, is_list) ->
+      "add_datastore_field",
+      [id _id; str "name" name; str "tipe" tipe; bool "is_list" false]
+    | Update_node_position (_id, loc) ->
+      "update_node_position", [id _id; x loc; y loc]
+    | Delete_node _id ->
+      "delete_node", [id _id]
+    | Add_edge (sid, tid, param) ->
+      "add_param", [int "src" sid; int "target" tid; str "param" param]
+    | Delete_edge (sid, tid, param) ->
+      "delete_edge", [int "src" sid; int "target" tid; str "param" param]
+    | Clear_edges _id -> "clear_edges", [id _id]
+  in `Assoc ((str "command" name)::args)
+
+
 
 (* ------------------------- *)
 (* To JSON *)
