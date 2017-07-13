@@ -8,6 +8,8 @@ module Header = C.Header
 module J = Yojson.Basic.Util
 module G = Graph
 
+let inspect = Util.inspect
+
 let server =
   let callback _ req req_body =
     let uri = req |> Request.uri in
@@ -16,7 +18,8 @@ let server =
     let auth = req |> Request.headers |> Header.get_authorization in
 
     let admin_rpc_handler body : string =
-      let () = "payload: " ^ body |> print_endline in
+      let body = inspect "request body" body in
+      (* TODO: remove command/args structure *)
       let payload = Yojson.Basic.from_string body in
       let command = J.member "command" payload |> J.to_string in
       let args = J.member "args" payload in
