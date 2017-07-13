@@ -137,7 +137,7 @@ let load name : graph =
   let ops = match jsonops with
   | `List ops -> List.map json2op ops
   | _ -> failwith "unexpected deserialization" in
-  { (create name) with ops = ops }
+  List.fold_left add_op (create name) ops
 
 
 
