@@ -31,6 +31,15 @@ type graph = {
 (* ------------------------- *)
 (* Graph *)
 (* ------------------------- *)
+
+let debug name (g : graph) : unit =
+  let _ = inspect "name" name in
+  let _ = g.ops |> List.length |> Core.Int.to_string |> inspect "ops" in
+  let _ = g.nodes |> Core.Map.Poly.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspect "nodes" in
+  let _ = g.edges |> Core.Map.Poly.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspect "nodes" in
+  ()
+
+
 let create (name : string) : graph =
   { name = name
   ; ops = []
