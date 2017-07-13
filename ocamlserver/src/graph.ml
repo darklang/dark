@@ -28,7 +28,7 @@ type graph = {
 }
 
 (* ------------------------- *)
-(* Graph*)
+(* Graph *)
 (* ------------------------- *)
 let create (name : string) : graph =
   { name = name
