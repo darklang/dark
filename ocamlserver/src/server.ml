@@ -8,8 +8,6 @@ module Header = C.Header
 module J = Yojson.Basic.Util
 module G = Graph
 
-let p s = Printf.printf s;; flush stdout;;
-
 let server =
   let callback _ req req_body =
     let uri = req |> Request.uri in
@@ -74,7 +72,10 @@ let server =
       let g = match op with
         | Some op -> G.add_op g op
         | None -> g in
-      Graph.to_frontend g |> Yojson.Basic.to_string
+      let response = Graph.to_frontend g |> Yojson.Basic.to_string in
+      let () = print_endline response in
+      response
+
     in
 
     let admin_ui_handler () =
@@ -101,8 +102,7 @@ let server =
 
     let route_handler handler =
       req_body |> Cohttp_lwt_body.to_string >|=
-      (fun req_body ->
-         match (Uri.path uri) with
+      (fun req_body -> match (Uri.path uri) with
          | "/admin/api/rpc" -> admin_rpc_handler req_body
          | "/sitemap.xml" -> ""
          | "/favicon.ico" -> ""
