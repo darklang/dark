@@ -5,6 +5,7 @@ type param = Node.param
 module Map = Core.Map.Poly
 type json = Yojson.Basic.json
 module J = Yojson.Basic.Util
+let inspect = Util.inspect
 
 (* ------------------------- *)
 (* Types *)
@@ -90,8 +91,9 @@ let json2op (json : json) : op =
         | _ -> failwith "other pattern"
       in
       Add_datastore_field (int "id", str "name", tipe, list)
-    | _ -> failwith "impossible")
-  | _ -> failwith "impossible"
+    | _ -> failwith "not a valid optype")
+  | _ ->
+    failwith ("incorrect op structure" ^ (Yojson.Basic.to_string json))
 
 
 let op2json op : json =
@@ -120,7 +122,7 @@ let op2json op : json =
     | Delete_edge (sid, tid, param) ->
       "delete_edge", [int "src" sid; int "target" tid; str "param" param]
     | Clear_edges _id -> "clear_edges", [id _id]
-  in `Assoc ((str "command" name)::args)
+  in `Assoc [name, `Assoc args]
 
 
 let load name : graph =
@@ -130,7 +132,8 @@ let load name : graph =
   let raw = Bytes.create 10000 in
   let count = Unix.read file raw 0 10000 in
   let str = Bytes.sub_string raw 0 count in
-  let jsonops = Yojson.Basic.from_string str in
+  let str = if String.equal str "" then "[]" else str in
+  let jsonops = Yojson.Basic.from_string (inspect "loaded" str) in
   let ops = match jsonops with
   | `List ops -> List.map json2op ops
   | _ -> failwith "unexpected deserialization" in
@@ -141,6 +144,7 @@ let load name : graph =
 let save name (g : graph) : unit =
   let ops = List.map op2json g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
+  let str = str ^ "\n" |> inspect "saving" in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   let filename = "appdata/" ^ name ^ ".dark" in
   let file = Unix.openfile filename flags 0o640 in
