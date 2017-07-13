@@ -25,7 +25,7 @@ type graph = {
   ops : op list;
   nodes : (Node.id, Node.node) Map.t;
   edges : (Node.id, (Node.id * Node.param) list) Map.t;
-};;
+}
 
 (* ------------------------- *)
 (* Graph*)
