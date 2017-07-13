@@ -28,12 +28,14 @@ let server =
 
       let g = match command with
         | "load_initial_graph" -> g
-        | _ -> G.json2op command args |> G.add_op g
+        | _ -> G.json2op command args |> G.add_op g in
 
-      in g
-         |> Graph.to_frontend
-         |> Yojson.Basic.to_string
-         |> Util.inspect "response: "
+      let _ = G.save "blog" g in
+
+      g
+      |> Graph.to_frontend
+      |> Yojson.Basic.to_string
+      |> Util.inspect "response: "
 
     in
 

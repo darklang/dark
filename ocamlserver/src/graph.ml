@@ -64,9 +64,6 @@ let add_op (g : graph) (op : op) : graph =
 
 (* ------------------------- *)
 (* Serialization *)
-let load name = create name
-let save name (g : graph) : unit = ()
-
 let json2op (optype : string) (args : json) =
   let str field = J.member field args |> J.to_string in
   let int field = J.member field args |> J.to_int in
@@ -121,6 +118,18 @@ let op2json op : json =
       "delete_edge", [int "src" sid; int "target" tid; str "param" param]
     | Clear_edges _id -> "clear_edges", [id _id]
   in `Assoc ((str "command" name)::args)
+
+
+let load name = create name
+let save name (g : graph) : unit =
+  let ops = List.map op2json g.ops in
+  let str = `List ops |> Yojson.Basic.to_string in
+  let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
+  let name = "appdata/" ^ name ^ ".dark" in
+
+  let file = Unix.openfile name flags 0o640 in
+  let _ = Unix.write file str 0 (String.length str) in
+  ()
 
 
 
