@@ -86,10 +86,9 @@ let to_frontend_edges g : json =
   in
   `List (List.flatten jsons)
 
-let to_frontend (g : graph) (cursor : Node.id option) : json =
+let to_frontend (g : graph) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)
          ; ("edges", to_frontend_edges g)
-         ; ("cursor", match cursor with
-             | None -> `Null
-             | Some id -> `Int id)
+         (* TODO: remove. Should be done on the frontend *)
+         ; ("cursor", `Null)
          ]

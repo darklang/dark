@@ -31,18 +31,15 @@ let server =
         (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
       let id = Util.create_id in
 
-      let (op : Graph.op option), (cursor : int option) = match command with
+      let (op : Graph.op option) = match command with
         | "load_initial_graph" ->
-          None,
           None
 
         | "add_datastore" ->
-          Some (G.Add_datastore (str "name", id, loc ())),
-          Some id
+          Some (G.Add_datastore (str "name", id, loc ()))
 
         | "add_function_call" ->
-          Some (G.Add_fn (str "name", id, loc ())),
-          Some id
+          Some (G.Add_fn (str "name", id, loc ()))
 
         | "add_datastore_field" ->
           let (list, tipe) =
@@ -52,39 +49,32 @@ let server =
             | [s] -> (false, s)
             | _ -> failwith "other pattern"
           in
-          Some
-            (G.Add_datastore_field (int "id", str "name", tipe, list)),
-          Some (int "id")
+          Some (G.Add_datastore_field (int "id", str "name", tipe, list))
 
         | "add_value" ->
-          Some (G.Add_value (str "value", id, loc ())),
-          Some id
+          Some (G.Add_value (str "value", id, loc ()))
 
         | "update_node_position" ->
-          Some (G.Update_node_position (int "id", loc ())),
-          None
+          Some (G.Update_node_position (int "id", loc ()))
 
         | "add_edge" ->
-          Some (G.Add_edge (int "src", int "target", str "param")),
-          None
+          Some (G.Add_edge (int "src", int "target", str "param"))
 
         | "delete_node" ->
-          Some (G.Delete_node (int "id")),
-          None
+          Some (G.Delete_node (int "id"))
 
         | "clear_edges" ->
-          Some (G.Clear_edges (int "id")),
-          None
+          Some (G.Clear_edges (int "id"))
 
         | _ ->
           let _ = failwith "Command not allowed: " ^ command in
-          None, None
+          None
 
       in
       let g = match op with
         | Some op -> G.add_op g op
         | None -> g in
-      Graph.to_frontend g cursor |> Yojson.Basic.to_string
+      Graph.to_frontend g |> Yojson.Basic.to_string
     in
 
     let admin_ui_handler () =
