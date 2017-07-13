@@ -70,7 +70,7 @@ let json2op (json : json) : op =
   | `Assoc [optype, args] -> (
     let str field = J.member field args |> J.to_string in
     let int field = J.member field args |> J.to_int in
-    let id = Util.create_id in
+    let id = Util.create_id () in
     let loc : (unit -> Node.loc) =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
     match optype with
