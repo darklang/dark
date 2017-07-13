@@ -11,4 +11,4 @@ let slurp f =
     raise e
 
 let create_id : int =
-  Random.int (Core.Std.Int.pow 2 30)
+  Random.int (Core.Std.Int.pow 2 29)
