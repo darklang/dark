@@ -17,15 +17,19 @@ type op = Add_fn of string * id * loc
         | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
         | Delete_node of id
-        | Add_edge of id * id * Node.param
-        | Delete_edge of id * id * Node.param
+        | Add_edge of id * id * param
+        | Delete_edge of id * id * param
         | Clear_edges of id
 
+type nodemap = (Node.id, Node.node) Map.t
+type targetpair = (Node.id * param)
+type edgemap = (Node.id, targetpair list) Map.t
+type reverse_edgemap = (Node.id, Node.id list) Map.t
 type graph = {
   name : string;
   ops : op list;
-  nodes : (Node.id, Node.node) Map.t;
-  edges : (Node.id, (Node.id * Node.param) list) Map.t;
+  nodes : nodemap;
+  edges : edgemap;
 }
 
 (* ------------------------- *)
@@ -39,7 +43,6 @@ let debug name (g : graph) : unit =
   let _ = g.edges |> Core.Map.Poly.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspect "nodes" in
   ()
 
-
 let create (name : string) : graph =
   { name = name
   ; ops = []
@@ -47,13 +50,63 @@ let create (name : string) : graph =
   ; edges = Map.empty
   }
 
+(* ------------------------- *)
+(* Traversal *)
+(* ------------------------- *)
+let flat_edge_list (g : graph) : (id * id * param) list =
+  let expand_list (k, v) : (id * id * param) list =
+    List.map (fun (t, p) -> (k, t, p)) v
+  in
+  g.edges |> Map.to_alist |> List.map expand_list |> List.flatten
+
+let reverse_edges (g : graph) : reverse_edgemap =
+  let f ~(key : Node.id) ~(data : targetpair list) (rem : reverse_edgemap) : reverse_edgemap =
+    let pair_to_map map (t, p) =
+      Map.add_multi map t key
+    in
+    List.fold_left pair_to_map rem data in
+  Map.fold g.edges ~init:Map.empty ~f:f
+
+let get_parents (g : graph) (n : id) : (param, id) Map.t =
+  g
+  |> flat_edge_list
+  |> List.filter (fun (s, t, p) -> t == n)
+  |> List.fold_left (fun m (s, t, p) -> Map.add m p s) Map.empty
+
+
+(* ------------------------- *)
+(* Updating *)
+(* ------------------------- *)
 let add_node (g : graph) (node : Node.node) : graph =
   let nodes = Map.add g.nodes (node#id) node in
+  (* TODO: replace with add_multi *)
   let edges = if Map.mem g.edges (node#id)
     then g.edges
     else Map.add g.edges (node#id) []
   in
   { g with nodes = nodes; edges = edges }
+
+let add_edge (g: graph) (sid : id) (tid : id) (param : param) : graph =
+  (* let src = Map.find_exn g.nodes sid in *)
+  (* let target = Map.find_exn g.nodes tid in *)
+
+  (* Can't have two edges to the same target *)
+  (* TODO: exception for datasinks like DBs and APIs *)
+  let _ = if Map.mem (get_parents g tid) param then
+      failwith "Edge already exists" in
+
+  (* TODO check the types at both ends of the edge are compatible *)
+  (* src_type = src.get_return_type() *)
+  (* target_type = target.get_parameter_type(param) *)
+  (* try: *)
+  (*   types.check(src_type, target_type) *)
+  (* except types.DTypeError as e: *)
+  (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
+
+  { g with edges = Map.add_multi g.edges sid (tid, param) }
+
+    (* self.edges[src.id()].append((target.id(), param)) *)
+
 
 
 (* ------------------------- *)
@@ -64,6 +117,7 @@ let apply_op (g : graph) (op : op) : graph =
   | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc)
   | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
   | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
+  | Add_edge (src, target, param) -> add_edge g src target param
   | _ -> failwith "applying unimplemented op"
 
 let add_op (g : graph) (op : op) : graph =
