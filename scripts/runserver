@@ -14,8 +14,8 @@ done
 
 
 if [ -f "ocamlserver/main.byte" ]; then
-  #COHTTP_DEBUG=true ocamlserver/main.byte > logs/server.log 2>&1 &
-  ocamlserver/main.byte > logs/server.log 2>&1 &
+    #COHTTP_DEBUG=true ocamlserver/main.byte > logs/server.log 2>&1 &
+    OCAMLRUNPARAM=b ocamlserver/main.byte > logs/server.log 2>&1 &
 else
   echo "ocamlserver/main.byte doesn't exist"
   exit -1
