@@ -7,7 +7,6 @@ class virtual node id loc =
     val id : id = id
     val loc : loc = loc
     method virtual name : string
-    method virtual parameters : string list
     method virtual tipe : string
     method id = id
     method short_id = id mod 65536
@@ -17,8 +16,6 @@ class virtual node id loc =
     method to_frontend : Yojson.Basic.json =
       `Assoc (List.append
                 [ ("name", `String self#name)
-                ; ("parameters",
-                   `List (List.map (fun s -> `String s) self#parameters))
                 ; ("id", `String (Core.Int.to_string id))
                 ; ("type", `String self#tipe)
                 ; ("x", `Int loc.x)
@@ -34,7 +31,6 @@ class value expr id loc =
     val expr : string = expr
     method name : string = expr
     method tipe = "value"
-    method parameters = []
     method extra_fields = [("value", `String expr)]
   end;;
 
@@ -47,7 +43,11 @@ class func name id loc =
     method tipe = if (Core.String.is_substring "page" name)
       then name
       else "function"
-    method parameters = (Lib.get_fn name).parameters
+    method extra_fields =
+      [("parameters",
+        `List (List.map
+                 (fun s -> `String s)
+                 (Lib.get_fn name).parameters))]
   end;;
 
 class datastore table id loc =
@@ -56,5 +56,4 @@ class datastore table id loc =
     val table : string = table
     method name = "DS-" ^ table
     method tipe = "datastore"
-    method parameters = []
   end;;

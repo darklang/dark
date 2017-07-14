@@ -44,6 +44,7 @@ let server =
     in
 
     let static_handler f : string =
+      (* TODO: mimetypes *)
       let l = String.length f in
       let f = String.sub f 1 (l-1) in
       match f with

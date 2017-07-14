@@ -91,15 +91,15 @@ decodeNode =
 decodeEdge : JSD.Decoder Edge
 decodeEdge =
   let toEdge : String -> String -> ParamName -> Edge
-      toEdge source target paramname =
+      toEdge source target param =
         { source = ID source
         , target = ID target
-        , targetParam = paramname
+        , targetParam = param
         }
   in JSDP.decode toEdge
     |> JSDP.required "source" JSD.string
     |> JSDP.required "target" JSD.string
-    |> JSDP.required "paramname" JSD.string
+    |> JSDP.required "param" JSD.string
 
 decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor)
 decodeGraph =

@@ -135,7 +135,9 @@ let json2op (json : json) : op =
     let int field = J.member field args |> J.to_int in
     (* TODO: ints encoded as strings: fix *)
     let istr field = J.member field args |> J.to_string |> Pervasives.int_of_string in
-    let id = Util.create_id () in
+    let id = match J.member "id" args with
+      | `String id -> Pervasives.int_of_string id
+      | `Null -> Util.create_id () in
     let loc : (unit -> Node.loc) =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
     match optype with
@@ -143,10 +145,10 @@ let json2op (json : json) : op =
     | "add_function_call" -> Add_fn (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (istr "id", loc ())
-    | "add_edge" -> Add_edge (istr "src", istr "target", str "paramname")
-    | "delete_edge" -> Delete_edge (istr "src", istr "target", str "paramname")
-    | "delete_node" -> Delete_node (istr "id")
-    | "clear_edges" -> Clear_edges (istr "id")
+    | "add_edge" -> Add_edge (istr "src", istr "target", str "param")
+    | "delete_edge" -> Delete_edge (istr "src", istr "target", str "param")
+    | "delete_node" -> Delete_node (id)
+    | "clear_edges" -> Clear_edges (id)
     (* TODO: put this into the frontend *)
     | "add_datastore_field" ->
 
@@ -186,9 +188,9 @@ let op2json op : json =
     | Delete_node _id ->
       "delete_node", [id _id]
     | Add_edge (sid, tid, param) ->
-      "add_edge", [istr "src" sid; istr "target" tid; str "paramname" param]
+      "add_edge", [istr "src" sid; istr "target" tid; str "param" param]
     | Delete_edge (sid, tid, param) ->
-      "delete_edge", [istr "src" sid; istr "target" tid; str "paramname" param]
+      "delete_edge", [istr "src" sid; istr "target" tid; str "param" param]
     | Clear_edges _id -> "clear_edges", [id _id]
   in `Assoc [name, `Assoc args]
 
@@ -234,7 +236,7 @@ let to_frontend_nodes g : json =
 let to_frontend_edges g : json =
   let toobj = fun s (t, p) -> `Assoc [ ("source", `String (Core.Int.to_string s))
                                      ; ("target", `String (Core.Int.to_string t))
-                                     ; ("paramname", `String p)] in
+                                     ; ("param", `String p)] in
   let edges = Map.to_alist g.edges in
   let jsons =
     List.map
