@@ -46,7 +46,7 @@ class func name id loc =
     method tipe = if (Core.String.is_substring "page" name)
       then name
       else "function"
-    method parameters = ["todo"]
+    method parameters = (Lib.get_fn name).parameters
   end;;
 
 class datastore table id loc =
