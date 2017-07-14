@@ -168,13 +168,13 @@ let save name (g : graph) : unit =
 let to_frontend_nodes g : json =
   `Assoc (
     List.map
-      (fun n -> (n#idstr, n#to_frontend))
+      (fun n -> (Core.Int.to_string n#id, n#to_frontend))
       (Map.data g.nodes)
   )
 
 let to_frontend_edges g : json =
-  let toobj = fun s (t, p) -> `Assoc [ ("source", `Int s)
-                                     ; ("target", `Int t)
+  let toobj = fun s (t, p) -> `Assoc [ ("source", `String (Core.Int.to_string s))
+                                     ; ("target", `String (Core.Int.to_string t))
                                      ; ("param", `String p)] in
   let edges = Map.to_alist g.edges in
   let jsons =
