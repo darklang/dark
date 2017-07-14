@@ -143,11 +143,13 @@ let json2op (json : json) : op =
     | "add_function_call" -> Add_fn (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (istr "id", loc ())
-    | "add_edge" -> Add_edge (istr "src", istr "target", str "param")
+    | "add_edge" -> Add_edge (istr "src", istr "target", str "paramname")
+    | "delete_edge" -> Delete_edge (istr "src", istr "target", str "paramname")
     | "delete_node" -> Delete_node (istr "id")
     | "clear_edges" -> Clear_edges (istr "id")
     (* TODO: put this into the frontend *)
     | "add_datastore_field" ->
+
       let (list, tipe) =
         match Core.String.split_on_chars
                 (str "tipe") ~on:['['; ']'] with
@@ -156,7 +158,7 @@ let json2op (json : json) : op =
         | _ -> failwith "other pattern"
       in
       Add_datastore_field (int "id", str "name", tipe, list)
-    | _ -> failwith "not a valid optype")
+    | _ -> failwith ("not a valid optype: " ^ optype))
   | _ ->
     failwith ("incorrect op structure" ^ (Yojson.Basic.to_string json))
 
@@ -164,8 +166,9 @@ let json2op (json : json) : op =
 let op2json op : json =
   let str k v = (k, `String v) in
   let int k v = (k, `Int v) in
+  let istr k v = (k, `String (Core.Int.to_string v)) in
   let bool k v = (k, `Bool v) in
-  let id id = int "id" id in
+  let id id = istr "id" id in
   let x (loc : Node.loc) = int "x" loc.x in
   let y (loc : Node.loc) = int "y" loc.y in
   let (name, args) = match op with
@@ -183,9 +186,9 @@ let op2json op : json =
     | Delete_node _id ->
       "delete_node", [id _id]
     | Add_edge (sid, tid, param) ->
-      "add_param", [int "src" sid; int "target" tid; str "param" param]
+      "add_edge", [istr "src" sid; istr "target" tid; str "paramname" param]
     | Delete_edge (sid, tid, param) ->
-      "delete_edge", [int "src" sid; int "target" tid; str "param" param]
+      "delete_edge", [istr "src" sid; istr "target" tid; str "paramname" param]
     | Clear_edges _id -> "clear_edges", [id _id]
   in `Assoc [name, `Assoc args]
 
@@ -231,7 +234,7 @@ let to_frontend_nodes g : json =
 let to_frontend_edges g : json =
   let toobj = fun s (t, p) -> `Assoc [ ("source", `String (Core.Int.to_string s))
                                      ; ("target", `String (Core.Int.to_string t))
-                                     ; ("param", `String p)] in
+                                     ; ("paramname", `String p)] in
   let edges = Map.to_alist g.edges in
   let jsons =
     List.map

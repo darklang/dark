@@ -15,14 +15,17 @@ class virtual node id loc =
     method is_datasink = false
     method is_datasource = false
     method to_frontend : Yojson.Basic.json =
-      `Assoc [ ("name", `String self#name)
-             ; ("parameters",
-                `List (List.map (fun s -> `String s) self#parameters))
-             ; ("id", `String (Core.Int.to_string id))
-             ; ("type", `String self#tipe)
-             ; ("x", `Int loc.x)
-             ; ("y", `Int loc.y)
-             ]
+      `Assoc (List.append
+                [ ("name", `String self#name)
+                ; ("parameters",
+                   `List (List.map (fun s -> `String s) self#parameters))
+                ; ("id", `String (Core.Int.to_string id))
+                ; ("type", `String self#tipe)
+                ; ("x", `Int loc.x)
+                ; ("y", `Int loc.y)
+                ]
+                self#extra_fields)
+    method extra_fields = []
   end;;
 
 class value expr id loc =
@@ -32,6 +35,7 @@ class value expr id loc =
     method name : string = expr
     method tipe = "value"
     method parameters = []
+    method extra_fields = [("value", `String expr)]
   end;;
 
 class func name id loc =
