@@ -57,8 +57,7 @@ encodeRPC m call =
       RemoveLastField (ID id) -> ("remove_last_field",
                                     JSE.object [ ("id", JSE.string id) ])
 
-  in JSE.object [ ("command", JSE.string cmd)
-                , ("args", args) ]
+  in JSE.object [ (cmd, args) ]
 
 decodeNode : JSD.Decoder Node
 decodeNode =

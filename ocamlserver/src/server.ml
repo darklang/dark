@@ -19,16 +19,13 @@ let server =
 
     let admin_rpc_handler body : string =
       let body = inspect "request body" body in
-      (* TODO: remove command/args structure *)
       let payload = Yojson.Basic.from_string body in
-      let command = J.member "command" payload |> J.to_string in
-      let args = J.member "args" payload in
-
       let g = G.load "blog" in
-
-      let g = match command with
-        | "load_initial_graph" -> g
-        | _ -> `Assoc [command, args] |> G.json2op |> G.add_op g in
+      let g =
+        if J.member "load_initial_graph" payload == `Null then
+          payload |> G.json2op |> G.add_op g
+        else
+          g in
 
       let _ = G.save "blog" g in
 
