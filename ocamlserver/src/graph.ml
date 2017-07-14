@@ -64,7 +64,7 @@ let apply_op (g : graph) (op : op) : graph =
   | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc)
   | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
   | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
-  | _ -> failwith "other"
+  | _ -> failwith "applying unimplemented op"
 
 let add_op (g : graph) (op : op) : graph =
   let g = { g with ops = List.append g.ops [op]} in
@@ -79,6 +79,8 @@ let json2op (json : json) : op =
   | `Assoc [optype, args] -> (
     let str field = J.member field args |> J.to_string in
     let int field = J.member field args |> J.to_int in
+    (* TODO: ints encoded as strings: fix *)
+    let istr field = J.member field args |> J.to_string |> Pervasives.int_of_string in
     let id = Util.create_id () in
     let loc : (unit -> Node.loc) =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
@@ -86,10 +88,10 @@ let json2op (json : json) : op =
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
     | "add_function_call" -> Add_fn (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
-    | "update_node_position" -> Update_node_position (int "id", loc ())
-    | "add_edge" -> Add_edge (int "src", int "target", str "param")
-    | "delete_node" -> Delete_node (int "id")
-    | "clear_edges" -> Clear_edges (int "id")
+    | "update_node_position" -> Update_node_position (istr "id", loc ())
+    | "add_edge" -> Add_edge (istr "src", istr "target", str "param")
+    | "delete_node" -> Delete_node (istr "id")
+    | "clear_edges" -> Clear_edges (istr "id")
     (* TODO: put this into the frontend *)
     | "add_datastore_field" ->
       let (list, tipe) =
