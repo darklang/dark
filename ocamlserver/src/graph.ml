@@ -142,7 +142,7 @@ let load name : graph =
   let count = Unix.read file raw 0 10000 in
   let str = Bytes.sub_string raw 0 count in
   let str = if String.equal str "" then "[]" else str in
-  let jsonops = Yojson.Basic.from_string (inspect "loaded" str) in
+  let jsonops = Yojson.Basic.from_string str in
   let ops = match jsonops with
   | `List ops -> List.map json2op ops
   | _ -> failwith "unexpected deserialization" in
@@ -153,7 +153,7 @@ let load name : graph =
 let save name (g : graph) : unit =
   let ops = List.map op2json g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
-  let str = str ^ "\n" |> inspect "saving" in
+  let str = str ^ "\n" in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   let filename = "appdata/" ^ name ^ ".dark" in
   let file = Unix.openfile filename flags 0o640 in
