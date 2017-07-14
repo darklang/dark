@@ -18,6 +18,7 @@ rpc m call =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
+  let toInt i = i |> String.toInt |> Result.withDefault -1 in
   let (cmd, args) =
     case call of
       LoadInitialGraph -> ("load_initial_graph", JSE.object [])
@@ -26,7 +27,7 @@ encodeRPC m call =
                                               , ("x", JSE.int x)
                                               , ("y", JSE.int y)])
       AddDatastoreField (ID id) name tipe -> ("add_datastore_field",
-                                                JSE.object [ ("id", JSE.string id)
+                                                JSE.object [ ("id", JSE.int (toInt id))
                                                            , ("name", JSE.string name)
                                                            , ("tipe", JSE.string tipe)])
       AddFunctionCall name {x,y} -> ("add_function_call",
@@ -42,29 +43,29 @@ encodeRPC m call =
         case Dict.get id m.nodes of
           Nothing -> Debug.crash "should never happen"
           Just node -> ("update_node_position",
-                          JSE.object [ ("id", JSE.string id)
+                          JSE.object [ ("id", JSE.int (toInt id))
                                      , ("x" , JSE.int node.pos.x)
                                      , ("y" , JSE.int node.pos.y)])
       AddEdge (ID src) (ID target, param) -> ("add_edge",
-                                                JSE.object [ ("src", JSE.string src)
-                                                           , ("target", JSE.string target)
+                                                JSE.object [ ("src", JSE.int (toInt src))
+                                                           , ("target", JSE.int (toInt target))
                                                            , ("param", JSE.string param)
                                                            ])
       DeleteNode (ID id) -> ("delete_node",
-                               JSE.object [ ("id", JSE.string id) ])
+                               JSE.object [ ("id", JSE.int (toInt id)) ])
       ClearEdges (ID id) -> ("clear_edges",
-                               JSE.object [ ("id", JSE.string id) ])
+                               JSE.object [ ("id", JSE.int (toInt id)) ])
       RemoveLastField (ID id) -> ("remove_last_field",
-                                    JSE.object [ ("id", JSE.string id) ])
+                                    JSE.object [ ("id", JSE.int (toInt id)) ])
 
   in JSE.object [ (cmd, args) ]
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toNode : Name -> String -> List(FieldName,TypeName) -> List ParamName -> String -> Int -> Int -> Node
+  let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> String -> Int -> Int -> Node
       toNode name id fields parameters tipe x y =
           { name = name
-          , id = ID id
+          , id = ID (toString id)
           , fields = fields
           , parameters = parameters
           , tipe = case tipe of
@@ -77,7 +78,7 @@ decodeNode =
           }
   in JSDP.decode toNode
     |> JSDP.required "name" JSD.string
-    |> JSDP.required "id" JSD.string
+    |> JSDP.required "id" JSD.int
     |> JSDP.optional "fields" (JSD.list
                                  (JSD.map2 (,)
                                     (JSD.index 0 JSD.string)
@@ -89,15 +90,15 @@ decodeNode =
 
 decodeEdge : JSD.Decoder Edge
 decodeEdge =
-  let toEdge : String -> String -> ParamName -> Edge
+  let toEdge : Int -> Int -> ParamName -> Edge
       toEdge source target param =
-        { source = ID source
-        , target = ID target
+        { source = ID (toString source)
+        , target = ID (toString target)
         , targetParam = param
         }
   in JSDP.decode toEdge
-    |> JSDP.required "source" JSD.string
-    |> JSDP.required "target" JSD.string
+    |> JSDP.required "source" JSD.int
+    |> JSDP.required "target" JSD.int
     |> JSDP.required "param" JSD.string
 
 decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor)

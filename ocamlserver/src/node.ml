@@ -5,18 +5,19 @@ type param = string
 class virtual node id loc =
   object (self)
     val id : id = id
-    val loc : loc = loc
+    val mutable loc : loc = loc
     method virtual name : string
     method virtual tipe : string
     method id = id
-    method short_id = id mod 65536
     method is_page = false
     method is_datasink = false
     method is_datasource = false
+    method update_loc _loc =
+      loc <- _loc
     method to_frontend : Yojson.Basic.json =
       `Assoc (List.append
                 [ ("name", `String self#name)
-                ; ("id", `String (Core.Int.to_string id))
+                ; ("id", `Int id)
                 ; ("type", `String self#tipe)
                 ; ("x", `Int loc.x)
                 ; ("y", `Int loc.y)

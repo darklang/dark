@@ -105,8 +105,8 @@ let add_edge (g: graph) (sid : id) (tid : id) (param : param) : graph =
 
   { g with edges = Map.add_multi g.edges sid (tid, param) }
 
-    (* self.edges[src.id()].append((target.id(), param)) *)
-
+let update_node_position (g: graph) (id: id) (loc: loc) : graph =
+  id |> Map.find_exn g.nodes |> (fun n -> n#update_loc loc); g
 
 
 (* ------------------------- *)
@@ -118,6 +118,7 @@ let apply_op (g : graph) (op : op) : graph =
   | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
   | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
   | Add_edge (src, target, param) -> add_edge g src target param
+  | Update_node_position (id, loc) -> update_node_position g id loc
   | _ -> failwith "applying unimplemented op"
 
 let add_op (g : graph) (op : op) : graph =
@@ -133,10 +134,9 @@ let json2op (json : json) : op =
   | `Assoc [optype, args] -> (
     let str field = J.member field args |> J.to_string in
     let int field = J.member field args |> J.to_int in
-    (* TODO: ints encoded as strings: fix *)
-    let istr field = J.member field args |> J.to_string |> Pervasives.int_of_string in
     let id = match J.member "id" args with
-      | `String id -> Pervasives.int_of_string id
+      | `Int id -> id
+      (* When they come in first, they don't have an id, so add one. *)
       | `Null -> Util.create_id () in
     let loc : (unit -> Node.loc) =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
@@ -144,11 +144,11 @@ let json2op (json : json) : op =
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
     | "add_function_call" -> Add_fn (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
-    | "update_node_position" -> Update_node_position (istr "id", loc ())
-    | "add_edge" -> Add_edge (istr "src", istr "target", str "param")
-    | "delete_edge" -> Delete_edge (istr "src", istr "target", str "param")
-    | "delete_node" -> Delete_node (id)
-    | "clear_edges" -> Clear_edges (id)
+    | "update_node_position" -> Update_node_position (int "id", loc ())
+    | "add_edge" -> Add_edge (int "src", int "target", str "param")
+    | "delete_edge" -> Delete_edge (int "src", int "target", str "param")
+    | "delete_node" -> Delete_node (int "id")
+    | "clear_edges" -> Clear_edges (int "id")
     (* TODO: put this into the frontend *)
     | "add_datastore_field" ->
 
@@ -168,9 +168,8 @@ let json2op (json : json) : op =
 let op2json op : json =
   let str k v = (k, `String v) in
   let int k v = (k, `Int v) in
-  let istr k v = (k, `String (Core.Int.to_string v)) in
   let bool k v = (k, `Bool v) in
-  let id id = istr "id" id in
+  let id id = int "id" id in
   let x (loc : Node.loc) = int "x" loc.x in
   let y (loc : Node.loc) = int "y" loc.y in
   let (name, args) = match op with
@@ -188,9 +187,9 @@ let op2json op : json =
     | Delete_node _id ->
       "delete_node", [id _id]
     | Add_edge (sid, tid, param) ->
-      "add_edge", [istr "src" sid; istr "target" tid; str "param" param]
+      "add_edge", [int "src" sid; int "target" tid; str "param" param]
     | Delete_edge (sid, tid, param) ->
-      "delete_edge", [istr "src" sid; istr "target" tid; str "param" param]
+      "delete_edge", [int "src" sid; int "target" tid; str "param" param]
     | Clear_edges _id -> "clear_edges", [id _id]
   in `Assoc [name, `Assoc args]
 
@@ -234,8 +233,8 @@ let to_frontend_nodes g : json =
   )
 
 let to_frontend_edges g : json =
-  let toobj = fun s (t, p) -> `Assoc [ ("source", `String (Core.Int.to_string s))
-                                     ; ("target", `String (Core.Int.to_string t))
+  let toobj = fun s (t, p) -> `Assoc [ ("source", `Int s)
+                                     ; ("target", `Int t)
                                      ; ("param", `String p)] in
   let edges = Map.to_alist g.edges in
   let jsons =
