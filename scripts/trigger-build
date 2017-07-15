@@ -2,6 +2,6 @@
 
 echo "If you're not running scripts/builder already, start it and rerun this command. If you are, all is good."
 
-touch ocamlserver/_oasis
+touch server/_oasis
 touch client/Main.elm
-touch ocamlserver/src/main.ml
+touch server/src/main.ml

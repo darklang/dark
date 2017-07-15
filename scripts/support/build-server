@@ -73,12 +73,12 @@ def ignore(filename, reason):
   # substring
   ignores = [".git", "scripts/", "logs/", "appdata/"]
   ignores += ["client/elm-stuff", "static/elm.js"]
-  ignores += ["ocamlserver/" + i for i in ["setup.log",
-                                           "setup.data",
-                                           "_build",
-                                           "_tags",
-                                           "myocamlbuild.ml",
-                                           "Makefile"]]
+  ignores += ["server/" + i for i in ["setup.log",
+                                      "setup.data",
+                                      "_build",
+                                      "_tags",
+                                      "myocamlbuild.ml",
+                                      "Makefile"]]
   for i in ignores:
     if i in filename:
       return True
@@ -112,11 +112,11 @@ def main():
 
     # Ocaml
     elif "_oasis" in f:
-      call("cd ocamlserver && oasis setup -setup-update dynamic && make")
+      call("cd server && oasis setup -setup-update dynamic && make")
       reload_server()
       reload_browser();
     elif ".ml" in f:
-      call("cd ocamlserver && make")
+      call("cd server && make")
       reload_server()
       reload_browser();
 
