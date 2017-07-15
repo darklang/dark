@@ -107,7 +107,7 @@ let apply_op (g : graph) (op : op) : graph =
 
 let add_op (g : graph) (op : op) : graph =
   let g = apply_op g op in
-  { g with ops = List.append g.ops [op]} in
+  { g with ops = List.append g.ops [op]}
 
 
 
