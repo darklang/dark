@@ -9,7 +9,7 @@ echo "Removing all containers"
 docker rm -f $(docker ps -a -q) || true
 
 echo "watching for local changes"
-scripts/browser_reload &
+scripts/support/reload-browser > logs/browser.log 2>&1 &
 
 echo "Run the build"
 docker run \
@@ -17,4 +17,4 @@ docker run \
        -v $(pwd):/home/dark/app \
        -p 8000:8000 \
        dark \
-       sh -c 'cd app && scripts/build'
+       sh -c 'cd app && scripts/support/build-watcher'

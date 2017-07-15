@@ -2,26 +2,14 @@
 
 - Install Docker
 - Run `brew install fswatch`
-- Run `scripts/docker-runserver`
+- Run `scripts/builder`
 - Open your browser to http://localhost:8000/admin/ui
 - Wait til the terminal says "Starting" - this means the build server is ready
-- Run `scripts/build-all` - this triggers a build of everything
+- Run `scripts/trigger-build` - this triggers a build of everything
 - Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
 
 
 # Design
-
-## To communicate with live environment
-- bash alias to add nodes via curl
-- api server running on port 8080
-- visualization server running on port 8081
-- upon change, saves serialized app
-
-## To build application
-- live server being updated
-- runs on port 3000
-- creates an API ending in /api
-
 
 ## Example: blog
 - datastore:

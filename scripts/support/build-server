@@ -58,11 +58,11 @@ def call(bash):
   p("X " + bash, color=color)
 
 def reload_server():
-  call("scripts/runserver")
+  call("scripts/support/runserver")
 
 def reload_browser():
   # Sends a signal to another fswatch on your mac
-  call("touch .browser_trigger")
+  call("touch .browser-trigger")
 
 def ignore(filename, reason):
   if reason == "IsDir":

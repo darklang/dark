@@ -1,6 +1,0 @@
-#!/bin/bash
-
-# Makes sure we always execute from the root directory
-cd "$(dirname "$0")"/..
-
-fswatch -m inotify_monitor -r * -x "$@" | scripts/builder.py

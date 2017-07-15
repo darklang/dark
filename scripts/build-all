@@ -1,6 +1,0 @@
-#!/bin/bash
-
-echo "This relies on having scripts/build running"
-
-touch ocamlserver/src/main.ml
-touch client/Main.elm

@@ -1,0 +1,12 @@
+#!/bin/bash
+
+set -euo pipefail
+
+fswatch -m fsevents_monitor .browser-trigger |
+    {
+        while read -d "" event
+        do
+            echo "triggering reload"
+            osascript scripts/support/chrome.osa
+        done
+    }
