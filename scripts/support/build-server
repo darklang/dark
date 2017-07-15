@@ -106,7 +106,7 @@ def main():
 
     # Frontend
     elif ".elm" in f:
-      call("cd client && elm-make Main.elm --debug --output ../static/elm.js")
+      call("cd client && elm-make Main.elm --debug --yes --output ../static/elm.js")
       reload_browser();
 
 
