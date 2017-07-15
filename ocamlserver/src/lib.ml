@@ -24,4 +24,7 @@ let fns_list = [
 let fns : fnmap =
   List.fold_left add_fn Map.empty fns_list
 
-let get_fn (name : string) = Map.find_exn fns name
+let get_fn (name : string) : fn =
+  match Map.find fns name with
+  | Some f -> f
+  | None -> "No function named '" ^ name ^ "' exists" |> Exception.UserException |> raise

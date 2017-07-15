@@ -106,8 +106,8 @@ let apply_op (g : graph) (op : op) : graph =
   | _ -> failwith "applying unimplemented op"
 
 let add_op (g : graph) (op : op) : graph =
-  let g = { g with ops = List.append g.ops [op]} in
-  apply_op g op
+  let g = apply_op g op in
+  { g with ops = List.append g.ops [op]} in
 
 
 

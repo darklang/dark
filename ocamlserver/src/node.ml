@@ -38,7 +38,8 @@ class value expr id loc =
 class func name id loc =
   object (self)
     inherit node id loc
-    val name : string = name
+    (* Throw an exception if it doesn't exist *)
+    val name : string = let _ = Lib.get_fn name in name
     method name = name
     method is_page = name == "Page_page"
     method tipe = if (Core.String.is_substring "page" name)

@@ -20,19 +20,22 @@ let server =
     let admin_rpc_handler body : string =
       let body = inspect "request body" body in
       let payload = Yojson.Basic.from_string body in
-      let g = G.load "blog" in
-      let g =
-        if J.member "load_initial_graph" payload == `Null then
-          payload |> G.json2op |> G.add_op g
-        else
-          g in
 
-      let _ = G.save "blog" g in
+      try
+        let g = G.load "blog" in
+        let g =
+          if J.member "load_initial_graph" payload == `Null then
+            payload |> G.json2op |> G.add_op g
+          else
+            g in
+        let _ = G.save "blog" g in
 
-      g
-      |> Graph.to_frontend
-      |> Yojson.Basic.to_string
-      |> Util.inspect "response: "
+        g
+        |> Graph.to_frontend
+        |> Yojson.Basic.to_string
+        |> Util.inspect "response: "
+      with
+      | Exception.UserException str -> "UserException: " ^ str
 
     in
 
