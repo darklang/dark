@@ -103,7 +103,7 @@ def main():
 
     # Ocaml
     elif "_oasis" in f:
-      call("cd ocamlserver && oasis setup -setup-update=dynamic && make")
+      call("cd ocamlserver && oasis setup -setup-update dynamic && make")
       reload_server()
       reload_browser();
     elif ".ml" in f:

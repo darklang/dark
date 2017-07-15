@@ -19,7 +19,8 @@ Executable "dark"
     # Jane Street Core
     core,
     ppx_jane,
-    threads
+    threads,
+    postgresql
 
   # use byte because osx wants us to click a button every time
   CompiledObject: byte

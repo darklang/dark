@@ -1,1 +1,7 @@
 .git
+ocamlserver/_build
+ocamlserver/configure
+ocamlserver/Makefile
+ocamlserver/setup.ml
+ocamlserver/setup.log
+ocamlserver/setup.data

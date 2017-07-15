@@ -5,22 +5,42 @@
 
 FROM ubuntu:16.04
 
+# TODO: version all ubuntu packages
 RUN apt-get update
 RUN apt-get upgrade -y
-# TODO: version all ubuntu packages
-RUN apt-get install -y python3 make m4 rsync git curl ocaml opam nodejs-legacy npm libpq-dev
+RUN apt-get install -y software-properties-common \
+                       python3 make m4 rsync git curl \
+                       ocaml opam \
+                       nodejs-legacy npm \
+                       libpq-dev
+RUN apt-add-repository 'deb http://ppa.launchpad.net/anatol/tup/ubuntu precise main'
+RUN apt-get update
+RUN apt-get install -y --allow-unauthenticated tup
 
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
 USER dark
 WORKDIR /home/dark
 
-RUN npm install elm@0.17.0
+RUN npm install elm@0.18.0
+ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
 RUN opam init --auto-setup
 RUN opam switch 4.04.2
+ENV PATH "/home/dark/.opam/4.04.2/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.04.2/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/4.04.2/man:"
+ENV PERL5LIB "/home/dark/.opam/4.04.2/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
 RUN opam update
-RUN opam install oasis.0.4.10 cohttp.0.22.0 lwt.3.0.0 core.0.9.1 yojson.1.3.3 ppx_jane.0.9.0 postgresql.4.0.1
+RUN opam install core.v0.9.1 \
+                 oasis.0.4.10 \
+                 cohttp.0.22.0 \
+                 lwt.2.7.1 \
+                 yojson.1.3.3 \
+                 # ppx_jane.0.9.1 \
+                 postgresql.4.0.1
 
+# ocaml
 
 CMD ["scripts", "build"]
