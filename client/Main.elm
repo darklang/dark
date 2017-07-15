@@ -35,6 +35,7 @@ init : ( Model, Cmd Msg )
 init = let m = { nodes = Dict.empty
                , edges = []
                , cursor = Nothing
+               , live = Nothing
                , state = ADD_FUNCTION
                , errors = ["None"]
                , inputValue = ""
@@ -174,7 +175,7 @@ update_ msg m =
       ({ m | state = ADD_DS_FIELD_NAME
        }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
 
-    (_, RPCCallBack (Ok (nodes, edges, cursor)), _) ->
+    (_, RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
       -- if the new cursor is blank, keep the old cursor if it's valid
       let oldCursor = Maybe.map (\(ID id) -> Dict.get id nodes) m.cursor
           newCursor = case cursor of
@@ -184,6 +185,7 @@ update_ msg m =
       in ({ m | nodes = nodes
               , edges = edges
               , cursor = newCursor
+              , live = live
           }, Cmd.none, newFocus )
 
     (_, RPCCallBack (Err (Http.BadStatus error)), _) ->

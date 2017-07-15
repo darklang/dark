@@ -101,13 +101,18 @@ decodeEdge =
     |> JSDP.required "target" JSD.int
     |> JSDP.required "param" JSD.string
 
-decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor)
+decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor, LiveValue)
 decodeGraph =
-  let toGraph : NodeDict -> List Edge -> String -> (NodeDict, List Edge, Cursor)
-      toGraph nodes edges cursor = (nodes, edges, case cursor of
-                                                    "" -> Nothing
-                                                    str -> Just (ID str))
+  let toGraph : NodeDict -> List Edge -> String -> String -> (NodeDict, List Edge, Cursor, LiveValue)
+      toGraph nodes edges cursor value = (nodes, edges,
+                                            case cursor of
+                                              "" -> Nothing
+                                              str -> Just (ID str),
+                                            case value of
+                                              "" -> Nothing
+                                              str -> Just str)
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.dict decodeNode)
     |> JSDP.required "edges" (JSD.list decodeEdge)
     |> JSDP.optional "cursor" JSD.string ""
+    |> JSDP.optional "live" JSD.string ""

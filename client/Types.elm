@@ -41,6 +41,7 @@ type alias Edge = { source : ID
                   , target : ID
                   , targetParam : ParamName
                   }
+type alias LiveValue = Maybe String
 
 type alias LeftButton = Bool
 type Msg
@@ -59,7 +60,7 @@ type Msg
     | KeyPress Keyboard.KeyCode
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
-    | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor))
+    | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor, LiveValue))
     | NoMsg -- use this for init
 
 type RPC
@@ -85,6 +86,7 @@ type State
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , cursor : Cursor
+                   , live : LiveValue
                    , inputValue : String
                    , focused : Bool
                    , state : State

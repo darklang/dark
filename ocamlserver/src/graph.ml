@@ -228,4 +228,5 @@ let to_frontend (g : graph) : json =
          ; ("edges", to_frontend_edges g)
          (* TODO: remove. Should be done on the frontend *)
          ; ("cursor", `Null)
+         ; ("live", `String "test")
          ]
