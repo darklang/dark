@@ -2,7 +2,15 @@
 
 set -euo pipefail
 
+echo "Building docker image"
 docker build -t dark .
 
+echo "Stopping all running containers"
+docker stop $(docker ps -a -q)
+
+echo "Removing all containers"
+docker rm $(docker ps -a -q)
+
+echo "Run the build"
 docker run -t -v $(pwd):/home/dark/app dark \
        sh -c 'cd app && scripts/build'

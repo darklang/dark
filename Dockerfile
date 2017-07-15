@@ -15,6 +15,7 @@ RUN apt-get install -y software-properties-common \
                        libpq-dev \
                        wget sudo
 
+# FSWatch for the build script
 RUN wget https://github.com/emcrisostomo/fswatch/releases/download/1.9.3/fswatch-1.9.3.tar.gz
 RUN tar zxvf fswatch-1.9.3.tar.gz
 RUN cd fswatch-1.9.3 && ./configure && make
@@ -26,12 +27,11 @@ RUN adduser --disabled-password --gecos '' dark
 USER dark
 WORKDIR /home/dark
 
-
-
-
+# Elm
 RUN npm install elm@0.18.0
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
+# Ocaml
 RUN opam init --auto-setup
 RUN opam switch 4.04.2
 ENV PATH "/home/dark/.opam/4.04.2/bin:$PATH"

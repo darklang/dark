@@ -2,9 +2,8 @@
 
 set -euo pipefail
 
-#python server/main.py
-
-(ps aux | pgrep 'main.byte' | xargs kill) || 1
+# Stop the server
+(ps aux | pgrep 'main.byte' | xargs kill > /dev/null 2>&1) || true
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=100;i++));
