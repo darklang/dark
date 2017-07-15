@@ -61,24 +61,33 @@ def reload_server():
   call("scripts/runserver")
 
 def reload_browser():
-  call("osascript scripts/chrome-reload")
+  pass
+  #call("osascript scripts/chrome-reload")
 
 def ignore(filename):
-  ignores = [".git", "scripts/", "logs/", "ocamlserver/setup.log", "ocamlserver/_build", "_tags", "client/elm-stuff"]
+  # directories
+  if os.path.isdir(filename):
+    return True
+  # substring
+  ignores = [".git", "scripts/", "logs/"]
+  ignores += ["ocamlserver/_build", "client/elm-stuff", "appdata"]
+  ignores += ["ocamlserver/setup.log", "ocamlserver/_tags"]
   for i in ignores:
     if i in filename:
       return True
-  # ocaml build tempoary
+  # ocaml build temporary
   if filename[-10:-8] == "/C":
     return True
   # emacs thing
   if "/.#" in filename:
     return True
+  print("not ignoring: X" + filename +"X")
   return False
 
 def main():
   p("Starting")
   for f in sys.stdin:
+    f = f.strip()
     if ignore(f):
       continue
 
