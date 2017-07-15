@@ -1,6 +1,6 @@
 # How to build and run
 
-- Install Docker
+- Install Docker for Mac
 - Run `brew install fswatch`
 - Run `scripts/builder`
 - Open your browser to http://localhost:8000/admin/ui
