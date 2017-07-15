@@ -6,3 +6,4 @@
 client/elm-stuff/
 server/.mypy_cache/
 *.pyc
+/.browser_trigger

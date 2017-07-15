@@ -61,17 +61,24 @@ def reload_server():
   call("scripts/runserver")
 
 def reload_browser():
-  pass
-  #call("osascript scripts/chrome-reload")
+  # Sends a signal to another fswatch on your mac
+  call("touch .browser_trigger")
 
-def ignore(filename):
-  # directories
-  if os.path.isdir(filename):
+def ignore(filename, reason):
+  if reason == "IsDir":
     return True
+  if reason == "PlatformSpecific":
+    return True
+
   # substring
-  ignores = [".git", "scripts/", "logs/"]
-  ignores += ["ocamlserver/_build", "client/elm-stuff", "appdata"]
-  ignores += ["ocamlserver/setup.log", "ocamlserver/_tags"]
+  ignores = [".git", "scripts/", "logs/", "appdata/"]
+  ignores += ["client/elm-stuff", "static/elm.js"]
+  ignores += ["ocamlserver/" + i for i in ["setup.log",
+                                           "setup.data",
+                                           "_build",
+                                           "_tags",
+                                           "myocamlbuild.ml",
+                                           "Makefile"]]
   for i in ignores:
     if i in filename:
       return True
@@ -81,28 +88,21 @@ def ignore(filename):
   # emacs thing
   if "/.#" in filename:
     return True
-  print("not ignoring: X" + filename +"X")
   return False
 
 def main():
   p("Starting")
   for f in sys.stdin:
-    f = f.strip()
-    if ignore(f):
+    (f, reason) = f.strip().split(" ")
+    if ignore(f, reason):
       continue
 
-    p("\nDetected change: " + f, end="")
-    if False:
-      pass
-
+    p("\nDetected change (" + reason + "): " + f)
 
     # Server
     if "main.byte" in f or "main.native" in f:
       # ignore the trigger, the compile methods call this direct
       pass
-    #   reload_server()
-    #   # TODO: might not sync up if server takes time to start
-    #   reload_browser();
 
     # Frontend
     elif ".elm" in f:

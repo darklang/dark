@@ -1,3 +1,14 @@
+# How to build and run
+
+- Install Docker
+- Run `brew install fswatch`
+- Run `scripts/docker-runserver`
+- Open your browser to http://localhost:8000/admin/ui
+- Wait til the terminal says "Starting" - this means the build server is ready
+- Run `scripts/build-all` - this triggers a build of everything
+- Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
+
+
 # Design
 
 ## To communicate with live environment
