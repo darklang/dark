@@ -12,15 +12,22 @@ RUN apt-get install -y software-properties-common \
                        python3 make m4 rsync git curl \
                        ocaml opam \
                        nodejs-legacy npm \
-                       libpq-dev
-RUN apt-add-repository 'deb http://ppa.launchpad.net/anatol/tup/ubuntu precise main'
-RUN apt-get update
-RUN apt-get install -y --allow-unauthenticated tup
+                       libpq-dev \
+                       wget sudo
+
+RUN wget https://github.com/emcrisostomo/fswatch/releases/download/1.9.3/fswatch-1.9.3.tar.gz
+RUN tar zxvf fswatch-1.9.3.tar.gz
+RUN cd fswatch-1.9.3 && ./configure && make
+RUN cd fswatch-1.9.3 && make install && ldconfig
+
 
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
 USER dark
 WORKDIR /home/dark
+
+
+
 
 RUN npm install elm@0.18.0
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
@@ -40,7 +47,4 @@ RUN opam install core.v0.9.1 \
                  yojson.1.3.3 \
                  # ppx_jane.0.9.1 \
                  postgresql.4.0.1
-
-# ocaml
-
 CMD ["scripts", "build"]

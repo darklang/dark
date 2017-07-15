@@ -1,8 +1,10 @@
 #!/bin/bash
 
+set -euo pipefail
+
 #python server/main.py
 
-ps aux | grep "main\.byte" | awk '{print $2}' | xargs kill
+(ps aux | pgrep 'main.byte' | xargs kill) || 1
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=100;i++));

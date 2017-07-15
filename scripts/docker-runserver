@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -euo pipefail
+
 docker build -t dark .
 
-docker run -v $(pwd):/home/dark/app -p 8001:8002 dark sh -c 'cd app && eval `opam config env` && ./scripts/build'
+docker run -t -v $(pwd):/home/dark/app dark \
+       sh -c 'cd app && scripts/build'
