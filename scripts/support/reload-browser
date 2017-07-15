@@ -4,9 +4,9 @@ set -euo pipefail
 
 fswatch -m fsevents_monitor .browser-trigger |
     {
-        while read -d "" event
+        while read event
         do
             echo "triggering reload"
-            osascript scripts/support/chrome.osa
+            osascript scripts/support/chrome-reload.osa
         done
     }
