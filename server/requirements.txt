@@ -1,7 +1,0 @@
-werkzeug
-jinja2
-python-slugify
-termcolor
-watchdog
-pyrsistent
-mypy==0.470
