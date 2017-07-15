@@ -1,21 +1,3 @@
-import random
-import json
-import os
-import pickle
-import enum
-
-import pyrsistent as pyr
-
-from dark.node import Node, FnNode, Value, ID
-from . import datastore
-from . import fields
-from . import types
-from .util import req
-
-from typing import Any, Callable, cast, Tuple, List, Dict, Optional, Set, NamedTuple
-
-def debug(str:str) -> None:
-  print(str.replace("\n", "\n  "))
 
 def get_all_graphnames() -> List[str]:
   return [f[:-5] for f in os.listdir("appdata") if f.endswith(".dark")]
@@ -23,65 +5,9 @@ def get_all_graphnames() -> List[str]:
 def filename_for(name:str) -> str:
   return "appdata/" + name + ".dark"
 
-def load(name:str) -> 'Graph':
-  filename = filename_for(name)
-  if os.path.isfile(filename):
-    with open(filename, 'rb') as file:
-      graph = pickle.load(file)
-    graph.migrate(name)
-    print("Graph %s: v%s" % (graph.name, graph.version))
-    for op in graph.ops:
-      graph.apply_op(op)
-    return graph
-  else:
-    return Graph(name)
-
-def save(G:'Graph') -> None:
-  filename = filename_for(G.name)
-
-  # dont use pickle.dump - it tends to corrupt
-  data = pickle.dumps(G)
-
-  with open(filename, 'wb') as file:
-    file.write(data)
-
-  # sanity check
-  load(G.name)
-
-class Op(NamedTuple):
-  op : str
-  args : Tuple[Any, ...]
-
 class Graph:
-  def __init__(self, name:str) -> None:
-    self.name = name
-    self.version = 6
-    self.ops : List[Op] = []
-    self.nodes : Dict[ID,Node] = {}
-    # first Tuple arg is n2.id, 2nd one is param
-    self.edges : Dict[ID, List[Tuple[ID,str]]] = {}
-
-
-  # Pickling
-  def __getstate__(self) -> Dict[str,Any]:
-    return {"name": self.name,
-            "version": self.version,
-            "ops": self.ops}
-
-  # Unpickling
-  def __setstate__(self, state: Dict[str,Any]) -> None:
-    print(state)
-    self.name = state["name"]
-    self.version = state["version"]
-    self.ops = state["ops"]
-    self.nodes = {}
-    self.edges = {}
 
   def __getattr__(self, name:str) -> Any:
-    # pickling is weird with getattr
-    if name.startswith('__') and name.endswith('__'):
-      return super().__getattr__(name) # type: ignore
-
     # dynamically build useful constructs
     if name == "reverse_edges":
       result : Dict[str, List[str]] = {}
@@ -99,57 +25,6 @@ class Graph:
       return {k: v for k,v in self.nodes.items() if isinstance(v, datastore.Datastore)}
 
 
-    # generalize the operations
-    if name in ["add_fn", "add_datastore", "add_value",
-                "add_datastore_field", "update_node_position",
-                "delete_node", "add_edge",
-                "delete_edge", "clear_edges"]:
-      def fn(*args : Any) -> Optional[ID]:
-        id = None
-        if name in ["add_fn", "add_value"]:
-          id = random.randint(0, 2**32)
-          args += (id,)
-        op = Op(name, args)
-        return self.add_op(op)
-      return fn
-
-    return None
-
-  def _add(self, node:Node) -> None:
-    self.nodes[node.id()] = node
-    if node.id() not in self.edges:
-      self.edges[node.id()] = []
-
-  def has(self, node:Node) -> bool:
-    return node.id() in self.nodes
-
-
-  #############
-  # operations
-  #############
-  def apply_op(self, op:Op) -> Optional[ID]:
-    fn = getattr(self, "_" + op.op)
-    return fn(*op.args)
-
-  def add_op(self, op:Op) -> Optional[ID]:
-    self.ops.append(op)
-    return self.apply_op(op)
-
-  def _add_fn(self, name:str, x:int, y:int, id:int) -> ID:
-    fn = FnNode(name, x, y, id)
-    self._add(fn)
-    return fn.id()
-
-  def _add_value(self, valuestr: str, x:int, y:int, id:int) -> ID:
-    v = Value(valuestr, x, y, id)
-    self._add(v)
-    return v.id()
-
-  def _add_datastore(self, name:ID, x:int, y:int) -> ID:
-    ds = datastore.Datastore(name, x, y)
-    self._add(ds)
-    return ds.id()
-
   def _add_datastore_field(self, id:ID, fieldname:str, typename:str, is_list:bool) -> None:
     ds = self.datastores[id]
     fieldFn = getattr(fields, typename, None)
@@ -157,15 +32,6 @@ class Graph:
       ds.add_field(fieldFn(fieldname, is_list=is_list))
     else:
       ds.add_field(fields.Foreign(fieldname, typename, is_list=is_list))
-
-  def _update_node_position(self, id:ID, x:int, y:int) -> None:
-    n = self.nodes[id]
-    n.x, n.y = x, y
-
-  def _delete_node(self, id:ID) -> None:
-    node = self.nodes[id]
-    self.clear_edges(id)
-    del self.nodes[node.id()]
 
   def _add_edge(self, src_id:ID, target_id:ID, param:str) -> None:
     src = self.nodes[src_id]
@@ -186,25 +52,6 @@ class Graph:
 
 
     self.edges[src.id()].append((target.id(), param))
-
-  def _delete_edge(self, src_id:ID, target_id:ID, param:str) -> None:
-    E = self.edges
-    ts = E[src_id]
-    E[src_id] = [(t,p) for (t, p) in ts
-                 if t != target_id and p != param]
-
-
-  def _clear_edges(self, id:ID) -> None:
-    """As we develop, sometimes graphs get weird. So we actually check the whole
-    graph to fix it up, not just doing what we expect to find."""
-    E = self.edges
-    for s, ts in E.items():
-      for t,p in ts:
-        if t == id:
-          self._delete_edge(s,id,p)
-
-    for (t,p) in E[id]:
-      self._delete_edge(id, t, p)
 
   #############
   # execution
@@ -271,25 +118,6 @@ class Graph:
     return self.execute(node)
 
 
-  #############
-  # output and debugging
-  #############
-  def to_frontend_edges(self) -> List[Dict[str, str]]:
-    result = []
-    for s in self.edges.keys():
-      for (t,p) in self.edges[s]:
-        result.append({"source": s, "target": t, "paramname": p})
-    return result
-
-  def to_frontend(self, cursor_id:Optional[ID]) -> str:
-    nodes = {n.id(): n.to_frontend() for n in self.nodes.values()}
-    edges = self.to_frontend_edges()
-
-    result = {"nodes": nodes, "edges": edges}
-    if cursor_id:
-      result["cursor"] = cursor_id
-    return json.dumps(result, sort_keys=True, indent=2)
-
   def to_debug(self, cursor:Optional[ID]) -> str:
     result = []
     edges = self.to_frontend_edges()
@@ -303,14 +131,3 @@ class Graph:
         result.append("Solo node: " + n.id())
 
     return "\n".join(sorted(result))
-
-  #############
-  # Migration
-  #############
-  def migrate(self, name:str) -> None:
-    # 1. no name and no version
-    # 2. pages are double listed
-    # 3. remove some fields to avoid denormalization
-    # 4. changed a Node into a FnNode
-    # 5. create ops array
-    pass
