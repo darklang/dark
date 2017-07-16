@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 import os
 import fcntl
@@ -15,11 +15,11 @@ def run(bash, color):
       self.setDaemon(True)
 
     def run(self):
-      for line in iter(self.pipe.readline, b''):
-        p(">>> " + line.decode("utf-8"), color=color, end='')
+      for line in iter(self.pipe.readline, ''):
+        p(">>> " + line, color=color, end='')
 
 
-  proc = subprocess.Popen(bash, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, shell=True)
+  proc = subprocess.Popen(bash, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, shell=True, encoding='utf-8')
   stdout_worker = ThreadWorker(proc.stdout)
   stderr_worker = ThreadWorker(proc.stderr)
   stdout_worker.start()

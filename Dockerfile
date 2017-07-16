@@ -3,13 +3,13 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:16.04
+FROM ubuntu:16.10
 
 # TODO: version all ubuntu packages
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y software-properties-common \
-                       python3 make m4 rsync git curl \
+                       python3.6 make m4 rsync git curl \
                        ocaml opam \
                        nodejs-legacy npm \
                        libpq-dev \
@@ -47,4 +47,12 @@ RUN opam install core.v0.9.1 \
                  yojson.1.3.3 \
                  # ppx_jane.0.9.1 \
                  postgresql.4.0.1
-CMD ["scripts", "build"]
+
+USER root
+RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
+USER dark
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
+
+CMD ["app", "scripts", "builder"]
