@@ -75,8 +75,12 @@ let add_edge (g: graph) (s : id) (t : id) (param : param) : graph =
   (* except types.DTypeError as e: *)
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
 
+let get_node (g : graph) (id : id) : Node.node =
+  Map.find_exn g.nodes id
+
 let update_node_position (g: graph) (id: id) (loc: loc) : graph =
-  id |> Map.find_exn g.nodes |> (fun n -> n#update_loc loc); { g with cursor = Some id }
+  id |> get_node g |> (fun n -> n#update_loc loc);
+  { g with cursor = Some id }
 
 let clear_edges (g : graph) (id: id) : graph =
   let f (s, t, param) = s <> id && t <> id in
@@ -235,5 +239,7 @@ let to_frontend (g : graph) : json =
          ; ("cursor", match g.cursor with
              | None -> `Null
              | Some id -> `Int id)
-         ; ("live", `String "test")
+         ; ("live", match g.cursor with
+             | None -> `Null
+             | Some id -> `String (get_node g id)#execute)
          ]
