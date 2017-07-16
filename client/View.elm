@@ -47,9 +47,10 @@ viewInput value = Html.form [
 viewState state = Html.text ("state: " ++ toString state)
 viewErrors errors = Html.div [Attrs.id "darkErrors"] <| (Html.text "Err: ") :: (List.map Html.text errors)
 viewLive live = Html.div [Attrs.id "darkLive"]
-                [(Html.text <| "LiveValue: " ++ (case live of
-                                                   Nothing -> "n/a"
-                                                   Just str -> str))]
+                [(Html.text <| "LiveValue: " ++
+                    (case live of
+                       Nothing -> "n/a"
+                       Just (val, tipe) -> val ++ " (" ++ tipe ++ ")"))]
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =

@@ -44,7 +44,7 @@ class func name id loc =
     (* Throw an exception if it doesn't exist *)
     val name : string = let _ = Lib.get_fn name in name
     method name = name
-    method execute (args : dval list) : dval = DVal "todo"
+    method execute (args : dval list) : dval = DStr "todo"
     method is_page = name == "Page_page"
     method tipe = if (Core.String.is_substring "page" name)
       then name
@@ -60,7 +60,7 @@ class datastore table id loc =
   object (self)
     inherit node id loc
     val table : string = table
-    method execute (args : dval list) : dval = DVal "todo"
+    method execute (args : dval list) : dval = DStr "todo"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end;;
