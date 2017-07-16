@@ -123,7 +123,10 @@ let json2op (json : json) : op =
     let id = match J.member "id" args with
       | `Int id -> id
       (* When they come in first, they don't have an id, so add one. *)
-      | `Null -> Util.create_id () in
+      | `Null -> Util.create_id ()
+      | j -> "IDs must be ints, not '" ^ (Yojson.Basic.to_string j) ^ "'"
+             |> Exception.UserException |> raise
+    in
     let loc : (unit -> Node.loc) =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
     match optype with
