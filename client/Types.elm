@@ -13,7 +13,7 @@ type alias FieldName = Name
 type alias ParamName = Name
 type alias TypeName = Name
 
-type ID = ID Name
+type ID = ID Int
 type alias Cursor = Maybe ID
 
 type alias Pos = Mouse.Position
@@ -26,7 +26,7 @@ type Type = Function
           | Value
           | Page
 
-type alias NodeDict = Dict Name Node
+type alias NodeDict = Dict Int Node
 type alias Node = { name : Name
                   , id : ID
                   , pos : Pos

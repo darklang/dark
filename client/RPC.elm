@@ -27,7 +27,7 @@ encodeRPC m call =
                                               , ("x", JSE.int x)
                                               , ("y", JSE.int y)])
       AddDatastoreField (ID id) name tipe -> ("add_datastore_field",
-                                                JSE.object [ ("id", JSE.int (toInt id))
+                                                JSE.object [ ("id", JSE.int id)
                                                            , ("name", JSE.string name)
                                                            , ("tipe", JSE.string tipe)])
       AddFunctionCall name {x,y} -> ("add_function_call",
@@ -43,20 +43,20 @@ encodeRPC m call =
         case Dict.get id m.nodes of
           Nothing -> Debug.crash "should never happen"
           Just node -> ("update_node_position",
-                          JSE.object [ ("id", JSE.int (toInt id))
+                          JSE.object [ ("id", JSE.int id)
                                      , ("x" , JSE.int node.pos.x)
                                      , ("y" , JSE.int node.pos.y)])
       AddEdge (ID src) (ID target, param) -> ("add_edge",
-                                                JSE.object [ ("src", JSE.int (toInt src))
-                                                           , ("target", JSE.int (toInt target))
+                                                JSE.object [ ("src", JSE.int src)
+                                                           , ("target", JSE.int target)
                                                            , ("param", JSE.string param)
                                                            ])
       DeleteNode (ID id) -> ("delete_node",
-                               JSE.object [ ("id", JSE.int (toInt id)) ])
+                               JSE.object [ ("id", JSE.int id) ])
       ClearEdges (ID id) -> ("clear_edges",
-                               JSE.object [ ("id", JSE.int (toInt id)) ])
+                               JSE.object [ ("id", JSE.int id) ])
       RemoveLastField (ID id) -> ("remove_last_field",
-                                    JSE.object [ ("id", JSE.int (toInt id)) ])
+                                    JSE.object [ ("id", JSE.int id) ])
 
   in JSE.object [ (cmd, args) ]
 
@@ -65,7 +65,7 @@ decodeNode =
   let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> String -> Int -> Int -> Node
       toNode name id fields parameters tipe x y =
           { name = name
-          , id = ID (toString id)
+          , id = ID id
           , fields = fields
           , parameters = parameters
           , tipe = case tipe of
@@ -92,8 +92,8 @@ decodeEdge : JSD.Decoder Edge
 decodeEdge =
   let toEdge : Int -> Int -> ParamName -> Edge
       toEdge source target param =
-        { source = ID (toString source)
-        , target = ID (toString target)
+        { source = ID source
+        , target = ID target
         , targetParam = param
         }
   in JSDP.decode toEdge
@@ -103,16 +103,21 @@ decodeEdge =
 
 decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor, LiveValue)
 decodeGraph =
-  let toGraph : NodeDict -> List Edge -> String -> String -> (NodeDict, List Edge, Cursor, LiveValue)
-      toGraph nodes edges cursor value = (nodes, edges,
-                                            case cursor of
-                                              "" -> Nothing
-                                              str -> Just (ID str),
-                                            case value of
-                                              "" -> Nothing
-                                              str -> Just str)
+  let toGraph : Dict String Node -> List Edge -> Int -> String -> (NodeDict, List Edge, Cursor, LiveValue)
+      toGraph strNodes edges cursor value =
+        let nodes = Dict.foldl
+                    (\k v m -> Dict.insert (k |> String.toInt |> Result.withDefault 0) v m)
+                    Dict.empty
+                    strNodes
+        in (nodes, edges,
+              case cursor of
+                0 -> Nothing
+                i -> Just (ID i),
+              case value of
+                "" -> Nothing
+                str -> Just str)
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.dict decodeNode)
     |> JSDP.required "edges" (JSD.list decodeEdge)
-    |> JSDP.optional "cursor" JSD.string ""
+    |> JSDP.optional "cursor" JSD.int 0
     |> JSDP.optional "live" JSD.string ""
