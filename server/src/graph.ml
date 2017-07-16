@@ -95,6 +95,15 @@ let delete_node g id : graph =
   { g with nodes = Map.remove g.nodes id; cursor = None }
 
 
+(* ------------------------- *)
+(* Executing *)
+(* ------------------------- *)
+type dval = string
+
+let execute (g: graph) (id: id) : dval =
+  let n = get_node g id in
+  n#execute
+
 
 (* ------------------------- *)
 (* Ops *)
@@ -241,5 +250,5 @@ let to_frontend (g : graph) : json =
              | Some id -> `Int id)
          ; ("live", match g.cursor with
              | None -> `Null
-             | Some id -> `String (get_node g id)#execute)
+             | Some id -> `String (execute g id))
          ]
