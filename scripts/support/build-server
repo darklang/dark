@@ -65,9 +65,7 @@ def reload_browser():
   call("touch .browser-trigger")
 
 def ignore(filename, reason):
-  if reason == "IsDir":
-    return True
-  if reason == "PlatformSpecific":
+  if reason != "Updated":
     return True
 
   # substring
