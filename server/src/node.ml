@@ -1,6 +1,7 @@
 type loc = { x: int; y: int}
 type id = int
 type param = string
+type dval = Runtime.dval
 
 class virtual node id loc =
   object (self)
@@ -8,7 +9,7 @@ class virtual node id loc =
     val mutable loc : loc = loc
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : string
+    method virtual execute : dval list -> dval
     method id = id
     method is_page = false
     method is_datasink = false
@@ -27,14 +28,14 @@ class virtual node id loc =
     method extra_fields = []
   end;;
 
-class value expr id loc =
+class value strrep id loc =
   object (self)
     inherit node id loc
-    val expr : string = expr
-    method name : string = expr
+    val expr : dval = Runtime.parse strrep
+    method name : string = strrep
     method tipe = "value"
-    method execute = expr
-    method extra_fields = [("value", `String expr)]
+    method execute (args : dval list) : dval = expr
+    method extra_fields = [("value", `String strrep)]
   end;;
 
 class func name id loc =
@@ -43,7 +44,7 @@ class func name id loc =
     (* Throw an exception if it doesn't exist *)
     val name : string = let _ = Lib.get_fn name in name
     method name = name
-    method execute = "todo"
+    method execute (args : dval list) : dval = DVal "todo"
     method is_page = name == "Page_page"
     method tipe = if (Core.String.is_substring "page" name)
       then name
@@ -59,7 +60,7 @@ class datastore table id loc =
   object (self)
     inherit node id loc
     val table : string = table
-    method execute = "todo"
+    method execute (args : dval list) : dval = DVal "todo"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end;;

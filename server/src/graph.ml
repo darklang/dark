@@ -1,6 +1,7 @@
 type id = Node.id
 type loc = Node.loc
 type param = Node.param
+type dval = Runtime.dval
 
 module Map = Core.Map.Poly
 type json = Yojson.Basic.json
@@ -98,11 +99,10 @@ let delete_node g id : graph =
 (* ------------------------- *)
 (* Executing *)
 (* ------------------------- *)
-type dval = string
-
 let execute (g: graph) (id: id) : dval =
   let n = get_node g id in
-  n#execute
+  let args = [] in
+  n#execute args
 
 
 (* ------------------------- *)
@@ -250,5 +250,5 @@ let to_frontend (g : graph) : json =
              | Some id -> `Int id)
          ; ("live", match g.cursor with
              | None -> `Null
-             | Some id -> `String (execute g id))
+             | Some id -> `String (Runtime.to_string (execute g id)))
          ]
