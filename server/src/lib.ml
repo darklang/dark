@@ -1,22 +1,35 @@
+open Runtime
+
 module Map = Core.Map.Poly
 
 (* Functions defs *)
-type fn = {name : string;
-           parameters : string list}
+type fn = { name : string
+          ; parameters : string list
+          ; fn : (dval list) -> dval
+          }
 type fnmap = (string, fn) Map.t
 
 
 (* Short list *)
-type shortfn = {n : string;
-                p : string list}
+type shortfn = { n : string
+               ; p : string list
+               ; f : (dval list) -> dval
+               }
 
 (* Add a short function to the map *)
-let add_fn (m : fnmap) (fn : shortfn) : fnmap =
-  Map.add m fn.n {name = fn.n; parameters = fn.p}
+let add_fn (m : fnmap) (s : shortfn) : fnmap =
+  Map.add m s.n {name = s.n; parameters = s.p; fn = s.f}
 
 let fns_list = [
   { n = "Page_page"
-  ; p = ["url"; "outputs"]}
+  ; p = ["url"; "outputs"]
+  ; f = fun [DInt a; DInt b] -> a + b |> DInt
+  }
+  ;
+  { n = "Int_add"
+  ; p = ["a"; "b"]
+  ; f = fun [DInt a; DInt b] -> a + b |> DInt
+  }
 ]
 
 

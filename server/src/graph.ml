@@ -97,11 +97,26 @@ let delete_node g id : graph =
 
 
 (* ------------------------- *)
+(* Traversing *)
+(* ------------------------- *)
+
+let get_children g id : (param * id) list =
+  g.edges
+  |> List.filter (fun (s,t,p) -> s == id)
+  |> List.map (fun (s,t,p) -> (p,t))
+
+let get_parents g id : (param * id) list =
+  g.edges
+  |> List.filter (fun (s,t,p) -> t == id)
+  |> List.map (fun (s,t,p) -> (p,s))
+
+
+(* ------------------------- *)
 (* Executing *)
 (* ------------------------- *)
-let execute (g: graph) (id: id) : dval =
+let rec execute (g: graph) (id: id) : dval =
   let n = get_node g id in
-  let args = [] in
+  let args = List.map (fun (p,s) -> execute g s) (get_parents g id) in
   n#execute args
 
 

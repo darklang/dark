@@ -44,7 +44,7 @@ class func name id loc =
     (* Throw an exception if it doesn't exist *)
     val name : string = let _ = Lib.get_fn name in name
     method name = name
-    method execute (args : dval list) : dval = DStr "todo"
+    method execute (args : dval list) = (Lib.get_fn name).fn args
     method is_page = name == "Page_page"
     method tipe = if (Core.String.is_substring "page" name)
       then name
