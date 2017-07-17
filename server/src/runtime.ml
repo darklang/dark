@@ -1,5 +1,7 @@
 open Core
 
+module Map = Core.Map.Poly
+
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
@@ -55,3 +57,6 @@ type fn = { name : string
           ; fn : (dval list) -> dval
           }
 type fnmap = (string, fn) Map.t
+
+let exe (fn : fn) (args : dval list) : dval =
+  fn.fn args

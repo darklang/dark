@@ -268,7 +268,7 @@ let to_frontend (g : graph) : json =
              | Some id ->
                try
                  let dv = execute g id in
-                 `Assoc [ ("value", `String (Runtime.to_string dv))
+                 `Assoc [ ("value", `String (Runtime.to_repr dv))
                         ; ("type", `String (Runtime.get_type dv))]
                with
                | Exception.UserException e ->
