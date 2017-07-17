@@ -16,7 +16,6 @@ let expected (msg : string) (args : dval list) : dval =
 
 
 
-
 let fns_list = [
   { n = "Page_page"
   ; p = ["url"; "outputs"]
@@ -36,7 +35,7 @@ let fns_list = [
   ; f = function
       | [DStr s; DFn fn] ->
         let charf (c : char) : char =
-          to_char @@ fn [DChar c] in
+          to_char @@ fn.func [DChar c] in
         String.map charf s |> DStr
       | args -> expected "a strint and a function" args
   }
@@ -49,9 +48,11 @@ let fns_list = [
   }
 ]
 
+type fnmap = (string, fn) Map.t
 let fns : fnmap =
   let add_fn (m : fnmap) (s : shortfn) : fnmap =
-    Map.add m s.n {name = s.n; parameters = s.p; fn = s.f} in
+    Map.add m s.n
+      {name = s.n; parameters = s.p; func = s.f; partials = []} in
   List.fold_left add_fn Map.empty fns_list
 
 (* Give access to other modules *)
