@@ -44,13 +44,27 @@ let get_type (dv : dval) : string =
       "Function"
     else "Partial"
 
-let to_repr (dv : dval) : string =
+let rec to_repr (dv : dval) : string =
   match dv with
   | DInt i -> string_of_int i
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
-  | DFn _ -> "Function: todo"
+  | DFn fn ->
+    let (prefix, suffix) = if fn.partials <> [] then
+        let partials = fn.partials
+                       |> List.map to_repr
+                       |> String.concat ", "
+        in "Fn", " partially applied with: [" ^ partials ^ "]"
+      else
+        "Fn", ""
+    in prefix
+       ^ " "
+       ^ fn.name
+       ^ "("
+       ^ (String.concat ", " fn.parameters)
+       ^ ")"
+       ^ suffix
 
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"

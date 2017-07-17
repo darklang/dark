@@ -9,7 +9,7 @@ type shortfn = { n : string
 (* TODO: use deriving here instead *)
 let expected (msg : string) (args : dval list) : dval =
   args
-  |> List.map get_type
+  |> List.map to_error_repr
   |> String.concat ", "
   |> Util.string_append ("Expected: " ^ msg ^ ", got: ")
   |> Exception.raise
