@@ -47,6 +47,11 @@ let get_type (dv : dval) : string =
   | DChar _ -> "Char"
   | DFn _ -> "Function"
 
+let to_char (dv : dval) : char =
+  match dv with
+  | DChar c -> c
+  | _ -> Exception.raise "Not a char"
+
 
 
 (* ------------------------- *)

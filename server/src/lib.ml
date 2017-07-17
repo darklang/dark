@@ -20,6 +20,23 @@ let fns_list = [
       | [DInt a; DInt b] -> a + b |> DInt
       | _ -> Exception.raise "Expected 2 ints"
   }
+  ;
+  { n = "String_map"
+  ; p = ["s"; "f"]
+  ; f = function
+      | [DStr s; DFn fn] ->
+        let charf (c : char) : char =
+          to_char @@ fn [DChar c] in
+        String.map charf s |> DStr
+      | _ -> Exception.raise "Expected a string and a function"
+  }
+  ;
+  { n = "Char_inc"
+  ; p = ["c"]
+  ; f = function
+      | [DChar c] -> c |> Char.code |> (+) 1 |> Char.chr |> DChar
+      | _ -> Exception.raise "Expected a char"
+  }
 ]
 
 let fns : fnmap =
