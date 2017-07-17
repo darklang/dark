@@ -23,12 +23,15 @@ let add_fn (m : fnmap) (s : shortfn) : fnmap =
 let fns_list = [
   { n = "Page_page"
   ; p = ["url"; "outputs"]
-  ; f = fun [DInt a; DInt b] -> a + b |> DInt
+  ; f = function
+      | _ -> DStr "todo: implement Page_page"
   }
   ;
   { n = "Int_add"
   ; p = ["a"; "b"]
-  ; f = fun [DInt a; DInt b] -> a + b |> DInt
+  ; f = function
+      | [DInt a; DInt b] -> a + b |> DInt
+      | _ -> Exception.raise "Expected 2 ints"
   }
 ]
 

@@ -265,7 +265,15 @@ let to_frontend (g : graph) : json =
              | Some id -> `Int id)
          ; ("live", match g.cursor with
              | None -> `Null
-             | Some id -> let dv = execute g id in
-               `Assoc [ ("value", `String (Runtime.to_string dv))
-                      ; ("type", `String (Runtime.get_type dv))])
+             | Some id ->
+               try
+                 let dv = execute g id in
+                 `Assoc [ ("value", `String (Runtime.to_string dv))
+                        ; ("type", `String (Runtime.get_type dv))]
+               with
+               | Exception.UserException e ->
+                 `Assoc [ ("value", `String ("Error: " ^ e))
+                        ; ("type", `String "Error")]
+           )
+
          ]

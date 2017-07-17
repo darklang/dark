@@ -121,4 +121,4 @@ decodeGraph =
     |> JSDP.required "nodes" (JSD.dict decodeNode)
     |> JSDP.required "edges" (JSD.list decodeEdge)
     |> JSDP.optional "cursor" JSD.int (-1)
-    |> JSDP.required "live" (JSD.dict JSD.string)
+    |> JSDP.optional "live" (JSD.dict JSD.string) Dict.empty

@@ -21,22 +21,17 @@ let server =
       let body = inspect "request body" body in
       let payload = Yojson.Basic.from_string body in
 
-      try
-        let g = G.load "blog" in
-        let g =
-          if J.member "load_initial_graph" payload == `Null then
-            payload |> G.json2op |> G.add_op g
-          else
-            g in
-        let _ = G.save "blog" g in
-
-        g
-        |> Graph.to_frontend
-        |> Yojson.Basic.to_string
-        |> Util.inspect "response: "
-      with
-      | Exception.UserException str -> "UserException: " ^ str
-
+      let g = G.load "blog" in
+      let g =
+        if J.member "load_initial_graph" payload == `Null then
+          payload |> G.json2op |> G.add_op g
+        else
+          g in
+      let _ = G.save "blog" g in
+      g
+      |> Graph.to_frontend
+      |> Yojson.Basic.to_string
+      |> Util.inspect "response: "
     in
 
     let admin_ui_handler () =
@@ -64,16 +59,21 @@ let server =
 
     let route_handler handler =
       req_body |> Cohttp_lwt_body.to_string >|=
-      (fun req_body -> match (Uri.path uri) with
-         | "/admin/api/rpc" -> admin_rpc_handler req_body
-         | "/sitemap.xml" -> ""
-         | "/favicon.ico" -> ""
-         | "/admin/ui" -> admin_ui_handler ()
-         | p when (String.length p) < 8 -> "app routing"
-         | p when (String.equal (String.sub p 0 8) "/static/")
-           -> static_handler p
-         | _ -> "app routing")
-      >>= (fun body -> S.respond_string ~status:`OK ~body ())
+      (fun req_body ->
+         try
+           match (Uri.path uri) with
+           | "/admin/api/rpc" -> `OK, admin_rpc_handler req_body
+           | "/sitemap.xml" -> `OK, ""
+           | "/favicon.ico" -> `OK, ""
+           | "/admin/ui" -> `OK, (admin_ui_handler ())
+           | p when (String.length p) < 8 -> `Not_implemented, "app routing"
+           | p when (String.equal (String.sub p 0 8) "/static/")
+             -> `OK, static_handler p
+           | _ -> `Not_implemented, "app routing"
+         with
+         | (Exception.UserException str) ->
+            `Not_implemented, "{\"error\": \"" ^ str ^ "\"}")
+      >>= (fun (status, body) -> S.respond_string ~status ~body ())
     in
     ()
     |> route_handler
