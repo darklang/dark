@@ -2,6 +2,7 @@ open Core
 
 type dval = DInt of int
           | DStr of string
+          | DChar of char
           | DFloat of float
 
 let parse (str : string) : dval =
@@ -11,6 +12,10 @@ let parse (str : string) : dval =
        && Char.equal '"' (String.nget str 0)
        && Char.equal '"' (String.nget str (-1))
   then DStr (String.slice str 1 (-1))
+  else if String.length str == 3
+       && Char.equal '\'' (String.nget str 0)
+       && Char.equal '\'' (String.nget str (-1))
+  then DChar (String.get str 1)
   else
     try str |> int_of_string |> DInt
     with
@@ -25,9 +30,11 @@ let to_string (dv : dval) : string =
   | DInt i -> string_of_int i
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
+  | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
 
 let get_type (dv : dval) : string =
   match dv with
   | DInt _ -> "Integer"
   | DStr _ -> "String"
   | DFloat _ -> "Float"
+  | DChar _ -> "Char"
