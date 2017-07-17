@@ -27,7 +27,7 @@ class virtual node id loc =
                 ]
                 self#extra_fields)
     method extra_fields = []
-  end;;
+  end
 
 class value strrep id loc =
   object (self)
@@ -37,7 +37,7 @@ class value strrep id loc =
     method tipe = "value"
     method execute (args : dval list) : dval = expr
     method extra_fields = [("value", `String strrep)]
-  end;;
+  end
 
 class func name id loc =
   object (self)
@@ -56,7 +56,7 @@ class func name id loc =
         `List (List.map
                  (fun s -> `String s)
                  (Lib.get_fn name).parameters))]
-  end;;
+  end
 
 class datastore table id loc =
   object (self)
@@ -65,4 +65,4 @@ class datastore table id loc =
     method execute (args : dval list) : dval = DStr "todo"
     method name = "DS-" ^ table
     method tipe = "datastore"
-  end;;
+  end
