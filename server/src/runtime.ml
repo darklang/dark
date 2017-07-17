@@ -1,5 +1,3 @@
-open Core
-
 module Map = Core.Map.Poly
 
 (* ------------------------- *)
@@ -20,13 +18,13 @@ let parse (str : string) : dval =
   if String.equal str "" then
     "Values cannot be blank" |> Exception.raise
   else if String.length str >= 2
-       && Char.equal '"' (String.nget str 0)
-       && Char.equal '"' (String.nget str (-1))
-  then DStr (String.slice str 1 (-1))
+       && Char.equal '"' (Core.String.nget str 0)
+       && Char.equal '"' (Core.String.nget str (-1))
+  then DStr (Core.String.slice str 1 (-1))
   else if String.length str = 3
-       && Char.equal '\'' (String.nget str 0)
-       && Char.equal '\'' (String.nget str (-1))
-  then DChar (String.get str 1)
+       && Char.equal '\'' (Core.String.nget str 0)
+       && Char.equal '\'' (Core.String.nget str (-1))
+  then DChar (Core.String.get str 1)
   else
     try str |> int_of_string |> DInt
     with
