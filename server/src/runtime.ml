@@ -1,9 +1,13 @@
 open Core
 
+(* ------------------------- *)
+(* Values *)
+(* ------------------------- *)
 type dval = DInt of int
           | DStr of string
           | DChar of char
           | DFloat of float
+          | DFn of (dval list -> dval)
 
 let parse (str : string) : dval =
   if String.equal str "" then
@@ -19,18 +23,19 @@ let parse (str : string) : dval =
   else
     try str |> int_of_string |> DInt
     with
-    | Failure "int_of_string" ->
+    | Failure _ ->
       try str |> float_of_string |> DFloat
       with
-      | Failure "float_of_string" ->
+      | Failure _ ->
         Exception.raise ("Cannot parse value: " ^ str)
 
-let to_string (dv : dval) : string =
+let to_repr (dv : dval) : string =
   match dv with
   | DInt i -> string_of_int i
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
+  | DFn _ -> "Function: todo"
 
 let get_type (dv : dval) : string =
   match dv with
@@ -38,3 +43,15 @@ let get_type (dv : dval) : string =
   | DStr _ -> "String"
   | DFloat _ -> "Float"
   | DChar _ -> "Char"
+  | DFn _ -> "Function"
+
+
+
+(* ------------------------- *)
+(* Functions *)
+(* ------------------------- *)
+type fn = { name : string
+          ; parameters : string list
+          ; fn : (dval list) -> dval
+          }
+type fnmap = (string, fn) Map.t
