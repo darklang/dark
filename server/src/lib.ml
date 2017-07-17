@@ -6,19 +6,29 @@ type shortfn = { n : string
                ; p : string list
                ; f : (dval list) -> dval
                }
+(* TODO: use deriving here instead *)
+let expected (msg : string) (args : dval list) : dval =
+  args
+  |> List.map get_type
+  |> String.concat ", "
+  |> Util.string_append ("Expected: " ^ msg ^ ", got: ")
+  |> Exception.raise
+
+
+
 
 let fns_list = [
   { n = "Page_page"
   ; p = ["url"; "outputs"]
   ; f = function
-      | _ -> DStr "todo: implement Page_page"
+      | args -> expected "this to be implmented" args
   }
   ;
   { n = "Int_add"
   ; p = ["a"; "b"]
   ; f = function
       | [DInt a; DInt b] -> a + b |> DInt
-      | _ -> Exception.raise "Expected 2 ints"
+      | args -> expected "2 ints" args
   }
   ;
   { n = "String_map"
@@ -28,14 +38,14 @@ let fns_list = [
         let charf (c : char) : char =
           to_char @@ fn [DChar c] in
         String.map charf s |> DStr
-      | _ -> Exception.raise "Expected a string and a function"
+      | args -> expected "a strint and a function" args
   }
   ;
   { n = "Char_inc"
   ; p = ["c"]
   ; f = function
       | [DChar c] -> c |> Char.code |> (+) 1 |> Char.chr |> DChar
-      | _ -> Exception.raise "Expected a char"
+      | args -> expected "a char" args
   }
 ]
 
