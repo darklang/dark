@@ -125,9 +125,9 @@ let rec execute (g: graph) (id: id) : dval =
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-let apply_op (g : graph) (op : op) : graph =
+let apply_op (g : graph) (op : op) ~strict : graph =
   match op with
-  | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc)
+  | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc strict)
   | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
   | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
   | Add_edge (src, target, param) -> add_edge g src target param
@@ -137,8 +137,8 @@ let apply_op (g : graph) (op : op) : graph =
   | Delete_node (id) -> delete_node g id
   | _ -> failwith "applying unimplemented op"
 
-let add_op (g : graph) (op : op) : graph =
-  let g = apply_op g op in
+let add_op (g : graph) (op : op) ~strict : graph =
+  let g = apply_op g op ~strict in
   { g with ops = List.append g.ops [op]}
 
 
@@ -225,7 +225,7 @@ let load name : graph =
   let ops = match jsonops with
   | `List ops -> List.map json2op ops
   | _ -> failwith "unexpected deserialization" in
-  List.fold_left add_op (create name) ops
+  List.fold_left (fun g -> add_op g ~strict:false) (create name) ops
 
 
 

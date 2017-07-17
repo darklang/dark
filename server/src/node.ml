@@ -39,14 +39,16 @@ class value strrep id loc =
     method extra_fields = [("value", `String strrep)]
   end
 
-class func name id loc =
+class func name id loc (strict:bool) =
   object (self)
     inherit node id loc
     (* Throw an exception if it doesn't exist *)
-    val name : string = Lib.get_fn name; name
+    val name : string = if strict then ignore @@ Lib.get_fn_exn name; name
     method name = name
-    method execute (args : dval list) =
-      Runtime.exe (Lib.get_fn name) args
+    method execute (args : dval list) : dval =
+      match Lib.get_fn name with
+      | Some fn -> Runtime.exe fn args
+      | None -> if strict then ignore @@ Lib.get_fn_exn name; DStr ""
     method is_page = name = "Page_page"
     method tipe = if (Core.String.is_substring "page" name)
       then name
@@ -55,7 +57,9 @@ class func name id loc =
       [("parameters",
         `List (List.map
                  (fun s -> `String s)
-                 (Lib.get_fn name).parameters))]
+                 (match Lib.get_fn name with
+                 | Some fn -> fn.parameters
+                 | None -> [])))]
   end
 
 class datastore table id loc =
