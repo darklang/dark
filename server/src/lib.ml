@@ -23,6 +23,13 @@ let fns_list = [
       | args -> expected "this to be implmented" args
   }
   ;
+  { n = "Int_mod"
+  ; p = ["a"; "b"]
+  ; f = function
+      | [DInt a; DInt b] -> a mod b |> DInt
+      | args -> expected "2 ints" args
+  }
+  ;
   { n = "Int_add"
   ; p = ["a"; "b"]
   ; f = function
@@ -40,11 +47,18 @@ let fns_list = [
       | args -> expected "a strint and a function" args
   }
   ;
-  { n = "Char_inc"
+  { n = "Char_code"
   ; p = ["c"]
   ; f = function
-      | [DChar c] -> c |> Char.code |> (+) 1 |> Char.chr |> DChar
+      | [DChar c] -> c |> Char.code |> DInt
       | args -> expected "a char" args
+  }
+  ;
+  { n = "Char_chr"
+  ; p = ["i"]
+  ; f = function
+      | [DInt i] -> i |> Char.chr |> DChar
+      | args -> expected "an char's integer ascii (todo: unicode) value" args
   }
 ]
 
@@ -56,7 +70,10 @@ let fns : fnmap =
   List.fold_left add_fn Map.empty fns_list
 
 (* Give access to other modules *)
-let get_fn (name : string) : fn =
+let get_fn (name : string) : fn option =
+  Map.find fns name
+
+let get_fn_exn (name : string) : fn =
   match Map.find fns name with
-  | Some f -> f
+  | Some fn -> fn
   | None -> "No function named '" ^ name ^ "' exists" |> Exception.raise
