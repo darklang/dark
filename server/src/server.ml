@@ -23,7 +23,7 @@ let server =
 
       let g = G.load "blog" in
       let g =
-        if J.member "load_initial_graph" payload == `Null then
+        if J.member "load_initial_graph" payload = `Null then
           payload |> G.json2op |> G.add_op g
         else
           g in

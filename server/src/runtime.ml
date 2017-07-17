@@ -18,7 +18,7 @@ let parse (str : string) : dval =
        && Char.equal '"' (String.nget str 0)
        && Char.equal '"' (String.nget str (-1))
   then DStr (String.slice str 1 (-1))
-  else if String.length str == 3
+  else if String.length str = 3
        && Char.equal '\'' (String.nget str 0)
        && Char.equal '\'' (String.nget str (-1))
   then DChar (String.get str 1)

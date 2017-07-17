@@ -58,7 +58,7 @@ let add_node (g : graph) (node : Node.node) : graph =
   { g with nodes = Map.add g.nodes (node#id) node; cursor = Some node#id }
 
 let has_edge (g : graph) s t param : bool =
-  List.exists (fun a -> a == (s, t, param)) g.edges
+  List.exists (fun a -> a = (s, t, param)) g.edges
 
 let add_edge (g: graph) (s : id) (t : id) (param : param) : graph =
   (* Can't have two edges to the same target *)
@@ -102,12 +102,12 @@ let delete_node g id : graph =
 
 let get_children g id : (param * id) list =
   g.edges
-  |> List.filter (fun (s,t,p) -> s == id)
+  |> List.filter (fun (s,t,p) -> s = id)
   |> List.map (fun (s,t,p) -> (p,t))
 
 let get_parents g id : (param * id) list =
   g.edges
-  |> List.filter (fun (s,t,p) -> t == id)
+  |> List.filter (fun (s,t,p) -> t = id)
   |> List.map (fun (s,t,p) -> (p,s))
 
 

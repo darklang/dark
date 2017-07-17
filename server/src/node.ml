@@ -47,7 +47,7 @@ class func name id loc =
     method name = name
     method execute (args : dval list) =
       Runtime.exe (Lib.get_fn name) args
-    method is_page = name == "Page_page"
+    method is_page = name = "Page_page"
     method tipe = if (Core.String.is_substring "page" name)
       then name
       else "function"
