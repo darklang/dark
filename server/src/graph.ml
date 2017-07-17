@@ -1,3 +1,5 @@
+open Util
+
 type id = Node.id
 type loc = Node.loc
 type param = Node.param
@@ -6,7 +8,7 @@ type dval = Runtime.dval
 module Map = Core.Map.Poly
 type json = Yojson.Basic.json
 module J = Yojson.Basic.Util
-let inspect = Util.inspect
+
 
 (* ------------------------- *)
 (* Types *)
@@ -37,10 +39,10 @@ type graph = {
 (* ------------------------- *)
 
 let debug name (g : graph) : unit =
-  let _ = inspect "name" name in
-  let _ = g.ops |> List.length |> Core.Int.to_string |> inspect "ops" in
-  let _ = g.nodes |> Core.Map.Poly.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspect "nodes" in
-  let _ = g.edges |> List.length |> Core.Int.to_string |> inspect "nodes" in
+  inspecT "name" name;
+  g.ops |> List.length |> Core.Int.to_string |> inspecT "ops";
+  g.nodes |> Core.Map.Poly.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspecT "nodes";
+  g.edges |> List.length |> Core.Int.to_string |> inspecT "nodes";
   ()
 
 let create (name : string) : graph =
@@ -63,8 +65,8 @@ let has_edge (g : graph) s t param : bool =
 let add_edge (g: graph) (s : id) (t : id) (param : param) : graph =
   (* Can't have two edges to the same target *)
   (* TODO: exception for datasinks like DBs and APIs *)
-  let _ = if (has_edge g s t param) then
-      failwith "Edge already exists" in
+  if (has_edge g s t param) then
+    failwith "Edge already exists";
 
   { g with edges = (s, t, param) :: g.edges }
 

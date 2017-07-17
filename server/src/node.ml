@@ -43,7 +43,7 @@ class func name id loc =
   object (self)
     inherit node id loc
     (* Throw an exception if it doesn't exist *)
-    val name : string = let _ = Lib.get_fn name in name
+    val name : string = Lib.get_fn name; name
     method name = name
     method execute (args : dval list) =
       Runtime.exe (Lib.get_fn name) args
