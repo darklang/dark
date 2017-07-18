@@ -88,8 +88,23 @@ def ignore(filename, reason):
     return True
   return False
 
+def elm_package():
+  call("cd client && elm-package install --yes")
+
+def elm_make():
+  call("cd client && elm-make Main.elm --debug --yes --output ../static/elm.js")
+
+def ocaml_build():
+  call("cd server && jbuilder build")
+
 def main():
   p("Starting")
+  elm_package()
+  elm_make()
+  ocaml_build()
+  reload_server()
+  reload_browser()
+
   for f in sys.stdin:
     (f, reason) = f.strip().split(" ")
     if ignore(f, reason):
@@ -98,19 +113,23 @@ def main():
     p("\nDetected change (" + reason + "): " + f)
 
     # Server
-    if "main.byte" in f or "main.native" in f:
+    if "dark.bc" in f or "dark.exe" in f:
       # ignore the trigger, the compile methods call this direct
       pass
 
     # Frontend
+    elif "elm-package.json" in f:
+      elm_package()
+      elm_make()
+      reload_browser();
     elif ".elm" in f:
-      call("cd client && elm-make Main.elm --debug --yes --output ../static/elm.js")
+      elm_make()
       reload_browser();
 
 
     # Ocaml
-    elif ".ml" in f:
-      call("cd server && jbuilder build")
+    elif ".ml" in f or "jbuild" in f:
+      ocaml_build()
       reload_server()
       reload_browser();
 
