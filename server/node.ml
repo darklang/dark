@@ -30,17 +30,17 @@ class virtual node id loc =
   end
 
 class value strrep id loc =
-  object (self)
+  object
     inherit node id loc
     val expr : dval = Runtime.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute (args : dval list) : dval = expr
-    method extra_fields = [("value", `String strrep)]
+    method execute (_: dval list) : dval = expr
+    method! extra_fields = [("value", `String strrep)]
   end
 
 class func name id loc (strict:bool) =
-  object (self)
+  object
     inherit node id loc
     (* Throw an exception if it doesn't exist *)
     val name : string = if strict then ignore @@ Lib.get_fn_exn name; name
@@ -49,11 +49,11 @@ class func name id loc (strict:bool) =
       match Lib.get_fn name with
       | Some fn -> Runtime.exe fn args
       | None -> if strict then ignore @@ Lib.get_fn_exn name; DStr ""
-    method is_page = name = "Page_page"
-    method tipe = if (Core.String.is_substring "page" name)
+    method! is_page = name = "Page_page"
+    method tipe = if (Core.String.is_substring ~substring:"page" name)
       then name
       else "function"
-    method extra_fields =
+    method! extra_fields =
       [("parameters",
         `List (List.map
                  (fun s -> `String s)
@@ -63,10 +63,10 @@ class func name id loc (strict:bool) =
   end
 
 class datastore table id loc =
-  object (self)
+  object
     inherit node id loc
     val table : string = table
-    method execute (args : dval list) : dval = DStr "todo"
+    method execute (_ : dval list) : dval = DStr "todo"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end

@@ -109,12 +109,8 @@ def main():
 
 
     # Ocaml
-    elif "_oasis" in f:
-      call("cd server && oasis setup -setup-update dynamic && make")
-      reload_server()
-      reload_browser();
     elif ".ml" in f:
-      call("cd server && make")
+      call("cd server && jbuilder build")
       reload_server()
       reload_browser();
 

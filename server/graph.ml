@@ -57,7 +57,8 @@ let create (name : string) : graph =
 (* Updating *)
 (* ------------------------- *)
 let add_node (g : graph) (node : Node.node) : graph =
-  { g with nodes = Map.add g.nodes (node#id) node; cursor = Some node#id }
+  { g with nodes = Map.add g.nodes ~key:(node#id) ~data:node;
+           cursor = Some node#id }
 
 let has_edge (g : graph) s t param : bool =
   List.exists (fun a -> a = (s, t, param)) g.edges
@@ -86,7 +87,7 @@ let update_node_position (g: graph) (id: id) (loc: loc) : graph =
   { g with cursor = Some id }
 
 let clear_edges (g : graph) (id: id) : graph =
-  let f (s, t, param) = s <> id && t <> id in
+  let f (s, t, _) = s <> id && t <> id in
   { g with edges = List.filter f g.edges }
 
 let delete_edge g s t param : graph =
@@ -104,13 +105,13 @@ let delete_node g id : graph =
 
 let get_children g id : (param * id) list =
   g.edges
-  |> List.filter (fun (s,t,p) -> s = id)
-  |> List.map (fun (s,t,p) -> (p,t))
+  |> List.filter (fun (s,_,_) -> s = id)
+  |> List.map (fun (_,t,p) -> (p,t))
 
 let get_parents g id : (param * id) list =
   g.edges
-  |> List.filter (fun (s,t,p) -> t = id)
-  |> List.map (fun (s,t,p) -> (p,s))
+  |> List.filter (fun (_,t,_) -> t = id)
+  |> List.map (fun (s,_,p) -> (p,s))
 
 
 (* ------------------------- *)
@@ -118,7 +119,7 @@ let get_parents g id : (param * id) list =
 (* ------------------------- *)
 let rec execute (g: graph) (id: id) : dval =
   let n = get_node g id in
-  let args = List.map (fun (p,s) -> execute g s) (get_parents g id) in
+  let args = List.map (fun (_,s) -> execute g s) (get_parents g id) in
   n#execute args
 
 
@@ -155,7 +156,7 @@ let json2op (json : json) : op =
       (* When they come in first, they don't have an id, so add one. *)
       | `Null -> Util.create_id ()
       | j -> "IDs must be ints, not '" ^ (Yojson.Basic.to_string j) ^ "'"
-             |> Exception.UserException |> raise
+             |> Exception.raise
     in
     let loc : (unit -> Node.loc) =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
@@ -198,7 +199,8 @@ let op2json op : json =
       "add_datastore", [str "name" name; id _id; x loc; y loc]
     | Add_value (expr, _id, loc) ->
       "add_value", [str "value" expr; id _id; x loc; y loc]
-    | Add_datastore_field (_id, name, tipe, is_list) ->
+    (* TODO: deal with is_list *)
+    | Add_datastore_field (_id, name, tipe, _) ->
       "add_datastore_field",
       [id _id; str "name" name; str "tipe" tipe; bool "is_list" false]
     | Update_node_position (_id, loc) ->

@@ -3,3 +3,7 @@
 /logs/
 client/elm-stuff/
 /.browser-trigger
+/server/_build
+/server/.merlin
+/server/main.install
+/server/dark.install

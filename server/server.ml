@@ -54,10 +54,10 @@ let server =
       | (Some `Basic ("dark", "2DqMHguUfsAGCPerWgyHRxPi"))
         -> handler
       | _
-        -> Cohttp_lwt_unix.Server.respond_need_auth (`Basic "dark") ()
+        -> Cohttp_lwt_unix.Server.respond_need_auth ~auth:(`Basic "dark") ()
     in
 
-    let route_handler handler =
+    let route_handler _ =
       req_body |> Cohttp_lwt_body.to_string >|=
       (fun req_body ->
          try

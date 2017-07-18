@@ -23,3 +23,5 @@ let inspect (msg : string) (x : 'a) : 'a =
 (* How do you chain using (^) *)
 let string_append (s1: string) (s2: string) : string =
   s1 ^ s2
+
+let to_list e = [e]

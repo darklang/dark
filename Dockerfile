@@ -45,7 +45,6 @@ RUN opam install core.v0.9.1 \
                  cohttp.0.22.0 \
                  lwt.2.7.1 \
                  yojson.1.3.3 \
-                 # ppx_jane.0.9.1 \
                  postgresql.4.0.1
 
 USER root
