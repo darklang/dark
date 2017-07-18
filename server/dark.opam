@@ -1,8 +1,10 @@
 opam-version: "1.2"
-available: [ ocaml-version = "4.04.2" ]
-version: "0.1"
+name: "dark"
 maintainer: "paul.biggar@gmail.com"
 authors: ["Paul Biggar"]
+version: "0.1"
+license: "PROP"
+available: [ ocaml-version = "4.04.2" ]
 build: [
   ["jbuilder" "build" "--only" "main" "--root" "."]
 ]
