@@ -56,7 +56,7 @@ encodeRPC m call =
       ClearEdges (ID id) -> ("clear_edges",
                                JSE.object [ ("id", JSE.int id) ])
       SelectNode (ID id) -> ("select_node",
-                          JSE.object [ ("id", JSE.int id) ])
+                               JSE.object [ ("id", JSE.int id) ])
 
       RemoveLastField (ID id) -> ("remove_last_field",
                                     JSE.object [ ("id", JSE.int id) ])
