@@ -61,6 +61,14 @@ let fns_list = [
       | args -> expected "a char" args
   }
   ;
+  { n = "Char_capitalize"
+  ; p = ["c"]
+  ; f = function
+      | [DChar c] -> c |> Char.code |> (-) 32 |> Char.chr |> DChar
+      | args -> expected "a char" args
+
+  }
+  ;
   { n = "Char_chr"
   ; p = ["i"]
   ; f = function
