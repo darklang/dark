@@ -8,6 +8,7 @@ import Json.Decode.Pipeline as JSDP
 
 import Types exposing (..)
 
+invalidID = -45
 
 rpc : Model -> RPC -> Cmd Msg
 rpc m call =
@@ -18,7 +19,6 @@ rpc m call =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let toInt i = i |> String.toInt |> Result.withDefault -1 in
   let (cmd, args) =
     case call of
       LoadInitialGraph -> ("load_initial_graph", JSE.object [])
@@ -109,12 +109,12 @@ decodeGraph =
   let toGraph : Dict String Node -> List Edge -> Int -> Dict String String -> (NodeDict, List Edge, Cursor, LiveValue)
       toGraph strNodes edges cursor valueDict =
         let nodes = Dict.foldl
-                    (\k v m -> Dict.insert (k |> String.toInt |> Result.withDefault 0) v m)
+                    (\k v m -> Dict.insert (k |> String.toInt |> Result.withDefault invalidID) v m)
                     Dict.empty
                     strNodes
         in (nodes, edges,
               case cursor of
-                0 -> Nothing
+                -45 -> Nothing -- invalidID
                 i -> Just (ID i),
               let value = Dict.get "value" valueDict in
               let tipe = Dict.get "type" valueDict in
@@ -123,5 +123,5 @@ decodeGraph =
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.dict decodeNode)
     |> JSDP.required "edges" (JSD.list decodeEdge)
-    |> JSDP.optional "cursor" JSD.int (-1)
+    |> JSDP.optional "cursor" JSD.int invalidID
     |> JSDP.optional "live" (JSD.dict JSD.string) Dict.empty

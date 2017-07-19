@@ -87,7 +87,7 @@ updateKeyPress m code cursor =
        ('D', _, _) ->
          ({ m | state = ADD_DS}, Cmd.none, NoFocus)
        ('N', _, cursor) ->
-         (m, (case next_node m cursor of
+         (m, (case nextNode m cursor of
                 Just id -> rpc m <| SelectNode id
                 Nothing -> Cmd.none), NoFocus)
        _ ->
@@ -183,14 +183,10 @@ update_ msg m =
 
     (_, RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
       -- if the new cursor is blank, keep the old cursor if it's valid
-      let oldCursor = Maybe.map (\(ID id) -> Dict.get id nodes) m.cursor
-          newCursor = case cursor of
-                        Nothing -> m.cursor
-                        _ -> cursor
-          newFocus = if m.state == ADD_DS_FIELD_NAME then Focus else DropFocus
+      let newFocus = if m.state == ADD_DS_FIELD_NAME then Focus else DropFocus
       in ({ m | nodes = nodes
               , edges = edges
-              , cursor = newCursor
+              , cursor = cursor
               , live = live
           }, Cmd.none, newFocus )
 
@@ -257,8 +253,8 @@ findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
  {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
 
-next_node : Model -> Cursor -> Cursor
-next_node m cursor =
+nextNode : Model -> Cursor -> Cursor
+nextNode m cursor =
   let nodes = m.nodes
                |> Dict.values
                |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
