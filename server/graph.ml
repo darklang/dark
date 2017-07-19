@@ -23,6 +23,7 @@ type op = Add_fn of string * id * loc
         | Add_edge of id * id * param
         | Delete_edge of id * id * param
         | Clear_edges of id
+        | Select_node of id
 
 type nodemap = (Node.id, Node.node) Map.t
 type targetpair = (Node.id * param)
@@ -86,6 +87,9 @@ let update_node_position (g: graph) (id: id) (loc: loc) : graph =
   id |> get_node g |> (fun n -> n#update_loc loc);
   { g with cursor = Some id }
 
+let select_node (g: graph) (id: id) : graph =
+  { g with cursor = Some id }
+
 let clear_edges (g : graph) (id: id) : graph =
   let f (s, t, _) = s <> id && t <> id in
   { g with edges = List.filter f g.edges }
@@ -136,6 +140,7 @@ let apply_op (g : graph) (op : op) ~strict : graph =
   | Delete_edge (s, t, param) -> delete_edge g s t param
   | Clear_edges (id) -> clear_edges g id
   | Delete_node (id) -> delete_node g id
+  | Select_node (id) -> select_node g id
   | _ -> failwith "applying unimplemented op"
 
 let add_op (g : graph) (op : op) ~strict : graph =
@@ -169,6 +174,7 @@ let json2op (json : json) : op =
     | "delete_edge" -> Delete_edge (int "src", int "target", str "param")
     | "delete_node" -> Delete_node (int "id")
     | "clear_edges" -> Clear_edges (int "id")
+    | "select_node" -> Select_node (int "id")
     (* TODO: put this into the frontend *)
     | "add_datastore_field" ->
 
@@ -205,6 +211,8 @@ let op2json op : json =
       [id _id; str "name" name; str "tipe" tipe; bool "is_list" false]
     | Update_node_position (_id, loc) ->
       "update_node_position", [id _id; x loc; y loc]
+    | Select_node (_id) ->
+      "select_node", [id _id]
     | Delete_node _id ->
       "delete_node", [id _id]
     | Add_edge (sid, tid, param) ->

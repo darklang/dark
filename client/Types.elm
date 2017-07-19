@@ -15,6 +15,7 @@ type alias TypeName = Name
 
 type ID = ID Int
 type alias Cursor = Maybe ID
+deID (ID x) = x
 
 type alias Pos = Mouse.Position
 type alias MouseEvent = {pos: Mouse.Position, button: Int}
@@ -73,6 +74,7 @@ type RPC
     | AddEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearEdges ID
+    | SelectNode ID
     | RemoveLastField ID
 
 type State

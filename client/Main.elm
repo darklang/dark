@@ -12,12 +12,14 @@ import Keyboard
 import Mouse
 import Dom
 import Task
+import Ordering
+import List.Extra
 
 
 -- mine
 import RPC exposing (rpc)
 import Types exposing (..)
-import Util
+import Util exposing (deMaybe)
 import View
 import Consts
 
@@ -84,6 +86,10 @@ updateKeyPress m code cursor =
          ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
        ('D', _, _) ->
          ({ m | state = ADD_DS}, Cmd.none, NoFocus)
+       ('N', _, id) ->
+         (m, (case next_node m id of
+                Just id -> rpc m <| SelectNode id
+                Nothing -> Cmd.none), NoFocus)
        _ ->
          let _ = Debug.log "nothing" char
          in (m, Cmd.none, NoFocus)
@@ -250,3 +256,29 @@ updateDragPosition pos off (ID id) nodes =
 findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
  {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
+
+tab_ordering =
+  Ordering.byField .pos
+    |> Ordering.breakTiesWith (Ordering.byField .id)
+
+next_node : Model -> Maybe ID -> Maybe ID
+next_node m id =
+  let nodes = m.nodes
+               |> Dict.values
+               |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
+      order = List.sortWith Ordering.natural nodes
+      first = case List.head order of
+                Just (x, y, id) -> Just (ID id)
+                Nothing -> Nothing
+  in
+    case id of
+      -- No cursor: pick left-most, or nothing if empty
+      Nothing -> first
+
+      -- With cursor: pick next, or if no next we wrap around to the start
+      Just (ID id) ->
+        let node = Dict.get id m.nodes |> deMaybe
+            next = List.Extra.find (\n -> n > (node.pos.x, node.pos.y, node.id |> deID)) order
+        in case next of
+             Nothing -> first
+             Just (_, _, id) -> Just (ID id)

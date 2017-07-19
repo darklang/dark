@@ -18,7 +18,8 @@
     "elm-lang/mouse": "1.0.1 <= v < 2.0.0",
     "elm-lang/svg": "2.0.0 <= v < 3.0.0",
     "evancz/elm-graphics": "1.0.1 <= v < 2.0.0",
-    "elm-community/list-extra": "6.0.0 <= v < 7.0.0"
+    "elm-community/list-extra": "6.0.0 <= v < 7.0.0",
+    "matthewsj/elm-ordering": "1.1.0 <= v < 1.1.1"
   },
   "elm-version": "0.18.0 <= v < 0.19.0"
 }
