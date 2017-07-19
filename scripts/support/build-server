@@ -29,6 +29,10 @@ def run(bash, color):
   stdout_worker.join()
   stderr_worker.join()
 
+  return proc.returncode == 0
+
+
+
 def consolecode(color):
   return "\u001B[" + str(color) + "m"
 
@@ -54,15 +58,9 @@ def p(s, end=None, color=WHITE):
 def call(bash):
   color = nextcolor()
   p("$ " + bash, color=color)
-  run(bash, color=color)
+  result = run(bash, color=color)
   p("X " + bash, color=color)
-
-def reload_server():
-  call("scripts/support/runserver")
-
-def reload_browser():
-  # Sends a signal to another fswatch on your mac
-  call("touch .browser-trigger")
+  return result
 
 def ignore(filename, reason):
   if reason != "Updated":
@@ -89,21 +87,30 @@ def ignore(filename, reason):
   return False
 
 def elm_package():
-  call("cd client && elm-package install --yes")
+  return call("cd client && elm-package install --yes")
 
 def elm_make():
-  call("cd client && elm-make Main.elm --debug --yes --output ../static/elm.js")
+  return call("cd client && elm-make Main.elm --debug --yes --output ../static/elm.js")
 
 def ocaml_build():
-  call("cd server && jbuilder build")
+  return call("cd server && jbuilder build")
+
+def reload_server():
+  return call("scripts/support/runserver")
+
+def reload_browser():
+  # Sends a signal to another fswatch on your mac
+  return call("touch .browser-trigger")
 
 def main():
   p("Starting")
-  elm_package()
-  elm_make()
-  ocaml_build()
-  reload_server()
-  reload_browser()
+  s1 = elm_package()
+  s2 = elm_make()
+  s3 = ocaml_build ()
+  if s3:
+    reload_server()
+  if s3 or (s1 and s2):
+    reload_browser()
 
   for f in sys.stdin:
     (f, reason) = f.strip().split(" ")
@@ -119,19 +126,19 @@ def main():
 
     # Frontend
     elif "elm-package.json" in f:
-      elm_package()
-      elm_make()
-      reload_browser();
+      elm_package() and \
+        elm_make() and \
+        reload_browser()
     elif ".elm" in f:
-      elm_make()
-      reload_browser();
+      elm_make() and \
+        reload_browser()
 
 
     # Ocaml
     elif ".ml" in f or "jbuild" in f:
-      ocaml_build()
-      reload_server()
-      reload_browser();
+      ocaml_build() and \
+        reload_server() and \
+        reload_browser();
 
     # Other
     else:
