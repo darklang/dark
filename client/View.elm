@@ -16,7 +16,7 @@ import Html.Events as Events
 
 import Consts
 import Types exposing (..)
-import Util
+import Util exposing (deMaybe)
 
 view : Model -> Html.Html Msg
 view model =
@@ -280,11 +280,6 @@ viewDragEdge drag currentPos =
         svgLine mStartPos
                 currentPos
                 dragEdgeStyle
-
-deID (ID x) = x
-deMaybe x = case x of
-              Nothing -> Debug.crash "not possible"
-              Just y -> y
 
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, targetParam} =
