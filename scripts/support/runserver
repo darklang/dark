@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-FILE="server/_build/default/dark.bc"
+FILE="server/_build/default/bin/dark.bc"
 
 # Stop the server
 (ps aux | pgrep 'dark.bc' | xargs kill > /dev/null 2>&1) || true

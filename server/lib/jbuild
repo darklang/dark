@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(library
+  (
+    (name dark)
+    (public_name dark)
+    (modes (byte))
+    (preprocess (pps (ppx_jane)))
+    (wrapped false)
+    (libraries (core cohttp.lwt yojson threads postgresql))
+  )
+)

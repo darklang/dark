@@ -7,3 +7,6 @@ client/elm-stuff/
 /server/.merlin
 /server/main.install
 /server/dark.install
+/server/test/.merlin
+/server/lib/.merlin
+/server/bin/.merlin

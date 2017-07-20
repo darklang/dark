@@ -1,0 +1,15 @@
+(jbuild_version 1)
+
+(executable
+  (
+    (name test)
+    (public_name test)
+    (modes (byte))
+    (libraries (dark oUnit))
+  )
+)
+
+(alias
+ ((name    runtest)
+  (deps    (test.bc))
+  (action  (run ${<}))))
