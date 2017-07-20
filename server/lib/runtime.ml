@@ -82,10 +82,10 @@ let to_char (dv : dval) : char =
 let exe (fn : fn) (args : dval list) : dval =
   if List.length args < List.length fn.parameters then
     (* If there aren't enough parameters, curry it *)
-    (* TODO: we're going to have to use named params before tthe currying works properly *)
-    DFn { fn with partials = List.append fn.partials args }
+    (* TODO: we're going to have to use named params before the currying works properly *)
+    DFn { fn with partials = fn.partials @ args }
   else
-    fn.func @@ List.append fn.partials args
+    fn.func @@ fn.partials @ args
 
 let exe_dv (fn : dval) (args : dval list) : dval =
   match fn with
