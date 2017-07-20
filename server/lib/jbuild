@@ -5,7 +5,7 @@
     (name dark)
     (public_name dark)
     (modes (byte))
-    (preprocess (pps (ppx_jane)))
+    (preprocess (pps (ppx_jane ppx_fun)))
     (wrapped false)
     (libraries (core cohttp.lwt yojson threads postgresql))
   )

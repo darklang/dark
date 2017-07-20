@@ -5,6 +5,7 @@
     (name test)
     (public_name test)
     (modes (byte))
+    (preprocess (pps (ppx_jane ppx_fun)))
     (libraries (dark oUnit))
   )
 )
