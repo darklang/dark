@@ -57,17 +57,17 @@ let create (name : string) : graph =
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
-let add_node (g : graph) (node : Node.node) : graph =
+let add_node (node : Node.node) (g : graph) : graph =
   { g with nodes = Map.add g.nodes ~key:(node#id) ~data:node;
            cursor = Some node#id }
 
-let has_edge (g : graph) s t param : bool =
+let has_edge s t param (g : graph) : bool =
   List.exists (fun a -> a = (s, t, param)) g.edges
 
-let add_edge (g: graph) (s : id) (t : id) (param : param) : graph =
+let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (* Can't have two edges to the same target *)
   (* TODO: exception for datasinks like DBs and APIs *)
-  if (has_edge g s t param) then
+  if has_edge s t param g then
     failwith "Edge already exists";
 
   { g with edges = (s, t, param) :: g.edges }
@@ -80,26 +80,26 @@ let add_edge (g: graph) (s : id) (t : id) (param : param) : graph =
   (* except types.DTypeError as e: *)
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
 
-let get_node (g : graph) (id : id) : Node.node =
+let get_node(id : id)  (g : graph) : Node.node =
   Map.find_exn g.nodes id
 
-let update_node_position (g: graph) (id: id) (loc: loc) : graph =
-  id |> get_node g |> (fun n -> n#update_loc loc);
+let update_node_position (id: id) (loc: loc) (g: graph) : graph =
+  g |> get_node id |> (fun n -> n#update_loc loc);
   { g with cursor = Some id }
 
-let select_node (g: graph) (id: id) : graph =
+let select_node (id: id) (g: graph) : graph =
   { g with cursor = Some id }
 
-let clear_edges (g : graph) (id: id) : graph =
+let clear_edges (id: id) (g: graph) : graph =
   let f (s, t, _) = s <> id && t <> id in
   { g with edges = List.filter f g.edges }
 
-let delete_edge g s t param : graph =
+let delete_edge s t param (g: graph) : graph =
   let f a = a <> (s, t, param) in
   { g with edges = List.filter f g.edges }
 
-let delete_node g id : graph =
-  let g = clear_edges g id in
+let delete_node id (g: graph) : graph =
+  let g = clear_edges id g in
   { g with nodes = Map.remove g.nodes id; cursor = None }
 
 
@@ -107,12 +107,12 @@ let delete_node g id : graph =
 (* Traversing *)
 (* ------------------------- *)
 
-let get_children g id : (param * id) list =
+let get_children id g : (param * id) list =
   g.edges
   |> List.filter (fun (s,_,_) -> s = id)
   |> List.map (fun (_,t,p) -> (p,t))
 
-let get_parents g id : (param * id) list =
+let get_parents id g : (param * id) list =
   g.edges
   |> List.filter (fun (_,t,_) -> t = id)
   |> List.map (fun (s,_,p) -> (p,s))
@@ -121,32 +121,44 @@ let get_parents g id : (param * id) list =
 (* ------------------------- *)
 (* Executing *)
 (* ------------------------- *)
-let rec execute (g: graph) (id: id) : dval =
-  let n = get_node g id in
-  let args = List.map (fun (_,s) -> execute g s) (get_parents g id) in
+let rec execute (id: id) (g: graph) : dval =
+  let n = get_node id g in
+  (* We dont match up the arguments to the parameter names, so we're just applying this in whatever order we happen to have added things *)
+  let args = List.map (fun (_,s) -> execute s g) (get_parents id g) in
   n#execute args
 
 
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-let apply_op (g : graph) (op : op) ~strict : graph =
+let apply_op (op : op) (g : graph) ~strict : graph =
+  g |>
   match op with
-  | Add_fn (name, id, loc) -> add_node g (new Node.func name id loc strict)
-  | Add_datastore (table, id, loc) -> add_node g (new Node.datastore table id loc)
-  | Add_value (expr, id, loc) -> add_node g (new Node.value expr id loc)
-  | Add_edge (src, target, param) -> add_edge g src target param
-  | Update_node_position (id, loc) -> update_node_position g id loc
-  | Delete_edge (s, t, param) -> delete_edge g s t param
-  | Clear_edges (id) -> clear_edges g id
-  | Delete_node (id) -> delete_node g id
-  | Select_node (id) -> select_node g id
+  | Add_fn (name, id, loc) -> add_node (new Node.func name id loc strict)
+  | Add_datastore (table, id, loc) -> add_node (new Node.datastore table id loc)
+  | Add_value (expr, id, loc) -> add_node (new Node.value expr id loc)
+  | Add_edge (src, target, param) -> add_edge src target param
+  | Update_node_position (id, loc) -> update_node_position id loc
+  | Delete_edge (s, t, param) -> delete_edge s t param
+  | Clear_edges (id) -> clear_edges id
+  | Delete_node (id) -> delete_node id
+  | Select_node (id) -> select_node id
   | _ -> failwith "applying unimplemented op"
 
-let add_op (g : graph) (op : op) ~strict : graph =
-  let g = apply_op g op ~strict in
-  { g with ops = List.append g.ops [op]}
+let add_op (op : op) (g : graph) ?(strict = true) : graph =
+  let g = apply_op op g ~strict in
+  { g with ops = g.ops @ [op]}
 
+
+let id_of = function
+  | Add_fn (_, id, _) -> id
+  | Add_datastore (_, id, _) -> id
+  | Add_value (_, id, _) -> id
+  | Update_node_position (id, _) -> id
+  | Clear_edges (id) -> id
+  | Delete_node (id) -> id
+  | Select_node (id) -> id
+  | _ -> failwith "getting id of op without id"
 
 
 (* ------------------------- *)
@@ -235,7 +247,7 @@ let load name : graph =
   let ops = match jsonops with
   | `List ops -> List.map json2op ops
   | _ -> failwith "unexpected deserialization" in
-  List.fold_left (fun g -> add_op g ~strict:false) (create name) ops
+  List.fold_left (fun g op -> add_op op g ~strict:false) (create name) ops
 
 
 
@@ -279,7 +291,7 @@ let to_frontend (g : graph) : json =
              | None -> `Null
              | Some id ->
                try
-                 let dv = execute g id in
+                 let dv = execute id g in
                  `Assoc [ ("value", `String (Runtime.to_repr dv))
                         ; ("type", `String (Runtime.get_type dv))]
                with

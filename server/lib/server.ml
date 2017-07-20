@@ -24,7 +24,7 @@ let server =
       let g = G.load "blog" in
       let g =
         if J.member "load_initial_graph" payload = `Null then
-          payload |> G.json2op |> G.add_op g ~strict:true
+          G.add_op (G.json2op payload) g ~strict:true
         else
           g in
       G.save "blog" g;
