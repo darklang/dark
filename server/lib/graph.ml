@@ -124,14 +124,15 @@ let get_parents id g : (param * id) list =
 let rec execute (id: id) (g: graph) : dval =
   let n = get_node id g in
   (* We dont match up the arguments to the parameter names, so we're just applying this in whatever order we happen to have added things *)
-  let args = List.map (fun (_,s) -> execute s g) (get_parents id g) in
+  let args = List.map (fun (p,s) -> (p, execute s g)) (get_parents id g) in
+  let args = List.map (fun p -> List.assoc p args) n#parameters in
   n#execute args
 
 
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-let apply_op (op : op) (g : graph) ~strict : graph =
+let apply_op (op : op) ?(strict=true) (g : graph) : graph =
   g |>
   match op with
   | Add_fn (name, id, loc) -> add_node (new Node.func name id loc strict)
@@ -145,7 +146,7 @@ let apply_op (op : op) (g : graph) ~strict : graph =
   | Select_node (id) -> select_node id
   | _ -> failwith "applying unimplemented op"
 
-let add_op (op : op) (g : graph) ?(strict = true) : graph =
+let add_op (op: op) ?(strict=true) (g: graph) : graph =
   let g = apply_op op g ~strict in
   { g with ops = g.ops @ [op]}
 

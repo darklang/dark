@@ -27,6 +27,7 @@ class virtual node id loc =
                 ]
                 self#extra_fields)
     method extra_fields = []
+    method parameters : string list = []
   end
 
 class value strrep id loc =
@@ -40,7 +41,7 @@ class value strrep id loc =
   end
 
 class func name id loc (strict:bool) =
-  object
+  object (self)
     inherit node id loc
     (* Throw an exception if it doesn't exist *)
     val name : string = if strict then ignore @@ Lib.get_fn_exn name; name
@@ -53,13 +54,14 @@ class func name id loc (strict:bool) =
     method tipe = if (Core.String.is_substring ~substring:"page" name)
       then name
       else "function"
+    method parameters = match Lib.get_fn name with
+        | Some fn -> fn.parameters
+        | None -> []
     method! extra_fields =
       [("parameters",
         `List (List.map
                  (fun s -> `String s)
-                 (match Lib.get_fn name with
-                 | Some fn -> fn.parameters
-                 | None -> [])))]
+                 self#parameters))]
   end
 
 class datastore table id loc =
