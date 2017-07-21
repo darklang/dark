@@ -252,12 +252,12 @@ let load name : graph =
 
 
 
-let save name (g : graph) : unit =
+let save (g : graph) : unit =
   let ops = List.map op2json g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let str = str ^ "\n" in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
-  let filename = "appdata/" ^ name ^ ".dark" in
+  let filename = "appdata/" ^ g.name ^ ".dark" in
   let file = Unix.openfile filename flags 0o640 in
   let _ = Unix.write file str 0 (String.length str) in
   Unix.close file

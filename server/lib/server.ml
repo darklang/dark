@@ -27,7 +27,7 @@ let server =
           G.add_op (G.json2op payload) g ~strict:true
         else
           g in
-      G.save "blog" g;
+      G.save g;
       g
       |> Graph.to_frontend
       |> Yojson.Basic.to_string
