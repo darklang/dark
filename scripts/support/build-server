@@ -67,14 +67,15 @@ def ignore(filename, reason):
     return True
 
   # substring
-  ignores = [".git", "scripts/", "logs/", "appdata/"]
-  ignores += ["client/elm-stuff", "static/elm.js"]
-  ignores += ["server/" + i for i in ["setup.log",
-                                      "setup.data",
-                                      "_build",
-                                      "_tags",
-                                      "myocamlbuild.ml",
-                                      "Makefile"]]
+  ignores = [ ".git"
+            , "scripts/"
+            , "logs/"
+            , ".merlin"
+            , "client/elm-stuff"
+            , "server/static/elm.js"
+            , "server/_build/"
+            , "server/appdata/"
+  ]
   for i in ignores:
     if i in filename:
       return True
@@ -140,10 +141,10 @@ def main():
 
     # Ocaml
     elif ".ml" in f or "jbuild" or "_tags" in f:
-      ocaml_build() and \
+      if ocaml_build():
+        ocaml_test()
         reload_server() and \
         reload_browser()
-      ocaml_test()
 
     # Other
     else:

@@ -33,7 +33,7 @@ type graph = {
   nodes : nodemap;
   edges : (id * id * param) list;
   cursor : id option
-}
+} [@@deriving eq]
 
 (* ------------------------- *)
 (* Graph *)

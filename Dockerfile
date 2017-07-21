@@ -47,7 +47,7 @@ RUN opam install core.v0.9.1 \
                  yojson.1.3.3 \
                  postgresql.4.0.1
 RUN opam install oUnit.2.0.0
-RUN opam install ppx_fun
+RUN opam install ppx_derivers ppx_fun
 
 USER root
 RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen

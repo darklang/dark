@@ -1,1 +1,2 @@
+<*.ml>: package(ppx_deriving.std)
 <*.ml>: package(ppx_fun)
