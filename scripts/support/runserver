@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-FILE="server/_build/default/bin/dark.bc"
+FILE="_build/default/bin/dark.bc"
 
 # Stop the server
 (ps aux | pgrep 'dark.bc' | xargs kill > /dev/null 2>&1) || true
@@ -15,11 +15,10 @@ do
   fi
 done
 
-
 if [ -f "${FILE}" ]; then
     echo "Running server"
-    #COHTTP_DEBUG=true ocamlserver/main.byte > logs/server.log 2>&1 &
-    OCAMLRUNPARAM=b ocamlrun "${FILE}" > logs/server.log 2>&1 &
+    #COHTTP_DEBUG=true ocamlserver/main.byte > ../logs/server.log 2>&1 &
+    OCAMLRUNPARAM=b ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
 else
   echo "${FILE} doesn't exist"
   exit -1

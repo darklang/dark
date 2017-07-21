@@ -1,12 +1,8 @@
-/appdata
-/static/elm.js
 /logs/
-client/elm-stuff/
 /.browser-trigger
+.merlin
+/client/elm-stuff/
 /server/_build
-/server/.merlin
-/server/main.install
 /server/dark.install
-/server/test/.merlin
-/server/lib/.merlin
-/server/bin/.merlin
+/server/static/elm.js
+/server/appdata

@@ -90,7 +90,7 @@ def elm_package():
   return call("cd client && elm-package install --yes")
 
 def elm_make():
-  return call("cd client && elm-make Main.elm --debug --yes --output ../static/elm.js")
+  return call("cd client && elm-make Main.elm --debug --yes --output ../server/static/elm.js")
 
 def ocaml_build():
   return call("cd server && jbuilder build")
@@ -99,7 +99,7 @@ def ocaml_test():
   return call("cd server && jbuilder runtest")
 
 def reload_server():
-  return call("scripts/support/runserver")
+  return call("cd server && ../scripts/support/runserver")
 
 def reload_browser():
   # Sends a signal to another fswatch on your mac

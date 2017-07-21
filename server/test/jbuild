@@ -13,4 +13,5 @@
 (alias
  ((name    runtest)
   (deps    (test.bc))
-  (action  (run ${<}))))
+  (action  (chdir ../../../
+              (run ${<})))))
