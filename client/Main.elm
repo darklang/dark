@@ -71,27 +71,7 @@ updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg, Focus)
 updateKeyPress m code cursor =
   let char = Char.fromCode code
   in case (char, code, cursor) of
-       -- (_, 8, Just id) -> -- backspace
-       --   (m, rpc m <| DeleteNode id, NoFocus)
-       -- ('C', _, Just id) ->
-       --   (m, rpc m <| ClearEdges id, NoFocus)
-       -- ('L', _, Just id) ->
-       --   (m, rpc m <| RemoveLastField id, NoFocus)
-       -- ('Q', _, _) ->
-       --   ({m | state = ADD_FUNCTION_DEF}, Cmd.none, NoFocus)
-       -- ('A', _, _) ->
-       --   ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
-       -- ('F', _, _) ->
-       --   ({ m | state = ADD_FUNCTION_CALL}, Cmd.none, NoFocus)
-       -- ('V', _, _) ->
-       --   ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
-       -- ('D', _, _) ->
-       --   ({ m | state = ADD_DS}, Cmd.none, NoFocus)
-       -- ('N', _, cursor) ->
-       --   (m, (case nextNode m cursor of
-       --          Just id -> rpc m <| SelectNode id
-       --          Nothing -> Cmd.none), NoFocus)
-       _ ->
+      _ ->
          let _ = Debug.log "nothing" char
          in (m, Cmd.none, NoFocus)
 
@@ -161,10 +141,6 @@ update_ msg m =
     --   ({ m | state = ADD_FUNCTION_DEF
     --    }, rpc m <| AddFunctionDef m.inputValue m.lastPos, DropFocus)
 
-    -- (ADD_FUNCTION_CALL, SubmitMsg, _) ->
-    --   ({ m | state = ADD_FUNCTION_CALL
-    --    }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
-
     -- (ADD_VALUE, SubmitMsg, _) ->
     --   ({ m | state = ADD_VALUE
     --    }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
@@ -187,13 +163,38 @@ update_ msg m =
     -- (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
     --   ({ m | state = ADD_DS_FIELD_NAME
     --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
+       -- (_, 8, Just id) -> -- backspace
+       --   (m, rpc m <| DeleteNode id, NoFocus)
+       -- ('C', _, Just id) ->
+       --   (m, rpc m <| ClearEdges id, NoFocus)
+       -- ('L', _, Just id) ->
+       --   (m, rpc m <| RemoveLastField id, NoFocus)
+       -- ('Q', _, _) ->
+       --   ({m | state = ADD_FUNCTION_DEF}, Cmd.none, NoFocus)
+       -- ('A', _, _) ->
+       --   ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
+       -- ('F', _, _) ->
+       --   ({ m | state = ADD_FUNCTION_CALL}, Cmd.none, NoFocus)
+       -- ('V', _, _) ->
+       --   ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
+       -- ('D', _, _) ->
+       --   ({ m | state = ADD_DS}, Cmd.none, NoFocus)
+       -- ('N', _, cursor) ->
+       --   (m, (case nextNode m cursor of
+       --          Just id -> rpc m <| SelectNode id
+       --          Nothing -> Cmd.none), NoFocus)
 
-    (SubmitMsg, _) ->
-      (m, case m.inputValue of
-             "+Int_add" -> rpc m <| AddFunctionCall "Int_add" m.lastPos
-             _ -> Cmd.none
-      , Focus)
-
+    (SubmitMsg, cursor) ->
+      let cmd =
+        case (m.inputValue, cursor) of
+          ("+Int_add", _) -> rpc m <| AddFunctionCall "Int_add" m.lastPos
+          ("rm", Just id) -> rpc m <| DeleteNode id
+          ("n", c) -> case nextNode m c of
+                        Just id -> rpc m <| SelectNode id
+                        Nothing -> Cmd.none
+          (_, _) -> Cmd.none
+      in
+        (m, cmd, Focus)
 
     (RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
       -- if the new cursor is blank, keep the old cursor if it's valid
