@@ -6,13 +6,11 @@ module Map = Core.Map.Poly
 type fn = { name : string
           ; parameters : string list
           ; func : ((dval list) -> dval)
-          ; partials : (dval list)
           }
 and dval = DInt of int
          | DStr of string
          | DChar of char
          | DFloat of float
-         | DFn of fn
 
 let parse (str : string) : dval =
   if String.equal str "" then
@@ -40,25 +38,6 @@ let get_type (dv : dval) : string =
   | DStr _ -> "String"
   | DFloat _ -> "Float"
   | DChar _ -> "Char"
-  | DFn fn -> if fn.partials = [] then
-      "Function"
-    else "Partial"
-
-let rec fn_repr fn =
-  let (prefix, suffix) = if fn.partials <> [] then
-      let partials = fn.partials
-                     |> List.map to_repr
-                     |> String.concat ", "
-      in "Fn", " partially applied with: [" ^ partials ^ "]"
-    else
-      "Fn", ""
-  in prefix
-     ^ " "
-     ^ fn.name
-     ^ "("
-     ^ (String.concat ", " fn.parameters)
-     ^ ")"
-     ^ suffix
 
 and to_repr (dv : dval) : string =
   match dv with
@@ -66,7 +45,6 @@ and to_repr (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
-  | DFn fn -> fn_repr fn
 
 
 
@@ -78,7 +56,6 @@ let to_char (dv : dval) : char =
   | DChar c -> c
   | _ -> Exception.raise "Not a char"
 
-let equal_fn (a: fn) (b: fn) : bool = (fn_repr a) = (fn_repr b)
 let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 
 
@@ -86,16 +63,15 @@ let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 (* Functions *)
 (* ------------------------- *)
 let exe (fn : fn) (args : dval list) : dval =
+  (* TODO: we're going to have to use named params before the currying works properly *)
   if List.length args < List.length fn.parameters then
     (* If there aren't enough parameters, curry it *)
-    (* TODO: we're going to have to use named params before the currying works properly *)
-    DFn { fn with partials = fn.partials @ args }
+    failwith "todo"
   else
-    fn.func @@ fn.partials @ args
+    fn.func args
 
-let exe_dv (fn : dval) (args : dval list) : dval =
+let exe_dv (fn : dval) (_: dval list) : dval =
   match fn with
-  | DFn fn -> exe fn args
   | dv -> dv
           |> to_error_repr
           |> (^) "Calling non-function: "

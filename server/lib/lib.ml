@@ -44,16 +44,16 @@ let fns_list = [
       | args -> expected "2 ints" args
   }
   ;
-  { n = "String_map"
-  ; p = ["s"; "f"]
-  ; f = function
-      | [DStr s; DFn fn] ->
-        let charf (c : char) : char =
-          fn.func [DChar c] |> to_char in
-        s |> String.map charf |> DStr
-      | args -> expected "a strint and a function" args
-  }
-  ;
+  (* { n = "String_map" *)
+  (* ; p = ["s"; "f"] *)
+  (* ; f = function *)
+  (*     | [DStr s; DFn fn] -> *)
+  (*       let charf (c : char) : char = *)
+  (*         fn.func [DChar c] |> to_char in *)
+  (*       s |> String.map charf |> DStr *)
+  (*     | args -> expected "a strint and a function" args *)
+  (* } *)
+  (* ; *)
   { n = "Char_code"
   ; p = ["c"]
   ; f = function
@@ -80,7 +80,7 @@ type fnmap = (string, fn) Map.t
 let fns : fnmap =
   let add_fn (m : fnmap) (s : shortfn) : fnmap =
     Map.add m ~key:s.n
-      ~data:{name = s.n; parameters = s.p; func = s.f; partials = []} in
+      ~data:{name = s.n; parameters = s.p; func = s.f} in
   List.fold_left add_fn Map.empty fns_list
 
 (* Give access to other modules *)

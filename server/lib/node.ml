@@ -54,7 +54,7 @@ class func name id loc (strict:bool) =
     method tipe = if (Core.String.is_substring ~substring:"page" name)
       then name
       else "function"
-    method parameters = match Lib.get_fn name with
+    method! parameters = match Lib.get_fn name with
         | Some fn -> fn.parameters
         | None -> []
     method! extra_fields =
