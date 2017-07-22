@@ -76,18 +76,20 @@ let fns_list = [
   }
 ]
 
-type fnmap = (string, fn) Map.t
+module SMap = Core.String.Map
+
+type fnmap = fn SMap.t
 let fns : fnmap =
   let add_fn (m : fnmap) (s : shortfn) : fnmap =
-    Map.add m ~key:s.n
+    SMap.add m ~key:s.n
       ~data:{name = s.n; parameters = s.p; func = s.f} in
-  List.fold_left add_fn Map.empty fns_list
+  List.fold_left add_fn SMap.empty fns_list
 
 (* Give access to other modules *)
 let get_fn (name : string) : fn option =
-  Map.find fns name
+  SMap.find fns name
 
 let get_fn_exn (name : string) : fn =
-  match Map.find fns name with
+  match SMap.find fns name with
   | Some fn -> fn
   | None -> "No function named '" ^ name ^ "' exists" |> Exception.raise
