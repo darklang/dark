@@ -252,25 +252,27 @@ findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
  {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
 
+orderedNodes : Model -> List Node
+orderedNodes m =
+  m.nodes
+    |> Dict.values
+    |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
+    |> List.sortWith Ordering.natural
+    |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
+
+
 nextNode : Model -> Cursor -> Cursor
 nextNode m cursor =
-  let nodes = m.nodes
-               |> Dict.values
-               |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
-      order = List.sortWith Ordering.natural nodes
-
-      -- When we cycle, pick left-most, or nothing if empty
-      first = order |> List.head |> Maybe.map (\(_, _, id) -> ID id)
+  let nodes = orderedNodes m
+      first = nodes |> List.head |> Maybe.map (\n -> n.id)
   in
     case cursor of
       Nothing -> first
       Just (ID id) ->
         let node = Dict.get id m.nodes |> deMaybe
-            next =
-              List.Extra.find
-                (\n ->
-                   n > (node.pos.x, node.pos.y, node.id |> deID))
-                  order
+            next = List.Extra.find
+                   (\n -> (n.pos.x, n.pos.y, deID n.id) > (node.pos.x, node.pos.y, deID node.id))
+                   nodes
         in case next of
              Nothing -> first
-             Just (_, _, id) -> Just (ID id)
+             Just node -> Just node.id
