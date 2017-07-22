@@ -5,7 +5,7 @@ set -euo pipefail
 FILE="_build/default/bin/dark.bc"
 
 # Stop the server
-(ps aux | pgrep 'dark.bc' | xargs kill > /dev/null 2>&1) || true
+(ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=100;i++));
