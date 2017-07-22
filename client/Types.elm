@@ -79,14 +79,6 @@ type RPC
     | SelectNode ID
     | RemoveLastField ID
 
-type State
-    = ADD_FUNCTION_CALL
-    | ADD_FUNCTION_DEF
-    | ADD_DS
-    | ADD_DS_FIELD_NAME
-    | ADD_DS_FIELD_TYPE
-    | ADD_VALUE
-
 
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
@@ -94,7 +86,6 @@ type alias Model = { nodes : NodeDict
                    , live : LiveValue
                    , inputValue : String
                    , focused : Bool
-                   , state : State
                    , tempFieldName : FieldName
                    , errors : List String
                    , lastPos : Pos

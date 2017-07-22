@@ -31,7 +31,6 @@ view model =
       , viewErrors model.errors
       , viewInput model.inputValue
       , viewLive model.live
-      , viewState model.state
       ]
 
 viewInput value = Html.form [
@@ -44,7 +43,6 @@ viewInput value = Html.form [
                   ]
 
 -- TODO: CSS this onto the bottom
-viewState state = Html.text ("state: " ++ toString state)
 viewErrors errors = Html.div [Attrs.id "darkErrors"] <| (Html.text "Err: ") :: (List.map Html.text errors)
 viewLive live = Html.div [Attrs.id "darkLive"]
                 [(Html.text <| "LiveValue: " ++

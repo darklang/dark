@@ -38,7 +38,6 @@ init = let m = { nodes = Dict.empty
                , edges = []
                , cursor = Nothing
                , live = Nothing
-               , state = ADD_FUNCTION_CALL
                , errors = ["None"]
                , inputValue = ""
                , focused = False
@@ -72,26 +71,26 @@ updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg, Focus)
 updateKeyPress m code cursor =
   let char = Char.fromCode code
   in case (char, code, cursor) of
-       (_, 8, Just id) -> -- backspace
-         (m, rpc m <| DeleteNode id, NoFocus)
-       ('C', _, Just id) ->
-         (m, rpc m <| ClearEdges id, NoFocus)
-       ('L', _, Just id) ->
-         (m, rpc m <| RemoveLastField id, NoFocus)
-       ('Q', _, _) ->
-         ({m | state = ADD_FUNCTION_DEF}, Cmd.none, NoFocus)
-       ('A', _, _) ->
-         ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
-       ('F', _, _) ->
-         ({ m | state = ADD_FUNCTION_CALL}, Cmd.none, NoFocus)
-       ('V', _, _) ->
-         ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
-       ('D', _, _) ->
-         ({ m | state = ADD_DS}, Cmd.none, NoFocus)
-       ('N', _, cursor) ->
-         (m, (case nextNode m cursor of
-                Just id -> rpc m <| SelectNode id
-                Nothing -> Cmd.none), NoFocus)
+       -- (_, 8, Just id) -> -- backspace
+       --   (m, rpc m <| DeleteNode id, NoFocus)
+       -- ('C', _, Just id) ->
+       --   (m, rpc m <| ClearEdges id, NoFocus)
+       -- ('L', _, Just id) ->
+       --   (m, rpc m <| RemoveLastField id, NoFocus)
+       -- ('Q', _, _) ->
+       --   ({m | state = ADD_FUNCTION_DEF}, Cmd.none, NoFocus)
+       -- ('A', _, _) ->
+       --   ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
+       -- ('F', _, _) ->
+       --   ({ m | state = ADD_FUNCTION_CALL}, Cmd.none, NoFocus)
+       -- ('V', _, _) ->
+       --   ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
+       -- ('D', _, _) ->
+       --   ({ m | state = ADD_DS}, Cmd.none, NoFocus)
+       -- ('N', _, cursor) ->
+       --   (m, (case nextNode m cursor of
+       --          Just id -> rpc m <| SelectNode id
+       --          Nothing -> Cmd.none), NoFocus)
        _ ->
          let _ = Debug.log "nothing" char
          in (m, Cmd.none, NoFocus)
@@ -99,114 +98,117 @@ updateKeyPress m code cursor =
 
 update_ : Msg -> Model -> (Model, Cmd Msg, Focus)
 update_ msg m =
-  case (m.state, msg, m.cursor) of
-    (_, CheckEscape code, _) ->
+  case (msg, m.cursor) of
+    (CheckEscape code, _) ->
       if code == Consts.escapeKeycode
       then ({ m | cursor = Nothing
                 , lastPos = Consts.initialPos}, Cmd.none, DropFocus)
       else (m, Cmd.none, NoFocus)
 
-    (_, KeyPress code, cursor) ->
+    (KeyPress code, cursor) ->
       updateKeyPress m code cursor
 
-    (_, NodeClick node, _) ->
-      ({ m | state = ADD_FUNCTION_CALL
-           , cursor = Just node.id
+    (NodeClick node, _) ->
+      ({ m |
+           -- state = ADD_FUNCTION_CALL
+            cursor = Just node.id
        }, Cmd.none, DropFocus)
 
-    (_, RecordClick pos, _) ->
+    (RecordClick pos, _) ->
       ({ m | lastPos = pos
        }, Cmd.none, Focus)
 
-    (_, ClearCursor mpos, _) ->
+    (ClearCursor mpos, _) ->
       ({ m | cursor = Nothing
        }, Cmd.none, NoFocus)
 
-    (_, DragNodeStart node event, _) ->
+    (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
       && event.button == Consts.leftButton
       then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none, NoFocus)
       else (m, Cmd.none, NoFocus)
 
-    (_, DragNodeMove id offset currentPos, _) ->
+    (DragNodeMove id offset currentPos, _) ->
       ({ m | nodes = updateDragPosition currentPos offset id m.nodes
            , lastPos = currentPos -- debugging
        }, Cmd.none, NoFocus)
 
-    (_, DragNodeEnd id _, _) ->
+    (DragNodeEnd id _, _) ->
       ({ m | drag = NoDrag
        }, rpc m <| UpdateNodePosition id, NoFocus)
 
-    (_, DragSlotStart node param event, _) ->
+    (DragSlotStart node param event, _) ->
       if event.button == Consts.leftButton
       then ({ m | cursor = Just node.id
                 , drag = DragSlot node.id param event.pos}, Cmd.none, NoFocus)
       else (m, Cmd.none, NoFocus)
 
-    (_, DragSlotMove mpos, _) ->
+    (DragSlotMove mpos, _) ->
       ({ m | lastPos = mpos
        }, Cmd.none, NoFocus)
 
-    (_, DragSlotEnd node, _) ->
+    (DragSlotEnd node, _) ->
       case m.drag of
         DragSlot id param starting ->
           ({ m | drag = NoDrag}
                , rpc m <| AddEdge node.id (id, param), NoFocus)
         _ -> (m, Cmd.none, NoFocus)
 
-    (_, DragSlotStop _, _) ->
+    (DragSlotStop _, _) ->
       ({ m | drag = NoDrag}, Cmd.none, NoFocus)
 
-    (ADD_FUNCTION_DEF, SubmitMsg, _) ->
-      ({ m | state = ADD_FUNCTION_DEF
-       }, rpc m <| AddFunctionDef m.inputValue m.lastPos, DropFocus)
+    -- (ADD_FUNCTION_DEF, SubmitMsg, _) ->
+    --   ({ m | state = ADD_FUNCTION_DEF
+    --    }, rpc m <| AddFunctionDef m.inputValue m.lastPos, DropFocus)
 
-    (ADD_FUNCTION_CALL, SubmitMsg, _) ->
-      ({ m | state = ADD_FUNCTION_CALL
-       }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
+    -- (ADD_FUNCTION_CALL, SubmitMsg, _) ->
+    --   ({ m | state = ADD_FUNCTION_CALL
+    --    }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
 
-    (ADD_VALUE, SubmitMsg, _) ->
-      ({ m | state = ADD_VALUE
-       }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
+    -- (ADD_VALUE, SubmitMsg, _) ->
+    --   ({ m | state = ADD_VALUE
+    --    }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
 
-    (ADD_DS, SubmitMsg, _) ->
-      ({ m | state = ADD_DS_FIELD_NAME
-       }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
+    -- (ADD_DS, SubmitMsg, _) ->
+    --   ({ m | state = ADD_DS_FIELD_NAME
+    --    }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
 
-    (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
-      if m.inputValue == ""
-      then -- the DS has all its fields
-        ({ m | state = ADD_FUNCTION_CALL
-             , inputValue = ""
-         }, Cmd.none, NoFocus)
-      else  -- save the field name, we'll submit it later the type
-        ({ m | state = ADD_DS_FIELD_TYPE
-             , tempFieldName = m.inputValue
-         }, Cmd.none, Focus)
+    -- (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
+    --   if m.inputValue == ""
+    --   then -- the DS has all its fields
+    --     ({ m | state = ADD_FUNCTION_CALL
+    --          , inputValue = ""
+    --      }, Cmd.none, NoFocus)
+    --   else  -- save the field name, we'll submit it later the type
+    --     ({ m | state = ADD_DS_FIELD_TYPE
+    --          , tempFieldName = m.inputValue
+    --      }, Cmd.none, Focus)
 
-    (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
-      ({ m | state = ADD_DS_FIELD_NAME
-       }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
+    -- (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
+    --   ({ m | state = ADD_DS_FIELD_NAME
+    --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
 
-    (_, RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
+    (RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
       -- if the new cursor is blank, keep the old cursor if it's valid
-      let newFocus = if m.state == ADD_DS_FIELD_NAME then Focus else DropFocus
+      let newFocus = if True
+                     -- m.state == ADD_DS_FIELD_NAME
+                     then Focus else DropFocus
       in ({ m | nodes = nodes
               , edges = edges
               , cursor = cursor
               , live = live
           }, Cmd.none, newFocus )
 
-    (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
+    (RPCCallBack (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-           , state = ADD_FUNCTION_CALL
+           -- , state = ADD_FUNCTION_CALL
        }, Cmd.none, NoFocus)
 
-    (_, FocusResult (Ok ()), _) ->
+    (FocusResult (Ok ()), _) ->
       -- Yay, you focused a field! Ignore.
       (m, Cmd.none, NoFocus)
 
-    (_, InputMsg target, _) ->
+    (InputMsg target, _) ->
       -- Syncs the form with the model. The actual submit is in SubmitMsg
       ({ m | inputValue = target
        }, Cmd.none, NoFocus)
