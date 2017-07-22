@@ -9,6 +9,7 @@ and dval = DInt of int
          | DStr of string
          | DChar of char
          | DFloat of float
+         | DIncomplete
 
 module SMap = Core.String.Map
 type param_map = dval SMap.t
@@ -39,6 +40,7 @@ let get_type (dv : dval) : string =
   | DStr _ -> "String"
   | DFloat _ -> "Float"
   | DChar _ -> "Char"
+  | DIncomplete -> "n/a"
 
 and to_repr (dv : dval) : string =
   match dv with
@@ -46,6 +48,7 @@ and to_repr (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
+  | DIncomplete -> "<incomplete>"
 
 
 
@@ -67,7 +70,7 @@ let exe (fn : fn) (args : param_map) : dval =
   (* TODO: we're going to have to use named params before the currying works properly *)
   if SMap.length args < List.length fn.parameters then
     (* If there aren't enough parameters, curry it *)
-    failwith "todo"
+    DIncomplete
   else
     let args = List.map (fun k -> SMap.find_exn args k) fn.parameters in
     fn.func args
