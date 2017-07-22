@@ -185,6 +185,7 @@ let json2op (json : json) : op =
     match optype with
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
     | "add_function_call" -> Add_fn_call (str "name", id, loc ())
+    | "add_function_def" -> Add_fn_def (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (int "id", loc ())
     | "add_edge" -> Add_edge (int "src", int "target", str "param")
