@@ -5,7 +5,7 @@ module Map = Core.Map.Poly
 (* ------------------------- *)
 type fn = { name : string
           ; parameters : string list
-          ; func : (dval list) -> dval
+          ; func : ((dval list) -> dval)
           ; partials : (dval list)
           }
 and dval = DInt of int
@@ -44,27 +44,31 @@ let get_type (dv : dval) : string =
       "Function"
     else "Partial"
 
-let rec to_repr (dv : dval) : string =
+let rec fn_repr fn =
+  let (prefix, suffix) = if fn.partials <> [] then
+      let partials = fn.partials
+                     |> List.map to_repr
+                     |> String.concat ", "
+      in "Fn", " partially applied with: [" ^ partials ^ "]"
+    else
+      "Fn", ""
+  in prefix
+     ^ " "
+     ^ fn.name
+     ^ "("
+     ^ (String.concat ", " fn.parameters)
+     ^ ")"
+     ^ suffix
+
+and to_repr (dv : dval) : string =
   match dv with
   | DInt i -> string_of_int i
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
-  | DFn fn ->
-    let (prefix, suffix) = if fn.partials <> [] then
-        let partials = fn.partials
-                       |> List.map to_repr
-                       |> String.concat ", "
-        in "Fn", " partially applied with: [" ^ partials ^ "]"
-      else
-        "Fn", ""
-    in prefix
-       ^ " "
-       ^ fn.name
-       ^ "("
-       ^ (String.concat ", " fn.parameters)
-       ^ ")"
-       ^ suffix
+  | DFn fn -> fn_repr fn
+
+
 
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"
@@ -74,6 +78,8 @@ let to_char (dv : dval) : char =
   | DChar c -> c
   | _ -> Exception.raise "Not a char"
 
+let equal_fn (a: fn) (b: fn) : bool = (fn_repr a) = (fn_repr b)
+let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 
 
 (* ------------------------- *)

@@ -1,7 +1,7 @@
 
-type loc = { x: int; y: int}
-type id = int
-type param = string
+type loc = { x: int; y: int} [@@deriving eq]
+type id = int [@@deriving eq]
+type param = string [@@deriving eq]
 type dval = Runtime.dval
 
 class virtual node id loc =
@@ -72,3 +72,9 @@ class datastore table id loc =
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
+
+let equal_node (a:node) (b:node) =
+  print_endline "calling equals node";
+  a#id == b#id
+
+let show_node (a:node) (b:node) = "<node todo>"

@@ -1,9 +1,9 @@
 open Util
 
-type id = Node.id
-type loc = Node.loc
-type param = Node.param
-type dval = Runtime.dval
+type id = Node.id [@@deriving eq]
+type loc = Node.loc [@@deriving eq]
+type param = Node.param [@@deriving eq]
+type dval = Runtime.dval [@@deriving eq]
 
 module Map = Core.Map.Poly
 type json = Yojson.Basic.json
@@ -24,6 +24,9 @@ type op = Add_fn of string * id * loc
         | Delete_edge of id * id * param
         | Clear_edges of id
         | Select_node of id
+[@@deriving eq]
+
+let equal_nodemap a b = true
 
 type nodemap = (Node.id, Node.node) Map.t
 type targetpair = (Node.id * param)
