@@ -5,7 +5,8 @@ type loc = Node.loc [@@deriving eq]
 type param = Node.param [@@deriving eq]
 type dval = Runtime.dval [@@deriving eq]
 
-module Map = Core.Map.Poly
+module IMap = Core.Int.Map
+module SMap = Core.Int.Map
 type json = Yojson.Basic.json
 module J = Yojson.Basic.Util
 
@@ -26,9 +27,9 @@ type op = Add_fn of string * id * loc
         | Select_node of id
 [@@deriving eq]
 
-let equal_nodemap m1 m2 = Map.equal Node.equal_node m1 m2
+let equal_nodemap m1 m2 = IMap.equal Node.equal_node m1 m2
 
-type nodemap = (Node.id, Node.node) Map.t
+type nodemap = (Node.node) IMap.t
 type targetpair = (Node.id * param)
 type graph = {
   name : string;
@@ -45,14 +46,14 @@ type graph = {
 let debug name (g : graph) : unit =
   inspecT "name" name;
   g.ops |> List.length |> Core.Int.to_string |> inspecT "ops";
-  g.nodes |> Core.Map.Poly.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspecT "nodes";
+  g.nodes |> IMap.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspecT "nodes";
   g.edges |> List.length |> Core.Int.to_string |> inspecT "nodes";
   ()
 
 let create (name : string) : graph =
   { name = name
   ; ops = []
-  ; nodes = Map.empty
+  ; nodes = IMap.empty
   ; edges = []
   ; cursor = None
   }
@@ -61,7 +62,7 @@ let create (name : string) : graph =
 (* Updating *)
 (* ------------------------- *)
 let add_node (node : Node.node) (g : graph) : graph =
-  { g with nodes = Map.add g.nodes ~key:(node#id) ~data:node;
+  { g with nodes = IMap.add g.nodes ~key:(node#id) ~data:node;
            cursor = Some node#id }
 
 let has_edge s t param (g : graph) : bool =
@@ -84,7 +85,7 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
 
 let get_node(id : id)  (g : graph) : Node.node =
-  Map.find_exn g.nodes id
+  IMap.find_exn g.nodes id
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   g |> get_node id |> (fun n -> n#update_loc loc);
@@ -103,7 +104,7 @@ let delete_edge s t param (g: graph) : graph =
 
 let delete_node id (g: graph) : graph =
   let g = clear_edges id g in
-  { g with nodes = Map.remove g.nodes id; cursor = None }
+  { g with nodes = IMap.remove g.nodes id; cursor = None }
 
 
 (* ------------------------- *)
@@ -274,7 +275,7 @@ let to_frontend_nodes g : json =
   `Assoc (
     List.map
       (fun n -> (Core.Int.to_string n#id, n#to_frontend))
-      (Map.data g.nodes)
+      (IMap.data g.nodes)
   )
 
 let to_frontend_edges g : json =
