@@ -39,6 +39,7 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.04.2/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/4.04.2/man:"
 ENV PERL5LIB "/home/dark/.opam/4.04.2/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
+ENV FORCE_BUILD 1
 RUN opam update
 RUN opam install core.v0.9.1 \
                  oasis.0.4.10 \
