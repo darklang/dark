@@ -69,7 +69,7 @@ class datastore table id loc =
   object
     inherit node id loc
     val table : string = table
-    method execute (_ : param_map) : dval = DStr "todo"
+    method execute (_ : param_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
