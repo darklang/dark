@@ -14,7 +14,8 @@ module J = Yojson.Basic.Util
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
-type op = Add_fn of string * id * loc
+type op = Add_fn_call of string * id * loc
+        | Add_fn_def of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
         (* id, name, type, is_list *)
@@ -137,9 +138,11 @@ let rec execute (id: id) (g: graph) : dval =
 let apply_op (op : op) ?(strict=true) (g : graph) : graph =
   g |>
   match op with
-  | Add_fn (name, id, loc) -> add_node (new Node.func name id loc strict)
+  | Add_fn_call (name, id, loc) -> add_node (new Node.func name id loc strict)
+  | Add_fn_def (_, id, loc) -> add_node (new Node.anon id loc)
   | Add_datastore (table, id, loc) -> add_node (new Node.datastore table id loc)
   | Add_value (expr, id, loc) -> add_node (new Node.value expr id loc)
+
   | Add_edge (src, target, param) -> add_edge src target param
   | Update_node_position (id, loc) -> update_node_position id loc
   | Delete_edge (s, t, param) -> delete_edge s t param
@@ -152,9 +155,8 @@ let add_op (op: op) ?(strict=true) (g: graph) : graph =
   let g = apply_op op g ~strict in
   { g with ops = g.ops @ [op]}
 
-
 let id_of = function
-  | Add_fn (_, id, _) -> id
+  | Add_fn_call (_, id, _) -> id
   | Add_datastore (_, id, _) -> id
   | Add_value (_, id, _) -> id
   | Update_node_position (id, _) -> id
@@ -182,7 +184,7 @@ let json2op (json : json) : op =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
     match optype with
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
-    | "add_function_call" -> Add_fn (str "name", id, loc ())
+    | "add_function_call" -> Add_fn_call (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (int "id", loc ())
     | "add_edge" -> Add_edge (int "src", int "target", str "param")
@@ -214,8 +216,10 @@ let op2json op : json =
   let x (loc : Node.loc) = int "x" loc.x in
   let y (loc : Node.loc) = int "y" loc.y in
   let (name, args) = match op with
-    | Add_fn (name, _id, loc) ->
+    | Add_fn_call (name, _id, loc) ->
       "add_function_call", [str "name" name; id _id; x loc; y loc]
+    | Add_fn_def (name, _id, loc) ->
+      "add_function_def", [str "name" name; id _id; x loc; y loc]
     | Add_datastore (name, _id, loc) ->
       "add_datastore", [str "name" name; id _id; x loc; y loc]
     | Add_value (expr, _id, loc) ->

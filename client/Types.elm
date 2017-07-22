@@ -69,6 +69,7 @@ type RPC
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos
+    | AddFunctionDef Name Pos
     | AddValue String Pos
     | UpdateNodePosition ID -- no pos cause it's in the node
     | AddEdge ID (ID, ParamName)
@@ -78,7 +79,8 @@ type RPC
     | RemoveLastField ID
 
 type State
-    = ADD_FUNCTION
+    = ADD_FUNCTION_CALL
+    | ADD_FUNCTION_DEF
     | ADD_DS
     | ADD_DS_FIELD_NAME
     | ADD_DS_FIELD_TYPE

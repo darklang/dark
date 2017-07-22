@@ -38,7 +38,7 @@ init = let m = { nodes = Dict.empty
                , edges = []
                , cursor = Nothing
                , live = Nothing
-               , state = ADD_FUNCTION
+               , state = ADD_FUNCTION_CALL
                , errors = ["None"]
                , inputValue = ""
                , focused = False
@@ -78,10 +78,12 @@ updateKeyPress m code cursor =
          (m, rpc m <| ClearEdges id, NoFocus)
        ('L', _, Just id) ->
          (m, rpc m <| RemoveLastField id, NoFocus)
+       ('Q', _, _) ->
+         ({m | state = ADD_FUNCTION_DEF}, Cmd.none, Focus)
        ('A', _, _) ->
          ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
        ('F', _, _) ->
-         ({ m | state = ADD_FUNCTION}, Cmd.none, NoFocus)
+         ({ m | state = ADD_FUNCTION_CALL}, Cmd.none, NoFocus)
        ('V', _, _) ->
          ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
        ('D', _, _) ->
@@ -108,7 +110,7 @@ update_ msg m =
       updateKeyPress m code cursor
 
     (_, NodeClick node, _) ->
-      ({ m | state = ADD_FUNCTION
+      ({ m | state = ADD_FUNCTION_CALL
            , cursor = Just node.id
        }, Cmd.none, DropFocus)
 
@@ -155,9 +157,14 @@ update_ msg m =
     (_, DragSlotStop _, _) ->
       ({ m | drag = NoDrag}, Cmd.none, NoFocus)
 
-    (ADD_FUNCTION, SubmitMsg, _) ->
-      ({ m | state = ADD_FUNCTION
+    (ADD_FUNCTION_DEF, SubmitMsg, _) ->
+      ({ m | state = ADD_FUNCTION_DEF
+       }, rpc m <| AddFunctionDef m.inputValue m.lastPos, DropFocus)
+
+    (ADD_FUNCTION_CALL, SubmitMsg, _) ->
+      ({ m | state = ADD_FUNCTION_CALL
        }, rpc m <| AddFunctionCall m.inputValue m.lastPos, DropFocus)
+
     (ADD_VALUE, SubmitMsg, _) ->
       ({ m | state = ADD_VALUE
        }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
@@ -169,7 +176,7 @@ update_ msg m =
     (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
       if m.inputValue == ""
       then -- the DS has all its fields
-        ({ m | state = ADD_FUNCTION
+        ({ m | state = ADD_FUNCTION_CALL
              , inputValue = ""
          }, Cmd.none, NoFocus)
       else  -- save the field name, we'll submit it later the type
@@ -192,7 +199,7 @@ update_ msg m =
 
     (_, RPCCallBack (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-           , state = ADD_FUNCTION
+           , state = ADD_FUNCTION_CALL
        }, Cmd.none, NoFocus)
 
     (_, FocusResult (Ok ()), _) ->

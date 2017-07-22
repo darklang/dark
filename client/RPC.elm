@@ -34,6 +34,10 @@ encodeRPC m call =
                                        JSE.object [ ("name", JSE.string name)
                                                   , ("x", JSE.int x)
                                                   , ("y", JSE.int y)])
+      AddFunctionDef name {x,y} -> ("add_function_def",
+                                       JSE.object [ ("name", JSE.string name)
+                                                  , ("x", JSE.int x)
+                                                  , ("y", JSE.int y)])
       AddValue str {x,y} -> ("add_value",
                                JSE.object [ ("value", JSE.string str)
                                           , ("x", JSE.int x)

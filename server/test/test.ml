@@ -26,7 +26,7 @@ let execute_ops (ops : G.op list) (result : G.op) =
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
-  let add = G.Add_fn ("Int_sub", fid (), fl) in
+  let add = G.Add_fn_call ("Int_sub", fid (), fl) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
@@ -37,7 +37,7 @@ let t_graph_param_order _ =
   assert_equal r2 (DInt 2)
 
 let t_load_save _ =
-  let add = G.Add_fn ("Int_sub", fid (), fl) in
+  let add = G.Add_fn_call ("Int_sub", fid (), fl) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in

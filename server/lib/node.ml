@@ -65,6 +65,16 @@ class func name id loc (strict:bool) =
                  self#parameters))]
   end
 
+class anon id loc =
+  object
+    inherit node id loc
+    method name = "<anon>"
+    method execute (_: param_map) : dval =
+      DStr "todo: execute anon fn"
+    method tipe = "definition"
+    method! parameters = ["todo"]
+  end
+
 class datastore table id loc =
   object
     inherit node id loc
