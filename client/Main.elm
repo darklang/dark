@@ -79,7 +79,7 @@ updateKeyPress m code cursor =
        ('L', _, Just id) ->
          (m, rpc m <| RemoveLastField id, NoFocus)
        ('Q', _, _) ->
-         ({m | state = ADD_FUNCTION_DEF}, Cmd.none, Focus)
+         ({m | state = ADD_FUNCTION_DEF}, Cmd.none, NoFocus)
        ('A', _, _) ->
          ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
        ('F', _, _) ->
