@@ -1,9 +1,10 @@
 module View exposing (view)
 
+import Char
 import Dict exposing (Dict)
+import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Set
 import List.Extra
 
 import Svg
@@ -52,7 +53,7 @@ viewLive live = Html.div [Attrs.id "darkLive"]
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let allNodes = List.map (viewNode m) (Dict.values m.nodes)
+    let allNodes = List.indexedMap (\i n -> viewNode m n i) (Util.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
         mDragEdge = viewDragEdge m.drag m.lastPos
         dragEdge = case mDragEdge of
@@ -128,8 +129,8 @@ slotIsConnected m target param =
 -- TODO: Allow selecting an edge, then highlight it and show its source and target
 -- TODO: If there are default parameters, show them inline in the node body
 -- TODO: could maybe use little icons to denote the params
-viewNode : Model -> Node -> Html.Html Msg
-viewNode m n =
+viewNode : Model -> Node -> Int -> Html.Html Msg
+viewNode m n i =
   let
       -- params
       slotHandler name = (decodeClickEvent (DragSlotStart n name))
@@ -143,6 +144,7 @@ viewNode m n =
                        [Html.text "◉"]
 
       -- header
+      letter = i |> (+) 97 |> Char.fromCode |> String.fromChar
       viewHeader = Html.div
                    [Attrs.class "header"]
                      [ Html.span
@@ -150,7 +152,7 @@ viewNode m n =
                          (List.map viewParam n.parameters)
                      , Html.span
                          [Attrs.class "letter"]
-                         [Html.text n.letter]
+                         [Html.text letter]
                      ]
 
       -- heading

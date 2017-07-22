@@ -252,18 +252,9 @@ findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
  {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
 
-orderedNodes : Model -> List Node
-orderedNodes m =
-  m.nodes
-    |> Dict.values
-    |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
-    |> List.sortWith Ordering.natural
-    |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
-
-
 nextNode : Model -> Cursor -> Cursor
 nextNode m cursor =
-  let nodes = orderedNodes m
+  let nodes = Util.orderedNodes m
       first = nodes |> List.head |> Maybe.map (\n -> n.id)
   in
     case cursor of

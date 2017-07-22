@@ -82,7 +82,6 @@ decodeNode =
                      "value" -> Value
                      "page" -> Page
                      _ -> Debug.crash "shouldnt happen"
-          , letter = "a"
           , pos = {x=x, y=y}
           }
   in JSDP.decode toNode
