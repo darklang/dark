@@ -40,6 +40,7 @@ form {
   font-size: 14px;
   background: #272728;
   display: inline-block;
+  padding-top: 12px;
 }
 
 .node.functioncall .name, .node.value .name, node.page .name {
@@ -90,16 +91,28 @@ form {
 	line-height: 1.5em;
 }
 
+.header {
+  z-index: 10; /* more than nodes */
+  top: -10px;
+  float: left;
+  position: absolute;
+  left: 0;
+  width:100%;
+}
+
 .parameters {
   cursor: default;
   color: red;
   font-size: 8px;
-  z-index: 10; /* more than nodes */
   font-weight: bold;
-  position: relative;
-  top: -5px;
 }
 
 .parameters .connected {
   color: #888;
+}
+
+.letter {
+  color: yellow;
+  font-size: 14px;
+  float: right;
 }

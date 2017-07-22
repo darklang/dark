@@ -82,7 +82,8 @@ decodeNode =
                      "value" -> Value
                      "page" -> Page
                      _ -> Debug.crash "shouldnt happen"
-          , pos={x=x, y=y}
+          , letter = "a"
+          , pos = {x=x, y=y}
           }
   in JSDP.decode toNode
     |> JSDP.required "name" JSD.string

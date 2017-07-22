@@ -125,7 +125,6 @@ slotIsConnected m target param =
   in
     List.any identity all
 
--- TODO: if the param is connected, show in grey
 -- TODO: Allow selecting an edge, then highlight it and show its source and target
 -- TODO: If there are default parameters, show them inline in the node body
 -- TODO: could maybe use little icons to denote the params
@@ -142,9 +141,17 @@ viewNode m n =
                        , Attrs.title name
                        , Attrs.class (connected name)]
                        [Html.text "◉"]
-      viewParams = Html.div
-                   [Attrs.class "parameters"]
-                   (List.map viewParam n.parameters)
+
+      -- header
+      viewHeader = Html.div
+                   [Attrs.class "header"]
+                     [ Html.span
+                         [Attrs.class "parameters"]
+                         (List.map viewParam n.parameters)
+                     , Html.span
+                         [Attrs.class "letter"]
+                         [Html.text n.letter]
+                     ]
 
       -- heading
       name = synonym n.name
@@ -177,7 +184,7 @@ viewNode m n =
       -- inner node
       inner = Html.div
               (width :: (Attrs.class "inner") :: events)
-              (heading :: list)
+              (viewHeader :: heading :: list)
 
 
       -- outer node wrapper
@@ -190,7 +197,7 @@ viewNode m n =
 
       wrapper = Html.span
                 [ Attrs.class classes, width]
-                [ viewParams, inner ]
+                [ inner ]
   in
     placeHtml n.pos wrapper
 
