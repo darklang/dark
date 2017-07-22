@@ -77,7 +77,8 @@ decodeNode =
           , parameters = parameters
           , tipe = case tipe of
                      "datastore" -> Datastore
-                     "function" -> Function
+                     "function" -> FunctionCall
+                     "definition" -> FunctionDef
                      "value" -> Value
                      "page" -> Page
                      _ -> Debug.crash "shouldnt happen"

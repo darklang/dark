@@ -22,7 +22,8 @@ type alias MouseEvent = {pos: Mouse.Position, button: Int}
 type alias Offset = {x: Int, y: Int, offsetCheck: Int}
 type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
 
-type Type = Function
+type Type = FunctionCall
+          | FunctionDef
           | Datastore
           | Value
           | Page

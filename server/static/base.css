@@ -42,19 +42,19 @@ form {
   display: inline-block;
 }
 
-.node.function .name, .node.value .name, node.page .name {
+.node.functioncall .name, .node.value .name, node.page .name {
   display: block;
   text-align: center;
 }
 
-.node.function .inner, .node.value .inner {
+.node.functioncall .inner, .node.value .inner {
   border-radius: 2em;
   padding: 0.3em 0.3em;
   display: block;
   z-index: 0; /* less than parameters, must not be negative (else events stop working */
 }
 
-.node.function.selected .inner, .node.value.selected .inner {
+.node.functioncall.selected .inner, .node.value.selected .inner {
   border-radius: 0.5em;
 }
 
