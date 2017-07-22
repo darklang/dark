@@ -27,9 +27,7 @@ type op = Add_fn of string * id * loc
         | Select_node of id
 [@@deriving eq]
 
-let equal_nodemap m1 m2 = IMap.equal Node.equal_node m1 m2
-
-type nodemap = (Node.node) IMap.t
+type nodemap = (Node.node) IMap.t [@@deriving eq]
 type targetpair = (Node.id * param)
 type graph = {
   name : string;
