@@ -71,8 +71,8 @@ let server =
              -> `OK, static_handler p
            | _ -> `Not_implemented, "app routing"
          with
-         | (Exception.UserException str) ->
-            `Not_implemented, "{\"error\": \"" ^ str ^ "\"}")
+         | e -> Printexc.print_backtrace stderr;
+           raise e)
       >>= (fun (status, body) -> S.respond_string ~status ~body ())
     in
     ()
