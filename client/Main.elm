@@ -145,21 +145,11 @@ update_ msg m =
     --   ({ m | state = ADD_FUNCTION_DEF
     --    }, rpc m <| AddFunctionDef m.inputValue m.lastPos, DropFocus)
 
-    -- (ADD_VALUE, SubmitMsg, _) ->
-    --   ({ m | state = ADD_VALUE
-    --    }, rpc m <| AddValue m.inputValue m.lastPos, DropFocus)
-
     -- (ADD_DS, SubmitMsg, _) ->
     --   ({ m | state = ADD_DS_FIELD_NAME
     --    }, rpc m <| AddDatastore m.inputValue m.lastPos, DropFocus)
 
     -- (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
-    --   if m.inputValue == ""
-    --   then -- the DS has all its fields
-    --     ({ m | state = ADD_FUNCTION_CALL
-    --          , inputValue = ""
-    --      }, Cmd.none, NoFocus)
-    --   else  -- save the field name, we'll submit it later the type
     --     ({ m | state = ADD_DS_FIELD_TYPE
     --          , tempFieldName = m.inputValue
     --      }, Cmd.none, Focus)
@@ -167,8 +157,6 @@ update_ msg m =
     -- (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
     --   ({ m | state = ADD_DS_FIELD_NAME
     --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
-       -- (_, 8, Just id) -> -- backspace
-       --   (m, rpc m <| DeleteNode id, NoFocus)
        -- ('C', _, Just id) ->
        --   (m, rpc m <| ClearEdges id, NoFocus)
        -- ('L', _, Just id) ->
