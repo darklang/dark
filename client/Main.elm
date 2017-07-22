@@ -6,6 +6,7 @@ import Char
 import Dict exposing (Dict)
 import Http
 import Html
+import Regex
 
 -- lib
 import Keyboard
@@ -22,6 +23,9 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import View
 import Consts
+
+rematch : String -> String -> Bool
+rematch re s = Regex.contains (Regex.regex re) s
 
 
 -- TOP-LEVEL
@@ -169,30 +173,20 @@ update_ msg m =
        --   (m, rpc m <| ClearEdges id, NoFocus)
        -- ('L', _, Just id) ->
        --   (m, rpc m <| RemoveLastField id, NoFocus)
-       -- ('Q', _, _) ->
-       --   ({m | state = ADD_FUNCTION_DEF}, Cmd.none, NoFocus)
-       -- ('A', _, _) ->
-       --   ({m | state = ADD_DS_FIELD_NAME}, Cmd.none, Focus)
-       -- ('F', _, _) ->
-       --   ({ m | state = ADD_FUNCTION_CALL}, Cmd.none, NoFocus)
-       -- ('V', _, _) ->
-       --   ({ m | state = ADD_VALUE}, Cmd.none, NoFocus)
-       -- ('D', _, _) ->
-       --   ({ m | state = ADD_DS}, Cmd.none, NoFocus)
-       -- ('N', _, cursor) ->
-       --   (m, (case nextNode m cursor of
-       --          Just id -> rpc m <| SelectNode id
-       --          Nothing -> Cmd.none), NoFocus)
 
     (SubmitMsg, cursor) ->
       let cmd =
-        case (m.inputValue, cursor) of
-          ("+Int_add", _) -> rpc m <| AddFunctionCall "Int_add" m.lastPos
-          ("rm", Just id) -> rpc m <| DeleteNode id
-          ("n", c) -> case nextNode m c of
+        case (String.uncons m.inputValue, m.inputValue, cursor) of
+          (Just ('+', name), _, _) ->
+            if (rematch "^[a-zA-Z].*" name) then
+              rpc m <| AddFunctionCall name m.lastPos
+            else
+              rpc m <| AddValue name m.lastPos
+          (_, "rm", Just id) -> rpc m <| DeleteNode id
+          (_, "n", c) -> case nextNode m c of
                         Just id -> rpc m <| SelectNode id
                         Nothing -> Cmd.none
-          (_, _) -> Cmd.none
+          (_, _, _) -> Cmd.none
       in
         (m, cmd, Focus)
 
