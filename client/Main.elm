@@ -188,6 +188,13 @@ update_ msg m =
     --   ({ m | state = ADD_DS_FIELD_NAME
     --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue, Focus)
 
+    (SubmitMsg, _) ->
+      (m, case m.inputValue of
+             "+Int_add" -> rpc m <| AddFunctionCall "Int_add" m.lastPos
+             _ -> Cmd.none
+      , Focus)
+
+
     (RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
       -- if the new cursor is blank, keep the old cursor if it's valid
       let newFocus = if True
