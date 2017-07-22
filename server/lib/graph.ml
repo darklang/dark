@@ -26,7 +26,7 @@ type op = Add_fn of string * id * loc
         | Select_node of id
 [@@deriving eq]
 
-let equal_nodemap a b = true
+let equal_nodemap m1 m2 = Map.equal Node.equal_node m1 m2
 
 type nodemap = (Node.id, Node.node) Map.t
 type targetpair = (Node.id * param)

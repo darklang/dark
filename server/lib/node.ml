@@ -74,7 +74,6 @@ class datastore table id loc =
   end
 
 let equal_node (a:node) (b:node) =
-  print_endline "calling equals node";
   a#id == b#id
 
-let show_node (a:node) (b:node) = "<node todo>"
+let show_node (_:node) (_:node) = "<node todo>"
