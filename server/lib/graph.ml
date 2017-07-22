@@ -6,7 +6,7 @@ type param = Node.param [@@deriving eq]
 type dval = Runtime.dval [@@deriving eq]
 
 module IMap = Core.Int.Map
-module SMap = Core.Int.Map
+module SMap = Core.String.Map
 type json = Yojson.Basic.json
 module J = Yojson.Basic.Util
 
@@ -126,8 +126,8 @@ let get_parents id g : (param * id) list =
 let rec execute (id: id) (g: graph) : dval =
   let n = get_node id g in
   (* We dont match up the arguments to the parameter names, so we're just applying this in whatever order we happen to have added things *)
-  let args = List.map (fun (p,s) -> (p, execute s g)) (get_parents id g) in
-  let args = List.map (fun p -> List.assoc p args) n#parameters in
+  let args : (param * dval) list = List.map (fun (p,s) -> (p, execute s g)) (get_parents id g) in
+  let args : Runtime.param_map = SMap.of_alist_exn args in
   n#execute args
 
 

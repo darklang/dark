@@ -2,10 +2,14 @@ open OUnit2
 
 module G = Graph
 module Map = Core.Map.Poly
+module RT = Runtime
 
 let t_param_order _ =
   let node = new Node.func "Int_sub" 1 {x=1; y=1} true in
-  assert_equal (node#execute [DInt 1; DInt 1]) (DInt 0)
+  assert_equal (node#execute
+                  (Core.String.Map.of_alist_exn [ ("a", RT.DInt 1)
+                                                ; ("b", RT.DInt 1)]))
+    (RT.DInt 0)
 
 let fl : Node.loc = {x=0; y=0}
 

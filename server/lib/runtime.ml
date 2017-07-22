@@ -1,5 +1,3 @@
-module Map = Core.Map.Poly
-
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
@@ -11,6 +9,9 @@ and dval = DInt of int
          | DStr of string
          | DChar of char
          | DFloat of float
+
+module SMap = Core.String.Map
+type param_map = dval SMap.t
 
 let parse (str : string) : dval =
   if String.equal str "" then
@@ -62,12 +63,13 @@ let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
-let exe (fn : fn) (args : dval list) : dval =
+let exe (fn : fn) (args : param_map) : dval =
   (* TODO: we're going to have to use named params before the currying works properly *)
-  if List.length args < List.length fn.parameters then
+  if SMap.length args < List.length fn.parameters then
     (* If there aren't enough parameters, curry it *)
     failwith "todo"
   else
+    let args = List.map (fun k -> SMap.find_exn args k) fn.parameters in
     fn.func args
 
 let exe_dv (fn : dval) (_: dval list) : dval =
