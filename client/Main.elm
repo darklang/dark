@@ -176,7 +176,10 @@ update_ msg m =
                 else
                   rpc m <| AddValue name m.lastPos
 
-              (_, "/rm", _, Just id) -> rpc m <| DeleteNode id
+              (_, "/rm", [], Just id) -> rpc m <| DeleteNode id
+
+              (_, "/rm", [n], _) ->
+                rpc m <| DeleteNode (Util.fromLetter m n).id
 
               (_, "/edge", [src, target, param], _) ->
                 let s = (Util.fromLetter m src)
