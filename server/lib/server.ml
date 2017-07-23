@@ -70,7 +70,8 @@ let server =
     in
 
     let route_handler _ =
-      req_body |> Cohttp_lwt_body.to_string >|=
+      req_body |> Cohttp_lwt_body.to_string >>=
+      Lwt.wrap1
       (fun req_body ->
          try
            match (Uri.path uri) with

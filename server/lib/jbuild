@@ -6,7 +6,7 @@
     (public_name dark)
     (modes (byte))
     ;;; using ppx_jane causes problems
-    (preprocess (pps (ppx_jane ppx_pipebang ppx_deriving.show ppx_deriving.eq)))
+    (preprocess (pps (ppx_jane ppx_pipebang ppx_deriving.show ppx_deriving.eq lwt.ppx)))
     (wrapped false)
     (libraries (core cohttp.lwt yojson threads postgresql ppx_derivers))
   )

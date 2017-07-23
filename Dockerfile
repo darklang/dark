@@ -44,7 +44,7 @@ RUN opam update
 RUN opam install core.v0.9.1 \
                  oasis.0.4.10 \
                  cohttp.0.22.0 \
-                 lwt.2.7.1 \
+                 lwt.3.1.0 \
                  yojson.1.3.3 \
                  postgresql.4.0.1 \
                  oUnit.2.0.0 \
