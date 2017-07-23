@@ -55,7 +55,14 @@ RUN git clone https://github.com/whitequark/ppx_deriving \
    && git fetch origin +refs/pull/141/merge \
    && git checkout -qf FETCH_HEAD
 RUN cd ppx_deriving && make
-
 RUN opam pin add ppx_deriving ./ppx_deriving
+
+USER root
+RUN apt-get install locales
+RUN locale-gen en_US.UTF-8
+USER dark
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+
 
 CMD ["app", "scripts", "builder"]
