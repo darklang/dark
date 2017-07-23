@@ -32,7 +32,7 @@ let server =
       G.save g;
       g
       |> Graph.to_frontend
-      |> Yojson.Basic.to_string
+      |> Yojson.Basic.pretty_to_string ~std:true
       |> Util.inspect "response: "
     in
 
