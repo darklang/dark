@@ -1,3 +1,5 @@
+open Core
+
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
@@ -11,20 +13,20 @@ and dval = DInt of int
          | DFloat of float
          | DIncomplete
 
-module SMap = Core.String.Map
+module SMap = String.Map
 type param_map = dval SMap.t
 
 let parse (str : string) : dval =
   if String.equal str "" then
     "Values cannot be blank" |> Exception.raise
   else if String.length str >= 2
-       && Char.equal '"' (Core.String.nget str 0)
-       && Char.equal '"' (Core.String.nget str (-1))
-  then DStr (Core.String.slice str 1 (-1))
+       && Char.equal '"' (String.nget str 0)
+       && Char.equal '"' (String.nget str (-1))
+  then DStr (String.slice str 1 (-1))
   else if String.length str = 3
-       && Char.equal '\'' (Core.String.nget str 0)
-       && Char.equal '\'' (Core.String.nget str (-1))
-  then DChar (Core.String.get str 1)
+       && Char.equal '\'' (String.nget str 0)
+       && Char.equal '\'' (String.nget str (-1))
+  then DChar (String.get str 1)
   else
     try str |> int_of_string |> DInt
     with
@@ -47,7 +49,7 @@ and to_repr (dv : dval) : string =
   | DInt i -> string_of_int i
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
-  | DChar c -> "'" ^ (Core.Char.to_string c) ^ "'"
+  | DChar c -> "'" ^ (Char.to_string c) ^ "'"
   | DIncomplete -> "<incomplete>"
 
 
@@ -72,7 +74,7 @@ let exe (fn : fn) (args : param_map) : dval =
     (* If there aren't enough parameters, curry it *)
     DIncomplete
   else
-    let args = List.map (fun k -> SMap.find_exn args k) fn.parameters in
+    let args = List.map ~f:(SMap.find_exn args) fn.parameters in
     fn.func args
 
 let exe_dv (fn : dval) (_: dval list) : dval =

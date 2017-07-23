@@ -1,3 +1,4 @@
+open Core
 open Util
 
 type id = Node.id [@@deriving eq]
@@ -5,8 +6,8 @@ type loc = Node.loc [@@deriving eq]
 type param = Node.param [@@deriving eq]
 type dval = Runtime.dval [@@deriving eq]
 
-module IMap = Core.Int.Map
-module SMap = Core.String.Map
+module IMap = Int.Map
+module SMap = String.Map
 type json = Yojson.Basic.json
 module J = Yojson.Basic.Util
 
@@ -44,9 +45,9 @@ type graph = {
 
 let debug name (g : graph) : unit =
   inspecT "name" name;
-  g.ops |> List.length |> Core.Int.to_string |> inspecT "ops";
-  g.nodes |> IMap.count ~f:(fun _ -> true) |> Core.Int.to_string |> inspecT "nodes";
-  g.edges |> List.length |> Core.Int.to_string |> inspecT "nodes";
+  g.ops |> List.length |> Int.to_string |> inspecT "ops";
+  g.nodes |> IMap.length |> Int.to_string |> inspecT "nodes";
+  g.edges |> List.length |> Int.to_string |> inspecT "nodes";
   ()
 
 let create (name : string) : graph =
@@ -65,7 +66,7 @@ let add_node (node : Node.node) (g : graph) : graph =
            cursor = Some node#id }
 
 let has_edge s t param (g : graph) : bool =
-  List.exists (fun a -> a = (s, t, param)) g.edges
+  List.exists ~f:(fun a -> a = (s, t, param)) g.edges
 
 let get_node (id : id)  (g : graph) : Node.node =
   IMap.find_exn g.nodes id
@@ -78,7 +79,7 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
 
   (* Check the target has that parameter *)
   let n = get_node t g in
-  if not (List.mem param n#parameters) then
+  if not (List.mem ~equal:String.equal n#parameters param) then
     Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
 
   { g with edges = (s, t, param) :: g.edges }
@@ -100,11 +101,11 @@ let select_node (id: id) (g: graph) : graph =
 
 let clear_edges (id: id) (g: graph) : graph =
   let f (s, t, _) = s <> id && t <> id in
-  { g with edges = List.filter f g.edges }
+  { g with edges = List.filter ~f:f g.edges }
 
 let delete_edge s t param (g: graph) : graph =
   let f a = a <> (s, t, param) in
-  { g with edges = List.filter f g.edges }
+  { g with edges = List.filter ~f:f g.edges }
 
 let delete_node id (g: graph) : graph =
   let g = clear_edges id g in
@@ -117,13 +118,13 @@ let delete_node id (g: graph) : graph =
 
 let get_children id g : (param * id) list =
   g.edges
-  |> List.filter (fun (s,_,_) -> s = id)
-  |> List.map (fun (_,t,p) -> (p,t))
+  |> List.filter ~f:(fun (s,_,_) -> s = id)
+  |> List.map ~f:(fun (_,t,p) -> (p,t))
 
 let get_parents id g : (param * id) list =
   g.edges
-  |> List.filter (fun (_,t,_) -> t = id)
-  |> List.map (fun (s,_,p) -> (p,s))
+  |> List.filter ~f:(fun (_,t,_) -> t = id)
+  |> List.map ~f:(fun (s,_,p) -> (p,s))
 
 
 (* ------------------------- *)
@@ -132,8 +133,8 @@ let get_parents id g : (param * id) list =
 let rec execute (id: id) (g: graph) : dval =
   let n = get_node id g in
   (* We dont match up the arguments to the parameter names, so we're just applying this in whatever order we happen to have added things *)
-  let args : (param * dval) list = List.map (fun (p,s) -> (p, execute s g)) (get_parents id g) in
-  let args : Runtime.param_map = SMap.of_alist_exn args in
+  let args = List.map ~f:(fun (p,s) -> (p, execute s g)) (get_parents id g) in
+  let args = SMap.of_alist_exn args in
   n#execute args
 
 
@@ -202,7 +203,7 @@ let json2op (json : json) : op =
     | "add_datastore_field" ->
 
       let (list, tipe) =
-        match Core.String.split_on_chars
+        match String.split_on_chars
                 (str "tipe") ~on:['['; ']'] with
         | ["["; s; "]"] -> (true, s)
         | [s] -> (false, s)
@@ -251,27 +252,27 @@ let op2json op : json =
 let load name : graph =
   let filename = "appdata/" ^ name ^ ".dark" in
   let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
-  let file = Unix.openfile filename flags 0o640 in
+  let file = Unix.openfile filename ~mode:flags ~perm:0o640 in
   let raw = Bytes.create 1000000 in
-  let count = Unix.read file raw 0 1000000 in
-  let str = Bytes.sub_string raw 0 count in
+  let count = Unix.read file ~buf:raw ~pos:0 ~len:1000000 in
+  let str = Caml.Bytes.sub_string raw 0 count in
   let str = if String.equal str "" then "[]" else str in
   let jsonops = Yojson.Basic.from_string str in
   let ops = match jsonops with
-  | `List ops -> List.map json2op ops
+  | `List ops -> List.map ~f:json2op ops
   | _ -> failwith "unexpected deserialization" in
-  List.fold_left (fun g op -> add_op op g ~strict:false) (create name) ops
+  List.fold_left ops ~f:(fun g op -> add_op op g ~strict:false) ~init:(create name)
 
 
 
 let save (g : graph) : unit =
-  let ops = List.map op2json g.ops in
+  let ops = List.map ~f:op2json g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let str = str ^ "\n" in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   let filename = "appdata/" ^ g.name ^ ".dark" in
-  let file = Unix.openfile filename flags 0o640 in
-  let _ = Unix.write file str 0 (String.length str) in
+  let file = Unix.openfile filename ~mode:flags ~perm:0o640 in
+  let _ = Unix.write file ~buf:str in
   Unix.close file
 
 
@@ -282,7 +283,7 @@ let save (g : graph) : unit =
 let to_frontend_nodes g : json =
   `Assoc (
     List.map
-      (fun n -> (Core.Int.to_string n#id, n#to_frontend))
+      ~f:(fun n -> (Int.to_string n#id, n#to_frontend))
       (IMap.data g.nodes)
   )
 
@@ -290,7 +291,7 @@ let to_frontend_edges g : json =
   let toobj = fun (s, t, p) -> `Assoc [ ("source", `Int s)
                                       ; ("target", `Int t)
                                       ; ("param", `String p)] in
-  `List (List.map toobj g.edges)
+  `List (List.map ~f:toobj g.edges)
 
 
 let to_frontend (g : graph) : json =

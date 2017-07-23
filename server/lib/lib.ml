@@ -1,3 +1,4 @@
+open Core
 open Runtime
 
 
@@ -9,8 +10,8 @@ type shortfn = { n : string
 (* TODO: use deriving here instead *)
 let expected (msg : string) (args : dval list) : dval =
   args
-  |> List.map to_error_repr
-  |> String.concat ", "
+  |> List.map ~f:to_error_repr
+  |> String.concat ~sep:", "
   |> Util.string_append ("Expected: " ^ msg ^ ", got: ")
   |> Exception.raise
 
@@ -57,33 +58,33 @@ let fns_list = [
   { n = "Char_code"
   ; p = ["c"]
   ; f = function
-      | [DChar c] -> c |> Char.code |> DInt
+      | [DChar c] -> c |> Char.to_int |> DInt
       | args -> expected "a char" args
   }
   ;
   { n = "Char_to_uppercase"
   ; p = ["c"]
   ; f = function
-      | [DChar c] -> c |> Char.code |> (-) 32 |> Char.chr |> DChar
+      | [DChar c] -> c |> Char.to_int |> (-) 32 |> Char.of_int_exn |> DChar
       | args -> expected "a char" args
   }
   ;
   { n = "Char_chr"
   ; p = ["i"]
   ; f = function
-      | [DInt i] -> i |> Char.chr |> DChar
+      | [DInt i] -> i |> Char.of_int_exn |> DChar
       | args -> expected "an char's integer ascii (todo: unicode) value" args
   }
 ]
 
-module SMap = Core.String.Map
+module SMap = String.Map
 
 type fnmap = fn SMap.t
 let fns : fnmap =
   let add_fn (m : fnmap) (s : shortfn) : fnmap =
     SMap.add m ~key:s.n
       ~data:{name = s.n; parameters = s.p; func = s.f} in
-  List.fold_left add_fn SMap.empty fns_list
+  List.fold_left ~f:add_fn ~init:SMap.empty fns_list
 
 (* Give access to other modules *)
 let get_fn (name : string) : fn option =
