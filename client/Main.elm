@@ -182,14 +182,13 @@ update_ msg m =
               (_, "/rm", [n], _) ->
                 rpc m <| [DeleteNode (l2id n)]
 
-              (_, "/rm", [n1, n2], _) ->
-                rpc m <| [ DeleteNode (l2id n1)
-                         , DeleteNode (l2id n2)]
+              (_, "/rm", args, _) ->
+                rpc m <| List.map (\n -> DeleteNode (l2id n)) args
 
               (_, "/clear", [], Just id) -> rpc m <| [ClearEdges id]
 
-              (_, "/clear", [n], _) ->
-                rpc m <| [ClearEdges (l2id n)]
+              (_, "/clear", args, _) ->
+                rpc m <| List.map (\n -> ClearEdges (l2id n)) args
 
               (_, "/edge", [src, target, param], _) ->
                   rpc m <| [AddEdge (l2id src) ((l2id target), param)]
