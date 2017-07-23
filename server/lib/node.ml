@@ -1,3 +1,4 @@
+open Core
 
 type loc = { x: int; y: int} [@@deriving eq]
 type id = int [@@deriving eq]
@@ -61,7 +62,7 @@ class func name id loc (strict:bool) =
     method! extra_fields =
       [("parameters",
         `List (List.map
-                 (fun s -> `String s)
+                 ~f:(fun s -> `String s)
                  self#parameters))]
   end
 
@@ -85,6 +86,6 @@ class datastore table id loc =
   end
 
 let equal_node (a:node) (b:node) =
-  a#id == b#id
+  a#id = b#id
 
 let show_node (_:node) (_:node) = "<node todo>"
