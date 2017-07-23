@@ -13,7 +13,7 @@ let slurp f =
     raise e
 
 let create_id (_ : unit) : int =
-  Random.int (Core.Int.pow 2 29)
+  Random.int (Int.pow 2 29)
 
 let inspecT (msg : string) (x : 'a) : unit =
   print_endline ("inspect: " ^ msg ^ ": " ^ x)

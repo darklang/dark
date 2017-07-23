@@ -53,7 +53,7 @@ class func name id loc (strict:bool) =
       | Some fn -> Runtime.exe fn args
       | None -> if strict then ignore @@ Lib.get_fn_exn name; DStr ""
     method! is_page = name = "Page_page"
-    method tipe = if (Core.String.is_substring ~substring:"page" name)
+    method tipe = if String.is_substring ~substring:"page" name
       then name
       else "function"
     method! parameters = match Lib.get_fn name with
