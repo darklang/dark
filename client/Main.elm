@@ -50,7 +50,7 @@ init = let m = { nodes = Dict.empty
                , drag = NoDrag
                , lastMsg = NoMsg
                }
-       in (m, rpc m <| LoadInitialGraph)
+       in (m, rpc m <| [LoadInitialGraph])
 
 
 -- UPDATE
@@ -119,7 +119,7 @@ update_ msg m =
 
     (DragNodeEnd id _, _) ->
       ({ m | drag = NoDrag
-       }, rpc m <| UpdateNodePosition id, NoFocus)
+       }, rpc m <| [UpdateNodePosition id], NoFocus)
 
     (DragSlotStart node param event, _) ->
       if event.button == Consts.leftButton
@@ -135,7 +135,7 @@ update_ msg m =
       case m.drag of
         DragSlot id param starting ->
           ({ m | drag = NoDrag}
-               , rpc m <| AddEdge node.id (id, param), NoFocus)
+               , rpc m <| [AddEdge node.id (id, param)], NoFocus)
         _ -> (m, Cmd.none, NoFocus)
 
     (DragSlotStop _, _) ->
@@ -166,40 +166,40 @@ update_ msg m =
       case String.words m.inputValue of
         [] -> (m, Cmd.none, Focus)
         first :: words ->
-          let cmd =
+          let l2id l = (Util.fromLetter m l).id
+              cmd =
             case (String.uncons first, Debug.log "first" first, Debug.log "words" words, cursor) of
 
               -- TODO: args here are edges to be added. Send them all in one go
               (Just ('+', name), _, [], _) ->
                 if (rematch "^[\"\'1-9].*" name) then
-                  rpc m <| AddValue name m.lastPos
+                  rpc m <| [AddValue name m.lastPos]
                 else
-                  rpc m <| AddFunctionCall name m.lastPos
+                  rpc m <| [AddFunctionCall name m.lastPos]
 
-              (_, "/rm", [], Just id) -> rpc m <| DeleteNode id
+              (_, "/rm", [], Just id) -> rpc m <| [DeleteNode id]
 
               (_, "/rm", [n], _) ->
-                rpc m <| DeleteNode (Util.fromLetter m n).id
+                rpc m <| [DeleteNode (l2id n)]
 
-              (_, "/clear", [], Just id) -> rpc m <| ClearEdges id
+              (_, "/rm", [n1, n2], _) ->
+                rpc m <| [ DeleteNode (l2id n1)
+                         , DeleteNode (l2id n2)]
+
+              (_, "/clear", [], Just id) -> rpc m <| [ClearEdges id]
 
               (_, "/clear", [n], _) ->
-                rpc m <| ClearEdges (Util.fromLetter m n).id
+                rpc m <| [ClearEdges (l2id n)]
 
               (_, "/edge", [src, target, param], _) ->
-                let s = (Util.fromLetter m src)
-                    t = (Util.fromLetter m target)
-                in
-                  rpc m <| AddEdge s.id (t.id, param)
+                  rpc m <| [AddEdge (l2id src) ((l2id target), param)]
 
               (_, "/n", _, c) -> case nextNode m c of
-                                   Just id -> rpc m <| SelectNode id
+                                   Just id -> rpc m <| [SelectNode id]
                                    Nothing -> Cmd.none
 
               (Just (l, ""), _, [], _) ->
-                let n = Util.fromLetter m (String.fromChar l)
-                in
-                  rpc m <| SelectNode n.id
+                  rpc m <| [SelectNode (l2id (String.fromChar l))]
 
               (_, _, _, _) -> Cmd.none
           in

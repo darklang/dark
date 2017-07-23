@@ -10,12 +10,16 @@ import Types exposing (..)
 
 invalidID = -45
 
-rpc : Model -> RPC -> Cmd Msg
-rpc m call =
-  let payload = encodeRPC m call
+rpc : Model -> List RPC -> Cmd Msg
+rpc m calls =
+  let payload = encodeRPCs m calls
       json = Http.jsonBody payload
       request = Http.post "/admin/api/rpc" json decodeGraph
   in Http.send RPCCallBack request
+
+encodeRPCs : Model -> List RPC -> JSE.Value
+encodeRPCs m calls =
+  JSE.list (List.map (encodeRPC m) calls)
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =

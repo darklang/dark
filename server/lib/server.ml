@@ -24,10 +24,11 @@ let server =
 
       let g = G.load "blog" in
       let g =
-        if J.member "load_initial_graph" payload = `Null then
-          G.add_op (G.json2op payload) g ~strict:true
+        if payload |> J.index 0 |> J.member "load_initial_graph" |> (<>) `Null then
+          g
         else
-          g in
+          List.fold_left ~f:(fun g op -> G.add_op (G.json2op op) g) ~init:g (Yojson.Basic.Util.to_list payload)
+      in
       G.save g;
       g
       |> Graph.to_frontend
