@@ -181,6 +181,11 @@ update_ msg m =
               (_, "/rm", [n], _) ->
                 rpc m <| DeleteNode (Util.fromLetter m n).id
 
+              (_, "/clear", [], Just id) -> rpc m <| ClearEdges id
+
+              (_, "/clear", [n], _) ->
+                rpc m <| ClearEdges (Util.fromLetter m n).id
+
               (_, "/edge", [src, target, param], _) ->
                 let s = (Util.fromLetter m src)
                     t = (Util.fromLetter m target)
