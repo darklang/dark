@@ -36,8 +36,19 @@ let t_graph_param_order _ =
   assert_equal r1 (DInt 2);
   assert_equal r2 (DInt 2)
 
+
+let t_int_add_works _ =
+  (* Couldn't call Int::add *)
+  let add = G.Add_fn_call ("Int::add", fid (), fl) in
+  let v1 = G.Add_value ("5", fid (), fl) in
+  let v2 = G.Add_value ("3", fid (), fl) in
+  let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
+  let e2 = G.Add_edge (G.id_of v1, G.id_of add, "a") in
+  let r = execute_ops [add; v1; v2; e2; e1] add in
+  assert_equal r (DInt 8)
+
 let t_load_save _ =
-  let add = G.Add_fn_call ("Int_sub", fid (), fl) in
+  let add = G.Add_fn_call ("-", fid (), fl) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
@@ -55,6 +66,7 @@ let t_load_save _ =
 let suite =
   "suite" >:::
   [ "param args are in the right order" >:: t_param_order
+  ; "Calling Int::add" >:: t_int_add_works
   ; "graph ordering doesnt break param order" >:: t_graph_param_order
   ; "roundtrip through saving and loading" >:: t_load_save
   ]
