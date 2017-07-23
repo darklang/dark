@@ -1,3 +1,4 @@
+open Core
 open Lwt
 
 module Clu = Cohttp_lwt_unix
@@ -41,7 +42,7 @@ let server =
     let static_handler f : string =
       (* TODO: mimetypes *)
       let l = String.length f in
-      let f = String.sub f 1 (l-1) in
+      let f = String.sub f ~pos:1 ~len:(l-1) in
       match f with
       | "static/base.css" -> Util.slurp f
       | "static/reset-normalize.css" -> Util.slurp f
@@ -67,7 +68,7 @@ let server =
            | "/favicon.ico" -> `OK, ""
            | "/admin/ui" -> `OK, (admin_ui_handler ())
            | p when (String.length p) < 8 -> `Not_implemented, "app routing"
-           | p when (String.equal (String.sub p 0 8) "/static/")
+           | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/")
              -> `OK, static_handler p
            | _ -> `Not_implemented, "app routing"
          with
