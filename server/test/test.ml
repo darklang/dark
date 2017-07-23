@@ -26,15 +26,15 @@ let execute_ops (ops : G.op list) (result : G.op) =
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
-  let add = G.Add_fn_call ("Int::add", fid (), fl) in
+  let add = G.Add_fn_call ("-", fid (), fl) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
   let e2 = G.Add_edge (G.id_of v1, G.id_of add, "a") in
   let r1 = execute_ops [add; v1; v2; e1; e2] add in
   let r2 = execute_ops [add; v1; v2; e2; e1] add in
-  assert_equal r1 (DInt 2);
-  assert_equal r2 (DInt 2)
+  assert_equal r2 (DInt 2);
+  assert_equal r1 (DInt 2)
 
 
 let t_int_add_works _ =
