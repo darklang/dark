@@ -171,10 +171,10 @@ update_ msg m =
 
               -- TODO: args here are edges to be added. Send them all in one go
               (Just ('+', name), _, [], _) ->
-                if (rematch "^[a-zA-Z].*" name) then
-                  rpc m <| AddFunctionCall name m.lastPos
-                else
+                if (rematch "^[\"\'1-9].*" name) then
                   rpc m <| AddValue name m.lastPos
+                else
+                  rpc m <| AddFunctionCall name m.lastPos
 
               (_, "/rm", [], Just id) -> rpc m <| DeleteNode id
 
