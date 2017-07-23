@@ -67,11 +67,19 @@ let add_node (node : Node.node) (g : graph) : graph =
 let has_edge s t param (g : graph) : bool =
   List.exists (fun a -> a = (s, t, param)) g.edges
 
+let get_node (id : id)  (g : graph) : Node.node =
+  IMap.find_exn g.nodes id
+
 let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (* Can't have two edges to the same target *)
   (* TODO: exception for datasinks like DBs and APIs *)
   if has_edge s t param g then
-    failwith "Edge already exists";
+    Exception.raise "Edge already exists";
+
+  (* Check the target has that parameter *)
+  let n = get_node t g in
+  if not (List.mem param n#parameters) then
+    Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
 
   { g with edges = (s, t, param) :: g.edges }
 
@@ -82,9 +90,6 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (*   types.check(src_type, target_type) *)
   (* except types.DTypeError as e: *)
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
-
-let get_node(id : id)  (g : graph) : Node.node =
-  IMap.find_exn g.nodes id
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   g |> get_node id |> (fun n -> n#update_loc loc);
