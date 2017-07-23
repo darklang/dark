@@ -193,8 +193,14 @@ update_ msg m =
                   rpc m <| AddEdge s.id (t.id, param)
 
               (_, "/n", _, c) -> case nextNode m c of
-                               Just id -> rpc m <| SelectNode id
-                               Nothing -> Cmd.none
+                                   Just id -> rpc m <| SelectNode id
+                                   Nothing -> Cmd.none
+
+              (Just (l, ""), _, [], _) ->
+                let n = Util.fromLetter m (String.fromChar l)
+                in
+                  rpc m <| SelectNode n.id
+
               (_, _, _, _) -> Cmd.none
           in
             (m, cmd, Focus)
