@@ -3,7 +3,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:16.10
+FROM ubuntu:17.04
 
 # TODO: version all ubuntu packages
 RUN apt-get update
@@ -46,9 +46,10 @@ RUN opam install core.v0.9.1 \
                  cohttp.0.22.0 \
                  lwt.2.7.1 \
                  yojson.1.3.3 \
-                 postgresql.4.0.1
-RUN opam install oUnit.2.0.0
-RUN opam install ppx_derivers.1.0
+                 postgresql.4.0.1 \
+                 oUnit.2.0.0 \
+                 ppx_derivers.1.0
+
 RUN git clone https://github.com/whitequark/ppx_deriving \
    && cd ppx_deriving \
    && git fetch origin +refs/pull/141/merge \
@@ -56,13 +57,5 @@ RUN git clone https://github.com/whitequark/ppx_deriving \
 RUN cd ppx_deriving && make
 
 RUN opam pin add ppx_deriving ./ppx_deriving
-
-# setup locale - TODO: do we need this anymore?
-USER root
-RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && locale-gen
-USER dark
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
 
 CMD ["app", "scripts", "builder"]
