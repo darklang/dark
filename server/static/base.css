@@ -92,12 +92,12 @@ form {
 }
 
 .header {
-  z-index: 10; /* more than nodes */
   top: -10px;
+  z-index: 10; /* more than nodes */
   float: left;
   position: absolute;
   left: 0;
-  width:100%;
+  width: 100%;
 }
 
 .parameters {
@@ -112,7 +112,8 @@ form {
 }
 
 .letter {
-  color: yellow;
-  font-size: 14px;
+  margin-top: 2px;
+  color: #999900;
+  font-size: 12px;
   float: right;
 }
