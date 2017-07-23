@@ -144,7 +144,6 @@ viewNode m n i =
                        [Html.text "◉"]
 
       -- header
-      letter = i |> (+) 97 |> Char.fromCode |> String.fromChar
       viewHeader = Html.div
                    [Attrs.class "header"]
                      [ Html.span
@@ -152,7 +151,7 @@ viewNode m n i =
                          (List.map viewParam n.parameters)
                      , Html.span
                          [Attrs.class "letter"]
-                         [Html.text letter]
+                         [Html.text (Util.int2letter i)]
                      ]
 
       -- heading

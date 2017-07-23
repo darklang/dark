@@ -1,6 +1,9 @@
-module Util exposing (timestamp, windowSize, deMaybe, orderedNodes)
+module Util exposing (timestamp, windowSize, deMaybe, orderedNodes, letter2int, int2letter, fromLetter)
 
 import Dict
+import Array
+import Char
+import Tuple
 import List
 import Ordering
 
@@ -29,3 +32,13 @@ orderedNodes m =
     |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
     |> List.sortWith Ordering.natural
     |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
+
+
+int2letter : Int -> String
+int2letter i = i |> (+) 97 |> Char.fromCode |> String.fromChar
+
+letter2int : String -> Int
+letter2int s = s |> String.uncons |> Debug.log "uncons" |> deMaybe |> Tuple.first |> Char.toCode |> Debug.log "code" |> (-) 97 |> (*) (-1)
+
+fromLetter : Model -> String -> Node
+fromLetter m letter = m |> orderedNodes |> Array.fromList |> Debug.log "ordered" |> Array.get (letter2int letter) |> Debug.log "fromArray"|> deMaybe

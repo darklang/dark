@@ -163,20 +163,33 @@ update_ msg m =
        --   (m, rpc m <| RemoveLastField id, NoFocus)
 
     (SubmitMsg, cursor) ->
-      let cmd =
-        case (String.uncons m.inputValue, m.inputValue, cursor) of
-          (Just ('+', name), _, _) ->
-            if (rematch "^[a-zA-Z].*" name) then
-              rpc m <| AddFunctionCall name m.lastPos
-            else
-              rpc m <| AddValue name m.lastPos
-          (_, "rm", Just id) -> rpc m <| DeleteNode id
-          (_, "n", c) -> case nextNode m c of
-                        Just id -> rpc m <| SelectNode id
-                        Nothing -> Cmd.none
-          (_, _, _) -> Cmd.none
-      in
-        (m, cmd, Focus)
+      case String.words m.inputValue of
+        [] -> (m, Cmd.none, Focus)
+        first :: words ->
+          let cmd =
+            case (String.uncons first, Debug.log "first" first, Debug.log "words" words, cursor) of
+
+              -- TODO: args here are edges to be added. Send them all in one go
+              (Just ('+', name), _, [], _) ->
+                if (rematch "^[a-zA-Z].*" name) then
+                  rpc m <| AddFunctionCall name m.lastPos
+                else
+                  rpc m <| AddValue name m.lastPos
+
+              (_, "/rm", _, Just id) -> rpc m <| DeleteNode id
+
+              (_, "/edge", [src, target, param], _) ->
+                let s = (Util.fromLetter m src)
+                    t = (Util.fromLetter m target)
+                in
+                  rpc m <| AddEdge s.id (t.id, param)
+
+              (_, "/n", _, c) -> case nextNode m c of
+                               Just id -> rpc m <| SelectNode id
+                               Nothing -> Cmd.none
+              (_, _, _, _) -> Cmd.none
+          in
+            (m, cmd, Focus)
 
     (RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
       -- if the new cursor is blank, keep the old cursor if it's valid
