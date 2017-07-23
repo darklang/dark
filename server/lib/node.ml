@@ -42,23 +42,19 @@ class value strrep id loc =
     method! extra_fields = [("value", `String strrep)]
   end
 
-class func name id loc (strict:bool) =
+class func n id loc (_:bool) =
   object (self)
     inherit node id loc
     (* Throw an exception if it doesn't exist *)
-    val name : string = if strict then ignore @@ Lib.get_fn_exn name; name
-    method name = name
+    method private fn = (Lib.get_fn_exn n)
+    method name = self#fn.name
     method execute (args : param_map) : dval =
-      match Lib.get_fn name with
-      | Some fn -> Runtime.exe fn args
-      | None -> if strict then ignore @@ Lib.get_fn_exn name; DStr ""
-    method! is_page = name = "Page_page"
-    method tipe = if String.is_substring ~substring:"page" name
-      then name
+      Runtime.exe self#fn args
+    method! is_page = self#name = "Page_page"
+    method tipe = if String.is_substring ~substring:"page" self#name
+      then self#name
       else "function"
-    method! parameters = match Lib.get_fn name with
-        | Some fn -> fn.parameters
-        | None -> []
+    method! parameters = self#fn.parameters
     method! extra_fields =
       [("parameters",
         `List (List.map
