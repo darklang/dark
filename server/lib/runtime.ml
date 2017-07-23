@@ -4,6 +4,7 @@ open Core
 (* Values *)
 (* ------------------------- *)
 type fn = { name : string
+          ; other_names : string list
           ; parameters : string list
           ; func : ((dval list) -> dval)
           }

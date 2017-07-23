@@ -4,6 +4,7 @@ open Runtime
 
 (* Shorthand *)
 type shortfn = { n : string
+               ; o : string list
                ; p : string list
                ; f : (dval list) -> dval
                }
@@ -18,34 +19,39 @@ let expected (msg : string) (args : dval list) : dval =
 
 
 let fns_list = [
-  { n = "Page_page"
+  { n = "Page::page"
+  ; o = []
   ; p = ["url"; "outputs"]
   ; f = function
       | args -> expected "this to be implmented" args
   }
   ;
-  { n = "Int_mod"
+  { n = "%"
+  ; o = ["Int::mod"]
   ; p = ["a"; "b"]
   ; f = function
       | [DInt a; DInt b] -> a mod b |> DInt
       | args -> expected "2 ints" args
   }
   ;
-  { n = "Int_add"
+  { n = "+"
+  ; o = ["Int::add"]
   ; p = ["a"; "b"]
   ; f = function
       | [DInt a; DInt b] -> a + b |> DInt
       | args -> expected "2 ints" args
   }
   ;
-  { n = "Int_sub"
+  { n = "-"
+  ; o = ["Int::sub"]
   ; p = ["a"; "b"]
   ; f = function
       | [DInt a; DInt b] -> a - b |> DInt
       | args -> expected "2 ints" args
   }
   ;
-  (* { n = "String_map" *)
+  (* { n = "String::foreach" *)
+  (* ; s = None *)
   (* ; p = ["s"; "f"] *)
   (* ; f = function *)
   (*     | [DStr s; DFn fn] -> *)
@@ -55,21 +61,24 @@ let fns_list = [
   (*     | args -> expected "a strint and a function" args *)
   (* } *)
   (* ; *)
-  { n = "Char_code"
+  { n = "Char::code"
+  ; o = []
   ; p = ["c"]
   ; f = function
       | [DChar c] -> c |> Char.to_int |> DInt
       | args -> expected "a char" args
   }
   ;
-  { n = "Char_to_uppercase"
+  { n = "Char::to_uppercase"
+  ; o = []
   ; p = ["c"]
   ; f = function
       | [DChar c] -> c |> Char.to_int |> (-) 32 |> Char.of_int_exn |> DChar
       | args -> expected "a char" args
   }
   ;
-  { n = "Char_chr"
+  { n = "Char::chr"
+  ; o = []
   ; p = ["i"]
   ; f = function
       | [DInt i] -> i |> Char.of_int_exn |> DChar
@@ -82,8 +91,12 @@ module SMap = String.Map
 type fnmap = fn SMap.t
 let fns : fnmap =
   let add_fn (m : fnmap) (s : shortfn) : fnmap =
-    SMap.add m ~key:s.n
-      ~data:{name = s.n; parameters = s.p; func = s.f} in
+    let def = { name = s.n
+              ; other_names = s.o
+              ; parameters = s.p
+              ; func = s.f} in
+    List.fold_left ~f:(fun m1 n -> SMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
+  in
   List.fold_left ~f:add_fn ~init:SMap.empty fns_list
 
 (* Give access to other modules *)
