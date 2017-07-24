@@ -42,7 +42,7 @@ class value strrep id loc =
     method! extra_fields = [("value", `String strrep)]
   end
 
-class func n id loc (_:bool) =
+class func n id loc =
   object (self)
     inherit node id loc
     (* Throw an exception if it doesn't exist *)

@@ -69,7 +69,7 @@ type RPC
     = LoadInitialGraph
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
-    | AddFunctionCall Name Pos
+    | AddFunctionCall Name Pos (List ID)
     | AddFunctionDef Name Pos
     | AddValue String Pos
     | UpdateNodePosition ID -- no pos cause it's in the node

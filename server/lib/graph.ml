@@ -15,7 +15,7 @@ module J = Yojson.Basic.Util
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
-type op = Add_fn_call of string * id * loc
+type op = Add_fn_call of string * id * loc * id list
         | Add_fn_def of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
@@ -61,15 +61,11 @@ let create (name : string) : graph =
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
-let add_node (node : Node.node) (g : graph) : graph =
-  { g with nodes = IMap.add g.nodes ~key:(node#id) ~data:node;
-           cursor = Some node#id }
+let get_node (id : id)  (g : graph) : Node.node =
+  IMap.find_exn g.nodes id
 
 let has_edge s t param (g : graph) : bool =
   List.exists ~f:(fun a -> a = (s, t, param)) g.edges
-
-let get_node (id : id)  (g : graph) : Node.node =
-  IMap.find_exn g.nodes id
 
 let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (* Can't have two edges to the same target *)
@@ -91,6 +87,20 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (*   types.check(src_type, target_type) *)
   (* except types.DTypeError as e: *)
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
+
+
+
+let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
+  let len = List.length edges in
+  let params = List.take node#parameters len in
+  let sources = List.zip_exn edges params in
+  let g = { g with nodes = IMap.add g.nodes ~key:(node#id) ~data:node;
+                   cursor = Some node#id }
+  in
+  List.fold_left
+    ~f:(fun g (s, p) -> add_edge s node#id p g)
+    ~init:g
+    sources
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   g |> get_node id |> (fun n -> n#update_loc loc);
@@ -141,13 +151,14 @@ let rec execute (id: id) (g: graph) : dval =
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-let apply_op (op : op) ?(strict=true) (g : graph) : graph =
+let apply_op (op : op) (g : graph) : graph =
   g |>
   match op with
-  | Add_fn_call (name, id, loc) -> add_node (new Node.func name id loc strict)
-  | Add_fn_def (_, id, loc) -> add_node (new Node.anon id loc)
-  | Add_datastore (table, id, loc) -> add_node (new Node.datastore table id loc)
-  | Add_value (expr, id, loc) -> add_node (new Node.value expr id loc)
+  | Add_fn_call (name, id, loc, edges) ->
+    add_node (new Node.func name id loc) edges
+  | Add_fn_def (_, id, loc) -> add_node (new Node.anon id loc) []
+  | Add_datastore (table, id, loc) -> add_node (new Node.datastore table id loc) []
+  | Add_value (expr, id, loc) -> add_node (new Node.value expr id loc) []
 
   | Add_edge (src, target, param) -> add_edge src target param
   | Update_node_position (id, loc) -> update_node_position id loc
@@ -157,12 +168,12 @@ let apply_op (op : op) ?(strict=true) (g : graph) : graph =
   | Select_node (id) -> select_node id
   | _ -> failwith "applying unimplemented op"
 
-let add_op (op: op) ?(strict=true) (g: graph) : graph =
-  let g = apply_op op g ~strict in
+let add_op (op: op) (g: graph) : graph =
+  let g = apply_op op g in
   { g with ops = g.ops @ [op]}
 
 let id_of = function
-  | Add_fn_call (_, id, _) -> id
+  | Add_fn_call (_, id, _, _) -> id
   | Add_datastore (_, id, _) -> id
   | Add_value (_, id, _) -> id
   | Update_node_position (id, _) -> id
@@ -179,6 +190,10 @@ let json2op (json : json) : op =
   | `Assoc [optype, args] -> (
     let str field = J.member field args |> J.to_string in
     let int field = J.member field args |> J.to_int in
+    let intlist field = args
+                        |> J.member field
+                        |> J.to_list
+                        |> List.map ~f:J.to_int in
     let id = match J.member "id" args with
       | `Int id -> id
       (* When they come in first, they don't have an id, so add one. *)
@@ -190,7 +205,8 @@ let json2op (json : json) : op =
       (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
     match optype with
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
-    | "add_function_call" -> Add_fn_call (str "name", id, loc ())
+    | "add_function_call" ->
+      Add_fn_call (str "name", id, loc (), intlist "edges")
     | "add_function_def" -> Add_fn_def (str "name", id, loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (int "id", loc ())
@@ -219,12 +235,14 @@ let op2json op : json =
   let str k v = (k, `String v) in
   let int k v = (k, `Int v) in
   let bool k v = (k, `Bool v) in
+  let intlist k vs = (k, `List (List.map ~f:(fun i -> `Int i) vs)) in
   let id id = int "id" id in
   let x (loc : Node.loc) = int "x" loc.x in
   let y (loc : Node.loc) = int "y" loc.y in
   let (name, args) = match op with
-    | Add_fn_call (name, _id, loc) ->
-      "add_function_call", [str "name" name; id _id; x loc; y loc]
+    | Add_fn_call (name, _id, loc, edges) ->
+      "add_function_call",
+      [str "name" name; id _id; x loc; y loc; intlist "edges" edges]
     | Add_fn_def (name, _id, loc) ->
       "add_function_def", [str "name" name; id _id; x loc; y loc]
     | Add_datastore (name, _id, loc) ->
@@ -261,7 +279,7 @@ let load name : graph =
   let ops = match jsonops with
   | `List ops -> List.map ~f:json2op ops
   | _ -> failwith "unexpected deserialization" in
-  List.fold_left ops ~f:(fun g op -> add_op op g ~strict:false) ~init:(create name)
+  List.fold_left ops ~f:(fun g op -> add_op op g) ~init:(create name)
 
 
 

@@ -5,7 +5,7 @@ module Map = Core.Map.Poly
 module RT = Runtime
 
 let t_param_order _ =
-  let node = new Node.func "-" 1 {x=1; y=1} true in
+  let node = new Node.func "-" 1 {x=1; y=1} in
   assert_equal (node#execute
                   (Core.String.Map.of_alist_exn [ ("a", RT.DInt 1)
                                                 ; ("b", RT.DInt 1)]))
@@ -17,7 +17,7 @@ let fid () = Util.create_id ()
 
 let graph_from_ops name ops : G.graph =
   let g = G.create name in
-  let g = List.fold_left (fun g op -> G.add_op op g ~strict:true) g ops in
+  let g = List.fold_left (fun g op -> G.add_op op g) g ops in
   g
 
 let execute_ops (ops : G.op list) (result : G.op) =
@@ -26,7 +26,7 @@ let execute_ops (ops : G.op list) (result : G.op) =
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
-  let add = G.Add_fn_call ("-", fid (), fl) in
+  let add = G.Add_fn_call ("-", fid (), fl, []) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
@@ -36,10 +36,18 @@ let t_graph_param_order _ =
   assert_equal r2 (DInt 2);
   assert_equal r1 (DInt 2)
 
+let t_fns_with_edges _ =
+  let v1 = G.Add_value ("5", fid (), fl) in
+  let v2 = G.Add_value ("3", fid (), fl) in
+  let add = G.Add_fn_call ("-", fid (), fl, [G.id_of v1; G.id_of v2]) in
+  let r = execute_ops [v1; v2; add] add in
+  assert_equal r (DInt 2)
+
+
 
 let t_int_add_works _ =
   (* Couldn't call Int::add *)
-  let add = G.Add_fn_call ("Int::add", fid (), fl) in
+  let add = G.Add_fn_call ("Int::add", fid (), fl, []) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
@@ -48,7 +56,7 @@ let t_int_add_works _ =
   assert_equal r (DInt 8)
 
 let t_load_save _ =
-  let add = G.Add_fn_call ("-", fid (), fl) in
+  let add = G.Add_fn_call ("-", fid (), fl, []) in
   let v1 = G.Add_value ("5", fid (), fl) in
   let v2 = G.Add_value ("3", fid (), fl) in
   let e1 = G.Add_edge (G.id_of v2, G.id_of add, "b") in
@@ -69,6 +77,7 @@ let suite =
   ; "Calling Int::add" >:: t_int_add_works
   ; "graph ordering doesnt break param order" >:: t_graph_param_order
   ; "roundtrip through saving and loading" >:: t_load_save
+  ; "functions with edges work too" >:: t_fns_with_edges
   ]
 
 let () =

@@ -24,11 +24,21 @@ let server =
 
       let g = G.load "blog" in
       let g =
-        if payload |> J.index 0 |> J.member "load_initial_graph" |> (<>) `Null then
-          g
-        else
-          List.fold_left ~f:(fun g op -> G.add_op (G.json2op op) g) ~init:g (Yojson.Basic.Util.to_list payload)
-      in
+        match payload with
+        | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> g
+        | `List (first::rest) ->
+          let first_op = G.json2op first in
+          let g = G.add_op first_op g in
+          let id = G.id_of first_op in
+          let convert op = match op with
+            | G.Add_edge (s, -1, p) -> G.Add_edge (s, id, p)
+            | op -> op in
+          List.fold_left
+            ~f:(fun g op -> G.add_op (convert (G.json2op op)) g)
+            ~init:g
+            rest
+        | _ -> Exception.raise "Unexpected request structure"
+     in
       G.save g;
       g
       |> Graph.to_frontend

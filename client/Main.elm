@@ -175,7 +175,10 @@ update_ msg m =
                 if (rematch "^[\"\'1-9].*" name) then
                   rpc m <| [AddValue name m.lastPos]
                 else
-                  rpc m <| [AddFunctionCall name m.lastPos]
+                  rpc m <| [AddFunctionCall name m.lastPos []]
+
+              (Just ('+', name), _, args, _) ->
+                rpc m <| [AddFunctionCall name m.lastPos (List.map l2id args)]
 
               (_, "/rm", [], Just id) -> rpc m <| [DeleteNode id]
 
