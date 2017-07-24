@@ -16,8 +16,8 @@ and dval = DInt of int
          | DAnon of id * (dval -> dval)
          | DIncomplete
 
-module SMap = String.Map
-type param_map = dval SMap.t
+module ParamMap = String.Map
+type param_map = dval ParamMap.t
 
 let parse (str : string) : dval =
   if String.equal str "" then
@@ -73,11 +73,11 @@ let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 (* ------------------------- *)
 let exe (fn : fn) (args : param_map) : dval =
   (* TODO: we're going to have to use named params before the currying works properly *)
-  if SMap.length args < List.length fn.parameters then
+  if ParamMap.length args < List.length fn.parameters then
     (* If there aren't enough parameters, curry it *)
     DIncomplete
   else
-    let args = List.map ~f:(SMap.find_exn args) fn.parameters in
+    let args = List.map ~f:(ParamMap.find_exn args) fn.parameters in
     fn.func args
 
 let exe_dv (fn : dval) (_: dval list) : dval =

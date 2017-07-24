@@ -4,8 +4,10 @@ open Types
 
 type dval = Runtime.dval [@@deriving eq]
 
-module IMap = Int.Map
-module SMap = String.Map
+module ParamMap = String.Map
+module NodeMap = Int.Map
+type nodemap = Node.node NodeMap.t [@@deriving eq]
+
 type json = Yojson.Basic.json
 module J = Yojson.Basic.Util
 
@@ -29,7 +31,6 @@ type op = Add_fn_call of string * id * loc * id list
         | Select_node of id
 [@@deriving eq]
 
-type nodemap = (Node.node) IMap.t [@@deriving eq]
 type targetpair = (id * param)
 type graph = {
   name : string;
@@ -43,17 +44,10 @@ type graph = {
 (* Graph *)
 (* ------------------------- *)
 
-let debug name (g : graph) : unit =
-  inspecT "name" name;
-  g.ops |> List.length |> Int.to_string |> inspecT "ops";
-  g.nodes |> IMap.length |> Int.to_string |> inspecT "nodes";
-  g.edges |> List.length |> Int.to_string |> inspecT "nodes";
-  ()
-
 let create (name : string) : graph =
   { name = name
   ; ops = []
-  ; nodes = IMap.empty
+  ; nodes = NodeMap.empty
   ; edges = []
   ; cursor = None
   }
@@ -62,7 +56,7 @@ let create (name : string) : graph =
 (* Updating *)
 (* ------------------------- *)
 let get_node (id : id)  (g : graph) : Node.node =
-  IMap.find_exn g.nodes id
+  NodeMap.find_exn g.nodes id
 
 let has_edge s t param (g : graph) : bool =
   List.exists ~f:(fun a -> a = (s, t, param)) g.edges
@@ -94,7 +88,7 @@ let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
   let len = List.length edges in
   let params = List.take node#parameters len in
   let sources = List.zip_exn edges params in
-  let g = { g with nodes = IMap.add g.nodes ~key:(node#id) ~data:node;
+  let g = { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
                    cursor = Some node#id }
   in
   List.fold_left
@@ -119,7 +113,7 @@ let delete_edge s t param (g: graph) : graph =
 
 let delete_node id (g: graph) : graph =
   let g = clear_edges id g in
-  { g with nodes = IMap.remove g.nodes id; cursor = None }
+  { g with nodes = NodeMap.remove g.nodes id; cursor = None }
 
 
 (* ------------------------- *)
@@ -147,16 +141,17 @@ let get_named_parent id param g : id =
 (* ------------------------- *)
 (* Executing *)
 (* ------------------------- *)
-type dvalmap = dval IMap.t
-let rec execute (id: id) ?(eager: dvalmap = IMap.empty) (g: graph) : dval =
-  match IMap.find eager id with
+type dvalmap = dval Int.Map.t
+module DValMap = Int.Map
+let rec execute (id: id) ?(eager: dvalmap = DValMap.empty) (g: graph) : dval =
+  match DValMap.find eager id with
   | Some v -> v
   | None ->
     let n = get_node id g in
     let args = List.map
         ~f:(fun (p,s) -> (p, execute s ~eager g))
         (get_parents id g) in
-    let args = SMap.of_alist_exn args in
+    let args = ParamMap.of_alist_exn args in
     n#execute args
 
 
@@ -165,7 +160,7 @@ let rec execute (id: id) ?(eager: dvalmap = IMap.empty) (g: graph) : dval =
 (* ------------------------- *)
 let executor id g : (dval -> dval) =
   (fun v ->
-     let eager = IMap.of_alist_exn [(id, v)] in
+     let eager = DValMap.of_alist_exn [(id, v)] in
      let parent = get_named_parent id "return" g in
      execute parent ~eager g
   )
@@ -327,7 +322,7 @@ let to_frontend_nodes g : json =
   `Assoc (
     List.map
       ~f:(fun n -> (Int.to_string n#id, n#to_frontend))
-      (IMap.data g.nodes)
+      (NodeMap.data g.nodes)
   )
 
 let to_frontend_edges g : json =
