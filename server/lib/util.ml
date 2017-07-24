@@ -18,8 +18,8 @@ let create_id (_ : unit) : int =
 let inspecT (msg : string) (x : 'a) : unit =
   print_endline ("inspect: " ^ msg ^ ": " ^ x)
 
-let inspect (msg : string) (x : 'a) : 'a =
-  inspecT msg x;
+let inspect (msg : string) ~(f:'a -> string) (x : 'a) : 'a =
+  print_endline ("inspect: " ^ msg ^ ": " ^ (f x));
   x
 
 (* How do you chain using (^) *)

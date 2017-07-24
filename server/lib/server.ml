@@ -19,7 +19,7 @@ let server =
     let auth = req |> Request.headers |> Header.get_authorization in
 
     let admin_rpc_handler body : string =
-      let body = inspect "request body" body in
+      let body = inspect ~f:ident "request body" body in
       let payload = Yojson.Basic.from_string body in
 
       let g = G.load "blog" in
@@ -43,7 +43,7 @@ let server =
       g
       |> Graph.to_frontend
       |> Yojson.Basic.pretty_to_string ~std:true
-      |> Util.inspect "response: "
+      |> Util.inspect ~f:ident "response: "
     in
 
     let admin_ui_handler () =
