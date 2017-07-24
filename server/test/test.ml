@@ -1,4 +1,5 @@
 open OUnit2
+open Types
 
 module G = Graph
 module Map = Core.Map.Poly
@@ -11,7 +12,7 @@ let t_param_order _ =
                                                 ; ("b", RT.DInt 1)]))
     (RT.DInt 0)
 
-let fl : Node.loc = {x=0; y=0}
+let fl : loc = {x=0; y=0}
 
 let fid () = Util.create_id ()
 
@@ -70,6 +71,20 @@ let t_load_save _ =
   assert (G.equal_graph g g1);
   assert (G.equal_graph g g2)
 
+let t_lambda_with_foreach _ =
+  let v = G.Add_value ("\"some string\"", fid (), fl) in
+  let fe = G.Add_fn_call ("String::foreach", fid (), fl, []) in
+  let upper = G.Add_fn_call ("Char::to_uppercase", fid (), fl, []) in
+  let anon_inner = fid () in
+  let anon = G.Add_anon (fid (), anon_inner, fl) in
+  let e1 = G.Add_edge (G.id_of v, G.id_of fe, "s") in
+  let e2 = G.Add_edge (G.id_of anon, G.id_of fe, "f") in
+  let e3 = G.Add_edge (G.id_of upper, anon_inner, "return") in
+  let e4 = G.Add_edge (anon_inner, G.id_of upper, "c") in
+  let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
+  assert_equal r (DStr "\"SOME STRING\"")
+
+
 
 let suite =
   "suite" >:::
@@ -78,6 +93,7 @@ let suite =
   ; "graph ordering doesnt break param order" >:: t_graph_param_order
   ; "roundtrip through saving and loading" >:: t_load_save
   ; "functions with edges work too" >:: t_fns_with_edges
+  ; "anon functions work" >:: t_lambda_with_foreach
   ]
 
 let () =

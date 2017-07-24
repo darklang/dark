@@ -50,17 +50,21 @@ let fns_list = [
       | args -> expected "2 ints" args
   }
   ;
-  (* { n = "String::foreach" *)
-  (* ; s = None *)
-  (* ; p = ["s"; "f"] *)
-  (* ; f = function *)
-  (*     | [DStr s; DFn fn] -> *)
-  (*       let charf (c : char) : char = *)
-  (*         fn.func [DChar c] |> to_char in *)
-  (*       s |> String.map charf |> DStr *)
-  (*     | args -> expected "a strint and a function" args *)
-  (* } *)
-  (* ; *)
+  { n = "String::foreach"
+  ; o = []
+  ; p = ["s"; "f"]
+  ; f = function
+      | [DStr s; DAnon (id, fn)] ->
+        let charf (c: char) : char =
+          let result = fn (DChar c) in
+          match result with
+          | DChar c -> c
+          | r -> failwith "expected a char"
+        in
+        s |> String.map ~f:charf |> DStr
+      | args -> expected "a string and a function" args
+  }
+  ;
   { n = "Char::code"
   ; o = []
   ; p = ["c"]

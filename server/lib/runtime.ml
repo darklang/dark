@@ -1,4 +1,5 @@
 open Core
+open Types
 
 (* ------------------------- *)
 (* Values *)
@@ -12,6 +13,7 @@ and dval = DInt of int
          | DStr of string
          | DChar of char
          | DFloat of float
+         | DAnon of id * (dval -> dval)
          | DIncomplete
 
 module SMap = String.Map

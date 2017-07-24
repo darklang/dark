@@ -1,9 +1,7 @@
 open Core
 open Util
+open Types
 
-type id = Node.id [@@deriving eq]
-type loc = Node.loc [@@deriving eq]
-type param = Node.param [@@deriving eq]
 type dval = Runtime.dval [@@deriving eq]
 
 module IMap = Int.Map
@@ -19,6 +17,8 @@ type op = Add_fn_call of string * id * loc * id list
         | Add_fn_def of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
+        (* id in the outer graph, id in the inner graph *)
+        | Add_anon of id * id * loc
         (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
@@ -30,7 +30,7 @@ type op = Add_fn_call of string * id * loc * id list
 [@@deriving eq]
 
 type nodemap = (Node.node) IMap.t [@@deriving eq]
-type targetpair = (Node.id * param)
+type targetpair = (id * param)
 type graph = {
   name : string;
   ops : op list;
@@ -136,29 +136,53 @@ let get_parents id g : (param * id) list =
   |> List.filter ~f:(fun (_,t,_) -> t = id)
   |> List.map ~f:(fun (s,_,p) -> (p,s))
 
+let get_named_parent id param g : id =
+  g.edges
+  |> Util.inspect "all" ~f:(fun l -> String.concat ~sep:"::" (List.map ~f:(fun (a,b,c) -> (Int.to_string a) ^ ", " ^ (Int.to_string b) ^ ", " ^ c) l))
+  |> List.filter ~f:(fun (_,t,p) -> t = id && p = param)
+  |> Util.inspect "named" ~f:(fun l -> l |> List.length |> Int.to_string)
+  |> List.hd_exn
+  |> Tuple3.get1
 
 (* ------------------------- *)
 (* Executing *)
 (* ------------------------- *)
-let rec execute (id: id) (g: graph) : dval =
-  let n = get_node id g in
-  (* We dont match up the arguments to the parameter names, so we're just applying this in whatever order we happen to have added things *)
-  let args = List.map ~f:(fun (p,s) -> (p, execute s g)) (get_parents id g) in
-  let args = SMap.of_alist_exn args in
-  n#execute args
+type dvalmap = dval IMap.t
+let rec execute (id: id) ?(eager: dvalmap = IMap.empty) (g: graph) : dval =
+  match IMap.find eager id with
+  | Some v -> v
+  | None ->
+    let n = get_node id g in
+    let args = List.map
+        ~f:(fun (p,s) -> (p, execute s ~eager g))
+        (get_parents id g) in
+    let args = SMap.of_alist_exn args in
+    n#execute args
 
 
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
+let executor id g : (dval -> dval) =
+  (fun v ->
+     let eager = IMap.of_alist_exn [(id, v)] in
+     let parent = get_named_parent id "return" g in
+     execute parent ~eager g
+  )
+
 let apply_op (op : op) (g : graph) : graph =
   g |>
   match op with
   | Add_fn_call (name, id, loc, edges) ->
     add_node (new Node.func name id loc) edges
-  | Add_fn_def (_, id, loc) -> add_node (new Node.anon id loc) []
   | Add_datastore (table, id, loc) -> add_node (new Node.datastore table id loc) []
   | Add_value (expr, id, loc) -> add_node (new Node.value expr id loc) []
+  | Add_anon (id, inner_id, loc) ->
+    (* Error: the graph in g doesn't have the anon node in it, or the edges we need *)
+    (fun g ->
+       let g = add_node (new Node.anon_inner inner_id loc) [] g in
+       add_node (new Node.anon id (executor inner_id g) loc) [] g
+    )
 
   | Add_edge (src, target, param) -> add_edge src target param
   | Update_node_position (id, loc) -> update_node_position id loc
@@ -176,6 +200,7 @@ let id_of = function
   | Add_fn_call (_, id, _, _) -> id
   | Add_datastore (_, id, _) -> id
   | Add_value (_, id, _) -> id
+  | Add_anon (id, _, _) -> id
   | Update_node_position (id, _) -> id
   | Clear_edges (id) -> id
   | Delete_node (id) -> id
@@ -201,8 +226,8 @@ let json2op (json : json) : op =
       | j -> "IDs must be ints, not '" ^ (Yojson.Basic.to_string j) ^ "'"
              |> Exception.raise
     in
-    let loc : (unit -> Node.loc) =
-      (fun _ : Node.loc -> { x = int "x"; y = int "y" }) in
+    let loc : (unit -> loc) =
+      (fun _ : loc -> { x = int "x"; y = int "y" }) in
     match optype with
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
     | "add_function_call" ->
@@ -237,8 +262,8 @@ let op2json op : json =
   let bool k v = (k, `Bool v) in
   let intlist k vs = (k, `List (List.map ~f:(fun i -> `Int i) vs)) in
   let id id = int "id" id in
-  let x (loc : Node.loc) = int "x" loc.x in
-  let y (loc : Node.loc) = int "y" loc.y in
+  let x (loc : loc) = int "x" loc.x in
+  let y (loc : loc) = int "y" loc.y in
   let (name, args) = match op with
     | Add_fn_call (name, _id, loc, edges) ->
       "add_function_call",
@@ -333,3 +358,6 @@ let to_frontend (g : graph) : json =
            )
 
          ]
+
+let to_frontend_string (g: graph) : string =
+  g |> to_frontend |> Yojson.Basic.pretty_to_string ~std:true
