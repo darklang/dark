@@ -18,7 +18,7 @@ done
 if [ -f "${FILE}" ]; then
     echo "Running server"
     #COHTTP_DEBUG=true ocamlserver/main.byte > ../logs/server.log 2>&1 &
-    OCAMLRUNPARAM=b ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
+    ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
 else
   echo "${FILE} doesn't exist"
   exit -1
