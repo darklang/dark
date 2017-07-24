@@ -94,10 +94,10 @@ def elm_make():
   return call("cd client && elm-make Main.elm --debug --yes --output ../server/static/elm.js")
 
 def ocaml_build():
-  return call("cd server && jbuilder build --dev -j 4")
+  return call("cd server && jbuilder build")
 
 def ocaml_test():
-  return call("cd server && jbuilder runtest --dev")
+  return call("cd server && jbuilder runtest")
 
 def reload_server():
   return call("cd server && ../scripts/support/runserver")
