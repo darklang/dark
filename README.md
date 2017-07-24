@@ -3,9 +3,9 @@
 - Install Docker for Mac
 - Run `brew install fswatch`
 - Run `scripts/builder`
-- Open your browser to http://localhost:8000/admin/ui
 - Wait til the terminal says "Starting" - this means the build server is ready
-- Run `scripts/trigger-build` - this triggers a build of everything
+- Open your browser to http://localhost:8000/admin/ui
+   - the usename is dark, password is 2DqMHguUfsAGCPerWgyHRxPi
 - Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
 
 
