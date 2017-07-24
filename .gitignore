@@ -5,4 +5,4 @@
 /server/_build
 /server/dark.install
 /server/static/elm.js
-/server/appdata
+/server/appdata/*.dark
