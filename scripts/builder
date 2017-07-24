@@ -14,7 +14,7 @@ scripts/support/reload-browser > logs/browser.log 2>&1 &
 echo "Run the build"
 docker run \
        -t \
-       -v $(pwd):/home/dark/app \
+       -v "$PWD":/home/dark/app \
        -p 8000:8000 \
        dark \
        sh -c 'cd app && scripts/support/build-watcher'
