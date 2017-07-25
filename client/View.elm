@@ -27,11 +27,11 @@ view model =
     Html.div
       [Attrs.id "grid"]
       [ (Svg.svg
-           [ SA.width (toString w) , SA.height (toString <| h - 80)]
+           [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas model))
-      , viewErrors model.errors
       , viewInput model.inputValue
       , viewLive model.live
+      , viewErrors model.errors
       ]
 
 viewInput value = Html.form [

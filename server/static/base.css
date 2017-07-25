@@ -12,12 +12,11 @@ body {
 }
 
 #darkInput {
+  margin-left: 488px; /* based on a 1276px 13" macbook pro :) */
   width: 300px;
-  margin-right: 5px;
 }
 
 #darkErrors {
-  margin-right: 250px;
 }
 
 form {
