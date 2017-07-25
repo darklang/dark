@@ -45,6 +45,7 @@ let get_type (dv : dval) : string =
   | DStr _ -> "String"
   | DFloat _ -> "Float"
   | DChar _ -> "Char"
+  | DAnon _ -> "Anonymous function"
   | DIncomplete -> "n/a"
 
 and to_repr (dv : dval) : string =
@@ -53,6 +54,7 @@ and to_repr (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
+  | DAnon _ -> "<anon>"
   | DIncomplete -> "<incomplete>"
 
 

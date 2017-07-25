@@ -9,7 +9,6 @@ type json = Yojson.Basic.json
 (* Ops *)
 (* ------------------------- *)
 type op = Add_fn_call of string * id * loc * id list
-        | Add_fn_def of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
         (* id in the outer graph, id in the inner graph *)
@@ -48,20 +47,21 @@ let json2op (json : json) : op =
                         |> J.member field
                         |> J.to_list
                         |> List.map ~f:J.to_int in
-    let id = match J.member "id" args with
+    let maybe_id name = match J.member name args with
       | `Int id -> id
       (* When they come in first, they don't have an id, so add one. *)
       | `Null -> Util.create_id ()
       | j -> "IDs must be ints, not '" ^ (Yojson.Basic.to_string j) ^ "'"
-             |> Exception.raise
-    in
+             |> Exception.raise in
+    let id = maybe_id "id" in
     let loc : (unit -> loc) =
       (fun _ : loc -> { x = int "x"; y = int "y" }) in
     match optype with
     | "add_datastore" -> Add_datastore (str "name", id, loc ())
     | "add_function_call" ->
       Add_fn_call (str "name", id, loc (), intlist "edges")
-    | "add_function_def" -> Add_fn_def (str "name", id, loc ())
+    | "add_anon" ->
+      Add_anon (id, maybe_id "inner", loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (int "id", loc ())
     | "add_edge" -> Add_edge (int "src", int "target", str "param")
@@ -97,9 +97,7 @@ let op2json op : json =
     | Add_fn_call (name, _id, loc, edges) ->
       "add_function_call",
       [str "name" name; id _id; x loc; y loc; intlist "edges" edges]
-    | Add_fn_def (name, _id, loc) ->
-      "add_function_def", [str "name" name; id _id; x loc; y loc]
-    (* | Add_anon (id, inner_id, loc) -> "add_anon", [id _id; int "inner_id" id]; *)
+    | Add_anon (_id, inner_id, loc) -> "add_anon", [id _id; int "inner_id" inner_id; x loc; y loc]
     | Add_datastore (name, _id, loc) ->
       "add_datastore", [str "name" name; id _id; x loc; y loc]
     | Add_value (expr, _id, loc) ->
