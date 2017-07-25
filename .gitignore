@@ -2,6 +2,7 @@
 /.browser-trigger
 /client/elm-stuff/
 /server/_build
+/server/*.byte
 /server/dark.install
 /server/static/elm.js
 /server/appdata/*.dark
