@@ -61,7 +61,7 @@ let json2op (json : json) : op =
     | "add_function_call" ->
       Add_fn_call (str "name", id, loc (), intlist "edges")
     | "add_anon" ->
-      Add_anon (id, maybe_id "inner", loc ())
+      Add_anon (id, maybe_id "inner_id", loc ())
     | "add_value" -> Add_value (str "value", id, loc ())
     | "update_node_position" -> Update_node_position (int "id", loc ())
     | "add_edge" -> Add_edge (int "src", int "target", str "param")
@@ -97,7 +97,8 @@ let op2json op : json =
     | Add_fn_call (name, _id, loc, edges) ->
       "add_function_call",
       [str "name" name; id _id; x loc; y loc; intlist "edges" edges]
-    | Add_anon (_id, inner_id, loc) -> "add_anon", [id _id; int "inner_id" inner_id; x loc; y loc]
+    | Add_anon (_id, inner_id, loc) ->
+      "add_anon", [id _id; int "inner_id" inner_id; x loc; y loc]
     | Add_datastore (name, _id, loc) ->
       "add_datastore", [str "name" name; id _id; x loc; y loc]
     | Add_value (expr, _id, loc) ->

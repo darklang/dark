@@ -57,13 +57,14 @@ let t_int_add_works _ =
   assert_equal r (DInt 8)
 
 let t_load_save _ =
-  let add = Op.Add_fn_call ("-", fid (), fl, []) in
-  let v1 = Op.Add_value ("5", fid (), fl) in
-  let v2 = Op.Add_value ("3", fid (), fl) in
-  let e1 = Op.Add_edge (Op.id_of v2, Op.id_of add, "b") in
-  let e2 = Op.Add_edge (Op.id_of v1, Op.id_of add, "a") in
+  let n1 = Op.Add_fn_call ("-", fid (), fl, []) in
+  let n2 = Op.Add_value ("5", fid (), fl) in
+  let n3 = Op.Add_value ("3", fid (), fl) in
+  let n4 = Op.Add_anon (fid (), fid (), fl) in
+  let e1 = Op.Add_edge (Op.id_of n3, Op.id_of n1, "b") in
+  let e2 = Op.Add_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
-  let g = graph_from_ops name [add; v1; v2; e1; e2] in
+  let g = graph_from_ops name [n1; n2; n3; n4; e1; e2] in
   let _ = G.save !g in
   let g1 = G.load name in
   let _ = G.save !g in
