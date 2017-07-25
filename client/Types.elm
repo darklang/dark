@@ -70,6 +70,7 @@ type RPC
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos (List ID)
+    | AddAnon Pos
     | AddValue String Pos
     | UpdateNodePosition ID -- no pos cause it's in the node
     | AddEdge ID (ID, ParamName)

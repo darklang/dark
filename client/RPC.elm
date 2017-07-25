@@ -34,12 +34,16 @@ encodeRPC m call =
                                                 JSE.object [ ("id", JSE.int id)
                                                            , ("name", JSE.string name)
                                                            , ("tipe", JSE.string tipe)])
+
       AddFunctionCall name {x,y} edges -> ("add_function_call",
                                              JSE.object [ ("name", JSE.string name)
                                                         , ("x", JSE.int x)
                                                         , ("y", JSE.int y)
                                                         , ("edges", JSE.list
                                                              (List.map (\(ID i) -> JSE.int i) edges))])
+      AddAnon {x,y} -> ("add_anon",
+                              JSE.object [ ("x", JSE.int x)
+                                         , ("y", JSE.int y)])
       AddValue str {x,y} -> ("add_value",
                                JSE.object [ ("value", JSE.string str)
                                           , ("x", JSE.int x)
