@@ -60,13 +60,25 @@ class func n id loc =
                  self#parameters))]
   end
 
+class datastore table id loc =
+  object
+    inherit node id loc
+    val table : string = table
+    method execute (_ : param_map) : dval = DStr "todo datastore execute"
+    method name = "DS-" ^ table
+    method tipe = "datastore"
+  end
+
+(* ----------------------- *)
+(* Anonymous functions *)
+(* ----------------------- *)
+
 (* the value of the anon *)
 class anon id (executor: dval -> dval) loc =
   object
     inherit node id loc
     method name = "<anon>"
     method execute (_: param_map) : dval =
-      print_endline "anon func executing";
       DAnon (id, executor)
     method tipe = "definition"
     method! parameters = ["todo"]
@@ -78,20 +90,11 @@ class anon_inner id loc =
     inherit node id loc
     method name = "<anoninner>"
     method execute (args: param_map) : dval =
-      print_endline "inner func executing";
       String.Map.find_exn args "return"
     method tipe = "definition"
     method! parameters = ["return"]
   end
 
-class datastore table id loc =
-  object
-    inherit node id loc
-    val table : string = table
-    method execute (_ : param_map) : dval = DStr "todo datastore execute"
-    method name = "DS-" ^ table
-    method tipe = "datastore"
-  end
 
 let equal_node (a:node) (b:node) =
   a#id = b#id
