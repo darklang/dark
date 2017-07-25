@@ -1,6 +1,5 @@
 /logs/
 /.browser-trigger
-.merlin
 /client/elm-stuff/
 /server/_build
 /server/dark.install

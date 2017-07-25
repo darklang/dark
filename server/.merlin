@@ -1,0 +1,6 @@
+PKG core ppx_deriving.eq yojson cohttp.lwt
+
+S lib
+S bin
+
+B _build/**

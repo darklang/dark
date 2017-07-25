@@ -1,3 +1,0 @@
-<*.ml>: package(ppx_deriving.std)
-<*.ml>: package(ppx_deriving.show)
-<*.ml>: package(ppx_deriving)
