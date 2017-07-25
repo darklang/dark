@@ -97,7 +97,8 @@ def ocaml_build():
   return call("cd server && ocamlbuild dark.byte")
 
 def ocaml_test():
-  return call("cd server && jbuilder runtest")
+  return call("cd server && \
+ocamlbuild -I test -tag-line '<test/*> : package(oUnit)' test.byte && _build/test/test.byte")
 
 def reload_server():
   return call("cd server && ../scripts/support/runserver")
@@ -112,7 +113,7 @@ def main():
   s2 = elm_make()
   s3 = ocaml_build ()
   if s3:
-    # ocaml_test()
+    ocaml_test()
     reload_server()
   if s3 or (s1 and s2):
     reload_browser()
