@@ -26,14 +26,14 @@ let server =
       let () = match payload with
       | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> ()
       | `List (first::rest) ->
-        let first_op = G.json2op first in
-        let id = G.id_of first_op in
+        let first_op = Op.json2op first in
+        let id = Op.id_of first_op in
         let convert op = match op with
-          | G.Add_edge (s, -1, p) -> G.Add_edge (s, id, p)
+          | Op.Add_edge (s, -1, p) -> Op.Add_edge (s, id, p)
           | op -> op in
         let _ = G.add_op first_op g in
         List.iter
-          ~f:(fun op -> G.add_op (convert (G.json2op op)) g)
+          ~f:(fun op -> G.add_op (convert (Op.json2op op)) g)
           rest
       | _ -> Exception.raise "Unexpected request structure"
       in

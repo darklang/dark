@@ -2,47 +2,25 @@ open Core
 open Util
 open Types
 
-type dval = Runtime.dval [@@deriving eq]
-
 module ParamMap = String.Map
 module NodeMap = Int.Map
+
+type dval = Runtime.dval [@@deriving eq]
 type nodemap = Node.node NodeMap.t [@@deriving eq]
-
 type json = Yojson.Basic.json
-module J = Yojson.Basic.Util
 
-
-(* ------------------------- *)
-(* Types *)
-(* ------------------------- *)
-type op = Add_fn_call of string * id * loc * id list
-        | Add_fn_def of string * id * loc
-        | Add_datastore of string * id * loc
-        | Add_value of string * id * loc
-        (* id in the outer graph, id in the inner graph *)
-        | Add_anon of id * id * loc
-        (* id, name, type, is_list *)
-        | Add_datastore_field of id * string * string * bool
-        | Update_node_position of id * loc
-        | Delete_node of id
-        | Add_edge of id * id * param
-        | Delete_edge of id * id * param
-        | Clear_edges of id
-        | Select_node of id
-[@@deriving eq]
-
-type targetpair = (id * param)
-type graph = {
-  name : string;
-  ops : op list;
-  nodes : nodemap;
-  edges : (id * id * param) list;
-  cursor : id option
-} [@@deriving eq]
 
 (* ------------------------- *)
 (* Graph *)
 (* ------------------------- *)
+type targetpair = (id * param)
+type graph = {
+  name : string;
+  ops : Op.op list;
+  nodes : nodemap;
+  edges : (id * id * param) list;
+  cursor : id option
+} [@@deriving eq]
 
 let create (name : string) : graph ref =
   ref { name = name
@@ -53,14 +31,35 @@ let create (name : string) : graph ref =
       }
 
 (* ------------------------- *)
-(* Updating *)
+(* Traversing *)
 (* ------------------------- *)
+
+let get_children id g : (param * id) list =
+  g.edges
+  |> List.filter ~f:(fun (s,_,_) -> s = id)
+  |> List.map ~f:(fun (_,t,p) -> (p,t))
+
+let get_parents id g : (param * id) list =
+  g.edges
+  |> List.filter ~f:(fun (_,t,_) -> t = id)
+  |> List.map ~f:(fun (s,_,p) -> (p,s))
+
+let get_named_parent id param g : id =
+  g.edges
+  |> List.filter ~f:(fun (_,t,p) -> t = id && p = param)
+  |> List.hd_exn
+  |> Tuple3.get1
+
 let get_node (id : id)  (g : graph) : Node.node =
   NodeMap.find_exn g.nodes id
 
 let has_edge s t param (g : graph) : bool =
   List.exists ~f:(fun a -> a = (s, t, param)) g.edges
 
+
+(* ------------------------- *)
+(* Updating *)
+(* ------------------------- *)
 let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (* Can't have two edges to the same target *)
   (* TODO: exception for datasinks like DBs and APIs *)
@@ -81,7 +80,6 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (*   types.check(src_type, target_type) *)
   (* except types.DTypeError as e: *)
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
-
 
 
 let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
@@ -115,27 +113,6 @@ let delete_node id (g: graph) : graph =
   let g = clear_edges id g in
   { g with nodes = NodeMap.remove g.nodes id; cursor = None }
 
-
-(* ------------------------- *)
-(* Traversing *)
-(* ------------------------- *)
-
-let get_children id g : (param * id) list =
-  g.edges
-  |> List.filter ~f:(fun (s,_,_) -> s = id)
-  |> List.map ~f:(fun (_,t,p) -> (p,t))
-
-let get_parents id g : (param * id) list =
-  g.edges
-  |> List.filter ~f:(fun (_,t,_) -> t = id)
-  |> List.map ~f:(fun (s,_,p) -> (p,s))
-
-let get_named_parent id param g : id =
-  g.edges
-  |> List.filter ~f:(fun (_,t,p) -> t = id && p = param)
-  |> List.hd_exn
-  |> Tuple3.get1
-
 (* ------------------------- *)
 (* Executing *)
 (* ------------------------- *)
@@ -152,10 +129,6 @@ let rec execute (id: id) ?(eager: dvalmap = DValMap.empty) (g: graph) : dval =
     let args = ParamMap.of_alist_exn args in
     n#execute args
 
-
-(* ------------------------- *)
-(* Ops *)
-(* ------------------------- *)
 let executor id (g: graph ref) : (dval -> dval) =
   (* We specifically need a graph ref here, not an immutable graph as we
      want to execute this later on the completed graph *)
@@ -165,7 +138,10 @@ let executor id (g: graph ref) : (dval -> dval) =
      execute parent ~eager !g
   )
 
-let apply_op (op : op) (g : graph ref) : unit =
+(* ------------------------- *)
+(* Ops *)
+(* ------------------------- *)
+let apply_op (op : Op.op) (g : graph ref) : unit =
   g :=
     !g |>
     match op with
@@ -188,106 +164,13 @@ let apply_op (op : op) (g : graph ref) : unit =
     | Select_node (id) -> select_node id
     | _ -> failwith "applying unimplemented op"
 
-let add_op (op: op) (g: graph ref) : unit =
+let add_op (op: Op.op) (g: graph ref) : unit =
   apply_op op g;
   g := { !g with ops = !g.ops @ [op]}
 
-let id_of = function
-  | Add_fn_call (_, id, _, _) -> id
-  | Add_datastore (_, id, _) -> id
-  | Add_value (_, id, _) -> id
-  | Add_anon (id, _, _) -> id
-  | Update_node_position (id, _) -> id
-  | Clear_edges (id) -> id
-  | Delete_node (id) -> id
-  | Select_node (id) -> id
-  | _ -> failwith "getting id of op without id"
-
-
 (* ------------------------- *)
 (* Serialization *)
-let json2op (json : json) : op =
-  match json with
-  | `Assoc [optype, args] -> (
-    let str field = J.member field args |> J.to_string in
-    let int field = J.member field args |> J.to_int in
-    let intlist field = args
-                        |> J.member field
-                        |> J.to_list
-                        |> List.map ~f:J.to_int in
-    let id = match J.member "id" args with
-      | `Int id -> id
-      (* When they come in first, they don't have an id, so add one. *)
-      | `Null -> Util.create_id ()
-      | j -> "IDs must be ints, not '" ^ (Yojson.Basic.to_string j) ^ "'"
-             |> Exception.raise
-    in
-    let loc : (unit -> loc) =
-      (fun _ : loc -> { x = int "x"; y = int "y" }) in
-    match optype with
-    | "add_datastore" -> Add_datastore (str "name", id, loc ())
-    | "add_function_call" ->
-      Add_fn_call (str "name", id, loc (), intlist "edges")
-    | "add_function_def" -> Add_fn_def (str "name", id, loc ())
-    | "add_value" -> Add_value (str "value", id, loc ())
-    | "update_node_position" -> Update_node_position (int "id", loc ())
-    | "add_edge" -> Add_edge (int "src", int "target", str "param")
-    | "delete_edge" -> Delete_edge (int "src", int "target", str "param")
-    | "delete_node" -> Delete_node (int "id")
-    | "clear_edges" -> Clear_edges (int "id")
-    | "select_node" -> Select_node (int "id")
-    (* TODO: put this into the frontend *)
-    | "add_datastore_field" ->
-
-      let (list, tipe) =
-        match String.split_on_chars
-                (str "tipe") ~on:['['; ']'] with
-        | ["["; s; "]"] -> (true, s)
-        | [s] -> (false, s)
-        | _ -> failwith "other pattern"
-      in
-      Add_datastore_field (int "id", str "name", tipe, list)
-    | _ -> failwith ("not a valid optype: " ^ optype))
-  | _ ->
-    failwith ("incorrect op structure" ^ (Yojson.Basic.to_string json))
-
-
-let op2json op : json =
-  let str k v = (k, `String v) in
-  let int k v = (k, `Int v) in
-  let bool k v = (k, `Bool v) in
-  let intlist k vs = (k, `List (List.map ~f:(fun i -> `Int i) vs)) in
-  let id id = int "id" id in
-  let x (loc : loc) = int "x" loc.x in
-  let y (loc : loc) = int "y" loc.y in
-  let (name, args) = match op with
-    | Add_fn_call (name, _id, loc, edges) ->
-      "add_function_call",
-      [str "name" name; id _id; x loc; y loc; intlist "edges" edges]
-    | Add_fn_def (name, _id, loc) ->
-      "add_function_def", [str "name" name; id _id; x loc; y loc]
-    | Add_datastore (name, _id, loc) ->
-      "add_datastore", [str "name" name; id _id; x loc; y loc]
-    | Add_value (expr, _id, loc) ->
-      "add_value", [str "value" expr; id _id; x loc; y loc]
-    (* TODO: deal with is_list *)
-    | Add_datastore_field (_id, name, tipe, _) ->
-      "add_datastore_field",
-      [id _id; str "name" name; str "tipe" tipe; bool "is_list" false]
-    | Update_node_position (_id, loc) ->
-      "update_node_position", [id _id; x loc; y loc]
-    | Select_node (_id) ->
-      "select_node", [id _id]
-    | Delete_node _id ->
-      "delete_node", [id _id]
-    | Add_edge (sid, tid, param) ->
-      "add_edge", [int "src" sid; int "target" tid; str "param" param]
-    | Delete_edge (sid, tid, param) ->
-      "delete_edge", [int "src" sid; int "target" tid; str "param" param]
-    | Clear_edges _id -> "clear_edges", [id _id]
-  in `Assoc [name, `Assoc args]
-
-
+(* ------------------------- *)
 let load name : graph ref =
   let filename = "appdata/" ^ name ^ ".dark" in
   let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
@@ -298,16 +181,14 @@ let load name : graph ref =
   let str = if String.equal str "" then "[]" else str in
   let jsonops = Yojson.Basic.from_string str in
   let ops = match jsonops with
-  | `List ops -> List.map ~f:json2op ops
+  | `List ops -> List.map ~f:Op.json2op ops
   | _ -> failwith "unexpected deserialization" in
   let g = create name in
   List.iter ops ~f:(fun op -> add_op op g);
   g
 
-
-
 let save (g : graph) : unit =
-  let ops = List.map ~f:op2json g.ops in
+  let ops = List.map ~f:Op.op2json g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let str = str ^ "\n" in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
@@ -316,10 +197,8 @@ let save (g : graph) : unit =
   let _ = Unix.write file ~buf:str in
   Unix.close file
 
-
-
 (* ------------------------- *)
-(* To JSON *)
+(* To Frontend JSON *)
 (* ------------------------- *)
 let to_frontend_nodes g : json =
   `Assoc (
