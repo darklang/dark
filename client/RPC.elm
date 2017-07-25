@@ -40,10 +40,6 @@ encodeRPC m call =
                                                         , ("y", JSE.int y)
                                                         , ("edges", JSE.list
                                                              (List.map (\(ID i) -> JSE.int i) edges))])
-      AddFunctionDef name {x,y} -> ("add_function_def",
-                                       JSE.object [ ("name", JSE.string name)
-                                                  , ("x", JSE.int x)
-                                                  , ("y", JSE.int y)])
       AddValue str {x,y} -> ("add_value",
                                JSE.object [ ("value", JSE.string str)
                                           , ("x", JSE.int x)
