@@ -30,7 +30,7 @@ let fns_list = [
   ; o = ["Int::mod"]
   ; p = ["a"; "b"]
   ; f = function
-      | [DInt a; DInt b] -> a mod b |> DInt
+      | [DInt a; DInt b] -> a mod b |> fun x -> DInt x
       | args -> expected "2 ints" args
   }
   ;
@@ -38,7 +38,7 @@ let fns_list = [
   ; o = ["Int::add"]
   ; p = ["a"; "b"]
   ; f = function
-      | [DInt a; DInt b] -> a + b |> DInt
+      | [DInt a; DInt b] -> a + b |> fun x -> DInt x
       | args -> expected "2 ints" args
   }
   ;
@@ -46,7 +46,7 @@ let fns_list = [
   ; o = ["Int::sub"]
   ; p = ["a"; "b"]
   ; f = function
-      | [DInt a; DInt b] -> a - b |> DInt
+      | [DInt a; DInt b] -> a - b |> fun x -> DInt x
       | args -> expected "2 ints" args
   }
   ;
@@ -61,7 +61,7 @@ let fns_list = [
           | DChar c -> c
           | r -> failwith "expected a char"
         in
-        s |> String.map ~f:charf |> DStr
+        s |> String.map ~f:charf |> fun x -> DStr x
       | args -> expected "a string and a function" args
   }
   ;
@@ -69,7 +69,7 @@ let fns_list = [
   ; o = []
   ; p = ["c"]
   ; f = function
-      | [DChar c] -> c |> Char.to_int |> DInt
+      | [DChar c] -> c |> Char.to_int |> fun x -> DInt x
       | args -> expected "a char" args
   }
   ;
@@ -77,7 +77,7 @@ let fns_list = [
   ; o = []
   ; p = ["c"]
   ; f = function
-      | [DChar c] -> c |> Char.uppercase |> DChar
+      | [DChar c] -> c |> Char.uppercase |> fun x -> DChar x
       | args -> expected "a char" args
   }
   ;
@@ -85,7 +85,7 @@ let fns_list = [
   ; o = []
   ; p = ["i"]
   ; f = function
-      | [DInt i] -> i |> Char.of_int_exn |> DChar
+      | [DInt i] -> i |> Char.of_int_exn |> fun x -> DChar x
       | args -> expected "an char's integer ascii (todo: unicode) value" args
   }
 ]

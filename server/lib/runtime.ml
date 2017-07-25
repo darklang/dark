@@ -31,10 +31,10 @@ let parse (str : string) : dval =
        && Char.equal '\'' (String.nget str (-1))
   then DChar (String.get str 1)
   else
-    try str |> int_of_string |> DInt
+    try str |> int_of_string |> fun x -> DInt x
     with
     | Failure _ ->
-      try str |> float_of_string |> DFloat
+      try str |> float_of_string |> fun x -> DFloat x
       with
       | Failure _ ->
         Exception.raise ("Cannot parse value: " ^ str)

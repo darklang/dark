@@ -2,6 +2,6 @@
 "bin" : include
 
 true : debug, bin_annot
-true : package(core), package(ppx_pipebang.deprecated-ppx-method)
+true : package(core)
 true : package(ppx_deriving.std), package(ppx_deriving.eq), package(yojson)
 true : package(cohttp.lwt), thread
