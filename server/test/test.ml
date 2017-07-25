@@ -16,14 +16,14 @@ let fl : loc = {x=0; y=0}
 
 let fid () = Util.create_id ()
 
-let graph_from_ops name ops : G.graph =
+let graph_from_ops name ops : G.graph ref =
   let g = G.create name in
-  let g = List.fold_left (fun g op -> G.add_op op g) g ops in
+  List.iter (fun op -> G.add_op op g) ops;
   g
 
 let execute_ops (ops : G.op list) (result : G.op) =
   let g = graph_from_ops "test" ops in
-  G.execute (G.id_of result) g
+  G.execute (G.id_of result) !g
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
@@ -64,12 +64,12 @@ let t_load_save _ =
   let e2 = G.Add_edge (G.id_of v1, G.id_of add, "a") in
   let name = "test_load_save" in
   let g = graph_from_ops name [add; v1; v2; e1; e2] in
-  let _ = G.save g in
+  let _ = G.save !g in
   let g1 = G.load name in
-  let _ = G.save g in
+  let _ = G.save !g in
   let g2 = G.load name in
-  assert (G.equal_graph g g1);
-  assert (G.equal_graph g g2)
+  assert (G.equal_graph !g !g1);
+  assert (G.equal_graph !g !g2)
 
 let t_lambda_with_foreach _ =
   let v = G.Add_value ("\"some string\"", fid (), fl) in
@@ -82,7 +82,7 @@ let t_lambda_with_foreach _ =
   let e3 = G.Add_edge (G.id_of upper, anon_inner, "return") in
   let e4 = G.Add_edge (anon_inner, G.id_of upper, "c") in
   let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
-  assert_equal r (DStr "\"SOME STRING\"")
+  assert_equal r (DStr "SOME STRING")
 
 
 

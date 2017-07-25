@@ -77,7 +77,7 @@ let fns_list = [
   ; o = []
   ; p = ["c"]
   ; f = function
-      | [DChar c] -> c |> Char.to_int |> (-) 32 |> Char.of_int_exn |> DChar
+      | [DChar c] -> c |> Char.uppercase |> DChar
       | args -> expected "a char" args
   }
   ;

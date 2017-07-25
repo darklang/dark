@@ -23,26 +23,23 @@ let server =
       let payload = Yojson.Basic.from_string body in
 
       let g = G.load "blog" in
-      let g =
-        match payload with
-        | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> g
-        | `List (first::rest) ->
-          let first_op = G.json2op first in
-          let g = G.add_op first_op g in
-          let id = G.id_of first_op in
-          let convert op = match op with
-            | G.Add_edge (s, -1, p) -> G.Add_edge (s, id, p)
-            | op -> op in
-          List.fold_left
-            ~f:(fun g op -> G.add_op (convert (G.json2op op)) g)
-            ~init:g
-            rest
-        | _ -> Exception.raise "Unexpected request structure"
-     in
-      G.save g;
-      g
-      |> Graph.to_frontend
-      |> Yojson.Basic.pretty_to_string ~std:true
+      let () = match payload with
+      | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> ()
+      | `List (first::rest) ->
+        let first_op = G.json2op first in
+        let id = G.id_of first_op in
+        let convert op = match op with
+          | G.Add_edge (s, -1, p) -> G.Add_edge (s, id, p)
+          | op -> op in
+        let _ = G.add_op first_op g in
+        List.iter
+          ~f:(fun op -> G.add_op (convert (G.json2op op)) g)
+          rest
+      | _ -> Exception.raise "Unexpected request structure"
+      in
+      G.save !g;
+      !g
+      |> Graph.to_frontend_string
       |> Util.inspect ~f:ident "response: "
     in
 

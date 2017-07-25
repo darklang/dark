@@ -44,13 +44,13 @@ type graph = {
 (* Graph *)
 (* ------------------------- *)
 
-let create (name : string) : graph =
-  { name = name
-  ; ops = []
-  ; nodes = NodeMap.empty
-  ; edges = []
-  ; cursor = None
-  }
+let create (name : string) : graph ref =
+  ref { name = name
+      ; ops = []
+      ; nodes = NodeMap.empty
+      ; edges = []
+      ; cursor = None
+      }
 
 (* ------------------------- *)
 (* Updating *)
@@ -132,9 +132,7 @@ let get_parents id g : (param * id) list =
 
 let get_named_parent id param g : id =
   g.edges
-  |> Util.inspect "all" ~f:(fun l -> String.concat ~sep:"::" (List.map ~f:(fun (a,b,c) -> (Int.to_string a) ^ ", " ^ (Int.to_string b) ^ ", " ^ c) l))
   |> List.filter ~f:(fun (_,t,p) -> t = id && p = param)
-  |> Util.inspect "named" ~f:(fun l -> l |> List.length |> Int.to_string)
   |> List.hd_exn
   |> Tuple3.get1
 
@@ -158,38 +156,41 @@ let rec execute (id: id) ?(eager: dvalmap = DValMap.empty) (g: graph) : dval =
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-let executor id g : (dval -> dval) =
+let executor id (g: graph ref) : (dval -> dval) =
+  (* We specifically need a graph ref here, not an immutable graph as we
+     want to execute this later on the completed graph *)
   (fun v ->
      let eager = DValMap.of_alist_exn [(id, v)] in
-     let parent = get_named_parent id "return" g in
-     execute parent ~eager g
+     let parent = get_named_parent id "return" !g in
+     execute parent ~eager !g
   )
 
-let apply_op (op : op) (g : graph) : graph =
-  g |>
-  match op with
-  | Add_fn_call (name, id, loc, edges) ->
-    add_node (new Node.func name id loc) edges
-  | Add_datastore (table, id, loc) -> add_node (new Node.datastore table id loc) []
-  | Add_value (expr, id, loc) -> add_node (new Node.value expr id loc) []
-  | Add_anon (id, inner_id, loc) ->
-    (* Error: the graph in g doesn't have the anon node in it, or the edges we need *)
-    (fun g ->
-       let g = add_node (new Node.anon_inner inner_id loc) [] g in
-       add_node (new Node.anon id (executor inner_id g) loc) [] g
-    )
+let apply_op (op : op) (g : graph ref) : unit =
+  g :=
+    !g |>
+    match op with
+    | Add_fn_call (name, id, loc, edges) ->
+      add_node (new Node.func name id loc) edges
+    | Add_datastore (table, id, loc) ->
+      add_node (new Node.datastore table id loc) []
+    | Add_value (expr, id, loc) ->
+      add_node (new Node.value expr id loc) []
+    | Add_anon (id, inner_id, loc) ->
+      (fun _g ->
+         let _g = add_node (new Node.anon_inner inner_id loc) [] _g in
+         add_node (new Node.anon id (executor inner_id g) loc) [] _g
+      )
+    | Add_edge (src, target, param) -> add_edge src target param
+    | Update_node_position (id, loc) -> update_node_position id loc
+    | Delete_edge (s, t, param) -> delete_edge s t param
+    | Clear_edges (id) -> clear_edges id
+    | Delete_node (id) -> delete_node id
+    | Select_node (id) -> select_node id
+    | _ -> failwith "applying unimplemented op"
 
-  | Add_edge (src, target, param) -> add_edge src target param
-  | Update_node_position (id, loc) -> update_node_position id loc
-  | Delete_edge (s, t, param) -> delete_edge s t param
-  | Clear_edges (id) -> clear_edges id
-  | Delete_node (id) -> delete_node id
-  | Select_node (id) -> select_node id
-  | _ -> failwith "applying unimplemented op"
-
-let add_op (op: op) (g: graph) : graph =
-  let g = apply_op op g in
-  { g with ops = g.ops @ [op]}
+let add_op (op: op) (g: graph ref) : unit =
+  apply_op op g;
+  g := { !g with ops = !g.ops @ [op]}
 
 let id_of = function
   | Add_fn_call (_, id, _, _) -> id
@@ -287,7 +288,7 @@ let op2json op : json =
   in `Assoc [name, `Assoc args]
 
 
-let load name : graph =
+let load name : graph ref =
   let filename = "appdata/" ^ name ^ ".dark" in
   let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
   let file = Unix.openfile filename ~mode:flags ~perm:0o640 in
@@ -299,7 +300,9 @@ let load name : graph =
   let ops = match jsonops with
   | `List ops -> List.map ~f:json2op ops
   | _ -> failwith "unexpected deserialization" in
-  List.fold_left ops ~f:(fun g op -> add_op op g) ~init:(create name)
+  let g = create name in
+  List.iter ops ~f:(fun op -> add_op op g);
+  g
 
 
 
