@@ -178,6 +178,7 @@ update msg m =
            , edges = edges
            , cursor = cursor
            , live = live
+           , errors = []
        }, focusInput)
 
     (RPCCallBack (Err (Http.BadStatus error)), _) ->
