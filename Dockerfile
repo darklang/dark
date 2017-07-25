@@ -48,14 +48,7 @@ RUN opam install core.v0.9.1 \
                  yojson.1.3.3 \
                  postgresql.4.0.1 \
                  oUnit.2.0.0 \
-                 ppx_derivers.1.0
-
-RUN git clone https://github.com/whitequark/ppx_deriving \
-   && cd ppx_deriving \
-   && git fetch origin +refs/pull/141/merge \
-   && git checkout -qf FETCH_HEAD
-RUN cd ppx_deriving && make
-RUN opam pin add ppx_deriving ./ppx_deriving
+                 ppx_deriving_yojson.3.0
 
 USER root
 RUN apt-get install locales

@@ -1,4 +1,4 @@
-PKG core ppx_deriving.eq yojson cohttp.lwt
+PKG core ppx_deriving.eq ppx_deriving_yojson cohttp.lwt
 
 S lib
 S bin

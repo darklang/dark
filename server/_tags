@@ -3,5 +3,5 @@
 
 true : debug, bin_annot, warn(-40)
 true : package(core)
-true : package(ppx_deriving.std), package(ppx_deriving.eq), package(yojson)
+true : package(ppx_deriving.std), package(ppx_deriving.eq), package(ppx_deriving_yojson)
 true : package(cohttp.lwt), thread
