@@ -80,23 +80,32 @@ type RPC
     | ClearEdges ID
     | RemoveLastField ID
 
-type alias Editor = { entryPos : Pos }
-
+-- Values that we serialize
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , cursor : Cursor
                    , live : LiveValue
-                   , replValue : String
-                   , entryValue : String
                    , focused : Bool
                    , tempFieldName : FieldName
                    , errors : List String
                    , dragPos : Pos
-                   , entryPos : Pos
-                   , clickPos : Pos
                    , drag : Drag
                    , lastMsg : Msg
+                   -- these values are serialized via Editor
+                   , entryPos : Pos
+                   , clickPos : Pos
+                   , replValue : String
+                   , entryValue : String
+                   , prevNode : Maybe ID
                    }
+
+type alias Editor = { entryPos : Pos
+                    , clickPos : Pos
+                    , replValue : String
+                    , entryValue : String
+                    , prevNode : Maybe Int
+                    }
+
 type Drag = NoDrag
           | DragNode ID Offset -- offset between the click and the node pos
           | DragSlot ID ParamName Mouse.Position -- starting point of edge

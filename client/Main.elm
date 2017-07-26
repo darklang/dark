@@ -4,10 +4,11 @@ port module Main exposing (..)
 import Result
 import Char
 import Dict exposing (Dict)
-import Http
-import Html
+import Maybe
 
 -- lib
+import Http
+import Html
 import Keyboard
 import Mouse
 import Dom
@@ -36,34 +37,51 @@ main = Html.programWithFlags
 
 -- MODEL
 init : Maybe Editor -> ( Model, Cmd Msg )
-init e = let m = { nodes = Dict.empty
-                 , edges = []
-                 , cursor = Nothing
-                 , live = Nothing
-                 , errors = ["None"]
-                 , entryValue = ""
-                 , replValue = ""
-                 , focused = False
-                 , tempFieldName = ""
-                 , entryPos = case e of
-                               Nothing -> Consts.initialPos
-                               Just e -> e.entryPos
-                 , dragPos = {x=0, y=0}
-                 , clickPos = {x=0, y=0}
-                 , drag = NoDrag
-                 , lastMsg = NoMsg
-                 } in
-         let load = rpc m <| [LoadInitialGraph]
-         in (m, Cmd.batch [focusEntry, load])
+init e =
+  let editor = case e of
+                 Nothing -> { entryPos = Consts.initialPos
+                            , clickPos = {x=0, y=0}
+                            , entryValue = ""
+                            , replValue = ""
+                            , prevNode = Nothing
+                            }
+                 Just e -> e
+      m = { nodes = Dict.empty
+          , edges = []
+          , cursor = Nothing
+          , live = Nothing
+          , errors = ["None"]
+          , focused = False
+          , tempFieldName = ""
+          , dragPos = {x=0, y=0}
+          , drag = NoDrag
+          , lastMsg = NoMsg
+          , entryPos = editor.entryPos
+          , clickPos = editor.clickPos
+          , entryValue = editor.entryValue
+          , replValue = editor.replValue
+          , prevNode = Maybe.map ID editor.prevNode
+          }
+      load = rpc m <| [LoadInitialGraph]
+  in
+    (m, Cmd.batch [focusEntry, load])
 
 
 -- ports
 port setStorage : Editor -> Cmd msg
 
+model2editor : Model -> Editor
+model2editor m = { entryPos = m.entryPos
+                 , clickPos = m.clickPos
+                 , entryValue = m.entryValue
+                 , replValue = m.replValue
+                 , prevNode = Maybe.map deID m.prevNode
+                 }
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let (m2, cmd) = update_ msg m in
-  (m2, Cmd.batch [cmd, setStorage {entryPos = m.entryPos}])
+  (m2, Cmd.batch [cmd, m |> model2editor |> setStorage])
 
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m =
