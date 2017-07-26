@@ -152,7 +152,7 @@ update_ msg m =
         (m, rpc m <| [AddFunctionCall m.entryValue m.entryPos []])
 
 
-    (RPCCallBack calls (Ok (nodes, edges)), _) ->
+    (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
                , edges = edges
                , errors = []}
@@ -163,7 +163,7 @@ update_ msg m =
                    {m2 | entryPos = nextPosition m2.entryPos}
                  _ -> m2
       in
-       (m3, focusEntry)
+       ({m3 | prevNode = justAdded}, focusEntry)
 
 
     ------------------------

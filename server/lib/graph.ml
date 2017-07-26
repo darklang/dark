@@ -19,6 +19,7 @@ type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap
              ; edges : (id * id * param) list
+             ; just_added : id option
              } [@@deriving eq]
 
 let create (name : string) : graph ref =
@@ -26,6 +27,7 @@ let create (name : string) : graph ref =
       ; ops = []
       ; nodes = NodeMap.empty
       ; edges = []
+      ; just_added = None
       }
 
 (* ------------------------- *)
@@ -84,7 +86,8 @@ let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
   let len = List.length edges in
   let params = List.take node#parameters len in
   let sources = List.zip_exn edges params in
-  let g = { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;}
+  let g = { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
+                   just_added = Some node#id}
   in
   List.fold_left
     ~f:(fun g (s, p) -> add_edge s node#id p g)
@@ -93,19 +96,22 @@ let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   g |> get_node id |> (fun n -> n#update_loc loc);
-  g
+  { g with just_added = None}
 
 let clear_edges (id: id) (g: graph) : graph =
   let f (s, t, _) = s <> id && t <> id in
-  { g with edges = List.filter ~f:f g.edges }
+  { g with edges = List.filter ~f:f g.edges;
+           just_added = None }
 
 let delete_edge s t param (g: graph) : graph =
   let f a = a <> (s, t, param) in
-  { g with edges = List.filter ~f:f g.edges }
+  { g with edges = List.filter ~f:f g.edges;
+           just_added = None}
 
 let delete_node id (g: graph) : graph =
   let g = clear_edges id g in
-  { g with nodes = NodeMap.remove g.nodes id; }
+  { g with nodes = NodeMap.remove g.nodes id;
+           just_added = None}
 
 (* ------------------------- *)
 (* Executing *)
@@ -215,6 +221,9 @@ let to_frontend_edges g : json =
 let to_frontend (g : graph) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)
          ; ("edges", to_frontend_edges g)
+         ; ("just_added", match g.just_added with
+           | None -> `Null
+           | Some id -> `Int id)
          ]
 
 let to_frontend_string (g: graph) : string =

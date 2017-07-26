@@ -112,15 +112,17 @@ decodeEdge =
     |> JSDP.required "target" JSD.int
     |> JSDP.required "param" JSD.string
 
-decodeGraph : JSD.Decoder (NodeDict, List Edge)
+
+decodeGraph : JSD.Decoder (NodeDict, List Edge, Maybe ID)
 decodeGraph =
-  let toGraph : List Node -> List Edge -> (NodeDict, List Edge)
-      toGraph nodes edges =
+  let toGraph : List Node -> List Edge -> Maybe Int -> (NodeDict, List Edge, Maybe ID)
+      toGraph nodes edges idint =
         let nodedict = List.foldl
                     (\v d -> Dict.insert (v.id |> deID) v d)
                     Dict.empty
                     nodes
-        in (nodedict, edges)
+        in (nodedict, edges, Maybe.map ID idint)
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeNode)
     |> JSDP.required "edges" (JSD.list decodeEdge)
+    |> JSDP.required "just_added" (JSD.nullable JSD.int)
