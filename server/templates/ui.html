@@ -10,6 +10,13 @@
     <script src="/static/elm.js"> </script>
   </head>
   <body>
-    <script type="text/javascript">Elm.Main.fullscreen()</script>
+    <script type="text/javascript">
+     storage = localStorage.getItem('editor');
+     state = JSON.parse(storage);
+     elmapp = Elm.Main.fullscreen(state);
+     elmapp.ports.setStorage.subscribe(function (state) {
+       localStorage.setItem('editor', JSON.stringify(state))
+      });
+    </script>
   </body>
 </html>

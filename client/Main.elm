@@ -25,35 +25,46 @@ import Repl
 
 
 -- TOP-LEVEL
-main : Program Never Model Msg
-main = Html.program
+main : Program (Maybe Int) Model Msg
+main = Html.programWithFlags
        { init = init
        , view = View.view
        , update = update
        , subscriptions = subscriptions}
 
--- MODEL
-init : ( Model, Cmd Msg )
-init = let m = { nodes = Dict.empty
-               , edges = []
-               , cursor = Nothing
-               , live = Nothing
-               , errors = ["None"]
-               , entryValue = ""
-               , replValue = ""
-               , focused = False
-               , tempFieldName = ""
-               , lastPos = Consts.initialPos
-               , drag = NoDrag
-               , lastMsg = NoMsg
-               } in
-       let load = rpc m <| [LoadInitialGraph]
-       in (m, Cmd.batch [focusEntry, load])
 
+
+-- MODEL
+init : Maybe Int -> ( Model, Cmd Msg )
+init i = let m = { nodes = Dict.empty
+                 , edges = []
+                 , cursor = Nothing
+                 , live = Nothing
+                 , errors = ["None"]
+                 , entryValue = ""
+                 , replValue = ""
+                 , focused = False
+                 , tempFieldName = ""
+                 , lastPos = Consts.initialPos
+                 , drag = NoDrag
+                 , lastMsg = NoMsg
+                 } in
+         let load = rpc m <| [LoadInitialGraph]
+         in (m, Cmd.batch [focusEntry, load])
+
+
+-- ports
+port setStorage : Int -> Cmd msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
+  let (m2, cmd) = update_ msg m in
+  (m2, Cmd.batch [cmd, setStorage 0])
+
+update_ : Msg -> Model -> (Model, Cmd Msg)
+update_ msg m =
   case (msg, m.cursor) of
+
     (CheckEscape code, _) ->
       if code == Consts.escapeKeycode
       then ({ m | cursor = Nothing
