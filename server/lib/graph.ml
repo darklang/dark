@@ -174,18 +174,23 @@ let add_op (op: Op.op) (g: graph ref) : unit =
 let filename_for name = "appdata/" ^ name ^ ".dark"
 
 let load name : graph ref =
-  let filename = filename_for name in
-  let str = Util.readfile filename ~default:"[]" in
-  let ops = str |> Yojson.Safe.from_string |> oplist_of_yojson |> Result.ok_or_failwith in
   let g = create name in
-  List.iter ops ~f:(fun op -> add_op op g);
+  name
+  |> filename_for
+  |> Util.readfile ~default:"[]"
+  |> Yojson.Safe.from_string
+  |> oplist_of_yojson
+  |> Result.ok_or_failwith
+  |> List.iter ~f:(fun op -> add_op op g);
   g
 
 let save (g : graph) : unit =
   let filename = filename_for g.name in
-  let str = g.ops |> oplist_to_yojson |> Yojson.Safe.to_string in
-  let str = str ^ "\n" in
-  Util.writefile filename str
+  g.ops
+  |> oplist_to_yojson
+  |> Yojson.Safe.to_string
+  |> (fun s -> s ^ "\n")
+  |> Util.writefile filename
 
 (* ------------------------- *)
 (* To Frontend JSON *)
