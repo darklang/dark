@@ -1,51 +1,22 @@
 open Core
 open Types
 
-module J = Yojson.Basic.Util
+open Op
 
-type json = Yojson.Basic.json
+let backfill_id (head : op) (rest : op list) : op list =
+  let id = id_of_option head in
+  let rest = match id with
+    | None -> rest
+    | Some id ->
+      List.map ~f:(fun op -> match op with
+          | (Add_edge (s, -1, p)) -> Add_edge (s, id, p)
+          | op -> op)
+        rest
+  in
+  head :: rest
 
-(* ------------------------- *)
-(* Ops *)
-(* ------------------------- *)
-type op = Add_fn_call of string * id * loc * id list
-        | Add_datastore of string * id * loc
-        | Add_value of string * id * loc
-        (* id in the outer graph, id in the inner graph *)
-        | Add_anon of id * id * loc
-        (* id, name, type, is_list *)
-        | Add_datastore_field of id * string * string * bool
-        | Update_node_position of id * loc
-        | Delete_node of id
-        | Add_edge of id * id * param
-        | Delete_edge of id * id * param
-        | Clear_edges of id
-        | Select_node of id
-[@@deriving eq]
 
-let id_of_option op : id option =
-  match op with
-  | Add_fn_call (_, id, _, _) -> Some id
-  | Add_datastore (_, id, _) -> Some id
-  | Add_value (_, id, _) -> Some id
-  | Add_anon (id, _, _) -> Some id
-  | Update_node_position (id, _) -> Some id
-  | Clear_edges (id) -> Some id
-  | Delete_node (id) -> Some id
-  | Select_node (id) -> Some id
-  | Add_datastore_field _ -> None
-  | Add_edge _ -> None
-  | Delete_edge _ -> None
-
-let id_of op : id =
-  match id_of_option op with
-  | Some id -> id
-  | _ -> failwith "getting id of op without id"
-
-(* ------------------------- *)
-(* Serialization *)
-(* ------------------------- *)
-let serial2op (json : json) : op =
+let json2op (json : json) : op =
   match json with
   | `Assoc [optype, args] -> (
     let str field = J.member field args |> J.to_string in
@@ -92,7 +63,7 @@ let serial2op (json : json) : op =
     failwith ("incorrect op structure" ^ (Yojson.Basic.to_string json))
 
 
-let op2serial op : json =
+let op2json op : json =
   let str k v = (k, `String v) in
   let int k v = (k, `Int v) in
   let bool k v = (k, `Bool v) in

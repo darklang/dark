@@ -181,14 +181,14 @@ let load name : graph ref =
   let str = if String.equal str "" then "[]" else str in
   let jsonops = Yojson.Basic.from_string str in
   let ops = match jsonops with
-  | `List ops -> List.map ~f:Op.json2op ops
+  | `List ops -> List.map ~f:Op.serial2op ops
   | _ -> failwith "unexpected deserialization" in
   let g = create name in
   List.iter ops ~f:(fun op -> add_op op g);
   g
 
 let save (g : graph) : unit =
-  let ops = List.map ~f:Op.op2json g.ops in
+  let ops = List.map ~f:Op.op2serial g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let str = str ^ "\n" in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in

@@ -26,8 +26,8 @@ let server =
       let () = match payload with
       | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> ()
       | `List (head::rest) ->
-        let rest = List.map ~f:Op.json2op rest in
-        let ops = Op.backfill_id (Op.json2op head) rest in
+        let rest = List.map ~f:Api.json2op rest in
+        let ops = Api.backfill_id (Api.json2op head) rest in
         List.iter ~f:(fun op -> G.add_op op g) ops
       | _ -> Exception.raise "Unexpected request structure"
       in
