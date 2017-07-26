@@ -21,9 +21,3 @@ let inspecT (msg : string) (x : 'a) : unit =
 let inspect (msg : string) ~(f:'a -> string) (x : 'a) : 'a =
   print_endline ("inspect: " ^ msg ^ ": " ^ (f x));
   x
-
-(* How do you chain using (^) *)
-let string_append (s1: string) (s2: string) : string =
-  s1 ^ s2
-
-let to_list e = [e]

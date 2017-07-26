@@ -13,7 +13,7 @@ let expected (msg : string) (args : dval list) : dval =
   args
   |> List.map ~f:to_error_repr
   |> String.concat ~sep:", "
-  |> Util.string_append ("Expected: " ^ msg ^ ", got: ")
+  |> (^) ("Expected: " ^ msg ^ ", got: ")
   |> Exception.raise
 
 
