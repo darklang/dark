@@ -46,7 +46,6 @@ let json2op (json : json) : op =
     | "delete_edge" -> Delete_edge (int "src", int "target", str "param")
     | "delete_node" -> Delete_node (int "id")
     | "clear_edges" -> Clear_edges (int "id")
-    | "select_node" -> Select_node (int "id")
     (* TODO: put this into the frontend *)
     | "add_datastore_field" ->
 
@@ -87,8 +86,6 @@ let op2json op : json =
       [id _id; str "name" name; str "tipe" tipe; bool "is_list" false]
     | Update_node_position (_id, loc) ->
       "update_node_position", [id _id; x loc; y loc]
-    | Select_node (_id) ->
-      "select_node", [id _id]
     | Delete_node _id ->
       "delete_node", [id _id]
     | Add_edge (sid, tid, param) ->
