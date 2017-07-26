@@ -198,9 +198,10 @@ let to_frontend_nodes g : json =
     | Exception.UserException e ->
       `Assoc [ ("value", `String ("Error: " ^ e))
              ; ("type", `String "Error")] in
-  let toobj n = (Int.to_string n#id, n#to_frontend (get_value n)) in
-  `Assoc (
-    List.map ~f:toobj (NodeMap.data g.nodes)
+  `List (
+    List.map
+      ~f:(fun n -> n |> get_value |> n#to_frontend)
+      (NodeMap.data g.nodes)
   )
 
 
