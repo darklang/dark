@@ -30,7 +30,6 @@ view model =
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas model))
       , viewInput model.inputValue
-      , viewLive model.live
       , viewErrors model.errors
       ]
 
@@ -40,6 +39,7 @@ viewInput value = Html.form [
                    Html.input [ Attrs.id Consts.inputID
                               , Events.onInput InputMsg
                               , Attrs.value value
+                              , Attrs.autocomplete False
                               ] []
                   ]
 
