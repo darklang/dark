@@ -62,7 +62,7 @@ type Msg
     | KeyPress Keyboard.KeyCode
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
-    | RPCCallBack (Result Http.Error (NodeDict, List Edge, Cursor, LiveValue))
+    | RPCCallBack (Result Http.Error (NodeDict, List Edge))
     | NoMsg -- use this for init
 
 type RPC
@@ -76,7 +76,6 @@ type RPC
     | AddEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearEdges ID
-    | SelectNode ID
     | RemoveLastField ID
 
 

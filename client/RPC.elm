@@ -65,9 +65,6 @@ encodeRPC m call =
                                JSE.object [ ("id", JSE.int id) ])
       ClearEdges (ID id) -> ("clear_edges",
                                JSE.object [ ("id", JSE.int id) ])
-      SelectNode (ID id) -> ("select_node",
-                               JSE.object [ ("id", JSE.int id) ])
-
       RemoveLastField (ID id) -> ("remove_last_field",
                                     JSE.object [ ("id", JSE.int id) ])
 
@@ -115,24 +112,15 @@ decodeEdge =
     |> JSDP.required "target" JSD.int
     |> JSDP.required "param" JSD.string
 
-decodeGraph : JSD.Decoder (NodeDict, List Edge, Cursor, LiveValue)
+decodeGraph : JSD.Decoder (NodeDict, List Edge)
 decodeGraph =
-  let toGraph : Dict String Node -> List Edge -> Int -> Dict String String -> (NodeDict, List Edge, Cursor, LiveValue)
-      toGraph strNodes edges cursor valueDict =
-        let nodes = Dict.foldl
-                    (\k v m -> Dict.insert (k |> String.toInt |> Result.withDefault invalidID) v m)
+  let toGraph : List Node -> List Edge -> (NodeDict, List Edge)
+      toGraph nodes edges =
+        let nodedict = List.foldl
+                    (\v d -> Dict.insert (v.id |> deID) v d)
                     Dict.empty
-                    strNodes
-        in (nodes, edges,
-              case cursor of
-                -45 -> Nothing -- invalidID
-                i -> Just (ID i),
-              let value = Dict.get "value" valueDict in
-              let tipe = Dict.get "type" valueDict in
-              Maybe.map2 (,) value tipe
-           )
+                    nodes
+        in (nodedict, edges)
   in JSDP.decode toGraph
-    |> JSDP.required "nodes" (JSD.dict decodeNode)
+    |> JSDP.required "nodes" (JSD.list decodeNode)
     |> JSDP.required "edges" (JSD.list decodeEdge)
-    |> JSDP.optional "cursor" JSD.int invalidID
-    |> JSDP.optional "live" (JSD.dict JSD.string) Dict.empty

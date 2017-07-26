@@ -6,15 +6,12 @@ import Char
 import Dict exposing (Dict)
 import Http
 import Html
-import Regex
 
 -- lib
 import Keyboard
 import Mouse
 import Dom
 import Task
-import Ordering
-import List.Extra
 
 
 -- mine
@@ -23,9 +20,8 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import View
 import Consts
+import Repl
 
-rematch : String -> String -> Bool
-rematch re s = Regex.contains (Regex.regex re) s
 
 
 -- TOP-LEVEL
@@ -110,74 +106,16 @@ update msg m =
     (DragSlotStop _, _) ->
       ({ m | drag = NoDrag}, focusInput)
 
-    -- (ADD_DS, SubmitMsg, _) ->
-    --   ({ m | state = ADD_DS_FIELD_NAME
-    --    }, rpc m <| AddDatastore m.inputValue m.lastPos)
-
-    -- (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
-    --     ({ m | state = ADD_DS_FIELD_TYPE
-    --          , tempFieldName = m.inputValue
-    --      }, Cmd.none)
-
-    -- (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
-    --   ({ m | state = ADD_DS_FIELD_NAME
-    --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue)
-       -- ('C', _, Just id) ->
-       --   (m, rpc m <| ClearEdges id)
-       -- ('L', _, Just id) ->
-       --   (m, rpc m <| RemoveLastField id)
-
     (SubmitMsg, cursor) ->
-      case String.words m.inputValue of
-        [] -> (m, Cmd.none)
-        first :: words ->
-          let l2id l = (Util.fromLetter m l).id
-              cmd =
-            case (String.uncons first, Debug.log "first" first, Debug.log "words" words, cursor) of
+      let (m2, rpcs) = Repl.parse m m.inputValue cursor
+          m3 = { m2 | inputValue = "" } in
+      case rpcs of
+        [] -> (m3, Cmd.none)
+        rpcs -> (m3, RPC.rpc m3 rpcs)
 
-              -- TODO: args here are edges to be added. Send them all in one go
-              (Just ('+', name), _, [], _) ->
-                if (rematch "^[\"\'1-9].*" name) then
-                  rpc m <| [AddValue name m.lastPos]
-                else
-                  rpc m <| [AddFunctionCall name m.lastPos []]
-
-              (Just ('+', name), _, args, _) ->
-                rpc m <| [AddFunctionCall name m.lastPos (List.map l2id args)]
-
-              (_, "/rm", [], Just id) -> rpc m <| [DeleteNode id]
-
-              (_, "/rm", [n], _) ->
-                rpc m <| [DeleteNode (l2id n)]
-
-              (_, "/rm", args, _) ->
-                rpc m <| List.map (\n -> DeleteNode (l2id n)) args
-
-              (_, "/clear", [], Just id) -> rpc m <| [ClearEdges id]
-
-              (_, "/clear", args, _) ->
-                rpc m <| List.map (\n -> ClearEdges (l2id n)) args
-
-              (_, "/edge", [src, target, param], _) ->
-                  rpc m <| [AddEdge (l2id src) ((l2id target), param)]
-
-              (_, "/n", _, c) -> case nextNode m c of
-                                   Just id -> rpc m <| [SelectNode id]
-                                   Nothing -> Cmd.none
-
-              (Just (l, ""), _, [], _) ->
-                  rpc m <| [SelectNode (l2id (String.fromChar l))]
-
-              (_, _, _, _) -> Cmd.none
-          in
-            (m, cmd)
-
-    (RPCCallBack (Ok (nodes, edges, cursor, live)), _) ->
-      -- if the new cursor is blank, keep the old cursor if it's valid
+    (RPCCallBack (Ok (nodes, edges)), _) ->
       ({ m | nodes = nodes
            , edges = edges
-           , cursor = cursor
-           , live = live
            , errors = []
        }, focusInput)
 
@@ -243,19 +181,3 @@ updateDragPosition pos off (ID id) nodes =
 findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
  {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
-
-nextNode : Model -> Cursor -> Cursor
-nextNode m cursor =
-  let nodes = Util.orderedNodes m
-      first = nodes |> List.head |> Maybe.map (\n -> n.id)
-  in
-    case cursor of
-      Nothing -> first
-      Just (ID id) ->
-        let node = Dict.get id m.nodes |> deMaybe
-            next = List.Extra.find
-                   (\n -> (n.pos.x, n.pos.y, deID n.id) > (node.pos.x, node.pos.y, deID node.id))
-                   nodes
-        in case next of
-             Nothing -> first
-             Just node -> Just node.id
