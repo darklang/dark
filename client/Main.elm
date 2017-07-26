@@ -69,8 +69,7 @@ update_ msg m =
 
     (CheckEscape code, _) ->
       if code == Consts.escapeKeycode
-      then ({ m | cursor = Nothing
-                , lastPos = Consts.initialPos}, Cmd.none)
+      then ({ m | cursor = Nothing }, Cmd.none)
       else (m, Cmd.none)
 
     (NodeClick node, _) ->
