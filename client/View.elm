@@ -85,17 +85,16 @@ viewEntry m =
                ] [
                 Html.input [ Attrs.id Consts.entryID
                            , Events.onInput EntryInputMsg
+                           , Attrs.width 50
                            , Attrs.value m.entryValue
                            , Attrs.autocomplete False
                            ] []
                ]
 
-    -- width
-    width = Attrs.style [("width", "100px")]
-
     -- inner node
     inner = Html.div
-            [width, Attrs.class "inner"]
+            [ Attrs.width 100
+            , Attrs.class "inner"]
             [viewForm]
 
 
@@ -103,7 +102,8 @@ viewEntry m =
     classes = "selection function node"
 
     wrapper = Html.span
-              [ Attrs.class classes, width]
+              [ Attrs.class classes
+              , Attrs.width 100]
               [ inner ]
   in
     placeHtml m.lastPos wrapper
