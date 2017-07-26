@@ -64,7 +64,7 @@ type Msg
     | KeyPress Keyboard.KeyCode
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
-    | RPCCallBack (Result Http.Error (NodeDict, List Edge))
+    | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge))
     | NoMsg -- use this for init
 
 type RPC

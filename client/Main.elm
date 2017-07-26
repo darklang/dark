@@ -62,15 +62,15 @@ update msg m =
 
     (NodeClick node, _) ->
       ({ m | cursor = Just node.id
-       }, focusRepl)
+       }, focusEntry)
 
     (RecordClick pos, _) ->
       ({ m | lastPos = pos
-       }, focusRepl)
+       }, focusEntry)
 
     (ClearCursor mpos, _) ->
       ({ m | cursor = Nothing
-       }, focusRepl)
+       }, focusEntry)
 
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
@@ -81,7 +81,7 @@ update msg m =
     (DragNodeMove id offset currentPos, _) ->
       ({ m | nodes = updateDragPosition currentPos offset id m.nodes
            , lastPos = currentPos -- debugging
-       }, focusRepl)
+       }, focusEntry)
 
     (DragNodeEnd id _, _) ->
       ({ m | drag = NoDrag
@@ -105,7 +105,7 @@ update msg m =
         _ -> (m, Cmd.none)
 
     (DragSlotStop _, _) ->
-      ({ m | drag = NoDrag}, focusRepl)
+      ({ m | drag = NoDrag}, focusEntry)
 
     (EntrySubmitMsg, cursor) ->
       (m, rpc m [AddFunctionCall m.entryValue m.lastPos []])
@@ -117,15 +117,16 @@ update msg m =
         [] -> (m3, Cmd.none)
         rpcs -> (m3, RPC.rpc m3 rpcs)
 
-    (RPCCallBack (Ok (nodes, edges)), _) ->
+    (RPCCallBack calls (Ok (nodes, edges)), _) ->
       ({ m | nodes = nodes
            , edges = edges
            , errors = []
-       }, focusRepl)
+           , lastPos = {m.lastPos.x + 100, m.lastPos.y + 100}
+       }, focusEntry)
 
-    (RPCCallBack (Err (Http.BadStatus error)), _) ->
+    (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-       }, focusRepl)
+       }, focusEntry)
 
     (FocusResult (Ok ()), _) ->
       -- Yay, you focused a field! Ignore.
@@ -145,7 +146,7 @@ update msg m =
        }, Cmd.none)
 
     t -> -- All other cases
-      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, focusRepl)
+      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, focusEntry)
 
 
 

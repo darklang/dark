@@ -15,7 +15,7 @@ rpc m calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
       request = Http.post "/admin/api/rpc" json decodeGraph
-  in Http.send RPCCallBack request
+  in Http.send (RPCCallBack calls) request
 
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
