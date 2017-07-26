@@ -173,12 +173,7 @@ let add_op (op: Op.op) (g: graph ref) : unit =
 (* ------------------------- *)
 let load name : graph ref =
   let filename = "appdata/" ^ name ^ ".dark" in
-  let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
-  let file = Unix.openfile filename ~mode:flags ~perm:0o640 in
-  let raw = Bytes.create 1000000 in
-  let count = Unix.read file ~buf:raw ~pos:0 ~len:1000000 in
-  let str = Caml.Bytes.sub_string raw 0 count in
-  let str = if String.equal str "" then "[]" else str in
+  let str = Util.readfile filename ~default:"[]" in
   let jsonops = Yojson.Basic.from_string str in
   let ops = match jsonops with
   | `List ops -> List.map ~f:Op.serial2op ops
@@ -191,11 +186,8 @@ let save (g : graph) : unit =
   let ops = List.map ~f:Op.op2serial g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let str = str ^ "\n" in
-  let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   let filename = "appdata/" ^ g.name ^ ".dark" in
-  let file = Unix.openfile filename ~mode:flags ~perm:0o640 in
-  let _ = Unix.write file ~buf:str in
-  Unix.close file
+  Util.writefile filename str
 
 (* ------------------------- *)
 (* To Frontend JSON *)

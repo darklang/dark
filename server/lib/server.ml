@@ -38,7 +38,7 @@ let server =
     in
 
     let admin_ui_handler () =
-      Util.slurp "templates/ui.html"
+      Util.readfile "templates/ui.html"
     in
 
     let static_handler f : string =
@@ -46,9 +46,9 @@ let server =
       let l = String.length f in
       let f = String.sub f ~pos:1 ~len:(l-1) in
       match f with
-      | "static/base.css" -> Util.slurp f
-      | "static/reset-normalize.css" -> Util.slurp f
-      | "static/elm.js" -> Util.slurp f
+      | "static/base.css" -> Util.readfile f
+      | "static/reset-normalize.css" -> Util.readfile f
+      | "static/elm.js" -> Util.readfile f
       | _ -> failwith "File not found"
     in
 
