@@ -11,7 +11,7 @@ import Util exposing (..)
 
     -- (ADD_DS, SubmitMsg, _) ->
     --   ({ m | state = ADD_DS_FIELD_NAME
-    --    }, rpc m <| AddDatastore m.inputValue m.lastPos)
+    --    }, rpc m <| AddDatastore m.inputValue m.clickPos)
 
     -- (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
     --     ({ m | state = ADD_DS_FIELD_TYPE
@@ -57,12 +57,12 @@ parse m command cursor =
       case (String.uncons first, first, words, cursor) of
         (Just ('+', name), _, [], _) ->
           if (rematch "^[\"\'1-9].*" name) then
-            (m, [AddValue name m.lastPos])
+            (m, [AddValue name m.clickPos])
           else
-            (m, [AddFunctionCall name m.lastPos []])
+            (m, [AddFunctionCall name m.clickPos []])
 
         (Just ('+', name), _, args, _) ->
-          (m, [AddFunctionCall name m.lastPos (List.map l2id args)])
+          (m, [AddFunctionCall name m.clickPos (List.map l2id args)])
 
         (_, "/rm", [], Just id) ->
           (m, [DeleteNode id])

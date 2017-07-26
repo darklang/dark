@@ -45,9 +45,11 @@ init e = let m = { nodes = Dict.empty
                  , replValue = ""
                  , focused = False
                  , tempFieldName = ""
-                 , lastPos = case e of
+                 , entryPos = case e of
                                Nothing -> Consts.initialPos
-                               Just e -> e.lastPos
+                               Just e -> e.entryPos
+                 , dragPos = {x=0, y=0}
+                 , clickPos = {x=0, y=0}
                  , drag = NoDrag
                  , lastMsg = NoMsg
                  } in
@@ -61,7 +63,7 @@ port setStorage : Editor -> Cmd msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let (m2, cmd) = update_ msg m in
-  (m2, Cmd.batch [cmd, setStorage {lastPos = m.lastPos}])
+  (m2, Cmd.batch [cmd, setStorage {entryPos = m.entryPos}])
 
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m =
@@ -77,7 +79,7 @@ update_ msg m =
        }, focusEntry)
 
     (RecordClick pos, _) ->
-      ({ m | lastPos = pos
+      ({ m | entryPos = pos
        }, focusEntry)
 
     (ClearCursor mpos, _) ->
@@ -92,7 +94,7 @@ update_ msg m =
 
     (DragNodeMove id offset currentPos, _) ->
       ({ m | nodes = updateDragPosition currentPos offset id m.nodes
-           , lastPos = currentPos -- debugging
+           , dragPos = currentPos -- debugging
        }, focusEntry)
 
     (DragNodeEnd id _, _) ->
@@ -106,7 +108,7 @@ update_ msg m =
       else (m, Cmd.none)
 
     (DragSlotMove mpos, _) ->
-      ({ m | lastPos = mpos
+      ({ m | dragPos = mpos
        }, Cmd.none)
 
     (DragSlotEnd node, _) ->
@@ -120,7 +122,7 @@ update_ msg m =
       ({ m | drag = NoDrag}, focusEntry)
 
     (EntrySubmitMsg, cursor) ->
-      (m, rpc m [AddFunctionCall m.entryValue m.lastPos []])
+      (m, rpc m [AddFunctionCall m.entryValue m.entryPos []])
 
     (ReplSubmitMsg, cursor) ->
       let (m2, rpcs) = Repl.parse m m.replValue cursor
@@ -134,7 +136,7 @@ update_ msg m =
                , edges = edges
                , errors = []}
           m3 = case calls of
-                 [AddFunctionCall _ _ _] -> {m2 | lastPos = nextPosition m2.lastPos}
+                 [AddFunctionCall _ _ _] -> {m2 | entryPos = nextPosition m2.entryPos}
                  _ -> m2
       in
        (m3, focusEntry)

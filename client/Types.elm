@@ -80,7 +80,7 @@ type RPC
     | ClearEdges ID
     | RemoveLastField ID
 
-type alias Editor = { lastPos : Pos }
+type alias Editor = { entryPos : Pos }
 
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
@@ -91,7 +91,9 @@ type alias Model = { nodes : NodeDict
                    , focused : Bool
                    , tempFieldName : FieldName
                    , errors : List String
-                   , lastPos : Pos
+                   , dragPos : Pos
+                   , entryPos : Pos
+                   , clickPos : Pos
                    , drag : Drag
                    , lastMsg : Msg
                    }

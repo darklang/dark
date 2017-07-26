@@ -55,7 +55,7 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (Util.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
-        mDragEdge = viewDragEdge m.drag m.lastPos
+        mDragEdge = viewDragEdge m.drag m.dragPos
         dragEdge = case mDragEdge of
                      Just de -> [de]
                      Nothing -> []
@@ -106,7 +106,7 @@ viewEntry m =
               , Attrs.width 100]
               [ inner ]
   in
-    placeHtml m.lastPos wrapper
+    placeHtml m.entryPos wrapper
 
 
 
