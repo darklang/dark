@@ -4,18 +4,12 @@ open Types
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
-type fn = { name : string
-          ; other_names : string list
-          ; parameters : string list
-          ; func : ((dval list) -> dval)
-          }
-and dval = DInt of int
-         | DStr of string
-         | DChar of char
-         | DFloat of float
-         | DAnon of id * (dval -> dval)
-         | DIncomplete
-
+type dval = DInt of int
+          | DStr of string
+          | DChar of char
+          | DFloat of float
+          | DAnon of id * (dval -> dval)
+          | DIncomplete
 module ParamMap = String.Map
 type param_map = dval ParamMap.t
 
@@ -39,16 +33,7 @@ let parse (str : string) : dval =
       | Failure _ ->
         Exception.raise ("Cannot parse value: " ^ str)
 
-let get_type (dv : dval) : string =
-  match dv with
-  | DInt _ -> "Integer"
-  | DStr _ -> "String"
-  | DFloat _ -> "Float"
-  | DChar _ -> "Char"
-  | DAnon _ -> "Anonymous function"
-  | DIncomplete -> "n/a"
-
-and to_repr (dv : dval) : string =
+let to_repr (dv : dval) : string =
   match dv with
   | DInt i -> string_of_int i
   | DStr s -> "\"" ^ s ^ "\""
@@ -58,6 +43,16 @@ and to_repr (dv : dval) : string =
   | DIncomplete -> "<incomplete>"
 
 
+let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
+
+let get_type (dv : dval) : string =
+  match dv with
+  | DInt _ -> "Integer"
+  | DStr _ -> "String"
+  | DFloat _ -> "Float"
+  | DChar _ -> "Char"
+  | DAnon _ -> "Anonymous function"
+  | DIncomplete -> "n/a"
 
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"
@@ -67,12 +62,17 @@ let to_char (dv : dval) : char =
   | DChar c -> c
   | _ -> Exception.raise "Not a char"
 
-let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 
 
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
+type fn = { name : string
+          ; other_names : string list
+          ; parameters : string list
+          ; func : ((dval list) -> dval)
+          }
+
 let exe (fn : fn) (args : param_map) : dval =
   (* TODO: we're going to have to use named params before the currying works properly *)
   if ParamMap.length args < List.length fn.parameters then
