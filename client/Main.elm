@@ -25,7 +25,7 @@ import Repl
 
 
 -- TOP-LEVEL
-main : Program (Maybe Int) Model Msg
+main : Program (Maybe Editor) Model Msg
 main = Html.programWithFlags
        { init = init
        , view = View.view
@@ -35,8 +35,8 @@ main = Html.programWithFlags
 
 
 -- MODEL
-init : Maybe Int -> ( Model, Cmd Msg )
-init i = let m = { nodes = Dict.empty
+init : Maybe Editor -> ( Model, Cmd Msg )
+init e = let m = { nodes = Dict.empty
                  , edges = []
                  , cursor = Nothing
                  , live = Nothing
@@ -45,7 +45,9 @@ init i = let m = { nodes = Dict.empty
                  , replValue = ""
                  , focused = False
                  , tempFieldName = ""
-                 , lastPos = Consts.initialPos
+                 , lastPos = case e of
+                               Nothing -> Consts.initialPos
+                               Just e -> e.lastPos
                  , drag = NoDrag
                  , lastMsg = NoMsg
                  } in
@@ -54,12 +56,12 @@ init i = let m = { nodes = Dict.empty
 
 
 -- ports
-port setStorage : Int -> Cmd msg
+port setStorage : Editor -> Cmd msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let (m2, cmd) = update_ msg m in
-  (m2, Cmd.batch [cmd, setStorage 0])
+  (m2, Cmd.batch [cmd, setStorage {lastPos = m.lastPos}])
 
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m =
@@ -132,7 +134,7 @@ update_ msg m =
       ({ m | nodes = nodes
            , edges = edges
            , errors = []
-           , lastPos = {m.lastPos.x + 100, m.lastPos.y + 100}
+           -- , lastPos = {x=m.lastPos.x+100, y=m.lastPos.y+100}
        }, focusEntry)
 
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
