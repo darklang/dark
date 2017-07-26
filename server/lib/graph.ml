@@ -188,7 +188,7 @@ let save (g : graph) : unit =
   let filename = filename_for g.name in
   g.ops
   |> oplist_to_yojson
-  |> Yojson.Safe.to_string
+  |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
 
