@@ -17,7 +17,7 @@ class virtual node id loc =
     method is_datasource = false
     method update_loc _loc =
       loc <- _loc
-    method to_frontend : Yojson.Basic.json =
+    method to_frontend : Yojson.Safe.json =
       `Assoc (List.append
                 [ ("name", `String self#name)
                 ; ("id", `Int id)

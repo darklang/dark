@@ -12,6 +12,19 @@ let readfile ?(default="") f : string =
   else
     str
 
+(* TODO: readfile above doesnt work for reading from the blog. readfile below doesn't work for static content *)
+let readfile2 ?(default="") f : string =
+  let ic = Caml.open_in f in
+  try
+    let n = Caml.in_channel_length ic in
+    let s = Bytes.create n in
+    Caml.really_input ic s 0 n;
+    Caml.close_in ic;
+    s
+  with e ->
+    Caml.close_in_noerr ic;
+    raise e
+
 let writefile f str : unit =
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   let file = Unix.openfile f ~mode:flags ~perm:0o640 in

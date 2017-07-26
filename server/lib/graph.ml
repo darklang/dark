@@ -7,7 +7,7 @@ module NodeMap = Int.Map
 
 type dval = Runtime.dval [@@deriving eq]
 type nodemap = Node.node NodeMap.t [@@deriving eq]
-type json = Yojson.Basic.json
+type json = Yojson.Safe.json
 
 
 (* ------------------------- *)
@@ -177,7 +177,7 @@ let load name : graph ref =
   let g = create name in
   name
   |> filename_for
-  |> Util.readfile ~default:"[]"
+  |> Util.readfile2 ~default:"[]"
   |> Yojson.Safe.from_string
   |> oplist_of_yojson
   |> Result.ok_or_failwith
@@ -232,4 +232,4 @@ let to_frontend (g : graph) : json =
          ]
 
 let to_frontend_string (g: graph) : string =
-  g |> to_frontend |> Yojson.Basic.pretty_to_string ~std:true
+  g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true

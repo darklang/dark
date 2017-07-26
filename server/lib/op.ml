@@ -1,9 +1,9 @@
 open Core
 open Types
 
-module J = Yojson.Basic.Util
+module J = Yojson.Safe.Util
 
-type json = Yojson.Basic.json
+type json = Yojson.Safe.json
 
 (* ------------------------- *)
 (* Ops *)

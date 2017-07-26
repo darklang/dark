@@ -29,7 +29,7 @@ let json2op (json : json) : op =
       | `Int id -> id
       (* When they come in first, they don't have an id, so add one. *)
       | `Null -> Util.create_id ()
-      | j -> "IDs must be ints, not '" ^ (Yojson.Basic.to_string j) ^ "'"
+      | j -> "IDs must be ints, not '" ^ (Yojson.Safe.to_string j) ^ "'"
              |> Exception.raise in
     let id = maybe_id "id" in
     let loc : (unit -> loc) =
@@ -60,7 +60,7 @@ let json2op (json : json) : op =
       Add_datastore_field (int "id", str "name", tipe, list)
     | _ -> failwith ("not a valid optype: " ^ optype))
   | _ ->
-    failwith ("incorrect op structure" ^ (Yojson.Basic.to_string json))
+    failwith ("incorrect op structure" ^ (Yojson.Safe.to_string json))
 
 
 let op2json op : json =

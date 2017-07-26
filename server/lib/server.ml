@@ -6,7 +6,6 @@ module C = Cohttp
 module S = Clu.Server
 module Request = Clu.Request
 module Header = C.Header
-module J = Yojson.Basic.Util
 module G = Graph
 
 let inspect = Util.inspect
@@ -20,7 +19,7 @@ let server =
 
     let admin_rpc_handler body : string =
       let body = inspect ~f:ident "request body" body in
-      let payload = Yojson.Basic.from_string body in
+      let payload = Yojson.Safe.from_string body in
 
       let g = G.load "blog" in
       let () = match payload with
@@ -48,7 +47,7 @@ let server =
       match f with
       | "static/base.css" -> Util.readfile f
       | "static/reset-normalize.css" -> Util.readfile f
-      | "static/elm.js" -> Util.readfile f
+      | "static/elm.js" -> Util.readfile2 f
       | _ -> failwith "File not found"
     in
 
