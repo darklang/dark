@@ -130,11 +130,14 @@ update_ msg m =
         rpcs -> (m3, RPC.rpc m3 rpcs)
 
     (RPCCallBack calls (Ok (nodes, edges)), _) ->
-      ({ m | nodes = nodes
-           , edges = edges
-           , errors = []
-           -- , lastPos = {x=m.lastPos.x+100, y=m.lastPos.y+100}
-       }, focusEntry)
+      let m2 = { m | nodes = nodes
+               , edges = edges
+               , errors = []}
+          m3 = case calls of
+                 [AddFunctionCall _ _ _] -> {m2 | lastPos = nextPosition m2.lastPos}
+                 _ -> m2
+      in
+       (m3, focusEntry)
 
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
@@ -208,3 +211,10 @@ updateDragPosition pos off (ID id) nodes =
 findOffset : Pos -> Mouse.Position -> Offset
 findOffset pos mpos =
  {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
+
+nextPosition : Pos -> Pos
+nextPosition {x, y} =
+  if x > 900 then
+    {x=100, y=y+100}
+  else
+    {x=x+100, y=y}
