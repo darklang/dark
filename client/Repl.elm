@@ -1,7 +1,6 @@
 module Repl exposing (parse)
 
 import Dict
-import Regex
 
 import Ordering
 import List.Extra
@@ -27,8 +26,6 @@ import Util exposing (..)
        --   (m, rpc m <| RemoveLastField id)
 
 
-rematch : String -> String -> Bool
-rematch re s = Regex.contains (Regex.regex re) s
 
 
 nextNode : Model -> Cursor -> Cursor

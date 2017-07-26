@@ -86,6 +86,9 @@ update_ msg m =
       ({ m | cursor = Nothing
        }, focusEntry)
 
+    ------------------------
+    -- dragging nodes
+    ------------------------
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
       && event.button == Consts.leftButton
@@ -121,29 +124,44 @@ update_ msg m =
     (DragSlotStop _, _) ->
       ({ m | drag = NoDrag}, focusEntry)
 
+    ------------------------
+    -- entry node
+    ------------------------
     (EntrySubmitMsg, cursor) ->
-      (m, rpc m [AddFunctionCall m.entryValue m.entryPos []])
+      if (Util.rematch "^[\"\'1-9].*" m.entryValue) then
+        (m, rpc m <| [AddValue m.entryValue m.entryPos])
+      else
+        (m, rpc m <| [AddFunctionCall m.entryValue m.entryPos []])
 
-    (ReplSubmitMsg, cursor) ->
-      let (m2, rpcs) = Repl.parse m m.replValue cursor
-          m3 = { m2 | replValue = "" } in
-      case rpcs of
-        [] -> (m3, Cmd.none)
-        rpcs -> (m3, RPC.rpc m3 rpcs)
 
     (RPCCallBack calls (Ok (nodes, edges)), _) ->
       let m2 = { m | nodes = nodes
                , edges = edges
                , errors = []}
           m3 = case calls of
-                 [AddFunctionCall _ _ _] -> {m2 | entryPos = nextPosition m2.entryPos}
+                 [AddFunctionCall _ _ _] ->
+                   {m2 | entryPos = nextPosition m2.entryPos}
+                 [AddValue _ _] ->
+                   {m2 | entryPos = nextPosition m2.entryPos}
                  _ -> m2
       in
        (m3, focusEntry)
 
+
+    ------------------------
+    -- plumbing
+    ------------------------
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
        }, focusEntry)
+
+    -- (ReplSubmitMsg, cursor) ->
+    --   let (m2, rpcs) = Repl.parse m m.replValue cursor
+    --       m3 = { m2 | replValue = "" } in
+    --   case rpcs of
+    --     [] -> (m3, Cmd.none)
+    --     rpcs -> (m3, RPC.rpc m3 rpcs)
+
 
     (FocusResult (Ok ()), _) ->
       -- Yay, you focused a field! Ignore.
@@ -152,10 +170,10 @@ update_ msg m =
           , entryValue = ""
           , focused = True}, Cmd.none)
 
-    (ReplInputMsg target, _) ->
-      -- Syncs the form with the model. The actual submit is in ReplSubmitMsg
-      ({ m | replValue = target
-       }, Cmd.none)
+    -- (ReplInputMsg target, _) ->
+    --   -- Syncs the form with the model. The actual submit is in ReplSubmitMsg
+    --   ({ m | replValue = target
+    --    }, Cmd.none)
 
     (EntryInputMsg target, _) ->
       -- Syncs the form with the model. The actual submit is in EntrySubmitMsg

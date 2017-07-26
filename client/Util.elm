@@ -1,4 +1,4 @@
-module Util exposing (timestamp, windowSize, deMaybe, orderedNodes, letter2int, int2letter, fromLetter)
+module Util exposing (timestamp, windowSize, deMaybe, orderedNodes, letter2int, int2letter, fromLetter, rematch)
 
 import Dict
 import Array
@@ -6,6 +6,7 @@ import Char
 import Tuple
 import List
 import Ordering
+import Regex
 
 import Native.Window
 import Native.Timestamp
@@ -42,3 +43,6 @@ letter2int s = s |> String.uncons |> Debug.log "uncons" |> deMaybe |> Tuple.firs
 
 fromLetter : Model -> String -> Node
 fromLetter m letter = m |> orderedNodes |> Array.fromList |> Debug.log "ordered" |> Array.get (letter2int letter) |> Debug.log "fromArray"|> deMaybe
+
+rematch : String -> String -> Bool
+rematch re s = Regex.contains (Regex.regex re) s
