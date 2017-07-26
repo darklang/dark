@@ -19,7 +19,6 @@ type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap
              ; edges : (id * id * param) list
-             ; cursor : id option
              } [@@deriving eq]
 
 let create (name : string) : graph ref =
@@ -27,7 +26,6 @@ let create (name : string) : graph ref =
       ; ops = []
       ; nodes = NodeMap.empty
       ; edges = []
-      ; cursor = None
       }
 
 (* ------------------------- *)
@@ -86,8 +84,7 @@ let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
   let len = List.length edges in
   let params = List.take node#parameters len in
   let sources = List.zip_exn edges params in
-  let g = { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
-                   cursor = Some node#id }
+  let g = { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;}
   in
   List.fold_left
     ~f:(fun g (s, p) -> add_edge s node#id p g)
@@ -96,10 +93,7 @@ let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   g |> get_node id |> (fun n -> n#update_loc loc);
-  { g with cursor = Some id }
-
-let select_node (id: id) (g: graph) : graph =
-  { g with cursor = Some id }
+  g
 
 let clear_edges (id: id) (g: graph) : graph =
   let f (s, t, _) = s <> id && t <> id in
@@ -111,7 +105,7 @@ let delete_edge s t param (g: graph) : graph =
 
 let delete_node id (g: graph) : graph =
   let g = clear_edges id g in
-  { g with nodes = NodeMap.remove g.nodes id; cursor = None }
+  { g with nodes = NodeMap.remove g.nodes id; }
 
 (* ------------------------- *)
 (* Executing *)
@@ -161,7 +155,6 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Delete_edge (s, t, param) -> delete_edge s t param
     | Clear_edges (id) -> clear_edges id
     | Delete_node (id) -> delete_node id
-    | Select_node (id) -> select_node id
     | _ -> failwith "applying unimplemented op"
 
 let add_op (op: Op.op) (g: graph ref) : unit =
@@ -196,39 +189,31 @@ let save (g : graph) : unit =
 (* To Frontend JSON *)
 (* ------------------------- *)
 let to_frontend_nodes g : json =
+  let get_value n =
+    try
+      let dv = execute n#id g in
+      `Assoc [ ("value", `String (Runtime.to_repr dv))
+             ; ("type", `String (Runtime.get_type dv))]
+    with
+    | Exception.UserException e ->
+      `Assoc [ ("value", `String ("Error: " ^ e))
+             ; ("type", `String "Error")] in
+  let toobj n = (Int.to_string n#id, n#to_frontend (get_value n)) in
   `Assoc (
-    List.map
-      ~f:(fun n -> (Int.to_string n#id, n#to_frontend))
-      (NodeMap.data g.nodes)
+    List.map ~f:toobj (NodeMap.data g.nodes)
   )
 
+
 let to_frontend_edges g : json =
-  let toobj = fun (s, t, p) -> `Assoc [ ("source", `Int s)
-                                      ; ("target", `Int t)
-                                      ; ("param", `String p)] in
+  let toobj (s, t, p) = `Assoc [ ("source", `Int s)
+                               ; ("target", `Int t)
+                               ; ("param", `String p)] in
   `List (List.map ~f:toobj g.edges)
 
 
 let to_frontend (g : graph) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)
          ; ("edges", to_frontend_edges g)
-         (* TODO: remove. Should be done on the frontend *)
-         ; ("cursor", match g.cursor with
-             | None -> `Null
-             | Some id -> `Int id)
-         ; ("live", match g.cursor with
-             | None -> `Null
-             | Some id ->
-               try
-                 let dv = execute id g in
-                 `Assoc [ ("value", `String (Runtime.to_repr dv))
-                        ; ("type", `String (Runtime.get_type dv))]
-               with
-               | Exception.UserException e ->
-                 `Assoc [ ("value", `String ("Error: " ^ e))
-                        ; ("type", `String "Error")]
-           )
-
          ]
 
 let to_frontend_string (g: graph) : string =

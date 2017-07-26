@@ -20,7 +20,6 @@ type op = Add_fn_call of string * id * loc * id list
         | Add_edge of id * id * param
         | Delete_edge of id * id * param
         | Clear_edges of id
-        | Select_node of id
 [@@deriving eq, yojson]
 
 let id_of_option op : id option =
@@ -32,7 +31,6 @@ let id_of_option op : id option =
   | Update_node_position (id, _) -> Some id
   | Clear_edges (id) -> Some id
   | Delete_node (id) -> Some id
-  | Select_node (id) -> Some id
   | Add_datastore_field _ -> None
   | Add_edge _ -> None
   | Delete_edge _ -> None

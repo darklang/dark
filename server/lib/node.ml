@@ -17,13 +17,14 @@ class virtual node id loc =
     method is_datasource = false
     method update_loc _loc =
       loc <- _loc
-    method to_frontend : Yojson.Safe.json =
+    method to_frontend value : Yojson.Safe.json =
       `Assoc (List.append
                 [ ("name", `String self#name)
                 ; ("id", `Int id)
                 ; ("type", `String self#tipe)
                 ; ("x", `Int loc.x)
                 ; ("y", `Int loc.y)
+                ; ("live", value)
                 ]
                 self#extra_fields)
     method extra_fields = []
@@ -37,7 +38,6 @@ class value strrep id loc =
     method name : string = strrep
     method tipe = "value"
     method execute (_: param_map) : dval = expr
-    method! extra_fields = [("value", `String strrep)]
   end
 
 class func n id loc =
