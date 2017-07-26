@@ -11,9 +11,15 @@
   </head>
   <body>
     <script type="text/javascript">
-     storage = localStorage.getItem('editor');
-     state = JSON.parse(storage);
-     elmapp = Elm.Main.fullscreen(state);
+     try {
+       storage = localStorage.getItem('editor');
+       state = JSON.parse(storage);
+       elmapp = Elm.Main.fullscreen(state);
+     }
+     catch (e) {
+       console.log("Elm threw when called with " + JSON.stringify(state));
+       elmapp = Elm.Main.fullscreen(null);
+     }
      elmapp.ports.setStorage.subscribe(function (state) {
        localStorage.setItem('editor', JSON.stringify(state))
       });
