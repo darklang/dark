@@ -141,7 +141,7 @@ def main():
 
 
     # Ocaml
-    elif ".ml" in f or "jbuild" or "_tags" in f:
+    elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
       if ocaml_build():
         ocaml_test()
         reload_server() and \
