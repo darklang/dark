@@ -13,14 +13,14 @@ type json = Yojson.Basic.json
 (* ------------------------- *)
 (* Graph *)
 (* ------------------------- *)
+type oplist = Op.op list [@@deriving eq, yojson]
 type targetpair = (id * param)
-type graph = {
-  name : string;
-  ops : Op.op list;
-  nodes : nodemap;
-  edges : (id * id * param) list;
-  cursor : id option
-} [@@deriving eq]
+type graph = { name : string
+             ; ops : oplist
+             ; nodes : nodemap
+             ; edges : (id * id * param) list
+             ; cursor : id option
+             } [@@deriving eq]
 
 let create (name : string) : graph ref =
   ref { name = name
@@ -176,18 +176,14 @@ let filename_for name = "appdata/" ^ name ^ ".dark"
 let load name : graph ref =
   let filename = filename_for name in
   let str = Util.readfile filename ~default:"[]" in
-  let jsonops = Yojson.Basic.from_string str in
-  let ops = match jsonops with
-  | `List ops -> List.map ~f:Op.serial2op ops
-  | _ -> failwith "unexpected deserialization" in
+  let ops = str |> Yojson.Safe.from_string |> oplist_of_yojson |> Result.ok_or_failwith in
   let g = create name in
   List.iter ops ~f:(fun op -> add_op op g);
   g
 
 let save (g : graph) : unit =
   let filename = filename_for g.name in
-  let ops = List.map ~f:Op.op2serial g.ops in
-  let str = `List ops |> Yojson.Basic.to_string in
+  let str = g.ops |> oplist_to_yojson |> Yojson.Safe.to_string in
   let str = str ^ "\n" in
   Util.writefile filename str
 
