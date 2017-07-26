@@ -98,7 +98,7 @@ def ocaml_build():
 
 def ocaml_test():
   return call("cd server && \
-ocamlbuild -I test -tag-line '<test/*> : package(oUnit)' test.byte && _build/test/test.byte")
+ocamlbuild test.byte && _build/test/test.byte")
 
 def reload_server():
   return call("cd server && ../scripts/support/runserver")

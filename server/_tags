@@ -1,5 +1,8 @@
 "lib" : include
 "bin" : include
+"test" : include
+
+<test/*> : package(oUnit)
 
 true : debug, bin_annot, warn(-40)
 true : package(core), package(postgresql)
