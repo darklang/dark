@@ -1,7 +1,8 @@
 module Consts exposing (..)
 
 escapeKeycode = 27
-inputID = "darkInput"
+replID = "darkInput"
+entryID = "darkEntry"
 leftButton = 0
 
 -- UI

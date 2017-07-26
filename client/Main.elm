@@ -39,7 +39,8 @@ init = let m = { nodes = Dict.empty
                , cursor = Nothing
                , live = Nothing
                , errors = ["None"]
-               , inputValue = ""
+               , entryValue = ""
+               , replValue = ""
                , focused = False
                , tempFieldName = ""
                , lastPos = Consts.initialPos
@@ -47,7 +48,7 @@ init = let m = { nodes = Dict.empty
                , lastMsg = NoMsg
                } in
        let load = rpc m <| [LoadInitialGraph]
-       in (m, Cmd.batch [focusInput, load])
+       in (m, Cmd.batch [focusEntry, load])
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -61,15 +62,15 @@ update msg m =
 
     (NodeClick node, _) ->
       ({ m | cursor = Just node.id
-       }, focusInput)
+       }, focusRepl)
 
     (RecordClick pos, _) ->
       ({ m | lastPos = pos
-       }, focusInput)
+       }, focusRepl)
 
     (ClearCursor mpos, _) ->
       ({ m | cursor = Nothing
-       }, focusInput)
+       }, focusRepl)
 
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
@@ -80,7 +81,7 @@ update msg m =
     (DragNodeMove id offset currentPos, _) ->
       ({ m | nodes = updateDragPosition currentPos offset id m.nodes
            , lastPos = currentPos -- debugging
-       }, focusInput)
+       }, focusRepl)
 
     (DragNodeEnd id _, _) ->
       ({ m | drag = NoDrag
@@ -104,11 +105,14 @@ update msg m =
         _ -> (m, Cmd.none)
 
     (DragSlotStop _, _) ->
-      ({ m | drag = NoDrag}, focusInput)
+      ({ m | drag = NoDrag}, focusRepl)
 
-    (SubmitMsg, cursor) ->
-      let (m2, rpcs) = Repl.parse m m.inputValue cursor
-          m3 = { m2 | inputValue = "" } in
+    (EntrySubmitMsg, cursor) ->
+      (m, rpc m [AddFunctionCall m.entryValue m.lastPos []])
+
+    (ReplSubmitMsg, cursor) ->
+      let (m2, rpcs) = Repl.parse m m.replValue cursor
+          m3 = { m2 | replValue = "" } in
       case rpcs of
         [] -> (m3, Cmd.none)
         rpcs -> (m3, RPC.rpc m3 rpcs)
@@ -117,24 +121,31 @@ update msg m =
       ({ m | nodes = nodes
            , edges = edges
            , errors = []
-       }, focusInput)
+       }, focusRepl)
 
     (RPCCallBack (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-       }, focusInput)
+       }, focusRepl)
 
     (FocusResult (Ok ()), _) ->
       -- Yay, you focused a field! Ignore.
-      ({m | inputValue = ""
+      -- TODO: should these be separate events?
+      ({m | replValue = ""
+          , entryValue = ""
           , focused = True}, Cmd.none)
 
-    (InputMsg target, _) ->
-      -- Syncs the form with the model. The actual submit is in SubmitMsg
-      ({ m | inputValue = target
+    (ReplInputMsg target, _) ->
+      -- Syncs the form with the model. The actual submit is in ReplSubmitMsg
+      ({ m | replValue = target
+       }, Cmd.none)
+
+    (EntryInputMsg target, _) ->
+      -- Syncs the form with the model. The actual submit is in EntrySubmitMsg
+      ({ m | entryValue = target
        }, Cmd.none)
 
     t -> -- All other cases
-      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, focusInput)
+      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, focusRepl)
 
 
 
@@ -160,11 +171,14 @@ subscriptions m =
 
 
 -- UTIL
-focusInput : Cmd Msg
-focusInput = Cmd.none --Dom.focus Consts.inputID |> Task.attempt FocusResult
+focusEntry : Cmd Msg
+focusEntry = Dom.focus Consts.entryID |> Task.attempt FocusResult
 
-unfocusInput : Cmd Msg
-unfocusInput = Dom.blur Consts.inputID |> Task.attempt FocusResult
+focusRepl : Cmd Msg
+focusRepl = Cmd.none -- Dom.focus Consts.replID |> Task.attempt FocusResult
+
+unfocusRepl : Cmd Msg
+unfocusRepl = Dom.blur Consts.replID |> Task.attempt FocusResult
 
 addError : String -> Model -> List String
 addError error model =

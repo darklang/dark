@@ -29,19 +29,19 @@ view model =
       [ (Svg.svg
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas model))
-      -- , viewInput model.inputValue
+      -- , viewRepl model.inputValue
       , viewErrors model.errors
       ]
 
-viewInput value = Html.form [
-                   Events.onSubmit (SubmitMsg)
-                  ] [
-                   Html.input [ Attrs.id Consts.inputID
-                              , Events.onInput InputMsg
-                              , Attrs.value value
-                              , Attrs.autocomplete False
-                              ] []
-                  ]
+viewRepl value = Html.form [
+                  Events.onSubmit (ReplSubmitMsg)
+                 ] [
+                  Html.input [ Attrs.id Consts.replID
+                             , Events.onInput ReplInputMsg
+                             , Attrs.value value
+                             , Attrs.autocomplete False
+                             ] []
+                 ]
 
 -- TODO: CSS this onto the bottom
 viewErrors errors = Html.div [Attrs.id "darkErrors"] <| (Html.text "Err: ") :: (List.map Html.text errors)
@@ -59,7 +59,7 @@ viewCanvas m =
         dragEdge = case mDragEdge of
                      Just de -> [de]
                      Nothing -> []
-        click = viewClick m.lastPos
+        click = viewEntry m
     in svgDefs :: svgArrowHead :: click :: (allNodes ++ dragEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -75,6 +75,40 @@ viewClick pos =
              , SA.cx (toString pos.x)
              , SA.cy (toString pos.y)
              , SA.fill "#333"] []
+
+viewEntry : Model -> Html.Html Msg
+viewEntry m =
+
+  let
+    viewForm = Html.form [
+                Events.onSubmit (EntrySubmitMsg)
+               ] [
+                Html.input [ Attrs.id Consts.entryID
+                           , Events.onInput EntryInputMsg
+                           , Attrs.value m.entryValue
+                           , Attrs.autocomplete False
+                           ] []
+               ]
+
+    -- width
+    width = Attrs.style [("width", "100px")]
+
+    -- inner node
+    inner = Html.div
+            [width, Attrs.class "inner"]
+            [viewForm]
+
+
+    -- outer node wrapper
+    classes = "selection function node"
+
+    wrapper = Html.span
+              [ Attrs.class classes, width]
+              [ inner ]
+  in
+    placeHtml m.lastPos wrapper
+
+
 
 nodeWidth : Node -> Int
 nodeWidth n =

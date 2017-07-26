@@ -57,8 +57,10 @@ type Msg
     | DragSlotMove Mouse.Position
     | DragSlotEnd Node
     | DragSlotStop Mouse.Position
-    | InputMsg String
-    | SubmitMsg
+    | ReplInputMsg String
+    | ReplSubmitMsg
+    | EntryInputMsg String
+    | EntrySubmitMsg
     | KeyPress Keyboard.KeyCode
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
@@ -83,7 +85,8 @@ type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , cursor : Cursor
                    , live : LiveValue
-                   , inputValue : String
+                   , replValue : String
+                   , entryValue : String
                    , focused : Bool
                    , tempFieldName : FieldName
                    , errors : List String
