@@ -29,7 +29,7 @@ view model =
       [ (Svg.svg
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas model))
-      , viewInput model.inputValue
+      -- , viewInput model.inputValue
       , viewErrors model.errors
       ]
 

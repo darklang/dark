@@ -161,7 +161,7 @@ subscriptions m =
 
 -- UTIL
 focusInput : Cmd Msg
-focusInput = Dom.focus Consts.inputID |> Task.attempt FocusResult
+focusInput = Cmd.none --Dom.focus Consts.inputID |> Task.attempt FocusResult
 
 unfocusInput : Cmd Msg
 unfocusInput = Dom.blur Consts.inputID |> Task.attempt FocusResult
