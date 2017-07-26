@@ -171,8 +171,10 @@ let add_op (op: Op.op) (g: graph ref) : unit =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
+let filename_for name = "appdata/" ^ name ^ ".dark"
+
 let load name : graph ref =
-  let filename = "appdata/" ^ name ^ ".dark" in
+  let filename = filename_for name in
   let str = Util.readfile filename ~default:"[]" in
   let jsonops = Yojson.Basic.from_string str in
   let ops = match jsonops with
@@ -183,10 +185,10 @@ let load name : graph ref =
   g
 
 let save (g : graph) : unit =
+  let filename = filename_for g.name in
   let ops = List.map ~f:Op.op2serial g.ops in
   let str = `List ops |> Yojson.Basic.to_string in
   let str = str ^ "\n" in
-  let filename = "appdata/" ^ g.name ^ ".dark" in
   Util.writefile filename str
 
 (* ------------------------- *)
