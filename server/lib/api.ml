@@ -15,82 +15,122 @@ let backfill_id (head : op) (rest : op list) : op list =
   in
   head :: rest
 
+(* Opcodes as sent via the API. We do this to get type checking *)
+
+
+(* ---------------- *)
+(* Edges, sent as part of add_node opcodes *)
+(* ---------------- *)
+type receiving_edge = { id: int
+                      } [@@deriving yojson]
+type param_edge = { id: int
+                  ; param: string
+                  } [@@deriving yojson]
+type edge = { receiving_edge : receiving_edge option [@default None]
+            ; param_edge : param_edge option [@default None]
+            } [@@deriving yojson]
+
+(* ---------------- *)
+(* opcodes *)
+(* ---------------- *)
+type add_datastore = { name: string
+                     ; x: int
+                     ; y: int
+                     } [@@deriving yojson]
+type add_function_call = { name: string
+                         ; x: int
+                         ; y: int
+                         ; edges : edge list
+                         } [@@deriving yojson]
+type add_value = { value: string
+                 ; x: int
+                 ; y: int
+                 ; edges : edge list
+                 } [@@deriving yojson]
+type add_anon = { x: int
+                ; y: int
+                } [@@deriving yojson]
+type update_node_position = { id: int
+                            ; x: int
+                            ; y: int
+                            } [@@deriving yojson]
+type add_edge = { source: int
+                ; target: int
+                ; param: string
+                } [@@deriving yojson]
+type delete_edge = { source: int
+                   ; target: int
+                   ; param: string
+                   } [@@deriving yojson]
+type delete_node = { id: int } [@@deriving yojson]
+type clear_edges = { id: int } [@@deriving yojson]
+type add_datastore_field = { tipe: string
+                           ; name: string
+                           ; id: int
+                   } [@@deriving yojson]
+
+(* ---------------- *)
+(* Read the command out *)
+(* ---------------- *)
+type opjson =
+  { add_value : add_value option [@default None]
+  ; add_datastore: add_datastore option [@default None]
+  ; add_function_call: add_function_call option [@default None]
+  ; add_anon: add_anon option [@default None]
+  ; update_node_position: update_node_position option [@default None]
+  ; add_edge: add_edge option [@default None]
+  ; delete_edge: delete_edge option [@default None]
+  ; delete_node: delete_node option [@default None]
+  ; clear_edges: clear_edges option [@default None]
+  ; add_datastore_field: add_datastore_field option [@default None]
+  } [@@deriving yojson]
+
 
 let json2op (json : json) : op =
-  match json with
-  | `Assoc [optype, args] -> (
-    let str field = J.member field args |> J.to_string in
-    let int field = J.member field args |> J.to_int in
-    let intlist field = args
-                        |> J.member field
-                        |> J.to_list
-                        |> List.map ~f:J.to_int in
-    let maybe_id name = match J.member name args with
-      | `Int id -> id
-      (* When they come in first, they don't have an id, so add one. *)
-      | `Null -> Util.create_id ()
-      | j -> "IDs must be ints, not '" ^ (Yojson.Safe.to_string j) ^ "'"
-             |> Exception.raise in
-    let id = maybe_id "id" in
-    let loc : (unit -> loc) =
-      (fun _ : loc -> { x = int "x"; y = int "y" }) in
-    match optype with
-    | "add_datastore" -> Add_datastore (str "name", id, loc ())
-    | "add_function_call" ->
-      Add_fn_call (str "name", id, loc (), intlist "edges")
-    | "add_anon" ->
-      Add_anon (id, maybe_id "inner_id", loc ())
-    | "add_value" -> Add_value (str "value", id, loc ())
-    | "update_node_position" -> Update_node_position (int "id", loc ())
-    | "add_edge" -> Add_edge (int "src", int "target", str "param")
-    | "delete_edge" -> Delete_edge (int "src", int "target", str "param")
-    | "delete_node" -> Delete_node (int "id")
-    | "clear_edges" -> Clear_edges (int "id")
-    (* TODO: put this into the frontend *)
-    | "add_datastore_field" ->
+  let id = Util.create_id in
+  let loc x y : loc = { x; y } in
+  let api_op : opjson =
+    json
+    |> opjson_of_yojson
+    |> Result.ok_or_failwith in
+  match api_op with
 
-      let (list, tipe) =
-        match String.split_on_chars
-                (str "tipe") ~on:['['; ']'] with
-        | ["["; s; "]"] -> (true, s)
-        | [s] -> (false, s)
-        | _ -> failwith "other pattern"
-      in
-      Add_datastore_field (int "id", str "name", tipe, list)
-    | _ -> failwith ("not a valid optype: " ^ optype))
-  | _ ->
-    failwith ("incorrect op structure" ^ (Yojson.Safe.to_string json))
+  | { add_value = Some a } ->
+    (* TODO *)
+    Add_value (a.value, id (), loc a.x a.y)
 
+  | { add_datastore = Some a } ->
+    Add_datastore (a.name, id (), loc a.x a.y)
 
-let op2json op : json =
-  let str k v = (k, `String v) in
-  let int k v = (k, `Int v) in
-  let bool k v = (k, `Bool v) in
-  let intlist k vs = (k, `List (List.map ~f:(fun i -> `Int i) vs)) in
-  let id id = int "id" id in
-  let x (loc : loc) = int "x" loc.x in
-  let y (loc : loc) = int "y" loc.y in
-  let (name, args) = match op with
-    | Add_fn_call (name, _id, loc, edges) ->
-      "add_function_call",
-      [str "name" name; id _id; x loc; y loc; intlist "edges" edges]
-    | Add_anon (_id, inner_id, loc) ->
-      "add_anon", [id _id; int "inner_id" inner_id; x loc; y loc]
-    | Add_datastore (name, _id, loc) ->
-      "add_datastore", [str "name" name; id _id; x loc; y loc]
-    | Add_value (expr, _id, loc) ->
-      "add_value", [str "value" expr; id _id; x loc; y loc]
-    (* TODO: deal with is_list *)
-    | Add_datastore_field (_id, name, tipe, _) ->
-      "add_datastore_field",
-      [id _id; str "name" name; str "tipe" tipe; bool "is_list" false]
-    | Update_node_position (_id, loc) ->
-      "update_node_position", [id _id; x loc; y loc]
-    | Delete_node _id ->
-      "delete_node", [id _id]
-    | Add_edge (sid, tid, param) ->
-      "add_edge", [int "src" sid; int "target" tid; str "param" param]
-    | Delete_edge (sid, tid, param) ->
-      "delete_edge", [int "src" sid; int "target" tid; str "param" param]
-    | Clear_edges _id -> "clear_edges", [id _id]
-  in `Assoc [name, `Assoc args]
+  | { add_function_call = Some a } ->
+    (* TODO *)
+    Add_fn_call (a.name, id (), loc a.x a.y, [])
+
+  | { add_anon = Some a } ->
+    Add_anon (id (), id (), loc a.x a.y)
+
+  | { update_node_position = Some a } ->
+    Update_node_position (a.id, loc a.x a.y)
+
+  | { add_edge = Some a } ->
+    Add_edge (a.source, a.target, a.param)
+
+  | { delete_edge = Some a } ->
+    Delete_edge (a.source, a.target, a.param)
+
+  | { delete_node = Some a } ->
+    Delete_node a.id
+
+  | { clear_edges = Some a } ->
+    Clear_edges a.id
+
+  | { add_datastore_field = Some a } ->
+    let (list, tipe) =
+      match String.split_on_chars a.tipe ~on:['['; ']'] with
+      | ["["; s; "]"] -> (true, s)
+      | [s] -> (false, s)
+      | _ -> failwith "invalid datastore field type"
+    in
+    Add_datastore_field (a.id, a.name, tipe, list)
+
+  | _ -> failwith "Unexpected opcode"
