@@ -36,13 +36,17 @@ defaultModel e = { nodes = Dict.empty
                  , errors = ["None"]
                  , dragPos = {x=0, y=0}
                  , drag = NoDrag
+                -- these load before the graph does, causing exceptions. We'll
+                -- need to only run these after the graph loads
+                 -- , prevNode = Maybe.map ID e.prevNode
+                 -- , cursor = Maybe.map ID e.cursor
+                 , prevNode = Nothing
+                 , cursor = Nothing
                  -- editor
                  , entryPos = e.entryPos
                  , clickPos = e.clickPos
                  , entryValue = e.entryValue
                  , replValue = e.replValue
-                 , prevNode = Maybe.map ID e.prevNode
-                 , cursor = Maybe.map ID e.cursor
                  , tempFieldName = e.tempFieldName
                  , focused = e.focused
                  }
