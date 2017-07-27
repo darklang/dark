@@ -7,7 +7,6 @@ import Keyboard
 import Mouse
 
 
-
 type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
@@ -22,17 +21,17 @@ type alias MouseEvent = {pos: Mouse.Position, button: Int}
 type alias Offset = {x: Int, y: Int, offsetCheck: Int}
 type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
 
-type Type = FunctionCall
-          | FunctionDef
-          | Datastore
-          | Value
-          | Page
+type NodeType = FunctionCall
+              | FunctionDef
+              | Datastore
+              | Value
+              | Page
 
 type alias NodeDict = Dict Int Node
 type alias Node = { name : Name
                   , id : ID
                   , pos : Pos
-                  , tipe : Type
+                  , tipe : NodeType
                   -- for DSes
                   , fields : List (FieldName, TypeName)
                   -- for functions
@@ -45,6 +44,7 @@ type alias Edge = { source : ID
                   }
 
 type alias LeftButton = Bool
+
 type Msg
     = ClearCursor Mouse.Position
     | NodeClick Node
@@ -69,16 +69,15 @@ type RPC
     = LoadInitialGraph
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
-    | AddFunctionCall Name Pos (List ID)
+    | AddFunctionCall Name Pos (List ImplicitEdge)
     | AddAnon Pos
-    | AddValue String Pos
+    | AddValue String Pos (List ImplicitEdge)
     | UpdateNodePosition ID -- no pos cause it's in the node
     | AddEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearEdges ID
     | RemoveLastField ID
 
--- Values that we serialize
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , errors : List String
@@ -95,6 +94,7 @@ type alias Model = { nodes : NodeDict
                    , entryValue : String
                    }
 
+-- Values that we serialize
 type alias Editor = { cursor : Maybe Int
                     , focused : Bool
                     , entryPos : Pos
@@ -105,9 +105,13 @@ type alias Editor = { cursor : Maybe Int
                     , tempFieldName : FieldName
                     }
 
+-- Does the new Node fill a hole?
 type Hole = NoHole
           | ResultHole Node
           | ParamHole Node String Int
+
+type ImplicitEdge = ReceivingEdge ID
+                  | ParamEdge ID ParamName
 
 type Drag = NoDrag
           | DragNode ID Offset -- offset between the click and the node pos

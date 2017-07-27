@@ -11,6 +11,7 @@ import Http
 import Html
 import Keyboard
 import Mouse
+import Maybe.Extra
 
 
 -- dark
@@ -132,10 +133,23 @@ update_ msg m =
     -- entry node
     ------------------------
     (EntrySubmitMsg, cursor) ->
-      if (Util.rematch "^[\"\'1-9].*" m.entryValue) then
-        (m, rpc m <| [AddValue m.entryValue m.entryPos])
-      else
-        (m, rpc m <| [AddFunctionCall m.entryValue m.entryPos []])
+      let newIsValue = Util.rematch "^[\"\'1-9].*" m.entryValue
+          extras =
+            case G.findHole m m.prevNode of
+              NoHole -> []
+              ResultHole n ->
+                if newIsValue then
+                  -- this doesnt take params but probably intentional so just
+                  -- allow it
+                  []
+                else
+                  [ReceivingEdge n.id]
+              ParamHole n p _ -> [ParamEdge n.id p]
+      in
+        if newIsValue then
+          (m, rpc m <| [AddValue m.entryValue m.entryPos extras])
+        else
+          (m, rpc m <| [AddFunctionCall m.entryValue m.entryPos extras])
 
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->

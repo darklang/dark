@@ -19,6 +19,21 @@ encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   JSE.list (List.map (encodeRPC m) calls)
 
+encodeImplicitEdges : List ImplicitEdge -> JSE.Value
+encodeImplicitEdges edges =
+  edges
+    |> List.map
+       (\e -> case e of
+                ReceivingEdge (ID id) ->
+                  JSE.object [("receiving_edge",
+                                 JSE.object [("id", JSE.int id)])]
+
+                ParamEdge (ID id) p ->
+                  JSE.object [("param_edge",
+                                 JSE.object [("id", JSE.int id),
+                                             ("param", JSE.string p)])])
+    |> JSE.list
+
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
   let (cmd, args) =
@@ -43,8 +58,7 @@ encodeRPC m call =
            JSE.object [ ("name", JSE.string name)
                       , ("x", JSE.int x)
                       , ("y", JSE.int y)
-                      , ("edges", JSE.list
-                           (List.map (\(ID i) -> JSE.int i) edges))])
+                      , ("edges", encodeImplicitEdges edges)])
 
       AddAnon {x,y} ->
         ("add_anon",
@@ -55,7 +69,8 @@ encodeRPC m call =
         ("add_value",
            JSE.object [ ("value", JSE.string str)
                       , ("x", JSE.int x)
-                      , ("y", JSE.int y)])
+                      , ("y", JSE.int y)
+                      , ("edges", encodeImplicitEdges edges)])
 
       UpdateNodePosition (ID id) ->
         case Dict.get id m.nodes of

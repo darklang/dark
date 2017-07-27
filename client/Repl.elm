@@ -53,14 +53,14 @@ parse m command cursor =
     [] -> (m, [])
     first :: words ->
       case (String.uncons first, first, words, cursor) of
-        (Just ('+', name), _, [], _) ->
-          if (rematch "^[\"\'1-9].*" name) then
-            (m, [AddValue name m.clickPos])
-          else
-            (m, [AddFunctionCall name m.clickPos []])
+        -- (Just ('+', name), _, [], _) ->
+        --   if (rematch "^[\"\'1-9].*" name) then
+        --     (m, [AddValue name m.clickPos])
+        --   else
+        --     (m, [AddFunctionCall name m.clickPos []])
 
-        (Just ('+', name), _, args, _) ->
-          (m, [AddFunctionCall name m.clickPos (List.map l2id args)])
+        -- (Just ('+', name), _, args, _) ->
+        --   (m, [AddFunctionCall name m.clickPos (List.map l2id args)])
 
         (_, "/rm", [], Just id) ->
           (m, [DeleteNode id])
