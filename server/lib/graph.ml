@@ -18,11 +18,12 @@ type edge = { source : id
             ; target : id
             ; param : param
             } [@@deriving eq, yojson, fields]
+type edgelist = edge list [@@deriving eq, yojson]
 type targetpair = (id * param)
 type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap
-             ; edges : edge list
+             ; edges : edgelist
              ; just_added : id option
              } [@@deriving eq]
 
@@ -196,24 +197,20 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
+let node_value n g : (string * string) =
+  try
+    let dv = execute n#id g in ( Runtime.to_repr dv,  Runtime.get_type dv)
+  with
+  | Exception.UserException e -> ("Error: " ^ e, "Error")
+
 let to_frontend_nodes g : json =
-  let get_value n =
-    try
-      let dv = execute n#id g in
-      `Assoc [ ("value", `String (Runtime.to_repr dv))
-             ; ("type", `String (Runtime.get_type dv))]
-    with
-    | Exception.UserException e ->
-      `Assoc [ ("value", `String ("Error: " ^ e))
-             ; ("type", `String "Error")] in
   `List (
     List.map
-      ~f:(fun n -> n |> get_value |> n#to_frontend)
+      ~f:(fun n -> n#to_frontend (node_value n g))
       (NodeMap.data g.nodes)
   )
 
-let to_frontend_edges g : json =
-  `List (List.map ~f:edge_to_yojson g.edges)
+let to_frontend_edges g : json = edgelist_to_yojson g.edges
 
 let to_frontend (g : graph) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)

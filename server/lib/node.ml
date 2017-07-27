@@ -4,6 +4,20 @@ open Types
 type dval = Runtime.dval
 type param_map = Runtime.param_map
 
+(* For serializing to json only *)
+type valuejson = { value: string
+                 ; tipe: string [@key "type"]
+                 } [@@deriving yojson]
+type nodejson = { name: string
+                 ; id: id
+                 ; tipe: string [@key "type"]
+                 ; x: int
+                 ; y: int
+                 ; live: valuejson
+                 ; parameters: string list
+                 } [@@deriving yojson]
+
+
 class virtual node id loc =
   object (self)
     val id : id = id
@@ -17,17 +31,15 @@ class virtual node id loc =
     method is_datasource = false
     method update_loc _loc =
       loc <- _loc
-    method to_frontend value : Yojson.Safe.json =
-      `Assoc (List.append
-                [ ("name", `String self#name)
-                ; ("id", `Int id)
-                ; ("type", `String self#tipe)
-                ; ("x", `Int loc.x)
-                ; ("y", `Int loc.y)
-                ; ("live", value)
-                ]
-                self#extra_fields)
-    method extra_fields = []
+    method to_frontend ((value, tipe) : string * string) : Yojson.Safe.json =
+      nodejson_to_yojson { name = self#name
+                         ; id = id
+                         ; tipe = self#tipe
+                         ; x = loc.y
+                         ; y = loc.y
+                         ; live = { value = value ; tipe = tipe }
+                         ; parameters = self#parameters
+                         }
     method parameters : string list = []
   end
 
@@ -52,12 +64,7 @@ class func n id loc =
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
       else "function"
-    method! parameters = self#fn.parameters
-    method! extra_fields =
-      [("parameters",
-        `List (List.map
-                 ~f:(fun s -> `String s)
-                 self#parameters))]
+    method parameters : string list = self#fn.parameters
   end
 
 class datastore table id loc =
