@@ -41,7 +41,7 @@ type alias Node = { name : Name
 
 type alias Edge = { source : ID
                   , target : ID
-                  , targetParam : ParamName
+                  , param : ParamName
                   }
 
 type alias LeftButton = Bool

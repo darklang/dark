@@ -105,7 +105,7 @@ decodeEdge =
       toEdge source target param =
         { source = ID source
         , target = ID target
-        , targetParam = param
+        , param = param
         }
   in JSDP.decode toEdge
     |> JSDP.required "source" JSD.int

@@ -46,7 +46,7 @@ findHole model mID =
     Just id ->
       let n = getNode model id
           incoming = List.filter (\e -> e.target == n.id) model.edges
-          used_params = List.map .targetParam incoming
+          used_params = List.map .param incoming
           all_params = List.indexedMap (,) n.parameters
           unused = List.Extra.find
                    (\(i, p) -> not <| List.member p used_params)

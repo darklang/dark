@@ -150,7 +150,7 @@ synonym x =
 -- TODO: use a Dict
 slotIsConnected : Model -> ID -> ParamName -> Bool
 slotIsConnected m target param =
-  let matches edge = (edge.target == target) && (edge.targetParam == param)
+  let matches edge = (edge.target == target) && (edge.param == param)
       all = List.map matches m.edges
   in
     List.any identity all
@@ -328,13 +328,13 @@ viewEntryEdge m prev entryPos =
 
 
 viewEdge : Model -> Edge -> Svg.Svg Msg
-viewEdge m {source, target, targetParam} =
+viewEdge m {source, target, param} =
     let sourceN = G.getNode m source
         targetN = G.getNode m target
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
 
-        pOffset = paramOffset targetN targetParam
+        pOffset = paramOffset targetN param
         (tnx, tny) = (targetN.pos.x + pOffset.x, targetN.pos.y + pOffset.y)
 
         -- find the shortest line and link to there
