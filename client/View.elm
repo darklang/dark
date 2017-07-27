@@ -5,7 +5,6 @@ import Dict exposing (Dict)
 import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import List.Extra
 import Maybe.Extra
 
 import Svg
@@ -16,10 +15,11 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 
 
-import Defaults
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
+import Canvas
+import Defaults
 
 view : Model -> Html.Html Msg
 view model =
@@ -111,7 +111,6 @@ nodeWidth n =
     slimChars = Set.fromList Defaults.narrowChars
     len name =
       name
-        |> synonym
         |> String.toList
         |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
         |> List.sum
@@ -134,26 +133,6 @@ nodeHeight n =
 
 nodeSize node =
   (nodeWidth node , nodeHeight node)
-paramOffset : Node -> String -> Pos
-paramOffset node param =
-  let
-    index = deMaybe (List.Extra.elemIndex param node.parameters)
-  in
-    {x=index*10, y=-2}
-
-synonym x =
-  case x of
-    "get_field" -> " ."
-    "wrap" -> " :"
-    _ -> x
-
--- TODO: use a Dict
-slotIsConnected : Model -> ID -> ParamName -> Bool
-slotIsConnected m target param =
-  let matches edge = (edge.target == target) && (edge.param == param)
-      all = List.map matches m.edges
-  in
-    List.any identity all
 
 -- TODO: Allow selecting an edge, then highlight it and show its source and target
 -- TODO: If there are default parameters, show them inline in the node body
@@ -163,7 +142,7 @@ viewNode m n i =
   let
       -- params
       slotHandler name = (decodeClickEvent (DragSlotStart n name))
-      connected name = if slotIsConnected m n.id name
+      connected name = if G.slotIsConnected m n.id name
                        then "connected"
                        else "disconnected"
       viewParam name = Html.span
@@ -184,10 +163,9 @@ viewNode m n i =
                      ]
 
       -- heading
-      name = synonym n.name
       heading = Html.span
                 [ Attrs.class "name"]
-                [ Html.text name ]
+                [ Html.text n.name ]
 
       -- fields (in list)
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
@@ -334,7 +312,7 @@ viewEdge m {source, target, param} =
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
 
-        pOffset = paramOffset targetN param
+        pOffset = Canvas.paramOffset targetN param
         (tnx, tny) = (targetN.pos.x + pOffset.x, targetN.pos.y + pOffset.y)
 
         -- find the shortest line and link to there

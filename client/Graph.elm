@@ -2,7 +2,8 @@ module Graph exposing ( orderedNodes
                       , fromLetter
                       , int2letter
                       , getNode
-                      , findHole)
+                      , findHole
+                      , slotIsConnected)
 
 import Array
 import Char
@@ -55,3 +56,9 @@ findHole model mID =
         case unused of
           Nothing -> ResultHole n
           Just (i, p) -> ParamHole n p i
+
+
+
+slotIsConnected : Model -> ID -> ParamName -> Bool
+slotIsConnected m target param =
+  List.any (\e -> e.target == target && e.param == param) m.edges

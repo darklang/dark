@@ -11,11 +11,9 @@ import Http
 import Html
 import Keyboard
 import Mouse
-import Dom
-import Task
 
 
--- mine
+-- dark
 import RPC exposing (rpc)
 import Types exposing (..)
 import Util exposing (deMaybe)
@@ -23,6 +21,7 @@ import View
 import Defaults
 import Repl
 import Graph as G
+import Canvas
 
 
 
@@ -34,7 +33,7 @@ main = Html.programWithFlags
        , update = update
        , subscriptions = subscriptions}
 
-
+focusEntry = Canvas.focusEntry
 
 -- MODEL
 init : Maybe Editor -> ( Model, Cmd Msg )
@@ -66,6 +65,8 @@ update msg m =
   let (m2, cmd) = update_ msg m in
   (m2, Cmd.batch [cmd, m |> model2editor |> setStorage])
 
+
+-- updates
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m =
   case (msg, m.cursor) of
@@ -93,12 +94,14 @@ update_ msg m =
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
       && event.button == Defaults.leftButton
-      then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none)
+      then ({ m | drag = DragNode node.id
+                         (Canvas.findOffset node.pos event.pos)}
+           , Cmd.none)
       else (m, Cmd.none)
 
-    (DragNodeMove id offset currentPos, _) ->
-      ({ m | nodes = updateDragPosition currentPos offset id m.nodes
-           , dragPos = currentPos -- debugging
+    (DragNodeMove id offset pos, _) ->
+      ({ m | nodes = Canvas.updateDragPosition pos offset id m.nodes
+           , dragPos = pos -- debugging
        }, focusEntry)
 
     (DragNodeEnd id _, _) ->
@@ -209,34 +212,9 @@ subscriptions m =
 
 
 -- UTIL
-focusEntry : Cmd Msg
-focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
-
-focusRepl : Cmd Msg
-focusRepl = Cmd.none -- Dom.focus Defaults.replID |> Task.attempt FocusResult
-
-unfocusRepl : Cmd Msg
-unfocusRepl = Dom.blur Defaults.replID |> Task.attempt FocusResult
-
 addError : String -> Model -> List String
 addError error model =
   let time = Util.timestamp ()
   in
     List.take 1
       ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
-
-updateDragPosition : Pos -> Offset -> ID -> NodeDict -> NodeDict
-updateDragPosition pos off (ID id) nodes =
-  Dict.update id (Maybe.map (\n -> {n | pos = {x=pos.x+off.x, y=pos.y+off.y}})) nodes
-
-
-findOffset : Pos -> Mouse.Position -> Offset
-findOffset pos mpos =
- {x=pos.x - mpos.x, y= pos.y - mpos.y, offsetCheck=1}
-
-nextPosition : Pos -> Pos
-nextPosition {x, y} =
-  if x > 900 then
-    {x=100, y=y+100}
-  else
-    {x=x+100, y=y}
