@@ -81,24 +81,28 @@ type RPC
 -- Values that we serialize
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
-                   , cursor : Cursor
-                   , focused : Bool
-                   , tempFieldName : FieldName
                    , errors : List String
                    , dragPos : Pos
                    , drag : Drag
-                   , prevNode : Maybe ID
                    -- these values are serialized via Editor
+                   , tempFieldName : FieldName
+                   , cursor : Cursor
+                   , focused : Bool
+                   , prevNode : Maybe ID
                    , entryPos : Pos
                    , clickPos : Pos
                    , replValue : String
                    , entryValue : String
                    }
 
-type alias Editor = { entryPos : Pos
+type alias Editor = { cursor : Maybe Int
+                    , focused : Bool
+                    , entryPos : Pos
                     , clickPos : Pos
-                    , replValue : String
                     , entryValue : String
+                    , replValue : String
+                    , prevNode : Maybe Int
+                    , tempFieldName : FieldName
                     }
 
 type Hole = NoHole

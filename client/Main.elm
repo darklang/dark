@@ -51,10 +51,14 @@ init mEditor =
 port setStorage : Editor -> Cmd msg
 
 model2editor : Model -> Editor
-model2editor m = { entryPos = m.entryPos
+model2editor m = { cursor = Maybe.map deID m.cursor
+                 , focused = m.focused
+                 , entryPos = m.entryPos
                  , clickPos = m.clickPos
-                 , entryValue = m.entryValue
                  , replValue = m.replValue
+                 , entryValue = m.entryValue
+                 , prevNode = Maybe.map deID m.prevNode
+                 , tempFieldName = m.tempFieldName
                  }
 
 update : Msg -> Model -> (Model, Cmd Msg)

@@ -25,19 +25,24 @@ defaultEditor = { entryPos = initialPos
                 , clickPos = {x=0, y=0}
                 , entryValue = ""
                 , replValue = ""
+                , prevNode = Nothing
+                , cursor = Nothing
+                , tempFieldName = ""
+                , focused = False
                 }
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
                  , edges = []
-                 , cursor = Nothing
                  , errors = ["None"]
-                 , focused = False
-                 , tempFieldName = ""
                  , dragPos = {x=0, y=0}
                  , drag = NoDrag
-                 , prevNode = Nothing
+                 -- editor
                  , entryPos = e.entryPos
                  , clickPos = e.clickPos
                  , entryValue = e.entryValue
                  , replValue = e.replValue
-               }
+                 , prevNode = Maybe.map ID e.prevNode
+                 , cursor = Maybe.map ID e.cursor
+                 , tempFieldName = e.tempFieldName
+                 , focused = e.focused
+                 }
