@@ -160,18 +160,17 @@ update_ msg m =
           -- it, which will be an type/node/param/index tuple, or a return
           -- value. then we can choose a position from it. Once we have that,
           -- when we added the next node we can automatically create a
-          -- connectionaa
+          -- connection
           findNext node =
             case node of
               Nothing -> ("none", Nothing, "", -1)
               Just id ->
                 let n = getNode m2 id
-                    incoming_edges = List.filter (\{source,target,targetParam} -> target == id) edges
-                    used_params = List.map (\{source,target,targetParam} -> targetParam) incoming_edges
-                    all_params = List.indexedMap (\i p -> (i,p)) n.parameters
+                    incoming_edges = List.filter (\e -> e.target == id) edges
+                    used_params = List.map .targetParam incoming_edges
+                    all_params = List.indexedMap (,) n.parameters
                     unused = List.Extra.find (\(i, p) -> not <| List.member p used_params) all_params
                 in
-
                   case unused of
                     Nothing -> ("result", Just n, "", -1)
                     Just (i, p) -> ("param", Just n, p, i)
