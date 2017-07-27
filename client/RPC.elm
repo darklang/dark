@@ -8,8 +8,6 @@ import Json.Decode.Pipeline as JSDP
 
 import Types exposing (..)
 
-invalidID = -45
-
 rpc : Model -> List RPC -> Cmd Msg
 rpc m calls =
   let payload = encodeRPCs m calls
