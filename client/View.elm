@@ -6,6 +6,7 @@ import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import List.Extra
+import Maybe.Extra
 
 import Svg
 import Svg.Attributes as SA
@@ -55,12 +56,10 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (Util.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
-        mDragEdge = viewDragEdge m.drag m.dragPos
-        dragEdge = case mDragEdge of
-                     Just de -> [de]
-                     Nothing -> []
+        entryEdge = viewEntryEdge m m.prevNode m.entryPos |> Maybe.Extra.toList
+        dragEdge = viewDragEdge m.drag m.dragPos |> Maybe.Extra.toList
         click = viewEntry m
-    in svgDefs :: svgArrowHead :: click :: (allNodes ++ dragEdge ++ edges)
+    in svgDefs :: svgArrowHead :: click :: (allNodes ++ dragEdge ++ entryEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml pos html =
@@ -321,11 +320,23 @@ viewDragEdge drag currentPos =
                 currentPos
                 dragEdgeStyle
 
+viewEntryEdge : Model -> Maybe ID -> Pos -> Maybe (Svg.Svg Msg)
+viewEntryEdge m prev entryPos =
+  case prev of
+    Just id ->
+      let n = getNode m id in
+      Just <| svgLine n.pos entryPos dragEdgeStyle
+    Nothing -> Nothing
+
+
+
+getNode : Model -> ID -> Node
+getNode m id = Dict.get (deID id) m.nodes |> deMaybe
+
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, targetParam} =
-    let mSourceN = Dict.get (deID source) m.nodes
-        mTargetN = Dict.get (deID target) m.nodes
-        (sourceN, targetN) = (deMaybe mSourceN, deMaybe mTargetN)
+    let sourceN = getNode m source
+        targetN = getNode m target
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
 

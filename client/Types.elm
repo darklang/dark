@@ -91,19 +91,18 @@ type alias Model = { nodes : NodeDict
                    , dragPos : Pos
                    , drag : Drag
                    , lastMsg : Msg
+                   , prevNode : Maybe ID
                    -- these values are serialized via Editor
                    , entryPos : Pos
                    , clickPos : Pos
                    , replValue : String
                    , entryValue : String
-                   , prevNode : Maybe ID
                    }
 
 type alias Editor = { entryPos : Pos
                     , clickPos : Pos
                     , replValue : String
                     , entryValue : String
-                    , prevNode : Maybe Int
                     }
 
 type Drag = NoDrag

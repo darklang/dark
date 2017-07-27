@@ -43,7 +43,6 @@ init e =
                             , clickPos = {x=0, y=0}
                             , entryValue = ""
                             , replValue = ""
-                            , prevNode = Nothing
                             }
                  Just e -> e
       m = { nodes = Dict.empty
@@ -56,11 +55,11 @@ init e =
           , dragPos = {x=0, y=0}
           , drag = NoDrag
           , lastMsg = NoMsg
+          , prevNode = Nothing
           , entryPos = editor.entryPos
           , clickPos = editor.clickPos
           , entryValue = editor.entryValue
           , replValue = editor.replValue
-          , prevNode = Maybe.map ID editor.prevNode
           }
       load = rpc m <| [LoadInitialGraph]
   in
@@ -75,7 +74,6 @@ model2editor m = { entryPos = m.entryPos
                  , clickPos = m.clickPos
                  , entryValue = m.entryValue
                  , replValue = m.replValue
-                 , prevNode = Maybe.map deID m.prevNode
                  }
 
 update : Msg -> Model -> (Model, Cmd Msg)
