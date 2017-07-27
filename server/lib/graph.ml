@@ -179,7 +179,7 @@ let load name : graph ref =
   let g = create name in
   name
   |> filename_for
-  |> Util.readfile2 ~default:"[]"
+  |> Util.readfile ~default:"[]"
   |> Yojson.Safe.from_string
   |> oplist_of_yojson
   |> Result.ok_or_failwith

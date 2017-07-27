@@ -12,7 +12,7 @@ let readfile ?(default="") f : string =
   else
     str
 
-(* TODO: readfile above doesnt work for reading from the blog. readfile below doesn't work for static content *)
+(* TODO: Some files only work with readfile above, some only with readfile below *)
 let readfile2 ?(default="") f : string =
   let ic = Caml.open_in f in
   try
