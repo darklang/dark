@@ -35,7 +35,7 @@ class virtual node id loc =
       nodejson_to_yojson { name = self#name
                          ; id = id
                          ; tipe = self#tipe
-                         ; x = loc.y
+                         ; x = loc.x
                          ; y = loc.y
                          ; live = { value = value ; tipe = tipe }
                          ; parameters = self#parameters
