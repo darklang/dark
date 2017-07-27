@@ -35,7 +35,6 @@ defaultModel e = { nodes = Dict.empty
                  , tempFieldName = ""
                  , dragPos = {x=0, y=0}
                  , drag = NoDrag
-                 , lastMsg = NoMsg
                  , prevNode = Nothing
                  , entryPos = e.entryPos
                  , clickPos = e.clickPos
