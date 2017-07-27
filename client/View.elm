@@ -324,19 +324,17 @@ viewEntryEdge : Model -> Maybe ID -> Pos -> Maybe (Svg.Svg Msg)
 viewEntryEdge m prev entryPos =
   case prev of
     Just id ->
-      let n = getNode m id in
+      let n = Util.getNode m id in
       Just <| svgLine n.pos entryPos dragEdgeStyle
     Nothing -> Nothing
 
 
 
-getNode : Model -> ID -> Node
-getNode m id = Dict.get (deID id) m.nodes |> deMaybe
 
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, targetParam} =
-    let sourceN = getNode m source
-        targetN = getNode m target
+    let sourceN = Util.getNode m source
+        targetN = Util.getNode m target
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
 

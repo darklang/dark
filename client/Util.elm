@@ -1,4 +1,4 @@
-module Util exposing (timestamp, windowSize, deMaybe, orderedNodes, letter2int, int2letter, fromLetter, rematch)
+module Util exposing (timestamp, windowSize, deMaybe, orderedNodes, letter2int, int2letter, fromLetter, rematch, getNode)
 
 import Dict
 import Array
@@ -46,3 +46,6 @@ fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2i
 
 rematch : String -> String -> Bool
 rematch re s = Regex.contains (Regex.regex re) s
+
+getNode : Model -> ID -> Node
+getNode m id = Dict.get (deID id) m.nodes |> deMaybe

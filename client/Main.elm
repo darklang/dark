@@ -13,12 +13,13 @@ import Keyboard
 import Mouse
 import Dom
 import Task
+import List.Extra
 
 
 -- mine
 import RPC exposing (rpc)
 import Types exposing (..)
-import Util exposing (deMaybe)
+import Util exposing (deMaybe, getNode)
 import View
 import Consts
 import Repl
@@ -152,16 +153,40 @@ update_ msg m =
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
-               , edges = edges
-               , errors = []}
-          m3 = case calls of
-                 [AddFunctionCall _ _ _] ->
-                   {m2 | entryPos = nextPosition m2.entryPos}
-                 [AddValue _ _] ->
-                   {m2 | entryPos = nextPosition m2.entryPos}
-                 _ -> m2
+                   , edges = edges
+                   , prevNode = justAdded
+                   , errors = []}
+          -- we can get the node from justadded, then find the right hole for
+          -- it, which will be an type/node/param/index tuple, or a return
+          -- value. then we can choose a position from it. Once we have that,
+          -- when we added the next node we can automatically create a
+          -- connectionaa
+          findNext node =
+            case node of
+              Nothing -> ("none", Nothing, "", -1)
+              Just id ->
+                let n = getNode m2 id
+                    incoming_edges = List.filter (\{source,target,targetParam} -> target == id) edges
+                    used_params = List.map (\{source,target,targetParam} -> targetParam) incoming_edges
+                    all_params = List.indexedMap (\i p -> (i,p)) n.parameters
+                    unused = List.Extra.find (\(i, p) -> not <| List.member p used_params) all_params
+                in
+
+                  case unused of
+                    Nothing -> ("result", Just n, "", -1)
+                    Just (i, p) -> ("param", Just n, p, i)
       in
-       ({m3 | prevNode = justAdded}, focusEntry)
+        let pos =
+              case findNext justAdded of
+                -- (holetype, node, param, index)
+                ("none", _, _, _) -> m.entryPos
+                ("result", Just n, _, _) -> {x=n.pos.x+100,y=n.pos.y+100}
+                ("param", Just n, _, i) -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+                _ -> Debug.crash "findNext has an unexpected result"
+
+      in
+       ({m2 | entryPos = pos
+        }, focusEntry)
 
 
     ------------------------
