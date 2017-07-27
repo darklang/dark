@@ -14,11 +14,15 @@ type json = Yojson.Safe.json
 (* Graph *)
 (* ------------------------- *)
 type oplist = Op.op list [@@deriving eq, yojson]
+type edge = { source : id
+            ; target : id
+            ; param : param
+            } [@@deriving eq, yojson, fields]
 type targetpair = (id * param)
 type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap
-             ; edges : (id * id * param) list
+             ; edges : edge list
              ; just_added : id option
              } [@@deriving eq]
 
@@ -34,27 +38,25 @@ let create (name : string) : graph ref =
 (* Traversing *)
 (* ------------------------- *)
 
-let get_children id g : (param * id) list =
+let get_children id g : edge list =
   g.edges
-  |> List.filter ~f:(fun (s,_,_) -> s = id)
-  |> List.map ~f:(fun (_,t,p) -> (p,t))
+  |> List.filter ~f:(fun e -> e.source=id)
 
-let get_parents id g : (param * id) list =
+let get_parents id g : edge list =
   g.edges
-  |> List.filter ~f:(fun (_,t,_) -> t = id)
-  |> List.map ~f:(fun (s,_,p) -> (p,s))
+  |> List.filter ~f:(fun e -> e.target=id)
 
 let get_named_parent id param g : id =
   g.edges
-  |> List.filter ~f:(fun (_,t,p) -> t = id && p = param)
+  |> List.filter ~f:(fun e -> e.target=id && e.param=param)
   |> List.hd_exn
-  |> Tuple3.get1
+  |> source
 
 let get_node (id : id)  (g : graph) : Node.node =
   NodeMap.find_exn g.nodes id
 
-let has_edge s t param (g : graph) : bool =
-  List.exists ~f:(fun a -> a = (s, t, param)) g.edges
+let has_edge (s: id) (t: id) (param: param) (g : graph) : bool =
+  List.exists ~f:(fun e -> e.source=s && e.target=t && e.param=param) g.edges
 
 
 (* ------------------------- *)
@@ -71,7 +73,7 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   if not (List.mem ~equal:String.equal n#parameters param) then
     Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
 
-  { g with edges = (s, t, param) :: g.edges }
+  { g with edges = {source=s; target=t; param} :: g.edges }
 
   (* TODO check the types at both ends of the edge are compatible *)
   (* src_type = src.get_return_type() *)
@@ -99,12 +101,12 @@ let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   { g with just_added = None}
 
 let clear_edges (id: id) (g: graph) : graph =
-  let f (s, t, _) = s <> id && t <> id in
+  let f e = e.source <> id && e.target <> id in
   { g with edges = List.filter ~f:f g.edges;
            just_added = None }
 
 let delete_edge s t param (g: graph) : graph =
-  let f a = a <> (s, t, param) in
+  let f e = (e.source, e.target, e.param) <> (s, t, param) in
   { g with edges = List.filter ~f:f g.edges;
            just_added = None}
 
@@ -124,7 +126,7 @@ let rec execute (id: id) ?(eager: dvalmap = DValMap.empty) (g: graph) : dval =
   | None ->
     let n = get_node id g in
     let args = List.map
-        ~f:(fun (p,s) -> (p, execute s ~eager g))
+        ~f:(fun e -> (e.param, execute e.source ~eager g))
         (get_parents id g) in
     let args = ParamMap.of_alist_exn args in
     n#execute args
@@ -210,13 +212,8 @@ let to_frontend_nodes g : json =
       (NodeMap.data g.nodes)
   )
 
-
 let to_frontend_edges g : json =
-  let toobj (s, t, p) = `Assoc [ ("source", `Int s)
-                               ; ("target", `Int t)
-                               ; ("param", `String p)] in
-  `List (List.map ~f:toobj g.edges)
-
+  `List (List.map ~f:edge_to_yojson g.edges)
 
 let to_frontend (g : graph) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)
