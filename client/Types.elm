@@ -43,7 +43,6 @@ type alias Edge = { source : ID
                   , target : ID
                   , targetParam : ParamName
                   }
-type alias LiveValue = Maybe (String, String)
 
 type alias LeftButton = Bool
 type Msg
