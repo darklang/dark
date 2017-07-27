@@ -23,30 +23,40 @@ encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
   let (cmd, args) =
     case call of
-      LoadInitialGraph -> ("load_initial_graph", JSE.object [])
-      AddDatastore name {x,y} -> ("add_datastore"
-                                 , JSE.object [ ("name", JSE.string name)
-                                              , ("x", JSE.int x)
-                                              , ("y", JSE.int y)])
-      AddDatastoreField (ID id) name tipe -> ("add_datastore_field",
-                                                JSE.object [ ("id", JSE.int id)
-                                                           , ("name", JSE.string name)
-                                                           , ("tipe", JSE.string tipe)])
+      LoadInitialGraph ->
+        ("load_initial_graph", JSE.object [])
 
-      AddFunctionCall name {x,y} edges -> ("add_function_call",
-                                             JSE.object [ ("name", JSE.string name)
-                                                        , ("x", JSE.int x)
-                                                        , ("y", JSE.int y)
-                                                        , ("edges", JSE.list
-                                                             (List.map (\(ID i) -> JSE.int i) edges))])
-      AddAnon {x,y} -> ("add_anon",
-                              JSE.object [ ("x", JSE.int x)
-                                         , ("y", JSE.int y)])
-      AddValue str {x,y} -> ("add_value",
-                               JSE.object [ ("value", JSE.string str)
-                                          , ("x", JSE.int x)
-                                          , ("y", JSE.int y)])
-                -- TODO: get passed the node
+      AddDatastore name {x,y} ->
+        ("add_datastore"
+        , JSE.object [ ("name", JSE.string name)
+                     , ("x", JSE.int x)
+                     , ("y", JSE.int y)])
+
+      AddDatastoreField (ID id) name tipe ->
+        ("add_datastore_field",
+           JSE.object [ ("id", JSE.int id)
+                      , ("name", JSE.string name)
+                      , ("tipe", JSE.string tipe)])
+
+      AddFunctionCall name {x,y} edges ->
+        ("add_function_call",
+           JSE.object [ ("name", JSE.string name)
+                      , ("x", JSE.int x)
+                      , ("y", JSE.int y)
+                      , ("edges", JSE.list
+                           (List.map (\(ID i) -> JSE.int i) edges))])
+
+      AddAnon {x,y} ->
+        ("add_anon",
+           JSE.object [ ("x", JSE.int x)
+                      , ("y", JSE.int y)])
+
+      AddValue str {x,y} edges ->
+        ("add_value",
+           JSE.object [ ("value", JSE.string str)
+                      , ("x", JSE.int x)
+                      , ("y", JSE.int y)])
+
       UpdateNodePosition (ID id) ->
         case Dict.get id m.nodes of
           Nothing -> Debug.crash "should never happen"
@@ -54,17 +64,25 @@ encodeRPC m call =
                           JSE.object [ ("id", JSE.int id)
                                      , ("x" , JSE.int node.pos.x)
                                      , ("y" , JSE.int node.pos.y)])
-      AddEdge (ID src) (ID target, param) -> ("add_edge",
-                                                JSE.object [ ("src", JSE.int src)
-                                                           , ("target", JSE.int target)
-                                                           , ("param", JSE.string param)
-                                                           ])
-      DeleteNode (ID id) -> ("delete_node",
-                               JSE.object [ ("id", JSE.int id) ])
-      ClearEdges (ID id) -> ("clear_edges",
-                               JSE.object [ ("id", JSE.int id) ])
-      RemoveLastField (ID id) -> ("remove_last_field",
-                                    JSE.object [ ("id", JSE.int id) ])
+
+      AddEdge (ID src) (ID target, param) ->
+        ("add_edge",
+           JSE.object [ ("src", JSE.int src)
+                      , ("target", JSE.int target)
+                      , ("param", JSE.string param)
+                      ])
+
+      DeleteNode (ID id) ->
+        ("delete_node",
+           JSE.object [ ("id", JSE.int id) ])
+
+      ClearEdges (ID id) ->
+        ("clear_edges",
+           JSE.object [ ("id", JSE.int id) ])
+
+      RemoveLastField (ID id) ->
+        ("remove_last_field",
+           JSE.object [ ("id", JSE.int id) ])
 
   in JSE.object [ (cmd, args) ]
 
