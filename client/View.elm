@@ -16,7 +16,7 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 
 
-import Consts
+import Defaults
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
@@ -38,7 +38,7 @@ view model =
 viewRepl value = Html.form [
                   Events.onSubmit (ReplSubmitMsg)
                  ] [
-                  Html.input [ Attrs.id Consts.replID
+                  Html.input [ Attrs.id Defaults.replID
                              , Events.onInput ReplInputMsg
                              , Attrs.value value
                              , Attrs.autocomplete False
@@ -78,7 +78,7 @@ viewEntry m =
     viewForm = Html.form [
                 Events.onSubmit (EntrySubmitMsg)
                ] [
-                Html.input [ Attrs.id Consts.entryID
+                Html.input [ Attrs.id Defaults.entryID
                            , Events.onInput EntryInputMsg
                            , Attrs.width 50
                            , Attrs.value m.entryValue
@@ -108,7 +108,7 @@ viewEntry m =
 nodeWidth : Node -> Int
 nodeWidth n =
   let
-    slimChars = Set.fromList Consts.narrowChars
+    slimChars = Set.fromList Defaults.narrowChars
     len name =
       name
         |> synonym
@@ -129,8 +129,8 @@ nodeWidth n =
 nodeHeight : Node -> Int
 nodeHeight n =
   case n.tipe of
-    Datastore -> Consts.nodeHeight * ( 1 + (List.length n.fields))
-    _ -> Consts.nodeHeight
+    Datastore -> Defaults.nodeHeight * ( 1 + (List.length n.fields))
+    _ -> Defaults.nodeHeight
 
 nodeSize node =
   (nodeWidth node , nodeHeight node)
@@ -266,13 +266,13 @@ linearGradient rise run =
       , SA.x2 (toString x2)
       , SA.y2 (toString y2)]
     [ Svg.stop [ SA.offset "0%"
-               , SA.stopColor Consts.edgeGradColor] []
+               , SA.stopColor Defaults.edgeGradColor] []
     , Svg.stop [ SA.offset "100%"
-               , SA.stopColor Consts.edgeColor] []]
+               , SA.stopColor Defaults.edgeColor] []]
 
 dragEdgeStyle =
-  [ SA.strokeWidth Consts.dragEdgeSize
-  , SA.stroke Consts.dragEdgeStrokeColor
+  [ SA.strokeWidth Defaults.dragEdgeSize
+  , SA.stroke Defaults.dragEdgeStrokeColor
   ]
 
 edgeStyle x1 y1 x2 y2 =
@@ -285,7 +285,7 @@ edgeStyle x1 y1 x2 y2 =
       amendedRise = if (rise,run) == (0,0)
                     then if y2 - y1 > 0 then 1 else -1
                     else rise
-  in [ SA.strokeWidth Consts.edgeSize
+  in [ SA.strokeWidth Defaults.edgeSize
      , SA.stroke ("url(#" ++ coord2id amendedRise run ++ ")")
      , SA.markerEnd "url(#triangle)"
      ]
@@ -369,7 +369,7 @@ svgArrowHead =
              , SA.markerWidth "4"
              , SA.markerHeight "4"
              , SA.orient "auto"
-             , SA.fill Consts.edgeColor
+             , SA.fill Defaults.edgeColor
              ]
     [Svg.path [SA.d "M 0 0 L 5 5 L 0 10 z"] []]
 

@@ -83,7 +83,6 @@ type RPC
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , cursor : Cursor
-                   , live : LiveValue
                    , focused : Bool
                    , tempFieldName : FieldName
                    , errors : List String

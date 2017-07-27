@@ -20,7 +20,7 @@ import RPC exposing (rpc)
 import Types exposing (..)
 import Util exposing (deMaybe)
 import View
-import Consts
+import Defaults
 import Repl
 import Graph as G
 
@@ -38,36 +38,16 @@ main = Html.programWithFlags
 
 -- MODEL
 init : Maybe Editor -> ( Model, Cmd Msg )
-init e =
-  let editor = case e of
-                 Nothing -> { entryPos = Consts.initialPos
-                            , clickPos = {x=0, y=0}
-                            , entryValue = ""
-                            , replValue = ""
-                            }
+init mEditor =
+  let e = case mEditor of
                  Just e -> e
-      m = { nodes = Dict.empty
-          , edges = []
-          , cursor = Nothing
-          , live = Nothing
-          , errors = ["None"]
-          , focused = False
-          , tempFieldName = ""
-          , dragPos = {x=0, y=0}
-          , drag = NoDrag
-          , lastMsg = NoMsg
-          , prevNode = Nothing
-          , entryPos = editor.entryPos
-          , clickPos = editor.clickPos
-          , entryValue = editor.entryValue
-          , replValue = editor.replValue
-          }
-      load = rpc m <| [LoadInitialGraph]
+                 Nothing -> Defaults.defaultEditor
+      m = Defaults.defaultModel e
   in
-    (m, Cmd.batch [focusEntry, load])
+    (m, Cmd.batch [focusEntry, rpc m <| [LoadInitialGraph]])
 
 
--- ports
+-- ports, save Editor state in LocalStorage
 port setStorage : Editor -> Cmd msg
 
 model2editor : Model -> Editor
@@ -87,7 +67,7 @@ update_ msg m =
   case (msg, m.cursor) of
 
     (CheckEscape code, _) ->
-      if code == Consts.escapeKeycode
+      if code == Defaults.escapeKeycode
       then ({ m | cursor = Nothing }, Cmd.none)
       else (m, Cmd.none)
 
@@ -108,7 +88,7 @@ update_ msg m =
     ------------------------
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
-      && event.button == Consts.leftButton
+      && event.button == Defaults.leftButton
       then ({ m | drag = DragNode node.id (findOffset node.pos event.pos)}, Cmd.none)
       else (m, Cmd.none)
 
@@ -122,7 +102,7 @@ update_ msg m =
        }, rpc m <| [UpdateNodePosition id])
 
     (DragSlotStart node param event, _) ->
-      if event.button == Consts.leftButton
+      if event.button == Defaults.leftButton
       then ({ m | cursor = Just node.id
                 , drag = DragSlot node.id param event.pos}, Cmd.none)
       else (m, Cmd.none)
@@ -226,13 +206,13 @@ subscriptions m =
 
 -- UTIL
 focusEntry : Cmd Msg
-focusEntry = Dom.focus Consts.entryID |> Task.attempt FocusResult
+focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 
 focusRepl : Cmd Msg
-focusRepl = Cmd.none -- Dom.focus Consts.replID |> Task.attempt FocusResult
+focusRepl = Cmd.none -- Dom.focus Defaults.replID |> Task.attempt FocusResult
 
 unfocusRepl : Cmd Msg
-unfocusRepl = Dom.blur Consts.replID |> Task.attempt FocusResult
+unfocusRepl = Dom.blur Defaults.replID |> Task.attempt FocusResult
 
 addError : String -> Model -> List String
 addError error model =
