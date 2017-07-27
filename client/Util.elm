@@ -1,11 +1,8 @@
-module Util exposing (timestamp, windowSize, deMaybe, orderedNodes, letter2int, int2letter, fromLetter, rematch, getNode)
+module Util exposing ( timestamp
+                     , windowSize
+                     , deMaybe
+                     , rematch)
 
-import Dict
-import Array
-import Char
-import Tuple
-import List
-import Ordering
 import Regex
 
 import Native.Window
@@ -25,27 +22,6 @@ deMaybe x = case x of
               Nothing -> Debug.crash "not possible"
               Just y -> y
 
-
-orderedNodes : Model -> List Node
-orderedNodes m =
-  m.nodes
-    |> Dict.values
-    |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
-    |> List.sortWith Ordering.natural
-    |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
-
-
-int2letter : Int -> String
-int2letter i = i |> (+) 97 |> Char.fromCode |> String.fromChar
-
-letter2int : String -> Int
-letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) 97 |> (*) (-1)
-
-fromLetter : Model -> String -> Node
-fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2int letter) |> deMaybe
-
 rematch : String -> String -> Bool
 rematch re s = Regex.contains (Regex.regex re) s
 
-getNode : Model -> ID -> Node
-getNode m id = Dict.get (deID id) m.nodes |> deMaybe

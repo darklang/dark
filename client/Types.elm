@@ -105,6 +105,10 @@ type alias Editor = { entryPos : Pos
                     , entryValue : String
                     }
 
+type Hole = NoHole
+          | ResultHole Node
+          | ParamHole Node String Int
+
 type Drag = NoDrag
           | DragNode ID Offset -- offset between the click and the node pos
           | DragSlot ID ParamName Mouse.Position -- starting point of edge

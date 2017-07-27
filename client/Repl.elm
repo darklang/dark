@@ -7,6 +7,7 @@ import List.Extra
 
 import Types exposing (..)
 import Util exposing (..)
+import Graph as G
 
     -- (ADD_DS, SubmitMsg, _) ->
     --   ({ m | state = ADD_DS_FIELD_NAME
@@ -30,7 +31,7 @@ import Util exposing (..)
 
 nextNode : Model -> Cursor -> Cursor
 nextNode m cursor =
-  let nodes = Util.orderedNodes m
+  let nodes = G.orderedNodes m
       first = nodes |> List.head |> Maybe.map (\n -> n.id)
   in
     case cursor of
@@ -47,7 +48,7 @@ nextNode m cursor =
 
 parse : Model -> String -> Cursor -> (Model, List RPC)
 parse m command cursor =
-  let l2id l = (Util.fromLetter m l).id in
+  let l2id l = (G.fromLetter m l).id in
   case String.words command of
     [] -> (m, [])
     first :: words ->
