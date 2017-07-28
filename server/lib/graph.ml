@@ -5,27 +5,34 @@ open Types
 module ParamMap = String.Map
 module NodeMap = Int.Map
 
-type dval = Runtime.dval [@@deriving eq]
+type dval = Runtime.dval [@@deriving eq, show]
 type nodemap = Node.node NodeMap.t [@@deriving eq]
 type json = Yojson.Safe.json
+
+let pp_nodemap nm =
+  let to_s ~key ~data = (show_id key) ^ ": " ^ (Node.show_node data) in
+  let objs = NodeMap.mapi ~f:to_s nm in
+  "{"
+  ^ (String.concat ~sep:", " (NodeMap.data objs))
+  ^ "}"
 
 
 (* ------------------------- *)
 (* Graph *)
 (* ------------------------- *)
-type oplist = Op.op list [@@deriving eq, yojson]
+type oplist = Op.op list [@@deriving eq, yojson, show]
 type edge = { source : id
             ; target : id
             ; param : param
-            } [@@deriving eq, yojson, fields]
-type edgelist = edge list [@@deriving eq, yojson]
+            } [@@deriving eq, yojson, show, fields]
+type edgelist = edge list [@@deriving eq, yojson, show]
 type targetpair = (id * param)
 type graph = { name : string
              ; ops : oplist
-             ; nodes : nodemap
+             ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
              ; edges : edgelist
              ; just_added : id option
-             } [@@deriving eq]
+             } [@@deriving eq, show]
 
 let create (name : string) : graph ref =
   ref { name = name
@@ -196,11 +203,10 @@ let node_value n g : (string * string) =
   | Exception.UserException e -> ("Error: " ^ e, "Error")
 
 let to_frontend_nodes g : json =
-  `List (
-    List.map
-      ~f:(fun n -> n#to_frontend (node_value n g))
-      (NodeMap.data g.nodes)
-  )
+  g.nodes
+  |> NodeMap.data
+  |> List.map ~f:(fun n -> n#to_frontend (node_value n g))
+  |> Node.nodejsonlist_to_yojson
 
 let to_frontend_edges g : json = edgelist_to_yojson g.edges
 

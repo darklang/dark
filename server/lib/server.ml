@@ -23,7 +23,8 @@ let server =
 
       let g = G.load "blog" in
       Api.apply_ops g payload;
-        G.save !g;
+      G.save !g;
+      print_endline (G.show_graph !g);
       !g
       |> Graph.to_frontend_string
       |> Util.inspect ~f:ident "response: "

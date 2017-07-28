@@ -7,7 +7,7 @@ type param_map = Runtime.param_map
 (* For serializing to json only *)
 type valuejson = { value: string
                  ; tipe: string [@key "type"]
-                 } [@@deriving yojson]
+                 } [@@deriving yojson, show]
 type nodejson = { name: string
                  ; id: id
                  ; tipe: string [@key "type"]
@@ -15,7 +15,8 @@ type nodejson = { name: string
                  ; y: int
                  ; live: valuejson
                  ; parameters: string list
-                 } [@@deriving yojson]
+                 } [@@deriving yojson, show]
+type nodejsonlist = nodejson list [@@deriving yojson, show]
 
 
 class virtual node id loc =
@@ -29,18 +30,18 @@ class virtual node id loc =
     method is_page = false
     method is_datasink = false
     method is_datasource = false
+    method parameters : string list = []
     method update_loc _loc =
       loc <- _loc
-    method to_frontend ((value, tipe) : string * string) : Yojson.Safe.json =
-      nodejson_to_yojson { name = self#name
-                         ; id = id
-                         ; tipe = self#tipe
-                         ; x = loc.x
-                         ; y = loc.y
-                         ; live = { value = value ; tipe = tipe }
-                         ; parameters = self#parameters
-                         }
-    method parameters : string list = []
+    method to_frontend ((value, tipe) : string * string) : nodejson =
+      { name = self#name
+      ; id = id
+      ; tipe = self#tipe
+      ; x = loc.x
+      ; y = loc.y
+      ; live = { value = value ; tipe = tipe }
+      ; parameters = self#parameters
+      }
   end
 
 class value strrep id loc =
@@ -106,4 +107,5 @@ class anon_inner id loc =
 let equal_node (a:node) (b:node) =
   a#id = b#id
 
-let show_node (_:node) (_:node) = "<node todo>"
+let show_node (n:node) =
+  show_nodejson (n#to_frontend ("test", "test"))

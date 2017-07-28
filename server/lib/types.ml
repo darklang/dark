@@ -1,3 +1,3 @@
-type loc = { x: int; y: int} [@@deriving eq, yojson]
-type id = int [@@deriving eq, yojson]
-type param = string [@@deriving eq, yojson]
+type loc = { x: int; y: int} [@@deriving eq, yojson, show]
+type id = int [@@deriving eq, yojson, show]
+type param = string [@@deriving eq, yojson, show]

@@ -110,7 +110,7 @@ let json2op (op : opjson) : op list =
 
   | _ -> failwith "Unexpected opcode"
 
-let apply_ops g payload =
+let apply_ops (g : G.graph ref) (payload: json) : unit =
   payload
   |> opjsonlist_of_yojson
   |> Result.ok_or_failwith

@@ -20,7 +20,7 @@ type op = Add_fn_call of string * id * loc
         | Add_edge of id * id * param
         | Delete_edge of id * id * param
         | Clear_edges of id
-[@@deriving eq, yojson]
+[@@deriving eq, yojson, show]
 
 let id_of_option op : id option =
   match op with
