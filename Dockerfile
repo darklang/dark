@@ -5,15 +5,23 @@
 
 FROM ubuntu:17.04
 
-# TODO: version all ubuntu packages
 RUN apt-get update
 RUN apt-get upgrade -y
-RUN apt-get install -y software-properties-common \
-                       python3.6 make m4 rsync git curl \
-                       ocaml opam \
-                       nodejs-legacy npm \
-                       libpq-dev \
-                       wget sudo
+RUN apt-get install -y software-properties-common=0.96.24.13 \
+                       python3.6=3.6.1-1 \
+                       make=4.1-9.1 \
+                       m4=1.4.18-1 \
+                       rsync=3.1.2-1 \
+                       git=1:2.11.0-2ubuntu0.1 \
+                       curl=7.52.1-4ubuntu1.1 \
+                       ocaml=4.02.3-6ubuntu2 \
+                       opam=1.2.2-5build5 \
+                       nodejs-legacy=4.7.2~dfsg-1ubuntu3 \
+                       npm=3.5.2-0ubuntu4 \
+                       libpq-dev=9.6.3-0ubuntu0.17.04 \
+                       wget=1.18-2ubuntu1 \
+                       sudo=1.8.19p1-1ubuntu1.1 \
+                       locales=2.24-9ubuntu2.2
 
 # FSWatch for the build script
 RUN wget https://github.com/emcrisostomo/fswatch/releases/download/1.9.3/fswatch-1.9.3.tar.gz
