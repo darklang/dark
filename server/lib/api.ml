@@ -34,9 +34,11 @@ type edge = { receiving_edge : receiving_edge option [@default None]
 (* ---------------- *)
 (* opcodes *)
 (* ---------------- *)
-type add_datastore = { name: string
-                     ; pos: pos
-                     } [@@deriving yojson]
+type add_anon = { pos: pos} [@@deriving yojson]
+type delete_node = { id: int } [@@deriving yojson]
+type clear_edges = { id: int } [@@deriving yojson]
+type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
+type add_datastore = { name: string ; pos: pos} [@@deriving yojson]
 type add_function_call = { name: string
                          ; pos: pos
                          ; edges : edge list
@@ -45,10 +47,6 @@ type add_value = { value: string
                  ; pos: pos
                  ; edges : edge list
                  } [@@deriving yojson]
-type add_anon = { pos: pos} [@@deriving yojson]
-type update_node_position = { id: int
-                            ; pos: pos
-                            } [@@deriving yojson]
 type add_edge = { source: int
                 ; target: int
                 ; param: string
@@ -57,12 +55,10 @@ type delete_edge = { source: int
                    ; target: int
                    ; param: string
                    } [@@deriving yojson]
-type delete_node = { id: int } [@@deriving yojson]
-type clear_edges = { id: int } [@@deriving yojson]
-type add_datastore_field = { tipe: string
+type add_datastore_field = { tipe: string [@key "type"]
                            ; name: string
                            ; id: int
-                   } [@@deriving yojson]
+                           } [@@deriving yojson]
 
 (* ---------------- *)
 (* Read the command out *)
@@ -88,35 +84,19 @@ let json2op (json : json) : op =
     |> opjson_of_yojson
     |> Result.ok_or_failwith in
   match api_op with
-
-  | { add_value = Some a } ->
-    (* TODO *)
-    Add_value (a.value, id (), a.pos)
-
-  | { add_datastore = Some a } ->
-    Add_datastore (a.name, id (), a.pos)
-
   | { add_function_call = Some a } ->
-    (* TODO *)
     Add_fn_call (a.name, id (), a.pos, [])
-
-  | { add_anon = Some a } ->
-    Add_anon (id (), id (), a.pos)
 
   | { update_node_position = Some a } ->
     Update_node_position (a.id, a.pos)
 
-  | { add_edge = Some a } ->
-    Add_edge (a.source, a.target, a.param)
-
-  | { delete_edge = Some a } ->
-    Delete_edge (a.source, a.target, a.param)
-
-  | { delete_node = Some a } ->
-    Delete_node a.id
-
-  | { clear_edges = Some a } ->
-    Clear_edges a.id
+  | { add_value = Some a } -> Add_value (a.value, id (), a.pos)
+  | { add_datastore = Some a } -> Add_datastore (a.name, id (), a.pos)
+  | { add_anon = Some a } -> Add_anon (id (), id (), a.pos)
+  | { add_edge = Some a } -> Add_edge (a.source, a.target, a.param)
+  | { delete_edge = Some a } -> Delete_edge (a.source, a.target, a.param)
+  | { delete_node = Some a } -> Delete_node a.id
+  | { clear_edges = Some a } -> Clear_edges a.id
 
   | { add_datastore_field = Some a } ->
     let (list, tipe) =
