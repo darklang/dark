@@ -4,12 +4,8 @@ open Types
 open Op
 module G = Graph
 
-
-
-
 (* Opcodes as sent via the API. We do this to get type checking *)
 type pos = Types.loc [@@deriving yojson]
-
 
 (* ---------------- *)
 (* Edges, sent as part of add_node opcodes *)
@@ -72,13 +68,16 @@ type opjson =
   } [@@deriving yojson]
 type opjsonlist = opjson list [@@deriving yojson]
 
-
+let convert_edge (id: id) (param: string option) (edge: implicit_edge) : op =
+  match edge with
+    | { receiving_edge = Some e } -> Add_edge (e.source, id, Option.value_exn param)
+    | { param_edge = Some e } -> Add_edge (id, e.target, e.param)
+    | _ -> failwith "Unexpected edge type"
 
 let json2op (op : opjson) : op list =
   let id = Util.create_id in
   match op with
   | { load_initial_graph = Some _} -> []
-  | { add_value = Some a } -> [Add_value (a.value, id (), a.pos)]
   | { add_datastore = Some a } -> [Add_datastore (a.name, id (), a.pos)]
   | { add_anon = Some a } -> [Add_anon (id (), id (), a.pos)]
   | { add_edge = Some a } -> [Add_edge (a.source, a.target, a.param)]
@@ -89,19 +88,13 @@ let json2op (op : opjson) : op list =
   | { add_function_call = Some a } ->
     let nodeid = id () in
     let fn_node = Add_fn_call (a.name, nodeid, a.pos) in
-    let implicit = List.hd_exn (a.edges) in
-    let edge = match implicit with
+    let name = List.hd_exn (Lib.get_fn_exn a.name).parameters in
+    [fn_node] @ (List.map ~f:(convert_edge nodeid (Some name)) a.edges)
 
-      | { receiving_edge = Some e } ->
-        Add_edge ( e.source
-                 , nodeid
-                 , List.hd_exn (Lib.get_fn_exn a.name).parameters)
-
-      | { param_edge = Some e } ->
-        Add_edge (nodeid, e.target, e.param)
-    in
-    [ fn_node; edge]
-
+  | { add_value = Some a } ->
+    let nodeid = id () in
+    let node = Add_value (a.value, id (), a.pos) in
+    [node] @ (List.map ~f:(convert_edge nodeid None) a.edges)
 
   | { update_node_position = Some a } ->
     [Update_node_position (a.id, a.pos)]
