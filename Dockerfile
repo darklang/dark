@@ -29,11 +29,17 @@ RUN tar zxvf fswatch-1.9.3.tar.gz
 RUN cd fswatch-1.9.3 && ./configure && make
 RUN cd fswatch-1.9.3 && make install && ldconfig
 
-
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
 USER dark
 WORKDIR /home/dark
+
+# Locales
+USER root
+RUN locale-gen en_US.UTF-8
+USER dark
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
 
 # Elm
 RUN npm install elm@0.18.0
@@ -49,21 +55,23 @@ ENV PERL5LIB "/home/dark/.opam/4.04.2/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
 ENV FORCE_BUILD 1
 RUN opam update
-RUN opam install core.v0.9.1 \
-                 oasis.0.4.10 \
-                 cohttp.0.22.0 \
-                 lwt.3.1.0 \
-                 yojson.1.3.3 \
-                 postgresql.4.0.1 \
-                 oUnit.2.0.0 \
-                 ppx_deriving_yojson.3.0
 
 USER root
-RUN apt-get install locales
-RUN locale-gen en_US.UTF-8
+RUN apt-get install -y pkg-config
 USER dark
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
+
+RUN opam install \
+         core.v0.9.1 \
+         lwt.3.1.0 \
+         cohttp.0.22.0 \
+         yojson.1.3.3 \
+         postgresql.4.0.1 \
+         oUnit.2.0.0 \
+         ppx_deriving_yojson.3.0
+USER root
+RUN apt-get install -y libgmp-dev
+USER dark
+RUN opam install tls.0.8.0
 
 
 CMD ["app", "scripts", "builder"]

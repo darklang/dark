@@ -11,6 +11,7 @@ module G = Graph
 let inspect = Util.inspect
 
 let server =
+  Twitter.call;
   let callback _ req req_body =
     let uri = req |> Request.uri in
     (* let meth = req |> Request.meth |> Code.string_of_method in *)
@@ -18,16 +19,16 @@ let server =
     let auth = req |> Request.headers |> Header.get_authorization in
 
     let admin_rpc_handler body : string =
-      let body = inspect ~f:ident "request body" body in
+      (* let body = inspect ~f:ident "request body" body in *)
       let payload = Yojson.Safe.from_string body in
 
       let g = G.load "blog" in
       Api.apply_ops g payload;
       G.save !g;
-      print_endline (G.show_graph !g);
+      (* print_endline (G.show_graph !g); *)
       !g
       |> Graph.to_frontend_string
-      |> Util.inspect ~f:ident "response: "
+      (* |> Util.inspect ~f:ident "response: " *)
     in
 
     let admin_ui_handler () =
