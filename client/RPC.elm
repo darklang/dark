@@ -27,11 +27,11 @@ encodeImplicitEdges edges =
        (\e -> case e of
                 ReceivingEdge (ID id) ->
                   JSE.object [("receiving_edge",
-                                 JSE.object [("id", JSE.int id)])]
+                                 JSE.object [("source", JSE.int id)])]
 
                 ParamEdge (ID id) p ->
                   JSE.object [("param_edge",
-                                 JSE.object [("id", JSE.int id),
+                                 JSE.object [("target", JSE.int id),
                                              ("param", JSE.string p)])])
     |> JSE.list
 

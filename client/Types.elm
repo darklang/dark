@@ -110,8 +110,8 @@ type Hole = NoHole
           | ResultHole Node
           | ParamHole Node String Int
 
-type ImplicitEdge = ReceivingEdge ID
-                  | ParamEdge ID ParamName
+type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receiver after it's created)
+                  | ParamEdge ID ParamName -- target id and target param, the source is implicit
 
 type Drag = NoDrag
           | DragNode ID Offset -- offset between the click and the node pos

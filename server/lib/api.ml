@@ -14,14 +14,14 @@ type pos = Types.loc [@@deriving yojson]
 (* ---------------- *)
 (* Edges, sent as part of add_node opcodes *)
 (* ---------------- *)
-type receiving_edge = { id: int
+type receiving_edge = { source: int
                       } [@@deriving yojson]
-type param_edge = { id: int
+type param_edge = { target: int
                   ; param: string
                   } [@@deriving yojson]
-type edge = { receiving_edge : receiving_edge option [@default None]
-            ; param_edge : param_edge option [@default None]
-            } [@@deriving yojson]
+type implicit_edge = { receiving_edge : receiving_edge option [@default None]
+                     ; param_edge : param_edge option [@default None]
+                     } [@@deriving yojson]
 
 (* ---------------- *)
 (* opcodes *)
@@ -33,11 +33,11 @@ type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
 type add_datastore = { name: string ; pos: pos} [@@deriving yojson]
 type add_function_call = { name: string
                          ; pos: pos
-                         ; edges : edge list
+                         ; edges : implicit_edge list
                          } [@@deriving yojson]
 type add_value = { value: string
                  ; pos: pos
-                 ; edges : edge list
+                 ; edges : implicit_edge list
                  } [@@deriving yojson]
 type add_edge = { source: int
                 ; target: int
@@ -73,6 +73,7 @@ type opjson =
 type opjsonlist = opjson list [@@deriving yojson]
 
 
+
 let json2op (op : opjson) : op list =
   let id = Util.create_id in
   match op with
@@ -86,7 +87,21 @@ let json2op (op : opjson) : op list =
   | { clear_edges = Some a } -> [Clear_edges a.id]
 
   | { add_function_call = Some a } ->
-    [Add_fn_call (a.name, id (), a.pos)]
+    let nodeid = id () in
+    let fn_node = Add_fn_call (a.name, nodeid, a.pos) in
+    let implicit = List.hd_exn (a.edges) in
+    let edge = match implicit with
+
+      | { receiving_edge = Some e } ->
+        Add_edge ( e.source
+                 , nodeid
+                 , List.hd_exn (Lib.get_fn_exn a.name).parameters)
+
+      | { param_edge = Some e } ->
+        Add_edge (nodeid, e.target, e.param)
+    in
+    [ fn_node; edge]
+
 
   | { update_node_position = Some a } ->
     [Update_node_position (a.id, a.pos)]
