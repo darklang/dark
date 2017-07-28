@@ -93,7 +93,7 @@ let json2op (op : opjson) : op list =
 
   | { add_value = Some a } ->
     let nodeid = id () in
-    let node = Add_value (a.value, id (), a.pos) in
+    let node = Add_value (a.value, nodeid, a.pos) in
     [node] @ (List.map ~f:(convert_edge nodeid None) a.edges)
 
   | { update_node_position = Some a } ->
