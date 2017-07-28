@@ -8,7 +8,7 @@ type json = Yojson.Safe.json
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-type op = Add_fn_call of string * id * loc * id list
+type op = Add_fn_call of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
         (* id in the outer graph, id in the inner graph *)
@@ -20,12 +20,11 @@ type op = Add_fn_call of string * id * loc * id list
         | Add_edge of id * id * param
         | Delete_edge of id * id * param
         | Clear_edges of id
-        | Noop
 [@@deriving eq, yojson]
 
 let id_of_option op : id option =
   match op with
-  | Add_fn_call (_, id, _, _) -> Some id
+  | Add_fn_call (_, id, _) -> Some id
   | Add_datastore (_, id, _) -> Some id
   | Add_value (_, id, _) -> Some id
   | Add_anon (id, _, _) -> Some id
@@ -35,7 +34,6 @@ let id_of_option op : id option =
   | Add_datastore_field _ -> None
   | Add_edge _ -> None
   | Delete_edge _ -> None
-  | Noop -> None
 
 let id_of op : id =
   match id_of_option op with

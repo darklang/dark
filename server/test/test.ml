@@ -27,7 +27,7 @@ let execute_ops (ops : Op.op list) (result : Op.op) =
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
-  let add = Op.Add_fn_call ("-", fid (), fl, []) in
+  let add = Op.Add_fn_call ("-", fid (), fl) in
   let v1 = Op.Add_value ("5", fid (), fl) in
   let v2 = Op.Add_value ("3", fid (), fl) in
   let e1 = Op.Add_edge (Op.id_of v2, Op.id_of add, "b") in
@@ -37,18 +37,18 @@ let t_graph_param_order _ =
   assert_equal r2 (DInt 2);
   assert_equal r1 (DInt 2)
 
-let t_fns_with_edges _ =
-  let v1 = Op.Add_value ("5", fid (), fl) in
-  let v2 = Op.Add_value ("3", fid (), fl) in
-  let add = Op.Add_fn_call ("-", fid (), fl, [Op.id_of v1; Op.id_of v2]) in
-  let r = execute_ops [v1; v2; add] add in
-  assert_equal r (DInt 2)
+(* let t_fns_with_edges _ = *)
+(*   let v1 = Op.Add_value ("5", fid (), fl) in *)
+(*   let v2 = Op.Add_value ("3", fid (), fl) in *)
+(*   let add = Op.Add_fn_call ("-", fid (), fl, [Op.id_of v1; Op.id_of v2]) in *)
+(*   let r = execute_ops [v1; v2; add] add in *)
+(*   assert_equal r (DInt 2) *)
 
 
 
 let t_int_add_works _ =
   (* Couldn't call Int::add *)
-  let add = Op.Add_fn_call ("Int::add", fid (), fl, []) in
+  let add = Op.Add_fn_call ("Int::add", fid (), fl) in
   let v1 = Op.Add_value ("5", fid (), fl) in
   let v2 = Op.Add_value ("3", fid (), fl) in
   let e1 = Op.Add_edge (Op.id_of v2, Op.id_of add, "b") in
@@ -57,7 +57,7 @@ let t_int_add_works _ =
   assert_equal r (DInt 8)
 
 let t_load_save _ =
-  let n1 = Op.Add_fn_call ("-", fid (), fl, []) in
+  let n1 = Op.Add_fn_call ("-", fid (), fl) in
   let n2 = Op.Add_value ("5", fid (), fl) in
   let n3 = Op.Add_value ("3", fid (), fl) in
   let n4 = Op.Add_anon (fid (), fid (), fl) in
@@ -74,8 +74,8 @@ let t_load_save _ =
 
 let t_lambda_with_foreach _ =
   let v = Op.Add_value ("\"some string\"", fid (), fl) in
-  let fe = Op.Add_fn_call ("String::foreach", fid (), fl, []) in
-  let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl, []) in
+  let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in
+  let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in
   let anon_inner = fid () in
   let anon = Op.Add_anon (fid (), anon_inner, fl) in
   let e1 = Op.Add_edge (Op.id_of v, Op.id_of fe, "s") in
@@ -93,7 +93,7 @@ let suite =
   ; "Calling Int::add" >:: t_int_add_works
   ; "graph ordering doesnt break param order" >:: t_graph_param_order
   ; "roundtrip through saving and loading" >:: t_load_save
-  ; "functions with edges work too" >:: t_fns_with_edges
+  (* ; "functions with edges work too" >:: t_fns_with_edges *)
   ; "anon functions work" >:: t_lambda_with_foreach
   ]
 

@@ -85,17 +85,9 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (*   raise Exception("Can't turn a %s into a %s (%s -> %s)" % (e.p1, e.p2, src.name(), target.name())) *)
 
 
-let add_node (node : Node.node) (edges : id list) (g : graph) : graph =
-  let len = List.length edges in
-  let params = List.take node#parameters len in
-  let sources = List.zip_exn edges params in
-  let g = { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
-                   just_added = Some node#id}
-  in
-  List.fold_left
-    ~f:(fun g (s, p) -> add_edge s node#id p g)
-    ~init:g
-    sources
+let add_node (node : Node.node) (g : graph) : graph =
+  { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
+           just_added = Some node#id}
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   g |> get_node id |> (fun n -> n#update_loc loc);
@@ -148,30 +140,27 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
   g :=
     !g |>
     match op with
-    | Add_fn_call (name, id, loc, edges) ->
-      add_node (new Node.func name id loc) edges
+    | Add_fn_call (name, id, loc) ->
+      add_node (new Node.func name id loc)
     | Add_datastore (table, id, loc) ->
-      add_node (new Node.datastore table id loc) []
+      add_node (new Node.datastore table id loc)
     | Add_value (expr, id, loc) ->
-      add_node (new Node.value expr id loc) []
+      add_node (new Node.value expr id loc)
     | Add_anon (id, inner_id, loc) ->
       (fun _g ->
-         let _g = add_node (new Node.anon_inner inner_id loc) [] _g in
-         add_node (new Node.anon id (executor inner_id g) loc) [] _g
+         let _g = add_node (new Node.anon_inner inner_id loc) _g in
+         add_node (new Node.anon id (executor inner_id g) loc) _g
       )
     | Add_edge (src, target, param) -> add_edge src target param
     | Update_node_position (id, loc) -> update_node_position id loc
     | Delete_edge (s, t, param) -> delete_edge s t param
     | Clear_edges (id) -> clear_edges id
     | Delete_node (id) -> delete_node id
-    | Noop -> ident
     | _ -> failwith "applying unimplemented op"
 
 let add_op (op: Op.op) (g: graph ref) : unit =
   apply_op op g;
-  let ops = !g.ops @ [op] in
-  let ops = List.filter ~f:(fun op -> op <> Noop) ops in
-  g := { !g with ops = ops}
+  g := { !g with ops = !g.ops @ [op]}
 
 (* ------------------------- *)
 (* Serialization *)

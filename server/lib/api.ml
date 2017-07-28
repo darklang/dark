@@ -70,28 +70,26 @@ type opjson =
   ; add_datastore_field: add_datastore_field option [@default None]
   ; load_initial_graph: load_initial_graph option [@default None]
   } [@@deriving yojson]
+type opjsonlist = opjson list [@@deriving yojson]
 
 
-let json2op (json : json) : op =
+let json2op (op : opjson) : op list =
   let id = Util.create_id in
-  let api_op : opjson =
-    json
-    |> opjson_of_yojson
-    |> Result.ok_or_failwith in
-  match api_op with
-  | { add_value = Some a } -> Add_value (a.value, id (), a.pos)
-  | { add_datastore = Some a } -> Add_datastore (a.name, id (), a.pos)
-  | { add_anon = Some a } -> Add_anon (id (), id (), a.pos)
-  | { add_edge = Some a } -> Add_edge (a.source, a.target, a.param)
-  | { delete_edge = Some a } -> Delete_edge (a.source, a.target, a.param)
-  | { delete_node = Some a } -> Delete_node a.id
-  | { clear_edges = Some a } -> Clear_edges a.id
+  match op with
+  | { load_initial_graph = Some _} -> []
+  | { add_value = Some a } -> [Add_value (a.value, id (), a.pos)]
+  | { add_datastore = Some a } -> [Add_datastore (a.name, id (), a.pos)]
+  | { add_anon = Some a } -> [Add_anon (id (), id (), a.pos)]
+  | { add_edge = Some a } -> [Add_edge (a.source, a.target, a.param)]
+  | { delete_edge = Some a } -> [Delete_edge (a.source, a.target, a.param)]
+  | { delete_node = Some a } -> [Delete_node a.id]
+  | { clear_edges = Some a } -> [Clear_edges a.id]
 
   | { add_function_call = Some a } ->
-    Add_fn_call (a.name, id (), a.pos, [])
+    [Add_fn_call (a.name, id (), a.pos)]
 
   | { update_node_position = Some a } ->
-    Update_node_position (a.id, a.pos)
+    [Update_node_position (a.id, a.pos)]
 
   | { add_datastore_field = Some a } ->
     let (list, tipe) =
@@ -100,30 +98,14 @@ let json2op (json : json) : op =
       | [s] -> (false, s)
       | _ -> failwith "invalid datastore field type"
     in
-    Add_datastore_field (a.id, a.name, tipe, list)
+    [Add_datastore_field (a.id, a.name, tipe, list)]
 
   | _ -> failwith "Unexpected opcode"
 
-
-
-
-let backfill_id (head : op) (rest : op list) : op list =
-  let id = id_of_option head in
-  let rest = match id with
-    | None -> rest
-    | Some id ->
-      List.map ~f:(fun op -> match op with
-          | (Add_edge (s, -1, p)) -> Add_edge (s, id, p)
-          | op -> op)
-        rest
-  in
-  head :: rest
-
 let apply_ops g payload =
-  match payload with
-  | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> ()
-  | `List (head::rest) ->
-    let rest = List.map ~f:json2op rest in
-    let ops = backfill_id (json2op head) rest in
-    List.iter ~f:(fun op -> G.add_op op g) ops
-  | _ -> Exception.raise "Unexpected request structure"
+  payload
+  |> opjsonlist_of_yojson
+  |> Result.ok_or_failwith
+  |> List.map ~f:(fun op -> json2op op)
+  |> List.concat
+  |> List.iter ~f:(fun op -> G.add_op op g)
