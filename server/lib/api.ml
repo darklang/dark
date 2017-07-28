@@ -16,6 +16,7 @@ let backfill_id (head : op) (rest : op list) : op list =
   head :: rest
 
 (* Opcodes as sent via the API. We do this to get type checking *)
+type pos = Types.loc [@@deriving yojson]
 
 
 (* ---------------- *)
@@ -34,25 +35,19 @@ type edge = { receiving_edge : receiving_edge option [@default None]
 (* opcodes *)
 (* ---------------- *)
 type add_datastore = { name: string
-                     ; x: int
-                     ; y: int
+                     ; pos: pos
                      } [@@deriving yojson]
 type add_function_call = { name: string
-                         ; x: int
-                         ; y: int
+                         ; pos: pos
                          ; edges : edge list
                          } [@@deriving yojson]
 type add_value = { value: string
-                 ; x: int
-                 ; y: int
+                 ; pos: pos
                  ; edges : edge list
                  } [@@deriving yojson]
-type add_anon = { x: int
-                ; y: int
-                } [@@deriving yojson]
+type add_anon = { pos: pos} [@@deriving yojson]
 type update_node_position = { id: int
-                            ; x: int
-                            ; y: int
+                            ; pos: pos
                             } [@@deriving yojson]
 type add_edge = { source: int
                 ; target: int
@@ -88,7 +83,6 @@ type opjson =
 
 let json2op (json : json) : op =
   let id = Util.create_id in
-  let loc x y : loc = { x; y } in
   let api_op : opjson =
     json
     |> opjson_of_yojson
@@ -97,20 +91,20 @@ let json2op (json : json) : op =
 
   | { add_value = Some a } ->
     (* TODO *)
-    Add_value (a.value, id (), loc a.x a.y)
+    Add_value (a.value, id (), a.pos)
 
   | { add_datastore = Some a } ->
-    Add_datastore (a.name, id (), loc a.x a.y)
+    Add_datastore (a.name, id (), a.pos)
 
   | { add_function_call = Some a } ->
     (* TODO *)
-    Add_fn_call (a.name, id (), loc a.x a.y, [])
+    Add_fn_call (a.name, id (), a.pos, [])
 
   | { add_anon = Some a } ->
-    Add_anon (id (), id (), loc a.x a.y)
+    Add_anon (id (), id (), a.pos)
 
   | { update_node_position = Some a } ->
-    Update_node_position (a.id, loc a.x a.y)
+    Update_node_position (a.id, a.pos)
 
   | { add_edge = Some a } ->
     Add_edge (a.source, a.target, a.param)

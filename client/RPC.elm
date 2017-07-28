@@ -7,6 +7,7 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 
 import Types exposing (..)
+import Graph as G
 
 rpc : Model -> List RPC -> Cmd Msg
 rpc m calls =
@@ -36,49 +37,47 @@ encodeImplicitEdges edges =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let (cmd, args) =
+  let jse_pos {x,y} = ("pos", JSE.object [("x", JSE.int x),
+                                            ("y", JSE.int y)])
+      jse_id (ID id) = ("id", JSE.int id)
+      (cmd, args) =
     case call of
       LoadInitialGraph ->
         ("load_initial_graph", JSE.object [])
 
-      AddDatastore name {x,y} ->
+      AddDatastore name pos ->
         ("add_datastore"
         , JSE.object [ ("name", JSE.string name)
-                     , ("x", JSE.int x)
-                     , ("y", JSE.int y)])
+                     , jse_pos pos
+                     ])
 
-      AddDatastoreField (ID id) name tipe ->
+      AddDatastoreField id name tipe ->
         ("add_datastore_field",
-           JSE.object [ ("id", JSE.int id)
+           JSE.object [ jse_id id
                       , ("name", JSE.string name)
                       , ("tipe", JSE.string tipe)])
 
-      AddFunctionCall name {x,y} edges ->
+      AddFunctionCall name pos edges ->
         ("add_function_call",
            JSE.object [ ("name", JSE.string name)
-                      , ("x", JSE.int x)
-                      , ("y", JSE.int y)
+                      , jse_pos pos
                       , ("edges", encodeImplicitEdges edges)])
 
-      AddAnon {x,y} ->
-        ("add_anon",
-           JSE.object [ ("x", JSE.int x)
-                      , ("y", JSE.int y)])
+      AddAnon pos ->
+        ("add_anon", JSE.object [jse_pos pos])
 
-      AddValue str {x,y} edges ->
+
+      AddValue str pos edges ->
         ("add_value",
            JSE.object [ ("value", JSE.string str)
-                      , ("x", JSE.int x)
-                      , ("y", JSE.int y)
+                      , jse_pos pos
                       , ("edges", encodeImplicitEdges edges)])
 
-      UpdateNodePosition (ID id) ->
-        case Dict.get id m.nodes of
-          Nothing -> Debug.crash "should never happen"
-          Just node -> ("update_node_position",
-                          JSE.object [ ("id", JSE.int id)
-                                     , ("x" , JSE.int node.pos.x)
-                                     , ("y" , JSE.int node.pos.y)])
+      UpdateNodePosition id ->
+        let node = G.getNode m id in
+        ("update_node_position",
+           JSE.object [ jse_id id
+                      , jse_pos node.pos])
 
       AddEdge (ID src) (ID target, param) ->
         ("add_edge",
@@ -87,17 +86,14 @@ encodeRPC m call =
                       , ("param", JSE.string param)
                       ])
 
-      DeleteNode (ID id) ->
-        ("delete_node",
-           JSE.object [ ("id", JSE.int id) ])
+      DeleteNode id ->
+        ("delete_node", JSE.object [ jse_id id ])
 
-      ClearEdges (ID id) ->
-        ("clear_edges",
-           JSE.object [ ("id", JSE.int id) ])
+      ClearEdges id ->
+        ("clear_edges", JSE.object [ jse_id id ])
 
-      RemoveLastField (ID id) ->
-        ("remove_last_field",
-           JSE.object [ ("id", JSE.int id) ])
+      RemoveLastField id ->
+        ("remove_last_field", JSE.object [ jse_id id ])
 
   in JSE.object [ (cmd, args) ]
 
