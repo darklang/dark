@@ -22,15 +22,8 @@ let server =
       let payload = Yojson.Safe.from_string body in
 
       let g = G.load "blog" in
-      let () = match payload with
-      | `List [`Assoc [("load_initial_graph", `Assoc [])]] -> ()
-      | `List (head::rest) ->
-        let rest = List.map ~f:Api.json2op rest in
-        let ops = Api.backfill_id (Api.json2op head) rest in
-        List.iter ~f:(fun op -> G.add_op op g) ops
-      | _ -> Exception.raise "Unexpected request structure"
-      in
-      G.save !g;
+      Api.apply_ops g payload;
+        G.save !g;
       !g
       |> Graph.to_frontend_string
       |> Util.inspect ~f:ident "response: "

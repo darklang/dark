@@ -164,11 +164,14 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Delete_edge (s, t, param) -> delete_edge s t param
     | Clear_edges (id) -> clear_edges id
     | Delete_node (id) -> delete_node id
+    | Noop -> ident
     | _ -> failwith "applying unimplemented op"
 
 let add_op (op: Op.op) (g: graph ref) : unit =
   apply_op op g;
-  g := { !g with ops = !g.ops @ [op]}
+  let ops = !g.ops @ [op] in
+  let ops = List.filter ~f:(fun op -> op <> Noop) ops in
+  g := { !g with ops = ops}
 
 (* ------------------------- *)
 (* Serialization *)
