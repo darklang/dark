@@ -105,8 +105,9 @@ update_ msg m =
        }, focusEntry)
 
     (DragNodeEnd id _, _) ->
+      let node = G.getNode m id in
       ({ m | drag = NoDrag
-       }, rpc m <| [UpdateNodePosition id])
+       }, rpc m <| [UpdateNodePosition id node.pos])
 
     (DragSlotStart node param event, _) ->
       if event.button == Defaults.leftButton

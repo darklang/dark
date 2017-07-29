@@ -73,11 +73,10 @@ encodeRPC m call =
                       , jse_pos pos
                       , ("edges", encodeImplicitEdges edges)])
 
-      UpdateNodePosition id ->
-        let node = G.getNode m id in
+      UpdateNodePosition id pos ->
         ("update_node_position",
            JSE.object [ jse_id id
-                      , jse_pos node.pos])
+                      , jse_pos pos])
 
       AddEdge (ID src) (ID target, param) ->
         ("add_edge",

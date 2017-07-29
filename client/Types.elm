@@ -72,7 +72,7 @@ type RPC
     | AddFunctionCall Name Pos (List ImplicitEdge)
     | AddAnon Pos
     | AddValue String Pos (List ImplicitEdge)
-    | UpdateNodePosition ID -- no pos cause it's in the node
+    | UpdateNodePosition ID Pos
     | AddEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearEdges ID
