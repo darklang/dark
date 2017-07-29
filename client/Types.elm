@@ -87,7 +87,6 @@ type alias Model = { nodes : NodeDict
                    , tempFieldName : FieldName
                    , cursor : Cursor
                    , focused : Bool
-                   , prevNode : Maybe ID
                    , entryPos : Pos
                    , clickPos : Pos
                    , replValue : String
@@ -101,7 +100,6 @@ type alias Editor = { cursor : Maybe Int
                     , clickPos : Pos
                     , entryValue : String
                     , replValue : String
-                    , prevNode : Maybe Int
                     , tempFieldName : FieldName
                     }
 

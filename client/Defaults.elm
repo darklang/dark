@@ -25,7 +25,6 @@ defaultEditor = { entryPos = initialPos
                 , clickPos = {x=0, y=0}
                 , entryValue = ""
                 , replValue = ""
-                , prevNode = Nothing
                 , cursor = Nothing
                 , tempFieldName = ""
                 , focused = False
@@ -38,9 +37,7 @@ defaultModel e = { nodes = Dict.empty
                  , drag = NoDrag
                 -- these load before the graph does, causing exceptions. We'll
                 -- need to only run these after the graph loads
-                 -- , prevNode = Maybe.map ID e.prevNode
                  -- , cursor = Maybe.map ID e.cursor
-                 , prevNode = Nothing
                  , cursor = Nothing
                  -- editor
                  , entryPos = e.entryPos

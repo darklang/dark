@@ -57,7 +57,6 @@ model2editor m = { cursor = Maybe.map deID m.cursor
                  , clickPos = m.clickPos
                  , replValue = m.replValue
                  , entryValue = m.entryValue
-                 , prevNode = Maybe.map deID m.prevNode
                  , tempFieldName = m.tempFieldName
                  }
 
@@ -135,7 +134,7 @@ update_ msg m =
     (EntrySubmitMsg, cursor) ->
       let newIsValue = Util.rematch "^[\"\'1-9].*" m.entryValue
           extras =
-            case G.findHole m m.prevNode of
+            case G.findHole m m.cursor of
               NoHole -> []
               ResultHole n ->
                 if newIsValue then
@@ -163,7 +162,7 @@ update_ msg m =
               ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
       in
        ({m2 | entryPos = pos
-            , prevNode = justAdded
+            , cursor = justAdded
         }, focusEntry)
 
 

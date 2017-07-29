@@ -52,7 +52,7 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
-        entryEdge = viewEntryEdge m m.prevNode m.entryPos |> Maybe.Extra.toList
+        entryEdge = viewEntryEdge m m.cursor m.entryPos |> Maybe.Extra.toList
         dragEdge = viewDragEdge m.drag m.dragPos |> Maybe.Extra.toList
         click = viewEntry m
     in svgDefs :: svgArrowHead :: click :: (allNodes ++ dragEdge ++ entryEdge ++ edges)
