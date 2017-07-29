@@ -63,7 +63,7 @@ def call(bash):
   return result
 
 def ignore(filename, reason):
-  if reason != "Updated":
+  if reason != "Updated" and reason != "AttributeModified":
     return True
 
   # substring
@@ -109,9 +109,9 @@ def reload_browser():
 
 def main():
   p("Starting")
+  s3 = ocaml_build ()
   s1 = elm_package()
   s2 = elm_make()
-  s3 = ocaml_build ()
   if s3:
     ocaml_test()
     reload_server()
