@@ -65,6 +65,19 @@ update msg m =
   let (m2, cmd) = update_ msg m in
   (m2, Cmd.batch [cmd, m |> model2editor |> setStorage])
 
+updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg)
+updateKeyPress m code cursor =
+   let char = Char.fromCode code in
+   case (char, code, cursor) of
+     (_, 8, Just id) ->
+       -- backspace
+       (m, rpc m <| [DeleteNode id])
+
+     (char, code, cursor) ->
+       let _ = Debug.log
+               ("Nothing to do for" ++ toString (char, code, cursor)) in
+       (m, Cmd.none)
+
 
 -- updates
 update_ : Msg -> Model -> (Model, Cmd Msg)
@@ -76,13 +89,19 @@ update_ msg m =
       then ({ m | cursor = Nothing }, Cmd.none)
       else (m, Cmd.none)
 
+    (KeyPress code, cursor) ->
+      updateKeyPress m code cursor
+
     (NodeClick node, _) ->
       ({ m | cursor = Just node.id
        }, focusEntry)
 
     (RecordClick pos, _) ->
-      ({ m | entryPos = pos
-       }, focusEntry)
+      if m.drag == NoDrag then
+        ({ m | entryPos = pos
+         }, focusEntry)
+      else
+        (m, Cmd.none)
 
     (ClearCursor mpos, _) ->
       ({ m | cursor = Nothing
@@ -163,7 +182,10 @@ update_ msg m =
               ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
       in
        ({m2 | entryPos = pos
-            , cursor = justAdded
+           -- TODO: we should only update the cursor after the right callbacks
+            , cursor = case justAdded of
+                         Just s -> justAdded
+                         Nothing -> m2.cursor
         }, focusEntry)
 
 
