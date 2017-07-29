@@ -27,14 +27,24 @@ let fns_list = [
   }
   ;
   { n = "🐦"
-  ; o = ["Twitter::call"]
+  ; o = ["Twitter::get"]
   ; p = ["api"; "arguments"]
   ; f = function
-      | [DStr url; DObj arg] -> Twitter.call url arg
+      (* TODO: validate it's a DObj *)
+      | [DStr url; arg] -> Twitter.get url arg
       | args -> expected "2 ints" args
   }
   ;
-   { n = "%"
+  { n = "🐦"
+  ; o = ["Twitter::post"]
+  ; p = ["api"; "arguments"]
+  ; f = function
+      (* TODO: validate it's a DObj *)
+      | [DStr url; arg] -> Twitter.post url arg
+      | args -> expected "2 ints" args
+  }
+  ;
+  { n = "%"
   ; o = ["Int::mod"]
   ; p = ["a"; "b"]
   ; f = function
