@@ -3,8 +3,6 @@
 
 type dval = Runtime.dval
 
-type verb = GET | POST
-
 (* See test.sh for how to get this token *)
 let bearer =
   "AAAAAAAAAAAAAAAAAAAAAJfh1gAAAAAAazXXwsaMuN"
@@ -15,24 +13,29 @@ let json2dval (json : string) = Runtime.DStr "test"
 let dval2query (v: dval) : string = ""
 let dval2json (v: dval) : string = "{}"
 
-let call (endpoint: string) (verb: verb) (argument: dval) =
+let call (endpoint: string) (verb: Http.verb) (argument: dval) =
   let prefix = "https://api.twitter.com/1.1/" in
-  let headers = ["Authorization", "Bearer " ^ bearer] in
+  let headers = ["Authorization: Bearer " ^ bearer] in
   match verb with
   | GET ->
     let query_string = dval2query argument in
     let url = prefix ^ endpoint ^ query_string in
-    Http.get headers url
+    Http.call url verb headers ""
   | POST ->
     let body = dval2json argument in
     let url = prefix ^ endpoint in
-    Http.post url headers body
+    Http.call url verb headers body
 
 let get (url: string) (arg: dval) : dval =
   DStr (call url GET arg)
 
 let post (url: string) (arg: dval) : dval =
   DStr (call url POST arg)
+
+let test unit : unit =
+  ignore (get "users/lookup.json?screen_name=paulbiggar" DObj);
+  ignore (get "users/lookup.json?screen_name=paulbiggar" DObj);
+  ignore (get "users/lookup.json?screen_name=paulbiggar" DObj)
 
 
 

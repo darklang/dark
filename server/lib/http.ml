@@ -2,27 +2,43 @@
 open Core
 module C = Curl
 
-let get url headers : string =
-  (* C.global_init C.CURL_GLOBAL_ALL; *)
-  let result = ref "" in
-  let fn str : int =
-    result := str;
-    print_endline ("Have result: " ^ str);
-    String.length str
-  in
-  let errorbuf = ref "" in
-  let c = C.init () in
-  C.set_url c "https://reddit.com";
-  C.set_errorbuffer c errorbuf;
-  C.set_followlocation c true;
-  C.set_failonerror c true;
-  C.set_writefunction c fn;
-  C.perform c;
-  let code = C.get_responsecode c in
-  print_endline ("code is: " ^ (string_of_int code));
-  C.cleanup c;
-  print_endline ("error is:" ^ !errorbuf);
-  "test"
+type verb = GET | POST
 
-(* TODO *)
-let post url headers body = get url headers
+let call (url: string) (verb: verb) (headers: string list) (body: string) : string =
+  let errorbuf = ref "" in
+  let responsebuf = ref "" in
+
+  let requestfn int : string =
+    body in
+
+  let responsefn str : int =
+    responsebuf := str;
+    String.length str in
+
+  let (code, error, response) = try
+      (* C.global_init C.CURLINIT_GLOBALALL; *)
+      let c = C.init () in
+      C.set_url c url;
+      C.set_errorbuffer c errorbuf;
+      C.set_followlocation c true;
+      C.set_failonerror c false;
+      C.set_writefunction c responsefn;
+      C.set_readfunction c requestfn;
+      C.set_httpheader c headers;
+
+      C.perform c;
+
+      (* C.cleanup c; *)
+      (* C.global_cleanup (); *)
+      (C.get_responsecode c, !errorbuf, !responsebuf)
+    with
+    | Curl.CurlException (_, code, s) ->
+      (code, s, !responsebuf) in
+
+  let msg = "url: " ^ url ^ "\ncode: " ^ (string_of_int code) ^ "\nerror: " ^ error ^ "\nresponse: " ^ response in
+  if code <> 200 then
+    Exception.raise msg;
+  (* else *)
+    (* print_endline msg; *)
+
+  response

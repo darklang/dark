@@ -11,7 +11,6 @@ module G = Graph
 let inspect = Util.inspect
 
 let server =
-  Twitter.call;
   let callback _ req req_body =
     let uri = req |> Request.uri in
     (* let meth = req |> Request.meth |> Code.string_of_method in *)
