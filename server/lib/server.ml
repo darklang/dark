@@ -18,14 +18,14 @@ let server =
     let auth = req |> Request.headers |> Header.get_authorization in
 
     let admin_rpc_handler body : string =
-      (* let body = inspect ~f:ident "request body" body in *)
+      let body = inspect ~f:ident "request body" body in
       let g = G.load "blog" in
       Api.apply_ops g body;
       G.save !g;
       (* print_endline (G.show_graph !g); *)
       !g
       |> Graph.to_frontend_string
-      (* |> Util.inspect ~f:ident "response: " *)
+      |> Util.inspect ~f:ident "response: "
     in
 
     let admin_ui_handler () =

@@ -32,11 +32,3 @@ let get (url: string) (arg: dval) : dval =
 let post (url: string) (arg: dval) : dval =
   DStr (call url POST arg)
 
-let test unit : unit =
-  ignore (get "users/lookup.json?screen_name=paulbiggar" DObj);
-  ignore (get "users/lookup.json?screen_name=paulbiggar" DObj);
-  ignore (get "users/lookup.json?screen_name=paulbiggar" DObj)
-
-
-
-(* GET https://api.twitter.com/1.1/users/lookup.json?screen_name=paulbiggar,twitter *)
