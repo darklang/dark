@@ -88,6 +88,7 @@ let json2op (op : opjson) : op list =
   | { add_function_call = Some a } ->
     let nodeid = id () in
     let fn_node = Add_fn_call (a.name, nodeid, a.pos) in
+    (* TODO: not the first parameter, but the next unused parameter. Which we don't actually know at this point... *)
     let name = List.hd_exn (Lib.get_fn_exn a.name).parameters in
     [fn_node] @ (List.map ~f:(convert_edge nodeid (Some name)) a.edges)
 
@@ -110,8 +111,9 @@ let json2op (op : opjson) : op list =
 
   | _ -> failwith "Unexpected opcode"
 
-let apply_ops (g : G.graph ref) (payload: json) : unit =
+let apply_ops (g : G.graph ref) (payload: string) : unit =
   payload
+  |> Yojson.Safe.from_string
   |> opjsonlist_of_yojson
   |> Result.ok_or_failwith
   |> List.map ~f:(fun op -> json2op op)

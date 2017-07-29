@@ -1,8 +1,9 @@
+open Core
 open OUnit2
 open Types
 
 module G = Graph
-module Map = Core.Map.Poly
+module Map = Map.Poly
 module RT = Runtime
 
 let t_param_order _ =
@@ -16,9 +17,9 @@ let fl : loc = {x=0; y=0}
 
 let fid () = Util.create_id ()
 
-let graph_from_ops name ops : G.graph ref =
+let graph_from_ops (name: string) (ops: Op.op list) : G.graph ref =
   let g = G.create name in
-  List.iter (fun op -> G.add_op op g) ops;
+  List.iter ~f:(fun op -> G.add_op op g) ops;
   g
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
@@ -37,12 +38,24 @@ let t_graph_param_order _ =
   assert_equal r2 (DInt 2);
   assert_equal r1 (DInt 2)
 
-(* let t_fns_with_edges _ = *)
-(*   let v1 = Op.Add_value ("5", fid (), fl) in *)
-(*   let v2 = Op.Add_value ("3", fid (), fl) in *)
-(*   let add = Op.Add_fn_call ("-", fid (), fl, [Op.id_of v1; Op.id_of v2]) in *)
-(*   let r = execute_ops [v1; v2; add] add in *)
-(*   assert_equal r (DInt 2) *)
+(* TODO: test with param_Edge *)
+let t_fns_with_edges _ =
+  let str = string_of_int in
+  let v1id = fid () in
+  let v2id = fid () in
+  let v1 = Op.Add_value ("5", v1id, fl) in
+  let v2 = Op.Add_value ("3", v2id, fl) in
+  (* Build this as a string and run it through end-to-end *)
+  let p1str = "{receiving_edge: {source: " ^ str v1id ^ "}}" in
+  let p2str = "{receiving_edge: {source: " ^ str v2id ^ "}}" in
+  let edges = "edges: [" ^ p1str ^ ", " ^ p2str ^ "]" in
+  let fncall = "{add_function_call: {name: \"-\", pos: {x: 0, y: 0}, " in
+  let fncall = "[" ^ fncall ^ edges ^ "}}]" in
+  let g = graph_from_ops "test" [v1; v2] in
+  Api.apply_ops g fncall;
+  let rid = List.nth_exn !g.ops 2 |> Op.id_of in
+  let r = G.execute (rid) !g in
+  assert_equal r (DInt 2)
 
 
 
@@ -88,11 +101,13 @@ let t_lambda_with_foreach _ =
 
 
 let suite =
+  let () = Printexc.record_backtrace true in
   "suite" >:::
   [ "param args are in the right order" >:: t_param_order
   ; "Calling Int::add" >:: t_int_add_works
   ; "graph ordering doesnt break param order" >:: t_graph_param_order
   ; "roundtrip through saving and loading" >:: t_load_save
+    (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
   ; "anon functions work" >:: t_lambda_with_foreach
   ]

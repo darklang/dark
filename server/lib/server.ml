@@ -20,10 +20,8 @@ let server =
 
     let admin_rpc_handler body : string =
       (* let body = inspect ~f:ident "request body" body in *)
-      let payload = Yojson.Safe.from_string body in
-
       let g = G.load "blog" in
-      Api.apply_ops g payload;
+      Api.apply_ops g body;
       G.save !g;
       (* print_endline (G.show_graph !g); *)
       !g

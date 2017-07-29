@@ -9,7 +9,9 @@ type dval = DInt of int
           | DChar of char
           | DFloat of float
           | DAnon of id * (dval -> dval)
+          | DObj
           | DIncomplete [@@deriving show]
+
 module ParamMap = String.Map
 type param_map = dval ParamMap.t
 
