@@ -72,6 +72,10 @@ USER root
 RUN apt-get install -y libgmp-dev
 USER dark
 RUN opam install tls.0.8.0
+USER root
+RUN apt-get install -y libcurl4-gnutls-dev=7.52.1-4ubuntu1.1
+USER dark
+RUN opam install ocurl.0.7.10
 
 
 CMD ["app", "scripts", "builder"]

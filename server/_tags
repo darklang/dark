@@ -5,6 +5,6 @@
 <test/*> : package(oUnit)
 
 true : debug, bin_annot, warn(-40)
-true : package(core), package(postgresql)
+true : package(core), package(postgresql), package(curl)
 true : package(ppx_deriving.std), package(ppx_deriving_yojson), package(ppx_fields_conv)
 true : package(cohttp.lwt), thread
