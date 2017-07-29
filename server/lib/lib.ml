@@ -26,7 +26,15 @@ let fns_list = [
       | args -> expected "this to be implmented" args
   }
   ;
-  { n = "%"
+  { n = "🐦"
+  ; o = ["Twitter::call"]
+  ; p = ["api"; "arguments"]
+  ; f = function
+      | [DStr url; DObj arg] -> Twitter.call url arg
+      | args -> expected "2 ints" args
+  }
+  ;
+   { n = "%"
   ; o = ["Int::mod"]
   ; p = ["a"; "b"]
   ; f = function
