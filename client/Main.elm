@@ -190,9 +190,12 @@ update_ msg m_ =
           cursor = case justAdded of
                      -- if we deleted a node, the cursor is probably invalid
                      Nothing ->
-                       case m.cursor |> Canvas.getCursorID |> Maybe.andThen (G.getNode m2) of
-                         Nothing -> Deselected
-                         Just _ -> m.cursor
+                       if m.cursor
+                         |> Canvas.getCursorID
+                         |> Maybe.andThen (G.getNode m2)
+                         |> (==) Nothing
+                       then Deselected
+                       else m.cursor
 
                      -- if we added a node, select it
                      Just id ->
