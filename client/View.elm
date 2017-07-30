@@ -292,7 +292,7 @@ viewDragEdge drag currentPos =
   case drag of
     DragNode _ _ -> Nothing
     NoDrag -> Nothing
-    DragSlot id param mStartPos ->
+    DragSlot node param mStartPos ->
       Just <|
         svgLine mStartPos
                 currentPos
@@ -300,8 +300,8 @@ viewDragEdge drag currentPos =
 
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, param} =
-    let sourceN = G.getNode m source
-        targetN = G.getNode m target
+    let sourceN = G.getNodeExn m source
+        targetN = G.getNodeExn m target
         targetPos = targetN.pos
         (sourceW, sourceH) = nodeSize sourceN
 

@@ -2,6 +2,7 @@ module Graph exposing ( orderedNodes
                       , fromLetter
                       , int2letter
                       , getNode
+                      , getNodeExn
                       , findHole
                       , slotIsConnected)
 
@@ -37,8 +38,11 @@ letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-
 fromLetter : Model -> String -> Node
 fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2int letter) |> deMaybe
 
-getNode : Model -> ID -> Node
-getNode m id = Dict.get (deID id) m.nodes |> deMaybe
+getNode : Model -> ID -> Maybe Node
+getNode m id = Dict.get (deID id) m.nodes
+
+getNodeExn : Model -> ID -> Node
+getNodeExn m id = getNode m id |> deMaybe
 
 findHole : Model -> Node -> Hole
 findHole model n =

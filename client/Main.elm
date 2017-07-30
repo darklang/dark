@@ -68,12 +68,12 @@ update msg m =
 updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg)
 updateKeyPress m code cursor =
    let char = Char.fromCode code in
-   case (char, code, cursor) of
-     (_, 8, Filling n _) ->
-       -- backspace
+   case (char, code, cursor, m.entryValue) of
+     -- backspace through an empty node
+     (_, 8, Filling n _, "") ->
        (m, rpc m <| [DeleteNode n.id])
 
-     (char, code, cursor) ->
+     (char, code, cursor, _) ->
        let _ = Debug.log
                ("Nothing to do for" ++ toString (char, code, cursor)) in
        (m, Cmd.none)
@@ -109,40 +109,39 @@ update_ msg m_ =
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
       && event.button == Defaults.leftButton
-      then ({ m | drag = DragNode node.id
+      then ({ m | drag = DragNode node
                          (Canvas.findOffset node.pos event.pos)}
            , Cmd.none)
       else (m, Cmd.none)
 
-    (DragNodeMove id offset pos, _) ->
+    (DragNodeMove node offset pos, _) ->
       -- TODO: this is pretty nasty. we can avoid this (and issuing an
       -- updatenodeposition when the node didnt move), by only updating the node
       -- being drawn if cursor == node, in which case we use dragPos for it's
       -- position instead of the node position.
-      ({ m | nodes = Canvas.updateDragPosition pos offset id m.nodes
+      ({ m | nodes = Canvas.updateDragPosition pos offset node.id m.nodes
            , dragPos = pos -- debugging
        }, Cmd.none)
 
-    (DragNodeEnd id _, _) ->
-      let node = G.getNode m id in
+    (DragNodeEnd node _, _) ->
       ({ m | drag = NoDrag
-       }, rpc m <| [UpdateNodePosition id node.pos])
+       }, rpc m <| [UpdateNodePosition node.id node.pos])
 
-    (DragSlotStart node param event, _) ->
+    (DragSlotStart target param event, _) ->
       if event.button == Defaults.leftButton
-      then ({ m | cursor = Dragging node
-                , drag = DragSlot node.id param event.pos}, Cmd.none)
+      then ({ m | cursor = Dragging target
+                , drag = DragSlot target param event.pos}, Cmd.none)
       else (m, Cmd.none)
 
     (DragSlotMove mpos, _) ->
       ({ m | dragPos = mpos
        }, Cmd.none)
 
-    (DragSlotEnd node, _) ->
+    (DragSlotEnd source, _) ->
       case m.drag of
-        DragSlot id param starting ->
+        DragSlot target param starting ->
           ({ m | drag = NoDrag}
-               , rpc m <| [AddEdge node.id (id, param)])
+               , rpc m <| [AddEdge source.id (target.id, param)])
         _ -> (m, Cmd.none)
 
     (DragSlotStop _, _) ->
@@ -165,12 +164,14 @@ update_ msg m_ =
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
-               , edges = edges
-               , errors = []}
+                   , edges = edges
+                   , errors = []}
+          -- if we added a node, then it's in justAdded
+          -- if we deleted a node, we can check if the cursor is still there
           cursor = case justAdded of
                      Nothing -> m.cursor
                      Just id ->
-                       let node = G.getNode m2 id in
+                       let node = G.getNodeExn m2 id in
                        Canvas.selectNode m2 node
       in
         ({ m2 | cursor = cursor }, Cmd.none)
@@ -206,16 +207,13 @@ update_ msg m_ =
 subscriptions : Model -> Sub Msg
 subscriptions m =
   let dragSubs = case m.drag of
-                   DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
-                                         , Mouse.ups (DragNodeEnd id)]
+                   DragNode node offset -> [ Mouse.moves (DragNodeMove node offset)
+                                         , Mouse.ups (DragNodeEnd node)]
                    DragSlot _ _ _ ->
                      [ Mouse.moves DragSlotMove
                      , Mouse.ups DragSlotStop]
                    NoDrag -> [ ]
-      -- dont trigger commands if we're typing
-      keySubs = if m.cursor == Deselected
-                then [ Keyboard.downs KeyPress]
-                else []
+      keySubs = [ Keyboard.downs KeyPress]
       standardSubs = [ Keyboard.downs CheckEscape
                      , Mouse.downs RecordClick]
   in Sub.batch

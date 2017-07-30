@@ -63,8 +63,8 @@ type Msg
     | NodeClick Node
     | RecordClick Mouse.Position
     | DragNodeStart Node MouseEvent
-    | DragNodeMove ID Offset Mouse.Position
-    | DragNodeEnd ID Mouse.Position
+    | DragNodeMove Node Offset Mouse.Position
+    | DragNodeEnd Node Mouse.Position
     | DragSlotStart Node ParamName MouseEvent
     | DragSlotMove Mouse.Position
     | DragSlotEnd Node
@@ -116,5 +116,5 @@ type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receive
                   | ParamEdge ID ParamName -- target id and target param, the source is implicit
 
 type Drag = NoDrag
-          | DragNode ID Offset -- offset between the click and the node pos
-          | DragSlot ID ParamName Mouse.Position -- starting point of edge
+          | DragNode Node Offset -- offset between the click and the node pos
+          | DragSlot Node ParamName Mouse.Position -- starting point of edge
