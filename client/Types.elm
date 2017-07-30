@@ -51,7 +51,7 @@ type alias Edge = { source : ID
 -- + cursor but no entry (when dragging)
 type Cursor = Deselected
             | Creating Pos
-            | Dragging Node
+            | Dragging ID
             | Filling Node Pos -- todo, include hole here?
 
 -- Does the new Node fill a hole?
@@ -62,9 +62,11 @@ type Msg
     = ClearCursor Mouse.Position
     | NodeClick Node
     | RecordClick Mouse.Position
+    -- we have the actual node when this is created, but by the time we use the
+    -- others the node will be changed
     | DragNodeStart Node MouseEvent
-    | DragNodeMove Node Offset Mouse.Position
-    | DragNodeEnd Node Mouse.Position
+    | DragNodeMove ID Offset Mouse.Position
+    | DragNodeEnd ID Mouse.Position
     | DragSlotStart Node ParamName MouseEvent
     | DragSlotMove Mouse.Position
     | DragSlotEnd Node
@@ -116,5 +118,5 @@ type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receive
                   | ParamEdge ID ParamName -- target id and target param, the source is implicit
 
 type Drag = NoDrag
-          | DragNode Node Offset -- offset between the click and the node pos
+          | DragNode ID Offset -- offset between the click and the node pos
           | DragSlot Node ParamName Mouse.Position -- starting point of edge

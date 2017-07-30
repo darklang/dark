@@ -33,7 +33,7 @@ model2editor m =
                Filling n pos -> (Just (deID n.id), Just pos)
                Creating pos -> (Nothing, Just pos)
                Deselected -> (Nothing, Nothing)
-               Dragging n -> (Just (deID n.id), Nothing)
+               Dragging nid -> (Just (deID nid), Nothing)
   , replValue = m.replValue
   , entryValue = m.entryValue
   , tempFieldName = m.tempFieldName

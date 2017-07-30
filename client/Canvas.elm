@@ -84,7 +84,7 @@ entryVisible cursor =
 getCursorID : Cursor -> Maybe ID
 getCursorID c =
   case c of
-    Dragging node -> Just node.id
+    Dragging id -> Just id
     Filling node _ -> Just node.id
     _ -> Nothing
 

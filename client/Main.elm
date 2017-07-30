@@ -129,29 +129,28 @@ update_ msg m_ =
     (DragNodeStart node event, _) ->
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
       && event.button == Defaults.leftButton
-      then ({ m | drag = DragNode node
+      then ({ m | drag = DragNode node.id
                          (Canvas.findOffset node.pos event.pos)
-                , cursor = Dragging node
+                , cursor = Dragging node.id
             } , Cmd.none)
       else (m, Cmd.none)
 
-    (DragNodeMove node offset pos, _) ->
-      -- TODO: this is pretty nasty. we can avoid this (and issuing an
-      -- updatenodeposition when the node didnt move), by only updating the node
-      -- being drawn if cursor == node, in which case we use dragPos for it's
-      -- position instead of the node position.
-      ({ m | nodes = Canvas.updateDragPosition pos offset node.id m.nodes
+    (DragNodeMove id offset pos, _) ->
+      -- While it's kinda nasty to update a node in place, the drawing code
+      -- get's really complex if we don't do this.
+      ({ m | nodes = Canvas.updateDragPosition pos offset id m.nodes
            , dragPos = pos -- debugging
        }, Cmd.none)
 
-    (DragNodeEnd node _, _) ->
+    (DragNodeEnd id _, _) ->
+      let node = G.getNodeExn m id in
       ({ m | drag = NoDrag
            , cursor = Canvas.selectNode m node
-       }, rpc m <| [UpdateNodePosition node.id node.pos])
+       }, rpc m <| [UpdateNodePosition id node.pos])
 
     (DragSlotStart target param event, _) ->
       if event.button == Defaults.leftButton
-      then ({ m | cursor = Dragging target
+      then ({ m | cursor = Dragging target.id
                 , drag = DragSlot target param event.pos}, Cmd.none)
       else (m, Cmd.none)
 
@@ -234,8 +233,9 @@ update_ msg m_ =
 subscriptions : Model -> Sub Msg
 subscriptions m =
   let dragSubs = case m.drag of
-                   DragNode node offset -> [ Mouse.moves (DragNodeMove node offset)
-                                         , Mouse.ups (DragNodeEnd node)]
+                   -- we use IDs here because the node will change before they're triggered
+                   DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
+                                         , Mouse.ups (DragNodeEnd id)]
                    DragSlot _ _ _ ->
                      [ Mouse.moves DragSlotMove
                      , Mouse.ups DragSlotStop]
