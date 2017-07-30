@@ -26,8 +26,8 @@ let fns_list = [
       | args -> expected "this to be implmented" args
   }
   ;
-  { n = "🐦"
-  ; o = ["Twitter::get"]
+  { n = "Twitter::get"
+  ; o = []
   ; p = ["api"; "arguments"]
   ; f = function
       (* TODO: validate it's a DObj *)
@@ -35,8 +35,8 @@ let fns_list = [
       | args -> expected "2 ints" args
   }
   ;
-  { n = "🐦"
-  ; o = ["Twitter::post"]
+  { n = "Twitter::post"
+  ; o = []
   ; p = ["api"; "arguments"]
   ; f = function
       (* TODO: validate it's a DObj *)
