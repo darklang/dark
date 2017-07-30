@@ -18,6 +18,13 @@ import Graph as G
 -------------------
 -- Focus
 -------------------
+maybeFocusEntry : Model -> Model -> Cmd Msg
+maybeFocusEntry oldm m =
+  if not (entryVisible oldm.cursor) && (entryVisible m.cursor) then
+    focusEntry
+  else
+    Cmd.none
+
 focusEntry : Cmd Msg
 focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 
@@ -70,3 +77,10 @@ isSelected m n =
   case m.cursor of
     Filling node _ -> n == node
     _ -> False
+
+entryVisible : Cursor -> Bool
+entryVisible cursor =
+  case cursor of
+    Deselected -> False
+    Dragging _ -> False
+    _ -> True

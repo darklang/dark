@@ -34,7 +34,6 @@ main = Html.programWithFlags
        , update = update
        , subscriptions = subscriptions}
 
-focusEntry = Canvas.focusEntry
 
 -- MODEL
 init : Maybe Editor -> ( Model, Cmd Msg )
@@ -44,7 +43,7 @@ init mEditor =
                  Nothing -> Defaults.defaultEditor
       m = Defaults.defaultModel e
   in
-    (m, Cmd.batch [focusEntry, rpc m <| [LoadInitialGraph]])
+    (m, Cmd.batch [Canvas.focusEntry, rpc m <| [LoadInitialGraph]])
 
 
 -- ports, save Editor state in LocalStorage
@@ -54,7 +53,9 @@ port setStorage : Editor -> Cmd msg
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let (m2, cmd) = update_ msg m in
-  (m2, Cmd.batch [cmd, m |> Defaults.model2editor |> setStorage])
+  (m2, Cmd.batch [ cmd
+                 , m |> Defaults.model2editor |> setStorage
+                 , Canvas.maybeFocusEntry m m2])
 
 updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg)
 updateKeyPress m code cursor =
@@ -96,13 +97,13 @@ update_ msg m_ =
       updateKeyPress m code cursor
 
     (NodeClick node, _) ->
-      ({ m | cursor = Canvas.selectNode m node}, focusEntry)
+      ({ m | cursor = Canvas.selectNode m node}, Cmd.none)
 
     (RecordClick pos, _) ->
       -- When we click on a node, drag is set when RecordClick happens. So this
       -- avoids firing if we click outside a node
       if m.drag == NoDrag then
-        ({ m | cursor = Creating pos }, focusEntry)
+        ({ m | cursor = Creating pos }, Cmd.none)
       else
         (m, Cmd.none)
 
@@ -124,7 +125,7 @@ update_ msg m_ =
       -- position instead of the node position.
       ({ m | nodes = Canvas.updateDragPosition pos offset id m.nodes
            , dragPos = pos -- debugging
-       }, focusEntry)
+       }, Cmd.none)
 
     (DragNodeEnd id _, _) ->
       let node = G.getNode m id in
@@ -149,7 +150,7 @@ update_ msg m_ =
         _ -> (m, Cmd.none)
 
     (DragSlotStop _, _) ->
-      ({ m | drag = NoDrag}, focusEntry)
+      ({ m | drag = NoDrag}, Cmd.none)
 
     ------------------------
     -- entry node
@@ -176,7 +177,7 @@ update_ msg m_ =
                        let node = G.getNode m2 id in
                        Canvas.selectNode m2 node
       in
-        ({ m2 | cursor = cursor }, focusEntry)
+        ({ m2 | cursor = cursor }, Cmd.none)
 
 
     ------------------------
@@ -184,7 +185,7 @@ update_ msg m_ =
     ------------------------
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-       }, focusEntry)
+       }, Cmd.none)
 
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
@@ -199,7 +200,7 @@ update_ msg m_ =
        }, Cmd.none)
 
     t -> -- All other cases
-      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, focusEntry)
+      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none)
 
 
 
