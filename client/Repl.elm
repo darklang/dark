@@ -12,6 +12,20 @@ x="asd"
 -- import Util exposing (..)
 -- import Graph as G
 
+    -- (ReplSubmitMsg, cursor) ->
+    --   let (m2, rpcs) = Repl.parse m m.replValue cursor
+    --       m3 = { m2 | replValue = "" } in
+    --   case rpcs of
+    --     [] -> (m3, Cmd.none)
+    --     rpcs -> (m3, RPC.rpc m3 rpcs)
+
+    -- (ReplInputMsg target, _) ->
+    --   -- Syncs the form with the model. The actual submit is in ReplSubmitMsg
+    --   ({ m | replValue = target
+    --    }, Cmd.none)
+
+
+
 --     -- (ADD_DS, SubmitMsg, _) ->
 --     --   ({ m | state = ADD_DS_FIELD_NAME
 --     --    }, rpc m <| AddDatastore m.inputValue m.clickPos)

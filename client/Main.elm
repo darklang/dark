@@ -191,25 +191,12 @@ update_ msg m_ =
       ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
        }, focusEntry)
 
-    -- (ReplSubmitMsg, cursor) ->
-    --   let (m2, rpcs) = Repl.parse m m.replValue cursor
-    --       m3 = { m2 | replValue = "" } in
-    --   case rpcs of
-    --     [] -> (m3, Cmd.none)
-    --     rpcs -> (m3, RPC.rpc m3 rpcs)
-
-
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
       -- TODO: should these be separate events?
       ({m | replValue = ""
           , entryValue = ""
        }, Cmd.none)
-
-    -- (ReplInputMsg target, _) ->
-    --   -- Syncs the form with the model. The actual submit is in ReplSubmitMsg
-    --   ({ m | replValue = target
-    --    }, Cmd.none)
 
     (EntryInputMsg target, _) ->
       -- Syncs the form with the model. The actual submit is in EntrySubmitMsg
@@ -218,7 +205,6 @@ update_ msg m_ =
 
     t -> -- All other cases
       ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, focusEntry)
-
 
 
 
