@@ -166,10 +166,14 @@ update_ msg m_ =
       let m2 = { m | nodes = nodes
                    , edges = edges
                    , errors = []}
-          -- if we added a node, then it's in justAdded
-          -- if we deleted a node, we can check if the cursor is still there
           cursor = case justAdded of
-                     Nothing -> m.cursor
+                     -- if we deleted a node, the cursor is probably invalid
+                     Nothing ->
+                       case m.cursor |> Canvas.getCursorID |> Maybe.andThen (G.getNode m2) of
+                         Nothing -> Deselected
+                         Just _ -> m.cursor
+
+                     -- if we added a node, select it
                      Just id ->
                        let node = G.getNodeExn m2 id in
                        Canvas.selectNode m2 node

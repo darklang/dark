@@ -81,6 +81,14 @@ entryVisible cursor =
     Dragging _ -> False
     _ -> True
 
+getCursorID : Cursor -> Maybe ID
+getCursorID c =
+  case c of
+    Dragging node -> Just node.id
+    Filling node _ -> Just node.id
+    _ -> Nothing
+
+
 selectNode : Model -> Node -> Cursor
 selectNode m selected =
   let pos = case G.findHole m selected of
