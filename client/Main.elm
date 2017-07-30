@@ -106,11 +106,6 @@ update_ msg m_ =
       else
         (m, Cmd.none)
 
-    -- TODO: what does this achieve?
-    (ClearCursor mpos, _) ->
-      ({ m | cursor = Deselected
-       }, focusEntry)
-
     ------------------------
     -- dragging nodes
     ------------------------
@@ -217,7 +212,7 @@ subscriptions m =
                    DragSlot _ _ _ ->
                      [ Mouse.moves DragSlotMove
                      , Mouse.ups DragSlotStop]
-                   NoDrag -> [ Mouse.downs ClearCursor ]
+                   NoDrag -> [ ]
       -- dont trigger commands if we're typing
       keySubs = if m.cursor == Deselected
                 then [ Keyboard.downs KeyPress]
