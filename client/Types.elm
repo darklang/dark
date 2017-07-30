@@ -13,13 +13,15 @@ type alias ParamName = Name
 type alias TypeName = Name
 
 type ID = ID Int
-type alias Cursor = Maybe ID
 deID (ID x) = x
+
 
 type alias Pos = Mouse.Position
 type alias MouseEvent = {pos: Mouse.Position, button: Int}
 type alias Offset = {x: Int, y: Int, offsetCheck: Int}
 type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
+type alias LeftButton = Bool
+
 
 type NodeType = FunctionCall
               | FunctionDef
@@ -42,8 +44,19 @@ type alias Edge = { source : ID
                   , target : ID
                   , param : ParamName
                   }
+-- There can be:
+-- + entry but no cursor (click somewhere that isn't a node)
+-- + cursor and entry (filling a hole)
+-- + neither cursor nor entry (after pressing escape)
+-- + cursor but no entry (when dragging)
+type Cursor = Deselected
+            | Creating Pos
+            | Dragging Node
+            | Filling Node Pos -- todo, include hole here?
 
-type alias LeftButton = Bool
+-- Does the new Node fill a hole?
+type Hole = ResultHole Node
+          | ParamHole Node String Int
 
 type Msg
     = ClearCursor Mouse.Position
@@ -86,27 +99,16 @@ type alias Model = { nodes : NodeDict
                    -- these values are serialized via Editor
                    , tempFieldName : FieldName
                    , cursor : Cursor
-                   , focused : Bool
-                   , entryPos : Pos
-                   , clickPos : Pos
                    , replValue : String
                    , entryValue : String
                    }
 
 -- Values that we serialize
-type alias Editor = { cursor : Maybe Int
-                    , focused : Bool
-                    , entryPos : Pos
-                    , clickPos : Pos
+type alias Editor = { cursor : (Maybe Int, Maybe Pos)
                     , entryValue : String
                     , replValue : String
                     , tempFieldName : FieldName
                     }
-
--- Does the new Node fill a hole?
-type Hole = NoHole
-          | ResultHole Node
-          | ParamHole Node String Int
 
 type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receiver after it's created)
                   | ParamEdge ID ParamName -- target id and target param, the source is implicit

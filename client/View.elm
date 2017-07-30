@@ -52,10 +52,9 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
-        entryEdge = viewEntryEdge m m.cursor m.entryPos |> Maybe.Extra.toList
         dragEdge = viewDragEdge m.drag m.dragPos |> Maybe.Extra.toList
-        click = viewEntry m
-    in svgDefs :: svgArrowHead :: click :: (allNodes ++ dragEdge ++ entryEdge ++ edges)
+        entry = viewEntry m
+    in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ dragEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml pos html =
@@ -71,37 +70,44 @@ viewClick pos =
              , SA.cy (toString pos.y)
              , SA.fill "#333"] []
 
-viewEntry : Model -> Html.Html Msg
+viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
+  let html pos =
+    let viewForm = Html.form [
+                    Events.onSubmit (EntrySubmitMsg)
+                   ] [
+                    Html.input [ Attrs.id Defaults.entryID
+                               , Events.onInput EntryInputMsg
+                               , Attrs.width 50
+                               , Attrs.value m.entryValue
+                               , Attrs.autocomplete False
+                               ] []
+                   ]
 
-  let
-    viewForm = Html.form [
-                Events.onSubmit (EntrySubmitMsg)
-               ] [
-                Html.input [ Attrs.id Defaults.entryID
-                           , Events.onInput EntryInputMsg
-                           , Attrs.width 50
-                           , Attrs.value m.entryValue
-                           , Attrs.autocomplete False
-                           ] []
-               ]
-
-    -- inner node
-    inner = Html.div
-            [ Attrs.width 100
-            , Attrs.class "inner"]
-            [viewForm]
+        -- inner node
+        inner = Html.div
+                [ Attrs.width 100
+                , Attrs.class "inner"]
+                [viewForm]
 
 
-    -- outer node wrapper
-    classes = "selection function node"
+        -- outer node wrapper
+        classes = "selection function node"
 
-    wrapper = Html.span
-              [ Attrs.class classes
-              , Attrs.width 100]
-              [ inner ]
+        wrapper = Html.span
+                  [ Attrs.class classes
+                  , Attrs.width 100]
+                  [ inner ]
+      in
+        placeHtml pos wrapper
   in
-    placeHtml m.entryPos wrapper
+    case m.cursor of
+      Filling n pos -> [html pos, svgLine n.pos pos dragEdgeStyle]
+      Creating pos -> [html pos]
+      Dragging _ -> []
+      Deselected -> []
+
+
 
 
 
@@ -196,9 +202,7 @@ viewNode m n i =
 
 
       -- outer node wrapper
-      selected = case m.cursor of
-                       Just id -> id == n.id
-                       _ -> False
+      selected = Canvas.isSelected m n
       selectedCl = if selected then ["selected"] else []
       class = String.toLower (toString n.tipe)
       classes = String.join " " (["node", class] ++ selectedCl)
@@ -293,17 +297,6 @@ viewDragEdge drag currentPos =
         svgLine mStartPos
                 currentPos
                 dragEdgeStyle
-
-viewEntryEdge : Model -> Maybe ID -> Pos -> Maybe (Svg.Svg Msg)
-viewEntryEdge m prev entryPos =
-  case prev of
-    Just id ->
-      let n = G.getNode m id in
-      Just <| svgLine n.pos entryPos dragEdgeStyle
-    Nothing -> Nothing
-
-
-
 
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, param} =

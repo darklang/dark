@@ -21,14 +21,25 @@ dragEdgeSize = "2px"
 initialPos = {x=400, y=170}
 
 defaultEditor : Editor
-defaultEditor = { entryPos = initialPos
-                , clickPos = {x=0, y=0}
-                , entryValue = ""
+defaultEditor = { entryValue = ""
                 , replValue = ""
-                , cursor = Nothing
+                , cursor = (Nothing, Just initialPos)
                 , tempFieldName = ""
-                , focused = False
                 }
+
+model2editor : Model -> Editor
+model2editor m =
+  { cursor = case m.cursor of
+               Filling n pos -> (Just (deID n.id), Just pos)
+               Creating pos -> (Nothing, Just pos)
+               Deselected -> (Nothing, Nothing)
+               Dragging n -> (Just (deID n.id), Nothing)
+  , replValue = m.replValue
+  , entryValue = m.entryValue
+  , tempFieldName = m.tempFieldName
+  }
+
+
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
                  , edges = []
@@ -37,13 +48,11 @@ defaultModel e = { nodes = Dict.empty
                  , drag = NoDrag
                 -- these load before the graph does, causing exceptions. We'll
                 -- need to only run these after the graph loads
-                 -- , cursor = Maybe.map ID e.cursor
-                 , cursor = Nothing
+                 , cursor = case e.cursor of
+                              (_, Just pos) -> Creating pos
+                              _ -> Deselected
                  -- editor
-                 , entryPos = e.entryPos
-                 , clickPos = e.clickPos
                  , entryValue = e.entryValue
                  , replValue = e.replValue
                  , tempFieldName = e.tempFieldName
-                 , focused = e.focused
                  }

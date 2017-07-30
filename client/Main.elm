@@ -50,34 +50,36 @@ init mEditor =
 -- ports, save Editor state in LocalStorage
 port setStorage : Editor -> Cmd msg
 
-model2editor : Model -> Editor
-model2editor m = { cursor = Maybe.map deID m.cursor
-                 , focused = m.focused
-                 , entryPos = m.entryPos
-                 , clickPos = m.clickPos
-                 , replValue = m.replValue
-                 , entryValue = m.entryValue
-                 , tempFieldName = m.tempFieldName
-                 }
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let (m2, cmd) = update_ msg m in
-  (m2, Cmd.batch [cmd, m |> model2editor |> setStorage])
+  (m2, Cmd.batch [cmd, m |> Defaults.model2editor |> setStorage])
 
 updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg)
 updateKeyPress m code cursor =
    let char = Char.fromCode code in
    case (char, code, cursor) of
-     (_, 8, Just id) ->
+     (_, 8, Filling n _) ->
        -- backspace
-       (m, rpc m <| [DeleteNode id])
+       (m, rpc m <| [DeleteNode n.id])
 
      (char, code, cursor) ->
        let _ = Debug.log
                ("Nothing to do for" ++ toString (char, code, cursor)) in
        (m, Cmd.none)
 
+addNode : Name -> Pos -> List ImplicitEdge -> RPC
+addNode name pos extras =
+  let newIsValue = Util.rematch "^[\"\'1-9].*" name in
+  if newIsValue then
+    case extras of
+      [(ReceivingEdge _)] ->
+        AddValue name pos []
+      _ ->
+        AddValue name pos extras
+  else
+    AddFunctionCall name pos extras
 
 -- updates
 update_ : Msg -> Model -> (Model, Cmd Msg)
@@ -86,25 +88,26 @@ update_ msg m =
 
     (CheckEscape code, _) ->
       if code == Defaults.escapeKeycode
-      then ({ m | cursor = Nothing }, Cmd.none)
+      then ({ m | cursor = Deselected }, Cmd.none)
       else (m, Cmd.none)
 
     (KeyPress code, cursor) ->
       updateKeyPress m code cursor
 
     (NodeClick node, _) ->
-      ({ m | cursor = Just node.id
-       }, focusEntry)
+      ({ m | cursor = Canvas.selectNode m node}, focusEntry)
 
     (RecordClick pos, _) ->
+      -- When we click on a node, drag is set when RecordClick happens. So this
+      -- avoids firing if we click outside a node
       if m.drag == NoDrag then
-        ({ m | entryPos = pos
-         }, focusEntry)
+        ({ m | cursor = Creating pos }, focusEntry)
       else
         (m, Cmd.none)
 
+    -- TODO: what does this achieve?
     (ClearCursor mpos, _) ->
-      ({ m | cursor = Nothing
+      ({ m | cursor = Deselected
        }, focusEntry)
 
     ------------------------
@@ -119,6 +122,10 @@ update_ msg m =
       else (m, Cmd.none)
 
     (DragNodeMove id offset pos, _) ->
+      -- TODO: this is pretty nasty. we can avoid this (and issuing an
+      -- updatenodeposition when the node didnt move), by only updating the node
+      -- being drawn if cursor == node, in which case we use dragPos for it's
+      -- position instead of the node position.
       ({ m | nodes = Canvas.updateDragPosition pos offset id m.nodes
            , dragPos = pos -- debugging
        }, focusEntry)
@@ -130,7 +137,7 @@ update_ msg m =
 
     (DragSlotStart node param event, _) ->
       if event.button == Defaults.leftButton
-      then ({ m | cursor = Just node.id
+      then ({ m | cursor = Dragging node
                 , drag = DragSlot node.id param event.pos}, Cmd.none)
       else (m, Cmd.none)
 
@@ -151,42 +158,28 @@ update_ msg m =
     ------------------------
     -- entry node
     ------------------------
-    (EntrySubmitMsg, cursor) ->
-      let newIsValue = Util.rematch "^[\"\'1-9].*" m.entryValue
-          extras =
-            case G.findHole m m.cursor of
-              NoHole -> []
-              ResultHole n ->
-                if newIsValue then
-                  -- this doesnt take params but probably intentional so just
-                  -- allow it
-                  []
-                else
-                  [ReceivingEdge n.id]
-              ParamHole n p _ -> [ParamEdge n.id p]
+    (EntrySubmitMsg, Filling node pos) ->
+      let extra = case G.findHole m node of
+                     ResultHole n -> ReceivingEdge n.id
+                     ParamHole n p _ -> ParamEdge n.id p
       in
-        if newIsValue then
-          (m, rpc m <| [AddValue m.entryValue m.entryPos extras])
-        else
-          (m, rpc m <| [AddFunctionCall m.entryValue m.entryPos extras])
+        (m, rpc m <| [addNode m.entryValue pos [extra]])
+
+    (EntrySubmitMsg, Creating pos) ->
+      (m, rpc m <| [addNode m.entryValue pos []])
+
 
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
-      let m2 = { m | nodes = nodes
-                   , edges = edges
-                   , errors = []}
-          pos =
-            case G.findHole m2 justAdded of
-              NoHole -> m.entryPos
-              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
-              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
-      in
-       ({m2 | entryPos = pos
-           -- TODO: we should only update the cursor after the right callbacks
-            , cursor = case justAdded of
-                         Just s -> justAdded
-                         Nothing -> m2.cursor
-        }, focusEntry)
+      ({ m | nodes = nodes
+           , edges = edges
+           , errors = []
+           , cursor = case justAdded of
+                        Nothing -> m.cursor
+                        Just id -> m.cursor
+                          -- let node = G.getNode m id in
+                          -- Canvas.selectNode m node
+       }, focusEntry)
 
 
     ------------------------
@@ -204,12 +197,12 @@ update_ msg m =
     --     rpcs -> (m3, RPC.rpc m3 rpcs)
 
 
-    (FocusResult (Ok ()), _) ->
+    (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
       -- TODO: should these be separate events?
       ({m | replValue = ""
           , entryValue = ""
-          , focused = True}, Cmd.none)
+       }, Cmd.none)
 
     -- (ReplInputMsg target, _) ->
     --   -- Syncs the form with the model. The actual submit is in ReplSubmitMsg
@@ -238,9 +231,9 @@ subscriptions m =
                      , Mouse.ups DragSlotStop]
                    NoDrag -> [ Mouse.downs ClearCursor ]
       -- dont trigger commands if we're typing
-      keySubs = if m.focused
-                then []
-                else [ Keyboard.downs KeyPress]
+      keySubs = if m.cursor == Deselected
+                then [ Keyboard.downs KeyPress]
+                else []
       standardSubs = [ Keyboard.downs CheckEscape
                      , Mouse.downs RecordClick]
   in Sub.batch

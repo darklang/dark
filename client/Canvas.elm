@@ -13,6 +13,7 @@ import List.Extra
 import Defaults
 import Types exposing (..)
 import Util exposing (deMaybe)
+import Graph as G
 
 -------------------
 -- Focus
@@ -55,3 +56,17 @@ paramOffset node param =
     index = deMaybe (List.Extra.elemIndex param node.parameters)
   in
     {x=index*10, y=-2}
+
+selectNode : Model -> Node -> Cursor
+selectNode m selected =
+  let pos = case G.findHole m selected of
+              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
+              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+  in
+    Filling selected pos
+
+isSelected : Model -> Node -> Bool
+isSelected m n =
+  case m.cursor of
+    Filling node _ -> n == node
+    _ -> False

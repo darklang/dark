@@ -40,22 +40,18 @@ fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2i
 getNode : Model -> ID -> Node
 getNode m id = Dict.get (deID id) m.nodes |> deMaybe
 
-findHole : Model -> Maybe ID -> Hole
-findHole model mID =
-  case mID of
-    Nothing -> NoHole
-    Just id ->
-      let n = getNode model id
-          incoming = List.filter (\e -> e.target == n.id) model.edges
-          used_params = List.map .param incoming
-          all_params = List.indexedMap (,) n.parameters
-          unused = List.Extra.find
-                   (\(i, p) -> not <| List.member p used_params)
-                   all_params
-      in
-        case unused of
-          Nothing -> ResultHole n
-          Just (i, p) -> ParamHole n p i
+findHole : Model -> Node -> Hole
+findHole model n =
+  let incoming = List.filter (\e -> e.target == n.id) model.edges
+      used_params = List.map .param incoming
+      all_params = List.indexedMap (,) n.parameters
+      unused = List.Extra.find
+               (\(i, p) -> not <| List.member p used_params)
+                 all_params
+  in
+    case unused of
+      Nothing -> ResultHole n
+      Just (i, p) -> ParamHole n p i
 
 
 
