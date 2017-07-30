@@ -89,10 +89,15 @@ updateKeyPress m code cursor =
        ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x < o.x)
         } , Cmd.none)
 
+     -- (l, _, _, "") ->
+--   let l2id l = (G.fromLetter m l).id in
+--         (Just (l, ""), _, [], _) ->
+--           ({ m | cursor = Just (l |> String.fromChar |> l2id)
+--            }, [])
+
      (char, code, cursor, _) ->
        let _ = Debug.log "Nothing to do" (char, code, cursor) in
        (m, Cmd.none)
-
 
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m_ =
