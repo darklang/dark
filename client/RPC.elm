@@ -80,7 +80,7 @@ encodeRPC m call =
 
       AddEdge (ID src) (ID target, param) ->
         ("add_edge",
-           JSE.object [ ("src", JSE.int src)
+           JSE.object [ ("source", JSE.int src)
                       , ("target", JSE.int target)
                       , ("param", JSE.string param)
                       ])
