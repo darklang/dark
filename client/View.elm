@@ -53,7 +53,7 @@ viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
         dragEdge = viewDragEdge m.drag m.dragPos |> Maybe.Extra.toList
-        entry = viewEntry m
+        entry = viewCursor m
     in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ dragEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -70,8 +70,8 @@ viewClick pos =
              , SA.cy (toString pos.y)
              , SA.fill "#333"] []
 
-viewEntry : Model -> List (Svg.Svg Msg)
-viewEntry m =
+viewCursor : Model -> List (Svg.Svg Msg)
+viewCursor m =
   let html pos =
     let viewForm = Html.form [
                     Events.onSubmit (EntrySubmitMsg)

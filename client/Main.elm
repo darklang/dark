@@ -125,8 +125,9 @@ update_ msg m_ =
       if m.drag == NoDrag -- If we're already dragging a slot don't change the node
       && event.button == Defaults.leftButton
       then ({ m | drag = DragNode node
-                         (Canvas.findOffset node.pos event.pos)}
-           , Cmd.none)
+                         (Canvas.findOffset node.pos event.pos)
+                , cursor = Dragging node
+            } , Cmd.none)
       else (m, Cmd.none)
 
     (DragNodeMove node offset pos, _) ->
@@ -140,6 +141,7 @@ update_ msg m_ =
 
     (DragNodeEnd node _, _) ->
       ({ m | drag = NoDrag
+           , cursor = Canvas.selectNode m node
        }, rpc m <| [UpdateNodePosition node.id node.pos])
 
     (DragSlotStart target param event, _) ->
