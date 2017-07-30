@@ -172,15 +172,16 @@ update_ msg m_ =
 
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
-      ({ m | nodes = nodes
-           , edges = edges
-           , errors = []
-           , cursor = case justAdded of
-                        Nothing -> m.cursor
-                        Just id -> m.cursor
-                          -- let node = G.getNode m id in
-                          -- Canvas.selectNode m node
-       }, focusEntry)
+      let m2 = { m | nodes = nodes
+               , edges = edges
+               , errors = []}
+          cursor = case justAdded of
+                     Nothing -> m.cursor
+                     Just id ->
+                       let node = G.getNode m2 id in
+                       Canvas.selectNode m2 node
+      in
+        ({ m2 | cursor = cursor }, focusEntry)
 
 
     ------------------------
