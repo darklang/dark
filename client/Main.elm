@@ -178,7 +178,8 @@ update_ msg m_ =
                        let node = G.getNodeExn m2 id in
                        Canvas.selectNode m2 node
       in
-        ({ m2 | cursor = cursor }, Cmd.none)
+        ({ m2 | cursor = cursor
+              , entryValue = ""}, Cmd.none)
 
 
     ------------------------
