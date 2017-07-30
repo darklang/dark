@@ -89,11 +89,13 @@ updateKeyPress m code cursor =
        ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x < o.x)
         } , Cmd.none)
 
-     -- (l, _, _, "") ->
---   let l2id l = (G.fromLetter m l).id in
---         (Just (l, ""), _, [], _) ->
---           ({ m | cursor = Just (l |> String.fromChar |> l2id)
---            }, [])
+     (l, _, Deselected, _) -> let cursor = l
+                                         |> String.fromChar
+                                         |> G.fromLetter m
+                                         |> Maybe.map (Canvas.selectNode m)
+                              case cursor of
+                                Nothing -> (m, Cmd.none)
+                                Just c -> ({ m | cursor = c }, Cmd.none)
 
      (char, code, cursor, _) ->
        let _ = Debug.log "Nothing to do" (char, code, cursor) in

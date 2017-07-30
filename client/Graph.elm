@@ -40,10 +40,10 @@ int2letter : Int -> String
 int2letter i = i |> (+) 97 |> Char.fromCode |> String.fromChar
 
 letter2int : String -> Int
-letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) 97 |> (*) (-1)
+letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) 65 |> (*) (-1)
 
-fromLetter : Model -> String -> Node
-fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2int letter) |> deMaybe
+fromLetter : Model -> String -> Maybe Node
+fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2int letter)
 
 getNode : Model -> ID -> Maybe Node
 getNode m id = Dict.get (deID id) m.nodes
