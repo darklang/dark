@@ -64,13 +64,9 @@ paramOffset node param =
   in
     {x=index*10, y=-2}
 
-selectNode : Model -> Node -> Cursor
-selectNode m selected =
-  let pos = case G.findHole m selected of
-              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
-              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
-  in
-    Filling selected pos
+------------------
+-- cursor stuff
+----------------
 
 isSelected : Model -> Node -> Bool
 isSelected m n =
@@ -84,3 +80,11 @@ entryVisible cursor =
     Deselected -> False
     Dragging _ -> False
     _ -> True
+
+selectNode : Model -> Node -> Cursor
+selectNode m selected =
+  let pos = case G.findHole m selected of
+              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
+              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+  in
+    Filling selected pos
