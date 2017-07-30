@@ -88,8 +88,8 @@ getCursorID c =
     Filling node _ -> Just node.id
     _ -> Nothing
 
-selectNextNode : Model -> Cursor
-selectNextNode m =
+selectNextNode : Model -> (Pos -> Pos  -> Bool) -> Cursor
+selectNextNode m cond =
   -- if we're currently in a node, follow the direction. For now, pick the
   -- nearest node to it, that it's connected to, that's roughly in that
   -- direction.
@@ -102,7 +102,8 @@ selectNextNode m =
             |> List.map (\e -> if e.target == n.id then e.source else e.target)
             |> List.map (G.getNodeExn m)
             -- that are above us
-            |> List.filter (\other -> other.pos.x < n.pos.x)
+            |> List.filter (\o -> cond n.pos o.pos)
+            -- the nearest to us
             |> List.sortBy (\other -> G.distance other n)
             |> List.head
       in

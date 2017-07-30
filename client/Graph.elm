@@ -31,8 +31,8 @@ orderedNodes m =
 
 distance : Node -> Node -> Float
 distance n1 n2 =
-  let xdiff = toFloat (n2.pos.x - n1.pos.y) ^ 2
-      ydiff = toFloat (n2.pos.x - n1.pos.y) ^ 2
+  let xdiff = toFloat (n2.pos.x - n1.pos.x) ^ 2
+      ydiff = toFloat (n2.pos.y - n1.pos.y) ^ 2
   in
     sqrt (xdiff + ydiff)
 

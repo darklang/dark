@@ -73,8 +73,21 @@ updateKeyPress m code cursor =
      (_, 8, Filling n _, "") ->
        (m, rpc m <| [DeleteNode n.id])
 
-     (_, 38, _, "") ->
-       ({ m | cursor = Canvas.selectNextNode m }, Cmd.none)
+     (_, 38, _, "") -> -- up
+       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.y > o.y)
+        } , Cmd.none)
+
+     (_, 40, _, "") -> -- down
+       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.y < o.y)
+        } , Cmd.none)
+
+     (_, 37, _, "") -> -- left
+       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x > o.x)
+        } , Cmd.none)
+
+     (_, 39, _, "") -> -- right
+       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x < o.x)
+        } , Cmd.none)
 
      (char, code, cursor, _) ->
        let _ = Debug.log "Nothing to do" (char, code, cursor) in
