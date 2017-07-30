@@ -25,8 +25,9 @@ import Graph as G
 import Canvas
 
 
-
+-----------------------
 -- TOP-LEVEL
+-----------------------
 main : Program (Maybe Editor) Model Msg
 main = Html.programWithFlags
        { init = init
@@ -35,7 +36,9 @@ main = Html.programWithFlags
        , subscriptions = subscriptions}
 
 
+-----------------------
 -- MODEL
+-----------------------
 init : Maybe Editor -> ( Model, Cmd Msg )
 init mEditor =
   let e = case mEditor of
@@ -46,9 +49,14 @@ init mEditor =
     (m, Cmd.batch [Canvas.focusEntry, rpc m <| [LoadInitialGraph]])
 
 
+-----------------------
 -- ports, save Editor state in LocalStorage
+-----------------------
 port setStorage : Editor -> Cmd msg
 
+-----------------------
+-- updates
+-----------------------
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
@@ -70,19 +78,7 @@ updateKeyPress m code cursor =
                ("Nothing to do for" ++ toString (char, code, cursor)) in
        (m, Cmd.none)
 
-addNode : Name -> Pos -> List ImplicitEdge -> RPC
-addNode name pos extras =
-  let newIsValue = Util.rematch "^[\"\'1-9].*" name in
-  if newIsValue then
-    case extras of
-      [(ReceivingEdge _)] ->
-        AddValue name pos []
-      _ ->
-        AddValue name pos extras
-  else
-    AddFunctionCall name pos extras
 
--- updates
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m_ =
   let m = { m_ | lastMsg = msg } in
@@ -204,7 +200,9 @@ update_ msg m_ =
 
 
 
+-----------------------
 -- SUBSCRIPTIONS
+-----------------------
 subscriptions : Model -> Sub Msg
 subscriptions m =
   let dragSubs = case m.drag of
@@ -224,10 +222,24 @@ subscriptions m =
     (List.concat [standardSubs, keySubs, dragSubs])
 
 
+-----------------------
 -- UTIL
+-----------------------
 addError : String -> Model -> List String
 addError error model =
   let time = Util.timestamp ()
   in
     List.take 1
       ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
+
+addNode : Name -> Pos -> List ImplicitEdge -> RPC
+addNode name pos extras =
+  let newIsValue = Util.rematch "^[\"\'1-9].*" name in
+  if newIsValue then
+    case extras of
+      [(ReceivingEdge _)] ->
+        AddValue name pos []
+      _ ->
+        AddValue name pos extras
+  else
+    AddFunctionCall name pos extras
