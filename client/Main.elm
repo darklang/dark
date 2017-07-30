@@ -92,7 +92,7 @@ updateKeyPress m code cursor =
      (l, _, Deselected, _) -> let cursor = l
                                          |> String.fromChar
                                          |> G.fromLetter m
-                                         |> Maybe.map (Canvas.selectNode m)
+                                         |> Maybe.map (Canvas.selectNode m) in
                               case cursor of
                                 Nothing -> (m, Cmd.none)
                                 Just c -> ({ m | cursor = c }, Cmd.none)
