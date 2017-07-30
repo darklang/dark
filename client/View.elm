@@ -22,7 +22,7 @@ import Canvas
 import Defaults
 
 view : Model -> Html.Html Msg
-view model =
+view m =
   -- TODO: recalculate this using Tasks
   let (w, h) = Util.windowSize ()
   in
@@ -30,9 +30,10 @@ view model =
       [Attrs.id "grid"]
       [ (Svg.svg
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
-           (viewCanvas model))
-      -- , viewRepl model.inputValue
-      , viewErrors model.errors
+           (viewCanvas m))
+      -- , viewRepl m.inputValue
+      , viewErrors m.errors
+      , viewLive m m.cursor
       ]
 
 viewRepl value = Html.form [
@@ -212,6 +213,23 @@ viewNode m n i =
                 [ inner ]
   in
     placeHtml n.pos wrapper
+
+viewLive : Model -> Cursor -> Html.Html Msg
+viewLive m cursor =
+  let live =
+        cursor
+          |> Canvas.getCursorID
+          |> Maybe.andThen (G.getNode m)
+          |> Maybe.map .live
+  in
+    Html.div
+      [Attrs.id "darkLive"]
+      [Html.text <|
+          case live of
+            Just (val, tipe) -> "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"
+            Nothing -> "n/a"
+
+      ]
 
 -- Our edges should be a lineargradient from "darker" to "arrowColor". SVG
 -- gradients are weird, they don't allow you specify based on the line

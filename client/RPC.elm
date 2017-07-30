@@ -8,6 +8,7 @@ import Json.Decode.Pipeline as JSDP
 
 import Types exposing (..)
 import Graph as G
+import Util exposing (deMaybe)
 
 rpc : Model -> List RPC -> Cmd Msg
 rpc m calls =
@@ -98,12 +99,15 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> String -> Int -> Int -> Node
-      toNode name id fields parameters tipe x y =
+  let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> Dict String String -> String -> Int -> Int -> Node
+      toNode name id fields parameters liveDict tipe x y =
+        let livevalue = Dict.get "value" liveDict
+            livetipe = Dict.get "type" liveDict in
           { name = name
           , id = ID id
           , fields = fields
           , parameters = parameters
+          , live = Maybe.map2 (,) livevalue livetipe |> deMaybe
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall
@@ -113,6 +117,8 @@ decodeNode =
                      _ -> Debug.crash "shouldnt happen"
           , pos = {x=x, y=y}
           }
+
+
   in JSDP.decode toNode
     |> JSDP.required "name" JSD.string
     |> JSDP.required "id" JSD.int
@@ -121,6 +127,7 @@ decodeNode =
                                     (JSD.index 0 JSD.string)
                                     (JSD.index 1 JSD.string))) []
     |> JSDP.optional "parameters" (JSD.list JSD.string) []
+    |> JSDP.required "live" (JSD.dict JSD.string)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "x" JSD.int
     |> JSDP.required "y" JSD.int

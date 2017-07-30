@@ -11,6 +11,7 @@ type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
 type alias TypeName = Name
+type alias LiveValue = (String, String)
 
 type ID = ID Int
 deID (ID x) = x
@@ -34,6 +35,7 @@ type alias Node = { name : Name
                   , id : ID
                   , pos : Pos
                   , tipe : NodeType
+                  , live : LiveValue
                   -- for DSes
                   , fields : List (FieldName, TypeName)
                   -- for functions
