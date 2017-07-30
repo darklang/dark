@@ -77,6 +77,7 @@ type Msg
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge, Maybe ID))
+    | Initialization
 
 type RPC
     = LoadInitialGraph
@@ -96,6 +97,7 @@ type alias Model = { nodes : NodeDict
                    , errors : List String
                    , dragPos : Pos
                    , drag : Drag
+                   , lastMsg : Msg
                    -- these values are serialized via Editor
                    , tempFieldName : FieldName
                    , cursor : Cursor

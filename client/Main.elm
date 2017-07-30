@@ -83,7 +83,8 @@ addNode name pos extras =
 
 -- updates
 update_ : Msg -> Model -> (Model, Cmd Msg)
-update_ msg m =
+update_ msg m_ =
+  let m = { m_ | lastMsg = msg } in
   case (msg, m.cursor) of
 
     (CheckEscape code, _) ->

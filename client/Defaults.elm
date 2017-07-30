@@ -44,6 +44,7 @@ defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
                  , edges = []
                  , errors = ["None"]
+                 , lastMsg = Initialization
                  , dragPos = {x=0, y=0}
                  , drag = NoDrag
                 -- these load before the graph does, causing exceptions. We'll
