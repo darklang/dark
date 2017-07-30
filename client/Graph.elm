@@ -3,6 +3,7 @@ module Graph exposing ( orderedNodes
                       , int2letter
                       , getNode
                       , getNodeExn
+                      , distance
                       , findHole
                       , slotIsConnected)
 
@@ -28,6 +29,12 @@ orderedNodes m =
     |> List.sortWith Ordering.natural
     |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
 
+distance : Node -> Node -> Float
+distance n1 n2 =
+  let xdiff = toFloat (n2.pos.x - n1.pos.y) ^ 2
+      ydiff = toFloat (n2.pos.x - n1.pos.y) ^ 2
+  in
+    sqrt (xdiff + ydiff)
 
 int2letter : Int -> String
 int2letter i = i |> (+) 97 |> Char.fromCode |> String.fromChar

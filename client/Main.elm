@@ -73,9 +73,11 @@ updateKeyPress m code cursor =
      (_, 8, Filling n _, "") ->
        (m, rpc m <| [DeleteNode n.id])
 
+     (_, 38, _, "") ->
+       ({ m | cursor = Canvas.selectNextNode m }, Cmd.none)
+
      (char, code, cursor, _) ->
-       let _ = Debug.log
-               ("Nothing to do for" ++ toString (char, code, cursor)) in
+       let _ = Debug.log "Nothing to do" (char, code, cursor) in
        (m, Cmd.none)
 
 

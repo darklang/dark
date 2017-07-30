@@ -88,6 +88,31 @@ getCursorID c =
     Filling node _ -> Just node.id
     _ -> Nothing
 
+selectNextNode : Model -> Cursor
+selectNextNode m =
+  -- if we're currently in a node, follow the direction. For now, pick the
+  -- nearest node to it, that it's connected to, that's roughly in that
+  -- direction.
+  case m.cursor of
+    Filling n _ ->
+      let other =
+          m.edges
+            -- nodes we're connected to
+            |> List.filter (\e -> e.target == n.id || e.source == n.id)
+            |> List.map (\e -> if e.target == n.id then e.source else e.target)
+            |> List.map (G.getNodeExn m)
+            -- that are above us
+            |> List.filter (\other -> other.pos.x < n.pos.x)
+            |> List.sortBy (\other -> G.distance other n)
+            |> List.head
+      in
+        case other of
+          Nothing -> m.cursor
+          Just node -> selectNode m node
+    _ -> m.cursor
+
+
+
 
 selectNode : Model -> Node -> Cursor
 selectNode m selected =
