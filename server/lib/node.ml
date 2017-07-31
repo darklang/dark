@@ -57,7 +57,7 @@ class func n id loc =
   object (self)
     inherit node id loc
     (* Throw an exception if it doesn't exist *)
-    method private fn = (Lib.get_fn_exn n)
+    method private fn = (Libs.get_fn_exn n)
     method name = self#fn.name
     method execute (args : param_map) : dval =
       Runtime.exe self#fn args
