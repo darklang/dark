@@ -12,6 +12,7 @@ import Html
 import Keyboard
 import Mouse
 import Maybe.Extra
+import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
 
 
 -- dark
@@ -23,6 +24,8 @@ import Defaults
 import Repl
 import Graph as G
 import Canvas
+import Keyboard.Event exposing (KeyboardEvent)
+import Keyboard.Key as Key
 
 
 -----------------------
@@ -65,41 +68,54 @@ update msg m =
                  , m |> Defaults.model2editor |> setStorage
                  , Canvas.maybeFocusEntry m m2])
 
-updateKeyPress : Model -> Char.KeyCode -> Cursor -> (Model, Cmd Msg)
-updateKeyPress m code cursor =
-   let char = Char.fromCode code in
-   case (char, code, cursor, m.entryValue) of
+-- We use this because a) it has other modifiers and b) the timing with which it
+-- fires means we get the right value in the entryValue, so we know when to
+-- delete a node (if we rely on globalKeyPress, it deletes one character too
+-- early, though this is maybe fixable.
+updateEntryKeyPress : Model -> KeyboardEvent -> Cursor -> (Model, Cmd Msg)
+updateEntryKeyPress m kb cursor =
+   case (kb.keyCode, cursor, m.entryValue) of
      -- backspace through an empty node
-     (_, 8, Filling n _, "") ->
+     (Key.Backspace, Filling n _, "") ->
        (m, rpc m <| [DeleteNode n.id])
 
-     (_, 38, _, "") -> -- up
+     (Key.Up, _, "") ->
        ({ m | cursor = Canvas.selectNextNode m (\n o -> n.y > o.y)
         } , Cmd.none)
 
-     (_, 40, _, "") -> -- down
+     (Key.Down, _, "") ->
        ({ m | cursor = Canvas.selectNextNode m (\n o -> n.y < o.y)
         } , Cmd.none)
 
-     (_, 37, _, "") -> -- left
+     (Key.Left, _, "") ->
        ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x > o.x)
         } , Cmd.none)
 
-     (_, 39, _, "") -> -- right
+     (Key.Right, _, "") ->
        ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x < o.x)
         } , Cmd.none)
 
-     (l, _, Deselected, _) -> let cursor = l
-                                         |> String.fromChar
-                                         |> G.fromLetter m
-                                         |> Maybe.map (Canvas.selectNode m) in
-                              case cursor of
-                                Nothing -> (m, Cmd.none)
-                                Just c -> ({ m | cursor = c }, Cmd.none)
-
-     (char, code, cursor, _) ->
-       let _ = Debug.log "Nothing to do" (char, code, cursor) in
+     (key, cursor, _) ->
+       let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in
        (m, Cmd.none)
+
+-- This fires when we're not in the input box
+updateGlobalKeyPress : Model -> Keyboard.KeyCode -> Cursor -> (Model, Cmd Msg)
+updateGlobalKeyPress m code cursor =
+  if cursor == Deselected then
+    let cursor = code
+               |> Char.fromCode
+               |> String.fromChar
+               |> G.fromLetter m
+               |> Maybe.map (Canvas.selectNode m) in
+    case cursor of
+      Nothing ->
+        let _ = Debug.log "[global] No node named " (Char.fromCode code) in
+        (m, Cmd.none)
+      Just c -> ({ m | cursor = c }, Cmd.none)
+  else
+    let _ = Debug.log "[global] Nothing to do" (Char.fromCode code, code, cursor, m.entryValue) in
+    (m, Cmd.none)
 
 update_ : Msg -> Model -> (Model, Cmd Msg)
 update_ msg m_ =
@@ -111,8 +127,11 @@ update_ msg m_ =
       then ({ m | cursor = Deselected }, Cmd.none)
       else (m, Cmd.none)
 
-    (KeyPress code, cursor) ->
-      updateKeyPress m code cursor
+    (EntryKeyPress event, cursor) ->
+      updateEntryKeyPress m event cursor
+
+    (GlobalKeyPress code, cursor) ->
+      updateGlobalKeyPress m code cursor
 
     (NodeClick node, _) ->
       ({ m | cursor = Canvas.selectNode m node}, Cmd.none)
@@ -245,7 +264,7 @@ subscriptions m =
                      [ Mouse.moves DragSlotMove
                      , Mouse.ups DragSlotStop]
                    NoDrag -> [ ]
-      keySubs = [ Keyboard.downs KeyPress]
+      keySubs = [ Keyboard.downs GlobalKeyPress]
       standardSubs = [ Keyboard.downs CheckEscape
                      , Mouse.downs RecordClick]
   in Sub.batch

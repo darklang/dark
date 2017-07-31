@@ -13,6 +13,7 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
+import Keyboard.Event
 
 
 import Types exposing (..)
@@ -78,6 +79,7 @@ viewCursor m =
                     Events.onSubmit (EntrySubmitMsg)
                    ] [
                     Html.input [ Attrs.id Defaults.entryID
+                               , Events.on "keydown" entryKeyHandler
                                , Events.onInput EntryInputMsg
                                , Attrs.width 50
                                , Attrs.value m.entryValue
@@ -372,3 +374,4 @@ decodeClickEvent fn =
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
 
+entryKeyHandler = JSD.map EntryKeyPress Keyboard.Event.decodeKeyboardEvent

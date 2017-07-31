@@ -1,10 +1,14 @@
 module Types exposing (..)
 
+-- builtin
 import Dict exposing (Dict)
 import Http
 import Dom
 import Keyboard
 import Mouse
+
+-- libs
+import Keyboard.Event
 
 
 type alias Name = String
@@ -77,7 +81,8 @@ type Msg
     | ReplSubmitMsg
     | EntryInputMsg String
     | EntrySubmitMsg
-    | KeyPress Keyboard.KeyCode
+    | GlobalKeyPress Keyboard.KeyCode
+    | EntryKeyPress Keyboard.Event.KeyboardEvent
     | CheckEscape Keyboard.KeyCode
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge, Maybe ID))
