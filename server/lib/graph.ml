@@ -71,6 +71,10 @@ let has_edge (s: id) (t: id) (param: param) (g : graph) : bool =
 (* Updating *)
 (* ------------------------- *)
 let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
+  if s = t then
+    (* TODO: deal with cycles *)
+    Exception.raise "The source and the target can't be the same node";
+
   (* Can't have two edges to the same target *)
   (* TODO: exception for datasinks like DBs and APIs *)
   if has_edge s t param g then
