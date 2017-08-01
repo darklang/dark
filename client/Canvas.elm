@@ -96,11 +96,7 @@ selectNextNode m cond =
   case m.cursor of
     Filling n _ ->
       let other =
-          m.edges
-            -- nodes we're connected to
-            |> List.filter (\e -> e.target == n.id || e.source == n.id)
-            |> List.map (\e -> if e.target == n.id then e.source else e.target)
-            |> List.map (G.getNodeExn m)
+          G.connectedNodes m n
             -- that are above us
             |> List.filter (\o -> cond n.pos o.pos)
             -- the nearest to us

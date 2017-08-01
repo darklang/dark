@@ -230,10 +230,14 @@ update_ msg m_ =
                        then Deselected
                        else m.cursor
 
+                     -- TODO if the just-added node has an outgoing edge, which
+                     -- was just selected, choose it instead.
+
                      -- if we added a node, select it
                      Just id ->
                        let node = G.getNodeExn m2 id in
                        Canvas.selectNode m2 node
+
       in
         ({ m2 | cursor = cursor
               , entryValue = ""}, Cmd.none)

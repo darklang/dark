@@ -5,7 +5,8 @@ module Graph exposing ( orderedNodes
                       , getNodeExn
                       , distance
                       , findHole
-                      , slotIsConnected)
+                      , slotIsConnected
+                      , connectedNodes)
 
 import Array
 import Char
@@ -51,9 +52,34 @@ getNode m id = Dict.get (deID id) m.nodes
 getNodeExn : Model -> ID -> Node
 getNodeExn m id = getNode m id |> deMaybe
 
+incomingEdges : Model -> Node -> List Edge
+incomingEdges m target = List.filter (\e -> e.target == target.id) m.edges
+
+outgoingEdges : Model -> Node -> List Edge
+outgoingEdges m source = List.filter (\e -> e.source == source.id) m.edges
+
+incomingNodes : Model -> Node -> List Node
+incomingNodes m n = n
+                  |> incomingEdges m
+                  |> List.map .source
+                  |> List.map (getNodeExn m)
+
+outgoingNodes : Model -> Node -> List Node
+outgoingNodes m n = n
+                  |> outgoingEdges m
+                  |> List.map .target
+                  |> List.map (getNodeExn m)
+
+-- TODO: if a node has the same incoming and outgoing node, this will
+-- break. But, we shouldn't allow cycles like that anyway, except in
+-- some cases...
+connectedNodes : Model -> Node -> List Node
+connectedNodes m n = (incomingNodes m n) ++ (outgoingNodes m n)
+
+
 findHole : Model -> Node -> Hole
-findHole model n =
-  let incoming = List.filter (\e -> e.target == n.id) model.edges
+findHole m n =
+  let incoming = incomingEdges m n
       used_params = List.map .param incoming
       all_params = List.indexedMap (,) n.parameters
       unused = List.Extra.find
