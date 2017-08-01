@@ -66,8 +66,8 @@ let server =
              -> `OK, static_handler p
            | _ -> `Not_implemented, "app routing"
          with
-         | e -> Printexc.print_backtrace stderr;
-           raise e)
+         | e -> print_endline (Exn.backtrace ());
+           `Internal_server_error, Exn.to_string e)
       >>= (fun (status, body) -> S.respond_string ~status ~body ())
     in
     ()
