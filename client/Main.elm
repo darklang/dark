@@ -199,7 +199,7 @@ update_ msg m_ =
                     ParamHole n p _ -> ParamEdge n.id p
       in
         case String.uncons m.entryValue of
-          -- allow $var
+          -- allow $var instead
           Just ('$', rest) ->
             case G.fromLetter m rest of
               Just source ->
@@ -208,11 +208,11 @@ update_ msg m_ =
                   _ -> report m "There isn't parameter we're looking to fill here"
               Nothing -> report m ("There isn't a node named '" ++ rest ++ "' to connect to")
 
-          _ -> (m, rpc m <| [addNode m.entryValue pos [extra]])
+          _ -> (m, rpc m <| addNode m.entryValue pos [extra])
 
 
     (EntrySubmitMsg, Creating pos) ->
-      (m, rpc m <| [addNode m.entryValue pos []])
+      (m, rpc m <| addNode m.entryValue pos [])
 
 
 
@@ -291,14 +291,17 @@ report m err =
   in ({ m | error = err ++ " (" ++ toString time ++ ") "
           }, Cmd.none)
 
-addNode : Name -> Pos -> List ImplicitEdge -> RPC
+addNode : Name -> Pos -> List ImplicitEdge -> List RPC
 addNode name pos extras =
   let newIsValue = Util.rematch "^[\"\'1-9].*" name in
   if newIsValue then
     case extras of
       [(ReceivingEdge _)] ->
-        AddValue name pos []
+        [AddValue name pos []]
       _ ->
-        AddValue name pos extras
+        [AddValue name pos extras]
   else
-    AddFunctionCall name pos extras
+    if name == "" then
+      []
+    else
+      [AddFunctionCall name pos extras]
