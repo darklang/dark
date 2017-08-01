@@ -37,10 +37,10 @@ distance n1 n2 =
     sqrt (xdiff + ydiff)
 
 int2letter : Int -> String
-int2letter i = i |> (+) 97 |> Char.fromCode |> String.fromChar
+int2letter i = 'a' |> Char.toCode |> (+) i |> Char.fromCode |> String.fromChar
 
 letter2int : String -> Int
-letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) 65 |> (*) (-1)
+letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
 
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2int letter)

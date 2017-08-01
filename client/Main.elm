@@ -105,6 +105,7 @@ updateGlobalKeyPress m code cursor =
   if cursor == Deselected then
     let cursor = code
                |> Char.fromCode
+               |> Char.toLower
                |> String.fromChar
                |> G.fromLetter m
                |> Maybe.map (Canvas.selectNode m) in
