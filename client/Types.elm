@@ -103,7 +103,7 @@ type RPC
 
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
-                   , errors : List String
+                   , error : String
                    , dragPos : Pos
                    , drag : Drag
                    , lastMsg : Msg

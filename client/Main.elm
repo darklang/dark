@@ -207,7 +207,7 @@ update_ msg m_ =
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
                    , edges = edges
-                   , errors = []}
+                   , error = ""}
           cursor = case justAdded of
                      -- if we deleted a node, the cursor is probably invalid
                      Nothing ->
@@ -231,8 +231,7 @@ update_ msg m_ =
     -- plumbing
     ------------------------
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
-      ({ m | errors = addError ("Bad RPC call: " ++ toString(error.body)) m
-       }, Cmd.none)
+      report m ("Bad RPC call: " ++ (toString error.body))
 
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
@@ -247,7 +246,7 @@ update_ msg m_ =
        }, Cmd.none)
 
     t -> -- All other cases
-      ({ m | errors = addError ("Nothing for " ++ (toString t)) m }, Cmd.none)
+      report m ("Nothing for " ++ (toString t))
 
 
 
@@ -274,12 +273,11 @@ subscriptions m =
 -----------------------
 -- UTIL
 -----------------------
-addError : String -> Model -> List String
-addError error model =
+report : Model -> String -> (Model, Cmd msg)
+report m err =
   let time = Util.timestamp ()
-  in
-    List.take 1
-      ((error ++ " (" ++ toString time ++ ") ") :: model.errors)
+  in ({ m | error = err ++ " (" ++ toString time ++ ") "
+          }, Cmd.none)
 
 addNode : Name -> Pos -> List ImplicitEdge -> RPC
 addNode name pos extras =

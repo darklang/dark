@@ -43,7 +43,7 @@ model2editor m =
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
                  , edges = []
-                 , errors = ["None"]
+                 , error = "None"
                  , lastMsg = Initialization
                  , dragPos = {x=0, y=0}
                  , drag = NoDrag

@@ -33,7 +33,7 @@ view m =
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas m))
       -- , viewRepl m.inputValue
-      , viewErrors m.errors
+      , viewError m.error
       , viewLive m m.cursor
       ]
 
@@ -47,8 +47,9 @@ viewRepl value = Html.form [
                              ] []
                  ]
 
--- TODO: CSS this onto the bottom
-viewErrors errors = Html.div [Attrs.id "darkErrors"] <| (Html.text "Err: ") :: (List.map Html.text errors)
+viewError error = Html.div
+                  [Attrs.id "darkErrors"]
+                  [Html.text <| "Err: " ++ error]
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
