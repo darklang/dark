@@ -4,7 +4,41 @@ module C = Curl
 
 type verb = GET | POST
 
-let call (url: string) (verb: verb) (headers: string list) (body: string) : string =
+let filename_for (url: string) (verb: verb) (body: string) : string =
+  let verbs = match verb with
+    | GET -> "GET"
+    | POST -> "POST" in
+  url
+  |> String.tr ~target:'/' ~replacement:'_'
+  |> String.tr ~target:':' ~replacement:'_'
+  |> String.tr ~target:'-' ~replacement:'_'
+  |> String.tr ~target:'?' ~replacement:'_'
+  |> (^) ("cache/" ^ verbs ^ "_")
+
+let save_call (url: string) (verb: verb) (body: string) (value : string) : unit =
+  let filename = filename_for url verb body in
+  Util.writefile filename value
+
+let cached_call (url: string) (verb: verb) (body: string) : string option =
+
+  if body <> "" then
+    None
+  else
+    let filename = filename_for url verb body in
+    if Sys.file_exists filename <> `Yes then
+      None
+    else
+       if (Unix.stat filename).st_mtime < (Unix.gettimeofday () ) then
+         Some (Util.readfile filename)
+       else
+         None
+
+
+
+
+
+
+let http_call (url: string) (verb: verb) (headers: string list) (body: string) : string =
   let errorbuf = ref "" in
   let responsebuf = ref "" in
 
@@ -42,3 +76,10 @@ let call (url: string) (verb: verb) (headers: string list) (body: string) : stri
     (* print_endline msg; *)
 
   response
+
+let call (url: string) (verb: verb) (headers: string list) (body: string) : string =
+  match cached_call url verb body with
+  | None -> let result = http_call url verb headers body in
+    save_call url verb body result;
+    result
+  | Some result -> result
