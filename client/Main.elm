@@ -195,10 +195,21 @@ update_ msg m_ =
     ------------------------
     (EntrySubmitMsg, Filling node pos) ->
       let extra = case G.findHole m node of
-                     ResultHole n -> ReceivingEdge n.id
-                     ParamHole n p _ -> ParamEdge n.id p
+                    ResultHole n -> ReceivingEdge n.id
+                    ParamHole n p _ -> ParamEdge n.id p
       in
-        (m, rpc m <| [addNode m.entryValue pos [extra]])
+        case String.uncons m.entryValue of
+          -- allow $var
+          Just ('$', rest) ->
+            case G.fromLetter m rest of
+              Just source ->
+                case extra of
+                  ParamEdge tid p -> (m, rpc m <| [AddEdge source.id (tid, p)])
+                  _ -> report m "There isn't parameter we're looking to fill here"
+              Nothing -> report m ("There isn't a node named '" ++ rest ++ "' to connect to")
+
+          _ -> (m, rpc m <| [addNode m.entryValue pos [extra]])
+
 
     (EntrySubmitMsg, Creating pos) ->
       (m, rpc m <| [addNode m.entryValue pos []])
