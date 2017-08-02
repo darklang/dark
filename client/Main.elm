@@ -297,7 +297,7 @@ report m err =
 
 addNode : Name -> Pos -> List ImplicitEdge -> List RPC
 addNode name pos extras =
-  let newIsValue = Util.rematch "^[\"\'1-9].*" name in
+  let newIsValue = Util.rematch "^[\"\'[1-9{].*" name in
   if newIsValue then
     case extras of
       [(ReceivingEdge _)] ->

@@ -1,7 +1,9 @@
 (* We don't want to hit API limits, so we'll cache everything on disk permanently. *)
 (* If we ever call it again, we'll use the on-disk version first *)
+open Core
 
 type dval = Runtime.dval
+module ObjMap = Runtime.ObjMap
 
 (* See test.sh for how to get this token *)
 let bearer =
@@ -10,7 +12,16 @@ let bearer =
   ^ "Pagi8le92ZQE5PXTqimhtVRqyjeWRz"
 
 
-let dval2query (v: dval) : string = "screen_name=ellenchisa"
+let rec dval2query (v: dval) : string =
+  match v with
+  | DObj obj -> obj
+                |> ObjMap.fold
+                  ~init:[]
+                  ~f:(fun ~key ~data l ->
+                      (key ^ "=" ^ (dval2query data)) :: l)
+                |> String.concat ~sep:"&"
+  | DStr str -> str
+  | _ -> Runtime.to_string v
 
 let call (endpoint: string) (verb: Http.verb) (argument: dval) : dval =
   let prefix = "https://api.twitter.com/1.1/" in

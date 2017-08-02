@@ -19,25 +19,6 @@ and dval = DInt of int
 module ParamMap = String.Map
 type param_map = dval ParamMap.t
 
-let parse (str : string) : dval =
-  if String.equal str "" then
-    "Values cannot be blank" |> Exception.raise
-  else if String.length str >= 2
-       && Char.equal '"' (String.nget str 0)
-       && Char.equal '"' (String.nget str (-1))
-  then DStr (String.slice str 1 (-1))
-  else if String.length str = 3
-       && Char.equal '\'' (String.nget str 0)
-       && Char.equal '\'' (String.nget str (-1))
-  then DChar (String.get str 1)
-  else
-    try DInt (int_of_string str)
-    with
-    | Failure _ ->
-      try DFloat (float_of_string str)
-      with
-      | Failure _ ->
-        Exception.raise ("Cannot parse value: " ^ str)
 
 let rec to_repr (dv : dval) : string =
   match dv with
@@ -58,6 +39,27 @@ let rec to_repr (dv : dval) : string =
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
   | _ -> failwith "to_repr not implemented yet"
+
+let rec to_string (dv : dval) : string =
+  match dv with
+  | DInt i -> string_of_int i
+  | DBool true -> "true"
+  | DBool false -> "false"
+  | DStr s -> s
+  | DFloat f -> string_of_float f
+  | DChar c -> Char.to_string c
+  | DAnon _ -> "<anon>"
+  | DIncomplete -> "<incomplete>"
+  | DList l ->
+    "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_string l)) ^ " ]"
+  | DObj o ->
+    let strs = ObjMap.fold o
+        ~init:[]
+        ~f:(fun ~key ~data l -> (key ^ ": " ^ to_string data) :: l) in
+
+    "{ " ^ (String.concat ~sep:", " strs) ^ " }"
+  | _ -> failwith "to_string not implemented yet"
+
 
 
 let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
@@ -105,6 +107,15 @@ let json2dval (json : string) : dval =
   json |> Yojson.Safe.from_string |> json2dval_
 
 let dval2json (v: dval) : string = "{}"
+
+
+(* ------------------------- *)
+(* Parsing *)
+(* ------------------------- *)
+let parse (str : string) : dval =
+  (* TODO: Doesn't handle characters. Replace with a custom parser,
+     using the one in RealWorldOcaml, or just ripped out of Yojson *)
+  json2dval str
 
 
 (* ------------------------- *)
