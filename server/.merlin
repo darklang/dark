@@ -1,6 +1,6 @@
 PKG core postgresql
 PKG ppx_deriving.std ppx_deriving_yojson
-PKG cohttp.lwt
+PKG cohttp.lwt curl ppx_fields_conv
 
 S lib
 S bin
