@@ -73,6 +73,7 @@ def ignore(filename, reason):
             , ".merlin"
             , "client/elm-stuff"
             , "server/static/elm.js"
+            , "server/cache/"
             , "server/_build/"
             , "server/appdata/"
   ]
