@@ -66,8 +66,15 @@ let server =
              -> `OK, static_handler p
            | _ -> `Not_implemented, "app routing"
          with
-         | e -> print_endline (Exn.backtrace ());
-           `Internal_server_error, Exn.to_string e)
+         | e ->
+           let msg = match e with
+             | (Exception.UserException msg) -> "UserException: " ^ msg
+             | (Yojson.Json_error msg) -> "Not a value: " ^ msg
+             | _ -> Exn.to_string e
+           in
+           print_endline ("Error: " ^ msg);
+           print_endline (Exn.backtrace ());
+           `Internal_server_error, msg)
       >>= (fun (status, body) -> S.respond_string ~status ~body ())
     in
     ()
