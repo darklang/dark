@@ -160,7 +160,7 @@ update_ msg m_ =
         Nothing -> NoChange
         Just ('$', rest) -> Entry.addVar m rest
         Just ('.', fieldname) ->
-          -- create two nodes, add them both
+          -- create two implicit edges
           let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
               implicit = Entry.findImplicitEdge m node
           in

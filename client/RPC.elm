@@ -104,16 +104,21 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> Dict String String -> String -> Int -> Int -> Node
-      toNode name id fields parameters liveDict tipe x y =
+  let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> List (Maybe String) -> Dict String String -> String -> Int -> Int -> Node
+      toNode name id fields parameters constants liveDict tipe x y =
         let livevalue = Dict.get "value" liveDict
             livetipe = Dict.get "type" liveDict in
           { name = name
           , id = ID id
           , fields = fields
           , parameters = parameters
+          , constants = constants
+                        |> List.map2 (,) parameters
+                        |> List.filterMap (\(k,const) -> case const of
+                                                           Nothing -> Nothing
+                                                           Just c -> Just (k,c))
+                        |> Dict.fromList
           , live = Maybe.map2 (,) livevalue livetipe |> deMaybe
-          , constants = Dict.empty
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall
@@ -133,6 +138,7 @@ decodeNode =
                                     (JSD.index 0 JSD.string)
                                     (JSD.index 1 JSD.string))) []
     |> JSDP.optional "parameters" (JSD.list JSD.string) []
+    |> JSDP.optional "constants" (JSD.list (JSD.nullable JSD.string)) []
     |> JSDP.required "live" (JSD.dict JSD.string)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "x" JSD.int

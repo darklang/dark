@@ -22,7 +22,10 @@ let fns : Lib.shortfn list = [
   ; o = ["get_field"]
   ; p = ["value"; "fieldname"]
   ; f = function
-      | [DObj value; DStr fieldname] -> ObjMap.find_exn value fieldname
+      | [DObj value; DStr fieldname] ->
+        (match ObjMap.find value fieldname with
+         | None -> Exception.raise ("Value has no field named: " ^ fieldname)
+         | Some v -> v)
       | args -> expected "obj, string" args
   }
   ;
