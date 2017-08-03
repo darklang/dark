@@ -142,11 +142,11 @@ let rec execute (id: id) ?(eager: dvalmap = DValMap.empty) (g: graph) : dval =
   | Some v -> v
   | None ->
     let n = get_node id g in
-    let args = List.map
-        ~f:(fun e -> (e.param, execute e.source ~eager g))
-        (get_parents id g) in
-    let args = ParamMap.of_alist_exn args in
-    n#execute args
+    get_parents id g
+    |> List.map ~f:(fun e -> (e.param, execute e.source ~eager g))
+    |> List.append (ParamMap.to_alist n#constants)
+    |> ParamMap.of_alist_exn
+    |> n#execute
 
 let executor id (g: graph ref) : (dval -> dval) =
   (* We specifically need a graph ref here, not an immutable graph as we

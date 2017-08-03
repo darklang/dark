@@ -35,7 +35,7 @@ class virtual node id loc =
     method is_datasink = false
     method is_datasource = false
     method parameters : string list = []
-    method constants : (dval option) list = []
+    method constants : param_map = ParamMap.empty
     method update_loc _loc : unit =
       loc <- _loc
     method to_frontend ((value, tipe) : string * string) : nodejson =
@@ -46,7 +46,10 @@ class virtual node id loc =
       ; y = loc.y
       ; live = { value = value ; tipe = tipe }
       ; parameters = self#parameters
-      ; constants = List.map ~f:(Option.map ~f:Runtime.to_repr) self#constants
+      ; constants = List.map ~f:(fun p -> p
+                                          |> ParamMap.find self#constants
+                                          |> Option.map ~f:Runtime.to_repr)
+            self#parameters
       }
   end
 
@@ -73,7 +76,7 @@ class func n id loc =
       then self#name
       else "function"
     method parameters : string list = self#fn.parameters
-    method constants = List.map ~f:(ParamMap.find constants) self#parameters
+    method constants = constants
     method add_constant (name: string) (value: string) =
       constants <- ParamMap.add constants ~key:name ~data:(Runtime.parse value)
 
