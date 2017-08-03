@@ -5,6 +5,8 @@ module Graph exposing ( orderedNodes
                       , getNodeExn
                       , distance
                       , findHole
+                      , incomingEdges
+                      , constantFold
                       , slotIsConnected
                       , connectedNodes)
 
@@ -80,7 +82,7 @@ connectedNodes m n = (incomingNodes m n) ++ (outgoingNodes m n)
 findHole : Model -> Node -> Hole
 findHole m n =
   let incoming = incomingEdges m n
-      used_params = List.map .param incoming
+      used_params = List.map .param incoming ++ Dict.keys n.constants
       all_params = List.indexedMap (,) n.parameters
       unused = List.Extra.find
                (\(i, p) -> not <| List.member p used_params)
@@ -91,7 +93,56 @@ findHole m n =
       Just (i, p) -> ParamHole n p i
 
 
-
 slotIsConnected : Model -> ID -> ParamName -> Bool
 slotIsConnected m target param =
+  let node = getNodeExn m target in
   List.any (\e -> e.target == target && e.param == param) m.edges
+    || Dict.member param node.constants
+
+
+constantFold m =
+  -- fold the edges with m. remove any edge that matches. If there are
+  -- no more edges, remove the node.
+  let foldable fe fm =
+      -- if we remove a node, we should never see an edge referencing it
+      -- again as constants have no incoming nodes, and only this
+      -- outgoing node
+      let source = getNodeExn fm fe.source
+          target = getNodeExn fm fe.target
+          -- decide what to do
+          removeEdge = source.tipe == Value
+                       && (String.length source.name < 6
+                          || target.name == ".")
+          removeNode = removeEdge
+                       && 1 <= List.length (Debug.log "outgoing" <| outgoingNodes fm source)
+          -- remove edges and maybe node
+          edges = if removeEdge then
+                    List.filter ((/=) fe) fm.edges
+                  else fm.edges
+          nodes = if removeNode then
+                    Dict.remove (source.id |> deID) fm.nodes
+                  else
+                    fm.nodes
+          -- update the existing node
+          newNode = { target | constants = Dict.insert fe.param source.name target.constants }
+          nodes2 = if removeEdge then
+                    Dict.insert (target.id |> deID) newNode nodes
+                  else
+                    fm.nodes
+          cursor = case fm.cursor of
+                     Filling n p -> if removeNode then
+                                      Filling target p
+                                    else
+                                      fm.cursor
+                     c -> c
+          _ = Debug.log "edge" fe
+          _ = Debug.log "removeEdge" removeEdge
+          _ = Debug.log "removeNode" removeNode
+      in
+        { fm | nodes = nodes2
+             , edges = Debug.log "newEdges" edges
+             , cursor = cursor}
+  in
+    let _ = Debug.log "model" m in
+    Debug.log "newmodel" <| List.foldl foldable m m.edges
+

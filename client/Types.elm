@@ -44,6 +44,7 @@ type alias Node = { name : Name
                   , fields : List (FieldName, TypeName)
                   -- for functions
                   , parameters : List ParamName
+                  , constants : Dict String String
                   }
 
 type alias Edge = { source : ID

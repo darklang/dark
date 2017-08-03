@@ -197,7 +197,7 @@ update_ msg m_ =
                        Canvas.selectNode m2 node
 
       in
-        Many [ ModelMod (\m -> { m2 | entryValue = "" } )
+        Many [ ModelMod (\_ -> G.constantFold { m2 | entryValue = "" } )
              , Cursor cursor]
 
 

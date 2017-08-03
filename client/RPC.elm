@@ -108,6 +108,7 @@ decodeNode =
           , fields = fields
           , parameters = parameters
           , live = Maybe.map2 (,) livevalue livetipe |> deMaybe
+          , constants = Dict.empty
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall

@@ -123,7 +123,8 @@ nodeWidth n =
   let
     slimChars = Set.fromList Defaults.narrowChars
     len name =
-      name
+      n
+        |> nodeName
         |> String.toList
         |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
         |> List.sum
@@ -134,7 +135,7 @@ nodeWidth n =
     ln = [nameMultiple * len n.name]
     lf = List.map (\(n,t) -> len n + len t + 3) n.fields
     charWidth = List.foldl max 2 (ln ++ lf)
-    width = charWidth * 10
+    width = charWidth * 12
   in
     round(width)
 
@@ -146,6 +147,16 @@ nodeHeight n =
 
 nodeSize node =
   (nodeWidth node , nodeHeight node)
+
+nodeName n =
+  let defaultParam = "◉"
+      parameterTexts = List.map (\p -> case Dict.get p n.constants of
+                                         Just c -> c
+                                         Nothing -> defaultParam) n.parameters
+
+  in
+    String.join " " (n.name :: parameterTexts)
+
 
 -- TODO: Allow selecting an edge, then highlight it and show its source and target
 -- TODO: If there are default parameters, show them inline in the node body
@@ -178,7 +189,7 @@ viewNode m n i =
       -- heading
       heading = Html.span
                 [ Attrs.class "name"]
-                [ Html.text n.name ]
+                [ Html.text (nodeName n) ]
 
       -- fields (in list)
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
