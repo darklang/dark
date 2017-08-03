@@ -11,6 +11,7 @@ type json = Yojson.Safe.json
 type op = Add_fn_call of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
+        | Add_constant of string * id * param
         (* id in the outer graph, id in the inner graph *)
         | Add_anon of id * id * loc
         (* id, name, type, is_list *)
@@ -27,6 +28,7 @@ let id_of_option op : id option =
   | Add_fn_call (_, id, _) -> Some id
   | Add_datastore (_, id, _) -> Some id
   | Add_value (_, id, _) -> Some id
+  | Add_constant (_, id, _) -> Some id
   | Add_anon (id, _, _) -> Some id
   | Update_node_position (id, _) -> Some id
   | Clear_edges (id) -> Some id

@@ -72,6 +72,14 @@ let param_exists (t: id) (param: param) (g : graph) : bool =
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
+
+let add_constant (v : string) (t: id) (param: param) (g: graph) : graph =
+  { g with nodes = NodeMap.update g.nodes t
+               ~f:(fun vopt -> match vopt with
+                   | None -> Exception.raise "Adding a constant to a node that doesn't exist"
+                   | Some n -> n#add_constant param v; n)
+  }
+
 let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   if s = t then
     (* TODO: deal with cycles *)
@@ -162,6 +170,8 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore table id loc)
     | Add_value (expr, id, loc) ->
       add_node (new Node.value expr id loc)
+    | Add_constant (value, target, param) ->
+      add_constant value target param
     | Add_anon (id, inner_id, loc) ->
       (fun _g ->
          let _g = add_node (new Node.anon_inner inner_id loc) _g in

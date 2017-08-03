@@ -15,8 +15,12 @@ type receiving_edge = { source: int
 type param_edge = { target: int
                   ; param: string
                   } [@@deriving yojson]
+type constant = { param: string
+                ; value: string
+                } [@@deriving yojson]
 type implicit_edge = { receiving_edge : receiving_edge option [@default None]
                      ; param_edge : param_edge option [@default None]
+                     ; constant : constant option [@default None]
                      } [@@deriving yojson]
 
 (* ---------------- *)
@@ -35,6 +39,10 @@ type add_value = { value: string
                  ; pos: pos
                  ; edges : implicit_edge list
                  } [@@deriving yojson]
+type add_constant = { target: int
+                    ; param: string
+                    ; value: string
+                    } [@@deriving yojson]
 type add_edge = { source: int
                 ; target: int
                 ; param: string
@@ -55,6 +63,7 @@ type load_initial_graph = { fake: int option [@default None]
 (* ---------------- *)
 type opjson =
   { add_value : add_value option [@default None]
+  ; add_constant : add_constant option [@default None]
   ; add_datastore: add_datastore option [@default None]
   ; add_function_call: add_function_call option [@default None]
   ; add_anon: add_anon option [@default None]
@@ -72,6 +81,7 @@ let convert_edge (id: id) (param: string option) (edge: implicit_edge) : op =
   match edge with
     | { receiving_edge = Some e } -> Add_edge (e.source, id, Option.value_exn param)
     | { param_edge = Some e } -> Add_edge (id, e.target, e.param)
+    | { constant = Some e } -> Add_constant (e.value, id, e.param)
     | _ -> failwith "Unexpected edge type"
 
 let json2op (op : opjson) : op list =
@@ -84,6 +94,9 @@ let json2op (op : opjson) : op list =
   | { delete_edge = Some a } -> [Delete_edge (a.source, a.target, a.param)]
   | { delete_node = Some a } -> [Delete_node a.id]
   | { clear_edges = Some a } -> [Clear_edges a.id]
+
+  | { add_constant = Some a } ->
+    [Add_constant (a.value, a.target, a.param)]
 
   | { add_function_call = Some a } ->
     let nodeid = id () in
