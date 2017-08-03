@@ -115,10 +115,10 @@ type alias Model = { nodes : NodeDict
                    }
 
 type Modification = Error String
-                  | NewCursor Cursor
-                  | NewRPC RPC
+                  | Cursor Cursor
+                  | RPC RPC
                   | ModelMod (Model -> Model)
-                  | NewDrag Drag
+                  | Drag Drag
                   | NoChange
                   | Many (List Modification)
 

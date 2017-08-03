@@ -73,13 +73,13 @@ updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
   let (newm, newcmd) =
     case mod of
-      NewRPC call -> (m, rpc m [call])
+      RPC call -> (m, rpc m [call])
       NoChange -> (m, Cmd.none)
       Error e -> ({ m | error = (e, Util.timestamp ())
                   }, Cmd.none)
-      NewCursor c -> ({ m | cursor = c
+      Cursor c -> ({ m | cursor = c
                       }, Canvas.maybeFocusEntry m.cursor c)
-      NewDrag d -> ({ m | drag = d
+      Drag d -> ({ m | drag = d
                     }, Cmd.none)
       ModelMod mm -> (mm m, Cmd.none)
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
@@ -94,17 +94,17 @@ update_ msg m_ =
 
     (CheckEscape code, _) ->
       if code == Defaults.escapeKeycode
-      then NewCursor Deselected
+      then Cursor Deselected
       else NoChange
 
     (NodeClick node, _) ->
-      NewCursor <| Canvas.selectNode m node
+      Cursor <| Canvas.selectNode m node
 
     (RecordClick pos, _) ->
       -- When we click on a node, drag is set when RecordClick happens.
       -- So this avoids firing if we click outside a node
       if m.drag == NoDrag then
-        NewCursor <| Creating pos
+        Cursor <| Creating pos
       else
         NoChange
 
@@ -116,8 +116,8 @@ update_ msg m_ =
       if m.drag == NoDrag && event.button == Defaults.leftButton
       then
         let offset = Canvas.findOffset node.pos event.pos in
-        Many [ NewDrag <| DragNode node.id offset
-             , NewCursor <| Dragging node.id]
+        Many [ Drag <| DragNode node.id offset
+             , Cursor <| Dragging node.id]
       else NoChange
 
     (DragNodeMove id offset pos, _) ->
@@ -129,14 +129,14 @@ update_ msg m_ =
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      Many [ NewDrag NoDrag
-           , NewCursor <| Canvas.selectNode m node
-           , NewRPC <| UpdateNodePosition id node.pos]
+      Many [ Drag NoDrag
+           , Cursor <| Canvas.selectNode m node
+           , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
       if event.button == Defaults.leftButton
-      then Many [ NewCursor <| Dragging target.id
-                , NewDrag <| DragSlot target param event.pos]
+      then Many [ Cursor <| Dragging target.id
+                , Drag <| DragSlot target param event.pos]
       else NoChange
 
     (DragSlotMove mpos, _) ->
@@ -145,12 +145,12 @@ update_ msg m_ =
     (DragSlotEnd source, _) ->
       case m.drag of
         DragSlot target param starting ->
-          Many [ NewDrag NoDrag
-               , NewRPC <| AddEdge source.id (target.id, param)]
+          Many [ Drag NoDrag
+               , RPC <| AddEdge source.id (target.id, param)]
         _ -> NoChange
 
     (DragSlotStop _, _) ->
-      NewDrag NoDrag
+      Drag NoDrag
 
     ------------------------
     -- entry node
@@ -198,7 +198,7 @@ update_ msg m_ =
 
       in
         Many [ ModelMod (\m -> { m2 | entryValue = "" } )
-             , NewCursor cursor]
+             , Cursor cursor]
 
 
     ------------------------

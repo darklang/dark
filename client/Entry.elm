@@ -26,19 +26,19 @@ updateEntryKeyPress m kb cursor =
    case (kb.keyCode, cursor, m.entryValue) of
      -- backspace through an empty node
      (Key.Backspace, Filling n _, "") ->
-       NewRPC <| DeleteNode n.id
+       RPC <| DeleteNode n.id
 
      (Key.Up, _, "") ->
-       NewCursor <| Canvas.selectNextNode m (\n o -> n.y > o.y)
+       Cursor <| Canvas.selectNextNode m (\n o -> n.y > o.y)
 
      (Key.Down, _, "") ->
-       NewCursor <| Canvas.selectNextNode m (\n o -> n.y < o.y)
+       Cursor <| Canvas.selectNextNode m (\n o -> n.y < o.y)
 
      (Key.Left, _, "") ->
-       NewCursor <| Canvas.selectNextNode m (\n o -> n.x > o.x)
+       Cursor <| Canvas.selectNextNode m (\n o -> n.x > o.x)
 
      (Key.Right, _, "") ->
-       NewCursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
+       Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
 
      (key, cursor, _) ->
        let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in
@@ -55,7 +55,7 @@ updateGlobalKeyPress m code cursor =
       |> G.fromLetter m
       |> Maybe.map (Canvas.selectNode m)
          of
-           Just cursor -> NewCursor cursor
+           Just cursor -> Cursor cursor
            Nothing -> NoChange
   else
     NoChange
@@ -65,10 +65,10 @@ addNode : Name -> Pos -> List ImplicitEdge -> Modification
 addNode name pos extras =
   if Util.rematch "^[\"\'[1-9{].*" name then
     case extras of
-      [(ReceivingEdge _)] -> NewRPC <| AddValue name pos []
-      _ -> NewRPC <| AddValue name pos extras
+      [(ReceivingEdge _)] -> RPC <| AddValue name pos []
+      _ -> RPC <| AddValue name pos extras
   else
-    NewRPC <| AddFunctionCall name pos extras
+    RPC <| AddFunctionCall name pos extras
 
 findImplicitEdge : Model -> Node -> ImplicitEdge
 findImplicitEdge m node = case G.findHole m node of
@@ -80,7 +80,7 @@ addVar m name =
   case G.fromLetter m name of
     Just source ->
       case findImplicitEdge m source of
-        ParamEdge tid p -> NewRPC <| AddEdge source.id (tid, p)
+        ParamEdge tid p -> RPC <| AddEdge source.id (tid, p)
         _ -> Error "There isn't parameter we're looking to fill here"
     Nothing ->
         Error <| "There isn't a node named '" ++ name ++ "' to connect to"
