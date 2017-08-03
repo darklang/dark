@@ -15,8 +15,8 @@ type receiving_edge = { source: int
 type param_edge = { target: int
                   ; param: string
                   } [@@deriving yojson]
-type constant = { param: string
-                ; value: string
+type constant = { value: string
+                ; param: string
                 } [@@deriving yojson]
 type implicit_edge = { receiving_edge : receiving_edge option [@default None]
                      ; param_edge : param_edge option [@default None]

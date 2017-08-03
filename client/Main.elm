@@ -159,6 +159,12 @@ update_ msg m_ =
       case String.uncons m.entryValue of
         Nothing -> NoChange
         Just ('$', rest) -> Entry.addVar m rest
+        Just ('.', fieldname) ->
+          -- create two nodes, add them both
+          let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
+              implicit = Entry.findImplicitEdge m node
+          in
+            Entry.addNode "." pos [implicit, constant]
         _ ->
           let implicit = Entry.findImplicitEdge m node in
           Entry.addNode m.entryValue pos [implicit]

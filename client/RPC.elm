@@ -33,6 +33,11 @@ encodeImplicitEdges edges =
                 ParamEdge (ID id) p ->
                   JSE.object [("param_edge",
                                  JSE.object [("target", JSE.int id),
+                                             ("param", JSE.string p)])]
+
+                Constant value p ->
+                  JSE.object [("constant",
+                                 JSE.object [("value", JSE.string value),
                                              ("param", JSE.string p)])])
     |> JSE.list
 

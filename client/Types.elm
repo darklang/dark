@@ -132,6 +132,7 @@ type alias Editor = { cursor : (Maybe Int, Maybe Pos)
 
 type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receiver after it's created)
                   | ParamEdge ID ParamName -- target id and target param, the source is implicit
+                  | Constant String ParamName -- target id and target param, the target is implicit, no source
 
 type Drag = NoDrag
           | DragNode ID Offset -- offset between the click and the node pos
