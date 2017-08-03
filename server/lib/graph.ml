@@ -66,6 +66,8 @@ let get_node (id : id)  (g : graph) : Node.node =
 let has_edge (s: id) (t: id) (param: param) (g : graph) : bool =
   List.exists ~f:(fun e -> e.source=s && e.target=t && e.param=param) g.edges
 
+let param_exists (t: id) (param: param) (g : graph) : bool =
+  List.exists ~f:(fun e -> e.target=t && e.param=param) g.edges
 
 (* ------------------------- *)
 (* Updating *)
@@ -79,6 +81,9 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
   (* TODO: exception for datasinks like DBs and APIs *)
   if has_edge s t param g then
     Exception.raise "Edge already exists";
+
+  if param_exists t param g then
+    Exception.raise "Can't have two arguments to the same parameter";
 
   (* Check the target has that parameter *)
   let n = get_node t g in
