@@ -35,6 +35,8 @@ class virtual node id loc =
     method is_datasink = false
     method is_datasource = false
     method parameters : string list = []
+    method has_parameter (param : string) : bool =
+      List.mem ~equal:String.equal self#parameters param
     method constants : param_map = ParamMap.empty
     method update_loc _loc : unit =
       loc <- _loc

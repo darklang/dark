@@ -74,6 +74,10 @@ let param_exists (t: id) (param: param) (g : graph) : bool =
 (* ------------------------- *)
 
 let add_constant (v : string) (t: id) (param: param) (g: graph) : graph =
+  let n = get_node t g in
+  if not (n#has_parameter param) then
+    Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
+
   { g with nodes = NodeMap.update g.nodes t
                ~f:(fun vopt -> match vopt with
                    | None -> Exception.raise "Adding a constant to a node that doesn't exist"
@@ -95,7 +99,7 @@ let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
 
   (* Check the target has that parameter *)
   let n = get_node t g in
-  if not (List.mem ~equal:String.equal n#parameters param) then
+  if not (n#has_parameter param) then
     Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
 
   { g with edges = {source=s; target=t; param} :: g.edges }
