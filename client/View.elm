@@ -146,7 +146,7 @@ nodeHeight n =
     _ -> Defaults.nodeHeight
 
 nodeSize node =
-  (nodeWidth node , nodeHeight node)
+  (nodeWidth node, nodeHeight node)
 
 nodeName n =
   let defaultParam = "◉"
