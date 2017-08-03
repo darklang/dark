@@ -109,7 +109,7 @@ viewCursor m =
         placeHtml pos wrapper
   in
     case m.cursor of
-      Filling n pos -> [html pos, svgLine n.pos pos dragEdgeStyle]
+      Filling n _ pos -> [html pos, svgLine n.pos pos dragEdgeStyle]
       Creating pos -> [html pos]
       Dragging _ -> []
       Deselected -> []

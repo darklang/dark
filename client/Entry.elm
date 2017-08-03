@@ -25,7 +25,7 @@ updateEntryKeyPress : Model -> KeyboardEvent -> Cursor -> Modification
 updateEntryKeyPress m kb cursor =
    case (kb.keyCode, cursor, m.entryValue) of
      -- backspace through an empty node
-     (Key.Backspace, Filling n _, "") ->
+     (Key.Backspace, Filling n _ _, "") ->
        RPC <| DeleteNode n.id
 
      (Key.Up, _, "") ->
@@ -60,15 +60,28 @@ updateGlobalKeyPress m code cursor =
   else
     NoChange
 
+isValueRepr : String -> Bool
+isValueRepr name = Util.rematch "^[\"\'[1-9{].*" name
+
+addFunction : Name -> Pos -> List ImplicitEdge -> Modification
+addFunction name pos extras =
+  RPC <| AddFunctionCall name pos extras
+
+addConstant : String -> ID -> ParamName -> Modification
+addConstant name id param =
+  RPC <| AddConstant name id param
+
+addValue name pos extras =
+  case extras of
+    [(ReceivingEdge _)] -> RPC <| AddValue name pos []
+    _ -> RPC <| AddValue name pos extras
 
 addNode : Name -> Pos -> List ImplicitEdge -> Modification
 addNode name pos extras =
-  if Util.rematch "^[\"\'[1-9{].*" name then
-    case extras of
-      [(ReceivingEdge _)] -> RPC <| AddValue name pos []
-      _ -> RPC <| AddValue name pos extras
+  if isValueRepr name then
+    addValue name pos extras
   else
-    RPC <| AddFunctionCall name pos extras
+    addFuncrtion name pos extras
 
 findImplicitEdge : Model -> Node -> ImplicitEdge
 findImplicitEdge m node = case G.findHole m node of

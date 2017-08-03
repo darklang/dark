@@ -59,7 +59,7 @@ type alias Edge = { source : ID
 type Cursor = Deselected
             | Creating Pos
             | Dragging ID
-            | Filling Node Pos -- todo, include hole here?
+            | Filling Node Hole Pos
 
 -- Does the new Node fill a hole?
 type Hole = ResultHole Node
@@ -94,6 +94,7 @@ type RPC
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos (List ImplicitEdge)
+    | AddConstant Name ID ParamName
     | AddAnon Pos
     | AddValue String Pos (List ImplicitEdge)
     | UpdateNodePosition ID Pos

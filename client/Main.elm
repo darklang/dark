@@ -155,19 +155,26 @@ update_ msg m_ =
     ------------------------
     -- entry node
     ------------------------
-    (EntrySubmitMsg, Filling node pos) ->
+    (EntrySubmitMsg, Filling node hole pos) ->
       case String.uncons m.entryValue of
         Nothing -> NoChange
+        -- var lookup
         Just ('$', rest) -> Entry.addVar m rest
+        -- field access
         Just ('.', fieldname) ->
-          -- create two implicit edges
           let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
               implicit = Entry.findImplicitEdge m node
           in
             Entry.addNode "." pos [implicit, constant]
+        -- functions or constants
         _ ->
-          let implicit = Entry.findImplicitEdge m node in
-          Entry.addNode m.entryValue pos [implicit]
+          if Entry.isValueRepr m.entryValue then
+            case hole of
+              ParamHole n p i -> Entry.addConstant m.entryValue node.id p
+              ResultHole _ -> Entry.addValue m.entryValue pos []
+          else
+            let implicit = Entry.findImplicitEdge m node in
+            Entry.addNode m.entryValue pos [implicit]
 
     (EntrySubmitMsg, Creating pos) ->
       Entry.addNode m.entryValue pos []

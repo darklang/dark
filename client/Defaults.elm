@@ -30,7 +30,7 @@ defaultEditor = { entryValue = ""
 model2editor : Model -> Editor
 model2editor m =
   { cursor = case m.cursor of
-               Filling n pos -> (Just (deID n.id), Just pos)
+               Filling n hole pos -> (Just (deID n.id), Just pos)
                Creating pos -> (Nothing, Just pos)
                Deselected -> (Nothing, Nothing)
                Dragging nid -> (Just (deID nid), Nothing)

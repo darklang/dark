@@ -39,9 +39,9 @@ type add_value = { value: string
                  ; pos: pos
                  ; edges : implicit_edge list
                  } [@@deriving yojson]
-type add_constant = { target: int
+type add_constant = { value: string
+                    ; target: int
                     ; param: string
-                    ; value: string
                     } [@@deriving yojson]
 type add_edge = { source: int
                 ; target: int

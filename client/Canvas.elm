@@ -71,7 +71,7 @@ paramOffset node param =
 isSelected : Model -> Node -> Bool
 isSelected m n =
   case m.cursor of
-    Filling node _ -> n == node
+    Filling node _ _ -> n == node
     _ -> False
 
 entryVisible : Cursor -> Bool
@@ -85,16 +85,16 @@ getCursorID : Cursor -> Maybe ID
 getCursorID c =
   case c of
     Dragging id -> Just id
-    Filling node _ -> Just node.id
+    Filling node _ _ -> Just node.id
     _ -> Nothing
 
 selectNextNode : Model -> (Pos -> Pos  -> Bool) -> Cursor
 selectNextNode m cond =
-  -- if we're currently in a node, follow the direction. For now, pick the
-  -- nearest node to it, that it's connected to, that's roughly in that
-  -- direction.
+  -- if we're currently in a node, follow the direction. For now, pick
+  -- the nearest node to it, that it's connected to, that's roughly in
+  -- that direction.
   case m.cursor of
-    Filling n _ ->
+    Filling n _ _ ->
       let other =
           G.connectedNodes m n
             -- that are above us
@@ -113,8 +113,9 @@ selectNextNode m cond =
 
 selectNode : Model -> Node -> Cursor
 selectNode m selected =
-  let pos = case G.findHole m selected of
+  let hole = G.findHole m selected
+      pos = case hole of
               ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
               ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
   in
-    Filling selected pos
+    Filling selected hole pos

@@ -79,6 +79,12 @@ encodeRPC m call =
                       , jse_pos pos
                       , ("edges", encodeImplicitEdges edges)])
 
+      AddConstant value id param ->
+        ("add_constant",
+           JSE.object [ ("value", JSE.string value)
+                      , ("target", JSE.int (deID id))
+                      , ("param", JSE.string param)])
+
       UpdateNodePosition id pos ->
         ("update_node_position",
            JSE.object [ jse_id id
