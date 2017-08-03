@@ -46,7 +46,7 @@ class virtual node id loc =
       ; y = loc.y
       ; live = { value = value ; tipe = tipe }
       ; parameters = self#parameters
-      ; constants = List.map ~f:(fun copt -> Option.map ~f:(fun c -> Runtime.to_repr c) copt) self#constants
+      ; constants = List.map ~f:(Option.map ~f:Runtime.to_repr) self#constants
       }
   end
 
@@ -73,7 +73,7 @@ class func n id loc =
       then self#name
       else "function"
     method parameters : string list = self#fn.parameters
-    method constants = List.map ~f:(fun p -> ParamMap.find constants p) self#parameters
+    method constants = List.map ~f:(ParamMap.find constants) self#parameters
     method add_constant (name: string) (value: string) =
       constants <- ParamMap.add constants ~key:name ~data:(Runtime.parse value)
 

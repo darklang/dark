@@ -129,6 +129,6 @@ let apply_ops (g : G.graph ref) (payload: string) : unit =
   |> Yojson.Safe.from_string
   |> opjsonlist_of_yojson
   |> Result.ok_or_failwith
-  |> List.map ~f:(fun op -> json2op op)
+  |> List.map ~f:json2op
   |> List.concat
   |> List.iter ~f:(fun op -> G.add_op op g)
