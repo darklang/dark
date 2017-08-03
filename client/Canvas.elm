@@ -18,9 +18,9 @@ import Graph as G
 -------------------
 -- Focus
 -------------------
-maybeFocusEntry : Model -> Model -> Cmd Msg
-maybeFocusEntry oldm m =
-  if not (entryVisible oldm.cursor) && (entryVisible m.cursor) then
+maybeFocusEntry : Cursor -> Cursor -> Cmd Msg
+maybeFocusEntry oldc c =
+  if not (entryVisible oldc) && (entryVisible c) then
     focusEntry
   else
     Cmd.none

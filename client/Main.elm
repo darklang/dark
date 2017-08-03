@@ -13,6 +13,7 @@ import Keyboard
 import Mouse
 import Maybe.Extra
 import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
+import Keyboard.Key as Key
 
 
 -- dark
@@ -24,8 +25,7 @@ import Defaults
 import Repl
 import Graph as G
 import Canvas
-import Keyboard.Event exposing (KeyboardEvent)
-import Keyboard.Key as Key
+import Entry
 
 
 -----------------------
@@ -55,7 +55,7 @@ init mEditor =
 -----------------------
 -- ports, save Editor state in LocalStorage
 -----------------------
-port setStorage : Editor -> Cmd msg
+port setStorage : Editor -> Cmd a
 
 -----------------------
 -- updates
@@ -63,165 +63,122 @@ port setStorage : Editor -> Cmd msg
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
-  let (m2, cmd) = update_ msg m in
-  (m2, Cmd.batch [ cmd
-                 , m |> Defaults.model2editor |> setStorage
-                 , Canvas.maybeFocusEntry m m2])
+  let mods = (update_ msg m)
+      (newm, newc) = updateMod mods (m, Cmd.none)
+  in
+    (newm, Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
--- We use this because a) it has other modifiers and b) the timing with which it
--- fires means we get the right value in the entryValue, so we know when to
--- delete a node (if we rely on globalKeyPress, it deletes one character too
--- early, though this is maybe fixable.
-updateEntryKeyPress : Model -> KeyboardEvent -> Cursor -> (Model, Cmd Msg)
-updateEntryKeyPress m kb cursor =
-   case (kb.keyCode, cursor, m.entryValue) of
-     -- backspace through an empty node
-     (Key.Backspace, Filling n _, "") ->
-       (m, rpc m <| [DeleteNode n.id])
+-- applied from left to right
+updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
+updateMod mod (m, cmd) =
+  let (newm, newcmd) =
+    case mod of
+      NewRPC call -> (m, rpc m [call])
+      NoChange -> (m, Cmd.none)
+      Error e -> ({ m | error = (e, Util.timestamp ())
+                  }, Cmd.none)
+      NewCursor c -> ({ m | cursor = c
+                      }, Canvas.maybeFocusEntry m.cursor c)
+      NewDrag d -> ({ m | drag = d
+                    }, Cmd.none)
+      ModelMod mm -> (mm m, Cmd.none)
+      Many mods -> List.foldl updateMod (m, Cmd.none) mods
+  in
+    (newm, Cmd.batch [cmd, newcmd])
 
-     (Key.Up, _, "") ->
-       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.y > o.y)
-        } , Cmd.none)
 
-     (Key.Down, _, "") ->
-       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.y < o.y)
-        } , Cmd.none)
-
-     (Key.Left, _, "") ->
-       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x > o.x)
-        } , Cmd.none)
-
-     (Key.Right, _, "") ->
-       ({ m | cursor = Canvas.selectNextNode m (\n o -> n.x < o.x)
-        } , Cmd.none)
-
-     (key, cursor, _) ->
-       let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in
-       (m, Cmd.none)
-
--- This fires when we're not in the input box
-updateGlobalKeyPress : Model -> Keyboard.KeyCode -> Cursor -> (Model, Cmd Msg)
-updateGlobalKeyPress m code cursor =
-  if cursor == Deselected then
-    let cursor = code
-               |> Char.fromCode
-               |> Char.toLower
-               |> String.fromChar
-               |> G.fromLetter m
-               |> Maybe.map (Canvas.selectNode m) in
-    case cursor of
-      Nothing ->
-        let _ = Debug.log "[global] No node named " (Char.fromCode code) in
-        (m, Cmd.none)
-      Just c -> ({ m | cursor = c }, Cmd.none)
-  else
-    let _ = Debug.log "[global] Nothing to do" (Char.fromCode code, code, cursor, m.entryValue) in
-    (m, Cmd.none)
-
-update_ : Msg -> Model -> (Model, Cmd Msg)
+update_ : Msg -> Model -> Modification
 update_ msg m_ =
   let m = { m_ | lastMsg = msg } in
   case (msg, m.cursor) of
 
     (CheckEscape code, _) ->
       if code == Defaults.escapeKeycode
-      then ({ m | cursor = Deselected }, Cmd.none)
-      else (m, Cmd.none)
-
-    (EntryKeyPress event, cursor) ->
-      updateEntryKeyPress m event cursor
-
-    (GlobalKeyPress code, cursor) ->
-      updateGlobalKeyPress m code cursor
+      then NewCursor Deselected
+      else NoChange
 
     (NodeClick node, _) ->
-      ({ m | cursor = Canvas.selectNode m node}, Cmd.none)
+      NewCursor <| Canvas.selectNode m node
 
     (RecordClick pos, _) ->
-      -- When we click on a node, drag is set when RecordClick happens. So this
-      -- avoids firing if we click outside a node
+      -- When we click on a node, drag is set when RecordClick happens.
+      -- So this avoids firing if we click outside a node
       if m.drag == NoDrag then
-        ({ m | cursor = Creating pos }, Cmd.none)
+        NewCursor <| Creating pos
       else
-        (m, Cmd.none)
+        NoChange
 
     ------------------------
     -- dragging nodes
     ------------------------
     (DragNodeStart node event, _) ->
-      if m.drag == NoDrag -- If we're already dragging a slot don't change the node
-      && event.button == Defaults.leftButton
-      then ({ m | drag = DragNode node.id
-                         (Canvas.findOffset node.pos event.pos)
-                , cursor = Dragging node.id
-            } , Cmd.none)
-      else (m, Cmd.none)
+      -- If we're already dragging a slot don't change the node
+      if m.drag == NoDrag && event.button == Defaults.leftButton
+      then
+        let offset = Canvas.findOffset node.pos event.pos in
+        Many [ NewDrag <| DragNode node.id offset
+             , NewCursor <| Dragging node.id]
+      else NoChange
 
     (DragNodeMove id offset pos, _) ->
-      -- While it's kinda nasty to update a node in place, the drawing code
-      -- get's really complex if we don't do this.
-      ({ m | nodes = Canvas.updateDragPosition pos offset id m.nodes
-           , dragPos = pos -- debugging
-       }, Cmd.none)
+      -- While it's kinda nasty to update a node in place, the drawing
+      -- code get's really complex if we don't do this.
+      let update = Canvas.updateDragPosition pos offset id m.nodes in
+      ModelMod (\m -> { m | nodes = update
+                      , dragPos = pos})
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      ({ m | drag = NoDrag
-           , cursor = Canvas.selectNode m node
-       }, rpc m <| [UpdateNodePosition id node.pos])
+      Many [ NewDrag NoDrag
+           , NewCursor <| Canvas.selectNode m node
+           , NewRPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
       if event.button == Defaults.leftButton
-      then ({ m | cursor = Dragging target.id
-                , drag = DragSlot target param event.pos}, Cmd.none)
-      else (m, Cmd.none)
+      then Many [ NewCursor <| Dragging target.id
+                , NewDrag <| DragSlot target param event.pos]
+      else NoChange
 
     (DragSlotMove mpos, _) ->
-      ({ m | dragPos = mpos
-       }, Cmd.none)
+      ModelMod (\m -> { m | dragPos = mpos })
 
     (DragSlotEnd source, _) ->
       case m.drag of
         DragSlot target param starting ->
-          ({ m | drag = NoDrag}
-               , rpc m <| [AddEdge source.id (target.id, param)])
-        _ -> (m, Cmd.none)
+          Many [ NewDrag NoDrag
+               , NewRPC <| AddEdge source.id (target.id, param)]
+        _ -> NoChange
 
     (DragSlotStop _, _) ->
-      ({ m | drag = NoDrag}, Cmd.none)
+      NewDrag NoDrag
 
     ------------------------
     -- entry node
     ------------------------
     (EntrySubmitMsg, Filling node pos) ->
-      let extra = case G.findHole m node of
-                    ResultHole n -> ReceivingEdge n.id
-                    ParamHole n p _ -> ParamEdge n.id p
-      in
-        case String.uncons m.entryValue of
-          -- allow $var instead
-          Just ('$', rest) ->
-            case G.fromLetter m rest of
-              Just source ->
-                case extra of
-                  ParamEdge tid p -> (m, rpc m <| [AddEdge source.id (tid, p)])
-                  _ -> report m "There isn't parameter we're looking to fill here"
-              Nothing -> report m ("There isn't a node named '" ++ rest ++ "' to connect to")
-
-          _ -> (m, rpc m <| addNode m.entryValue pos [extra])
-
+      case String.uncons m.entryValue of
+        Nothing -> NoChange
+        Just ('$', rest) -> Entry.addVar m rest
+        _ ->
+          let implicit = Entry.findImplicitEdge m node in
+          Entry.addNode m.entryValue pos [implicit]
 
     (EntrySubmitMsg, Creating pos) ->
-      (m, rpc m <| addNode m.entryValue pos [])
+      Entry.addNode m.entryValue pos []
 
+    (EntryKeyPress event, cursor) ->
+      Entry.updateEntryKeyPress m event cursor
 
+    (GlobalKeyPress code, cursor) ->
+      Entry.updateGlobalKeyPress m code cursor
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
                    , edges = edges
-                   , error = ""}
+                   , error = ("", 0)}
           cursor = case justAdded of
-                     -- if we deleted a node, the cursor is probably invalid
+                     -- if we deleted a node, the cursor is probably
+                     -- invalid
                      Nothing ->
                        if m.cursor
                          |> Canvas.getCursorID
@@ -230,8 +187,9 @@ update_ msg m_ =
                        then Deselected
                        else m.cursor
 
-                     -- TODO if the just-added node has an outgoing edge, which
-                     -- was just selected, choose it instead.
+                     -- TODO if the just-added node has an outgoing
+                     -- edge, which was just selected, choose it
+                     -- instead.
 
                      -- if we added a node, select it
                      Just id ->
@@ -239,31 +197,28 @@ update_ msg m_ =
                        Canvas.selectNode m2 node
 
       in
-        ({ m2 | cursor = cursor
-              , entryValue = ""}, Cmd.none)
+        Many [ ModelMod (\m -> { m2 | entryValue = "" } )
+             , NewCursor cursor]
 
 
     ------------------------
     -- plumbing
     ------------------------
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
-      report m ("Bad RPC call: " ++ (toString error.body))
+      Error <| "Bad RPC call: " ++ (toString error.body)
 
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
       -- TODO: should these be separate events?
-      ({m | replValue = ""
-          , entryValue = ""
-       }, Cmd.none)
+      ModelMod (\m -> {m | replValue = ""
+                         , entryValue = ""})
 
+      -- Syncs the form with the model. The actual submit is in
+      -- EntrySubmitMsg
     (EntryInputMsg target, _) ->
-      -- Syncs the form with the model. The actual submit is in EntrySubmitMsg
-      ({ m | entryValue = target
-       }, Cmd.none)
+      ModelMod (\m -> { m | entryValue = target })
 
-    t -> -- All other cases
-      report m ("Nothing for " ++ (toString t))
-
+    t -> Error <| "Nothing for " ++ (toString t)
 
 
 -----------------------
@@ -272,7 +227,8 @@ update_ msg m_ =
 subscriptions : Model -> Sub Msg
 subscriptions m =
   let dragSubs = case m.drag of
-                   -- we use IDs here because the node will change before they're triggered
+                   -- we use IDs here because the node will change
+                   -- before they're triggered
                    DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
                                          , Mouse.ups (DragNodeEnd id)]
                    DragSlot _ _ _ ->
@@ -285,27 +241,3 @@ subscriptions m =
   in Sub.batch
     (List.concat [standardSubs, keySubs, dragSubs])
 
-
------------------------
--- UTIL
------------------------
-report : Model -> String -> (Model, Cmd msg)
-report m err =
-  let time = Util.timestamp ()
-  in ({ m | error = err ++ " (" ++ toString time ++ ") "
-          }, Cmd.none)
-
-addNode : Name -> Pos -> List ImplicitEdge -> List RPC
-addNode name pos extras =
-  let newIsValue = Util.rematch "^[\"\'[1-9{].*" name in
-  if newIsValue then
-    case extras of
-      [(ReceivingEdge _)] ->
-        [AddValue name pos []]
-      _ ->
-        [AddValue name pos extras]
-  else
-    if name == "" then
-      []
-    else
-      [AddFunctionCall name pos extras]

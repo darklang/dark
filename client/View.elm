@@ -47,9 +47,12 @@ viewRepl value = Html.form [
                              ] []
                  ]
 
-viewError error = Html.div
-                  [Attrs.id "darkErrors"]
-                  [Html.text <| "Err: " ++ error]
+viewError (msg, ts) =
+  Html.div
+    [Attrs.id "darkErrors"]
+    (case (toString ts) of
+       "0" -> [Html.text <| "Err: " ++ msg]
+       ts -> [Html.text <| "Err: " ++ msg ++ " (" ++ ts ++ ")"])
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =

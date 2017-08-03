@@ -103,7 +103,7 @@ type RPC
 
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
-                   , error : String
+                   , error : (String, Int)
                    , dragPos : Pos
                    , drag : Drag
                    , lastMsg : Msg
@@ -113,6 +113,14 @@ type alias Model = { nodes : NodeDict
                    , replValue : String
                    , entryValue : String
                    }
+
+type Modification = Error String
+                  | NewCursor Cursor
+                  | NewRPC RPC
+                  | ModelMod (Model -> Model)
+                  | NewDrag Drag
+                  | NoChange
+                  | Many (List Modification)
 
 -- Values that we serialize
 type alias Editor = { cursor : (Maybe Int, Maybe Pos)
