@@ -6,7 +6,6 @@ module Graph exposing ( orderedNodes
                       , distance
                       , findHole
                       , incomingEdges
-                      , constantFold
                       , slotIsConnected
                       , connectedNodes)
 
@@ -98,51 +97,3 @@ slotIsConnected m target param =
   let node = getNodeExn m target in
   List.any (\e -> e.target == target && e.param == param) m.edges
     || Dict.member param node.constants
-
-
-constantFold m =
-  -- fold the edges with m. remove any edge that matches. If there are
-  -- no more edges, remove the node.
-  let foldable fe fm =
-      -- if we remove a node, we should never see an edge referencing it
-      -- again as constants have no incoming nodes, and only this
-      -- outgoing node
-      let source = getNodeExn fm fe.source
-          target = getNodeExn fm fe.target
-          -- decide what to do
-          removeEdge = source.tipe == Value
-                       && (String.length source.name < 6
-                          || target.name == ".")
-          removeNode = removeEdge
-                       && 1 <= List.length (Debug.log "outgoing" <| outgoingNodes fm source)
-          -- remove edges and maybe node
-          edges = if removeEdge then
-                    List.filter ((/=) fe) fm.edges
-                  else fm.edges
-          nodes = if removeNode then
-                    Dict.remove (source.id |> deID) fm.nodes
-                  else
-                    fm.nodes
-          -- update the existing node
-          newNode = { target | constants = Dict.insert fe.param source.name target.constants }
-          nodes2 = if removeEdge then
-                    Dict.insert (target.id |> deID) newNode nodes
-                  else
-                    fm.nodes
-          cursor = case fm.cursor of
-                     Filling n p -> if removeNode then
-                                      Filling target p
-                                    else
-                                      fm.cursor
-                     c -> c
-          _ = Debug.log "edge" fe
-          _ = Debug.log "removeEdge" removeEdge
-          _ = Debug.log "removeNode" removeNode
-      in
-        { fm | nodes = nodes2
-             , edges = Debug.log "newEdges" edges
-             , cursor = cursor}
-  in
-    let _ = Debug.log "model" m in
-    Debug.log "newmodel" <| List.foldl foldable m m.edges
-
