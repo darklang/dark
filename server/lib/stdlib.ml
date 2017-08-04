@@ -10,6 +10,17 @@ let fns : Lib.shortfn list = [
       | args -> expected "this to be implmented" args
   }
   ;
+  { n = "Dict::keys"
+  ; o = []
+  ; p = ["dict"]
+  ; f = function
+      | [DObj o] -> o
+                    |> ObjMap.keys
+                    |> List.map ~f:(fun k -> DStr k)
+                    |> fun l -> DList l
+      | args -> expected "obj" args
+  }
+  ;
   { n = "List::head"
   ; o = ["head"]
   ; p = ["list"]
