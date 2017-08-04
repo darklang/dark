@@ -38,7 +38,6 @@ let rec to_repr (dv : dval) : string =
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_repr data) :: l) in
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
-  | _ -> failwith "to_repr not implemented yet"
 
 let rec to_string (dv : dval) : string =
   match dv with
@@ -58,7 +57,6 @@ let rec to_string (dv : dval) : string =
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_string data) :: l) in
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
-  | _ -> failwith "to_string not implemented yet"
 
 
 
@@ -106,8 +104,7 @@ let rec json2dval_ (json : Yojson.Safe.json) : dval =
 let json2dval (json : string) : dval =
   json |> Yojson.Safe.from_string |> json2dval_
 
-let dval2json (v: dval) : string = "{}"
-
+let dval2json (v : dval) : string = "{todo: 5}"
 
 (* ------------------------- *)
 (* Parsing *)
