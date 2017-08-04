@@ -18,6 +18,7 @@ type alias TypeName = Name
 type alias LiveValue = (String, String)
 
 type ID = ID Int
+deID : ID -> Int
 deID (ID x) = x
 
 

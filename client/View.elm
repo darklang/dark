@@ -1,6 +1,5 @@
 module View exposing (view)
 
-import Char
 import Dict exposing (Dict)
 import Set
 import Json.Decode as JSD
@@ -37,6 +36,7 @@ view m =
       , viewLive m m.cursor
       ]
 
+viewRepl : String -> Html.Html Msg
 viewRepl value = Html.form [
                   Events.onSubmit (ReplSubmitMsg)
                  ] [
@@ -47,6 +47,7 @@ viewRepl value = Html.form [
                              ] []
                  ]
 
+viewError : ( String, a ) -> Html.Html msg
 viewError (msg, ts) =
   Html.div
     [Attrs.id "darkErrors"]
@@ -70,6 +71,7 @@ placeHtml pos html =
     ]
     [ html ]
 
+viewClick : Pos -> Svg.Svg msg
 viewClick pos =
   Svg.circle [ SA.r "10"
              , SA.cx (toString pos.x)
@@ -145,9 +147,11 @@ nodeHeight n =
     Datastore -> Defaults.nodeHeight * ( 1 + (List.length n.fields))
     _ -> Defaults.nodeHeight
 
+nodeSize : Node -> (Int, Int)
 nodeSize node =
   (nodeWidth node, nodeHeight node)
 
+nodeName : Node -> String
 nodeName n =
   let defaultParam = "◉"
       parameterTexts = List.map (\p -> case Dict.get p n.constants of
@@ -254,6 +258,7 @@ viewLive m cursor =
 -- gradients, one for each 45 degree angle/direction. We define this in terms of
 -- "rise over run" (eg like you'd calculate a slope). Then we translate the x,y
 -- source/target positions into (rise,run) in the integer range [-1,0,1].
+svgDefs : Svg.Svg a
 svgDefs =
   Svg.defs []
     [ linearGradient 0 1
@@ -266,6 +271,7 @@ svgDefs =
     , linearGradient -1 1
     ]
 
+coord2id : Int -> Int -> String
 coord2id rise run =
   "linear-rise" ++ toString rise ++ "-run" ++ toString run
 
@@ -287,11 +293,13 @@ linearGradient rise run =
     , Svg.stop [ SA.offset "100%"
                , SA.stopColor Defaults.edgeColor] []]
 
+dragEdgeStyle : List (Svg.Attribute msg)
 dragEdgeStyle =
   [ SA.strokeWidth Defaults.dragEdgeSize
   , SA.stroke Defaults.dragEdgeStrokeColor
   ]
 
+edgeStyle : Int -> Int -> Int -> Int -> List (Svg.Attribute msg)
 edgeStyle x1 y1 x2 y2 =
   -- edge case: We don't want to use a vertical gradient for really tiny rises,
   -- or it'll just be one color (same for the run). 20 seems enough to avoid
@@ -366,6 +374,7 @@ viewEdge m {source, target, param} =
       {x=tx,y=ty}
       (edgeStyle spos.x spos.y tx ty)
 
+svgArrowHead : Svg.Svg msg
 svgArrowHead =
   Svg.marker [ SA.id "triangle"
              , SA.viewBox "0 0 10 10"
@@ -389,4 +398,5 @@ decodeClickEvent fn =
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
 
+entryKeyHandler : JSD.Decoder Msg
 entryKeyHandler = JSD.map EntryKeyPress Keyboard.Event.decodeKeyboardEvent

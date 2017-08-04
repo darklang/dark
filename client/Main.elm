@@ -2,8 +2,6 @@ port module Main exposing (..)
 
 -- builtins
 import Result
-import Char
-import Dict exposing (Dict)
 import Maybe
 
 -- lib
@@ -11,9 +9,6 @@ import Http
 import Html
 import Keyboard
 import Mouse
-import Maybe.Extra
-import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
-import Keyboard.Key as Key
 
 
 -- dark
