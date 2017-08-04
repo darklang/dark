@@ -81,7 +81,7 @@ addNode name pos extras =
   if isValueRepr name then
     addValue name pos extras
   else
-    addFuncrtion name pos extras
+    addFunction name pos extras
 
 findImplicitEdge : Model -> Node -> ImplicitEdge
 findImplicitEdge m node = case G.findHole m node of
