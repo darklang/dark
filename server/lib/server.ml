@@ -32,9 +32,11 @@ let server =
 
     let admin_ui_handler () =
       let template = Util.readfile "templates/ui.html" in
-      let all_functions = ["Twitter::users/lookup"]
-                          |> functionlist_to_yojson
-                          |> Yojson.Safe.to_string
+      let all_functions = Libs.fns
+                        |> String.Map.data
+                        |> List.map ~f:(fun (fn : Runtime.fn) -> fn.name) 
+                        |> functionlist_to_yojson
+                        |> Yojson.Safe.to_string
       in
       Util.string_replace "ALLFUNCTIONS" all_functions template
     in
