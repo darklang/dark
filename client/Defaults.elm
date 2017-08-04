@@ -3,6 +3,7 @@ module Defaults exposing (..)
 import Dict
 
 import Types exposing (..)
+import Autocomplete
 
 
 escapeKeycode = 27
@@ -47,6 +48,7 @@ defaultModel e = { nodes = Dict.empty
                  , lastMsg = Initialization
                  , dragPos = {x=0, y=0}
                  , drag = NoDrag
+                 , complete = Autocomplete.empty
                 -- these load before the graph does, causing exceptions. We'll
                 -- need to only run these after the graph loads
                  , cursor = case e.cursor of

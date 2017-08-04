@@ -42,3 +42,6 @@ let inspecT (msg : string) (x : 'a) : unit =
 let inspect (msg : string) ~(f:'a -> string) (x : 'a) : 'a =
   print_endline ("inspect: " ^ msg ^ ": " ^ (f x));
   x
+
+let string_replace (search: string) (replace: string) (str: string) : string =
+  String.Search_pattern.replace_first (String.Search_pattern.create search) ~in_:str ~with_:replace

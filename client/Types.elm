@@ -104,12 +104,17 @@ type RPC
     | ClearEdges ID
     | RemoveLastField ID
 
+type alias Autocomplete = { defaults : List String
+                          , current : List String
+                          }
+
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , error : (String, Int)
                    , dragPos : Pos
                    , drag : Drag
                    , lastMsg : Msg
+                   , complete : Autocomplete
                    -- these values are serialized via Editor
                    , tempFieldName : FieldName
                    , cursor : Cursor
@@ -124,6 +129,9 @@ type Modification = Error String
                   | Drag Drag
                   | NoChange
                   | Many (List Modification)
+
+type alias Flags = { state: Editor
+                   , complete: List String}
 
 -- Values that we serialize
 type alias Editor = { cursor : (Maybe Int, Maybe Pos)

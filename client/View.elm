@@ -81,12 +81,17 @@ viewClick pos =
 viewCursor : Model -> List (Svg.Svg Msg)
 viewCursor m =
   let html pos =
-    let viewForm = Html.form [
+    let datalist = Html.datalist
+                   [Attrs.id "allowedValues"]
+                   (List.map (\a -> Html.option [Attrs.value a] [])  m.complete.current)
+
+        viewForm = Html.form [
                     Events.onSubmit (EntrySubmitMsg)
                    ] [
                     Html.input [ Attrs.id Defaults.entryID
                                , Events.on "keydown" entryKeyHandler
                                , Events.onInput EntryInputMsg
+                               , Attrs.list "allowedValues"
                                , Attrs.width 50
                                , Attrs.value m.entryValue
                                , Attrs.autocomplete False
@@ -97,7 +102,7 @@ viewCursor m =
         inner = Html.div
                 [ Attrs.width 100
                 , Attrs.class "inner"]
-                [viewForm]
+                [ datalist, viewForm ]
 
 
         -- outer node wrapper

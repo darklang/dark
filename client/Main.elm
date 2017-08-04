@@ -17,16 +17,16 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import View
 import Defaults
-import Repl
 import Graph as G
 import Canvas
 import Entry
+import Autocomplete
 
 
 -----------------------
 -- TOP-LEVEL
 -----------------------
-main : Program (Maybe Editor) Model Msg
+main : Program (Maybe Flags) Model Msg
 main = Html.programWithFlags
        { init = init
        , view = View.view
@@ -37,14 +37,15 @@ main = Html.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-init : Maybe Editor -> ( Model, Cmd Msg )
-init mEditor =
-  let e = case mEditor of
-                 Just e -> e
-                 Nothing -> Defaults.defaultEditor
+init : Maybe Flags -> ( Model, Cmd Msg )
+init mFlags =
+  let (e, auto) = case mFlags of
+                    Just {state, complete} -> (state, complete)
+                    Nothing -> Debug.crash "Initialization should not fail"
       m = Defaults.defaultModel e
+      m2 = { m | complete = Autocomplete.init auto }
   in
-    (m, Cmd.batch [Canvas.focusEntry, rpc m <| [LoadInitialGraph]])
+    (m2, Cmd.batch [Canvas.focusEntry, rpc m <| [LoadInitialGraph]])
 
 
 -----------------------
@@ -205,7 +206,9 @@ update_ msg m_ =
                        Canvas.selectNode m2 node
 
       in
-        Many [ ModelMod (\_ -> { m2 | entryValue = "" } )
+        Many [ ModelMod
+                 (\_ -> { m2 | entryValue = ""
+                             , complete = Autocomplete.reset m.complete})
              , Cursor cursor]
 
 
@@ -219,12 +222,14 @@ update_ msg m_ =
       -- Yay, you focused a field! Ignore.
       -- TODO: should these be separate events?
       ModelMod (\m -> {m | replValue = ""
-                         , entryValue = ""})
+                         , entryValue = ""
+                         , complete = Autocomplete.reset m.complete})
 
       -- Syncs the form with the model. The actual submit is in
       -- EntrySubmitMsg
     (EntryInputMsg target, _) ->
-      ModelMod (\m -> { m | entryValue = target })
+      ModelMod (\m -> { m | entryValue = target
+                          , complete = Autocomplete.update m.complete target })
 
     t -> Error <| "Nothing for " ++ (toString t)
 

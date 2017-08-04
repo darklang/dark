@@ -10,6 +10,8 @@ module G = Graph
 
 let inspect = Util.inspect
 
+type functionlist = string list [@@deriving yojson]
+
 let server =
   let callback _ req req_body =
     let uri = req |> Request.uri in
@@ -29,7 +31,12 @@ let server =
     in
 
     let admin_ui_handler () =
-      Util.readfile "templates/ui.html"
+      let template = Util.readfile "templates/ui.html" in
+      let all_functions = ["Twitter::users/lookup"]
+                          |> functionlist_to_yojson
+                          |> Yojson.Safe.to_string
+      in
+      Util.string_replace "ALLFUNCTIONS" all_functions template
     in
 
     let static_handler f : string =
