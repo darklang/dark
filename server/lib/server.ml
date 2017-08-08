@@ -44,18 +44,9 @@ let server =
       Util.string_replace "ALLFUNCTIONS" (Api.functions) template
     in
 
-    let mime tipe = ("Content-type", tipe) in
-
-    let static_handler f : (string * string) list * string =
-      (* TODO: mimetypes *)
-      let l = String.length f in
-      let f = String.sub f ~pos:1 ~len:(l-1) in
-      match f with
-      | "static/base.css" -> [mime "text/css"], Util.readfile f
-      | "static/reset-normalize.css" -> [mime "text/css"], Util.readfile f
-      | "static/elm.js" -> [mime "application/javascript"], Util.readfile2 f
-      | "templates/test.html" -> [mime "text/html"], Util.readfile2 f
-      | _ -> failwith "File not found"
+    let static_handler uri =
+      let fname = S.resolve_file ~docroot:"." ~uri in
+      S.respond_file ~fname ()
     in
 
     let auth_handler handler
@@ -83,15 +74,11 @@ let server =
            | "/admin/ui" ->
              S.respond_string ~status:`OK ~body:(admin_ui_handler ()) ()
            | "/admin/test" ->
-             let headers, body = static_handler "/templates/test.html" in
-             S.respond_string
-               ~status:`OK ~headers:(Header.of_list headers) ~body ()
+             static_handler (Uri.of_string "/templates/test.html")
            | p when (String.length p) < 8 ->
              S.respond_string ~status:`Not_implemented ~body:"app routing" ()
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
-             let headers, body = static_handler p in
-             S.respond_string
-               ~status:`OK ~headers:(Header.of_list headers) ~body ()
+             static_handler uri
            | _ ->
              S.respond_string ~status:`Not_implemented ~body:"app routing" ()
          with
