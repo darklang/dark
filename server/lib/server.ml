@@ -40,9 +40,8 @@ let server =
     in
 
     let admin_ui_handler () =
-      let template = Util.readfile "templates/ui.html" in
-      Util.string_replace "ALLFUNCTIONS" (Api.functions) template
-    in
+      let template = Util.readfile_lwt "templates/ui.html" in
+      template >|= Util.string_replace "ALLFUNCTIONS" (Api.functions) in
 
     let static_handler uri =
       let fname = S.resolve_file ~docroot:"." ~uri in
@@ -72,7 +71,7 @@ let server =
              let () = Lwt.wakeup stopper () in
              S.respond_string ~status:`OK ~body:"Disembowelment" ()
            | "/admin/ui" ->
-             S.respond_string ~status:`OK ~body:(admin_ui_handler ()) ()
+             admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
            | "/admin/test" ->
              static_handler (Uri.of_string "/templates/test.html")
            | p when (String.length p) < 8 ->

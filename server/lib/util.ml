@@ -1,4 +1,5 @@
 open Core
+open Lwt.Infix
 
 let readfile ?(default="") f : string =
   (* Has a 65k limit *)
@@ -25,6 +26,11 @@ let readfile2 ?(default="") f : string =
   with e ->
     Caml.close_in_noerr ic;
     raise e
+
+let readfile_lwt ?(default="") f : string Lwt.t =
+  Lwt_io.with_file ~mode:Lwt_io.input f (Lwt_io.read ?count:None) >|= function
+  | "" -> default
+  | s -> s
 
 let writefile f str : unit =
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
