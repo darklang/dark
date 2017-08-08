@@ -68,37 +68,43 @@ let server =
 
     let route_handler _ =
       req_body |> Cohttp_lwt_body.to_string >>=
-      Lwt.wrap1
       (fun req_body ->
          try
            match (Uri.path uri) with
-           | "/admin/api/rpc" -> `OK, [], admin_rpc_handler req_body
-           | "/sitemap.xml" -> `OK, [], ""
-           | "/favicon.ico" -> `OK, [], ""
+           | "/admin/api/rpc" ->
+             S.respond_string ~status:`OK ~body:(admin_rpc_handler req_body) ()
+           | "/sitemap.xml" ->
+             S.respond_string ~status:`OK ~body:"" ()
+           | "/favicon.ico" ->
+             S.respond_string ~status:`OK ~body:"" ()
            | "/shutdown" ->
-               Lwt.wakeup stopper ();
-               `OK, [], "Disembowelment"
-           | "/admin/ui" -> `OK, [], (admin_ui_handler ())
+             let () = Lwt.wakeup stopper () in
+             S.respond_string ~status:`OK ~body:"Disembowelment" ()
+           | "/admin/ui" ->
+             S.respond_string ~status:`OK ~body:(admin_ui_handler ()) ()
            | "/admin/test" ->
-               let headers, result = static_handler "/templates/test.html" in
-               `OK, headers, result
-           | p when (String.length p) < 8 -> `Not_implemented, [], "app routing"
-           | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/")
-             -> let headers, result = static_handler p in `OK, headers, result
-           | _ -> `Not_implemented, [], "app routing"
+             let headers, body = static_handler "/templates/test.html" in
+             S.respond_string
+               ~status:`OK ~headers:(Header.of_list headers) ~body ()
+           | p when (String.length p) < 8 ->
+             S.respond_string ~status:`Not_implemented ~body:"app routing" ()
+           | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
+             let headers, body = static_handler p in
+             S.respond_string
+               ~status:`OK ~headers:(Header.of_list headers) ~body ()
+           | _ ->
+             S.respond_string ~status:`Not_implemented ~body:"app routing" ()
          with
          | e ->
            let backtrace = Exn.backtrace () in
-           let msg = match e with
+           let body = match e with
              | (Exception.UserException msg) -> "UserException: " ^ msg
              | (Yojson.Json_error msg) -> "Not a value: " ^ msg
              | _ -> Exn.to_string e
            in
-           print_endline ("Error: " ^ msg);
+           print_endline ("Error: " ^ body);
            print_endline backtrace;
-           `Internal_server_error, [], msg)
-      >>= (fun (status, headers, body) ->
-        S.respond_string ~headers:(Header.of_list headers)~status ~body ())
+           S.respond_string ~status:`Internal_server_error ~body ())
     in
     ()
     |> route_handler
