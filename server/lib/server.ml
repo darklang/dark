@@ -49,6 +49,7 @@ let server =
       | "static/base.css" -> Util.readfile f
       | "static/reset-normalize.css" -> Util.readfile f
       | "static/elm.js" -> Util.readfile2 f
+      | "templates/test.html" -> Util.readfile2 f
       | _ -> failwith "File not found"
     in
 
@@ -70,6 +71,7 @@ let server =
            | "/sitemap.xml" -> `OK, ""
            | "/favicon.ico" -> `OK, ""
            | "/admin/ui" -> `OK, (admin_ui_handler ())
+           | "/admin/test" -> `OK, static_handler "/templates/test.html"
            | p when (String.length p) < 8 -> `Not_implemented, "app routing"
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/")
              -> `OK, static_handler p
