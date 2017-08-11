@@ -26,7 +26,7 @@ import Autocomplete
 -----------------------
 -- TOP-LEVEL
 -----------------------
-main : Program (Maybe Flags) Model Msg
+main : Program Flags Model Msg
 main = Html.programWithFlags
        { init = init
        , view = View.view
@@ -37,13 +37,13 @@ main = Html.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-init : Maybe Flags -> ( Model, Cmd Msg )
-init mFlags =
-  let (e, auto) = case mFlags of
-                    Just {state, complete} -> (state, complete)
-                    Nothing -> Debug.crash "Initialization should not fail"
-      m = Defaults.defaultModel e
-      m2 = { m | complete = Autocomplete.init auto }
+init : Flags -> ( Model, Cmd Msg )
+init {state, complete} =
+  let editor = case state of
+            Just e -> e
+            Nothing -> Defaults.defaultEditor
+      m = Defaults.defaultModel editor
+      m2 = { m | complete = Autocomplete.init complete }
   in
     (m2, Cmd.batch [Canvas.focusEntry, rpc m <| [LoadInitialGraph]])
 

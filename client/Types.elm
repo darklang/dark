@@ -130,7 +130,7 @@ type Modification = Error String
                   | NoChange
                   | Many (List Modification)
 
-type alias Flags = { state: Editor
+type alias Flags = { state: Maybe Editor
                    , complete: List String}
 
 -- Values that we serialize
