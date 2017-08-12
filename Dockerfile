@@ -85,7 +85,7 @@ RUN opam install ppx_deriving_yojson.3.0
 RUN opam install tls.0.8.0
 RUN opam install cohttp-lwt-unix.0.99.0
 RUN opam install ocurl.0.7.10
-RUN opam install oUnit.2.0.0 # test
+RUN opam install alcotest.0.8.1 # test
 RUN opam install merlin.3.0.2 # dev
 RUN opam install utop.2.0.1 # dev
 RUN opam install ocp-indent.1.6.1 # dev

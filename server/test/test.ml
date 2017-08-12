@@ -1,19 +1,23 @@
 open Core
-open OUnit2
 open Types
 
 module G = Graph
 module Map = Map.Poly
 module RT = Runtime
 
-let t_param_order _ =
+let check_dval = Alcotest.testable RT.pp_dval RT.equal_dval
+let check_graph = Alcotest.testable G.pp_graph G.equal_graph
+
+let t_param_order () =
   let node = new Node.func 1 {x=1; y=1} "-" in
-  assert_equal (node#execute
-                  { getf = (fun g -> node)
-                  ; get_children = (fun _ -> [])
-                  }
-                  (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
-                                           ; ("b", RT.DInt 1)]))
+  Alcotest.check check_dval
+    "param_order"
+    (node#execute
+       { getf = (fun g -> node)
+       ; get_children = (fun _ -> [])
+       }
+       (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
+                                ; ("b", RT.DInt 1)]))
     (RT.DInt 0)
 
 let fl : loc = {x=0; y=0}
@@ -29,7 +33,7 @@ let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = graph_from_ops "test" ops in
   Node.execute (Op.id_of result) (G.gfns !g)
 
-let t_graph_param_order _ =
+let t_graph_param_order () =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
   let add = Op.Add_fn_call (fid (), fl, "-") in
   let v1 = Op.Add_value (fid (), fl, "5") in
@@ -38,11 +42,11 @@ let t_graph_param_order _ =
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r1 = execute_ops [add; v1; v2; e1; e2] add in
   let r2 = execute_ops [add; v1; v2; e2; e1] add in
-  assert_equal r2 (DInt 2);
-  assert_equal r1 (DInt 2)
+  Alcotest.check check_dval "graph_param_order_1" r2 (DInt 2);
+  Alcotest.check check_dval "graph_param_order_2" r1 (DInt 2)
 
 (* TODO: test with param_Edge *)
-let t_fns_with_edges _ =
+let t_fns_with_edges () =
   let str = string_of_int in
   let v1id = fid () in
   let v2id = fid () in
@@ -58,11 +62,10 @@ let t_fns_with_edges _ =
   Api.apply_ops g fncall;
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
   let r = Node.execute (rid) (G.gfns !g) in
-  assert_equal r (DInt 2)
+  Alcotest.check check_dval "t_fns_with_edges" r (DInt 2)
 
 
-
-let t_int_add_works _ =
+let t_int_add_works () =
   (* Couldn't call Int::add *)
   let add = Op.Add_fn_call (fid (), fl, "Int::add") in
   let v1 = Op.Add_value (fid (), fl, "5") in
@@ -70,7 +73,7 @@ let t_int_add_works _ =
   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r = execute_ops [add; v1; v2; e2; e1] add in
-  assert_equal r (DInt 8)
+  Alcotest.check check_dval "int_add" r (DInt 8)
 
 let t_node_deletion _ =
   (* check the argument gets deleted too *)
@@ -79,12 +82,14 @@ let t_node_deletion _ =
   let e1 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let d1 = Op.Delete_node (Op.id_of n2) in
   let g = graph_from_ops "graph" [n1; n2; e1; d1] in
-  let nodes = G.incoming_nodes (Op.id_of n2) !g
-  in assert_equal nodes [];
+  let nodes = G.incoming_nodes (Op.id_of n2) !g in
+  Alcotest.check
+    (Alcotest.list (Alcotest.pair Alcotest.int Alcotest.string))
+    "node_deletion" nodes [];
   try
-   let _ = G.to_frontend !g in ()
+    let _ = G.to_frontend !g in ()
   with
-  | _ -> assert_failure "node deletion threw "
+  | _ -> Alcotest.fail "node deletion threw "
 
 
 
@@ -102,10 +107,10 @@ let t_load_save _ =
   let g1 = G.load name in
   let _ = G.save !g in
   let g2 = G.load name in
-  assert (G.equal_graph !g !g1);
-  assert (G.equal_graph !g !g2)
+  Alcotest.check check_graph "graph_load_save_1" !g !g1;
+  Alcotest.check check_graph "graph_load_save_2" !g !g2
 
-let t_lambda_with_foreach _ =
+let t_lambda_with_foreach () =
   let v = Op.Add_value (fid (), fl, "\"some string\"") in
   let fe = Op.Add_fn_call (fid (), fl, "String::foreach") in
   let upper = Op.Add_fn_call (fid (), fl, "Char::to_uppercase") in
@@ -118,7 +123,7 @@ let t_lambda_with_foreach _ =
   let e3 = Op.Set_edge (Op.id_of upper, anon_r, "return") in
   let e4 = Op.Set_edge (anon_arg, Op.id_of upper, "c") in
   let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
-  assert_equal r (DStr "SOME STRING")
+  Alcotest.check check_dval "lambda_wit_foreach"  r (DStr "SOME STRING")
 
 let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
@@ -136,7 +141,8 @@ let t_hmac_signing _ =
   let v2 = "true" in
 
   (* Test 1 - just the sig *)
-  assert_equal "hCtSmYh+iHYCEqBWrE7C7hYmtUk="
+  Alcotest.check Alcotest.string "hmac_signing_1"
+    "hCtSmYh+iHYCEqBWrE7C7hYmtUk="
     (Twitter.sign
        secret.consumer_secret
        secret.access_token_secret
@@ -167,21 +173,21 @@ let t_hmac_signing _ =
       url
       "POST"
       args in
-  assert_equal expected_header actual
+  Alcotest.check Alcotest.string "hmac_signing_2" expected_header actual
 
 let suite =
   let () = Printexc.record_backtrace true in
-  "suite" >:::
-  [ "param args are in the right order" >:: t_param_order
-  ; "Calling Int::add" >:: t_int_add_works
-  ; "graph ordering doesnt break param order" >:: t_graph_param_order
-  ; "roundtrip through saving and loading" >:: t_load_save
-  ; "hmac signing works" >:: t_hmac_signing
+  [ "param args are in the right order", `Quick, t_param_order
+  ; "Calling Int::add", `Slow, t_int_add_works
+  ; "graph ordering doesnt break param order", `Slow, t_graph_param_order
+  ; "roundtrip through saving and loading", `Slow, t_load_save
+  ; "hmac signing works", `Slow, t_hmac_signing
     (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
-  ; "anon functions work" >:: t_lambda_with_foreach
-  ; "test_node_deletion" >:: t_node_deletion
+  ; "anon functions work", `Slow, t_lambda_with_foreach
+  ; "test_node_deletion", `Slow,t_node_deletion
   ]
 
 let () =
-  run_test_tt_main suite
+  let () = Printexc.record_backtrace true in
+  Alcotest.run "suite" [ "tests", suite ]

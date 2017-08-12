@@ -2,7 +2,7 @@
 "bin" : include
 "test" : include
 
-<test/*> : package(oUnit)
+<test/*> : package(alcotest)
 
 true : debug, bin_annot, warn(-40)
 true : package(landmarks.ppx), package(landmarks)
