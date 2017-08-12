@@ -4,7 +4,7 @@ import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 
-import Autocomplete exposing (containsOrdered)
+import Autocomplete exposing (containsOrdered, sharedPrefix)
 
 d : String -> List (() -> Bool) -> Test
 d s fs = describe s (List.indexedMap
@@ -17,9 +17,16 @@ d s fs = describe s (List.indexedMap
 
 suite : Test
 suite =
-  d "containsOrdered works"
-    [ \_ -> containsOrdered "abc" "aaaaabbbbbcccc"
-    , \_ -> containsOrdered "abc" "xxxaaxcxbbxaxc"
-    , \_ -> containsOrdered "Twitt" "Twitter::users/lookup"
-    , \_ -> not (containsOrdered "abc" "xxxaaxcxbbxxxx")
+  describe "autocomplete"
+    [ d "containsOrdered"
+        [ \_ -> containsOrdered "abc" "aaaaabbbbbcccc"
+        , \_ -> containsOrdered "abc" "xxxaaxcxbbxaxc"
+        , \_ -> containsOrdered "Twitt" "Twitter::users/lookup"
+        , \_ -> not (containsOrdered "abc" "xxxaaxcxbbxxxx")
+       ]
+    , d "sharedPrefix"
+      [ \_ -> sharedPrefix ["aaaab", "aab", "aaxb"] == "aa"
+      , \_ -> sharedPrefix ["abcdd", "abcdde"] == "abcdd"
+      , \_ -> sharedPrefix ["abcdd", "bcddee"] == ""
+      ]
     ]

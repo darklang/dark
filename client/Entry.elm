@@ -48,9 +48,9 @@ updateEntryKeyPress m kb cursor =
        AutocompleteMod SelectDown
 
      (Key.Right, _, _) ->
-       case Autocomplete.highlighted m.complete of
-         Just s -> Many [SetEntry s, AutocompleteMod Reset]
-         Nothing -> NoChange
+       let sp = Autocomplete.sharedPrefix m.complete.current in
+       if sp == "" then NoChange
+       else SetEntry sp
 
      (key, cursor, _) ->
        let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in
