@@ -153,7 +153,7 @@ update_ msg m =
     (EntrySubmitMsg, Entering cursor) ->
       Entry.submit m cursor
 
-    (EntryKeyPress event, _) ->
+    (EntryKeyPress event, Entering _ ) ->
       Entry.updateKeyPress m event
 
     (GlobalKeyPress code, cursor) ->

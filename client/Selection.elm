@@ -62,6 +62,7 @@ isSelected : Model -> Node -> Bool
 isSelected m n =
   case m.state of
     Entering (Filling node _ _) -> n == node
+    Selecting id -> n.id == id
     _ -> False
 
 entryVisible : State -> Bool

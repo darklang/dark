@@ -16,6 +16,7 @@ import Util exposing (deMaybe)
 import Autocomplete
 import Canvas
 import Graph as G
+import Selection
 
 
 
@@ -37,6 +38,11 @@ updateKeyPress m kb =
        case Autocomplete.highlighted m.complete of
          Just s -> AutocompleteMod <| SetEntry s
          Nothing -> NoChange
+
+     (Key.Escape, _) ->
+       case Selection.getCursorID m.state of
+         Just id -> Select id
+         Nothing -> Deselect
 
      (key, val) ->
        AutocompleteMod <| SetEntry val
