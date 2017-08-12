@@ -46,7 +46,7 @@ init {state, complete} =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init complete }
   in
-    (m2, Cmd.batch [Selection.focusEntry, rpc m <| [LoadInitialGraph]])
+    (m2, rpc m <| [LoadInitialGraph])
 
 
 -----------------------
@@ -77,10 +77,11 @@ updateMod mod (m, cmd) =
       Enter entry -> { m | state = Entering entry } ! [Selection.focusEntry]
       Drag d -> { m | state = Dragging d } ! []
       ModelMod mm -> mm m ! []
+      Pick -> m ! []
+      Deselect -> { m | state = Deselected } ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
       AutocompleteMod mod ->
         { m | complete = Autocomplete.update m.complete mod } ! []
-      _ -> Debug.crash "unhandled"
   in
     (newm, Cmd.batch [cmd, newcmd])
 
@@ -163,8 +164,7 @@ update_ msg m =
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
-                   , edges = edges
-                   , error = ("", 0)}
+                   , edges = edges }
           reaction = case justAdded of
                        -- if we deleted a node, the cursor is probably
                        -- invalid
@@ -186,7 +186,9 @@ update_ msg m =
                          Enter <| Selection.selectNode m2 node
 
       in
-        Many [ reaction
+        Many [ ModelMod (\_ -> m2)
+             , Error ""
+             , reaction
              , AutocompleteMod Reset
              ]
 
