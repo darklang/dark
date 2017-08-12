@@ -35,14 +35,15 @@ containsOrdered needle haystack =
         && containsOrdered newneedle (haystack
                                         |> String.split char
                                         |> List.drop 1
-                                        |> String.join "")
+                                        |> String.join char)
     Nothing -> True
 
 query : Autocomplete -> String -> Autocomplete
-query a str =
+query a q =
+  let current = List.filter (\s -> containsOrdered q s) a.defaults in
   { defaults = a.defaults
-  , current = List.filter (\s -> String.contains str s) a.defaults
-  , index = 0
+  , current = current
+  , index = if List.length current < List.length a.current then 0 else a.index
   }
 
 update : Autocomplete -> AutocompleteMod -> Autocomplete

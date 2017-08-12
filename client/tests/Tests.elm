@@ -20,5 +20,6 @@ suite =
   d "containsOrdered works"
     [ \_ -> containsOrdered "abc" "aaaaabbbbbcccc"
     , \_ -> containsOrdered "abc" "xxxaaxcxbbxaxc"
+    , \_ -> containsOrdered "Twitt" "Twitter::users/lookup"
     , \_ -> not (containsOrdered "abc" "xxxaaxcxbbxxxx")
     ]
