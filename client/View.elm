@@ -102,13 +102,13 @@ viewCursor m =
                            , Attrs.attribute "type" "text"
                            , Attrs.placeholder "ns::fn arg1 arg2"
                            , Attrs.width 50
-                           , Attrs.value m.entryValue
+                           , Attrs.value m.complete.value
                            , Attrs.autocomplete False
                            ] []
 
         viewForm = Html.form
                    [ Events.onSubmit (EntrySubmitMsg) ]
-                   (if m.entryValue == "" then [input] else [input, autocomplete])
+                   [ input, autocomplete ]
 
         -- inner node
         inner = Html.div

@@ -6,13 +6,13 @@ import Types exposing (..)
 
 
 empty : Autocomplete
-empty = { defaults = [], current = [], index = -1 }
+empty = init []
 
 init : List String -> Autocomplete
-init defaults = { defaults = defaults, current = defaults, index = -1 }
+init defaults = { defaults = defaults, current = defaults, index = -1, value = "" }
 
 reset : Autocomplete -> Autocomplete
-reset a = { defaults = a.defaults, current = a.defaults, index = -1 }
+reset a = { defaults = a.defaults, current = a.defaults, index = -1, value = "" }
 
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max = (List.length a.current) in
@@ -70,16 +70,28 @@ containsOrdered needle haystack =
 
 query : Autocomplete -> String -> Autocomplete
 query a q =
-  let current = List.filter (\s -> String.contains q s) a.defaults in
-  { defaults = a.defaults
-  , current = current
-  , index = if List.length current < List.length a.current then 0 else a.index
-  }
+  let current = List.filter (\s -> String.contains q s) a.defaults
+      newcurrent = if q == ""
+                   then []
+                   else
+                     case current of
+                       [ x ] -> if x == q then [] else [ x ]
+                       cs -> cs
+  in
+    { defaults = a.defaults
+    , current = newcurrent
+    , index = if List.length newcurrent < List.length a.current
+              then if List.length newcurrent == 0
+                   then -1
+                   else 0
+              else a.index
+    , value = q
+    }
 
 update : Autocomplete -> AutocompleteMod -> Autocomplete
 update a mod =
   case mod of
-    Query str -> query a str
-    Reset -> reset a
+    SetEntry str -> query a str
+    Reset -> query a ""
     SelectDown -> selectDown a
     SelectUp -> selectUp a

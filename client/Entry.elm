@@ -24,7 +24,7 @@ import Graph as G
 
 updateEntryKeyPress : Model -> KeyboardEvent -> Cursor -> Modification
 updateEntryKeyPress m kb cursor =
-   case (kb.keyCode, cursor, m.entryValue) of
+  case (kb.keyCode, cursor, m.complete.value) of
      -- backspace through an empty node
      (Key.Backspace, Filling n _ _, "") ->
        RPC <| DeleteNode n.id
@@ -50,11 +50,19 @@ updateEntryKeyPress m kb cursor =
      (Key.Right, _, _) ->
        let sp = Autocomplete.sharedPrefix m.complete.current in
        if sp == "" then NoChange
-       else SetEntry sp
+       else Many [ AutocompleteMod <| SetEntry sp ]
 
-     (key, cursor, _) ->
-       let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in
-       NoChange
+     (Key.Enter, _, _) ->
+       let sp = Autocomplete.sharedPrefix m.complete.current in
+       if sp == "" then NoChange
+       else Many [ AutocompleteMod <| SetEntry sp ]
+
+     (key, cursor, val) ->
+       AutocompleteMod <| SetEntry val
+
+updateEntryValue : String -> Modification
+updateEntryValue target =
+  AutocompleteMod <| SetEntry target
 
 -- This fires when we're not in the input box
 updateGlobalKeyPress : Model -> Keyboard.KeyCode -> Cursor -> Modification

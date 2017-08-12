@@ -22,8 +22,7 @@ dragEdgeSize = "2px"
 initialPos = {x=400, y=170}
 
 defaultEditor : Editor
-defaultEditor = { entryValue = ""
-                , replValue = ""
+defaultEditor = { replValue = ""
                 , cursor = (Nothing, Just initialPos)
                 , tempFieldName = ""
                 }
@@ -36,7 +35,6 @@ model2editor m =
                Deselected -> (Nothing, Nothing)
                Dragging nid -> (Just (deID nid), Nothing)
   , replValue = m.replValue
-  , entryValue = m.entryValue
   , tempFieldName = m.tempFieldName
   }
 
@@ -55,7 +53,6 @@ defaultModel e = { nodes = Dict.empty
                               (_, Just pos) -> Creating pos
                               _ -> Deselected
                  -- editor
-                 , entryValue = e.entryValue
                  , replValue = e.replValue
                  , tempFieldName = e.tempFieldName
                  }

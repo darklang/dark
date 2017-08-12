@@ -62,7 +62,7 @@ update msg m =
   let mods = (update_ msg m)
       (newm, newc) = updateMod mods (m, Cmd.none)
   in
-    (newm, Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
+    ({ newm | lastMsg = msg} , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
 -- applied from left to right
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
@@ -71,7 +71,6 @@ updateMod mod (m, cmd) =
     case mod of
       RPC call -> (m, rpc m [call])
       NoChange -> (m, Cmd.none)
-      SetEntry v -> ({m | entryValue = v}, Cmd.none)
       Error e -> ({ m | error = (e, Util.timestamp ())
                   }, Cmd.none)
       Cursor c -> ({ m | cursor = c
@@ -88,8 +87,7 @@ updateMod mod (m, cmd) =
 
 
 update_ : Msg -> Model -> Modification
-update_ msg m_ =
-  let m = { m_ | lastMsg = msg } in
+update_ msg m =
   case (msg, m.cursor) of
 
     (CheckEscape code, _) ->
@@ -156,7 +154,7 @@ update_ msg m_ =
     -- entry node
     ------------------------
     (EntrySubmitMsg, Filling node hole pos) ->
-      case String.uncons m.entryValue of
+      case String.uncons m.complete.value of
         Nothing -> NoChange
         -- var lookup
         Just ('$', rest) -> Entry.addVar m rest
@@ -168,22 +166,26 @@ update_ msg m_ =
             Entry.addNode "." pos [implicit, constant]
         -- functions or constants
         _ ->
-          if Entry.isValueRepr m.entryValue then
+          if Entry.isValueRepr m.complete.value then
             case hole of
-              ParamHole n p i -> Entry.addConstant m.entryValue node.id p
-              ResultHole _ -> Entry.addValue m.entryValue pos []
+              ParamHole n p i -> Entry.addConstant m.complete.value node.id p
+              ResultHole _ -> Entry.addValue m.complete.value pos []
           else
             let implicit = Entry.findImplicitEdge m node in
-            Entry.addNode m.entryValue pos [implicit]
+            Entry.addNode m.complete.value pos [implicit]
+
 
     (EntrySubmitMsg, Creating pos) ->
-      Entry.addNode m.entryValue pos []
+      Entry.addNode m.complete.value pos []
 
     (EntryKeyPress event, cursor) ->
       Entry.updateEntryKeyPress m event cursor
 
     (GlobalKeyPress code, cursor) ->
       Entry.updateGlobalKeyPress m code cursor
+
+    (EntryInputMsg target, _) ->
+      Entry.updateEntryValue target
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
@@ -211,7 +213,6 @@ update_ msg m_ =
 
       in
         Many [ Cursor cursor
-             , SetEntry ""
              , AutocompleteMod Reset
              ]
 
@@ -224,15 +225,7 @@ update_ msg m_ =
 
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
-      -- TODO: should these be separate events?
-      Many [ SetEntry ""
-           , AutocompleteMod Reset]
-
-      -- Syncs the form with the model. The actual submit is in
-      -- EntrySubmitMsg
-    (EntryInputMsg target, _) ->
-      Many [ SetEntry target
-           , AutocompleteMod <| Query target ]
+      AutocompleteMod Reset
 
     t -> Error <| "Nothing for " ++ (toString t)
 

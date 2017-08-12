@@ -107,6 +107,7 @@ type RPC
 type alias Autocomplete = { defaults : List String
                           , current : List String
                           , index : Int
+                          , value : String
                           }
 
 type alias Model = { nodes : NodeDict
@@ -120,10 +121,9 @@ type alias Model = { nodes : NodeDict
                    , tempFieldName : FieldName
                    , cursor : Cursor
                    , replValue : String
-                   , entryValue : String
                    }
 
-type AutocompleteMod = Query String
+type AutocompleteMod = SetEntry String
                      | Reset
                      | SelectDown
                      | SelectUp
@@ -134,7 +134,6 @@ type Modification = Error String
                   | ModelMod (Model -> Model)
                   | Drag Drag
                   | NoChange
-                  | SetEntry String
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
 
@@ -143,7 +142,6 @@ type alias Flags = { state: Maybe Editor
 
 -- Values that we serialize
 type alias Editor = { cursor : (Maybe Int, Maybe Pos)
-                    , entryValue : String
                     , replValue : String
                     , tempFieldName : FieldName
                     }
