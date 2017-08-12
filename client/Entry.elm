@@ -53,9 +53,9 @@ updateEntryKeyPress m kb cursor =
        else Many [ AutocompleteMod <| SetEntry sp ]
 
      (Key.Enter, _, _) ->
-       let sp = Autocomplete.sharedPrefix m.complete.current in
-       if sp == "" then NoChange
-       else Many [ AutocompleteMod <| SetEntry sp ]
+       case Autocomplete.highlighted m.complete of
+         Just s -> AutocompleteMod <| SetEntry s
+         Nothing -> NoChange
 
      (key, cursor, val) ->
        AutocompleteMod <| SetEntry val

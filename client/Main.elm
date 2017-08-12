@@ -154,29 +154,31 @@ update_ msg m =
     -- entry node
     ------------------------
     (EntrySubmitMsg, Filling node hole pos) ->
-      case String.uncons m.complete.value of
-        Nothing -> NoChange
-        -- var lookup
-        Just ('$', rest) -> Entry.addVar m rest
-        -- field access
-        Just ('.', fieldname) ->
-          let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
-              implicit = Entry.findImplicitEdge m node
-          in
-            Entry.addNode "." pos [implicit, constant]
-        -- functions or constants
-        _ ->
-          if Entry.isValueRepr m.complete.value then
-            case hole of
-              ParamHole n p i -> Entry.addConstant m.complete.value node.id p
-              ResultHole _ -> Entry.addValue m.complete.value pos []
-          else
-            let implicit = Entry.findImplicitEdge m node in
-            Entry.addNode m.complete.value pos [implicit]
+      NoChange
+      -- case String.uncons m.complete.value of
+      --   Nothing -> NoChange
+      --   -- var lookup
+      --   Just ('$', rest) -> Entry.addVar m rest
+      --   -- field access
+      --   Just ('.', fieldname) ->
+      --     let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
+      --         implicit = Entry.findImplicitEdge m node
+      --     in
+      --       Entry.addNode "." pos [implicit, constant]
+      --   -- functions or constants
+      --   _ ->
+      --     if Entry.isValueRepr m.complete.value then
+      --       case hole of
+      --         ParamHole n p i -> Entry.addConstant m.complete.value node.id p
+      --         ResultHole _ -> Entry.addValue m.complete.value pos []
+      --     else
+      --       let implicit = Entry.findImplicitEdge m node in
+      --       Entry.addNode m.complete.value pos [implicit]
 
 
     (EntrySubmitMsg, Creating pos) ->
-      Entry.addNode m.complete.value pos []
+      NoChange
+      -- Entry.addNode m.complete.value pos []
 
     (EntryKeyPress event, cursor) ->
       Entry.updateEntryKeyPress m event cursor
