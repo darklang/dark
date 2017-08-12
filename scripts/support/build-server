@@ -117,13 +117,13 @@ def main():
   s3 = ocaml_build ()
   s1 = elm_package()
   s2 = elm_make()
-  if s1 and s2:
-    elm_test()
   if s3:
     ocaml_test()
     reload_server()
   if s3 or (s1 and s2):
     reload_browser()
+  if s1 and s2:
+    elm_test()
 
   for f in sys.stdin:
     (f, reason) = f.strip().split(" ")
@@ -141,12 +141,12 @@ def main():
     elif "elm-package.json" in f:
       elm_package() and \
         elm_make() and \
-        elm_test() and \
-        reload_browser()
+        reload_browser() and \
+        elm_test()
     elif ".elm" in f:
       elm_make() and \
-      elm_test() and \
-      reload_browser()
+      reload_browser() and \
+      elm_test()
 
 
     # Ocaml
