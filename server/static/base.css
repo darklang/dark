@@ -116,3 +116,12 @@ form {
   font-size: 12px;
   float: right;
 }
+
+
+.autocomplete-holder {
+
+}
+
+.autocomplete-item.highlighted {
+  background: blue;
+}

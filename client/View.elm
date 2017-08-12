@@ -81,28 +81,40 @@ viewClick pos =
 viewCursor : Model -> List (Svg.Svg Msg)
 viewCursor m =
   let html pos =
-    let datalist = Html.datalist
-                   [Attrs.id "allowedValues"]
-                   (List.map (\a -> Html.option [Attrs.value a] [])  m.complete.current)
+    let autocomplete = Html.ul
+                       [ Attrs.class "autocomplete-holder" ]
+                       (List.indexedMap
+                          (\i s ->
+                             let highlighted = m.complete.index == i
+                                 hlClass = if highlighted then " highlighted" else ""
+                                 class = "autocomplete-item" ++ hlClass
+                             in Html.li
+                                 [ Attrs.value s
+                                 , Attrs.class class
+                                 , Attrs.id ("autocomplete-item-" ++ (toString i))
+                                 ]
+                                 [Html.text s])
+                          m.complete.current)
 
-        viewForm = Html.form [
-                    Events.onSubmit (EntrySubmitMsg)
-                   ] [
-                    Html.input [ Attrs.id Defaults.entryID
-                               , Events.on "keydown" entryKeyHandler
-                               , Events.onInput EntryInputMsg
-                               , Attrs.list "allowedValues"
-                               , Attrs.width 50
-                               , Attrs.value m.entryValue
-                               , Attrs.autocomplete False
-                               ] []
-                   ]
+        input = Html.input [ Attrs.id Defaults.entryID
+                           , Events.on "keydown" entryKeyHandler
+                           , Events.onInput EntryInputMsg
+                           , Attrs.attribute "type" "text"
+                           , Attrs.placeholder "ns::fn arg1 arg2"
+                           , Attrs.width 50
+                           , Attrs.value m.entryValue
+                           , Attrs.autocomplete False
+                           ] []
+
+        viewForm = Html.form
+                   [ Events.onSubmit (EntrySubmitMsg) ]
+                   (if m.entryValue == "" then [input] else [input, autocomplete])
 
         -- inner node
         inner = Html.div
                 [ Attrs.width 100
                 , Attrs.class "inner"]
-                [ datalist, viewForm ]
+                [ viewForm ]
 
 
         -- outer node wrapper

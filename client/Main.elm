@@ -71,6 +71,7 @@ updateMod mod (m, cmd) =
     case mod of
       RPC call -> (m, rpc m [call])
       NoChange -> (m, Cmd.none)
+      SetEntry v -> ({m | entryValue = v}, Cmd.none)
       Error e -> ({ m | error = (e, Util.timestamp ())
                   }, Cmd.none)
       Cursor c -> ({ m | cursor = c
@@ -79,6 +80,9 @@ updateMod mod (m, cmd) =
                     }, Cmd.none)
       ModelMod mm -> (mm m, Cmd.none)
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
+      AutocompleteMod mod ->
+        ({ m | complete = Autocomplete.update m.complete mod
+         }, Cmd.none)
   in
     (newm, Cmd.batch [cmd, newcmd])
 
@@ -206,10 +210,10 @@ update_ msg m_ =
                        Canvas.selectNode m2 node
 
       in
-        Many [ ModelMod
-                 (\_ -> { m2 | entryValue = ""
-                             , complete = Autocomplete.reset m.complete})
-             , Cursor cursor]
+        Many [ Cursor cursor
+             , SetEntry ""
+             , AutocompleteMod Reset
+             ]
 
 
     ------------------------
@@ -221,15 +225,14 @@ update_ msg m_ =
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
       -- TODO: should these be separate events?
-      ModelMod (\m -> {m | replValue = ""
-                         , entryValue = ""
-                         , complete = Autocomplete.reset m.complete})
+      Many [ SetEntry ""
+           , AutocompleteMod Reset]
 
       -- Syncs the form with the model. The actual submit is in
       -- EntrySubmitMsg
     (EntryInputMsg target, _) ->
-      ModelMod (\m -> { m | entryValue = target
-                          , complete = Autocomplete.update m.complete target })
+      Many [ SetEntry target
+           , AutocompleteMod <| Query target ]
 
     t -> Error <| "Nothing for " ++ (toString t)
 

@@ -106,6 +106,7 @@ type RPC
 
 type alias Autocomplete = { defaults : List String
                           , current : List String
+                          , index : Int
                           }
 
 type alias Model = { nodes : NodeDict
@@ -122,12 +123,19 @@ type alias Model = { nodes : NodeDict
                    , entryValue : String
                    }
 
+type AutocompleteMod = Query String
+                     | Reset
+                     | SelectDown
+                     | SelectUp
+
 type Modification = Error String
                   | Cursor Cursor
                   | RPC RPC
                   | ModelMod (Model -> Model)
                   | Drag Drag
                   | NoChange
+                  | SetEntry String
+                  | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
 
 type alias Flags = { state: Maybe Editor

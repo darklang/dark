@@ -40,6 +40,13 @@ updateEntryKeyPress m kb cursor =
      (Key.Right, _, "") ->
        Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
 
+     (Key.Up, _, _) ->
+       AutocompleteMod SelectUp
+
+     (Key.Down, _, _) ->
+       AutocompleteMod SelectDown
+
+
      (key, cursor, _) ->
        let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in
        NoChange
