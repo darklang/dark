@@ -1,7 +1,6 @@
 .git
 server/_build
-server/configure
-server/Makefile
-server/setup.ml
-server/setup.log
-server/setup.data
+server/cache
+client/elm-stuff
+client/tests/elm-stuff
+pythonserver

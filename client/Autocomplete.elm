@@ -26,6 +26,18 @@ selectUp a = let max = (List.length a.current) - 1 in
 highlighted : Autocomplete -> Maybe String
 highlighted a = getAt a.index a.current
 
+containsOrdered : String -> String -> Bool
+containsOrdered needle haystack =
+  case String.uncons needle of
+    Just (c, newneedle) ->
+      let char = String.fromChar c in
+      String.contains char haystack
+        && containsOrdered newneedle (haystack
+                                        |> String.split char
+                                        |> List.drop 1
+                                        |> String.join "")
+    Nothing -> True
+
 query : Autocomplete -> String -> Autocomplete
 query a str =
   { defaults = a.defaults

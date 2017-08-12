@@ -72,6 +72,7 @@ def ignore(filename, reason):
             , "logs/"
             , ".merlin"
             , "client/elm-stuff"
+            , "client/tests/elm-stuff"
             , "server/static/elm.js"
             , "server/cache/"
             , "server/_build/"
@@ -94,6 +95,9 @@ def elm_package():
 def elm_make():
   return call("cd client && elm-make Main.elm --debug --yes --output ../server/static/elm.js")
 
+def elm_test():
+  return call("cd client && elm-test")
+
 def ocaml_build():
   return call("cd server && ocamlbuild dark.byte")
 
@@ -113,6 +117,8 @@ def main():
   s3 = ocaml_build ()
   s1 = elm_package()
   s2 = elm_make()
+  if s1 and s2:
+    elm_test()
   if s3:
     ocaml_test()
     reload_server()
@@ -135,10 +141,12 @@ def main():
     elif "elm-package.json" in f:
       elm_package() and \
         elm_make() and \
+        elm_test() and \
         reload_browser()
     elif ".elm" in f:
       elm_make() and \
-        reload_browser()
+      elm_test() and \
+      reload_browser()
 
 
     # Ocaml

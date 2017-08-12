@@ -1,6 +1,7 @@
 /logs/
 /.browser-trigger
-/client/elm-stuff/
+/client/elm-stuff
+/client/tests/elm-stuff
 /server/_build
 /server/*.byte
 /server/dark.install
