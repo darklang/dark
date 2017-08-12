@@ -70,90 +70,90 @@ updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
   let (newm, newcmd) =
     case mod of
-      RPC call -> (m, rpc m [call])
-      NoChange -> (m, Cmd.none)
-      Error e -> ({ m | error = (e, Util.timestamp ())
-                  }, Cmd.none)
-      Cursor c -> ({ m | cursor = c
-                   }, Selection.maybeFocusEntry m.cursor c)
-      Drag d -> ({ m | drag = d
-                    }, Cmd.none)
-      ModelMod mm -> (mm m, Cmd.none)
+      Error e -> { m | error = (e, Util.timestamp ())} ! []
+      RPC call -> m ! [rpc m [call]]
+      NoChange -> m ! []
+      Select id -> { m | state = Selecting id} ! []
+      Enter entry -> { m | state = Entering entry } ! [Selection.focusEntry]
+      Drag d -> { m | state = Dragging d } ! []
+      ModelMod mm -> mm m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
       AutocompleteMod mod ->
-        ({ m | complete = Autocomplete.update m.complete mod
-         }, Cmd.none)
+        { m | complete = Autocomplete.update m.complete mod } ! []
+      _ -> Debug.crash "unhandled"
   in
     (newm, Cmd.batch [cmd, newcmd])
 
 
 update_ : Msg -> Model -> Modification
 update_ msg m =
-  case (msg, m.cursor) of
+  case (msg, m.state) of
 
     (NodeClick node, _) ->
-      Cursor <| Selection.selectNode m node
+      Enter <| Selection.selectNode m node
 
     (RecordClick pos, _) ->
+      -- TODO: what does this mean?
       -- When we click on a node, drag is set when RecordClick happens.
       -- So this avoids firing if we click outside a node
-      if m.drag == NoDrag then
-        Cursor <| Creating pos
-      else
-        NoChange
+      Enter <| Creating pos
 
     ------------------------
     -- dragging nodes
     ------------------------
     (DragNodeStart node event, _) ->
-      -- If we're already dragging a slot don't change the node
-      if m.drag == NoDrag && event.button == Defaults.leftButton
-      then
-        let offset = Canvas.findOffset node.pos event.pos in
-        Many [ Drag <| DragNode node.id offset
-             , Cursor <| Dragging node.id]
-      else NoChange
+      NoChange
+      -- If we're already dragging a slot don't change the nodea
+      -- TODO: reenable
+      -- if m.drag == NoDrag && event.button == Defaults.leftButton
+      -- then
+      --   let offset = Canvas.findOffset node.pos event.pos in
+      --   Drag <| DragNode node.id offset
+      -- else NoChange
 
     (DragNodeMove id offset pos, _) ->
       -- While it's kinda nasty to update a node in place, the drawing
       -- code get's really complex if we don't do this.
       let update = Canvas.updateDragPosition pos offset id m.nodes in
-      ModelMod (\m -> { m | nodes = update
-                      , dragPos = pos})
+      Many [ ModelMod (\m -> { m | nodes = update })
+           -- TODO reenable and fix
+           -- , Drag <| DragNode id pos
+           ]
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      Many [ Drag NoDrag
-           , Cursor <| Selection.selectNode m node
+      Many [ Enter <| Selection.selectNode m node
            , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
       if event.button == Defaults.leftButton
-      then Many [ Cursor <| Dragging target.id
-                , Drag <| DragSlot target param event.pos]
+      then Many [ Drag <| DragSlot target param event.pos]
       else NoChange
 
     (DragSlotMove mpos, _) ->
-      ModelMod (\m -> { m | dragPos = mpos })
+      -- TODO reenable
+      NoChange
+      -- ModelMod (\m -> { m | dragPos = mpos })
 
     (DragSlotEnd source, _) ->
-      case m.drag of
-        DragSlot target param starting ->
-          Many [ Drag NoDrag
-               , RPC <| AddEdge source.id (target.id, param)]
+      case m.state of
+        Dragging (DragSlot target param starting) ->
+          -- TODO: select a node now
+          RPC <| AddEdge source.id (target.id, param)
         _ -> NoChange
 
     (DragSlotStop _, _) ->
-      Drag NoDrag
+      -- TODO: select a node
+      NoChange
 
     ------------------------
     -- entry node
     ------------------------
-    (EntrySubmitMsg, cursor) ->
+    (EntrySubmitMsg, Entering cursor) ->
       Entry.submit m cursor
 
-    (EntryKeyPress event, cursor) ->
-      Entry.updateKeyPress m event cursor
+    (EntryKeyPress event, _) ->
+      Entry.updateKeyPress m event
 
     (GlobalKeyPress code, cursor) ->
       Selection.updateKeyPress m code cursor
@@ -165,28 +165,28 @@ update_ msg m =
       let m2 = { m | nodes = nodes
                    , edges = edges
                    , error = ("", 0)}
-          cursor = case justAdded of
-                     -- if we deleted a node, the cursor is probably
-                     -- invalid
-                     Nothing ->
-                       if m.cursor
-                         |> Selection.getCursorID
-                         |> Maybe.andThen (G.getNode m2)
-                         |> (==) Nothing
-                       then Deselected
-                       else m.cursor
+          reaction = case justAdded of
+                       -- if we deleted a node, the cursor is probably
+                       -- invalid
+                       Nothing ->
+                         if m.state
+                           |> Selection.getCursorID
+                           |> Maybe.andThen (G.getNode m2)
+                           |> (==) Nothing
+                         then Deselect
+                         else NoChange
 
-                     -- TODO if the just-added node has an outgoing
-                     -- edge, which was just selected, choose it
-                     -- instead.
+                       -- TODO if the just-added node has an outgoing
+                       -- edge, which was just selected, choose it
+                       -- instead.
 
-                     -- if we added a node, select it
-                     Just id ->
-                       let node = G.getNodeExn m2 id in
-                       Selection.selectNode m2 node
+                       -- if we added a node, select it
+                       Just id ->
+                         let node = G.getNodeExn m2 id in
+                         Enter <| Selection.selectNode m2 node
 
       in
-        Many [ Cursor cursor
+        Many [ reaction
              , AutocompleteMod Reset
              ]
 
@@ -209,15 +209,17 @@ update_ msg m =
 -----------------------
 subscriptions : Model -> Sub Msg
 subscriptions m =
-  let dragSubs = case m.drag of
-                   -- we use IDs here because the node will change
-                   -- before they're triggered
-                   DragNode id offset -> [ Mouse.moves (DragNodeMove id offset)
-                                         , Mouse.ups (DragNodeEnd id)]
-                   DragSlot _ _ _ ->
-                     [ Mouse.moves DragSlotMove
-                     , Mouse.ups DragSlotStop]
-                   NoDrag -> [ ]
+  let dragSubs =
+        case m.state of
+          -- we use IDs here because the node will change
+          -- before they're triggered
+          Dragging (DragNode id offset) ->
+            [ Mouse.moves (DragNodeMove id offset)
+            , Mouse.ups (DragNodeEnd id)]
+          Dragging (DragSlot _ _ _) ->
+            [ Mouse.moves DragSlotMove
+            , Mouse.ups DragSlotStop]
+          _ -> []
       keySubs = [ Keyboard.downs GlobalKeyPress]
       standardSubs = [ Mouse.downs RecordClick ]
   in Sub.batch

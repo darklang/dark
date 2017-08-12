@@ -22,37 +22,22 @@ dragEdgeSize = "2px"
 initialPos = {x=400, y=170}
 
 defaultEditor : Editor
-defaultEditor = { replValue = ""
-                , cursor = (Nothing, Just initialPos)
-                , tempFieldName = ""
-                }
+defaultEditor = {}
 
 model2editor : Model -> Editor
-model2editor m =
-  { cursor = case m.cursor of
-               Filling n hole pos -> (Just (deID n.id), Just pos)
-               Creating pos -> (Nothing, Just pos)
-               Deselected -> (Nothing, Nothing)
-               Dragging nid -> (Just (deID nid), Nothing)
-  , replValue = m.replValue
-  , tempFieldName = m.tempFieldName
-  }
-
+model2editor m = {}
 
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
                  , edges = []
                  , error = ("None", 0)
                  , lastMsg = Initialization
-                 , dragPos = {x=0, y=0}
-                 , drag = NoDrag
+
+                 -- editor TODO
+                 -- these load before the graph does, causing
+                 -- exceptions. We'll need to only run these after the
+                 -- graph loads
                  , complete = Autocomplete.empty
-                -- these load before the graph does, causing exceptions. We'll
-                -- need to only run these after the graph loads
-                 , cursor = case e.cursor of
-                              (_, Just pos) -> Creating pos
-                              _ -> Deselected
-                 -- editor
-                 , replValue = e.replValue
-                 , tempFieldName = e.tempFieldName
+                 , tempFieldName = ""
+                 , state = Deselected
                  }

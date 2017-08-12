@@ -19,27 +19,28 @@ import Graph as G
 
 
 
-updateKeyPress : Model -> KeyboardEvent -> Cursor -> Modification
-updateKeyPress m kb cursor =
-  case (kb.keyCode, cursor, m.complete.value) of
-     (Key.Up, _, _) ->
+updateKeyPress : Model -> KeyboardEvent -> Modification
+updateKeyPress m kb =
+  case (kb.keyCode, m.complete.value) of
+     (Key.Up, _) ->
        AutocompleteMod SelectUp
 
-     (Key.Down, _, _) ->
+     (Key.Down, _) ->
        AutocompleteMod SelectDown
 
-     (Key.Right, _, _) ->
+     (Key.Right, _) ->
        let sp = Autocomplete.sharedPrefix m.complete.current in
        if sp == "" then NoChange
        else Many [ AutocompleteMod <| SetEntry sp ]
 
-     (Key.Enter, _, _) ->
+     (Key.Enter, _) ->
        case Autocomplete.highlighted m.complete of
          Just s -> AutocompleteMod <| SetEntry s
          Nothing -> NoChange
 
-     (key, cursor, val) ->
+     (key, val) ->
        AutocompleteMod <| SetEntry val
+
 
 updateValue : String -> Modification
 updateValue target =
@@ -90,7 +91,7 @@ addVar m name =
 ---------------------
 -- Dealing with events
 ---------------------
-submit : Model -> Cursor -> Modification
+submit : Model -> EntryCursor -> Modification
 submit m cursor =
   case cursor of
     Filling node hole pos ->
@@ -99,7 +100,6 @@ submit m cursor =
     Creating pos ->
       addNode m.complete.value pos []
 
-    _ -> Debug.crash "Can't submit if you can't see it!"
 
 submitFilling : Model -> Node -> Hole -> Pos -> Modification
 submitFilling m node hole pos =

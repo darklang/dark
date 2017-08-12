@@ -17,8 +17,8 @@ import Graph as G
 import Defaults
 
 
-updateKeyPress : Model -> Keyboard.KeyCode -> Cursor -> Modification
-updateKeyPress m code cursor =
+updateKeyPress : Model -> Keyboard.KeyCode -> State -> Modification
+updateKeyPress m code state =
     -- (CheckEscape code, _) ->
     --   if code == Defaults.escapeKeycode
     --   then Cursor Deselected
@@ -41,7 +41,7 @@ updateKeyPress m code cursor =
      --   Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
 
 
-  if cursor == Deselected then
+  if state == Deselected then
     case code
       |> Char.fromCode
       |> Char.toLower
@@ -49,7 +49,7 @@ updateKeyPress m code cursor =
       |> G.fromLetter m
       |> Maybe.map (selectNode m)
          of
-           Just cursor -> Cursor cursor
+           Just cursor -> Enter cursor
            Nothing -> NoChange
   else
     NoChange
@@ -60,42 +60,33 @@ updateKeyPress m code cursor =
 
 isSelected : Model -> Node -> Bool
 isSelected m n =
-  case m.cursor of
-    Filling node _ _ -> n == node
+  case m.state of
+    Entering (Filling node _ _) -> n == node
     _ -> False
 
-entryVisible : Cursor -> Bool
-entryVisible cursor =
-  case cursor of
-    Deselected -> False
-    Dragging _ -> False
-    _ -> True
+entryVisible : State -> Bool
+entryVisible state =
+  case state of
+    Entering _ -> True
+    _ -> False
 
 focusEntry : Cmd Msg
 focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 
-maybeFocusEntry : Cursor -> Cursor -> Cmd Msg
-maybeFocusEntry oldc c =
-  if entryVisible c then
-    focusEntry
-  else
-    Cmd.none
-
-
-getCursorID : Cursor -> Maybe ID
-getCursorID c =
-  case c of
-    Dragging id -> Just id
-    Filling node _ _ -> Just node.id
+getCursorID : State -> Maybe ID
+getCursorID s =
+  case s of
+    Dragging (DragNode id _) -> Just id
+    Entering (Filling node _ _) -> Just node.id
     _ -> Nothing
 
-selectNextNode : Model -> (Pos -> Pos  -> Bool) -> Cursor
+selectNextNode : Model -> (Pos -> Pos  -> Bool) -> State
 selectNextNode m cond =
   -- if we're currently in a node, follow the direction. For now, pick
   -- the nearest node to it, that it's connected to, that's roughly in
   -- that direction.
-  case m.cursor of
-    Filling n _ _ ->
+  case m.state of
+    Entering (Filling n _ _) ->
       let other =
           G.connectedNodes m n
             -- that are above us
@@ -105,14 +96,14 @@ selectNextNode m cond =
             |> List.head
       in
         case other of
-          Nothing -> m.cursor
-          Just node -> selectNode m node
-    _ -> m.cursor
+          Nothing -> m.state
+          Just node -> Entering <| selectNode m node
+    _ -> m.state
 
 
 
 
-selectNode : Model -> Node -> Cursor
+selectNode : Model -> Node -> EntryCursor
 selectNode m selected =
   let hole = G.findHole m selected
       pos = case hole of

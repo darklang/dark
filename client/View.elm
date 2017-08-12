@@ -34,7 +34,7 @@ view m =
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas m))
       , viewError m.error
-      , viewLive m m.cursor
+      , viewLive m m.state
       ]
 
 viewError : ( String, a ) -> Html.Html msg
@@ -49,8 +49,8 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = List.map (viewEdge m) m.edges
-        dragEdge = viewDragEdge m.drag m.dragPos |> Maybe.Extra.toList
-        entry = viewCursor m
+        dragEdge = viewDragEdge m.state |> Maybe.Extra.toList
+        entry = viewEntry m
     in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ dragEdge ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -68,8 +68,8 @@ viewClick pos =
              , SA.cy (toString pos.y)
              , SA.fill "#333"] []
 
-viewCursor : Model -> List (Svg.Svg Msg)
-viewCursor m =
+viewEntry : Model -> List (Svg.Svg Msg)
+viewEntry m =
   let html pos =
     let autocomplete = Html.ul
                        [ Attrs.class "autocomplete-holder" ]
@@ -117,11 +117,10 @@ viewCursor m =
       in
         placeHtml pos wrapper
   in
-    case m.cursor of
-      Filling n _ pos -> [html pos, svgLine n.pos pos dragEdgeStyle]
-      Creating pos -> [html pos]
-      Dragging _ -> []
-      Deselected -> []
+    case m.state of
+      Entering (Filling n _ pos) -> [html pos, svgLine n.pos pos dragEdgeStyle]
+      Entering (Creating pos) -> [html pos]
+      _ -> []
 
 
 
@@ -242,7 +241,7 @@ viewNode m n i =
   in
     placeHtml n.pos wrapper
 
-viewLive : Model -> Cursor -> Html.Html Msg
+viewLive : Model -> State -> Html.Html Msg
 viewLive m cursor =
   let live =
         cursor
@@ -337,16 +336,13 @@ svgLine p1 p2 attrs =
      ] ++ attrs)
     []
 
-viewDragEdge : Drag -> Pos -> Maybe (Svg.Svg Msg)
-viewDragEdge drag currentPos =
-  case drag of
-    DragNode _ _ -> Nothing
-    NoDrag -> Nothing
-    DragSlot node param mStartPos ->
-      Just <|
-        svgLine mStartPos
-                currentPos
-                dragEdgeStyle
+viewDragEdge : State -> Maybe (Svg.Svg Msg)
+viewDragEdge state =
+  case state of
+    -- TODO: we broke this by removing dragPos. This should be in the state
+    -- Dragging (DragSlot node param mStartPos) ->
+      -- Just <| svgLine mStartPos currentPos dragEdgeStyle
+    _ -> Nothing
 
 viewEdge : Model -> Edge -> Svg.Svg Msg
 viewEdge m {source, target, param} =
