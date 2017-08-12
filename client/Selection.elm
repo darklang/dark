@@ -19,6 +19,11 @@ import Defaults
 
 updateKeyPress : Model -> Keyboard.KeyCode -> Cursor -> Modification
 updateKeyPress m code cursor =
+    -- (CheckEscape code, _) ->
+    --   if code == Defaults.escapeKeycode
+    --   then Cursor Deselected
+    --   else NoChange
+
      -- backspace through an empty node
      -- (Key.Backspace, Filling n _ _, "") ->
      --   RPC <| DeleteNode n.id

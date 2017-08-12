@@ -91,11 +91,6 @@ update_ : Msg -> Model -> Modification
 update_ msg m =
   case (msg, m.cursor) of
 
-    (CheckEscape code, _) ->
-      if code == Defaults.escapeKeycode
-      then Cursor Deselected
-      else NoChange
-
     (NodeClick node, _) ->
       Cursor <| Selection.selectNode m node
 
@@ -224,8 +219,7 @@ subscriptions m =
                      , Mouse.ups DragSlotStop]
                    NoDrag -> [ ]
       keySubs = [ Keyboard.downs GlobalKeyPress]
-      standardSubs = [ Keyboard.downs CheckEscape
-                     , Mouse.downs RecordClick]
+      standardSubs = [ Mouse.downs RecordClick ]
   in Sub.batch
     (List.concat [standardSubs, keySubs, dragSubs])
 
