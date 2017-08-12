@@ -12,6 +12,7 @@ import Keyboard.Key as Key
 import RPC exposing (rpc)
 import Types exposing (..)
 import Util exposing (deMaybe)
+import Autocomplete
 import Canvas
 import Graph as G
 
@@ -46,6 +47,10 @@ updateEntryKeyPress m kb cursor =
      (Key.Down, _, _) ->
        AutocompleteMod SelectDown
 
+     (Key.Right, _, _) ->
+       case Autocomplete.highlighted m.complete of
+         Just s -> Many [SetEntry s, AutocompleteMod Reset]
+         Nothing -> NoChange
 
      (key, cursor, _) ->
        let _ = Debug.log "[Entry] Nothing to do" (key, cursor, m.entryValue) in

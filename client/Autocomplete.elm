@@ -1,6 +1,9 @@
 module Autocomplete exposing (..)
 
+import List.Extra exposing (getAt)
+
 import Types exposing (..)
+
 
 empty : Autocomplete
 empty = { defaults = [], current = [], index = -1 }
@@ -19,6 +22,9 @@ selectUp : Autocomplete -> Autocomplete
 selectUp a = let max = (List.length a.current) - 1 in
              { a | index = if a.index == 0 then max else a.index - 1
              }
+
+highlighted : Autocomplete -> Maybe String
+highlighted a = getAt a.index a.current
 
 query : Autocomplete -> String -> Autocomplete
 query a str =
