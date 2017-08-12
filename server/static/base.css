@@ -117,9 +117,9 @@ form {
   float: right;
 }
 
-
 .autocomplete-holder {
-
+  overflow-y: auto;
+  max-height: 250px;
 }
 
 .autocomplete-item.highlighted {
