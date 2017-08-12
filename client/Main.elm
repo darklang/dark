@@ -75,7 +75,7 @@ updateMod mod (m, cmd) =
       Error e -> ({ m | error = (e, Util.timestamp ())
                   }, Cmd.none)
       Cursor c -> ({ m | cursor = c
-                      }, Canvas.maybeFocusEntry m.cursor c)
+                   }, Canvas.maybeFocusEntry m.cursor c)
       Drag d -> ({ m | drag = d
                     }, Cmd.none)
       ModelMod mm -> (mm m, Cmd.none)

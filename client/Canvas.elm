@@ -20,7 +20,7 @@ import Graph as G
 -------------------
 maybeFocusEntry : Cursor -> Cursor -> Cmd Msg
 maybeFocusEntry oldc c =
-  if not (entryVisible oldc) && (entryVisible c) then
+  if entryVisible c then
     focusEntry
   else
     Cmd.none
