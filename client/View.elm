@@ -1,25 +1,27 @@
 module View exposing (view)
 
+-- builtin
 import Dict exposing (Dict)
 import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Maybe.Extra
 
+-- lib
 import Svg
 import Svg.Attributes as SA
-
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import Keyboard.Event
 
-
+-- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
 import Canvas
 import Defaults
+import Selection
 
 view : Model -> Html.Html Msg
 view m =
@@ -31,21 +33,9 @@ view m =
       [ (Svg.svg
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas m))
-      -- , viewRepl m.inputValue
       , viewError m.error
       , viewLive m m.cursor
       ]
-
-viewRepl : String -> Html.Html Msg
-viewRepl value = Html.form [
-                  Events.onSubmit (ReplSubmitMsg)
-                 ] [
-                  Html.input [ Attrs.id Defaults.replID
-                             , Events.onInput ReplInputMsg
-                             , Attrs.value value
-                             , Attrs.autocomplete False
-                             ] []
-                 ]
 
 viewError : ( String, a ) -> Html.Html msg
 viewError (msg, ts) =
@@ -241,7 +231,7 @@ viewNode m n i =
 
 
       -- outer node wrapper
-      selected = Canvas.isSelected m n
+      selected = Selection.isSelected m n
       selectedCl = if selected then ["selected"] else []
       class = String.toLower (toString n.tipe)
       classes = String.join " " (["node", class] ++ selectedCl)
@@ -256,7 +246,7 @@ viewLive : Model -> Cursor -> Html.Html Msg
 viewLive m cursor =
   let live =
         cursor
-          |> Canvas.getCursorID
+          |> Selection.getCursorID
           |> Maybe.andThen (G.getNode m)
           |> Maybe.map .live
   in

@@ -12,7 +12,7 @@ init : List String -> Autocomplete
 init defaults = { defaults = defaults, current = defaults, index = -1, value = "" }
 
 reset : Autocomplete -> Autocomplete
-reset a = { defaults = a.defaults, current = a.defaults, index = -1, value = "" }
+reset a = init a.defaults
 
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max = (List.length a.current) in

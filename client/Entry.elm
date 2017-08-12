@@ -7,6 +7,7 @@ import Keyboard
 -- lib
 import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
 import Keyboard.Key as Key
+import Dom
 
 -- dark
 import RPC exposing (rpc)
@@ -17,30 +18,10 @@ import Canvas
 import Graph as G
 
 
--- We use this because a) it has other modifiers and b) the timing with
--- which it fires means we get the right value in the entryValue, so we
--- know when to delete a node (if we rely on globalKeyPress, it deletes
--- one character too early, though this is maybe fixable.
 
-updateEntryKeyPress : Model -> KeyboardEvent -> Cursor -> Modification
-updateEntryKeyPress m kb cursor =
+updateKeyPress : Model -> KeyboardEvent -> Cursor -> Modification
+updateKeyPress m kb cursor =
   case (kb.keyCode, cursor, m.complete.value) of
-     -- backspace through an empty node
-     (Key.Backspace, Filling n _ _, "") ->
-       RPC <| DeleteNode n.id
-
-     (Key.Up, _, "") ->
-       Cursor <| Canvas.selectNextNode m (\n o -> n.y > o.y)
-
-     (Key.Down, _, "") ->
-       Cursor <| Canvas.selectNextNode m (\n o -> n.y < o.y)
-
-     (Key.Left, _, "") ->
-       Cursor <| Canvas.selectNextNode m (\n o -> n.x > o.x)
-
-     (Key.Right, _, "") ->
-       Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
-
      (Key.Up, _, _) ->
        AutocompleteMod SelectUp
 
@@ -60,26 +41,14 @@ updateEntryKeyPress m kb cursor =
      (key, cursor, val) ->
        AutocompleteMod <| SetEntry val
 
-updateEntryValue : String -> Modification
-updateEntryValue target =
+updateValue : String -> Modification
+updateValue target =
   AutocompleteMod <| SetEntry target
 
--- This fires when we're not in the input box
-updateGlobalKeyPress : Model -> Keyboard.KeyCode -> Cursor -> Modification
-updateGlobalKeyPress m code cursor =
-  if cursor == Deselected then
-    case code
-      |> Char.fromCode
-      |> Char.toLower
-      |> String.fromChar
-      |> G.fromLetter m
-      |> Maybe.map (Canvas.selectNode m)
-         of
-           Just cursor -> Cursor cursor
-           Nothing -> NoChange
-  else
-    NoChange
 
+---------------------
+-- Calling the server
+---------------------
 isValueRepr : String -> Bool
 isValueRepr name = Util.rematch "^[\"\'[1-9{].*" name
 
@@ -117,3 +86,45 @@ addVar m name =
         _ -> Error "There isn't parameter we're looking to fill here"
     Nothing ->
         Error <| "There isn't a node named '" ++ name ++ "' to connect to"
+
+---------------------
+-- Dealing with events
+---------------------
+submit : Model -> Cursor -> Modification
+submit m cursor =
+  case cursor of
+    Filling node hole pos ->
+      submitFilling m node hole pos
+
+    Creating pos ->
+      addNode m.complete.value pos []
+
+    _ -> Debug.crash "Can't submit if you can't see it!"
+
+submitFilling : Model -> Node -> Hole -> Pos -> Modification
+submitFilling m node hole pos =
+  case String.uncons m.complete.value of
+
+    Nothing -> NoChange
+
+    -- var lookup
+    Just ('$', rest) -> addVar m rest
+
+
+    -- field access
+    Just ('.', fieldname) ->
+      let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
+          implicit = findImplicitEdge m node
+      in
+        addNode "." pos [implicit, constant]
+
+
+    -- functions or constants
+    _ ->
+      if isValueRepr m.complete.value then
+        case hole of
+          ParamHole n p i -> addConstant m.complete.value node.id p
+          ResultHole _ -> addValue m.complete.value pos []
+      else
+        let implicit = findImplicitEdge m node in
+        addNode m.complete.value pos [implicit]

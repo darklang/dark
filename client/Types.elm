@@ -79,8 +79,6 @@ type Msg
     | DragSlotMove Mouse.Position
     | DragSlotEnd Node
     | DragSlotStop Mouse.Position
-    | ReplInputMsg String
-    | ReplSubmitMsg
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress Keyboard.KeyCode

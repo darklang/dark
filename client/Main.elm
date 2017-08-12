@@ -21,6 +21,7 @@ import Graph as G
 import Canvas
 import Entry
 import Autocomplete
+import Selection
 
 
 -----------------------
@@ -45,7 +46,7 @@ init {state, complete} =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init complete }
   in
-    (m2, Cmd.batch [Canvas.focusEntry, rpc m <| [LoadInitialGraph]])
+    (m2, Cmd.batch [Selection.focusEntry, rpc m <| [LoadInitialGraph]])
 
 
 -----------------------
@@ -74,7 +75,7 @@ updateMod mod (m, cmd) =
       Error e -> ({ m | error = (e, Util.timestamp ())
                   }, Cmd.none)
       Cursor c -> ({ m | cursor = c
-                   }, Canvas.maybeFocusEntry m.cursor c)
+                   }, Selection.maybeFocusEntry m.cursor c)
       Drag d -> ({ m | drag = d
                     }, Cmd.none)
       ModelMod mm -> (mm m, Cmd.none)
@@ -96,7 +97,7 @@ update_ msg m =
       else NoChange
 
     (NodeClick node, _) ->
-      Cursor <| Canvas.selectNode m node
+      Cursor <| Selection.selectNode m node
 
     (RecordClick pos, _) ->
       -- When we click on a node, drag is set when RecordClick happens.
@@ -128,7 +129,7 @@ update_ msg m =
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
       Many [ Drag NoDrag
-           , Cursor <| Canvas.selectNode m node
+           , Cursor <| Selection.selectNode m node
            , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
@@ -153,41 +154,17 @@ update_ msg m =
     ------------------------
     -- entry node
     ------------------------
-    (EntrySubmitMsg, Filling node hole pos) ->
-      NoChange
-      -- case String.uncons m.complete.value of
-      --   Nothing -> NoChange
-      --   -- var lookup
-      --   Just ('$', rest) -> Entry.addVar m rest
-      --   -- field access
-      --   Just ('.', fieldname) ->
-      --     let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
-      --         implicit = Entry.findImplicitEdge m node
-      --     in
-      --       Entry.addNode "." pos [implicit, constant]
-      --   -- functions or constants
-      --   _ ->
-      --     if Entry.isValueRepr m.complete.value then
-      --       case hole of
-      --         ParamHole n p i -> Entry.addConstant m.complete.value node.id p
-      --         ResultHole _ -> Entry.addValue m.complete.value pos []
-      --     else
-      --       let implicit = Entry.findImplicitEdge m node in
-      --       Entry.addNode m.complete.value pos [implicit]
-
-
-    (EntrySubmitMsg, Creating pos) ->
-      NoChange
-      -- Entry.addNode m.complete.value pos []
+    (EntrySubmitMsg, cursor) ->
+      Entry.submit m cursor
 
     (EntryKeyPress event, cursor) ->
-      Entry.updateEntryKeyPress m event cursor
+      Entry.updateKeyPress m event cursor
 
     (GlobalKeyPress code, cursor) ->
-      Entry.updateGlobalKeyPress m code cursor
+      Selection.updateKeyPress m code cursor
 
     (EntryInputMsg target, _) ->
-      Entry.updateEntryValue target
+      Entry.updateValue target
 
     (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
       let m2 = { m | nodes = nodes
@@ -198,7 +175,7 @@ update_ msg m =
                      -- invalid
                      Nothing ->
                        if m.cursor
-                         |> Canvas.getCursorID
+                         |> Selection.getCursorID
                          |> Maybe.andThen (G.getNode m2)
                          |> (==) Nothing
                        then Deselected
@@ -211,7 +188,7 @@ update_ msg m =
                      -- if we added a node, select it
                      Just id ->
                        let node = G.getNodeExn m2 id in
-                       Canvas.selectNode m2 node
+                       Selection.selectNode m2 node
 
       in
         Many [ Cursor cursor
