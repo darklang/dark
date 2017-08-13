@@ -79,18 +79,15 @@ containsOrdered needle haystack =
 -- y Press enter to select
 -- y Press right to fill as much as is definitive
 
-query : Autocomplete -> String -> Autocomplete
-query a q =
+query : String -> Autocomplete -> Autocomplete
+query q a =
   let lcq = String.toLower q
       current = List.filter
                 (\s -> String.startsWith lcq (String.toLower s))
                 a.defaults
-      newcurrent = if q == ""
-                   then []
-                   else
-                     case current of
-                       [ x ] -> if x == q then [] else [ x ]
-                       cs -> cs
+      newcurrent = case current of
+                     [ x ] -> if x == q then [] else [ x ]
+                     cs -> cs
   in
     { defaults = a.defaults
     , current = newcurrent
@@ -102,10 +99,10 @@ query a q =
     , value = q
     }
 
-update : Autocomplete -> AutocompleteMod -> Autocomplete
-update a mod =
+update : AutocompleteMod -> Autocomplete -> Autocomplete
+update mod a =
   case mod of
-    SetEntry str -> query a str
-    Reset -> query a ""
+    SetEntry str -> query str a
+    Reset -> query "" a
     SelectDown -> selectDown a
     SelectUp -> selectUp a

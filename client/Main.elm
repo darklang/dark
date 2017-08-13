@@ -83,7 +83,7 @@ updateMod mod (m, cmd) =
       Deselect -> { m | state = Deselected } ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
       AutocompleteMod mod ->
-        { m | complete = Autocomplete.update m.complete mod } ! []
+        { m | complete = Autocomplete.update mod m.complete } ! []
   in
     (newm, Cmd.batch [cmd, newcmd])
 
