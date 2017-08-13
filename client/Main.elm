@@ -160,6 +160,9 @@ update_ msg m =
 
     (GlobalKeyPress event, state) ->
       case (event.keyCode, state) of
+        -- don't cause events when we're typing
+        (_, Entering _) ->
+          NoChange
         (Key.Backspace, Selecting id) ->
           RPC <| DeleteNode id
         (Key.Up, Selecting id) ->
@@ -170,6 +173,8 @@ update_ msg m =
           Selection.selectNextNode m id (\n o -> n.x > o.x)
         (Key.Right, Selecting id) ->
           Selection.selectNextNode m id (\n o -> n.x < o.x)
+        (Key.Enter, Selecting id) ->
+          Enter <| Entry.enterNode m (G.getNodeExn m id)
         (Key.Escape, _) ->
           Deselect
         (code, _)
