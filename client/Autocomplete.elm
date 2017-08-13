@@ -15,8 +15,10 @@ reset : Autocomplete -> Autocomplete
 reset a = init a.defaults
 
 selectDown : Autocomplete -> Autocomplete
-selectDown a = let max = (List.length a.current) in
-               { a | index = (a.index + 1) % max }
+selectDown a = let max_ = (List.length a.current)
+                   max = min max_ 1
+               in
+                 { a | index = (a.index + 1) % max }
 
 selectUp : Autocomplete -> Autocomplete
 selectUp a = let max = (List.length a.current) - 1 in
