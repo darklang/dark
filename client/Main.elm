@@ -205,7 +205,7 @@ update_ msg m =
 
                        -- if we added a node, select it
                        Just id ->
-                         Entry.enter m id
+                         Entry.enter m2 id
 
       in
         Many [ ModelMod (\_ -> m2)
