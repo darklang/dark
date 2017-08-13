@@ -161,26 +161,45 @@ update_ msg m =
       Entry.updateKeyPress m event
 
     (GlobalKeyPress event, state) ->
-      case (event.keyCode, state) of
-        -- don't cause events when we're typing
-        (_, Entering _) ->
-          NoChange
-        (Key.Backspace, Selecting id) ->
+      case (event.keyCode, state, m.complete.value) of
+        -- Selecting
+        (Key.Backspace, Selecting id, _) ->
           RPC <| DeleteNode id
-        (Key.Up, Selecting id) ->
+        (Key.Up, Selecting id, _) ->
           Selection.selectNextNode m id (\n o -> n.y > o.y)
-        (Key.Down, Selecting id) ->
+        (Key.Down, Selecting id, _) ->
           Selection.selectNextNode m id (\n o -> n.y < o.y)
-        (Key.Left, Selecting id) ->
+        (Key.Left, Selecting id, _) ->
           Selection.selectNextNode m id (\n o -> n.x > o.x)
-        (Key.Right, Selecting id) ->
+        (Key.Right, Selecting id, _) ->
           Selection.selectNextNode m id (\n o -> n.x < o.x)
-        (Key.Enter, Selecting id) ->
+        (Key.Enter, Selecting id, _) ->
           Entry.enter m id
-        (Key.Escape, _) ->
+        (Key.Escape, Selecting id, _) ->
           Deselect
-        (code, _)
+        -- Entering
+        (Key.Up, Entering _, _) ->
+          AutocompleteMod SelectUp
+        (Key.Down, Entering _, _) ->
+          AutocompleteMod SelectDown
+        (Key.Right, Entering _, _) ->
+          let sp = Autocomplete.sharedPrefix m.complete.current in
+          if sp == "" then NoChange
+          else Many [ AutocompleteMod <| SetEntry sp ]
+        (Key.Enter, Entering _, _) ->
+          case Autocomplete.highlighted m.complete of
+            Just s -> AutocompleteMod <| SetEntry s
+            Nothing -> NoChange
+        (Key.Escape, Entering _, _) ->
+          case Selection.getCursorID m.state of
+            Just id -> Select id
+            Nothing -> Deselect
+        (key, Entering _, val) ->
+          AutocompleteMod <| SetEntry val
+        (code, _, _)
           -> Selection.selectByLetter m code
+
+
 
     (EntryInputMsg target, _) ->
       Entry.updateValue target

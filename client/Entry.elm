@@ -22,34 +22,6 @@ import Defaults
 
 
 
-updateKeyPress : Model -> KeyboardEvent -> Modification
-updateKeyPress m kb =
-  case (kb.keyCode, m.complete.value) of
-     (Key.Up, _) ->
-       AutocompleteMod SelectUp
-
-     (Key.Down, _) ->
-       AutocompleteMod SelectDown
-
-     (Key.Right, _) ->
-       let sp = Autocomplete.sharedPrefix m.complete.current in
-       if sp == "" then NoChange
-       else Many [ AutocompleteMod <| SetEntry sp ]
-
-     (Key.Enter, _) ->
-       case Autocomplete.highlighted m.complete of
-         Just s -> AutocompleteMod <| SetEntry s
-         Nothing -> NoChange
-
-     (Key.Escape, _) ->
-       case Selection.getCursorID m.state of
-         Just id -> Select id
-         Nothing -> Deselect
-
-     (key, val) ->
-       AutocompleteMod <| SetEntry val
-
-
 updateValue : String -> Modification
 updateValue target =
   AutocompleteMod <| SetEntry target

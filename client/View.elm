@@ -87,7 +87,6 @@ viewEntry m =
                           m.complete.current)
 
         input = Html.input [ Attrs.id Defaults.entryID
-                           , Events.on "keydown" entryKeyHandler
                            , Events.onInput EntryInputMsg
                            , Attrs.attribute "type" "text"
                            , Attrs.placeholder "ns::fn arg1 arg2"
@@ -401,5 +400,3 @@ decodeClickEvent fn =
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
 
-entryKeyHandler : JSD.Decoder Msg
-entryKeyHandler = JSD.map EntryKeyPress Keyboard.Event.decodeKeyboardEvent
