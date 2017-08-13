@@ -38,6 +38,7 @@ getCursorID s =
   case s of
     Dragging (DragNode id _) -> Just id
     Entering (Filling node _ _) -> Just node.id
+    Selecting id -> Just id
     _ -> Nothing
 
 selectByLetter : Model -> Key.Key -> Modification
