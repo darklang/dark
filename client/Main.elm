@@ -160,7 +160,12 @@ update_ msg m =
       case (event.keyCode, state, m.complete.value) of
         -- Selecting
         (Key.Backspace, Selecting id, _) ->
-          RPC <| DeleteNode id
+          let next = G.incomingNodes m (G.getNodeExn m id) in
+          Many [ RPC <| DeleteNode id
+               , case List.head next of
+                   Just next -> Select next.id
+                   Nothing -> Deselect
+               ]
         (Key.Up, Selecting id, _) ->
           Selection.selectNextNode m id (\n o -> n.y > o.y)
         (Key.Down, Selecting id, _) ->

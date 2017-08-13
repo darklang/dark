@@ -6,6 +6,9 @@ module Graph exposing ( orderedNodes
                       , distance
                       , findHole
                       , incomingEdges
+                      , incomingNodes
+                      , outgoingEdges
+                      , outgoingNodes
                       , slotIsConnected
                       , connectedNodes)
 
