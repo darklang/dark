@@ -93,7 +93,7 @@ def elm_package():
   return call("cd client && elm-package install --yes")
 
 def elm_make():
-  return call("cd client && elm-make Main.elm --debug --yes --output ../server/static/elm.js")
+  return call("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def elm_test():
   return call("cd client && elm-test")
