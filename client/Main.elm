@@ -157,48 +157,43 @@ update_ msg m =
       NoChange -- just keep this here to prevent the page from loading
 
     (GlobalKeyPress event, state) ->
-      case (event.keyCode, state, m.complete.value) of
-        -- Selecting
-        (Key.Backspace, Selecting id, _) ->
-          let next = G.incomingNodes m (G.getNodeExn m id) in
-          Many [ RPC <| DeleteNode id
-               , case List.head next of
-                   Just next -> Select next.id
-                   Nothing -> Deselect
-               ]
-        (Key.Up, Selecting id, _) ->
-          Selection.selectNextNode m id (\n o -> n.y > o.y)
-        (Key.Down, Selecting id, _) ->
-          Selection.selectNextNode m id (\n o -> n.y < o.y)
-        (Key.Left, Selecting id, _) ->
-          Selection.selectNextNode m id (\n o -> n.x > o.x)
-        (Key.Right, Selecting id, _) ->
-          Selection.selectNextNode m id (\n o -> n.x < o.x)
-        (Key.Enter, Selecting id, _) ->
-          Entry.enter m id
-        (Key.Escape, Selecting id, _) ->
-          Deselect
-        -- Entering
-        (Key.Up, Entering _, _) ->
-          AutocompleteMod SelectUp
-        (Key.Down, Entering _, _) ->
-          AutocompleteMod SelectDown
-        (Key.Right, Entering _, _) ->
-          let sp = Autocomplete.sharedPrefix m.complete.current in
-          if sp == "" then NoChange
-          else Many [ AutocompleteMod <| SetEntry sp ]
-        (Key.Enter, Entering cursor, _) ->
-          case Autocomplete.highlighted m.complete of
-            Just s -> AutocompleteMod <| SetEntry s
-            Nothing -> Entry.submit m cursor
-        (Key.Escape, Entering (Creating _), _) ->
-          Deselect
-        (Key.Escape, Entering (Filling node _ _), _) ->
-          Select node.id
-        (key, Entering _, val) ->
-          AutocompleteMod <| SetEntry val
-        (code, _, _)
-          -> Selection.selectByLetter m code
+      case state of
+        Selecting id ->
+          case event.keyCode of
+            Key.Backspace ->
+              let next = G.incomingNodes m (G.getNodeExn m id) in
+              Many [ RPC <| DeleteNode id
+                   , case List.head next of
+                       Just next -> Select next.id
+                       Nothing -> Deselect
+                   ]
+            Key.Up -> Selection.selectNextNode m id (\n o -> n.y > o.y)
+            Key.Down -> Selection.selectNextNode m id (\n o -> n.y < o.y)
+            Key.Left -> Selection.selectNextNode m id (\n o -> n.x > o.x)
+            Key.Right -> Selection.selectNextNode m id (\n o -> n.x < o.x)
+            Key.Enter -> Entry.enter m id
+            Key.Escape -> Deselect
+            code -> Selection.selectByLetter m code
+        Entering cursor ->
+          case event.keyCode of
+            Key.Up -> AutocompleteMod SelectUp
+            Key.Down -> AutocompleteMod SelectDown
+            Key.Right ->
+              let sp = Autocomplete.sharedPrefix m.complete.current in
+              if sp == "" then NoChange
+              else Many [ AutocompleteMod <| SetEntry sp ]
+            Key.Enter ->
+              case Autocomplete.highlighted m.complete of
+                Just s -> AutocompleteMod <| SetEntry s
+                Nothing -> Entry.submit m cursor
+            Key.Escape ->
+              case cursor of
+                Creating _ -> Deselect
+                Filling node _ _ -> Select node.id
+            key ->
+              AutocompleteMod <| SetEntry m.complete.value
+        _ -> Selection.selectByLetter m event.keyCode
+
 
 
 
