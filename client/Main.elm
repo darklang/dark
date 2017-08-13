@@ -10,6 +10,7 @@ import Html
 import Keyboard
 import Mouse
 import Keyboard.Event
+import Keyboard.Key as Key
 
 -- dark
 import RPC exposing (rpc)
@@ -157,8 +158,22 @@ update_ msg m =
     (EntryKeyPress event, Entering _ ) ->
       Entry.updateKeyPress m event
 
-    (GlobalKeyPress event, cursor) ->
-      Selection.updateKeyPress m event cursor
+    (GlobalKeyPress event, state) ->
+      case (event.keyCode, state) of
+        (Key.Backspace, Selecting id) ->
+          RPC <| DeleteNode id
+        (Key.Up, Selecting id) ->
+          Selection.selectNextNode m id (\n o -> n.y > o.y)
+        (Key.Down, Selecting id) ->
+          Selection.selectNextNode m id (\n o -> n.y < o.y)
+        (Key.Left, Selecting id) ->
+          Selection.selectNextNode m id (\n o -> n.x > o.x)
+        (Key.Right, Selecting id) ->
+          Selection.selectNextNode m id (\n o -> n.x < o.x)
+        (Key.Escape, _) ->
+          Deselect
+        (code, _)
+          -> Selection.selectByLetter m code
 
     (EntryInputMsg target, _) ->
       Entry.updateValue target

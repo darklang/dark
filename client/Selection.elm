@@ -16,37 +16,6 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
 
-
-updateKeyPress : Model -> KeyboardEvent -> State -> Modification
-updateKeyPress m kb state =
-  case (kb.keyCode, state) of
-    (Key.Escape, Selecting id) ->
-      Deselect
-
-    (Key.Backspace, Selecting id) ->
-      RPC <| DeleteNode id
-
-    (Key.Up, Selecting id) ->
-      selectNextNode m id (\n o -> n.y > o.y)
-
-    (Key.Down, Selecting id) ->
-      selectNextNode m id (\n o -> n.y < o.y)
-
-    (Key.Left, Selecting id) ->
-      selectNextNode m id (\n o -> n.x > o.x)
-
-    (Key.Right, Selecting id) ->
-      selectNextNode m id (\n o -> n.x < o.x)
-
-    (_, _) ->
-      kb.keyCode
-        |> Key.toChar
-        |> Maybe.map Char.toLower
-        |> Maybe.map String.fromChar
-        |> Maybe.andThen (G.fromLetter m)
-        |> Maybe.map (\n -> Select n.id)
-        |> Maybe.withDefault NoChange
-
 ------------------
 -- cursor stuff
 ----------------
@@ -70,6 +39,18 @@ getCursorID s =
     Dragging (DragNode id _) -> Just id
     Entering (Filling node _ _) -> Just node.id
     _ -> Nothing
+
+selectByLetter : Model -> Key.Key -> Modification
+selectByLetter m code =
+  code
+  |> Key.toChar
+  |> Maybe.map Char.toLower
+  |> Maybe.map String.fromChar
+  |> Maybe.andThen (G.fromLetter m)
+  |> Maybe.map (\n -> Select n.id)
+  |> Maybe.withDefault NoChange
+
+
 
 selectNextNode : Model -> ID -> (Pos -> Pos -> Bool) -> Modification
 selectNextNode m id cond =
