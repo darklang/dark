@@ -92,7 +92,7 @@ update_ msg m =
   case (msg, m.state) of
 
     (NodeClick node, _) ->
-      Enter <| Selection.selectNode m node
+      Enter <| Selection.enterNode m node
 
     (RecordClick pos, _) ->
       -- TODO: what does this mean?
@@ -124,7 +124,7 @@ update_ msg m =
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      Many [ Enter <| Selection.selectNode m node
+      Many [ Enter <| Selection.enterNode m node
            , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
@@ -184,7 +184,7 @@ update_ msg m =
                        -- if we added a node, select it
                        Just id ->
                          let node = G.getNodeExn m2 id in
-                         Enter <| Selection.selectNode m2 node
+                         Enter <| Selection.enterNode m2 node
 
       in
         Many [ ModelMod (\_ -> m2)

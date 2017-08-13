@@ -42,15 +42,13 @@ updateKeyPress m kb state =
      --   Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
 
     (_, _) ->
-      case kb.keyCode
+      kb.keyCode
         |> Key.toChar
         |> Maybe.map Char.toLower
         |> Maybe.map String.fromChar
         |> Maybe.andThen (G.fromLetter m)
-        |> Maybe.map (selectNode m)
-      of
-        Just cursor -> Enter cursor
-        Nothing -> NoChange
+        |> Maybe.map (\n -> Select n.id)
+        |> Maybe.withDefault NoChange
 
 ------------------
 -- cursor stuff
@@ -79,31 +77,28 @@ getCursorID s =
     Entering (Filling node _ _) -> Just node.id
     _ -> Nothing
 
-selectNextNode : Model -> (Pos -> Pos  -> Bool) -> State
+selectNextNode : Model -> (Pos -> Pos -> Bool) -> Modification
 selectNextNode m cond =
   -- if we're currently in a node, follow the direction. For now, pick
   -- the nearest node to it, that it's connected to, that's roughly in
   -- that direction.
-  case m.state of
-    Entering (Filling n _ _) ->
-      let other =
-          G.connectedNodes m n
-            -- that are above us
-            |> List.filter (\o -> cond n.pos o.pos)
-            -- the nearest to us
-            |> List.sortBy (\other -> G.distance other n)
-            |> List.head
-      in
-        case other of
-          Nothing -> m.state
-          Just node -> Entering <| selectNode m node
-    _ -> m.state
+  case getCursorID m.state of
+    Nothing -> NoChange
+    Just id -> let n = G.getNodeExn m id
+               in
+                 n
+                 |> G.connectedNodes m
+                 -- that are above us
+                 |> List.filter (\o -> cond n.pos o.pos)
+                 -- the nearest to us
+                 |> List.sortBy (\other -> G.distance other n)
+                 |> List.head
+                 |> Maybe.map (\n -> Select n.id)
+                 |> Maybe.withDefault NoChange
 
 
-
-
-selectNode : Model -> Node -> EntryCursor
-selectNode m selected =
+enterNode : Model -> Node -> EntryCursor
+enterNode m selected =
   let hole = G.findHole m selected
       pos = case hole of
               ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
