@@ -170,6 +170,9 @@ def main():
     elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
       should.ocaml_build = True
 
+    elif (".css" in f) or (".html" in f):
+      should.reload_browser = True
+
     # Other
     else:
       p("unknown file: " + f, end="")
