@@ -1,23 +1,15 @@
 module Entry exposing (..)
 
 -- builtins
-import Char
-import Keyboard
 
 -- lib
-import Keyboard.Event exposing (KeyboardEvent)
-import Keyboard.Key as Key
 import Dom
 import Task
 
 -- dark
-import RPC exposing (rpc)
 import Types exposing (..)
 import Util exposing (deMaybe)
-import Autocomplete
-import Canvas
 import Graph as G
-import Selection
 import Defaults
 
 
@@ -41,6 +33,7 @@ addConstant : String -> ID -> ParamName -> Modification
 addConstant name id param =
   RPC <| AddConstant name id param
 
+addValue : String -> Pos -> List ImplicitEdge -> Modification
 addValue name pos extras =
   case extras of
     [(ReceivingEdge _)] -> RPC <| AddValue name pos []
