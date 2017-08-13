@@ -92,7 +92,7 @@ update_ msg m =
   case (msg, m.state) of
 
     (NodeClick node, _) ->
-      Enter <| Selection.enterNode m node
+      Select node.id
 
     (RecordClick pos, _) ->
       -- TODO: what does this mean?
@@ -183,8 +183,7 @@ update_ msg m =
 
                        -- if we added a node, select it
                        Just id ->
-                         let node = G.getNodeExn m2 id in
-                         Enter <| Selection.enterNode m2 node
+                         Select id
 
       in
         Many [ ModelMod (\_ -> m2)
