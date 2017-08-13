@@ -33,8 +33,7 @@ let server =
     let admin_ui_handler () =
       let template = Util.readfile "templates/ui.html" in
       let all_functions = Libs.fns
-                        |> String.Map.data
-                        |> List.map ~f:(fun (fn : Runtime.fn) -> fn.name) 
+                        |> String.Map.keys
                         |> functionlist_to_yojson
                         |> Yojson.Safe.to_string
       in
