@@ -154,11 +154,8 @@ update_ msg m =
     ------------------------
     -- entry node
     ------------------------
-    (EntrySubmitMsg, Entering cursor) ->
-      Entry.submit m cursor
-
-    (EntryKeyPress event, Entering _ ) ->
-      Entry.updateKeyPress m event
+    (EntrySubmitMsg, _) ->
+      NoChange -- just keep this here to prevent the page from loading
 
     (GlobalKeyPress event, state) ->
       case (event.keyCode, state, m.complete.value) of
