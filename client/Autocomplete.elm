@@ -16,7 +16,7 @@ reset a = init a.defaults
 
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = (List.length a.current)
-                   max = min max_ 1
+                   max = Basics.max max_ 1
                in
                  { a | index = (a.index + 1) % max }
 
