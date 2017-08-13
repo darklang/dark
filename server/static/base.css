@@ -11,9 +11,32 @@ body {
   color:#fff;
 }
 
-#darkInput {
-  margin-left: 488px; /* based on a 1276px 13" macbook pro :) */
-  width: 300px;
+#search-container {
+  position: relative;
+}
+
+#search-container input {
+  padding: 5px;
+  font-size: 1.2em;
+  width: 200px;
+}
+
+#darkEntry {
+  position: relative;
+  color: #000;
+  z-index: 10;
+  border: 1px solid #666;
+  background: transparent;
+}
+
+#suggestion {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  color: #ccc;
+  background: white;
+  border: 1px solid #fff;
 }
 
 #darkErrors {

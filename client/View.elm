@@ -85,14 +85,21 @@ viewEntry m =
                                  [Html.text s])
                           m.complete.current)
 
-        input = Html.input [ Attrs.id Defaults.entryID
-                           , Events.onInput EntryInputMsg
-                           , Attrs.attribute "type" "text"
-                           , Attrs.placeholder "ns::fn arg1 arg2"
-                           , Attrs.width 50
-                           , Attrs.value m.complete.value
-                           , Attrs.autocomplete False
-                           ] []
+        -- two overlapping input boxes, one to provide suggestions, one to provide the search
+        searchinput = Html.input [ Attrs.id Defaults.entryID
+                                 , Events.onInput EntryInputMsg
+                                 -- , Attrs.placeholder "ns::fn arg1 arg2"
+                                 , Attrs.value m.complete.value
+                                 , Attrs.autocomplete False
+                                 ] []
+        suggestioninput = Html.input [ Attrs.id "suggestion"
+                                     , Attrs.disabled True
+                                     , Attrs.value "Twitter::"
+                                     ]
+                          [ ]
+        input = Html.div
+                [Attrs.id "search-container"]
+                [searchinput, suggestioninput]
 
         viewForm = Html.form
                    [ Events.onSubmit (EntrySubmitMsg) ]
