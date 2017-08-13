@@ -61,7 +61,6 @@ type EntryCursor = Creating Pos
 
 type State = Selecting ID
            | Entering EntryCursor
-           | Picking
            | Dragging Drag
            | Deselected
 
@@ -125,7 +124,6 @@ type AutocompleteMod = SetEntry String
 type Modification = Error String
                   | Select ID
                   | Enter EntryCursor
-                  | Pick
                   | Deselect
                   | RPC RPC
                   | ModelMod (Model -> Model)

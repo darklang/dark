@@ -81,7 +81,6 @@ updateMod mod (m, cmd) =
       Enter entry -> { m | state = Entering entry } ! [Entry.focusEntry]
       Drag d -> { m | state = Dragging d } ! []
       ModelMod mm -> mm m ! []
-      Pick -> m ! []
       Deselect -> { m | state = Deselected } ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
       AutocompleteMod mod ->
@@ -183,14 +182,14 @@ update_ msg m =
           let sp = Autocomplete.sharedPrefix m.complete.current in
           if sp == "" then NoChange
           else Many [ AutocompleteMod <| SetEntry sp ]
-        (Key.Enter, Entering _, _) ->
+        (Key.Enter, Entering cursor, _) ->
           case Autocomplete.highlighted m.complete of
             Just s -> AutocompleteMod <| SetEntry s
-            Nothing -> NoChange
-        (Key.Escape, Entering _, _) ->
-          case Selection.getCursorID m.state of
-            Just id -> Select id
-            Nothing -> Deselect
+            Nothing -> Entry.submit m cursor
+        (Key.Escape, Entering (Creating _), _) ->
+          Deselect
+        (Key.Escape, Entering (Filling node _ _), _) ->
+          Select node.id
         (key, Entering _, val) ->
           AutocompleteMod <| SetEntry val
         (code, _, _)
