@@ -86,13 +86,16 @@ viewEntry m =
                                  [Html.text s])
                           m.complete.current)
 
-        -- two overlapping input boxes, one to provide suggestions, one to provide the search
+        -- two overlapping input boxes, one to provide suggestions, one
+        -- to provide the search
         searchinput = Html.input [ Attrs.id Defaults.entryID
                                  , Events.onInput EntryInputMsg
                                  , Attrs.value m.complete.value
                                  , Attrs.autocomplete False
                                  ] []
-        prefix = Autocomplete.sharedPrefix m.complete.current
+        prefix_ = Autocomplete.sharedPrefix m.complete.current
+        prefix = Autocomplete.joinPrefix m.complete.value prefix_
+
         suggestioninput = Html.input [ Attrs.id "suggestion"
                                      , Attrs.disabled True
                                      , Attrs.value prefix

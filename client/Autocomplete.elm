@@ -44,6 +44,14 @@ sharedPrefix strs =
     Nothing -> ""
     Just h -> List.foldl sharedPrefix2 h strs
 
+joinPrefix : String -> String -> String
+joinPrefix actual extension =
+  let len = String.length actual
+      suffix = String.dropLeft len extension
+  in
+    actual ++ suffix
+
+
 
 containsOrdered : String -> String -> Bool
 containsOrdered needle haystack =
@@ -64,15 +72,19 @@ containsOrdered needle haystack =
 --    n restricted by types that are allowed
 --    n allowed field names
 --    n library names
+--    y case-insensitive
 -- n order by most likely, offer other alternatives below
 --   n slight typos
 --   n slight typeos
--- n Press enter to select
+-- y Press enter to select
 -- y Press right to fill as much as is definitive
 
 query : Autocomplete -> String -> Autocomplete
 query a q =
-  let current = List.filter (\s -> String.contains q s) a.defaults
+  let lcq = String.toLower q
+      current = List.filter
+                (\s -> String.startsWith lcq (String.toLower s))
+                a.defaults
       newcurrent = if q == ""
                    then []
                    else
