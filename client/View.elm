@@ -13,7 +13,6 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
-import Keyboard.Event
 
 -- dark
 import Types exposing (..)

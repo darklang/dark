@@ -7,7 +7,6 @@ import Maybe
 import Json.Decode as JSD
 import Http
 import Html
-import Keyboard
 import Mouse
 import Keyboard.Event
 import Keyboard.Key as Key
