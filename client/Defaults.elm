@@ -32,6 +32,7 @@ defaultModel e = { nodes = Dict.empty
                  , edges = []
                  , error = ("None", 0)
                  , lastMsg = Initialization
+                 , lastMod = NoChange
 
                  -- editor TODO
                  -- these load before the graph does, causing
