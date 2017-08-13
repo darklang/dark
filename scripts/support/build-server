@@ -63,8 +63,8 @@ def call(bash):
   return result
 
 def ignore(filename, reason):
-  if reason != "Updated" and reason != "AttributeModified":
-    return True
+  # if reason != "Updated" and reason != "AttributeModified":
+    # return True
 
   # substring
   ignores = [ ".git"
