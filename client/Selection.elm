@@ -22,14 +22,13 @@ import Defaults
 updateKeyPress : Model -> KeyboardEvent -> State -> Modification
 updateKeyPress m kb state =
   case (kb.keyCode, state) of
-    (Key.Escape, _) ->
+    (Key.Escape, Selecting id) ->
       Deselect
 
-     -- backspace through an empty node
-     -- (Key.Backspace, Filling n _ _, "") ->
-     --   RPC <| DeleteNode n.id
+    (Key.Backspace, Selecting id) ->
+      RPC <| DeleteNode id
 
-     -- (Key.Up, _, "") ->
+    -- (Key.Up, _, "") ->
      --   Cursor <| Canvas.selectNextNode m (\n o -> n.y > o.y)
 
      -- (Key.Down, _, "") ->
@@ -77,24 +76,22 @@ getCursorID s =
     Entering (Filling node _ _) -> Just node.id
     _ -> Nothing
 
-selectNextNode : Model -> (Pos -> Pos -> Bool) -> Modification
-selectNextNode m cond =
+selectNextNode : Model -> ID -> (Pos -> Pos -> Bool) -> Modification
+selectNextNode m id cond =
   -- if we're currently in a node, follow the direction. For now, pick
   -- the nearest node to it, that it's connected to, that's roughly in
   -- that direction.
-  case getCursorID m.state of
-    Nothing -> NoChange
-    Just id -> let n = G.getNodeExn m id
-               in
-                 n
-                 |> G.connectedNodes m
-                 -- that are above us
-                 |> List.filter (\o -> cond n.pos o.pos)
-                 -- the nearest to us
-                 |> List.sortBy (\other -> G.distance other n)
-                 |> List.head
-                 |> Maybe.map (\n -> Select n.id)
-                 |> Maybe.withDefault NoChange
+  let n = G.getNodeExn m id
+  in
+    n
+    |> G.connectedNodes m
+    -- that are above us
+    |> List.filter (\o -> cond n.pos o.pos)
+    -- the nearest to us
+    |> List.sortBy (\other -> G.distance other n)
+    |> List.head
+    |> Maybe.map (\n -> Select n.id)
+    |> Maybe.withDefault NoChange
 
 
 enterNode : Model -> Node -> EntryCursor
