@@ -77,6 +77,8 @@ def ignore(filename, reason):
             , "server/cache/"
             , "server/_build/"
             , "server/appdata/"
+            , "server/dark.byte"
+            , "server/test.byte"
   ]
   for i in ignores:
     if i in filename:
@@ -102,8 +104,7 @@ def ocaml_build():
   return call("cd server && ocamlbuild dark.byte")
 
 def ocaml_test():
-  return call("cd server && \
-ocamlbuild test.byte && _build/test/test.byte")
+  return call("cd server && ocamlbuild test.byte && _build/test/test.byte")
 
 def reload_server():
   return call("cd server && ../scripts/support/runserver")
@@ -112,49 +113,62 @@ def reload_browser():
   # Sends a signal to another fswatch on your mac
   return call("touch .browser-trigger")
 
+class Should:
+  def __init__(self):
+    self.ocaml_build = False
+    self.ocaml_test = False
+    self.elm_package = False
+    self.elm_make = False
+    self.elm_test = False
+    self.reload_browser = False
+    self.reload_server = False
+
+def execute(should):
+  ob = should.ocaml_build and ocaml_build()
+
+  ep = should.elm_package and elm_package()
+  should.elm_make |= ep
+  em = should.elm_make and elm_make()
+
+  should.reload_server |= ob
+  rs = should.reload_server and reload_server()
+  should.reload_browser |= rs or em
+  rb = should.reload_browser and reload_browser()
+
+  should.ocaml_test |= ob
+  ot = should.ocaml_test and ocaml_test()
+  should.elm_test |= em
+  et = should.elm_test and elm_test()
+
 def main():
   p("Starting")
-  s3 = ocaml_build ()
-  s1 = elm_package()
-  s2 = elm_make()
-  if s3:
-    ocaml_test()
-    reload_server()
-  if s3 or (s1 and s2):
-    reload_browser()
-  if s1 and s2:
-    elm_test()
+  should = Should()
+  should.ocaml_build = True
+  should.elm_package = True
+  execute(should)
+
+  should = Should()
 
   for f in sys.stdin:
-    (f, reason) = f.strip().split(" ")
-    if ignore(f, reason):
+    if "***BATCHEND***" in f:
+      execute(should)
+      should = Should()
       continue
 
-    p("\nDetected change (" + reason + "): " + f)
+    (f, reason) = f.strip().split(" ")
+    if ignore(f, reason): continue
 
-    # Server
-    if "dark.bc" in f or "dark.exe" in f:
-      # ignore the trigger, the compile methods call this direct
-      pass
+    p("\nDetected change (" + reason + "): " + f, end="")
 
     # Frontend
-    elif "elm-package.json" in f:
-      elm_package() and \
-        elm_make() and \
-        reload_browser() and \
-        elm_test()
+    if "elm-package.json" in f:
+      should.elm_package = True
     elif ".elm" in f:
-      elm_make() and \
-      reload_browser() and \
-      elm_test()
-
+      should.elm_make = True
 
     # Ocaml
     elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
-      if ocaml_build():
-        ocaml_test()
-        reload_server() and \
-        reload_browser()
+      should.ocaml_build = True
 
     # Other
     else:

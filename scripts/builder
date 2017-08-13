@@ -15,6 +15,7 @@ echo "Run the build"
 fswatch -m fsevents_monitor \
         --event-flag-separator=, \
         -r * \
+        --batch-marker="***BATCHEND***" \
         -x "$@" \
     | docker run \
              --rm \
