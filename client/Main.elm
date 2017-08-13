@@ -65,7 +65,9 @@ update msg m =
   let mods = (update_ msg m)
       (newm, newc) = updateMod mods (m, Cmd.none)
   in
-    ({ newm | lastMsg = msg} , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
+    ({ newm | lastMsg = msg
+            , lastMod = newm}
+     , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
 -- applied from left to right
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)

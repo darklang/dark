@@ -111,6 +111,7 @@ type alias Model = { nodes : NodeDict
                    , edges : List Edge
                    , error : (String, Int)
                    , lastMsg : Msg
+                   , lastMod : Modification
                    -- these values are serialized via Editor
                    , tempFieldName : FieldName
                    , state : State
