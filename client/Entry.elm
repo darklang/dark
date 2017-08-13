@@ -5,7 +5,7 @@ import Char
 import Keyboard
 
 -- lib
-import Keyboard.Event exposing (KeyboardEvent, decodeKeyboardEvent)
+import Keyboard.Event exposing (KeyboardEvent)
 import Keyboard.Key as Key
 import Dom
 

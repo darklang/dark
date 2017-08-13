@@ -9,6 +9,8 @@ import Mouse
 import List.Extra
 import Keyboard
 import Dom
+import Keyboard.Event exposing (KeyboardEvent)
+import Keyboard.Key as Key
 
 -- dark
 import Types exposing (..)
@@ -17,12 +19,11 @@ import Graph as G
 import Defaults
 
 
-updateKeyPress : Model -> Keyboard.KeyCode -> State -> Modification
-updateKeyPress m code state =
-    -- (CheckEscape code, _) ->
-    --   if code == Defaults.escapeKeycode
-    --   then Cursor Deselected
-    --   else NoChange
+updateKeyPress : Model -> KeyboardEvent -> State -> Modification
+updateKeyPress m kb state =
+  case (kb.keyCode, state) of
+    (Key.Escape, _) ->
+      Deselect
 
      -- backspace through an empty node
      -- (Key.Backspace, Filling n _ _, "") ->
@@ -40,19 +41,16 @@ updateKeyPress m code state =
      -- (Key.Right, _, "") ->
      --   Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
 
-
-  if state == Deselected then
-    case code
-      |> Char.fromCode
-      |> Char.toLower
-      |> String.fromChar
-      |> G.fromLetter m
-      |> Maybe.map (selectNode m)
-         of
-           Just cursor -> Enter cursor
-           Nothing -> NoChange
-  else
-    NoChange
+    (_, _) ->
+      case kb.keyCode
+        |> Key.toChar
+        |> Maybe.map Char.toLower
+        |> Maybe.map String.fromChar
+        |> Maybe.andThen (G.fromLetter m)
+        |> Maybe.map (selectNode m)
+      of
+        Just cursor -> Enter cursor
+        Nothing -> NoChange
 
 ------------------
 -- cursor stuff

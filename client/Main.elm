@@ -1,15 +1,15 @@
 port module Main exposing (..)
 
 -- builtins
-import Result
 import Maybe
 
 -- lib
+import Json.Decode as JSD
 import Http
 import Html
 import Keyboard
 import Mouse
-
+import Keyboard.Event
 
 -- dark
 import RPC exposing (rpc)
@@ -22,6 +22,7 @@ import Canvas
 import Entry
 import Autocomplete
 import Selection
+import Window.Events exposing (onWindow)
 
 
 -----------------------
@@ -156,8 +157,8 @@ update_ msg m =
     (EntryKeyPress event, Entering _ ) ->
       Entry.updateKeyPress m event
 
-    (GlobalKeyPress code, cursor) ->
-      Selection.updateKeyPress m code cursor
+    (GlobalKeyPress event, cursor) ->
+      Selection.updateKeyPress m event cursor
 
     (EntryInputMsg target, _) ->
       Entry.updateValue target
@@ -222,7 +223,10 @@ subscriptions m =
             [ Mouse.moves DragSlotMove
             , Mouse.ups DragSlotStop]
           _ -> []
-      keySubs = [ Keyboard.downs GlobalKeyPress]
+      keySubs =
+        [onWindow "keydown"
+           (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
+
       standardSubs = [ Mouse.downs RecordClick ]
   in Sub.batch
     (List.concat [standardSubs, keySubs, dragSubs])

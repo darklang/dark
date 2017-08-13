@@ -81,7 +81,7 @@ type Msg
     | DragSlotStop Mouse.Position
     | EntryInputMsg String
     | EntryKeyPress Keyboard.Event.KeyboardEvent
-    | GlobalKeyPress Keyboard.KeyCode
+    | GlobalKeyPress Keyboard.Event.KeyboardEvent
     | EntrySubmitMsg
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge, Maybe ID))
