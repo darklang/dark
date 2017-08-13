@@ -28,17 +28,17 @@ updateKeyPress m kb state =
     (Key.Backspace, Selecting id) ->
       RPC <| DeleteNode id
 
-    -- (Key.Up, _, "") ->
-     --   Cursor <| Canvas.selectNextNode m (\n o -> n.y > o.y)
+    (Key.Up, Selecting id) ->
+      selectNextNode m id (\n o -> n.y > o.y)
 
-     -- (Key.Down, _, "") ->
-     --   Cursor <| Canvas.selectNextNode m (\n o -> n.y < o.y)
+    (Key.Down, Selecting id) ->
+      selectNextNode m id (\n o -> n.y < o.y)
 
-     -- (Key.Left, _, "") ->
-     --   Cursor <| Canvas.selectNextNode m (\n o -> n.x > o.x)
+    (Key.Left, Selecting id) ->
+      selectNextNode m id (\n o -> n.x > o.x)
 
-     -- (Key.Right, _, "") ->
-     --   Cursor <| Canvas.selectNextNode m (\n o -> n.x < o.x)
+    (Key.Right, Selecting id) ->
+      selectNextNode m id (\n o -> n.x < o.x)
 
     (_, _) ->
       kb.keyCode
