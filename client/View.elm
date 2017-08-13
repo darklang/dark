@@ -21,6 +21,7 @@ import Graph as G
 import Canvas
 import Defaults
 import Selection
+import Autocomplete
 
 view : Model -> Html.Html Msg
 view m =
@@ -88,13 +89,13 @@ viewEntry m =
         -- two overlapping input boxes, one to provide suggestions, one to provide the search
         searchinput = Html.input [ Attrs.id Defaults.entryID
                                  , Events.onInput EntryInputMsg
-                                 -- , Attrs.placeholder "ns::fn arg1 arg2"
                                  , Attrs.value m.complete.value
                                  , Attrs.autocomplete False
                                  ] []
+        prefix = Autocomplete.sharedPrefix m.complete.current
         suggestioninput = Html.input [ Attrs.id "suggestion"
                                      , Attrs.disabled True
-                                     , Attrs.value "Twitter::"
+                                     , Attrs.value prefix
                                      ]
                           [ ]
         input = Html.div
