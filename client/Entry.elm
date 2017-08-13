@@ -8,6 +8,7 @@ import Keyboard
 import Keyboard.Event exposing (KeyboardEvent)
 import Keyboard.Key as Key
 import Dom
+import Task
 
 -- dark
 import RPC exposing (rpc)
@@ -17,6 +18,7 @@ import Autocomplete
 import Canvas
 import Graph as G
 import Selection
+import Defaults
 
 
 
@@ -79,11 +81,6 @@ addNode name pos extras =
   else
     addFunction name pos extras
 
-findImplicitEdge : Model -> Node -> ImplicitEdge
-findImplicitEdge m node = case G.findHole m node of
-                     ResultHole n -> ReceivingEdge n.id
-                     ParamHole n p _ -> ParamEdge n.id p
-
 addVar : Model -> String -> Modification
 addVar m name =
   case G.fromLetter m name of
@@ -94,9 +91,34 @@ addVar m name =
     Nothing ->
         Error <| "There isn't a node named '" ++ name ++ "' to connect to"
 
+
+---------------------
+-- Where to put the entry
+---------------------
+findImplicitEdge : Model -> Node -> ImplicitEdge
+findImplicitEdge m node = case G.findHole m node of
+                     ResultHole n -> ReceivingEdge n.id
+                     ParamHole n p _ -> ParamEdge n.id p
+
+enterNode : Model -> Node -> EntryCursor
+enterNode m selected =
+  let hole = G.findHole m selected
+      pos = case hole of
+              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
+              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+  in
+    Filling selected hole pos
+
+
+
 ---------------------
 -- Dealing with events
 ---------------------
+
+focusEntry : Cmd Msg
+focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
+
+
 submit : Model -> EntryCursor -> Modification
 submit m cursor =
   case cursor of

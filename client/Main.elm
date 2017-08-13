@@ -75,7 +75,7 @@ updateMod mod (m, cmd) =
       RPC call -> m ! [rpc m [call]]
       NoChange -> m ! []
       Select id -> { m | state = Selecting id} ! []
-      Enter entry -> { m | state = Entering entry } ! [Selection.focusEntry]
+      Enter entry -> { m | state = Entering entry } ! [Entry.focusEntry]
       Drag d -> { m | state = Dragging d } ! []
       ModelMod mm -> mm m ! []
       Pick -> m ! []
@@ -124,7 +124,7 @@ update_ msg m =
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      Many [ Enter <| Selection.enterNode m node
+      Many [ Enter <| Entry.enterNode m node
            , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->

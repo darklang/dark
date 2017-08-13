@@ -2,7 +2,6 @@ module Selection exposing (..)
 
 -- builtins
 import Char
-import Task
 
 -- lib
 import Mouse
@@ -16,7 +15,6 @@ import Keyboard.Key as Key
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
-import Defaults
 
 
 updateKeyPress : Model -> KeyboardEvent -> State -> Modification
@@ -66,9 +64,6 @@ entryVisible state =
     Entering _ -> True
     _ -> False
 
-focusEntry : Cmd Msg
-focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
-
 getCursorID : State -> Maybe ID
 getCursorID s =
   case s of
@@ -94,11 +89,3 @@ selectNextNode m id cond =
     |> Maybe.withDefault NoChange
 
 
-enterNode : Model -> Node -> EntryCursor
-enterNode m selected =
-  let hole = G.findHole m selected
-      pos = case hole of
-              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
-              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
-  in
-    Filling selected hole pos
