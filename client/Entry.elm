@@ -109,6 +109,10 @@ enterNode m selected =
   in
     Filling selected hole pos
 
+enter : Model -> ID -> Modification
+enter m id =
+  Enter <| enterNode m (G.getNodeExn m id)
+
 
 
 ---------------------

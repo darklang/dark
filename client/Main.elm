@@ -125,7 +125,7 @@ update_ msg m =
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      Many [ Enter <| Entry.enterNode m node
+      Many [ Entry.enter m id
            , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
@@ -174,7 +174,7 @@ update_ msg m =
         (Key.Right, Selecting id) ->
           Selection.selectNextNode m id (\n o -> n.x < o.x)
         (Key.Enter, Selecting id) ->
-          Enter <| Entry.enterNode m (G.getNodeExn m id)
+          Entry.enter m id
         (Key.Escape, _) ->
           Deselect
         (code, _)
@@ -203,7 +203,7 @@ update_ msg m =
 
                        -- if we added a node, select it
                        Just id ->
-                         Select id
+                         Entry.enter m id
 
       in
         Many [ ModelMod (\_ -> m2)
