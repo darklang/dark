@@ -4,16 +4,10 @@ module Selection exposing (..)
 import Char
 
 -- lib
-import Mouse
-import List.Extra
-import Keyboard
-import Dom
-import Keyboard.Event exposing (KeyboardEvent)
 import Keyboard.Key as Key
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
 import Graph as G
 
 ------------------

@@ -7,7 +7,6 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 
 import Types exposing (..)
-import Graph as G
 import Util exposing (deMaybe)
 
 rpc : Model -> List RPC -> Cmd Msg

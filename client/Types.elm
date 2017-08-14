@@ -4,7 +4,6 @@ module Types exposing (..)
 import Dict exposing (Dict)
 import Http
 import Dom
-import Keyboard
 import Mouse
 
 -- libs
