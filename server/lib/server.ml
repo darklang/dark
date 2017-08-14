@@ -88,8 +88,8 @@ let server =
              | (Yojson.Json_error msg) -> "Not a value: " ^ msg
              | _ -> Exn.to_string e
            in
-           print_endline ("Error: " ^ body);
-           print_endline backtrace;
+           Lwt_io.printl ("Error: " ^ body) >>= fun () ->
+           Lwt_io.printl backtrace >>= fun () ->
            S.respond_string ~status:`Internal_server_error ~body ())
     in
     ()
