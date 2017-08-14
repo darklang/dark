@@ -3,6 +3,7 @@ module Tests exposing (..)
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
+import Set
 
 import Autocomplete exposing (..)
 
@@ -17,14 +18,15 @@ d s fs = describe s (List.indexedMap
 
 suite : Test
 suite =
-  let completes = [ "Twit::somefunc"
-                  , "Twit::someOtherFunc"
-                  , "Twit::yetAnother"
-                  , "+"
-                  , "Int::add"
-                  , "Dict::keys"
-                  , "List::head"
-                  ] in
+  let completes = List.map (\(n,t) -> {name=n, types=[t]})
+                              [ ("Twit::somefunc", "Object")
+                              , ("Twit::someOtherFunc", "Object")
+                              , ("Twit::yetAnother", "Object")
+                              , ("+", "Integer")
+                              , ("Int::add", "Integer")
+                              , ("Dict::keys", "Object")
+                              , ("List::head", "List")
+                              ] in
   describe "autocomplete"
     [ d "containsOrdered"
         [ \_ -> containsOrdered "abc" "aaaaabbbbbcccc"
@@ -33,9 +35,9 @@ suite =
         , \_ -> not (containsOrdered "abc" "xxxaaxcxbbxxxx")
        ]
     , d "sharedPrefix"
-      [ \_ -> sharedPrefix ["aaaab", "aab", "aaxb"] == "aa"
-      , \_ -> sharedPrefix ["abcdd", "abcdde"] == "abcdd"
-      , \_ -> sharedPrefix ["abcdd", "bcddee"] == ""
+      [ \_ -> sharedPrefixList ["aaaab", "aab", "aaxb"] == "aa"
+      , \_ -> sharedPrefixList ["abcdd", "abcdde"] == "abcdd"
+      , \_ -> sharedPrefixList ["abcdd", "bcddee"] == ""
       ]
     , d "joinPrefix"
       [ \_ -> joinPrefix "tWiTt" "Twitter::" == "tWiTter::"
@@ -45,26 +47,31 @@ suite =
       [ \_ -> (init completes)
       |> query "lis"
       |> .current
+      |> List.map .name
       |> (==) ["List::head"]
       -- Search finds multiple prefixes
       , \_ -> (init completes)
       |> query "twit::"
       |> .current
+      |> List.map .name
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
       -- Search finds only prefixed
       , \_ ->(init completes)
       |> query "twit::y"
       |> .current
+      |> List.map .name
       |> (==) ["Twit::yetAnother"]
       -- Search only finds from the start
       , \_ -> (init completes)
       |> query "Another"
       |> .current
+      |> List.map .name
       |> (==) []
       -- No results when the only option is the query
       , \_ -> (init completes)
       |> query "List::head"
       |> .current
+      |> List.map .name
       |> (==) []
       -- Scrolling down a bit works
       , \_ -> (init completes)
@@ -105,5 +112,21 @@ suite =
       |> query "Twitxxx"
       |> .index
       |> (==) -1
+      -- Filter by method signature for typed values
+      , \_ -> (init completes)
+      |> forLiveValue ("[]", "List")
+      |> query ""
+      |> .current
+      |> List.map .name
+      |> Set.fromList
+      |> (==) (Set.fromList ["List::head"])
+       -- Show allowed fields for objects
+      , \_ -> (init completes)
+      |> forLiveValue ("5", "Integer")
+      |> query ""
+      |> .current
+      |> List.map .name
+      |> Set.fromList
+      |> (==) (Set.fromList ["Int::add", "+"])
       ]
     ]

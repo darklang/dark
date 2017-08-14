@@ -178,12 +178,12 @@ update_ msg m =
             Key.Up -> AutocompleteMod SelectUp
             Key.Down -> AutocompleteMod SelectDown
             Key.Right ->
-              let sp = Autocomplete.sharedPrefix m.complete.current in
+              let sp = Autocomplete.sharedPrefix m.complete in
               if sp == "" then NoChange
               else Many [ AutocompleteMod <| SetEntry sp ]
             Key.Enter ->
               case Autocomplete.highlighted m.complete of
-                Just s -> AutocompleteMod <| SetEntry s
+                Just item -> AutocompleteMod <| SetEntry item.name
                 Nothing -> Entry.submit m cursor
             Key.Escape ->
               case cursor of

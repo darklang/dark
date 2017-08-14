@@ -120,14 +120,14 @@ let parse (str : string) : dval =
 (* ------------------------- *)
 type fn = { name : string
           ; other_names : string list
+          ; types : string list
           ; parameters : string list
           ; func : ((dval list) -> dval)
           }
 
 let exe (fn : fn) (args : param_map) : dval =
-  (* TODO: we're going to have to use named params before the currying works properly *)
   if ParamMap.length args < List.length fn.parameters then
-    (* If there aren't enough parameters, curry it *)
+    (* TODO: If there aren't enough parameters, curry it *)
     DIncomplete
   else
     let args = List.map ~f:(ParamMap.find_exn args) fn.parameters in

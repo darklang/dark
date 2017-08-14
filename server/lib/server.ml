@@ -10,7 +10,9 @@ module G = Graph
 
 let inspect = Util.inspect
 
-type functionlist = string list [@@deriving yojson]
+type function_ = { name: string
+                 ; types : string list} [@@deriving yojson]
+type functionlist = function_ list [@@deriving yojson]
 
 let server =
   let callback _ req req_body =
@@ -32,10 +34,13 @@ let server =
 
     let admin_ui_handler () =
       let template = Util.readfile "templates/ui.html" in
-      let all_functions = Libs.fns
-                        |> String.Map.keys
-                        |> functionlist_to_yojson
-                        |> Yojson.Safe.to_string
+      let all_functions =
+        Libs.fns
+        |> String.Map.to_alist
+        |> List.map ~f:(fun (k,(v:Runtime.fn)) -> { name = k
+                                                  ; types = v.types })
+        |> functionlist_to_yojson
+        |> Yojson.Safe.to_string
       in
       Util.string_replace "ALLFUNCTIONS" all_functions template
     in

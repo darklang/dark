@@ -111,8 +111,8 @@ decodeNode : JSD.Decoder Node
 decodeNode =
   let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> List (Maybe String) -> Dict String String -> String -> Int -> Int -> Node
       toNode name id fields parameters constants liveDict tipe x y =
-        let livevalue = Dict.get "value" liveDict
-            livetipe = Dict.get "type" liveDict in
+        let liveValue = Dict.get "value" liveDict
+            liveTipe = Dict.get "type" liveDict in
           { name = name
           , id = ID id
           , fields = fields
@@ -123,7 +123,7 @@ decodeNode =
                                                            Nothing -> Nothing
                                                            Just c -> Just (k,c))
                         |> Dict.fromList
-          , live = Maybe.map2 (,) livevalue livetipe |> deMaybe
+          , liveValue = Maybe.map2 (,) liveValue liveTipe |> deMaybe
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall

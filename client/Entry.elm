@@ -76,7 +76,10 @@ enterNode m selected =
 
 enter : Model -> ID -> Modification
 enter m id =
-  Enter <| enterNode m (G.getNodeExn m id)
+  let node = (G.getNodeExn m id)
+  in Many [ Enter <| enterNode m node
+          , AutocompleteMod <| FilterByLiveValue node.liveValue
+          ]
 
 
 

@@ -74,16 +74,16 @@ viewEntry m =
     let autocomplete = Html.ul
                        [ Attrs.class "autocomplete-holder" ]
                        (List.indexedMap
-                          (\i s ->
+                          (\i item ->
                              let highlighted = m.complete.index == i
                                  hlClass = if highlighted then " highlighted" else ""
                                  class = "autocomplete-item" ++ hlClass
                              in Html.li
-                                 [ Attrs.value s
+                                 [ Attrs.value item.name
                                  , Attrs.class class
                                  , Attrs.id ("autocomplete-item-" ++ (toString i))
                                  ]
-                                 [Html.text s])
+                                 [Html.text item.name])
                           m.complete.current)
 
         -- two overlapping input boxes, one to provide suggestions, one
@@ -93,7 +93,7 @@ viewEntry m =
                                  , Attrs.value m.complete.value
                                  , Attrs.autocomplete False
                                  ] []
-        prefix_ = Autocomplete.sharedPrefix m.complete.current
+        prefix_ = Autocomplete.sharedPrefix m.complete
         prefix = Autocomplete.joinPrefix m.complete.value prefix_
 
         suggestioninput = Html.input [ Attrs.id "suggestion"
@@ -256,7 +256,7 @@ viewLive m cursor =
         cursor
           |> Selection.getCursorID
           |> Maybe.andThen (G.getNode m)
-          |> Maybe.map .live
+          |> Maybe.map .liveValue
   in
     Html.div
       [Attrs.id "darkLive"]

@@ -8,8 +8,11 @@ import Types exposing (..)
 empty : Autocomplete
 empty = init []
 
-init : List String -> Autocomplete
-init defaults = { defaults = defaults, current = defaults, index = -1, value = "" }
+init : List AutocompleteItem -> Autocomplete
+init defaults = { defaults = defaults, current = defaults, index = -1, value = "", liveValue = Nothing }
+
+forLiveValue : LiveValue -> Autocomplete -> Autocomplete
+forLiveValue lv a = { a | liveValue = Just lv }
 
 reset : Autocomplete -> Autocomplete
 reset a = init a.defaults
@@ -25,7 +28,7 @@ selectUp a = let max = (List.length a.current) - 1 in
              { a | index = if a.index == 0 then max else a.index - 1
              }
 
-highlighted : Autocomplete -> Maybe String
+highlighted : Autocomplete -> Maybe AutocompleteItem
 highlighted a = getAt a.index a.current
 
 sharedPrefix2 : String -> String -> String
@@ -38,11 +41,14 @@ sharedPrefix2 l r =
         ""
     _ -> ""
 
-sharedPrefix : List String -> String
-sharedPrefix strs =
+sharedPrefixList : List String -> String
+sharedPrefixList strs =
   case List.head strs of
     Nothing -> ""
-    Just h -> List.foldl sharedPrefix2 h strs
+    Just s -> List.foldl sharedPrefix2 s strs
+
+sharedPrefix : Autocomplete -> String
+sharedPrefix a = sharedPrefixList (List.map .name a.current)
 
 joinPrefix : String -> String -> String
 joinPrefix actual extension =
@@ -82,14 +88,22 @@ containsOrdered needle haystack =
 query : String -> Autocomplete -> Autocomplete
 query q a =
   let lcq = String.toLower q
-      current = List.filter
-                (\s -> String.startsWith lcq (String.toLower s))
-                a.defaults
+      current =
+        a.defaults
+          |> List.filter
+             (\i -> String.startsWith lcq (String.toLower i.name))
+          |> List.filter
+             (\i -> case a.liveValue of
+                      Just (_, tipe) -> [tipe] == i.types
+                      Nothing -> True
+             )
+
       newcurrent = case current of
-                     [ x ] -> if x == q then [] else [ x ]
+                     [ i ] -> if i.name == q then [] else [ i ]
                      cs -> cs
   in
     { defaults = a.defaults
+    , liveValue = a.liveValue
     , current = newcurrent
     , index = if List.length newcurrent < List.length a.current
               then if List.length newcurrent == 0
@@ -106,3 +120,4 @@ update mod a =
     Reset -> query "" a
     SelectDown -> selectDown a
     SelectUp -> selectUp a
+    FilterByLiveValue lv -> forLiveValue lv a

@@ -39,7 +39,7 @@ type alias Node = { name : Name
                   , id : ID
                   , pos : Pos
                   , tipe : NodeType
-                  , live : LiveValue
+                  , liveValue : LiveValue
                   -- for DSes
                   , fields : List (FieldName, TypeName)
                   -- for functions
@@ -98,10 +98,11 @@ type RPC
     | ClearEdges ID
     | RemoveLastField ID
 
-type alias Autocomplete = { defaults : List String
-                          , current : List String
+type alias Autocomplete = { defaults : List AutocompleteItem
+                          , current : List AutocompleteItem
                           , index : Int
                           , value : String
+                          , liveValue : Maybe LiveValue
                           }
 
 type alias Model = { nodes : NodeDict
@@ -119,6 +120,7 @@ type AutocompleteMod = SetEntry String
                      | Reset
                      | SelectDown
                      | SelectUp
+                     | FilterByLiveValue LiveValue
 
 type Modification = Error String
                   | Select ID
@@ -131,9 +133,12 @@ type Modification = Error String
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
 
+type alias AutocompleteItem = { name : String
+                              , types : List String }
+
 
 type alias Flags = { state: Maybe Editor
-                   , complete: List String}
+                   , complete: List AutocompleteItem }
 
 -- Values that we serialize
 type alias Editor = {}
