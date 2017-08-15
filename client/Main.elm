@@ -188,8 +188,8 @@ update_ msg m =
                 Nothing -> Entry.submit m cursor
             Key.Escape ->
               case cursor of
-                Creating _ -> Deselect
-                Filling node _ _ -> Select node.id
+                Creating _ -> Many [Deselect, AutocompleteMod Reset]
+                Filling node _ _ -> Many [Select node.id, AutocompleteMod Reset]
             key ->
               AutocompleteMod <| SetEntry m.complete.value
         _ -> Selection.selectByLetter m event.keyCode
@@ -224,9 +224,9 @@ update_ msg m =
 
       in
         Many [ ModelMod (\_ -> m2)
+             , AutocompleteMod Reset
              , Error ""
              , reaction
-             , AutocompleteMod Reset
              ]
 
 
@@ -238,7 +238,7 @@ update_ msg m =
 
     (FocusResult _, _) ->
       -- Yay, you focused a field! Ignore.
-      AutocompleteMod Reset
+      AutocompleteMod Clear
 
     t -> Error <| "Nothing for " ++ (toString t)
 

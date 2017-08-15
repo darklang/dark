@@ -24,6 +24,10 @@ forLiveValue lv a = { a | liveValue = Just lv }
 reset : Autocomplete -> Autocomplete
 reset a = init a.functions
 
+clear : Autocomplete -> Autocomplete
+clear a = let cleared = query "" a in
+          { cleared | index = -1 }
+
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = (List.length a.completions)
                    max = Basics.max max_ 1
@@ -146,7 +150,8 @@ update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   case mod of
     SetEntry str -> query str a
-    Reset -> query "" a
+    Reset -> reset a
+    Clear -> clear a
     SelectDown -> selectDown a
     SelectUp -> selectUp a
     FilterByLiveValue lv -> forLiveValue lv a
