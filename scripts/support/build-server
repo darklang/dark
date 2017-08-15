@@ -163,6 +163,8 @@ def main():
     # Frontend
     if "elm-package.json" in f:
       should.elm_package = True
+    elif "Tests.elm" in f:
+      should.elm_test = True
     elif ".elm" in f:
       should.elm_make = True
 
