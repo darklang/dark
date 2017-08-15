@@ -53,32 +53,32 @@ suite =
       -- Lowercase search still finds uppercase results
       [ \_ -> (init completes)
       |> query "lis"
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> (==) ["List::head"]
       -- Search finds multiple prefixes
       , \_ -> (init completes)
       |> query "twit::"
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
       -- Search finds only prefixed
       , \_ ->(init completes)
       |> query "twit::y"
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> (==) ["Twit::yetAnother"]
       -- Search only finds from the start
       , \_ -> (init completes)
       |> query "Another"
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> (==) []
       -- No results when the only option is the query
       , \_ -> (init completes)
       |> query "List::head"
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> (==) []
       -- Scrolling down a bit works
       , \_ -> (init completes)
@@ -121,18 +121,18 @@ suite =
       |> (==) -1
       -- Filter by method signature for typed values
       , \_ -> (init completes)
-      |> forLiveValue ("[]", "List")
+      |> forLiveValue ("[]", "List", "[]")
       |> query ""
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> Set.fromList
       |> (==) (Set.fromList ["List::head"])
        -- Show allowed fields for objects
       , \_ -> (init completes)
-      |> forLiveValue ("5", "Integer")
+      |> forLiveValue ("5", "Integer", "5")
       |> query ""
-      |> .current
-      |> List.map .name
+      |> .completions
+      |> List.map asString
       |> Set.fromList
       |> (==) (Set.fromList ["Int::add", "+"])
       ]
