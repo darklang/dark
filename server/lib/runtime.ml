@@ -92,6 +92,7 @@ let rec json2dval_ (json : Yojson.Safe.json) : dval =
   | `Int i -> DInt i
   | `String s -> DStr s
   | `Bool b -> DBool b
+  | `Float f -> DFloat f
   | `Assoc alist -> DObj (List.fold_left
                         alist
                         ~f:(fun m (k,v) -> ObjMap.add m k (json2dval_ v))
@@ -104,7 +105,26 @@ let rec json2dval_ (json : Yojson.Safe.json) : dval =
 let json2dval (json : string) : dval =
   json |> Yojson.Safe.from_string |> json2dval_
 
-let dval2json (v : dval) : string = "{\"todo\": 5}"
+let rec dval2json_ (v : dval) : Yojson.Safe.json =
+  match v with
+  | DInt i -> `Int i
+  | DBool b -> `Bool b
+  | DStr s -> `String s
+  | DFloat f -> `Float f
+  | DChar c -> `String (Char.to_string c)
+  | DAnon _ -> `String "<anon>"
+  | DIncomplete -> `String "<incomplete>"
+  | DList l -> `List (List.map l dval2json_)
+  | DObj o -> o
+              |> ObjMap.to_alist
+              |> List.map ~f:(fun (k,v) -> (k, dval2json_ v))
+              |> (fun a -> `Assoc a)
+
+let dval2json (v : dval) : string =
+  v
+  |> dval2json_
+  |> Yojson.Safe.to_string
+
 
 (* ------------------------- *)
 (* Parsing *)
