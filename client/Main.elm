@@ -45,7 +45,8 @@ init {state, complete} =
             Just e -> e
             Nothing -> Defaults.defaultEditor
       m = Defaults.defaultModel editor
-      m2 = { m | complete = Autocomplete.init complete }
+      sigs  = List.map (\{name, types} -> Signature name types) complete
+      m2 = { m | complete = Autocomplete.init sigs}
   in
     (m2, rpc m <| [LoadInitialGraph])
 
@@ -183,7 +184,7 @@ update_ msg m =
               else Many [ AutocompleteMod <| SetEntry sp ]
             Key.Enter ->
               case Autocomplete.highlighted m.complete of
-                Just item -> AutocompleteMod <| SetEntry item.name
+                Just item -> AutocompleteMod <| SetEntry (Autocomplete.asString item)
                 Nothing -> Entry.submit m cursor
             Key.Escape ->
               case cursor of

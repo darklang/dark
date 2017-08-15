@@ -1,35 +1,42 @@
 module Autocomplete exposing (..)
 
+-- builtin
+import Dict
+import Json.Decode as JSD
+
+-- lib
 import List.Extra exposing (getAt)
 
+-- dark
+import Util exposing (deMaybe)
 import Types exposing (..)
 
 
 empty : Autocomplete
 empty = init []
 
-init : List AutocompleteItem -> Autocomplete
-init defaults = { defaults = defaults, current = defaults, index = -1, value = "", liveValue = Nothing }
+init : List Signature -> Autocomplete
+init functions = { functions = functions, completions = List.map ACFunction functions, index = -1, value = "", liveValue = Nothing }
 
 forLiveValue : LiveValue -> Autocomplete -> Autocomplete
 forLiveValue lv a = { a | liveValue = Just lv }
 
 reset : Autocomplete -> Autocomplete
-reset a = init a.defaults
+reset a = init a.functions
 
 selectDown : Autocomplete -> Autocomplete
-selectDown a = let max_ = (List.length a.current)
+selectDown a = let max_ = (List.length a.completions)
                    max = Basics.max max_ 1
                in
                  { a | index = (a.index + 1) % max }
 
 selectUp : Autocomplete -> Autocomplete
-selectUp a = let max = (List.length a.current) - 1 in
+selectUp a = let max = (List.length a.completions) - 1 in
              { a | index = if a.index == 0 then max else a.index - 1
              }
 
 highlighted : Autocomplete -> Maybe AutocompleteItem
-highlighted a = getAt a.index a.current
+highlighted a = getAt a.index a.completions
 
 sharedPrefix2 : String -> String -> String
 sharedPrefix2 l r =
@@ -48,7 +55,7 @@ sharedPrefixList strs =
     Just s -> List.foldl sharedPrefix2 s strs
 
 sharedPrefix : Autocomplete -> String
-sharedPrefix a = sharedPrefixList (List.map .name a.current)
+sharedPrefix a = sharedPrefixList (List.map asString a.completions)
 
 joinPrefix : String -> String -> String
 joinPrefix actual extension =
@@ -57,7 +64,11 @@ joinPrefix actual extension =
   in
     actual ++ suffix
 
-
+asString : AutocompleteItem -> String
+asString aci =
+  case aci of
+    ACFunction (Signature name _ )-> name
+    ACField name -> "." ++ name
 
 containsOrdered : String -> String -> Bool
 containsOrdered needle haystack =
@@ -70,6 +81,17 @@ containsOrdered needle haystack =
                                         |> List.drop 1
                                         |> String.join char)
     Nothing -> True
+
+-- parse the json, take the list of keys, add a . to the front of it
+-- TODO: this needs refactoring
+jsonFields : String -> List AutocompleteItem
+jsonFields json =
+  json
+    |> JSD.decodeString (JSD.dict JSD.value)
+    |> Result.toMaybe
+    |> deMaybe
+    |> Dict.keys
+    |> List.map ACField
 
 
 -- Implementation:
@@ -85,30 +107,37 @@ containsOrdered needle haystack =
 -- y Press enter to select
 -- y Press right to fill as much as is definitive
 
+
 query : String -> Autocomplete -> Autocomplete
 query q a =
   let lcq = String.toLower q
-      current =
-        a.defaults
-          |> List.filter
-             (\i -> String.startsWith lcq (String.toLower i.name))
-          |> List.filter
-             (\i -> case a.liveValue of
-                      Just (_, tipe) -> [tipe] == i.types
-                      Nothing -> True
-             )
+      functions =
+        List.filter
+          (\(Signature _ types) ->
+             case a.liveValue of
+               Just (_, tipe, _) -> [tipe] == types
+               Nothing -> True)
+          a.functions
+      fields = case a.liveValue of
+                 Just (_, "Object", json) -> jsonFields json
+                 _ -> []
+      options = functions
+              |> List.map (\s -> ACFunction s)
+              |> List.append fields
+              |> List.filter
+                 (\i -> String.startsWith lcq (i |> asString |> String.toLower))
 
-      newcurrent = case current of
-                     [ i ] -> if i.name == q then [] else [ i ]
-                     cs -> cs
+      completions = case options of
+                  [ i ] -> if asString i == q then [] else [ i ]
+                  cs -> cs
   in
-    { defaults = a.defaults
+    { functions = a.functions
     , liveValue = a.liveValue
-    , current = newcurrent
-    , index = if List.length newcurrent < List.length a.current
-              then if List.length newcurrent == 0
-                   then -1
-                   else 0
+    , completions = completions
+    , index = if List.length completions == 0
+              then -1
+              else if List.length completions < List.length a.completions
+              then 0
               else a.index
     , value = q
     }

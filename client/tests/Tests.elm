@@ -1,11 +1,18 @@
 module Tests exposing (..)
 
+-- tests
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
+
+-- builtins
 import Set
 
+-- dark
+import Types exposing (..)
 import Autocomplete exposing (..)
+
+
 
 d : String -> List (() -> Bool) -> Test
 d s fs = describe s (List.indexedMap
@@ -18,7 +25,7 @@ d s fs = describe s (List.indexedMap
 
 suite : Test
 suite =
-  let completes = List.map (\(n,t) -> {name=n, types=[t]})
+  let completes = List.map (\(n,t) -> Signature n [t])
                               [ ("Twit::somefunc", "Object")
                               , ("Twit::someOtherFunc", "Object")
                               , ("Twit::yetAnother", "Object")

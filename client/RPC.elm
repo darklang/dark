@@ -1,13 +1,19 @@
 module RPC exposing (rpc)
 
+-- builtin
 import Dict exposing (Dict)
 import Http
 import Json.Encode as JSE
 import Json.Decode as JSD
-import Json.Decode.Pipeline as JSDP
 
+-- lib
+import Json.Decode.Pipeline as JSDP
+import Tuple3
+
+-- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
+
 
 rpc : Model -> List RPC -> Cmd Msg
 rpc m calls =
@@ -112,7 +118,8 @@ decodeNode =
   let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> List (Maybe String) -> Dict String String -> String -> Int -> Int -> Node
       toNode name id fields parameters constants liveDict tipe x y =
         let liveValue = Dict.get "value" liveDict
-            liveTipe = Dict.get "type" liveDict in
+            liveTipe = Dict.get "type" liveDict
+            liveJson = Dict.get "json" liveDict in
           { name = name
           , id = ID id
           , fields = fields
@@ -123,7 +130,8 @@ decodeNode =
                                                            Nothing -> Nothing
                                                            Just c -> Just (k,c))
                         |> Dict.fromList
-          , liveValue = Maybe.map2 (,) liveValue liveTipe |> deMaybe
+          , liveValue = (liveValue, liveTipe, liveJson)
+                        |> Tuple3.mapAll deMaybe
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall

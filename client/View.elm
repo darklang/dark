@@ -79,12 +79,12 @@ viewEntry m =
                                  hlClass = if highlighted then " highlighted" else ""
                                  class = "autocomplete-item" ++ hlClass
                              in Html.li
-                                 [ Attrs.value item.name
+                                 [ Attrs.value (Autocomplete.asString item)
                                  , Attrs.class class
                                  , Attrs.id ("autocomplete-item-" ++ (toString i))
                                  ]
-                                 [Html.text item.name])
-                          m.complete.current)
+                                 [Html.text (Autocomplete.asString item)])
+                          m.complete.completions)
 
         -- two overlapping input boxes, one to provide suggestions, one
         -- to provide the search
@@ -262,7 +262,7 @@ viewLive m cursor =
       [Attrs.id "darkLive"]
       [Html.text <|
           case live of
-            Just (val, tipe) -> "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"
+            Just (val, tipe, _) -> "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"
             Nothing -> "n/a"
 
       ]

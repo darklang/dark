@@ -14,7 +14,7 @@ type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
 type alias TypeName = Name
-type alias LiveValue = (String, String)
+type alias LiveValue = (String, TypeName, String)
 
 type ID = ID Int
 deID : ID -> Int
@@ -98,12 +98,16 @@ type RPC
     | ClearEdges ID
     | RemoveLastField ID
 
-type alias Autocomplete = { defaults : List AutocompleteItem
-                          , current : List AutocompleteItem
+type alias Autocomplete = { functions : List Signature
+                          , completions : List AutocompleteItem
                           , index : Int
                           , value : String
                           , liveValue : Maybe LiveValue
                           }
+type Signature = Signature Name (List TypeName)
+type AutocompleteItem = ACFunction Signature
+                      | ACField FieldName
+
 
 type alias Model = { nodes : NodeDict
                    , edges : List Edge
@@ -133,12 +137,11 @@ type Modification = Error String
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
 
-type alias AutocompleteItem = { name : String
-                              , types : List String }
 
 
 type alias Flags = { state: Maybe Editor
-                   , complete: List AutocompleteItem }
+                   , complete: List { name : Name, types : List TypeName }
+                   }
 
 -- Values that we serialize
 type alias Editor = {}
