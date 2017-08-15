@@ -8,6 +8,7 @@ module ParamMap = Runtime.ParamMap
 (* For serializing to json only *)
 type valuejson = { value: string
                  ; tipe: string [@key "type"]
+                 ; json: string
                  } [@@deriving yojson, show]
 type nodejson = { name: string
                 ; id: id
@@ -40,13 +41,13 @@ class virtual node id loc =
     method constants : param_map = ParamMap.empty
     method update_loc _loc : unit =
       loc <- _loc
-    method to_frontend ((value, tipe) : string * string) : nodejson =
+    method to_frontend (value, tipe, json) : nodejson =
       { name = self#name
       ; id = id
       ; tipe = self#tipe
       ; x = loc.x
       ; y = loc.y
-      ; live = { value = value ; tipe = tipe }
+      ; live = { value = value ; tipe = tipe; json = json }
       ; parameters = self#parameters
       ; constants = List.map ~f:(fun p -> p
                                           |> ParamMap.find self#constants
@@ -124,4 +125,4 @@ let equal_node (a:node) (b:node) =
   a#id = b#id
 
 let show_node (n:node) =
-  show_nodejson (n#to_frontend ("test", "test"))
+  show_nodejson (n#to_frontend ("test", "test", "test"))

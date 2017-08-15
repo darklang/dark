@@ -104,7 +104,7 @@ let rec json2dval_ (json : Yojson.Safe.json) : dval =
 let json2dval (json : string) : dval =
   json |> Yojson.Safe.from_string |> json2dval_
 
-let dval2json (v : dval) : string = "{todo: 5}"
+let dval2json (v : dval) : string = "{\"todo\": 5}"
 
 (* ------------------------- *)
 (* Parsing *)

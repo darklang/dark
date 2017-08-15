@@ -219,11 +219,12 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-let node_value n g : (string * string) =
+let node_value n g : (string * string * string) =
   try
-    let dv = execute n#id g in ( Runtime.to_repr dv,  Runtime.get_type dv)
+    let dv = execute n#id g in
+    (Runtime.to_repr dv, Runtime.get_type dv, Runtime.dval2json dv)
   with
-  | Exception.UserException e -> ("Error: " ^ e, "Error")
+  | Exception.UserException e -> ("Error: " ^ e, "Error", "Error")
 
 let to_frontend_nodes g : json =
   g.nodes
