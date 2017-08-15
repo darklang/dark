@@ -1,10 +1,13 @@
 module Util exposing ( timestamp
                      , windowSize
                      , deMaybe
-                     , rematch)
+                     , rematch
+                     )
 
+-- builtin
 import Regex
 
+-- dark
 import Native.Window
 import Native.Timestamp
 
