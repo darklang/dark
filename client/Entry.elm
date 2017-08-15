@@ -13,6 +13,29 @@ import Graph as G
 import Defaults
 
 
+---------------------
+-- Layout and events
+---------------------
+findImplicitEdge : Model -> Node -> ImplicitEdge
+findImplicitEdge m node = case G.findHole m node of
+                     ResultHole n -> ReceivingEdge n.id
+                     ParamHole n p _ -> ParamEdge n.id p
+
+enterNode : Model -> Node -> EntryCursor
+enterNode m selected =
+  let hole = G.findHole m selected
+      pos = case hole of
+              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
+              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+  in
+    Filling selected hole pos
+
+enter : Model -> ID -> Modification
+enter m id =
+  let node = (G.getNodeExn m id) in
+  Many [ Enter <| enterNode m node
+       , AutocompleteMod <| FilterByLiveValue node.liveValue
+       ]
 
 updateValue : String -> Modification
 updateValue target =
@@ -20,8 +43,17 @@ updateValue target =
 
 
 ---------------------
--- Calling the server
+-- Focus
 ---------------------
+
+focusEntry : Cmd Msg
+focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
+
+
+---------------------
+-- Submitting the entry form to the server
+---------------------
+
 isValueRepr : String -> Bool
 isValueRepr name = Util.rematch "^[\"\'[1-9{].*" name
 
@@ -46,85 +78,49 @@ addNode name pos extras =
   else
     addFunction name pos extras
 
-addVar : Model -> String -> Modification
-addVar m name =
-  case G.fromLetter m name of
+addVar : Model -> String -> Node -> ParamName -> Modification
+addVar m sourceLetter target param =
+  case G.fromLetter m sourceLetter of
     Just source ->
-      case findImplicitEdge m source of
-        ParamEdge tid p -> RPC <| AddEdge source.id (tid, p)
-        _ -> Error "There isn't parameter we're looking to fill here"
+      RPC <| AddEdge source.id (target.id, param)
     Nothing ->
-        Error <| "There isn't a node named '" ++ name ++ "' to connect to"
+      Error <| "There isn't a node named '" ++ sourceLetter ++ "' to connect to"
 
-
----------------------
--- Where to put the entry
----------------------
-findImplicitEdge : Model -> Node -> ImplicitEdge
-findImplicitEdge m node = case G.findHole m node of
-                     ResultHole n -> ReceivingEdge n.id
-                     ParamHole n p _ -> ParamEdge n.id p
-
-enterNode : Model -> Node -> EntryCursor
-enterNode m selected =
-  let hole = G.findHole m selected
-      pos = case hole of
-              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
-              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
-  in
-    Filling selected hole pos
-
-enter : Model -> ID -> Modification
-enter m id =
-  let node = (G.getNodeExn m id)
-  in Many [ Enter <| enterNode m node
-          , AutocompleteMod <| FilterByLiveValue node.liveValue
-          ]
-
-
-
----------------------
--- Dealing with events
----------------------
-
-focusEntry : Cmd Msg
-focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 
 
 submit : Model -> EntryCursor -> Modification
 submit m cursor =
+  let value = m.complete.value in
   case cursor of
-    Filling node hole pos ->
-      submitFilling m node hole pos
-
     Creating pos ->
-      addNode m.complete.value pos []
+      addNode value pos []
 
+    Filling target hole pos ->
+      let implicit = findImplicitEdge m target in
+      case hole of
+        ParamHole _ param _ ->
+          case String.uncons value of
 
-submitFilling : Model -> Node -> Hole -> Pos -> Modification
-submitFilling m node hole pos =
-  case String.uncons m.complete.value of
+            Nothing -> NoChange
 
-    Nothing -> NoChange
+            -- TODO: using the wrong var
+            Just ('$', rest) ->
+              addVar m rest target param
 
-    -- var lookup
-    Just ('$', rest) -> addVar m rest
+            _ ->
+              if isValueRepr value
+              then addConstant value target.id param
+              else addNode value pos [implicit]
 
+        ResultHole _ ->
+          case String.uncons value of
+            Nothing -> NoChange
 
-    -- field access
-    Just ('.', fieldname) ->
-      let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname"
-          implicit = findImplicitEdge m node
-      in
-        addNode "." pos [implicit, constant]
+            Just ('.', fieldname) ->
+              let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname" in
+              addNode "." pos [implicit, constant]
 
-
-    -- functions or constants
-    _ ->
-      if isValueRepr m.complete.value then
-        case hole of
-          ParamHole n p i -> addConstant m.complete.value node.id p
-          ResultHole _ -> addValue m.complete.value pos []
-      else
-        let implicit = findImplicitEdge m node in
-        addNode m.complete.value pos [implicit]
+            _ ->
+              if isValueRepr value
+              then addValue value pos []
+              else addNode value pos [implicit]

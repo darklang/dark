@@ -53,7 +53,7 @@ type alias Edge = { source : ID
                   }
 
 type Hole = ResultHole Node
-          | ParamHole Node String Int
+          | ParamHole Node ParamName Int
 
 type EntryCursor = Creating Pos
                  | Filling Node Hole Pos
@@ -68,8 +68,8 @@ type Msg
     = ClearCursor Mouse.Position
     | NodeClick Node
     | RecordClick Mouse.Position
-    -- we have the actual node when this is created, but by the time we use the
-    -- others the node will be changed
+    -- we have the actual node when this is created, but by the time we
+    -- use the others the node will be changed
     | DragNodeStart Node MouseEvent
     | DragNodeMove ID Offset Mouse.Position
     | DragNodeEnd ID Mouse.Position
