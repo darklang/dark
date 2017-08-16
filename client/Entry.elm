@@ -19,7 +19,7 @@ import Defaults
 findImplicitEdge : Model -> Node -> ImplicitEdge
 findImplicitEdge m node = case G.findHole m node of
                      ResultHole n -> ReceivingEdge n.id
-                     ParamHole n p _ -> ParamEdge n.id p
+                     ParamHole n p _ -> ParamEdge n.id p.name
 
 enterNode : Model -> Node -> EntryCursor
 enterNode m selected =
@@ -32,9 +32,17 @@ enterNode m selected =
 
 enter : Model -> ID -> Modification
 enter m id =
-  let node = (G.getNodeExn m id) in
-  Many [ Enter <| enterNode m node
-       , AutocompleteMod <| FilterByLiveValue node.liveValue
+  let node = (G.getNodeExn m id)
+      cursor = enterNode m node
+  in
+  Many [ Enter <| cursor
+       , case cursor of
+           Filling n (ResultHole _) _ ->
+             AutocompleteMod <| FilterByLiveValue n.liveValue
+           Filling n (ParamHole _ p _) _ ->
+             AutocompleteMod <| FilterByParamType p.tipe
+           Creating _ ->
+             NoChange
        ]
 
 updateValue : String -> Modification
@@ -103,13 +111,12 @@ submit m cursor =
 
             Nothing -> NoChange
 
-            -- TODO: using the wrong var
             Just ('$', rest) ->
-              addVar m rest target param
+              addVar m rest target param.name
 
             _ ->
               if isValueRepr value
-              then addConstant value target.id param
+              then addConstant value target.id param.name
               else addNode value pos [implicit]
 
         ResultHole _ ->

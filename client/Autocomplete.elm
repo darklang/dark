@@ -16,10 +16,19 @@ empty : Autocomplete
 empty = init []
 
 init : List Function -> Autocomplete
-init functions = { functions = functions, completions = List.map ACFunction functions, index = -1, value = "", liveValue = Nothing }
+init functions = { functions = functions
+                 , completions = List.map ACFunction functions
+                 , index = -1
+                 , value = ""
+                 , liveValue = Nothing
+                 , tipe = Nothing
+                 }
 
 forLiveValue : LiveValue -> Autocomplete -> Autocomplete
 forLiveValue lv a = { a | liveValue = Just lv }
+
+forParamType : String -> Autocomplete -> Autocomplete
+forParamType tipe a = { a | tipe = Just tipe }
 
 reset : Autocomplete -> Autocomplete
 reset a = init a.functions
@@ -125,13 +134,23 @@ query q a =
                Nothing -> True)
           a.functions
 
+      -- functions, filtered by param type
+      functions2 =
+        List.filter
+          (\{return_type} ->
+             case a.tipe of
+               Just tipe -> tipe == return_type
+               Nothing -> True)
+          functions
+
+
       -- fields of objects
       fields = case a.liveValue of
                  Just (_, "Object", json) -> jsonFields json
                  _ -> []
 
 
-      options = functions
+      options = functions2
               |> List.map (\s -> ACFunction s)
               |> List.append fields
               |> List.filter
@@ -143,13 +162,14 @@ query q a =
   in
     { functions = a.functions
     , liveValue = a.liveValue
+    , tipe = a.tipe
+    , value = q
     , completions = completions
     , index = if List.length completions == 0
               then -1
               else if List.length completions < List.length a.completions
               then 0
               else a.index
-    , value = q
     }
 
 update : AutocompleteMod -> Autocomplete -> Autocomplete
@@ -161,3 +181,4 @@ update mod a =
     SelectDown -> selectDown a
     SelectUp -> selectUp a
     FilterByLiveValue lv -> forLiveValue lv a
+    FilterByParamType tipe -> forParamType tipe a

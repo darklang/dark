@@ -53,7 +53,7 @@ type alias Edge = { source : ID
                   }
 
 type Hole = ResultHole Node
-          | ParamHole Node ParamName Int
+          | ParamHole Node Parameter Int
 
 type EntryCursor = Creating Pos
                  | Filling Node Hole Pos
@@ -103,6 +103,7 @@ type alias Autocomplete = { functions : List Function
                           , index : Int
                           , value : String
                           , liveValue : Maybe LiveValue
+                          , tipe : Maybe TypeName
                           }
 type AutocompleteItem = ACFunction Function
                       | ACField FieldName
@@ -125,6 +126,7 @@ type AutocompleteMod = SetEntry String
                      | SelectDown
                      | SelectUp
                      | FilterByLiveValue LiveValue
+                     | FilterByParamType TypeName
 
 type Modification = Error String
                   | Select ID
