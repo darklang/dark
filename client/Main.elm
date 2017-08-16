@@ -45,8 +45,7 @@ init {state, complete} =
             Just e -> e
             Nothing -> Defaults.defaultEditor
       m = Defaults.defaultModel editor
-      sigs  = List.map (\{name, types} -> Signature name types) complete
-      m2 = { m | complete = Autocomplete.init sigs}
+      m2 = { m | complete = Autocomplete.init complete}
   in
     (m2, rpc m <| [LoadInitialGraph])
 

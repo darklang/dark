@@ -16,9 +16,6 @@ and dval = DInt of int
          | DObj of objmap
          | DIncomplete [@@deriving show]
 
-module ParamMap = String.Map
-type param_map = dval ParamMap.t
-
 
 let rec to_repr (dv : dval) : string =
   match dv with
@@ -138,19 +135,48 @@ let parse (str : string) : dval =
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
+
+module ArgMap = String.Map
+type arg_map = dval ArgMap.t
+
+type param = { name: string
+             ; tipe: string
+             ; optional : bool
+             } [@@deriving yojson, show]
+(* types  *)
+type tipe = string
+let tInt = "Integer"
+let tStr = "String"
+let tChar = "Char"
+let tBool = "Bool"
+let tObj = "Object"
+let tList = "List"
+(* placeholder until typesystem becomes more complete *)
+let tAny = "Any"
+let tFun = "Function"
+
+
 type fn = { name : string
           ; other_names : string list
-          ; types : string list
-          ; parameters : string list
+          ; parameters : param list
+          ; return_type : tipe
           ; func : ((dval list) -> dval)
           }
 
-let exe (fn : fn) (args : param_map) : dval =
-  if ParamMap.length args < List.length fn.parameters then
+
+let fetch_arg (args: arg_map) (param: param) : dval =
+  (* TODO optional, typecheck *)
+  let arg = ArgMap.find_exn args param.name in
+  (* let _  = check_type arg param.tipe in *)
+  arg
+
+let exe (fn: fn) (args: arg_map) : dval =
+  if ArgMap.length args < List.length fn.parameters then
+    (* TODO: deal with optional parameters *)
     (* TODO: If there aren't enough parameters, curry it *)
     DIncomplete
   else
-    let args = List.map ~f:(ParamMap.find_exn args) fn.parameters in
+    let args = List.map ~f:(fetch_arg args) fn.parameters in
     fn.func args
 
 let exe_dv (fn : dval) (_: dval list) : dval =

@@ -15,7 +15,7 @@ import Types exposing (..)
 empty : Autocomplete
 empty = init []
 
-init : List Signature -> Autocomplete
+init : List Function -> Autocomplete
 init functions = { functions = functions, completions = List.map ACFunction functions, index = -1, value = "", liveValue = Nothing }
 
 forLiveValue : LiveValue -> Autocomplete -> Autocomplete
@@ -71,7 +71,7 @@ joinPrefix actual extension =
 asString : AutocompleteItem -> String
 asString aci =
   case aci of
-    ACFunction (Signature name _ )-> name
+    ACFunction {name} -> name
     ACField name -> "." ++ name
 
 containsOrdered : String -> String -> Bool
@@ -117,9 +117,9 @@ query q a =
   let lcq = String.toLower q
       functions =
         List.filter
-          (\(Signature _ types) ->
+          (\{parameters} ->
              case a.liveValue of
-               Just (_, tipe, _) -> [tipe] == types
+               Just (_, tipe, _) -> [tipe] == (List.map .tipe parameters)
                Nothing -> True)
           a.functions
       fields = case a.liveValue of

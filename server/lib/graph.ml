@@ -23,10 +23,10 @@ let pp_nodemap nm =
 type oplist = Op.op list [@@deriving eq, yojson, show]
 type edge = { source : id
             ; target : id
-            ; param : param
+            ; param : string
             } [@@deriving eq, yojson, show, fields]
 type edgelist = edge list [@@deriving eq, yojson, show]
-type targetpair = (id * param)
+type targetpair = (id * string)
 type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
@@ -63,17 +63,17 @@ let get_named_parent id param g : id =
 let get_node (id : id)  (g : graph) : Node.node =
   NodeMap.find_exn g.nodes id
 
-let has_edge (s: id) (t: id) (param: param) (g : graph) : bool =
+let has_edge (s: id) (t: id) (param: string) (g : graph) : bool =
   List.exists ~f:(fun e -> e.source=s && e.target=t && e.param=param) g.edges
 
-let param_exists (t: id) (param: param) (g : graph) : bool =
+let param_exists (t: id) (param: string) (g : graph) : bool =
   List.exists ~f:(fun e -> e.target=t && e.param=param) g.edges
 
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
 
-let add_constant (v : string) (t: id) (param: param) (g: graph) : graph =
+let add_constant (v : string) (t: id) (param: string) (g: graph) : graph =
   let n = get_node t g in
   if not (n#has_parameter param) then
     Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
@@ -84,7 +84,7 @@ let add_constant (v : string) (t: id) (param: param) (g: graph) : graph =
                    | Some n -> n#add_constant param v; n)
   }
 
-let add_edge (s : id) (t : id) (param : param) (g: graph) : graph =
+let add_edge (s : id) (t : id) (param: string) (g: graph) : graph =
   if s = t then
     (* TODO: deal with cycles *)
     Exception.raise "The source and the target can't be the same node";

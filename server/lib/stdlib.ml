@@ -3,16 +3,17 @@ open Runtime
 open Lib
 
 let fns : Lib.shortfn list = [
-  { n = "Page::page"
-  ; o = []
-  ; p = ["url"; "outputs"]
-  ; f = function
-      | args -> expected "this to be implmented" args
-  }
-  ;
+  (* { n = "Page::page" *)
+  (* ; o = [] *)
+  (* ; p = ["url"; "outputs"] *)
+  (* ; f = function *)
+  (*     | args -> expected "this to be implmented" args *)
+  (* } *)
+  (* ; *)
   { n = "Dict::keys"
   ; o = []
-  ; p = ["dict"]
+  ; p = [req "dict" tObj]
+  ; r = tList
   ; f = function
       | [DObj o] -> o
                     |> ObjMap.keys
@@ -23,7 +24,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "List::head"
   ; o = ["head"]
-  ; p = ["list"]
+  ; p = [req "list" tList]
+  ; r = tAny
   ; f = function
       | [DList l] -> List.hd_exn l
       | args -> expected "list" args
@@ -31,7 +33,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "."
   ; o = ["get_field"]
-  ; p = ["value"; "fieldname"]
+  ; p = [req "value" tObj; req "fieldname" tStr]
+  ; r = tAny
   ; f = function
       | [DObj value; DStr fieldname] ->
         (match ObjMap.find value fieldname with
@@ -42,7 +45,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "%"
   ; o = ["Int::mod"]
-  ; p = ["a"; "b"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tInt
   ; f = function
       | [DInt a; DInt b] -> DInt (a mod b)
       | args -> expected "2 ints" args
@@ -50,7 +54,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "+"
   ; o = ["Int::add"]
-  ; p = ["a"; "b"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tInt
   ; f = function
       | [DInt a; DInt b] -> DInt (a + b)
       | args -> expected "2 ints" args
@@ -58,7 +63,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "-"
   ; o = ["Int::sub"]
-  ; p = ["a"; "b"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tInt
   ; f = function
       | [DInt a; DInt b] -> DInt (a - b)
       | args -> expected "2 ints" args
@@ -66,7 +72,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "String::foreach"
   ; o = []
-  ; p = ["s"; "f"]
+  ; p = [req "s" tStr; req "f" tFun]
+  ; r = tStr
   ; f = function
       | [DStr s; DAnon (id, fn)] ->
         let charf (c: char) : char =
@@ -81,7 +88,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "Char::code"
   ; o = []
-  ; p = ["c"]
+  ; p = [req "c" tChar]
+  ; r = tChar
   ; f = function
       | [DChar c] -> DInt (Char.to_int c)
       | args -> expected "a char" args
@@ -89,7 +97,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "Char::to_uppercase"
   ; o = []
-  ; p = ["c"]
+  ; p = [req "c" tChar]
+  ; r = tChar
   ; f = function
       | [DChar c] -> DChar (Char.uppercase c)
       | args -> expected "a char" args
@@ -97,7 +106,8 @@ let fns : Lib.shortfn list = [
   ;
   { n = "Char::chr"
   ; o = []
-  ; p = ["i"]
+  ; p = [req "i" tInt]
+  ; r = tChar
   ; f = function
       | [DInt i] -> DChar (Char.of_int_exn i)
       | args -> expected "an char's integer ascii (todo: unicode) value" args

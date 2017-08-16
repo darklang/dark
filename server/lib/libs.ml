@@ -11,14 +11,8 @@ let fns : fnmap =
   let add_fn (m : fnmap) (s : shortfn) : fnmap =
     let def = { name = s.n
               ; other_names = s.o
+              ; return_type = s.r
               ; parameters = s.p
-              ; types =
-                  if String.length s.n >= 4
-                   && String.sub s.n ~len:4 ~pos:0 = "List"
-                  then ["List"]
-                  else if String.length s.n = 1
-                  then ["Integer"]
-                  else ["Dict"]
               ; func = s.f} in
     List.fold_left ~f:(fun m1 n -> FnMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in

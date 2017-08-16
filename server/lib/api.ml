@@ -101,8 +101,13 @@ let json2op (op : opjson) : op list =
   | { add_function_call = Some a } ->
     let nodeid = id () in
     let fn_node = Add_fn_call (a.name, nodeid, a.pos) in
-    (* TODO: not the first parameter, but the next unused parameter. Which we don't actually know at this point... *)
-    let name = List.hd_exn (Libs.get_fn_exn a.name).parameters in
+    (* TODO: not the first parameter, but the next unused parameter.
+       Which we don't actually know at this point... *)
+    let name = a.name
+               |> Libs.get_fn_exn
+               |> (fun x -> x.parameters)
+               |> List.hd_exn
+               |> (fun x -> x.name) in
     [fn_node] @ (List.map ~f:(convert_edge nodeid (Some name)) a.edges)
 
   | { add_value = Some a } ->

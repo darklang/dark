@@ -2,8 +2,9 @@ open Core
 open Types
 
 type dval = Runtime.dval
-type param_map = Runtime.param_map
-module ParamMap = Runtime.ParamMap
+type arg_map = Runtime.arg_map
+type param = Runtime.param
+module ArgMap = Runtime.ArgMap
 
 (* For serializing to json only *)
 type valuejson = { value: string
@@ -16,7 +17,7 @@ type nodejson = { name: string
                 ; x: int
                 ; y: int
                 ; live: valuejson
-                ; parameters: string list
+                ; parameters: Runtime.param list
                 ; constants: (string option) list
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
@@ -28,17 +29,17 @@ class virtual node id loc =
     val mutable loc : loc = loc
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : param_map -> dval
+    method virtual execute : arg_map -> dval
     method add_constant (name: string) (value: string) : unit =
       Exception.raise "Cannot add a constant to a generic node"
     method id = id
     method is_page = false
     method is_datasink = false
     method is_datasource = false
-    method parameters : string list = []
-    method has_parameter (param : string) : bool =
-      List.mem ~equal:String.equal self#parameters param
-    method constants : param_map = ParamMap.empty
+    method parameters : param list = []
+    method has_parameter (paramname : string) : bool =
+      List.exists ~f:(fun p -> p.name = paramname) self#parameters
+    method constants : arg_map = ArgMap.empty
     method update_loc _loc : unit =
       loc <- _loc
     method to_frontend (value, tipe, json) : nodejson =
@@ -49,8 +50,8 @@ class virtual node id loc =
       ; y = loc.y
       ; live = { value = value ; tipe = tipe; json = json }
       ; parameters = self#parameters
-      ; constants = List.map ~f:(fun p -> p
-                                          |> ParamMap.find self#constants
+      ; constants = List.map ~f:(fun p -> p.name
+                                          |> ArgMap.find self#constants
                                           |> Option.map ~f:Runtime.to_repr)
             self#parameters
       }
@@ -62,26 +63,26 @@ class value strrep id loc =
     val expr : dval = Runtime.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute (_: param_map) : dval = expr
+    method execute (_: arg_map) : dval = expr
   end
 
 class func n id loc =
   object (self)
     inherit node id loc
-    val mutable constants : param_map = ParamMap.empty
+    val mutable constants : arg_map = ArgMap.empty
     (* Throw an exception if it doesn't exist *)
     method private fn = (Libs.get_fn_exn n)
     method name = self#fn.name
-    method execute (args : param_map) : dval =
+    method execute (args : arg_map) : dval =
       Runtime.exe self#fn args
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
       else "function"
-    method parameters : string list = self#fn.parameters
+    method parameters : param list = self#fn.parameters
     method constants = constants
     method add_constant (name: string) (value: string) =
-      constants <- ParamMap.add constants ~key:name ~data:(Runtime.parse value)
+      constants <- ArgMap.add constants ~key:name ~data:(Runtime.parse value)
 
   end
 
@@ -89,7 +90,7 @@ class datastore table id loc =
   object
     inherit node id loc
     val table : string = table
-    method execute (_ : param_map) : dval = DStr "todo datastore execute"
+    method execute (_ : arg_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
@@ -103,10 +104,10 @@ class anon id (executor: dval -> dval) loc =
   object
     inherit node id loc
     method name = "<anon>"
-    method execute (_: param_map) : dval =
+    method execute (_: arg_map) : dval =
       DAnon (id, executor)
     method tipe = "definition"
-    method! parameters = ["todo"]
+    method! parameters = [] (* todo *)
   end
 
 (* the function definition of the anon *)
@@ -114,10 +115,10 @@ class anon_inner id loc =
   object
     inherit node id loc
     method name = "<anoninner>"
-    method execute (args: param_map) : dval =
+    method execute (args: arg_map) : dval =
       String.Map.find_exn args "return"
     method tipe = "definition"
-    method! parameters = ["return"]
+    method! parameters = [Lib.req "return" Runtime.tAny]
   end
 
 

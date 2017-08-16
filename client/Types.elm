@@ -43,7 +43,7 @@ type alias Node = { name : Name
                   -- for DSes
                   , fields : List (FieldName, TypeName)
                   -- for functions
-                  , parameters : List ParamName
+                  , parameters : List Parameter
                   , constants : Dict String String
                   }
 
@@ -98,14 +98,13 @@ type RPC
     | ClearEdges ID
     | RemoveLastField ID
 
-type alias Autocomplete = { functions : List Signature
+type alias Autocomplete = { functions : List Function
                           , completions : List AutocompleteItem
                           , index : Int
                           , value : String
                           , liveValue : Maybe LiveValue
                           }
-type Signature = Signature Name (List TypeName)
-type AutocompleteItem = ACFunction Signature
+type AutocompleteItem = ACFunction Function
                       | ACField FieldName
 
 
@@ -138,11 +137,27 @@ type Modification = Error String
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
 
+-- name, type optional
+type alias Parameter = { name: Name
+                       , tipe: TypeName
+                       , optional: Bool
+                       }
 
+type alias Function = { name: Name
+                      , parameters: List Parameter
+                      , return_type: String
+                      }
 
-type alias Flags = { state: Maybe Editor
-                   , complete: List { name : Name, types : List TypeName }
+type alias Flags =
+  { state: Maybe Editor
+  , complete: List { name : Name
+                   , parameters: List { name: String
+                                      , tipe: String
+                                      , optional: Bool
+                                      }
+                   , return_type : TypeName
                    }
+  }
 
 -- Values that we serialize
 type alias Editor = {}

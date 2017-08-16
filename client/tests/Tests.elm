@@ -25,15 +25,23 @@ d s fs = describe s (List.indexedMap
 
 suite : Test
 suite =
-  let completes = List.map (\(n,t) -> Signature n [t])
-                              [ ("Twit::somefunc", "Object")
-                              , ("Twit::someOtherFunc", "Object")
-                              , ("Twit::yetAnother", "Object")
-                              , ("+", "Integer")
-                              , ("Int::add", "Integer")
-                              , ("Dict::keys", "Object")
-                              , ("List::head", "List")
-                              ] in
+  let completes =
+        List.map (\(name,tipe) ->
+                    { name = name
+                    , parameters = [{ name = "x"
+                                    , tipe = tipe
+                                    , optional = False
+                                    }]
+                    , return_type = "Boolean"
+                    })
+          [ ("Twit::somefunc", "Object")
+          , ("Twit::someOtherFunc", "Object")
+          , ("Twit::yetAnother", "Object")
+          , ("+", "Integer")
+          , ("Int::add", "Integer")
+          , ("Dict::keys", "Object")
+          , ("List::head", "List")
+          ] in
   describe "autocomplete"
     [ d "containsOrdered"
         [ \_ -> containsOrdered "abc" "aaaaabbbbbcccc"

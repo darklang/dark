@@ -1,11 +1,22 @@
 open Core
 open Runtime
 
+let req name tipe = { name = name
+                    ; tipe = tipe
+                    ; optional = false
+                    }
+let opt name tipe = { name = name
+                    ; tipe = tipe
+                    ; optional = true
+                    }
+
+
 
 (* Shorthand *)
 type shortfn = { n : string
                ; o : string list
-               ; p : string list
+               ; p : param list
+               ; r : tipe
                ; f : (dval list) -> dval
                }
 (* TODO: use deriving here instead *)
@@ -16,3 +27,6 @@ let expected (msg : string) (args : dval list) : dval =
   |> (^) ("Expected: " ^ msg ^ ", got: ")
   |> Exception.raise
 
+let fail (args: dval list) : dval =
+  (* TODO: catch this then use the definition to create the right error message *)
+  Exception.raise "bad type"

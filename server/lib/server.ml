@@ -11,7 +11,8 @@ module G = Graph
 let inspect = Util.inspect
 
 type function_ = { name: string
-                 ; types : string list} [@@deriving yojson]
+                 ; parameters : Runtime.param list
+                 ; return_type : string} [@@deriving yojson]
 type functionlist = function_ list [@@deriving yojson]
 
 let server =
@@ -38,7 +39,9 @@ let server =
         Libs.fns
         |> String.Map.to_alist
         |> List.map ~f:(fun (k,(v:Runtime.fn)) -> { name = k
-                                                  ; types = v.types })
+                                                  ; parameters = v.parameters
+                                                  ; return_type = v.return_type
+                                                  })
         |> functionlist_to_yojson
         |> Yojson.Safe.to_string
       in

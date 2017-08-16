@@ -5,7 +5,7 @@ import Dict
 
 -- lib
 import Mouse
-import List.Extra
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -35,6 +35,6 @@ findOffset pos mpos =
 paramOffset : Node -> String -> Pos
 paramOffset node param =
   let
-    index = deMaybe (List.Extra.elemIndex param node.parameters)
+    index = deMaybe (LE.findIndex (\p -> p.name == param) node.parameters)
   in
     {x=index*10, y=-2}

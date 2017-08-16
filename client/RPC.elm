@@ -115,7 +115,11 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toNode : Name -> Int -> List(FieldName,TypeName) -> List ParamName -> List (Maybe String) -> Dict String String -> String -> Int -> Int -> Node
+  let toParameter: Name -> TypeName -> Bool -> Parameter
+      toParameter name tipe optional = { name = name
+                                       , tipe = tipe
+                                       , optional = optional}
+      toNode : Name -> Int -> List(FieldName,TypeName) -> List Parameter -> List (Maybe String) -> Dict String String -> String -> Int -> Int -> Node
       toNode name id fields parameters constants liveDict tipe x y =
         let liveValue = Dict.get "value" liveDict
             liveTipe = Dict.get "type" liveDict
@@ -125,7 +129,7 @@ decodeNode =
           , fields = fields
           , parameters = parameters
           , constants = constants
-                        |> List.map2 (,) parameters
+                        |> List.map2 (,) (List.map .name parameters)
                         |> List.filterMap (\(k,const) -> case const of
                                                            Nothing -> Nothing
                                                            Just c -> Just (k,c))
@@ -150,7 +154,11 @@ decodeNode =
                                  (JSD.map2 (,)
                                     (JSD.index 0 JSD.string)
                                     (JSD.index 1 JSD.string))) []
-    |> JSDP.optional "parameters" (JSD.list JSD.string) []
+    |> JSDP.required "parameters" (JSD.list
+                                     (JSDP.decode toParameter
+                                     |> JSDP.required "name" JSD.string
+                                     |> JSDP.required "tipe" JSD.string
+                                     |> JSDP.required "optional" JSD.bool))
     |> JSDP.optional "constants" (JSD.list (JSD.nullable JSD.string)) []
     |> JSDP.required "live" (JSD.dict JSD.string)
     |> JSDP.required "type" JSD.string

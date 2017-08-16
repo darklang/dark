@@ -11,15 +11,15 @@ type json = Yojson.Safe.json
 type op = Add_fn_call of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
-        | Add_constant of string * id * param
+        | Add_constant of string * id * string
         (* id in the outer graph, id in the inner graph *)
         | Add_anon of id * id * loc
         (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
         | Delete_node of id
-        | Add_edge of id * id * param
-        | Delete_edge of id * id * param
+        | Add_edge of id * id * string
+        | Delete_edge of id * id * string
         | Clear_edges of id
 [@@deriving eq, yojson, show]
 

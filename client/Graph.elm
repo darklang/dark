@@ -19,7 +19,7 @@ import List
 import Tuple
 import Dict
 
-import List.Extra
+import List.Extra as LE
 
 import Types exposing (..)
 import Util exposing (deMaybe)
@@ -85,8 +85,8 @@ findHole : Model -> Node -> Hole
 findHole m n =
   let incoming = incomingEdges m n
       used_params = List.map .param incoming ++ Dict.keys n.constants
-      all_params = List.indexedMap (,) n.parameters
-      unused = List.Extra.find
+      all_params = List.indexedMap (,) (List.map .name n.parameters)
+      unused = LE.find
                (\(i, p) -> not <| List.member p used_params)
                  all_params
   in

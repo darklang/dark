@@ -169,9 +169,10 @@ nodeSize node =
 nodeName : Node -> String
 nodeName n =
   let defaultParam = "◉"
-      parameterTexts = List.map (\p -> case Dict.get p n.constants of
-                                         Just c -> c
-                                         Nothing -> defaultParam) n.parameters
+      parameterTexts = List.map
+                       (\p -> case Dict.get p.name n.constants of
+                                Just c -> c
+                                Nothing -> defaultParam) n.parameters
 
   in
     String.join " " (n.name :: parameterTexts)
@@ -188,11 +189,11 @@ viewNode m n i =
       connected name = if G.slotIsConnected m n.id name
                        then "connected"
                        else "disconnected"
-      viewParam name = Html.span
-                       [ Events.on "mousedown" (slotHandler name)
-                       , Attrs.title name
-                       , Attrs.class (connected name)]
-                       [Html.text "◉"]
+      viewParam {name} = Html.span
+                         [ Events.on "mousedown" (slotHandler name)
+                         , Attrs.title name
+                         , Attrs.class (connected name)]
+                         [Html.text "◉"]
 
       -- header
       viewHeader = Html.div

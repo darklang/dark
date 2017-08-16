@@ -66,6 +66,7 @@ let gets = [ "account/settings"
            ; "trends/closest"
            ; "trends/place"
            ; "users/lookup"
+           (* ; "users/lookup", screen_name, String list, optional; user_id, optional, string list; include_entities optional bool *)
            ; "users/profile_banner"
            ; "users/search"
            ; "users/show"
@@ -134,7 +135,8 @@ let fns : shortfn list =
     gets
     ~f:(fun name -> { n = "Twitter::" ^ name
                     ; o = []
-                    ; p = ["argument"]
+                    ; p = [req "argument" tObj]
+                    ; r = tAny
                     ; f = function
                         | [arg] -> Twitter.get (name ^ ".json") arg
                         | args -> expected "obj" args
