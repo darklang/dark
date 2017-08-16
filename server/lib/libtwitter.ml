@@ -3,7 +3,28 @@ open Runtime
 
 open Lib
 
+
 let schema = Swagger.parse "lib/twitter_api.json"
+
+let call_twitter name (args: dval list) : dval =
+  Twitter.get (name ^ ".json") args
+
+let fns =
+  schema.apis
+  |> List.map
+    ~f:(fun (api: Swagger.api) ->
+        api.operations
+        |> List.filter ~f:(fun (op: Swagger.operation) ->
+            op.httpMethod = "GET")
+        |> List.hd
+        |> Option.map ~f:(fun get -> { n = "Twitter::" ^ api.path
+                                     ; o = []
+                                     ; r = tAny
+                                     ; f = call_twitter api.path
+                                     ; p = []
+                                     }))
+  |> List.filter_map ~f:ident
+
 
 let gets = [ "account/settings"
            ; "account/verify_credentials"
@@ -131,16 +152,3 @@ let posts = [ "account/remove_profile_banner"
 let deletes = [ "direct_messages/welcome_messages/destroy"
               ; "direct_messages/welcome_messages/rules/destroy"
               ]
-
-let fns : shortfn list =
-  List.map
-    gets
-    ~f:(fun name -> { n = "Twitter::" ^ name
-                    ; o = []
-                    ; p = [req "argument" tObj]
-                    ; r = tAny
-                    ; f = function
-                        | [arg] -> Twitter.get (name ^ ".json") arg
-                        | args -> expected "obj" args
-                    }
-       )
