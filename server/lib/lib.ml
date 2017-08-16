@@ -28,5 +28,4 @@ let expected (msg : string) (args : dval list) : dval =
   |> Exception.raise
 
 let fail (args: dval list) : dval =
-  (* TODO: catch this then use the definition to create the right error message *)
-  Exception.raise "bad type"
+  raise (Runtime.TypeError args)

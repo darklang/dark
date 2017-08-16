@@ -23,12 +23,12 @@ let fns : Lib.shortfn list = [
   }
   ;
   { n = "List::head"
-  ; o = ["head"]
+  ; o = []
   ; p = [req "list" tList]
   ; r = tAny
   ; f = function
       | [DList l] -> List.hd_exn l
-      | args -> expected "list" args
+      | args -> fail args
   }
   ;
   { n = "."
@@ -40,7 +40,7 @@ let fns : Lib.shortfn list = [
         (match ObjMap.find value fieldname with
          | None -> Exception.raise ("Value has no field named: " ^ fieldname)
          | Some v -> v)
-      | args -> expected "obj, string" args
+      | args -> fail args
   }
   ;
   { n = "%"
@@ -49,7 +49,7 @@ let fns : Lib.shortfn list = [
   ; r = tInt
   ; f = function
       | [DInt a; DInt b] -> DInt (a mod b)
-      | args -> expected "2 ints" args
+      | args -> fail args
   }
   ;
   { n = "+"
@@ -58,7 +58,7 @@ let fns : Lib.shortfn list = [
   ; r = tInt
   ; f = function
       | [DInt a; DInt b] -> DInt (a + b)
-      | args -> expected "2 ints" args
+      | args -> fail args
   }
   ;
   { n = "-"
@@ -67,7 +67,7 @@ let fns : Lib.shortfn list = [
   ; r = tInt
   ; f = function
       | [DInt a; DInt b] -> DInt (a - b)
-      | args -> expected "2 ints" args
+      | args -> fail args
   }
   ;
   { n = "String::foreach"
@@ -83,7 +83,7 @@ let fns : Lib.shortfn list = [
           | r -> failwith "expected a char"
         in
         DStr (String.map ~f:charf s)
-      | args -> expected "a string and a function" args
+      | args -> fail args
   }
   ;
   { n = "Char::code"
@@ -92,7 +92,7 @@ let fns : Lib.shortfn list = [
   ; r = tChar
   ; f = function
       | [DChar c] -> DInt (Char.to_int c)
-      | args -> expected "a char" args
+      | args -> fail args
   }
   ;
   { n = "Char::to_uppercase"
@@ -101,7 +101,7 @@ let fns : Lib.shortfn list = [
   ; r = tChar
   ; f = function
       | [DChar c] -> DChar (Char.uppercase c)
-      | args -> expected "a char" args
+      | args -> fail args
   }
   ;
   { n = "Char::chr"
@@ -110,6 +110,6 @@ let fns : Lib.shortfn list = [
   ; r = tChar
   ; f = function
       | [DInt i] -> DChar (Char.of_int_exn i)
-      | args -> expected "an char's integer ascii (todo: unicode) value" args
+      | args -> fail args
   }
 ]

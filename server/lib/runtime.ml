@@ -163,12 +163,20 @@ type fn = { name : string
           ; func : ((dval list) -> dval)
           }
 
+let param_to_string (param: param) : string =
+  param.name
+  ^ (if param.optional then "?" else "")
+  ^ " : "
+  ^ param.tipe
+
 
 let fetch_arg (args: arg_map) (param: param) : dval =
   (* TODO optional, typecheck *)
   let arg = ArgMap.find_exn args param.name in
   (* let _  = check_type arg param.tipe in *)
   arg
+
+exception TypeError of dval list
 
 let exe (fn: fn) (args: arg_map) : dval =
   if ArgMap.length args < List.length fn.parameters then
@@ -177,7 +185,18 @@ let exe (fn: fn) (args: arg_map) : dval =
     DIncomplete
   else
     let args = List.map ~f:(fetch_arg args) fn.parameters in
-    fn.func args
+    try
+      fn.func args
+    with
+    | TypeError args ->
+      Exception.raise
+        ("Incorrect type to fn "
+         ^ fn.name
+         ^ ": expected ["
+         ^ String.concat ~sep:", " (List.map ~f:param_to_string fn.parameters)
+         ^ "], got ["
+         ^ String.concat ~sep:", " (List.map ~f:to_error_repr args)
+         ^ "]")
 
 let exe_dv (fn : dval) (_: dval list) : dval =
   match fn with
