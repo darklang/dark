@@ -31,8 +31,10 @@ suite =
                     , parameters = [{ name = "x"
                                     , tipe = tipe
                                     , optional = False
+                                    , description = ""
                                     }]
                     , return_type = "Boolean"
+                    , description = ""
                     })
           [ ("Twit::somefunc", "Object")
           , ("Twit::someOtherFunc", "Object")
