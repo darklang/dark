@@ -191,11 +191,11 @@ viewNode m n i =
       connected name = if G.slotIsConnected m n.id name
                        then "connected"
                        else "disconnected"
-      viewParam {name} = Html.span
-                         [ Events.on "mousedown" (slotHandler name)
-                         , Attrs.title name
-                         , Attrs.class (connected name)]
-                         [Html.text "◉"]
+      viewParam {name, tipe} = Html.span
+                               [ Events.on "mousedown" (slotHandler name)
+                               , Attrs.title <| name ++ ": " ++ tipe
+                               , Attrs.class (connected name)]
+                               [Html.text "◉"]
 
       -- header
       viewHeader = Html.div
