@@ -141,22 +141,18 @@ type Modification = Error String
 type alias Parameter = { name: Name
                        , tipe: TypeName
                        , optional: Bool
+                       , description: String
                        }
 
 type alias Function = { name: Name
                       , parameters: List Parameter
+                      , description: String
                       , return_type: String
                       }
 
 type alias Flags =
   { state: Maybe Editor
-  , complete: List { name : Name
-                   , parameters: List { name: String
-                                      , tipe: String
-                                      , optional: Bool
-                                      }
-                   , return_type : TypeName
-                   }
+  , complete: List Function
   }
 
 -- Values that we serialize

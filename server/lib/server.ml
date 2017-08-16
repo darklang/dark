@@ -12,6 +12,7 @@ let inspect = Util.inspect
 
 type function_ = { name: string
                  ; parameters : Runtime.param list
+                 ; description : string
                  ; return_type : string} [@@deriving yojson]
 type functionlist = function_ list [@@deriving yojson]
 
@@ -38,10 +39,13 @@ let server =
       let all_functions =
         Libs.fns
         |> String.Map.to_alist
-        |> List.map ~f:(fun (k,(v:Runtime.fn)) -> { name = k
-                                                  ; parameters = v.parameters
-                                                  ; return_type = v.return_type
-                                                  })
+        |> List.map ~f:(fun (k,(v:Runtime.fn))
+                         -> { name = k
+                            ; parameters = v.parameters
+                            ; description = ""
+                                  (* v.description *)
+                            ; return_type = v.return_type
+                            })
         |> functionlist_to_yojson
         |> Yojson.Safe.to_string
       in

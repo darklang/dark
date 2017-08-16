@@ -29,6 +29,7 @@ let param2param (sw: Swagger.parameter) : param =
   { name = sw.name
   ; optional = not sw.required
   ; tipe = sw.dataType |> sw_type2dark
+  ; description = sw.description
   }
 
 let fns =
@@ -45,5 +46,6 @@ let fns =
             ; r = tAny
             ; f = call_twitter (twurl2name api.path)
             ; p = List.map ~f:param2param get.parameters
+            ; d = Option.value ~default:"" get.summary
             }))
   |> List.filter_map ~f:ident

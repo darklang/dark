@@ -13,6 +13,7 @@ let fns : fnmap =
               ; other_names = s.o
               ; return_type = s.r
               ; parameters = s.p
+              ; description = s.d
               ; func = s.f} in
     List.fold_left ~f:(fun m1 n -> FnMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in

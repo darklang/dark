@@ -142,6 +142,7 @@ type arg_map = dval ArgMap.t
 type param = { name: string
              ; tipe: string
              ; optional : bool
+             ; description : string
              } [@@deriving yojson, show]
 (* types  *)
 type tipe = string
@@ -160,6 +161,7 @@ type fn = { name : string
           ; other_names : string list
           ; parameters : param list
           ; return_type : tipe
+          ; description : string
           ; func : ((dval list) -> dval)
           }
 
