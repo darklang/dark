@@ -5,7 +5,7 @@ import Dict
 import Json.Decode as JSD
 
 -- lib
-import List.Extra exposing (getAt)
+import List.Extra as LE
 
 -- dark
 import Util exposing (deMaybe)
@@ -40,7 +40,7 @@ selectUp a = let max = (List.length a.completions) - 1 in
              }
 
 highlighted : Autocomplete -> Maybe AutocompleteItem
-highlighted a = getAt a.index a.completions
+highlighted a = LE.getAt a.index a.completions
 
 sharedPrefix2 : String -> String -> String
 sharedPrefix2 l r =
@@ -115,16 +115,22 @@ jsonFields json =
 query : String -> Autocomplete -> Autocomplete
 query q a =
   let lcq = String.toLower q
+      -- functions, filtered by param type
       functions =
         List.filter
           (\{parameters} ->
              case a.liveValue of
-               Just (_, tipe, _) -> [tipe] == (List.map .tipe parameters)
+               Just (_, tipe, _) ->
+                 Nothing /= (LE.find (\p -> p.tipe == tipe) parameters)
                Nothing -> True)
           a.functions
+
+      -- fields of objects
       fields = case a.liveValue of
                  Just (_, "Object", json) -> jsonFields json
                  _ -> []
+
+
       options = functions
               |> List.map (\s -> ACFunction s)
               |> List.append fields
