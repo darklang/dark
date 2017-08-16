@@ -178,8 +178,10 @@ nodeName n =
     String.join " " (n.name :: parameterTexts)
 
 
--- TODO: Allow selecting an edge, then highlight it and show its source and target
--- TODO: If there are default parameters, show them inline in the node body
+-- TODO: Allow selecting an edge, then highlight it and show its source
+-- and target
+-- TODO: If there are default parameters, show them inline in
+-- the node body
 -- TODO: could maybe use little icons to denote the params
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
