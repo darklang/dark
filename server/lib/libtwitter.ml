@@ -3,6 +3,8 @@ open Runtime
 
 open Lib
 
+let schema = Swagger.parse "lib/twitter_api.json"
+
 let gets = [ "account/settings"
            ; "account/verify_credentials"
            ; "application/rate_limit_status"
