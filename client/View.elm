@@ -132,24 +132,19 @@ viewEntry m =
       _ -> []
 
 
-
-
-
 nodeWidth : Node -> Int
 nodeWidth n =
   let
     slimChars = Set.fromList Defaults.narrowChars
-    len name =
-      n
-        |> nodeName
-        |> String.toList
-        |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
-        |> List.sum
+    len name = name
+             |> String.toList
+             |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
+             |> List.sum
     nameMultiple = case n.tipe of
                      Datastore -> 2
                      Page -> 2.2
-                     _ -> 1
-    ln = [nameMultiple * len n.name]
+                     _ -> 1.2
+    ln = [nameMultiple * len (nodeName n)]
     lf = List.map (\(n,t) -> len n + len t + 3) n.fields
     charWidth = List.foldl max 2 (ln ++ lf)
     width = charWidth * 12
