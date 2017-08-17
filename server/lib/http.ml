@@ -2,7 +2,7 @@
 open Core
 module C = Curl
 
-type verb = GET | POST
+type verb = GET | POST [@@deriving show]
 
 let filename_for (url: string) (verb: verb) (body: string) : string =
   let verbs = match verb with
@@ -78,6 +78,12 @@ let http_call (url: string) (verb: verb) (headers: string list) (body: string) :
   response
 
 let call (url: string) (verb: verb) (headers: string list) (body: string) : string =
+  print_endline ("HTTP "
+                 ^ (show_verb verb)
+                 ^ " ("
+                 ^ (body |> String.length |> string_of_int)
+                 ^ "): "
+                 ^ url);
   match cached_call url verb body with
   | None -> let result = http_call url verb headers body in
     save_call url verb body result;

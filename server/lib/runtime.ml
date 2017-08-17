@@ -30,7 +30,7 @@ let rec to_repr (dv : dval) : string =
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
   | DAnon _ -> "<anon>"
   | DIncomplete -> "<incomplete>"
-  | DNull -> "<nothing>"
+  | DNull -> "null"
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_repr l)) ^ " ]"
   | DObj o ->
@@ -50,7 +50,7 @@ let rec to_string (dv : dval) : string =
   | DChar c -> Char.to_string c
   | DAnon _ -> "<anon>"
   | DIncomplete -> "<incomplete>"
-  | DNull -> "<nothing>"
+  | DNull -> "null"
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_string l)) ^ " ]"
   | DObj o ->
@@ -96,6 +96,7 @@ let rec json2dval_ (json : Yojson.Safe.json) : dval =
   | `String s -> DStr s
   | `Bool b -> DBool b
   | `Float f -> DFloat f
+  | `Null -> DNull
   | `Assoc alist -> DObj (List.fold_left
                         alist
                         ~f:(fun m (k,v) -> ObjMap.add m k (json2dval_ v))

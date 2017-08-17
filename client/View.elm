@@ -177,7 +177,7 @@ nodeName n =
   let defaultParam = "◉"
       parameterTexts = List.map
                        (\p -> case Dict.get p.name n.constants of
-                                Just c -> c
+                                Just c -> if c == "null" then "∅" else c
                                 Nothing -> defaultParam) n.parameters
 
   in

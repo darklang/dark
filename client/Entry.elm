@@ -63,7 +63,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 ---------------------
 
 isValueRepr : String -> Bool
-isValueRepr name = Util.rematch "^[\"\'[1-9{].*" name
+isValueRepr name = String.toLower name == "null"
+                   || Util.rematch "^[\"\'[1-9{].*" name
 
 addFunction : Name -> Pos -> List ImplicitEdge -> Modification
 addFunction name pos extras =
@@ -108,8 +109,10 @@ submit m cursor =
       case hole of
         ParamHole _ param _ ->
           case String.uncons value of
-
-            Nothing -> NoChange
+            Nothing ->
+              if param.optional
+              then addConstant "null" target.id param.name
+              else NoChange
 
             Just ('$', rest) ->
               addVar m rest target param.name

@@ -23,12 +23,12 @@ let rec argmap2query (args: arg_map) : string =
     ~f:(fun ~key ~data l ->
         if data = Runtime.DIncomplete
         then Exception.raise "Incomplete computation"
-        else
-          (key ^ "=" ^ (Runtime.to_string data)) :: l)
+        else if data = Runtime.DNull then l
+        else (key ^ "=" ^ (Runtime.to_string data)) :: l)
   |> String.concat ~sep:"&"
 
 let call (endpoint: string) (verb: Http.verb) (args: arg_map) : dval =
-  let prefix = "https://api.twitter.com/" in
+  let prefix = "https://api.twitter.com" in
   let headers = ["Authorization: Bearer " ^ bearer] in
   let result =
     match verb with
