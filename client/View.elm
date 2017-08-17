@@ -99,8 +99,8 @@ viewEntry m =
         suggestioninput = Html.input [ Attrs.id "suggestion"
                                      , Attrs.disabled True
                                      , Attrs.value prefix
-                                     ]
-                          [ ]
+                                     ] []
+
         input = Html.div
                 [Attrs.id "search-container"]
                 [searchinput, suggestioninput]
@@ -109,11 +109,21 @@ viewEntry m =
                    [ Events.onSubmit (EntrySubmitMsg) ]
                    [ input, autocomplete ]
 
+        paramInfo =
+          case m.state of
+            Entering (Filling _ (ParamHole _ param _) _) ->
+              Html.div [] [ Html.text (param.name ++ " : " ++ param.tipe)
+                          , Html.br [] []
+                          , Html.text param.description
+                          ]
+            _ -> Html.div [] []
+
+
         -- inner node
         inner = Html.div
                 [ Attrs.width 100
                 , Attrs.class "inner"]
-                [ viewForm ]
+                [ paramInfo, viewForm ]
 
 
         -- outer node wrapper
