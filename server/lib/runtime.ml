@@ -13,6 +13,9 @@ and dval = DInt of int
          | DBool of bool
          | DAnon of id * (dval -> dval)
          | DList of dval list
+         (* TODO: make null more like option. Maybe that's for the type
+            system *)
+         | DNull
          | DObj of objmap
          | DIncomplete [@@deriving show]
 
@@ -27,6 +30,7 @@ let rec to_repr (dv : dval) : string =
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
   | DAnon _ -> "<anon>"
   | DIncomplete -> "<incomplete>"
+  | DNull -> "<nothing>"
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_repr l)) ^ " ]"
   | DObj o ->
@@ -46,6 +50,7 @@ let rec to_string (dv : dval) : string =
   | DChar c -> Char.to_string c
   | DAnon _ -> "<anon>"
   | DIncomplete -> "<incomplete>"
+  | DNull -> "<nothing>"
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_string l)) ^ " ]"
   | DObj o ->
@@ -66,6 +71,7 @@ let get_type (dv : dval) : string =
   | DBool _ -> "Bool"
   | DFloat _ -> "Float"
   | DChar _ -> "Char"
+  | DNull -> "Nothing"
   | DAnon _ -> "Anonymous function"
   | DList _ -> "List"
   | DObj _ -> "Object"
@@ -108,6 +114,7 @@ let rec dval2json_ (v : dval) : Yojson.Safe.json =
   | DBool b -> `Bool b
   | DStr s -> `String s
   | DFloat f -> `Float f
+  | DNull -> `Null
   | DChar c -> `String (Char.to_string c)
   | DAnon _ -> `String "<anon>"
   | DIncomplete -> `String "<incomplete>"
@@ -156,13 +163,15 @@ let tList = "List"
 let tAny = "Any"
 let tFun = "Function"
 
+type ccfunc = InProcess of (dval list -> dval)
+            | API of (arg_map -> dval)
 
 type fn = { name : string
           ; other_names : string list
           ; parameters : param list
           ; return_type : tipe
           ; description : string
-          ; func : ((dval list) -> dval)
+          ; func : ccfunc
           }
 
 let param_to_string (param: param) : string =
@@ -173,32 +182,30 @@ let param_to_string (param: param) : string =
 
 
 let fetch_arg (args: arg_map) (param: param) : dval =
-  (* TODO optional, typecheck *)
-  let arg = ArgMap.find_exn args param.name in
-  (* let _  = check_type arg param.tipe in *)
-  arg
+  let arg = ArgMap.find args param.name in
+  match arg with
+  | None -> if param.optional then DNull else DIncomplete
+  | Some dv -> dv
 
 exception TypeError of dval list
 
 let exe (fn: fn) (args: arg_map) : dval =
-  if ArgMap.length args < List.length fn.parameters then
-    (* TODO: deal with optional parameters *)
-    (* TODO: If there aren't enough parameters, curry it *)
-    DIncomplete
-  else
-    let args = List.map ~f:(fetch_arg args) fn.parameters in
-    try
-      fn.func args
-    with
-    | TypeError args ->
-      Exception.raise
-        ("Incorrect type to fn "
-         ^ fn.name
-         ^ ": expected ["
-         ^ String.concat ~sep:", " (List.map ~f:param_to_string fn.parameters)
-         ^ "], got ["
-         ^ String.concat ~sep:", " (List.map ~f:to_error_repr args)
-         ^ "]")
+  try
+    match fn.func with
+    | InProcess f -> fn.parameters
+                     |> List.map ~f:(fetch_arg args)
+                     |> f
+    | API f -> f args
+  with
+  | TypeError args ->
+    Exception.raise
+      ("Incorrect type to fn "
+       ^ fn.name
+       ^ ": expected ["
+       ^ String.concat ~sep:", " (List.map ~f:param_to_string fn.parameters)
+       ^ "], got ["
+       ^ String.concat ~sep:", " (List.map ~f:to_error_repr args)
+       ^ "]")
 
 let exe_dv (fn : dval) (_: dval list) : dval =
   match fn with

@@ -6,7 +6,7 @@ open Lib
 
 let schema = Swagger.parse "lib/twitter_api.json"
 
-let call_twitter name (args: dval list) : dval =
+let call_twitter name (args: Runtime.arg_map) : dval =
   Twitter.get (name ^ ".json") args
 
 let sw_type2dark tipe =
@@ -44,7 +44,7 @@ let fns =
             { n = "Twitter::" ^ (twurl2name api.path)
             ; o = []
             ; r = tAny
-            ; f = call_twitter (twurl2name api.path)
+            ; f = Runtime.API (call_twitter (twurl2name api.path))
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             }))

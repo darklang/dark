@@ -6,7 +6,8 @@ open Core
 (* If we ever call it again, we'll use the on-disk version first *)
 
 type dval = Runtime.dval
-module ObjMap = Runtime.ObjMap
+type arg_map = Runtime.arg_map
+module ArgMap = Runtime.ArgMap
 
 (* See test.sh for how to get this token *)
 let bearer =
@@ -15,26 +16,25 @@ let bearer =
   ^ "Pagi8le92ZQE5PXTqimhtVRqyjeWRz"
 
 
-let rec dval2query (v: dval) : string =
-  match v with
-  | DObj obj -> obj
-                |> ObjMap.fold
-                  ~init:[]
-                  ~f:(fun ~key ~data l ->
-                      (key ^ "=" ^ (dval2query data)) :: l)
-                |> String.concat ~sep:"&"
-  | DStr str -> str
-  | _ -> Runtime.to_string v
+let rec argmap2query (args: arg_map) : string =
+  args
+  |> ArgMap.fold
+    ~init:[]
+    ~f:(fun ~key ~data l ->
+        if data = Runtime.DIncomplete
+        then Exception.raise "Incomplete computation"
+        else
+          (key ^ "=" ^ (Runtime.to_string data)) :: l)
+  |> String.concat ~sep:"&"
 
-let call (endpoint: string) (verb: Http.verb) (args: dval list) : dval =
+let call (endpoint: string) (verb: Http.verb) (args: arg_map) : dval =
   let prefix = "https://api.twitter.com/1.1/" in
   let headers = ["Authorization: Bearer " ^ bearer] in
   let result =
     match verb with
     | GET ->
-      let queries = List.map ~f:dval2query args in
-      let query_string = String.concat ~sep:"&" queries in
-      let url = prefix ^ endpoint ^ "?" ^ query_string in
+      let query = argmap2query args in
+      let url = prefix ^ endpoint ^ "?" ^ query in
       Http.call url verb headers ""
     | POST ->
       let body = "" in
@@ -43,8 +43,8 @@ let call (endpoint: string) (verb: Http.verb) (args: dval list) : dval =
   in
   Runtime.json2dval result
 
-let get (url: string) (args: dval list) : dval =
+let get (url: string) (args: arg_map) : dval =
   call url GET args
 
-let post (url: string) (args: dval list) : dval =
+let post (url: string) (args: arg_map) : dval =
   call url POST args

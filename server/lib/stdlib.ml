@@ -15,12 +15,13 @@ let fns : Lib.shortfn list = [
   ; p = [req "dict" tObj]
   ; r = tList
   ; d = ""
-  ; f = function
-      | [DObj o] -> o
-                    |> ObjMap.keys
-                    |> List.map ~f:(fun k -> DStr k)
-                    |> fun l -> DList l
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DObj o] -> o
+                        |> ObjMap.keys
+                        |> List.map ~f:(fun k -> DStr k)
+                        |> fun l -> DList l
+          | args -> fail args)
   }
   ;
   { n = "List::head"
@@ -28,9 +29,10 @@ let fns : Lib.shortfn list = [
   ; p = [req "list" tList]
   ; r = tAny
   ; d = ""
-  ; f = function
-      | [DList l] -> List.hd_exn l
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DList l] -> List.hd_exn l
+          | args -> fail args)
   }
   ;
   { n = "."
@@ -38,12 +40,13 @@ let fns : Lib.shortfn list = [
   ; p = [req "value" tObj; req "fieldname" tStr]
   ; r = tAny
   ; d = ""
-  ; f = function
-      | [DObj value; DStr fieldname] ->
-        (match ObjMap.find value fieldname with
-         | None -> Exception.raise ("Value has no field named: " ^ fieldname)
-         | Some v -> v)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DObj value; DStr fieldname] ->
+            (match ObjMap.find value fieldname with
+             | None -> Exception.raise ("Value has no field named: " ^ fieldname)
+             | Some v -> v)
+          | args -> fail args)
   }
   ;
   { n = "%"
@@ -51,9 +54,10 @@ let fns : Lib.shortfn list = [
   ; p = [req "a" tInt ; req "b" tInt]
   ; r = tInt
   ; d = ""
-  ; f = function
-      | [DInt a; DInt b] -> DInt (a mod b)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (a mod b)
+          | args -> fail args)
   }
   ;
   { n = "+"
@@ -61,9 +65,10 @@ let fns : Lib.shortfn list = [
   ; p = [req "a" tInt ; req "b" tInt]
   ; r = tInt
   ; d = ""
-  ; f = function
-      | [DInt a; DInt b] -> DInt (a + b)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (a + b)
+          | args -> fail args)
   }
   ;
   { n = "-"
@@ -71,9 +76,10 @@ let fns : Lib.shortfn list = [
   ; p = [req "a" tInt ; req "b" tInt]
   ; r = tInt
   ; d = ""
-  ; f = function
-      | [DInt a; DInt b] -> DInt (a - b)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (a - b)
+          | args -> fail args)
   }
   ;
   { n = "String::foreach"
@@ -81,16 +87,17 @@ let fns : Lib.shortfn list = [
   ; p = [req "s" tStr; req "f" tFun]
   ; r = tStr
   ; d = ""
-  ; f = function
-      | [DStr s; DAnon (id, fn)] ->
-        let charf (c: char) : char =
-          let result = fn (DChar c) in
-          match result with
-          | DChar c -> c
-          | r -> failwith "expected a char"
-        in
-        DStr (String.map ~f:charf s)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DStr s; DAnon (id, fn)] ->
+            let charf (c: char) : char =
+              let result = fn (DChar c) in
+              match result with
+              | DChar c -> c
+              | r -> failwith "expected a char"
+            in
+            DStr (String.map ~f:charf s)
+          | args -> fail args)
   }
   ;
   { n = "Char::code"
@@ -98,9 +105,10 @@ let fns : Lib.shortfn list = [
   ; p = [req "c" tChar]
   ; r = tChar
   ; d = ""
-  ; f = function
-      | [DChar c] -> DInt (Char.to_int c)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DChar c] -> DInt (Char.to_int c)
+          | args -> fail args)
   }
   ;
   { n = "Char::to_uppercase"
@@ -108,9 +116,10 @@ let fns : Lib.shortfn list = [
   ; p = [req "c" tChar]
   ; r = tChar
   ; d = ""
-  ; f = function
-      | [DChar c] -> DChar (Char.uppercase c)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DChar c] -> DChar (Char.uppercase c)
+          | args -> fail args)
   }
   ;
   { n = "Char::chr"
@@ -118,8 +127,9 @@ let fns : Lib.shortfn list = [
   ; p = [req "i" tInt]
   ; r = tChar
   ; d = ""
-  ; f = function
-      | [DInt i] -> DChar (Char.of_int_exn i)
-      | args -> fail args
+  ; f = InProcess
+        (function
+          | [DInt i] -> DChar (Char.of_int_exn i)
+          | args -> fail args)
   }
 ]
