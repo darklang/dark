@@ -3,11 +3,10 @@ open Runtime
 
 open Lib
 
-
 let schema = Swagger.parse "lib/twitter_api.json"
 
-let call_twitter name (args: Runtime.arg_map) : dval =
-  Twitter.get (name ^ ".json") args
+let call_twitter path (args: Runtime.arg_map) : dval =
+  Twitter.get path args
 
 let sw_type2dark tipe =
   match tipe with
@@ -15,13 +14,12 @@ let sw_type2dark tipe =
   | "int" -> tInt
   | _ -> failwith ("todo: type: " ^ tipe)
 
-let twurl2name (name: string) : string =
+let twurl2name (url: string) : string =
   (* /1.1/{NAME}.json *)
-  try
-    String.slice name 5 (-5)
-  with
-  | e -> let _ = print_endline name in
-    raise e
+  url
+  |> String.substr_replace_first ~pattern:"/" ~with_:""
+  |> String.substr_replace_first ~pattern:"1.1/" ~with_:""
+  |> String.substr_replace_first ~pattern:".json" ~with_:""
 
 
 
@@ -44,7 +42,7 @@ let fns =
             { n = "Twitter::" ^ (twurl2name api.path)
             ; o = []
             ; r = tAny
-            ; f = Runtime.API (call_twitter (twurl2name api.path))
+            ; f = Runtime.API (call_twitter api.path)
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             }))

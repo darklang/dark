@@ -28,7 +28,7 @@ let rec argmap2query (args: arg_map) : string =
   |> String.concat ~sep:"&"
 
 let call (endpoint: string) (verb: Http.verb) (args: arg_map) : dval =
-  let prefix = "https://api.twitter.com/1.1/" in
+  let prefix = "https://api.twitter.com/" in
   let headers = ["Authorization: Bearer " ^ bearer] in
   let result =
     match verb with
