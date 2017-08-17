@@ -143,11 +143,12 @@ nodeWidth n =
     nameMultiple = case n.tipe of
                      Datastore -> 2
                      Page -> 2.2
-                     _ -> 1.2
-    ln = [nameMultiple * len (nodeName n)]
+                     _ -> 1
+    lp = List.length n.parameters
+    ln = [nameMultiple * len (nodeName n) + 1.3 * (toFloat lp)]
     lf = List.map (\(n,t) -> len n + len t + 3) n.fields
     charWidth = List.foldl max 2 (ln ++ lf)
-    width = charWidth * 12
+    width = charWidth * 8.5
   in
     round(width)
 
