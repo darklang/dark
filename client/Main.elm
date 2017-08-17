@@ -191,6 +191,10 @@ update_ msg m =
                 Filling node _ _ -> Many [Select node.id, AutocompleteMod Reset]
             key ->
               AutocompleteMod <| SetEntry m.complete.value
+        Deselected ->
+          case event.keyCode of
+            Key.Enter -> Enter <| Creating Defaults.initialPos
+            _ -> Selection.selectByLetter m event.keyCode
         _ -> Selection.selectByLetter m event.keyCode
 
 
