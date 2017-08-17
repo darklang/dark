@@ -270,12 +270,13 @@ viewLive m cursor =
 
       ]
 
--- Our edges should be a lineargradient from "darker" to "arrowColor". SVG
--- gradients are weird, they don't allow you specify based on the line
--- direction, but only on the absolute direction. So we define 8 linear
--- gradients, one for each 45 degree angle/direction. We define this in terms of
--- "rise over run" (eg like you'd calculate a slope). Then we translate the x,y
--- source/target positions into (rise,run) in the integer range [-1,0,1].
+-- Our edges should be a lineargradient from "darker" to "arrowColor".
+-- SVG gradients are weird, they don't allow you specify based on the
+-- line direction, but only on the absolute direction. So we define 8
+-- linear gradients, one for each 45 degree angle/direction. We define
+-- this in terms of "rise over run" (eg like you'd calculate a slope).
+-- Then we translate the x,y source/target positions into (rise,run) in
+-- the integer range [-1,0,1].
 svgDefs : Svg.Svg a
 svgDefs =
   Svg.defs []
