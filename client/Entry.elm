@@ -49,7 +49,11 @@ updateValue : String -> Modification
 updateValue target =
   AutocompleteMod <| SetEntry target
 
+createInitial : Modification
+createInitial = Enter <| Creating Defaults.initialPos
 
+createFindSpace : Model -> Modification
+createFindSpace m = createInitial
 ---------------------
 -- Focus
 ---------------------

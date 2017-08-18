@@ -2,6 +2,7 @@ port module Main exposing (..)
 
 -- builtins
 import Maybe
+import Dict
 
 -- lib
 import Json.Decode as JSD
@@ -193,7 +194,7 @@ update_ msg m =
               AutocompleteMod <| SetEntry m.complete.value
         Deselected ->
           case event.keyCode of
-            Key.Enter -> Enter <| Creating Defaults.initialPos
+            Key.Enter -> Entry.createFindSpace m
             _ -> Selection.selectByLetter m event.keyCode
         _ -> Selection.selectByLetter m event.keyCode
 
@@ -210,7 +211,9 @@ update_ msg m =
                        -- if we deleted a node, the cursor is probably
                        -- invalid
                        Nothing ->
-                         if m.state
+                         if Dict.size m.nodes == 0
+                         then Entry.createFindSpace m
+                         else if m.state
                            |> Selection.getCursorID
                            |> Maybe.andThen (G.getNode m2)
                            |> (==) Nothing
