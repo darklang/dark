@@ -3,6 +3,8 @@ module Autocomplete exposing (..)
 -- builtin
 import Dict
 import Json.Decode as JSD
+import Dom.Scroll
+import Task
 
 -- lib
 import List.Extra as LE
@@ -11,6 +13,16 @@ import List.Extra as LE
 import Util exposing (deMaybe)
 import Types exposing (..)
 
+-- show the prev 5
+-- obvi this should use getClientBoundingBox, but that's tough in Elm
+height : Int -> Int
+height i = if i < 5
+           then 0
+           else 16 * (i - 5)
+
+focusItem : Int -> Cmd Msg
+focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
+            |> Task.attempt FocusAutocompleteItem
 
 empty : Autocomplete
 empty = init []

@@ -82,9 +82,12 @@ updateMod mod (m, cmd) =
       Drag d -> { m | state = Dragging d } ! []
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
-      Many mods -> List.foldl updateMod (m, Cmd.none) mods
       AutocompleteMod mod ->
-        { m | complete = Autocomplete.update mod m.complete } ! []
+        let complete = Autocomplete.update mod m.complete
+        in
+          ({ m | complete = Autocomplete.update mod m.complete
+           }, Autocomplete.focusItem complete.index)
+      Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
 
@@ -255,8 +258,10 @@ update_ msg m =
       Error <| "Bad RPC call: " ++ (toString error.body)
 
     (FocusResult _, _) ->
-      -- Yay, you focused a field! Ignore.
       AutocompleteMod Clear
+
+    (FocusAutocompleteItem _, _) ->
+      NoChange
 
     t -> Error <| "Nothing for " ++ (toString t)
 

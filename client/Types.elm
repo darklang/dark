@@ -81,6 +81,7 @@ type Msg
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
     | FocusResult (Result Dom.Error ())
+    | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge, Maybe ID))
     | Initialization
 

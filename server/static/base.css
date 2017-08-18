@@ -145,7 +145,7 @@ form {
   float: right;
 }
 
-.autocomplete-holder {
+#autocomplete-holder {
   overflow-y: auto;
   max-height: 250px;
 }

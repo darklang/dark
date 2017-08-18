@@ -74,18 +74,19 @@ viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   let html pos =
     let autocomplete = Html.ul
-                       [ Attrs.class "autocomplete-holder" ]
+                       [ Attrs.id "autocomplete-holder" ]
                        (List.indexedMap
                           (\i item ->
                              let highlighted = m.complete.index == i
                                  hlClass = if highlighted then " highlighted" else ""
                                  class = "autocomplete-item" ++ hlClass
+                                 str = Autocomplete.asString item
                              in Html.li
-                                 [ Attrs.value (Autocomplete.asString item)
+                                 [ Attrs.value str
                                  , Attrs.class class
                                  , Attrs.id ("autocomplete-item-" ++ (toString i))
                                  ]
-                                 [Html.text (Autocomplete.asString item)])
+                                 [Html.text str])
                           m.complete.completions)
 
         -- two overlapping input boxes, one to provide suggestions, one
