@@ -10,12 +10,6 @@ module G = Graph
 
 let inspect = Util.inspect
 
-type function_ = { name: string
-                 ; parameters : Runtime.param list
-                 ; description : string
-                 ; return_type : string} [@@deriving yojson]
-type functionlist = function_ list [@@deriving yojson]
-
 let server =
   let callback _ req req_body =
     let uri = req |> Request.uri in
@@ -26,30 +20,20 @@ let server =
     let admin_rpc_handler body : string =
       let body = inspect ~f:ident "request body" body in
       let g = G.load "blog" in
-      Api.apply_ops g body;
-      G.save !g;
-      (* print_endline (G.show_graph !g); *)
-      !g
-      |> Graph.to_frontend_string
-      |> Util.inspect ~f:ident "response: "
+      let _ = try
+        Api.apply_ops g body;
+        G.save !g;
+      with
+      | e -> print_endline (G.show_graph !g);
+        raise e
+      in !g
+         |> Graph.to_frontend_string
+         |> Util.inspect ~f:ident "response: "
     in
 
     let admin_ui_handler () =
       let template = Util.readfile "templates/ui.html" in
-      let all_functions =
-        Libs.fns
-        |> String.Map.to_alist
-        |> List.map ~f:(fun (k,(v:Runtime.fn))
-                         -> { name = k
-                            ; parameters = v.parameters
-                            ; description = ""
-                                  (* v.description *)
-                            ; return_type = v.return_type
-                            })
-        |> functionlist_to_yojson
-        |> Yojson.Safe.to_string
-      in
-      Util.string_replace "ALLFUNCTIONS" all_functions template
+      Util.string_replace "ALLFUNCTIONS" (Api.functions) template
     in
 
     let static_handler f : string =

@@ -137,3 +137,26 @@ let apply_ops (g : G.graph ref) (payload: string) : unit =
   |> List.map ~f:json2op
   |> List.concat
   |> List.iter ~f:(fun op -> G.add_op op g)
+
+
+(*------------------*)
+(* Functions *)
+(*------------------*)
+type function_ = { name: string
+                 ; parameters : Runtime.param list
+                 ; description : string
+                 ; return_type : string} [@@deriving yojson]
+type functionlist = function_ list [@@deriving yojson]
+
+let functions =
+  Libs.fns
+  |> String.Map.to_alist
+  |> List.map ~f:(fun (k,(v:Runtime.fn))
+                   -> { name = k
+                      ; parameters = v.parameters
+                      ; description = ""
+                      (* v.description *)
+                      ; return_type = v.return_type
+                      })
+  |> functionlist_to_yojson
+  |> Yojson.Safe.to_string
