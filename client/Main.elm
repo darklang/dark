@@ -101,7 +101,8 @@ update_ msg m =
       -- When we click on a node, drag is set when RecordClick happens.
       -- So this avoids firing if we click outside a node
       if event.button == Defaults.leftButton
-      then Enter <| Creating event.pos
+      then Many [ AutocompleteMod Reset
+                , Enter <| Creating event.pos]
       else NoChange
 
     ------------------------
