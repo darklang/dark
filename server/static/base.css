@@ -11,6 +11,11 @@ body {
   color:#fff;
 }
 
+.entry > .inner {
+  /* Put the entry node in front of all other nodes */
+  z-index: 1;
+}
+
 #search-container {
   position: relative;
 }

@@ -129,7 +129,7 @@ viewEntry m =
 
 
         -- outer node wrapper
-        classes = "selection function node"
+        classes = "selection function node entry"
 
         wrapper = Html.span
                   [ Attrs.class classes
