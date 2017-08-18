@@ -7,7 +7,7 @@ import Dom
 import Mouse
 
 -- libs
-import Keyboard.Event
+import Keyboard.Event exposing (KeyboardEvent)
 
 
 type alias Name = String
@@ -79,7 +79,7 @@ type Msg
     | DragSlotStop Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
-    | GlobalKeyPress Keyboard.Event.KeyboardEvent
+    | GlobalKeyPress KeyboardEvent
     | FocusResult (Result Dom.Error ())
     | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge, Maybe ID))
     | Initialization
