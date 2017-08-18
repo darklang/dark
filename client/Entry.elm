@@ -47,7 +47,7 @@ enter m id =
 
 updateValue : String -> Modification
 updateValue target =
-  AutocompleteMod <| SetEntry target
+  AutocompleteMod <| Query target
 
 createInitial : Modification
 createInitial = Enter <| Creating Defaults.initialPos

@@ -120,9 +120,10 @@ type alias Model = { nodes : NodeDict
                    , complete : Autocomplete
                    }
 
-type AutocompleteMod = SetEntry String
+type AutocompleteMod = Query String
                      | Reset
                      | Clear
+                     | Complete String
                      | SelectDown
                      | SelectUp
                      | FilterByLiveValue LiveValue

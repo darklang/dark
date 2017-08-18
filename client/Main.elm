@@ -188,18 +188,18 @@ update_ msg m =
               Key.Right ->
                 let sp = Autocomplete.sharedPrefix m.complete in
                 if sp == "" then NoChange
-                else Many [ AutocompleteMod <| SetEntry sp ]
+                else AutocompleteMod <| Query sp
               Key.Enter ->
                 case Autocomplete.highlighted m.complete of
                   Just item -> AutocompleteMod
-                               <| SetEntry (Autocomplete.asString item)
+                               <| Complete (Autocomplete.asString item)
                   Nothing -> Entry.submit m cursor
               Key.Escape ->
                 case cursor of
                   Creating _ -> Many [Deselect, AutocompleteMod Reset]
                   Filling node _ _ -> Many [Select node.id, AutocompleteMod Reset]
               key ->
-                AutocompleteMod <| SetEntry m.complete.value
+                AutocompleteMod <| Query m.complete.value
 
         Deselected ->
           case event.keyCode of

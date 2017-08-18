@@ -37,6 +37,12 @@ clear : Autocomplete -> Autocomplete
 clear a = let cleared = query "" a in
           { cleared | index = -1 }
 
+complete : String -> Autocomplete -> Autocomplete
+complete str a = { a | value = str
+                     , completions = []
+                     , index = -1
+                 }
+
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = (List.length a.completions)
                    max = Basics.max max_ 1
@@ -159,25 +165,22 @@ query q a =
       completions = case options of
                   [ i ] -> if asString i == q then [] else [ i ]
                   cs -> cs
-  in
-    { functions = a.functions
-    , liveValue = a.liveValue
-    , tipe = a.tipe
-    , value = q
-    , completions = completions
-    , index = if List.length completions == 0
-              then -1
-              else if List.length completions < List.length a.completions
-              then 0
-              else a.index
-    }
+  in { a | value = q
+         , completions = completions
+         , index = if List.length completions == 0
+                   then -1
+                   else if List.length completions < List.length a.completions
+                   then 0
+                   else a.index
+     }
 
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   case mod of
-    SetEntry str -> query str a
+    Query str -> query str a
     Reset -> reset a
     Clear -> clear a
+    Complete str -> complete str a
     SelectDown -> selectDown a
     SelectUp -> selectUp a
     FilterByLiveValue lv -> forLiveValue lv a
