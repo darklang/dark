@@ -30,7 +30,7 @@ dragEdgeStrokeColor = "red"
 dragEdgeSize : String
 dragEdgeSize = "2px"
 initialPos : Pos
-initialPos = {x=400, y=170}
+initialPos = {x=200, y=200}
 
 defaultEditor : Editor
 defaultEditor = {}
