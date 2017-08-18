@@ -58,12 +58,15 @@ complete str a = { a | value = str
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = (List.length a.completions)
                    max = Basics.max max_ 1
+                   new = (a.index + 1) % max
                in
-                 { a | index = (a.index + 1) % max }
+                 { a | index = new }
 
 selectUp : Autocomplete -> Autocomplete
 selectUp a = let max = (List.length a.completions) - 1 in
-             { a | index = if a.index == 0 then max else a.index - 1
+             { a | index = if a.index <= 0
+                           then max
+                           else a.index - 1
              }
 
 highlighted : Autocomplete -> Maybe AutocompleteItem

@@ -113,7 +113,20 @@ suite =
       |> selectUp
       |> .index
       |> (==) 2
-       -- Reduced results goes back to start of list
+       -- Scrolling loops the other way without going forward first
+      , \_ -> (init completes)
+      |> query "Twit"
+      |> selectUp
+      |> selectUp
+      |> .index
+      |> (==) 1
+       -- Scrolling backward words if we haven't searched yet
+      , \_ -> (init completes)
+      |> selectUp
+      |> selectUp
+      |> .index
+      |> (==) 5
+        -- Reduced results goes back to start of list
       , \_ -> (init completes)
       |> query "Twit"
       |> selectDown
