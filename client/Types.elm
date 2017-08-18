@@ -67,7 +67,7 @@ type State = Selecting ID
 type Msg
     = ClearCursor Mouse.Position
     | NodeClick Node
-    | RecordClick Mouse.Position
+    | RecordClick MouseEvent
     -- we have the actual node when this is created, but by the time we
     -- use the others the node will be changed
     | DragNodeStart Node MouseEvent

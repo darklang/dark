@@ -29,7 +29,9 @@ view m =
   let (w, h) = Util.windowSize ()
   in
     Html.div
-      [Attrs.id "grid"]
+      [ Attrs.id "grid"
+      , Events.on "mousedown" (decodeClickEvent RecordClick)
+      ]
       [ (Svg.svg
            [ SA.width (toString w) , SA.height (toString <| h - 60)]
            (viewCanvas m))

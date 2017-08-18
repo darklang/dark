@@ -96,11 +96,13 @@ update_ msg m =
     (NodeClick node, _) ->
       Select node.id
 
-    (RecordClick pos, _) ->
+    (RecordClick event, _) ->
       -- TODO: what does this mean?
       -- When we click on a node, drag is set when RecordClick happens.
       -- So this avoids firing if we click outside a node
-      Enter <| Creating pos
+      if event.button == Defaults.leftButton
+      then Enter <| Creating event.pos
+      else NoChange
 
     ------------------------
     -- dragging nodes
@@ -278,7 +280,7 @@ subscriptions m =
         [onWindow "keydown"
            (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
 
-      standardSubs = [ Mouse.downs RecordClick ]
+      standardSubs = [ ]
   in Sub.batch
     (List.concat [standardSubs, keySubs, dragSubs])
 
