@@ -174,24 +174,33 @@ update_ msg m =
             Key.Enter -> Entry.enter m id
             Key.Escape -> Deselect
             code -> Selection.selectByLetter m code
+
         Entering cursor ->
-          case event.keyCode of
-            Key.Up -> AutocompleteMod SelectUp
-            Key.Down -> AutocompleteMod SelectDown
-            Key.Right ->
-              let sp = Autocomplete.sharedPrefix m.complete in
-              if sp == "" then NoChange
-              else Many [ AutocompleteMod <| SetEntry sp ]
-            Key.Enter ->
-              case Autocomplete.highlighted m.complete of
-                Just item -> AutocompleteMod <| SetEntry (Autocomplete.asString item)
-                Nothing -> Entry.submit m cursor
-            Key.Escape ->
-              case cursor of
-                Creating _ -> Many [Deselect, AutocompleteMod Reset]
-                Filling node _ _ -> Many [Select node.id, AutocompleteMod Reset]
-            key ->
-              AutocompleteMod <| SetEntry m.complete.value
+          if event.ctrlKey then
+            case event.keyCode of
+              Key.P -> AutocompleteMod SelectUp
+              Key.N -> AutocompleteMod SelectDown
+              _ -> NoChange
+          else
+            case event.keyCode of
+              Key.Up -> AutocompleteMod SelectUp
+              Key.Down -> AutocompleteMod SelectDown
+              Key.Right ->
+                let sp = Autocomplete.sharedPrefix m.complete in
+                if sp == "" then NoChange
+                else Many [ AutocompleteMod <| SetEntry sp ]
+              Key.Enter ->
+                case Autocomplete.highlighted m.complete of
+                  Just item -> AutocompleteMod
+                               <| SetEntry (Autocomplete.asString item)
+                  Nothing -> Entry.submit m cursor
+              Key.Escape ->
+                case cursor of
+                  Creating _ -> Many [Deselect, AutocompleteMod Reset]
+                  Filling node _ _ -> Many [Select node.id, AutocompleteMod Reset]
+              key ->
+                AutocompleteMod <| SetEntry m.complete.value
+
         Deselected ->
           case event.keyCode of
             Key.Enter -> Entry.createFindSpace m
