@@ -5,7 +5,7 @@
 
 FROM ubuntu:17.04
 
-
+# General
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y software-properties-common=0.96.24.13 \
@@ -34,12 +34,6 @@ RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
 RUN apt-get update
 RUN apt-get install -y nodejs=8.3.0-1nodesource1~zesty1
 
-# FSWatch for the build script
-RUN wget https://github.com/emcrisostomo/fswatch/releases/download/1.9.3/fswatch-1.9.3.tar.gz
-RUN tar zxvf fswatch-1.9.3.tar.gz
-RUN cd fswatch-1.9.3 && ./configure && make
-RUN cd fswatch-1.9.3 && make install && ldconfig
-
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
 RUN chown -R dark:dark /home/dark
@@ -55,7 +49,8 @@ ENV LANGUAGE en_US:en
 
 # Elm
 RUN npm install elm@0.18.0
-RUN npm install elm-test@0.18.8
+RUN npm install elm-test@0.18.8 # test
+RUN npm install elm-oracle@1.1.1 # dev
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
 # Ocaml
@@ -69,17 +64,17 @@ ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
 ENV FORCE_BUILD 1
 RUN opam update
 
-RUN opam install \
-         core.v0.9.1 \
-         lwt.3.1.0 \
-         cohttp.0.22.0 \
-         yojson.1.3.3 \
-         postgresql.4.0.1 \
-         oUnit.2.0.0 \
-         ppx_deriving_yojson.3.0 \
-         tls.0.8.0 \
-         ocurl.0.7.10
-
-RUN opam install merlin utop ocp-indent
+RUN opam install lwt.3.1.0
+RUN opam install core.v0.9.1
+RUN opam install cohttp.0.22.0
+RUN opam install yojson.1.3.3
+RUN opam install postgresql.4.0.1
+RUN opam install ppx_deriving_yojson.3.0
+RUN opam install tls.0.8.0
+RUN opam install ocurl.0.7.10
+RUN opam install oUnit.2.0.0 # test
+RUN opam install merlin.3.0.2 # dev
+RUN opam install utop.2.0.1 # dev
+RUN opam install ocp-indent.1.6.1 # dev
 
 CMD ["app", "scripts", "builder"]
