@@ -74,21 +74,33 @@ viewClick pos =
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   let html pos =
-    let autocomplete = Html.ul
+    let autocompleteList =
+          (List.indexedMap
+             (\i item ->
+                let highlighted = m.complete.index == i
+                    hlClass = if highlighted then " highlighted" else ""
+                    class = "autocomplete-item" ++ hlClass
+                    str = Autocomplete.asString item
+                in Html.li
+                  [ Attrs.value str
+                  , Attrs.class class
+                  , Attrs.id ("autocomplete-item-" ++ (toString i))
+                  ]
+                  [Html.text str])
+             m.complete.completions)
+
+        autocompletions = case (m.state, m.complete.index) of
+                            (Entering (Filling _ (ParamHole _ _ _) _), -1) ->
+                              [ Html.li
+                                [ Attrs.class "autocomplete-item greyed" ]
+                                [ Html.text "Press down to autocomplete…" ]
+                              ]
+                            _ -> autocompleteList
+
+
+        autocomplete = Html.ul
                        [ Attrs.id "autocomplete-holder" ]
-                       (List.indexedMap
-                          (\i item ->
-                             let highlighted = m.complete.index == i
-                                 hlClass = if highlighted then " highlighted" else ""
-                                 class = "autocomplete-item" ++ hlClass
-                                 str = Autocomplete.asString item
-                             in Html.li
-                                 [ Attrs.value str
-                                 , Attrs.class class
-                                 , Attrs.id ("autocomplete-item-" ++ (toString i))
-                                 ]
-                                 [Html.text str])
-                          m.complete.completions)
+                       autocompletions
 
         -- two overlapping input boxes, one to provide suggestions, one
         -- to provide the search

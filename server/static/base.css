@@ -21,9 +21,13 @@ body {
 }
 
 #search-container input {
-  padding: 5px;
-  font-size: 1.2em;
+  padding: 2px;
+  font-size: 1.1em;
   width: 200px;
+}
+
+#search-container br {
+    padding-bottom: 10px;
 }
 
 #darkEntry {
@@ -152,4 +156,7 @@ form {
 
 .autocomplete-item.highlighted {
   background: blue;
+}
+.autocomplete-item.greyed {
+  color: grey;
 }
