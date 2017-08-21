@@ -160,3 +160,10 @@ form {
 .autocomplete-item.greyed {
   color: grey;
 }
+
+/* Put it in the top right */
+body .elm-overlay .elm-mini-controls {
+  top: 0;
+  bottom: auto;
+  right: 0px;
+}
