@@ -8,11 +8,13 @@
    - the usename is dark, password is 2DqMHguUfsAGCPerWgyHRxPi
 - Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
 
+# TODO:
+- see which of your followers' have tweets that you've favorited in the last two weeks
+
+
 # Tidyups to do
 - rename Loc or Pos to the other
 - stop splitting x,y for json
-- automatically generate and parse json via yojson/deriving
-- rip out REPL
 - use ppx_variants_conv
 - try ppx_sexp_conv to see if on-disk serialization is better
 - try orakuda
