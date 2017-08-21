@@ -37,6 +37,7 @@ view m =
            (viewCanvas m))
       , viewError m.error
       , viewLive m m.state
+      , viewDescription m m.complete
       ]
 
 viewError : ( String, a ) -> Html.Html msg
@@ -276,12 +277,22 @@ viewLive m cursor =
   in
     Html.div
       [Attrs.id "darkLive"]
-      [Html.text <|
+      [ Html.text <|
           case live of
             Just (val, tipe, _) -> "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"
             Nothing -> "n/a"
-
       ]
+
+viewDescription : Model -> Autocomplete -> Html.Html Msg
+viewDescription m complete =
+  Html.div
+    [ Attrs.id "darkDesc" ]
+    [ Html.text <|
+      case Autocomplete.highlighted complete of
+        Just (ACFunction {description}) -> description
+        _ -> "n/a"
+    ]
+
 
 -- Our edges should be a lineargradient from "darker" to "arrowColor".
 -- SVG gradients are weird, they don't allow you specify based on the

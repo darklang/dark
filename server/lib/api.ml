@@ -154,8 +154,7 @@ let functions =
   |> List.map ~f:(fun (k,(v:Runtime.fn))
                    -> { name = k
                       ; parameters = v.parameters
-                      ; description = ""
-                      (* v.description *)
+                      ; description = v.description
                       ; return_type = v.return_type
                       })
   |> functionlist_to_yojson
