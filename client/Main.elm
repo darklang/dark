@@ -257,6 +257,9 @@ update_ msg m =
     (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
       Error <| "Bad RPC call: " ++ (toString error.body)
 
+    (RPCCallBack _ (Err (Http.NetworkError)), _) ->
+      Error <| "Netork error: is the server running?"
+
     (FocusResult _, _) ->
       AutocompleteMod Clear
 
