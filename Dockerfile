@@ -80,4 +80,6 @@ RUN opam install \
          tls.0.8.0 \
          ocurl.0.7.10
 
+RUN opam install merlin utop ocp-indent
+
 CMD ["app", "scripts", "builder"]
