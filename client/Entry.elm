@@ -68,6 +68,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 
 isValueRepr : String -> Bool
 isValueRepr name = String.toLower name == "null"
+                   || String.toLower name == "true"
+                   || String.toLower name == "false"
                    || Util.rematch "^[\"\'[1-9{].*" name
 
 addFunction : Name -> Pos -> List ImplicitEdge -> Modification
