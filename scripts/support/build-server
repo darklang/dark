@@ -7,6 +7,11 @@ import datetime
 import subprocess
 import threading
 
+def run_in_background(fn):
+  thread = threading.Thread(target=fn)
+  thread.start()
+  return thread
+
 def run(bash, color):
   class ThreadWorker(threading.Thread):
     def __init__(self, pipe):
@@ -140,13 +145,27 @@ def execute(should):
   should.elm_test |= em
   et = should.elm_test and elm_test()
 
-def main():
-  p("Starting")
-  should = Should()
-  should.ocaml_build = True
-  should.elm_package = True
-  execute(should)
+def mark(should, f):
+  # Frontend
+  if "elm-package.json" in f:
+    should.elm_package = True
+  elif "Tests.elm" in f:
+    should.elm_test = True
+  elif ".elm" in f:
+    should.elm_make = True
 
+  # Ocaml
+  elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
+    should.ocaml_build = True
+
+  elif (".css" in f) or (".html" in f):
+    should.reload_browser = True
+
+  # Other
+  else:
+    p("unknown file: " + f, end="")
+
+def process_stdin():
   should = Should()
 
   for f in sys.stdin:
@@ -155,30 +174,21 @@ def main():
       should = Should()
       continue
 
-    (f, reason) = f.strip().split(" ")
+    f, reason = f.strip().split(" ")
     if ignore(f, reason): continue
 
     p("\nDetected change (" + reason + "): " + f, end="")
+    mark(should, f)
 
-    # Frontend
-    if "elm-package.json" in f:
-      should.elm_package = True
-    elif "Tests.elm" in f:
-      should.elm_test = True
-    elif ".elm" in f:
-      should.elm_make = True
 
-    # Ocaml
-    elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
-      should.ocaml_build = True
+def initial_compile():
+  should = Should()
+  should.ocaml_build = True
+  should.elm_package = True
+  execute(should)
 
-    elif (".css" in f) or (".html" in f):
-      should.reload_browser = True
-
-    # Other
-    else:
-      p("unknown file: " + f, end="")
-
-  p("Done")
+def main():
+  initial_compile()
+  run_in_background(process_stdin)
 
 main()
