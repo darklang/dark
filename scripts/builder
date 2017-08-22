@@ -16,6 +16,7 @@ fswatch -m fsevents_monitor \
         --event-flag-separator=, \
         -r * \
         --batch-marker="***BATCHEND***" \
+        --latency=0.1 \
         -x "$@" \
     | docker run \
              --rm \
