@@ -172,13 +172,11 @@ def process_stdin():
     if "***BATCHEND***" in f:
       execute(should)
       should = Should()
-      continue
-
-    f, reason = f.strip().split(" ")
-    if ignore(f, reason): continue
-
-    p("\nDetected change (" + reason + "): " + f, end="")
-    mark(should, f)
+    else:
+      f, reason = f.strip().split(" ")
+      if not ignore(f, reason):
+        p("\nDetected change (" + reason + "): " + f, end="")
+        mark(should, f)
 
 
 def initial_compile():
