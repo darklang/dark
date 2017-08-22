@@ -22,6 +22,7 @@ fswatch -m fsevents_monitor \
              --rm \
              -i \
              -v "$PWD":/home/dark/app \
+             -p 4283:4283 \
              -p 8000:8000 \
              -w /home/dark/app \
              dark \
