@@ -4,4 +4,9 @@ set -euo pipefail
 
 NAME=$(docker ps --latest --quiet)
 
-docker exec -it "${NAME}" ${@}
+if [ -t 1 ] ;
+then
+    docker exec -it "${NAME}" ${@}
+else
+    docker exec -i "${NAME}" ${@}
+fi
