@@ -1,3 +1,4 @@
 #!/bin/bash
 
-scripts/support/compile client/Main.elm server/main/dark.ml
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+${DIR}/compile-in-docker client/Main.elm server/main/dark.ml
