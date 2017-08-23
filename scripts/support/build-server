@@ -1,274 +1,44 @@
 #!/usr/bin/env python3.6
 
-import os
-import fcntl
 import sys
-import datetime
 import subprocess
 import threading
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
-###################
-# Build logic
-###################
+# Make io unbuffered
+def flush(fn):
+  def newfn(x):
+    fn(x)
+    sys.stdout.flush()
+  return newfn
+sys.stdout.write = flush(sys.stdout.write)
+sys.stdout.writelines = flush(sys.stdout.writelines)
 
-def elm_package():
-  return "cd client && elm-package install --yes"
-
-def elm_make():
-  return "cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js"
-
-def elm_test():
-  return "cd client && elm-test"
-
-def ocaml_build():
-  return "cd server && ocamlbuild dark.byte"
-
-def ocaml_test():
-  return "cd server && ocamlbuild test.byte && _build/test/test.byte"
-
-def reload_server():
-  return "cd server && ../scripts/support/runserver"
-
-def reload_browser():
-  # Sends a signal to another fswatch on your mac
-  return "touch .browser-trigger"
-
-class Should:
-  def __init__(self):
-    self.ocaml_build = False
-    self.ocaml_test = False
-    self.elm_package = False
-    self.elm_make = False
-    self.elm_test = False
-    self.reload_browser = False
-    self.reload_server = False
-
-def execute(should, exe):
-  ob = should.ocaml_build and exe(ocaml_build())
-
-  ep = should.elm_package and exe(elm_package())
-  should.elm_make |= ep
-  em = should.elm_make and exe(elm_make())
-
-  should.reload_server |= ob
-  rs = should.reload_server and exe(reload_server())
-  should.reload_browser |= rs or em
-  rb = should.reload_browser and exe(reload_browser())
-
-  should.ocaml_test |= ob
-  ot = should.ocaml_test and exe(ocaml_test())
-  should.elm_test |= em
-  et = should.elm_test and exe(elm_test())
-
-
-def mark(should, f):
-  # Frontend
-  if "elm-package.json" in f:
-    should.elm_package = True
-  elif "Tests.elm" in f:
-    should.elm_test = True
-  elif ".elm" in f:
-    should.elm_make = True
-
-  # Ocaml
-  elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
-    should.ocaml_build = True
-
-  elif (".css" in f) or (".html" in f):
-    should.reload_browser = True
-
-  # Other
-  else:
-    p("unknown file: " + f, end="")
-
-  return should
-
-
-###################
-# Run bash
-###################
-def run_and_return(bash):
-  return subprocess.run(bash, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, encoding='utf-8')
-
-def run(bash, color):
-  class ThreadWorker(threading.Thread):
-    def __init__(self, pipe):
-      super(ThreadWorker, self).__init__()
-      self.pipe = pipe
-      self.setDaemon(True)
-
-    def run(self):
-      for line in iter(self.pipe.readline, ''):
-        p(">>> " + line, color=color, end='')
-
-  proc = subprocess.Popen(bash, stdin=None, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0, shell=True, encoding='utf-8')
-  stdout_worker = ThreadWorker(proc.stdout)
-  stderr_worker = ThreadWorker(proc.stderr)
-  stdout_worker.start()
-  stderr_worker.start()
-
-  proc.wait()
-  stdout_worker.join()
-  stderr_worker.join()
-
+def run(bash):
+  proc = subprocess.run(bash, shell=True)
   return proc.returncode == 0
 
-###################
-# formatting
-###################
-def consolecode(color):
-  return "\u001B[" + str(color) + "m"
+def compile(files):
+  run("scripts/support/compile " + " ".join(files))
 
-FIRST, LAST, WHITE, RED = 31, 37, 0, 32
-color = FIRST
-def nextcolor():
-  global color
-  color = color + 1
-  if color == LAST:
-    color = FIRST
-  return color
-
-def p(s, end=None, color=WHITE):
-  newline = ""
-  if s[0] == "\n":
-    s = s[1:]
-    newline = "\n"
-  print(newline + consolecode(color) + s, end=end)
-  sys.stdout.flush()
-
-def run_and_watch(bash):
-  color = nextcolor()
-  p("$ " + bash, color=color)
-  result = run(bash, color=color)
-  p("X " + bash, color=color)
-  return result
-
-
-###################
-# Execute build
-###################
-def execute_locally(should):
-  return execute(should, run_and_watch)
-
-def execute_and_return(should):
-  result = [] # how does scoping work? I forget
-  def run_it(bash):
-    result.append(run_and_return(bash))
-    return result[0].returncode == 0
-  execute(should, run_it)
-  return result[0]
-
-
-###################
-# File wathcing
-###################
-def ignore(filename, reason):
-  # if reason != "Updated" and reason != "AttributeModified":
-    # return True
-
-  # substring
-  ignores = [ ".git"
-            , "scripts/"
-            , "logs/"
-            , ".merlin"
-            , "client/elm-stuff"
-            , "client/tests/elm-stuff"
-            , "server/static/elm.js"
-            , "server/cache/"
-            , "server/_build/"
-            , "server/appdata/"
-            , "server/dark.byte"
-            , "server/test.byte"
-  ]
-  for i in ignores:
-    if i in filename:
-      return True
-  # ocaml build temporary
-  if filename[-10:-8] == "/C":
-    return True
-  # emacs thing
-  if "/.#" in filename:
-    return True
-  return False
-
+def initial_compile():
+  compile(["client/Main.elm", "server/main/dark.ml"])
 
 def process_watchers():
-  should = Should()
+  files = []
 
   for f in sys.stdin:
     if "***BATCHEND***" in f:
-      execute_locally(should)
-      should = Should()
+      compile(files)
+      files = []
     else:
-      f, reason = f.strip().split(" ")
-      if not ignore(f, reason):
-        p("\nDetected change (" + reason + "): " + f, end="")
-        mark(should, f)
+      f, _ = f.strip().split(" ")
+      files.append(f)
 
-
-###################
-# Startup
-###################
-def initial_compile():
-  should = Should()
-  should.ocaml_build = True
-  should.elm_package = True
-  execute_locally(should)
-
-###################
-# HTTP commands
-###################
-class BuildRequestHandler(BaseHTTPRequestHandler):
-  def do_POST(self):
-    length = int(self.headers.get('Content-Length', 0))
-    body = self.rfile.read(length).decode("utf-8")
-
-    if self.path != "/compile" and self.path != "/run":
-      p("\nDon't know how to " + self.path + " with " + body)
-      self.send_response(404)
-    else:
-      if self.path == "/compile":
-        p("Remote compile: " + body)
-        should = Should()
-        mark(should, body)
-        proc = execute_and_return(should)
-      else:
-        p("Remote run: " + body)
-        proc = subprocess.run(body, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-
-      code = 200 if proc.returncode == 0 else 403
-      self.send_response(code)
-      self.end_headers()
-      self.wfile.write(bytearray(proc.stdout, 'utf-8'))
-
-class BuildHTTPServer(HTTPServer):
-  def handle_error(self, r, _):
-    HTTPServer.handle_error(self, r, _)
-    # This doesn't appear to work, but it does seem necessary for error handling to work. ¯\_(ツ)_/¯
-    assassin = threading.Thread(target=self.shutdown)
-    assassin.daemon = True
-    assassin.start()
-    # print(r)
-    # self.socket.close()
-
-
-
-def run_http_server():
-  httpd = BuildHTTPServer(('0.0.0.0', 4283), BuildRequestHandler)
-  httpd.serve_forever()
-
-###################
-# Main
-###################
 def background_task(fn):
-  thread = threading.Thread(target=fn)
-  thread.start()
-  return thread
+  threading.Thread(target=fn).start()
 
 def main():
   background_task(initial_compile)
-  background_task(process_watchers)
-  background_task(run_http_server)
+  process_watchers()
 
 main()

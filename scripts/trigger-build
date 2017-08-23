@@ -1,8 +1,0 @@
-#!/bin/bash
-
-set -euo pipefail
-
-echo "If you're not running scripts/builder already, start it and rerun this command. If you are, all is good."
-
-touch client/Main.elm
-touch server/dark.ml

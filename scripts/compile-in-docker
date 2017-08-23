@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -euo pipefail
+
+
+scripts/run-in-docker scripts/support/compile "${@}"

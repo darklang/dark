@@ -1,0 +1,3 @@
+#!/bin/bash
+
+scripts/support/compile client/Main.elm server/main/dark.ml

@@ -1,0 +1,147 @@
+#!/usr/bin/env python3.6
+
+import sys
+import subprocess
+
+# Make io unbuffered
+def flush(fn):
+  def newfn(x):
+    fn(x)
+    sys.stdout.flush()
+  return newfn
+sys.stdout.write = flush(sys.stdout.write)
+sys.stdout.writelines = flush(sys.stdout.writelines)
+
+
+def run(bash):
+  proc = subprocess.run(bash, shell=True)
+  return proc.returncode == 0
+
+###################
+# Build logic
+###################
+
+def run_frontend(bash):
+  print('\x1b[6;30;44m' + "\n$ " + bash + '\x1b[0m')
+  return run(bash)
+
+def run_backend(bash):
+  print('\x1b[6;30;42m' + "\n$ " + bash + '\x1b[0m')
+  return run(bash)
+
+def run_test(bash):
+  print('\x1b[6;30;45m' + "\n$ " + bash + '\x1b[0m')
+  return run(bash)
+
+def elm_package():
+  return run_fronend("cd client && elm-package install --yes")
+
+def elm_make():
+  return run_frontend("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
+
+def elm_test():
+  return run_test("cd client && elm-test")
+
+def ocaml_build():
+  return run_backend("cd server && ocamlbuild dark.byte")
+
+def ocaml_test():
+  return run_test("cd server && ocamlbuild test.byte && _build/test/test.byte")
+
+def reload_server():
+  return run_backend("cd server && ../scripts/support/runserver")
+
+def reload_browser():
+  # Sends a signal to another fswatch on your mac
+  return run_frontend("touch .browser-trigger")
+
+class Should:
+  def __init__(self):
+    self.ocaml_build = False
+    self.ocaml_test = False
+    self.elm_package = False
+    self.elm_make = False
+    self.elm_test = False
+    self.reload_browser = False
+    self.reload_server = False
+
+def execute(should):
+  ob = should.ocaml_build and ocaml_build()
+
+  ep = should.elm_package and elm_package()
+  should.elm_make |= ep
+  em = should.elm_make and elm_make()
+
+  should.reload_server |= ob
+  rs = should.reload_server and reload_server()
+  should.reload_browser |= rs or em
+  rb = should.reload_browser and reload_browser()
+
+  should.ocaml_test |= ob
+  ot = should.ocaml_test and ocaml_test()
+  should.elm_test |= em
+  et = should.elm_test and elm_test()
+
+
+def mark(should, f):
+  # Frontend
+  if "elm-package.json" in f:
+    should.elm_package = True
+  elif "Tests.elm" in f:
+    should.elm_test = True
+  elif ".elm" in f:
+    should.elm_make = True
+
+  # Ocaml
+  elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
+    should.ocaml_build = True
+
+  elif (".css" in f) or (".html" in f):
+    should.reload_browser = True
+
+  # Other
+  else:
+    p("unknown file: " + f, end="")
+
+  return should
+
+
+
+def ignore(filename):
+  # substring
+  ignores = [ ".git"
+            , "scripts/"
+            , "logs/"
+            , ".merlin"
+            , "client/elm-stuff"
+            , "client/tests/elm-stuff"
+            , "server/static/elm.js"
+            , "server/cache/"
+            , "server/_build/"
+            , "server/appdata/"
+            , "server/dark.byte"
+            , "server/test.byte"
+  ]
+  for i in ignores:
+    if i in filename:
+      return True
+  # ocaml build temporary
+  if filename[-10:-8] == "/C":
+    return True
+  # emacs thing
+  if "/.#" in filename:
+    return True
+  return False
+
+def main():
+  files = [f for f in sys.argv[1:] if not ignore(f)]
+  if len(files) > 0:
+    print('\x1b[6;30;43m' + "Compiling: " + str(files) + '\x1b[0m')
+
+    should = Should()
+    for f in files:
+      mark(should, f)
+
+    execute(should)
+
+main()

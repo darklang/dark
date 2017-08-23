@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -euo pipefail
+
+NAME=$(docker ps --latest --quiet)
+
+docker exec -it "${NAME}" ${@}
