@@ -4,6 +4,15 @@ import sys
 import subprocess
 import threading
 
+# Make io unbuffered
+def flush(fn):
+  def newfn(x):
+    fn(x)
+    sys.stdout.flush()
+  return newfn
+sys.stdout.write = flush(sys.stdout.write)
+sys.stdout.writelines = flush(sys.stdout.writelines)
+
 def run(bash):
   proc = subprocess.run(bash, shell=True)
   return proc.returncode == 0
