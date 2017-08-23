@@ -67,13 +67,13 @@ class Should:
 
 def execute(should):
   ob = should.ocaml_build and ocaml_build()
+  should.reload_server |= ob
+  rs = should.reload_server and reload_server()
 
   ep = should.elm_package and elm_package()
   should.elm_make |= ep
   em = should.elm_make and elm_make()
 
-  should.reload_server |= ob
-  rs = should.reload_server and reload_server()
   should.reload_browser |= rs or em
   rb = should.reload_browser and reload_browser()
 
@@ -101,7 +101,7 @@ def mark(should, f):
 
   # Other
   else:
-    p("unknown file: " + f, end="")
+    print("unknown file: " + f, end='')
 
   return should
 
