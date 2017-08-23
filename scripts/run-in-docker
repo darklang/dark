@@ -2,11 +2,16 @@
 
 set -euo pipefail
 
+# Replace any filenames with the in-container filenames
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
+ARGS=${@}
+ARGS=$(echo ${ARGS} | sed -e "s!$DIR!/home/dark/app!g")
+
 NAME=$(docker ps --latest --quiet)
 
 if [ -t 1 ] ;
 then
-    docker exec -it "${NAME}" ${@}
+    docker exec -it "${NAME}" ${ARGS}
 else
-    docker exec -i "${NAME}" ${@}
+    docker exec -i "${NAME}" ${ARGS}
 fi
