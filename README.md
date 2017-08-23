@@ -2,6 +2,7 @@
 
 - Install Docker for Mac
 - Run `brew install fswatch`
+- Run `brew install expect`
 - Run `scripts/builder`
 - Wait til the terminal says "Starting" - this means the build server is ready
 - Open your browser to http://localhost:8000/admin/ui

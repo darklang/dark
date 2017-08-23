@@ -5,11 +5,18 @@ set -euo pipefail
 echo "Building docker image"
 docker build -t dark .
 
-# echo "Removing all containers"
-# docker rm -f $(docker ps -a -q) || true
+echo "Removing running containers"
+c=$(docker ps -q)
+if [[ ! -z "${c}" ]]; then
+    docker rm -f "${c}";
+fi
 
 echo "watching for local changes"
 scripts/support/reload-browser > logs/browser.log 2>&1 &
+
+function faketty {
+  unbuffer ${@}
+}
 
 echo "Run the build"
 fswatch -m fsevents_monitor \
@@ -18,9 +25,10 @@ fswatch -m fsevents_monitor \
         --batch-marker="***BATCHEND***" \
         --latency=0.1 \
         -x "$@" \
-    | docker run \
+    | faketty docker run \
              --rm \
              -i \
+             -t \
              -v "$PWD":/home/dark/app \
              -p 8000:8000 \
              -w /home/dark/app \
