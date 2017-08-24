@@ -5,12 +5,11 @@ module Graph exposing ( orderedNodes
                       , getNodeExn
                       , distance
                       , findHole
-                      , incomingEdges
+                      , connectedNodes
                       , incomingNodes
-                      , outgoingEdges
                       , outgoingNodes
-                      , slotIsConnected
-                      , connectedNodes)
+                      , args
+                      , slotIsConnected)
 
 import Array
 import Char
@@ -56,47 +55,56 @@ getNode m id = Dict.get (deID id) m.nodes
 getNodeExn : Model -> ID -> Node
 getNodeExn m id = getNode m id |> deMaybe
 
-incomingEdges : Model -> Node -> List Edge
-incomingEdges m target = List.filter (\e -> e.target == target.id) m.edges
+getArgument : ParamName -> Node -> Argument
+getArgument pname n =
+  let comb = List.map2 (,) n.parameters n.arguments
+      result = LE.find (\(p, a) -> p.name == pname) comb
+  in
+    case result of
+      Nothing -> Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ (toString n)
+      Just (p, a) -> a
 
-outgoingEdges : Model -> Node -> List Edge
-outgoingEdges m source = List.filter (\e -> e.source == source.id) m.edges
+emptyArg : Argument
+emptyArg = Const "Incomplete"
 
-incomingNodes : Model -> Node -> List Node
-incomingNodes m n = n
-                  |> incomingEdges m
-                  |> List.map .source
-                  |> List.map (getNodeExn m)
-
-outgoingNodes : Model -> Node -> List Node
-outgoingNodes m n = n
-                  |> outgoingEdges m
-                  |> List.map .target
-                  |> List.map (getNodeExn m)
-
--- TODO: if a node has the same incoming and outgoing node, this will
--- break. But, we shouldn't allow cycles like that anyway, except in
--- some cases...
-connectedNodes : Model -> Node -> List Node
-connectedNodes m n = (incomingNodes m n) ++ (outgoingNodes m n)
+args : Node -> List (Parameter, Argument)
+args n =
+  (List.map2 (,) n.parameters n.arguments)
 
 
 findHole : Model -> Node -> Hole
 findHole m n =
-  let incoming = incomingEdges m n
-      used_params = List.map .param incoming ++ Dict.keys n.constants
-      all_params = List.indexedMap (,) n.parameters
-      unused = LE.find
-               (\(i, p) -> not <| List.member p.name used_params)
-                 all_params
-  in
-    case unused of
-      Nothing -> ResultHole n
-      Just (i, p) -> ParamHole n p i
+  case Util.findIndex (\(_, a) -> a == emptyArg) (args n) of
+    Nothing -> ResultHole n
+    Just (i, (p, _)) -> ParamHole n p i
+
+incomingNodes : Model -> Node -> List (Node, ParamName)
+incomingNodes m n = List.filterMap
+                    (\(p, a) ->
+                       case a of
+                         Edge id -> Just (getNodeExn m id, p.name)
+                         _ -> Nothing)
+                    (Util.zip n.parameters n.arguments)
+
+outgoingNodes : Model -> Node -> List Node
+outgoingNodes m parent =
+  m.nodes
+    |> Dict.values
+    |> List.filterMap (\child ->
+                         child
+                      |> incomingNodes m
+                      |> List.map Tuple.first
+                      |> LE.find ((==) parent)
+                      |> Maybe.map (always child))
+
+connectedNodes : Model -> Node -> List Node
+connectedNodes m n =
+  (incomingNodes m n |> List.map Tuple.first) ++ (outgoingNodes m n)
 
 
 slotIsConnected : Model -> ID -> ParamName -> Bool
 slotIsConnected m target param =
-  let node = getNodeExn m target in
-  List.any (\e -> e.target == target && e.param == param) m.edges
-    || Dict.member param node.constants
+  target
+    |> getNodeExn m
+    |> getArgument param
+    |> (==) emptyArg

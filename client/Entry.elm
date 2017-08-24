@@ -78,7 +78,7 @@ addFunction name pos extras =
 
 addConstant : String -> ID -> ParamName -> Modification
 addConstant name id param =
-  RPC <| AddConstant name id param
+  RPC <| SetConstant name id param
 
 addValue : String -> Pos -> List ImplicitEdge -> Modification
 addValue name pos extras =
@@ -97,7 +97,7 @@ addVar : Model -> String -> Node -> ParamName -> Modification
 addVar m sourceLetter target param =
   case G.fromLetter m sourceLetter of
     Just source ->
-      RPC <| AddEdge source.id (target.id, param)
+      RPC <| SetEdge source.id (target.id, param)
     Nothing ->
       Error <| "There isn't a node named '" ++ sourceLetter ++ "' to connect to"
 

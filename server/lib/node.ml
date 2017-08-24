@@ -28,8 +28,7 @@ type nodejson = { name: string
                 ; y: int
                 ; live: valuejson
                 ; parameters: param list
-                ; edges: (id option) list
-                ; constants : dval list
+                ; arguments: argument list
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
 
@@ -66,17 +65,8 @@ class virtual node id loc =
       ; y = loc.y
       ; live = { value = value ; tipe = tipe; json = json }
       ; parameters = self#parameters
-      ; constants =
-          List.map ~f:(fun p ->
-              match ArgMap.find self#arguments p.name with
-              | Some (RT.AConst dv) -> dv
-              | _ -> Runtime.DIncomplete)
-            self#parameters
-      ; edges =
-          List.map ~f:(fun p ->
-              match ArgMap.find self#arguments p.name with
-              | Some (RT.AEdge id) -> Some id
-              | _ -> None)
+      ; arguments = List.map
+            ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name)
             self#parameters
       }
   end

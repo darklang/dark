@@ -84,8 +84,8 @@ encodeRPC m call =
                       , jse_pos pos
                       , ("edges", encodeImplicitEdges edges)])
 
-      AddConstant value id param ->
-        ("add_constant",
+      SetConstant value id param ->
+        ("set_constant",
            JSE.object [ ("value", JSE.string value)
                       , ("target", JSE.int (deID id))
                       , ("param", JSE.string param)])
@@ -95,8 +95,8 @@ encodeRPC m call =
            JSE.object [ jse_id id
                       , jse_pos pos])
 
-      AddEdge (ID src) (ID target, param) ->
-        ("add_edge",
+      SetEdge (ID src) (ID target, param) ->
+        ("set_edge",
            JSE.object [ ("source", JSE.int src)
                       , ("target", JSE.int target)
                       , ("param", JSE.string param)
@@ -105,8 +105,8 @@ encodeRPC m call =
       DeleteNode id ->
         ("delete_node", JSE.object [ jse_id id ])
 
-      ClearEdges id ->
-        ("clear_edges", JSE.object [ jse_id id ])
+      ClearArgs id ->
+        ("clear_args", JSE.object [ jse_id id ])
 
       RemoveLastField id ->
         ("remove_last_field", JSE.object [ jse_id id ])
@@ -120,8 +120,13 @@ decodeNode =
                                                    , tipe = tipe
                                                    , optional = optional
                                                    , description = description}
-      toNode : Name -> Int -> List(FieldName,TypeName) -> List Parameter -> List (Maybe String) -> Dict String String -> String -> Int -> Int -> Node
-      toNode name id fields parameters constants liveDict tipe x y =
+      toArg: List String -> Argument
+      toArg strs = case strs of
+                     ["AConst", c] -> Const c
+                     ["AEdge", id] -> id |> String.toInt |> Result.withDefault (-1) |> ID |> Edge
+                     _ -> Debug.crash "impossible"
+      toNode : Name -> Int -> List(FieldName,TypeName) -> List Parameter -> List (List String) -> Dict String String -> String -> Int -> Int -> Node
+      toNode name id fields parameters arguments liveDict tipe x y =
         let liveValue = Dict.get "value" liveDict
             liveTipe = Dict.get "type" liveDict
             liveJson = Dict.get "json" liveDict in
@@ -129,13 +134,7 @@ decodeNode =
           , id = ID id
           , fields = fields
           , parameters = parameters
-          , constants = constants
-                        |> List.map2 (,) (List.map .name parameters)
-
-                        |> List.filterMap (\(k,const) -> case const of
-                                                           Nothing -> Nothing
-                                                           Just c -> Just (k,c))
-                        |> Dict.fromList
+          , arguments = List.map toArg arguments
           , liveValue = (liveValue, liveTipe, liveJson)
                         |> Tuple3.mapAll deMaybe
           , tipe = case tipe of
@@ -162,36 +161,22 @@ decodeNode =
                                      |> JSDP.required "tipe" JSD.string
                                      |> JSDP.required "optional" JSD.bool
                                      |> JSDP.required "description" JSD.string))
-    |> JSDP.optional "constants" (JSD.list (JSD.nullable JSD.string)) []
+    |> JSDP.required "arguments" (JSD.list (JSD.list JSD.string))
     |> JSDP.required "live" (JSD.dict JSD.string)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "x" JSD.int
     |> JSDP.required "y" JSD.int
 
-decodeEdge : JSD.Decoder Edge
-decodeEdge =
-  let toEdge : Int -> Int -> ParamName -> Edge
-      toEdge source target param =
-        { source = ID source
-        , target = ID target
-        , param = param
-        }
-  in JSDP.decode toEdge
-    |> JSDP.required "source" JSD.int
-    |> JSDP.required "target" JSD.int
-    |> JSDP.required "param" JSD.string
 
-
-decodeGraph : JSD.Decoder (NodeDict, List Edge, Maybe ID)
+decodeGraph : JSD.Decoder (NodeDict, Maybe ID)
 decodeGraph =
-  let toGraph : List Node -> List Edge -> Maybe Int -> (NodeDict, List Edge, Maybe ID)
-      toGraph nodes edges idint =
+  let toGraph : List Node -> Maybe Int -> (NodeDict, Maybe ID)
+      toGraph nodes idint =
         let nodedict = List.foldl
                     (\v d -> Dict.insert (v.id |> deID) v d)
                     Dict.empty
                     nodes
-        in (nodedict, edges, Maybe.map ID idint)
+        in (nodedict, Maybe.map ID idint)
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeNode)
-    |> JSDP.required "edges" (JSD.list decodeEdge)
     |> JSDP.required "just_added" (JSD.nullable JSD.int)

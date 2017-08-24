@@ -44,13 +44,11 @@ type alias Node = { name : Name
                   , fields : List (FieldName, TypeName)
                   -- for functions
                   , parameters : List Parameter
-                  , constants : Dict String String
+                  , arguments : List Argument
                   }
 
-type alias Edge = { source : ID
-                  , target : ID
-                  , param : ParamName
-                  }
+type Argument = Const String
+              | Edge ID
 
 type Hole = ResultHole Node
           | ParamHole Node Parameter Int
@@ -82,7 +80,7 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusResult (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack (List RPC) (Result Http.Error (NodeDict, List Edge, Maybe ID))
+    | RPCCallBack (List RPC) (Result Http.Error (NodeDict, Maybe ID))
     | Initialization
 
 type RPC
@@ -90,13 +88,13 @@ type RPC
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos (List ImplicitEdge)
-    | AddConstant Name ID ParamName
+    | SetConstant Name ID ParamName
     | AddAnon Pos
     | AddValue String Pos (List ImplicitEdge)
     | UpdateNodePosition ID Pos
-    | AddEdge ID (ID, ParamName)
+    | SetEdge ID (ID, ParamName)
     | DeleteNode ID
-    | ClearEdges ID
+    | ClearArgs ID
     | RemoveLastField ID
 
 type alias Autocomplete = { functions : List Function
@@ -111,7 +109,6 @@ type AutocompleteItem = ACFunction Function
 
 
 type alias Model = { nodes : NodeDict
-                   , edges : List Edge
                    , error : (String, Int)
                    , lastMsg : Msg
                    , lastMod : Modification

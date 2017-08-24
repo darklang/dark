@@ -149,7 +149,7 @@ update_ msg m =
       case m.state of
         Dragging (DragSlot target param starting) ->
           -- TODO: select a node now
-          RPC <| AddEdge source.id (target.id, param)
+          RPC <| SetEdge source.id (target.id, param)
         _ -> NoChange
 
     (DragSlotStop _, _) ->
@@ -170,7 +170,7 @@ update_ msg m =
               let next = G.incomingNodes m (G.getNodeExn m id) in
               Many [ RPC <| DeleteNode id
                    , case List.head next of
-                       Just next -> Select next.id
+                       Just (next, p) -> Select next.id
                        Nothing -> Deselect
                    ]
             Key.Up -> Selection.selectNextNode m id (\n o -> n.y > o.y)
@@ -219,9 +219,8 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
-    (RPCCallBack calls (Ok (nodes, edges, justAdded)), _) ->
-      let m2 = { m | nodes = nodes
-                   , edges = edges }
+    (RPCCallBack calls (Ok (nodes, justAdded)), _) ->
+      let m2 = { m | nodes = nodes }
           reaction = case justAdded of
                        -- if we deleted a node, the cursor is probably
                        -- invalid

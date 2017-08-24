@@ -5,7 +5,6 @@ import Dict exposing (Dict)
 import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Maybe.Extra
 
 -- lib
 import Svg
@@ -13,6 +12,7 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
+import Maybe.Extra
 
 -- dark
 import Types exposing (..)
@@ -51,7 +51,7 @@ viewError (msg, ts) =
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
-        edges = List.map (viewEdge m) m.edges
+        edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         dragEdge = viewDragEdge m.state |> Maybe.Extra.toList
         entry = viewEntry m
     in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ dragEdge ++ edges)
@@ -192,9 +192,10 @@ nodeName : Node -> String
 nodeName n =
   let defaultParam = "◉"
       parameterTexts = List.map
-                       (\p -> case Dict.get p.name n.constants of
-                                Just c -> if c == "null" then "∅" else c
-                                Nothing -> defaultParam) n.parameters
+                       (\(p, a) -> case a of
+                                     Const c -> if c == "null" then "∅" else c
+                                     _ -> defaultParam)
+                         (G.args n)
 
   in
     String.join " " (n.name :: parameterTexts)
@@ -393,15 +394,21 @@ viewDragEdge state =
       -- Just <| svgLine mStartPos currentPos dragEdgeStyle
     _ -> Nothing
 
-viewEdge : Model -> Edge -> Svg.Svg Msg
-viewEdge m {source, target, param} =
-    let sourceN = G.getNodeExn m source
-        targetN = G.getNodeExn m target
-        targetPos = targetN.pos
-        (sourceW, sourceH) = nodeSize sourceN
+viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
+viewNodeEdges m n =
+  n
+    |> G.incomingNodes m
+    |> List.map (\(n2, p) -> viewEdge m n n2 p)
 
-        pOffset = Canvas.paramOffset targetN param
-        (tnx, tny) = (targetN.pos.x + pOffset.x, targetN.pos.y + pOffset.y)
+
+
+viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
+viewEdge m source target param =
+    let targetPos = target.pos
+        (sourceW, sourceH) = nodeSize source
+
+        pOffset = Canvas.paramOffset target param
+        (tnx, tny) = (target.pos.x + pOffset.x, target.pos.y + pOffset.y)
 
         -- find the shortest line and link to there
         joins = [ (tnx, tny) -- topleft
@@ -414,8 +421,8 @@ viewEdge m {source, target, param} =
         -- positioning of the node is a little bit off because css, and nodes
         -- with parameters are in different relative offsets than nodes without
         -- parameters. This makes it hard to line things up exactly.
-        spos = { x = sourceN.pos.x + (sourceW // 2)
-               , y = sourceN.pos.y + (sourceH // 2)}
+        spos = { x = source.pos.x + (sourceW // 2)
+               , y = source.pos.y + (sourceH // 2)}
 
         join = List.head
                (List.sortBy (\(x,y) -> sqrt ((sq (spos.x - x)) + (sq (spos.y - y))))
