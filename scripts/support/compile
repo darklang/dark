@@ -38,7 +38,7 @@ def run_test(bash):
   return run(bash)
 
 def elm_package():
-  return run_fronend("cd client && elm-package install --yes")
+  return run_frontend("cd client && elm-package install --yes")
 
 def elm_make():
   return run_frontend("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
