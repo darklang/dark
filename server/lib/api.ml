@@ -28,7 +28,7 @@ type implicit_edge = { receiving_edge : receiving_edge option [@default None]
 (* ---------------- *)
 type add_anon = { pos: pos} [@@deriving yojson]
 type delete_node = { id: int } [@@deriving yojson]
-type clear_edges = { id: int } [@@deriving yojson]
+type clear_args = { id: int } [@@deriving yojson]
 type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
 type add_datastore = { name: string ; pos: pos} [@@deriving yojson]
 type add_function_call = { name: string
@@ -39,15 +39,15 @@ type add_value = { value: string
                  ; pos: pos
                  ; edges : implicit_edge list
                  } [@@deriving yojson]
-type add_constant = { value: string
+type set_constant = { value: string
                     ; target: int
                     ; param: string
                     } [@@deriving yojson]
-type add_edge = { source: int
+type set_edge = { source: int
                 ; target: int
                 ; param: string
                 } [@@deriving yojson]
-type delete_edge = { source: int
+type delete_arg = { source: int
                    ; target: int
                    ; param: string
                    } [@@deriving yojson]
@@ -63,15 +63,15 @@ type load_initial_graph = { fake: int option [@default None]
 (* ---------------- *)
 type opjson =
   { add_value : add_value option [@default None]
-  ; add_constant : add_constant option [@default None]
+  ; set_constant : set_constant option [@default None]
   ; add_datastore: add_datastore option [@default None]
   ; add_function_call: add_function_call option [@default None]
   ; add_anon: add_anon option [@default None]
   ; update_node_position: update_node_position option [@default None]
-  ; add_edge: add_edge option [@default None]
-  ; delete_edge: delete_edge option [@default None]
+  ; set_edge: set_edge option [@default None]
+  ; delete_arg: delete_arg option [@default None]
   ; delete_node: delete_node option [@default None]
-  ; clear_edges: clear_edges option [@default None]
+  ; clear_args: clear_args option [@default None]
   ; add_datastore_field: add_datastore_field option [@default None]
   ; load_initial_graph: load_initial_graph option [@default None]
   } [@@deriving yojson]
@@ -79,9 +79,9 @@ type opjsonlist = opjson list [@@deriving yojson]
 
 let convert_edge (id: id) (param: string option) (edge: implicit_edge) : op =
   match edge with
-    | { receiving_edge = Some e } -> Add_edge (e.source, id, Option.value_exn param)
-    | { param_edge = Some e } -> Add_edge (id, e.target, e.param)
-    | { constant = Some e } -> Add_constant (e.value, id, e.param)
+    | { receiving_edge = Some e } -> Set_edge (e.source, id, Option.value_exn param)
+    | { param_edge = Some e } -> Set_edge (id, e.target, e.param)
+    | { constant = Some e } -> Set_constant (e.value, id, e.param)
     | _ -> failwith "Unexpected edge type"
 
 let json2op (op : opjson) : op list =
@@ -90,13 +90,13 @@ let json2op (op : opjson) : op list =
   | { load_initial_graph = Some _} -> []
   | { add_datastore = Some a } -> [Add_datastore (a.name, id (), a.pos)]
   | { add_anon = Some a } -> [Add_anon (id (), id (), a.pos)]
-  | { add_edge = Some a } -> [Add_edge (a.source, a.target, a.param)]
-  | { delete_edge = Some a } -> [Delete_edge (a.source, a.target, a.param)]
+  | { set_edge = Some a } -> [Set_edge (a.source, a.target, a.param)]
+  | { delete_arg = Some a } -> [Delete_arg (a.target, a.param)]
   | { delete_node = Some a } -> [Delete_node a.id]
-  | { clear_edges = Some a } -> [Clear_edges a.id]
+  | { clear_args = Some a } -> [Clear_args a.id]
 
-  | { add_constant = Some a } ->
-    [Add_constant (a.value, a.target, a.param)]
+  | { set_constant = Some a } ->
+    [Set_constant (a.value, a.target, a.param)]
 
   | { add_function_call = Some a } ->
     let nodeid = id () in

@@ -11,16 +11,16 @@ type json = Yojson.Safe.json
 type op = Add_fn_call of string * id * loc
         | Add_datastore of string * id * loc
         | Add_value of string * id * loc
-        | Add_constant of string * id * string
         (* id in the outer graph, id in the inner graph *)
         | Add_anon of id * id * loc
         (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
         | Delete_node of id
-        | Add_edge of id * id * string
-        | Delete_edge of id * id * string
-        | Clear_edges of id
+        | Set_constant of string * id * string
+        | Set_edge of id * id * string
+        | Delete_arg of id * string
+        | Clear_args of id
 [@@deriving eq, yojson, show]
 
 let id_of_option op : id option =
@@ -28,14 +28,14 @@ let id_of_option op : id option =
   | Add_fn_call (_, id, _) -> Some id
   | Add_datastore (_, id, _) -> Some id
   | Add_value (_, id, _) -> Some id
-  | Add_constant (_, id, _) -> Some id
+  | Set_constant (_, id, _) -> Some id
   | Add_anon (id, _, _) -> Some id
   | Update_node_position (id, _) -> Some id
-  | Clear_edges (id) -> Some id
+  | Clear_args (id) -> Some id
   | Delete_node (id) -> Some id
   | Add_datastore_field _ -> None
-  | Add_edge _ -> None
-  | Delete_edge _ -> None
+  | Set_edge _ -> None
+  | Delete_arg _ -> None
 
 let id_of op : id =
   match id_of_option op with

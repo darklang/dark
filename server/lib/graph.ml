@@ -77,7 +77,7 @@ let add_node (node : Node.node) (g : graph) : graph =
 let clear_args (id: id) (g: graph) : graph =
   update_node id g (fun n -> n#clear_args; n)
 
-let delete_arg (s: id) (t: id) (param:string) (g: graph) : graph =
+let delete_arg (t: id) (param:string) (g: graph) : graph =
   update_node t g (fun n -> n#delete_arg param; n)
 
 let delete_node id (g: graph) : graph =
@@ -128,17 +128,17 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore table id loc)
     | Add_value (expr, id, loc) ->
       add_node (new Node.value expr id loc)
-    | Add_constant (value, target, param) ->
-      set_const value target param
     | Add_anon (id, inner_id, loc) ->
       (fun _g ->
          let _g = add_node (new Node.anon_inner inner_id loc) _g in
          add_node (new Node.anon id (executor inner_id g) loc) _g
       )
-    | Add_edge (src, target, param) -> set_edge src target param
     | Update_node_position (id, loc) -> update_node_position id loc
-    | Delete_edge (s, t, param) -> delete_arg s t param
-    | Clear_edges (id) -> clear_args id
+    | Set_constant (value, target, param) ->
+      set_const value target param
+    | Set_edge (src, target, param) -> set_edge src target param
+    | Delete_arg (t, param) -> delete_arg t param
+    | Clear_args (id) -> clear_args id
     | Delete_node (id) -> delete_node id
     | _ -> failwith "applying unimplemented op"
 
