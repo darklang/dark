@@ -5,7 +5,7 @@ open Lib
 
 let schema = Swagger.parse "lib/twitter_api.json"
 
-let call_twitter path (args: Runtime.arg_map) : dval =
+let call_twitter path (args: Runtime.dval_map) : dval =
   Twitter.get path args
 
 let sw_type2dark tipe =

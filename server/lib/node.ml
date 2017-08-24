@@ -1,10 +1,16 @@
 open Core
 open Types
 
-type dval = Runtime.dval
-type arg_map = Runtime.arg_map
-type param = Runtime.param
+type dval = Runtime.dval [@@deriving show, yojson]
+type param = Runtime.param [@@deriving show, yojson]
+type argument = Runtime.argument [@@deriving show, yojson]
+
 module ArgMap = Runtime.ArgMap
+type arg_map = Runtime.arg_map
+
+module DvalMap = Runtime.DvalMap
+type dval_map = Runtime.dval_map
+
 
 (* For serializing to json only *)
 type valuejson = { value: string
@@ -17,8 +23,8 @@ type nodejson = { name: string
                 ; x: int
                 ; y: int
                 ; live: valuejson
-                ; parameters: Runtime.param list
-                ; constants: (string option) list
+                ; parameters: param list
+                ; constants : dval list
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
 
@@ -29,9 +35,7 @@ class virtual node id loc =
     val mutable loc : loc = loc
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : arg_map -> dval
-    method add_constant (name: string) (value: string) : unit =
-      Exception.raise "Cannot add a constant to a generic node"
+    method virtual execute : dval_map -> dval
     method id = id
     method is_page = false
     method is_datasink = false
@@ -39,7 +43,14 @@ class virtual node id loc =
     method parameters : param list = []
     method has_parameter (paramname : string) : bool =
       List.exists ~f:(fun p -> p.name = paramname) self#parameters
-    method constants : arg_map = ArgMap.empty
+    method arguments : arg_map = ArgMap.empty
+    method set_arg (name: string) (value: argument) : unit =
+      Exception.raise "This node doesn't support this operation"
+    method clear_args : unit =
+      Exception.raise "This node doesn't support this operation"
+    method delete_arg (name: string) : unit =
+      Exception.raise "This node doesn't support this operation"
+    method constants : dval_map = DvalMap.empty
     method update_loc _loc : unit =
       loc <- _loc
     method to_frontend (value, tipe, json) : nodejson =
@@ -50,9 +61,10 @@ class virtual node id loc =
       ; y = loc.y
       ; live = { value = value ; tipe = tipe; json = json }
       ; parameters = self#parameters
-      ; constants = List.map ~f:(fun p -> p.name
-                                          |> ArgMap.find self#constants
-                                          |> Option.map ~f:Runtime.to_repr)
+      ; constants =
+          List.map ~f:(fun p -> p.name
+                                |> DvalMap.find self#constants
+                                |> Option.value ~default:Runtime.DIncomplete)
             self#parameters
       }
   end
@@ -63,26 +75,34 @@ class value strrep id loc =
     val expr : dval = Runtime.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute (_: arg_map) : dval = expr
+    method execute (_: dval_map) : dval = expr
   end
 
 class func n id loc =
   object (self)
     inherit node id loc
-    val mutable constants : arg_map = ArgMap.empty
+    val mutable args : arg_map =
+      (Libs.get_fn_exn n).parameters
+      |> List.map ~f:(fun (p: param) -> (p.name, Runtime.AConst DIncomplete))
+      |> Runtime.ArgMap.of_alist_exn
+
     (* Throw an exception if it doesn't exist *)
     method private fn = (Libs.get_fn_exn n)
     method name = self#fn.name
-    method execute (args : arg_map) : dval =
+    method execute (args : dval_map) : dval =
       Runtime.exe self#fn args
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
       else "function"
     method parameters : param list = self#fn.parameters
-    method constants = constants
-    method add_constant (name: string) (value: string) =
-      constants <- ArgMap.add constants ~key:name ~data:(Runtime.parse value)
+    method arguments = args
+    method set_arg (name: string) (value: argument) : unit =
+      args <- ArgMap.change args name (fun _ -> Some value)
+    method clear_args : unit =
+      args <- ArgMap.map args (fun _ -> Runtime.blank_arg)
+    method delete_arg (name: string) : unit =
+      self#set_arg name Runtime.blank_arg
 
   end
 
@@ -90,7 +110,7 @@ class datastore table id loc =
   object
     inherit node id loc
     val table : string = table
-    method execute (_ : arg_map) : dval = DStr "todo datastore execute"
+    method execute (_ : dval_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
@@ -104,7 +124,7 @@ class anon id (executor: dval -> dval) loc =
   object
     inherit node id loc
     method name = "<anon>"
-    method execute (_: arg_map) : dval =
+    method execute (_: dval_map) : dval =
       DAnon (id, executor)
     method tipe = "definition"
     method! parameters = [] (* todo *)
@@ -115,8 +135,8 @@ class anon_inner id loc =
   object
     inherit node id loc
     method name = "<anoninner>"
-    method execute (args: arg_map) : dval =
-      String.Map.find_exn args "return"
+    method execute (args: dval_map) : dval =
+      DvalMap.find_exn args "return"
     method tipe = "definition"
     method! parameters = [Lib.req "return" Runtime.tAny]
   end

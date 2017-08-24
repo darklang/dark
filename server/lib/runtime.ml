@@ -4,8 +4,8 @@ open Types
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
-module ObjMap = String.Map
-type objmap = dval ObjMap.t [@opaque]
+module DvalMap = String.Map
+type dval_map = dval DvalMap.t [@opaque]
 and dval = DInt of int
          | DStr of string
          | DChar of char
@@ -16,9 +16,8 @@ and dval = DInt of int
          (* TODO: make null more like option. Maybe that's for the type
             system *)
          | DNull
-         | DObj of objmap
+         | DObj of dval_map
          | DIncomplete [@@deriving show]
-
 
 let rec to_repr (dv : dval) : string =
   match dv with
@@ -34,7 +33,7 @@ let rec to_repr (dv : dval) : string =
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_repr l)) ^ " ]"
   | DObj o ->
-    let strs = ObjMap.fold o
+    let strs = DvalMap.fold o
         ~init:[]
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_repr data) :: l) in
 
@@ -54,13 +53,11 @@ let rec to_string (dv : dval) : string =
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_string l)) ^ " ]"
   | DObj o ->
-    let strs = ObjMap.fold o
+    let strs = DvalMap.fold o
         ~init:[]
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_string data) :: l) in
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
-
-
 
 let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
 
@@ -90,7 +87,7 @@ let to_char (dv : dval) : char =
 (* JSON *)
 (* ------------------------- *)
 
-let rec json2dval_ (json : Yojson.Safe.json) : dval =
+let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   match json with
   | `Int i -> DInt i
   | `String s -> DStr s
@@ -99,17 +96,17 @@ let rec json2dval_ (json : Yojson.Safe.json) : dval =
   | `Null -> DNull
   | `Assoc alist -> DObj (List.fold_left
                         alist
-                        ~f:(fun m (k,v) -> ObjMap.add m k (json2dval_ v))
-                        ~init:ObjMap.empty)
-  | `List l -> DList (List.map ~f:json2dval_ l)
+                        ~f:(fun m (k,v) -> DvalMap.add m k (dval_of_yojson_ v))
+                        ~init:DvalMap.empty)
+  | `List l -> DList (List.map ~f:dval_of_yojson_ l)
   | j -> DStr ( "<todo, incomplete conversion: "
                 ^ (Yojson.Safe.to_string j)
                 ^ ">")
 
-let json2dval (json : string) : dval =
-  json |> Yojson.Safe.from_string |> json2dval_
+let rec dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
+  Result.Ok (dval_of_yojson_ json)
 
-let rec dval2json_ (v : dval) : Yojson.Safe.json =
+let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   match v with
   | DInt i -> `Int i
   | DBool b -> `Bool b
@@ -119,16 +116,12 @@ let rec dval2json_ (v : dval) : Yojson.Safe.json =
   | DChar c -> `String (Char.to_string c)
   | DAnon _ -> `String "<anon>"
   | DIncomplete -> `String "<incomplete>"
-  | DList l -> `List (List.map l dval2json_)
+  | DList l -> `List (List.map l dval_to_yojson)
   | DObj o -> o
-              |> ObjMap.to_alist
-              |> List.map ~f:(fun (k,v) -> (k, dval2json_ v))
+              |> DvalMap.to_alist
+              |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
               |> (fun a -> `Assoc a)
 
-let dval2json (v : dval) : string =
-  v
-  |> dval2json_
-  |> Yojson.Safe.to_string
 
 
 (* ------------------------- *)
@@ -137,15 +130,20 @@ let dval2json (v : dval) : string =
 let parse (str : string) : dval =
   (* TODO: Doesn't handle characters. Replace with a custom parser,
      using the one in RealWorldOcaml, or just ripped out of Yojson *)
-  json2dval str
+  str |> Yojson.Safe.from_string |> dval_of_yojson_
 
 
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
 
+type argument = AEdge of int
+              | AConst of dval [@@deriving yojson, show]
+
+let blank_arg = AConst DIncomplete
+
 module ArgMap = String.Map
-type arg_map = dval ArgMap.t
+type arg_map = argument ArgMap.t 
 
 type param = { name: string
              ; tipe: string
@@ -165,7 +163,7 @@ let tAny = "Any"
 let tFun = "Function"
 
 type ccfunc = InProcess of (dval list -> dval)
-            | API of (arg_map -> dval)
+            | API of (dval_map -> dval)
 
 type fn = { name : string
           ; other_names : string list
@@ -182,19 +180,14 @@ let param_to_string (param: param) : string =
   ^ param.tipe
 
 
-let fetch_arg (args: arg_map) (param: param) : dval =
-  let arg = ArgMap.find args param.name in
-  match arg with
-  | None -> if param.optional then DNull else DIncomplete
-  | Some dv -> dv
-
 exception TypeError of dval list
 
-let exe (fn: fn) (args: arg_map) : dval =
+let exe (fn: fn) (args: dval_map) : dval =
   try
     match fn.func with
     | InProcess f -> fn.parameters
-                     |> List.map ~f:(fetch_arg args)
+                     |> List.map ~f:(fun (p : param) -> p.name)
+                     |> List.map ~f:(DvalMap.find_exn args)
                      |> f
     | API f -> f args
   with

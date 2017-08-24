@@ -18,7 +18,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DObj o] -> o
-                        |> ObjMap.keys
+                        |> DvalMap.keys
                         |> List.map ~f:(fun k -> DStr k)
                         |> fun l -> DList l
           | args -> fail args)
@@ -43,7 +43,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DObj value; DStr fieldname] ->
-            (match ObjMap.find value fieldname with
+            (match DvalMap.find value fieldname with
              | None -> Exception.raise ("Value has no field named: " ^ fieldname)
              | Some v -> v)
           | args -> fail args)
