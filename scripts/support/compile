@@ -20,17 +20,21 @@ def run(bash):
 ###################
 # Build logic
 ###################
+def pretty_print(msg, color):
+  global quiet
+  if not quiet:
+    print('\x1b[6;30;' + str(color) + 'm' + "\n$ " + msg + '\x1b[0m')
 
 def run_frontend(bash):
-  print('\x1b[6;30;44m' + "\n$ " + bash + '\x1b[0m')
+  pretty_print(bash, 44)
   return run(bash)
 
 def run_backend(bash):
-  print('\x1b[6;30;42m' + "\n$ " + bash + '\x1b[0m')
+  pretty_print(bash, 42)
   return run(bash)
 
 def run_test(bash):
-  print('\x1b[6;30;45m' + "\n$ " + bash + '\x1b[0m')
+  pretty_print(bash, 45)
   return run(bash)
 
 def elm_package():
@@ -133,10 +137,19 @@ def ignore(filename):
     return True
   return False
 
+
+quiet = False # Don't print pretty things
+files = []
 def main():
-  files = [f for f in sys.argv[1:] if not ignore(f)]
+  global quiet
+  for f in sys.argv[1:]:
+    if f == "--quiet":
+      quiet = True
+    elif not ignore(f):
+      files.append(f)
+
   if len(files) > 0:
-    print('\x1b[6;30;43m' + "Compiling: " + str(files) + '\x1b[0m')
+    pretty_print("Compiling: " + str(files), 43)
 
     should = Should()
     for f in files:
