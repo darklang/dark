@@ -1,6 +1,8 @@
 open Core
 open Types
 
+module RT = Runtime
+
 type dval = Runtime.dval [@@deriving show, yojson]
 type param = Runtime.param [@@deriving show, yojson]
 type argument = Runtime.argument [@@deriving show, yojson]
@@ -11,6 +13,8 @@ type arg_map = Runtime.arg_map
 module DvalMap = Runtime.DvalMap
 type dval_map = Runtime.dval_map
 
+module IdMap = String.Map
+type id_map = id IdMap.t
 
 (* For serializing to json only *)
 type valuejson = { value: string
@@ -24,6 +28,7 @@ type nodejson = { name: string
                 ; y: int
                 ; live: valuejson
                 ; parameters: param list
+                ; edges: (id option) list
                 ; constants : dval list
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
@@ -50,7 +55,7 @@ class virtual node id loc =
       Exception.raise "This node doesn't support this operation"
     method delete_arg (name: string) : unit =
       Exception.raise "This node doesn't support this operation"
-    method constants : dval_map = DvalMap.empty
+    method edges : id_map = IdMap.empty
     method update_loc _loc : unit =
       loc <- _loc
     method to_frontend (value, tipe, json) : nodejson =
@@ -62,9 +67,16 @@ class virtual node id loc =
       ; live = { value = value ; tipe = tipe; json = json }
       ; parameters = self#parameters
       ; constants =
-          List.map ~f:(fun p -> p.name
-                                |> DvalMap.find self#constants
-                                |> Option.value ~default:Runtime.DIncomplete)
+          List.map ~f:(fun p ->
+              match ArgMap.find self#arguments p.name with
+              | Some (RT.AConst dv) -> dv
+              | _ -> Runtime.DIncomplete)
+            self#parameters
+      ; edges =
+          List.map ~f:(fun p ->
+              match ArgMap.find self#arguments p.name with
+              | Some (RT.AEdge id) -> Some id
+              | _ -> None)
             self#parameters
       }
   end
