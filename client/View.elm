@@ -398,7 +398,7 @@ viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =
   n
     |> G.incomingNodes m
-    |> List.map (\(n2, p) -> viewEdge m n n2 p)
+    |> List.map (\(n2, p) -> viewEdge m n2 n p)
 
 
 
