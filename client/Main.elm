@@ -271,7 +271,7 @@ update_ msg m =
       Error <| "Netork error: is the server running?"
 
     (FocusResult _, _) ->
-      AutocompleteMod Clear
+      NoChange
 
     (FocusAutocompleteItem _, _) ->
       NoChange

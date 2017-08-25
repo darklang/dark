@@ -43,7 +43,15 @@ reenter m id i =
   in
     case LE.getAt i args of
       Nothing -> NoChange
-      Just (p, a) -> Enter <| Filling n (ParamHole n p i) pos
+      Just (p, a) ->
+        let enter = Enter <| Filling n (ParamHole n p i) pos in
+        case a of
+          Edge id -> enter
+          NoArg -> enter
+          Const c -> Many [ enter
+                          , AutocompleteMod (Query c)]
+
+
 
 enter : Model -> ID -> Modification
 enter m id =
