@@ -120,12 +120,21 @@ decodeNode =
                                                    , tipe = tipe
                                                    , optional = optional
                                                    , description = description}
-      toArg: List String -> Argument
+      toArg: List JSD.Value -> Argument
       toArg strs = case strs of
-                     ["AConst", c] -> Const c
-                     ["AEdge", id] -> id |> String.toInt |> Result.withDefault (-1) |> ID |> Edge
+                     [name, val] -> case JSD.decodeValue JSD.string name of
+                                      Result.Ok "AConst" ->
+                                        if (toString val) == "\"<incomplete>\"" then NoArg else Const (toString val)
+                                      Result.Ok "AEdge" ->
+                                        val |> JSD.decodeValue JSD.int |> Result.withDefault (-1) |> ID |> Edge
+                                      Result.Ok op ->
+                                        Debug.crash <| "Unexpected: " ++ op
+                                      Result.Err e ->
+                                        Debug.crash <| "Invalid: " ++ e
                      _ -> Debug.crash "impossible"
-      toNode : Name -> Int -> List(FieldName,TypeName) -> List Parameter -> List (List String) -> Dict String String -> String -> Int -> Int -> Node
+
+
+      toNode : Name -> Int -> List(FieldName,TypeName) -> List Parameter -> List (List JSD.Value) -> Dict String String -> String -> Int -> Int -> Node
       toNode name id fields parameters arguments liveDict tipe x y =
         let liveValue = Dict.get "value" liveDict
             liveTipe = Dict.get "type" liveDict
@@ -161,7 +170,7 @@ decodeNode =
                                      |> JSDP.required "tipe" JSD.string
                                      |> JSDP.required "optional" JSD.bool
                                      |> JSDP.required "description" JSD.string))
-    |> JSDP.required "arguments" (JSD.list (JSD.list JSD.string))
+    |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))
     |> JSDP.required "live" (JSD.dict JSD.string)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "x" JSD.int
@@ -179,4 +188,4 @@ decodeGraph =
         in (nodedict, Maybe.map ID idint)
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeNode)
-    |> JSDP.required "just_added" (JSD.nullable JSD.int)
+    |> JSDP.required "last_node" (JSD.nullable JSD.int)

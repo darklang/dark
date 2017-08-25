@@ -49,6 +49,7 @@ type alias Node = { name : Name
 
 type Argument = Const String
               | Edge ID
+              | NoArg
 
 type Hole = ResultHole Node
           | ParamHole Node Parameter Int

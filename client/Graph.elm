@@ -57,15 +57,10 @@ getNodeExn m id = getNode m id |> deMaybe
 
 getArgument : ParamName -> Node -> Argument
 getArgument pname n =
-  let comb = List.map2 (,) n.parameters n.arguments
-      result = LE.find (\(p, a) -> p.name == pname) comb
-  in
-    case result of
-      Nothing -> Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ (toString n)
-      Just (p, a) -> a
-
-emptyArg : Argument
-emptyArg = Const "Incomplete"
+  case LE.find (\(p, a) -> p.name == pname) (args n) of
+    Just (p, a) -> a
+    Nothing ->
+      Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ (toString n)
 
 args : Node -> List (Parameter, Argument)
 args n =
@@ -74,7 +69,7 @@ args n =
 
 findHole : Model -> Node -> Hole
 findHole m n =
-  case Util.findIndex (\(_, a) -> a == emptyArg) (args n) of
+  case Util.findIndex (\(_, a) -> a == NoArg) (args n) of
     Nothing -> ResultHole n
     Just (i, (p, _)) -> ParamHole n p i
 
@@ -107,4 +102,4 @@ slotIsConnected m target param =
   target
     |> getNodeExn m
     |> getArgument param
-    |> (==) emptyArg
+    |> (/=) NoArg
