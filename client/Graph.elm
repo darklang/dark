@@ -10,16 +10,17 @@ module Graph exposing ( orderedNodes
                       , outgoingNodes
                       , args
                       , slotIsConnected)
-
-import Array
+-- builtin
 import Char
 import Ordering
 import List
 import Tuple
 import Dict
 
+-- lib
 import List.Extra as LE
 
+-- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
 
@@ -47,7 +48,7 @@ letter2int : String -> Int
 letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
 
 fromLetter : Model -> String -> Maybe Node
-fromLetter m letter = m |> orderedNodes |> Array.fromList |> Array.get (letter2int letter)
+fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
 
 getNode : Model -> ID -> Maybe Node
 getNode m id = Dict.get (deID id) m.nodes
