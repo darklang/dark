@@ -1,15 +1,5 @@
-module Graph exposing ( orderedNodes
-                      , fromLetter
-                      , int2letter
-                      , getNode
-                      , getNodeExn
-                      , distance
-                      , findHole
-                      , connectedNodes
-                      , incomingNodes
-                      , outgoingNodes
-                      , args
-                      , slotIsConnected)
+module Graph exposing (..)
+
 -- builtin
 import Char
 import Ordering
@@ -49,6 +39,9 @@ letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-
 
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
+
+toLetter : Model -> ID -> String
+toLetter m id = m |> orderedNodes |> LE.findIndex (\n -> n.id == id) |> deMaybe |> int2letter
 
 getNode : Model -> ID -> Maybe Node
 getNode m id = Dict.get (deID id) m.nodes

@@ -46,7 +46,8 @@ reenter m id i =
       Just (p, a) ->
         let enter = Enter <| Filling n (ParamHole n p i) pos in
         case a of
-          Edge id -> enter
+          Edge id -> Many [ enter
+                          , AutocompleteMod (Query <| "$" ++ (G.toLetter m id))]
           NoArg -> enter
           Const c -> Many [ enter
                           , AutocompleteMod (Query c)]
