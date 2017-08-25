@@ -25,14 +25,14 @@ type targetpair = (id * string)
 type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
-             ; just_added : id option
+             ; last_node : id option
              } [@@deriving eq, show]
 
 let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
       ; nodes = NodeMap.empty
-      ; just_added = None
+      ; last_node = None
       }
 
 (* ------------------------- *)
@@ -51,7 +51,7 @@ let update_node (id: id) (g: graph) (fn: (Node.node -> Node.node)) : graph =
         ~f:(fun vopt -> match vopt with
             | None -> Exception.raise "Updating a node that doesn't exist"
             | Some n -> fn n)
-  ; just_added = None
+  ; last_node = Some id
   }
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
@@ -70,19 +70,19 @@ let set_const (v : string) (t: id) (param: string) (g: graph) : graph =
 let set_edge (s : id) (t : id) (param: string) (g: graph) : graph =
   set_arg (RT.AEdge s) t param g
 
-let add_node (node : Node.node) (g : graph) : graph =
-  { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
-           just_added = Some node#id}
-
 let clear_args (id: id) (g: graph) : graph =
   update_node id g (fun n -> n#clear_args; n)
 
 let delete_arg (t: id) (param:string) (g: graph) : graph =
   update_node t g (fun n -> n#delete_arg param; n)
 
+let add_node (node : Node.node) (g : graph) : graph =
+  { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
+           last_node = Some node#id}
+
 let delete_node id (g: graph) : graph =
   { g with nodes = NodeMap.remove g.nodes id;
-           just_added = None}
+           last_node = None}
 
 (* ------------------------- *)
 (* Executing *)
@@ -190,7 +190,7 @@ let to_frontend_nodes g : json =
 
 let to_frontend (g : graph) : json =
   `Assoc [ ("nodes", to_frontend_nodes g)
-         ; ("just_added", match g.just_added with
+         ; ("last_node", match g.last_node with
            | None -> `Null
            | Some id -> `Int id)
          ]

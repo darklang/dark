@@ -219,15 +219,15 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
-    (RPCCallBack calls (Ok (nodes, justAdded)), _) ->
+    (RPCCallBack calls (Ok (nodes, lastNode)), _) ->
       let m2 = { m | nodes = nodes }
-          reaction = case justAdded of
+          reaction = case lastNode of
                        -- if we deleted a node, the cursor is probably
                        -- invalid
                        Nothing ->
-                         if Dict.size m.nodes == 0
+                         if Dict.size m2.nodes == 0
                          then Entry.createFindSpace m
-                         else if m.state
+                         else if m2.state
                            |> Selection.getCursorID
                            |> Maybe.andThen (G.getNode m2)
                            |> (==) Nothing
@@ -240,6 +240,7 @@ update_ msg m =
 
                        -- if we added a node, select it
                        Just id ->
+                         let _ = Debug.log "nodes" m2.nodes in
                          Entry.enter m2 id
 
       in
