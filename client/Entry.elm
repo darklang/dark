@@ -5,6 +5,7 @@ module Entry exposing (..)
 -- lib
 import Dom
 import Task
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -21,14 +22,28 @@ findImplicitEdge m node = case G.findHole m node of
                      ResultHole n -> ReceivingEdge n.id
                      ParamHole n p _ -> ParamEdge n.id p.name
 
+paramPos : Node -> Int -> Pos
+paramPos n i = {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+
 enterNode : Model -> Node -> EntryCursor
 enterNode m selected =
   let hole = G.findHole m selected
       pos = case hole of
               ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
-              ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+              ParamHole n _ i -> paramPos n i
   in
     Filling selected hole pos
+
+reenter : Model -> ID -> Int -> Modification
+reenter m id i =
+  -- TODO: Allow the input to be edited
+  let n = G.getNodeExn m id
+      args = G.args n
+      pos = paramPos n i
+  in
+    case LE.getAt i args of
+      Nothing -> NoChange
+      Just (p, a) -> Enter <| Filling n (ParamHole n p i) pos
 
 enter : Model -> ID -> Modification
 enter m id =

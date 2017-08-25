@@ -178,6 +178,16 @@ update_ msg m =
             Key.Left -> Selection.selectNextNode m id (\n o -> n.x > o.x)
             Key.Right -> Selection.selectNextNode m id (\n o -> n.x < o.x)
             Key.Enter -> Entry.enter m id
+            Key.One -> Entry.reenter m id 0
+            Key.Two -> Entry.reenter m id 1
+            Key.Three -> Entry.reenter m id 2
+            Key.Four -> Entry.reenter m id 3
+            Key.Five -> Entry.reenter m id 4
+            Key.Six -> Entry.reenter m id 5
+            Key.Seven -> Entry.reenter m id 6
+            Key.Eight -> Entry.reenter m id 7
+            Key.Nine -> Entry.reenter m id 8
+            Key.Zero -> Entry.reenter m id 9
             Key.Escape -> Deselect
             code -> Selection.selectByLetter m code
 
