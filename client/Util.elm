@@ -37,4 +37,4 @@ findIndex fn l =
 
 
 zip : List a -> List b -> List (a, b)
-zip = List.map2 (,)
+zip a b = List.map2 (,) a b
