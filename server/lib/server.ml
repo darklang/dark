@@ -17,7 +17,7 @@ let server =
     let auth = req |> Request.headers |> Header.get_authorization in
 
     let admin_rpc_handler body : string =
-      let body = Util.inspect "request body" body in
+      let body = Util.inspect "request body" body ~formatter:ident in
       let g = G.load "blog" in
       let _ = try
         Api.apply_ops g body;
@@ -27,7 +27,7 @@ let server =
         raise e
       in !g
          |> Graph.to_frontend_string
-         |> Util.inspect "response: "
+         |> Util.inspect "response: " ~formatter:ident
     in
 
     let admin_ui_handler () =
