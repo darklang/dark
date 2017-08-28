@@ -36,11 +36,8 @@ let writefile f str : unit =
 let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
-let inspecT (msg : string) (x : 'a) : unit =
-  print_endline ("inspect: " ^ msg ^ ": " ^ x)
-
-let inspect (msg : string) ~(f:'a -> string) (x : 'a) : 'a =
-  print_endline ("inspect: " ^ msg ^ ": " ^ (f x));
+let inspect (msg : string) x =
+  print_endline ("inspect: " ^ msg ^ ": " ^ (Batteries.dump x));
   x
 
 let string_replace (search: string) (replace: string) (str: string) : string =

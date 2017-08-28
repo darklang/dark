@@ -76,5 +76,6 @@ RUN opam install oUnit.2.0.0 # test
 RUN opam install merlin.3.0.2 # dev
 RUN opam install utop.2.0.1 # dev
 RUN opam install ocp-indent.1.6.1 # dev
+RUN opam install batteries.2.7.0
 
 CMD ["app", "scripts", "builder"]
