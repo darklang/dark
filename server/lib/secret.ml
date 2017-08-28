@@ -12,10 +12,10 @@ let twitter_CONSUMER_SECRET =
 
 (* Secrets for @paulbiggar and this app *)
 let paulbiggar_ACCESS_TOKEN =
-  "86938585-hFq9GCHjRI0ep1DjcMeuy6AErZ4YzU5USajpgJizU"
+  "86938585-uDxKWfIywAVnV7bVOnL171lFgQ45OIbswteqmMMSx"
 
 let paulbiggar_ACCESS_TOKEN_SECRET =
-  "5o7P8mQ8ljForCE4oydeEkalTMSG7Iq72fyj9V042AEwk"
+  "QzmAJlKk5HwYYHNrNLTr9V8NM9hzFyudVoHShOki7HKdz"
 
 type twitter_secret = { consumer_key: string
                       ; consumer_secret: string
