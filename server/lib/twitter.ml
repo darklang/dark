@@ -53,9 +53,9 @@ let sign consumer_secret access_token_secret uri verb params =
   |> Cstruct.to_string
   |> B64.encode
 
-let nonce () = Random.bits () |> Int.to_string |> Mock.get_string "nonce"
+let nonce () = Util.random_string 42 |> Mock.get_string "nonce"
 
-let ts () = Unix.time () |> Float.to_int |> Int.to_string |> Mock.get_string "ts"
+let ts () = Unix.gettimeofday () |> Float.to_int |> Int.to_string |> Mock.get_string "ts"
 
 let param_to_string (key, value) : string =
   (pct_encode key) ^ "=\"" ^ (pct_encode value) ^ "\""
@@ -89,7 +89,7 @@ let oauth_header secret url verb (args: dval_map) : string =
   |> (^) "OAuth "
 
 let authorization_header url verb (args: dval_map) =
-  "Authorization: " ^ (oauth_header Secret.twitter url verb args)
+  "Authorization:" ^ (oauth_header Secret.twitter url verb args)
 
 
 let rec dvalmap2query (args: dval_map) : string =
