@@ -9,8 +9,8 @@ module RT = Runtime
 let t_param_order _ =
   let node = new Node.func "-" 1 {x=1; y=1} in
   assert_equal (node#execute
-                  (Core.String.Map.of_alist_exn [ ("a", RT.DInt 1)
-                                                ; ("b", RT.DInt 1)]))
+                  (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
+                                           ; ("b", RT.DInt 1)]))
     (RT.DInt 0)
 
 let fl : loc = {x=0; y=0}
@@ -99,7 +99,55 @@ let t_load_save _ =
 (*   let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in *)
 (*   assert_equal r (DStr "SOME STRING") *)
 
+let t_hmac_signing _ =
 
+  let url = "https://api.twitter.com/1.1/statuses/update.json" in
+  let ts = "1318622958" in
+  let nonce = "kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg" in
+  let secret : Secret.twitter_secret =
+    { consumer_key = "xvz1evFS4wEEPTGEFPHBog"
+    ; consumer_secret = "kAcSOqF21Fu85e7zjz7ZN2U4ZRhfV3WpwPAoE3Z7kBw"
+    ; access_token = "370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb"
+    ; access_token_secret = "LswwdoUaIvS8ltyTt5jkRh4J50vUPVVHtR2YPi5kE"
+    } in
+  let k1 = "status" in
+  let v1 = "Hello Ladies + Gentlemen, a signed OAuth request!" in
+  let k2 = "include_entities" in
+  let v2 = "true" in
+
+  (* Test 1 - just the sig *)
+  assert_equal "hCtSmYh+iHYCEqBWrE7C7hYmtUk="
+    (Twitter.sign
+       secret.consumer_secret
+       secret.access_token_secret
+       url
+       "POST"
+       [ (k1, v1)
+       ; (k2, v2)
+       ; ("oauth_consumer_key", secret.consumer_key)
+       ; ("oauth_nonce", nonce)
+       ; ("oauth_signature_method", "HMAC-SHA1")
+       ; ("oauth_timestamp", ts)
+       ; ("oauth_token", secret.access_token)
+       ; ("oauth_version", "1.0")]);
+
+
+  (* Test 2 - full header *)
+  let url = "https://api.twitter.com/1.1/statuses/update.json" in
+  Mock.set_string "ts" ts;
+  Mock.set_string "nonce" nonce;
+  let args = RT.DvalMap.of_alist_exn [ (k1, RT.DStr v1)
+                                     ; (k2, RT.DStr v2)] in
+
+  let expected_header =
+    "OAuth oauth_consumer_key=\"xvz1evFS4wEEPTGEFPHBog\", oauth_nonce=\"kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg\", oauth_signature=\"hCtSmYh%2BiHYCEqBWrE7C7hYmtUk%3D\", oauth_signature_method=\"HMAC-SHA1\", oauth_timestamp=\"1318622958\", oauth_token=\"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb\", oauth_version=\"1.0\"" in
+  let actual =
+    Twitter.oauth_header
+      secret
+      url
+      "POST"
+      args in
+  assert_equal expected_header actual
 
 let suite =
   let () = Printexc.record_backtrace true in
@@ -108,6 +156,7 @@ let suite =
   ; "Calling Int::add" >:: t_int_add_works
   ; "graph ordering doesnt break param order" >:: t_graph_param_order
   ; "roundtrip through saving and loading" >:: t_load_save
+  ; "hmac signing works" >:: t_hmac_signing
     (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
   (* ; "anon functions work" >:: t_lambda_with_foreach *)

@@ -122,7 +122,8 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
               |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
               |> (fun a -> `Assoc a)
 
-
+let dval_to_json_string (v: dval) : string =
+  v |> dval_to_yojson |> Yojson.Safe.to_string
 
 (* ------------------------- *)
 (* Parsing *)
