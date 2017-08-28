@@ -36,15 +36,23 @@ let writefile f str : unit =
 let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
-let inspecT (msg : string) x : unit =
+let inspecT ?(formatter=Batteries.dump)  (msg : string) (x : 'a) : unit =
   let red = "\x1b[6;31m" in
   let reset = "\x1b[0m" in
-  let str = red ^ "inspect: " ^ msg ^ ": " ^ reset ^ (Batteries.dump x) in
+  let str = red ^ "inspect: " ^ msg ^ ": " ^ reset ^ (formatter x) in
   print_endline(str)
 
-let inspect (msg : string) (x : 'a) : 'a =
-  inspecT msg x;
+let inspect ?(formatter=Batteries.dump)  (msg : string) (x : 'a) : 'a =
+  inspecT msg ~formatter:formatter x;
   x
 
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_first (String.Search_pattern.create search) ~in_:str ~with_:replace
+
+let random_string length =
+    let gen() = match Random.int(26+26+10) with
+        n when n < 26 -> int_of_char 'a' + n
+      | n when n < 26 + 26 -> int_of_char 'A' + n - 26
+      | n -> int_of_char '0' + n - 26 - 26 in
+    let gen _ = String.make 1 (char_of_int(gen())) in
+    String.concat ~sep:"" (Array.to_list (Array.init length gen))
