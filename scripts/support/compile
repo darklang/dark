@@ -97,6 +97,9 @@ def mark(should, f):
     should.elm_make = True
 
   # Ocaml
+  elif ("test/test.ml" in f):
+    should.ocaml_test = True
+
   elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
     should.ocaml_build = True
 
