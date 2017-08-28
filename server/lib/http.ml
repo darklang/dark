@@ -20,7 +20,6 @@ let save_call (url: string) (verb: verb) (body: string) (value : string) : unit 
   Util.writefile filename value
 
 let cached_call (url: string) (verb: verb) (body: string) : string option =
-
   if body <> "" then
     None
   else
@@ -28,14 +27,10 @@ let cached_call (url: string) (verb: verb) (body: string) : string option =
     if Sys.file_exists filename <> `Yes then
       None
     else
-       if (Unix.stat filename).st_mtime < (Unix.gettimeofday () ) then
+      (if ((Unix.stat filename).st_mtime +. 300.0) < (Unix.gettimeofday () ) then
          Some (Util.readfile filename)
        else
-         None
-
-
-
-
+         None)
 
 
 let http_call (url: string) (verb: verb) (headers: string list) (body: string) : string =
