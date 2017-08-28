@@ -3,6 +3,7 @@ open Core
 module C = Curl
 
 type verb = GET | POST [@@deriving show]
+type headers = string list [@@deriving show]
 
 let filename_for (url: string) (verb: verb) (body: string) : string =
   let verbs = match verb with
@@ -32,37 +33,39 @@ let cached_call (url: string) (verb: verb) (body: string) : string option =
        else
          None)
 
+let _ = C.global_init C.CURLINIT_GLOBALALL
 
 let http_call (url: string) (verb: verb) (headers: string list) (body: string) : string =
   let errorbuf = ref "" in
-  let responsebuf = ref "" in
+  let responsebuf = Buffer.create 16384 in
 
   let requestfn int : string =
     body in
 
   let responsefn str : int =
-    responsebuf := str;
+    Buffer.add_string responsebuf str;
     String.length str in
 
   let (code, error, response) = try
-      (* C.global_init C.CURLINIT_GLOBALALL; *)
       let c = C.init () in
       C.set_url c url;
+      (* C.set_verbose c true; *)
       C.set_errorbuffer c errorbuf;
       C.set_followlocation c true;
       C.set_failonerror c false;
       C.set_writefunction c responsefn;
       C.set_readfunction c requestfn;
       C.set_httpheader c headers;
+      (* C.set_header c true; *)
 
       C.perform c;
 
-      (* C.cleanup c; *)
-      (* C.global_cleanup (); *)
-      (C.get_responsecode c, !errorbuf, !responsebuf)
+      let response = (C.get_responsecode c, !errorbuf, Buffer.contents responsebuf) in
+      C.cleanup c;
+      response
     with
     | Curl.CurlException (_, code, s) ->
-      (code, s, !responsebuf) in
+      (code, s, Buffer.contents responsebuf) in
 
   let msg = "url: " ^ url ^ "\ncode: " ^ (string_of_int code) ^ "\nerror: " ^ error ^ "\nresponse: " ^ response in
   if code <> 200 then
