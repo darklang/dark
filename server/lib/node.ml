@@ -47,7 +47,7 @@ class virtual node id loc =
     method parameters : param list = []
     method has_parameter (paramname : string) : bool =
       List.exists ~f:(fun p -> p.name = paramname) self#parameters
-    method arguments = RT.ArgMap.empty
+    method arguments : arg_map = RT.ArgMap.empty
     method set_arg (name: string) (value: argument) : unit =
       Exception.raise "This node doesn't support set_arg"
     method clear_args : unit =
@@ -93,6 +93,8 @@ class value strrep id loc =
 class virtual has_arguments id loc =
   object (self)
     inherit node id loc
+    (* Invariant: args should always be the same size as the parameter
+       list *)
     val mutable args : arg_map = RT.ArgMap.empty
     method arguments = args
     method set_arg (name: string) (value: argument) : unit =
@@ -168,6 +170,8 @@ class anon_box id (executor: dval -> dval) loc =
 class anon_executor id loc =
   object
     inherit has_arguments id loc
+    initializer
+      args <- RT.DvalMap.singleton "return" RT.blank_arg
     method name = "<anonexe>"
     method execute (args: dval_map) : dval =
       DvalMap.find_exn args "return"
