@@ -5,17 +5,7 @@ open Types
 module RT = Runtime
 
 module ParamMap = String.Map
-module NodeMap = Int.Map
-
-type nodemap = Node.node NodeMap.t [@@deriving eq]
-type json = Yojson.Safe.json
-
-let pp_nodemap nm =
-  let to_s ~key ~data = (show_id key) ^ ": " ^ (Node.show_node data) in
-  let objs = NodeMap.mapi ~f:to_s nm in
-  "{"
-  ^ (String.concat ~sep:", " (NodeMap.data objs))
-  ^ "}"
+module NodeMap = Node.NodeMap
 
 (* ------------------------- *)
 (* Graph *)
@@ -24,14 +14,14 @@ type oplist = Op.op list [@@deriving eq, yojson, show]
 type targetpair = (id * string)
 type graph = { name : string
              ; ops : oplist
-             ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
+             ; def : Node.fndef
              ; last_node : id option
              } [@@deriving eq, show]
 
 let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
-      ; nodes = NodeMap.empty
+      ; def = { nodes = Node.NodeMap.empty }
       ; last_node = None
       }
 
@@ -40,29 +30,32 @@ let create (name : string) : graph ref =
 (* ------------------------- *)
 
 let get_node (id : id)  (g : graph) : Node.node =
-  NodeMap.find_exn g.nodes id
+  NodeMap.find_exn g.def.nodes id
 
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
-let update_node (id: id) (g: graph) (fn: (Node.node -> Node.node)) : graph =
-  { g with
-    nodes = NodeMap.update g.nodes id
-        ~f:(fun vopt -> match vopt with
-            | None -> Exception.raise "Updating a node that doesn't exist"
-            | Some n -> fn n)
-  ; last_node = Some id
-  }
+let change_node (id: id) (g : graph) (f: (Node.node option -> Node.node option)) : graph =
+  { g with def = Node.edit_fn id g.def f }
+
+let update_node (id: id) (g : graph) (f: (Node.node -> Node.node option)) : graph =
+  let r = change_node
+      id
+      g
+      (function Some node -> f node
+              | None -> Exception.raise "can't update missing node") in
+  { r with last_node = Some id }
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
-  update_node id g (fun n -> n#update_loc loc; n)
+  update_node id g (fun n -> n#update_loc loc; Some n)
 
 let set_arg (a: RT.argument) (t: id) (param: string) (g: graph) : graph =
   update_node t g
     (fun n ->
        if not (n#has_parameter param)
        then Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
-       n#set_arg param a; n)
+       n#set_arg param a;
+       Some n)
 
 let set_const (v : string) (t: id) (param: string) (g: graph) : graph =
   set_arg (RT.AConst (RT.parse v)) t param g
@@ -71,18 +64,17 @@ let set_edge (s : id) (t : id) (param: string) (g: graph) : graph =
   set_arg (RT.AEdge s) t param g
 
 let clear_args (id: id) (g: graph) : graph =
-  update_node id g (fun n -> n#clear_args; n)
+  update_node id g (fun n -> n#clear_args; Some n)
 
 let delete_arg (t: id) (param:string) (g: graph) : graph =
-  update_node t g (fun n -> n#delete_arg param; n)
+  update_node t g (fun n -> n#delete_arg param; Some n)
 
 let add_node (node : Node.node) (g : graph) : graph =
-  { g with nodes = NodeMap.add g.nodes ~key:(node#id) ~data:node;
-           last_node = Some node#id}
+  let r = change_node node#id g (fun x -> Some node) in
+  { r with last_node = Some node#id }
 
 let delete_node id (g: graph) : graph =
-  { g with nodes = NodeMap.remove g.nodes id;
-           last_node = None}
+  update_node id g (fun x -> None)
 
 (* ------------------------- *)
 (* Executing *)
@@ -103,18 +95,6 @@ let rec execute (id: id) ?(eager: valcache=ValCache.empty) (g: graph) : RT.dval 
     |> RT.DvalMap.of_alist_exn
     |> n#execute
 
-let executor id (g: graph ref) : (RT.dval -> RT.dval) =
-  (* We specifically need a graph ref here, not an immutable graph as we
-     want to execute this later on the completed graph *)
-  (fun v ->
-     let eager = ValCache.of_alist_exn [(id, v)] in
-     let node = get_node id !g in
-     let parent = RT.ArgMap.find node#arguments "return" in
-     match parent with
-     | Some (RT.AEdge parentid) -> execute parentid ~eager !g
-     | _ -> DIncomplete
-  )
-
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
@@ -128,11 +108,8 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore table id loc)
     | Add_value (expr, id, loc) ->
       add_node (new Node.value expr id loc)
-    | Add_anon (id, inner_id, loc) ->
-      (fun _g ->
-         let _g = add_node (new Node.anon_executor inner_id loc) _g in
-         add_node (new Node.anon_box id (executor inner_id g) loc) _g
-      )
+    | Add_anon (id, loc) ->
+      add_node (new Node.anonfn id loc)
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (value, target, param) ->
       set_const value target param
@@ -182,13 +159,13 @@ let node_value n g : (string * string * string) =
   with
   | Exception.UserException e -> ("Error: " ^ e, "Error", "Error")
 
-let to_frontend_nodes g : json =
-  g.nodes
+let to_frontend_nodes g : Yojson.Safe.json =
+  g.def.nodes
   |> NodeMap.data
   |> List.map ~f:(fun n -> n#to_frontend (node_value n g))
   |> Node.nodejsonlist_to_yojson
 
-let to_frontend (g : graph) : json =
+let to_frontend (g : graph) : Yojson.Safe.json =
   `Assoc [ ("nodes", to_frontend_nodes g)
          ; ("last_node", match g.last_node with
            | None -> `Null

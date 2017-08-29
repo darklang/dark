@@ -33,6 +33,10 @@ type nodejson = { name: string
 type nodejsonlist = nodejson list [@@deriving yojson, show]
 
 
+(* ------------------------ *)
+(* graph defintion *)
+(* ------------------------ *)
+
 class virtual node id loc =
   object (self)
     val id : id = id
@@ -71,12 +75,30 @@ class virtual node id loc =
       }
   end
 
-
 let equal_node (a:node) (b:node) =
   a#id = b#id
 
+module NodeMap = Int.Map
+type nodemap = node NodeMap.t [@@deriving eq]
+
+
 let show_node (n:node) =
   show_nodejson (n#to_frontend ("test", "test", "test"))
+
+let pp_nodemap nm =
+  let to_s ~key ~data = (show_id key) ^ ": " ^ (show_node data) in
+  let objs = NodeMap.mapi ~f:to_s nm in
+  "{"
+  ^ (String.concat ~sep:", " (NodeMap.data objs))
+  ^ "}"
+
+type fndef =
+  { nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
+  } [@@deriving eq, show]
+
+
+let edit_fn (id: id) (def: fndef) (f: (node option -> node option)) : fndef =
+  { nodes = NodeMap.change def.nodes id ~f }
 
 (* ------------------ *)
 (* Nodes that appear in the graph *)
@@ -123,6 +145,7 @@ class func n id loc =
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
+      (* TODO: rename to "call" *)
       else "function"
   end
 
@@ -139,42 +162,18 @@ class datastore table id loc =
 (* Anonymous functions *)
 (* ----------------------- *)
 
-(* Anonymous functions are created automatically to allow users to use
-   higher-order functions. Consider String.map, which a string and
-   Char.to_upper, which is (Char->Char). String.map is (String->String).
-
-   To begin with, String.map has a parameter `f` which needs a value.
-   Then Char.to_upper needs to receive a parameter, and also return it's
-   result.
-
-   The parameter to String.map is an anon_box. The box wraps the
-   computation fr String.map.
-
-   An anon_box works with an anon_executor. This is a way of getting the
-   computation into the graph: it has a (currently just one I think)
-   parameters, that map to the function in the anon function, and
-   receives its output as well. *)
+(* Anonymous functions are graphs with built-in parameters and a return
+   value. They have their own nodes in a separate scope from the
+   parents. They are used for higher-order functions. *)
 
 
-class anon_box id (executor: dval -> dval) loc =
+class anonfn id loc =
   object
-    inherit has_arguments id loc
-    method name = "<anonbox>"
-    method execute (_: dval_map) : dval =
-      DAnon (id, executor)
+    inherit node id loc
+    val graph : fndef = { nodes = NodeMap.empty }
+    method name = "<anonfn>"
+    method execute (_) : dval =
+      DAnon (id, (fun x -> DIncomplete))
     method tipe = "definition"
     method! parameters = []
-  end
-
-(* the function definition of the anon *)
-class anon_executor id loc =
-  object
-    inherit has_arguments id loc
-    initializer
-      args <- RT.DvalMap.singleton "return" RT.blank_arg
-    method name = "<anonexe>"
-    method execute (args: dval_map) : dval =
-      DvalMap.find_exn args "return"
-    method tipe = "definition"
-    method! parameters = [Lib.req "return" RT.tAny]
   end

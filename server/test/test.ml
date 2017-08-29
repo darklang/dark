@@ -73,7 +73,7 @@ let t_load_save _ =
   let n1 = Op.Add_fn_call ("-", fid (), fl) in
   let n2 = Op.Add_value ("5", fid (), fl) in
   let n3 = Op.Add_value ("3", fid (), fl) in
-  let n4 = Op.Add_anon (fid (), fid (), fl) in
+  let n4 = Op.Add_anon (fid (), fl) in
   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
@@ -89,12 +89,11 @@ let t_lambda_with_foreach _ =
   let v = Op.Add_value ("\"some string\"", fid (), fl) in
   let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in
   let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in
-  let anon_inner = fid () in
-  let anon = Op.Add_anon (fid (), anon_inner, fl) in
+  let anon = Op.Add_anon (fid (), fl) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
-  let e3 = Op.Set_edge (Op.id_of upper, anon_inner, "return") in
-  let e4 = Op.Set_edge (anon_inner, Op.id_of upper, "c") in
+  let e3 = Op.Set_edge (Op.id_of upper, Op.id_of anon, "return") in
+  let e4 = Op.Set_edge (Op.id_of anon, Op.id_of upper, "c") in
   let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
   assert_equal r (DStr "SOME STRING")
 

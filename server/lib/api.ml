@@ -89,7 +89,7 @@ let json2op (op : opjson) : op list =
   match op with
   | { load_initial_graph = Some _} -> []
   | { add_datastore = Some a } -> [Add_datastore (a.name, id (), a.pos)]
-  | { add_anon = Some a } -> [Add_anon (id (), id (), a.pos)]
+  | { add_anon = Some a } -> [Add_anon (id (), a.pos)]
   | { set_edge = Some a } -> [Set_edge (a.source, a.target, a.param)]
   | { delete_arg = Some a } -> [Delete_arg (a.target, a.param)]
   | { delete_node = Some a } -> [Delete_node a.id]
