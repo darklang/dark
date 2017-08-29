@@ -28,7 +28,8 @@ let cached_call (url: string) (verb: verb) (body: string) : string option =
     if Sys.file_exists filename <> `Yes then
       None
     else
-      (if ((Unix.stat filename).st_mtime +. 300.0) < (Unix.gettimeofday () ) then
+      (* (if ((Unix.stat filename).st_mtime +. 300.0) < (Unix.gettimeofday () ) then *)
+      (if true then
          Some (Util.readfile filename)
        else
          None)
