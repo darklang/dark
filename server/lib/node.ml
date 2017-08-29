@@ -3,15 +3,15 @@ open Types
 
 module RT = Runtime
 
-type dval = Runtime.dval [@@deriving show, yojson]
-type param = Runtime.param [@@deriving show, yojson]
-type argument = Runtime.argument [@@deriving show, yojson]
+type dval = RT.dval [@@deriving show, yojson]
+type param = RT.param [@@deriving show, yojson]
+type argument = RT.argument [@@deriving show, yojson]
 
-module ArgMap = Runtime.ArgMap
-type arg_map = Runtime.arg_map
+module ArgMap = RT.ArgMap
+type arg_map = RT.arg_map
 
-module DvalMap = Runtime.DvalMap
-type dval_map = Runtime.dval_map
+module DvalMap = RT.DvalMap
+type dval_map = RT.dval_map
 
 module IdMap = String.Map
 type id_map = id IdMap.t
@@ -47,13 +47,13 @@ class virtual node id loc =
     method parameters : param list = []
     method has_parameter (paramname : string) : bool =
       List.exists ~f:(fun p -> p.name = paramname) self#parameters
-    method arguments : arg_map = ArgMap.empty
+    method arguments = RT.ArgMap.empty
     method set_arg (name: string) (value: argument) : unit =
-      Exception.raise "This node doesn't support this operation"
+      Exception.raise "This node doesn't support set_arg"
     method clear_args : unit =
-      Exception.raise "This node doesn't support this operation"
+      Exception.raise "This node doesn't support clear_args"
     method delete_arg (name: string) : unit =
-      Exception.raise "This node doesn't support this operation"
+      Exception.raise "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
     method update_loc _loc : unit =
       loc <- _loc
@@ -71,41 +71,57 @@ class virtual node id loc =
       }
   end
 
+
+let equal_node (a:node) (b:node) =
+  a#id = b#id
+
+let show_node (n:node) =
+  show_nodejson (n#to_frontend ("test", "test", "test"))
+
+(* ------------------ *)
+(* Nodes that appear in the graph *)
+(* ------------------ *)
 class value strrep id loc =
   object
     inherit node id loc
-    val expr : dval = Runtime.parse strrep
+    val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
     method execute (_: dval_map) : dval = expr
   end
 
-class func n id loc =
+class virtual has_arguments id loc =
   object (self)
     inherit node id loc
-    val mutable args : arg_map =
-      (Libs.get_fn_exn n).parameters
-      |> List.map ~f:(fun (p: param) -> (p.name, Runtime.AConst DIncomplete))
-      |> Runtime.ArgMap.of_alist_exn
-
-    (* Throw an exception if it doesn't exist *)
-    method private fn = (Libs.get_fn_exn n)
-    method name = self#fn.name
-    method execute (args : dval_map) : dval =
-      Runtime.exe self#fn args
-    method! is_page = self#name = "Page_page"
-    method tipe = if String.is_substring ~substring:"page" self#name
-      then self#name
-      else "function"
-    method parameters : param list = self#fn.parameters
+    val mutable args : arg_map = RT.ArgMap.empty
     method arguments = args
     method set_arg (name: string) (value: argument) : unit =
       args <- ArgMap.change args name (fun _ -> Some value)
     method clear_args : unit =
-      args <- ArgMap.map args (fun _ -> Runtime.blank_arg)
+      args <- ArgMap.map args (fun _ -> RT.blank_arg)
     method delete_arg (name: string) : unit =
-      self#set_arg name Runtime.blank_arg
+      self#set_arg name RT.blank_arg
+  end
 
+class func n id loc =
+  object (self)
+    inherit has_arguments id loc
+    initializer
+      args <-
+        (Libs.get_fn_exn n).parameters
+        |> List.map ~f:(fun (p: param) -> (p.name, RT.AConst DIncomplete))
+        |> RT.ArgMap.of_alist_exn
+
+    (* Throw an exception if it doesn't exist *)
+    method private fn = (Libs.get_fn_exn n)
+    method parameters : param list = self#fn.parameters
+    method name = self#fn.name
+    method execute (args : dval_map) : dval =
+      RT.exe self#fn args
+    method! is_page = self#name = "Page_page"
+    method tipe = if String.is_substring ~substring:"page" self#name
+      then self#name
+      else "function"
   end
 
 class datastore table id loc =
@@ -121,31 +137,40 @@ class datastore table id loc =
 (* Anonymous functions *)
 (* ----------------------- *)
 
-(* the value of the anon *)
-class anon id (executor: dval -> dval) loc =
+(* Anonymous functions are created automatically to allow users to use
+   higher-order functions. Consider String.map, which a string and
+   Char.to_upper, which is (Char->Char). String.map is (String->String).
+
+   To begin with, String.map has a parameter `f` which needs a value.
+   Then Char.to_upper needs to receive a parameter, and also return it's
+   result.
+
+   The parameter to String.map is an anon_box. The box wraps the
+   computation fr String.map.
+
+   An anon_box works with an anon_executor. This is a way of getting the
+   computation into the graph: it has a (currently just one I think)
+   parameters, that map to the function in the anon function, and
+   receives its output as well. *)
+
+
+class anon_box id (executor: dval -> dval) loc =
   object
-    inherit node id loc
-    method name = "<anon>"
+    inherit has_arguments id loc
+    method name = "<anonbox>"
     method execute (_: dval_map) : dval =
       DAnon (id, executor)
     method tipe = "definition"
-    method! parameters = [] (* todo *)
+    method! parameters = []
   end
 
 (* the function definition of the anon *)
-class anon_inner id loc =
+class anon_executor id loc =
   object
-    inherit node id loc
-    method name = "<anoninner>"
+    inherit has_arguments id loc
+    method name = "<anonexe>"
     method execute (args: dval_map) : dval =
       DvalMap.find_exn args "return"
     method tipe = "definition"
-    method! parameters = [Lib.req "return" Runtime.tAny]
+    method! parameters = [Lib.req "return" RT.tAny]
   end
-
-
-let equal_node (a:node) (b:node) =
-  a#id = b#id
-
-let show_node (n:node) =
-  show_nodejson (n#to_frontend ("test", "test", "test"))

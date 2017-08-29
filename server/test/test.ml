@@ -85,22 +85,20 @@ let t_load_save _ =
   assert (G.equal_graph !g !g1);
   assert (G.equal_graph !g !g2)
 
-(* TODO: now isn't a good time to re-figure out how this works *)
-(* let t_lambda_with_foreach _ = *)
-(*   let v = Op.Add_value ("\"some string\"", fid (), fl) in *)
-(*   let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in *)
-(*   let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in *)
-(*   let anon_inner = fid () in *)
-(*   let anon = Op.Add_anon (fid (), anon_inner, fl) in *)
-(*   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in *)
-(*   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in *)
-(*   let e3 = Op.Set_edge (Op.id_of upper, anon_inner, "return") in *)
-(*   let e4 = Op.Set_edge (anon_inner, Op.id_of upper, "c") in *)
-(*   let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in *)
-(*   assert_equal r (DStr "SOME STRING") *)
+let t_lambda_with_foreach _ =
+  let v = Op.Add_value ("\"some string\"", fid (), fl) in
+  let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in
+  let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in
+  let anon_inner = fid () in
+  let anon = Op.Add_anon (fid (), anon_inner, fl) in
+  let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
+  let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
+  let e3 = Op.Set_edge (Op.id_of upper, anon_inner, "return") in
+  let e4 = Op.Set_edge (anon_inner, Op.id_of upper, "c") in
+  let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
+  assert_equal r (DStr "SOME STRING")
 
 let t_hmac_signing _ =
-
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   let ts = "1318622958" in
   let nonce = "kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg" in
@@ -159,7 +157,7 @@ let suite =
   ; "hmac signing works" >:: t_hmac_signing
     (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
-  (* ; "anon functions work" >:: t_lambda_with_foreach *)
+  ; "anon functions work" >:: t_lambda_with_foreach
   ]
 
 let () =

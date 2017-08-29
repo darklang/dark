@@ -130,8 +130,8 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.value expr id loc)
     | Add_anon (id, inner_id, loc) ->
       (fun _g ->
-         let _g = add_node (new Node.anon_inner inner_id loc) _g in
-         add_node (new Node.anon id (executor inner_id g) loc) _g
+         let _g = add_node (new Node.anon_executor inner_id loc) _g in
+         add_node (new Node.anon_box id (executor inner_id g) loc) _g
       )
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (value, target, param) ->
