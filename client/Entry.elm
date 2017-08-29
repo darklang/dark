@@ -150,6 +150,8 @@ submit m cursor =
             _ ->
               if isValueRepr value
               then addConstant value target.id param.name
+              else if value == "New function"
+                   then RPC <| AddAnon pos
               else addNode value pos [implicit]
 
         ResultHole _ ->
