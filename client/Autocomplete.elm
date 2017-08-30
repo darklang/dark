@@ -148,37 +148,21 @@ query q a = { a | value = q }
 generate : Autocomplete -> Autocomplete
 generate a =
   let lcq = String.toLower a.value
-      -- functions, filtered by param type
-      functions =
-        List.filter
-          (\{parameters} ->
-             case a.liveValue of
-               Just (_, tipe, _) ->
-                 Nothing /= (LE.find (\p -> p.tipe == tipe) parameters)
-               Nothing -> True)
-          a.functions
-
-      -- functions, filtered by param type
-      functions2 =
-        List.filter
-          (\{return_type} ->
-             case a.tipe of
-               Just tipe -> tipe == return_type
-               Nothing -> True)
-          functions
-
-
       -- fields of objects
       fields = case a.liveValue of
                  Just (_, "Object", json) -> jsonFields json
                  _ -> []
 
-
-      options = functions2
-              |> List.map (\s -> ACFunction s)
-              |> List.append fields
-              |> List.filter
-                 (\i -> String.startsWith lcq (i |> asString |> String.toLower))
+      -- functions
+      options =
+        a.functions
+        |> List.filter
+           (\{return_type} ->
+              a.tipe == Nothing || a.tipe == Just return_type)
+        |> List.map (\s -> ACFunction s)
+        |> List.append fields
+        |> List.filter
+           (\i -> i |> asString |> String.toLower |> String.startsWith lcq)
 
       completions = case options of
                   [ i ] -> if asString i == a.value then [] else [ i ]
