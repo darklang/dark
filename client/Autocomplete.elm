@@ -131,8 +131,8 @@ jsonFields json =
 -- Implementation:
 -- n The autocomplete list should include:
 --    y all imported functions
---    n restricted by types that are allowed
---    n allowed field names
+--    y restricted by types that are allowed
+--    y allowed field names
 --    n library names
 --    y case-insensitive
 -- n order by most likely, offer other alternatives below
