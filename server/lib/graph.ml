@@ -36,15 +36,23 @@ let get_node (id : id)  (g : graph) : Node.node =
 (* Updating *)
 (* ------------------------- *)
 let change_node (id: id) (g : graph) (f: (Node.node option -> Node.node option)) : graph =
-  { g with def = Node.edit_fn id g.def f }
+  let r = ref (None: Node.node option) in
+  let wrapped_f n =
+    let result = f n in
+    r := result;
+    result in
+  let def = Node.edit_fn id g.def wrapped_f in
+  (* The ordering here is important *)
+  let last_node = Option.map ~f:(fun x -> x#id) !r in
+  { g with def = def
+  ; last_node = last_node }
 
 let update_node (id: id) (g : graph) (f: (Node.node -> Node.node option)) : graph =
-  let r = change_node
-      id
-      g
-      (function Some node -> f node
-              | None -> Exception.raise "can't update missing node") in
-  { r with last_node = Some id }
+  change_node
+    id
+    g
+    (function Some node -> f node
+            | None -> Exception.raise "can't update missing node")
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   update_node id g (fun n -> n#update_loc loc; Some n)
@@ -70,8 +78,7 @@ let delete_arg (t: id) (param:string) (g: graph) : graph =
   update_node t g (fun n -> n#delete_arg param; Some n)
 
 let add_node (node : Node.node) (g : graph) : graph =
-  let r = change_node node#id g (fun x -> Some node) in
-  { r with last_node = Some node#id }
+  change_node node#id g (fun x -> Some node)
 
 let delete_node id (g: graph) : graph =
   update_node id g (fun x -> None)
