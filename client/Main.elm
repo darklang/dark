@@ -167,7 +167,6 @@ update_ msg m =
       let event = {event_orig | keyCode = case event_orig.keyCode of
                                            Key.Unknown 192 -> Key.Escape
                                            k -> k } in
-      let _ = Debug.log "Globalkey" event in
       case state of
         Selecting id ->
           case event.keyCode of
