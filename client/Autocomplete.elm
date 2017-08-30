@@ -141,10 +141,13 @@ jsonFields json =
 -- y Press enter to select
 -- y Press right to fill as much as is definitive
 
-
 query : String -> Autocomplete -> Autocomplete
-query q a =
-  let lcq = String.toLower q
+query q a = { a | value = q }
+
+
+generate : Autocomplete -> Autocomplete
+generate a =
+  let lcq = String.toLower a.value
       -- functions, filtered by param type
       functions =
         List.filter
@@ -178,10 +181,10 @@ query q a =
                  (\i -> String.startsWith lcq (i |> asString |> String.toLower))
 
       completions = case options of
-                  [ i ] -> if asString i == q then [] else [ i ]
+                  [ i ] -> if asString i == a.value then [] else [ i ]
                   cs -> cs
-  in { a | value = q
-         , completions = completions
+
+  in { a | completions = completions
          , index = if List.length completions == 0
                    then -1
                    else if List.length completions < List.length a.completions
@@ -191,12 +194,12 @@ query q a =
 
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
-  case mod of
-    Query str -> query str a
-    Reset -> reset a
-    Clear -> clear a
-    Complete str -> complete str a
-    SelectDown -> selectDown a
-    SelectUp -> selectUp a
-    FilterByLiveValue lv -> forLiveValue lv a
-    FilterByParamType tipe -> forParamType tipe a
+  generate (case mod of
+       Query str -> query str a
+       Reset -> reset a
+       Clear -> clear a
+       Complete str -> complete str a
+       SelectDown -> selectDown a
+       SelectUp -> selectUp a
+       FilterByLiveValue lv -> forLiveValue lv a
+       FilterByParamType tipe -> forParamType tipe a)
