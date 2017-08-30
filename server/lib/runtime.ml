@@ -11,7 +11,7 @@ and dval = DInt of int
          | DChar of char
          | DFloat of float
          | DBool of bool
-         | DAnon of id * (dval -> dval)
+         | DAnon of id * (dval list -> dval)
          | DList of dval list
          (* TODO: make null more like option. Maybe that's for the type
             system *)

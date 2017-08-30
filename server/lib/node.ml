@@ -164,7 +164,27 @@ class datastore table id loc =
 
 (* Anonymous functions are graphs with built-in parameters and a return
    value. They have their own nodes in a separate scope from the
-   parents. They are used for higher-order functions. *)
+   parents. They are used for higher-order functions.
+
+   As we build these functions up, we start with a known number of
+   inputs - initially 1 - and a single output.
+
+   An anonymous function returns the anonymous function when executed.
+   It can also be executed via the code passed in the DAnon -- which
+   gets run by the calling function -- which runs the actual
+   computation.
+
+   This node exists both in the inner graph and the outer graph (might
+   need different IDs). In the inner graph, executing the node gets the
+   return value *)
+
+let anonexecutor (context: fndef) (id: id) : (dval list -> dval) =
+  (fun args ->
+     (* get return node *)
+     (* execute return node *)
+     (* presumably there's a edge to the args *)
+     DNull
+  )
 
 
 class anonfn id loc =
@@ -173,7 +193,7 @@ class anonfn id loc =
     val graph : fndef = { nodes = NodeMap.empty }
     method name = "<anonfn>"
     method execute (_) : dval =
-      DAnon (id, (fun x -> DIncomplete))
+      DAnon (id, anonexecutor graph id)
     method tipe = "definition"
     method! parameters = []
   end

@@ -91,7 +91,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DStr s; DAnon (id, fn)] ->
             let charf (c: char) : char =
-              let result = fn (DChar c) in
+              let result = fn [(DChar c)] in
               match result with
               | DChar c -> c
               | r -> failwith "expected a char"

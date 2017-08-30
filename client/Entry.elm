@@ -152,6 +152,7 @@ submit m cursor =
               then addConstant value target.id param.name
               else if value == "New function"
                    then RPC <| AddAnon pos
+                     -- move cursor inside anon
               else addNode value pos [implicit]
 
         ResultHole _ ->
