@@ -250,7 +250,6 @@ update_ msg m =
 
                        -- if we added a node, select it
                        Just id ->
-                         let _ = Debug.log "nodes" m2.nodes in
                          Entry.enter m2 id
 
       in
