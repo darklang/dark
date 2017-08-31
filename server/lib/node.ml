@@ -94,11 +94,34 @@ let pp_nodemap nm =
 
 type fndef =
   { nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
+  ; chrome : chrome
   } [@@deriving eq, show]
 
 
 let edit_fn (id: id) (def: fndef) (f: (node option -> node option)) : fndef =
-  { nodes = NodeMap.change def.nodes id ~f }
+  { def with nodes = NodeMap.change def.nodes id ~f }
+
+(* ------------------------- *)
+(* Graph traversal and execution *)
+(* ------------------------- *)
+let get_node (id: id) (def: fndef) : node =
+  NodeMap.find_exn def.nodes id
+
+module ValCache = Int.Map
+type valcache = RT.dval ValCache.t
+let rec execute (id: id) ?(eager: valcache=ValCache.empty) (def: fndef) : RT.dval =
+  match ValCache.find eager id with
+  | Some v -> v
+  | None ->
+    let n = get_node id def in
+    n#arguments
+    |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
+        match arg with
+        | RT.AConst dv -> dv
+        | RT.AEdge id -> execute id ~eager def)
+    |> String.Map.to_alist
+    |> RT.DvalMap.of_alist_exn
+    |> n#execute
 
 (* ------------------ *)
 (* Nodes that appear in the graph *)
@@ -187,10 +210,11 @@ let anonexecutor (context: fndef) (id: id) : (dval list -> dval) =
   )
 
 
-class anonfn id loc =
+class anonfn id loc chrome =
   object
     inherit node id loc
-    val graph : fndef = { nodes = NodeMap.empty }
+    val graph : fndef = { nodes = NodeMap.empty
+                        ; chrome = chrome }
     method name = "<anonfn>"
     method execute (_) : dval =
       DAnon (id, anonexecutor graph id)

@@ -24,7 +24,7 @@ let graph_from_ops (name: string) (ops: Op.op list) : G.graph ref =
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = graph_from_ops "test" ops in
-  G.execute (Op.id_of result) !g
+  Node.execute (Op.id_of result) !g.def
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
@@ -54,7 +54,7 @@ let t_fns_with_edges _ =
   let g = graph_from_ops "test" [v1; v2] in
   Api.apply_ops g fncall;
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
-  let r = G.execute (rid) !g in
+  let r = Node.execute (rid) !g.def in
   assert_equal r (DInt 2)
 
 
@@ -73,7 +73,7 @@ let t_load_save _ =
   let n1 = Op.Add_fn_call ("-", fid (), fl) in
   let n2 = Op.Add_value ("5", fid (), fl) in
   let n3 = Op.Add_value ("3", fid (), fl) in
-  let n4 = Op.Add_anon (fid (), fl) in
+  let n4 = Op.Add_anon (fid (), [], fid (), fl) in
   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
@@ -89,7 +89,7 @@ let t_lambda_with_foreach _ =
   let v = Op.Add_value ("\"some string\"", fid (), fl) in
   let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in
   let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in
-  let anon = Op.Add_anon (fid (), fl) in
+  let anon = Op.Add_anon (fid (), [], fid (), fl) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
   let e3 = Op.Set_edge (Op.id_of upper, Op.id_of anon, "return") in

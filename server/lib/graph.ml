@@ -21,16 +21,10 @@ type graph = { name : string
 let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
-      ; def = { nodes = Node.NodeMap.empty }
+      ; def = { nodes = Node.NodeMap.empty
+              ; chrome = NoChrome }
       ; last_node = None
       }
-
-(* ------------------------- *)
-(* Traversing *)
-(* ------------------------- *)
-
-let get_node (id : id)  (g : graph) : Node.node =
-  NodeMap.find_exn g.def.nodes id
 
 (* ------------------------- *)
 (* Updating *)
@@ -84,25 +78,6 @@ let delete_node id (g: graph) : graph =
   update_node id g (fun x -> None)
 
 (* ------------------------- *)
-(* Executing *)
-(* ------------------------- *)
-module ValCache = Int.Map
-type valcache = RT.dval ValCache.t
-let rec execute (id: id) ?(eager: valcache=ValCache.empty) (g: graph) : RT.dval =
-  match ValCache.find eager id with
-  | Some v -> v
-  | None ->
-    let n = get_node id g in
-    n#arguments
-    |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
-        match arg with
-        | RT.AConst dv -> dv
-        | RT.AEdge id -> execute id ~eager g)
-    |> String.Map.to_alist
-    |> RT.DvalMap.of_alist_exn
-    |> n#execute
-
-(* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
 let apply_op (op : Op.op) (g : graph ref) : unit =
@@ -115,8 +90,8 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore table id loc)
     | Add_value (expr, id, loc) ->
       add_node (new Node.value expr id loc)
-    | Add_anon (id, loc) ->
-      add_node (new Node.anonfn id loc)
+    | Add_anon (returnid, argids, id, loc) ->
+      add_node (new Node.anonfn id loc (Chrome (returnid, argids)))
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (value, target, param) ->
       set_const value target param
@@ -157,16 +132,16 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-let node_value n g : (string * string * string) =
+let node_value (n: Node.node) (g: graph) : (string * string * string) =
   try
-    let dv = execute n#id g in
+    let dv = Node.execute n#id g.def in
     ( RT.to_repr dv
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.to_string)
   with
   | Exception.UserException e -> ("Error: " ^ e, "Error", "Error")
 
-let to_frontend_nodes g : Yojson.Safe.json =
+let to_frontend_nodes (g: graph) : Yojson.Safe.json =
   g.def.nodes
   |> NodeMap.data
   |> List.map ~f:(fun n -> n#to_frontend (node_value n g))
