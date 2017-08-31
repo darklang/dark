@@ -9,6 +9,7 @@ module RT = Runtime
 let t_param_order _ =
   let node = new Node.func "-" 1 {x=1; y=1} in
   assert_equal (node#execute
+                  (fun g -> node)
                   (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
                                            ; ("b", RT.DInt 1)]))
     (RT.DInt 0)
@@ -24,7 +25,7 @@ let graph_from_ops (name: string) (ops: Op.op list) : G.graph ref =
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = graph_from_ops "test" ops in
-  Node.execute (Op.id_of result) !g.def
+  Node.execute (Op.id_of result) (G.get_node !g)
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
@@ -54,7 +55,7 @@ let t_fns_with_edges _ =
   let g = graph_from_ops "test" [v1; v2] in
   Api.apply_ops g fncall;
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
-  let r = Node.execute (rid) !g.def in
+  let r = Node.execute (rid) (G.get_node !g) in
   assert_equal r (DInt 2)
 
 
@@ -89,11 +90,14 @@ let t_lambda_with_foreach _ =
   let v = Op.Add_value ("\"some string\"", fid (), fl) in
   let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in
   let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in
-  let anon = Op.Add_anon (fid (), [], fid (), fl) in
+  let anon_id = fid () in
+  let anon_r = fid () in
+  let anon_arg = fid () in
+  let anon = Op.Add_anon (anon_r, [anon_arg], anon_id, fl) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
-  let e3 = Op.Set_edge (Op.id_of upper, Op.id_of anon, "return") in
-  let e4 = Op.Set_edge (Op.id_of anon, Op.id_of upper, "c") in
+  let e3 = Op.Set_edge (Op.id_of upper, anon_r, "return") in
+  let e4 = Op.Set_edge (anon_arg, Op.id_of upper, "c") in
   let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
   assert_equal r (DStr "SOME STRING")
 

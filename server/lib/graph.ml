@@ -4,8 +4,16 @@ open Types
 
 module RT = Runtime
 
-module ParamMap = String.Map
-module NodeMap = Node.NodeMap
+module NodeMap = Int.Map
+type nodemap = Node.node NodeMap.t [@@deriving eq]
+
+let pp_nodemap nm =
+  let to_s ~key ~data = (show_id key) ^ ": " ^ (Node.show_node data) in
+  let objs = NodeMap.mapi ~f:to_s nm in
+  "{"
+  ^ (String.concat ~sep:", " (NodeMap.data objs))
+  ^ "}"
+
 
 (* ------------------------- *)
 (* Graph *)
@@ -14,32 +22,35 @@ type oplist = Op.op list [@@deriving eq, yojson, show]
 type targetpair = (id * string)
 type graph = { name : string
              ; ops : oplist
-             ; def : Node.fndef
+             ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
              ; last_node : id option
              } [@@deriving eq, show]
+
+
+let get_node (g: graph) (id: id) : Node.node =
+  NodeMap.find_exn g.nodes id
 
 let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
-      ; def = { nodes = Node.NodeMap.empty
-              ; chrome = NoChrome }
+      ; nodes = NodeMap.empty
       ; last_node = None
       }
 
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
-let change_node (id: id) (g : graph) (f: (Node.node option -> Node.node option)) : graph =
+let change_node (id: id) (g: graph) (f: (Node.node option -> Node.node option)) : graph =
   let r = ref (None: Node.node option) in
   let wrapped_f n =
     let result = f n in
     r := result;
     result in
-  let def = Node.edit_fn id g.def wrapped_f in
+  let nodes = NodeMap.change g.nodes id ~f:wrapped_f in
   (* The ordering here is important *)
   let last_node = Option.map ~f:(fun x -> x#id) !r in
-  { g with def = def
-  ; last_node = last_node }
+  { g with nodes = nodes
+    ; last_node = last_node }
 
 let update_node (id: id) (g : graph) (f: (Node.node -> Node.node option)) : graph =
   change_node
@@ -134,7 +145,7 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 let node_value (n: Node.node) (g: graph) : (string * string * string) =
   try
-    let dv = Node.execute n#id g.def in
+    let dv = Node.execute n#id (get_node g) in
     ( RT.to_repr dv
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.to_string)
@@ -142,7 +153,7 @@ let node_value (n: Node.node) (g: graph) : (string * string * string) =
   | Exception.UserException e -> ("Error: " ^ e, "Error", "Error")
 
 let to_frontend_nodes (g: graph) : Yojson.Safe.json =
-  g.def.nodes
+  g.nodes
   |> NodeMap.data
   |> List.map ~f:(fun n -> n#to_frontend (node_value n g))
   |> Node.nodejsonlist_to_yojson

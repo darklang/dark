@@ -32,7 +32,6 @@ type nodejson = { name: string
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
 
-
 (* ------------------------ *)
 (* graph defintion *)
 (* ------------------------ *)
@@ -43,7 +42,7 @@ class virtual node id loc =
     val mutable loc : loc = loc
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : dval_map -> dval
+    method virtual execute : (id -> node) -> RT.execute_t
     method id = id
     method is_page = false
     method is_datasink = false
@@ -75,53 +74,34 @@ class virtual node id loc =
       }
   end
 
+(* A way to get nodes *)
+type get_node_t = (id -> node)
+
 let equal_node (a:node) (b:node) =
   a#id = b#id
-
-module NodeMap = Int.Map
-type nodemap = node NodeMap.t [@@deriving eq]
-
 
 let show_node (n:node) =
   show_nodejson (n#to_frontend ("test", "test", "test"))
 
-let pp_nodemap nm =
-  let to_s ~key ~data = (show_id key) ^ ": " ^ (show_node data) in
-  let objs = NodeMap.mapi ~f:to_s nm in
-  "{"
-  ^ (String.concat ~sep:", " (NodeMap.data objs))
-  ^ "}"
-
-type fndef =
-  { nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
-  ; chrome : chrome
-  } [@@deriving eq, show]
-
-
-let edit_fn (id: id) (def: fndef) (f: (node option -> node option)) : fndef =
-  { def with nodes = NodeMap.change def.nodes id ~f }
 
 (* ------------------------- *)
 (* Graph traversal and execution *)
 (* ------------------------- *)
-let get_node (id: id) (def: fndef) : node =
-  NodeMap.find_exn def.nodes id
-
 module ValCache = Int.Map
 type valcache = RT.dval ValCache.t
-let rec execute (id: id) ?(eager: valcache=ValCache.empty) (def: fndef) : RT.dval =
+let rec execute (id: id) ?(eager: valcache=ValCache.empty) (getf: get_node_t) : RT.dval =
   match ValCache.find eager id with
   | Some v -> v
   | None ->
-    let n = get_node id def in
+    let n = getf id in
     n#arguments
     |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
         match arg with
         | RT.AConst dv -> dv
-        | RT.AEdge id -> execute id ~eager def)
+        | RT.AEdge id -> execute id ~eager getf)
     |> String.Map.to_alist
     |> RT.DvalMap.of_alist_exn
-    |> n#execute
+    |> n#execute getf
 
 (* ------------------ *)
 (* Nodes that appear in the graph *)
@@ -132,7 +112,7 @@ class value strrep id loc =
     val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute (_: dval_map) : dval = expr
+    method execute (_: get_node_t) (_: dval_map) : dval = expr
   end
 
 class virtual has_arguments id loc =
@@ -163,7 +143,7 @@ class func n id loc =
     method private fn = (Libs.get_fn_exn n)
     method parameters : param list = self#fn.parameters
     method name = self#fn.name
-    method execute (args : dval_map) : dval =
+    method execute (getf: get_node_t) (args: dval_map) : dval =
       RT.exe self#fn args
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
@@ -176,7 +156,7 @@ class datastore table id loc =
   object
     inherit node id loc
     val table : string = table
-    method execute (_ : dval_map) : dval = DStr "todo datastore execute"
+    method execute _ (_ : dval_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
@@ -201,23 +181,22 @@ class datastore table id loc =
    need different IDs). In the inner graph, executing the node gets the
    return value *)
 
-let anonexecutor (context: fndef) (id: id) : (dval list -> dval) =
+let anonexecutor (id: id) (chrome: chrome) (getf:get_node_t)
+  : (dval list -> dval) =
   (fun args ->
-     (* get return node *)
-     (* execute return node *)
-     (* presumably there's a edge to the args *)
-     DNull
+     let returnid, argids = match chrome with Chrome (rid, aids) -> (rid, aids) in
+     let eager = List.zip_exn argids args |> ValCache.of_alist_exn in
+     execute id ~eager getf
   )
 
 
 class anonfn id loc chrome =
   object
     inherit node id loc
-    val graph : fndef = { nodes = NodeMap.empty
-                        ; chrome = chrome }
+    val chrome : chrome = chrome
     method name = "<anonfn>"
-    method execute (_) : dval =
-      DAnon (id, anonexecutor graph id)
+    method execute (getf: get_node_t) (_) : dval =
+      DAnon (id, anonexecutor id chrome getf)
     method tipe = "definition"
     method! parameters = []
   end

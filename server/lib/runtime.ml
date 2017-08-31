@@ -137,6 +137,7 @@ let parse (str : string) : dval =
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
+type execute_t = (dval_map -> dval)
 
 type argument = AEdge of int
               | AConst of dval [@@deriving yojson, show]
@@ -187,7 +188,7 @@ let exe (fn: fn) (args: dval_map) : dval =
   try
     match fn.func with
     | InProcess f -> fn.parameters
-                     |> List.map ~f:(fun (p : param) -> p.name)
+                     |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
                      |> f
     | API f -> f args
