@@ -106,7 +106,7 @@ let rec execute (id: id) ?(eager: valcache=ValCache.empty) (getf: get_node_t) : 
 (* ------------------ *)
 (* Nodes that appear in the graph *)
 (* ------------------ *)
-class value strrep id loc =
+class value id loc strrep =
   object
     inherit node id loc
     val expr : dval = RT.parse strrep
@@ -130,7 +130,7 @@ class virtual has_arguments id loc =
       self#set_arg name RT.blank_arg
   end
 
-class func n id loc =
+class func id loc n =
   object (self)
     inherit has_arguments id loc
     initializer
@@ -152,7 +152,7 @@ class func n id loc =
       else "function"
   end
 
-class datastore table id loc =
+class datastore id loc table =
   object
     inherit node id loc
     val table : string = table
@@ -181,22 +181,41 @@ class datastore table id loc =
    need different IDs). In the inner graph, executing the node gets the
    return value *)
 
-let anonexecutor (id: id) (chrome: chrome) (getf:get_node_t)
+let anonexecutor (rid: id) (argids: id list) (getf:get_node_t)
   : (dval list -> dval) =
-  (fun args ->
-     let returnid, argids = match chrome with Chrome (rid, aids) -> (rid, aids) in
+  (fun (args : dval list) ->
      let eager = List.zip_exn argids args |> ValCache.of_alist_exn in
-     execute id ~eager getf
+     execute rid ~eager getf
   )
 
+class returnnode id =
+  object
+    inherit has_arguments id  {x=0;y=0}
+    method name = "<return>"
+    method! parameters = [{ name = "return"
+                          ; tipe = RT.tAny
+                          ; optional = false
+                          ; description = "" }]
+    method tipe = "return"
+    method execute (getf: get_node_t) (args) : dval =
+      DvalMap.find_exn args "return"
+  end
 
-class anonfn id loc chrome =
+class argnode id =
+  object
+    inherit node id {x=0;y=0}
+    method name = "<arg>"
+    method tipe = "arg"
+    method execute (getf: get_node_t) (_) : dval =
+      DNull
+  end
+
+class anonfn id loc rid argids =
   object
     inherit node id loc
-    val chrome : chrome = chrome
     method name = "<anonfn>"
     method execute (getf: get_node_t) (_) : dval =
-      DAnon (id, anonexecutor id chrome getf)
+      DAnon (id, anonexecutor rid argids getf)
     method tipe = "definition"
     method! parameters = []
   end

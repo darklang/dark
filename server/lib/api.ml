@@ -81,26 +81,26 @@ let convert_edge (id: id) (param: string option) (edge: implicit_edge) : op =
   match edge with
     | { receiving_edge = Some e } -> Set_edge (e.source, id, Option.value_exn param)
     | { param_edge = Some e } -> Set_edge (id, e.target, e.param)
-    | { constant = Some e } -> Set_constant (e.value, id, e.param)
+    | { constant = Some e } -> Set_constant (id, e.param, e.value)
     | _ -> failwith "Unexpected edge type"
 
 let json2op (op : opjson) : op list =
   let id = Util.create_id in
   match op with
   | { load_initial_graph = Some _} -> []
-  | { add_datastore = Some a } -> [Add_datastore (a.name, id (), a.pos)]
-  | { add_anon = Some a } -> [Add_anon (id (), [id ()], id () , a.pos)]
+  | { add_datastore = Some a } -> [Add_datastore (id (), a.pos, a.name)]
+  | { add_anon = Some a } -> [Add_anon (id (), a.pos, id (), [id ()])]
   | { set_edge = Some a } -> [Set_edge (a.source, a.target, a.param)]
   | { delete_arg = Some a } -> [Delete_arg (a.target, a.param)]
   | { delete_node = Some a } -> [Delete_node a.id]
   | { clear_args = Some a } -> [Clear_args a.id]
 
   | { set_constant = Some a } ->
-    [Set_constant (a.value, a.target, a.param)]
+    [Set_constant (a.target, a.param, a.value)]
 
   | { add_function_call = Some a } ->
     let nodeid = id () in
-    let fn_node = Add_fn_call (a.name, nodeid, a.pos) in
+    let fn_node = Add_fn_call (nodeid, a.pos, a.name) in
     (* TODO: not the first parameter, but the next unused parameter.
        Which we don't actually know at this point... *)
     let name = a.name
@@ -112,7 +112,7 @@ let json2op (op : opjson) : op list =
 
   | { add_value = Some a } ->
     let nodeid = id () in
-    let node = Add_value (a.value, nodeid, a.pos) in
+    let node = Add_value (nodeid, a.pos, a.value) in
     [node] @ (List.map ~f:(convert_edge nodeid None) a.edges)
 
   | { update_node_position = Some a } ->

@@ -7,7 +7,7 @@ module Map = Map.Poly
 module RT = Runtime
 
 let t_param_order _ =
-  let node = new Node.func "-" 1 {x=1; y=1} in
+  let node = new Node.func 1 {x=1; y=1} "-" in
   assert_equal (node#execute
                   (fun g -> node)
                   (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
@@ -29,9 +29,9 @@ let execute_ops (ops : Op.op list) (result : Op.op) =
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
-  let add = Op.Add_fn_call ("-", fid (), fl) in
-  let v1 = Op.Add_value ("5", fid (), fl) in
-  let v2 = Op.Add_value ("3", fid (), fl) in
+  let add = Op.Add_fn_call (fid (), fl, "-") in
+  let v1 = Op.Add_value (fid (), fl, "5") in
+  let v2 = Op.Add_value (fid (), fl, "3") in
   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r1 = execute_ops [add; v1; v2; e1; e2] add in
@@ -44,8 +44,8 @@ let t_fns_with_edges _ =
   let str = string_of_int in
   let v1id = fid () in
   let v2id = fid () in
-  let v1 = Op.Add_value ("5", v1id, fl) in
-  let v2 = Op.Add_value ("3", v2id, fl) in
+  let v1 = Op.Add_value (v1id, fl, "5") in
+  let v2 = Op.Add_value (v2id, fl, "3") in
   (* Build this as a string and run it through end-to-end *)
   let p1str = "{receiving_edge: {source: " ^ str v1id ^ "}}" in
   let p2str = "{receiving_edge: {source: " ^ str v2id ^ "}}" in
@@ -62,19 +62,19 @@ let t_fns_with_edges _ =
 
 let t_int_add_works _ =
   (* Couldn't call Int::add *)
-  let add = Op.Add_fn_call ("Int::add", fid (), fl) in
-  let v1 = Op.Add_value ("5", fid (), fl) in
-  let v2 = Op.Add_value ("3", fid (), fl) in
+  let add = Op.Add_fn_call (fid (), fl, "Int::add") in
+  let v1 = Op.Add_value (fid (), fl, "5") in
+  let v2 = Op.Add_value (fid (), fl, "3") in
   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r = execute_ops [add; v1; v2; e2; e1] add in
   assert_equal r (DInt 8)
 
 let t_load_save _ =
-  let n1 = Op.Add_fn_call ("-", fid (), fl) in
-  let n2 = Op.Add_value ("5", fid (), fl) in
-  let n3 = Op.Add_value ("3", fid (), fl) in
-  let n4 = Op.Add_anon (fid (), [], fid (), fl) in
+  let n1 = Op.Add_fn_call (fid (), fl, "-") in
+  let n2 = Op.Add_value (fid (), fl, "5") in
+  let n3 = Op.Add_value (fid (), fl, "3") in
+  let n4 = Op.Add_anon (fid (), fl, fid (), []) in
   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
@@ -87,13 +87,13 @@ let t_load_save _ =
   assert (G.equal_graph !g !g2)
 
 let t_lambda_with_foreach _ =
-  let v = Op.Add_value ("\"some string\"", fid (), fl) in
-  let fe = Op.Add_fn_call ("String::foreach", fid (), fl) in
-  let upper = Op.Add_fn_call ("Char::to_uppercase", fid (), fl) in
+  let v = Op.Add_value (fid (), fl, "\"some string\"") in
+  let fe = Op.Add_fn_call (fid (), fl, "String::foreach") in
+  let upper = Op.Add_fn_call (fid (), fl, "Char::to_uppercase") in
   let anon_id = fid () in
   let anon_r = fid () in
   let anon_arg = fid () in
-  let anon = Op.Add_anon (anon_r, [anon_arg], anon_id, fl) in
+  let anon = Op.Add_anon (anon_id, fl, anon_r, [anon_arg]) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
   let e3 = Op.Set_edge (Op.id_of upper, anon_r, "return") in

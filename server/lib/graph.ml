@@ -70,7 +70,7 @@ let set_arg (a: RT.argument) (t: id) (param: string) (g: graph) : graph =
        n#set_arg param a;
        Some n)
 
-let set_const (v : string) (t: id) (param: string) (g: graph) : graph =
+let set_const (t: id) (param: string) (v : string) (g: graph) : graph =
   set_arg (RT.AConst (RT.parse v)) t param g
 
 let set_edge (s : id) (t : id) (param: string) (g: graph) : graph =
@@ -95,19 +95,24 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
   g :=
     !g |>
     match op with
-    | Add_fn_call (name, id, loc) ->
-      add_node (new Node.func name id loc)
-    | Add_datastore (table, id, loc) ->
-      add_node (new Node.datastore table id loc)
-    | Add_value (expr, id, loc) ->
-      add_node (new Node.value expr id loc)
-    | Add_anon (returnid, argids, id, loc) ->
-      add_node (new Node.anonfn id loc (Chrome (returnid, argids)))
+    | Add_fn_call (id, loc, name) ->
+      add_node (new Node.func id loc name)
+    | Add_datastore (id, loc, table) ->
+      add_node (new Node.datastore id loc table)
+    | Add_value (id, loc, expr) ->
+      add_node (new Node.value id loc expr)
+    | Add_anon (id, loc, returnid, argids) ->
+      (fun g ->
+         argids
+         |> List.map ~f:(fun id -> new Node.argnode id)
+         |> List.append [ new Node.anonfn id loc returnid argids
+                        ; new Node.returnnode returnid ]
+         |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, loc) -> update_node_position id loc
-    | Set_constant (value, target, param) ->
-      set_const value target param
+    | Set_constant (target, param, value) ->
+      set_const target param value
     | Set_edge (src, target, param) -> set_edge src target param
-    | Delete_arg (t, param) -> delete_arg t param
+    | Delete_arg (target, param) -> delete_arg target param
     | Clear_args (id) -> clear_args id
     | Delete_node (id) -> delete_node id
     | _ -> failwith "applying unimplemented op"
