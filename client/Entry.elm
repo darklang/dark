@@ -64,7 +64,8 @@ enter m id =
            Filling n (ResultHole _) _ ->
              AutocompleteMod <| FilterByLiveValue n.liveValue
            Filling n (ParamHole _ p _) _ ->
-             AutocompleteMod <| FilterByParamType p.tipe
+             Many [ AutocompleteMod <| FilterByParamType p.tipe
+                  , AutocompleteMod <| Open False ]
            Creating _ ->
              NoChange
        ]
