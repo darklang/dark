@@ -5,7 +5,16 @@
 
 FROM ubuntu:17.04
 
-# General
+## apt-get
+
+# We pin the exact package version so that we don't have any surprises.
+# However, sometimes the versions upgrade from under us and break the
+# build. To fix that, you need the actual package version, which you can
+# find by installing it directly:
+# $ docker run <HASH> apt-get install mypackage
+# Notes
+# - replace <HASH> with a recent hash from the docker build output.
+# - just use the package name, not the version.
 RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install -y software-properties-common=0.96.24.13 \
@@ -22,7 +31,7 @@ RUN apt-get install -y software-properties-common=0.96.24.13 \
 # OCaml
 RUN apt-get install -y ocaml=4.02.3-6ubuntu2 \
                        opam=1.2.2-5build5 \
-                       libpq-dev=9.6.3-0ubuntu0.17.04 \
+                       libpq-dev=9.6.4-0ubuntu0.17.04.1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
                        libcurl4-gnutls-dev=7.52.1-4ubuntu1.1
@@ -32,7 +41,7 @@ RUN echo 'deb https://deb.nodesource.com/node_8.x zesty main' > /etc/apt/sources
 RUN echo 'deb-src https://deb.nodesource.com/node_8.x zesty main' >> /etc/apt/sources.list.d/nodesource.list
 RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
 RUN apt-get update
-RUN apt-get install -y nodejs=8.3.0-1nodesource1~zesty1
+RUN apt-get install -y nodejs=8.4.0-1nodesource1~zesty1
 
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
@@ -77,5 +86,9 @@ RUN opam install merlin.3.0.2 # dev
 RUN opam install utop.2.0.1 # dev
 RUN opam install ocp-indent.1.6.1 # dev
 RUN opam install batteries.2.7.0
+
+## ADD NEW PACKAGES HERE
+# Doing otherwise will force a large recompile of the container for
+# everyone
 
 CMD ["app", "scripts", "builder"]
