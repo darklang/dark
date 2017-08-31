@@ -78,6 +78,7 @@ RUN opam install core.v0.9.1
 RUN opam install cohttp.0.22.0
 RUN opam install yojson.1.3.3
 RUN opam install postgresql.4.0.1
+RUN opam install ppx_deriving.4.1
 RUN opam install ppx_deriving_yojson.3.0
 RUN opam install tls.0.8.0
 RUN opam install ocurl.0.7.10
