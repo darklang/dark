@@ -254,7 +254,17 @@ update_ msg m =
 
                        -- if we added a node, select it
                        Just id ->
-                         Entry.enter m2 id
+                         case calls of
+                           [AddFunctionCall name pos [ParamEdge iid pn]] ->
+                             let target = G.getNodeExn m2 id
+                                 arg = G.getArgument pn target
+                             in  case arg of
+                                   Edge sid ->
+                                     Entry.enter m2 sid
+                                   _ ->
+                                     Entry.enter m2 id
+                           _ ->
+                             Entry.enter m2 id
 
       in
         Many [ ModelMod (\_ -> m2)
