@@ -31,6 +31,7 @@ init : List Function -> Autocomplete
 init functions = { functions = functions
                  , completions = List.map ACFunction functions
                  , index = -1
+                 , open = True
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
@@ -49,10 +50,14 @@ clear : Autocomplete -> Autocomplete
 clear a = let cleared = query "" a in
           { cleared | index = -1 }
 
+open : Bool -> Autocomplete -> Autocomplete
+open o a = { a | open = o }
+
 complete : String -> Autocomplete -> Autocomplete
 complete str a = { a | value = str
                      , completions = []
                      , index = -1
+                     , open = True
                  }
 
 selectDown : Autocomplete -> Autocomplete
@@ -142,11 +147,11 @@ jsonFields json =
 -- y Press right to fill as much as is definitive
 
 query : String -> Autocomplete -> Autocomplete
-query q a = { a | value = q }
+query q a = { a | value = q } |> regenerate
 
 
-generate : Autocomplete -> Autocomplete
-generate a =
+regenerate : Autocomplete -> Autocomplete
+regenerate a =
   let lcq = String.toLower a.value
       -- fields of objects
       fields = case a.liveValue of
@@ -159,14 +164,23 @@ generate a =
         |> List.filter
            (\{return_type} ->
               a.tipe == Nothing || a.tipe == Just return_type)
+        |> List.filter
+          (\{parameters} ->
+             case a.liveValue of
+               Just (_, tipe, _) ->
+                 Nothing /= (LE.find (\p -> p.tipe == tipe) parameters)
+               Nothing -> True)
         |> List.map (\s -> ACFunction s)
         |> List.append fields
         |> List.filter
            (\i -> i |> asString |> String.toLower |> String.startsWith lcq)
 
-      completions = case options of
-                  [ i ] -> if asString i == a.value then [] else [ i ]
-                  cs -> cs
+      completions =
+        if not a.open
+        then []
+        else case options of
+               [ i ] -> if asString i == a.value then [] else [ i ]
+               cs -> cs
 
   in { a | completions = completions
          , index = if List.length completions == 0
@@ -178,12 +192,14 @@ generate a =
 
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
-  generate (case mod of
-       Query str -> query str a
-       Reset -> reset a
-       Clear -> clear a
-       Complete str -> complete str a
-       SelectDown -> selectDown a
-       SelectUp -> selectUp a
-       FilterByLiveValue lv -> forLiveValue lv a
-       FilterByParamType tipe -> forParamType tipe a)
+  (case mod of
+     Query str -> query str a
+     Reset -> reset a
+     Open o -> open o a
+     Clear -> clear a
+     Complete str -> complete str a
+     SelectDown -> selectDown a
+     SelectUp -> selectUp a
+     FilterByLiveValue lv -> forLiveValue lv a
+     FilterByParamType tipe -> forParamType tipe a)
+    |> regenerate

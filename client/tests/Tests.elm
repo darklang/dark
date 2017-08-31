@@ -158,5 +158,19 @@ suite =
       |> List.map asString
       |> Set.fromList
       |> (==) (Set.fromList ["Int::add", "+"])
+      -- By default the list shows results
+      , \_ -> (init completes)
+      |> open False
+      |> query ""
+      |> .completions
+      |> List.length
+      |> (/=) 0
+      -- But not when we tell it not to
+      , \_ -> (init completes)
+      |> open False
+      |> query ""
+      |> .completions
+      |> List.length
+      |> (==) 0
       ]
     ]

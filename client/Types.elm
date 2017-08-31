@@ -102,6 +102,7 @@ type alias Autocomplete = { functions : List Function
                           , completions : List AutocompleteItem
                           , index : Int
                           , value : String
+                          , open : Bool
                           , liveValue : Maybe LiveValue
                           , tipe : Maybe TypeName
                           }
@@ -120,6 +121,7 @@ type alias Model = { nodes : NodeDict
                    }
 
 type AutocompleteMod = Query String
+                     | Open Bool
                      | Reset
                      | Clear
                      | Complete String
