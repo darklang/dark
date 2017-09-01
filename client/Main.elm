@@ -132,7 +132,7 @@ update_ msg m =
 
     (DragNodeEnd id _, _) ->
       let node = G.getNodeExn m id in
-      Many [ Entry.enter m id
+      Many [ Entry.enter m id True
            , RPC <| UpdateNodePosition id node.pos]
 
     (DragSlotStart target param event, _) ->
@@ -174,14 +174,14 @@ update_ msg m =
               let next = G.incomingNodes m (G.getNodeExn m id) in
               Many [ RPC <| DeleteNode id
                    , case List.head next of
-                       Just (next, p) -> Select next.id
+                       Just next -> Select next.id
                        Nothing -> Deselect
                    ]
             Key.Up -> Selection.selectNextNode m id (\n o -> n.y > o.y)
             Key.Down -> Selection.selectNextNode m id (\n o -> n.y < o.y)
             Key.Left -> Selection.selectNextNode m id (\n o -> n.x > o.x)
             Key.Right -> Selection.selectNextNode m id (\n o -> n.x < o.x)
-            Key.Enter -> Entry.enter m id
+            Key.Enter -> Entry.enter m id True
             Key.One -> Entry.reenter m id 0
             Key.Two -> Entry.reenter m id 1
             Key.Three -> Entry.reenter m id 2
@@ -217,7 +217,8 @@ update_ msg m =
               Key.Escape ->
                 case cursor of
                   Creating _ -> Many [Deselect, AutocompleteMod Reset]
-                  Filling node _ _ -> Many [Select node.id, AutocompleteMod Reset]
+                  Filling node _ -> Many [ Select node.id
+                                         , AutocompleteMod Reset]
               key ->
                 AutocompleteMod <| Query m.complete.value
 
@@ -260,11 +261,11 @@ update_ msg m =
                                  arg = G.getArgument p target
                              in case arg of
                                   Edge sid ->
-                                    Entry.enter m2 sid
+                                    Entry.enter m2 sid False
                                   _ ->
-                                    Entry.enter m2 tid
+                                    Entry.enter m2 tid False
                            _ ->
-                             Entry.enter m2 id
+                             Entry.enter m2 id False
 
       in
         Many [ ModelMod (\_ -> m2)

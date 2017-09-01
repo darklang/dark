@@ -19,6 +19,7 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
 import Canvas
+import Entry
 import Defaults
 import Selection
 import Autocomplete
@@ -90,7 +91,7 @@ viewEntry m =
              m.complete.completions)
 
         autocompletions = case (m.state, m.complete.index) of
-                            (Entering (Filling _ (ParamHole _ _ _) _), -1) ->
+                            (Entering (Filling _ (ParamHole _ _ _)), -1) ->
                               [ Html.li
                                 [ Attrs.class "autocomplete-item greyed" ]
                                 [ Html.text "Press down to autocomplete…" ]
@@ -127,7 +128,7 @@ viewEntry m =
 
         paramInfo =
           case m.state of
-            Entering (Filling _ (ParamHole _ param _) _) ->
+            Entering (Filling _ (ParamHole _ param _)) ->
               Html.div [] [ Html.text (param.name ++ " : " ++ param.tipe)
                           , Html.br [] []
                           , Html.text param.description
@@ -153,7 +154,9 @@ viewEntry m =
         placeHtml pos wrapper
   in
     case m.state of
-      Entering (Filling n _ pos) -> [html pos, svgLine n.pos pos dragEdgeStyle]
+      Entering (Filling n hole) ->
+        let pos = Entry.holePos hole in
+        [html pos, svgLine n.pos pos dragEdgeStyle]
       Entering (Creating pos) -> [html pos]
       _ -> []
 
@@ -397,7 +400,7 @@ viewDragEdge state =
 viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =
   n
-    |> G.incomingNodes m
+    |> G.incomingNodePairs m
     |> List.map (\(n2, p) -> viewEdge m n2 n p)
 
 

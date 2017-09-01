@@ -55,7 +55,7 @@ type Hole = ResultHole Node
           | ParamHole Node Parameter Int
 
 type EntryCursor = Creating Pos
-                 | Filling Node Hole Pos
+                 | Filling Node Hole
 
 type State = Selecting ID
            | Entering EntryCursor

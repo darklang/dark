@@ -6,6 +6,7 @@ import Ordering
 import List
 import Tuple
 import Dict
+import Set
 
 -- lib
 import List.Extra as LE
@@ -67,13 +68,56 @@ findHole m n =
     Nothing -> ResultHole n
     Just (i, (p, _)) -> ParamHole n p i
 
-incomingNodes : Model -> Node -> List (Node, ParamName)
-incomingNodes m n = List.filterMap
-                    (\(p, a) ->
-                       case a of
-                         Edge id -> Just (getNodeExn m id, p.name)
-                         _ -> Nothing)
-                    (Util.zip n.parameters n.arguments)
+findArgHole : Model -> Node -> Maybe Hole
+findArgHole m n =
+  case Util.findIndex (\(_, a) -> a == NoArg) (args n) of
+    Nothing -> Nothing
+    Just (i, (p, _)) -> Just (ParamHole n p i)
+
+-- follow the graph to find all available holes. (I could have skipped
+-- the seen-tracking, but I guess it's gottas be built sometime unless
+-- we go to Elm.Graph)
+type alias IDSet = Set.Set Int
+findNextArgHole : Model -> Node -> Maybe Hole
+findNextArgHole m n =
+  find n (incomingNodes m) (findArgHole m)
+
+-- find args going up. If there aren't any, look down. Hit the end?
+-- Suggest it.
+findNextHole : Model -> Node -> Maybe Hole
+findNextHole m n =
+  let findfn n =
+        case findNextArgHole m n of
+          Nothing -> case outgoingNodes m n of
+                       [] -> Just (ResultHole n)
+                       _ -> Nothing
+          h -> h
+  in
+    find n (outgoingNodes m) findfn
+
+find : Node -> (Node -> List Node) -> (Node -> Maybe a) -> Maybe a
+find starting nextfn findfn =
+  find_ starting nextfn findfn Set.empty |> Tuple.second
+
+find_ : Node -> (Node -> List Node) -> (Node -> Maybe a) -> IDSet -> (IDSet, Maybe a)
+find_ starting nextfn findfn seen =
+  case (findfn starting) of
+    Just x -> (seen, Just x)
+    Nothing ->
+      List.foldl
+        (\node (set, x) ->
+           case x of
+             -- found something, return
+             Just _ -> (set, x)
+             -- not found, keep looking
+             Nothing -> if Set.member (deID node.id) set
+                        then (set, x)
+                        else find_ node nextfn findfn set)
+          (Set.insert (deID starting.id) seen, Nothing)
+          (nextfn starting)
+
+
+
 
 outgoingNodes : Model -> Node -> List Node
 outgoingNodes m parent =
@@ -82,14 +126,23 @@ outgoingNodes m parent =
     |> List.filterMap (\child ->
                          child
                       |> incomingNodes m
-                      |> List.map Tuple.first
                       |> LE.find ((==) parent)
                       |> Maybe.map (always child))
 
+incomingNodePairs : Model -> Node -> List (Node, ParamName)
+incomingNodePairs m n = List.filterMap
+                    (\(p, a) ->
+                       case a of
+                         Edge id -> Just (getNodeExn m id, p.name)
+                         _ -> Nothing)
+                    (Util.zip n.parameters n.arguments)
+
+incomingNodes : Model -> Node -> List Node
+incomingNodes m n = incomingNodePairs m n |> List.map Tuple.first
+
 connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
-  (incomingNodes m n |> List.map Tuple.first) ++ (outgoingNodes m n)
-
+  (incomingNodes m n) ++ (outgoingNodes m n)
 
 slotIsConnected : Model -> ID -> ParamName -> Bool
 slotIsConnected m target param =

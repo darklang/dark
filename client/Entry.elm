@@ -22,29 +22,22 @@ findImplicitEdge m node = case G.findHole m node of
                      ResultHole n -> ReceivingEdge n.id
                      ParamHole n p _ -> ParamEdge n.id p.name
 
-paramPos : Node -> Int -> Pos
-paramPos n i = {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+holePos hole =
+  case hole of
+    ResultHole n -> {x=n.pos.x+100, y=n.pos.y+100}
+    ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
 
-enterNode : Model -> Node -> EntryCursor
-enterNode m selected =
-  let hole = G.findHole m selected
-      pos = case hole of
-              ResultHole n -> {x=n.pos.x+100,y=n.pos.y+100}
-              ParamHole n _ i -> paramPos n i
-  in
-    Filling selected hole pos
 
 reenter : Model -> ID -> Int -> Modification
 reenter m id i =
   -- TODO: Allow the input to be edited
   let n = G.getNodeExn m id
       args = G.args n
-      pos = paramPos n i
   in
     case LE.getAt i args of
       Nothing -> NoChange
       Just (p, a) ->
-        let enter = Enter <| Filling n (ParamHole n p i) pos in
+        let enter = Enter <| Filling n (ParamHole n p i) in
         case a of
           Edge id -> Many [ enter
                           , AutocompleteMod (Query <| "$" ++ (G.toLetter m id))]
@@ -52,18 +45,32 @@ reenter m id i =
           Const c -> Many [ enter
                           , AutocompleteMod (Query c)]
 
+enterNode : Model -> Node -> EntryCursor
+enterNode m selected =
+  Filling selected (G.findHole m selected)
+
+enterNext : Model -> Node -> EntryCursor
+enterNext m n =
+  case G.findNextHole m n of
+    Nothing -> Filling n (ResultHole n)
+    Just hole -> case hole of
+                   ResultHole n -> Filling n hole
+                   ParamHole n _ _ -> Filling n hole
 
 
-enter : Model -> ID -> Modification
-enter m id =
-  let node = (G.getNodeExn m id)
-      cursor = enterNode m node
+-- finds the next hole in this node
+enter : Model -> ID -> Bool -> Modification
+enter m id exact =
+  let node = G.getNodeExn m id
+      cursor = if exact
+               then enterNode m node
+               else enterNext m node
   in
   Many [ Enter <| cursor
        , case cursor of
-           Filling n (ResultHole _) _ ->
+           Filling n (ResultHole _) ->
              AutocompleteMod <| FilterByLiveValue n.liveValue
-           Filling n (ParamHole _ p _) _ ->
+           Filling n (ParamHole _ p _) ->
              Many [ AutocompleteMod <| FilterByParamType p.tipe
                   , AutocompleteMod <| Open False ]
            Creating _ ->
@@ -137,8 +144,9 @@ submit m cursor =
     Creating pos ->
       addNode value pos []
 
-    Filling target hole pos ->
-      let implicit = findImplicitEdge m target in
+    Filling target hole ->
+      let implicit = findImplicitEdge m target
+          pos = holePos hole in
       case hole of
         ParamHole _ param _ ->
           case String.uncons value of

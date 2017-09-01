@@ -17,7 +17,7 @@ import Graph as G
 isSelected : Model -> Node -> Bool
 isSelected m n =
   case m.state of
-    Entering (Filling node _ _) -> n == node
+    Entering (Filling node _) -> n == node
     Selecting id -> n.id == id
     _ -> False
 
@@ -31,7 +31,7 @@ getCursorID : State -> Maybe ID
 getCursorID s =
   case s of
     Dragging (DragNode id _) -> Just id
-    Entering (Filling node _ _) -> Just node.id
+    Entering (Filling node _) -> Just node.id
     Selecting id -> Just id
     _ -> Nothing
 
