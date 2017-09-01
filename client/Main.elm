@@ -255,14 +255,14 @@ update_ msg m =
                        -- if we added a node, select it
                        Just id ->
                          case calls of
-                           [AddFunctionCall name pos [ParamEdge iid pn]] ->
-                             let target = G.getNodeExn m2 id
-                                 arg = G.getArgument pn target
-                             in  case arg of
-                                   Edge sid ->
-                                     Entry.enter m2 sid
-                                   _ ->
-                                     Entry.enter m2 id
+                           [AddFunctionCall name pos [ParamEdge tid p]] ->
+                             let target = G.getNodeExn m2 tid
+                                 arg = G.getArgument p target
+                             in case arg of
+                                  Edge sid ->
+                                    Entry.enter m2 sid
+                                  _ ->
+                                    Entry.enter m2 tid
                            _ ->
                              Entry.enter m2 id
 
