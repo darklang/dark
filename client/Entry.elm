@@ -166,15 +166,18 @@ submit m cursor =
                    then RPC <| AddAnon { x=pos.x, y=pos.y+100 }
                      -- plan for implementing anonfns in the UI
                      -- - make it look good
-                     --   - draw arg node as a target
                      --   - draw return node as a target
+                     --   - draw arg node as a target
+                     -- - if you try to use the result of an anon,
+                     -- actually get the string foreach result
                      -- - connect node to anon when "new function" chosen
                      -- - add "new function" to autocomplete
                      -- - nextNode should be the first arg or the return node
                      -- - give arg a value from the anonfn's input
-                     -- - give approapriate types to autocomplete
+                     -- - add an edge from foreach to the arg
+                     -- - allow autocomplete on arg
                      -- - allow selecting a return node based on expected types
-                     -- - allow selecting fn values
+                     -- - allow selecting matching fns in autocomplete for Functions
 
               else addNode value pos [implicit]
 
