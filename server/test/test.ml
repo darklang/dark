@@ -70,6 +70,23 @@ let t_int_add_works _ =
   let r = execute_ops [add; v1; v2; e2; e1] add in
   assert_equal r (DInt 8)
 
+let t_node_deletion _ =
+  (* check the argument gets deleted too *)
+  let n1 = Op.Add_fn_call (fid (), fl, "-") in
+  let n2 = Op.Add_value (fid (), fl, "5") in
+  let e1 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
+  let d1 = Op.Delete_node (Op.id_of n2) in
+  let g = graph_from_ops "graph" [n1; n2; e1; d1] in
+  let nodes = G.incoming_nodes (Op.id_of n2) !g
+  in assert_equal nodes [];
+  try
+   let _ = G.to_frontend !g in ()
+  with
+  | _ -> assert_failure "node deletion threw "
+
+
+
+
 let t_load_save _ =
   let n1 = Op.Add_fn_call (fid (), fl, "-") in
   let n2 = Op.Add_value (fid (), fl, "5") in
@@ -161,6 +178,7 @@ let suite =
     (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
   ; "anon functions work" >:: t_lambda_with_foreach
+  ; "test_node_deletion" >:: t_node_deletion
   ]
 
 let () =

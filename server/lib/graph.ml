@@ -40,7 +40,7 @@ let create (name : string) : graph ref =
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
-let change_node (id: id) (g: graph) (f: (Node.node option -> Node.node option)) : graph =
+let change_node (id: id) (g: graph) ~(f: (Node.node option -> Node.node option)) : graph =
   let r = ref (None: Node.node option) in
   let wrapped_f n =
     let result = f n in
@@ -52,7 +52,7 @@ let change_node (id: id) (g: graph) (f: (Node.node option -> Node.node option)) 
   { g with nodes = nodes
     ; last_node = last_node }
 
-let update_node (id: id) (g : graph) (f: (Node.node -> Node.node option)) : graph =
+let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : graph =
   change_node
     id
     g
@@ -60,15 +60,15 @@ let update_node (id: id) (g : graph) (f: (Node.node -> Node.node option)) : grap
             | None -> Exception.raise "can't update missing node")
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
-  update_node id g (fun n -> n#update_loc loc; Some n)
+  update_node id g ~f:(fun n -> n#update_loc loc; Some n)
 
 let set_arg (a: RT.argument) (t: id) (param: string) (g: graph) : graph =
   update_node t g
-    (fun n ->
-       if not (n#has_parameter param)
-       then Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
-       n#set_arg param a;
-       Some n)
+    ~f:(fun n ->
+        if not (n#has_parameter param)
+        then Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
+        n#set_arg param a;
+        Some n)
 
 let set_const (t: id) (param: string) (v : string) (g: graph) : graph =
   set_arg (RT.AConst (RT.parse v)) t param g
@@ -77,16 +77,35 @@ let set_edge (s : id) (t : id) (param: string) (g: graph) : graph =
   set_arg (RT.AEdge s) t param g
 
 let clear_args (id: id) (g: graph) : graph =
-  update_node id g (fun n -> n#clear_args; Some n)
+  update_node id g ~f:(fun n -> n#clear_args; Some n)
 
 let delete_arg (t: id) (param:string) (g: graph) : graph =
-  update_node t g (fun n -> n#delete_arg param; Some n)
+  update_node t g ~f:(fun n -> n#delete_arg param; Some n)
 
 let add_node (node : Node.node) (g : graph) : graph =
-  change_node node#id g (fun x -> Some node)
+  change_node node#id g ~f:(fun x -> Some node)
+
+let incoming_nodes id g : (id * string) list =
+  g.nodes
+  |> Int.Map.data
+  |> List.map
+    ~f:(fun n ->
+        Map.filter_mapi n#arguments
+          ~f:(fun ~key ~data -> match data with | RT.AConst _ -> None
+                                                | RT.AEdge i ->
+                                                  if i = id
+                                                  then Some (n#id,key)
+                                                  else None))
+  |> List.map ~f:String.Map.data
+  |> List.concat
 
 let delete_node id (g: graph) : graph =
-  update_node id g (fun x -> None)
+  (* find nodes,param pairs to remove first, then remove then *)
+  g
+  |> incoming_nodes id
+  |> List.fold_left ~init:g
+    ~f:(fun g_ (id2, param) -> delete_arg id2 param g_)
+  |> update_node id ~f:(fun x -> None)
 
 (* ------------------------- *)
 (* Ops *)
