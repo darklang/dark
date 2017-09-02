@@ -33,6 +33,8 @@ type NodeType = FunctionCall
               | Datastore
               | Value
               | Page
+              | Arg
+              | Return
 
 type alias NodeDict = Dict Int Node
 type alias Node = { name : Name
@@ -45,6 +47,9 @@ type alias Node = { name : Name
                   -- for functions
                   , parameters : List Parameter
                   , arguments : List Argument
+                  -- for anonfns
+                  , returnID : Maybe Int
+                  , argIDs : List Int
                   }
 
 type Argument = Const String

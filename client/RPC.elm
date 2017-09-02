@@ -134,8 +134,12 @@ decodeNode =
                      _ -> Debug.crash "impossible"
 
 
-      toNode : Name -> Int -> List(FieldName,TypeName) -> List Parameter -> List (List JSD.Value) -> Dict String String -> String -> Int -> Int -> Node
-      toNode name id fields parameters arguments liveDict tipe x y =
+      toNode : Name -> Int -> List(FieldName,TypeName) ->
+               List Parameter -> List (List JSD.Value) ->
+               Dict String String -> Int -> List Int ->
+               String -> Int -> Int ->
+               Node
+      toNode name id fields parameters arguments liveDict returnID argIDs tipe x y =
         let liveValue = Dict.get "value" liveDict
             liveTipe = Dict.get "type" liveDict
             liveJson = Dict.get "json" liveDict in
@@ -146,14 +150,16 @@ decodeNode =
           , arguments = List.map toArg arguments
           , liveValue = (liveValue, liveTipe, liveJson)
                         |> Tuple3.mapAll deMaybe
+          , returnID = if returnID == -42 then Nothing else Just returnID
+          , argIDs = argIDs
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall
                      "definition" -> FunctionDef
                      "value" -> Value
                      "page" -> Page
-                     "arg" -> Value
-                     "return" -> Value
+                     "arg" -> Arg
+                     "return" -> Return
                      _ -> Debug.crash "shouldnt happen"
           , pos = {x=x, y=y}
           }
@@ -174,6 +180,8 @@ decodeNode =
                                      |> JSDP.required "description" JSD.string))
     |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))
     |> JSDP.required "live" (JSD.dict JSD.string)
+    |> JSDP.optional "return_id" JSD.int -42
+    |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "x" JSD.int
     |> JSDP.required "y" JSD.int
