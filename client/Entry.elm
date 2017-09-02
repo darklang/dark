@@ -163,8 +163,12 @@ submit m cursor =
               if isValueRepr value
               then addConstant value target.id param.name
               else if value == "New function"
-                   then RPC <| AddAnon pos
-                     -- move cursor inside anon
+                   then RPC <| AddAnon { x=pos.x, y=pos.y+100 }
+                     -- plan for implementing anonfns in the UI
+                     -- - draw them correctly
+                     -- - nextNode should be the first arg or the return node
+                     -- - give arg a value from the anonfn's input
+
               else addNode value pos [implicit]
 
         ResultHole _ ->

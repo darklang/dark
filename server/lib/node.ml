@@ -195,9 +195,9 @@ let anonexecutor (rid: id) (argids: id list) (getf:get_node_t)
      execute rid ~eager getf
   )
 
-class returnnode id =
+class returnnode id loc =
   object (self)
-    inherit has_arguments id {x=300;y=300}
+    inherit has_arguments id loc
     method name = "<return>"
     method! parameters = [{ name = "return"
                           ; tipe = RT.tAny
@@ -208,9 +208,9 @@ class returnnode id =
       DvalMap.find_exn args "return"
   end
 
-class argnode id =
+class argnode id loc =
   object
-    inherit node id {x=500;y=100}
+    inherit node id loc
     method name = "<arg>"
     method tipe = "arg"
     method execute (getf: get_node_t) (_) : dval =
