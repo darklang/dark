@@ -291,8 +291,8 @@ placeNode n width attrs classes body =
   in
     placeHtml n.pos wrapper
 
-viewArg : Model -> Node -> Int -> Html.Html Msg
-viewArg m n i =
+viewNodeIcon : String -> Model -> Node -> Int -> Html.Html Msg
+viewNodeIcon name m n i =
   let viewHeader = Html.div
                    [Attrs.class "header"]
                    [ Html.span
@@ -302,17 +302,19 @@ viewArg m n i =
   in
     placeHtml n.pos
     (Html.div
-       [Attrs.class "arg"]
+       [Attrs.class name]
        [viewHeader, Html.text "◉"])
 
 viewReturn : Model -> Node -> Int -> Html.Html Msg
-viewReturn = viewNormalNode
+viewReturn = viewNodeIcon "return"
+viewArg : Model -> Node -> Int -> Html.Html Msg
+viewArg = viewNodeIcon "arg"
 
 viewAnon : Model -> Node -> Int -> Html.Html Msg
 viewAnon m n i =
   let rid = deMaybe n.returnID
       returnNode = G.getNodeExn m rid
-      height = 75 + returnNode.pos.y - n.pos.y
+      height = 40 + returnNode.pos.y - n.pos.y
       height_attr = Attrs.style [("height", (toString height) ++ "px")]
       viewHeader = Html.div
                    [Attrs.class "header"]

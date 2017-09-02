@@ -145,6 +145,11 @@ form {
   top: 12px;
 }
 
+.return .header {
+  top: -6px;
+  position: relative;
+}
+
 .parameters {
   cursor: default;
   color: red;
