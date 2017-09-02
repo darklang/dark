@@ -118,9 +118,14 @@ class value id loc strrep =
 class virtual has_arguments id loc =
   object (self)
     inherit node id loc
+    val mutable args : arg_map = RT.ArgMap.empty
     (* Invariant: args should always be the same size as the parameter
        list *)
-    val mutable args : arg_map = RT.ArgMap.empty
+    initializer
+      args <-
+        self#parameters
+        |> List.map ~f:(fun (p: param) -> (p.name, RT.AConst DIncomplete))
+        |> RT.ArgMap.of_alist_exn
     method arguments = args
     method set_arg (name: string) (value: argument) : unit =
       args <- ArgMap.change args name (fun _ -> Some value)
@@ -133,11 +138,6 @@ class virtual has_arguments id loc =
 class func id loc n =
   object (self)
     inherit has_arguments id loc
-    initializer
-      args <-
-        (Libs.get_fn_exn n).parameters
-        |> List.map ~f:(fun (p: param) -> (p.name, RT.AConst DIncomplete))
-        |> RT.ArgMap.of_alist_exn
 
     (* Throw an exception if it doesn't exist *)
     method private fn = (Libs.get_fn_exn n)
