@@ -291,25 +291,6 @@ placeNode m n width attrs classes body =
   in
     placeHtml n.pos wrapper
 
-viewNodeIcon : String -> Model -> Node -> Int -> Html.Html Msg
-viewNodeIcon name m n i =
-  let viewHeader = Html.div
-                   [Attrs.class "header"]
-                   [ Html.span
-                       [Attrs.class "letter"]
-                       [Html.text (G.int2letter i)]
-                   ]
-  in
-    placeHtml n.pos
-    (Html.div
-       [Attrs.class name]
-       [viewHeader, Html.text "◉"])
-
-viewReturn : Model -> Node -> Int -> Html.Html Msg
-viewReturn = viewNodeIcon "return"
-viewArg : Model -> Node -> Int -> Html.Html Msg
-viewArg = viewNodeIcon "arg"
-
 viewAnon : Model -> Node -> Int -> Html.Html Msg
 viewAnon m n i =
   let rid = deMaybe n.returnID
@@ -324,6 +305,30 @@ viewAnon m n i =
                    ]
   in
     placeNode m n 300 [height_attr] [] [viewHeader]
+
+
+viewNodeIcon : String -> Model -> Node -> Int -> Html.Html Msg
+viewNodeIcon name m n i =
+  let viewHeader = Html.div
+                   [Attrs.class "header"]
+                   [ Html.span
+                       [Attrs.class "letter"]
+                       [Html.text (G.int2letter i)]
+                   ]
+      selectedCl = if Selection.isSelected m n then " selected" else ""
+  in
+    placeHtml n.pos
+    (Html.div
+       [Attrs.class <| name ++ selectedCl]
+       [ viewHeader
+       , Html.span
+         [ Attrs.class "name" ]
+         [ Html.text "◉" ]])
+
+viewReturn : Model -> Node -> Int -> Html.Html Msg
+viewReturn = viewNodeIcon "return"
+viewArg : Model -> Node -> Int -> Html.Html Msg
+viewArg = viewNodeIcon "arg"
 
 
 viewLive : Model -> State -> Html.Html Msg

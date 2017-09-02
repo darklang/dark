@@ -166,8 +166,6 @@ submit m cursor =
                    then RPC <| AddAnon { x=pos.x, y=pos.y+100 }
                      -- plan for implementing anonfns in the UI
                      -- - connect node to anon when "new function" chosen
-                     -- make it clear when an aux node is selected
-                     -- make it clear when an return node is selected
                      -- - when you delete an aux node, delete the rest
                      -- - if you try to use the result of an anon,
                      -- actually get the string foreach result
