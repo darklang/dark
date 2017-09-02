@@ -19,15 +19,15 @@ let server =
     let admin_rpc_handler body : string =
       let body = Util.inspect "request body" body ~formatter:ident in
       let g = G.load "blog" in
-      let _ = try
+      try
         Api.apply_ops g body;
         G.save !g;
+        !g
+        |> Graph.to_frontend_string
+        |> Util.inspect "response: " ~formatter:ident
       with
       | e -> print_endline (G.show_graph !g);
         raise e
-      in !g
-         |> Graph.to_frontend_string
-         |> Util.inspect "response: " ~formatter:ident
     in
 
     let admin_ui_handler () =
