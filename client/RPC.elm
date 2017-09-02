@@ -152,6 +152,8 @@ decodeNode =
                      "definition" -> FunctionDef
                      "value" -> Value
                      "page" -> Page
+                     "arg" -> Value
+                     "return" -> Value
                      _ -> Debug.crash "shouldnt happen"
           , pos = {x=x, y=y}
           }
