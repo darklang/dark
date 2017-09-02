@@ -58,6 +58,7 @@ class virtual node id loc =
     method delete_arg (name: string) : unit =
       Exception.raise "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
+    method dependent_nodes : id list = []
     method update_loc _loc : unit =
       loc <- _loc
     method to_frontend (value, tipe, json) : nodejson =
@@ -213,6 +214,7 @@ class argnode id =
 class anonfn id loc rid argids =
   object
     inherit node id loc
+    method dependent_nodes = rid :: argids
     method name = "<anonfn>"
     method execute (getf: get_node_t) (_) : dval =
       DAnon (id, anonexecutor rid argids getf)

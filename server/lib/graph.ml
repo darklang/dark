@@ -99,13 +99,16 @@ let incoming_nodes id g : (id * string) list =
   |> List.map ~f:String.Map.data
   |> List.concat
 
-let delete_node id (g: graph) : graph =
-  (* find nodes,param pairs to remove first, then remove then *)
+let rec delete_node id (g: graph) : graph =
+  let node = get_node g id in
+  let deps = node#dependent_nodes in
+  let nodes = incoming_nodes id g in
+  let g = List.fold_left ~init:g nodes
+      ~f:(fun g_ (id2, param) -> delete_arg id2 param g_) in
+  let g = update_node id ~f:(fun x -> None) g in
+  let g = List.fold_left ~init:g deps
+      ~f:(fun g_ d -> delete_node d g_) in
   g
-  |> incoming_nodes id
-  |> List.fold_left ~init:g
-    ~f:(fun g_ (id2, param) -> delete_arg id2 param g_)
-  |> update_node id ~f:(fun x -> None)
 
 (* ------------------------- *)
 (* Ops *)
