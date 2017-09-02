@@ -126,7 +126,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Add_anon (id, loc, returnid, argids) ->
       (fun g ->
          argids
-         |> List.map ~f:(fun id -> new Node.argnode id { loc with y = loc.y + 40 } )
+         |> List.map ~f:(fun id -> new Node.argnode id { loc with y = loc.y + 20 } )
          |> List.append [ new Node.anonfn id
                           { x = loc.x - 10; y = loc.y - 10 }
                           returnid argids

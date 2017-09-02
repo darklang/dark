@@ -140,6 +140,11 @@ form {
   width: 100%;
 }
 
+.arg .header {
+  width: 18px;
+  top: 12px;
+}
+
 .parameters {
   cursor: default;
   color: red;
