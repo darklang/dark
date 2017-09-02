@@ -29,6 +29,8 @@ type nodejson = { name: string
                 ; live: valuejson
                 ; parameters: param list
                 ; arguments: argument list
+                ; return_id: id option
+                ; arg_ids : id list
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
 
@@ -59,6 +61,8 @@ class virtual node id loc =
       Exception.raise "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
     method dependent_nodes : id list = []
+    method return_id = None
+    method arg_ids = []
     method update_loc _loc : unit =
       loc <- _loc
     method to_frontend (value, tipe, json) : nodejson =
@@ -72,6 +76,8 @@ class virtual node id loc =
       ; arguments = List.map
             ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name)
             self#parameters
+      ; return_id = self#return_id
+      ; arg_ids = self#arg_ids
       }
   end
 
@@ -220,4 +226,6 @@ class anonfn id loc rid argids =
       DAnon (id, anonexecutor rid argids getf)
     method tipe = "definition"
     method! parameters = []
+    method! return_id = Some rid
+    method! arg_ids = argids
   end
