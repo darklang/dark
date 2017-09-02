@@ -160,7 +160,6 @@ suite =
       |> (==) (Set.fromList ["Int::add", "+"])
       -- By default the list shows results
       , \_ -> (init completes)
-      |> open False
       |> query ""
       |> .completions
       |> List.length
