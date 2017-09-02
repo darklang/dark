@@ -165,9 +165,17 @@ submit m cursor =
               else if value == "New function"
                    then RPC <| AddAnon { x=pos.x, y=pos.y+100 }
                      -- plan for implementing anonfns in the UI
-                     -- - draw them correctly
+                     -- - make it look good
+                     --   - draw the letter on the anon
+                     --   - draw arg node as a target
+                     --   - draw return node as a target
+                     -- - connect node to anon when "new function" chosen
+                     -- - add "new function" to autocomplete
                      -- - nextNode should be the first arg or the return node
                      -- - give arg a value from the anonfn's input
+                     -- - give approapriate types to autocomplete
+                     -- - allow selecting a return node based on expected types
+                     -- - allow selecting fn values
 
               else addNode value pos [implicit]
 
