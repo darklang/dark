@@ -189,8 +189,8 @@ let anonexecutor (rid: id) (argids: id list) (getf:get_node_t)
   )
 
 class returnnode id =
-  object
-    inherit has_arguments id  {x=0;y=0}
+  object (self)
+    inherit has_arguments id {x=300;y=300}
     method name = "<return>"
     method! parameters = [{ name = "return"
                           ; tipe = RT.tAny
@@ -203,7 +203,7 @@ class returnnode id =
 
 class argnode id =
   object
-    inherit node id {x=0;y=0}
+    inherit node id {x=500;y=100}
     method name = "<arg>"
     method tipe = "arg"
     method execute (getf: get_node_t) (_) : dval =
