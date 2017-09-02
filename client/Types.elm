@@ -48,8 +48,8 @@ type alias Node = { name : Name
                   , parameters : List Parameter
                   , arguments : List Argument
                   -- for anonfns
-                  , returnID : Maybe Int
-                  , argIDs : List Int
+                  , returnID : Maybe ID
+                  , argIDs : List ID
                   }
 
 type Argument = Const String

@@ -272,17 +272,18 @@ viewNormalNode m n i =
   in
     placeNode
       n
-      (viewHeader :: heading :: list)
       (nodeWidth n)
+      []
       selectedCl
+      (viewHeader :: heading :: list)
 
-placeNode : Node -> List (Html.Html Msg) -> Int -> List String -> Html.Html Msg
-placeNode n body width classes =
+placeNode : Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> Html.Html Msg
+placeNode n width attrs classes body =
   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
       class = String.toLower (toString n.tipe)
       classStr = String.join " " (["node", class] ++ classes)
       inner = Html.div
-              [width_attr, Attrs.class "inner"]
+              (width_attr :: (Attrs.class "inner") :: attrs)
               body
       wrapper = Html.span
                 [ Attrs.class classStr, width_attr]
@@ -292,8 +293,16 @@ placeNode n body width classes =
 
 viewArg = viewNormalNode
 viewReturn = viewNormalNode
+
+viewAnon : Model -> Node -> Int -> Html.Html Msg
 viewAnon m n i =
-  viewNormalNode m n i
+  let
+    rid = deMaybe n.returnID
+          returnNode = G.getNodeExn m rid
+          height = 75 + returnNode.pos.y - n.pos.y
+          height_attr = Attrs.style [("height", (toString height) ++ "px")]
+  in
+    placeNode n 300 [height_attr] [] []
 
 
 viewLive : Model -> State -> Html.Html Msg

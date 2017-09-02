@@ -150,8 +150,8 @@ decodeNode =
           , arguments = List.map toArg arguments
           , liveValue = (liveValue, liveTipe, liveJson)
                         |> Tuple3.mapAll deMaybe
-          , returnID = if returnID == -42 then Nothing else Just returnID
-          , argIDs = argIDs
+          , returnID = if returnID == -42 then Nothing else Just <| ID returnID
+          , argIDs = List.map ID argIDs
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall
