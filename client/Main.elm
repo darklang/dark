@@ -249,10 +249,6 @@ update_ msg m =
                          then Deselect
                          else NoChange
 
-                       -- TODO if the just-added node has an outgoing
-                       -- edge, which was just selected, choose it
-                       -- instead.
-
                        -- if we added a node, select it
                        Just id ->
                          case calls of
