@@ -94,7 +94,7 @@ let fns : Lib.shortfn list = [
               let result = fn [(DChar c)] in
               match result with
               | DChar c -> c
-              | r -> failwith "expected a char"
+              | r -> Exception.raise "expected a char"
             in
             DStr (String.map ~f:charf s)
           | args -> fail args)
