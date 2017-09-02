@@ -168,7 +168,6 @@ submit m cursor =
                      -- - connect node to anon when "new function" chosen
                      -- make it clear when an aux node is selected
                      -- make it clear when an return node is selected
-                     -- make it clear when an anon node is selected
                      -- - when you delete an aux node, delete the rest
                      -- - if you try to use the result of an anon,
                      -- actually get the string foreach result

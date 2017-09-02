@@ -267,21 +267,21 @@ viewNormalNode m n i =
       --   , Events.onMouseUp (DragSlotEnd n)]
 
       -- outer node wrapper
-      selected = Selection.isSelected m n
-      selectedCl = if selected then ["selected"] else []
   in
     placeNode
+      m
       n
       (nodeWidth n)
       []
-      selectedCl
+      []
       (viewHeader :: heading :: list)
 
-placeNode : Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> Html.Html Msg
-placeNode n width attrs classes body =
+placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> Html.Html Msg
+placeNode m n width attrs classes body =
   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
+      selectedCl = if Selection.isSelected m n then ["selected"] else []
       class = String.toLower (toString n.tipe)
-      classStr = String.join " " (["node", class] ++ classes)
+      classStr = String.join " " (["node", class] ++ selectedCl ++ classes)
       inner = Html.div
               (width_attr :: (Attrs.class "inner") :: attrs)
               body
@@ -323,7 +323,7 @@ viewAnon m n i =
                        [Html.text (G.int2letter i)]
                    ]
   in
-    placeNode n 300 [height_attr] [] [viewHeader]
+    placeNode m n 300 [height_attr] [] [viewHeader]
 
 
 viewLive : Model -> State -> Html.Html Msg
