@@ -178,6 +178,10 @@ submit m cursor =
                      -- - allow autocomplete on arg
                      -- - allow selecting a return node based on expected types
                      -- - allow selecting matching fns in autocomplete for Functions
+                     -- - when you delete an aux node, delete the rest
+                     -- make it clear when an aux node is selected
+                     -- make it clear when an return node is selected
+                     -- make it clear when an anon node is selected
 
               else addNode value pos [implicit]
 
