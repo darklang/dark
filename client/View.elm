@@ -203,11 +203,18 @@ nodeName n =
   in
     String.join " " (n.name :: parameterTexts)
 
+viewNode : Model -> Node -> Int -> Html.Html Msg
+viewNode m n i =
+  case n.tipe of
+    Arg -> viewArg m n i
+    Return -> viewReturn m n i
+    FunctionDef -> viewAnon m n i
+    _ -> viewNormalNode m n i
 
 -- TODO: If there are default parameters, show them inline in
 -- the node body
-viewNode : Model -> Node -> Int -> Html.Html Msg
-viewNode m n i =
+viewNormalNode : Model -> Node -> Int -> Html.Html Msg
+viewNormalNode m n i =
   let
       -- params
       slotHandler name = (decodeClickEvent (DragSlotStart n name))
@@ -253,32 +260,41 @@ viewNode m n i =
                  (List.concat viewFields)]
              else []
 
-       -- width
-      width = Attrs.style [("width",
-                            (toString (nodeWidth n)) ++ "px")]
       -- events
-      events =
-        [ Events.onClick (NodeClick n)
-        , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
-        , Events.onMouseUp (DragSlotEnd n)]
-
-      -- inner node
-      inner = Html.div
-              (width :: (Attrs.class "inner") :: events)
-              (viewHeader :: heading :: list)
-
+      -- events =
+      --   [ Events.onClick (NodeClick n)
+      --   , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
+      --   , Events.onMouseUp (DragSlotEnd n)]
 
       -- outer node wrapper
       selected = Selection.isSelected m n
       selectedCl = if selected then ["selected"] else []
-      class = String.toLower (toString n.tipe)
-      classes = String.join " " (["node", class] ++ selectedCl)
+  in
+    placeNode
+      n
+      (viewHeader :: heading :: list)
+      (nodeWidth n)
+      selectedCl
 
+placeNode : Node -> List (Html.Html Msg) -> Int -> List String -> Html.Html Msg
+placeNode n body width classes =
+  let width_attr = Attrs.style [("width", (toString width) ++ "px")]
+      class = String.toLower (toString n.tipe)
+      classStr = String.join " " (["node", class] ++ classes)
+      inner = Html.div
+              [width_attr, Attrs.class "inner"]
+              body
       wrapper = Html.span
-                [ Attrs.class classes, width]
+                [ Attrs.class classStr, width_attr]
                 [ inner ]
   in
     placeHtml n.pos wrapper
+
+viewArg = viewNormalNode
+viewReturn = viewNormalNode
+viewAnon m n i =
+  viewNormalNode m n i
+
 
 viewLive : Model -> State -> Html.Html Msg
 viewLive m cursor =
