@@ -22,6 +22,7 @@ findImplicitEdge m node = case G.findHole m node of
                      ResultHole n -> ReceivingEdge n.id
                      ParamHole n p _ -> ParamEdge n.id p.name
 
+holePos : Hole -> Pos
 holePos hole =
   case hole of
     ResultHole n -> {x=n.pos.x+100, y=n.pos.y+100}
