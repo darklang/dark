@@ -126,10 +126,12 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Add_anon (id, loc, returnid, argids) ->
       (fun g ->
          argids
-         |> List.map ~f:(fun id -> new Node.argnode id loc)
-         |> List.append [ new Node.anonfn id loc returnid argids
+         |> List.map ~f:(fun id -> new Node.argnode id { loc with y = loc.y + 40 } )
+         |> List.append [ new Node.anonfn id
+                          { x = loc.x - 10; y = loc.y - 10 }
+                          returnid argids
                         ; new Node.returnnode returnid
-                          { x = loc.x +100; y = loc.y + 200 } ]
+                          { x = loc.x + 200; y = loc.y + 200 } ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (target, param, value) ->
