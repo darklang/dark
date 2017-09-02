@@ -166,7 +166,6 @@ submit m cursor =
                    then RPC <| AddAnon { x=pos.x, y=pos.y+100 }
                      -- plan for implementing anonfns in the UI
                      -- - make it look good
-                     --   - draw the letter on the anon
                      --   - draw arg node as a target
                      --   - draw return node as a target
                      -- - connect node to anon when "new function" chosen

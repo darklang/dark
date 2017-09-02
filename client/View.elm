@@ -298,11 +298,17 @@ viewAnon : Model -> Node -> Int -> Html.Html Msg
 viewAnon m n i =
   let
     rid = deMaybe n.returnID
-          returnNode = G.getNodeExn m rid
-          height = 75 + returnNode.pos.y - n.pos.y
-          height_attr = Attrs.style [("height", (toString height) ++ "px")]
+    returnNode = G.getNodeExn m rid
+    height = 75 + returnNode.pos.y - n.pos.y
+    height_attr = Attrs.style [("height", (toString height) ++ "px")]
+    viewHeader = Html.div
+                 [Attrs.class "header"]
+                 [ Html.span
+                     [Attrs.class "letter"]
+                     [Html.text (G.int2letter i)]
+                 ]
   in
-    placeNode n 300 [height_attr] [] []
+    placeNode n 300 [height_attr] [] [viewHeader]
 
 
 viewLive : Model -> State -> Html.Html Msg
