@@ -1,6 +1,7 @@
 open Core
 
 let readfile ?(default="") f : string =
+  (* Has a 65k limit *)
   let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
   let file = Unix.openfile f ~mode:flags ~perm:0o640 in
   let len = 1000000 in
