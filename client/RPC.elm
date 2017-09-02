@@ -74,8 +74,9 @@ encodeRPC m call =
                       , jse_pos pos
                       , ("edges", encodeImplicitEdges edges)])
 
-      AddAnon pos ->
-        ("add_anon", JSE.object [jse_pos pos])
+      AddAnon pos edges ->
+        ("add_anon", JSE.object [ jse_pos pos
+                                , ("edges", encodeImplicitEdges edges)])
 
 
       AddValue str pos edges ->

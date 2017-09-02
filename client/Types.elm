@@ -95,7 +95,7 @@ type RPC
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall Name Pos (List ImplicitEdge)
     | SetConstant Name ID ParamName
-    | AddAnon Pos
+    | AddAnon Pos (List ImplicitEdge)
     | AddValue String Pos (List ImplicitEdge)
     | UpdateNodePosition ID Pos
     | SetEdge ID (ID, ParamName)

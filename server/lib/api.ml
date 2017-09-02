@@ -26,7 +26,6 @@ type implicit_edge = { receiving_edge : receiving_edge option [@default None]
 (* ---------------- *)
 (* opcodes *)
 (* ---------------- *)
-type add_anon = { pos: pos} [@@deriving yojson]
 type delete_node = { id: int } [@@deriving yojson]
 type clear_args = { id: int } [@@deriving yojson]
 type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
@@ -35,6 +34,8 @@ type add_function_call = { name: string
                          ; pos: pos
                          ; edges : implicit_edge list
                          } [@@deriving yojson]
+type add_anon = { pos: pos
+                ; edges : implicit_edge list} [@@deriving yojson]
 type add_value = { value: string
                  ; pos: pos
                  ; edges : implicit_edge list
@@ -89,7 +90,6 @@ let json2op (op : opjson) : op list =
   match op with
   | { load_initial_graph = Some _} -> []
   | { add_datastore = Some a } -> [Add_datastore (id (), a.pos, a.name)]
-  | { add_anon = Some a } -> [Add_anon (id (), a.pos, id (), [id ()])]
   | { set_edge = Some a } -> [Set_edge (a.source, a.target, a.param)]
   | { delete_arg = Some a } -> [Delete_arg (a.target, a.param)]
   | { delete_node = Some a } -> [Delete_node a.id]
@@ -97,6 +97,11 @@ let json2op (op : opjson) : op list =
 
   | { set_constant = Some a } ->
     [Set_constant (a.target, a.param, a.value)]
+
+  | { add_anon = Some a } ->
+    let nodeid = id () in
+    let node = Add_anon (nodeid, a.pos, id (), [id ()]) in
+    [node] @ (List.map ~f:(convert_edge nodeid None) a.edges)
 
   | { add_function_call = Some a } ->
     let nodeid = id () in

@@ -111,6 +111,10 @@ addFunction : Name -> Pos -> List ImplicitEdge -> Modification
 addFunction name pos extras =
   RPC <| AddFunctionCall name pos extras
 
+addAnon : Pos -> List ImplicitEdge -> Modification
+addAnon pos extras =
+  RPC <| AddAnon pos extras
+
 addConstant : String -> ID -> ParamName -> Modification
 addConstant name id param =
   RPC <| SetConstant name id param
@@ -123,10 +127,9 @@ addValue name pos extras =
 
 addNode : Name -> Pos -> List ImplicitEdge -> Modification
 addNode name pos extras =
-  if isValueRepr name then
-    addValue name pos extras
-  else
-    addFunction name pos extras
+  if isValueRepr name
+  then addValue name pos extras
+  else addFunction name pos extras
 
 addVar : Model -> String -> Node -> ParamName -> Modification
 addVar m sourceLetter target param =
@@ -163,9 +166,8 @@ submit m cursor =
               if isValueRepr value
               then addConstant value target.id param.name
               else if value == "New function"
-                   then RPC <| AddAnon { x=pos.x, y=pos.y+100 }
+                   then addAnon pos [implicit]
                      -- plan for implementing anonfns in the UI
-                     -- - connect node to anon when "new function" chosen
                      -- - when you delete an aux node, delete the rest
                      -- - if you try to use the result of an anon,
                      -- actually get the string foreach result
