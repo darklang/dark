@@ -45,14 +45,15 @@ RUN apt-get install -y nodejs=8.4.0-1nodesource1~zesty1
 
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
+RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN chown -R dark:dark /home/dark
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 USER dark
 WORKDIR /home/dark
+RUN mkdir bin
 
 # Locales
-USER root
-RUN locale-gen en_US.UTF-8
-USER dark
+RUN sudo locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
