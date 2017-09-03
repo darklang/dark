@@ -47,10 +47,10 @@ def elm_test():
   return run_test("cd client && elm-test")
 
 def ocaml_build():
-  return run_backend("cd server && ocamlbuild dark.byte")
+  return run_backend("cd server && ocamlbuild dark.byte 2>&1 | ~/bin/better-errors")
 
 def ocaml_test():
-  return run_test("cd server && ocamlbuild test.byte && _build/test/test.byte")
+  return run_test("cd server && ocamlbuild test.byte && _build/test/test.byte 2>&1 | ~/bin/better-errors")
 
 def reload_server():
   return run_backend("cd server && ../scripts/support/runserver")

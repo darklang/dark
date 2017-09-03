@@ -27,14 +27,15 @@ RUN apt-get install -y software-properties-common=0.96.24.13 \
                        wget=1.18-2ubuntu1 \
                        sudo=1.8.19p1-1ubuntu1.1 \
                        locales=2.24-9ubuntu2.2 \
-                       apt-transport-https
+                       apt-transport-https=1.4 # for npm
 # OCaml
 RUN apt-get install -y ocaml=4.02.3-6ubuntu2 \
                        opam=1.2.2-5build5 \
                        libpq-dev=9.6.4-0ubuntu0.17.04.1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
-                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.1
+                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.1 \
+                       libpcre3-dev=2:8.39-3 # for better-errors
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN echo 'deb https://deb.nodesource.com/node_8.x zesty main' > /etc/apt/sources.list.d/nodesource.list
@@ -88,6 +89,17 @@ RUN opam install merlin.3.0.2 # dev
 RUN opam install utop.2.0.1 # dev
 RUN opam install ocp-indent.1.6.1 # dev
 RUN opam install batteries.2.7.0
+
+# better-errors
+RUN opam install ansiterminal.0.7
+RUN opam install pcre.7.3.0
+RUN git clone https://github.com/gasche/ocaml-better-errors
+RUN sed -i ocaml-better-errors/_oasis -e s/Batteries/batteries/g
+RUN sed -i ocaml-better-errors/_oasis -e s/Pcre/pcre/g
+RUN cd ocaml-better-errors && oasis setup -setup-update dynamic && make
+RUN mv ocaml-better-errors/main.byte bin/better-errors
+RUN chmod +x bin/better-errors
+
 
 ## ADD NEW PACKAGES HERE
 # Doing otherwise will force a large recompile of the container for
