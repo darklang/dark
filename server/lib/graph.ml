@@ -30,6 +30,9 @@ type graph = { name : string
 let get_node (g: graph) (id: id) : Node.node =
   NodeMap.find_exn g.nodes id
 
+let has_node (id: id) (g: graph) : bool =
+  NodeMap.mem g.nodes id
+
 let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
@@ -107,7 +110,10 @@ let rec delete_node id (g: graph) : graph =
       ~f:(fun g_ (id2, param) -> delete_arg id2 param g_) in
   let g = update_node id ~f:(fun x -> None) g in
   let g = List.fold_left ~init:g deps
-      ~f:(fun g_ d -> delete_node d g_) in
+      ~f:(fun g_ d ->
+          if has_node d g_
+           then delete_node d g_
+           else g_) in
   g
 
 (* ------------------------- *)
@@ -124,14 +130,20 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Add_value (id, loc, expr) ->
       add_node (new Node.value id loc expr)
     | Add_anon (id, loc, returnid, argids) ->
+      let allids_except i =
+        List.filter ~f:((<>) i) (id :: returnid :: argids) in
       (fun g ->
          argids
-         |> List.map ~f:(fun id -> new Node.argnode id { loc with y = loc.y + 120 } )
+         |> List.map ~f:(fun id -> new Node.argnode
+                          id
+                          { loc with y = loc.y + 120 }
+                          (allids_except id))
          |> List.append [ new Node.anonfn id
                           { x = loc.x - 10; y = loc.y + 90 }
                           returnid argids
                         ; new Node.returnnode returnid
-                          { x = loc.x + 265; y = loc.y + 285 } ]
+                          { x = loc.x + 265; y = loc.y + 285 }
+                          (allids_except returnid)]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (target, param, value) ->

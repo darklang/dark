@@ -122,7 +122,7 @@ class value id loc strrep =
     method execute (_: get_node_t) (_: dval_map) : dval = expr
   end
 
-class virtual has_arguments id loc =
+class virtual has_arguments id loc = (*  *)
   object (self)
     inherit node id loc
     val mutable args : arg_map = RT.ArgMap.empty
@@ -195,9 +195,10 @@ let anonexecutor (rid: id) (argids: id list) (getf:get_node_t)
      execute rid ~eager getf
   )
 
-class returnnode id loc =
+class returnnode id loc depids =
   object (self)
     inherit has_arguments id loc
+    method dependent_nodes = depids
     method name = "<return>"
     method! parameters = [{ name = "return"
                           ; tipe = RT.tAny
@@ -208,9 +209,10 @@ class returnnode id loc =
       DvalMap.find_exn args "return"
   end
 
-class argnode id loc =
+class argnode id loc depids =
   object
     inherit node id loc
+    method dependent_nodes = depids
     method name = "<arg>"
     method tipe = "arg"
     method execute (getf: get_node_t) (_) : dval =

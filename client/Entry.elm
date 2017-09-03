@@ -168,7 +168,6 @@ submit m cursor =
               else if value == "New function"
                    then addAnon pos [implicit]
                      -- plan for implementing anonfns in the UI
-                     -- - when you delete an aux node, delete the rest
                      -- - if you try to use the result of an anon,
                      -- actually get the string foreach result
                      -- - add "new function" to autocomplete
