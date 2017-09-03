@@ -131,13 +131,26 @@ addNode name pos extras =
   then addValue name pos extras
   else addFunction name pos extras
 
-addVar : Model -> String -> Node -> ParamName -> Modification
-addVar m sourceLetter target param =
+addVarSource : Model -> String -> Node -> ParamName -> Modification
+addVarSource m sourceLetter target param =
   case G.fromLetter m sourceLetter of
     Just source ->
       RPC <| SetEdge source.id (target.id, param)
     Nothing ->
       Error <| "There isn't a node named '" ++ sourceLetter ++ "' to connect to"
+
+addVarTarget : Model -> Node -> String -> Modification
+addVarTarget m source targetLetter =
+  case G.fromLetter m targetLetter of
+    Just target ->
+      -- TODO: get the type of the target and pick the right hole for it
+      -- Pick the first free argument
+      let free = LE.find (\(_,a) -> a == NoArg) (G.args target) in
+      case free of
+        Nothing -> Error <| "There are no free arguments"
+        Just (param, _) -> RPC <| SetEdge source.id (target.id, param.name)
+    Nothing ->
+      Error <| "There isn't a node named '" ++ targetLetter ++ "' to connect to"
 
 
 
@@ -148,23 +161,23 @@ submit m cursor =
     Creating pos ->
       addNode value pos []
 
-    Filling target hole ->
-      let implicit = findImplicitEdge m target
+    Filling node hole ->
+      let implicit = findImplicitEdge m node
           pos = holePos hole in
       case hole of
         ParamHole _ param _ ->
           case String.uncons value of
             Nothing ->
               if param.optional
-              then addConstant "null" target.id param.name
+              then addConstant "null" node.id param.name
               else NoChange
 
             Just ('$', rest) ->
-              addVar m rest target param.name
+              addVarSource m rest node param.name
 
             _ ->
               if isValueRepr value
-              then addConstant value target.id param.name
+              then addConstant value node.id param.name
               else if value == "New function"
                    then addAnon pos [implicit]
                      -- plan for implementing anonfns in the UI
@@ -187,6 +200,9 @@ submit m cursor =
             Just ('.', fieldname) ->
               let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname" in
               addNode "." pos [implicit, constant]
+
+            Just ('$', rest) ->
+              addVarTarget m node rest
 
             _ ->
               if isValueRepr value
