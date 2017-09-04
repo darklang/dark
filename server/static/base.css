@@ -11,6 +11,11 @@ body {
   color:#fff;
 }
 
+#darkLive > pre {
+	font-family: monaco;
+  font-size: 80%;
+}
+
 .entry > .inner {
   /* Put the entry node in front of all other nodes */
   z-index: 21;
