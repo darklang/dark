@@ -340,11 +340,10 @@ viewLive m cursor =
           |> Maybe.map .liveValue
   in
     Html.div
-      [Attrs.id "darkLive"]
-      [ Html.text <|
-          case live of
-            Just (val, tipe, _) -> "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"
-            Nothing -> "n/a"
+      [ Attrs.id "darkLive"]
+      [ case live of
+          Just (_, tipe, val) -> Html.pre [] [Html.text <| "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"]
+          Nothing -> Html.text "n/a"
       ]
 
 viewDescription : Model -> Autocomplete -> Html.Html Msg

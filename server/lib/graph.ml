@@ -190,7 +190,7 @@ let node_value (n: Node.node) (g: graph) : (string * string * string) =
     let dv = Node.execute n#id (get_node g) in
     ( RT.to_repr dv
     , RT.get_type dv
-    , dv |> RT.dval_to_yojson |> Yojson.Safe.to_string)
+    , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string)
   with
   | Exception.UserException e -> ("Error: " ^ e, "Error", "Error")
 
