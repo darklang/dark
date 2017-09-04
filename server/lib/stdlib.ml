@@ -100,6 +100,20 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   }
   ;
+  { n = "List::foreach"
+  ; o = []
+  ; p = [req "l" tList; req "f" tFun]
+  ; r = tList
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DList l; DAnon (id, fn)] ->
+            let f (dv: dval) : dval = fn [dv]
+            in
+            DList (List.map ~f l)
+          | args -> fail args)
+  }
+  ;
   { n = "Char::code"
   ; o = []
   ; p = [req "c" tChar]
