@@ -78,7 +78,7 @@ updateMod mod (m, cmd) =
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
       Enter entry -> { m | state = Entering entry
-                         , center = Entry.entryPos entry}
+                         , center = Entry.entryNodePos entry}
                      ! [Entry.focusEntry]
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []

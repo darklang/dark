@@ -34,7 +34,11 @@ entryPos c =
     Creating p -> p
     Filling _ h -> holePos h
 
-
+entryNodePos : EntryCursor -> Pos
+entryNodePos c =
+  case c of
+    Creating p -> p
+    Filling n h -> n.pos
 
 
 reenter : Model -> ID -> Int -> Modification
