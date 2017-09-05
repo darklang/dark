@@ -104,5 +104,7 @@ RUN chmod +x bin/better-errors
 ## ADD NEW PACKAGES HERE
 # Doing otherwise will force a large recompile of the container for
 # everyone
+RUN sudo apt-get install -y expect # for unbuffer
+ENV TERM=xterm-256color
 
 CMD ["app", "scripts", "builder"]
