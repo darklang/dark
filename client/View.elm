@@ -454,10 +454,11 @@ viewEdge m source target param =
                 , (tnx + 5, tny + 5) -- bottomright
                 ]
         sq x = toFloat (x*x)
-        -- ideally to source pos would be at the bottom of the node. But, the
-        -- positioning of the node is a little bit off because css, and nodes
-        -- with parameters are in different relative offsets than nodes without
-        -- parameters. This makes it hard to line things up exactly.
+        -- ideally to source pos would be at the bottom of the node.
+        -- But, the positioning of the node is a little bit off because
+        -- css, and nodes with parameters are in different relative
+        -- offsets than nodes without parameters. This makes it hard to
+        -- line things up exactly.
         spos = { x = source.pos.x + (sourceW // 2)
                , y = source.pos.y + (sourceH // 2)}
 
