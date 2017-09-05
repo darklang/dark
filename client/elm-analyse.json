@@ -1,0 +1,12 @@
+{
+    "checks" : {
+        "ExposeAll": false
+        , "UnformattedFile": false
+        , "ImportAll": false
+        , "TriggerWords": false
+        , "DebugCrash": false
+    },
+    "excludedPaths" : [
+        "Window/Events.elm"
+    ]
+}

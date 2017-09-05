@@ -9,8 +9,8 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
 import Graph as G
+import Util
 import Defaults
 
 
@@ -40,8 +40,8 @@ reenter m id i =
       Just (p, a) ->
         let enter = Enter <| Filling n (ParamHole n p i) in
         case a of
-          Edge id -> Many [ enter
-                          , AutocompleteMod (Query <| "$" ++ (G.toLetter m id))]
+          Edge eid -> Many [ enter
+                          , AutocompleteMod (Query <| "$" ++ (G.toLetter m eid))]
           NoArg -> enter
           Const c -> Many [ enter
                           , AutocompleteMod (Query c)]
@@ -54,10 +54,12 @@ enterNext : Model -> Node -> EntryCursor
 enterNext m n =
   case G.findNextHole m n of
     Nothing -> Filling n (ResultHole n)
-    Just hole -> case hole of
-                   ResultHole n -> Filling n hole
-                   ParamHole n _ _ -> Filling n hole
+    Just hole -> Filling (nodeFromHole hole) hole
 
+nodeFromHole : Hole -> Node
+nodeFromHole h = case h of
+                   ResultHole n -> n
+                   ParamHole n _ _ -> n
 
 -- finds the next hole in this node
 enter : Model -> ID -> Bool -> Modification
@@ -71,7 +73,7 @@ enter m id exact =
        , case cursor of
            Filling n (ResultHole _) ->
              AutocompleteMod <| FilterByLiveValue n.liveValue
-           Filling n (ParamHole _ p _) ->
+           Filling _ (ParamHole _ p _) ->
              Many [ AutocompleteMod <| FilterByParamType p.tipe
                   , AutocompleteMod <| Open False ]
            Creating _ ->
@@ -86,7 +88,7 @@ createInitial : Modification
 createInitial = Enter <| Creating Defaults.initialPos
 
 createFindSpace : Model -> Modification
-createFindSpace m = createInitial
+createFindSpace _ = createInitial
 ---------------------
 -- Focus
 ---------------------

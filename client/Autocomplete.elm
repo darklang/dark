@@ -61,7 +61,7 @@ complete str a = { a | value = str
                  }
 
 selectDown : Autocomplete -> Autocomplete
-selectDown a = let max_ = (List.length a.completions)
+selectDown a = let max_ = List.length a.completions
                    max = Basics.max max_ 1
                    new = (a.index + 1) % max
                in
@@ -168,7 +168,7 @@ regenerate a =
           (\{parameters} ->
              case a.liveValue of
                Just (_, tipe, _) ->
-                 Nothing /= (LE.find (\p -> p.tipe == tipe) parameters)
+                 Nothing /= LE.find (\p -> p.tipe == tipe) parameters
                Nothing -> True)
         |> List.map (\s -> ACFunction s)
         |> List.append fields

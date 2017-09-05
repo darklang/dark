@@ -33,7 +33,7 @@ rematch re s = Regex.contains (Regex.regex re) s
 
 findIndex : (a -> Bool) -> List a -> Maybe (Int, a)
 findIndex fn l =
-  LE.find (\(i, a) -> fn a) (List.indexedMap (,) l)
+  LE.find (\(_, a) -> fn a) (List.indexedMap (,) l)
 
 
 zip : List a -> List b -> List (a, b)

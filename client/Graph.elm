@@ -52,24 +52,24 @@ getNodeExn m id = getNode m id |> deMaybe
 
 getArgument : ParamName -> Node -> Argument
 getArgument pname n =
-  case LE.find (\(p, a) -> p.name == pname) (args n) of
-    Just (p, a) -> a
+  case LE.find (\(p, _) -> p.name == pname) (args n) of
+    Just (_, a) -> a
     Nothing ->
       Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ (toString n)
 
 args : Node -> List (Parameter, Argument)
 args n =
-  (List.map2 (,) n.parameters n.arguments)
+  List.map2 (,) n.parameters n.arguments
 
 
 findHole : Model -> Node -> Hole
-findHole m n =
+findHole _ n =
   case Util.findIndex (\(_, a) -> a == NoArg) (args n) of
     Nothing -> ResultHole n
     Just (i, (p, _)) -> ParamHole n p i
 
 findArgHole : Model -> Node -> Maybe Hole
-findArgHole m n =
+findArgHole _ n =
   case Util.findIndex (\(_, a) -> a == NoArg) (args n) of
     Nothing -> Nothing
     Just (i, (p, _)) -> Just (ParamHole n p i)
@@ -85,7 +85,7 @@ findNextArgHole m n =
 -- find args going up. If there aren't any, look down. Hit the end?
 -- Suggest it.
 findNextHole : Model -> Node -> Maybe Hole
-findNextHole m n =
+findNextHole m start =
   let findfn n =
         case findNextArgHole m n of
           Nothing -> case outgoingNodes m n of
@@ -93,7 +93,7 @@ findNextHole m n =
                        _ -> Nothing
           h -> h
   in
-    find n (outgoingNodes m) findfn
+    find start (outgoingNodes m) findfn
 
 find : Node -> (Node -> List Node) -> (Node -> Maybe a) -> Maybe a
 find starting nextfn findfn =
@@ -101,7 +101,7 @@ find starting nextfn findfn =
 
 find_ : Node -> (Node -> List Node) -> (Node -> Maybe a) -> IDSet -> (IDSet, Maybe a)
 find_ starting nextfn findfn seen =
-  case (findfn starting) of
+  case findfn starting of
     Just x -> (seen, Just x)
     Nothing ->
       List.foldl
