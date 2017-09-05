@@ -12,12 +12,12 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
-import Canvas
 import Entry
 import Defaults
 import Selection
@@ -431,6 +431,12 @@ viewNodeEdges m n =
     |> G.incomingNodePairs m
     |> List.map (\(n2, p) -> viewEdge m n2 n p)
 
+paramOffset : Node -> String -> Pos
+paramOffset node param =
+  let
+    index = deMaybe (LE.findIndex (\p -> p.name == param) node.parameters)
+  in
+    {x=index*10, y=-2}
 
 
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
@@ -438,7 +444,7 @@ viewEdge m source target param =
     let targetPos = target.pos
         (sourceW, sourceH) = nodeSize source
 
-        pOffset = Canvas.paramOffset target param
+        pOffset = paramOffset target param
         (tnx, tny) = (target.pos.x + pOffset.x, target.pos.y + pOffset.y)
 
         -- find the shortest line and link to there
