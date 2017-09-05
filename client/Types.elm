@@ -104,6 +104,7 @@ type AutocompleteItem = ACFunction Function
 
 
 type alias Model = { nodes : NodeDict
+                   , center : Pos
                    , error : (String, Int)
                    , lastMsg : Msg
                    , lastMod : Modification

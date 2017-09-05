@@ -28,6 +28,14 @@ holePos hole =
     ResultHole n -> {x=n.pos.x+100, y=n.pos.y+100}
     ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
 
+entryPos : EntryCursor -> Pos
+entryPos c =
+  case c of
+    Creating p -> p
+    Filling _ h -> holePos h
+
+
+
 
 reenter : Model -> ID -> Int -> Modification
 reenter m id i =

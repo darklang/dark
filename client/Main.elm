@@ -75,8 +75,11 @@ updateMod mod (m, cmd) =
       Error e -> { m | error = (e, Util.timestamp ())} ! []
       RPC call -> m ! [rpc m [call]]
       NoChange -> m ! []
-      Select id -> { m | state = Selecting id} ! []
-      Enter entry -> { m | state = Entering entry } ! [Entry.focusEntry]
+      Select id -> { m | state = Selecting id
+                       , center = G.getNodeExn m id |> .pos} ! []
+      Enter entry -> { m | state = Entering entry
+                         , center = Entry.entryPos entry}
+                     ! [Entry.focusEntry]
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->

@@ -53,13 +53,20 @@ viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
-    in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ edges)
+        allSvgs = svgDefs :: svgArrowHead :: (entry ++ allNodes ++ edges)
+    in allSvgs
 
-placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
-placeHtml pos html =
+reCenter : Model -> Pos -> Pos
+reCenter m pos =
+  let d = Defaults.defaultModel {} |> .center in
+  { x = d.x + pos.x - m.center.x, y = d.y + pos.y - m.center.y}
+
+placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
+placeHtml m pos html =
+  let rcpos = reCenter m pos in
   Svg.foreignObject
-    [ SA.x (toString pos.x)
-    , SA.y (toString pos.y)
+    [ SA.x (toString rcpos.x)
+    , SA.y (toString rcpos.y)
     ]
     [ html ]
 
@@ -149,12 +156,12 @@ viewEntry m =
                   , Attrs.width 100]
                   [ inner ]
       in
-        placeHtml pos wrapper
+        placeHtml m pos wrapper
   in
     case m.state of
       Entering (Filling n hole) ->
         let pos = Entry.holePos hole in
-        [html pos, svgLine n.pos pos dragEdgeStyle]
+        [html pos, svgLine m n.pos pos dragEdgeStyle]
       Entering (Creating pos) -> [html pos]
       _ -> []
 
@@ -278,7 +285,7 @@ placeNode m n width attrs classes body =
                 [ Attrs.class classStr, width_attr]
                 [ inner ]
   in
-    placeHtml n.pos wrapper
+    placeHtml m n.pos wrapper
 
 viewAnon : Model -> Node -> Int -> Html.Html Msg
 viewAnon m n i =
@@ -306,7 +313,7 @@ viewNodeIcon name m n i =
                    ]
       selectedCl = if Selection.isSelected m n then " selected" else ""
   in
-    placeHtml n.pos
+    placeHtml m n.pos
     (Html.div
        [Attrs.class <| name ++ selectedCl]
        [ viewHeader
@@ -410,10 +417,12 @@ edgeStyle x1 y1 x2 y2 =
      , SA.markerEnd "url(#triangle)"
      ]
 
-svgLine : Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
-svgLine p1 p2 attrs =
+svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
+svgLine m orig_p1 orig_p2 attrs =
   -- edge case: avoid zero width/height lines, or they won't appear
-  let ( x1, y1, x2_, y2_ ) = (p1.x, p1.y, p2.x, p2.y)
+  let p1 = reCenter m orig_p1
+      p2 = reCenter m orig_p2
+      ( x1, y1, x2_, y2_ ) = (p1.x, p1.y, p2.x, p2.y)
       x2 = if x1 == x2_ then x2_ + 1 else x2_
       y2 = if y1 == y2_ then y2_ + 1 else y2_
   in
@@ -467,6 +476,7 @@ viewEdge m source target param =
                   joins)
         (tx, ty) = deMaybe join
     in svgLine
+      m
       spos
       {x=tx,y=ty}
       (edgeStyle spos.x spos.y tx ty)
