@@ -21,8 +21,8 @@ def run(bash):
 # Build logic
 ###################
 def pretty_print(msg, color):
-  global quiet
-  if not quiet:
+  global machine
+  if not machine:
     print('\x1b[6;30;' + str(color) + 'm' + "\n$ " + msg + '\x1b[0m')
 
 def run_frontend(bash):
@@ -41,7 +41,12 @@ def elm_package():
   return run_frontend("cd client && elm-package install --yes")
 
 def elm_make():
-  return run_frontend("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
+  global machine
+  if machine:
+    run_frontend("cd client && elm-make --report=json Main.elm --output=/dev/null")
+    return False
+  else:
+    return run_frontend("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def elm_test():
   return run_test("cd client && elm-test")
@@ -141,13 +146,13 @@ def ignore(filename):
   return False
 
 
-quiet = False # Don't print pretty things
+machine = False # Don't print pretty things, use different formatting
 files = []
 def main():
-  global quiet
+  global machine
   for f in sys.argv[1:]:
-    if f == "--quiet":
-      quiet = True
+    if f == "--machine":
+      machine = True
     elif not ignore(f):
       files.append(f)
 
