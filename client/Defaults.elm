@@ -30,7 +30,7 @@ dragEdgeStrokeColor = "red"
 dragEdgeSize : String
 dragEdgeSize = "2px"
 initialPos : Pos
-initialPos = {x=350, y=250}
+initialPos = {x=300, y=300}
 
 defaultEditor : Editor
 defaultEditor = {}
@@ -43,7 +43,7 @@ defaultModel e = { nodes = Dict.empty
                  , error = ("None", 0)
                  , lastMsg = Initialization
                  , lastMod = NoChange
-                 , center = {x=500,y=500}
+                 , center = initialPos
 
                  -- editor TODO
                  -- these load before the graph does, causing

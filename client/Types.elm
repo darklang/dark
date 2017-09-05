@@ -20,11 +20,16 @@ type ID = ID Int
 deID : ID -> Int
 deID (ID x) = x
 
+-- There are two coordinate systems. Pos is an absolute position in the
+-- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
+-- within the viewport and we map Absolute positions back to the
+-- viewport to display in the browser.
+type alias Pos = {x: Int, y: Int }
+type alias VPos =  {vx: Int, vy: Int }
+type alias Position = Mouse.Position
 
-type alias Pos = Mouse.Position
-type alias MouseEvent = {pos: Mouse.Position, button: Int}
+type alias MouseEvent = {pos: VPos, button: Int}
 type alias LeftButton = Bool
-
 
 type NodeType = FunctionCall
               | FunctionDef

@@ -3,24 +3,19 @@ module Entry exposing (..)
 -- builtins
 
 -- lib
-import Dom
-import Task
-import List.Extra as LE
-
--- dark
-import Types exposing (..)
-import Graph as G
-import Util
 import Defaults
+import Dom
+import Graph as G
+import List.Extra as LE
+import Task
+import Types exposing (..)
+import Util
 
 
----------------------
--- Layout and events
----------------------
-findImplicitEdge : Model -> Node -> ImplicitEdge
-findImplicitEdge m node = case G.findHole m node of
-                     ResultHole n -> ReceivingEdge n.id
-                     ParamHole n p _ -> ParamEdge n.id p.name
+nodeFromHole : Hole -> Node
+nodeFromHole h = case h of
+                   ResultHole n -> n
+                   ParamHole n _ _ -> n
 
 holePos : Hole -> Pos
 holePos hole =
@@ -31,16 +26,39 @@ holePos hole =
 entryPos : EntryCursor -> Pos
 entryPos c =
   case c of
-    Creating p -> p
+    Creating p -> p -- this is a vpos
     Filling _ h -> holePos h
 
 entryNodePos : EntryCursor -> Pos
 entryNodePos c =
   case c of
-    Creating p -> p
+    Creating p -> p -- todo this is a vpos
     Filling n h -> n.pos
 
 
+toViewport : Model -> Pos -> VPos
+toViewport m pos =
+  let d = Defaults.defaultModel {} |> .center in
+  { vx = d.x + pos.x - m.center.x, vy = d.y + pos.y - m.center.y}
+
+toAbsolute : Model -> VPos -> Pos
+toAbsolute m pos =
+  let d = Defaults.defaultModel {} |> .center in
+  { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.x}
+
+
+---------------------
+-- Layout and events
+---------------------
+findImplicitEdge : Model -> Node -> ImplicitEdge
+findImplicitEdge m node = case G.findHole m node of
+                     ResultHole n -> ReceivingEdge n.id
+                     ParamHole n p _ -> ParamEdge n.id p.name
+
+
+---------------------
+-- Nodes
+---------------------
 reenter : Model -> ID -> Int -> Modification
 reenter m id i =
   -- TODO: Allow the input to be edited
@@ -67,11 +85,6 @@ enterNext m n =
   case G.findNextHole m n of
     Nothing -> Filling n (ResultHole n)
     Just hole -> Filling (nodeFromHole hole) hole
-
-nodeFromHole : Hole -> Node
-nodeFromHole h = case h of
-                   ResultHole n -> n
-                   ParamHole n _ _ -> n
 
 -- finds the next hole in this node
 enter : Model -> ID -> Bool -> Modification
@@ -100,7 +113,7 @@ createInitial : Modification
 createInitial = Enter <| Creating Defaults.initialPos
 
 createFindSpace : Model -> Modification
-createFindSpace _ = createInitial
+createFindSpace m = Enter <| Creating Defaults.initialPos
 ---------------------
 -- Focus
 ---------------------

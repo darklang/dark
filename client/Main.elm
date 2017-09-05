@@ -78,7 +78,10 @@ updateMod mod (m, cmd) =
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
       Enter entry -> { m | state = Entering entry
-                         , center = Entry.entryNodePos entry}
+                         , center = case entry of
+                                      Filling n _ -> n.pos
+                                      Creating p -> p
+                     }
                      ! [Entry.focusEntry]
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
@@ -100,12 +103,9 @@ update_ msg m =
       Select node.id
 
     (RecordClick event, _) ->
-      -- TODO: what does this mean?
-      -- When we click on a node, drag is set when RecordClick happens.
-      -- So this avoids firing if we click outside a node
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod Reset
-                , Enter <| Creating event.pos]
+                , Enter <| Creating (Entry.toAbsolute m event.pos)]
       else NoChange
 
     ------------------------

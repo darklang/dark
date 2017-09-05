@@ -56,25 +56,20 @@ viewCanvas m =
         allSvgs = svgDefs :: svgArrowHead :: (entry ++ allNodes ++ edges)
     in allSvgs
 
-reCenter : Model -> Pos -> Pos
-reCenter m pos =
-  let d = Defaults.defaultModel {} |> .center in
-  { x = d.x + pos.x - m.center.x, y = d.y + pos.y - m.center.y}
-
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
-  let rcpos = reCenter m pos in
+  let rcpos = Entry.toViewport m pos in
   Svg.foreignObject
-    [ SA.x (toString rcpos.x)
-    , SA.y (toString rcpos.y)
+    [ SA.x (toString rcpos.vx)
+    , SA.y (toString rcpos.vy)
     ]
     [ html ]
 
-viewClick : Pos -> Svg.Svg msg
+viewClick : VPos -> Svg.Svg msg
 viewClick pos =
   Svg.circle [ SA.r "10"
-             , SA.cx (toString pos.x)
-             , SA.cy (toString pos.y)
+             , SA.cx (toString pos.vx)
+             , SA.cy (toString pos.vy)
              , SA.fill "#333"] []
 
 viewEntry : Model -> List (Svg.Svg Msg)
@@ -418,11 +413,11 @@ edgeStyle x1 y1 x2 y2 =
      ]
 
 svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
-svgLine m orig_p1 orig_p2 attrs =
+svgLine m p1a p2a attrs =
   -- edge case: avoid zero width/height lines, or they won't appear
-  let p1 = reCenter m orig_p1
-      p2 = reCenter m orig_p2
-      ( x1, y1, x2_, y2_ ) = (p1.x, p1.y, p2.x, p2.y)
+  let p1v = Entry.toViewport m p1a
+      p2v = Entry.toViewport m p2a
+      ( x1, y1, x2_, y2_ ) = (p1v.vx, p1v.vy, p2v.vx, p2v.vy)
       x2 = if x1 == x2_ then x2_ + 1 else x2_
       y2 = if y1 == y2_ then y2_ + 1 else y2_
   in
@@ -499,7 +494,7 @@ decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
 decodeClickEvent fn =
   let toA : Int -> Int -> Int -> a
       toA px py button =
-        fn {pos= {x=px, y=py}, button = button}
+        fn {pos= {vx=px, vy=py}, button = button}
   in JSDP.decode toA
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
