@@ -91,11 +91,6 @@ encodeRPC m call =
                       , ("target", JSE.int (deID id))
                       , ("param", JSE.string param)])
 
-      UpdateNodePosition id pos ->
-        ("update_node_position",
-           JSE.object [ jse_id id
-                      , jse_pos pos])
-
       SetEdge (ID src) (ID target, param) ->
         ("set_edge",
            JSE.object [ ("source", JSE.int src)

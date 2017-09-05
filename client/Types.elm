@@ -23,8 +23,6 @@ deID (ID x) = x
 
 type alias Pos = Mouse.Position
 type alias MouseEvent = {pos: Mouse.Position, button: Int}
-type alias Offset = {x: Int, y: Int, offsetCheck: Int}
-type alias CanvasPos = {x: Int, y: Int, canvasPosCheck : Int}
 type alias LeftButton = Bool
 
 
@@ -64,23 +62,14 @@ type EntryCursor = Creating Pos
 
 type State = Selecting ID
            | Entering EntryCursor
-           | Dragging Drag
            | Deselected
 
 
 type Msg
-    = ClearCursor Mouse.Position
-    | NodeClick Node
+    = NodeClick Node
     | RecordClick MouseEvent
     -- we have the actual node when this is created, but by the time we
     -- use the others the node will be changed
-    | DragNodeStart Node MouseEvent
-    | DragNodeMove ID Offset Mouse.Position
-    | DragNodeEnd ID Mouse.Position
-    | DragSlotStart Node ParamName MouseEvent
-    | DragSlotMove Mouse.Position
-    | DragSlotEnd Node
-    | DragSlotStop Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -97,7 +86,6 @@ type RPC
     | SetConstant Name ID ParamName
     | AddAnon Pos (List ImplicitEdge)
     | AddValue String Pos (List ImplicitEdge)
-    | UpdateNodePosition ID Pos
     | SetEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearArgs ID
@@ -141,7 +129,6 @@ type Modification = Error String
                   | Deselect
                   | RPC RPC
                   | ModelMod (Model -> Model)
-                  | Drag Drag
                   | NoChange
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
@@ -171,5 +158,3 @@ type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receive
                   | ParamEdge ID ParamName -- target id and target param, the source is implicit
                   | Constant String ParamName -- target id and target param, the target is implicit, no source
 
-type Drag = DragNode ID Offset -- offset between the click and the node pos
-          | DragSlot Node ParamName Mouse.Position -- starting point of edge

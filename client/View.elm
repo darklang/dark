@@ -12,7 +12,6 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
-import Maybe.Extra
 
 -- dark
 import Types exposing (..)
@@ -53,9 +52,8 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
-        dragEdge = viewDragEdge m.state |> Maybe.Extra.toList
         entry = viewEntry m
-    in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ dragEdge ++ edges)
+    in svgDefs :: svgArrowHead :: (entry ++ allNodes ++ edges)
 
 placeHtml : Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml pos html =
@@ -217,7 +215,6 @@ viewNormalNode : Model -> Node -> Int -> Html.Html Msg
 viewNormalNode m n i =
   let
       -- params
-      slotHandler name = (decodeClickEvent (DragSlotStart n name))
       connected name = if G.slotIsConnected m n.id name
                        then "connected"
                        else "disconnected"
@@ -226,8 +223,7 @@ viewNormalNode m n i =
                   else "\n\n" ++ desc
       viewParam {name, tipe, description} =
         Html.span
-          [ Events.on "mousedown" (slotHandler name)
-          , Attrs.title <| name ++ ": " ++ tipe ++ (desc description)
+          [ Attrs.title <| name ++ ": " ++ tipe ++ (desc description)
           , Attrs.class (connected name)]
         [Html.text "◉"]
 
@@ -260,13 +256,6 @@ viewNormalNode m n i =
                  (List.concat viewFields)]
              else []
 
-      -- events
-      -- events =
-      --   [ Events.onClick (NodeClick n)
-      --   , Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
-      --   , Events.onMouseUp (DragSlotEnd n)]
-
-      -- outer node wrapper
   in
     placeNode
       m
@@ -435,14 +424,6 @@ svgLine p1 p2 attrs =
      , SA.y2 (toString y2)
      ] ++ attrs)
     []
-
-viewDragEdge : State -> Maybe (Svg.Svg Msg)
-viewDragEdge state =
-  case state of
-    -- TODO: we broke this by removing dragPos. This should be in the state
-    -- Dragging (DragSlot node param mStartPos) ->
-      -- Just <| svgLine mStartPos currentPos dragEdgeStyle
-    _ -> Nothing
 
 viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =

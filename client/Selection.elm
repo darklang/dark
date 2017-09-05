@@ -30,7 +30,6 @@ entryVisible state =
 getCursorID : State -> Maybe ID
 getCursorID s =
   case s of
-    Dragging (DragNode id _) -> Just id
     Entering (Filling node _) -> Just node.id
     Selecting id -> Just id
     _ -> Nothing

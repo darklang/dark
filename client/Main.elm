@@ -8,7 +8,6 @@ import Dict
 import Json.Decode as JSD
 import Http
 import Html
-import Mouse
 import Keyboard.Event
 import Keyboard.Key as Key
 
@@ -19,7 +18,6 @@ import Util exposing (deMaybe)
 import View
 import Defaults
 import Graph as G
-import Canvas
 import Entry
 import Autocomplete
 import Selection
@@ -79,7 +77,6 @@ updateMod mod (m, cmd) =
       NoChange -> m ! []
       Select id -> { m | state = Selecting id} ! []
       Enter entry -> { m | state = Entering entry } ! [Entry.focusEntry]
-      Drag d -> { m | state = Dragging d } ! []
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
@@ -107,54 +104,6 @@ update_ msg m =
       then Many [ AutocompleteMod Reset
                 , Enter <| Creating event.pos]
       else NoChange
-
-    ------------------------
-    -- dragging nodes
-    ------------------------
-    (DragNodeStart node event, _) ->
-      NoChange
-      -- If we're already dragging a slot don't change the nodea
-      -- TODO: reenable
-      -- if m.drag == NoDrag && event.button == Defaults.leftButton
-      -- then
-      --   let offset = Canvas.findOffset node.pos event.pos in
-      --   Drag <| DragNode node.id offset
-      -- else NoChange
-
-    (DragNodeMove id offset pos, _) ->
-      -- While it's kinda nasty to update a node in place, the drawing
-      -- code get's really complex if we don't do this.
-      let update = Canvas.updateDragPosition pos offset id m.nodes in
-      Many [ ModelMod (\m -> { m | nodes = update })
-           -- TODO reenable and fix
-           -- , Drag <| DragNode id pos
-           ]
-
-    (DragNodeEnd id _, _) ->
-      let node = G.getNodeExn m id in
-      Many [ Entry.enter m id True
-           , RPC <| UpdateNodePosition id node.pos]
-
-    (DragSlotStart target param event, _) ->
-      if event.button == Defaults.leftButton
-      then Many [ Drag <| DragSlot target param event.pos]
-      else NoChange
-
-    (DragSlotMove mpos, _) ->
-      -- TODO reenable
-      NoChange
-      -- ModelMod (\m -> { m | dragPos = mpos })
-
-    (DragSlotEnd source, _) ->
-      case m.state of
-        Dragging (DragSlot target param starting) ->
-          -- TODO: select a node now
-          RPC <| SetEdge source.id (target.id, param)
-        _ -> NoChange
-
-    (DragSlotStop _, _) ->
-      -- TODO: select a node
-      NoChange
 
     ------------------------
     -- entry node
@@ -226,10 +175,6 @@ update_ msg m =
           case event.keyCode of
             Key.Enter -> Entry.createFindSpace m
             _ -> Selection.selectByLetter m event.keyCode
-        _ -> Selection.selectByLetter m event.keyCode
-
-
-
 
     (EntryInputMsg target, _) ->
       Entry.updateValue target
@@ -294,22 +239,8 @@ update_ msg m =
 -----------------------
 subscriptions : Model -> Sub Msg
 subscriptions m =
-  let dragSubs =
-        case m.state of
-          -- we use IDs here because the node will change
-          -- before they're triggered
-          Dragging (DragNode id offset) ->
-            [ Mouse.moves (DragNodeMove id offset)
-            , Mouse.ups (DragNodeEnd id)]
-          Dragging (DragSlot _ _ _) ->
-            [ Mouse.moves DragSlotMove
-            , Mouse.ups DragSlotStop]
-          _ -> []
-      keySubs =
+  let keySubs =
         [onWindow "keydown"
            (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
-
-      standardSubs = [ ]
   in Sub.batch
-    (List.concat [standardSubs, keySubs, dragSubs])
-
+    (List.concat [keySubs])
