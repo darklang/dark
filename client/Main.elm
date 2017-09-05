@@ -80,7 +80,7 @@ updateMod mod (m, cmd) =
       Enter entry -> { m | state = Entering entry
                          , center = case entry of
                                       Filling n _ -> n.pos
-                                      Creating p -> p
+                                      Creating p -> m.center -- dont move
                      }
                      ! [Entry.focusEntry]
       ModelMod mm -> mm m ! []

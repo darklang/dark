@@ -109,11 +109,8 @@ updateValue : String -> Modification
 updateValue target =
   AutocompleteMod <| Query target
 
-createInitial : Modification
-createInitial = Enter <| Creating Defaults.initialPos
-
 createFindSpace : Model -> Modification
-createFindSpace m = Enter <| Creating Defaults.initialPos
+createFindSpace m = Enter <| Creating (toAbsolute m Defaults.initialPos)
 ---------------------
 -- Focus
 ---------------------
