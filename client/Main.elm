@@ -233,6 +233,23 @@ update_ msg m =
 
     t -> Error <| "Nothing for " ++ (toString t)
 
+    ------------------------
+    -- datastores
+    -------------------------
+    -- (ADD_DS, SubmitMsg, _) ->
+    --   ({ m | state = ADD_DS_FIELD_NAME
+    --    }, rpc m <| AddDatastore m.inputValue m.clickPos)
+
+    -- (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
+    --     ({ m | state = ADD_DS_FIELD_TYPE
+    --          , tempFieldName = m.inputValue
+    --      }, Cmd.none)
+
+    -- (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
+    --   ({ m | state = ADD_DS_FIELD_NAME
+    --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue)
+
+
 
 -----------------------
 -- SUBSCRIPTIONS
