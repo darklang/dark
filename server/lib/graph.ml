@@ -155,8 +155,9 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | _ -> failwith "applying unimplemented op"
 
 let add_op (op: Op.op) (g: graph ref) : unit =
-  apply_op op g;
-  g := { !g with ops = !g.ops @ [op]}
+  if op <> Noop then
+    (apply_op op g;
+     g := { !g with ops = !g.ops @ [op]})
 
 (* ------------------------- *)
 (* Serialization *)

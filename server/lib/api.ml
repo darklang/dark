@@ -70,31 +70,31 @@ type opjson =
   } [@@deriving yojson]
 type opjsonlist = opjson list [@@deriving yojson]
 
-let json2op (g: G.graph) (op: opjson) : op list =
+let json2op (g: G.graph) (op: opjson) : op =
   let id = Util.create_id in
   match op with
-  | { load_initial_graph = Some _} -> []
-  | { add_datastore = Some a } -> [Add_datastore (id (), a.pos, a.name)]
-  | { delete_arg = Some a } -> [Delete_arg (a.target, a.param)]
-  | { delete_node = Some a } -> [Delete_node a.id]
-  | { clear_args = Some a } -> [Clear_args a.id]
-  | { add_anon = Some a } -> [Add_anon (id (), a.pos, id (), [id ()])]
-  | { add_function_call = Some a } -> [Add_fn_call (id (), a.pos, a.name)]
-  | { add_value = Some a } -> [Add_value (id (), a.pos, a.value)]
-  | { update_node_position = Some a } -> [Update_node_position (a.id, a.pos)]
+  | { load_initial_graph = Some _} -> Noop
+  | { add_datastore = Some a } -> Add_datastore (id (), a.pos, a.name)
+  | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
+  | { delete_node = Some a } -> Delete_node a.id
+  | { clear_args = Some a } -> Clear_args a.id
+  | { add_anon = Some a } -> Add_anon (id (), a.pos, id (), [id ()])
+  | { add_function_call = Some a } -> Add_fn_call (id (), a.pos, a.name)
+  | { add_value = Some a } -> Add_value (id (), a.pos, a.value)
+  | { update_node_position = Some a } -> Update_node_position (a.id, a.pos)
 
-  | { set_edge = Some a } -> [Set_edge (a.source, a.target, a.param)]
+  | { set_edge = Some a } -> Set_edge (a.source, a.target, a.param)
   | { set_edge_implicit_source = Some a } ->
-    [Set_edge (Option.value_exn g.last_node, a.target, a.param)]
+    Set_edge (Option.value_exn g.last_node, a.target, a.param)
   | { set_constant = Some a } ->
-    [Set_constant (a.target, a.param, a.value)]
+    Set_constant (a.target, a.param, a.value)
   | { set_constant_implicit = Some a } ->
-    [Set_constant (Option.value_exn g.last_node, a.param, a.value)]
+    Set_constant (Option.value_exn g.last_node, a.param, a.value)
 
   | { set_edge_implicit_target = Some a } ->
     let targetid = Option.value_exn g.last_node in
     let param = (G.get_node g targetid)#parameters |> List.hd_exn in
-    [Set_edge (a.source, targetid, param.name)]
+    Set_edge (a.source, targetid, param.name)
 
   | { add_datastore_field = Some a } ->
     let (list, tipe) =
@@ -103,7 +103,7 @@ let json2op (g: G.graph) (op: opjson) : op list =
       | [s] -> (false, s)
       | _ -> failwith "invalid datastore field type"
     in
-    [Add_datastore_field (a.id, a.name, tipe, list)]
+    Add_datastore_field (a.id, a.name, tipe, list)
 
   | _ -> failwith "Unexpected opcode"
 
@@ -112,12 +112,7 @@ let apply_ops (g : G.graph ref) (payload: string) : unit =
   |> Yojson.Safe.from_string
   |> opjsonlist_of_yojson
   |> Result.ok_or_failwith
-  |> List.iter ~f:(
-    fun op ->
-      op
-      |> json2op !g
-      |> List.iter ~f:(fun op -> G.add_op op g)
-    )
+  |> List.iter ~f:(fun op -> G.add_op (json2op !g op) g)
 
 
 (*------------------*)
