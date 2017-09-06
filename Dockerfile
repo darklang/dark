@@ -93,18 +93,21 @@ RUN opam install batteries.2.7.0
 # better-errors
 RUN opam install ansiterminal.0.7
 RUN opam install pcre.7.3.0
-RUN git clone https://github.com/gasche/ocaml-better-errors
-RUN sed -i ocaml-better-errors/_oasis -e s/Batteries/batteries/g
-RUN sed -i ocaml-better-errors/_oasis -e s/Pcre/pcre/g
-RUN cd ocaml-better-errors && oasis setup -setup-update dynamic && make
-RUN mv ocaml-better-errors/main.byte bin/better-errors
-RUN chmod +x bin/better-errors
-
+# The npm installer might be unreliable. Keeping these here
+# RUN git clone https://github.com/gasche/ocaml-better-errors
+# RUN sed -i ocaml-better-errors/_oasis -e s/Batteries/batteries/g
+# RUN sed -i ocaml-better-errors/_oasis -e s/Pcre/pcre/g
+# RUN cd ocaml-better-errors && oasis setup -setup-update dynamic && make
+# RUN mv ocaml-better-errors/main.byte bin/better-errors
+RUN npm install ocamlBetterErrors
 
 ## ADD NEW PACKAGES HERE
 # Doing otherwise will force a large recompile of the container for
 # everyone
 RUN sudo apt-get install -y expect # for unbuffer
 ENV TERM=xterm-256color
+
+RUN cp node_modules/ocamlBetterErrors/berror.native ~/bin/better-errors
+RUN chmod +x ~/bin/better-errors
 
 CMD ["app", "scripts", "builder"]
