@@ -34,8 +34,7 @@ def elm_package():
 def elm_make():
   global machine
   if machine:
-    run_frontend("cd client && elm-make --report=json Main.elm --output=/dev/null")
-    return False
+    return run_frontend("cd client && elm-make --report=json Main.elm --output=/dev/null")
   else:
     return run_frontend("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
@@ -43,10 +42,12 @@ def elm_test():
   return run_test("cd client && elm-test")
 
 def ocaml_build():
-  return run_backend("cd server && ocamlbuild dark.byte 2>&1 | ~/bin/better-errors")
+  # better-errors doesn't preserve exit codes, so save the output and
+  # check for success
+  return run_backend("cd server && ocamlbuild dark.byte 2>&1 | ~/bin/better-errors | tee error.txt && ! grep 'Error' error.txt > /dev/null")
 
 def ocaml_test():
-  return run_test("cd server && ocamlbuild test.byte && _build/test/test.byte 2>&1 | ~/bin/better-errors")
+  return run_backend("cd server && ocamlbuild test.byte 2>&1 | ~/bin/better-errors | tee error.txt && ! grep 'Error' error.txt && _build/test/test.byte 2>&1")
 
 def reload_server():
   return run_backend("cd server && ../scripts/support/runserver")
@@ -124,6 +125,7 @@ def ignore(filename):
             , "server/appdata/"
             , "server/dark.byte"
             , "server/test.byte"
+            , "server/error.txt"
   ]
   for i in ignores:
     if i in filename:
