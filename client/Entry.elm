@@ -204,17 +204,6 @@ submit m cursor =
               then addConstant value node.id param.name
               else if value == "New function"
                    then addAnon pos [implicit]
-                     -- plan for implementing anonfns in the UI
-                     -- - if you try to use the result of an anon,
-                     -- actually get the string foreach result
-                     -- - add "new function" to autocomplete
-                     -- - nextNode should be the first arg or the return node
-                     -- - give arg a value from the anonfn's input
-                     -- - add an edge from foreach to the arg
-                     -- - allow autocomplete on arg
-                     -- - allow selecting a return node based on expected types
-                     -- - allow selecting matching fns in autocomplete for Functions
-
               else addNode value pos [implicit]
 
         ResultHole _ ->
