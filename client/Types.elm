@@ -87,11 +87,14 @@ type RPC
     = LoadInitialGraph
     | AddDatastore Name Pos
     | AddDatastoreField ID FieldName TypeName
-    | AddFunctionCall Name Pos (List ImplicitEdge)
-    | SetConstant Name ID ParamName
-    | AddAnon Pos (List ImplicitEdge)
-    | AddValue String Pos (List ImplicitEdge)
+    | AddFunctionCall Name Pos
+    | SetConstant Name (ID, ParamName)
+    | SetConstantImplicit Name ParamName
+    | AddAnon Pos
+    | AddValue String Pos
     | SetEdge ID (ID, ParamName)
+    | SetEdgeImplicitTarget ID
+    | SetEdgeImplicitSource (ID, ParamName)
     | DeleteNode ID
     | ClearArgs ID
     | RemoveLastField ID
@@ -133,7 +136,7 @@ type Modification = Error String
                   | Select ID
                   | Enter EntryCursor
                   | Deselect
-                  | RPC RPC
+                  | RPC (List RPC)
                   | ModelMod (Model -> Model)
                   | NoChange
                   | AutocompleteMod AutocompleteMod
@@ -159,8 +162,4 @@ type alias Flags =
 
 -- Values that we serialize
 type alias Editor = {}
-
-type ImplicitEdge = ReceivingEdge ID -- source (target is decided by the receiver after it's created)
-                  | ParamEdge ID ParamName -- target id and target param, the source is implicit
-                  | Constant String ParamName -- target id and target param, the target is implicit, no source
 

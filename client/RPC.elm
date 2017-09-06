@@ -26,31 +26,14 @@ encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   JSE.list (List.map (encodeRPC m) calls)
 
-encodeImplicitEdges : List ImplicitEdge -> JSE.Value
-encodeImplicitEdges edges =
-  edges
-    |> List.map
-       (\e -> case e of
-                ReceivingEdge (ID id) ->
-                  JSE.object [("receiving_edge",
-                                 JSE.object [("source", JSE.int id)])]
 
-                ParamEdge (ID id) p ->
-                  JSE.object [("param_edge",
-                                 JSE.object [("target", JSE.int id),
-                                             ("param", JSE.string p)])]
 
-                Constant value p ->
-                  JSE.object [("constant",
-                                 JSE.object [("value", JSE.string value),
-                                             ("param", JSE.string p)])])
-    |> JSE.list
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let jse_pos {x,y} = ("pos", JSE.object [("x", JSE.int x),
+  let jsePos {x,y} = ("pos", JSE.object [("x", JSE.int x),
                                             ("y", JSE.int y)])
-      jse_id (ID id) = ("id", JSE.int id)
+      jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
       LoadInitialGraph ->
@@ -59,53 +42,59 @@ encodeRPC m call =
       AddDatastore name pos ->
         ("add_datastore"
         , JSE.object [ ("name", JSE.string name)
-                     , jse_pos pos
+                     , jsePos pos
                      ])
 
       AddDatastoreField id name tipe ->
         ("add_datastore_field",
-           JSE.object [ jse_id id
+           JSE.object [ jseId id
                       , ("name", JSE.string name)
                       , ("tipe", JSE.string tipe)])
 
-      AddFunctionCall name pos edges ->
+      AddFunctionCall name pos ->
         ("add_function_call",
-           JSE.object [ ("name", JSE.string name)
-                      , jse_pos pos
-                      , ("edges", encodeImplicitEdges edges)])
+           JSE.object [ ("name", JSE.string name), jsePos pos])
 
-      AddAnon pos edges ->
-        ("add_anon", JSE.object [ jse_pos pos
-                                , ("edges", encodeImplicitEdges edges)])
+      AddAnon pos ->
+        ("add_anon", JSE.object [ jsePos pos ])
 
-
-      AddValue str pos edges ->
+      AddValue str pos ->
         ("add_value",
-           JSE.object [ ("value", JSE.string str)
-                      , jse_pos pos
-                      , ("edges", encodeImplicitEdges edges)])
+           JSE.object [ ("value", JSE.string str), jsePos pos ] )
 
-      SetConstant value id param ->
+      SetConstant value (ID target, param) ->
         ("set_constant",
            JSE.object [ ("value", JSE.string value)
-                      , ("target", JSE.int (deID id))
+                      , ("target", JSE.int target)
+                      , ("param", JSE.string param)])
+
+      SetConstantImplicit value param ->
+        ("set_constant_implicit",
+           JSE.object [ ("value", JSE.string value)
                       , ("param", JSE.string param)])
 
       SetEdge (ID src) (ID target, param) ->
-        ("set_edge",
-           JSE.object [ ("source", JSE.int src)
-                      , ("target", JSE.int target)
-                      , ("param", JSE.string param)
-                      ])
+        ("set_edge", JSE.object
+           [ ("source", JSE.int src)
+           , ("target", JSE.int target)
+           , ("param", JSE.string param)])
+
+      SetEdgeImplicitTarget (ID src) ->
+        ("set_edge_implicit_target", JSE.object [ ("source", JSE.int src)])
+
+      SetEdgeImplicitSource (ID target, param) ->
+        ("set_edge_implicit_source", JSE.object
+           [ ("target", JSE.int target)
+           , ("param", JSE.string param)])
 
       DeleteNode id ->
-        ("delete_node", JSE.object [ jse_id id ])
+        ("delete_node", JSE.object [ jseId id ])
 
       ClearArgs id ->
-        ("clear_args", JSE.object [ jse_id id ])
+        ("clear_args", JSE.object [ jseId id ])
 
       RemoveLastField id ->
-        ("remove_last_field", JSE.object [ jse_id id ])
+        ("remove_last_field", JSE.object [ jseId id ])
 
   in JSE.object [ (cmd, args) ]
 

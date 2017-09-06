@@ -50,10 +50,10 @@ toAbsolute m pos =
 ---------------------
 -- Layout and events
 ---------------------
-findImplicitEdge : Model -> Node -> ImplicitEdge
+findImplicitEdge : Model -> Node -> RPC
 findImplicitEdge m node = case G.findHole m node of
-                     ResultHole n -> ReceivingEdge n.id
-                     ParamHole n p _ -> ParamEdge n.id p.name
+                     ResultHole n -> SetEdgeImplicitTarget n.id
+                     ParamHole n p _ -> SetEdgeImplicitSource (n.id, p.name)
 
 
 ---------------------
@@ -131,25 +131,24 @@ isValueRepr name = String.toLower name == "null"
                    || String.startsWith "-" name && Util.rematch "[0-9].*" name
 
 
-addFunction : Name -> Pos -> List ImplicitEdge -> Modification
+addFunction : Name -> Pos -> List RPC -> Modification
 addFunction name pos extras =
-  RPC <| AddFunctionCall name pos extras
+  RPC <| (AddFunctionCall name pos) :: extras
 
-addAnon : Pos -> List ImplicitEdge -> Modification
+addAnon : Pos -> List RPC -> Modification
 addAnon pos extras =
-  RPC <| AddAnon pos extras
+  RPC <| (AddAnon pos) :: extras
 
 addConstant : String -> ID -> ParamName -> Modification
 addConstant name id param =
-  RPC <| SetConstant name id param
+  RPC <| [SetConstant name (id, param)]
 
-addValue : String -> Pos -> List ImplicitEdge -> Modification
+addValue : String -> Pos -> List RPC -> Modification
 addValue name pos extras =
-  case extras of
-    [(ReceivingEdge _)] -> RPC <| AddValue name pos []
-    _ -> RPC <| AddValue name pos extras
+    -- [(ReceivingEdge _)] -> RPC <| AddValue name pos [] -- TODO: why was this here
+  RPC <| (AddValue name pos) :: extras
 
-addNode : Name -> Pos -> List ImplicitEdge -> Modification
+addNode : Name -> Pos -> List RPC -> Modification
 addNode name pos extras =
   if isValueRepr name
   then addValue name pos extras
@@ -159,7 +158,7 @@ addVarSource : Model -> String -> Node -> ParamName -> Modification
 addVarSource m sourceLetter target param =
   case G.fromLetter m sourceLetter of
     Just source ->
-      RPC <| SetEdge source.id (target.id, param)
+      RPC <| [SetEdge source.id (target.id, param)]
     Nothing ->
       Error <| "There isn't a node named '" ++ sourceLetter ++ "' to connect to"
 
@@ -172,7 +171,8 @@ addVarTarget m source targetLetter =
       let free = LE.find (\(_,a) -> a == NoArg) (G.args target) in
       case free of
         Nothing -> Error <| "There are no free arguments"
-        Just (param, _) -> RPC <| SetEdge source.id (target.id, param.name)
+        Just (param, _) ->
+          RPC <| [SetEdge source.id (target.id, param.name)]
     Nothing ->
       Error <| "There isn't a node named '" ++ targetLetter ++ "' to connect to"
 
@@ -222,7 +222,10 @@ submit m cursor =
             Nothing -> NoChange
 
             Just ('.', fieldname) ->
-              let constant = Constant ("\"" ++ fieldname ++ "\"") "fieldname" in
+              -- TODO: this should be an opcode
+              let constant = SetConstantImplicit
+                             ("\"" ++ fieldname ++ "\"")
+                             "fieldname" in
               addNode "." pos [implicit, constant]
 
             Just ('$', rest) ->

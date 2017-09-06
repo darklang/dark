@@ -60,7 +60,7 @@ port setStorage : Editor -> Cmd a
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
-  let mods = (update_ msg m)
+  let mods = update_ msg m
       (newm, newc) = updateMod mods (m, Cmd.none)
   in
     ({ newm | lastMsg = msg
@@ -73,7 +73,7 @@ updateMod mod (m, cmd) =
   let (newm, newcmd) =
     case mod of
       Error e -> { m | error = (e, Util.timestamp ())} ! []
-      RPC call -> m ! [rpc m [call]]
+      RPC calls -> m ! [rpc m calls]
       NoChange -> m ! []
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
@@ -124,7 +124,7 @@ update_ msg m =
           case event.keyCode of
             Key.Backspace ->
               let next = G.incomingNodes m (G.getNodeExn m id) in
-              Many [ RPC <| DeleteNode id
+              Many [ RPC <| [DeleteNode id]
                    , case List.head next of
                        Just next -> Select next.id
                        Nothing -> Deselect
@@ -200,7 +200,8 @@ update_ msg m =
                        -- if we added a node, select it
                        Just id ->
                          case calls of
-                           [AddFunctionCall name pos [ParamEdge tid p]] ->
+                           [ AddFunctionCall name pos
+                           ,  SetEdgeImplicitSource (tid, p)] ->
                              let target = G.getNodeExn m2 tid
                                  arg = G.getArgument p target
                              in case arg of
