@@ -54,7 +54,7 @@ type load_initial_graph = { fake: int option [@default None]
 type opjson =
   { add_value : add_value option [@default None]
   ; set_constant : set_constant option [@default None]
-  ; set_constant_implicit : set_constant option [@default None]
+  ; set_constant_implicit : set_constant_implicit option [@default None]
   ; add_datastore: add_datastore option [@default None]
   ; add_function_call: add_function_call option [@default None]
   ; add_anon: add_anon option [@default None]
