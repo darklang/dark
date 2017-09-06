@@ -146,4 +146,15 @@ let fns : Lib.shortfn list = [
           | [DInt i] -> DChar (Char.of_int_exn i)
           | args -> fail args)
   }
+  ;
+  { n = "Bool::not"
+  ; o = []
+  ; p = [req "b" tBool]
+  ; r = tBool
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DBool b] -> DBool (not b)
+          | args -> fail args)
+ }
 ]
