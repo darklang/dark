@@ -31,18 +31,19 @@ encodeRPCs m calls =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let jsePos {x,y} = ("pos", JSE.object [("x", JSE.int x),
-                                            ("y", JSE.int y)])
+  let jsePos {x,y} = ("pos", JSE.object [ ("x", JSE.int x)
+                                        , ("y", JSE.int y)])
       jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
       LoadInitialGraph ->
         ("load_initial_graph", JSE.object [])
 
-      AddDatastore name pos ->
+      AddDatastore id name pos ->
         ("add_datastore"
-        , JSE.object [ ("name", JSE.string name)
+        , JSE.object [ jseId id
                      , jsePos pos
+                     , ("name", JSE.string name)
                      ])
 
       AddDatastoreField id name tipe ->
@@ -51,16 +52,16 @@ encodeRPC m call =
                       , ("name", JSE.string name)
                       , ("tipe", JSE.string tipe)])
 
-      AddFunctionCall name pos ->
+      AddFunctionCall id name pos ->
         ("add_function_call",
-           JSE.object [ ("name", JSE.string name), jsePos pos])
+           JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
 
-      AddAnon pos ->
-        ("add_anon", JSE.object [ jsePos pos ])
+      AddAnon id pos ->
+        ("add_anon", JSE.object [ jseId id, jsePos pos ])
 
-      AddValue str pos ->
+      AddValue id str pos ->
         ("add_value",
-           JSE.object [ ("value", JSE.string str), jsePos pos ] )
+           JSE.object [ jseId id, jsePos pos, ("value", JSE.string str)] )
 
       SetConstant value (ID target, param) ->
         ("set_constant",
@@ -68,23 +69,10 @@ encodeRPC m call =
                       , ("target", JSE.int target)
                       , ("param", JSE.string param)])
 
-      SetConstantImplicit value param ->
-        ("set_constant_implicit",
-           JSE.object [ ("value", JSE.string value)
-                      , ("param", JSE.string param)])
-
       SetEdge (ID src) (ID target, param) ->
         ("set_edge", JSE.object
            [ ("source", JSE.int src)
            , ("target", JSE.int target)
-           , ("param", JSE.string param)])
-
-      SetEdgeImplicitTarget (ID src) ->
-        ("set_edge_implicit_target", JSE.object [ ("source", JSE.int src)])
-
-      SetEdgeImplicitSource (ID target, param) ->
-        ("set_edge_implicit_source", JSE.object
-           [ ("target", JSE.int target)
            , ("param", JSE.string param)])
 
       DeleteNode id ->
@@ -172,15 +160,14 @@ decodeNode =
     |> JSDP.required "y" JSD.int
 
 
-decodeGraph : JSD.Decoder (NodeDict, Maybe ID)
+decodeGraph : JSD.Decoder (NodeDict)
 decodeGraph =
-  let toGraph : List Node -> Maybe Int -> (NodeDict, Maybe ID)
-      toGraph nodes idint =
+  let toGraph : List Node -> (NodeDict)
+      toGraph nodes =
         let nodedict = List.foldl
                     (\v d -> Dict.insert (v.id |> deID) v d)
                     Dict.empty
                     nodes
-        in (nodedict, Maybe.map ID idint)
+        in (nodedict)
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeNode)
-    |> JSDP.required "last_node" (JSD.nullable JSD.int)

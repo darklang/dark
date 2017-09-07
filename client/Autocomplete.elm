@@ -203,3 +203,8 @@ update mod a =
      FilterByLiveValue lv -> forLiveValue lv a
      FilterByParamType tipe -> forParamType tipe a)
     |> regenerate
+
+
+findFunction : Autocomplete -> String -> Maybe Function
+findFunction a name =
+  LE.find (\f -> f.name == name) a.functions

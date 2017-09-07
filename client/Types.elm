@@ -80,21 +80,18 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusResult (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack (List RPC) (Result Http.Error (NodeDict, Maybe ID))
+    | RPCCallBack (List RPC) (Result Http.Error NodeDict)
     | Initialization
 
 type RPC
     = LoadInitialGraph
-    | AddDatastore Name Pos
+    | AddDatastore ID Name Pos
     | AddDatastoreField ID FieldName TypeName
-    | AddFunctionCall Name Pos
+    | AddFunctionCall ID Name Pos
+    | AddAnon ID Pos
+    | AddValue ID String Pos
     | SetConstant Name (ID, ParamName)
-    | SetConstantImplicit Name ParamName
-    | AddAnon Pos
-    | AddValue String Pos
     | SetEdge ID (ID, ParamName)
-    | SetEdgeImplicitTarget ID
-    | SetEdgeImplicitSource (ID, ParamName)
     | DeleteNode ID
     | ClearArgs ID
     | RemoveLastField ID

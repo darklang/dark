@@ -182,9 +182,9 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
-    (RPCCallBack calls (Ok (nodes, lastNode)), _) ->
+    (RPCCallBack calls (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-          reaction = case lastNode of
+          reaction = case Nothing of
                        -- if we deleted a node, the cursor is probably
                        -- invalid
                        Nothing ->
@@ -200,8 +200,8 @@ update_ msg m =
                        -- if we added a node, select it
                        Just id ->
                          case calls of
-                           [ AddFunctionCall name pos
-                           ,  SetEdgeImplicitSource (tid, p)] ->
+                           [ AddFunctionCall id name pos
+                           , SetEdge sid (tid, p)] ->
                              let target = G.getNodeExn m2 tid
                                  arg = G.getArgument p target
                              in case arg of

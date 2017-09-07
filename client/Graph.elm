@@ -61,18 +61,19 @@ args : Node -> List (Parameter, Argument)
 args n =
   List.map2 (,) n.parameters n.arguments
 
+findParam : Node -> Maybe (Int, (Parameter, Argument))
+findParam n = Util.findIndex (\(_, a) -> a == NoArg) (args n)
 
-findHole : Model -> Node -> Hole
-findHole _ n =
-  case Util.findIndex (\(_, a) -> a == NoArg) (args n) of
+findHole : Node -> Hole
+findHole n =
+  case findParam n of
     Nothing -> ResultHole n
     Just (i, (p, _)) -> ParamHole n p i
 
-findArgHole : Model -> Node -> Maybe Hole
-findArgHole _ n =
-  case Util.findIndex (\(_, a) -> a == NoArg) (args n) of
-    Nothing -> Nothing
-    Just (i, (p, _)) -> Just (ParamHole n p i)
+findParamHole : Node -> Maybe Hole
+findParamHole n =
+  findParam n
+    |> Maybe.map (\(i, (p, _)) -> ParamHole n p i)
 
 -- follow the graph to find all available holes. (I could have skipped
 -- the seen-tracking, but I guess it's gottas be built sometime unless
@@ -80,7 +81,7 @@ findArgHole _ n =
 type alias IDSet = Set.Set Int
 findNextArgHole : Model -> Node -> Maybe Hole
 findNextArgHole m n =
-  find n (incomingNodes m) (findArgHole m)
+  find n (incomingNodes m) findParamHole
 
 -- find args going up. If there aren't any, look down. Hit the end?
 -- Suggest it.

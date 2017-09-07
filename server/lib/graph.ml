@@ -23,7 +23,6 @@ type targetpair = (id * string)
 type graph = { name : string
              ; ops : oplist
              ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
-             ; last_node : id option
              } [@@deriving eq, show]
 
 
@@ -37,23 +36,13 @@ let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
       ; nodes = NodeMap.empty
-      ; last_node = None
       }
 
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
 let change_node (id: id) (g: graph) ~(f: (Node.node option -> Node.node option)) : graph =
-  let r = ref (None: Node.node option) in
-  let wrapped_f n =
-    let result = f n in
-    r := result;
-    result in
-  let nodes = NodeMap.change g.nodes id ~f:wrapped_f in
-  (* The ordering here is important *)
-  let last_node = Option.map ~f:(fun x -> x#id) !r in
-  { g with nodes = nodes
-    ; last_node = last_node }
+  { g with nodes = NodeMap.change g.nodes id ~f }
 
 let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : graph =
   change_node
@@ -152,10 +141,14 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Delete_arg (target, param) -> delete_arg target param
     | Clear_args (id) -> clear_args id
     | Delete_node (id) -> delete_node id
-    | _ -> failwith "applying unimplemented op"
+    | Noop -> ident
+    | _ ->
+      Util.inspecT "op is" op;
+      failwith "applying unimplemented op"
 
 let add_op (op: Op.op) (g: graph ref) : unit =
   if op <> Noop then
+    Util.inspecT "adding op" op;
     (apply_op op g;
      g := { !g with ops = !g.ops @ [op]})
 
@@ -202,11 +195,7 @@ let to_frontend_nodes (g: graph) : Yojson.Safe.json =
   |> Node.nodejsonlist_to_yojson
 
 let to_frontend (g : graph) : Yojson.Safe.json =
-  `Assoc [ ("nodes", to_frontend_nodes g)
-         ; ("last_node", match g.last_node with
-           | None -> `Null
-           | Some id -> `Int id)
-         ]
+  `Assoc [ ("nodes", to_frontend_nodes g)]
 
 let to_frontend_string (g: graph) : string =
   g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true

@@ -1,10 +1,4 @@
-module Util exposing ( timestamp
-                     , windowSize
-                     , deMaybe
-                     , rematch
-                     , findIndex
-                     , zip
-                     )
+module Util exposing (..)
 
 -- builtin
 import Regex
@@ -15,6 +9,7 @@ import List.Extra as LE
 -- dark
 import Native.Window
 import Native.Timestamp
+import Native.Random
 
 timestamp : () -> Int
 timestamp a = Native.Timestamp.timestamp a
@@ -22,6 +17,9 @@ timestamp a = Native.Timestamp.timestamp a
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
                in (size.width, size.height)
+
+random : () -> Int
+random a = Native.Random.random a
 
 deMaybe : Maybe a -> a
 deMaybe x = case x of
