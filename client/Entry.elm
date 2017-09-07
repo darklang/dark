@@ -49,23 +49,9 @@ toAbsolute m pos =
   let d = Defaults.defaultModel {} |> .center in
   { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.x}
 
-
-
 ---------------------
 -- Nodes
 ---------------------
-gen_id : () -> ID
-gen_id _ = ID (Util.random ())
-
-id_of : RPC -> ID
-id_of rpc =
-  case rpc of
-    AddDatastore id _ _ -> id
-    AddDatastoreField id _ _ -> id
-    AddFunctionCall id _ _ -> id
-    AddAnon id _ -> id
-    AddValue id _ _ -> id
-    _ -> Debug.crash <| "getting id from unsupported: " ++ (toString rpc)
 
 reenter : Model -> ID -> Int -> Modification
 reenter m id i =
@@ -163,7 +149,7 @@ addByName m id name pos =
 
 submit : Model -> EntryCursor -> Modification
 submit m cursor =
-  let id = gen_id ()
+  let id = ID (Util.random ())
       value = m.complete.value in
   case cursor of
     Creating pos ->
