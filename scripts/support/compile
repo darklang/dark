@@ -99,7 +99,7 @@ def mark(should, f):
     should.elm_package = True
   elif "Tests.elm" in f:
     should.elm_test = True
-  elif ".elm" in f:
+  elif ".elm" in f or ".js" in f:
     should.elm_make = True
 
   # Ocaml
