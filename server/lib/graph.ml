@@ -148,7 +148,6 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
 
 let add_op (op: Op.op) (g: graph ref) : unit =
   if op <> Noop then
-    Util.inspecT "adding op" op;
     (apply_op op g;
      g := { !g with ops = !g.ops @ [op]})
 
