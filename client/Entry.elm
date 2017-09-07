@@ -116,6 +116,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
 ---------------------
 -- Submitting the entry form to the server
 ---------------------
+gen_id : () -> ID
+gen_id _ = ID (Util.random ())
 
 isValueRepr : String -> Bool
 isValueRepr name = String.toLower name == "null"
@@ -125,35 +127,34 @@ isValueRepr name = String.toLower name == "null"
                    || String.startsWith "-" name && Util.rematch "[0-9].*" name
 
 
-addFunction : Model -> ID -> Name -> Pos -> RPC
+addFunction : Model -> ID -> Name -> Pos -> List RPC
 addFunction m id name pos =
-  -- let fn = LE.find (\f -> f.name == name) m.complete.functions in
-  -- case fn of
-  --   Just fn ->
-  --     let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters in
-  --     let new_extra = List.map (\p -> [AddAnon pos, SetEdgeImplicit) fn_args
+  let fn = Autocomplete.findFunction m.complete name in
+  case fn of
+    -- shouldn't happen, but it's awkward to thread an error here
+    Nothing -> []
+    Just fn ->
+      let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
+          new_extra = List.map (\p -> let sid = gen_id () in
+                                      [ AddAnon sid pos
+                                      , SetEdge sid (id, p.name) ])
+                      fn_args
+      in
+        (AddFunctionCall id name pos) :: (List.concat new_extra)
 
-
-  --     RPC <| (AddFunctionCall name pos) :: extras
-  --   Nothing -> Error <- "No function named " + name
-
-  if name == "New function"
-  then AddAnon id pos
-  else AddFunctionCall id name pos
-
-addByName : Model -> ID -> Name -> Pos -> RPC
+addByName : Model -> ID -> Name -> Pos -> List RPC
 addByName m id name pos =
   if isValueRepr name
-  then AddValue id name pos
+  then [AddValue id name pos]
   else addFunction m id name pos
 
 submit : Model -> EntryCursor -> Modification
 submit m cursor =
-  let id = ID (Util.random ())
+  let id = gen_id ()
       value = m.complete.value in
   case cursor of
     Creating pos ->
-      RPC [addByName m id value pos]
+      RPC <| addByName m id value pos
 
     Filling _ hole ->
       let pos = holePos hole in
@@ -173,8 +174,8 @@ submit m cursor =
             _ ->
               if isValueRepr value
               then RPC [SetConstant value (target.id, param.name)]
-              else RPC [ addFunction m id value pos
-                       , SetEdge id (target.id, param.name)]
+              else RPC <| addFunction m id value pos ++
+                          [SetEdge id (target.id, param.name)]
 
         ResultHole source ->
           case String.uncons value of
@@ -182,8 +183,8 @@ submit m cursor =
 
             -- TODO: this should be an opcode
             Just ('.', fieldname) ->
-              RPC [ addFunction m id "." pos
-                  , SetEdge source.id (id, "value")
+              RPC <| addFunction m id "." pos ++
+                  [ SetEdge source.id (id, "value")
                   , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
 
             Just ('$', letter) ->
@@ -202,5 +203,5 @@ submit m cursor =
                 Nothing -> Error <| "Function " ++ value ++ " does not exist"
                 Just {parameters} ->
                   case parameters of
-                    (p :: _) -> RPC [f, SetEdge source.id (id, p.name)]
-                    [] -> RPC [f]
+                    (p :: _) -> RPC <| f ++ [SetEdge source.id (id, p.name)]
+                    [] -> RPC f
