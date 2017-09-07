@@ -184,40 +184,35 @@ update_ msg m =
 
     (RPCCallBack calls (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-          reaction = case Nothing of
-                       -- if we deleted a node, the cursor is probably
-                       -- invalid
-                       Nothing ->
-                         if Dict.size m2.nodes == 0
-                         then Entry.createFindSpace m
-                         else if m2.state
-                           |> Selection.getCursorID
-                           |> Maybe.andThen (G.getNode m2)
-                           |> (==) Nothing
-                         then Deselect
-                         else NoChange
-
-                       -- if we added a node, select it
-                       Just id ->
-                         case calls of
-                           [ AddFunctionCall id name pos
-                           , SetEdge sid (tid, p)] ->
-                             let target = G.getNodeExn m2 tid
-                                 arg = G.getArgument p target
-                             in case arg of
-                                  Edge sid ->
-                                    Entry.enter m2 sid False
-                                  _ ->
-                                    Entry.enter m2 tid False
-                           _ ->
-                             Entry.enter m2 id False
-
-      in
-        Many [ ModelMod (\_ -> m2)
-             , AutocompleteMod Reset
-             , Error ""
-             , reaction
-             ]
+          cursor_node = m2.state
+                      |> Selection.getCursorID
+                      |> Maybe.andThen (G.getNode m2)
+          enter id = Entry.enter m2 id False
+          move_cursor =
+            (\call ->
+               case call of
+                 AddFunctionCall id _ _ -> enter id
+                 AddDatastore id _ _ -> enter id
+                 AddDatastoreField id _ _ -> enter id
+                 AddAnon id _ -> enter id
+                 AddValue id _ _ -> enter id
+                 SetEdge _ (t, _) -> enter t
+                 SetConstant _ (t, _) -> enter t
+                 DeleteNode id ->
+                   if Dict.size m2.nodes == 0
+                   then Entry.createFindSpace m
+                   -- unless existing node was deleted
+                   else if cursor_node == Nothing
+                        then Deselect
+                        else NoChange
+                 LoadInitialGraph -> NoChange
+                 _ -> NoChange)
+          reactions = Many (List.map move_cursor calls)
+      in Many [ ModelMod (\_ -> m2)
+              , AutocompleteMod Reset
+              , Error ""
+              , reactions
+              ]
 
 
     ------------------------
