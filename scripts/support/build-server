@@ -17,7 +17,7 @@ def run(bash):
   # unbuffer makes the command think it's running in a terminal. (All
   # attempts to do this at the broader context (eg via docker) fail to
   # allow stdin to work, which we need.
-  proc = subprocess.run("unbuffer " + bash, shell=True)
+  proc = subprocess.run(bash, shell=True)
   return proc.returncode == 0
 
 def compile(files):

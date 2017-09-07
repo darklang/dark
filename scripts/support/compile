@@ -3,6 +3,14 @@
 import sys
 import subprocess
 
+# Make io unbuffered
+def flush(fn):
+  def newfn(x):
+    fn(x)
+    sys.stdout.flush()
+  return newfn
+sys.stdout.write = flush(sys.stdout.write)
+sys.stdout.writelines = flush(sys.stdout.writelines)
 
 def run(bash):
   proc = subprocess.run(bash, shell=True)
@@ -36,7 +44,8 @@ def elm_make():
   if machine:
     return run_frontend("cd client && elm-make --report=json Main.elm --output=/dev/null")
   else:
-    return run_frontend("cd client && elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
+    # unbuffer makes elm think it's talking a terminal
+    return run_frontend("cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def elm_test():
   return run_test("cd client && elm-test")
