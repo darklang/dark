@@ -162,7 +162,7 @@ submit m cursor =
           case String.uncons value of
             Nothing ->
               if param.optional
-              then RPC [SetConstant "" (target.id, param.name)]
+              then RPC [SetConstant "null" (target.id, param.name)]
               else NoChange
 
             Just ('$', letter) ->
