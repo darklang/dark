@@ -139,8 +139,8 @@ isValueRepr name = String.toLower name == "null"
                    || String.startsWith "-" name && Util.rematch "[0-9].*" name
 
 
-addFunction : Model -> Name -> Pos -> RPC
-addFunction m name pos =
+addFunction : Model -> ID -> Name -> Pos -> RPC
+addFunction m id name pos =
   -- let fn = LE.find (\f -> f.name == name) m.complete.functions in
   -- case fn of
   --   Just fn ->
@@ -152,51 +152,22 @@ addFunction m name pos =
   --   Nothing -> Error <- "No function named " + name
 
   if name == "New function"
-  then addAnon pos
-  else AddFunctionCall (gen_id ()) name pos
+  then AddAnon id pos
+  else AddFunctionCall id name pos
 
-addAnon : Pos -> RPC
-addAnon pos =
-  AddAnon (gen_id ()) pos
-
-addValue : String -> Pos -> RPC
-addValue name pos =
-  AddValue (gen_id ()) name pos
-
-addByName : Model -> Name -> Pos -> RPC
-addByName m name pos =
+addByName : Model -> ID -> Name -> Pos -> RPC
+addByName m id name pos =
   if isValueRepr name
-  then addValue name pos
-  else addFunction m name pos
-
-nodeFromLetter : Model -> String -> Result String Node
-nodeFromLetter m letter =
-  case G.fromLetter m letter of
-    Just node -> Ok node
-    Nothing ->
-      Err <| "There isn't a node named '" ++ letter ++ "' to connect to"
-
--- TODO: get the type of the target and pick the right hole for it
-findEdge : Model -> ID -> ID -> Result String RPC
-findEdge m source target =
-  case G.findParam (G.getNodeExn m target) of
-    Nothing -> Err <| "There are no free arguments"
-    Just (_, (param, _)) ->
-      Ok <| SetEdge source (target, param.name)
-
-result2RPC : Result String RPC -> Modification
-result2RPC r =
-  case r of
-    Err e -> Error e
-    Ok rpc -> RPC [rpc]
-
+  then AddValue id name pos
+  else addFunction m id name pos
 
 submit : Model -> EntryCursor -> Modification
 submit m cursor =
-  let value = m.complete.value in
+  let id = gen_id ()
+      value = m.complete.value in
   case cursor of
     Creating pos ->
-      RPC [addByName m value pos]
+      RPC [addByName m id value pos]
 
     Filling _ hole ->
       let pos = holePos hole in
@@ -209,17 +180,15 @@ submit m cursor =
               else NoChange
 
             Just ('$', letter) ->
-              case nodeFromLetter m letter of
-                Err e -> Error e
-                Ok source -> RPC [SetEdge source.id (target.id, param.name)]
+              case G.fromLetter m letter of
+                Just source -> RPC [SetEdge source.id (target.id, param.name)]
+                Nothing -> Error <| "No node named '" ++ letter ++ "'"
 
             _ ->
               if isValueRepr value
               then RPC [SetConstant value (target.id, param.name)]
-              else
-                let f = addFunction m value pos
-                    edge = SetEdge (id_of f) (target.id, param.name)
-                in RPC [f, edge]
+              else RPC [ addFunction m id value pos
+                       , SetEdge id (target.id, param.name)]
 
         ResultHole source ->
           case String.uncons value of
@@ -227,26 +196,25 @@ submit m cursor =
 
             -- TODO: this should be an opcode
             Just ('.', fieldname) ->
-              let f = addFunction m "." pos
-                  value = SetEdge source.id (id_of f, "value")
-                  field = SetConstant
-                          ("\"" ++ fieldname ++ "\"")
-                          (id_of f, "fieldname")
-              in RPC [f, value, field]
+              RPC [ addFunction m id "." pos
+                  , SetEdge source.id (id, "value")
+                  , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
 
             Just ('$', letter) ->
-              let edgeR = letter
-                       |> nodeFromLetter m
-                       |> Result.andThen (\t -> findEdge m source.id t.id)
-              in case edgeR of
-                Err e -> Error e
-                Ok edge -> RPC [edge]
+              case G.fromLetter m letter of
+                Nothing ->
+                  Error <| "No node named '" ++ letter ++ "'"
+                Just target ->
+                  case G.findParam target of
+                    Nothing -> Error "There are no argument slots available"
+                    Just (_, (param, _)) ->
+                      RPC [SetEdge source.id (target.id, param.name)]
 
             _ ->
-              let f = addByName m value pos in
+              let f = addByName m id value pos in
               case Autocomplete.findFunction (m.complete) value of
                 Nothing -> Error <| "Function " ++ value ++ " does not exist"
                 Just {parameters} ->
                   case parameters of
-                    (p :: _) -> RPC [f, SetEdge source.id (id_of f, p.name)]
+                    (p :: _) -> RPC [f, SetEdge source.id (id, p.name)]
                     [] -> RPC [f]
