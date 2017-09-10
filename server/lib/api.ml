@@ -13,12 +13,17 @@ type pos = Types.loc [@@deriving yojson]
 type delete_node = { id: int } [@@deriving yojson]
 type clear_args = { id: int } [@@deriving yojson]
 type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
-type add_datastore = { id: int; name: string ; pos: pos} [@@deriving yojson]
+type add_datastore = { id: int
+                     ; name: string
+                     ; pos: pos} [@@deriving yojson]
 type add_function_call = { id: int
                          ; name: string
                          ; pos: pos
                          } [@@deriving yojson]
-type add_anon = { id: int; pos: pos } [@@deriving yojson]
+type add_anon = { id: int
+                ; pos: pos
+                ; return: int
+                ; args: int list } [@@deriving yojson]
 type add_value = { id: int
                  ; value: string
                  ; pos: pos
@@ -62,14 +67,13 @@ type opjson =
 type opjsonlist = opjson list [@@deriving yojson]
 
 let json2op (op: opjson) : op =
-  let id = Util.create_id in
   match op with
   | { load_initial_graph = Some _} -> Noop
   | { add_datastore = Some a } -> Add_datastore (a.id, a.pos, a.name)
   | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_node = Some a } -> Delete_node a.id
   | { clear_args = Some a } -> Clear_args a.id
-  | { add_anon = Some a } -> Add_anon (a.id, a.pos, id (), [id ()])
+  | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.return, a.args)
   | { add_function_call = Some a } -> Add_fn_call (a.id, a.pos, a.name)
   | { add_value = Some a } -> Add_value (a.id, a.pos, a.value)
   | { update_node_position = Some a } -> Update_node_position (a.id, a.pos)

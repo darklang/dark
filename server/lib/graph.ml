@@ -75,6 +75,8 @@ let delete_arg (t: id) (param:string) (g: graph) : graph =
   update_node t g ~f:(fun n -> n#delete_arg param; Some n)
 
 let add_node (node : Node.node) (g : graph) : graph =
+  if has_node node#id g then
+    Exception.raise "A node with this ID already exists!";
   change_node node#id g ~f:(fun x -> Some node)
 
 let incoming_nodes id g : (id * string) list =

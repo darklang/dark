@@ -88,7 +88,7 @@ type RPC
     | AddDatastore ID Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall ID Name Pos
-    | AddAnon ID Pos
+    | AddAnon ID Pos ID (List ID)
     | AddValue ID String Pos
     | SetConstant Name (ID, ParamName)
     | SetEdge ID (ID, ParamName)

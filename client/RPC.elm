@@ -56,8 +56,11 @@ encodeRPC m call =
         ("add_function_call",
            JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
 
-      AddAnon id pos ->
-        ("add_anon", JSE.object [ jseId id, jsePos pos ])
+      AddAnon id pos (ID ret) args ->
+        ("add_anon", JSE.object [ jseId id
+                                , jsePos pos
+                                , ("return", JSE.int ret)
+                                , ("args", JSE.list (List.map (JSE.int << deID) args))])
 
       AddValue id str pos ->
         ("add_value",
