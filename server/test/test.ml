@@ -9,7 +9,9 @@ module RT = Runtime
 let t_param_order _ =
   let node = new Node.func 1 {x=1; y=1} "-" in
   assert_equal (node#execute
-                  (fun g -> node)
+                  { getf = (fun g -> node)
+                  ; get_children = (fun _ -> [])
+                  }
                   (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
                                            ; ("b", RT.DInt 1)]))
     (RT.DInt 0)
@@ -25,7 +27,7 @@ let graph_from_ops (name: string) (ops: Op.op list) : G.graph ref =
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = graph_from_ops "test" ops in
-  Node.execute (Op.id_of result) (G.get_node !g)
+  Node.execute (Op.id_of result) (G.gfns !g)
 
 let t_graph_param_order _ =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
@@ -55,7 +57,7 @@ let t_fns_with_edges _ =
   let g = graph_from_ops "test" [v1; v2] in
   Api.apply_ops g fncall;
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
-  let r = Node.execute (rid) (G.get_node !g) in
+  let r = Node.execute (rid) (G.gfns !g) in
   assert_equal r (DInt 2)
 
 

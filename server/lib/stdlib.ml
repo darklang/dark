@@ -22,6 +22,7 @@ let fns : Lib.shortfn list = [
                         |> List.map ~f:(fun k -> DStr k)
                         |> fun l -> DList l
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "List::head"
@@ -33,6 +34,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DList l] -> List.hd_exn l
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "."
@@ -47,6 +49,7 @@ let fns : Lib.shortfn list = [
              | None -> Exception.raise ("Value has no field named: " ^ fieldname)
              | Some v -> v)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "%"
@@ -58,6 +61,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DInt a; DInt b] -> DInt (a mod b)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "+"
@@ -69,6 +73,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DInt a; DInt b] -> DInt (a + b)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "-"
@@ -80,6 +85,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DInt a; DInt b] -> DInt (a - b)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "String::foreach"
@@ -98,6 +104,13 @@ let fns : Lib.shortfn list = [
             in
             DStr (String.map ~f:charf s)
           | args -> fail args)
+  ; pr = Some
+        (function
+          | [DStr s; _] ->
+              if s == ""
+              then DChar 'l'
+              else DChar (String.get s 0)
+          | args -> DIncomplete)
   }
   ;
   { n = "List::foreach"
@@ -112,6 +125,7 @@ let fns : Lib.shortfn list = [
             in
             DList (List.map ~f l)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "Char::code"
@@ -123,6 +137,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DChar c] -> DInt (Char.to_int c)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "Char::to_uppercase"
@@ -134,6 +149,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DChar c] -> DChar (Char.uppercase c)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "Char::chr"
@@ -145,6 +161,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DInt i] -> DChar (Char.of_int_exn i)
           | args -> fail args)
+  ; pr = None
   }
   ;
   { n = "Bool::not"
@@ -156,5 +173,6 @@ let fns : Lib.shortfn list = [
         (function
           | [DBool b] -> DBool (not b)
           | args -> fail args)
+  ; pr = None
  }
 ]

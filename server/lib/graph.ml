@@ -38,6 +38,16 @@ let create (name : string) : graph ref =
       ; nodes = NodeMap.empty
       }
 
+let get_children (g: graph) (id: id) : Node.node list =
+  g.nodes
+  |> NodeMap.data
+  |> List.filter ~f:(fun n ->
+      n#arguments
+     |> RT.ArgMap.data
+     |> List.filter ~f:((=) (RT.AEdge id))
+     |> List.is_empty
+     |> not)
+
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
@@ -126,6 +136,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       (fun g ->
          argids
          |> List.map ~f:(fun argid -> new Node.argnode
+                          id
                           argid
                           { loc with y = loc.y + 20 }
                           (allids_except argid))
@@ -177,12 +188,18 @@ let save (g : graph) : unit =
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
 
+let gfns (g: graph) : Node.gfns =
+  { getf = get_node g
+  ; get_children = get_children g
+  }
+
+
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
 let node_value (n: Node.node) (g: graph) : (string * string * string) =
   try
-    let dv = Node.execute n#id (get_node g) in
+    let dv = Node.execute n#id (gfns g) in
     ( RT.to_repr dv
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string)

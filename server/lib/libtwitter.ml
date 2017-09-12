@@ -45,5 +45,6 @@ let fns =
             ; f = Runtime.API (call_twitter api.path)
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
+            ; pr = None
             }))
   |> List.filter_map ~f:ident

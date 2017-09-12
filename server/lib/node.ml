@@ -38,13 +38,18 @@ type nodejsonlist = nodejson list [@@deriving yojson, show]
 (* graph defintion *)
 (* ------------------------ *)
 
+type 'a gfns_ = {
+  getf : (id -> 'a) ;
+  get_children : (id -> 'a list)
+}
+
 class virtual node id loc =
   object (self)
     val id : id = id
     val mutable loc : loc = loc
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : (id -> node) -> RT.execute_t
+    method virtual execute : node gfns_ -> RT.execute_t
     method id = id
     method is_page = false
     method is_datasink = false
@@ -65,6 +70,8 @@ class virtual node id loc =
     method arg_ids = []
     method update_loc _loc : unit =
       loc <- _loc
+    method preview (gfns: node gfns_) (args: dval_map) : dval =
+      self#execute gfns args
     method to_frontend (value, tipe, json) : nodejson =
       { name = self#name
       ; id = id
@@ -81,8 +88,7 @@ class virtual node id loc =
       }
   end
 
-(* A way to get nodes *)
-type get_node_t = (id -> node)
+type gfns = node gfns_
 
 let equal_node (a:node) (b:node) =
   a#id = b#id
@@ -96,19 +102,19 @@ let show_node (n:node) =
 (* ------------------------- *)
 module ValCache = Int.Map
 type valcache = RT.dval ValCache.t
-let rec execute (id: id) ?(eager: valcache=ValCache.empty) (getf: get_node_t) : RT.dval =
+let rec execute (id: id) ?(preview: bool=false)
+  ?(eager: valcache=ValCache.empty) (g: gfns) : RT.dval =
   match ValCache.find eager id with
   | Some v -> v
   | None ->
-    let n = getf id in
+    let n = g.getf id in
     n#arguments
     |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
         match arg with
         | RT.AConst dv -> dv
-        | RT.AEdge id -> execute id ~eager getf)
-    |> String.Map.to_alist
-    |> RT.DvalMap.of_alist_exn
-    |> n#execute getf
+        | RT.AEdge id -> execute id ~eager g)
+    |> if preview then n#preview g else n#execute g
+
 
 (* ------------------ *)
 (* Nodes that appear in the graph *)
@@ -119,7 +125,7 @@ class value id loc strrep =
     val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute (_: get_node_t) (_: dval_map) : dval = expr
+    method execute _ _ = expr
   end
 
 class virtual has_arguments id loc = (*  *)
@@ -150,8 +156,16 @@ class func id loc n =
     method private fn = (Libs.get_fn_exn n)
     method parameters : param list = self#fn.parameters
     method name = self#fn.name
-    method execute (getf: get_node_t) (args: dval_map) : dval =
+    method execute (g: gfns) (args: dval_map) : dval =
       RT.exe self#fn args
+     (* Get a value to use as the preview for anonfns used by this node *)
+    method preview (g: gfns) (args: dval_map) : dval =
+      match self#fn.preview with
+      | None -> DIncomplete
+      | Some f -> self#fn.parameters
+                     |> List.map ~f:(fun (p: param) -> p.name)
+                     |> List.map ~f:(DvalMap.find_exn args)
+                     |> f
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
@@ -179,13 +193,14 @@ class datastore id loc table =
 
    As we build these functions up, we start with a known number of
    inputs - initially 1 - and a single output.
+
+   TODO: `preview` is sorta confused. I'm unclear what it does.
    *)
 
-let anonexecutor (rid: id) (argids: id list) (getf:get_node_t)
-  : (dval list -> dval) =
+let anonexecutor (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
   (fun (args : dval list) ->
      let eager = List.zip_exn argids args |> ValCache.of_alist_exn in
-     execute rid ~eager getf
+     execute rid ~eager g
   )
 
 class returnnode id loc depids =
@@ -198,18 +213,21 @@ class returnnode id loc depids =
                           ; optional = false
                           ; description = "" }]
     method tipe = "return"
-    method execute (getf: get_node_t) (args) : dval =
+    method execute (g: gfns) (args) : dval =
       DvalMap.find_exn args "return"
   end
 
-class argnode id loc depids =
+class argnode nodeid id loc depids =
   object
     inherit node id loc
     method dependent_nodes = depids
     method name = "<arg>"
     method tipe = "arg"
-    method execute (getf: get_node_t) (_) : dval =
-      DNull
+    method execute (g: gfns) _ : dval =
+      match g.get_children nodeid with
+      | [] -> DIncomplete
+      | [caller] -> execute ~preview:true caller#id g
+      | _ -> failwith "more than 1"
   end
 
 class anonfn id loc rid argids =
@@ -217,8 +235,8 @@ class anonfn id loc rid argids =
     inherit node id loc
     method dependent_nodes = rid :: argids
     method name = "<anonfn>"
-    method execute (getf: get_node_t) (_) : dval =
-      DAnon (id, anonexecutor rid argids getf)
+    method execute (g: gfns) (_) : dval =
+      DAnon (id, anonexecutor rid argids g)
     method tipe = "definition"
     method! parameters = []
     method! return_id = Some rid

@@ -145,7 +145,7 @@ type argument = AEdge of int
 let blank_arg = AConst DIncomplete
 
 module ArgMap = String.Map
-type arg_map = argument ArgMap.t 
+type arg_map = argument ArgMap.t
 
 type param = { name: string
              ; tipe: string
@@ -172,6 +172,7 @@ type fn = { name : string
           ; parameters : param list
           ; return_type : tipe
           ; description : string
+          ; preview : (dval list -> dval) option
           ; func : ccfunc
           }
 
