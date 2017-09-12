@@ -213,8 +213,10 @@ submit m cursor =
             _ ->
               let (f, focus) = addByName m id value pos in
               case Autocomplete.findFunction (m.complete) value of
-                Nothing -> Error <| "Function " ++ value ++ " does not exist"
-                Just {parameters} ->
+                Nothing ->
+                  -- Not a normal function, just return
+                  RPC (f, focus)
+                Just {parameters} -> 
                   case parameters of
                     (p :: _) -> RPC ( f ++ [SetEdge source.id (id, p.name)]
                                    , focus)
