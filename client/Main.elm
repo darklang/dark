@@ -1,8 +1,8 @@
 port module Main exposing (..)
 
+
 -- builtins
 import Maybe
-import Dict
 
 -- lib
 import Json.Decode as JSD
@@ -133,7 +133,7 @@ update_ msg m =
             Key.Down -> Selection.selectNextNode m id (\n o -> n.y < o.y)
             Key.Left -> Selection.selectNextNode m id (\n o -> n.x > o.x)
             Key.Right -> Selection.selectNextNode m id (\n o -> n.x < o.x)
-            Key.Enter -> Entry.enter m id True
+            Key.Enter -> Entry.enterExact m (G.getNodeExn m id)
             Key.One -> Entry.reenter m id 0
             Key.Two -> Entry.reenter m id 1
             Key.Three -> Entry.reenter m id 2
@@ -184,34 +184,9 @@ update_ msg m =
 
     (RPCCallBack calls (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-          cursor_node = m2.state
-                      |> Selection.getCursorID
-                      |> Maybe.andThen (G.getNode m2)
-          enter id = Entry.enter m2 id False
-          move_cursor =
-            (\call ->
-               case call of
-                 AddFunctionCall id _ _ -> enter id
-                 AddDatastore id _ _ -> enter id
-                 AddDatastoreField id _ _ -> enter id
-                 AddAnon id _ -> enter id
-                 AddValue id _ _ -> enter id
-                 SetEdge _ (t, _) -> enter t
-                 SetConstant _ (t, _) -> enter t
-                 DeleteNode id ->
-                   if Dict.size m2.nodes == 0
-                   then Entry.createFindSpace m
-                   -- unless existing node was deleted
-                   else if cursor_node == Nothing
-                        then Deselect
-                        else NoChange
-                 LoadInitialGraph -> NoChange
-                 _ -> NoChange)
-          reactions = Many (List.map move_cursor calls)
       in Many [ ModelMod (\_ -> m2)
               , AutocompleteMod Reset
               , Error ""
-              , reactions
               ]
 
 
