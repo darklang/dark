@@ -126,29 +126,36 @@ isValueRepr name = String.toLower name == "null"
                    || Util.rematch "^[\"\'[1-9{].*" name
                    || String.startsWith "-" name && Util.rematch "[0-9].*" name
 
+addAnonParam : Model -> ID -> Pos -> ParamName -> (List RPC, Maybe ID)
+addAnonParam m id pos name =
+  let sid = gen_id ()
+      retid = gen_id ()
+      -- todo anons with multiple args
+      argids = [gen_id ()]
+      anon = AddAnon sid pos retid argids
+      edge = SetEdge sid (id, name)
+  in 
+    ([anon, edge], List.head argids)
+
 
 addFunction : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
 addFunction m id name pos =
   let fn = Autocomplete.findFunction m.complete name in
   case fn of
-    -- shouldn't happen
-    Nothing -> Debug.crash "shouldn't happen"
+    -- not a real function, but had to thread an error here
+    Nothing ->
+      if String.toLower name == "new function"
+      then ([AddAnon id pos (gen_id ()) [(gen_id ())]], Just id)
+      else ([], Nothing)
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
-          anons = List.map (\p -> let sid = gen_id ()
-                                      retid = gen_id ()
-                                      -- todo anons with multiple args
-                                      argids = [gen_id ()] in
-                                  [ AddAnon sid pos retid argids
-                                  , SetEdge sid (id, p.name) ])
-                   fn_args
-          cursor = case anons of
-                     ([AddAnon _ _ _ (argid :: _), _] ::  _) -> argid
-                     _ -> id
+          anonpairs = List.map (\p -> addAnonParam m id pos p.name) fn_args
+          cursor = anonpairs |> List.head |> Maybe.andThen Tuple.second
+          anons = anonpairs |> List.unzip |> Tuple.first
 
       in
-        (AddFunctionCall id name pos :: List.concat anons, Just cursor)
+        (AddFunctionCall id name pos :: List.concat anons, cursor)
 
 addByName : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
 addByName m id name pos =
