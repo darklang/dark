@@ -127,12 +127,12 @@ isValueRepr name = String.toLower name == "null"
                    || String.startsWith "-" name && Util.rematch "[0-9].*" name
 
 
-addFunction : Model -> ID -> Name -> Pos -> (List RPC, ID)
+addFunction : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
 addFunction m id name pos =
   let fn = Autocomplete.findFunction m.complete name in
   case fn of
-    -- shouldn't happen, but it's awkward to thread an error here
-    Nothing -> ([], id)
+    -- shouldn't happen
+    Nothing -> Debug.crash "shouldn't happen"
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
@@ -148,12 +148,12 @@ addFunction m id name pos =
                      _ -> id
 
       in
-        (AddFunctionCall id name pos :: List.concat anons, cursor)
+        (AddFunctionCall id name pos :: List.concat anons, Just cursor)
 
-addByName : Model -> ID -> Name -> Pos -> (List RPC, ID)
+addByName : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
 addByName m id name pos =
   if isValueRepr name
-  then ([AddValue id name pos], id)
+  then ([AddValue id name pos], Just id)
   else addFunction m id name pos
     -- anon, function, or value
 
@@ -161,14 +161,10 @@ addByName m id name pos =
 submit : Model -> EntryCursor -> Modification
 submit m cursor =
   let id = gen_id ()
-      value = m.complete.value
-      -- call and enter
-      cen : (List RPC, ID) -> Modification
-      -- TODO: often the node is not in the graph, so it can't actually succeed!! Refactor required
-      cen (rpcs, id) = Many [RPC rpcs, enterNext m (G.getNodeExn m id)] in
+      value = m.complete.value in
   case cursor of
     Creating pos ->
-      cen <| addByName m id value pos
+      RPC <| addByName m id value pos
 
     Filling _ hole ->
       let pos = holePos hole in
@@ -177,20 +173,20 @@ submit m cursor =
           case String.uncons value of
             Nothing ->
               if param.optional
-              then cen ([SetConstant "null" (target.id, param.name)]
-                      , target.id)
+              then RPC ([SetConstant "null" (target.id, param.name)]
+                      , Just target.id)
               else NoChange
 
             Just ('$', letter) ->
               case G.fromLetter m letter of
-                Just source -> cen ([SetEdge source.id (target.id, param.name)], target.id)
+                Just source -> RPC ([SetEdge source.id (target.id, param.name)], Just target.id)
                 Nothing -> Error <| "No node named '" ++ letter ++ "'"
 
             _ ->
               if isValueRepr value
-              then cen ([SetConstant value (target.id, param.name)], target.id)
+              then RPC ([SetConstant value (target.id, param.name)], Just target.id)
               else let (f, focus) = addFunction m id value pos in
-                  cen (f ++ [SetEdge id (target.id, param.name)], focus)
+                  RPC (f ++ [SetEdge id (target.id, param.name)], focus)
 
         ResultHole source ->
           case String.uncons value of
@@ -199,7 +195,7 @@ submit m cursor =
             -- TODO: this should be an opcode
             Just ('.', fieldname) ->
               let (f, focus) = addFunction m id "." pos in
-                  cen (f
+                  RPC (f
                        ++ [ SetEdge source.id (id, "value")
                           , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
                       , focus)
@@ -212,7 +208,7 @@ submit m cursor =
                   case G.findParam target of
                     Nothing -> Error "There are no argument slots available"
                     Just (_, (param, _)) ->
-                      cen ([SetEdge source.id (target.id, param.name)], target.id)
+                      RPC ([SetEdge source.id (target.id, param.name)], Just target.id)
 
             _ ->
               let (f, focus) = addByName m id value pos in
@@ -220,6 +216,6 @@ submit m cursor =
                 Nothing -> Error <| "Function " ++ value ++ " does not exist"
                 Just {parameters} ->
                   case parameters of
-                    (p :: _) -> cen ( f ++ [SetEdge source.id (id, p.name)]
+                    (p :: _) -> RPC ( f ++ [SetEdge source.id (id, p.name)]
                                    , focus)
-                    [] -> cen (f, focus)
+                    [] -> RPC (f, focus)

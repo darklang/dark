@@ -80,7 +80,7 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusResult (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack (List RPC) (Result Http.Error NodeDict)
+    | RPCCallBack (List RPC) (Maybe ID) (Result Http.Error NodeDict)
     | Initialization
 
 type RPC
@@ -133,7 +133,7 @@ type Modification = Error String
                   | Select ID
                   | Enter EntryCursor
                   | Deselect
-                  | RPC (List RPC)
+                  | RPC (List RPC, Maybe ID)
                   | ModelMod (Model -> Model)
                   | NoChange
                   | AutocompleteMod AutocompleteMod

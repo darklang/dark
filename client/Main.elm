@@ -46,7 +46,7 @@ init {state, complete} =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init complete}
   in
-    (m2, rpc m <| [LoadInitialGraph])
+    (m2, rpc m Nothing <| [LoadInitialGraph])
 
 
 -----------------------
@@ -73,7 +73,7 @@ updateMod mod (m, cmd) =
   let (newm, newcmd) =
     case mod of
       Error e -> { m | error = (e, Util.timestamp ())} ! []
-      RPC calls -> m ! [rpc m calls]
+      RPC (calls, id) -> m ! [rpc m id calls]
       NoChange -> m ! []
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
@@ -124,7 +124,7 @@ update_ msg m =
           case event.keyCode of
             Key.Backspace ->
               let next = G.incomingNodes m (G.getNodeExn m id) in
-              Many [ RPC <| [DeleteNode id]
+              Many [ RPC ([DeleteNode id], Nothing)
                    , case List.head next of
                        Just next -> Select next.id
                        Nothing -> Deselect
@@ -182,21 +182,24 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
-    (RPCCallBack calls (Ok (nodes)), _) ->
+    (RPCCallBack calls mId (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
       in Many [ ModelMod (\_ -> m2)
               , AutocompleteMod Reset
               , Error ""
+              , case mId of
+                  Just id -> Entry.enterNext m2 (G.getNodeExn m2 id)
+                  Nothing -> NoChange
               ]
 
 
     ------------------------
     -- plumbing
     ------------------------
-    (RPCCallBack _ (Err (Http.BadStatus error)), _) ->
+    (RPCCallBack _ _ (Err (Http.BadStatus error)), _) ->
       Error <| "Bad RPC call: " ++ (toString error.body)
 
-    (RPCCallBack _ (Err (Http.NetworkError)), _) ->
+    (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Netork error: is the server running?"
 
     (FocusResult _, _) ->

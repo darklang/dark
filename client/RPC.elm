@@ -15,12 +15,13 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 
 
-rpc : Model -> List RPC -> Cmd Msg
-rpc m calls =
+rpc : Model -> Maybe ID -> List RPC -> Cmd Msg
+rpc m id calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
       request = Http.post "/admin/api/rpc" json decodeGraph
-  in Http.send (RPCCallBack calls) request
+  in Http.send (RPCCallBack calls id) request
+
 
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
