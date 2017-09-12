@@ -125,12 +125,12 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
         List.filter ~f:((<>) i) (id :: returnid :: argids) in
       (fun g ->
          argids
-         |> List.map ~f:(fun id -> new Node.argnode
-                          id
-                          { loc with y = loc.y + 120 }
-                          (allids_except id))
+         |> List.map ~f:(fun argid -> new Node.argnode
+                          argid
+                          { loc with y = loc.y + 20 }
+                          (allids_except argid))
          |> List.append [ new Node.anonfn id
-                          { x = loc.x - 10; y = loc.y + 90 }
+                          { x = loc.x - 10; y = loc.y - 10 }
                           returnid argids
                         ; new Node.returnnode returnid
                           { x = loc.x + 265; y = loc.y + 285 }
