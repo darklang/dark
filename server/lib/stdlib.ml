@@ -112,6 +112,85 @@ let fns : Lib.shortfn list = [
   ;  pr = None
   }
   ;
+
+  { n = ">"
+  ; o = ["Int::greaterThan"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tBool
+  ; d = "Returns true if a is greater than b"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DBool (a > b)
+          | args -> fail args)
+  ;  pr = None
+  }
+  ;
+
+  { n = "<"
+  ; o = ["Int::lessThan"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tBool
+  ; d = "Returns true if a is less than b"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DBool (a < b)
+          | args -> fail args)
+  ;  pr = None
+  }
+  ;
+
+  { n = "<="
+  ; o = ["Int::lessThanOrEqualTo"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tBool
+  ; d = "Returns true if a is less than or equal to b"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DBool (a <= b)
+          | args -> fail args)
+  ;  pr = None
+  }
+  ;
+
+  { n = ">="
+  ; o = ["Int::greaterThanOrEqualTo"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tBool
+  ; d = "Returns true if a is greater than or equal to b"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DBool (a >= b)
+          | args -> fail args)
+  ;  pr = None
+  }
+  ;
+
+  { n = "&&"
+  ; o = ["Bool::and"]
+  ; p = [req "a" tBool ; req "b" tBool]
+  ; r = tBool
+  ; d = "Returns true if both a and b are true"
+  ; f = InProcess
+        (function
+          | [DBool a; DBool b] -> DBool (a && b)
+          | args -> fail args)
+  ;  pr = None
+  }
+  ;
+
+  { n = "||"
+  ; o = ["Bool::or"]
+  ; p = [req "a" tBool ; req "b" tBool]
+  ; r = tBool
+  ; d = "Returns true if either a is true or b is true"
+  ; f = InProcess
+        (function
+          | [DBool a; DBool b] -> DBool (a || b)
+          | args -> fail args)
+  ;  pr = None
+  }
+  ;
+
   { n = "String::foreach"
   ; o = []
   ; p = [req "s" tStr; req "f" tFun]
