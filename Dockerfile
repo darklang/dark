@@ -42,7 +42,7 @@ RUN echo 'deb https://deb.nodesource.com/node_8.x zesty main' > /etc/apt/sources
 RUN echo 'deb-src https://deb.nodesource.com/node_8.x zesty main' >> /etc/apt/sources.list.d/nodesource.list
 RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
 RUN apt-get update
-RUN apt-get install -y nodejs=8.4.0-1nodesource1~zesty1
+RUN apt-get install -y nodejs # this changes a lot so let’s not pin it
 
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
