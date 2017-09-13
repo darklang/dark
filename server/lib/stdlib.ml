@@ -68,7 +68,7 @@ let fns : Lib.shortfn list = [
   ; o = ["Int::add"]
   ; p = [req "a" tInt ; req "b" tInt]
   ; r = tInt
-  ; d = ""
+  ; d = "Adds two integers together"
   ; f = InProcess
         (function
           | [DInt a; DInt b] -> DInt (a + b)
@@ -77,15 +77,39 @@ let fns : Lib.shortfn list = [
   }
   ;
   { n = "-"
-  ; o = ["Int::sub"]
+  ; o = ["Int::subtract"]
   ; p = [req "a" tInt ; req "b" tInt]
   ; r = tInt
-  ; d = ""
+  ; d = "Subtracts two integers"
   ; f = InProcess
         (function
           | [DInt a; DInt b] -> DInt (a - b)
           | args -> fail args)
   ; pr = None
+  }
+  ;
+  { n = "*"
+  ; o = ["Int::multiply"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tInt
+  ; d = "Multiples two integers"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (a * b)
+          | args -> fail args)
+  ; pr = None
+  }
+  ;
+  { n = "/"
+  ; o = ["Int::divide"]
+  ; p = [req "a" tInt ; req "b" tInt]
+  ; r = tInt
+  ; d = "Divides two integers"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (a / b)
+          | args -> fail args)
+  ;  pr = None
   }
   ;
   { n = "String::foreach"
