@@ -98,7 +98,7 @@ cursor2mod cursor =
        ]
 
 
-  
+
 updateValue : String -> Modification
 updateValue target =
   AutocompleteMod <| Query target
@@ -134,7 +134,7 @@ addAnonParam m id pos name =
       argids = [gen_id ()]
       anon = AddAnon sid pos retid argids
       edge = SetEdge sid (id, name)
-  in 
+  in
     ([anon, edge], List.head argids)
 
 
@@ -151,8 +151,10 @@ addFunction m id name pos =
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
           anonpairs = List.map (\p -> addAnonParam m id pos p.name) fn_args
-          cursor = anonpairs |> List.head |> Maybe.andThen Tuple.second
+          anonarg = anonpairs |> List.head |> Maybe.andThen Tuple.second
           anons = anonpairs |> List.unzip |> Tuple.first
+          cursor = if anonarg == Nothing then Just id else anonarg
+
 
       in
         (AddFunctionCall id name pos :: List.concat anons, cursor)
@@ -223,7 +225,7 @@ submit m cursor =
                 Nothing ->
                   -- Not a normal function, just return
                   RPC (f, focus)
-                Just {parameters} -> 
+                Just {parameters} ->
                   case parameters of
                     (p :: _) -> RPC ( f ++ [SetEdge source.id (id, p.name)]
                                    , focus)
