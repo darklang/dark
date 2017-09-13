@@ -92,7 +92,8 @@ let fns : Lib.shortfn list = [
   ; o = []
   ; p = [req "s" tStr; req "f" tFun]
   ; r = tStr
-  ; d = ""
+  ; d = "Run `f` on every character in the string, and combine them back into a
+  string"
   ; f = InProcess
         (function
           | [DStr s; DAnon (id, fn)] ->
@@ -107,9 +108,29 @@ let fns : Lib.shortfn list = [
   ; pr = Some
         (function
           | [DStr s; _] ->
-              if s == ""
+              if s = ""
               then DChar 'l'
               else DChar (String.get s 0)
+          | args -> DIncomplete)
+  }
+  ;
+  { n = "List::find_first"
+  ; o = []
+  ; p = [req "l" tList; req "f" tFun]
+  ; r = tList
+  ; d = "Find the first element of the list, for which `f` returns true"
+  ; f = InProcess
+        (function
+          | [DList l; DAnon (id, fn)] ->
+            (let f (dv: dval) : bool = DBool true = fn [dv]
+            in
+            match List.find ~f l with
+            | None -> DNull
+            | Some dv -> dv)
+        | args -> fail args)
+  ; pr = Some
+        (function
+          | [DList (i :: _); _] -> i
           | args -> DIncomplete)
   }
   ;
@@ -117,7 +138,8 @@ let fns : Lib.shortfn list = [
   ; o = []
   ; p = [req "l" tList; req "f" tFun]
   ; r = tList
-  ; d = ""
+  ; d = "Call `f` on every item in the list, returning a list of the results of
+  those calls"
   ; f = InProcess
         (function
           | [DList l; DAnon (id, fn)] ->
@@ -132,7 +154,7 @@ let fns : Lib.shortfn list = [
   ; o = []
   ; p = [req "c" tChar]
   ; r = tChar
-  ; d = ""
+  ; d = "Return `c`'s ASCII code"
   ; f = InProcess
         (function
           | [DChar c] -> DInt (Char.to_int c)
@@ -144,10 +166,44 @@ let fns : Lib.shortfn list = [
   ; o = []
   ; p = [req "c" tChar]
   ; r = tChar
-  ; d = ""
+  ; d = "Return the uppercase value of `c`"
   ; f = InProcess
         (function
           | [DChar c] -> DChar (Char.uppercase c)
+          | args -> fail args)
+  ; pr = None
+  }
+  ;
+  { n = "Date::parse"
+  ; o = []
+  ; p = [req "s" tStr]
+  ; r = tInt
+  ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)"
+  ; f = InProcess
+        (function
+          | [DStr s] ->
+              DInt (s
+                    |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y"
+                    |> Util.inspect "strptime"
+                    |> Unix.timegm
+                    |> Util.inspect "timegm"
+                    |> int_of_float
+                    )
+          | args -> fail args)
+  ; pr = None
+  }
+  ;
+  { n = "Date::now"
+  ; o = []
+  ; p = []
+  ; r = tInt
+  ; d = "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
+  ; f = InProcess
+        (function
+          | [] ->
+              DInt (Unix.time ()
+                    |> int_of_float
+                    )
           | args -> fail args)
   ; pr = None
   }
