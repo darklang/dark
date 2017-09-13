@@ -1,5 +1,4 @@
 #!/bin/bash
+DIR="$( cd "$( dirname $(readlink -f "$BASH_SOURCE"))" && pwd )"
 
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-$DIR/compile-in-docker Main.elm --machine
+"$DIR/compile-in-docker" Main.elm --machine
