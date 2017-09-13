@@ -20,7 +20,7 @@ fswatch -m fsevents_monitor \
         -r * \
         --batch-marker="***BATCHEND***" \
         --latency=0.1 \
-        -x "$@" \
+        -x \
     | docker run \
              --rm \
              -i \
@@ -28,4 +28,4 @@ fswatch -m fsevents_monitor \
              -p 8000:8000 \
              -w /home/dark/app \
              dark \
-             scripts/support/build-server
+             scripts/support/build-server $@

@@ -37,8 +37,26 @@ def process_watchers():
 def background_task(fn):
   threading.Thread(target=fn).start()
 
+
 def main():
-  background_task(initial_compile)
-  process_watchers()
+  watch = False
+  compile = False
+  for f in sys.argv[1:]:
+    if f == "--compile":
+      compile = True
+    elif f == "--watch":
+      watch = True
+
+  if compile and watch:
+    background_task(initial_compile)
+    process_watchers()
+  else:
+    if compile:
+      background_task(initial_compile)
+
+    if watch:
+      process_watchers()
+
 
 main()
+
