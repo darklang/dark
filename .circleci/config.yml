@@ -2,11 +2,46 @@ version: 2
 jobs:
   build:
     docker:
-      # specify the version you desire here
-      - image: docker:17.05.0-ce-git
+      - image: circleci/python:3.6
+      - image: postgres:9.4.1
+        environment:
+          POSTGRES_USER: ubuntu
+          POSTGRES_DB: contacts
 
-    working_directory: ~/dark
+    environment:
+      TEST_RESULTS: /tmp/test-results
 
     steps:
       - checkout
-      - run: scripts/builder --compile
+
+      - run:
+          name: Waiting for Postgres to be ready
+          command: |
+            for i in `seq 1 10`;
+            do
+              nc -z localhost 5432 && echo Success && exit 0
+              echo -n .
+              sleep 1
+            done
+            echo Failed waiting for Postgress && exit 1
+
+      - run: mkdir -p $TEST_RESULTS
+
+      - setup_remote_docker
+
+      # This should go into custom primary image, here's only for the sake of explanation
+      - run:
+          name: Install Docker client
+          command: |
+            set -x
+            VER="17.03.0-ce"
+            curl -L -o /tmp/docker-$VER.tgz https://get.docker.com/builds/Linux/x86_64/docker-$VER.tgz
+            tar -xz -C /tmp -f /tmp/docker-$VER.tgz
+            sudo mv -f /tmp/docker/* /usr/bin
+
+      - run:
+          name: Build and push Docker image
+          command: |
+            TAG="0.1.${CIRCLE_BUILD_NUM}"
+            docker build -t circleci/cci-demo-docker:$TAG .
+
