@@ -24,5 +24,5 @@ type shortfn = { n : string
                ; pr : (dval list -> dval) option
                }
 
-let fail (args: dval list) : dval =
+let fail (args: dval list) : 'a =
   raise (Runtime.TypeError args)

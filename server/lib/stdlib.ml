@@ -185,11 +185,13 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if either a is true or b is true"
   ; f = InProcess
         (function
+
           | [DBool a; DBool b] -> DBool (a || b)
           | args -> fail args)
   ;  pr = None
   }
   ;
+
 
   { n = "String::foreach"
   ; o = []
@@ -237,6 +239,46 @@ let fns : Lib.shortfn list = [
           | args -> DIncomplete)
   }
   ;
+
+  { n = "List::contains"
+  ; o = []
+  ; p = [req "l" tList; req "item" tAny]
+  ; r = tBool
+  ; d = "Returns if the item is in the list"
+  ; f = InProcess
+        (function
+          | [DList l; i] -> DBool (List.mem ~equal:equal_dval l i)
+          | args -> fail args)
+  ; pr = None
+  }
+  ;
+
+  { n = "List::filter"
+  ; o = []
+  ; p = [req "l" tList; req "f" tFun]
+  ; r = tList
+  ; d = "Return only items in list which meet function criteria"
+  ; f = InProcess
+        (function
+          | [DList l; DAnon (id, fn)] ->
+            let f (dv: dval) : bool =
+            match fn [dv] with
+            | DBool b -> b
+            | dv -> fail [dv]
+            in
+            DList (List.filter ~f l)
+          | args -> fail args)
+  ; pr = Some
+        (function
+          | [DList l; _] ->
+              (match List.hd l with
+              | Some dv -> dv
+              | None -> DIncomplete)
+          | args -> DIncomplete)
+  }
+  ;
+
+
   { n = "List::foreach"
   ; o = []
   ; p = [req "l" tList; req "f" tFun]
