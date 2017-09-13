@@ -19,5 +19,5 @@ jobs:
             tar -xz -C /tmp -f /tmp/docker-$VER.tgz
             sudo mv -f /tmp/docker/* /usr/bin
 
-      - run: scripts/builder --complie
+      - run: scripts/builder --compile
 
