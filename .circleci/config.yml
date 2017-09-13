@@ -9,4 +9,4 @@ jobs:
 
     steps:
       - checkout
-      - run: script/builder --compile
+      - run: scripts/builder --compile
