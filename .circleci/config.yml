@@ -3,29 +3,9 @@ jobs:
   build:
     docker:
       - image: circleci/python:3.6
-      - image: postgres:9.4.1
-        environment:
-          POSTGRES_USER: ubuntu
-          POSTGRES_DB: contacts
-
-    environment:
-      TEST_RESULTS: /tmp/test-results
 
     steps:
       - checkout
-
-      - run:
-          name: Waiting for Postgres to be ready
-          command: |
-            for i in `seq 1 10`;
-            do
-              nc -z localhost 5432 && echo Success && exit 0
-              echo -n .
-              sleep 1
-            done
-            echo Failed waiting for Postgress && exit 1
-
-      - run: mkdir -p $TEST_RESULTS
 
       - setup_remote_docker
 
@@ -39,9 +19,5 @@ jobs:
             tar -xz -C /tmp -f /tmp/docker-$VER.tgz
             sudo mv -f /tmp/docker/* /usr/bin
 
-      - run:
-          name: Build and push Docker image
-          command: |
-            TAG="0.1.${CIRCLE_BUILD_NUM}"
-            docker build -t circleci/cci-demo-docker:$TAG .
+      - run: scripts/builder --complie
 
