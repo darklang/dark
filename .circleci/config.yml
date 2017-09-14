@@ -6,7 +6,7 @@ jobs:
 
     steps:
       - checkout
-      - sudo apt-get install -y fswatch
+      - run: sudo apt-get install -y fswatch
 
       - setup_remote_docker
 
