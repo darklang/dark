@@ -70,52 +70,75 @@ findHole n =
     Nothing -> ResultHole n
     Just (i, (p, _)) -> ParamHole n p i
 
-findParamHole : Node -> Maybe Hole
-findParamHole n =
-  findParam n
-    |> Maybe.map (\(i, (p, _)) -> ParamHole n p i)
+findParamHole : Node -> Maybe Hole -> Maybe Hole
+findParamHole n mh =
+  case mh of
+    Just h -> Just h
+    Nothing ->
+      findParam n
+      |> Maybe.map (\(i, (p, _)) -> ParamHole n p i)
 
--- follow the graph to find all available holes. (I could have skipped
--- the seen-tracking, but I guess it's gottas be built sometime unless
--- we go to Elm.Graph)
-type alias IDSet = Set.Set Int
 findNextArgHole : Model -> Node -> Maybe Hole
 findNextArgHole m n =
-  find n (incomingNodes m) findParamHole
+  fold findParamHole Nothing n (incomingNodes m)
 
 -- find args going up. If there aren't any, look down. Hit the end?
 -- Suggest it.
 findNextHole : Model -> Node -> Maybe Hole
 findNextHole m start =
-  let findfn n =
-        case findNextArgHole m n of
-          Nothing -> case outgoingNodes m n of
-                       [] -> Just (ResultHole n)
-                       _ -> Nothing
-          h -> h
+  let func n mh =
+        case mh of
+        Just h -> Just h
+        Nothing ->
+          case findNextArgHole m n of
+            Just h -> Just h
+            Nothing -> case outgoingNodes m n of
+                         [] -> Just (ResultHole n)
+                         _ -> Nothing
   in
-    find start (outgoingNodes m) findfn
+    fold func Nothing start (outgoingNodes m)
 
-find : Node -> (Node -> List Node) -> (Node -> Maybe a) -> Maybe a
-find starting nextfn findfn =
-  find_ starting nextfn findfn Set.empty |> Tuple.second
+-- Starting with `start`, traverse the graph, folding using `func`. Will not
+-- visit the same node twice.
+type alias IDSet = Set.Set Int
+fold :  (Node -> b -> b) -> b -> Node -> (Node -> List Node) -> b
+fold func acc start nextfn =
+  fold_ func (Set.empty, acc) start nextfn |> Tuple.second
 
-find_ : Node -> (Node -> List Node) -> (Node -> Maybe a) -> IDSet -> (IDSet, Maybe a)
-find_ starting nextfn findfn seen =
-  case findfn starting of
-    Just x -> (seen, Just x)
-    Nothing ->
-      List.foldl
-        (\node (set, x) ->
-           case x of
-             -- found something, return
-             Just _ -> (set, x)
-             -- not found, keep looking
-             Nothing -> if Set.member (deID node.id) set
-                        then (set, x)
-                        else find_ node nextfn findfn set)
-          (Set.insert (deID starting.id) seen, Nothing)
-          (nextfn starting)
+
+fold_ : (Node -> b -> b) -> (IDSet, b) -> Node -> (Node -> List Node) -> (IDSet, b)
+fold_ func (seen, bAcc) start nextfn =
+  -- if we've been here before, we're done. Return the inputs
+  -- we have a list of next nodes.
+  -- we need the new value. call (func n acc)
+  -- 1 go into the node, passing the new set. When we return we take the new val and set.
+  if Set.member (deID start.id) seen
+  then (seen, bAcc)
+  else
+    let new_val = func start bAcc
+        new_set = Set.insert (deID start.id) seen in
+        List.foldl
+          (\n (s, v) -> fold_ func (s,v) n nextfn)
+          (new_set, new_val)
+          (nextfn start)
+
+
+-- example:
+
+-- a
+-- a - b, c, d, e, x
+-- b - c, d, e
+-- c - f, g, h
+
+-- a({}, a) -> ({a}, a)
+ -- b({a}, b) -> ({a,b}, b)
+  -- c({a,b}, c) -> ({a,b,c}, c)
+   -- f({a,b,c}, c) -> ({a,b,c,f} -> f)
+    -- g({a,b,c,f}, f) -> ({a,b,c,f,g}, g)
+    -- h({a,b,c,f,g), g) -> ({a,b,c,f,g,h}, h)
+  -- d({a,b,c,f,g,h}, h) -> ({a,b,c,f,g,h,d}, h)
+  -- e({a,b,c,f,g,h,d}, h) -> ({a,b,c,f,g,h,d,e}, h)
+  -- x({a,b,c,f,g,h,d,e}, h) -> ({a,b,c,f,g,h,d,e,x}, x)
 
 
 
@@ -161,4 +184,21 @@ getAnonNodeOf m id =
   |> List.head
   |> Maybe.map Tuple.first
 
+-- entireSubgraph : Model -> Node -> List Node
 
+
+
+rePlaceReturn : Model -> Node -> Node
+rePlaceReturn m n =
+  case n.tipe of
+    Return ->
+      -- find the arg node. Traverse it as far south and as fast east as we can. Pick a new pos.
+      let
+          -- nodes = n |> anonParent |> getAllNodes
+          x = 0
+          y = 0
+          -- x = List.max nodes .x
+          -- y = List.max nodes .y
+      in
+          { n | pos={x=x, y=y} }
+    _ -> n
