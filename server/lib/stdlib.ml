@@ -292,7 +292,13 @@ let fns : Lib.shortfn list = [
             in
             DList (List.map ~f l)
           | args -> fail args)
-  ; pr = None
+  ; pr = Some
+        (function
+          | [DList l; _] ->
+              (match List.hd l with
+              | Some dv -> dv
+              | None -> DIncomplete)
+          | args -> DIncomplete)
   }
   ;
   { n = "Char::code"
