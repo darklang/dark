@@ -151,3 +151,14 @@ slotIsConnected m target param =
     |> getNodeExn m
     |> getArgument param
     |> (/=) NoArg
+
+getAnonNodeOf : Model -> ID -> Maybe Node
+getAnonNodeOf m id =
+  id
+  |> getNodeExn m
+  |> incomingNodePairs m
+  |> List.filter (\(n, p) -> n.tipe == FunctionDef)
+  |> List.head
+  |> Maybe.map Tuple.first
+
+
