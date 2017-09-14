@@ -6,7 +6,18 @@ jobs:
 
     steps:
       - checkout
-      - run: sudo apt-get install -y fswatch
+
+      # fswatch
+      - run:
+          name: Install fswatch
+          command: |
+            wget -q https://github.com/emcrisostomo/fswatch/releases/download/1.10.0/fswatch-1.10.0.tar.gz
+            tar -zxvf fswatch-1.10.0.tar.gz
+            cd fswatch-1.10.0
+            ./configure
+            make
+            sudo make install
+
 
       - setup_remote_docker
 
