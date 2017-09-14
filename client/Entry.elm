@@ -23,7 +23,7 @@ nodeFromHole h = case h of
 holePos : Hole -> Pos
 holePos hole =
   case hole of
-    ResultHole n -> {x=n.pos.x+100, y=n.pos.y+100}
+    ResultHole n -> {x=n.pos.x+50, y=n.pos.y+50}
     ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
 
 entryPos : EntryCursor -> Pos
