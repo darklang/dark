@@ -37,14 +37,18 @@ let writefile f str : unit =
 let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
-let inspecT ?(formatter=Batteries.dump)  (msg : string) (x : 'a) : unit =
+let inspecT ?(formatter=Batteries.dump) ?(start=0) ?(stop=(-1)) (msg : string) (x : 'a) : unit =
   let red = "\x1b[6;31m" in
   let reset = "\x1b[0m" in
-  let str = red ^ "inspect: " ^ msg ^ ": " ^ reset ^ (formatter x) in
-  print_endline(str)
+  let prefix = red ^ "inspect: " ^ msg ^ ": " ^ reset in
+  x
+  |> formatter
+  |> (fun s -> String.slice s start stop)
+  |> (^) prefix
+  |> print_endline
 
-let inspect ?(formatter=Batteries.dump)  (msg : string) (x : 'a) : 'a =
-  inspecT msg ~formatter:formatter x;
+let inspect ?(formatter=Batteries.dump) ?(start=0) ?(stop=(-1)) (msg : string) (x : 'a) : 'a =
+  inspecT msg ~formatter ~start ~stop x;
   x
 
 let string_replace (search: string) (replace: string) (str: string) : string =

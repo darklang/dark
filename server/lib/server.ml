@@ -24,7 +24,7 @@ let server =
         G.save !g;
         !g
         |> Graph.to_frontend_string
-        |> Util.inspect "response: " ~formatter:ident
+        |> Util.inspect "response: " ~stop:1000 ~formatter:ident
       with
       | e -> print_endline (G.show_graph !g);
         raise e
