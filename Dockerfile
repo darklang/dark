@@ -75,8 +75,8 @@ ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
 ENV FORCE_BUILD 1
 RUN opam update
 
-RUN opam install lwt.3.1.0
 RUN opam install core.v0.9.1
+RUN opam install lwt.3.1.0
 RUN opam install cohttp.0.22.0
 RUN opam install yojson.1.3.3
 RUN opam install postgresql.4.0.1
@@ -100,6 +100,8 @@ RUN opam install pcre.7.3.0
 # RUN cd ocaml-better-errors && oasis setup -setup-update dynamic && make
 # RUN mv ocaml-better-errors/main.byte bin/better-errors
 RUN npm install ocamlBetterErrors
+RUN cp node_modules/ocamlBetterErrors/berror.native ~/bin/better-errors
+RUN chmod +x ~/bin/better-errors
 
 ## ADD NEW PACKAGES HERE
 # Doing otherwise will force a large recompile of the container for
@@ -107,7 +109,5 @@ RUN npm install ocamlBetterErrors
 RUN sudo apt-get install -y expect # for unbuffer
 ENV TERM=xterm-256color
 
-RUN cp node_modules/ocamlBetterErrors/berror.native ~/bin/better-errors
-RUN chmod +x ~/bin/better-errors
 
 CMD ["app", "scripts", "builder"]
