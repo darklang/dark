@@ -144,7 +144,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
                           { x = loc.x - 10; y = loc.y - 10 }
                           returnid argids
                         ; new Node.returnnode returnid
-                          { x = loc.x + 265; y = loc.y + 285 }
+                          { x = loc.x + 135; y = loc.y + 125 }
                           (allids_except returnid)]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, loc) -> update_node_position id loc
