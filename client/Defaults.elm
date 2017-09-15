@@ -31,6 +31,8 @@ dragEdgeSize : String
 dragEdgeSize = "2px"
 initialPos : VPos
 initialPos = {vx=475, vy=325}
+moveSize : Int
+moveSize = 50
 
 defaultEditor : Editor
 defaultEditor = {}

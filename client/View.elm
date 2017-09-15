@@ -20,6 +20,7 @@ import Util exposing (deMaybe)
 import Graph as G
 import Entry
 import Defaults
+import Viewport
 import Selection
 import Autocomplete
 
@@ -58,7 +59,7 @@ viewCanvas m =
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
-  let rcpos = Entry.toViewport m pos in
+  let rcpos = Viewport.toViewport m pos in
   Svg.foreignObject
     [ SA.x (toString rcpos.vx)
     , SA.y (toString rcpos.vy)
@@ -416,8 +417,8 @@ edgeStyle x1 y1 x2 y2 =
 svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine m p1a p2a attrs =
   -- edge case: avoid zero width/height lines, or they won't appear
-  let p1v = Entry.toViewport m p1a
-      p2v = Entry.toViewport m p2a
+  let p1v = Viewport.toViewport m p1a
+      p2v = Viewport.toViewport m p2a
       ( x1, y1, x2_, y2_ ) = (p1v.vx, p1v.vy, p2v.vx, p2v.vy)
       x2 = if x1 == x2_ then x2_ + 1 else x2_
       y2 = if y1 == y2_ then y2_ + 1 else y2_

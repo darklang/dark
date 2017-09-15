@@ -22,6 +22,7 @@ import Graph as G
 import Entry
 import Autocomplete
 import Selection
+import Viewport
 import Window.Events exposing (onWindow)
 
 
@@ -106,7 +107,7 @@ update_ msg m =
     (RecordClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod Reset
-                , Enter <| Creating (Entry.toAbsolute m event.pos)]
+                , Enter <| Creating (Viewport.toAbsolute m event.pos)]
       else NoChange
 
     ------------------------
@@ -178,6 +179,10 @@ update_ msg m =
         Deselected ->
           case event.keyCode of
             Key.Enter -> Entry.createFindSpace m
+            Key.Up -> ModelMod Viewport.moveUp
+            Key.Down -> ModelMod Viewport.moveDown
+            Key.Left -> ModelMod Viewport.moveLeft
+            Key.Right -> ModelMod Viewport.moveRight
             _ -> Selection.selectByLetter m event.keyCode
 
     (EntryInputMsg target, _) ->

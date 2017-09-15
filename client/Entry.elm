@@ -13,6 +13,7 @@ import Graph as G
 import Types exposing (..)
 import Util
 import Autocomplete
+import Viewport
 
 
 nodeFromHole : Hole -> Node
@@ -43,16 +44,6 @@ entryNodePos c =
     Creating p -> p -- todo this is a vpos
     Filling n h -> n.pos
 
-
-toViewport : Model -> Pos -> VPos
-toViewport m pos =
-  let d = Defaults.defaultModel {} |> .center in
-  { vx = d.x + pos.x - m.center.x, vy = d.y + pos.y - m.center.y}
-
-toAbsolute : Model -> VPos -> Pos
-toAbsolute m pos =
-  let d = Defaults.defaultModel {} |> .center in
-  { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.x}
 
 ---------------------
 -- Nodes
@@ -109,7 +100,7 @@ updateValue target =
   AutocompleteMod <| Query target
 
 createFindSpace : Model -> Modification
-createFindSpace m = Enter <| Creating (toAbsolute m Defaults.initialPos)
+createFindSpace m = Enter <| Creating (Viewport.toAbsolute m Defaults.initialPos)
 ---------------------
 -- Focus
 ---------------------
