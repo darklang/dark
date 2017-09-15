@@ -17,14 +17,21 @@ let server =
     let auth = req |> Request.headers |> Header.get_authorization in
 
     let admin_rpc_handler body : string =
+      let time = Unix.gettimeofday () in
       let body = Util.inspect "request body" body ~formatter:ident in
       let g = G.load "blog" in
       try
         Api.apply_ops g body;
         G.save !g;
-        !g
-        |> Graph.to_frontend_string
-        |> Util.inspect "response: " ~stop:1000 ~formatter:ident
+        let result = !g
+                     |> Graph.to_frontend_string in
+        let total = string_of_float ((Unix.gettimeofday ()) -. time) in
+        Util.inspect ("response (" ^ total ^ "s):")
+        ~stop:1000
+        ~formatter:ident
+        result
+
+
       with
       | e -> print_endline (G.show_graph !g);
         raise e
