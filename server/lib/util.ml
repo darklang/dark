@@ -53,6 +53,18 @@ let inspect ?(formatter=Batteries.dump) ?(start=0) ?(stop=0) (msg : string) (x :
   inspecT msg ~formatter ~start ~stop x;
   x
 
+let tS (msg : string) (x : 'a) : unit =
+  let time = Float.mod_float (1000.0 *. Unix.gettimeofday ()) 10000.0 in
+  let ts = string_of_float time in
+  let red = "\x1b[6;31m" in
+  let reset = "\x1b[0m" in
+  red ^ "ts: " ^ msg ^ " (" ^ ts ^ "): " ^ reset ^ (Batteries.dump x)
+  |> print_endline
+
+let ts (msg : string) (x : 'a) : 'a =
+  tS msg x;
+  x
+
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_first (String.Search_pattern.create search) ~in_:str ~with_:replace
 
