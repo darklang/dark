@@ -335,9 +335,7 @@ let fns : Lib.shortfn list = [
           | [DStr s] ->
               DInt (s
                     |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y"
-                    |> Util.inspect "strptime"
                     |> Unix.timegm
-                    |> Util.inspect "timegm"
                     |> int_of_float
                     )
           | args -> fail args)
