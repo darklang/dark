@@ -184,21 +184,26 @@ getAnonNodeOf m id =
   |> List.head
   |> Maybe.map Tuple.first
 
--- entireSubgraph : Model -> Node -> List Node
-
+entireSubgraph : Model -> Node -> List Node
+entireSubgraph m n =
+  fold (\n list -> n :: list) [] n (connectedNodes m)
 
 
 rePlaceReturn : Model -> Node -> Node
 rePlaceReturn m n =
   case n.tipe of
     Return ->
-      -- find the arg node. Traverse it as far south and as fast east as we can. Pick a new pos.
-      let
-          -- nodes = n |> anonParent |> getAllNodes
-          x = 0
-          y = 0
-          -- x = List.max nodes .x
-          -- y = List.max nodes .y
+      let nodes = n.argIDs
+                  |> List.map (\id -> id
+                                      |> getNodeExn m
+                                      |> entireSubgraph m)
+                  |> List.concat
+          x = nodes |> List.map (\n -> n.pos.x) |> List.maximum
+          y = nodes |> List.map (\n -> n.pos.y) |> List.maximum
       in
-          { n | pos={x=x, y=y} }
+        let pos = case (x,y) of
+                    (Just x, Just y) -> {x=x+50, y=y+50}
+                    _ -> n.pos
+        in
+          { n | pos=pos }
     _ -> n

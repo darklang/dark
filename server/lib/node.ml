@@ -29,6 +29,7 @@ type nodejson = { name: string
                 ; live: valuejson
                 ; parameters: param list
                 ; arguments: argument list
+                ; anon_id: id option
                 ; return_id: id option
                 ; arg_ids : id list
                 } [@@deriving yojson, show]
@@ -66,6 +67,7 @@ class virtual node id loc =
       Exception.raise "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
     method dependent_nodes : id list = []
+    method anon_id = None
     method return_id = None
     method arg_ids = []
     method update_loc _loc : unit =
@@ -83,6 +85,7 @@ class virtual node id loc =
       ; arguments = List.map
             ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name)
             self#parameters
+      ; anon_id = self#anon_id
       ; return_id = self#return_id
       ; arg_ids = self#arg_ids
       }
@@ -203,10 +206,10 @@ let anonexecutor (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
      execute rid ~eager g
   )
 
-class returnnode id loc depids =
+class returnnode id loc nid argids =
   object (self)
     inherit has_arguments id loc
-    method dependent_nodes = depids
+    method dependent_nodes = nid :: argids
     method name = "<return>"
     method! parameters = [{ name = "return"
                           ; tipe = RT.tAny
@@ -215,19 +218,25 @@ class returnnode id loc depids =
     method tipe = "return"
     method execute (g: gfns) (args) : dval =
       DvalMap.find_exn args "return"
+    method! anon_id = Some nid
+    method! return_id = Some id
+    method! arg_ids = argids
   end
 
-class argnode nodeid id loc depids =
+class argnode id loc nid rid argids =
   object
     inherit node id loc
-    method dependent_nodes = depids
+    method dependent_nodes = nid :: rid :: argids
     method name = "<arg>"
     method tipe = "arg"
     method execute (g: gfns) _ : dval =
-      match g.get_children nodeid with
+      match g.get_children nid with
       | [] -> DIncomplete
       | [caller] -> execute ~preview:true caller#id g
       | _ -> failwith "more than 1"
+    method! anon_id = Some nid
+    method! return_id = Some rid
+    method! arg_ids = argids
   end
 
 class anonfn id loc rid argids =

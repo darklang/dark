@@ -130,22 +130,23 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore id loc table)
     | Add_value (id, loc, expr) ->
       add_node (new Node.value id loc expr)
-    | Add_anon (id, loc, returnid, argids) ->
-      let allids_except i =
-        List.filter ~f:((<>) i) (id :: returnid :: argids) in
+    | Add_anon (nid, loc, rid, argids) ->
       (fun g ->
          argids
          |> List.map ~f:(fun argid -> new Node.argnode
-                          id
                           argid
                           { loc with y = loc.y + 20 }
-                          (allids_except argid))
-         |> List.append [ new Node.anonfn id
+                          nid
+                          rid
+                          argids)
+         |> List.append [ new Node.anonfn nid
                           { x = loc.x - 10; y = loc.y - 10 }
-                          returnid argids
-                        ; new Node.returnnode returnid
+                          rid
+                          argids
+                        ; new Node.returnnode rid
                           { x = loc.x + 135; y = loc.y + 125 }
-                          (allids_except returnid)]
+                          nid
+                          argids]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (target, param, value) ->

@@ -51,6 +51,7 @@ type alias Node = { name : Name
                   , parameters : List Parameter
                   , arguments : List Argument
                   -- for anonfns
+                  , anonID : Maybe ID
                   , returnID : Maybe ID
                   , argIDs : List ID
                   }

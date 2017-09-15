@@ -113,10 +113,10 @@ decodeNode =
 
       toNode : Name -> Int -> List(FieldName,TypeName) ->
                List Parameter -> List (List JSD.Value) ->
-               Dict String String -> Int -> List Int ->
+               Dict String String -> Int -> Int -> List Int ->
                String -> Int -> Int ->
                Node
-      toNode name id fields parameters arguments liveDict returnID argIDs tipe x y =
+      toNode name id fields parameters arguments liveDict anonID returnID argIDs tipe x y =
         let liveValue = Dict.get "value" liveDict
             liveTipe = Dict.get "type" liveDict
             liveJson = Dict.get "json" liveDict in
@@ -128,6 +128,7 @@ decodeNode =
           , liveValue = (liveValue, liveTipe, liveJson)
                         |> Tuple3.mapAll deMaybe
           , returnID = if returnID == -42 then Nothing else Just <| ID returnID
+          , anonID = if anonID == -42 then Nothing else Just <| ID anonID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of
                      "datastore" -> Datastore
@@ -157,6 +158,7 @@ decodeNode =
                                      |> JSDP.required "description" JSD.string))
     |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))
     |> JSDP.required "live" (JSD.dict JSD.string)
+    |> JSDP.optional "anon_id" JSD.int -42
     |> JSDP.optional "return_id" JSD.int -42
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
