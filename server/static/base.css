@@ -116,7 +116,7 @@ Nodes
 
 .name {
   /* Targets are larger than regular letters - this canonicalizes the size */
-  min-height: 21px;
+  max-height: 16px;
 }
 
 .node {
@@ -180,7 +180,7 @@ Node Header
 
 .header {
   position: relative;
-  top: -42px;
+  top: -36px;
   left: 4px;
 }
 
