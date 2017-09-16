@@ -179,6 +179,7 @@ type fn = { name : string
           ; description : string
           ; preview : (dval list -> dval) option
           ; func : ccfunc
+          ; pure : bool
           }
 
 let param_to_string (param: param) : string =

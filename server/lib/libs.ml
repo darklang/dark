@@ -15,7 +15,9 @@ let fns : fnmap =
               ; parameters = s.p
               ; description = s.d
               ; func = s.f
-              ; preview = s.pr } in
+              ; preview = s.pr
+              ; pure = s.pu
+              } in
     List.fold_left ~f:(fun m1 n -> FnMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in
   List.fold_left ~f:add_fn ~init:FnMap.empty (List.append Stdlib.fns Libtwitter.fns)
