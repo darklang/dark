@@ -449,7 +449,7 @@ paramOffset node param =
   let
     index = deMaybe (LE.findIndex (\p -> p.name == param) node.parameters)
   in
-    {x=index*5, y=0}
+    {x=7+index*5, y=-3}
 
 
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
