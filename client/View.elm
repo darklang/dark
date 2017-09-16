@@ -56,10 +56,12 @@ viewError (msg, ts) =
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
+    let
+        anons = List.indexedMap (\i n -> viewNode m n i) (List.filter (\n -> n.tipe == FunctionDef) (G.orderedNodes m))
+        other = List.indexedMap (\i n -> viewNode m n i) (List.filter (\n -> n.tipe /= FunctionDef) (G.orderedNodes m))
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
-        allSvgs = svgDefs :: svgArrowHead :: (entry ++ edges ++ allNodes)
+        allSvgs = svgDefs :: svgArrowHead :: (anons ++ edges ++ other ++ entry)
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -141,21 +143,13 @@ viewEntry m =
                           ]
             _ -> Html.div [] []
 
-
-        -- inner node
-        inner = Html.div
-                [ Attrs.width 100
-                , Attrs.class "inner"]
-                [ paramInfo, viewForm ]
-
-
         -- outer node wrapper
         classes = "selection function node entry"
 
-        wrapper = Html.span
+        wrapper = Html.div
                   [ Attrs.class classes
                   , Attrs.width 100]
-                  [ inner ]
+                  [ paramInfo, viewForm ]
       in
         placeHtml m pos wrapper
   in

@@ -82,7 +82,7 @@ form {
 }
 
 #autocomplete-holder {
-  overflow-y: auto;
+  overflow-y: hidden;
   max-height: 250px;
 }
 
@@ -93,6 +93,12 @@ form {
   color: grey;
 }
 
+.node.entry {
+  width: 300px;
+  padding: 0.8em 1em;
+}
+
+
 
 /********************
 Nodes
@@ -102,7 +108,6 @@ Nodes
   in front of the grid. Unfortunately, z-index on SVG is kinda hard, so
   I don't know how to make this work. */
   background: #252b2e;
-  opacity: 0.35;
 }
 
 .node.functiondef.selected {
