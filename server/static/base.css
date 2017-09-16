@@ -65,6 +65,7 @@ Entry (is also a node)
 }
 
 #darkEntry {
+  z-index: 20;
   position: relative;
   color: #000;
   border: 1px solid #666;
