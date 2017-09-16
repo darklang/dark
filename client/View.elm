@@ -56,9 +56,10 @@ viewError (msg, ts) =
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let
-        anons = List.indexedMap (\i n -> viewNode m n i) (List.filter (\n -> n.tipe == FunctionDef) (G.orderedNodes m))
-        other = List.indexedMap (\i n -> viewNode m n i) (List.filter (\n -> n.tipe /= FunctionDef) (G.orderedNodes m))
+    let allNodes = List.indexedMap (,) <| G.orderedNodes m
+        (anonNodes, otherNodes) = List.partition (\(i, n) -> n.tipe == FunctionDef) allNodes
+        anons = List.map (\(i,n) -> viewNode m n i) anonNodes
+        other = List.map (\(i,n) -> viewNode m n i) otherNodes
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         allSvgs = svgDefs :: svgArrowHead :: (anons ++ edges ++ other ++ entry)
