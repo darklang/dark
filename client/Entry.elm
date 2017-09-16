@@ -25,7 +25,7 @@ holePos : Model -> Hole -> Pos
 holePos m hole =
   case hole of
     ResultHole n ->
-      let pos = case G.getAnonNodeOf m (Debug.log "check for anon" n.id) |> Debug.log "found" |> Maybe.andThen .returnID of
+      let pos = case G.getAnonNodeOf m n.id |> Maybe.andThen .returnID of
                   Just rid -> rid |> G.getNodeExn m |> .pos
                   Nothing -> n.pos
       in
