@@ -135,16 +135,16 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
          argids
          |> List.map ~f:(fun argid -> new Node.argnode
                           argid
-                          { loc with y = loc.y + 20 }
+                          { x=loc.x + 15; y=loc.y + 27 }
                           nid
                           rid
                           argids)
          |> List.append [ new Node.anonfn nid
-                          { x = loc.x - 10; y = loc.y - 10 }
+                          { x=loc.x + 7; y=loc.y + 7 }
                           rid
                           argids
                         ; new Node.returnnode rid
-                          { x = loc.x + 135; y = loc.y + 125 }
+                          { x=loc.x + 135; y=loc.y + 135 }
                           nid
                           argids]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))

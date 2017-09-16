@@ -196,11 +196,13 @@ Node Header
 
 .arg .header {
   width: 18px;
-  top: 12px;
+  top: 10px;
+  left: 9px;
 }
 
 .return .header {
-  top: -6px;
+  top: -9px;
+  left: 10px;
   position: relative;
 }
 

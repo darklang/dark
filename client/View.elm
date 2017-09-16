@@ -296,8 +296,8 @@ viewAnon : Model -> Node -> Int -> Html.Html Msg
 viewAnon m n i =
   let rid = deMaybe n.returnID
       returnNode = G.getNodeExn m rid
-      height = 40 + returnNode.pos.y - n.pos.y
-      width = 25 + returnNode.pos.x - n.pos.x
+      height = 25 + returnNode.pos.y - n.pos.y
+      width = 23 + returnNode.pos.x - n.pos.x
       height_attr = Attrs.style [("height", (toString height) ++ "px")]
       viewHeader = [ Html.span
                        [Attrs.class "letter"]
