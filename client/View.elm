@@ -412,10 +412,10 @@ edgeStyle x1 y1 x2 y2 =
 
 svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine m p1a p2a attrs =
-  -- edge case: avoid zero width/height lines, or they won't appear
   let p1v = Viewport.toViewport m p1a
       p2v = Viewport.toViewport m p2a
       ( x1, y1, x2_, y2_ ) = (p1v.vx, p1v.vy, p2v.vx, p2v.vy)
+      -- edge case: avoid zero width/height lines, or they won't appear
       x2 = if x1 == x2_ then x2_ + 1 else x2_
       y2 = if y1 == y2_ then y2_ + 1 else y2_
   in
@@ -438,13 +438,15 @@ paramOffset node param =
   let
     index = deMaybe (LE.findIndex (\p -> p.name == param) node.parameters)
   in
-    {x=index*10, y=-2}
+    {x=index*5, y=0}
 
 
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
 viewEdge m source target param =
     let targetPos = target.pos
         (sourceW, sourceH) = nodeSize source
+        spos = { x = source.pos.x + (sourceW // 2)
+               , y = source.pos.y + (sourceH // 2)}
 
         pOffset = paramOffset target param
         (tnx, tny) = (target.pos.x + pOffset.x, target.pos.y + pOffset.y)
@@ -455,15 +457,8 @@ viewEdge m source target param =
                 , (tnx, tny + 5) -- bottomleft
                 , (tnx + 5, tny + 5) -- bottomright
                 ]
-        sq x = toFloat (x*x)
-        -- ideally to source pos would be at the bottom of the node.
-        -- But, the positioning of the node is a little bit off because
-        -- css, and nodes with parameters are in different relative
-        -- offsets than nodes without parameters. This makes it hard to
-        -- line things up exactly.
-        spos = { x = source.pos.x + (sourceW // 2)
-               , y = source.pos.y + (sourceH // 2)}
 
+        sq x = toFloat (x*x)
         join = List.head
                (List.sortBy (\(x,y) -> sqrt ((sq (spos.x - x)) + (sq (spos.y - y))))
                   joins)
