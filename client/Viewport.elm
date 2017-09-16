@@ -12,7 +12,7 @@ toViewport m pos =
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
   let d = Defaults.defaultModel {} |> .center in
-  { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.x}
+  { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.y}
 
 moveUp : Model -> Model
 moveUp m =
