@@ -27,7 +27,7 @@ let rec to_repr (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
-  | DAnon _ -> "<anon>"
+  | DAnon (id, _) -> "<" ^ (string_of_int id) ^ "-" ^ "anon>"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
@@ -38,6 +38,11 @@ let rec to_repr (dv : dval) : string =
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_repr data) :: l) in
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
+
+let to_comparable_repr (dvm : dval_map) : string =
+  Map.to_alist ~key_order:`Increasing dvm
+  |> List.map ~f:(fun (s, dv) -> s ^ (to_repr dv))
+  |> List.fold ~f:(fun a b -> a ^ b) ~init:""
 
 let rec to_string (dv : dval) : string =
   match dv with

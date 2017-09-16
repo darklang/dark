@@ -151,16 +151,34 @@ class virtual has_arguments id loc = (*  *)
       self#set_arg name RT.blank_arg
   end
 
+module MemoCache = String.Map
+type memo_cache = dval MemoCache.t
+
 class func id loc n =
   object (self)
     inherit has_arguments id loc
 
+    val mutable memo : memo_cache = MemoCache.empty
     (* Throw an exception if it doesn't exist *)
     method private fn = (Libs.get_fn_exn n)
     method parameters : param list = self#fn.parameters
     method name = self#fn.name
     method execute (g: gfns) (args: dval_map) : dval =
-      RT.exe self#fn args
+      (* todo: purity; if impure do nothing *)
+      (* if any args incomplete then do nothing*)
+      if args
+       |> DvalMap.data
+       |> List.filter ~f:(fun (v: dval) -> match v with | DIncomplete -> true | _ -> false)
+       |> List.length
+       |> fun x -> x > 0
+      then
+        (Util.inspecT "One or more args is DIncomplete" (self#id);
+        RT.exe self#fn args)
+      else
+        match MemoCache.find memo (RT.to_comparable_repr args) with
+            | None -> RT.exe self#fn args |> (fun x -> Util.inspecT "Lookup failed" (self#id); memo <- MemoCache.add memo (RT.to_comparable_repr args) x; x)
+            | Some v -> Util.inspecT "Lookup successful" (self#id); v
+
      (* Get a value to use as the preview for anonfns used by this node *)
     method preview (g: gfns) (args: dval_map) : dval =
       match self#fn.preview with
