@@ -32,10 +32,10 @@ view m =
                , Events.on "mousedown" (decodeClickEvent RecordClick)
                ]
                [ Svg.svg
-                    [ SA.width (toString (w - 400))
-                    , SA.height (toString h)
-                    ]
-                    (viewCanvas m)
+                 [ SA.width "100%"
+                 , SA.height (toString h)
+                 ]
+                 (viewCanvas m)
                ]
       docs = Html.div
               [ Attrs.id "docs"]
