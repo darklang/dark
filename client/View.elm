@@ -236,15 +236,13 @@ viewNormalNode m n i =
         [Html.text "◉"]
 
       -- header
-      viewHeader = Html.div
-                   [Attrs.class "header"]
-                     [ Html.span
-                         [Attrs.class "parameters"]
-                         (List.map viewParam n.parameters)
-                     , Html.span
-                         [Attrs.class "letter"]
-                         [Html.text (G.int2letter i)]
-                     ]
+      header = [ Html.span
+                   [Attrs.class "parameters"]
+                   (List.map viewParam n.parameters)
+               , Html.span
+                   [Attrs.class "letter"]
+                   [Html.text (G.int2letter i)]
+               ]
 
       -- heading
       heading = Html.span
@@ -271,20 +269,20 @@ viewNormalNode m n i =
       (nodeWidth n)
       []
       []
-      (viewHeader :: heading :: list)
+      header
+      (heading :: list)
 
-placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> Html.Html Msg
-placeNode m n width attrs classes body =
+placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> List (Html.Html Msg) -> Html.Html Msg
+placeNode m n width attrs classes header body =
   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
       selectedCl = if Selection.isSelected m n then ["selected"] else []
       class = String.toLower (toString n.tipe)
       classStr = String.join " " (["node", class] ++ selectedCl ++ classes)
-      inner = Html.div
-              (width_attr :: (Attrs.class "inner") :: attrs)
-              body
-      wrapper = Html.span
-                [ Attrs.class classStr, width_attr]
-                [ inner ]
+      node = Html.div
+                (width_attr :: (Attrs.class classStr) :: attrs)
+                body
+      header_wrapper = Html.div [Attrs.class "header", width_attr ] header
+      wrapper = Html.div [] [ header_wrapper, node ]
   in
     placeHtml m n.pos wrapper
 
@@ -295,14 +293,12 @@ viewAnon m n i =
       height = 40 + returnNode.pos.y - n.pos.y
       width = 25 + returnNode.pos.x - n.pos.x
       height_attr = Attrs.style [("height", (toString height) ++ "px")]
-      viewHeader = Html.div
-                   [Attrs.class "header"]
-                   [ Html.span
+      viewHeader = [ Html.span
                        [Attrs.class "letter"]
                        [Html.text (G.int2letter i)]
                    ]
   in
-    placeNode m n width [height_attr] [] [viewHeader]
+    placeNode m n width [height_attr] [] viewHeader []
 
 
 viewNodeIcon : String -> Model -> Node -> Int -> Html.Html Msg

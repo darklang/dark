@@ -46,10 +46,6 @@ Top level
 Entry (is also a node)
 ********************/
 
-.entry > .inner {
-  /* Put the entry node in front of all other nodes */
-}
-
 #search-container {
   position: relative;
 }
@@ -101,7 +97,7 @@ form {
 /********************
 Nodes
 ********************/
-.node.functiondef > .inner {
+.node.functiondef {
   /* Ideally, we'd have the background of a function behind the edges but
   in front of the grid. Unfortunately, z-index on SVG is kinda hard, so
   I don't know how to make this work. */
@@ -109,20 +105,15 @@ Nodes
   opacity: 0.35;
 }
 
-.node.functiondef.selected > .inner {
+.node.functiondef.selected {
   background: #2e2525;
 }
 
-.node .inner {
-  position: relative;
-  top: -12px; /* space for params */
+.node {
   box-sizing: border-box;
   border: 1px solid #444;
-	padding: 0.8em 1em;
   font-size: 14px;
   background: #272728;
-  display: inline-block;
-  padding-top: 12px;
 }
 
 .node.functioncall .name, .node.value .name, node.page .name {
@@ -130,13 +121,13 @@ Nodes
   text-align: center;
 }
 
-.node.functioncall .inner, .node.value .inner {
+.node.functioncall, .node.value {
   border-radius: 2em;
   padding: 0.3em 0.3em;
   display: block;
 }
 
-.node.selected .inner, .node.selected {
+.node.selected {
   border-radius: 0.5em;
 }
 
@@ -144,7 +135,7 @@ Nodes
   color: red;
 }
 
-.node.page .inner {
+.node.page {
   border-radius: 1em;
   padding: 0.5em 1.7em;
   text-align: center;
@@ -178,12 +169,19 @@ Node Header
 ********************/
 
 .header {
-  top: -10px;
-  float: left;
-  position: absolute;
-  left: 0;
-  width: 100%;
+  position: relative;
+  top: 8px;
+  left: 4px;
 }
+
+.letter {
+  margin-top: 4px;
+  color: #999900;
+  font-size: 12px;
+  float: right;
+  margin-right: 8px;
+}
+
 
 .arg .header {
   width: 18px;
@@ -206,16 +204,9 @@ Node Header
   color: #888;
 }
 
-.letter {
-  margin-top: 2px;
-  color: #999900;
-  font-size: 12px;
-  float: right;
-}
-
 /* Put it in the top right */
-body .elm-overlay .elm-mini-controls {
-  top: 0;
-  bottom: auto;
-  right: 0px;
-}
+/* body .elm-overlay .elm-mini-controls { */
+/*   top: 0; */
+/*   bottom: auto; */
+/*   right: 0px; */
+/* } */
