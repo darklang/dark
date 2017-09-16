@@ -11,11 +11,40 @@ body {
   color:#fff;
 }
 
+/********************
+Top level
+********************/
+
+#container {
+  display: flex;
+  flex-direction: row;
+}
+
+#grid {
+  background-color: transparent;
+  background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent);
+  background-size: 2em 2em;
+  flex: 3 0 0;
+  position: relative;
+}
+
+#docs {
+  flex: 1 0 0;
+}
+
 #darkLive > pre {
 	font-family: monaco;
   font-size: 80%;
   margin: 0;
 }
+
+#darkErrors {
+}
+
+
+/********************
+Entry (is also a node)
+********************/
 
 .entry > .inner {
   /* Put the entry node in front of all other nodes */
@@ -33,7 +62,7 @@ body {
 }
 
 #search-container br {
-    padding-bottom: 10px;
+  padding-bottom: 10px;
 }
 
 #darkEntry {
@@ -54,20 +83,26 @@ body {
   border: 1px solid #fff;
 }
 
-#darkErrors {
-}
-
 form {
   display: inline;
 }
 
-#grid {
-  background-color: transparent;
-  background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent);
-  height:100%;
-  background-size:2em 2em;
+#autocomplete-holder {
+  overflow-y: auto;
+  max-height: 250px;
 }
 
+.autocomplete-item.highlighted {
+  background: blue;
+}
+.autocomplete-item.greyed {
+  color: grey;
+}
+
+
+/********************
+Nodes
+********************/
 .node.functiondef > .inner {
   /* Ideally, we'd have the background of a function behind the edges but
   in front of the grid. Unfortunately, z-index on SVG is kinda hard, so
@@ -141,6 +176,11 @@ form {
 	line-height: 1.5em;
 }
 
+
+/********************
+Node Header
+********************/
+
 .header {
   top: -10px;
   z-index: 30; /* more than nodes */
@@ -176,18 +216,6 @@ form {
   color: #999900;
   font-size: 12px;
   float: right;
-}
-
-#autocomplete-holder {
-  overflow-y: auto;
-  max-height: 250px;
-}
-
-.autocomplete-item.highlighted {
-  background: blue;
-}
-.autocomplete-item.greyed {
-  color: grey;
 }
 
 /* Put it in the top right */
