@@ -40,6 +40,7 @@ view m =
       docs = Html.div
               [ Attrs.id "docs"]
               [ viewError m.error
+              , viewCenter m.center
               , viewLive m m.state
               , viewDescription m m.complete
               ]
@@ -54,6 +55,13 @@ viewError (msg, ts) =
        "0" -> [Html.text <| "Err: " ++ msg]
        ts -> [Html.text <| "Err: " ++ msg ++ " (" ++ ts ++ ")"])
 
+viewCenter : Pos -> Html.Html msg
+viewCenter pos =
+  Html.div
+    [Attrs.id "darkCenter"]
+    [Html.text <| "Center: " ++ (toString pos)]
+
+
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let allNodes = List.indexedMap (,) <| G.orderedNodes m
@@ -62,7 +70,10 @@ viewCanvas m =
         other = List.map (\(i,n) -> viewNode m n i) otherNodes
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
-        allSvgs = svgDefs :: svgArrowHead :: (anons ++ edges ++ other ++ entry)
+        yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} [SA.strokeWidth "1px", SA.stroke "#777"]
+        xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} [SA.strokeWidth "1px", SA.stroke "#777"]
+        allSvgs = xaxis :: yaxis :: svgDefs :: svgArrowHead
+                 :: (anons ++ edges ++ other ++ entry)
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
