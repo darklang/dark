@@ -26,20 +26,25 @@ import Autocomplete
 
 view : Model -> Html.Html Msg
 view m =
-  -- TODO: recalculate this using Tasks
   let (w, h) = Util.windowSize ()
+      grid = Html.div
+               [ Attrs.id "grid"
+               , Events.on "mousedown" (decodeClickEvent RecordClick)
+               ]
+               [ Svg.svg
+                    [ SA.width (toString (w - 400))
+                    , SA.height (toString h)
+                    ]
+                    (viewCanvas m)
+               ]
+      docs = Html.div
+              [ Attrs.id "docs"]
+              [ viewError m.error
+              , viewLive m m.state
+              , viewDescription m m.complete
+              ]
   in
-    Html.div
-      [ Attrs.id "grid"
-      , Events.on "mousedown" (decodeClickEvent RecordClick)
-      ]
-      [ (Svg.svg
-           [ SA.width (toString w) , SA.height (toString <| h - 60)]
-           (viewCanvas m))
-      , viewError m.error
-      , viewLive m m.state
-      , viewDescription m m.complete
-      ]
+     Html.div [Attrs.id "container"] [grid, docs]
 
 viewError : ( String, a ) -> Html.Html msg
 viewError (msg, ts) =
