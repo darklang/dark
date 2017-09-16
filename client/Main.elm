@@ -116,11 +116,7 @@ update_ msg m =
     (EntrySubmitMsg, _) ->
       NoChange -- just keep this here to prevent the page from loading
 
-    (GlobalKeyPress event_orig, state) ->
-      -- my keyboard is broken, so remap Backtick to Escape for now
-      let event = {event_orig | keyCode = case event_orig.keyCode of
-                                           Key.Unknown 192 -> Key.Escape
-                                           k -> k } in
+    (GlobalKeyPress event, state) ->
       case state of
         Selecting id ->
           case event.keyCode of
