@@ -27,7 +27,7 @@ let rec to_repr (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
-  | DAnon (id, _) -> "<" ^ (string_of_int id) ^ "-" ^ "anon>"
+  | DAnon (id, _) -> "<anon:" ^ string_of_int id ^ ">"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
