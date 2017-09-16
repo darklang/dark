@@ -59,7 +59,7 @@ viewCanvas m =
     let allNodes = List.indexedMap (\i n -> viewNode m n i) (G.orderedNodes m)
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
-        allSvgs = svgDefs :: svgArrowHead :: (entry ++ allNodes ++ edges)
+        allSvgs = svgDefs :: svgArrowHead :: (entry ++ edges ++ allNodes)
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg

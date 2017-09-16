@@ -48,7 +48,6 @@ Entry (is also a node)
 
 .entry > .inner {
   /* Put the entry node in front of all other nodes */
-  z-index: 21;
 }
 
 #search-container {
@@ -68,7 +67,6 @@ Entry (is also a node)
 #darkEntry {
   position: relative;
   color: #000;
-  z-index: 30;
   border: 1px solid #666;
   background: transparent;
 }
@@ -77,7 +75,6 @@ Entry (is also a node)
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 20;
   color: #ccc;
   background: white;
   border: 1px solid #fff;
@@ -107,8 +104,8 @@ Nodes
   /* Ideally, we'd have the background of a function behind the edges but
   in front of the grid. Unfortunately, z-index on SVG is kinda hard, so
   I don't know how to make this work. */
-  z-index: -1;
   background: #252b2e;
+  opacity: 0.35;
 }
 
 .node.functiondef.selected > .inner {
@@ -116,7 +113,6 @@ Nodes
 }
 
 .node .inner {
-  z-index: 20; /* hide behind edges */
   position: relative;
   top: -12px; /* space for params */
   box-sizing: border-box;
@@ -137,7 +133,6 @@ Nodes
   border-radius: 2em;
   padding: 0.3em 0.3em;
   display: block;
-  z-index: 20; /* less than parameters, must not be negative (else events stop working */
 }
 
 .node.selected .inner, .node.selected {
@@ -183,7 +178,6 @@ Node Header
 
 .header {
   top: -10px;
-  z-index: 30; /* more than nodes */
   float: left;
   position: absolute;
   left: 0;
