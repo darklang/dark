@@ -30,7 +30,7 @@ holePos m hole =
                   Nothing -> n.pos
       in
         {x=pos.x+40, y=pos.y+40}
-    ParamHole n _ i -> {x=n.pos.x-100+(i*100), y=n.pos.y-100}
+    ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-100}
 
 entryPos : Model -> EntryCursor -> Pos
 entryPos m c =
