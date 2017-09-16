@@ -114,6 +114,11 @@ Nodes
   background: #2e2525;
 }
 
+.name {
+  /* Targets are larger than regular letters - this canonicalizes the size */
+  min-height: 21px;
+}
+
 .node {
   box-sizing: border-box;
   border: 1px solid #444;
@@ -175,7 +180,7 @@ Node Header
 
 .header {
   position: relative;
-  top: 8px;
+  top: -42px;
   left: 4px;
 }
 

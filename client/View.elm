@@ -288,7 +288,7 @@ placeNode m n width attrs classes header body =
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
-      wrapper = Html.div [] [ header_wrapper, node ]
+      wrapper = Html.div [] [ node, header_wrapper ]
   in
     placeHtml m n.pos wrapper
 
