@@ -31,13 +31,13 @@ let rec to_repr (dv : dval) : string =
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
-    "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_repr l)) ^ " ]"
+    "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_repr (List.take l 10))) ^ " ]"
   | DObj o ->
     let strs = DvalMap.fold o
         ~init:[]
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_repr data) :: l) in
 
-    "{ " ^ (String.concat ~sep:", " strs) ^ " }"
+    "{ " ^ (String.concat ~sep:", " (List.take strs 10)) ^ " }"
 
 let to_comparable_repr (dvm : dval_map) : string =
   Map.to_alist ~key_order:`Increasing dvm
@@ -121,7 +121,7 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   | DChar c -> `String (Char.to_string c)
   | DAnon _ -> `String "<anon>"
   | DIncomplete -> `String "<incomplete>"
-  | DList l -> `List (List.map l dval_to_yojson)
+  | DList l -> `List (List.map (List.take l 10) dval_to_yojson)
   | DObj o -> o
               |> DvalMap.to_alist
               |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
