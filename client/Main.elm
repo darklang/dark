@@ -154,7 +154,8 @@ update_ msg m =
           else
             case event.keyCode of
               Key.Up -> AutocompleteMod SelectUp
-              Key.Down -> AutocompleteMod SelectDown
+              Key.Down -> Many [ AutocompleteMod (Open True)
+                               , AutocompleteMod SelectDown]
               Key.Right ->
                 let sp = Autocomplete.sharedPrefix m.complete in
                 if sp == "" then NoChange
