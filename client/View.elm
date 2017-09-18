@@ -304,7 +304,7 @@ viewAnon m n i =
                        [Html.text (G.int2letter i)]
                    ]
   in
-    placeNode m n width [height_attr] [] viewHeader []
+    placeNode m n width [height_attr] [] [] viewHeader
 
 
 viewNodeIcon : String -> Model -> Node -> Int -> Html.Html Msg
