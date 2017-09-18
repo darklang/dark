@@ -95,6 +95,9 @@ form {
 }
 
 .node.entry {
+  /* headers need to be relative to position them. We need to be above
+   * the headers, and position:relative allows us to do it. */
+  position: relative;
   width: 300px;
   padding: 0.8em 1em;
 }
