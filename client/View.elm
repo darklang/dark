@@ -168,7 +168,7 @@ viewEntry m =
     case m.state of
       Entering (Filling n hole) ->
         let pos = Entry.holePos m hole in
-        [html pos, svgLine m n.pos pos dragEdgeStyle]
+        [svgLine m n.pos pos dragEdgeStyle, html pos]
       Entering (Creating pos) -> [html pos]
       _ -> []
 
