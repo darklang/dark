@@ -160,10 +160,12 @@ update_ msg m =
                 if sp == "" then NoChange
                 else AutocompleteMod <| Query sp
               Key.Enter ->
-                case Autocomplete.highlighted m.complete of
-                  Just item -> AutocompleteMod
-                               <| Complete (Autocomplete.asString item)
-                  Nothing -> Entry.submit m cursor
+                let name = case Autocomplete.highlighted m.complete of
+                             Just item -> Autocomplete.asString item
+                             Nothing -> m.complete.value
+                in
+                   Entry.submit m cursor name
+
               Key.Escape ->
                 case cursor of
                   Creating _ -> Many [Deselect, AutocompleteMod Reset]

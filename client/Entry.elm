@@ -161,10 +161,9 @@ addByName m id name pos =
     -- anon, function, or value
 
 
-submit : Model -> EntryCursor -> Modification
-submit m cursor =
-  let id = gen_id ()
-      value = m.complete.value in
+submit : Model -> EntryCursor -> String -> Modification
+submit m cursor value =
+  let id = gen_id () in
   case cursor of
     Creating pos ->
       RPC <| addByName m id value pos
