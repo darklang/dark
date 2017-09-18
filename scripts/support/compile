@@ -53,10 +53,10 @@ def elm_test():
 def ocaml_build():
   # better-errors doesn't preserve exit codes, so save the output and
   # check for success
-  return run_backend("cd server && ocamlbuild dark.byte 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt > /dev/null")
+  return run_backend("cd server && ocamlbuild dark.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt > /dev/null")
 
 def ocaml_test():
-  return run_backend("cd server && ocamlbuild test.byte 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt && _build/test/test.byte 2>&1")
+  return run_backend("cd server && ocamlbuild test.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt && _build/test/test.byte 2>&1")
 
 def reload_server():
   return run_backend("cd server && ../scripts/support/runserver")
@@ -133,7 +133,9 @@ def ignore(filename):
             , "server/_build/"
             , "server/appdata/"
             , "server/dark.byte"
+            , "server/dark.native"
             , "server/test.byte"
+            , "server/test.native"
             , "server/ocamlbuild_output.txt"
   ]
   for i in ignores:

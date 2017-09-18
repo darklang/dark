@@ -2,10 +2,19 @@
 
 set -euo pipefail
 
-FILE="_build/bin/dark.byte"
+NATIVE=1
+
+BYTE_FILE="_build/bin/dark.byte"
+NATIVE_FILE="_build/bin/dark.native"
+if [ $NATIVE ]; then
+  FILE=$NATIVE_FILE
+else
+  FILE=$BYTE_FILE
+fi
 
 # Stop the server
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep $NATIVE_FILE | xargs kill -9 > /dev/null 2>&1) || true
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
@@ -17,8 +26,11 @@ done
 
 if [ -f "${FILE}" ]; then
     echo "Running server"
-    #COHTTP_DEBUG=true ocamlserver/main.byte > ../logs/server.log 2>&1 &
-    ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
+    if [ $NATIVE ]; then
+      "${FILE}" > ../logs/server.log 2>&1 &
+    else
+      ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
+    fi
 else
   echo "${FILE} doesn't exist"
   exit -1
