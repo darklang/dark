@@ -3,4 +3,4 @@
 set -euo pipefail
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-$DIR/run-in-docker scripts/support/compile "${@}"
+"$DIR/run-in-docker" scripts/support/compile "${@}"
