@@ -149,7 +149,6 @@ jsonFields json =
 query : String -> Autocomplete -> Autocomplete
 query q a = { a | value = q } |> regenerate
 
-
 regenerate : Autocomplete -> Autocomplete
 regenerate a =
   let lcq = String.toLower a.value
@@ -165,10 +164,9 @@ regenerate a =
            (\{return_type} ->
               a.tipe == Nothing || a.tipe == Just return_type)
         |> List.filter
-          (\{parameters} ->
+          (\fn ->
              case a.liveValue of
-               Just (_, tipe, _) ->
-                 Nothing /= LE.find (\p -> p.tipe == tipe) parameters
+               Just (_, tipe, _) -> Nothing /= findParamByType fn tipe
                Nothing -> True)
         |> List.map (\s -> ACFunction s)
         |> List.append fields
@@ -205,6 +203,13 @@ update mod a =
     |> regenerate
 
 
+
+findParamByType : Function -> TypeName -> Maybe Parameter
+findParamByType {parameters} tipe =
+  LE.find (\p -> p.tipe == tipe || p.tipe == "Any") parameters
+
 findFunction : Autocomplete -> String -> Maybe Function
 findFunction a name =
   LE.find (\f -> f.name == name) a.functions
+
+

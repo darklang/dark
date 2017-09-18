@@ -150,8 +150,6 @@ addFunction m id name pos =
           anonarg = anonpairs |> List.head |> Maybe.andThen Tuple.second
           anons = anonpairs |> List.unzip |> Tuple.first
           cursor = if anonarg == Nothing then Just id else anonarg
-
-
       in
         (AddFunctionCall id name pos :: List.concat anons, cursor)
 
@@ -171,7 +169,7 @@ submit m cursor =
     Creating pos ->
       RPC <| addByName m id value pos
 
-    Filling _ hole ->
+    Filling n hole ->
       let pos = holePos m hole in
       case hole of
         ParamHole target param _ ->
@@ -221,8 +219,9 @@ submit m cursor =
                 Nothing ->
                   -- Not a normal function, just return
                   RPC (f, focus)
-                Just {parameters} ->
-                  case parameters of
-                    (p :: _) -> RPC ( f ++ [SetEdge source.id (id, p.name)]
+                Just fn ->
+                  let (_, tipe, _) = n.liveValue in
+                  case Autocomplete.findParamByType fn tipe of
+                    Just p -> RPC ( f ++ [SetEdge source.id (id, p.name)]
                                    , focus)
-                    [] -> RPC (f, focus)
+                    Nothing -> RPC (f, focus)
