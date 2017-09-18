@@ -164,25 +164,20 @@ class func id loc n =
     method parameters : param list = self#fn.parameters
     method name = self#fn.name
     method execute (g: gfns) (args: dval_map) : dval =
-      (* purity; if impure do nothing *)
-      (* if any args incomplete then do nothing*)
-      if args
-       |> DvalMap.data
-       |> List.filter ~f:(fun (v: dval) -> match v with | DIncomplete -> true | _ -> false)
-       |> List.length
-       |> fun x -> x > 0
-       |> (||) (not self#fn.pure)
-      then
-        if (not self#fn.pure)
-        then
-          (Util.inspecT "self is impure" (self#fn.name);
-          RT.exe self#fn args)
-        else
-          (Util.inspecT "One or more args is DIncomplete" (self#id);
-          RT.exe self#fn args)
+      if not self#fn.pure
+      then (Util.inspecT "Fn is impure" self#fn.name;
+           RT.exe self#fn args)
       else
-        match MemoCache.find memo (RT.to_comparable_repr args) with
-            | None -> RT.exe self#fn args |> (fun x -> Util.inspecT "Lookup failed" (self#id); memo <- MemoCache.add memo (RT.to_comparable_repr args) x; x)
+        if DvalMap.exists args ~f:(fun x -> x = DIncomplete)
+        then (Util.inspecT "One or more args is DIncomplete" self#id;
+             RT.exe self#fn args)
+        else
+          let com = RT.to_comparable_repr args in
+          match MemoCache.find memo com with
+            | None -> Util.inspecT "Lookup failed" self#id;
+                      let x = RT.exe self#fn args in
+                      memo <- MemoCache.add memo com x;
+                      x
             | Some v -> Util.inspecT "Lookup successful" (self#id); v
 
      (* Get a value to use as the preview for anonfns used by this node *)
