@@ -17,7 +17,7 @@ and dval = DInt of int
             system *)
          | DNull
          | DObj of dval_map
-         | DIncomplete [@@deriving show]
+         | DIncomplete [@@deriving show, sexp]
 
 let rec to_repr (dv : dval) : string =
   match dv with
@@ -43,6 +43,17 @@ let to_comparable_repr (dvm : dval_map) : string =
   Map.to_alist ~key_order:`Increasing dvm
   |> List.map ~f:(fun (s, dv) -> s ^ (to_repr dv))
   |> List.fold ~f:(fun a b -> a ^ b) ~init:""
+
+let dummy_compare dv1 dv2 =
+  String.compare (to_repr dv1) (to_repr dv2)
+
+module RealDvalMap = Map.Make (struct
+    type t = dval
+
+    let compare = dummy_compare
+    let t_of_sexp = dval_of_sexp
+    let sexp_of_t = sexp_of_dval
+  end)
 
 let rec to_string (dv : dval) : string =
   match dv with
