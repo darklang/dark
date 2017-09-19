@@ -122,12 +122,11 @@ isValueRepr name = String.toLower name == "null"
                    || Util.rematch "^[\"\'[1-9{].*" name
                    || String.startsWith "-" name && Util.rematch "[0-9].*" name
 
-addAnonParam : Model -> ID -> Pos -> ParamName -> (List RPC, Maybe ID)
-addAnonParam m id pos name =
+addAnonParam : Model -> ID -> Pos -> ParamName -> Int -> (List RPC, Maybe ID)
+addAnonParam m id pos name arity =
   let sid = gen_id ()
       retid = gen_id ()
-      -- todo anons with multiple args
-      argids = [gen_id ()]
+      argids = () |> List.repeat arity |> List.map gen_id
       anon = AddAnon sid pos retid argids
       edge = SetEdge sid (id, name)
   in
@@ -146,7 +145,7 @@ addFunction m id name pos =
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
-          anonpairs = List.map (\p -> addAnonParam m id pos p.name) fn_args
+          anonpairs = List.map (\p -> addAnonParam m id pos p.name p.arity) fn_args
           anonarg = anonpairs |> List.head |> Maybe.andThen Tuple.second
           anons = anonpairs |> List.unzip |> Tuple.first
           cursor = if anonarg == Nothing then Just id else anonarg
