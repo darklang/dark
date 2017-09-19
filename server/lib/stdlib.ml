@@ -249,9 +249,9 @@ let fns : Lib.shortfn list = [
         (function
           | [DStr s; _] ->
               if s = ""
-              then DChar 'l'
-              else DChar (String.get s 0)
-          | args -> DIncomplete)
+              then [DChar 'l']
+              else [DChar (String.get s 0)]
+          | args -> [DIncomplete])
   ; pu = true
   }
   ;
@@ -271,8 +271,8 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = Some
         (function
-          | [DList (i :: _); _] -> i
-          | args -> DIncomplete)
+          | [DList (i :: _); _] -> [i]
+          | args -> [DIncomplete])
   ; pu = true
   }
   ;
@@ -320,7 +320,14 @@ let fns : Lib.shortfn list = [
             in
             List.fold ~f ~init l
           | args -> fail args)
-  ; pr = None
+  ; pr = Some
+        (function
+          | [DList l; init; _] ->
+              let prl = match List.hd l with
+              | Some dv -> dv
+              | None -> DIncomplete
+              in [prl; init]
+          | args -> [DIncomplete; DIncomplete])
   ; pu = true
   }
   ;
@@ -345,9 +352,9 @@ let fns : Lib.shortfn list = [
         (function
           | [DList l; _] ->
               (match List.hd l with
-              | Some dv -> dv
-              | None -> DIncomplete)
-          | args -> DIncomplete)
+              | Some dv -> [dv]
+              | None -> [DIncomplete])
+          | args -> [DIncomplete])
   ; pu = true
   }
   ;
@@ -370,9 +377,9 @@ let fns : Lib.shortfn list = [
         (function
           | [DList l; _] ->
               (match List.hd l with
-              | Some dv -> dv
-              | None -> DIncomplete)
-          | args -> DIncomplete)
+              | Some dv -> [dv]
+              | None -> [DIncomplete])
+          | args -> [DIncomplete])
   ; pu = true
   }
   ;

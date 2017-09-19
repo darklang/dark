@@ -29,7 +29,7 @@ type shortfn = { n : string
                ; r : tipe
                ; f : ccfunc
                ; d : string
-               ; pr : (dval list -> dval) option
+               ; pr : (dval list -> dval list) option
                ; pu : bool
                }
 

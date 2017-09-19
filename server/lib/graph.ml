@@ -133,9 +133,10 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Add_anon (nid, loc, rid, argids) ->
       (fun g ->
          argids
-         |> List.map ~f:(fun argid -> new Node.argnode
+         |> List.mapi ~f:(fun i argid -> new Node.argnode
                           argid
-                          { x=loc.x + 15; y=loc.y + 27 }
+                          { x=loc.x + 15 + (i * 20); y=loc.y + 27 }
+                          i
                           nid
                           rid
                           argids)

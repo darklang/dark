@@ -72,8 +72,8 @@ class virtual node id loc =
     method arg_ids = []
     method update_loc _loc : unit =
       loc <- _loc
-    method preview (gfns: node gfns_) (args: dval_map) : dval =
-      self#execute gfns args
+    method preview (gfns: node gfns_) (args: dval_map) : dval list =
+      self#preview gfns args
     method to_frontend (value, tipe, json) : nodejson =
       { name = self#name
       ; id = id
@@ -104,9 +104,9 @@ let show_node (n:node) =
 (* Graph traversal and execution *)
 (* ------------------------- *)
 module ValCache = Int.Map
-type valcache = RT.dval ValCache.t
-let rec execute (id: id) ?(preview: bool=false)
-  ?(eager: valcache=ValCache.empty) (g: gfns) : RT.dval =
+type valcache = dval ValCache.t
+let rec execute (id: id)
+  ?(eager: valcache=ValCache.empty) (g: gfns) : dval =
   match ValCache.find eager id with
   | Some v -> v
   | None ->
@@ -116,7 +116,17 @@ let rec execute (id: id) ?(preview: bool=false)
         match arg with
         | RT.AConst dv -> dv
         | RT.AEdge id -> execute id ~eager g)
-    |> if preview then n#preview g else n#execute g
+    |> n#execute g
+
+let rec preview (id: id) (g: gfns) : dval list =
+  let n = g.getf id in
+  n#arguments
+  |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
+      match arg with
+      | RT.AConst dv -> dv
+      | RT.AEdge id -> execute id g)
+  |> n#preview g
+
 
 
 (* ------------------ *)
@@ -178,9 +188,9 @@ class func id loc n =
             | Some v -> v
 
      (* Get a value to use as the preview for anonfns used by this node *)
-    method preview (g: gfns) (args: dval_map) : dval =
+    method preview (g: gfns) (args: dval_map) : dval list =
       match self#fn.preview with
-      | None -> DIncomplete
+      | None -> List.init (List.length self#fn.parameters) (fun _ -> RT.DIncomplete)
       | Some f -> self#fn.parameters
                      |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
@@ -240,16 +250,18 @@ class returnnode id loc nid argids =
     method! arg_ids = argids
   end
 
-class argnode id loc nid rid argids =
+class argnode id loc index nid rid argids =
   object
     inherit node id loc
     method dependent_nodes = nid :: rid :: argids
     method name = "<arg>"
     method tipe = "arg"
     method execute (g: gfns) _ : dval =
+      (* This arg gets its preview value from the preview of the node being
+       * passed the anon *)
       match g.get_children nid with
       | [] -> DIncomplete
-      | [caller] -> execute ~preview:true caller#id g
+      | [caller] -> List.nth_exn (preview caller#id g) index
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! return_id = Some rid
