@@ -165,20 +165,17 @@ class func id loc n =
     method name = self#fn.name
     method execute (g: gfns) (args: dval_map) : dval =
       if not self#fn.pure
-      then (Util.inspecT "Fn is impure" self#fn.name;
-           RT.exe self#fn args)
+      then RT.exe self#fn args
       else
         if DvalMap.exists args ~f:(fun x -> x = DIncomplete)
-        then (Util.inspecT "One or more args is DIncomplete" self#id;
-             RT.exe self#fn args)
+        then RT.exe self#fn args
         else
           let com = RT.to_comparable_repr args in
           match MemoCache.find memo com with
-            | None -> Util.inspecT "Lookup failed" self#id;
-                      let x = RT.exe self#fn args in
+            | None -> let x = RT.exe self#fn args in
                       memo <- MemoCache.add memo com x;
                       x
-            | Some v -> Util.inspecT "Lookup successful" (self#id); v
+            | Some v -> v
 
      (* Get a value to use as the preview for anonfns used by this node *)
     method preview (g: gfns) (args: dval_map) : dval =
