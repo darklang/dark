@@ -118,4 +118,4 @@ let functions =
                       ; return_type = v.return_type
                       })
   |> functionlist_to_yojson
-  |> Yojson.Safe.to_string
+  |> Yojson.Safe.pretty_to_string
