@@ -27,8 +27,8 @@ let server =
         G.save !g;
         let result = !g
                      |> Graph.to_frontend_string in
-        let total = string_of_float ((Unix.gettimeofday ()) -. time) in
-        Util.inspect ("response (" ^ total ^ "s):")
+        let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
+        Util.inspect ("response (" ^ total ^ "ms):")
         ~stop:1000
         ~formatter:ident
         result
