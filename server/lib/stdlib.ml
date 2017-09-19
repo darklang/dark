@@ -293,6 +293,24 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "List::fold"
+  ; o = []
+  ; p = [req "l" tList; req "init" tAny; func 2]
+  ; r = tAny
+  ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
+  ; f = InProcess
+        (function
+          | [DList l; init; DAnon (id, fn)] ->
+            let f (dv1: dval) (dv2: dval) : dval = fn [dv1; dv2]
+            in
+            List.fold ~f ~init l
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
   { n = "List::filter"
   ; o = []
   ; p = [req "l" tList; req "f" tFun]
