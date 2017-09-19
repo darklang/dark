@@ -14,7 +14,7 @@ fi
 
 # Stop the server
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
-(ps aux | pgrep $NATIVE_FILE | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep dark.native | xargs kill -9 > /dev/null 2>&1) || true
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
