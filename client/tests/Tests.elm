@@ -30,6 +30,7 @@ suite =
                     { name = name
                     , parameters = [{ name = "x"
                                     , tipe = tipe
+                                    , arity = 0
                                     , optional = False
                                     , description = ""
                                     }]

@@ -4,13 +4,21 @@ open Runtime
 let req name tipe = { name = name
                     ; tipe = tipe
                     ; optional = false
+                    ; arity = 0
                     ; description = ""
                     }
 let opt name tipe = { name = name
                     ; tipe = tipe
+                    ; arity = 0
                     ; optional = true
                     ; description = ""
                     }
+
+let func arity = { name = "f"
+                 ; tipe = "Function"
+                 ; arity = arity
+                 ; optional = false
+                 ; description = "" }
 
 
 

@@ -165,6 +165,7 @@ type arg_map = argument ArgMap.t
 
 type param = { name: string
              ; tipe: string
+             ; arity : int
              ; optional : bool
              ; description : string
              } [@@deriving yojson, show]

@@ -143,6 +143,7 @@ type Modification = Error String
 -- name, type optional
 type alias Parameter = { name: Name
                        , tipe: TypeName
+                       , arity: Int
                        , optional: Bool
                        , description: String
                        }

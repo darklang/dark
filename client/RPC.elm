@@ -92,9 +92,10 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toParameter: Name -> TypeName -> Bool -> String -> Parameter
-      toParameter name tipe optional description = { name = name
+  let toParameter: Name -> TypeName -> Int -> Bool -> String -> Parameter
+      toParameter name tipe arity optional description = { name = name
                                                    , tipe = tipe
+                                                   , arity = arity
                                                    , optional = optional
                                                    , description = description}
       toArg: List JSD.Value -> Argument
@@ -154,6 +155,7 @@ decodeNode =
                                      (JSDP.decode toParameter
                                      |> JSDP.required "name" JSD.string
                                      |> JSDP.required "tipe" JSD.string
+                                     |> JSDP.required "arity" JSD.int
                                      |> JSDP.required "optional" JSD.bool
                                      |> JSDP.required "description" JSD.string))
     |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))

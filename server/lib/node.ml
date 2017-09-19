@@ -229,6 +229,7 @@ class returnnode id loc nid argids =
     method name = "<return>"
     method! parameters = [{ name = "return"
                           ; tipe = RT.tAny
+                          ; arity = 0
                           ; optional = false
                           ; description = "" }]
     method tipe = "return"

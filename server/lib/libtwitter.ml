@@ -26,6 +26,7 @@ let twurl2name (url: string) : string =
 let param2param (sw: Swagger.parameter) : param =
   { name = sw.name
   ; optional = not sw.required
+  ; arity = 0
   ; tipe = sw.dataType |> sw_type2dark
   ; description = sw.description
   }
