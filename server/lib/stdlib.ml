@@ -293,6 +293,21 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "List::length"
+  ; o = []
+  ; p = [req "l" tList]
+  ; r = tInt
+  ; d = "Returns the length of the list"
+  ; f = InProcess
+        (function
+          | [DList l] -> DInt (List.length l)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
   { n = "List::fold"
   ; o = []
   ; p = [req "l" tList; req "init" tAny; func 2]
@@ -458,4 +473,6 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; pu = true
  }
+
+
 ]
