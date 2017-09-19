@@ -50,16 +50,29 @@ def elm_make():
 def elm_test():
   return run_test("cd client && elm-test")
 
+landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json'"
 def ocaml_build():
   # better-errors doesn't preserve exit codes, so save the output and
   # check for success
-  return run_backend("cd server && ocamlbuild -j 0 dark.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt > /dev/null")
+  global profile
+  cd = "cd server &&"
+  build = " ocamlbuild -j 0 dark.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt > /dev/null"
+  if profile:
+    return run_backend(cd + landmarks + build)
+  else:
+    return run_backend(cd + build)
 
 def ocaml_test():
   return run_backend("cd server && ocamlbuild test.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt && _build/test/test.native 2>&1")
 
 def reload_server():
-  return run_backend("cd server && ../scripts/support/runserver")
+  global profile
+  cd = "cd server &&"
+  runserver = "../scripts/support/runserver"
+  if profile:
+    return run_backend(cd + landmarks + runserver)
+  else:
+    return run_backend(cd + runserver)
 
 def reload_browser():
   # Sends a signal to another fswatch on your mac
@@ -136,6 +149,8 @@ def ignore(filename):
             , "server/dark.native"
             , "server/test.byte"
             , "server/test.native"
+            , "server/gmon.out"
+            , "server/profile.json"
             , "server/ocamlbuild_output.txt"
   ]
   for i in ignores:
@@ -151,6 +166,7 @@ def ignore(filename):
 
 
 machine = False # Don't print pretty things, use different formatting
+profile = False # Run ocaml stuff under the landmarks profiler
 files = []
 def main():
   global machine

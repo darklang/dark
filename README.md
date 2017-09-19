@@ -8,8 +8,19 @@
    - the usename is dark, password is 2DqMHguUfsAGCPerWgyHRxPi
 - Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
 
-# TODO:
-- see which of your followers' have tweets that you've favorited in the last two weeks
+# How to profile
+- make compilation and run use OCAML_LANDMARKS="auto,format=json,output=profile.json,allocation", in scripts/support/compile (enable the `profile` global)
+- rm server/_build
+- run the builder
+- refresh the page 10 times, then go to localhost:8000/shutdown (shuts
+  down the server and saves the profiling info)
+  - if the time is all spent in twitter, delete server/profile.json and
+    try again
+- upload the profile.json to https://lexifi.github.io/landmarks/viewer.html
+- look in "Source Tree Time"
+
+- Note: the last round of profiling found the Memoize cache as being a
+  bottleneck.
 
 
 # Tidyups to do
@@ -45,7 +56,7 @@ Notes:
  - errors view
  - performance layer
  - page view (see all the pages)
- 
+
  - the data flows one way. But we create a source from the defitinion of the sink. Then we type check changes along those arrows. The definition of "create" isn't magic, it's derived from the DS when it's instantiated.
 
 features:
@@ -64,7 +75,7 @@ use cases:
 
 
 
-schema is just another port 
+schema is just another port
 ah, we need multiple "output" ports from DSes!
 
 

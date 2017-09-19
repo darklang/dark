@@ -109,5 +109,7 @@ RUN chmod +x ~/bin/better-errors
 RUN sudo apt-get install -y expect # for unbuffer
 ENV TERM=xterm-256color
 
+RUN opam install landmarks.1.1
+
 
 CMD ["app", "scripts", "builder"]

@@ -10,3 +10,4 @@
 /server/appdata/*.dark
 /server/cache
 /server/ocamlbuild_output.txt
+/server/profile.json
