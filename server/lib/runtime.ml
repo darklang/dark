@@ -64,7 +64,18 @@ let rec to_string (dv : dval) : string =
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
 
-let equal_dval (a: dval) (b: dval) = (to_repr a) = (to_repr b)
+let rec equal_dval (a: dval) (b: dval) =
+  match (a,b) with
+  | DInt i1, DInt i2 -> i1 = i2
+  | DBool b1, DBool b2 -> b1 = b2
+  | DStr s1, DStr s2 -> s1 = s2
+  | DFloat f1, DFloat f2 -> f1 = f2
+  | DChar c1, DChar c2 -> c1 = c2
+  | DNull, DNull -> true
+  | DIncomplete, DIncomplete -> true
+  | DList l1, DList l2 -> List.equal ~equal:equal_dval l1 l2
+  | DObj o1, DObj o2 -> DvalMap.equal equal_dval o1 o2
+  | _, _ -> false
 
 let get_type (dv : dval) : string =
   match dv with
