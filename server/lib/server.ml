@@ -10,6 +10,8 @@ module G = Graph
 
 
 let server =
+  let stop,stopper = Lwt.wait () in
+
   let callback _ req req_body =
     let uri = req |> Request.uri in
     (* let meth = req |> Request.meth |> Code.string_of_method in *)
@@ -73,6 +75,9 @@ let server =
            | "/admin/api/rpc" -> `OK, [], admin_rpc_handler req_body
            | "/sitemap.xml" -> `OK, [], ""
            | "/favicon.ico" -> `OK, [], ""
+           | "/shutdown" ->
+               Lwt.wakeup stopper ();
+               `OK, [], "Disembowelment"
            | "/admin/ui" -> `OK, [], (admin_ui_handler ())
            | "/admin/test" ->
                let headers, result = static_handler "/templates/test.html" in
@@ -99,6 +104,6 @@ let server =
     |> route_handler
     |> auth_handler
   in
-  S.create ~mode:(`TCP (`Port 8000)) (S.make ~callback ())
+  S.create ~stop ~mode:(`TCP (`Port 8000)) (S.make ~callback ())
 
 let run () = ignore (Lwt_main.run server)
