@@ -10,6 +10,8 @@ let fns : Lib.shortfn list = [
   (*     | args -> expected "this to be implmented" args *)
   (* } *)
   (* ; *)
+
+
   { n = "Dict::keys"
   ; o = []
   ; p = [req "dict" tObj]
@@ -26,6 +28,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "List::head"
   ; o = []
   ; p = [req "list" tList]
@@ -39,6 +43,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "."
   ; o = ["get_field"]
   ; p = [req "value" tObj; req "fieldname" tStr]
@@ -55,6 +61,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "%"
   ; o = ["Int::mod"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -68,6 +76,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "+"
   ; o = ["Int::add"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -81,6 +91,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "-"
   ; o = ["Int::subtract"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -94,6 +106,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "*"
   ; o = ["Int::multiply"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -107,6 +121,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "/"
   ; o = ["Int::divide"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -121,6 +137,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
   { n = ">"
   ; o = ["Int::greaterThan"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -134,6 +151,7 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
 
   { n = "<"
   ; o = ["Int::lessThan"]
@@ -163,6 +181,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
   { n = ">="
   ; o = ["Int::greaterThanOrEqualTo"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -177,6 +196,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
   { n = "&&"
   ; o = ["Bool::and"]
   ; p = [req "a" tBool ; req "b" tBool]
@@ -190,6 +210,7 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
 
   { n = "||"
   ; o = ["Bool::or"]
@@ -255,6 +276,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "List::contains"
   ; o = []
   ; p = [req "l" tList; req "item" tAny]
@@ -268,6 +291,7 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
 
   { n = "List::filter"
   ; o = []
@@ -319,6 +343,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "Char::code"
   ; o = []
   ; p = [req "c" tChar]
@@ -332,6 +358,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "Char::to_uppercase"
   ; o = []
   ; p = [req "c" tChar]
@@ -345,6 +373,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "Date::parse"
   ; o = []
   ; p = [req "s" tStr]
@@ -363,6 +393,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "Date::now"
   ; o = []
   ; p = []
@@ -379,6 +411,8 @@ let fns : Lib.shortfn list = [
   ; pu = false
   }
   ;
+
+
   { n = "Char::chr"
   ; o = []
   ; p = [req "i" tInt]
@@ -392,6 +426,8 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "Bool::not"
   ; o = []
   ; p = [req "b" tBool]
