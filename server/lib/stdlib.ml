@@ -230,10 +230,9 @@ let fns : Lib.shortfn list = [
 
   { n = "String::foreach"
   ; o = []
-  ; p = [req "s" tStr; req "f" tFun]
+  ; p = [req "s" tStr; func 1]
   ; r = tStr
-  ; d = "Run `f` on every character in the string, and combine them back into a
-  string"
+  ; d = "Run `f` on every character in the string, and combine them back into a string"
   ; f = InProcess
         (function
           | [DStr s; DAnon (id, fn)] ->
@@ -255,9 +254,11 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
   { n = "List::find_first"
   ; o = []
-  ; p = [req "l" tList; req "f" tFun]
+  ; p = [req "l" tList; func 1]
   ; r = tList
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
@@ -286,6 +287,21 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DList l; i] -> DBool (List.mem ~equal:equal_dval l i)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "List::repeat"
+  ; o = []
+  ; p = [req "times" tInt; req "item" tAny]
+  ; r = tList
+  ; d = "Returns a list containing `item` repeated `count` times"
+  ; f = InProcess
+        (function
+          | [DInt t; item] -> DList (List.init t ~f:(fun _ -> item))
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -335,7 +351,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::filter"
   ; o = []
-  ; p = [req "l" tList; req "f" tFun]
+  ; p = [req "l" tList; func 1]
   ; r = tList
   ; d = "Return only items in list which meet function criteria"
   ; f = InProcess
@@ -362,7 +378,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::foreach"
   ; o = []
-  ; p = [req "l" tList; req "f" tFun]
+  ; p = [req "l" tList; func 1]
   ; r = tList
   ; d = "Call `f` on every item in the list, returning a list of the results of
   those calls"
