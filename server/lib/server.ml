@@ -18,10 +18,15 @@ let server =
     (* let headers = req |> Request.headers |> Header.to_string in *)
     let auth = req |> Request.headers |> Header.get_authorization in
 
-    let admin_rpc_handler body : string =
+    let admin_rpc_handler body (domain: string) : string =
       let time = Unix.gettimeofday () in
       let body = Util.inspect "request body" body ~formatter:ident in
-      let g = G.load "blog" in
+      let host = match String.split domain '.' with
+      | ["localhost"] -> "localhost"
+      | [a; "localhost"] -> a
+      | _ -> failwith @@ "Unsupported domain: " ^ domain in
+
+      let g = G.load host in
       try
         Api.apply_ops g body;
         G.save !g;
@@ -50,7 +55,7 @@ let server =
 
     let auth_handler handler
       = match auth with
-      | (Some `Basic ("dark", "2DqMHguUfsAGCPerWgyHRxPi"))
+      | (Some `Basic ("dark", "eapnsdc"))
         -> handler
       | _
         -> Cohttp_lwt_unix.Server.respond_need_auth ~auth:(`Basic "dark") ()
@@ -60,15 +65,17 @@ let server =
       req_body |> Cohttp_lwt_body.to_string >>=
       (fun req_body ->
          try
+           let domain = Uri.host uri |> Option.value ~default:"" in
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
-             S.respond_string ~status:`OK ~body:(admin_rpc_handler req_body) ()
+             S.respond_string ~status:`OK
+                              ~body:(admin_rpc_handler req_body domain) ()
            | "/sitemap.xml" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/shutdown" ->
-             let () = Lwt.wakeup stopper () in
+             Lwt.wakeup stopper ();
              S.respond_string ~status:`OK ~body:"Disembowelment" ()
            | "/admin/ui" ->
              admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
@@ -94,7 +101,7 @@ let server =
     in
     ()
     |> route_handler
-    |> auth_handler
+    (* |> auth_handler *)
   in
   S.create ~stop ~mode:(`TCP (`Port 8000)) (S.make ~callback ())
 
