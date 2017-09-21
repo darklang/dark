@@ -15,10 +15,15 @@ FROM ubuntu:17.04
 # Notes
 # - replace <HASH> with a recent hash from the docker build output.
 # - just use the package name, not the version.
-RUN apt-get update
-RUN apt-get upgrade -y
-RUN apt-get install -y software-properties-common=0.96.24.13 \
-                       python3.6=3.6.1-1 \
+
+# Deps:
+# - apt-transport-https for npm
+# - expect for unbuffer
+# - libpcre3-dev for better-errors
+# everything after "ocaml" for ocaml
+RUN apt-get update && \
+    apt-get install -y software-properties-common=0.96.24.13 \
+                       python3.6=3.6.1-1ubuntu0~17.04.0 \
                        make=4.1-9.1 \
                        m4=1.4.18-1 \
                        rsync=3.1.2-1 \
@@ -27,16 +32,17 @@ RUN apt-get install -y software-properties-common=0.96.24.13 \
                        wget=1.18-2ubuntu1 \
                        sudo=1.8.19p1-1ubuntu1.1 \
                        locales=2.24-9ubuntu2.2 \
-                       apt-transport-https=1.4 # for npm
-# OCaml
-RUN apt-get install -y ocaml=4.02.3-6ubuntu2 \
+                       apt-transport-https=1.4 \
+                       expect=5.45-7 \
+                       ocaml=4.02.3-6ubuntu2 \
                        opam=1.2.2-5build5 \
                        libpq-dev=9.6.4-0ubuntu0.17.04.1 \
-		       libev-dev=1:4.22-1\
+             		       libev-dev=1:4.22-1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
                        libcurl4-gnutls-dev=7.52.1-4ubuntu1.1 \
-                       libpcre3-dev=2:8.39-3 # for better-errors
+                       libpcre3-dev=2:8.39-3 \
+                       && rm -rf /var/lib/apt/lists/*
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN echo 'deb https://deb.nodesource.com/node_8.x zesty main' > /etc/apt/sources.list.d/nodesource.list
@@ -90,6 +96,7 @@ RUN opam install merlin.3.0.2 # dev
 RUN opam install utop.2.0.1 # dev
 RUN opam install ocp-indent.1.6.1 # dev
 RUN opam install batteries.2.7.0
+RUN opam install landmarks.1.1
 
 # better-errors
 RUN opam install ansiterminal.0.7
@@ -104,13 +111,12 @@ RUN npm install ocamlBetterErrors
 RUN cp node_modules/ocamlBetterErrors/berror.native ~/bin/better-errors
 RUN chmod +x ~/bin/better-errors
 
+# Environment
+ENV TERM=xterm-256color
+
 ## ADD NEW PACKAGES HERE
 # Doing otherwise will force a large recompile of the container for
 # everyone
-RUN sudo apt-get install -y expect # for unbuffer
-ENV TERM=xterm-256color
-
-RUN opam install landmarks.1.1
 
 
 CMD ["app", "scripts", "builder"]
