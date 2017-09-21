@@ -17,7 +17,7 @@ scripts/support/reload-browser > logs/browser.log 2>&1 &
 echo "Run the build"
 fswatch -m fsevents_monitor \
         --event-flag-separator=, \
-        -r * \
+        -r '*' \
         --batch-marker="***BATCHEND***" \
         --latency=0.1 \
         -x \
@@ -28,4 +28,4 @@ fswatch -m fsevents_monitor \
              -p 8000:8000 \
              -w /home/dark/app \
              dark \
-             scripts/support/build-server $@
+             scripts/support/build-server "$@"
