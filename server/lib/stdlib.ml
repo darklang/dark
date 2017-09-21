@@ -30,21 +30,6 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { n = "List::head"
-  ; o = []
-  ; p = [req "list" tList]
-  ; r = tAny
-  ; d = ""
-  ; f = InProcess
-        (function
-          | [DList l] -> List.hd_exn l
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
   { n = "."
   ; o = ["get_field"]
   ; p = [req "value" tObj; req "fieldname" tStr]
@@ -197,6 +182,22 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "toString"
+  ; o = []
+  ; p = [req "v" tAny]
+  ; r = tStr
+  ; d = "Returns a string representation of `v`"
+  ; f = InProcess
+        (function
+          | [a] -> DStr (to_repr a)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
   { n = "&&"
   ; o = ["Bool::and"]
   ; p = [req "a" tBool ; req "b" tBool]
@@ -255,6 +256,78 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
+  { n = "List::head"
+  ; o = []
+  ; p = [req "list" tList]
+  ; r = tAny
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DList l] -> List.hd_exn l
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "List::empty"
+  ; o = []
+  ; p = []
+  ; r = tList
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [] -> DList []
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+  { n = "List::new"
+  ; o = []
+  ; p = [opt "i1" tAny; opt "i2" tAny; opt "i3" tAny; opt "i4" tAny; opt "i5" tAny; opt "i6" tAny]
+  ; r = tList
+  ; d = "Return a new list with the arguments provided"
+  ; f = InProcess
+        (function
+          | args -> DList (List.filter ~f:(fun x -> x <> DIncomplete && x <> DNull) args))
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "List::push"
+  ; o = ["List::cons"]
+  ; p = [req "item" tAny; req "list" tList]
+  ; r = tList
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [i; DList l] -> DList (i :: l)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "List::last"
+  ; o = []
+  ; p = [req "list" tList]
+  ; r = tAny
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DList l] -> List.last_exn l
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
   { n = "List::find_first"
   ; o = []
@@ -347,6 +420,43 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
+  { n = "List::flatten"
+  ; o = []
+  ; p = [req "l" tList]
+  ; r = tList
+  ; d = "Returns a single list containing the elements of all the lists in `l`"
+  ; f = InProcess
+        (function
+          | [DList l] ->
+              let f = fun a b ->
+                match (a, b) with
+                  | (DList a, DList b) -> DList (List.append a b)
+                  | _ -> DIncomplete
+              in
+              List.fold ~init:(DList []) ~f l
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "List::append"
+  ; o = []
+  ; p = [req "l1" tList; req "l2" tList]
+  ; r = tList
+  ; d = "Returns the combined list of `l1` and `l2`"
+  ; f = InProcess
+        (function
+          | [DList l1; DList l2] -> DList (List.append l1 l2)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
 
 
   { n = "List::filter"
