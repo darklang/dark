@@ -342,6 +342,7 @@ viewLive m cursor =
     Html.div
       [ Attrs.id "darkLive"]
       [ case live of
+          Just (val, tipe, "Error") -> Html.pre [] [Html.text <| "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"]
           Just (_, tipe, val) -> Html.pre [] [Html.text <| "LiveValue: " ++ val ++ " (" ++ tipe ++ ")"]
           Nothing -> Html.text "n/a"
       ]
