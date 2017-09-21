@@ -17,7 +17,7 @@ scripts/support/reload-browser > logs/browser.log 2>&1 &
 echo "Run the build"
 fswatch -m fsevents_monitor \
         --event-flag-separator=, \
-        -r '*' \
+        -r * \
         --batch-marker="***BATCHEND***" \
         --latency=0.1 \
         -x \
