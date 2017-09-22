@@ -166,9 +166,11 @@ viewEntry m =
         placeHtml m pos wrapper
   in
     case m.state of
-      Entering (Filling n hole) ->
-        let pos = Entry.holePos m hole in
-        [svgLine m n.pos pos dragEdgeStyle, html pos]
+      Entering (Filling n h) ->
+        let holePos = Entry.holeDisplayPos m h
+            edgePos = { x = holePos.x + 5
+                      , y = holePos.y + 5} in
+        [svgLine m n.pos edgePos dragEdgeStyle, html holePos]
       Entering (Creating pos) -> [html pos]
       _ -> []
 

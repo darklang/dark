@@ -21,8 +21,14 @@ nodeFromHole h = case h of
                    ResultHole n -> n
                    ParamHole n _ _ -> n
 
-holePos : Model -> Hole -> Pos
-holePos m hole =
+holeDisplayPos : Model -> Hole -> Pos
+holeDisplayPos m hole =
+  case hole of
+    ResultHole n -> holeCreatePos m hole
+    ParamHole n _ i -> {x=n.pos.x-350, y=n.pos.y-100}
+
+holeCreatePos : Model -> Hole -> Pos
+holeCreatePos m hole =
   case hole of
     ResultHole n ->
       let pos = case G.getAnonNodeOf m n.id |> Maybe.andThen .returnID of
@@ -30,13 +36,8 @@ holePos m hole =
                   Nothing -> n.pos
       in
         {x=pos.x, y=pos.y+40}
-    ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-100}
+    ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-40}
 
-entryPos : Model -> EntryCursor -> Pos
-entryPos m c =
-  case c of
-    Creating p -> p -- this is a vpos
-    Filling _ h -> holePos m h
 
 entryNodePos : EntryCursor -> Pos
 entryNodePos c =
@@ -168,7 +169,7 @@ submit m cursor value =
       RPC <| addByName m id value pos
 
     Filling n hole ->
-      let pos = holePos m hole in
+      let pos = holeCreatePos m hole in
       case hole of
         ParamHole target param _ ->
           case String.uncons value of
