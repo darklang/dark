@@ -20,7 +20,7 @@ nodeHeight = round 28
 narrowChars : List Char
 narrowChars = ['i', '[', ',', ']', 'l', 'I', 't', ':', '/', '.', ' ', ',', '{', '}']
 edgeGradColor : String
-edgeGradColor = "#ccc"
+edgeGradColor = "#777"
 edgeColor : String
 edgeColor = "#444"
 edgeSize : String
