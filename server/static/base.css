@@ -138,13 +138,13 @@ Nodes
 }
 
 .node.functioncall, .node.value {
-  border-radius: 2em;
+  /* border-radius: 2em; */
   padding: 0.3em 0.3em;
   display: block;
 }
 
 .node.selected {
-  border-radius: 0.5em;
+  /* border-radius: 0.5em; */
 }
 
 .selected .name {
@@ -152,7 +152,7 @@ Nodes
 }
 
 .node.page {
-  border-radius: 1em;
+  /* border-radius: 1em; */
   padding: 0.5em 1.7em;
   text-align: center;
 }
