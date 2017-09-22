@@ -158,7 +158,9 @@ let dval_to_json_string (v: dval) : string =
 let parse (str : string) : dval =
   (* TODO: Doesn't handle characters. Replace with a custom parser,
      using the one in RealWorldOcaml, or just ripped out of Yojson *)
-  str |> Yojson.Safe.from_string |> dval_of_yojson_
+  if String.length str > 0 && String.get str 0 = '\''
+  then DChar (String.get str 1)
+  else str |> Yojson.Safe.from_string |> dval_of_yojson_
 
 
 (* ------------------------- *)
