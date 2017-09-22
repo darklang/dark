@@ -15,6 +15,8 @@ import List.Extra as LE
 import Types exposing (..)
 import Util exposing (deMaybe)
 
+lvValue : LiveValue -> String
+lvValue (v, _, _) = v
 
 anonNodes : Model -> List Node
 anonNodes m =
