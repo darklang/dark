@@ -361,8 +361,12 @@ viewArg m n i =
        [Attrs.class <| "arg" ++ selectedCl]
        [ viewHeader
        , Html.span
+         [ Attrs.class "icon" ]
+         [ Html.text "◉"]
+       , Html.span
          [ Attrs.class "name" ]
-         [ Html.text <| "(◉ " ++ n.name ++ ")"]])
+         [ Html.text n.name]
+       ])
 
 
 viewLive : Model -> State -> Html.Html Msg

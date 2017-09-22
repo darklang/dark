@@ -143,7 +143,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
          |> List.zip_exn anon_names
          |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
                           argid
-                          { x=newx + (i * 20); y=loc.y + 27 }
+                          { x=newx + (i * 60); y=loc.y + 27 }
                           argname
                           i
                           nid

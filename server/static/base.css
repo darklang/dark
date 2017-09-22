@@ -213,6 +213,11 @@ Node Header
   left: 9px;
 }
 
+.arg .name {
+  font-size: 10pt;
+  padding-left: 5px;
+}
+
 .return .header {
   top: -9px;
   left: 10px;
