@@ -207,6 +207,21 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "=="
+  ; o = ["equals"]
+  ; p = [req "a" tAny; req "b" tAny]
+  ; r = tBool
+  ; d = "Returns true if the two value are equal"
+  ; f = InProcess
+        (function
+          | [a; b] -> DBool (equal_dval a b)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
   (* ====================================== *)
   (* Bool *)
   (* ====================================== *)
@@ -247,7 +262,6 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if either a is true or b is true"
   ; f = InProcess
         (function
-
           | [DBool a; DBool b] -> DBool (a || b)
           | args -> fail args)
   ; pr = None
@@ -282,6 +296,40 @@ let fns : Lib.shortfn list = [
               then [DChar 'l']
               else [DChar (String.get s 0)]
           | args -> [DIncomplete])
+  ; pu = true
+  }
+  ;
+
+  { n = "String::toList"
+  ; o = []
+  ; p = [req "s" tStr]
+  ; r = tList
+  ; d = "Returns the list of characters in the string"
+  ; f = InProcess
+        (function
+          | [DStr s] ->
+              DList (String.to_list s |> List.map ~f:(fun c -> DChar c))
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "String::fromList"
+  ; o = []
+  ; p = [req "l" tList]
+  ; r = tStr
+  ; d = "Returns the list of characters as a string"
+  ; f = InProcess
+        (function
+          | [DList l] ->
+              DStr (l |> List.map ~f:(function
+                                      | DChar c -> c
+                                      | _ -> Exception.raise "expected a char")
+                      |> String.of_char_list)
+          | args -> fail args)
+  ; pr = None
   ; pu = true
   }
   ;
