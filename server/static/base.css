@@ -127,7 +127,7 @@ Nodes
 
 .node {
   box-sizing: border-box;
-  border: 1px solid #444;
+  /* border: 1px solid #333; */
   font-size: 14px;
   background: #272728;
 }
