@@ -64,10 +64,9 @@ viewCenter pos =
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let allNodes = List.indexedMap (,) <| G.orderedNodes m
-        (anonNodes, otherNodes) = List.partition (\(i, n) -> n.tipe == FunctionDef) allNodes
-        anons = List.map (\(i,n) -> viewNode m n i) anonNodes
-        other = List.map (\(i,n) -> viewNode m n i) otherNodes
+    let (anonNodes, otherNodes) = List.partition (\n -> n.tipe == FunctionDef) <| G.orderedNodes m
+        anons = List.map (\n -> viewAnon m n) anonNodes
+        other = List.indexedMap (\i n -> viewNode m n i) otherNodes
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} [SA.strokeWidth "1px", SA.stroke "#777"]
@@ -226,7 +225,7 @@ viewNode m n i =
   case n.tipe of
     Arg -> viewArg m n i
     Return -> viewReturn m n i
-    FunctionDef -> viewAnon m n i
+    FunctionDef -> viewAnon m n
     _ -> viewNormalNode m n i
 
 -- TODO: If there are default parameters, show them inline in
@@ -299,17 +298,14 @@ placeNode m n width attrs classes header body =
   in
     placeHtml m n.pos wrapper
 
-viewAnon : Model -> Node -> Int -> Html.Html Msg
-viewAnon m n i =
+viewAnon : Model -> Node -> Html.Html Msg
+viewAnon m n =
   let rid = deMaybe n.returnID
       returnNode = G.getNodeExn m rid
       height = 25 + returnNode.pos.y - n.pos.y
       width = 23 + returnNode.pos.x - n.pos.x
       height_attr = Attrs.style [("height", (toString height) ++ "px")]
-      viewHeader = [ Html.span
-                       [Attrs.class "letter"]
-                       [Html.text (G.int2letter i)]
-                   ]
+      viewHeader = [ ]
   in
     placeNode m n width [height_attr] [] [] viewHeader
 

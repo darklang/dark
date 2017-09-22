@@ -16,11 +16,17 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 
 
+anonNodes : Model -> List Node
+anonNodes m =
+  m.nodes
+    |> Dict.values
+    |> List.filter (\n -> n.tipe == FunctionDef)
 
 orderedNodes : Model -> List Node
 orderedNodes m =
   m.nodes
     |> Dict.values
+    |> List.filter (\n -> n.tipe /= FunctionDef)
     |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
     |> List.sortWith Ordering.natural
     |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
