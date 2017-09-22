@@ -50,7 +50,7 @@ let inspecT ?(formatter=Batteries.dump) ?(start=0) ?(stop=0) (msg : string) (x :
   x
   |> formatter
   |> (fun s ->
-  let last = String.length s - 1 in
+  let last = String.length s in
     String.slice s (min start last) (min stop last))
   |> (^) prefix
   |> print_endline
