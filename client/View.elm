@@ -193,7 +193,7 @@ nodeWidth n =
     -- param_extra = List.map
                                      -- Const c -> if c == "null" then "∅" else c
     -- lf = List.map (\(n,t) -> len n + len t + 3) n.fields
-    width = len name * 8.6 + 10
+    width = len name * 8.6 + 11
   in
     round(width)
 
