@@ -639,7 +639,7 @@ let fns : Lib.shortfn list = [
   { n = "Char::toASCIICode"
   ; o = []
   ; p = [req "c" tChar]
-  ; r = tChar
+  ; r = tInt
   ; d = "Return `c`'s ASCII code"
   ; f = InProcess
         (function
@@ -651,7 +651,7 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { n = "Char::toASCIICode"
+  { n = "Char::toASCIIChar"
   ; o = []
   ; p = [req "i" tInt]
   ; r = tChar
