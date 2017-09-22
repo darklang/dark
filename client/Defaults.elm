@@ -26,7 +26,7 @@ edgeColor = "#444"
 edgeSize : String
 edgeSize = "1px"
 dragEdgeStrokeColor : String
-dragEdgeStrokeColor = "red"
+dragEdgeStrokeColor = "#444"
 dragEdgeSize : String
 dragEdgeSize = "2px"
 initialPos : VPos
