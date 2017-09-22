@@ -167,9 +167,12 @@ viewEntry m =
     case m.state of
       Entering (Filling n h) ->
         let holePos = Entry.holeDisplayPos m h
-            edgePos = { x = holePos.x + 5
-                      , y = holePos.y + 5} in
-        [svgLine m n.pos edgePos dragEdgeStyle, html holePos]
+            edgePos = { x = holePos.x + 10
+                      , y = holePos.y + 10}
+            nodePos = { x = n.pos.x + 10
+                      , y = n.pos.y + 10}
+        in
+        [svgLine m nodePos edgePos dragEdgeStyle, html holePos]
       Entering (Creating pos) -> [html pos]
       _ -> []
 
