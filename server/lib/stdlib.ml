@@ -12,6 +12,10 @@ let fns : Lib.shortfn list = [
   (* ; *)
 
 
+  (* ====================================== *)
+  (* Dict  *)
+  (* ====================================== *)
+
   { n = "Dict::keys"
   ; o = []
   ; p = [req "dict" tObj]
@@ -48,6 +52,9 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  (* ====================================== *)
+  (* Int *)
+  (* ====================================== *)
   { n = "%"
   ; o = ["Int::mod"]
   ; p = [req "a" tInt ; req "b" tInt]
@@ -182,6 +189,9 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  (* ====================================== *)
+  (* Any *)
+  (* ====================================== *)
   { n = "toString"
   ; o = []
   ; p = [req "v" tAny]
@@ -196,6 +206,23 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
+  (* ====================================== *)
+  (* Bool *)
+  (* ====================================== *)
+  { n = "Bool::not"
+  ; o = []
+  ; p = [req "b" tBool]
+  ; r = tBool
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DBool b] -> DBool (not b)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
 
   { n = "&&"
@@ -229,6 +256,9 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  (* ====================================== *)
+  (* String *)
+  (* ====================================== *)
   { n = "String::foreach"
   ; o = []
   ; p = [req "s" tStr; func 1]
@@ -257,6 +287,9 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  (* ====================================== *)
+  (* List *)
+  (* ====================================== *)
   { n = "List::head"
   ; o = []
   ; p = [req "list" tList]
@@ -511,36 +544,9 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { n = "Char::code"
-  ; o = []
-  ; p = [req "c" tChar]
-  ; r = tChar
-  ; d = "Return `c`'s ASCII code"
-  ; f = InProcess
-        (function
-          | [DChar c] -> DInt (Char.to_int c)
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
-  { n = "Char::to_uppercase"
-  ; o = []
-  ; p = [req "c" tChar]
-  ; r = tChar
-  ; d = "Return the uppercase value of `c`"
-  ; f = InProcess
-        (function
-          | [DChar c] -> DChar (Char.uppercase c)
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
+  (* ====================================== *)
+  (* Date *)
+  (* ====================================== *)
   { n = "Date::parse"
   ; o = []
   ; p = [req "s" tStr]
@@ -579,7 +585,25 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { n = "Char::chr"
+  (* ====================================== *)
+  (* Char *)
+  (* ====================================== *)
+  { n = "Char::toASCIICode"
+  ; o = []
+  ; p = [req "c" tChar]
+  ; r = tChar
+  ; d = "Return `c`'s ASCII code"
+  ; f = InProcess
+        (function
+          | [DChar c] -> DInt (Char.to_int c)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "Char::toASCIICode"
   ; o = []
   ; p = [req "i" tInt]
   ; r = tChar
@@ -594,18 +618,35 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { n = "Bool::not"
+  { n = "Char::toLowercase"
   ; o = []
-  ; p = [req "b" tBool]
-  ; r = tBool
-  ; d = ""
+  ; p = [req "c" tChar]
+  ; r = tChar
+  ; d = "Return the lowercase value of `c`"
   ; f = InProcess
         (function
-          | [DBool b] -> DBool (not b)
+          | [DChar c] -> DChar (Char.lowercase c)
           | args -> fail args)
   ; pr = None
   ; pu = true
- }
+  }
+  ;
+
+
+  { n = "Char::toUppercase"
+  ; o = []
+  ; p = [req "c" tChar]
+  ; r = tChar
+  ; d = "Return the uppercase value of `c`"
+  ; f = InProcess
+        (function
+          | [DChar c] -> DChar (Char.uppercase c)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
 
 
 ]
