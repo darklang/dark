@@ -341,12 +341,13 @@ viewLive m cursor =
           |> Selection.getCursorID
           |> Maybe.andThen (G.getNode m)
           |> Maybe.map .liveValue
+      html tipe text = Html.pre []
+                         [Html.text <| "LiveValue: (" ++ tipe ++ ")\n" ++ text]
   in
     Html.div
       [ Attrs.id "darkLive"]
       [ case live of
-          Just (val, tipe, "Error") -> Html.pre [] [Html.text <| "LiveValue: \n" ++ val ++ " (" ++ tipe ++ ")"]
-          Just (_, tipe, val) -> Html.pre [] [Html.text <| "LiveValue: \n" ++ val ++ " (" ++ tipe ++ ")"]
+          Just (val, tipe, _) -> html tipe val
           Nothing -> Html.text "n/a"
       ]
 
