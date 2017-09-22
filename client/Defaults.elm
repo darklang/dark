@@ -28,7 +28,7 @@ edgeSize = "1px"
 dragEdgeStrokeColor : String
 dragEdgeStrokeColor = "#444"
 dragEdgeSize : String
-dragEdgeSize = "2px"
+dragEdgeSize = "1px"
 initialPos : VPos
 initialPos = {vx=475, vy=325}
 moveSize : Int
