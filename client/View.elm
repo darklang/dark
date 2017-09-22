@@ -179,17 +179,21 @@ nodeWidth n =
     slimChars = Set.fromList Defaults.narrowChars
     len name = name
              |> String.toList
-             |> List.map (\c -> if Set.member c slimChars then 0.5 else 1)
+             |> List.map (\c -> if Set.member c slimChars
+                                   then 0.3
+                                   else if c == '◉'
+                                        then 2
+                                        else 1)
              |> List.sum
-    nameMultiple = case n.tipe of
-                     Datastore -> 2
-                     Page -> 2.2
-                     _ -> 1
-    lp = List.length n.parameters
-    ln = [nameMultiple * len (nodeName n) + 1.3 * (toFloat lp)]
-    lf = List.map (\(n,t) -> len n + len t + 3) n.fields
-    charWidth = List.foldl max 2 (ln ++ lf)
-    width = charWidth * 8.5
+    -- nameMultiple = case n.tipe of
+    --                  Datastore -> 2
+    --                  Page -> 2.2
+    --                  _ -> 1
+    name = nodeName n
+    -- param_extra = List.map
+                                     -- Const c -> if c == "null" then "∅" else c
+    -- lf = List.map (\(n,t) -> len n + len t + 3) n.fields
+    width = len name * 8.6 + 10
   in
     round(width)
 

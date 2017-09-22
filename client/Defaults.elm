@@ -18,13 +18,13 @@ leftButton = 0
 nodeHeight : Int
 nodeHeight = round 28
 narrowChars : List Char
-narrowChars = ['i', '[', ',', ']', 'l', 'I', 't', 'r', ':', '/', '.']
+narrowChars = ['i', '[', ',', ']', 'l', 'I', 't', ':', '/', '.', ' ', ',', '{', '}']
 edgeGradColor : String
-edgeGradColor = "#111"
+edgeGradColor = "#ccc"
 edgeColor : String
 edgeColor = "#444"
 edgeSize : String
-edgeSize = "3.25px"
+edgeSize = "1px"
 dragEdgeStrokeColor : String
 dragEdgeStrokeColor = "red"
 dragEdgeSize : String
