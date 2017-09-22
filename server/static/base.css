@@ -180,6 +180,13 @@ Nodes
 	line-height: 1.5em;
 }
 
+.preview {
+  margin: 4px 0 0 0;
+  font-size: 10pt;
+  width: 500px;
+}
+
+
 
 /********************
 Node Header

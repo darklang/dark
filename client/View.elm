@@ -226,8 +226,17 @@ nodeName n =
 
 viewValue : Model -> Node -> Html.Html Msg
 viewValue m n =
-  placeHtml m {x=n.pos.x+250, y=n.pos.y}
-  (Html.div [] [n.liveValue |> G.lvValue |> String.left 24 |> Html.text])
+  let width = nodeWidth n
+      xpad = max (width+50) (250) in
+  placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
+  (Html.pre [Attrs.class "preview"]
+    [ n.liveValue
+      |> G.lvValue
+      |> String.left 100
+      |> Util.replace "\n" ""
+      |> Util.replace "\\s+" " "
+      |> String.left 40
+      |> Html.text])
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =

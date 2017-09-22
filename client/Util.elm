@@ -29,6 +29,9 @@ deMaybe x = case x of
 rematch : String -> String -> Bool
 rematch re s = Regex.contains (Regex.regex re) s
 
+replace : String -> String -> String -> String
+replace re repl str = Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str
+
 findIndex : (a -> Bool) -> List a -> Maybe (Int, a)
 findIndex fn l =
   LE.find (\(_, a) -> fn a) (List.indexedMap (,) l)
