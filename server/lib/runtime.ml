@@ -19,7 +19,10 @@ and dval = DInt of int
          | DObj of dval_map
          | DIncomplete [@@deriving show, sexp]
 
-let rec to_repr (dv : dval) : string =
+let rec to_repr_ (indent: int) (dv : dval) : string =
+  let nl = "\n" ^ (String.make indent ' ') in
+  let inl = "\n" ^ (String.make (indent + 2) ' ') in
+  let indent = indent + 2 in
   match dv with
   | DInt i -> string_of_int i
   | DBool true -> "true"
@@ -31,13 +34,27 @@ let rec to_repr (dv : dval) : string =
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
-    "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_repr (List.take l 10))) ^ " ]"
+      if List.is_empty l
+      then "[]"
+      else
+        "[ " ^ inl ^
+        (String.concat ~sep:", " (List.map ~f:(to_repr_ indent) (List.take l 10)))
+        ^ nl ^ "]"
   | DObj o ->
-    let strs = DvalMap.fold o
-        ~init:[]
-        ~f:(fun ~key ~data l -> (key ^ ": " ^ to_repr data) :: l) in
+    if DvalMap.is_empty o
+    then "{}"
+    else
+        let strs = DvalMap.fold o
+          ~init:[]
+          ~f:(fun ~key ~data l -> (key ^ ": " ^ (to_repr_ indent data)) :: l) in
+        "{ " ^ inl ^
+        (String.concat ~sep:("," ^ inl) (List.take strs 10))
+        ^ nl ^ "}"
 
-    "{ " ^ (String.concat ~sep:", " (List.take strs 10)) ^ " }"
+let to_repr (dv : dval) : string =
+  to_repr_ 0 dv
+
+
 
 let to_comparable_repr (dvm : dval_map) : string =
   Map.to_alist ~key_order:`Increasing dvm
