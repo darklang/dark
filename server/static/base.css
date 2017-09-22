@@ -90,7 +90,7 @@ form {
 }
 
 .autocomplete-item.highlighted {
-  background: blue;
+  background: #1c3670;
 }
 .autocomplete-item.greyed {
   color: grey;
