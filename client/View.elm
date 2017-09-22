@@ -180,9 +180,9 @@ nodeWidth n =
     len name = name
              |> String.toList
              |> List.map (\c -> if Set.member c slimChars
-                                   then 0.3
+                                   then 0.35
                                    else if c == '◉'
-                                        then 2
+                                        then 2.2
                                         else 1)
              |> List.sum
     -- nameMultiple = case n.tipe of
