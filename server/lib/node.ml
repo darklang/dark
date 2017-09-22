@@ -66,7 +66,7 @@ class virtual node id loc =
     method delete_arg (name: string) : unit =
       Exception.raise "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
-    method dependent_nodes : id list = []
+    method dependent_nodes (_:node gfns_) : id list = []
     method anon_id = None
     method return_id = None
     method arg_ids = []
@@ -141,7 +141,7 @@ class value id loc strrep =
     method execute _ _ = expr
   end
 
-class virtual has_arguments id loc = (*  *)
+class virtual has_arguments id loc =
   object (self)
     inherit node id loc
     val mutable args : arg_map = RT.ArgMap.empty
@@ -164,16 +164,26 @@ class virtual has_arguments id loc = (*  *)
 module MemoCache = String.Map
 type memo_cache = dval MemoCache.t
 
-class func id loc n =
+class func (id : id) loc (name : string) =
   object (self)
     inherit has_arguments id loc
 
     val mutable memo : memo_cache = MemoCache.empty
     (* Throw an exception if it doesn't exist *)
-    method private fn = (Libs.get_fn_exn n)
-    method parameters : param list = self#fn.parameters
-    method name = self#fn.name
-    method execute (g: gfns) (args: dval_map) : dval =
+    method private fn = (Libs.get_fn_exn name)
+    method private argpairs : (RT.param * argument) list =
+        List.map ~f:(fun p -> (p, DvalMap.find_exn args p.name)) self#fn.parameters
+    method! dependent_nodes (g: gfns) =
+      (* If the node has an anonymous function argument, delete it if this node is *)
+      (* deleted *)
+      self#argpairs
+        |> List.filter_map ~f:(fun (p, arg : param * argument) : id option ->
+                                 match (p.tipe, arg) with
+                                 | (RT.TFun, RT.AEdge id) -> Some id
+                                 | _ -> None)
+    method! parameters : param list = self#fn.parameters
+    method! name = self#fn.name
+    method! execute (g: gfns) (args: dval_map) : dval =
       if not self#fn.pure
       then RT.exe self#fn args
       else
@@ -188,7 +198,7 @@ class func id loc n =
             | Some v -> v
 
      (* Get a value to use as the preview for anonfns used by this node *)
-    method preview (g: gfns) (args: dval_map) : dval list =
+    method! preview (g: gfns) (args: dval_map) : dval list =
       match self#fn.preview with
       | None -> List.init (List.length self#fn.parameters) (fun _ -> RT.DIncomplete)
       | Some f -> self#fn.parameters
@@ -196,7 +206,7 @@ class func id loc n =
                      |> List.map ~f:(DvalMap.find_exn args)
                      |> f
     method! is_page = self#name = "Page_page"
-    method tipe = if String.is_substring ~substring:"page" self#name
+    method! tipe = if String.is_substring ~substring:"page" self#name
       then self#name
       (* TODO: rename to "call" *)
       else "function"
@@ -235,10 +245,10 @@ let anonexecutor (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
 class returnnode id loc nid argids =
   object (self)
     inherit has_arguments id loc
-    method dependent_nodes = nid :: argids
+    method! dependent_nodes _ = [nid]
     method name = "<return>"
     method! parameters = [{ name = "return"
-                          ; tipe = RT.tAny
+                          ; tipe = RT.TAny
                           ; arity = 0
                           ; optional = false
                           ; description = "" }]
@@ -253,7 +263,7 @@ class returnnode id loc nid argids =
 class argnode id loc index nid rid argids =
   object
     inherit node id loc
-    method dependent_nodes = nid :: rid :: argids
+    method! dependent_nodes _ = [nid]
     method name = "<arg>"
     method tipe = "arg"
     method execute (g: gfns) _ : dval =
@@ -271,7 +281,8 @@ class argnode id loc index nid rid argids =
 class anonfn id loc rid argids =
   object
     inherit node id loc
-    method dependent_nodes = rid :: argids
+    method dependent_nodes (g: gfns) =
+      List.append (rid :: argids) (g.get_children id |> List.map ~f:(fun n -> n#id))
     method name = "<anonfn>"
     method execute (g: gfns) (_) : dval =
       DAnon (id, anonexecutor rid argids g)

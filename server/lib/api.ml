@@ -102,8 +102,15 @@ let apply_ops (g : G.graph ref) (payload: string) : unit =
 (*------------------*)
 (* Functions *)
 (*------------------*)
+type param_ = { name: string
+              ; tipe: string
+              ; arity: int
+              ; optional: bool
+              ; description: string
+              } [@@deriving yojson]
+
 type function_ = { name: string
-                 ; parameters : Runtime.param list
+                 ; parameters : param_ list
                  ; description : string
                  ; return_type : string} [@@deriving yojson]
 type functionlist = function_ list [@@deriving yojson]
@@ -113,9 +120,16 @@ let functions =
   |> String.Map.to_alist
   |> List.map ~f:(fun (k,(v:Runtime.fn))
                    -> { name = k
-                      ; parameters = v.parameters
+                      ; parameters =
+                        List.map ~f:(fun p : param_ ->
+                          { name = p.name
+                          ; tipe = Runtime.tipename p.tipe
+                          ; arity = p.arity
+                          ; optional = p.optional
+                          ; description = p.description })
+                        v.parameters
                       ; description = v.description
-                      ; return_type = v.return_type
+                      ; return_type = Runtime.tipename v.return_type
                       })
   |> functionlist_to_yojson
   |> Yojson.Safe.pretty_to_string

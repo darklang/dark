@@ -10,8 +10,8 @@ let call_twitter path (args: Runtime.dval_map) : dval =
 
 let sw_type2dark tipe =
   match tipe with
-  | "string" -> tStr
-  | "int" -> tInt
+  | "string" -> TStr
+  | "int" -> TInt
   | _ -> failwith ("todo: type: " ^ tipe)
 
 let twurl2name (url: string) : string =
@@ -42,7 +42,7 @@ let fns =
         |> Option.map ~f:(fun (get:Swagger.operation) ->
             { n = "Twitter::" ^ (twurl2name api.path)
             ; o = []
-            ; r = tAny
+            ; r = TAny
             ; f = Runtime.API (call_twitter api.path)
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary

@@ -48,6 +48,12 @@ let get_children (g: graph) (id: id) : Node.node list =
      |> List.is_empty
      |> not)
 
+let gfns (g: graph) : Node.gfns =
+  { getf = get_node g
+  ; get_children = get_children g
+  }
+
+
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
@@ -105,7 +111,7 @@ let incoming_nodes id g : (id * string) list =
 
 let rec delete_node id (g: graph) : graph =
   let node = get_node g id in
-  let deps = node#dependent_nodes in
+  let deps = node#dependent_nodes (gfns g) in
   let nodes = incoming_nodes id g in
   let g = List.fold_left ~init:g nodes
       ~f:(fun g_ (id2, param) -> delete_arg id2 param g_) in
@@ -190,11 +196,6 @@ let save (g : graph) : unit =
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
-
-let gfns (g: graph) : Node.gfns =
-  { getf = get_node g
-  ; get_children = get_children g
-  }
 
 
 (* ------------------------- *)

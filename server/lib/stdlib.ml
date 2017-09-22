@@ -18,8 +18,8 @@ let fns : Lib.shortfn list = [
 
   { n = "Dict::keys"
   ; o = []
-  ; p = [req "dict" tObj]
-  ; r = tList
+  ; p = [req "dict" TObj]
+  ; r = TList
   ; d = ""
   ; f = InProcess
         (function
@@ -36,8 +36,8 @@ let fns : Lib.shortfn list = [
 
   { n = "."
   ; o = ["get_field"]
-  ; p = [req "value" tObj; req "fieldname" tStr]
-  ; r = tAny
+  ; p = [req "value" TObj; req "fieldname" TStr]
+  ; r = TAny
   ; d = ""
   ; f = InProcess
         (function
@@ -57,8 +57,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "%"
   ; o = ["Int::mod"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tInt
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TInt
   ; d = ""
   ; f = InProcess
         (function
@@ -72,8 +72,8 @@ let fns : Lib.shortfn list = [
 
   { n = "+"
   ; o = ["Int::add"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tInt
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TInt
   ; d = "Adds two integers together"
   ; f = InProcess
         (function
@@ -87,8 +87,8 @@ let fns : Lib.shortfn list = [
 
   { n = "-"
   ; o = ["Int::subtract"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tInt
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TInt
   ; d = "Subtracts two integers"
   ; f = InProcess
         (function
@@ -102,8 +102,8 @@ let fns : Lib.shortfn list = [
 
   { n = "*"
   ; o = ["Int::multiply"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tInt
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TInt
   ; d = "Multiples two integers"
   ; f = InProcess
         (function
@@ -117,8 +117,8 @@ let fns : Lib.shortfn list = [
 
   { n = "/"
   ; o = ["Int::divide"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tInt
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TInt
   ; d = "Divides two integers"
   ; f = InProcess
         (function
@@ -132,8 +132,8 @@ let fns : Lib.shortfn list = [
 
   { n = ">"
   ; o = ["Int::greaterThan"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tBool
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TBool
   ; d = "Returns true if a is greater than b"
   ; f = InProcess
         (function
@@ -147,8 +147,8 @@ let fns : Lib.shortfn list = [
 
   { n = "<"
   ; o = ["Int::lessThan"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tBool
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TBool
   ; d = "Returns true if a is less than b"
   ; f = InProcess
         (function
@@ -161,8 +161,8 @@ let fns : Lib.shortfn list = [
 
   { n = "<="
   ; o = ["Int::lessThanOrEqualTo"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tBool
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TBool
   ; d = "Returns true if a is less than or equal to b"
   ; f = InProcess
         (function
@@ -176,8 +176,8 @@ let fns : Lib.shortfn list = [
 
   { n = ">="
   ; o = ["Int::greaterThanOrEqualTo"]
-  ; p = [req "a" tInt ; req "b" tInt]
-  ; r = tBool
+  ; p = [req "a" TInt ; req "b" TInt]
+  ; r = TBool
   ; d = "Returns true if a is greater than or equal to b"
   ; f = InProcess
         (function
@@ -194,8 +194,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "toString"
   ; o = []
-  ; p = [req "v" tAny]
-  ; r = tStr
+  ; p = [req "v" TAny]
+  ; r = TStr
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
         (function
@@ -209,8 +209,8 @@ let fns : Lib.shortfn list = [
 
   { n = "=="
   ; o = ["equals"]
-  ; p = [req "a" tAny; req "b" tAny]
-  ; r = tBool
+  ; p = [req "a" TAny; req "b" TAny]
+  ; r = TBool
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
         (function
@@ -227,8 +227,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "Bool::not"
   ; o = []
-  ; p = [req "b" tBool]
-  ; r = tBool
+  ; p = [req "b" TBool]
+  ; r = TBool
   ; d = ""
   ; f = InProcess
         (function
@@ -242,8 +242,8 @@ let fns : Lib.shortfn list = [
 
   { n = "&&"
   ; o = ["Bool::and"]
-  ; p = [req "a" tBool ; req "b" tBool]
-  ; r = tBool
+  ; p = [req "a" TBool ; req "b" TBool]
+  ; r = TBool
   ; d = "Returns true if both a and b are true"
   ; f = InProcess
         (function
@@ -257,8 +257,8 @@ let fns : Lib.shortfn list = [
 
   { n = "||"
   ; o = ["Bool::or"]
-  ; p = [req "a" tBool ; req "b" tBool]
-  ; r = tBool
+  ; p = [req "a" TBool ; req "b" TBool]
+  ; r = TBool
   ; d = "Returns true if either a is true or b is true"
   ; f = InProcess
         (function
@@ -275,8 +275,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "String::foreach"
   ; o = []
-  ; p = [req "s" tStr; func 1]
-  ; r = tStr
+  ; p = [req "s" TStr; func 1]
+  ; r = TStr
   ; d = "Run `f` on every character in the string, and combine them back into a string"
   ; f = InProcess
         (function
@@ -302,8 +302,8 @@ let fns : Lib.shortfn list = [
 
   { n = "String::toList"
   ; o = []
-  ; p = [req "s" tStr]
-  ; r = tList
+  ; p = [req "s" TStr]
+  ; r = TList
   ; d = "Returns the list of characters in the string"
   ; f = InProcess
         (function
@@ -318,8 +318,8 @@ let fns : Lib.shortfn list = [
 
   { n = "String::fromList"
   ; o = []
-  ; p = [req "l" tList]
-  ; r = tStr
+  ; p = [req "l" TList]
+  ; r = TStr
   ; d = "Returns the list of characters as a string"
   ; f = InProcess
         (function
@@ -340,8 +340,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "List::head"
   ; o = []
-  ; p = [req "list" tList]
-  ; r = tAny
+  ; p = [req "list" TList]
+  ; r = TAny
   ; d = ""
   ; f = InProcess
         (function
@@ -356,7 +356,7 @@ let fns : Lib.shortfn list = [
   { n = "List::empty"
   ; o = []
   ; p = []
-  ; r = tList
+  ; r = TList
   ; d = ""
   ; f = InProcess
         (function
@@ -369,8 +369,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::new"
   ; o = []
-  ; p = [opt "i1" tAny; opt "i2" tAny; opt "i3" tAny; opt "i4" tAny; opt "i5" tAny; opt "i6" tAny]
-  ; r = tList
+  ; p = [opt "i1" TAny; opt "i2" TAny; opt "i3" TAny; opt "i4" TAny; opt "i5" TAny; opt "i6" TAny]
+  ; r = TList
   ; d = "Return a new list with the arguments provided"
   ; f = InProcess
         (function
@@ -383,8 +383,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::push"
   ; o = ["List::cons"]
-  ; p = [req "item" tAny; req "list" tList]
-  ; r = tList
+  ; p = [req "item" TAny; req "list" TList]
+  ; r = TList
   ; d = ""
   ; f = InProcess
         (function
@@ -398,8 +398,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::last"
   ; o = []
-  ; p = [req "list" tList]
-  ; r = tAny
+  ; p = [req "list" TList]
+  ; r = TAny
   ; d = ""
   ; f = InProcess
         (function
@@ -412,8 +412,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::find_first"
   ; o = []
-  ; p = [req "l" tList; func 1]
-  ; r = tList
+  ; p = [req "l" TList; func 1]
+  ; r = TList
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
         (function
@@ -435,8 +435,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::contains"
   ; o = []
-  ; p = [req "l" tList; req "item" tAny]
-  ; r = tBool
+  ; p = [req "l" TList; req "item" TAny]
+  ; r = TBool
   ; d = "Returns if the item is in the list"
   ; f = InProcess
         (function
@@ -450,8 +450,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::repeat"
   ; o = []
-  ; p = [req "times" tInt; req "item" tAny]
-  ; r = tList
+  ; p = [req "times" TInt; req "item" TAny]
+  ; r = TList
   ; d = "Returns a list containing `item` repeated `count` times"
   ; f = InProcess
         (function
@@ -465,8 +465,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::length"
   ; o = []
-  ; p = [req "l" tList]
-  ; r = tInt
+  ; p = [req "l" TList]
+  ; r = TInt
   ; d = "Returns the length of the list"
   ; f = InProcess
         (function
@@ -480,8 +480,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::fold"
   ; o = []
-  ; p = [req "l" tList; req "init" tAny; func 2]
-  ; r = tAny
+  ; p = [req "l" TList; req "init" TAny; func 2]
+  ; r = TAny
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
         (function
@@ -505,8 +505,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::flatten"
   ; o = []
-  ; p = [req "l" tList]
-  ; r = tList
+  ; p = [req "l" TList]
+  ; r = TList
   ; d = "Returns a single list containing the elements of all the lists in `l`"
   ; f = InProcess
         (function
@@ -526,8 +526,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::append"
   ; o = []
-  ; p = [req "l1" tList; req "l2" tList]
-  ; r = tList
+  ; p = [req "l1" TList; req "l2" TList]
+  ; r = TList
   ; d = "Returns the combined list of `l1` and `l2`"
   ; f = InProcess
         (function
@@ -542,8 +542,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::filter"
   ; o = []
-  ; p = [req "l" tList; func 1]
-  ; r = tList
+  ; p = [req "l" TList; func 1]
+  ; r = TList
   ; d = "Return only items in list which meet function criteria"
   ; f = InProcess
         (function
@@ -569,8 +569,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::foreach"
   ; o = []
-  ; p = [req "l" tList; func 1]
-  ; r = tList
+  ; p = [req "l" TList; func 1]
+  ; r = TList
   ; d = "Call `f` on every item in the list, returning a list of the results of
   those calls"
   ; f = InProcess
@@ -597,8 +597,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "Date::parse"
   ; o = []
-  ; p = [req "s" tStr]
-  ; r = tInt
+  ; p = [req "s" TStr]
+  ; r = TInt
   ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)"
   ; f = InProcess
         (function
@@ -618,7 +618,7 @@ let fns : Lib.shortfn list = [
   { n = "Date::now"
   ; o = []
   ; p = []
-  ; r = tInt
+  ; r = TInt
   ; d = "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
   ; f = InProcess
         (function
@@ -638,8 +638,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "Char::toASCIICode"
   ; o = []
-  ; p = [req "c" tChar]
-  ; r = tInt
+  ; p = [req "c" TChar]
+  ; r = TInt
   ; d = "Return `c`'s ASCII code"
   ; f = InProcess
         (function
@@ -653,8 +653,8 @@ let fns : Lib.shortfn list = [
 
   { n = "Char::toASCIIChar"
   ; o = []
-  ; p = [req "i" tInt]
-  ; r = tChar
+  ; p = [req "i" TInt]
+  ; r = TChar
   ; d = ""
   ; f = InProcess
         (function
@@ -668,8 +668,8 @@ let fns : Lib.shortfn list = [
 
   { n = "Char::toLowercase"
   ; o = []
-  ; p = [req "c" tChar]
-  ; r = tChar
+  ; p = [req "c" TChar]
+  ; r = TChar
   ; d = "Return the lowercase value of `c`"
   ; f = InProcess
         (function
@@ -683,8 +683,8 @@ let fns : Lib.shortfn list = [
 
   { n = "Char::toUppercase"
   ; o = []
-  ; p = [req "c" tChar]
-  ; r = tChar
+  ; p = [req "c" TChar]
+  ; r = TChar
   ; d = "Return the uppercase value of `c`"
   ; f = InProcess
         (function

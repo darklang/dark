@@ -15,7 +15,7 @@ let opt name tipe = { name = name
                     }
 
 let func arity = { name = "f"
-                 ; tipe = "Function"
+                 ; tipe = TFun
                  ; arity = arity
                  ; optional = false
                  ; description = "" }

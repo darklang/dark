@@ -184,32 +184,50 @@ let parse (str : string) : dval =
 (* Functions *)
 (* ------------------------- *)
 type execute_t = (dval_map -> dval)
+type tipe = TInt
+          | TStr
+          | TChar
+          | TBool
+          | TObj
+          | TList
+          | TAny
+          | TFun
+          [@@deriving yojson, show]
+
+let tipename t =
+  match t with
+  | TInt -> "Integer"
+  | TStr -> "String"
+  | TChar -> "Char"
+  | TBool -> "Bool"
+  | TObj -> "Object"
+  | TList -> "List"
+  | TAny -> "Any"
+  | TFun -> "Function"
+
+let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
+  `String (tipename t)
 
 type argument = AEdge of int
               | AConst of dval [@@deriving yojson, show]
 
 let blank_arg = AConst DIncomplete
-
 module ArgMap = String.Map
 type arg_map = argument ArgMap.t
 
 type param = { name: string
-             ; tipe: string
+             ; tipe: tipe
              ; arity : int
              ; optional : bool
              ; description : string
-             } [@@deriving yojson, show]
-(* types  *)
-type tipe = string
-let tInt = "Integer"
-let tStr = "String"
-let tChar = "Char"
-let tBool = "Bool"
-let tObj = "Object"
-let tList = "List"
-(* placeholder until typesystem becomes more complete *)
-let tAny = "Any"
-let tFun = "Function"
+            } [@@deriving yojson, show]
+
+let param_to_string (param: param) : string =
+  param.name
+  ^ (if param.optional then "?" else "")
+  ^ " : "
+  ^ (tipename param.tipe)
+
 
 type ccfunc = InProcess of (dval list -> dval)
             | API of (dval_map -> dval)
@@ -223,12 +241,6 @@ type fn = { name : string
           ; func : ccfunc
           ; pure : bool
           }
-
-let param_to_string (param: param) : string =
-  param.name
-  ^ (if param.optional then "?" else "")
-  ^ " : "
-  ^ param.tipe
 
 
 exception TypeError of dval list
