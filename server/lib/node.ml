@@ -182,8 +182,8 @@ class func (id : id) loc (name : string) =
                                  | (RT.TFun, RT.AEdge id) -> Some id
                                  | _ -> None)
     method! parameters : param list = self#fn.parameters
-    method! name = self#fn.name
-    method! execute (g: gfns) (args: dval_map) : dval =
+    method name = self#fn.name
+    method execute (g: gfns) (args: dval_map) : dval =
       if not self#fn.pure
       then RT.exe self#fn args
       else
@@ -206,7 +206,7 @@ class func (id : id) loc (name : string) =
                      |> List.map ~f:(DvalMap.find_exn args)
                      |> f
     method! is_page = self#name = "Page_page"
-    method! tipe = if String.is_substring ~substring:"page" self#name
+    method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
       (* TODO: rename to "call" *)
       else "function"
@@ -249,7 +249,7 @@ class returnnode id loc nid argids =
     method name = "<return>"
     method! parameters = [{ name = "return"
                           ; tipe = RT.TAny
-                          ; arity = 0
+                          ; anon_args = []
                           ; optional = false
                           ; description = "" }]
     method tipe = "return"
@@ -260,11 +260,11 @@ class returnnode id loc nid argids =
     method! arg_ids = argids
   end
 
-class argnode id loc index nid rid argids =
+class argnode id loc name index nid rid argids =
   object
     inherit node id loc
     method! dependent_nodes _ = [nid]
-    method name = "<arg>"
+    method name = name
     method tipe = "arg"
     method execute (g: gfns) _ : dval =
       (* This arg gets its preview value from the preview of the node being

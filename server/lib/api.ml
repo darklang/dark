@@ -23,7 +23,8 @@ type add_function_call = { id: int
 type add_anon = { id: int
                 ; pos: pos
                 ; return: int
-                ; args: int list } [@@deriving yojson]
+                ; args: int list
+                ; argnames: string list} [@@deriving yojson]
 type add_value = { id: int
                  ; value: string
                  ; pos: pos
@@ -73,7 +74,7 @@ let json2op (op: opjson) : op =
   | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_node = Some a } -> Delete_node a.id
   | { clear_args = Some a } -> Clear_args a.id
-  | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.return, a.args)
+  | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.return, a.args, a.argnames)
   | { add_function_call = Some a } -> Add_fn_call (a.id, a.pos, a.name)
   | { add_value = Some a } -> Add_value (a.id, a.pos, a.value)
   | { update_node_position = Some a } -> Update_node_position (a.id, a.pos)
@@ -104,7 +105,7 @@ let apply_ops (g : G.graph ref) (payload: string) : unit =
 (*------------------*)
 type param_ = { name: string
               ; tipe: string
-              ; arity: int
+              ; anon_args : string list
               ; optional: bool
               ; description: string
               } [@@deriving yojson]
@@ -124,7 +125,7 @@ let functions =
                         List.map ~f:(fun p : param_ ->
                           { name = p.name
                           ; tipe = Runtime.tipename p.tipe
-                          ; arity = p.arity
+                          ; anon_args = p.anon_args
                           ; optional = p.optional
                           ; description = p.description })
                         v.parameters

@@ -57,11 +57,12 @@ encodeRPC m call =
         ("add_function_call",
            JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
 
-      AddAnon id pos (ID ret) args ->
+      AddAnon id pos (ID ret) args argnames ->
         ("add_anon", JSE.object [ jseId id
                                 , jsePos pos
                                 , ("return", JSE.int ret)
-                                , ("args", JSE.list (List.map (JSE.int << deID) args))])
+                                , ("args", JSE.list (List.map (JSE.int << deID) args))
+                                , ("argnames", JSE.list (List.map (JSE.string) argnames))])
 
       AddValue id str pos ->
         ("add_value",
@@ -92,10 +93,10 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toParameter: Name -> TypeName -> Int -> Bool -> String -> Parameter
-      toParameter name tipe arity optional description = { name = name
+  let toParameter: Name -> TypeName -> List String -> Bool -> String -> Parameter
+      toParameter name tipe anon_args optional description = { name = name
                                                    , tipe = tipe
-                                                   , arity = arity
+                                                   , anon_args = anon_args
                                                    , optional = optional
                                                    , description = description}
       toArg: List JSD.Value -> Argument
@@ -155,7 +156,7 @@ decodeNode =
                                      (JSDP.decode toParameter
                                      |> JSDP.required "name" JSD.string
                                      |> JSDP.required "tipe" JSD.string
-                                     |> JSDP.required "arity" JSD.int
+                                     |> JSDP.required "anon_args" (JSD.list JSD.string)
                                      |> JSDP.required "optional" JSD.bool
                                      |> JSDP.required "description" JSD.string))
     |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))

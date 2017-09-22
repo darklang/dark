@@ -217,7 +217,7 @@ type arg_map = argument ArgMap.t
 
 type param = { name: string
              ; tipe: tipe
-             ; arity : int
+             ; anon_args : string list
              ; optional : bool
              ; description : string
             } [@@deriving yojson, show]

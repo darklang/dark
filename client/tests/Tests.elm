@@ -2,7 +2,6 @@ module Tests exposing (..)
 
 -- tests
 import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 
 -- builtins
@@ -30,7 +29,7 @@ suite =
                     { name = name
                     , parameters = [{ name = "x"
                                     , tipe = tipe
-                                    , arity = 0
+                                    , anon_args = []
                                     , optional = False
                                     , description = ""
                                     }]

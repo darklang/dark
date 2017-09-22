@@ -275,7 +275,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "String::foreach"
   ; o = []
-  ; p = [req "s" TStr; func 1]
+  ; p = [req "s" TStr; func ["item"]]
   ; r = TStr
   ; d = "Run `f` on every character in the string, and combine them back into a string"
   ; f = InProcess
@@ -412,7 +412,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::find_first"
   ; o = []
-  ; p = [req "l" TList; func 1]
+  ; p = [req "l" TList; func ["item"]]
   ; r = TList
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
@@ -480,7 +480,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::fold"
   ; o = []
-  ; p = [req "l" TList; req "init" TAny; func 2]
+  ; p = [req "l" TList; req "init" TAny; func ["new"; "old"]]
   ; r = TAny
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
@@ -542,7 +542,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::filter"
   ; o = []
-  ; p = [req "l" TList; func 1]
+  ; p = [req "l" TList; func ["item"]]
   ; r = TList
   ; d = "Return only items in list which meet function criteria"
   ; f = InProcess
@@ -569,7 +569,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::foreach"
   ; o = []
-  ; p = [req "l" TList; func 1]
+  ; p = [req "l" TList; func ["item"]]
   ; r = TList
   ; d = "Call `f` on every item in the list, returning a list of the results of
   those calls"

@@ -89,7 +89,7 @@ type RPC
     | AddDatastore ID Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall ID Name Pos
-    | AddAnon ID Pos ID (List ID)
+    | AddAnon ID Pos ID (List ID) (List String)
     | AddValue ID String Pos
     | SetConstant Name (ID, ParamName)
     | SetEdge ID (ID, ParamName)
@@ -143,7 +143,7 @@ type Modification = Error String
 -- name, type optional
 type alias Parameter = { name: Name
                        , tipe: TypeName
-                       , arity: Int
+                       , anon_args: List String
                        , optional: Bool
                        , description: String
                        }

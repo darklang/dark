@@ -136,13 +136,15 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore id loc table)
     | Add_value (id, loc, expr) ->
       add_node (new Node.value id loc expr)
-    | Add_anon (nid, loc, rid, argids) ->
+    | Add_anon (nid, loc, rid, argids, anon_names) ->
         let newx = loc.x + 30 in
       (fun g ->
          argids
-         |> List.mapi ~f:(fun i argid -> new Node.argnode
+         |> List.zip_exn anon_names
+         |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
                           argid
                           { x=newx + (i * 20); y=loc.y + 27 }
+                          argname
                           i
                           nid
                           rid

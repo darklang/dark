@@ -1,25 +1,27 @@
 open Core
 open Runtime
 
-let req name tipe = { name = name
-                    ; tipe = tipe
-                    ; optional = false
-                    ; arity = 0
-                    ; description = ""
-                    }
-let opt name tipe = { name = name
-                    ; tipe = tipe
-                    ; arity = 0
-                    ; optional = true
-                    ; description = ""
-                    }
+let req name tipe : param =
+  { name = name
+  ; tipe = tipe
+  ; optional = false
+  ; anon_args = []
+  ; description = ""
+  }
+let opt name tipe : param =
+  { name = name
+  ; tipe = tipe
+  ; anon_args = []
+  ; optional = true
+  ; description = ""
+  }
 
-let func arity = { name = "f"
-                 ; tipe = TFun
-                 ; arity = arity
-                 ; optional = false
-                 ; description = "" }
-
+let func args : param =
+  { name = "f"
+  ; tipe = TFun
+  ; anon_args = args
+  ; optional = false
+  ; description = "" }
 
 
 (* Shorthand *)

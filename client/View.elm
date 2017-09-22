@@ -327,15 +327,14 @@ viewAnon m n =
   in
     placeNode m n width [height_attr] [] [] viewHeader
 
-
-viewNodeIcon : String -> Model -> Node -> Int -> Html.Html Msg
-viewNodeIcon name m n i =
+viewReturn : Model -> Node -> Int -> Html.Html Msg
+viewReturn m n i =
   let viewHeader = Html.div
                    [Attrs.class "header"]
                    [ Html.span
                        [Attrs.class "letter"]
-                       [Html.text (G.int2letter i)]
-                   ]
+                       [Html.text (G.int2letter i)]]
+      name = "return"
       selectedCl = if Selection.isSelected m n then " selected" else ""
   in
     placeHtml m n.pos
@@ -346,10 +345,24 @@ viewNodeIcon name m n i =
          [ Attrs.class "name" ]
          [ Html.text "◉" ]])
 
-viewReturn : Model -> Node -> Int -> Html.Html Msg
-viewReturn = viewNodeIcon "return"
+
 viewArg : Model -> Node -> Int -> Html.Html Msg
-viewArg = viewNodeIcon "arg"
+viewArg m n i =
+  let viewHeader = Html.div
+                   [Attrs.class "header"]
+                   [ Html.span
+                       [Attrs.class "letter"]
+                       [Html.text (G.int2letter i)]
+                   ]
+      selectedCl = if Selection.isSelected m n then " selected" else ""
+  in
+    placeHtml m n.pos
+    (Html.div
+       [Attrs.class <| "arg" ++ selectedCl]
+       [ viewHeader
+       , Html.span
+         [ Attrs.class "name" ]
+         [ Html.text <| "(◉ " ++ n.name ++ ")"]])
 
 
 viewLive : Model -> State -> Html.Html Msg
