@@ -16,7 +16,7 @@ let server =
     let uri = req |> Request.uri in
     (* let meth = req |> Request.meth |> Code.string_of_method in *)
     (* let headers = req |> Request.headers |> Header.to_string in *)
-    let auth = req |> Request.headers |> Header.get_authorization in
+    (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
     let admin_rpc_handler body (domain: string) : string =
       let time = Unix.gettimeofday () in
@@ -53,14 +53,14 @@ let server =
       S.respond_file ~fname ()
     in
 
-    let auth_handler handler
-      = match auth with
-      | (Some `Basic ("dark", "eapnsdc"))
-        -> handler
-      | _
-        -> Cohttp_lwt_unix.Server.respond_need_auth ~auth:(`Basic "dark") ()
-    in
-
+    (* let auth_handler handler *)
+    (*   = match auth with *)
+    (*   | (Some `Basic ("dark", "eapnsdc")) *)
+    (*     -> handler *)
+    (*   | _ *)
+    (*     -> Cohttp_lwt_unix.Server.respond_need_auth ~auth:(`Basic "dark") () *)
+    (* in *)
+    (*  *)
     let route_handler _ =
       req_body |> Cohttp_lwt_body.to_string >>=
       (fun req_body ->
