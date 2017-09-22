@@ -29,7 +29,7 @@ holePos m hole =
                   Just rid -> rid |> G.getNodeExn m |> .pos
                   Nothing -> n.pos
       in
-        {x=pos.x+40, y=pos.y+40}
+        {x=pos.x, y=pos.y+40}
     ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-100}
 
 entryPos : Model -> EntryCursor -> Pos

@@ -457,8 +457,12 @@ viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
 viewEdge m source target param =
     let targetPos = target.pos
         (sourceW, sourceH) = nodeSize source
-        spos = { x = source.pos.x + (sourceW // 2)
+        (targetW, targetH) = nodeSize target
+        spos = { x = source.pos.x + 10
                , y = source.pos.y + (sourceH // 2)}
+
+        tpos = { x = target.pos.x + 10
+               , y = target.pos.y + (targetH // 2)}
 
         pOffset = paramOffset target param
         (tnx, tny) = (target.pos.x + pOffset.x, target.pos.y + pOffset.y)
@@ -478,7 +482,8 @@ viewEdge m source target param =
     in svgLine
       m
       spos
-      {x=tx,y=ty}
+      tpos
+      -- {x=tx,y=ty}
       (edgeStyle spos.x spos.y tx ty)
 
 svgArrowHead : Svg.Svg msg
