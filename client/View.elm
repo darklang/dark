@@ -248,7 +248,8 @@ viewNormalNode m n i =
       -- header
       header = [ Html.span
                    [Attrs.class "parameters"]
-                   (List.map viewParam n.parameters)
+                   []
+                   -- (List.map viewParam n.parameters)
                , Html.span
                    [Attrs.class "letter"]
                    [Html.text (G.int2letter i)]
