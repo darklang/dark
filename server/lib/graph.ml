@@ -131,21 +131,22 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Add_value (id, loc, expr) ->
       add_node (new Node.value id loc expr)
     | Add_anon (nid, loc, rid, argids) ->
+        let newx = loc.x + 30 in
       (fun g ->
          argids
          |> List.mapi ~f:(fun i argid -> new Node.argnode
                           argid
-                          { x=loc.x + 15 + (i * 20); y=loc.y + 27 }
+                          { x=newx + (i * 20); y=loc.y + 27 }
                           i
                           nid
                           rid
                           argids)
          |> List.append [ new Node.anonfn nid
-                          { x=loc.x + 7; y=loc.y + 7 }
+                          { x=newx; y=loc.y + 7 }
                           rid
                           argids
                         ; new Node.returnnode rid
-                          { x=loc.x + 135; y=loc.y + 135 }
+                          { x=newx + 125; y=loc.y + 135 }
                           nid
                           argids]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
