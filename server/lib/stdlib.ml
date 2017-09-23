@@ -505,7 +505,7 @@ let fns : Lib.shortfn list = [
             let f (dv1, (i1, i2)) (dv2) : (dval * (dval list * dval list)) =
               (fn [dv1; dv2], (dv1 :: i1, dv2 :: i2)) in
             let (_, (i1, i2)) = List.fold ~f ~init:(init, ([], [])) l in
-            [i1; i2]
+            [List.rev i1; List.rev i2]
           | args -> [ list_repeat count DIncomplete
                     ; list_repeat count DIncomplete])
   ; pu = true
