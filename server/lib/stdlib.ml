@@ -6,7 +6,7 @@ let list_repeat = Util.list_repeat
 
 let list_preview =
   fun dv count -> match dv with
-                   | [DList l] -> [List.take l count]
+                   | [DList l; _] -> [List.take l count]
                    | args -> [list_repeat count DIncomplete]
 
 let fns : Lib.shortfn list = [
