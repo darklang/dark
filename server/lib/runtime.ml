@@ -237,7 +237,7 @@ type fn = { name : string
           ; parameters : param list
           ; return_type : tipe
           ; description : string
-          ; preview : (dval list -> dval list) option
+          ; preview : (dval list -> int -> dval list list) option
           ; func : ccfunc
           ; pure : bool
           }

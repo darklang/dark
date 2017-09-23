@@ -31,7 +31,7 @@ type shortfn = { n : string
                ; r : tipe
                ; f : ccfunc
                ; d : string
-               ; pr : (dval list -> dval list) option
+               ; pr : (dval list -> int -> dval list list) option
                ; pu : bool
                }
 

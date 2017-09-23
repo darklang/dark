@@ -2,6 +2,13 @@ open Core
 open Runtime
 open Lib
 
+let list_repeat = Util.list_repeat
+
+let list_preview =
+  fun dv count -> match dv with
+                   | [DList l] -> [List.take l count]
+                   | args -> [list_repeat count DIncomplete]
+
 let fns : Lib.shortfn list = [
   (* { n = "Page::page" *)
   (* ; o = [] *)
@@ -290,12 +297,16 @@ let fns : Lib.shortfn list = [
             DStr (String.map ~f:charf s)
           | args -> fail args)
   ; pr = Some
-        (function
+        (fun dv count ->
+          match dv with
           | [DStr s; _] ->
-              if s = ""
-              then [DChar 'l']
-              else [DChar (String.get s 0)]
-          | args -> [DIncomplete])
+              let s = (if s = "" then "example" else s) in
+              s
+              |> String.to_list
+              |> (fun l -> List.take l count)
+              |> List.map ~f:(fun c -> DChar c)
+              |> fun x -> [x]
+          | args -> [list_repeat count DIncomplete])
   ; pu = true
   }
   ;
@@ -424,10 +435,7 @@ let fns : Lib.shortfn list = [
             | None -> DNull
             | Some dv -> dv)
         | args -> fail args)
-  ; pr = Some
-        (function
-          | [DList (i :: _); _] -> [i]
-          | args -> [DIncomplete])
+  ; pr = Some list_preview
   ; pu = true
   }
   ;
@@ -485,19 +493,21 @@ let fns : Lib.shortfn list = [
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
         (function
-          | [DList l; init; DAnon (id, fn)] ->
-            let f (dv1: dval) (dv2: dval) : dval = fn [dv1; dv2]
-            in
+          | [DList l; init; DAnon (_, fn)] ->
+            let f (dv1: dval) (dv2: dval) : dval = fn [dv1; dv2] in
             List.fold ~f ~init l
           | args -> fail args)
   ; pr = Some
-        (function
-          | [DList l; init; _] ->
-              let prl = match List.hd l with
-              | Some dv -> dv
-              | None -> DIncomplete
-              in [prl; init]
-          | args -> [DIncomplete; DIncomplete])
+        (fun dv count ->
+          match dv with
+          | [DList l; init; DAnon (_, fn)] ->
+            let l = List.take l count in
+            let f (dv1, (i1, i2)) (dv2) : (dval * (dval list * dval list)) =
+              (fn [dv1; dv2], (dv1 :: i1, dv2 :: i2)) in
+            let (_, (i1, i2)) = List.fold ~f ~init:(init, ([], [])) l in
+            [i1; i2]
+          | args -> [ list_repeat count DIncomplete
+                    ; list_repeat count DIncomplete])
   ; pu = true
   }
   ;
@@ -555,13 +565,7 @@ let fns : Lib.shortfn list = [
             in
             DList (List.filter ~f l)
           | args -> fail args)
-  ; pr = Some
-        (function
-          | [DList l; _] ->
-              (match List.hd l with
-              | Some dv -> [dv]
-              | None -> [DIncomplete])
-          | args -> [DIncomplete])
+  ; pr = Some list_preview
   ; pu = true
   }
   ;
@@ -580,13 +584,7 @@ let fns : Lib.shortfn list = [
             in
             DList (List.map ~f l)
           | args -> fail args)
-  ; pr = Some
-        (function
-          | [DList l; _] ->
-              (match List.hd l with
-              | Some dv -> [dv]
-              | None -> [DIncomplete])
-          | args -> [DIncomplete])
+  ; pr = Some list_preview
   ; pu = true
   }
   ;

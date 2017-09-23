@@ -81,3 +81,8 @@ let random_string length =
       | n -> int_of_char '0' + n - 26 - 26 in
     let gen _ = String.make 1 (char_of_int(gen())) in
     String.concat ~sep:"" (Array.to_list (Array.init length gen))
+
+
+let list_repeat times item =
+  List.init times ~f:(fun _ -> item)
+

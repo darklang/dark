@@ -72,8 +72,8 @@ class virtual node id loc =
     method arg_ids = []
     method update_loc _loc : unit =
       loc <- _loc
-    method preview (gfns: node gfns_) (args: dval_map) : dval list =
-      self#preview gfns args
+    method preview (gfns: node gfns_) (args: dval_map) : (dval list) list =
+      Exception.raise "This node doesn't support preview"
     method to_frontend (value, tipe, json) : nodejson =
       { name = self#name
       ; id = id
@@ -118,7 +118,7 @@ let rec execute (id: id)
         | RT.AEdge id -> execute id ~eager g)
     |> n#execute g
 
-let rec preview (id: id) (g: gfns) : dval list =
+let rec preview (id: id) (g: gfns) : dval list list =
   let n = g.getf id in
   n#arguments
   |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
@@ -198,13 +198,14 @@ class func (id : id) loc (name : string) =
             | Some v -> v
 
      (* Get a value to use as the preview for anonfns used by this node *)
-    method! preview (g: gfns) (args: dval_map) : dval list =
+    method! preview (g: gfns) (args: dval_map) : dval list list =
       match self#fn.preview with
-      | None -> List.init (List.length self#fn.parameters) (fun _ -> RT.DIncomplete)
+      (* if there's no value, no point previewing 5 *)
+      | None -> Util.list_repeat (List.length self#fn.parameters) [RT.DIncomplete]
       | Some f -> self#fn.parameters
                      |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
-                     |> f
+                     |> fun dvs -> f dvs 5
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
@@ -271,7 +272,7 @@ class argnode id loc name index nid rid argids =
        * passed the anon *)
       match g.get_children nid with
       | [] -> DIncomplete
-      | [caller] -> List.nth_exn (preview caller#id g) index
+      | [caller] -> DList (List.nth_exn (preview caller#id g) index)
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! return_id = Some rid
