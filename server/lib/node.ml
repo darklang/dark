@@ -272,7 +272,7 @@ class argnode id loc name index nid rid argids =
        * passed the anon *)
       match g.get_children nid with
       | [] -> DIncomplete
-      | [caller] -> DList (List.nth_exn (preview caller#id g) index)
+      | [caller] -> List.nth_exn (preview caller#id g) index |> List.hd_exn
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! return_id = Some rid
