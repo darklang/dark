@@ -25,7 +25,7 @@ let fns : Lib.shortfn list = [
 
   { n = "Dict::keys"
   ; o = []
-  ; p = [req "dict" TObj]
+  ; p = [par "dict" TObj]
   ; r = TList
   ; d = ""
   ; f = InProcess
@@ -43,7 +43,7 @@ let fns : Lib.shortfn list = [
 
   { n = "."
   ; o = ["get_field"]
-  ; p = [req "value" TObj; req "fieldname" TStr]
+  ; p = [par "value" TObj; par "fieldname" TStr]
   ; r = TAny
   ; d = ""
   ; f = InProcess
@@ -64,7 +64,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "%"
   ; o = ["Int::mod"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = ""
   ; f = InProcess
@@ -79,7 +79,7 @@ let fns : Lib.shortfn list = [
 
   { n = "+"
   ; o = ["Int::add"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Adds two integers together"
   ; f = InProcess
@@ -94,7 +94,7 @@ let fns : Lib.shortfn list = [
 
   { n = "-"
   ; o = ["Int::subtract"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Subtracts two integers"
   ; f = InProcess
@@ -109,7 +109,7 @@ let fns : Lib.shortfn list = [
 
   { n = "*"
   ; o = ["Int::multiply"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Multiples two integers"
   ; f = InProcess
@@ -124,7 +124,7 @@ let fns : Lib.shortfn list = [
 
   { n = "/"
   ; o = ["Int::divide"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Divides two integers"
   ; f = InProcess
@@ -139,7 +139,7 @@ let fns : Lib.shortfn list = [
 
   { n = ">"
   ; o = ["Int::greaterThan"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than b"
   ; f = InProcess
@@ -154,7 +154,7 @@ let fns : Lib.shortfn list = [
 
   { n = "<"
   ; o = ["Int::lessThan"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than b"
   ; f = InProcess
@@ -167,8 +167,8 @@ let fns : Lib.shortfn list = [
   ;
 
   { n = "<="
-  ; o = ["Int::lessThanOrEqualTo"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; o = ["Int::lessThanOparualTo"]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than or equal to b"
   ; f = InProcess
@@ -182,8 +182,8 @@ let fns : Lib.shortfn list = [
 
 
   { n = ">="
-  ; o = ["Int::greaterThanOrEqualTo"]
-  ; p = [req "a" TInt ; req "b" TInt]
+  ; o = ["Int::greaterThanOparualTo"]
+  ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than or equal to b"
   ; f = InProcess
@@ -201,7 +201,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "toString"
   ; o = []
-  ; p = [req "v" TAny]
+  ; p = [par "v" TAny]
   ; r = TStr
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
@@ -216,7 +216,7 @@ let fns : Lib.shortfn list = [
 
   { n = "=="
   ; o = ["equals"]
-  ; p = [req "a" TAny; req "b" TAny]
+  ; p = [par "a" TAny; par "b" TAny]
   ; r = TBool
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
@@ -234,7 +234,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "Bool::not"
   ; o = []
-  ; p = [req "b" TBool]
+  ; p = [par "b" TBool]
   ; r = TBool
   ; d = ""
   ; f = InProcess
@@ -249,7 +249,7 @@ let fns : Lib.shortfn list = [
 
   { n = "&&"
   ; o = ["Bool::and"]
-  ; p = [req "a" TBool ; req "b" TBool]
+  ; p = [par "a" TBool ; par "b" TBool]
   ; r = TBool
   ; d = "Returns true if both a and b are true"
   ; f = InProcess
@@ -264,7 +264,7 @@ let fns : Lib.shortfn list = [
 
   { n = "||"
   ; o = ["Bool::or"]
-  ; p = [req "a" TBool ; req "b" TBool]
+  ; p = [par "a" TBool ; par "b" TBool]
   ; r = TBool
   ; d = "Returns true if either a is true or b is true"
   ; f = InProcess
@@ -282,9 +282,9 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "String::foreach"
   ; o = []
-  ; p = [req "s" TStr; func ["item"]]
+  ; p = [par "s" TStr; func ["val"]]
   ; r = TStr
-  ; d = "Run `f` on every character in the string, and combine them back into a string"
+  ; d = "Iterate over each character in the string, performing the operation in the block on each one"
   ; f = InProcess
         (function
           | [DStr s; DAnon (id, fn)] ->
@@ -313,7 +313,7 @@ let fns : Lib.shortfn list = [
 
   { n = "String::toList"
   ; o = []
-  ; p = [req "s" TStr]
+  ; p = [par "s" TStr]
   ; r = TList
   ; d = "Returns the list of characters in the string"
   ; f = InProcess
@@ -329,7 +329,7 @@ let fns : Lib.shortfn list = [
 
   { n = "String::fromList"
   ; o = []
-  ; p = [req "l" TList]
+  ; p = [par "l" TList]
   ; r = TStr
   ; d = "Returns the list of characters as a string"
   ; f = InProcess
@@ -351,7 +351,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "List::head"
   ; o = []
-  ; p = [req "list" TList]
+  ; p = [par "list" TList]
   ; r = TAny
   ; d = ""
   ; f = InProcess
@@ -380,7 +380,12 @@ let fns : Lib.shortfn list = [
 
   { n = "List::new"
   ; o = []
-  ; p = [opt "i1" TAny; opt "i2" TAny; opt "i3" TAny; opt "i4" TAny; opt "i5" TAny; opt "i6" TAny]
+  ; p = [ par ~opt:true "i1" TAny
+        ; par ~opt:true "i2" TAny
+        ; par ~opt:true "i3" TAny
+        ; par ~opt:true "i4" TAny
+        ; par ~opt:true "i5" TAny
+        ; par ~opt:true "i6" TAny]
   ; r = TList
   ; d = "Return a new list with the arguments provided"
   ; f = InProcess
@@ -393,8 +398,8 @@ let fns : Lib.shortfn list = [
 
 
   { n = "List::push"
-  ; o = ["List::cons"]
-  ; p = [req "item" TAny; req "list" TList]
+  ; o = []
+  ; p = [par "val" TAny; par "list" TList]
   ; r = TList
   ; d = ""
   ; f = InProcess
@@ -409,7 +414,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::last"
   ; o = []
-  ; p = [req "list" TList]
+  ; p = [par "list" TList]
   ; r = TAny
   ; d = ""
   ; f = InProcess
@@ -423,7 +428,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::find_first"
   ; o = []
-  ; p = [req "l" TList; func ["item"]]
+  ; p = [par "l" TList; func ["val"]]
   ; r = TList
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
@@ -443,9 +448,9 @@ let fns : Lib.shortfn list = [
 
   { n = "List::contains"
   ; o = []
-  ; p = [req "l" TList; req "item" TAny]
+  ; p = [par "l" TList; par "val" TAny]
   ; r = TBool
-  ; d = "Returns if the item is in the list"
+  ; d = "Returns if the value is in the list"
   ; f = InProcess
         (function
           | [DList l; i] -> DBool (List.mem ~equal:equal_dval l i)
@@ -458,12 +463,12 @@ let fns : Lib.shortfn list = [
 
   { n = "List::repeat"
   ; o = []
-  ; p = [req "times" TInt; req "item" TAny]
+  ; p = [par "times" TInt; par "val" TAny]
   ; r = TList
-  ; d = "Returns a list containing `item` repeated `count` times"
+  ; d = "Returns a list containing `val` repeated `count` times"
   ; f = InProcess
         (function
-          | [DInt t; item] -> DList (List.init t ~f:(fun _ -> item))
+          | [DInt t; dv] -> DList (List.init t ~f:(fun _ -> dv))
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -473,7 +478,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::length"
   ; o = []
-  ; p = [req "l" TList]
+  ; p = [par "l" TList]
   ; r = TInt
   ; d = "Returns the length of the list"
   ; f = InProcess
@@ -488,7 +493,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::fold"
   ; o = []
-  ; p = [req "l" TList; req "init" TAny; func ["new"; "old"]]
+  ; p = [par "l" TList; par "init" TAny; func ["new"; "old"]]
   ; r = TAny
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
@@ -515,7 +520,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::flatten"
   ; o = []
-  ; p = [req "l" TList]
+  ; p = [par "l" TList]
   ; r = TList
   ; d = "Returns a single list containing the elements of all the lists in `l`"
   ; f = InProcess
@@ -536,7 +541,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::append"
   ; o = []
-  ; p = [req "l1" TList; req "l2" TList]
+  ; p = [par "l1" TList; par "l2" TList]
   ; r = TList
   ; d = "Returns the combined list of `l1` and `l2`"
   ; f = InProcess
@@ -552,9 +557,9 @@ let fns : Lib.shortfn list = [
 
   { n = "List::filter"
   ; o = []
-  ; p = [req "l" TList; func ["item"]]
+  ; p = [par "l" TList; func ["val"]]
   ; r = TList
-  ; d = "Return only items in list which meet function criteria"
+  ; d = "Return only values in `l` which meet the function's criteria"
   ; f = InProcess
         (function
           | [DList l; DAnon (id, fn)] ->
@@ -573,7 +578,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::foreach"
   ; o = []
-  ; p = [req "l" TList; func ["item"]]
+  ; p = [par "l" TList; func ["val"]]
   ; r = TList
   ; d = "Call `f` on every item in the list, returning a list of the results of
   those calls"
@@ -595,7 +600,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "Date::parse"
   ; o = []
-  ; p = [req "s" TStr]
+  ; p = [par "s" TStr]
   ; r = TInt
   ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)"
   ; f = InProcess
@@ -636,7 +641,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "Char::toASCIICode"
   ; o = []
-  ; p = [req "c" TChar]
+  ; p = [par "c" TChar]
   ; r = TInt
   ; d = "Return `c`'s ASCII code"
   ; f = InProcess
@@ -651,7 +656,7 @@ let fns : Lib.shortfn list = [
 
   { n = "Char::toASCIIChar"
   ; o = []
-  ; p = [req "i" TInt]
+  ; p = [par "i" TInt]
   ; r = TChar
   ; d = ""
   ; f = InProcess
@@ -666,7 +671,7 @@ let fns : Lib.shortfn list = [
 
   { n = "Char::toLowercase"
   ; o = []
-  ; p = [req "c" TChar]
+  ; p = [par "c" TChar]
   ; r = TChar
   ; d = "Return the lowercase value of `c`"
   ; f = InProcess
@@ -681,7 +686,7 @@ let fns : Lib.shortfn list = [
 
   { n = "Char::toUppercase"
   ; o = []
-  ; p = [req "c" TChar]
+  ; p = [par "c" TChar]
   ; r = TChar
   ; d = "Return the uppercase value of `c`"
   ; f = InProcess

@@ -1,27 +1,16 @@
 open Core
 open Runtime
 
-let req name tipe : param =
+let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   { name = name
   ; tipe = tipe
-  ; optional = false
-  ; anon_args = []
-  ; description = ""
-  }
-let opt name tipe : param =
-  { name = name
-  ; tipe = tipe
-  ; anon_args = []
-  ; optional = true
-  ; description = ""
+  ; optional = opt
+  ; anon_args = args
+  ; description = d
   }
 
-let func args : param =
-  { name = "f"
-  ; tipe = TFun
-  ; anon_args = args
-  ; optional = false
-  ; description = "" }
+let func ?(d:string = "") args : param =
+  par "f" TFun ~args ~d
 
 
 (* Shorthand *)
