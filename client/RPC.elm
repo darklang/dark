@@ -142,6 +142,7 @@ decodeNode =
                      "return" -> Return
                      _ -> Debug.crash "shouldnt happen"
           , pos = {x=x, y=y}
+          , visible = tipe /= "return" && tipe /= "definition"
           }
 
 

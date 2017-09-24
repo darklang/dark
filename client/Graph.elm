@@ -178,11 +178,12 @@ connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
   let caller = getCallerOf m n.id
       arg = getFirstArgOf m n.id
+      candidates = ME.toList caller
+                   ++ ME.toList arg
+                   ++ incomingNodes m n
+                   ++ outgoingNodes m n
   in
-     ME.toList caller
-     ++ ME.toList arg
-     ++ incomingNodes m n
-     ++ outgoingNodes m n
+     List.filter .visible candidates
 
 getCallerOf : Model -> ID -> Maybe Node
 getCallerOf m id =

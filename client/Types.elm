@@ -54,6 +54,7 @@ type alias Node = { name : Name
                   , anonID : Maybe ID
                   , returnID : Maybe ID
                   , argIDs : List ID
+                  , visible : Bool
                   }
 
 type Argument = Const String

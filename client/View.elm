@@ -1,7 +1,6 @@
 module View exposing (view)
 
 -- builtin
-import Dict exposing (Dict)
 import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
@@ -49,14 +48,14 @@ viewError mMsg =
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let (anonNodes, otherNodes) = List.partition (\n -> n.tipe == FunctionDef) <| G.orderedNodes m
-        other = List.indexedMap (\i n -> viewNode m n i) otherNodes
-        values = List.map (viewValue m) otherNodes
-        edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
+    let visible = List.filter .visible (G.orderedNodes m)
+        nodes = List.indexedMap (\i n -> viewNode m n i) visible
+        values = visible |> List.map (viewValue m)
+        edges = visible |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} [SA.strokeWidth "1px", SA.stroke "#777"]
-        allSvgs = xaxis :: yaxis :: (edges ++ other ++ values ++ entry)
+        allSvgs = xaxis :: yaxis :: (edges ++ values ++ nodes ++ entry)
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
