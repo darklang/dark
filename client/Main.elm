@@ -203,7 +203,7 @@ update_ msg m =
     -- plumbing
     ------------------------
     (RPCCallBack _ _ (Err (Http.BadStatus error)), _) ->
-      Error <| "Error: " ^ error.body
+      Error <| "Error: " ++ error.body
 
     (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
