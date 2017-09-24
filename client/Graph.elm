@@ -7,9 +7,11 @@ import List
 import Tuple
 import Dict
 import Set
+import Maybe
 
 -- lib
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -174,7 +176,29 @@ incomingNodes m n = incomingNodePairs m n |> List.map Tuple.first
 
 connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
-  (incomingNodes m n) ++ (outgoingNodes m n)
+  let caller = getCallerOf m n.id
+      arg = getFirstArgOf m n.id
+  in
+     ME.toList caller
+     ++ ME.toList arg
+     ++ incomingNodes m n
+     ++ outgoingNodes m n
+
+getCallerOf : Model -> ID -> Maybe Node
+getCallerOf m id =
+  id
+  |> getNodeExn m
+  |> .anonID
+  |> Maybe.andThen (\anon -> getNodeExn m anon
+                             |> outgoingNodes m
+                             |> List.head)
+
+getFirstArgOf : Model -> ID -> Maybe Node
+getFirstArgOf m id =
+  id
+  |> getAnonNodeOf m
+  |> Maybe.andThen (\anon -> anon |> .argIDs |> List.head)
+  |> Maybe.map (\arg -> getNodeExn m arg)
 
 getAnonNodeOf : Model -> ID -> Maybe Node
 getAnonNodeOf m id =
