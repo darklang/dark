@@ -235,9 +235,9 @@ viewNormalNode m n i =
                ]
 
       -- heading
-      params = G.args n
-               |> List.map
-                    (\(p, a) ->
+      params = n.arguments
+              |> List.map
+                    (\a ->
                       case a of
                         Const c -> ("arg_const", if c == "null" then "∅" else c)
                         NoArg -> ("arg_none", "◉")
@@ -311,7 +311,7 @@ viewReturn m n i =
 edgeStyle : List (Svg.Attribute msg)
 edgeStyle =
   [ SA.strokeWidth Defaults.edgeSize
-  , SA.stroke Defaults.edgeColor
+  , SA.stroke Defaults.edgeStrokeColor
   ]
 
 viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)

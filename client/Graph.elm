@@ -176,13 +176,6 @@ connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
   (incomingNodes m n) ++ (outgoingNodes m n)
 
-slotIsConnected : Model -> ID -> ParamName -> Bool
-slotIsConnected m target param =
-  target
-    |> getNodeExn m
-    |> getArgument param
-    |> (/=) NoArg
-
 getAnonNodeOf : Model -> ID -> Maybe Node
 getAnonNodeOf m id =
   id

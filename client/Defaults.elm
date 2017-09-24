@@ -17,16 +17,10 @@ leftButton = 0
 -- UI
 nodeHeight : Int
 nodeHeight = round 28
-edgeGradColor : String
-edgeGradColor = "#777"
-edgeColor : String
-edgeColor = "#444"
+edgeStrokeColor : String
+edgeStrokeColor = "#666"
 edgeSize : String
 edgeSize = "1px"
-dragEdgeStrokeColor : String
-dragEdgeStrokeColor = "#444"
-dragEdgeSize : String
-dragEdgeSize = "1px"
 initialPos : VPos
 initialPos = {vx=475, vy=325}
 moveSize : Int
