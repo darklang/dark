@@ -282,7 +282,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   { n = "String::foreach"
   ; o = []
-  ; p = [par "s" TStr; func ["val"]]
+  ; p = [par "s" TStr; func ["char"]]
   ; r = TStr
   ; d = "Iterate over each character in the string, performing the operation in the block on each one"
   ; f = InProcess
