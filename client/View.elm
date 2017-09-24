@@ -175,15 +175,20 @@ nodeWidth n =
                                         then 2.2
                                         else 1)
              |> List.sum
+    paramLen = G.args n
+                |> List.map (\(p, a) ->
+                  case a of
+                    Const c -> if c == "null" then 1 else (0.7+len c)
+                    _ -> 0.7+2.2)
+                |> List.sum
+
+
+
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
     --                  _ -> 1
-    name = nodeName n
-    -- param_extra = List.map
-                                     -- Const c -> if c == "null" then "∅" else c
-    -- lf = List.map (\(n,t) -> len n + len t + 3) n.fields
-    width = len name * 8.6 + 11
+    width = (len n.name + paramLen) * 8.6 + 11
   in
     round(width)
 
@@ -196,18 +201,6 @@ nodeHeight n =
 nodeSize : Node -> (Int, Int)
 nodeSize node =
   (nodeWidth node, nodeHeight node)
-
-nodeName : Node -> String
-nodeName n =
-  let defaultParam = "◉"
-      parameterTexts = List.map
-                       (\(p, a) -> case a of
-                                     Const c -> if c == "null" then "∅" else c
-                                     _ -> defaultParam)
-                         (G.args n)
-
-  in
-    String.join " " (n.name :: parameterTexts)
 
 viewValue : Model -> Node -> Html.Html Msg
 viewValue m n =
@@ -236,33 +229,29 @@ viewNode m n i =
 viewNormalNode : Model -> Node -> Int -> Html.Html Msg
 viewNormalNode m n i =
   let
-      -- params
-      connected name = if G.slotIsConnected m n.id name
-                       then "connected"
-                       else "disconnected"
-      desc desc = if desc == ""
-                  then ""
-                  else "\n\n" ++ desc
-      viewParam {name, tipe, description} =
-        Html.span
-          [ Attrs.title <| name ++ ": " ++ tipe ++ (desc description)
-          , Attrs.class (connected name)]
-        [Html.text "◉"]
-
       -- header
       header = [ Html.span
-                   [Attrs.class "parameters"]
-                   []
-                   -- (List.map viewParam n.parameters)
-               , Html.span
                    [Attrs.class "letter"]
                    [Html.text (G.int2letter i)]
                ]
 
       -- heading
+      params = G.args n
+               |> List.map
+                    (\(p, a) ->
+                      case a of
+                        Const c -> ("arg_const", if c == "null" then "∅" else c)
+                        NoArg -> ("arg_none", "◉")
+                        Edge _ -> ("arg_edge", "◉"))
+               |> List.map (\(class, val) ->
+                              Html.span
+                                [ Attrs.class class]
+                                [ Html.text <| " " ++ val ++ " "])
+
       heading = Html.span
                 [ Attrs.class "name"]
-                [ Html.text (nodeName n) ]
+                ((Html.text n.name) :: params)
+
 
       -- fields (in list)
       viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
