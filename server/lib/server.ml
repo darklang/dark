@@ -40,8 +40,13 @@ let server =
 
 
       with
-      | e -> print_endline (G.show_graph !g);
-        raise e
+      | e ->
+          let bt = Exn.backtrace () in
+             let msg = Exn.to_string e in
+             print_endline (G.show_graph !g);
+             print_endline ("Exception: " ^ msg);
+             print_endline bt;
+             Exn.reraise e "reraising"
     in
 
     let admin_ui_handler () =
