@@ -74,16 +74,6 @@ viewClick pos =
              , SA.cy (toString pos.vy)
              , SA.fill "#333"] []
 
-typeString : AutocompleteItem -> String
-typeString item =
-  case item of
-    ACFunction f -> f.parameters
-                    |> List.map .tipe
-                    |> String.join ", "
-                    |> (\s -> "(" ++ s ++ ") -> " ++ f.return_type)
-    ACField _ -> ""
-
-
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   let html pos =
@@ -93,11 +83,11 @@ viewEntry m =
                 let highlighted = m.complete.index == i
                     hlClass = if highlighted then " highlighted" else ""
                     class = "autocomplete-item" ++ hlClass
-                    str = Autocomplete.asString item
+                    str = Autocomplete.asName item
                     name = Html.span [] [Html.text str]
                     types = Html.span
                       [Attrs.class "types"]
-                      [Html.text <| typeString item ]
+                      [Html.text <| Autocomplete.asTypeString item ]
                 in Html.li
                   [ Attrs.class class ]
                   [name, types])

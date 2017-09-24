@@ -161,7 +161,7 @@ update_ msg m =
                 else AutocompleteMod <| Query sp
               Key.Enter ->
                 let name = case Autocomplete.highlighted m.complete of
-                             Just item -> Autocomplete.asString item
+                             Just item -> Autocomplete.asName item
                              Nothing -> m.complete.value
                 in
                    Entry.submit m cursor name

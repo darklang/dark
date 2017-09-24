@@ -94,7 +94,7 @@ sharedPrefixList strs =
     Just s -> List.foldl sharedPrefix2 s strs
 
 sharedPrefix : Autocomplete -> String
-sharedPrefix a = sharedPrefixList (List.map asString a.completions)
+sharedPrefix a = sharedPrefixList (List.map asName a.completions)
 
 joinPrefix : String -> String -> String
 joinPrefix actual extension =
@@ -103,11 +103,24 @@ joinPrefix actual extension =
   in
     actual ++ suffix
 
-asString : AutocompleteItem -> String
-asString aci =
+asName : AutocompleteItem -> String
+asName aci =
   case aci of
     ACFunction {name} -> name
     ACField name -> "." ++ name
+
+asTypeString : AutocompleteItem -> String
+asTypeString item =
+  case item of
+    ACFunction f -> f.parameters
+                    |> List.map .tipe
+                    |> String.join ", "
+                    |> (\s -> "(" ++ s ++ ") -> " ++ f.return_type)
+    ACField _ -> ""
+
+asString : AutocompleteItem -> String
+asString aci =
+  asName aci ++ asTypeString aci
 
 containsOrdered : String -> String -> Bool
 containsOrdered needle haystack =
@@ -148,6 +161,7 @@ jsonFields json =
 
 query : String -> Autocomplete -> Autocomplete
 query q a = { a | value = q } |> regenerate
+
 
 regenerate : Autocomplete -> Autocomplete
 regenerate a =
