@@ -34,7 +34,7 @@ Entry (is also a node)
 #search-container input {
   padding: 2px;
   font-size: 1.1em;
-  width: 200px;
+  width: 300px;
 }
 
 #search-container br {
@@ -43,6 +43,7 @@ Entry (is also a node)
 
 #darkEntry {
   z-index: 20;
+  width: 300px;
   position: relative;
   color: #000;
   border: 1px solid #666;
@@ -78,8 +79,15 @@ form {
   /* headers need to be relative to position them. We need to be above
    * the headers, and position:relative allows us to do it. */
   position: relative;
-  width: 300px;
+  width: 500px;
   padding: 0.8em 1em;
+}
+
+.node.entry .types {
+  float: right;
+  text-transform: lowercase;
+  font-family: monospace;
+  font-size: 80%;
 }
 
 
@@ -113,7 +121,6 @@ Nodes
   background: white;
   color: black;
 }
-
 
 .node.page {
   padding: 0.5em 1.7em;
@@ -168,23 +175,6 @@ Node Header
   font-size: 12px;
   float: right;
   margin-right: 8px;
-}
-
-.return .header {
-  top: -9px;
-  left: 10px;
-  position: relative;
-}
-
-.parameters {
-  cursor: default;
-  color: red;
-  font-size: 8px;
-  font-weight: bold;
-}
-
-.parameters .connected {
-  color: #888;
 }
 
 /* Put it in the top right */
