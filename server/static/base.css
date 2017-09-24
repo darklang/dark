@@ -97,6 +97,7 @@ Nodes
 .title {
   /* Targets are larger than regular letters - this canonicalizes the size */
   max-height: 11px;
+  display: block;
 }
 
 .node {
@@ -106,10 +107,6 @@ Nodes
   padding-top: 2px;
   padding-left: 5px;
   padding-bottom: 10px;
-}
-
-.node.functioncall .title, .node.value .title, .node.page .title {
-  display: block;
 }
 
 .node.selected {
@@ -124,14 +121,12 @@ Nodes
 }
 
 .page .title {
-  display: block;
   font-weight: bold;
   font-size: 1.37em;
   margin: 1em 0;
 }
 
 .datastore .title {
-  display: block; /* extend the line for the full width of the node */
   font-weight: bold;
   font-size: 1.37em;
   margin: 0;
@@ -173,18 +168,6 @@ Node Header
   font-size: 12px;
   float: right;
   margin-right: 8px;
-}
-
-
-.arg .header {
-  width: 18px;
-  top: 10px;
-  left: 9px;
-}
-
-.arg .name {
-  font-size: 10pt;
-  padding-left: 5px;
 }
 
 .return .header {

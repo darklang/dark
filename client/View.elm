@@ -221,7 +221,7 @@ viewValue m n =
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
   case n.tipe of
-    Arg -> viewArg m n i
+    Arg -> viewNormalNode m n i
     Return -> viewReturn m n i
     FunctionDef -> viewAnon m n
     _ -> viewNormalNode m n i
@@ -321,28 +321,6 @@ viewReturn m n i =
          [ Attrs.class "name" ]
          [ Html.text "◉" ]])
 
-
-viewArg : Model -> Node -> Int -> Html.Html Msg
-viewArg m n i =
-  let viewHeader = Html.div
-                   [Attrs.class "header"]
-                   [ Html.span
-                       [Attrs.class "letter"]
-                       [Html.text (G.int2letter i)]
-                   ]
-      selectedCl = if Selection.isSelected m n then " selected" else ""
-  in
-    placeHtml m n.pos
-    (Html.div
-       [Attrs.class <| "arg" ++ selectedCl]
-       [ viewHeader
-       , Html.span
-         [ Attrs.class "icon" ]
-         [ Html.text "◉"]
-       , Html.span
-         [ Attrs.class "name" ]
-         [ Html.text n.name]
-       ])
 
 
 -- Our edges should be a lineargradient from "darker" to "arrowColor".
