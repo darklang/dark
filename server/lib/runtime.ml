@@ -147,7 +147,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
                 ^ (Yojson.Safe.to_string j)
                 ^ ">")
 
-let rec dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
+let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
   Result.Ok (dval_of_yojson_ json)
 
 let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
@@ -177,7 +177,12 @@ let parse (str : string) : dval =
      using the one in RealWorldOcaml, or just ripped out of Yojson *)
   if String.length str > 0 && String.get str 0 = '\''
   then DChar (String.get str 1)
-  else str |> Yojson.Safe.from_string |> dval_of_yojson_
+  else
+    try
+      str |> Yojson.Safe.from_string |> dval_of_yojson_
+    with Yojson.Json_error e ->
+      raise (Exception.raise ("Not a valid Dark value: " ^ str))
+
 
 
 (* ------------------------- *)

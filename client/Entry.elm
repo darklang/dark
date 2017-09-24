@@ -121,7 +121,7 @@ isValueRepr name = String.toLower name == "null"
                    || String.toLower name == "true"
                    || String.toLower name == "false"
                    || Util.rematch "^[\"\'[01-9{].*" name
-                   || String.startsWith "-" name && Util.rematch "[0-9].*" name
+                   || String.startsWith "-" name && Util.rematch "-[0-9.].+" name
 
 addAnonParam : Model -> ID -> Pos -> ParamName -> List String -> (List RPC, Maybe ID)
 addAnonParam m id pos name anon_args =
