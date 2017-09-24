@@ -218,7 +218,6 @@ viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
   case n.tipe of
     Arg -> viewNormalNode m n i
-    Return -> viewReturn m n i
     FunctionDef -> Html.div [] []
     _ -> viewNormalNode m n i
 
@@ -287,25 +286,6 @@ placeNode m n width attrs classes header body =
       wrapper = Html.div [] [ node, header_wrapper ]
   in
     placeHtml m n.pos wrapper
-
-viewReturn : Model -> Node -> Int -> Html.Html Msg
-viewReturn m n i =
-  let viewHeader = Html.div
-                   [Attrs.class "header"]
-                   [ Html.span
-                       [Attrs.class "letter"]
-                       [Html.text (G.int2letter i)]]
-      name = "return"
-      selectedCl = if Selection.isSelected m n then " selected" else ""
-  in
-    placeHtml m n.pos
-    (Html.div
-       [Attrs.class <| name ++ selectedCl]
-       [ viewHeader
-       , Html.span
-         [ Attrs.class "name" ]
-         [ Html.text "◉" ]])
-
 
 edgeStyle : List (Svg.Attribute msg)
 edgeStyle =

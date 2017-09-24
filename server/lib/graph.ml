@@ -48,9 +48,20 @@ let get_children (g: graph) (id: id) : Node.node list =
      |> List.is_empty
      |> not)
 
+let rec get_deepest (g: graph) (id: id) : Node.node list =
+  let cs = get_children g id in
+  if cs = []
+  then [get_node g id]
+  else cs
+       |> List.map ~f:(fun n -> get_deepest g n#id)
+       |> List.concat
+
+
+
 let gfns (g: graph) : Node.gfns =
   { getf = get_node g
   ; get_children = get_children g
+  ; get_deepest = get_deepest g
   }
 
 
@@ -136,8 +147,8 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore id loc table)
     | Add_value (id, loc, expr) ->
       add_node (new Node.value id loc expr)
-    | Add_anon (nid, loc, rid, argids, anon_names) ->
-        let newx = loc.x + 30 in
+    | Add_anon (nid, loc, argids, anon_names) ->
+      let newx = loc.x + 30 in
       (fun g ->
          argids
          |> List.zip_exn anon_names
@@ -147,16 +158,10 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
                           argname
                           i
                           nid
-                          rid
                           argids)
          |> List.append [ new Node.anonfn nid
                           { x=newx; y=loc.y }
-                          rid
-                          argids
-                        ; new Node.returnnode rid
-                          { x=newx + 125; y=loc.y + 135 }
-                          nid
-                          argids]
+                          argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, loc) -> update_node_position id loc
     | Set_constant (target, param, value) ->

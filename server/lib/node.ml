@@ -30,7 +30,6 @@ type nodejson = { name: string
                 ; parameters: param list
                 ; arguments: argument list
                 ; anon_id: id option
-                ; return_id: id option
                 ; arg_ids : id list
                 } [@@deriving yojson, show]
 type nodejsonlist = nodejson list [@@deriving yojson, show]
@@ -39,10 +38,10 @@ type nodejsonlist = nodejson list [@@deriving yojson, show]
 (* graph defintion *)
 (* ------------------------ *)
 
-type 'a gfns_ = {
-  getf : (id -> 'a) ;
-  get_children : (id -> 'a list)
-}
+type 'a gfns_ = { getf : (id -> 'a)
+                ; get_children : (id -> 'a list)
+                ; get_deepest : (id -> 'a list)
+                }
 
 class virtual node id loc =
   object (self)
@@ -52,6 +51,7 @@ class virtual node id loc =
     method virtual tipe : string
     method virtual execute : node gfns_ -> RT.execute_t
     method id = id
+    method loc = loc
     method is_page = false
     method is_datasink = false
     method is_datasource = false
@@ -68,7 +68,6 @@ class virtual node id loc =
     method edges : id_map = IdMap.empty
     method dependent_nodes (_:node gfns_) : id list = []
     method anon_id = None
-    method return_id = None
     method arg_ids = []
     method update_loc _loc : unit =
       loc <- _loc
@@ -86,7 +85,6 @@ class virtual node id loc =
             ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name)
             self#parameters
       ; anon_id = self#anon_id
-      ; return_id = self#return_id
       ; arg_ids = self#arg_ids
       }
   end
@@ -226,8 +224,11 @@ class datastore id loc table =
 (* Anonymous functions *)
 (* ----------------------- *)
 
-(* Anonymous functions are graphs with built-in parameters and a return
-   value. They have their own nodes in a separate scope from the parents (TODO:
+(* Anonymous functions are graphs with built-in arguments. There is no return
+ * value, we simply return the last operation (which is a bit haphazardly
+ * defined right now)
+ *
+   They have their own nodes in a separate scope from the parents (TODO:
    they actually don't, they should in theory, but it was easier to implement
    one big node collection). They are used for higher-order functions.
 
@@ -243,25 +244,7 @@ let anonexecutor (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
      execute rid ~eager g
   )
 
-class returnnode id loc nid argids =
-  object (self)
-    inherit has_arguments id loc
-    method! dependent_nodes _ = [nid]
-    method name = "<return>"
-    method! parameters = [{ name = "return"
-                          ; tipe = RT.TAny
-                          ; anon_args = []
-                          ; optional = false
-                          ; description = "" }]
-    method tipe = "return"
-    method execute (g: gfns) (args) : dval =
-      DvalMap.find_exn args "return"
-    method! anon_id = Some nid
-    method! return_id = Some id
-    method! arg_ids = argids
-  end
-
-class argnode id loc name index nid rid argids =
+class argnode id loc name index nid argids =
   object
     inherit node id loc
     method! dependent_nodes _ = [nid]
@@ -275,20 +258,26 @@ class argnode id loc name index nid rid argids =
       | [caller] -> List.nth_exn (preview caller#id g) index |> List.hd_exn
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
-    method! return_id = Some rid
     method! arg_ids = argids
   end
 
-class anonfn id loc rid argids =
+class anonfn id loc argids =
   object
     inherit node id loc
     method dependent_nodes (g: gfns) =
-      List.append (rid :: argids) (g.get_children id |> List.map ~f:(fun n -> n#id))
+      List.append argids (g.get_children id |> List.map ~f:(fun n -> n#id))
     method name = "<anonfn>"
     method execute (g: gfns) (_) : dval =
-      DAnon (id, anonexecutor rid argids g)
+      let return = argids
+      |> List.map ~f:(g.get_deepest)
+      |> List.concat
+      (* The ordering is intensional here. Sort first on largest y, then smallest x *)
+      |> List.sort ~cmp:(fun (n1:node) (n2:node) -> if n1#loc.y = n2#loc.y
+                                                    then compare n2#loc.x n1#loc.x
+                                                    else compare n1#loc.y n2#loc.y)
+      |> List.hd_exn in
+      DAnon (id, anonexecutor return#id argids g)
     method tipe = "definition"
     method! parameters = []
-    method! return_id = Some rid
     method! arg_ids = argids
   end

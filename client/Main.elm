@@ -3,7 +3,6 @@ port module Main exposing (..)
 
 -- builtins
 import Maybe
-import Dict
 
 -- lib
 import Json.Decode as JSD
@@ -189,12 +188,11 @@ update_ msg m =
 
     (RPCCallBack calls mId (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-          m3 = { m2 | nodes = Dict.map (\_ n -> G.rePlaceReturn m2 n) nodes }
-      in Many [ ModelMod (\_ -> m3)
+      in Many [ ModelMod (\_ -> m2)
               , AutocompleteMod Reset
               , ClearError
               , case mId of
-                  Just id -> Entry.enterNext m3 (G.getNodeExn m3 id)
+                  Just id -> Entry.enterExact m2 (G.getNodeExn m2 id)
                   Nothing -> NoChange
               ]
 

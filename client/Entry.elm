@@ -30,12 +30,7 @@ holeDisplayPos m hole =
 holeCreatePos : Model -> Hole -> Pos
 holeCreatePos m hole =
   case hole of
-    ResultHole n ->
-      let pos = case G.getAnonNodeOf m n.id |> Maybe.andThen .returnID of
-                  Just rid -> rid |> G.getNodeExn m |> .pos
-                  Nothing -> n.pos
-      in
-        {x=n.pos.x, y=pos.y+40}
+    ResultHole n -> {x=n.pos.x, y=n.pos.y+40}
     ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-40}
 
 
@@ -126,9 +121,8 @@ isValueRepr name = String.toLower name == "null"
 addAnonParam : Model -> ID -> Pos -> ParamName -> List String -> (List RPC, Maybe ID)
 addAnonParam m id pos name anon_args =
   let sid = gen_id ()
-      retid = gen_id ()
       argids = List.map (\_ -> gen_id ()) anon_args
-      anon = AddAnon sid pos retid argids anon_args
+      anon = AddAnon sid pos argids anon_args
       edge = SetEdge sid (id, name)
   in
     ([anon, edge], List.head argids)
@@ -212,7 +206,8 @@ submit m cursor value =
                       RPC ([SetEdge source.id (target.id, param.name)], Just target.id)
 
             _ ->
-              let (f, focus) = addByName m id value pos in
+              let (f, focus) = addByName m id value pos
+              in
               case Autocomplete.findFunction (m.complete) value of
                 Nothing ->
                   -- Not a normal function, just return

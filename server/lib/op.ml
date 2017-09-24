@@ -11,8 +11,8 @@ type json = Yojson.Safe.json
 type op = Add_fn_call of id * loc * string
         | Add_datastore of id * loc * string
         | Add_value of id * loc * string
-        (* id, loc, return, args *)
-        | Add_anon of id * loc * id * id list * string list
+        (* id, loc, args, argnames *)
+        | Add_anon of id * loc * id list * string list
         (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
         | Update_node_position of id * loc
@@ -30,7 +30,7 @@ let id_of_option op : id option =
   | Add_datastore (id, _, _) -> Some id
   | Add_value (id, _, _) -> Some id
   | Set_constant (id, _, _) -> Some id
-  | Add_anon (id, _, _, _, _) -> Some id
+  | Add_anon (id, _, _, _) -> Some id
   | Update_node_position (id, _) -> Some id
   | Clear_args (id) -> Some id
   | Delete_node (id) -> Some id

@@ -15,6 +15,7 @@ let t_param_order () =
     (node#execute
        { getf = (fun g -> node)
        ; get_children = (fun _ -> [])
+       ; get_deepest = (fun _ -> [])
        }
        (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
                                 ; ("b", RT.DInt 1)]))
@@ -98,7 +99,7 @@ let t_load_save _ =
   let n1 = Op.Add_fn_call (fid (), fl, "-") in
   let n2 = Op.Add_value (fid (), fl, "5") in
   let n3 = Op.Add_value (fid (), fl, "3") in
-  let n4 = Op.Add_anon (fid (), fl, fid (), [], []) in
+  let n4 = Op.Add_anon (fid (), fl, [], []) in
   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
@@ -115,14 +116,12 @@ let t_lambda_with_foreach () =
   let fe = Op.Add_fn_call (fid (), fl, "String::foreach") in
   let upper = Op.Add_fn_call (fid (), fl, "Char::toUppercase") in
   let anon_id = fid () in
-  let anon_r = fid () in
   let anon_arg = fid () in
-  let anon = Op.Add_anon (anon_id, fl, anon_r, [anon_arg], ["item"]) in
+  let anon = Op.Add_anon (anon_id, fl, [anon_arg], ["item"]) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
-  let e3 = Op.Set_edge (Op.id_of upper, anon_r, "return") in
-  let e4 = Op.Set_edge (anon_arg, Op.id_of upper, "c") in
-  let r = execute_ops [v; fe; upper; anon; e1; e2; e3; e4] fe in
+  let e3 = Op.Set_edge (anon_arg, Op.id_of upper, "c") in
+  let r = execute_ops [v; fe; upper; anon; e1; e2; e3] fe in
   Alcotest.check check_dval "lambda_wit_foreach"  r (DStr "SOME STRING")
 
 let t_hmac_signing _ =

@@ -25,9 +25,10 @@ rpc m id calls =
 
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
-  JSE.list (List.map (encodeRPC m) calls)
-
-
+  calls
+  |> List.filter ((/=) NoOp)
+  |> List.map (encodeRPC m)
+  |> JSE.list
 
 
 encodeRPC : Model -> RPC -> JSE.Value
@@ -57,10 +58,9 @@ encodeRPC m call =
         ("add_function_call",
            JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
 
-      AddAnon id pos (ID ret) args argnames ->
+      AddAnon id pos args argnames ->
         ("add_anon", JSE.object [ jseId id
                                 , jsePos pos
-                                , ("return", JSE.int ret)
                                 , ("args", JSE.list (List.map (JSE.int << deID) args))
                                 , ("argnames", JSE.list (List.map (JSE.string) argnames))])
 
@@ -89,6 +89,9 @@ encodeRPC m call =
       RemoveLastField id ->
         ("remove_last_field", JSE.object [ jseId id ])
 
+      NoOp ->
+        ("noop", JSE.object [ ])
+
   in JSE.object [ (cmd, args) ]
 
 decodeNode : JSD.Decoder Node
@@ -115,10 +118,10 @@ decodeNode =
 
       toNode : Name -> Int -> List(FieldName,TypeName) ->
                List Parameter -> List (List JSD.Value) ->
-               Dict String String -> Int -> Int -> List Int ->
+               Dict String String -> Int -> List Int ->
                String -> Int -> Int ->
                Node
-      toNode name id fields parameters arguments liveDict anonID returnID argIDs tipe x y =
+      toNode name id fields parameters arguments liveDict anonID argIDs tipe x y =
         let liveValue = Dict.get "value" liveDict
             liveTipe = Dict.get "type" liveDict
             liveJson = Dict.get "json" liveDict in
@@ -129,7 +132,6 @@ decodeNode =
           , arguments = List.map toArg arguments
           , liveValue = (liveValue, liveTipe, liveJson)
                         |> Tuple3.mapAll deMaybe
-          , returnID = if returnID == -42 then Nothing else Just <| ID returnID
           , anonID = if anonID == -42 then Nothing else Just <| ID anonID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of
@@ -139,10 +141,9 @@ decodeNode =
                      "value" -> Value
                      "page" -> Page
                      "arg" -> Arg
-                     "return" -> Return
                      _ -> Debug.crash "shouldnt happen"
           , pos = {x=x, y=y}
-          , visible = tipe /= "return" && tipe /= "definition"
+          , visible = tipe /= "definition"
           }
 
 
@@ -163,7 +164,6 @@ decodeNode =
     |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))
     |> JSDP.required "live" (JSD.dict JSD.string)
     |> JSDP.optional "anon_id" JSD.int -42
-    |> JSDP.optional "return_id" JSD.int -42
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "x" JSD.int

@@ -37,7 +37,6 @@ type NodeType = FunctionCall
               | Value
               | Page
               | Arg
-              | Return
 
 type alias NodeDict = Dict Int Node
 type alias Node = { name : Name
@@ -52,7 +51,6 @@ type alias Node = { name : Name
                   , arguments : List Argument
                   -- for anonfns
                   , anonID : Maybe ID
-                  , returnID : Maybe ID
                   , argIDs : List ID
                   , visible : Bool
                   }
@@ -90,12 +88,13 @@ type RPC
     | AddDatastore ID Name Pos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall ID Name Pos
-    | AddAnon ID Pos ID (List ID) (List String)
+    | AddAnon ID Pos (List ID) (List String)
     | AddValue ID String Pos
     | SetConstant Name (ID, ParamName)
     | SetEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearArgs ID
+    | NoOp
     | RemoveLastField ID
 
 type alias Autocomplete = { functions : List Function

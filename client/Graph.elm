@@ -215,21 +215,3 @@ entireSubgraph m n =
   fold (\n list -> n :: list) [] n (connectedNodes m)
 
 
-rePlaceReturn : Model -> Node -> Node
-rePlaceReturn m n =
-  case n.tipe of
-    Return ->
-      let nodes = n.argIDs
-                  |> List.map (\id -> id
-                                      |> getNodeExn m
-                                      |> entireSubgraph m)
-                  |> List.concat
-          x = nodes |> List.map (\n -> n.pos.x) |> List.maximum
-          y = nodes |> List.map (\n -> n.pos.y) |> List.maximum
-      in
-        let pos = case (x,y) of
-                    (Just x, Just y) -> {x=x+50, y=y+50}
-                    _ -> n.pos
-        in
-          { n | pos=pos }
-    _ -> n

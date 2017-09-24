@@ -22,7 +22,6 @@ type add_function_call = { id: int
                          } [@@deriving yojson]
 type add_anon = { id: int
                 ; pos: pos
-                ; return: int
                 ; args: int list
                 ; argnames: string list} [@@deriving yojson]
 type add_value = { id: int
@@ -74,7 +73,7 @@ let json2op (op: opjson) : op =
   | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_node = Some a } -> Delete_node a.id
   | { clear_args = Some a } -> Clear_args a.id
-  | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.return, a.args, a.argnames)
+  | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.args, a.argnames)
   | { add_function_call = Some a } -> Add_fn_call (a.id, a.pos, a.name)
   | { add_value = Some a } -> Add_value (a.id, a.pos, a.value)
   | { update_node_position = Some a } -> Update_node_position (a.id, a.pos)
