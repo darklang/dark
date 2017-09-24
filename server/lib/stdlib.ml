@@ -167,7 +167,7 @@ let fns : Lib.shortfn list = [
   ;
 
   { n = "<="
-  ; o = ["Int::lessThanOparualTo"]
+  ; o = ["Int::lessThanOrEqualTo"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than or equal to b"
@@ -182,7 +182,7 @@ let fns : Lib.shortfn list = [
 
 
   { n = ">="
-  ; o = ["Int::greaterThanOparualTo"]
+  ; o = ["Int::greaterThanOrEqualTo"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than or equal to b"
