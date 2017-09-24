@@ -17,8 +17,6 @@ leftButton = 0
 -- UI
 nodeHeight : Int
 nodeHeight = round 28
-narrowChars : List Char
-narrowChars = ['i', '[', ',', ']', 'l', 'I', 't', ':', '/', '.', ' ', ',', '{', '}']
 edgeGradColor : String
 edgeGradColor = "#777"
 edgeColor : String

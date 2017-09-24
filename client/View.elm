@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Char
 
 -- lib
 import Svg
@@ -166,29 +167,30 @@ viewEntry m =
 nodeWidth : Node -> Int
 nodeWidth n =
   let
-    slimChars = Set.fromList Defaults.narrowChars
+    space = 3.5
+    fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
+    fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
     len name = name
              |> String.toList
-             |> List.map (\c -> if Set.member c slimChars
-                                   then 0.35
-                                   else if c == '◉'
-                                        then 2.2
-                                        else 1)
+             |> List.map (\c -> if c == ' '
+                                then 3.5
+                                else if Set.member c fours
+                                     then 4.0
+                                     else if Set.member c fives
+                                          then 5.0
+                                          else 8.0)
              |> List.sum
     paramLen = G.args n
                 |> List.map (\(p, a) ->
                   case a of
-                    Const c -> if c == "null" then 1 else (0.7+len c)
-                    _ -> 0.7+2.2)
+                    Const c -> if c == "null" then 8 else (len c)
+                    _ -> 14)
                 |> List.sum
-
-
-
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
     --                  _ -> 1
-    width = (len n.name + paramLen) * 8.6 + 11
+    width = 6.0 + len n.name + paramLen + (G.args n |> List.length |> toFloat |> (+) 1.0 |> (*) space)
   in
     round(width)
 
@@ -246,11 +248,11 @@ viewNormalNode m n i =
                |> List.map (\(class, val) ->
                               Html.span
                                 [ Attrs.class class]
-                                [ Html.text <| " " ++ val ++ " "])
+                                [ Html.text <| " " ++ val])
 
       heading = Html.span
-                [ Attrs.class "name"]
-                ((Html.text n.name) :: params)
+                [ Attrs.class "title"]
+                ((Html.span [Attrs.class "name"] [Html.text n.name]) :: params)
 
 
       -- fields (in list)
