@@ -13,7 +13,6 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
-import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -51,15 +50,13 @@ viewError mMsg =
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let (anonNodes, otherNodes) = List.partition (\n -> n.tipe == FunctionDef) <| G.orderedNodes m
-        anons = List.map (viewAnon m) anonNodes
         other = List.indexedMap (\i n -> viewNode m n i) otherNodes
         values = List.map (viewValue m) otherNodes
         edges = m.nodes |> Dict.values |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} [SA.strokeWidth "1px", SA.stroke "#777"]
-        allSvgs = xaxis :: yaxis :: svgDefs :: svgArrowHead
-                 :: (anons ++ edges ++ other ++ values ++ entry)
+        allSvgs = xaxis :: yaxis :: (edges ++ other ++ values ++ entry)
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -159,7 +156,7 @@ viewEntry m =
             nodePos = { x = n.pos.x + 10
                       , y = n.pos.y + 10}
         in
-        [svgLine m nodePos edgePos dragEdgeStyle, html holePos]
+        [svgLine m nodePos edgePos edgeStyle, html holePos]
       Entering (Creating pos) -> [html pos]
       _ -> []
 
@@ -223,7 +220,7 @@ viewNode m n i =
   case n.tipe of
     Arg -> viewNormalNode m n i
     Return -> viewReturn m n i
-    FunctionDef -> viewAnon m n
+    FunctionDef -> Html.div [] []
     _ -> viewNormalNode m n i
 
 -- TODO: If there are default parameters, show them inline in
@@ -292,17 +289,6 @@ placeNode m n width attrs classes header body =
   in
     placeHtml m n.pos wrapper
 
-viewAnon : Model -> Node -> Html.Html Msg
-viewAnon m n =
-  let rid = deMaybe n.returnID
-      returnNode = G.getNodeExn m rid
-      height = 25 + returnNode.pos.y - n.pos.y
-      width = 23 + returnNode.pos.x - n.pos.x
-      height_attr = Attrs.style [("height", (toString height) ++ "px")]
-      viewHeader = [ ]
-  in
-    placeNode m n width [height_attr] [] [] viewHeader
-
 viewReturn : Model -> Node -> Int -> Html.Html Msg
 viewReturn m n i =
   let viewHeader = Html.div
@@ -322,101 +308,17 @@ viewReturn m n i =
          [ Html.text "◉" ]])
 
 
-
--- Our edges should be a lineargradient from "darker" to "arrowColor".
--- SVG gradients are weird, they don't allow you specify based on the
--- line direction, but only on the absolute direction. So we define 8
--- linear gradients, one for each 45 degree angle/direction. We define
--- this in terms of "rise over run" (eg like you'd calculate a slope).
--- Then we translate the x,y source/target positions into (rise,run) in
--- the integer range [-1,0,1].
-svgDefs : Svg.Svg a
-svgDefs =
-  Svg.defs []
-    [ linearGradient 0 1
-    , linearGradient 1 1
-    , linearGradient 1 0
-    , linearGradient 1 -1
-    , linearGradient 0 -1
-    , linearGradient -1 -1
-    , linearGradient -1 0
-    , linearGradient -1 1
-    ]
-
-coord2id : Int -> Int -> String
-coord2id rise run =
-  "linear-rise" ++ toString rise ++ "-run" ++ toString run
-
-
-linearGradient : Int -> Int -> Svg.Svg a
-linearGradient rise run =
-  -- edge case, linearGradients use positive integers
-  let (x1, x2) = if run == -1 then (1,0) else (0, run)
-      (y1, y2) = if rise == -1 then (1,0) else (0, rise)
-  in
-    Svg.linearGradient
-      [ SA.id (coord2id rise run)
-      , SA.x1 (toString x1)
-      , SA.y1 (toString y1)
-      , SA.x2 (toString x2)
-      , SA.y2 (toString y2)]
-    [ Svg.stop [ SA.offset "0%"
-               , SA.stopColor Defaults.edgeGradColor] []
-    , Svg.stop [ SA.offset "100%"
-               , SA.stopColor Defaults.edgeColor] []]
-
-dragEdgeStyle : List (Svg.Attribute msg)
-dragEdgeStyle =
-  [ SA.strokeWidth Defaults.dragEdgeSize
-  , SA.stroke Defaults.dragEdgeStrokeColor
+edgeStyle : List (Svg.Attribute msg)
+edgeStyle =
+  [ SA.strokeWidth Defaults.edgeSize
+  , SA.stroke Defaults.edgeColor
   ]
-
-edgeStyle : Int -> Int -> Int -> Int -> List (Svg.Attribute msg)
-edgeStyle x1 y1 x2 y2 =
-  -- edge case: We don't want to use a vertical gradient for really tiny rises,
-  -- or it'll just be one color (same for the run). 20 seems enough to avoid
-  -- this, empirically.
-  let rise = if y2 - y1 > 20 then 1 else if y2 - y1 < -20 then -1 else 0
-      run = if x2 - x1 > 20 then 1 else if x2 - x1 < -20 then -1 else 0
-      -- edge case: (0,0) is nothing; go in range.
-      amendedRise = if (rise,run) == (0,0)
-                    then if y2 - y1 > 0 then 1 else -1
-                    else rise
-  in [ SA.strokeWidth Defaults.edgeSize
-     , SA.stroke ("url(#" ++ coord2id amendedRise run ++ ")")
-     , SA.markerEnd "url(#triangle)"
-     ]
-
-svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
-svgLine m p1a p2a attrs =
-  let p1v = Viewport.toViewport m p1a
-      p2v = Viewport.toViewport m p2a
-      ( x1, y1, x2_, y2_ ) = (p1v.vx, p1v.vy, p2v.vx, p2v.vy)
-      -- edge case: avoid zero width/height lines, or they won't appear
-      x2 = if x1 == x2_ then x2_ + 1 else x2_
-      y2 = if y1 == y2_ then y2_ + 1 else y2_
-  in
-  Svg.line
-    ([ SA.x1 (toString x1)
-     , SA.y1 (toString y1)
-     , SA.x2 (toString x2)
-     , SA.y2 (toString y2)
-     ] ++ attrs)
-    []
 
 viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =
   n
     |> G.incomingNodePairs m
     |> List.map (\(n2, p) -> viewEdge m n2 n p)
-
-paramOffset : Node -> String -> Pos
-paramOffset node param =
-  let
-    index = deMaybe (LE.findIndex (\p -> p.name == param) node.parameters)
-  in
-    {x=7+index*5, y=-3}
-
 
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
 viewEdge m source target param =
@@ -425,45 +327,26 @@ viewEdge m source target param =
         (targetW, targetH) = nodeSize target
         spos = { x = source.pos.x + 10
                , y = source.pos.y + (sourceH // 2)}
-
         tpos = { x = target.pos.x + 10
                , y = target.pos.y + (targetH // 2)}
-
-        pOffset = paramOffset target param
-        (tnx, tny) = (target.pos.x + pOffset.x, target.pos.y + pOffset.y)
-
-        -- find the shortest line and link to there
-        joins = [ (tnx, tny) -- topleft
-                , (tnx + 5, tny) -- topright
-                , (tnx, tny + 5) -- bottomleft
-                , (tnx + 5, tny + 5) -- bottomright
-                ]
-
-        sq x = toFloat (x*x)
-        join = List.head
-               (List.sortBy (\(x,y) -> sqrt ((sq (spos.x - x)) + (sq (spos.y - y))))
-                  joins)
-        (tx, ty) = deMaybe join
     in svgLine
       m
       spos
       tpos
-      -- {x=tx,y=ty}
-      (edgeStyle spos.x spos.y tx ty)
+      edgeStyle
 
-svgArrowHead : Svg.Svg msg
-svgArrowHead =
-  Svg.marker [ SA.id "triangle"
-             , SA.viewBox "0 0 10 10"
-             , SA.refX "4"
-             , SA.refY "5"
-             , SA.markerUnits "strokeWidth"
-             , SA.markerWidth "4"
-             , SA.markerHeight "4"
-             , SA.orient "auto"
-             , SA.fill Defaults.edgeColor
-             ]
-    [Svg.path [SA.d "M 0 0 L 5 5 L 0 10 z"] []]
+svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
+svgLine m p1a p2a attrs =
+  let p1v = Viewport.toViewport m p1a
+      p2v = Viewport.toViewport m p2a
+  in
+  Svg.line
+    ([ SA.x1 (toString p1v.vx)
+     , SA.y1 (toString p1v.vy)
+     , SA.x2 (toString p2v.vx)
+     , SA.y2 (toString p2v.vy)
+     ] ++ attrs)
+    []
 
 decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
 decodeClickEvent fn =
