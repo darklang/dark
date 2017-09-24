@@ -111,7 +111,7 @@ type AutocompleteItem = ACFunction Function
 
 type alias Model = { nodes : NodeDict
                    , center : Pos
-                   , error : (String, Int)
+                   , error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
                    -- these values are serialized via Editor
@@ -131,6 +131,7 @@ type AutocompleteMod = Query String
                      | FilterByParamType TypeName
 
 type Modification = Error String
+                  | ClearError
                   | Select ID
                   | Enter EntryCursor
                   | Deselect

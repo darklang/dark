@@ -42,7 +42,7 @@ model2editor m = {}
 
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
-                 , error = ("None", 0)
+                 , error = Nothing
                  , lastMsg = Initialization
                  , lastMod = NoChange
                  , center = {x=initialPos.vx, y=initialPos.vy}

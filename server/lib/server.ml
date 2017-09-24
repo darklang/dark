@@ -46,7 +46,7 @@ let server =
              print_endline (G.show_graph !g);
              print_endline ("Exception: " ^ msg);
              print_endline bt;
-             Exn.reraise e "reraising"
+             raise e
     in
 
     let admin_ui_handler () =
@@ -96,9 +96,9 @@ let server =
          | e ->
            let backtrace = Exn.backtrace () in
            let body = match e with
-             | (Exception.UserException msg) -> "UserException: " ^ msg
+             | (Exception.UserException msg) -> msg
              | (Yojson.Json_error msg) -> "Not a value: " ^ msg
-             | _ -> Exn.to_string e
+             | _ -> "Dark Internal Error: " ^ Exn.to_string e
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->
            Lwt_io.printl backtrace >>= fun () ->

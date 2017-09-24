@@ -138,11 +138,10 @@ addFunction : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
 addFunction m id name pos =
   let fn = Autocomplete.findFunction m.complete name in
   case fn of
-    -- not a real function, but had to thread an error here
+    -- not a real function, but hard to thread an error here, so let the
+    -- server fail instead
     Nothing ->
-      if String.toLower name == "new function"
-      then ([AddAnon id pos (gen_id ()) [gen_id ()] ["val"]], Just id)
-      else ([], Nothing)
+      ([AddFunctionCall id name pos], Nothing)
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters

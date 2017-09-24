@@ -31,35 +31,20 @@ view m =
                [ Attrs.id "grid"
                , Events.on "mousedown" (decodeClickEvent RecordClick)
                ]
-               [ Svg.svg
+               [ viewError m.error
+               , Svg.svg
                  [ SA.width "100%"
-                 , SA.height (toString h)
-                 ]
+                 , SA.height (toString h) ]
                  (viewCanvas m)
                ]
-      docs = Html.div
-              [ Attrs.id "docs"]
-              [ viewError m.error
-              , viewCenter m.center
-              , viewLive m m.state
-              , viewDescription m m.complete
-              ]
-  in
-     Html.div [Attrs.id "container"] [grid, docs]
+ in
+    grid
 
-viewError : ( String, a ) -> Html.Html msg
-viewError (msg, ts) =
-  Html.div
-    [Attrs.id "darkErrors"]
-    (case (toString ts) of
-       "0" -> [Html.text <| "Err: " ++ msg]
-       ts -> [Html.text <| "Err: " ++ msg ++ " (" ++ ts ++ ")"])
-
-viewCenter : Pos -> Html.Html msg
-viewCenter pos =
-  Html.div
-    [Attrs.id "darkCenter"]
-    [Html.text <| "Center: " ++ (toString pos)]
+viewError : Maybe String -> Html.Html msg
+viewError mMsg =
+  case mMsg of
+    Just msg -> Html.div [Attrs.id "darkErrors"] [Html.text msg]
+    Nothing -> Html.div [] []
 
 
 viewCanvas : Model -> List (Svg.Svg Msg)

@@ -15,7 +15,6 @@ import Keyboard.Key as Key
 -- dark
 import RPC exposing (rpc)
 import Types exposing (..)
-import Util exposing (deMaybe)
 import View
 import Defaults
 import Graph as G
@@ -74,7 +73,8 @@ updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
   let (newm, newcmd) =
     case mod of
-      Error e -> { m | error = (e, Util.timestamp ())} ! []
+      Error e -> { m | error = Just e} ! []
+      ClearError -> { m | error = Nothing} ! []
       RPC (calls, id) -> m ! [rpc m id calls]
       NoChange -> m ! []
       Select id -> { m | state = Selecting id
@@ -192,7 +192,7 @@ update_ msg m =
           m3 = { m2 | nodes = Dict.map (\_ n -> G.rePlaceReturn m2 n) nodes }
       in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod Reset
-              , Error ""
+              , ClearError
               , case mId of
                   Just id -> Entry.enterNext m3 (G.getNodeExn m3 id)
                   Nothing -> NoChange
@@ -203,10 +203,10 @@ update_ msg m =
     -- plumbing
     ------------------------
     (RPCCallBack _ _ (Err (Http.BadStatus error)), _) ->
-      Error <| "Bad RPC call: " ++ (toString error.body)
+      Error <| "Error: " ^ error.body
 
     (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
-      Error <| "Netork error: is the server running?"
+      Error <| "Network error: is the server running?"
 
     (FocusResult _, _) ->
       NoChange
@@ -214,7 +214,7 @@ update_ msg m =
     (FocusAutocompleteItem _, _) ->
       NoChange
 
-    t -> Error <| "Nothing for " ++ (toString t)
+    t -> Error <| "Dark Client Error: nothing for " ++ (toString t)
 
     ------------------------
     -- datastores
