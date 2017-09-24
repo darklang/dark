@@ -354,34 +354,6 @@ viewArg m n i =
        ])
 
 
-viewLive : Model -> State -> Html.Html Msg
-viewLive m cursor =
-  let live =
-        cursor
-          |> Selection.getCursorID
-          |> Maybe.andThen (G.getNode m)
-          |> Maybe.map .liveValue
-      html tipe text = Html.pre []
-                         [Html.text <| "LiveValue: (" ++ tipe ++ ")\n" ++ text]
-  in
-    Html.div
-      [ Attrs.id "darkLive"]
-      [ case live of
-          Just (val, tipe, _) -> html tipe val
-          Nothing -> Html.text "n/a"
-      ]
-
-viewDescription : Model -> Autocomplete -> Html.Html Msg
-viewDescription m complete =
-  Html.div
-    [ Attrs.id "darkDesc" ]
-    [ Html.text <|
-      case Autocomplete.highlighted complete of
-        Just (ACFunction {description}) -> description
-        _ -> "n/a"
-    ]
-
-
 -- Our edges should be a lineargradient from "darker" to "arrowColor".
 -- SVG gradients are weird, they don't allow you specify based on the
 -- line direction, but only on the absolute direction. So we define 8
