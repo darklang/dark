@@ -109,15 +109,15 @@ let rec equal_dval (a: dval) (b: dval) =
 
 let get_type (dv : dval) : string =
   match dv with
-  | DInt _ -> "Integer"
-  | DStr _ -> "String"
+  | DInt _ -> "Int"
+  | DStr _ -> "Str"
   | DBool _ -> "Bool"
   | DFloat _ -> "Float"
   | DChar _ -> "Char"
   | DNull -> "Nothing"
-  | DAnon _ -> "Anonymous function"
+  | DAnon _ -> "Anon"
   | DList _ -> "List"
-  | DObj _ -> "Object"
+  | DObj _ -> "Obj"
   | DIncomplete -> "n/a"
   (* | _ -> failwith "get_type not implemented yet" *)
 
@@ -190,6 +190,7 @@ type tipe = TInt
           | TStr
           | TChar
           | TBool
+          | TFloat
           | TObj
           | TList
           | TAny
@@ -198,11 +199,12 @@ type tipe = TInt
 
 let tipename t =
   match t with
-  | TInt -> "Integer"
-  | TStr -> "String"
+  | TInt -> "Int"
+  | TStr -> "Str"
   | TChar -> "Char"
   | TBool -> "Bool"
-  | TObj -> "Object"
+  | TFloat -> "Float"
+  | TObj -> "Obj"
   | TList -> "List"
   | TAny -> "Any"
   | TFun -> "Function"
