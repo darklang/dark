@@ -193,7 +193,7 @@ regenerate a =
         if not a.open
         then []
         else case options of
-               [ i ] -> if asString i == a.value then [] else [ i ]
+               [ i ] -> if asName i == a.value then [] else [ i ]
                cs -> cs
 
   in { a | completions = completions

@@ -8,7 +8,6 @@ import Test exposing (..)
 import Set
 
 -- dark
-import Types exposing (..)
 import Autocomplete exposing (..)
 
 
@@ -64,31 +63,31 @@ suite =
       [ \_ -> (init completes)
       |> query "lis"
       |> .completions
-      |> List.map asString
+      |> List.map asName
       |> (==) ["List::head"]
       -- Search finds multiple prefixes
       , \_ -> (init completes)
       |> query "twit::"
       |> .completions
-      |> List.map asString
+      |> List.map asName
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
       -- Search finds only prefixed
       , \_ ->(init completes)
       |> query "twit::y"
       |> .completions
-      |> List.map asString
+      |> List.map asName
       |> (==) ["Twit::yetAnother"]
-      -- Search only finds from the start
+      -- Search anywhere
       , \_ -> (init completes)
       |> query "Another"
       |> .completions
-      |> List.map asString
-      |> (==) []
+      |> List.map asName
+      |> (==) ["Twit::yetAnother"]
       -- No results when the only option is the query
       , \_ -> (init completes)
       |> query "List::head"
       |> .completions
-      |> List.map asString
+      |> List.map asName
       |> (==) []
       -- Scrolling down a bit works
       , \_ -> (init completes)
@@ -144,18 +143,18 @@ suite =
       |> (==) -1
       -- Filter by method signature for typed values
       , \_ -> (init completes)
-      |> forLiveValue ("[]", "List", "[]")
+      |> forLiveValue {value="[]", tipe="List",json="[]"}
       |> query ""
       |> .completions
-      |> List.map asString
+      |> List.map asName
       |> Set.fromList
       |> (==) (Set.fromList ["List::head"])
        -- Show allowed fields for objects
       , \_ -> (init completes)
-      |> forLiveValue ("5", "Integer", "5")
+      |> forLiveValue {value="5", tipe="Integer", json="5"}
       |> query ""
       |> .completions
-      |> List.map asString
+      |> List.map asName
       |> Set.fromList
       |> (==) (Set.fromList ["Int::add", "+"])
       -- By default the list shows results
