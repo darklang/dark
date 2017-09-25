@@ -154,6 +154,7 @@ Nodes
 }
 
 .preview pre {
+  margin-top: 0;
   white-space: pre;
   margin-bottom: 0;
 }
