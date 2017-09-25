@@ -187,7 +187,12 @@ regenerate a =
         |> List.map (\s -> ACFunction s)
         |> List.append fields
         |> List.filter
-           (\i -> i |> asString |> String.toLower |> String.contains lcq)
+           (\i -> i
+                  |> (\i -> if 1 <= String.length lcq
+                            then asName i
+                            else asString i)
+                  |> String.toLower
+                  |> String.contains lcq)
 
       completions =
         if not a.open
