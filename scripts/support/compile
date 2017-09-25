@@ -48,7 +48,7 @@ def elm_make():
     return run_frontend("cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def elm_test():
-  return run_test("cd client && elm-test")
+  return run_test("cd client && unbuffer elm-test")
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json'"
 def ocaml_build():
