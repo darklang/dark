@@ -292,22 +292,28 @@ let fns : Lib.shortfn list = [
         (function
           | [DStr s; DAnon (id, fn)] ->
             let all_chars = ref true in
-            let example_value = ref DNull in
+            let example_value = ref DIncomplete in
             let result = s
               |> String.to_list
               |> List.map ~f:(fun c -> match fn [(DChar c)] with
                                        | DChar c -> DChar c
                                        | dv ->
-                                           all_chars := false;
-                                           example_value := dv;
+                                           if !all_chars
+                                           then
+                                             (all_chars := false;
+                                             example_value := dv);
                                            dv) in
             if !all_chars
             then DStr (result
-                       |> List.map ~f:(function | DChar c -> c)
+                       |> List.map ~f:(function
+                                         | DChar c -> c
+                                         | _ -> Exception.internal "char?")
                        |> String.of_char_list)
             else
-              error ~actual:(DList result)
-                ~long:("String::foreach converts needs to get chars back in order to reassemble them. The values returned by your code are not chars, for example " ^ (to_repr !example_value) ^ " is a TODO")
+              error
+                ~actual:(DList result)
+                ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr !example_value) ^ " is a " ^ (get_type !example_value))
+                ~expected:"every value to be a char"
                 "Foreach expects chars"
           | args -> fail args)
   ; pr = Some
