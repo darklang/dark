@@ -37,6 +37,5 @@ let parse (filename: string) : schema =
     |> Yojson.Safe.from_string
     |> schema_of_yojson
   with
-  | Error loc -> Exception.raise ("Error parsing Swagger schema: "
-                                   ^ loc)
+  | Error loc -> Exception.internal ("Error parsing Swagger schema: " ^ loc)
   | Ok schema -> schema

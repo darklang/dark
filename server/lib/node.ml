@@ -60,11 +60,11 @@ class virtual node id loc =
       List.exists ~f:(fun p -> p.name = paramname) self#parameters
     method arguments : arg_map = RT.ArgMap.empty
     method set_arg (name: string) (value: argument) : unit =
-      Exception.raise "This node doesn't support set_arg"
+      Exception.internal "This node doesn't support set_arg"
     method clear_args : unit =
-      Exception.raise "This node doesn't support clear_args"
+      Exception.internal "This node doesn't support clear_args"
     method delete_arg (name: string) : unit =
-      Exception.raise "This node doesn't support delete_arg"
+      Exception.internal "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
     method dependent_nodes (_:node gfns_) : id list = []
     method anon_id = None
@@ -72,7 +72,7 @@ class virtual node id loc =
     method update_loc _loc : unit =
       loc <- _loc
     method preview (gfns: node gfns_) (args: dval_map) : (dval list) list =
-      Exception.raise "This node doesn't support preview"
+      Exception.internal "This node doesn't support preview"
     method to_frontend (value, tipe, json) : nodejson =
       { name = self#name
       ; id = id

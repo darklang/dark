@@ -101,7 +101,7 @@ let rec dvalmap2query (args: dval_map) : string =
     ~init:[]
     ~f:(fun ~key ~data l ->
         if data = Runtime.DIncomplete
-        then Exception.raise "Incomplete computation"
+        then RT.error "Incorrect type" ~actual:data
         else if data = Runtime.DNull then l
         else (key ^ "=" ^ (Runtime.to_string data)) :: l)
   |> String.concat ~sep:"&"

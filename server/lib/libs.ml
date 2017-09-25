@@ -29,4 +29,4 @@ let get_fn (name : string) : fn option =
 let get_fn_exn (name : string) : fn =
   match FnMap.find fns name with
   | Some fn -> fn
-  | None -> "No function named '" ^ name ^ "' exists" |> Exception.raise
+  | None -> error ("No function named '" ^ name ^ "' exists")

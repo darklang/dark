@@ -1,6 +1,8 @@
 open Core
 open Types
 
+
+
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
@@ -122,11 +124,6 @@ let get_type (dv : dval) : string =
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"
 
-let to_char (dv : dval) : char =
-  match dv with
-  | DChar c -> c
-  | _ -> Exception.raise "Not a char"
-
 (* ------------------------- *)
 (* JSON *)
 (* ------------------------- *)
@@ -181,7 +178,7 @@ let parse (str : string) : dval =
     try
       str |> Yojson.Safe.from_string |> dval_of_yojson_
     with Yojson.Json_error e ->
-      raise (Exception.raise ("Not a valid Dark value: " ^ str))
+      Exception.user ~actual:str "Not a valid value"
 
 
 
@@ -247,6 +244,17 @@ type fn = { name : string
           ; pure : bool
           }
 
+let error ?(actual=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(long="") (short: string) =
+ raise
+   (Exception.DarkException
+    { short = short
+    ; long = long
+    ; tipe = "Runtime"
+    ; actual = dval_to_yojson actual
+    ; expected = expected
+    ; info = info
+    ; workarounds = workarounds
+    })
 
 exception TypeError of dval list
 
@@ -260,18 +268,13 @@ let exe (fn: fn) (args: dval_map) : dval =
     | API f -> f args
   with
   | TypeError args ->
-    Exception.raise
-      ("Incorrect type to fn "
-       ^ fn.name
-       ^ ": expected ["
-       ^ String.concat ~sep:", " (List.map ~f:param_to_string fn.parameters)
-       ^ "], got ["
-       ^ String.concat ~sep:", " (List.map ~f:to_error_repr args)
-       ^ "]")
-
-let exe_dv (fn : dval) (_: dval list) : dval =
-  match fn with
-  | dv -> dv
-          |> to_error_repr
-          |> (^) "Calling non-function: "
-          |> Exception.raise
+      error "Incorrect type"
+        ~expected:(fn.parameters |> List.map ~f:param_to_string |> String.concat ~sep:", ")
+        ~actual:(DList args)
+(*  *)
+(* let exe_dv (fn : dval) (_: dval list) : dval = *)
+(*   match fn with *)
+(*   | dv -> dv *)
+(*           |> to_error_repr *)
+(*           |> (^) "Calling non-function: " *)
+(*           |> Exception.raise *)

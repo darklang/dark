@@ -96,8 +96,8 @@ let server =
          | e ->
            let backtrace = Exn.backtrace () in
            let body = match e with
-             | (Exception.UserException msg) -> msg
-             | (Yojson.Json_error msg) -> "Not a value: " ^ msg
+             | Exception.DarkException e -> Exception.to_yojson_string e
+             | Yojson.Json_error msg -> "Not a value: " ^ msg
              | _ -> "Dark Internal Error: " ^ Exn.to_string e
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->

@@ -68,11 +68,13 @@ let http_call (url: string) (verb: verb) (headers: string list) (body: string) :
     | Curl.CurlException (_, code, s) ->
       (code, s, Buffer.contents responsebuf) in
 
-  let msg = "url: " ^ url ^ "\ncode: " ^ (string_of_int code) ^ "\nerror: " ^ error ^ "\nresponse: " ^ response in
+  let info = [ "url", url
+            ; "code", string_of_int code
+            ; "error", error
+            ; "response", response] in
   if code <> 200 then
-    Exception.raise msg;
-  (* else *)
-    (* print_endline msg; *)
+    Exception.api ~info ("Bad response code (" ^ (string_of_int code) ^ ") in
+call to " ^ url);
 
   response
 

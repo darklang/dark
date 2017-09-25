@@ -50,7 +50,10 @@ let fns : Lib.shortfn list = [
         (function
           | [DObj value; DStr fieldname] ->
             (match DvalMap.find value fieldname with
-             | None -> Exception.raise ("Value has no field named: " ^ fieldname)
+             | None -> error
+                         ("Value has no field named: " ^ fieldname)
+                         ~actual:(DObj value)
+
              | Some v -> v)
           | args -> fail args)
   ; pr = None
@@ -288,13 +291,24 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DStr s; DAnon (id, fn)] ->
-            let charf (c: char) : char =
-              let result = fn [(DChar c)] in
-              match result with
-              | DChar c -> c
-              | r -> Exception.raise "expected a char"
-            in
-            DStr (String.map ~f:charf s)
+            let all_chars = ref true in
+            let example_value = ref DNull in
+            let result = s
+              |> String.to_list
+              |> List.map ~f:(fun c -> match fn [(DChar c)] with
+                                       | DChar c -> DChar c
+                                       | dv ->
+                                           all_chars := false;
+                                           example_value := dv;
+                                           dv) in
+            if !all_chars
+            then DStr (result
+                       |> List.map ~f:(function | DChar c -> c)
+                       |> String.of_char_list)
+            else
+              error ~actual:(DList result)
+                ~long:("String::foreach converts needs to get chars back in order to reassemble them. The values returned by your code are not chars, for example " ^ (to_repr !example_value) ^ " is a TODO")
+                "Foreach expects chars"
           | args -> fail args)
   ; pr = Some
         (fun dv count ->
@@ -337,7 +351,7 @@ let fns : Lib.shortfn list = [
           | [DList l] ->
               DStr (l |> List.map ~f:(function
                                       | DChar c -> c
-                                      | _ -> Exception.raise "expected a char")
+                                      | dv -> error ~actual:dv "expected a char")
                       |> String.of_char_list)
           | args -> fail args)
   ; pr = None

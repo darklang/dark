@@ -76,7 +76,7 @@ let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : gra
     id
     g
     (function Some node -> f node
-            | None -> Exception.raise "can't update missing node")
+            | None -> Exception.client "can't update missing node")
 
 let update_node_position (id: id) (loc: loc) (g: graph) : graph =
   update_node id g ~f:(fun n -> n#update_loc loc; Some n)
@@ -85,7 +85,7 @@ let set_arg (a: RT.argument) (t: id) (param: string) (g: graph) : graph =
   update_node t g
     ~f:(fun n ->
         if not (n#has_parameter param)
-        then Exception.raise ("Node " ^ n#name ^ " has no parameter " ^ param);
+        then Exception.client ("Node " ^ n#name ^ " has no parameter " ^ param);
         n#set_arg param a;
         Some n)
 
@@ -103,7 +103,7 @@ let delete_arg (t: id) (param:string) (g: graph) : graph =
 
 let add_node (node : Node.node) (g : graph) : graph =
   if has_node node#id g then
-    Exception.raise "A node with this ID already exists!";
+    Exception.client "A node with this ID already exists!";
   change_node node#id g ~f:(fun x -> Some node)
 
 let incoming_nodes id g : (id * string) list =
@@ -215,7 +215,9 @@ let node_value (n: Node.node) (g: graph) : (string * string * string) =
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string)
   with
-  | Exception.UserException e -> ("Error: " ^ e, "Error", "Error")
+  | Exception.DarkException e -> ("use json value"
+                                 , "Error"
+                                 , Exception.to_yojson_string e)
 
 let to_frontend_nodes (g: graph) : Yojson.Safe.json =
   g.nodes
