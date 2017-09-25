@@ -149,8 +149,12 @@ Nodes
 
 .preview {
   margin: 4px 0 0 0;
-  font-size: 10pt;
+  font-size: 9pt;
   width: 500px;
+}
+
+.unexpected  .preview{
+  color: red;
 }
 
 .node .arg_none {
