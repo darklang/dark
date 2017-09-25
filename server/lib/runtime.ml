@@ -40,7 +40,7 @@ let rec to_repr_ (indent: int) (dv : dval) : string =
       then "[]"
       else
         "[ " ^ inl ^
-        (String.concat ~sep:", " (List.map ~f:(to_repr_ indent) (List.take l 10)))
+        (String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l))
         ^ nl ^ "]"
   | DObj o ->
     if DvalMap.is_empty o
@@ -50,7 +50,7 @@ let rec to_repr_ (indent: int) (dv : dval) : string =
           ~init:[]
           ~f:(fun ~key ~data l -> (key ^ ": " ^ (to_repr_ indent data)) :: l) in
         "{ " ^ inl ^
-        (String.concat ~sep:("," ^ inl) (List.take strs 10))
+        (String.concat ~sep:("," ^ inl) strs)
         ^ nl ^ "}"
 
 let to_repr (dv : dval) : string =
@@ -157,7 +157,7 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   | DChar c -> `String (Char.to_string c)
   | DAnon _ -> `String "<anon>"
   | DIncomplete -> `String "<incomplete>"
-  | DList l -> `List (List.map (List.take l 10) dval_to_yojson)
+  | DList l -> `List (List.map l dval_to_yojson)
   | DObj o -> o
               |> DvalMap.to_alist
               |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
