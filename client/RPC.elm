@@ -148,9 +148,9 @@ decodeNode =
           , pos = {x=x, y=y}
           , visible = tipe /= "definition"
           }
-      toExc : String -> String -> String -> String ->
+      toExc : String -> String -> String -> String -> String ->
               Dict String String -> List String -> Maybe Exception
-      toExc short long tipe expected info workarounds =
+      toExc short long tipe actual expected info workarounds =
         Just { short=short
              , long=long
              , tipe=tipe
@@ -184,7 +184,7 @@ decodeNode =
             |> JSDP.required "short" JSD.string
             |> JSDP.required "long" JSD.string
             |> JSDP.required "tipe" JSD.string
-            -- |> JSDP.required "actual" JSD.string
+            |> JSDP.required "actual" JSD.string
             |> JSDP.required "expected" JSD.string
             |> JSDP.required "info" (JSD.dict JSD.string)
             |> JSDP.required "workarounds" (JSD.list JSD.string))

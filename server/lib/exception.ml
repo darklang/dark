@@ -5,15 +5,10 @@ type exception_info = (string * string) list [@@deriving show]
 let exception_info_to_yojson info =
   `Assoc (List.map ~f:(fun (k,v) -> (k, `String v)) info)
 
-(* making this json was probably a bad idea, but I haven't got a better one *)
-type exception_actual = Yojson.Safe.json
-let exception_actual_to_yojson actual = actual
-let pp_exception_actual _ actual = "TODO: some json"
-
 type exception_data = { short : string
                       ; long : string
                       ; tipe : string
-                      ; actual : exception_actual
+                      ; actual : string
                       ; expected : string
                       ; info : exception_info
                       ; workarounds : string list
@@ -27,7 +22,7 @@ let raise_ (tipe:string) ?(actual="") ?(expected="") ?(info=[]) ?(workarounds=[]
   raise (DarkException { short = short
                        ; long = long
                        ; tipe = tipe
-                       ; actual = `String "<incomplete>"
+                       ; actual = "<incomplete>"
                        ; expected = expected
                        ; info = info
                        ; workarounds = workarounds

@@ -204,15 +204,21 @@ nodeSize node =
 viewValue : Model -> Node -> Html.Html Msg
 viewValue m n =
   let width = nodeWidth n
-      xpad = max (width+50) (250) in
+      xpad = max (width+50) (250)
+      value = case n.liveValue.exc of
+                Nothing -> n.liveValue.json
+                Just exc -> toString exc
+  in
+
   placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
-  (Html.pre [Attrs.class "preview"]
-    [ n.liveValue.json
-      |> String.left 100
-      |> Util.replace "\n" ""
-      |> Util.replace "\\s+" " "
-      |> String.left 40
-      |> Html.text])
+  (Html.pre
+    [Attrs.class "preview", Attrs.title value]
+    [value
+     |> String.left 100
+     |> Util.replace "\n" ""
+     |> Util.replace "\\s+" " "
+     |> String.left 40
+     |> Html.text ])
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
