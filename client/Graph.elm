@@ -17,9 +17,6 @@ import Maybe.Extra as ME
 import Types exposing (..)
 import Util exposing (deMaybe)
 
-lvValue : LiveValue -> String
-lvValue (v, _, _) = v
-
 anonNodes : Model -> List Node
 anonNodes m =
   m.nodes

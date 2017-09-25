@@ -168,8 +168,10 @@ regenerate a =
   let lcq = String.toLower a.value
       -- fields of objects
       fields = case a.liveValue of
-                 Just (_, "Object", json) -> jsonFields json
-                 _ -> []
+                 Just lv -> if lv.tipe == "Object"
+                            then jsonFields lv.json
+                            else []
+                 Nothing -> []
 
       -- functions
       options =
@@ -180,7 +182,7 @@ regenerate a =
         |> List.filter
           (\fn ->
              case a.liveValue of
-               Just (_, tipe, _) -> Nothing /= findParamByType fn tipe
+               Just {tipe} -> Nothing /= findParamByType fn tipe
                Nothing -> True)
         |> List.map (\s -> ACFunction s)
         |> List.append fields

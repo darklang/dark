@@ -8,7 +8,6 @@ import Json.Decode as JSD
 
 -- lib
 import Json.Decode.Pipeline as JSDP
-import Tuple3
 
 -- dark
 import Types exposing (..)
@@ -130,8 +129,9 @@ decodeNode =
           , fields = fields
           , parameters = parameters
           , arguments = List.map toArg arguments
-          , liveValue = (liveValue, liveTipe, liveJson)
-                        |> Tuple3.mapAll deMaybe
+          , liveValue = { value = deMaybe liveValue
+                        , tipe = deMaybe liveTipe
+                        , json = deMaybe liveJson}
           , anonID = if anonID == -42 then Nothing else Just <| ID anonID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of

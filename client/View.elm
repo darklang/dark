@@ -207,8 +207,7 @@ viewValue m n =
       xpad = max (width+50) (250) in
   placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
   (Html.pre [Attrs.class "preview"]
-    [ n.liveValue
-      |> G.lvValue
+    [ n.liveValue.value
       |> String.left 100
       |> Util.replace "\n" ""
       |> Util.replace "\\s+" " "

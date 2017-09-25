@@ -14,7 +14,10 @@ type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
 type alias TypeName = Name
-type alias LiveValue = (String, TypeName, String)
+-- value as string, the type, value as json, error string
+type alias LiveValue = { value : String
+                       , tipe : String
+                       , json : String}
 
 type ID = ID Int
 deID : ID -> Int

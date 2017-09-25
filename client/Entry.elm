@@ -213,8 +213,7 @@ submit m cursor value =
                   -- Not a normal function, just return
                   RPC (f, focus)
                 Just fn ->
-                  let (_, tipe, _) = n.liveValue in
-                  case Autocomplete.findParamByType fn tipe of
+                  case Autocomplete.findParamByType fn n.liveValue.tipe of
                     Just p -> RPC ( f ++ [SetEdge source.id (id, p.name)]
                                    , focus)
                     Nothing -> RPC (f, focus)
