@@ -168,7 +168,7 @@ regenerate a =
   let lcq = String.toLower a.value
       -- fields of objects
       fields = case a.liveValue of
-                 Just lv -> if lv.tipe == "Object"
+                 Just lv -> if lv.tipe == "Obj"
                             then jsonFields lv.json
                             else []
                  Nothing -> []
