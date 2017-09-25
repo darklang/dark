@@ -209,7 +209,6 @@ viewValue m n =
                 Nothing -> n.liveValue.json
                 Just exc -> toString exc
   in
-
   placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
   (Html.pre
     [Attrs.class "preview", Attrs.title value]
