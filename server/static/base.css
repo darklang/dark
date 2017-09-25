@@ -153,14 +153,28 @@ Nodes
   width: 500px;
 }
 
-.unexpected  .preview{
+.preview pre {
+  white-space: pre;
+  margin-bottom: 0;
+}
+
+.preview .info {
   color: red;
+}
+
+.unexpected.preview {
+  color: red;
+}
+
+.explanation, .info {
+  color: white;
+  width: 500px;
+  white-space: pre;
 }
 
 .node .arg_none {
   color: red;
 }
-
 
 
 /********************

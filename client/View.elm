@@ -222,7 +222,7 @@ viewValue m n =
                     [Attrs.class "preview", Attrs.title n.liveValue.value]
                     [valueStr n.liveValue.value n.liveValue.tipe]
         Just exc -> Html.span
-                      [ Attrs.class "unexpected"
+                      [ Attrs.class "unexpected preview"
                       , Attrs.title
                           ( "Problem: " ++ exc.short
                           ++ "\n\nActual value: " ++ exc.actual
@@ -230,8 +230,14 @@ viewValue m n =
                           ++ "\n\nMore info: " ++ exc.long
                         ) ]
                       [ Html.pre
-                        [ Attrs.class "preview"]
-                        [ valueStr exc.actual exc.actualType ]])
+                        [ ]
+                        [ valueStr exc.actual exc.actualType ]
+                      , Html.span
+                          [Attrs.class "info" ]
+                          [Html.text "ⓘ "]
+                      , Html.span
+                          [Attrs.class "explanation" ]
+                          [Html.text exc.short ]])
 
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
