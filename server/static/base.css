@@ -163,12 +163,8 @@ Nodes
   color: red;
 }
 
-.unexpected.preview {
-  color: red;
-}
-
 .explanation, .info {
-  color: white;
+  color: #cccccc;
   width: 500px;
   white-space: pre;
 }
