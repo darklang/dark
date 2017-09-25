@@ -205,19 +205,25 @@ viewValue : Model -> Node -> Html.Html Msg
 viewValue m n =
   let width = nodeWidth n
       xpad = max (width+50) (250)
-      value = case n.liveValue.exc of
-                Nothing -> n.liveValue.json
-                Just exc -> toString exc
+      valueStr val tipe = tipe
+                          |> (++) (val ++ " :: ")
+                          |> String.left 120
+                          |> Util.replace "\n" ""
+                          |> Util.replace "\\s+" " "
+                          |> String.left 70
+                          |> Html.text
   in
   placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
-  (Html.pre
-    [Attrs.class "preview", Attrs.title value]
-    [value
-     |> String.left 100
-     |> Util.replace "\n" ""
-     |> Util.replace "\\s+" " "
-     |> String.left 40
-     |> Html.text ])
+      (case n.liveValue.exc of
+        Nothing -> Html.pre
+                    [Attrs.class "preview", Attrs.title n.liveValue.value]
+                    [valueStr n.liveValue.value n.liveValue.tipe]
+        Just exc -> Html.span
+                      [ Attrs.class "unexpected", Attrs.title exc.actual ]
+                      [ Html.pre
+                        [ Attrs.class "preview"]
+                        [ valueStr exc.actual exc.actualType ]])
+
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
