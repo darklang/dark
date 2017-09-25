@@ -188,7 +188,7 @@ regenerate a =
         |> List.append fields
         |> List.filter
            (\i -> i
-                  |> (\i -> if 1 <= String.length lcq
+                  |> (\i -> if 1 >= String.length lcq
                             then asName i
                             else asString i)
                   |> String.toLower
