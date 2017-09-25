@@ -204,13 +204,16 @@ nodeSize node =
 viewValue : Model -> Node -> Html.Html Msg
 viewValue m n =
   let width = nodeWidth n
-      xpad = max (width+50) (250)
-      valueStr val tipe = tipe
-                          |> (++) (val ++ " :: ")
+      xpad = max (width+50) 250
+      valueStr val tipe = val
                           |> String.left 120
                           |> Util.replace "\n" ""
+                          |> Util.replace "\r" ""
                           |> Util.replace "\\s+" " "
-                          |> String.left 70
+                          |> (\s -> if String.length s > 55
+                                    then (String.left 55 s) ++ "..."
+                                    else s)
+                          |> \v -> v ++ " :: " ++ tipe
                           |> Html.text
   in
   placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
@@ -219,7 +222,13 @@ viewValue m n =
                     [Attrs.class "preview", Attrs.title n.liveValue.value]
                     [valueStr n.liveValue.value n.liveValue.tipe]
         Just exc -> Html.span
-                      [ Attrs.class "unexpected", Attrs.title exc.actual ]
+                      [ Attrs.class "unexpected"
+                      , Attrs.title
+                          ( "Problem: " ++ exc.short
+                          ++ "\n\nActual value: " ++ exc.actual
+                          ++ "\n\nExpected: " ++ exc.expected
+                          ++ "\n\nMore info: " ++ exc.long
+                        ) ]
                       [ Html.pre
                         [ Attrs.class "preview"]
                         [ valueStr exc.actual exc.actualType ]])
