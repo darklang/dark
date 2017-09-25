@@ -20,7 +20,8 @@ type id_map = id IdMap.t
 type valuejson = { value: string
                  ; tipe: string [@key "type"]
                  ; json: string
-                 } [@@deriving yojson, show]
+                 ; exc: Exception.exception_data option
+                 } [@@deriving to_yojson, show]
 type nodejson = { name: string
                 ; id: id
                 ; tipe: string [@key "type"]
@@ -31,8 +32,8 @@ type nodejson = { name: string
                 ; arguments: argument list
                 ; anon_id: id option
                 ; arg_ids : id list
-                } [@@deriving yojson, show]
-type nodejsonlist = nodejson list [@@deriving yojson, show]
+                } [@@deriving to_yojson, show]
+type nodejsonlist = nodejson list [@@deriving to_yojson, show]
 
 (* ------------------------ *)
 (* graph defintion *)
@@ -73,13 +74,13 @@ class virtual node id loc =
       loc <- _loc
     method preview (gfns: node gfns_) (args: dval_map) : (dval list) list =
       Exception.internal "This node doesn't support preview"
-    method to_frontend (value, tipe, json) : nodejson =
+    method to_frontend (value, tipe, json, exc : string * string * string * Exception.exception_data option) : nodejson =
       { name = self#name
       ; id = id
       ; tipe = self#tipe
       ; x = loc.x
       ; y = loc.y
-      ; live = { value = value ; tipe = tipe; json = json }
+      ; live = { value = value ; tipe = tipe; json = json; exc=exc }
       ; parameters = self#parameters
       ; arguments = List.map
             ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name)
@@ -95,7 +96,7 @@ let equal_node (a:node) (b:node) =
   a#id = b#id
 
 let show_node (n:node) =
-  show_nodejson (n#to_frontend ("test", "test", "test"))
+  show_nodejson (n#to_frontend ("test", "test", "test", None))
 
 
 (* ------------------------- *)

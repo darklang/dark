@@ -208,16 +208,19 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-let node_value (n: Node.node) (g: graph) : (string * string * string) =
+let node_value (n: Node.node) (g: graph) : (string * string * string *
+Exception.exception_data option) =
   try
     let dv = Node.execute n#id (gfns g) in
     ( RT.to_repr dv
     , RT.get_type dv
-    , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string)
+    , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string
+    , None)
   with
-  | Exception.DarkException e -> ("use json value"
+  | Exception.DarkException e -> ( "use exc field"
                                  , "Error"
-                                 , Exception.to_yojson_string e)
+                                 , "intentionally invalid json"
+                                 , Some e)
 
 let to_frontend_nodes (g: graph) : Yojson.Safe.json =
   g.nodes

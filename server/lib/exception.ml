@@ -1,12 +1,24 @@
 open Core
+
+type exception_info = (string * string) list [@@deriving show]
+
+let exception_info_to_yojson info =
+  `Assoc (List.map ~f:(fun (k,v) -> (k, `String v)) info)
+
+(* making this json was probably a bad idea, but I haven't got a better one *)
+type exception_actual = Yojson.Safe.json
+let exception_actual_to_yojson actual = actual
+let pp_exception_actual _ actual = "TODO: some json"
+
 type exception_data = { short : string
                       ; long : string
                       ; tipe : string
-                      ; actual : Yojson.Safe.json
+                      ; actual : exception_actual
                       ; expected : string
-                      ; info : (string * string) list
+                      ; info : exception_info
                       ; workarounds : string list
-                      }
+                      } [@@deriving to_yojson, show]
+
 exception DarkException of exception_data
 
 
@@ -21,53 +33,8 @@ let raise_ (tipe:string) ?(actual="") ?(expected="") ?(info=[]) ?(workarounds=[]
                        ; workarounds = workarounds
                        })
 
-
-
 let internal = raise_ "Dark (server)"
 let client = raise_ "Dark (editor)"
 let user = raise_ "User"
 let api = raise_ "API error"
 
-type excjson = { short : string
-               ; long : string
-               ; tipe : string
-               ; actual : string
-               ; expected : string
-               ; workarounds : string list
-               } [@@deriving yojson]
-
-let exceptiondata_to_excjson (e: exception_data) =
-  { short = e.short
-  ; long = e.long
-  ; tipe = e.tipe
-  ; actual = Yojson.Safe.pretty_to_string e.actual
-  ; expected = e.expected
-  ; workarounds = e.workarounds
-  }
-
-
-
-
-let to_yojson_string (e: exception_data) : string =
-  let info = `Assoc (List.map ~f:(fun (k,v) -> (k,`String v)) e.info) in
-  let json = match e |> exceptiondata_to_excjson |> excjson_to_yojson with
-             | `Assoc l -> `Assoc (List.cons ("info", info) l)
-             | json -> json in
-  Yojson.Safe.pretty_to_string json
-
-(* let to_string (e: exception_data) = *)
-(*   e.tipe *)
-(*   ^ " error: " *)
-(*   ^ e.short *)
-(*   ^ " - Long version: " *)
-(*   ^ e.long *)
-(*   ^ " - Actual: " *)
-(*   ^ (Yojson.Safe.to_string e.actual) *)
-(*   ^ " - Expected: " *)
-(*   ^ e.expected *)
-(*   ^ " - extra info:" *)
-(*   ^ "{" ^ (e.info |> List.map ~f:(fun (name,value) -> name ^ ": " ^ value) *)
-(*                   |> String.concat ~sep:", ") ^ "}" *)
-(*   ^ " - possible workarounds: " *)
-(*   ^ (String.concat ~sep:", " e.workarounds) *)
-(*  *)

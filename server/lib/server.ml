@@ -96,7 +96,8 @@ let server =
          | e ->
            let backtrace = Exn.backtrace () in
            let body = match e with
-             | Exception.DarkException e -> Exception.to_yojson_string e
+             | Exception.DarkException e ->
+                 Exception.exception_data_to_yojson e |> Yojson.Safe.pretty_to_string
              | Yojson.Json_error msg -> "Not a value: " ^ msg
              | _ -> "Dark Internal Error: " ^ Exn.to_string e
            in
