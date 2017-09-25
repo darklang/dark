@@ -251,6 +251,7 @@ let error ?(actual=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(lo
     ; long = long
     ; tipe = "Runtime"
     ; actual = actual |> dval_to_yojson |> Yojson.Safe.pretty_to_string
+    ; actual_tipe  = actual |> get_type
     ; expected = expected
     ; info = info
     ; workarounds = workarounds

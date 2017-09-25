@@ -9,6 +9,7 @@ type exception_data = { short : string
                       ; long : string
                       ; tipe : string
                       ; actual : string
+                      ; actual_tipe : string
                       ; expected : string
                       ; info : exception_info
                       ; workarounds : string list
@@ -23,6 +24,7 @@ let raise_ (tipe:string) ?(actual="") ?(expected="") ?(info=[]) ?(workarounds=[]
                        ; long = long
                        ; tipe = tipe
                        ; actual = "<incomplete>"
+                       ; actual_tipe = "Incomplete"
                        ; expected = expected
                        ; info = info
                        ; workarounds = workarounds

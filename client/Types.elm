@@ -20,6 +20,7 @@ type alias Exception =
   , long : String
   , tipe : String
   , actual : String
+  , actualType : String
   , expected : String
   , info : Dict String String
   , workarounds : List String }
