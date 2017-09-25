@@ -11,7 +11,6 @@ import Json.Decode.Pipeline as JSDP
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
 
 
 rpc : Model -> Maybe ID -> List RPC -> Cmd Msg
@@ -96,18 +95,25 @@ encodeRPC m call =
 decodeNode : JSD.Decoder Node
 decodeNode =
   let toParameter: Name -> TypeName -> List String -> Bool -> String -> Parameter
-      toParameter name tipe anon_args optional description = { name = name
-                                                   , tipe = tipe
-                                                   , anon_args = anon_args
-                                                   , optional = optional
-                                                   , description = description}
+      toParameter name tipe anon_args optional description =
+        { name = name
+        , tipe = tipe
+        , anon_args = anon_args
+        , optional = optional
+        , description = description}
       toArg: List JSD.Value -> Argument
       toArg strs = case strs of
                      [name, val] -> case JSD.decodeValue JSD.string name of
                                       Result.Ok "AConst" ->
-                                        if (toString val) == "\"<incomplete>\"" then NoArg else Const (toString val)
+                                        if (toString val) == "\"<incomplete>\""
+                                        then NoArg
+                                        else Const (toString val)
                                       Result.Ok "AEdge" ->
-                                        val |> JSD.decodeValue JSD.int |> Result.withDefault (-1) |> ID |> Edge
+                                        val
+                                        |> JSD.decodeValue JSD.int
+                                        |> Result.withDefault (-1)
+                                        |> ID
+                                        |> Edge
                                       Result.Ok op ->
                                         Debug.crash <| "Unexpected: " ++ op
                                       Result.Err e ->
@@ -116,22 +122,19 @@ decodeNode =
 
 
       toNode : Name -> Int -> List(FieldName,TypeName) ->
-               List Parameter -> List (List JSD.Value) ->
-               Dict String String -> Int -> List Int ->
-               String -> Int -> Int ->
-               Node
-      toNode name id fields parameters arguments liveDict anonID argIDs tipe x y =
-        let liveValue = Dict.get "value" liveDict
-            liveTipe = Dict.get "type" liveDict
-            liveJson = Dict.get "json" liveDict in
+               List Parameter -> List (List JSD.Value) -> String ->
+               String -> String -> Maybe Exception -> Int -> List Int ->
+               String -> Int -> Int -> Node
+      toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe x y =
           { name = name
           , id = ID id
           , fields = fields
           , parameters = parameters
           , arguments = List.map toArg arguments
-          , liveValue = { value = deMaybe liveValue
-                        , tipe = deMaybe liveTipe
-                        , json = deMaybe liveJson}
+          , liveValue = { value = liveValue
+                        , tipe = liveTipe
+                        , json = liveJson
+                        , exc = liveExc}
           , anonID = if anonID == -42 then Nothing else Just <| ID anonID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of
@@ -145,6 +148,16 @@ decodeNode =
           , pos = {x=x, y=y}
           , visible = tipe /= "definition"
           }
+      toExc : String -> String -> String -> String ->
+              Dict String String -> List String -> Maybe Exception
+      toExc short long tipe expected info workarounds =
+        Just { short=short
+             , long=long
+             , tipe=tipe
+             , actual=""
+             , expected=expected
+             , info=info
+             , workarounds=workarounds }
 
 
   in JSDP.decode toNode
@@ -154,15 +167,28 @@ decodeNode =
                                  (JSD.map2 (,)
                                     (JSD.index 0 JSD.string)
                                     (JSD.index 1 JSD.string))) []
-    |> JSDP.required "parameters" (JSD.list
-                                     (JSDP.decode toParameter
-                                     |> JSDP.required "name" JSD.string
-                                     |> JSDP.required "tipe" JSD.string
-                                     |> JSDP.required "anon_args" (JSD.list JSD.string)
-                                     |> JSDP.required "optional" JSD.bool
-                                     |> JSDP.required "description" JSD.string))
+    |> JSDP.required "parameters"
+         (JSD.list
+            (JSDP.decode toParameter
+               |> JSDP.required "name" JSD.string
+               |> JSDP.required "tipe" JSD.string
+               |> JSDP.required "anon_args" (JSD.list JSD.string)
+               |> JSDP.required "optional" JSD.bool
+               |> JSDP.required "description" JSD.string))
     |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))
-    |> JSDP.required "live" (JSD.dict JSD.string)
+    |> JSDP.requiredAt ["live", "value"] JSD.string
+    |> JSDP.requiredAt ["live", "type"] JSD.string
+    |> JSDP.requiredAt ["live", "json"] JSD.string
+    |> JSDP.optionalAt ["live", "exc"]
+         (JSDP.decode toExc
+            |> JSDP.required "short" JSD.string
+            |> JSDP.required "long" JSD.string
+            |> JSDP.required "tipe" JSD.string
+            -- |> JSDP.required "actual" JSD.string
+            |> JSDP.required "expected" JSD.string
+            |> JSDP.required "info" (JSD.dict JSD.string)
+            |> JSDP.required "workarounds" (JSD.list JSD.string))
+            Nothing
     |> JSDP.optional "anon_id" JSD.int -42
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
