@@ -143,7 +143,7 @@ suite =
       |> (==) -1
       -- Filter by method signature for typed values
       , \_ -> (init completes)
-      |> forLiveValue {value="[]", tipe="List",json="[]"}
+      |> forLiveValue {value="[]", tipe="List",json="[]", exc=Nothing}
       |> query ""
       |> .completions
       |> List.map asName
@@ -151,7 +151,7 @@ suite =
       |> (==) (Set.fromList ["List::head"])
        -- Show allowed fields for objects
       , \_ -> (init completes)
-      |> forLiveValue {value="5", tipe="Integer", json="5"}
+      |> forLiveValue {value="5", tipe="Integer", json="5", exc=Nothing}
       |> query ""
       |> .completions
       |> List.map asName
