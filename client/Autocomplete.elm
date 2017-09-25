@@ -115,7 +115,7 @@ asTypeString item =
     ACFunction f -> f.parameters
                     |> List.map .tipe
                     |> String.join ", "
-                    |> (\s -> "(" ++ s ++ ") -> " ++ f.return_type)
+                    |> (\s -> "(" ++ s ++ ") ⟶  " ++ f.return_type)
     ACField _ -> ""
 
 asString : AutocompleteItem -> String
@@ -192,14 +192,13 @@ regenerate a =
                             then asName i
                             else asString i)
                   |> String.toLower
+                  |> Util.replace "⟶" "->"
                   |> String.contains lcq)
 
       completions =
         if not a.open
         then []
-        else case options of
-               [ i ] -> if asName i == a.value then [] else [ i ]
-               cs -> cs
+        else options
 
   in { a | completions = completions
          , index = if List.length completions == 0
