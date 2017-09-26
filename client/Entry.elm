@@ -161,100 +161,104 @@ submit m cursor value =
     Creating pos ->
       RPC <| addByName m id value pos
 
-    Filling n hole ->
+    Filling n (ParamHole target param _ as hole) ->
       let pos = holeCreatePos m hole in
-      case hole of
-        ParamHole target param _ ->
-          case String.uncons value of
+      case String.uncons value of
+        Nothing ->
+          if param.optional
+          then RPC ([SetConstant "null" (target.id, param.name)]
+                  , Just target.id)
+          else NoChange
+
+        Just ('$', letter) ->
+          case G.fromLetter m letter of
+            Just source ->
+              RPC ([ SetEdge source.id (target.id, param.name)]
+                   , Just target.id)
+            Nothing -> Error <| "No node named '" ++ letter ++ "'"
+
+        _ ->
+          if isValueRepr value
+          then RPC ([ SetConstant value (target.id, param.name)]
+                    , Just target.id)
+          else let (f, focus) = addFunction m id value pos in
+              RPC (f ++ [SetEdge id (target.id, param.name)], focus)
+
+    Filling n (ResultHole source as hole) ->
+      let pos = holeCreatePos m hole in
+      case String.uncons value of
+        Nothing -> NoChange
+
+        -- TODO: this should be an opcode
+        Just ('.', fieldname) ->
+          let (f, focus) = addFunction m id "." pos
+              name = "\"" ++ fieldname ++ "\"" in
+          RPC (f ++ [ SetEdge source.id (id, "value")
+                    , SetConstant name (id, "fieldname")]
+              , focus)
+
+        Just ('$', letter) ->
+          case G.fromLetter m letter of
             Nothing ->
-              if param.optional
-              then RPC ([SetConstant "null" (target.id, param.name)]
-                      , Just target.id)
-              else NoChange
+              Error <| "No node named '" ++ letter ++ "'"
+            Just target ->
+              -- TODO: use type
+              case G.findParam target of
+                Nothing -> Error "There are no argument slots available"
+                Just (_, (param, _)) ->
+                  RPC ([ SetEdge source.id (target.id, param.name)]
+                       , Just target.id)
 
-            Just ('$', letter) ->
-              case G.fromLetter m letter of
-                Just source -> RPC ([SetEdge source.id (target.id, param.name)], Just target.id)
-                Nothing -> Error <| "No node named '" ++ letter ++ "'"
+        _ ->
+          -- this is new functions only
+          -- lets allow 1 thing, integer only, for now
+          -- so we find the first parameter that isnt that parameter
 
-            _ ->
-              if isValueRepr value
-              then RPC ([SetConstant value (target.id, param.name)], Just target.id)
-              else let (f, focus) = addFunction m id value pos in
-                  RPC (f ++ [SetEdge id (target.id, param.name)], focus)
+          let (name, arg, extras) = case String.split " " value of
+                              (name :: arg :: es) -> (name, Just arg, es)
+                              [name] -> (name, Nothing, [])
+                              [] -> ("", Nothing, [])
+              (f, focus) = addByName m id name pos
+          in
+          case Autocomplete.findFunction m.complete name of
+            Nothing ->
+              -- Unexpected, let the server reply with an error
+              RPC (f, focus)
+            Just fn ->
+              -- tipedP: parameter to connect the previous node to
+              -- arg: the 2nd word in the autocmplete box
+              -- otherP: first argument that isn't tipedP
+              let tipedP = Autocomplete.findParamByType fn n.liveValue.tipe
+                  otherP = Autocomplete.findFirstParam fn tipedP
 
-        ResultHole source ->
-          case String.uncons value of
-            Nothing -> NoChange
+                  tipedEdges = case tipedP of
+                    Nothing -> []
+                    Just p -> [SetEdge source.id (id, p.name)]
 
-            -- TODO: this should be an opcode
-            Just ('.', fieldname) ->
-              let (f, focus) = addFunction m id "." pos in
-                  RPC (f
-                       ++ [ SetEdge source.id (id, "value")
-                          , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
-                      , focus)
-
-            Just ('$', letter) ->
-              case G.fromLetter m letter of
-                Nothing ->
-                  Error <| "No node named '" ++ letter ++ "'"
-                Just target ->
-                  -- TODO: use type
-                  case G.findParam target of
-                    Nothing -> Error "There are no argument slots available"
-                    Just (_, (param, _)) ->
-                      RPC ([SetEdge source.id (target.id, param.name)], Just target.id)
-
-            _ ->
-              -- this is new functions only
-              -- lets allow 1 thing, integer only, for now
-              -- so we find the first parameter that isnt that parameter
-
-              let (name, arg, extras) = case String.split " " value of
-                                  (name :: arg :: es) -> (name, Just arg, es)
-                                  [name] -> (name, Nothing, [])
-                                  [] -> ("", Nothing, [])
-
-                  (f, focus) = addByName m id name pos
+                  argEdges = case (arg, otherP) of
+                    (Nothing, _) -> Ok []
+                    (Just arg, Nothing) ->
+                        Err <| "No parameter exists for arg: " ++ arg
+                    (Just arg, Just p) ->
+                      if isValueRepr arg
+                      then Ok <| [SetConstant arg (id, p.name)]
+                      else
+                        case String.uncons arg of
+                          Just ('$', letter) ->
+                            case G.fromLetter m letter of
+                              Just lNode ->
+                                Ok <| [SetEdge lNode.id (id, p.name)]
+                              Nothing -> Err <| "No node named '"
+                                             ++ letter ++ "'"
+                          Just _ ->
+                            Err <| "We don't currently support arguments like `" ++ arg ++ "`"
+                          Nothing -> Ok [] -- empty string
               in
-              case Autocomplete.findFunction m.complete name of
-                Nothing ->
-                  -- Unexpected, let the server reply with an error
-                  RPC (f, focus)
-                Just fn ->
-                  -- tipedP: parameter to connect the previous node to
-                  -- arg: the 2nd word in the autocmplete box
-                  -- otherP: first argument that isn't tipedP
-                  let tipedP = Autocomplete.findParamByType fn n.liveValue.tipe
-                      otherP = Autocomplete.findFirstParam fn tipedP
-
-                      tipedEdges = case tipedP of
-                        Nothing -> []
-                        Just p -> [SetEdge source.id (id, p.name)]
-
-                      argEdges = case (arg, otherP) of
-                        (Nothing, _) -> Ok []
-                        (Just arg, Nothing) ->
-                            Err <| "No parameter exists for arg: " ++ arg
-                        (Just arg, Just p) ->
-                          if isValueRepr arg
-                          then Ok <| [SetConstant arg (id, p.name)]
-                          else
-                            case String.uncons arg of
-                              Just ('$', letter) ->
-                                case G.fromLetter m letter of
-                                  Just lNode ->
-                                    Ok <| [SetEdge lNode.id (id, p.name)]
-                                  Nothing -> Err <| "No node named '" ++ letter ++ "'"
-                              Just _ -> Err <| "We don't currently support arguments like `" ++ arg ++ "`"
-                              Nothing -> Ok [] -- empty string
-                  in
-                     if extras /= []
-                     then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
-                     else
-                       case argEdges of
-                         Ok edges -> RPC (f ++ tipedEdges ++ edges, focus)
-                         Err err -> Error err
+              if extras /= []
+              then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
+              else
+                case argEdges of
+                  Ok edges -> RPC (f ++ tipedEdges ++ edges, focus)
+                  Err err -> Error err
 
 
