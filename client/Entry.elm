@@ -200,20 +200,61 @@ submit m cursor value =
                 Nothing ->
                   Error <| "No node named '" ++ letter ++ "'"
                 Just target ->
+                  -- TODO: use type
                   case G.findParam target of
                     Nothing -> Error "There are no argument slots available"
                     Just (_, (param, _)) ->
                       RPC ([SetEdge source.id (target.id, param.name)], Just target.id)
 
             _ ->
-              let (f, focus) = addByName m id value pos
+              -- this is new functions only
+              -- lets allow 1 thing, integer only, for now
+              -- so we find the first parameter that isnt that parameter
+
+              let (name, arg, extras) = case String.split " " value of
+                                  (name :: arg :: es) -> (name, Just arg, es)
+                                  [name] -> (name, Nothing, [])
+                                  [] -> ("", Nothing, [])
+
+                  (f, focus) = addByName m id name pos
               in
-              case Autocomplete.findFunction (m.complete) value of
+              case Autocomplete.findFunction (m.complete) name of
                 Nothing ->
-                  -- Not a normal function, just return
+                  -- Unexpected, let the server reply with an error
                   RPC (f, focus)
                 Just fn ->
-                  case Autocomplete.findParamByType fn n.liveValue.tipe of
-                    Just p -> RPC ( f ++ [SetEdge source.id (id, p.name)]
-                                   , focus)
-                    Nothing -> RPC (f, focus)
+                  -- tipedP: parameter to connect the previous node to
+                  -- arg: the 2nd word in the autocmplete box
+                  -- otherP: first argument that isn't tipedP
+                  let tipedP = Autocomplete.findParamByType fn n.liveValue.tipe
+                      otherP = Autocomplete.findFirstParam fn tipedP
+
+                      tipedEdges = case tipedP of
+                        Nothing -> []
+                        Just p -> [SetEdge source.id (id, p.name)]
+
+                      argEdges = case (arg, otherP) of
+                        (Nothing, _) -> Ok []
+                        (Just arg, Nothing) ->
+                            Err <| "No parameter exists for arg: " ++ arg
+                        (Just arg, Just p) ->
+                          if isValueRepr arg
+                          then Ok <| [SetConstant arg (id, p.name)]
+                          else
+                            case String.uncons arg of
+                              Just ('$', letter) ->
+                                case G.fromLetter m letter of
+                                  Just source ->
+                                    Ok <| [SetEdge source.id (id, p.name)]
+                                  Nothing -> Err <| "No node named '" ++ letter ++ "'"
+                              Just _ -> Err <| "We don't currently support arguments like `" ++ arg ++ "`"
+                              Nothing -> Ok [] -- empty string
+                  in
+                     if extras /= []
+                     then Error <| "Too many arguments: `" ++ (String.join " " extras) ++ "`"
+                     else
+                       case argEdges of
+                         Ok edges -> RPC (f ++ tipedEdges ++ edges, focus)
+                         Err err -> Error err
+
+

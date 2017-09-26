@@ -228,6 +228,10 @@ findParamByType : Function -> TypeName -> Maybe Parameter
 findParamByType {parameters} tipe =
   LE.find (\p -> p.tipe == tipe || p.tipe == "Any") parameters
 
+findFirstParam : Function -> Maybe Parameter -> Maybe Parameter
+findFirstParam {parameters} except =
+  LE.find (\p -> Just p /= except) parameters
+
 findFunction : Autocomplete -> String -> Maybe Function
 findFunction a name =
   LE.find (\f -> f.name == name) a.functions
