@@ -24,11 +24,11 @@ nodeFromHole h = case h of
 holeDisplayPos : Model -> Hole -> Pos
 holeDisplayPos m hole =
   case hole of
-    ResultHole n -> holeCreatePos m hole
-    ParamHole n _ i -> {x=n.pos.x-350, y=n.pos.y-100}
+    ResultHole _ -> holeCreatePos m hole
+    ParamHole n _ _ -> {x=n.pos.x-350, y=n.pos.y-100}
 
 holeCreatePos : Model -> Hole -> Pos
-holeCreatePos m hole =
+holeCreatePos _ hole =
   case hole of
     ResultHole n -> {x=n.pos.x, y=n.pos.y+40}
     ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-40}
@@ -38,7 +38,7 @@ entryNodePos : EntryCursor -> Pos
 entryNodePos c =
   case c of
     Creating p -> p -- todo this is a vpos
-    Filling n h -> n.pos
+    Filling n _ -> n.pos
 
 
 ---------------------
@@ -57,14 +57,14 @@ reenter m id i =
         let enter = Enter <| Filling n (ParamHole n p i) in
         case a of
           Edge eid -> Many [ enter
-                          , AutocompleteMod (Query <| "$" ++ (G.toLetter m eid))]
+                          , AutocompleteMod (Query <| "$" ++ G.toLetter m eid)]
           NoArg -> enter
           Const c -> Many [ enter
                           , AutocompleteMod (Query c)]
 
 -- Enter this exact node
 enterExact : Model -> Node -> Modification
-enterExact m selected =
+enterExact _ selected =
   Filling selected (G.findHole selected)
   |> cursor2mod
 
@@ -119,7 +119,7 @@ isValueRepr name = String.toLower name == "null"
                    || String.startsWith "-" name && Util.rematch "-[0-9.].+" name
 
 addAnonParam : Model -> ID -> Pos -> ParamName -> List String -> (List RPC, Maybe ID)
-addAnonParam m id pos name anon_args =
+addAnonParam _ id pos name anon_args =
   let sid = gen_id ()
       argids = List.map (\_ -> gen_id ()) anon_args
       anon = AddAnon sid pos argids anon_args
@@ -218,7 +218,7 @@ submit m cursor value =
 
                   (f, focus) = addByName m id name pos
               in
-              case Autocomplete.findFunction (m.complete) name of
+              case Autocomplete.findFunction m.complete name of
                 Nothing ->
                   -- Unexpected, let the server reply with an error
                   RPC (f, focus)
@@ -244,14 +244,14 @@ submit m cursor value =
                             case String.uncons arg of
                               Just ('$', letter) ->
                                 case G.fromLetter m letter of
-                                  Just source ->
-                                    Ok <| [SetEdge source.id (id, p.name)]
+                                  Just lNode ->
+                                    Ok <| [SetEdge lNode.id (id, p.name)]
                                   Nothing -> Err <| "No node named '" ++ letter ++ "'"
                               Just _ -> Err <| "We don't currently support arguments like `" ++ arg ++ "`"
                               Nothing -> Ok [] -- empty string
                   in
                      if extras /= []
-                     then Error <| "Too many arguments: `" ++ (String.join " " extras) ++ "`"
+                     then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
                      else
                        case argEdges of
                          Ok edges -> RPC (f ++ tipedEdges ++ edges, focus)

@@ -68,7 +68,7 @@ selectDown a = let max_ = List.length a.completions
                  { a | index = new }
 
 selectUp : Autocomplete -> Autocomplete
-selectUp a = let max = (List.length a.completions) - 1 in
+selectUp a = let max = List.length a.completions - 1 in
              { a | index = if a.index <= 0
                            then max
                            else a.index - 1
@@ -82,7 +82,7 @@ sharedPrefix2 l r =
   case (String.uncons l, String.uncons r) of
     (Just (l1, lrest), Just (r1, rrest)) ->
       if l1 == r1 then
-        (String.fromChar l1) ++ (sharedPrefix2 lrest rrest)
+        String.fromChar l1 ++ sharedPrefix2 lrest rrest
       else
         ""
     _ -> ""

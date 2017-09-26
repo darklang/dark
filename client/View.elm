@@ -67,12 +67,6 @@ placeHtml m pos html =
     ]
     [ html ]
 
-viewClick : VPos -> Svg.Svg msg
-viewClick pos =
-  Svg.circle [ SA.r "10"
-             , SA.cx (toString pos.vx)
-             , SA.cy (toString pos.vy)
-             , SA.fill "#333"] []
 
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =

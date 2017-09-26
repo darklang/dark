@@ -30,7 +30,7 @@ orderedNodes m =
     |> List.filter (\n -> n.tipe /= FunctionDef)
     |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
     |> List.sortWith Ordering.natural
-    |> List.map (\(_,_,id) -> Dict.get id m.nodes |> deMaybe)
+    |> List.map (\(_,_,id) -> getNodeExn m (ID id))
 
 distance : Node -> Node -> Float
 distance n1 n2 =
@@ -62,7 +62,7 @@ getArgument pname n =
   case LE.find (\(p, _) -> p.name == pname) (args n) of
     Just (_, a) -> a
     Nothing ->
-      Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ (toString n)
+      Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ toString n
 
 args : Node -> List (Parameter, Argument)
 args n =
@@ -203,12 +203,12 @@ getAnonNodeOf m id =
   id
   |> getNodeExn m
   |> incomingNodePairs m
-  |> List.filter (\(n, p) -> n.tipe == FunctionDef)
+  |> List.filter (\(n, _) -> n.tipe == FunctionDef)
   |> List.head
   |> Maybe.map Tuple.first
 
 entireSubgraph : Model -> Node -> List Node
-entireSubgraph m n =
-  fold (\n list -> n :: list) [] n (connectedNodes m)
+entireSubgraph m start =
+  fold (\n list -> n :: list) [] start (connectedNodes m)
 
 
