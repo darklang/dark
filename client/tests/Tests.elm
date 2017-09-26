@@ -83,12 +83,13 @@ suite =
       |> .completions
       |> List.map asName
       |> (==) ["Twit::yetAnother"]
-      -- No results when the only option is the query
+      -- Show results when the only option is the query
       , \_ -> (init completes)
       |> query "List::head"
       |> .completions
       |> List.map asName
-      |> (==) []
+      |> List.length
+      |> (==) 1
       -- Scrolling down a bit works
       , \_ -> (init completes)
       |> query "Twit"
