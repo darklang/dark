@@ -67,80 +67,77 @@ placeHtml m pos html =
     ]
     [ html ]
 
-
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
-  let html pos =
-    let autocompleteList =
-          (List.indexedMap
-             (\i item ->
-                let highlighted = m.complete.index == i
-                    hlClass = if highlighted then " highlighted" else ""
-                    class = "autocomplete-item" ++ hlClass
-                    str = Autocomplete.asName item
-                    name = Html.span [] [Html.text str]
-                    types = Html.span
-                      [Attrs.class "types"]
-                      [Html.text <| Autocomplete.asTypeString item ]
-                in Html.li
-                  [ Attrs.class class ]
-                  [name, types])
-             m.complete.completions)
+  let autocompleteList =
+        (List.indexedMap
+           (\i item ->
+              let highlighted = m.complete.index == i
+                  hlClass = if highlighted then " highlighted" else ""
+                  class = "autocomplete-item" ++ hlClass
+                  str = Autocomplete.asName item
+                  name = Html.span [] [Html.text str]
+                  types = Html.span
+                    [Attrs.class "types"]
+                    [Html.text <| Autocomplete.asTypeString item ]
+              in Html.li
+                [ Attrs.class class ]
+                [name, types])
+           m.complete.completions)
 
-        autocompletions = case (m.state, m.complete.index) of
-                            (Entering (Filling _ (ParamHole _ _ _)), -1) ->
-                              [ Html.li
-                                [ Attrs.class "autocomplete-item greyed" ]
-                                [ Html.text "Press down to autocomplete…" ]
-                              ]
-                            _ -> autocompleteList
+      autocompletions = case (m.state, m.complete.index) of
+                          (Entering (Filling _ (ParamHole _ _ _)), -1) ->
+                            [ Html.li
+                              [ Attrs.class "autocomplete-item greyed" ]
+                              [ Html.text "Press down to autocomplete…" ]
+                            ]
+                          _ -> autocompleteList
 
 
-        autocomplete = Html.ul
-                       [ Attrs.id "autocomplete-holder" ]
-                       autocompletions
+      autocomplete = Html.ul
+                     [ Attrs.id "autocomplete-holder" ]
+                     autocompletions
 
-        -- two overlapping input boxes, one to provide suggestions, one
-        -- to provide the search
-        searchinput = Html.input [ Attrs.id Defaults.entryID
-                                 , Events.onInput EntryInputMsg
-                                 , Attrs.value m.complete.value
-                                 , Attrs.autocomplete False
-                                 ] []
-        prefix_ = Autocomplete.sharedPrefix m.complete
-        prefix = Autocomplete.joinPrefix m.complete.value prefix_
+      -- two overlapping input boxes, one to provide suggestions, one
+      -- to provide the search
+      searchinput = Html.input [ Attrs.id Defaults.entryID
+                               , Events.onInput EntryInputMsg
+                               , Attrs.value m.complete.value
+                               , Attrs.autocomplete False
+                               ] []
+      prefix_ = Autocomplete.sharedPrefix m.complete
+      prefix = Autocomplete.joinPrefix m.complete.value prefix_
 
-        suggestioninput = Html.input [ Attrs.id "suggestion"
-                                     , Attrs.disabled True
-                                     , Attrs.value prefix
-                                     ] []
+      suggestioninput = Html.input [ Attrs.id "suggestion"
+                                   , Attrs.disabled True
+                                   , Attrs.value prefix
+                                   ] []
 
-        input = Html.div
-                [Attrs.id "search-container"]
-                [searchinput, suggestioninput]
+      input = Html.div
+              [Attrs.id "search-container"]
+              [searchinput, suggestioninput]
 
-        viewForm = Html.form
-                   [ Events.onSubmit (EntrySubmitMsg) ]
-                   [ input, autocomplete ]
+      viewForm = Html.form
+                 [ Events.onSubmit (EntrySubmitMsg) ]
+                 [ input, autocomplete ]
 
-        paramInfo =
-          case m.state of
-            Entering (Filling _ (ParamHole _ param _)) ->
-              Html.div [] [ Html.text (param.name ++ " : " ++ param.tipe)
-                          , Html.br [] []
-                          , Html.text param.description
-                          ]
-            _ -> Html.div [] []
+      paramInfo =
+        case m.state of
+          Entering (Filling _ (ParamHole _ param _)) ->
+            Html.div [] [ Html.text (param.name ++ " : " ++ param.tipe)
+                        , Html.br [] []
+                        , Html.text param.description
+                        ]
+          _ -> Html.div [] []
 
-        -- outer node wrapper
-        classes = "selection function node entry"
+      -- outer node wrapper
+      classes = "selection function node entry"
 
-        wrapper = Html.div
-                  [ Attrs.class classes
-                  , Attrs.width 100]
-                  [ paramInfo, viewForm ]
-      in
-        placeHtml m pos wrapper
+      wrapper = Html.div
+                [ Attrs.class classes
+                , Attrs.width 100]
+                [ paramInfo, viewForm ]
+      html pos = placeHtml m pos wrapper
   in
     case m.state of
       Entering (Filling n h) ->
