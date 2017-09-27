@@ -103,7 +103,7 @@ createFindSpace m = Enter <| Creating (Viewport.toAbsolute m Defaults.initialPos
 ---------------------
 
 focusEntry : Cmd Msg
-focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusResult
+focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
 
 ---------------------

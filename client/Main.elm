@@ -206,7 +206,7 @@ update_ msg m =
     (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
 
-    (FocusResult _, _) ->
+    (FocusEntry _, _) ->
       NoChange
 
     (FocusAutocompleteItem _, _) ->

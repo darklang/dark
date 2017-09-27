@@ -92,7 +92,7 @@ type Msg
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
-    | FocusResult (Result Dom.Error ())
+    | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallBack (List RPC) (Maybe ID) (Result Http.Error NodeDict)
     | Initialization
