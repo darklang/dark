@@ -16,8 +16,8 @@ import Html.Events as Events
 -- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
-import Graph as G
 import Entry
+import Graph as G
 import Defaults
 import Viewport
 import Selection
@@ -141,7 +141,7 @@ viewEntry m =
   in
     case m.state of
       Entering (Filling n h) ->
-        let holePos = Entry.holeDisplayPos m h
+        let holePos = holeDisplayPos m h
             edgePos = { x = holePos.x + 10
                       , y = holePos.y + 10}
             nodePos = { x = n.pos.x + 10
@@ -192,11 +192,25 @@ nodeSize : Node -> (Int, Int)
 nodeSize node =
   (nodeWidth node, nodeHeight node)
 
+valueDisplayPos : Model -> Node -> Pos
+valueDisplayPos m n =
+  if (G.outgoingNodes m n |> List.isEmpty) && G.hasAnonParam m n.id
+  then Entry.holeCreatePos m (ResultHole n)
+  else
+    let xpad = max (nodeWidth n + 50) 250
+    in {x=n.pos.x+xpad, y=n.pos.y}
+
+holeDisplayPos : Model -> Hole -> Pos
+holeDisplayPos m hole =
+  case hole of
+    ResultHole _ -> Entry.holeCreatePos m hole
+    ParamHole n _ _ -> {x=n.pos.x-350, y=n.pos.y-100}
+
+
+
 viewValue : Model -> Node -> Html.Html Msg
 viewValue m n =
-  let width = nodeWidth n
-      xpad = max (width+50) 250
-      valueStr val tipe = val
+  let valueStr val tipe = val
                           |> String.left 120
                           |> Util.replace "\n" ""
                           |> Util.replace "\r" ""
@@ -207,7 +221,7 @@ viewValue m n =
                           |> \v -> v ++ " :: " ++ tipe
                           |> Html.text
   in
-  placeHtml m {x=n.pos.x+xpad, y=n.pos.y}
+  placeHtml m (valueDisplayPos m n)
       (case n.liveValue.exc of
         Nothing -> Html.pre
                     [Attrs.class "preview", Attrs.title n.liveValue.value]

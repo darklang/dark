@@ -207,6 +207,13 @@ getAnonNodeOf m id =
   |> List.head
   |> Maybe.map Tuple.first
 
+hasAnonParam : Model -> ID -> Bool
+hasAnonParam m id =
+  id
+  |> getNodeExn m
+  |> incomingNodePairs m
+  |> List.any (\(n, _) -> n.tipe == FunctionDef)
+
 entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
   fold (\n list -> n :: list) [] start (connectedNodes m)

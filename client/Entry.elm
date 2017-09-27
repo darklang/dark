@@ -21,12 +21,6 @@ nodeFromHole h = case h of
                    ResultHole n -> n
                    ParamHole n _ _ -> n
 
-holeDisplayPos : Model -> Hole -> Pos
-holeDisplayPos m hole =
-  case hole of
-    ResultHole _ -> holeCreatePos m hole
-    ParamHole n _ _ -> {x=n.pos.x-350, y=n.pos.y-100}
-
 holeCreatePos : Model -> Hole -> Pos
 holeCreatePos m hole =
   case hole of
