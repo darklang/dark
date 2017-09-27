@@ -203,7 +203,8 @@ valueDisplayPos m n =
 holeDisplayPos : Model -> Hole -> Pos
 holeDisplayPos m hole =
   case hole of
-    ResultHole _ -> Entry.holeCreatePos m hole
+    ResultHole _ -> let {x,y} = Entry.holeCreatePos m hole
+                    in {x=x, y=y + 50}
     ParamHole n _ _ -> {x=n.pos.x-350, y=n.pos.y-100}
 
 
