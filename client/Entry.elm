@@ -28,10 +28,17 @@ holeDisplayPos m hole =
     ParamHole n _ _ -> {x=n.pos.x-350, y=n.pos.y-100}
 
 holeCreatePos : Model -> Hole -> Pos
-holeCreatePos _ hole =
+holeCreatePos m hole =
   case hole of
-    ResultHole n -> {x=n.pos.x, y=n.pos.y+40}
     ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-40}
+    ResultHole n ->
+      let connected = G.entireSubgraph m n
+          lowest = connected
+                   |> List.map (\n -> n.pos.y)
+                   |> List.maximum
+                   |> Maybe.withDefault n.pos.y
+      in
+      {x=n.pos.x, y=lowest+40}
 
 
 entryNodePos : EntryCursor -> Pos
