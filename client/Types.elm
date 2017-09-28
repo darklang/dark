@@ -155,7 +155,7 @@ type Modification = Error String
                   | ModelMod (Model -> Model)
                   | NoChange
                   | AutocompleteMod AutocompleteMod
-                  | Phantom EntryCursor (List RPC)
+                  | Phantom
                   | Many (List Modification)
 
 -- name, type optional

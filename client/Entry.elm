@@ -94,7 +94,7 @@ cursor2mod cursor =
 
 updateValue : String -> Modification
 updateValue target =
-  AutocompleteMod <| Query target
+  Many [ AutocompleteMod <| Query target, Phantom ]
 
 createFindSpace : Model -> Modification
 createFindSpace m = Enter <| Creating (Viewport.toAbsolute m Defaults.initialPos)

@@ -3,6 +3,7 @@ port module Main exposing (..)
 
 -- builtins
 import Maybe
+import Dict
 
 -- lib
 import Json.Decode as JSD
@@ -67,7 +68,6 @@ update msg m =
             , lastMod = mods}
      , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
--- applied from left to right
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
   let (newm, newcmd) =
@@ -75,7 +75,13 @@ updateMod mod (m, cmd) =
       Error e -> { m | error = Just e} ! []
       ClearError -> { m | error = Nothing} ! []
       RPC (calls, id) -> m ! [rpc m id calls]
-      Phantom cursor calls -> m ! [phantomRpc m cursor calls]
+      Phantom ->
+        case m.state of
+          Entering cursor ->
+            case Entry.submit m cursor m.complete.value of
+              RPC (rpcs, _) -> m ! [phantomRpc m cursor rpcs]
+              _ -> m ! []
+          _ -> m ! []
       NoChange -> m ! []
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
@@ -92,6 +98,7 @@ updateMod mod (m, cmd) =
         in
           ({ m | complete = Autocomplete.update mod m.complete
            }, Autocomplete.focusItem complete.index)
+      -- applied from left to right
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
@@ -160,11 +167,7 @@ update_ msg m =
                 let sp = Autocomplete.sharedPrefix m.complete in
                 if sp == "" then NoChange
                 else
-                  Many [ AutocompleteMod <| Query sp
-                       , case Entry.submit m cursor m.complete.value of
-                           RPC (rpcs, _) -> Phantom cursor rpcs
-                           _ -> NoChange
-                       ]
+                  AutocompleteMod <| Query sp
               Key.Enter ->
                 let name = case Autocomplete.highlighted m.complete of
                              Just item -> Autocomplete.asName item
@@ -203,8 +206,7 @@ update_ msg m =
               ]
 
     (PhantomCallBack calls cursor (Ok (nodes)), _) ->
-      let m2 = { m | phantoms = nodes }
-      in ModelMod (\_ -> m2)
+      ModelMod (\_ -> { m | phantoms = nodes } )
 
 
 
@@ -219,7 +221,7 @@ update_ msg m =
       Error <| "Network error: is the server running?"
 
     (PhantomCallBack _ _ (Err (Http.BadStatus error)), _) ->
-      Error <| "Error: " ++ error.body
+      ModelMod (\_ -> { m | phantoms = Dict.empty } )
 
     (PhantomCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"

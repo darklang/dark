@@ -5,6 +5,7 @@ import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Char
+import Dict
 
 -- lib
 import Svg
@@ -221,12 +222,15 @@ viewValue m n =
                                     else s)
                           |> \v -> v ++ " :: " ++ tipe
                           |> Html.text
+      lv = case Dict.get (n.id |> deID) m.phantoms of
+        Nothing -> n.liveValue
+        Just pn -> pn.liveValue
   in
   placeHtml m (valueDisplayPos m n)
-      (case n.liveValue.exc of
+      (case lv.exc of
         Nothing -> Html.pre
-                    [Attrs.class "preview", Attrs.title n.liveValue.value]
-                    [valueStr n.liveValue.value n.liveValue.tipe]
+                    [Attrs.class "preview", Attrs.title lv.value]
+                    [valueStr lv.value lv.tipe]
         Just exc -> Html.span
                       [ Attrs.class "unexpected preview"
                       , Attrs.title

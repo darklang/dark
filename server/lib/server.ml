@@ -18,7 +18,7 @@ let server =
     (* let headers = req |> Request.headers |> Header.to_string in *)
     (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
-    let admin_rpc_handler body (domain: string) : string =
+    let admin_rpc_handler body (domain: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
       let body = Util.inspect "request body" body ~formatter:ident in
       let host = match String.split domain '.' with
@@ -29,7 +29,7 @@ let server =
       let g = G.load host in
       try
         Api.apply_ops g body;
-        G.save !g;
+        if save then G.save !g;
         let result = !g
                      |> Graph.to_frontend_string in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
@@ -74,7 +74,10 @@ let server =
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
              S.respond_string ~status:`OK
-                              ~body:(admin_rpc_handler req_body domain) ()
+                              ~body:(admin_rpc_handler req_body domain true) ()
+           | "/admin/api/phantom" ->
+             S.respond_string ~status:`OK
+                              ~body:(admin_rpc_handler req_body domain false) ()
            | "/sitemap.xml" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->
