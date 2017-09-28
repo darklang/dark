@@ -95,6 +95,7 @@ type Msg
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallBack (List RPC) (Maybe ID) (Result Http.Error NodeDict)
+    | PhantomCallBack (List RPC) EntryCursor (Result Http.Error NodeDict)
     | Initialization
 
 type RPC
@@ -124,6 +125,7 @@ type AutocompleteItem = ACFunction Function
 
 
 type alias Model = { nodes : NodeDict
+                   , phantoms : NodeDict
                    , center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
@@ -153,6 +155,7 @@ type Modification = Error String
                   | ModelMod (Model -> Model)
                   | NoChange
                   | AutocompleteMod AutocompleteMod
+                  | Phantom EntryCursor (List RPC)
                   | Many (List Modification)
 
 -- name, type optional

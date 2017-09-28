@@ -12,7 +12,7 @@ import Keyboard.Event
 import Keyboard.Key as Key
 
 -- dark
-import RPC exposing (rpc)
+import RPC exposing (rpc, phantomRpc)
 import Types exposing (..)
 import View
 import Defaults
@@ -46,7 +46,7 @@ init {state, complete} =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init complete}
   in
-    (m2, rpc m Nothing <| [LoadInitialGraph])
+    (m2, rpc m Nothing [LoadInitialGraph])
 
 
 -----------------------
@@ -75,6 +75,7 @@ updateMod mod (m, cmd) =
       Error e -> { m | error = Just e} ! []
       ClearError -> { m | error = Nothing} ! []
       RPC (calls, id) -> m ! [rpc m id calls]
+      Phantom cursor calls -> m ! [phantomRpc m cursor calls]
       NoChange -> m ! []
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
@@ -158,7 +159,12 @@ update_ msg m =
               Key.Right ->
                 let sp = Autocomplete.sharedPrefix m.complete in
                 if sp == "" then NoChange
-                else AutocompleteMod <| Query sp
+                else
+                  Many [ AutocompleteMod <| Query sp
+                       , case Entry.submit m cursor m.complete.value of
+                           RPC (rpcs, _) -> Phantom cursor rpcs
+                           _ -> NoChange
+                       ]
               Key.Enter ->
                 let name = case Autocomplete.highlighted m.complete of
                              Just item -> Autocomplete.asName item
@@ -196,6 +202,12 @@ update_ msg m =
                   Nothing -> NoChange
               ]
 
+    (PhantomCallBack calls cursor (Ok (nodes)), _) ->
+      let m2 = { m | phantoms = nodes }
+      in ModelMod (\_ -> m2)
+
+
+
 
     ------------------------
     -- plumbing
@@ -205,6 +217,13 @@ update_ msg m =
 
     (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
+
+    (PhantomCallBack _ _ (Err (Http.BadStatus error)), _) ->
+      Error <| "Error: " ++ error.body
+
+    (PhantomCallBack _ _ (Err (Http.NetworkError)), _) ->
+      Error <| "Network error: is the server running?"
+
 
     (FocusEntry _, _) ->
       NoChange

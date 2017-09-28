@@ -1,4 +1,4 @@
-module RPC exposing (rpc)
+module RPC exposing (rpc, phantomRpc)
 
 -- builtin
 import Dict exposing (Dict)
@@ -13,11 +13,21 @@ import Json.Decode.Pipeline as JSDP
 import Types exposing (..)
 
 
+phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
+phantomRpc m cursor calls =
+  let payload = encodeRPCs m calls
+      json = Http.jsonBody payload
+      url = "/admin/api/phantom"
+      request = Http.post url json decodeGraph
+  in Http.send (PhantomCallBack calls cursor) request
+
+
 rpc : Model -> Maybe ID -> List RPC -> Cmd Msg
 rpc m id calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
-      request = Http.post "/admin/api/rpc" json decodeGraph
+      url = "/admin/api/rpc"
+      request = Http.post url json decodeGraph
   in Http.send (RPCCallBack calls id) request
 
 
