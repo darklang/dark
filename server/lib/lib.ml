@@ -9,8 +9,8 @@ let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   ; description = d
   }
 
-let func ?(d:string = "") args : param =
-  par "f" TFun ~args ~d
+let func ?(d:string = "") ?(name:string="f") args : param =
+  par name TFun ~args ~d
 
 
 (* Shorthand *)

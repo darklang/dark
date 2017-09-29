@@ -280,6 +280,23 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "_"
+  ; o = []
+  ; p = [par "ignore" TAny; par "value" TAny]
+  ; r = TAny
+  ; d = "Ignores the first param and returns the 2nd."
+  ; f = InProcess
+        (function
+          | [_; value] -> value
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
+
   (* ====================================== *)
   (* String *)
   (* ====================================== *)
@@ -511,6 +528,24 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "List::range"
+  ; o = []
+  ; p = [par "start" TInt; par "stop" TInt]
+  ; r = TList
+  ; d = "Return a list of increasing integers from `start` to `stop`, inclusive"
+  ; f = InProcess
+        (function
+          | [DInt start; DInt stop] -> DList (List.range start (stop+1)
+                                              |> List.map ~f:(fun i -> DInt i))
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
+
   { n = "List::fold"
   ; o = []
   ; p = [par "l" TList; par "init" TAny; func ["new"; "old"]]
@@ -604,7 +639,7 @@ let fns : Lib.shortfn list = [
   those calls"
   ; f = InProcess
         (function
-          | [DList l; DAnon (id, fn)] ->
+          | [DList l; DAnon (_, fn)] ->
             let f (dv: dval) : dval = fn [dv]
             in
             DList (List.map ~f l)
@@ -613,6 +648,26 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
+
+
+  { n = "if"
+  ; o = []
+  ; p = [par "v" TAny; par "cond" TBool; func ~name:"ftrue" ["then"]; func ~name:"ffalse" ["else"]]
+  ; r = TAny
+  ; d = "If cond is true, calls the `then` function. Otherwise calls the `else`
+  function. Both functions get 'v' piped into them"
+  ; f = InProcess
+        (function
+          | [v; DBool cond; DAnon (_, fntrue); DAnon (_, fnfalse)] ->
+              if cond then fntrue [v] else fnfalse [v]
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
 
 
   (* ====================================== *)
