@@ -124,6 +124,9 @@ let get_type (dv : dval) : string =
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"
 
+let inspect = Util.inspect ~formatter:to_repr
+let inspecT = Util.inspecT ~formatter:to_repr
+
 (* ------------------------- *)
 (* JSON *)
 (* ------------------------- *)
@@ -165,6 +168,10 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
 
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string
+
+let dvalmap_to_string (m:dval_map) : string =
+  DObj m |> dval_to_yojson |> Yojson.Safe.to_string
+
 
 (* ------------------------- *)
 (* Parsing *)
@@ -264,10 +271,14 @@ exception TypeError of dval list
 let exe (fn: fn) (args: dval_map) : dval =
   try
     match fn.func with
-    | InProcess f -> fn.parameters
+    | InProcess f ->
+        let debug = true in
+        Util.inspecT ~show:debug ("calling " ^ fn.name ^ " with " ^ (dvalmap_to_string args)) "";
+        let result = fn.parameters
                      |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
                      |> f
+        in inspect ~show:debug ("returning from " ^ fn.name) result
     | API f -> f args
   with
   | TypeError args ->

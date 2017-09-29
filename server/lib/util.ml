@@ -43,20 +43,22 @@ let writefile f str : unit =
 let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
-let inspecT ?(formatter=Batteries.dump) ?(start=0) ?(stop=0) (msg : string) (x : 'a) : unit =
-  let red = "\x1b[6;31m" in
-  let reset = "\x1b[0m" in
-  let prefix = red ^ "inspect: " ^ msg ^ ": " ^ reset in
-  x
-  |> formatter
-  |> (fun s ->
-  let last = String.length s in
-    String.slice s (min start last) (min stop last))
-  |> (^) prefix
-  |> print_endline
+let inspecT ?(formatter=Batteries.dump) ?(start=0) ?(stop=0) ?(show:bool=true) (msg : string) (x : 'a) : unit =
+  if show
+  then
+    let red = "\x1b[6;31m" in
+    let reset = "\x1b[0m" in
+    let prefix = red ^ "inspect: " ^ msg ^ ": " ^ reset in
+    x
+    |> formatter
+    |> (fun s ->
+    let last = String.length s in
+      String.slice s (min start last) (min stop last))
+    |> (^) prefix
+    |> print_endline
 
-let inspect ?(formatter=Batteries.dump) ?(start=0) ?(stop=0) (msg : string) (x : 'a) : 'a =
-  inspecT msg ~formatter ~start ~stop x;
+let inspect ?(formatter=Batteries.dump) ?(start=0) ?(stop=0) ?(show:bool=true) (msg : string) (x : 'a) : 'a =
+  inspecT msg ~show ~formatter ~start ~stop x;
   x
 
 let tS (msg : string) (x : 'a) : unit =
