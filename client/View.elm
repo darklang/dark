@@ -51,7 +51,7 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let visible = List.filter .visible (G.orderedNodes m)
         nodes = List.indexedMap (\i n -> viewNode m n i) visible
-        values = visible |> List.map (viewValue m)
+        values = visible |> List.map (viewValue m) |> List.concat
         edges = visible |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} [SA.strokeWidth "1px", SA.stroke "#777"]
@@ -210,7 +210,7 @@ holeDisplayPos m hole =
 
 
 
-viewValue : Model -> Node -> Html.Html Msg
+viewValue : Model -> Node -> List (Html.Html Msg)
 viewValue m n =
   let valueStr val tipe = val
                           |> String.left 120
@@ -228,8 +228,15 @@ viewValue m n =
       lv = n.liveValue
       isPhantom = lv /= n.liveValue
       class = if isPhantom then "phantom" else "preview"
+      newPos = valueDisplayPos m n
+      displayedBelow = newPos.y /= n.pos.y
+      edge =
+        if displayedBelow
+        then [svgLine m {x=n.pos.x + 10, y=n.pos.y+10} {x=newPos.x+10,y=newPos.y+10} edgeStyle]
+        else []
   in
-  placeHtml m (valueDisplayPos m n)
+  edge ++
+  [placeHtml m newPos
       (case lv.exc of
         Nothing -> Html.pre
                     [Attrs.class class, Attrs.title lv.value]
@@ -250,7 +257,7 @@ viewValue m n =
                           [Html.text "ⓘ "]
                       , Html.span
                           [Attrs.class "explanation" ]
-                          [Html.text exc.short ]])
+                          [Html.text exc.short ]])]
 
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
