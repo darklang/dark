@@ -43,7 +43,7 @@ int2letter : Int -> String
 int2letter i = 'a' |> Char.toCode |> (+) i |> Char.fromCode |> String.fromChar
 
 letter2int : String -> Int
-letter2int s = s |> String.uncons |> deMaybe |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
+letter2int s = s |> String.uncons |> Maybe.withDefault ('!', "") |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
 
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
