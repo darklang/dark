@@ -98,22 +98,23 @@ viewEntry m =
 
       -- two overlapping input boxes, one to provide suggestions, one
       -- to provide the search
-      searchinput = Html.input [ Attrs.id Defaults.entryID
+      searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
                                , Attrs.value m.complete.value
                                , Attrs.autocomplete False
                                ] []
       prefix_ = Autocomplete.sharedPrefix m.complete
-      prefix = Autocomplete.joinPrefix m.complete.value prefix_
+      suggestion =
+        Autocomplete.overlaySuggestionWithActual m.complete.value prefix_
 
-      suggestioninput = Html.input [ Attrs.id "suggestion"
+      suggestionInput = Html.input [ Attrs.id "suggestion"
                                    , Attrs.disabled True
-                                   , Attrs.value prefix
+                                   , Attrs.value suggestion
                                    ] []
 
       input = Html.div
               [Attrs.id "search-container"]
-              [searchinput, suggestioninput]
+              [searchInput, suggestionInput]
 
       viewForm = Html.form
                  [ Events.onSubmit (EntrySubmitMsg) ]

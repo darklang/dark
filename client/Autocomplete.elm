@@ -96,10 +96,10 @@ sharedPrefixList strs =
 sharedPrefix : Autocomplete -> String
 sharedPrefix a = sharedPrefixList (List.map asName a.completions)
 
-joinPrefix : String -> String -> String
-joinPrefix actual extension =
+overlaySuggestionWithActual : String -> String -> String
+overlaySuggestionWithActual actual suggestion =
   let len = String.length actual
-      suffix = String.dropLeft len extension
+      suffix = String.dropLeft len suggestion
   in
     actual ++ suffix
 
