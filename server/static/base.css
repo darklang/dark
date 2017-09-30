@@ -193,8 +193,8 @@ Node Header
 }
 
 /* Put it in the top right */
-body .elm-overlay .elm-mini-controls {
-  top: 0;
-  bottom: auto;
-  right: 0px;
-}
+/* body .elm-overlay .elm-mini-controls { */
+/*   top: 0; */
+/*   bottom: auto; */
+/*   right: 0px; */
+/* } */
