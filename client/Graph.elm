@@ -199,9 +199,11 @@ outgoingNodes m parent =
     |> Dict.values
     |> List.filterMap (\child ->
                          child
-                      |> incomingNodes m
+                      |> incomingNodePairs m
+                      |> List.map Tuple.first
                       |> LE.find ((==) parent)
                       |> Maybe.map (always child))
+    |> List.append (getFirstArgOf m parent.id |> ME.toList)
 
 incomingNodePairs : Model -> Node -> List (Node, ParamName)
 incomingNodePairs m n = List.filterMap
@@ -212,16 +214,14 @@ incomingNodePairs m n = List.filterMap
                     (Util.zip n.parameters n.arguments)
 
 incomingNodes : Model -> Node -> List Node
-incomingNodes m n = incomingNodePairs m n |> List.map Tuple.first
+incomingNodes m n =
+  incomingNodePairs m n
+  |> List.map Tuple.first
+  |> List.append (getCallerOf m n.id |> ME.toList)
 
 connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
-  let caller = getCallerOf m n.id
-      arg = getFirstArgOf m n.id
-      candidates = ME.toList caller
-                   ++ ME.toList arg
-                   ++ incomingNodes m n
-                   ++ outgoingNodes m n
+  let candidates = incomingNodes m n ++ outgoingNodes m n
   in
      List.filter .visible candidates
 
