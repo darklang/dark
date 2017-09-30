@@ -21,7 +21,8 @@ let fns : fnmap =
     List.fold_left ~f:(fun m1 n -> FnMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in
   List.fold_left ~f:add_fn ~init:FnMap.empty
-    (List.concat [Stdlib.fns; Libtwitter.fns; Libdb.fns])
+    (* (List.concat [Stdlib.fns; Libtwitter.fns; Libdb.fns]) *)
+    (List.concat [Stdlib.fns; Libdb.fns])
 
 (* Give access to other modules *)
 let get_fn (name : string) : fn option =
