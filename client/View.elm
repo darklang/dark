@@ -1,11 +1,8 @@
 module View exposing (view)
 
 -- builtin
-import Set
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Char
--- import Dict
 
 -- lib
 import Svg
@@ -153,52 +150,12 @@ viewEntry m =
       _ -> []
 
 
-nodeWidth : Node -> Int
-nodeWidth n =
-  let
-    space = 3.5
-    fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
-    fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
-    len name = name
-             |> String.toList
-             |> List.map (\c -> if c == ' '
-                                then 3.5
-                                else if Set.member c fours
-                                     then 4.0
-                                     else if Set.member c fives
-                                          then 5.0
-                                          else 8.0)
-             |> List.sum
-    paramLen = G.args n
-                |> List.map (\(p, a) ->
-                  case a of
-                    Const c -> if c == "null" then 8 else (len c)
-                    _ -> 14)
-                |> List.sum
-    -- nameMultiple = case n.tipe of
-    --                  Datastore -> 2
-    --                  Page -> 2.2
-    --                  _ -> 1
-    width = 6.0 + len n.name + paramLen + (G.args n |> List.length |> toFloat |> (+) 1.0 |> (*) space)
-  in
-    round(width)
-
-nodeHeight : Node -> Int
-nodeHeight n =
-  case n.tipe of
-    Datastore -> Defaults.nodeHeight * ( 1 + (List.length n.fields))
-    _ -> Defaults.nodeHeight
-
-nodeSize : Node -> (Int, Int)
-nodeSize node =
-  (nodeWidth node, nodeHeight node)
-
 valueDisplayPos : Model -> Node -> Pos
 valueDisplayPos m n =
   if (G.outgoingNodes m n |> List.isEmpty) && G.hasAnonParam m n.id
   then Entry.holeCreatePos m (ResultHole n)
   else
-    let xpad = max (nodeWidth n + 50) 250
+    let xpad = max (G.nodeWidth n + 50) 250
     in {x=n.pos.x+xpad, y=n.pos.y}
 
 holeDisplayPos : Model -> Hole -> Pos
@@ -313,7 +270,7 @@ viewNormalNode m n i =
     placeNode
       m
       n
-      (nodeWidth n)
+      (G.nodeWidth n)
       []
       []
       header
@@ -348,8 +305,8 @@ viewNodeEdges m n =
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
 viewEdge m source target param =
     let targetPos = target.pos
-        (sourceW, sourceH) = nodeSize source
-        (targetW, targetH) = nodeSize target
+        (sourceW, sourceH) = G.nodeSize source
+        (targetW, targetH) = G.nodeSize target
         spos = { x = source.pos.x + 10
                , y = source.pos.y + (sourceH // 2)}
         tpos = { x = target.pos.x + 10

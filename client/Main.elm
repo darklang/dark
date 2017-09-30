@@ -197,11 +197,12 @@ update_ msg m =
 
     (RPCCallBack calls mId (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-      in Many [ ModelMod (\_ -> m2)
+          m3 = { m2| nodes = G.reposition m2 nodes }
+      in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod Reset
               , ClearError
               , case mId of
-                  Just id -> Entry.enterExact m2 (G.getNodeExn m2 id)
+                  Just id -> Entry.enterExact m3 (G.getNodeExn m3 id)
                   Nothing -> NoChange
               ]
 

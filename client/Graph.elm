@@ -15,7 +15,50 @@ import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
+import Defaults
 import Util exposing (deMaybe)
+
+nodeWidth : Node -> Int
+nodeWidth n =
+  let
+    space = 3.5
+    fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
+    fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
+    len name = name
+             |> String.toList
+             |> List.map (\c -> if c == ' '
+                                then 3.5
+                                else if Set.member c fours
+                                     then 4.0
+                                     else if Set.member c fives
+                                          then 5.0
+                                          else 8.0)
+             |> List.sum
+    paramLen = args n
+                |> List.map (\(p, a) ->
+                  case a of
+                    Const c -> if c == "null" then 8 else (len c)
+                    _ -> 14)
+                |> List.sum
+    -- nameMultiple = case n.tipe of
+    --                  Datastore -> 2
+    --                  Page -> 2.2
+    --                  _ -> 1
+    width = 6.0 + len n.name + paramLen + (args n |> List.length |> toFloat |> (+) 1.0 |> (*) space)
+  in
+    round(width)
+
+nodeHeight : Node -> Int
+nodeHeight n =
+  case n.tipe of
+    Datastore -> Defaults.nodeHeight * ( 1 + (List.length n.fields))
+    _ -> Defaults.nodeHeight
+
+nodeSize : Node -> (Int, Int)
+nodeSize node =
+  (nodeWidth node, nodeHeight node)
+
+
 
 anonNodes : Model -> List Node
 anonNodes m =
@@ -218,4 +261,34 @@ entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
   fold (\n list -> n :: list) [] start (connectedNodes m)
 
+reposition : Model -> NodeDict -> NodeDict
+reposition m nodes =
+  let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values nodes)
+      rePosed = List.map (\r -> repositionChildren m r r.pos) roots |> List.concat
+  in
+     List.foldl (\(node, pos) dict ->
+                   Dict.update
+                     (node.id |> deID)
+                     (Maybe.map (\n -> { n | pos=pos}))
+                     dict)
+                nodes
+                rePosed
+
+
+repositionChildren : Model -> Node -> Pos -> List (Node, Pos)
+repositionChildren m root pos =
+  let children = outgoingNodes m root
+      rePos n prevWidth =
+        (prevWidth + nodeWidth n, (n, {x=prevWidth, y=pos.y+40}))
+      (_, repositioned) = List.foldr
+                            (\n (width, list) ->
+                               let (w, new) = rePos n width
+                               in (w, new :: list))
+                            (pos.x, [])
+                            children
+  in
+     repositioned
+     |> List.map (\(n, pos) -> repositionChildren m n pos)
+     |> List.concat
+     |> (++) repositioned
 
