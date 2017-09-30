@@ -119,7 +119,7 @@ isValueRepr name = String.toLower name == "null"
                    || Util.rematch "^[\"\'[01-9{].*" name
                    || String.startsWith "-" name && Util.rematch "-[0-9.].+" name
 
-addAnonParam : Model -> ID -> Pos -> ParamName -> List String -> (List RPC, Maybe ID)
+addAnonParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Maybe ID)
 addAnonParam _ id pos name anon_args =
   let sid = gen_id ()
       argids = List.map (\_ -> gen_id ()) anon_args
@@ -129,7 +129,7 @@ addAnonParam _ id pos name anon_args =
     ([anon, edge], List.head argids)
 
 
-addFunction : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
+addFunction : Model -> ID -> Name -> MPos -> (List RPC, Maybe ID)
 addFunction m id name pos =
   let fn = Autocomplete.findFunction m.complete name in
   case fn of
@@ -147,7 +147,7 @@ addFunction m id name pos =
       in
         (AddFunctionCall id name pos :: List.concat anons, cursor)
 
-addByName : Model -> ID -> Name -> Pos -> (List RPC, Maybe ID)
+addByName : Model -> ID -> Name -> MPos -> (List RPC, Maybe ID)
 addByName m id name pos =
   if isValueRepr name
   then ([AddValue id name pos], Just id)
@@ -160,10 +160,10 @@ submit m cursor value =
   let id = gen_id () in
   case cursor of
     Creating pos ->
-      RPC <| addByName m id value pos
+      RPC <| addByName m id value (Just pos)
 
     Filling n (ParamHole target param _ as hole) ->
-      let pos = holeCreatePos m hole in
+      let pos = Just <| holeCreatePos m hole in
       case String.uncons value of
         Nothing ->
           if param.optional
@@ -186,7 +186,7 @@ submit m cursor value =
               RPC (f ++ [SetEdge id (target.id, param.name)], focus)
 
     Filling n (ResultHole source as hole) ->
-      let pos = holeCreatePos m hole in
+      let pos = Just <| holeCreatePos m hole in
       case String.uncons value of
         Nothing -> NoChange
 

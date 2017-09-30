@@ -41,8 +41,11 @@ encodeRPCs m calls =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let jsePos {x,y} = ("pos", JSE.object [ ("x", JSE.int x)
-                                        , ("y", JSE.int y)])
+  let jsePos pos =
+        case pos of
+          Nothing -> []
+          Just {x,y} -> [("pos", JSE.object [ ("x", JSE.int x)
+                                            , ("y", JSE.int y)])]
       jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
@@ -51,10 +54,10 @@ encodeRPC m call =
 
       AddDatastore id name pos ->
         ("add_datastore"
-        , JSE.object [ jseId id
-                     , jsePos pos
-                     , ("name", JSE.string name)
-                     ])
+        , JSE.object <| jsePos pos
+                     ++ [ jseId id
+                        , ("name", JSE.string name)
+                        ])
 
       AddDatastoreField id name tipe ->
         ("add_datastore_field",
@@ -64,17 +67,17 @@ encodeRPC m call =
 
       AddFunctionCall id name pos ->
         ("add_function_call",
-           JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
+           JSE.object <| jsePos pos ++ [ jseId id, ("name", JSE.string name)])
 
       AddAnon id pos args argnames ->
-        ("add_anon", JSE.object [ jseId id
-                                , jsePos pos
-                                , ("args", JSE.list (List.map (JSE.int << deID) args))
-                                , ("argnames", JSE.list (List.map (JSE.string) argnames))])
+        ("add_anon", JSE.object <| jsePos pos
+                                ++ [ jseId id
+                                   , ("args", JSE.list (List.map (JSE.int << deID) args))
+                                   , ("argnames", JSE.list (List.map (JSE.string) argnames))])
 
       AddValue id str pos ->
         ("add_value",
-           JSE.object [ jseId id, jsePos pos, ("value", JSE.string str)] )
+           JSE.object <| jsePos pos ++ [jseId id , ("value", JSE.string str)] )
 
       SetConstant value (ID target, param) ->
         ("set_constant",
@@ -205,18 +208,16 @@ decodeNode =
     |> JSDP.optional "anon_id" JSD.int -42
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
-    |> JSDP.required "x" JSD.int
-    |> JSDP.required "y" JSD.int
+    |> JSDP.optionalAt ["pos", "x"] JSD.int -42
+    |> JSDP.optionalAt ["pos", "y"] JSD.int -42
 
 
 decodeGraph : JSD.Decoder (NodeDict)
 decodeGraph =
   let toGraph : List Node -> (NodeDict)
       toGraph nodes =
-        let nodedict = List.foldl
-                    (\v d -> Dict.insert (v.id |> deID) v d)
-                    Dict.empty
-                    nodes
-        in (nodedict)
+        nodes
+        |> List.map (\n -> (n.id |> deID, n))
+        |> Dict.fromList
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeNode)

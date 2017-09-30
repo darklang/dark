@@ -39,6 +39,7 @@ deID (ID x) = x
 -- within the viewport and we map Absolute positions back to the
 -- viewport to display in the browser.
 type alias Pos = {x: Int, y: Int }
+type alias MPos = Maybe Pos
 type alias VPos =  {vx: Int, vy: Int }
 type alias Position = Mouse.Position
 
@@ -100,11 +101,11 @@ type Msg
 
 type RPC
     = LoadInitialGraph
-    | AddDatastore ID Name Pos
+    | AddDatastore ID Name MPos
     | AddDatastoreField ID FieldName TypeName
-    | AddFunctionCall ID Name Pos
-    | AddAnon ID Pos (List ID) (List String)
-    | AddValue ID String Pos
+    | AddFunctionCall ID Name MPos
+    | AddAnon ID MPos (List ID) (List String)
+    | AddValue ID String MPos
     | SetConstant Name (ID, ParamName)
     | SetEdge ID (ID, ParamName)
     | DeleteNode ID
