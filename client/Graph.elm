@@ -278,13 +278,14 @@ reposition m nodes =
 repositionChildren : Model -> Node -> Pos -> List (Node, Pos)
 repositionChildren m root pos =
   let children = outgoingNodes m root
+      startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
       rePos n prevWidth =
         (prevWidth + nodeWidth n, (n, {x=prevWidth, y=pos.y+40}))
       (_, repositioned) = List.foldr
                             (\n (width, list) ->
                                let (w, new) = rePos n width
-                               in (w, new :: list))
-                            (pos.x, [])
+                               in (w+20, new :: list))
+                            (startingX, [])
                             children
   in
      repositioned
