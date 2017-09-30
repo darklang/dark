@@ -163,7 +163,6 @@ submit m cursor value =
       RPC <| addByName m id value (Just pos)
 
     Filling n (ParamHole target param _ as hole) ->
-      let pos = Just <| holeCreatePos m hole in
       case String.uncons value of
         Nothing ->
           if param.optional
@@ -182,17 +181,16 @@ submit m cursor value =
           if isValueRepr value
           then RPC ([ SetConstant value (target.id, param.name)]
                     , Just target.id)
-          else let (f, focus) = addFunction m id value pos in
+          else let (f, focus) = addFunction m id value Nothing in
               RPC (f ++ [SetEdge id (target.id, param.name)], focus)
 
     Filling n (ResultHole source as hole) ->
-      let pos = Just <| holeCreatePos m hole in
       case String.uncons value of
         Nothing -> NoChange
 
         -- TODO: this should be an opcode
         Just ('.', fieldname) ->
-          let (f, focus) = addFunction m id "." pos
+          let (f, focus) = addFunction m id "." Nothing
               name = "\"" ++ fieldname ++ "\"" in
           RPC (f ++ [ SetEdge source.id (id, "value")
                     , SetConstant name (id, "fieldname")]
@@ -219,7 +217,7 @@ submit m cursor value =
                               (name :: arg :: es) -> (name, Just arg, es)
                               [name] -> (name, Nothing, [])
                               [] -> ("", Nothing, [])
-              (f, focus) = addByName m id name pos
+              (f, focus) = addByName m id name Nothing
           in
           case Autocomplete.findFunction m.complete name of
             Nothing ->
