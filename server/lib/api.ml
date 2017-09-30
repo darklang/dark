@@ -5,7 +5,7 @@ open Op
 module G = Graph
 
 (* Opcodes as sent via the API. We do this to get type checking *)
-type pos = Types.loc [@@deriving yojson]
+type pos = Types.pos [@@deriving yojson]
 
 (* ---------------- *)
 (* opcodes *)

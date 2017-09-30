@@ -25,8 +25,7 @@ type valuejson = { value: string
 type nodejson = { name: string
                 ; id: id
                 ; tipe: string [@key "type"]
-                ; x: int
-                ; y: int
+                ; pos : pos
                 ; live: valuejson
                 ; parameters: param list
                 ; arguments: argument list
@@ -41,18 +40,18 @@ type nodejsonlist = nodejson list [@@deriving to_yojson, show]
 
 type 'a gfns_ = { getf : (id -> 'a)
                 ; get_children : (id -> 'a list)
-                ; get_deepest : (id -> 'a list)
+                ; get_deepest : (id -> (int * 'a) list)
                 }
 
-class virtual node id loc =
+class virtual node id pos =
   object (self)
     val id : id = id
-    val mutable loc : loc = loc
+    val mutable pos : pos = pos
     method virtual name : string
     method virtual tipe : string
     method virtual execute : node gfns_ -> RT.execute_t
     method id = id
-    method loc = loc
+    method pos = pos
     method is_page = false
     method is_datasink = false
     method is_datasource = false
@@ -70,16 +69,15 @@ class virtual node id loc =
     method dependent_nodes (_:node gfns_) : id list = []
     method anon_id = None
     method arg_ids = []
-    method update_loc _loc : unit =
-      loc <- _loc
+    method update_pos _pos : unit =
+      pos <- _pos
     method preview (gfns: node gfns_) (args: dval_map) : (dval list) list =
       Exception.internal "This node doesn't support preview"
     method to_frontend (value, tipe, json, exc : string * string * string * Exception.exception_data option) : nodejson =
       { name = self#name
       ; id = id
       ; tipe = self#tipe
-      ; x = loc.x
-      ; y = loc.y
+      ; pos = pos
       ; live = { value = value ; tipe = tipe; json = json; exc=exc }
       ; parameters = self#parameters
       ; arguments = List.map
@@ -131,18 +129,18 @@ let rec preview (id: id) (g: gfns) : dval list list =
 (* ------------------ *)
 (* Nodes that appear in the graph *)
 (* ------------------ *)
-class value id loc strrep =
+class value id pos strrep =
   object
-    inherit node id loc
+    inherit node id pos
     val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
     method execute _ _ = expr
   end
 
-class virtual has_arguments id loc =
+class virtual has_arguments id pos =
   object (self)
-    inherit node id loc
+    inherit node id pos
     val mutable args : arg_map = RT.ArgMap.empty
     (* Invariant: args should always be the same size as the parameter
        list *)
@@ -163,9 +161,9 @@ class virtual has_arguments id loc =
 module MemoCache = String.Map
 type memo_cache = dval MemoCache.t
 
-class func (id : id) loc (name : string) =
+class func (id : id) pos (name : string) =
   object (self)
-    inherit has_arguments id loc
+    inherit has_arguments id pos
 
     val mutable memo : memo_cache = MemoCache.empty
     (* Throw an exception if it doesn't exist *)
@@ -212,9 +210,9 @@ class func (id : id) loc (name : string) =
       else "function"
   end
 
-class datastore id loc table =
+class datastore id pos table =
   object
-    inherit node id loc
+    inherit node id pos
     val table : string = table
     method execute _ (_ : dval_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
@@ -245,9 +243,9 @@ let anonexecutor (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
      execute rid ~eager g
   )
 
-class argnode id loc name index nid argids =
+class argnode id pos name index nid argids =
   object
-    inherit node id loc
+    inherit node id pos
     method! dependent_nodes _ = [nid]
     method name = name
     method tipe = "arg"
@@ -262,9 +260,9 @@ class argnode id loc name index nid argids =
     method! arg_ids = argids
   end
 
-class anonfn id loc argids =
+class anonfn id pos argids =
   object
-    inherit node id loc
+    inherit node id pos
     method dependent_nodes (g: gfns) =
       List.append argids (g.get_children id |> List.map ~f:(fun n -> n#id))
     method name = "<anonfn>"
@@ -273,10 +271,9 @@ class anonfn id loc argids =
       |> List.map ~f:(g.get_deepest)
       |> List.concat
       (* The ordering is intensional here. Sort first on largest y, then smallest x *)
-      |> List.sort ~cmp:(fun (n1:node) (n2:node) -> if n1#loc.y = n2#loc.y
-                                                    then compare n2#loc.x n1#loc.x
-                                                    else compare n1#loc.y n2#loc.y)
-      |> List.hd_exn in
+      |> List.sort ~cmp:(fun ((d1, n1):int*node) ((d2, n2):int*node) -> compare d1 d2)
+      |> List.hd_exn
+      |> Tuple.T2.get2 in
       DAnon (id, anonexecutor return#id argids g)
     method tipe = "definition"
     method! parameters = []

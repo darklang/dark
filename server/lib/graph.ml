@@ -48,12 +48,12 @@ let get_children (g: graph) (id: id) : Node.node list =
      |> List.is_empty
      |> not)
 
-let rec get_deepest (g: graph) (id: id) : Node.node list =
+let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list =
   let cs = get_children g id in
   if cs = []
-  then [get_node g id]
+  then [depth+1, get_node g id]
   else cs
-       |> List.map ~f:(fun n -> get_deepest g n#id)
+       |> List.map ~f:(fun n -> get_deepest ~depth:(depth+1) g n#id)
        |> List.concat
 
 
@@ -78,8 +78,8 @@ let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : gra
     (function Some node -> f node
             | None -> Exception.client "can't update missing node")
 
-let update_node_position (id: id) (loc: loc) (g: graph) : graph =
-  update_node id g ~f:(fun n -> n#update_loc loc; Some n)
+let update_node_position (id: id) (pos: pos) (g: graph) : graph =
+  update_node id g ~f:(fun n -> n#update_pos pos; Some n)
 
 let set_arg (a: RT.argument) (t: id) (param: string) (g: graph) : graph =
   update_node t g
@@ -141,29 +141,28 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
   g :=
     !g |>
     match op with
-    | Add_fn_call (id, loc, name) ->
-      add_node (new Node.func id loc name)
-    | Add_datastore (id, loc, table) ->
-      add_node (new Node.datastore id loc table)
-    | Add_value (id, loc, expr) ->
-      add_node (new Node.value id loc expr)
-    | Add_anon (nid, loc, argids, anon_names) ->
-      let newx = loc.x + 30 in
+    | Add_fn_call (id, pos, name) ->
+      add_node (new Node.func id pos name)
+    | Add_datastore (id, pos, table) ->
+      add_node (new Node.datastore id pos table)
+    | Add_value (id, pos, expr) ->
+      add_node (new Node.value id pos expr)
+    | Add_anon (nid, pos, argids, anon_names) ->
       (fun g ->
          argids
          |> List.zip_exn anon_names
          |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
                           argid
-                          { x=newx + (i * 60); y=loc.y + 40 }
+                          None
                           argname
                           i
                           nid
                           argids)
          |> List.append [ new Node.anonfn nid
-                          { x=newx; y=loc.y }
+                          None
                           argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
-    | Update_node_position (id, loc) -> update_node_position id loc
+    | Update_node_position (id, pos) -> update_node_position id pos
     | Set_constant (target, param, value) ->
       set_const target param value
     | Set_edge (src, target, param) -> set_edge src target param

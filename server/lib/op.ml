@@ -8,14 +8,14 @@ type json = Yojson.Safe.json
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-type op = Add_fn_call of id * loc * string
-        | Add_datastore of id * loc * string
-        | Add_value of id * loc * string
-        (* id, loc, args, argnames *)
-        | Add_anon of id * loc * id list * string list
+type op = Add_fn_call of id * pos * string
+        | Add_datastore of id * pos * string
+        | Add_value of id * pos * string
+        (* id, pos, args, argnames *)
+        | Add_anon of id * pos * id list * string list
         (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
-        | Update_node_position of id * loc
+        | Update_node_position of id * pos
         | Delete_node of id
         | Set_constant of id * string * string
         | Set_edge of id * id * string

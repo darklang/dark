@@ -9,7 +9,7 @@ let check_dval = Alcotest.testable RT.pp_dval RT.equal_dval
 let check_graph = Alcotest.testable G.pp_graph G.equal_graph
 
 let t_param_order () =
-  let node = new Node.func 1 {x=1; y=1} "-" in
+  let node = new Node.func 1 None "-" in
   Alcotest.check check_dval
     "param_order"
     (node#execute
@@ -20,8 +20,6 @@ let t_param_order () =
        (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
                                 ; ("b", RT.DInt 1)]))
     (RT.DInt 0)
-
-let fl : loc = {x=0; y=0}
 
 let fid () = Util.create_id ()
 
@@ -36,9 +34,9 @@ let execute_ops (ops : Op.op list) (result : Op.op) =
 
 let t_graph_param_order () =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
-  let add = Op.Add_fn_call (fid (), fl, "-") in
-  let v1 = Op.Add_value (fid (), fl, "5") in
-  let v2 = Op.Add_value (fid (), fl, "3") in
+  let add = Op.Add_fn_call (fid (), None, "-") in
+  let v1 = Op.Add_value (fid (), None, "5") in
+  let v2 = Op.Add_value (fid (), None, "3") in
   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r1 = execute_ops [add; v1; v2; e1; e2] add in
@@ -51,8 +49,8 @@ let t_fns_with_edges () =
   let str = string_of_int in
   let v1id = fid () in
   let v2id = fid () in
-  let v1 = Op.Add_value (v1id, fl, "5") in
-  let v2 = Op.Add_value (v2id, fl, "3") in
+  let v1 = Op.Add_value (v1id, None, "5") in
+  let v2 = Op.Add_value (v2id, None, "3") in
   (* Build this as a string and run it through end-to-end *)
   let p1str = "{receiving_edge: {source: " ^ str v1id ^ "}}" in
   let p2str = "{receiving_edge: {source: " ^ str v2id ^ "}}" in
@@ -68,9 +66,9 @@ let t_fns_with_edges () =
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  let add = Op.Add_fn_call (fid (), fl, "Int::add") in
-  let v1 = Op.Add_value (fid (), fl, "5") in
-  let v2 = Op.Add_value (fid (), fl, "3") in
+  let add = Op.Add_fn_call (fid (), None, "Int::add") in
+  let v1 = Op.Add_value (fid (), None, "5") in
+  let v2 = Op.Add_value (fid (), None, "3") in
   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r = execute_ops [add; v1; v2; e2; e1] add in
@@ -78,8 +76,8 @@ let t_int_add_works () =
 
 let t_node_deletion _ =
   (* check the argument gets deleted too *)
-  let n1 = Op.Add_fn_call (fid (), fl, "-") in
-  let n2 = Op.Add_value (fid (), fl, "5") in
+  let n1 = Op.Add_fn_call (fid (), None, "-") in
+  let n2 = Op.Add_value (fid (), None, "5") in
   let e1 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let d1 = Op.Delete_node (Op.id_of n2) in
   let g = graph_from_ops "graph" [n1; n2; e1; d1] in
@@ -96,10 +94,10 @@ let t_node_deletion _ =
 
 
 let t_load_save _ =
-  let n1 = Op.Add_fn_call (fid (), fl, "-") in
-  let n2 = Op.Add_value (fid (), fl, "5") in
-  let n3 = Op.Add_value (fid (), fl, "3") in
-  let n4 = Op.Add_anon (fid (), fl, [], []) in
+  let n1 = Op.Add_fn_call (fid (), None, "-") in
+  let n2 = Op.Add_value (fid (), None, "5") in
+  let n3 = Op.Add_value (fid (), None, "3") in
+  let n4 = Op.Add_anon (fid (), None, [], []) in
   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
@@ -112,12 +110,12 @@ let t_load_save _ =
   Alcotest.check check_graph "graph_load_save_2" !g !g2
 
 let t_lambda_with_foreach () =
-  let v = Op.Add_value (fid (), fl, "\"some string\"") in
-  let fe = Op.Add_fn_call (fid (), fl, "String::foreach") in
-  let upper = Op.Add_fn_call (fid (), fl, "Char::toUppercase") in
+  let v = Op.Add_value (fid (), None, "\"some string\"") in
+  let fe = Op.Add_fn_call (fid (), None, "String::foreach") in
+  let upper = Op.Add_fn_call (fid (), None, "Char::toUppercase") in
   let anon_id = fid () in
   let anon_arg = fid () in
-  let anon = Op.Add_anon (anon_id, fl, [anon_arg], ["item"]) in
+  let anon = Op.Add_anon (anon_id, None, [anon_arg], ["item"]) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
   let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
   let e3 = Op.Set_edge (anon_arg, Op.id_of upper, "c") in
