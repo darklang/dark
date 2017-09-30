@@ -93,6 +93,7 @@ sharedPrefixList strs =
     Nothing -> ""
     Just s -> List.foldl sharedPrefix2 s strs
 
+-- Find the shared prefix of all the possible suggestions (eg "List::")
 sharedPrefix : Autocomplete -> String
 sharedPrefix a = sharedPrefixList (List.map asName a.completions)
 
