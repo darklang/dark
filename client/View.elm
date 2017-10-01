@@ -109,6 +109,7 @@ viewEntry m =
                                , Events.onInput EntryInputMsg
                                , Attrs.style [("text-indent", w ++ "px")]
                                , Attrs.value search
+                               , Attrs.spellcheck False
                                , Attrs.autocomplete False
                                ] []
       suggestionInput = Html.input [ Attrs.id "suggestion"
