@@ -43,51 +43,6 @@ let writefile f str : unit =
 let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
-let inspecT ?(formatter=Batteries.dump)
-            ?(start=0)
-            ?(stop=0)
-            ?(show:bool=true)
-            ?(indent=0)
-            (msg : string)
-            (x : 'a)
-            : unit =
-  if show
-  then
-    let red = "\x1b[6;31m" in
-    let reset = "\x1b[0m" in
-    let indentStr = String.make indent '>' in
-    let prefix = red ^ "inspect: " ^ indentStr ^ msg ^ ": " ^ reset in
-    x
-    |> formatter
-    |> (fun s ->
-    let last = String.length s in
-      String.slice s (min start last) (min stop last))
-    |> (^) prefix
-    |> print_endline
-
-let inspect ?(formatter=Batteries.dump)
-            ?(start=0)
-            ?(stop=0)
-            ?(show:bool=true)
-            ?(indent=0)
-            (msg : string)
-            (x : 'a)
-            : 'a =
-  inspecT ~formatter ~start ~stop ~show ~indent msg x;
-  x
-
-let tS (msg : string) (x : 'a) : unit =
-  let time = Float.mod_float (1000.0 *. Unix.gettimeofday ()) 10000.0 in
-  let ts = string_of_float time in
-  let red = "\x1b[6;31m" in
-  let reset = "\x1b[0m" in
-  red ^ "ts: " ^ msg ^ " (" ^ ts ^ "): " ^ reset ^ (Batteries.dump x)
-  |> print_endline
-
-let ts (msg : string) (x : 'a) : 'a =
-  tS msg x;
-  x
-
 let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_first (String.Search_pattern.create search) ~in_:str ~with_:replace
 

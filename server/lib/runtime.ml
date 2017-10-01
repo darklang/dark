@@ -124,8 +124,8 @@ let get_type (dv : dval) : string =
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"
 
-let inspect = Util.inspect ~formatter:to_repr
-let inspecT = Util.inspecT ~formatter:to_repr
+let pp = Log.pp ~f:to_repr
+let pP = Log.pP ~f:to_repr
 
 (* ------------------------- *)
 (* JSON *)
@@ -272,7 +272,7 @@ let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") 
 
 exception TypeError of dval list
 
-let exe ?(indent=0) (fn: fn) (args: dval_map) : dval =
+let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
   match fn.func with
   | InProcess f ->
       let arglist = fn.parameters
@@ -282,7 +282,7 @@ let exe ?(indent=0) (fn: fn) (args: dval_map) : dval =
         f arglist
        with
        | TypeError _ ->
-           Util.inspecT ~indent "exception caught" args ~formatter:dvalmap_to_string;
+           Log.pP ~ind "exception caught" args ~f:dvalmap_to_string;
            let range = List.range 0 (List.length arglist) in
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
            let invalid = List.filter_map all

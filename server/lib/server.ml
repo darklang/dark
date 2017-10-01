@@ -20,7 +20,7 @@ let server =
 
     let admin_rpc_handler body (domain: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
-      let body = Util.inspect "request body" body ~formatter:ident in
+      let body = Log.pp "request body" body ~f:ident in
       let host = match String.split domain '.' with
       | ["localhost"] -> "localhost"
       | [a; "localhost"] -> a
@@ -33,9 +33,7 @@ let server =
         let result = !g
                      |> Graph.to_frontend_string in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
-        Util.inspect ("response (" ^ total ^ "ms):")
-        ~stop:1000
-        ~formatter:ident
+        Log.pp  ~stop:1000 ~f:ident ("response (" ^ total ^ "ms):")
         result
 
 

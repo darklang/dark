@@ -49,7 +49,7 @@ class virtual node id pos =
     val mutable pos : pos = pos
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : ?indent:int -> node gfns_ -> RT.execute_t
+    method virtual execute : ?ind:int -> node gfns_ -> RT.execute_t
     method id = id
     method debug_name : string = "(" ^ string_of_int id ^ ") " ^ self#name
     method pos = pos
@@ -107,22 +107,22 @@ let debug_id (g:gfns) (id:id) =
 module ValCache = Int.Map
 type valcache = dval ValCache.t
 
-let rec execute ?(indent:int=0) (id: id) ?(eager: valcache=ValCache.empty) (g: gfns) : dval =
+let rec execute ?(ind:int=0) (id: id) ?(eager: valcache=ValCache.empty) (g: gfns) : dval =
   match ValCache.find eager id with
   | Some v -> v
   | None ->
     let n = g.getf id in
-    Util.inspecT ~indent "Execute" n#debug_name;
+    Log.pP ~ind "Execute" n#debug_name;
     n#arguments
     |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
         match arg with
         | RT.AConst dv -> dv
-        | RT.AEdge id -> execute ~indent:(indent+1) id ~eager g)
-    |> n#execute ~indent:(indent+1) g
+        | RT.AEdge id -> execute ~ind:(ind+1) id ~eager g)
+    |> n#execute ~ind:(ind+1) g
 
 let rec preview (id: id) (g: gfns) : dval list list =
   let n = g.getf id in
-  Util.inspecT "previewing" n#debug_name;
+  Log.pP "previewing" n#debug_name;
   n#arguments
   |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
       match arg with
@@ -141,8 +141,8 @@ class value id pos strrep =
     val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute ?(indent=0) _ _ =
-      Util.inspecT "execute expr" self#debug_name;
+    method execute ?(ind=0) _ _ =
+      Log.pP "execute expr" self#debug_name;
       expr
   end
 
@@ -189,32 +189,32 @@ class func (id : id) pos (name : string) =
                                  | _ -> None)
     method! parameters : param list = self#fn.parameters
     method name = self#fn.name
-    method execute ?(indent=0) (g: gfns) (args: dval_map) : dval =
-      Util.inspecT ~indent "exe function" self#debug_name;
-      Util.inspecT ~indent "w/ args" ~formatter:RT.dvalmap_to_string args;
+    method execute ?(ind=0) (g: gfns) (args: dval_map) : dval =
+      Log.pP ~ind "exe function" self#debug_name;
+      Log.pP ~ind "w/ args" ~f:RT.dvalmap_to_string args;
       if not self#fn.pure
       then
-        let result = RT.exe ~indent self#fn args in
-        RT.inspect ~indent ("r: " ^ self#debug_name) result
+        let result = RT.exe ~ind self#fn args in
+        RT.pp ~ind ("r: " ^ self#debug_name) result
       else
         if DvalMap.exists args ~f:(fun x -> x = DIncomplete)
         then
-          let result = RT.exe ~indent self#fn args in
-          RT.inspect ~indent ("r: " ^ self#debug_name) result
+          let result = RT.exe ~ind self#fn args in
+          RT.pp ~ind ("r: " ^ self#debug_name) result
         else
           let com = RT.to_comparable_repr args in
           match MemoCache.find memo com with
-            | None -> let x = RT.exe ~indent self#fn args in
+            | None -> let x = RT.exe ~ind self#fn args in
                       memo <- MemoCache.add memo com x;
-                      RT.inspecT ~indent ("r: " ^ self#debug_name) x;
+                      RT.pP ~ind ("r: " ^ self#debug_name) x;
                       x
             | Some v ->
-                RT.inspecT ~indent ("r (cached):" ^ self#debug_name) v;
+                RT.pP ~ind ("r (cached):" ^ self#debug_name) v;
                 v
 
      (* Get a value to use as the preview for anonfns used by this node *)
     method! preview (g: gfns) (args: dval_map) : dval list list =
-      Util.inspecT "previewing function" name;
+      Log.pP "previewing function" name;
       match self#fn.preview with
       (* if there's no value, no point previewing 5 *)
       | None -> Util.list_repeat (List.length self#fn.parameters) [RT.DIncomplete]
@@ -233,7 +233,7 @@ class datastore id pos table =
   object
     inherit node id pos
     val table : string = table
-    method execute ?(indent=0) _ (_ : dval_map) : dval = DStr "todo datastore execute"
+    method execute ?(ind=0) _ (_ : dval_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
@@ -256,16 +256,16 @@ class datastore id pos table =
    TODO: `preview` is sorta confused. I'm unclear what it does.
    *)
 
-let anonexecutor ?(indent=0) (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
-   Util.inspecT ~indent ("get anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
-   Util.inspecT ~indent "with params: " (List.map ~f:(debug_id g) argids);
+let anonexecutor ?(ind=0) (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
+   Log.pP ~ind ("get anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+   Log.pP ~ind "with params: " (List.map ~f:(debug_id g) argids);
   (fun (args : dval list) ->
-     Util.inspecT ~indent ("exe anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
-     Util.inspecT ~indent "with params: " (List.map ~f:(debug_id g) argids);
-     Util.inspecT ~indent "with args: " ~formatter:RT.dvallist_to_string args;
+     Log.pP ~ind ("exe anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+     Log.pP ~ind "with params: " (List.map ~f:(debug_id g) argids);
+     Log.pP ~ind "with args: " ~f:RT.dvallist_to_string args;
      let eager = List.zip_exn argids args |> ValCache.of_alist_exn in
-     let result = execute ~indent rid ~eager g in
-     RT.inspect ~indent ("r anonexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result;
+     let result = execute ~ind rid ~eager g in
+     RT.pp ~ind ("r anonexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
   )
 
 class argnode id pos name index nid argids =
@@ -274,8 +274,8 @@ class argnode id pos name index nid argids =
     method! dependent_nodes _ = [nid]
     method name = name
     method tipe = "arg"
-    method execute ?(indent=0) (g: gfns) args : dval =
-      Util.inspecT ~indent ("argnode" ^ self#debug_name ^ " called with ") ~formatter:RT.dvalmap_to_string args;
+    method execute ?(ind=0) (g: gfns) args : dval =
+      Log.pP ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
       (* This arg gets its preview value from the preview of the node being
        * passed the anon *)
       match g.get_children nid with
@@ -292,7 +292,7 @@ class anonfn id pos argids =
     method dependent_nodes (g: gfns) =
       List.append argids (g.get_children id |> List.map ~f:(fun n -> n#id))
     method name = "<anonfn>"
-    method execute ?(indent=0) (g: gfns) (_) : dval =
+    method execute ?(ind=0) (g: gfns) (_) : dval =
       let debugname = g.get_children id |> List.hd_exn |> (fun n -> n#debug_name) in
       let return = argids
       |> List.map ~f:(g.get_deepest)
@@ -301,7 +301,7 @@ class anonfn id pos argids =
       |> List.sort ~cmp:(fun ((d1, n1):int*node) ((d2, n2):int*node) -> compare d1 d2)
       |> List.hd_exn
       |> Tuple.T2.get2 in
-      DAnon (id, anonexecutor ~indent debugname return#id argids g)
+      DAnon (id, anonexecutor ~ind debugname return#id argids g)
     method tipe = "definition"
     method! parameters = []
     method! arg_ids = argids

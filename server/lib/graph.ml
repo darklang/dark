@@ -171,7 +171,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Delete_node (id) -> delete_node id
     | Noop -> ident
     | _ ->
-      Util.inspecT "op is" op;
+      Log.pP "op is" op;
       failwith "applying unimplemented op"
 
 let add_op (op: Op.op) (g: graph ref) : unit =
@@ -209,8 +209,8 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
-    Util.inspecT ~indent:0 ("\n\n*************node_value************") n#debug_name;
-    let dv = Node.execute ~indent:0 n#id (gfns g) in
+    Log.pP ~ind:0 ("\n\n*************node_value************") n#debug_name;
+    let dv = Node.execute ~ind:0 n#id (gfns g) in
     ( RT.to_repr dv
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string
