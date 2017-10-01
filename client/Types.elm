@@ -21,6 +21,8 @@ type alias Exception =
   , tipe : String
   , actual : String
   , actualType : String
+  , result : String
+  , resultType : String
   , expected : String
   , info : Dict String String
   , workarounds : List String }

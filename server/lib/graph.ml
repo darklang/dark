@@ -207,8 +207,7 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-let node_value (n: Node.node) (g: graph) : (string * string * string *
-Exception.exception_data option) =
+let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
     let dv = Node.execute n#id (gfns g) in
     ( RT.to_repr dv

@@ -214,7 +214,7 @@ viewValue m n =
                         ) ]
                       [ Html.pre
                         [ ]
-                        [ valueStr exc.actual exc.actualType ]
+                        [ valueStr exc.result exc.resultType ]
                       , Html.span
                           [Attrs.class "info" ]
                           [Html.text "ⓘ "]

@@ -253,14 +253,16 @@ type fn = { name : string
           ; pure : bool
           }
 
-let error ?(actual=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(long="") (short: string) =
+let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(long="") (short: string) =
  raise
    (Exception.DarkException
     { short = short
     ; long = long
     ; tipe = "Runtime"
     ; actual = actual |> dval_to_yojson |> Yojson.Safe.pretty_to_string
-    ; actual_tipe  = actual |> get_type
+    ; actual_tipe = actual |> get_type
+    ; result = result |> dval_to_yojson |> Yojson.Safe.pretty_to_string
+    ; result_tipe = result |> get_type
     ; expected = expected
     ; info = info
     ; workarounds = workarounds
@@ -269,26 +271,48 @@ let error ?(actual=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(lo
 exception TypeError of dval list
 
 let exe (fn: fn) (args: dval_map) : dval =
-  try
-    match fn.func with
-    | InProcess f ->
-        let debug = true in
-        Util.inspecT ~show:debug ("calling " ^ fn.name ^ " with " ^ (dvalmap_to_string args)) "";
-        let result = fn.parameters
-                     |> List.map ~f:(fun (p: param) -> p.name)
-                     |> List.map ~f:(DvalMap.find_exn args)
-                     |> f
-        in inspect ~show:debug ("returning from " ^ fn.name) result
-    | API f -> f args
-  with
-  | TypeError args ->
-      error "Incorrect type"
-        ~expected:(fn.parameters |> List.map ~f:param_to_string |> String.concat ~sep:", ")
-        ~actual:(DList args)
-(*  *)
-(* let exe_dv (fn : dval) (_: dval list) : dval = *)
-(*   match fn with *)
-(*   | dv -> dv *)
-(*           |> to_error_repr *)
-(*           |> (^) "Calling non-function: " *)
-(*           |> Exception.raise *)
+  match fn.func with
+  | InProcess f ->
+      let debug = true in
+
+      Util.inspecT ~show:debug ("calling " ^ fn.name ^ " with " ^ (dvalmap_to_string args)) "";
+      let arglist = fn.parameters
+                    |> List.map ~f:(fun (p: param) -> p.name)
+                    |> List.map ~f:(DvalMap.find_exn args) in
+      (try
+        let result = f arglist in
+        inspect ~show:debug ("returning from " ^ fn.name) result
+       with
+       | TypeError _ ->
+           let range = List.range 0 (List.length arglist) in
+           Util.inspecT "arglist" arglist;
+           let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
+           let invalid = List.filter_map all
+                           ~f:(fun (i,p,a) -> if get_type a <> tipename p.tipe
+                               then Some (i,p,a)
+                               else None) in
+           (* let invalid_count = List.length invalid in *)
+           match invalid with
+           | [] -> Exception.internal "There was an type error in the arguments, but we had an error and can't find it"
+
+           | (i,p,DIncomplete) :: _ ->
+              Exception.user
+                ~expected:(tipename p.tipe)
+                ~actual:"missing"
+                (fn.name ^ " is missing an argument: " ^ p.name)
+
+           | (i,p,a) :: _ ->
+              error
+                ~actual:a
+                ~expected:(tipename p.tipe)
+                (fn.name ^ " was called with the wrong type to parameter: " ^ p.name))
+
+  | API f ->
+      try
+        f args
+      with
+      | TypeError args ->
+          error (fn.name ^ " is missing a parameter")
+            ~expected:(fn.parameters |> List.map ~f:param_to_string |> String.concat ~sep:", ")
+            ~actual:DIncomplete
+

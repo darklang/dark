@@ -10,7 +10,9 @@ type exception_data = { short : string
                       ; tipe : string
                       ; actual : string
                       ; actual_tipe : string
-                      ; expected : string
+                      ; expected : string (* might refer to result or actual *)
+                      ; result : string
+                      ; result_tipe : string
                       ; info : exception_info
                       ; workarounds : string list
                       } [@@deriving to_yojson, show]
@@ -18,14 +20,16 @@ type exception_data = { short : string
 exception DarkException of exception_data
 
 
-let raise_ (tipe:string) ?(actual="") ?(expected="") ?(info=[]) ?(workarounds=[]) ?(long="")
+let raise_ (tipe:string) ?(actual="") ?(expected="") ?(result="") ?(info=[]) ?(workarounds=[]) ?(long="")
 (short: string) =
   raise (DarkException { short = short
                        ; long = long
                        ; tipe = tipe
-                       ; actual = "<incomplete>"
-                       ; actual_tipe = "Incomplete"
+                       ; actual = actual
+                       ; actual_tipe = "<nothing>"
                        ; expected = expected
+                       ; result = result
+                       ; result_tipe = result
                        ; info = info
                        ; workarounds = workarounds
                        })
