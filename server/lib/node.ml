@@ -319,18 +319,3 @@ class anonfn id pos argids =
   end
 
 
-(* BUG BUG BUG TODO there's a handful of bugs. How the anonfn picks its return
- * value is kinda screwed. It's not exactly terrible, but when the program is
- * incomplete it's kinda non-deterministic.
- *
- * But the main bug is that argfns are incomplete. I think this is some sort of
- * scoping thing. When we execute some other times they have values, now they
- * dont.
- *
- * This was hidden because argnodes just used preview, but this doesn't look
- * right now. How should an argnode get the value from the parent, to which it
- * isn't connected...
- *
- * Because anonexecute is bringing it's own scope, but not pulling in
- * the other scopes *)
-
