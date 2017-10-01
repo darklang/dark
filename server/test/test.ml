@@ -31,7 +31,7 @@ let graph_from_ops (name: string) (ops: Op.op list) : G.graph ref =
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = graph_from_ops "test" ops in
-  Node.execute (Op.id_of result) (G.gfns !g)
+  Node.execute ~scope:RT.Scope.empty (Op.id_of result) (G.gfns !g)
 
 let t_graph_param_order () =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
@@ -61,7 +61,7 @@ let t_fns_with_edges () =
   let g = graph_from_ops "test" [v1; v2] in
   Api.apply_ops g fncall;
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
-  let r = Node.execute (rid) (G.gfns !g) in
+  let r = Node.execute ~scope:RT.Scope.empty rid (G.gfns !g) in
   Alcotest.check check_dval "t_fns_with_edges" r (DInt 2)
 
 
