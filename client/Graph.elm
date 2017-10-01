@@ -292,9 +292,12 @@ repositionChildren m root pos =
                                in (w+20, new :: list))
                             (startingX, [])
                             children
+      anons = case getAnonNodeOf m root.id of
+                Nothing -> []
+                Just anon -> [(anon, pos)]
   in
      repositioned
      |> List.map (\(n, pos) -> repositionChildren m n pos)
      |> List.concat
-     |> (++) repositioned
+     |> (++) (repositioned ++ anons)
 
