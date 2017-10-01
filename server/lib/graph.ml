@@ -209,7 +209,8 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
-    let dv = Node.execute n#id (gfns g) in
+    Util.inspecT ~indent:0 ("\n\n*************node_value************") n#debug_name;
+    let dv = Node.execute ~indent:0 n#id (gfns g) in
     ( RT.to_repr dv
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string

@@ -172,6 +172,8 @@ let dval_to_json_string (v: dval) : string =
 let dvalmap_to_string (m:dval_map) : string =
   DObj m |> dval_to_yojson |> Yojson.Safe.to_string
 
+let dvallist_to_string (l:dval list) : string =
+  DList l |> dval_to_yojson |> Yojson.Safe.to_string
 
 (* ------------------------- *)
 (* Parsing *)
@@ -270,22 +272,18 @@ let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") 
 
 exception TypeError of dval list
 
-let exe (fn: fn) (args: dval_map) : dval =
+let exe ?(indent=0) (fn: fn) (args: dval_map) : dval =
   match fn.func with
   | InProcess f ->
-      let debug = true in
-
-      Util.inspecT ~show:debug ("calling " ^ fn.name ^ " with " ^ (dvalmap_to_string args)) "";
       let arglist = fn.parameters
                     |> List.map ~f:(fun (p: param) -> p.name)
                     |> List.map ~f:(DvalMap.find_exn args) in
       (try
-        let result = f arglist in
-        inspect ~show:debug ("returning from " ^ fn.name) result
+        f arglist
        with
        | TypeError _ ->
+           Util.inspecT ~indent "exception caught" args ~formatter:dvalmap_to_string;
            let range = List.range 0 (List.length arglist) in
-           Util.inspecT "arglist" arglist;
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
            let invalid = List.filter_map all
                            ~f:(fun (i,p,a) -> if get_type a <> tipename p.tipe
