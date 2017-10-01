@@ -23,7 +23,7 @@ random : () -> Int
 random a = Native.Random.random a
 
 htmlSize : String -> (Float, Float)
-htmlSize str = let size = Debug.log "size" (Native.Size.size str)
+htmlSize str = let size = Native.Size.size str
                in (size.width, size.height)
 
 deMaybe : Maybe a -> a
