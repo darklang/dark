@@ -111,7 +111,7 @@ compareSuggestionWithActual a actual =
         let prefix = String.slice 0 index suggestion
             suffix = String.slice (index + String.length actual) (String.length suggestion) suggestion
         in
-           Debug.log "results" (prefix, prefix ++ actual ++ suffix, actual)
+           (prefix, prefix ++ actual ++ suffix, actual)
 
 asName : AutocompleteItem -> String
 asName aci =
