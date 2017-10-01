@@ -19,6 +19,9 @@ type scope = RT.scope
 module IdMap = String.Map
 type id_map = id IdMap.t
 
+let log = Log.pp ~name:"execution"
+let loG = Log.pP ~name:"execution"
+
 (* For serializing to json only *)
 type valuejson = { value: string
                  ; tipe: string [@key "type"]
@@ -114,7 +117,7 @@ let rec execute ?(ind:int=0) (id: id) ~scope:scope (g: gfns) : dval =
   | Some v -> v
   | None ->
     let n = g.getf id in
-    Log.pP ~ind "Execute" n#debug_name;
+    loG ~ind "Execute" n#debug_name;
     n#arguments
     |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
         match arg with
@@ -124,7 +127,7 @@ let rec execute ?(ind:int=0) (id: id) ~scope:scope (g: gfns) : dval =
 
 let rec preview (id: id) (g: gfns) : dval list list =
   let n = g.getf id in
-  Log.pP "previewing" n#debug_name;
+  loG "previewing" n#debug_name;
   n#arguments
   |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
       match arg with
@@ -144,7 +147,7 @@ class value id pos strrep =
     method name : string = strrep
     method tipe = "value"
     method execute ?(ind=0) ~scope:scope _ _ =
-      Log.pP "execute expr" self#debug_name;
+      loG "execute expr" self#debug_name;
       expr
   end
 
@@ -192,31 +195,31 @@ class func (id : id) pos (name : string) =
     method! parameters : param list = self#fn.parameters
     method name = self#fn.name
     method execute ?(ind=0) ~scope:scope (g: gfns) (args: dval_map) : dval =
-      Log.pP ~ind "exe function" self#debug_name;
-      Log.pP ~ind "w/ args" ~f:RT.dvalmap_to_string args;
+      loG ~ind "exe function" self#debug_name;
+      loG ~ind "w/ args" ~f:RT.dvalmap_to_string args;
       if not self#fn.pure
       then
         let result = RT.exe ~ind self#fn args in
-        RT.pp ~ind ("r: " ^ self#debug_name) result
+        RT.pp ~ind ~name:"execution" ("r: " ^ self#debug_name) result
       else
         if DvalMap.exists args ~f:(fun x -> x = DIncomplete)
         then
           let result = RT.exe ~ind self#fn args in
-          RT.pp ~ind ("r: " ^ self#debug_name) result
+          RT.pp ~ind ~name:"execution" ("r: " ^ self#debug_name) result
         else
           let com = RT.to_comparable_repr args in
           match MemoCache.find memo com with
             | None -> let x = RT.exe ~ind self#fn args in
                       memo <- MemoCache.add memo com x;
-                      RT.pP ~ind ("r: " ^ self#debug_name) x;
+                      RT.pP ~name:"execution" ~ind ("r: " ^ self#debug_name) x;
                       x
             | Some v ->
-                RT.pP ~ind ("r (cached):" ^ self#debug_name) v;
+                RT.pP ~name:"execution" ~ind ("r (cached):" ^ self#debug_name) v;
                 v
 
      (* Get a value to use as the preview for anonfns used by this node *)
     method! preview (g: gfns) (args: dval_map) : dval list list =
-      Log.pP "previewing function" name;
+      loG "previewing function" name;
       match self#fn.preview with
       (* if there's no value, no point previewing 5 *)
       | None -> Util.list_repeat (List.length self#fn.parameters) [RT.DIncomplete]
@@ -248,7 +251,7 @@ class datastore id pos table =
  * value, we simply return the last operation (which is a bit haphazardly
  * defined right now)
  *
-   They have their own nodes in a separate scope from the parents (TODO:
+   They have their own nodes in a separate graph from the parents (TODO:
    they actually don't, they should in theory, but it was easier to implement
    one big node collection). They are used for higher-order functions.
 
@@ -259,20 +262,20 @@ class datastore id pos table =
    *)
 
 let anonexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
-   Log.pP ~ind ("get anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
-   Log.pP ~ind "with params: " (List.map ~f:(debug_id g) argids);
+   loG ~ind ("get anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+   loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
   (fun (args : dval list) ->
-     Log.pP ~ind ("exe anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
-     Log.pP ~ind "with params: " (List.map ~f:(debug_id g) argids);
+     loG ~ind ("exe anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+     loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
      let newscope = List.zip_exn argids args |> Scope.of_alist_exn in
      let scope = Scope.merge newscope scope ~f:(fun ~key v ->
        match v with
        | `Left v -> Some v
        | `Right v -> Some v
        | `Both (v1, v2) -> Some v1) in
-     Log.pP ~ind "with scope: " scope;
+     loG ~ind "with scope: " scope;
      let result = execute ~ind rid ~scope g in
-     RT.pp ~ind ("r anonexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
+     RT.pp ~name:"execution" ~ind ("r anonexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
   )
 
 class argnode id pos name index nid argids =
@@ -286,7 +289,7 @@ class argnode id pos name index nid argids =
     method name = name
     method tipe = "arg"
     method execute ?(ind=0) ~scope:scope (g: gfns) args : dval =
-      Log.pP ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
+      loG ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
       (* This arg gets its preview value from the preview of the node being
        * passed the anon *)
       match g.get_children nid with

@@ -1,14 +1,18 @@
 open Core
 
+let quiet name =
+  name = "execution"
+
 let pP ?(f=Batteries.dump)
        ?(start=0)
        ?(stop=0)
        ?(show:bool=true)
        ?(ind=0)
-            (msg : string)
-            (x : 'a)
-            : unit =
-  if show
+       ?(name:string="")
+       (msg : string)
+       (x : 'a)
+       : unit =
+  if show && (not (quiet name))
   then
     let red = "\x1b[6;31m" in
     let black = "\x1b[6;30m" in
@@ -28,10 +32,11 @@ let pp ?(f=Batteries.dump)
        ?(stop=0)
        ?(show:bool=true)
        ?(ind=0)
+       ?(name:string="")
        (msg : string)
        (x : 'a)
        : 'a =
-  pP ~f ~start ~stop ~show ~ind msg x;
+  pP ~f ~name ~start ~stop ~show ~ind msg x;
   x
 
 let tS (msg : string) (x : 'a) : unit =
