@@ -272,6 +272,9 @@ let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") 
 
 exception TypeError of dval list
 
+module Scope = Int.Map
+type scope = dval Scope.t
+
 let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
   match fn.func with
   | InProcess f ->

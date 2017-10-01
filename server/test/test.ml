@@ -13,6 +13,7 @@ let t_param_order () =
   Alcotest.check check_dval
     "param_order"
     (node#execute
+       ~scope:RT.Scope.empty
        { getf = (fun g -> node)
        ; get_children = (fun _ -> [])
        ; get_deepest = (fun _ -> [])

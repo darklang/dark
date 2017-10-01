@@ -13,6 +13,9 @@ type arg_map = RT.arg_map
 module DvalMap = RT.DvalMap
 type dval_map = RT.dval_map
 
+module Scope = RT.Scope
+type scope = RT.scope
+
 module IdMap = String.Map
 type id_map = id IdMap.t
 
@@ -38,6 +41,7 @@ type nodejsonlist = nodejson list [@@deriving to_yojson, show]
 (* graph defintion *)
 (* ------------------------ *)
 
+
 type 'a gfns_ = { getf : (id -> 'a)
                 ; get_children : (id -> 'a list)
                 ; get_deepest : (id -> (int * 'a) list)
@@ -49,7 +53,7 @@ class virtual node id pos =
     val mutable pos : pos = pos
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : ?ind:int -> node gfns_ -> RT.execute_t
+    method virtual execute : ?ind:int -> scope:scope -> node gfns_ -> RT.execute_t
     method id = id
     method debug_name : string = "(" ^ string_of_int id ^ ") " ^ self#name
     method pos = pos
@@ -104,11 +108,9 @@ let debug_id (g:gfns) (id:id) =
 (* ------------------------- *)
 (* Graph traversal and execution *)
 (* ------------------------- *)
-module ValCache = Int.Map
-type valcache = dval ValCache.t
 
-let rec execute ?(ind:int=0) (id: id) ?(eager: valcache=ValCache.empty) (g: gfns) : dval =
-  match ValCache.find eager id with
+let rec execute ?(ind:int=0) (id: id) ~scope:scope (g: gfns) : dval =
+  match Scope.find scope id with
   | Some v -> v
   | None ->
     let n = g.getf id in
@@ -117,8 +119,8 @@ let rec execute ?(ind:int=0) (id: id) ?(eager: valcache=ValCache.empty) (g: gfns
     |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
         match arg with
         | RT.AConst dv -> dv
-        | RT.AEdge id -> execute ~ind:(ind+1) id ~eager g)
-    |> n#execute ~ind:(ind+1) g
+        | RT.AEdge id -> execute ~ind:(ind+1) id ~scope g)
+    |> n#execute ~ind:(ind+1) ~scope:scope g
 
 let rec preview (id: id) (g: gfns) : dval list list =
   let n = g.getf id in
@@ -127,7 +129,7 @@ let rec preview (id: id) (g: gfns) : dval list list =
   |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
       match arg with
       | RT.AConst dv -> dv
-      | RT.AEdge id -> execute id g)
+      | RT.AEdge id -> execute ~scope:Scope.empty id g)
   |> n#preview g
 
 
@@ -141,7 +143,7 @@ class value id pos strrep =
     val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute ?(ind=0) _ _ =
+    method execute ?(ind=0) ~scope:scope _ _ =
       Log.pP "execute expr" self#debug_name;
       expr
   end
@@ -189,7 +191,7 @@ class func (id : id) pos (name : string) =
                                  | _ -> None)
     method! parameters : param list = self#fn.parameters
     method name = self#fn.name
-    method execute ?(ind=0) (g: gfns) (args: dval_map) : dval =
+    method execute ?(ind=0) ~scope:scope (g: gfns) (args: dval_map) : dval =
       Log.pP ~ind "exe function" self#debug_name;
       Log.pP ~ind "w/ args" ~f:RT.dvalmap_to_string args;
       if not self#fn.pure
@@ -233,7 +235,7 @@ class datastore id pos table =
   object
     inherit node id pos
     val table : string = table
-    method execute ?(ind=0) _ (_ : dval_map) : dval = DStr "todo datastore execute"
+    method execute ?(ind=0) ~scope:scope _ (_ : dval_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
@@ -256,25 +258,34 @@ class datastore id pos table =
    TODO: `preview` is sorta confused. I'm unclear what it does.
    *)
 
-let anonexecutor ?(ind=0) (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
+let anonexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
    Log.pP ~ind ("get anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
    Log.pP ~ind "with params: " (List.map ~f:(debug_id g) argids);
   (fun (args : dval list) ->
      Log.pP ~ind ("exe anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
      Log.pP ~ind "with params: " (List.map ~f:(debug_id g) argids);
-     Log.pP ~ind "with args: " ~f:RT.dvallist_to_string args;
-     let eager = List.zip_exn argids args |> ValCache.of_alist_exn in
-     let result = execute ~ind rid ~eager g in
+     let newscope = List.zip_exn argids args |> Scope.of_alist_exn in
+     let scope = Scope.merge newscope scope ~f:(fun ~key v ->
+       match v with
+       | `Left v -> Some v
+       | `Right v -> Some v
+       | `Both (v1, v2) -> Some v1) in
+     Log.pP ~ind "with scope: " scope;
+     let result = execute ~ind rid ~scope g in
      RT.pp ~ind ("r anonexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
   )
 
 class argnode id pos name index nid argids =
+  (* argnodes shouldn't actually be called directly since their value is never *)
+  (* used. (In computation, their value is fetched from the scope, not from the *)
+  (* node). As a result, their value is only used to preview, so they get the value *)
+  (* from their parent's value. *)
   object(self)
     inherit node id pos
     method! dependent_nodes _ = [nid]
     method name = name
     method tipe = "arg"
-    method execute ?(ind=0) (g: gfns) args : dval =
+    method execute ?(ind=0) ~scope:scope (g: gfns) args : dval =
       Log.pP ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
       (* This arg gets its preview value from the preview of the node being
        * passed the anon *)
@@ -292,7 +303,7 @@ class anonfn id pos argids =
     method dependent_nodes (g: gfns) =
       List.append argids (g.get_children id |> List.map ~f:(fun n -> n#id))
     method name = "<anonfn>"
-    method execute ?(ind=0) (g: gfns) (_) : dval =
+    method execute ?(ind=0) ~scope:scope (g: gfns) (_) : dval =
       let debugname = g.get_children id |> List.hd_exn |> (fun n -> n#debug_name) in
       let return = argids
       |> List.map ~f:(g.get_deepest)
@@ -301,7 +312,7 @@ class anonfn id pos argids =
       |> List.sort ~cmp:(fun ((d1, n1):int*node) ((d2, n2):int*node) -> compare d1 d2)
       |> List.hd_exn
       |> Tuple.T2.get2 in
-      DAnon (id, anonexecutor ~ind debugname return#id argids g)
+      DAnon (id, anonexecutor ~ind ~scope debugname return#id argids g)
     method tipe = "definition"
     method! parameters = []
     method! arg_ids = argids
@@ -318,5 +329,8 @@ class anonfn id pos argids =
  *
  * This was hidden because argnodes just used preview, but this doesn't look
  * right now. How should an argnode get the value from the parent, to which it
- * isn't connected... *)
+ * isn't connected...
+ *
+ * Because anonexecute is bringing it's own scope, but not pulling in
+ * the other scopes *)
 

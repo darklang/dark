@@ -210,7 +210,7 @@ let save (g : graph) : unit =
 let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
     Log.pP ~ind:0 ("\n\n*************node_value************") n#debug_name;
-    let dv = Node.execute ~ind:0 n#id (gfns g) in
+    let dv = Node.execute ~ind:0 ~scope:RT.Scope.empty n#id (gfns g) in
     ( RT.to_repr dv
     , RT.get_type dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string
