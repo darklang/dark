@@ -662,7 +662,8 @@ let fns : Lib.shortfn list = [
           | [v; DBool cond; DAnon (_, fntrue); DAnon (_, fnfalse)] ->
               if cond then fntrue [v] else fnfalse [v]
           | args -> fail args)
-  ; pr = None
+  (* we could do better here by getting a value for which this is true/false *)
+  ; pr = Some (fun dv count -> [dv])
   ; pu = true
   }
   ;
