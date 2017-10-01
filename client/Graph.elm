@@ -203,7 +203,7 @@ outgoingNodes m parent =
                       |> List.map Tuple.first
                       |> LE.find ((==) parent)
                       |> Maybe.map (always child))
-    |> List.append (getFirstArgOf m parent.id |> ME.toList)
+    |> List.append (getArgsOf m parent.id)
 
 incomingNodePairs : Model -> Node -> List (Node, ParamName)
 incomingNodePairs m n = List.filterMap
@@ -234,21 +234,20 @@ getCallerOf m id =
                              |> outgoingNodes m
                              |> List.head)
 
-getFirstArgOf : Model -> ID -> Maybe Node
-getFirstArgOf m id =
+getArgsOf : Model -> ID -> List Node
+getArgsOf m id =
   id
-  |> getAnonNodeOf m
-  |> Maybe.andThen (\anon -> anon |> .argIDs |> List.head)
-  |> Maybe.map (\arg -> getNodeExn m arg)
+  |> getAnonNodesOf m
+  |> List.map (\anon -> anon |> .argIDs |> List.map (getNodeExn m))
+  |> List.concat
 
-getAnonNodeOf : Model -> ID -> Maybe Node
-getAnonNodeOf m id =
+getAnonNodesOf : Model -> ID -> List Node
+getAnonNodesOf m id =
   id
   |> getNodeExn m
   |> incomingNodePairs m
   |> List.filter (\(n, _) -> n.tipe == FunctionDef)
-  |> List.head
-  |> Maybe.map Tuple.first
+  |> List.map Tuple.first
 
 hasAnonParam : Model -> ID -> Bool
 hasAnonParam m id =
@@ -292,9 +291,7 @@ repositionChildren m root pos =
                                in (w+20, new :: list))
                             (startingX, [])
                             children
-      anons = case getAnonNodeOf m root.id of
-                Nothing -> []
-                Just anon -> [(anon, pos)]
+      anons = List.map (\anon -> (anon, pos)) (getAnonNodesOf m root.id)
   in
      repositioned
      |> List.map (\(n, pos) -> repositionChildren m n pos)
