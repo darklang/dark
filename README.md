@@ -24,8 +24,6 @@
 
 
 # Tidyups to do
-- rename Loc or Pos to the other
-- stop splitting x,y for json
 - use ppx_variants_conv
 - try ppx_sexp_conv to see if on-disk serialization is better
 - try orakuda
