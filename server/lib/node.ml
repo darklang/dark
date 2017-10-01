@@ -290,12 +290,10 @@ class argnode id pos name index nid argids =
     method tipe = "arg"
     method execute ?(ind=0) ~scope:scope (g: gfns) args : dval =
       loG ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
-      (* This arg gets its preview value from the preview of the node being
-       * passed the anon *)
       match g.get_children nid with
-      | _ -> DIncomplete
-      (* | [caller] -> List.nth_exn (preview caller#id g) index |> List.hd_exn *)
-      (* | _ -> failwith "more than 1" *)
+      | [] -> DIncomplete
+      | [caller] -> List.nth_exn (preview caller#id g) index |> List.hd_exn
+      | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! arg_ids = argids
   end
