@@ -10,6 +10,7 @@ import List.Extra as LE
 import Native.Window
 import Native.Timestamp
 import Native.Random
+import Native.Size
 
 timestamp : () -> Int
 timestamp a = Native.Timestamp.timestamp a
@@ -20,6 +21,10 @@ windowSize a = let size = Native.Window.size a
 
 random : () -> Int
 random a = Native.Random.random a
+
+htmlSize : String -> (Float, Float)
+htmlSize str = let size = Debug.log "size" (Native.Size.size str)
+               in (size.width, size.height)
 
 deMaybe : Maybe a -> a
 deMaybe x = case x of

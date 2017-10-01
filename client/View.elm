@@ -96,17 +96,21 @@ viewEntry m =
                      [ Attrs.id "autocomplete-holder" ]
                      autocompletions
 
+
       -- two overlapping input boxes, one to provide suggestions, one
       -- to provide the search
+      (indent, suggestion, search) =
+        Autocomplete.compareSuggestionWithActual m.complete m.complete.value
+
+      indentHtml = "<span style=\"font-family:sans-serif; font-size:14px;\">" ++ indent ++ "</span>"
+      (width, _) = Util.htmlSize indentHtml
+      w = width |> toString
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
-                               , Attrs.value m.complete.value
+                               , Attrs.style [("text-indent", w ++ "px")]
+                               , Attrs.value search
                                , Attrs.autocomplete False
                                ] []
-      prefix_ = Autocomplete.sharedPrefix m.complete
-      suggestion =
-        Autocomplete.overlaySuggestionWithActual m.complete.value prefix_
-
       suggestionInput = Html.input [ Attrs.id "suggestion"
                                    , Attrs.disabled True
                                    , Attrs.value suggestion

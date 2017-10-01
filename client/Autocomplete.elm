@@ -97,12 +97,21 @@ sharedPrefixList strs =
 sharedPrefix : Autocomplete -> String
 sharedPrefix a = sharedPrefixList (List.map asName a.completions)
 
-overlaySuggestionWithActual : String -> String -> String
-overlaySuggestionWithActual actual suggestion =
-  let len = String.length actual
-      suffix = String.dropLeft len suggestion
+-- returns (indent, suggestion, search), where:
+--  - indent is the string that occurs before the match
+--  - suggestion is the match rewritten with the search
+--  - search is the search rewritten to match the suggestion
+compareSuggestionWithActual : Autocomplete -> String -> (String, String, String)
+compareSuggestionWithActual a actual =
+  let suggestion = sharedPrefix a
   in
-    actual ++ suffix
+    case String.indexes (String.toLower actual) (String.toLower suggestion) of
+      [] -> ("", suggestion, actual)
+      index :: _ ->
+        let prefix = String.slice 0 index suggestion
+            suffix = String.slice (index + String.length actual) (String.length suggestion) suggestion
+        in
+           Debug.log "results" (prefix, prefix ++ actual ++ suffix, actual)
 
 asName : AutocompleteItem -> String
 asName aci =

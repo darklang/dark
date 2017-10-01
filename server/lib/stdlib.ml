@@ -681,11 +681,13 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DStr s] ->
-              DInt (s
-                    |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y"
-                    |> Unix.timegm
-                    |> int_of_float
-                    )
+              (try
+                DInt (s
+                      |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y"
+                      |> Unix.timegm
+                      |> int_of_float
+                      )
+              with e -> raise (TypeError [DStr "Invalid date format"]))
           | args -> fail args)
   ; pr = None
   ; pu = true
