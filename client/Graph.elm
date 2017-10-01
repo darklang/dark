@@ -265,14 +265,19 @@ reposition : Model -> NodeDict -> NodeDict
 reposition m nodes =
   let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values nodes)
       rePosed = List.map (\r -> repositionChildren m r r.pos) roots |> List.concat
-  in
-     List.foldl (\(node, pos) dict ->
+      result = List.foldl (\(node, pos) dict ->
                    Dict.update
                      (node.id |> deID)
                      (Maybe.map (\n -> { n | pos=pos}))
                      dict)
                 nodes
                 rePosed
+      _ = Dict.map (\k n -> if n.pos == {x=-42,y=-42}
+                               then Debug.log "missed one" n
+                               else n)
+                   result
+  in
+     result
 
 
 repositionChildren : Model -> Node -> Pos -> List (Node, Pos)
