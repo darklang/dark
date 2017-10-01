@@ -158,7 +158,7 @@ viewEntry m =
 
 valueDisplayPos : Model -> Node -> Pos
 valueDisplayPos m n =
-  if (G.outgoingNodes m n |> List.isEmpty) && G.hasAnonParam m n.id
+  if (G.outgoingNodes m n |> List.length |> (==) 1) && G.hasAnonParam m n.id
   then Entry.holeCreatePos m (ResultHole n)
   else
     let xpad = max (G.nodeWidth n + 50) 250
