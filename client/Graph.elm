@@ -12,6 +12,7 @@ import Maybe
 -- lib
 import List.Extra as LE
 import Maybe.Extra as ME
+import Tuple3
 
 -- dark
 import Types exposing (..)
@@ -263,7 +264,10 @@ entireSubgraph m start =
 reposition : Model -> NodeDict -> NodeDict
 reposition m nodes =
   let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values nodes)
-      rePosed = List.map (\r -> repositionChildren m r r.pos) roots |> List.concat
+      rePosed = roots
+              |> List.map (\r -> repositionChildren m r r.pos |> Tuple3.third)
+              |> List.concat
+
       result = List.foldl (\(node, pos) dict ->
                    Dict.update
                      (node.id |> deID)
@@ -278,23 +282,29 @@ reposition m nodes =
   in
      result
 
-
-repositionChildren : Model -> Node -> Pos -> List (Node, Pos)
+-- given a `root` starting point, and `pos` (the position of the root),
+-- return the new position of the node, alongside the (unupdated) node,
+-- the maximum depth that has been achieved, and the maximum width found
+-- when exploring depth-first from the root.
+repositionChildren : Model -> Node -> Pos -> (Int, Int, List (Node, Pos))
 repositionChildren m root pos =
-  let children = outgoingNodes m root
+  let
+      rePosChild child (startX, startY, accumulatedNodes) =
+        let
+            newPos = {x=startX, y=startY}
+            _ = Debug.log "starting on child" (child.name, newPos)
+            endX = startX + nodeWidth child
+            (maxChildX, maxChildY, children) = repositionChildren m child newPos
+            maxX = max endX maxChildX
+        in
+          (maxX, maxChildY, (child, newPos) :: (children ++ accumulatedNodes))
+
+      children = outgoingNodes m root
       startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
-      rePos n prevWidth =
-        (prevWidth + nodeWidth n, (n, {x=prevWidth, y=pos.y+40}))
-      (_, repositioned) = List.foldr
-                            (\n (width, list) ->
-                               let (w, new) = rePos n width
-                               in (w+20, new :: list))
-                            (startingX, [])
-                            children
+      (maxX, maxY, reChildren) = Debug.log ("after fold:" ++ root.name) (List.foldl rePosChild (startingX, pos.y+40, []) children)
+
       anons = List.map (\anon -> (anon, pos)) (getAnonNodesOf m root.id)
+      _ = Debug.log "placing node" (root.name, pos)
   in
-     repositioned
-     |> List.map (\(n, pos) -> repositionChildren m n pos)
-     |> List.concat
-     |> (++) (repositioned ++ anons)
+    Debug.log "result" (maxX, maxY, reChildren ++ anons)
 
