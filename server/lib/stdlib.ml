@@ -6,8 +6,10 @@ let list_repeat = Util.list_repeat
 
 let list_preview =
   fun dv count -> match dv with
-                   | [DList l; _] -> [List.take l count]
-                   | args -> [list_repeat count DIncomplete]
+                   | [DList l; _] -> (match List.nth l count with
+                     | Some v -> [v]
+                     | None -> [DIncomplete])
+                   | args -> [DIncomplete]
 
 let fns : Lib.shortfn list = [
   (* { n = "Page::page" *)
@@ -338,13 +340,11 @@ let fns : Lib.shortfn list = [
         (fun dv count ->
           match dv with
           | [DStr s; _] ->
-              let s = (if s = "" then "example" else s) in
-              s
-              |> String.to_list
-              |> (fun l -> List.take l count)
-              |> List.map ~f:(fun c -> DChar c)
-              |> fun x -> [x]
-          | args -> [list_repeat count DIncomplete])
+              let s: string = (if s = "" then "example" else s) in
+              let index: int = (min count ((String.length s) - 1)) in
+              let c: char = String.get s index in
+                [DChar c]
+          | args -> [DIncomplete])
   ; pu = true
   }
   ;
@@ -581,13 +581,14 @@ let fns : Lib.shortfn list = [
         (fun dv count ->
           match dv with
           | [DList l; init; DAnon (_, fn)] ->
-            let l = List.take l count in
-            let f (dv1, (i1, i2)) (dv2) : (dval * (dval list * dval list)) =
-              (fn [dv1; dv2], (dv1 :: i1, dv2 :: i2)) in
-            let (_, (i1, i2)) = List.fold ~f ~init:(init, ([], [])) l in
-            [List.rev i1; List.rev i2]
-          | args -> [ list_repeat count DIncomplete
-                    ; list_repeat count DIncomplete])
+            let l: dval list = List.take l count in
+            let f = fun (accum:dval) (elt:dval) -> fn([accum; elt]) in
+            let end_accum: dval = List.fold ~f ~init l in
+            let next_elt: dval = match List.nth l count with
+              | Some elt -> elt
+              | None -> DIncomplete 
+            in [end_accum; next_elt]
+          | args -> [DIncomplete])
   ; pu = true
   }
   ;
@@ -682,7 +683,7 @@ let fns : Lib.shortfn list = [
               if cond then fntrue [v] else fnfalse [v]
           | args -> fail args)
   (* we could do better here by getting a value for which this is true/false *)
-  ; pr = Some (fun dv count -> [dv])
+  ; pr = Some (fun dv count -> dv)
   ; pu = true
   }
   ;

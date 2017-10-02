@@ -58,7 +58,7 @@ class virtual node id pos =
     val mutable cursor : int = 0
     method virtual name : string
     method virtual tipe : string
-    method virtual execute : ?ind:int -> scope:scope -> node gfns_ -> RT.execute_t
+    method virtual execute : ?ind:int -> ?cursor:int -> scope:scope -> node gfns_ -> RT.execute_t
     method id = id
     method debug_name : string = "(" ^ string_of_int id ^ ") " ^ self#name
     method pos = pos
@@ -84,7 +84,7 @@ class virtual node id pos =
     method cursor = cursor
     method update_cursor (_cursor:int) : unit =
       Exception.internal "This node doesn't support cursor"
-    method preview (gfns: node gfns_) (args: dval_map) : (dval list) list =
+    method preview (cursor: int) (gfns: node gfns_) (args: dval_map) : dval list =
       Exception.internal "This node doesn't support preview"
     method to_frontend (value, tipe, json, exc : string * string * string * Exception.exception_data option) : nodejson =
       { name = self#name
@@ -118,7 +118,7 @@ let debug_id (g:gfns) (id:id) =
 (* Graph traversal and execution *)
 (* ------------------------- *)
 
-let rec execute ?(ind:int=0) (id: id) ~scope:scope (g: gfns) : dval =
+let rec execute ?(ind:int=0) ?(cursor=0) (id: id) ~scope:scope (g: gfns) : dval =
   match Scope.find scope id with
   | Some v -> v
   | None ->
@@ -128,18 +128,18 @@ let rec execute ?(ind:int=0) (id: id) ~scope:scope (g: gfns) : dval =
     |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
         match arg with
         | RT.AConst dv -> dv
-        | RT.AEdge id -> execute ~ind:(ind+1) id ~scope g)
-    |> n#execute ~ind:(ind+1) ~scope:scope g
+        | RT.AEdge id -> execute ~ind:(ind+1) ~cursor id ~scope g)
+    |> n#execute ~ind:(ind+1) ~cursor ~scope:scope g
 
-let rec preview (id: id) (g: gfns) : dval list list =
+let rec preview (id: id) (g: gfns) (cursor: int) : dval list =
   let n = g.getf id in
   loG "previewing" n#debug_name;
   n#arguments
   |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
       match arg with
       | RT.AConst dv -> dv
-      | RT.AEdge id -> execute ~scope:Scope.empty id g)
-  |> n#preview g
+      | RT.AEdge id -> execute ~cursor ~scope:Scope.empty id g)
+  |> n#preview cursor g
 
 
 
@@ -152,7 +152,7 @@ class value id pos strrep =
     val expr : dval = RT.parse strrep
     method name : string = strrep
     method tipe = "value"
-    method execute ?(ind=0) ~scope:scope _ _ =
+    method execute ?(ind=0) ?(cursor=0) ~scope:scope _ _ =
       loG "execute expr" self#debug_name;
       expr
   end
@@ -200,7 +200,7 @@ class func (id : id) pos (name : string) =
                                  | _ -> None)
     method! parameters : param list = self#fn.parameters
     method name = self#fn.name
-    method execute ?(ind=0) ~scope:scope (g: gfns) (args: dval_map) : dval =
+    method execute ?(ind=0) ?(cursor=0) ~scope:scope (g: gfns) (args: dval_map) : dval =
       loG ~ind "exe function" self#debug_name;
       loG ~ind "w/ args" ~f:RT.dvalmap_to_string args;
       if not self#fn.pure
@@ -224,15 +224,15 @@ class func (id : id) pos (name : string) =
                 v
 
      (* Get a value to use as the preview for anonfns used by this node *)
-    method! preview (g: gfns) (args: dval_map) : dval list list =
+    method! preview (cursor: int) (g: gfns) (args: dval_map) : dval list =
       loG "previewing function" name;
       match self#fn.preview with
       (* if there's no value, no point previewing 5 *)
-      | None -> Util.list_repeat (List.length self#fn.parameters) [RT.DIncomplete]
+      | None -> Util.list_repeat (List.length self#fn.parameters) RT.DIncomplete
       | Some f -> self#fn.parameters
                      |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
-                     |> fun dvs -> f dvs 5
+                     |> fun dvs -> f dvs cursor
     method! is_page = self#name = "Page_page"
     method tipe = if String.is_substring ~substring:"page" self#name
       then self#name
@@ -244,7 +244,7 @@ class datastore id pos table =
   object
     inherit node id pos
     val table : string = table
-    method execute ?(ind=0) ~scope:scope _ (_ : dval_map) : dval = DStr "todo datastore execute"
+    method execute ?(ind=0) ?(cursor=0) ~scope:scope _ (_ : dval_map) : dval = DStr "todo datastore execute"
     method name = "DS-" ^ table
     method tipe = "datastore"
   end
@@ -294,16 +294,16 @@ class argnode id pos name index nid argids =
     method! dependent_nodes _ = [nid]
     method name = name
     method tipe = "arg"
-    method execute ?(ind=0) ~scope:scope (g: gfns) args : dval =
+    method execute ?(ind=0) ?(cursor=0) ~scope:scope (g: gfns) args : dval =
       loG ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
       match g.get_children nid with
       | [] -> DIncomplete
       | [caller] ->
-        let anon_node: node = g.getf nid in
-        let element = List.nth_exn (preview caller#id g) index in
+        let anon_node: node = Log.pp "Anon node" (g.getf nid) in
         let anon_node_cursor: int = anon_node#cursor in
-        let cursor_index = Log.pp "Cursor index" (max (min anon_node_cursor ((List.length element) - 1)) 0) in
-        Log.pp "Cursor element" (List.nth_exn element cursor_index)
+        let preview_result = Log.pp "Preview result" (preview caller#id g anon_node_cursor) in 
+        let element = List.nth_exn preview_result index in
+        Log.pp "Cursor element" element
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! arg_ids = argids
@@ -317,7 +317,7 @@ class anonfn id pos argids =
     method dependent_nodes (g: gfns) =
       List.append argids (g.get_children id |> List.map ~f:(fun n -> n#id))
     method name = "<anonfn>"
-    method execute ?(ind=0) ~scope:scope (g: gfns) (_) : dval =
+    method execute ?(ind=0) ?(cursor=0) ~scope:scope (g: gfns) (_) : dval =
       let debugname = g.get_children id |> List.hd_exn |> (fun n -> n#debug_name) in
       let return = argids
       |> List.map ~f:(g.get_deepest)
