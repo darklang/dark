@@ -5,8 +5,8 @@ open Lib
 let list_repeat = Util.list_repeat
 
 let list_preview =
-  fun dv count -> match dv with
-                   | [DList l; _] -> (match List.nth l count with
+  fun dv cursor -> match dv with
+                   | [DList l; _] -> (match List.nth l cursor with
                      | Some v -> [v]
                      | None -> [DIncomplete])
                    | args -> [DIncomplete]
@@ -337,11 +337,11 @@ let fns : Lib.shortfn list = [
                 "Foreach expects you to return chars"
           | args -> fail args)
   ; pr = Some
-        (fun dv count ->
+        (fun dv cursor ->
           match dv with
           | [DStr s; _] ->
               let s: string = (if s = "" then "example" else s) in
-              let index: int = (min count ((String.length s) - 1)) in
+              let index: int = (min cursor ((String.length s) - 1)) in
               let c: char = String.get s index in
                 [DChar c]
           | args -> [DIncomplete])
@@ -568,7 +568,7 @@ let fns : Lib.shortfn list = [
 
   { n = "List::fold"
   ; o = []
-  ; p = [par "l" TList; par "init" TAny; func ["new"; "old"]]
+  ; p = [par "l" TList; par "init" TAny; func ["accum"; "curr"]]
   ; r = TAny
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
@@ -578,15 +578,15 @@ let fns : Lib.shortfn list = [
             List.fold ~f ~init l
           | args -> fail args)
   ; pr = Some
-        (fun dv count ->
+        (fun dv cursor ->
           match dv with
           | [DList l; init; DAnon (_, fn)] ->
-            let l: dval list = List.take l count in
+            let short_l: dval list = List.take l cursor in
             let f = fun (accum:dval) (elt:dval) -> fn([accum; elt]) in
-            let end_accum: dval = List.fold ~f ~init l in
-            let next_elt: dval = match List.nth l count with
+            let end_accum: dval = List.fold ~f ~init short_l in
+            let next_elt: dval = (match List.nth l cursor with
               | Some elt -> elt
-              | None -> DIncomplete 
+              | None -> DIncomplete)
             in [end_accum; next_elt]
           | args -> [DIncomplete])
   ; pu = true
@@ -683,7 +683,7 @@ let fns : Lib.shortfn list = [
               if cond then fntrue [v] else fnfalse [v]
           | args -> fail args)
   (* we could do better here by getting a value for which this is true/false *)
-  ; pr = Some (fun dv count -> dv)
+  ; pr = Some (fun dv cursor -> dv)
   ; pu = true
   }
   ;
