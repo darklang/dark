@@ -290,6 +290,7 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
            let invalid = List.filter_map all
                            ~f:(fun (i,p,a) -> if get_type a <> tipename p.tipe
+                                              && p.tipe <> TAny
                                then Some (i,p,a)
                                else None) in
            (* let invalid_count = List.length invalid in *)
