@@ -102,7 +102,7 @@ type Msg
     | Initialization
 
 type RPC
-    = LoadInitialGraph
+    = NoOp
     | AddDatastore ID Name MPos
     | AddDatastoreField ID FieldName TypeName
     | AddFunctionCall ID Name MPos
@@ -112,7 +112,6 @@ type RPC
     | SetEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearArgs ID
-    | NoOp
     | RemoveLastField ID
 
 type alias Autocomplete = { functions : List Function

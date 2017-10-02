@@ -295,9 +295,9 @@ repositionChildren m root pos =
             _ = Debug.log "starting on child" (child.name, newPos)
             endX = startX + nodeWidth child
             (maxChildX, maxChildY, children) = repositionChildren m child newPos
-            maxX = max endX maxChildX
+            maxX = max (endX+20) maxChildX
         in
-          (maxX, maxChildY, (child, newPos) :: (children ++ accumulatedNodes))
+          (maxX, startY, (child, newPos) :: (children ++ accumulatedNodes))
 
       children = outgoingNodes m root
       startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x

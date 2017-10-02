@@ -48,9 +48,6 @@ encodeRPC m call =
       jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
-      LoadInitialGraph ->
-        ("load_initial_graph", JSE.object [])
-
       AddDatastore id name pos ->
         ("add_datastore"
         , JSE.object [ jseId id

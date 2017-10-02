@@ -47,7 +47,7 @@ init {state, complete} =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init complete}
   in
-    (m2, rpc m Nothing [LoadInitialGraph])
+    (m2, rpc m Nothing [])
 
 
 -----------------------

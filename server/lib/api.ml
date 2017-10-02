@@ -44,8 +44,8 @@ type add_datastore_field = { tipe: string [@key "type"]
                            ; name: string
                            ; id: int
                            } [@@deriving yojson]
-type load_initial_graph = { fake: int option [@default None]
-                          } [@@deriving yojson]
+type noop = { fake: int option [@default None]
+            } [@@deriving yojson]
 
 (* ---------------- *)
 (* Read the command out *)
@@ -62,13 +62,13 @@ type opjson =
   ; delete_node: delete_node option [@default None]
   ; clear_args: clear_args option [@default None]
   ; add_datastore_field: add_datastore_field option [@default None]
-  ; load_initial_graph: load_initial_graph option [@default None]
+  ; noop: noop option [@default None]
   } [@@deriving yojson]
 type opjsonlist = opjson list [@@deriving yojson]
 
 let json2op (op: opjson) : op =
   match op with
-  | { load_initial_graph = Some _} -> Noop
+  | { noop = Some _} -> Noop
   | { add_datastore = Some a } -> Add_datastore (a.id, a.pos, a.name)
   | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_node = Some a } -> Delete_node a.id
