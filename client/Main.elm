@@ -101,7 +101,7 @@ updateMod mod (m, cmd) =
       -- applied from left to right
       ChangeCursor step -> case m.state of
         Selecting id -> let calls = Debug.log "updatePreviewCursor:" (Entry.updatePreviewCursor m id step)
-          in m ! [rpc m Nothing calls]
+          in m ! [rpc m FocusNothing calls]
         Deselected -> m ! []
         Entering _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
