@@ -47,7 +47,7 @@ init {state, complete} =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init complete}
   in
-    (m2, rpc m Nothing [])
+    (m2, rpc m FocusNothing [])
 
 
 -----------------------
@@ -129,7 +129,7 @@ update_ msg m =
           case event.keyCode of
             Key.Backspace ->
               let next = G.incomingNodes m (G.getNodeExn m id) in
-              Many [ RPC ([DeleteNode id], Nothing)
+              Many [ RPC ([DeleteNode id], FocusNothing)
                    , case List.head next of
                        Just next -> Select next.id
                        Nothing -> Deselect
@@ -195,15 +195,16 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
-    (RPCCallBack calls mId (Ok (nodes)), _) ->
+    (RPCCallBack calls focus (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
           m3 = { m2| nodes = G.reposition m2 nodes }
       in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod Reset
               , ClearError
-              , case mId of
-                  Just id -> Entry.enterExact m3 (G.getNodeExn m3 id)
-                  Nothing -> NoChange
+              , case focus of
+                  FocusNext id -> Entry.enterNext m3 (G.getNodeExn m3 id)
+                  FocusExact id -> Entry.enterExact m3 (G.getNodeExn m3 id)
+                  FocusNothing -> NoChange
               ]
 
     (PhantomCallBack calls cursor (Ok (nodes)), _) ->

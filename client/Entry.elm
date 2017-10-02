@@ -119,38 +119,40 @@ isValueRepr name = String.toLower name == "null"
                    || Util.rematch "^[\"\'[01-9{].*" name
                    || String.startsWith "-" name && Util.rematch "-[0-9.].+" name
 
-addAnonParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Maybe ID)
+addAnonParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Focus)
 addAnonParam _ id pos name anon_args =
   let sid = gen_id ()
       argids = List.map (\_ -> gen_id ()) anon_args
       anon = AddAnon sid pos argids anon_args
       edge = SetEdge sid (id, name)
   in
-    ([anon, edge], List.head argids)
+    ([anon, edge], FocusNext id)
 
 
-addFunction : Model -> ID -> Name -> MPos -> (List RPC, Maybe ID)
+addFunction : Model -> ID -> Name -> MPos -> (List RPC, Focus)
 addFunction m id name pos =
   let fn = Autocomplete.findFunction m.complete name in
   case fn of
     -- not a real function, but hard to thread an error here, so let the
     -- server fail instead
     Nothing ->
-      ([AddFunctionCall id name pos], Nothing)
+      ([AddFunctionCall id name pos], FocusNothing)
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
           anonpairs = List.map (\p -> addAnonParam m id pos p.name p.anon_args) fn_args
-          anonarg = anonpairs |> List.head |> Maybe.andThen Tuple.second
+          anonarg = anonpairs |> List.head |> Maybe.map Tuple.second
           anons = anonpairs |> List.unzip |> Tuple.first
-          cursor = if anonarg == Nothing then Just id else anonarg
+          focus = case anonarg of
+            Just f -> f
+            Nothing -> FocusNothing
       in
-        (AddFunctionCall id name pos :: List.concat anons, cursor)
+        (AddFunctionCall id name pos :: List.concat anons, focus)
 
-addByName : Model -> ID -> Name -> MPos -> (List RPC, Maybe ID)
+addByName : Model -> ID -> Name -> MPos -> (List RPC, Focus)
 addByName m id name pos =
   if isValueRepr name
-  then ([AddValue id name pos], Just id)
+  then ([AddValue id name pos], FocusNext id)
   else addFunction m id name pos
     -- anon, function, or value
 
@@ -167,20 +169,20 @@ submit m cursor value =
         Nothing ->
           if param.optional
           then RPC ([SetConstant "null" (target.id, param.name)]
-                  , Just target.id)
+                  , FocusNext target.id)
           else NoChange
 
         Just ('$', letter) ->
           case G.fromLetter m letter of
             Just source ->
               RPC ([ SetEdge source.id (target.id, param.name)]
-                   , Just target.id)
+                   , FocusNext target.id)
             Nothing -> Error <| "No node named '" ++ letter ++ "'"
 
         _ ->
           if isValueRepr value
           then RPC ([ SetConstant value (target.id, param.name)]
-                    , Just target.id)
+                    , FocusExact target.id)
           else let (f, focus) = addFunction m id value Nothing in
               RPC (f ++ [SetEdge id (target.id, param.name)], focus)
 
@@ -206,7 +208,7 @@ submit m cursor value =
                 Nothing -> Error "There are no argument slots available"
                 Just (_, (param, _)) ->
                   RPC ([ SetEdge source.id (target.id, param.name)]
-                       , Just target.id)
+                       , FocusExact target.id)
 
         _ ->
           -- this is new functions only

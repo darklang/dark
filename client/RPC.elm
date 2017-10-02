@@ -22,13 +22,13 @@ phantomRpc m cursor calls =
   in Http.send (PhantomCallBack calls cursor) request
 
 
-rpc : Model -> Maybe ID -> List RPC -> Cmd Msg
-rpc m id calls =
+rpc : Model -> Focus -> List RPC -> Cmd Msg
+rpc m focus calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
       url = "/admin/api/rpc"
       request = Http.post url json decodeGraph
-  in Http.send (RPCCallBack calls id) request
+  in Http.send (RPCCallBack calls focus) request
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
