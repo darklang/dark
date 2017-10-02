@@ -14,6 +14,7 @@ type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
 type alias TypeName = Name
+type alias Cursor = Int
 
 type alias Exception =
   { short : String
@@ -70,6 +71,7 @@ type alias Node = { name : Name
                   , anonID : Maybe ID
                   , argIDs : List ID
                   , visible : Bool
+                  , cursor: Cursor
                   }
 
 type Argument = Const String
@@ -117,6 +119,7 @@ type RPC
     | DeleteNode ID
     | ClearArgs ID
     | RemoveLastField ID
+    | UpdateNodeCursor ID Cursor
 
 type alias Autocomplete = { functions : List Function
                           , completions : List AutocompleteItem
@@ -163,6 +166,7 @@ type Modification = Error String
                   | AutocompleteMod AutocompleteMod
                   | Phantom
                   | Many (List Modification)
+                  | ChangeCursor Int
 
 -- name, type optional
 type alias Parameter = { name: Name

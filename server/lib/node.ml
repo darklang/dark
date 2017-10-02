@@ -33,6 +33,7 @@ type nodejson = { name: string
                 ; tipe: string [@key "type"]
                 ; pos : pos
                 ; live: valuejson
+                ; cursor: int
                 ; parameters: param list
                 ; arguments: argument list
                 ; anon_id: id option
@@ -54,6 +55,7 @@ class virtual node id pos =
   object (self)
     val id : id = id
     val mutable pos : pos = pos
+    val mutable cursor : int = 0
     method virtual name : string
     method virtual tipe : string
     method virtual execute : ?ind:int -> scope:scope -> node gfns_ -> RT.execute_t
@@ -79,6 +81,9 @@ class virtual node id pos =
     method arg_ids = []
     method update_pos _pos : unit =
       pos <- _pos
+    method cursor = cursor
+    method update_cursor (_cursor:int) : unit =
+      Exception.internal "This node doesn't support cursor"
     method preview (gfns: node gfns_) (args: dval_map) : (dval list) list =
       Exception.internal "This node doesn't support preview"
     method to_frontend (value, tipe, json, exc : string * string * string * Exception.exception_data option) : nodejson =
@@ -93,6 +98,7 @@ class virtual node id pos =
             self#parameters
       ; anon_id = self#anon_id
       ; arg_ids = self#arg_ids
+      ; cursor = cursor
       }
   end
 
@@ -292,10 +298,17 @@ class argnode id pos name index nid argids =
       loG ~ind ("argnode" ^ self#debug_name ^ " called with ") ~f:RT.dvalmap_to_string args;
       match g.get_children nid with
       | [] -> DIncomplete
-      | [caller] -> List.nth_exn (preview caller#id g) index |> List.hd_exn
+      | [caller] ->
+        let anon_node: node = g.getf nid in
+        let element = List.nth_exn (preview caller#id g) index in
+        let anon_node_cursor: int = anon_node#cursor in
+        let cursor_index = Log.pp "Cursor index" (max (min anon_node_cursor ((List.length element) - 1)) 0) in
+        Log.pp "Cursor element" (List.nth_exn element cursor_index)
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! arg_ids = argids
+    method update_cursor (_cursor:int) : unit =
+      cursor <- _cursor
   end
 
 class anonfn id pos argids =
@@ -314,6 +327,8 @@ class anonfn id pos argids =
       |> List.hd_exn
       |> Tuple.T2.get2 in
       DAnon (id, anonexecutor ~ind ~scope debugname return#id argids g)
+    method update_cursor (_cursor:int) : unit =
+      cursor <- _cursor
     method tipe = "definition"
     method! parameters = []
     method! arg_ids = argids

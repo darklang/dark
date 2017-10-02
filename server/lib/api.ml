@@ -13,6 +13,7 @@ type pos = Types.pos [@@deriving yojson]
 type delete_node = { id: int } [@@deriving yojson]
 type clear_args = { id: int } [@@deriving yojson]
 type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
+type update_node_cursor = { id: int ; cursor: int} [@@deriving yojson]
 type add_datastore = { id: int
                      ; name: string
                      ; pos: pos} [@@deriving yojson]
@@ -57,6 +58,7 @@ type opjson =
   ; add_function_call: add_function_call option [@default None]
   ; add_anon: add_anon option [@default None]
   ; update_node_position: update_node_position option [@default None]
+  ; update_node_cursor: update_node_cursor option [@default None]
   ; set_edge: set_edge option [@default None]
   ; delete_arg: delete_arg option [@default None]
   ; delete_node: delete_node option [@default None]
@@ -77,6 +79,7 @@ let json2op (op: opjson) : op =
   | { add_function_call = Some a } -> Add_fn_call (a.id, a.pos, a.name)
   | { add_value = Some a } -> Add_value (a.id, a.pos, a.value)
   | { update_node_position = Some a } -> Update_node_position (a.id, a.pos)
+  | { update_node_cursor = Some a } -> Update_node_cursor(a.id, a.cursor)
   | { set_edge = Some a } -> Set_edge (a.source, a.target, a.param)
   | { set_constant = Some a } -> Set_constant (a.target, a.param, a.value)
 

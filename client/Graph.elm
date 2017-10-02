@@ -149,6 +149,16 @@ findNextHole m start =
   in
     fold func Nothing start (outgoingNodes m)
 
+findParentAnon : Model -> Node -> Maybe Node
+findParentAnon m n = 
+  let searchParents = List.foldl (\curr accum -> case accum of
+    Just result -> Just result
+    Nothing -> findParentAnon m curr) Nothing
+  in
+    case n.tipe of
+      Arg -> Maybe.map (getNodeExn m) n.anonID
+      _ -> searchParents (incomingNodes m n)
+
 -- Starting with `start`, traverse the graph, folding using `func`. Will not
 -- visit the same node twice.
 type alias IDSet = Set.Set Int

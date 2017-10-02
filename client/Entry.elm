@@ -156,6 +156,13 @@ addByName m id name pos =
   else addFunction m id name pos
     -- anon, function, or value
 
+updatePreviewCursor : Model -> ID -> Int -> List RPC
+updatePreviewCursor m id step = 
+  let baseNode = G.getNodeExn m id in
+  let anonFuncNode = Debug.log "parent anon" (G.findParentAnon m baseNode) in
+  case anonFuncNode of
+    Just n -> [UpdateNodeCursor n.id (n.cursor + step)]
+    Nothing -> []
 
 submit : Model -> EntryCursor -> String -> Modification
 submit m cursor value =

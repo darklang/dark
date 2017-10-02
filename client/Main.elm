@@ -99,6 +99,11 @@ updateMod mod (m, cmd) =
           ({ m | complete = Autocomplete.update mod m.complete
            }, Autocomplete.focusItem complete.index)
       -- applied from left to right
+      ChangeCursor step -> case m.state of
+        Selecting id -> let calls = Debug.log "updatePreviewCursor:" (Entry.updatePreviewCursor m id step)
+          in m ! [rpc m Nothing calls]
+        Deselected -> m ! []
+        Entering _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
@@ -136,8 +141,16 @@ update_ msg m =
                    ]
             Key.Up -> Selection.selectNextNode m id (\n o -> n.y > o.y)
             Key.Down -> Selection.selectNextNode m id (\n o -> n.y < o.y)
-            Key.Left -> Selection.selectNextNode m id (\n o -> n.x > o.x)
-            Key.Right -> Selection.selectNextNode m id (\n o -> n.x < o.x)
+            Key.Left -> if event.altKey
+              then
+                ChangeCursor -1
+              else
+                Selection.selectNextNode m id (\n o -> n.x > o.x)
+            Key.Right -> if event.altKey
+              then
+                ChangeCursor 1
+              else
+                Selection.selectNextNode m id (\n o -> n.x < o.x)
             Key.Enter -> Entry.enterExact m (G.getNodeExn m id)
             Key.One -> Entry.reenter m id 0
             Key.Two -> Entry.reenter m id 1

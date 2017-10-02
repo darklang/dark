@@ -87,6 +87,11 @@ encodeRPC m call =
            , ("target", JSE.int target)
            , ("param", JSE.string param)])
 
+      UpdateNodeCursor id cursor ->
+        ("update_node_cursor",
+          JSE.object [ jseId id
+                     , ("cursor", JSE.int cursor)])
+
       DeleteNode id ->
         ("delete_node", JSE.object [ jseId id ])
 
@@ -133,8 +138,8 @@ decodeNode =
       toNode : Name -> Int -> List(FieldName,TypeName) ->
                List Parameter -> List (List JSD.Value) -> String ->
                String -> String -> Maybe Exception -> Int -> List Int ->
-               String -> Int -> Int -> Node
-      toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe x y =
+               String -> Int -> Int -> Int -> Node
+      toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe x y cursor =
           { name = name
           , id = ID id
           , fields = fields
@@ -155,6 +160,7 @@ decodeNode =
                      "arg" -> Arg
                      _ -> Debug.crash "shouldnt happen"
           , pos = {x=x, y=y}
+          , cursor = cursor
           , visible = tipe /= "definition"
           }
       toExc : String -> String -> String -> String -> String ->
@@ -210,6 +216,7 @@ decodeNode =
     |> JSDP.required "type" JSD.string
     |> JSDP.optionalAt ["pos", "x"] JSD.int -42
     |> JSDP.optionalAt ["pos", "y"] JSD.int -42
+    |> JSDP.required "cursor" JSD.int
 
 
 decodeGraph : JSD.Decoder (NodeDict)

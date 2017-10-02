@@ -33,7 +33,7 @@ let server =
         let result = !g
                      |> Graph.to_frontend_string in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
-        Log.pp  ~stop:1000 ~f:ident ("response (" ^ total ^ "ms):")
+        Log.pp  ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):")
         result
 
 

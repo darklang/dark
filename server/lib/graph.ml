@@ -81,6 +81,9 @@ let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : gra
 let update_node_position (id: id) (pos: pos) (g: graph) : graph =
   update_node id g ~f:(fun n -> n#update_pos pos; Some n)
 
+let update_node_cursor (id: id) (cursor: int) (g: graph) : graph =
+  update_node id g ~f:(fun n -> n#update_cursor cursor; Some n)
+
 let set_arg (a: RT.argument) (t: id) (param: string) (g: graph) : graph =
   update_node t g
     ~f:(fun n ->
@@ -163,6 +166,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
                           argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, pos) -> update_node_position id pos
+    | Update_node_cursor (id, cursor) -> update_node_cursor id cursor
     | Set_constant (target, param, value) ->
       set_const target param value
     | Set_edge (src, target, param) -> set_edge src target param
