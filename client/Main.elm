@@ -210,7 +210,7 @@ update_ msg m =
 
     (RPCCallBack calls focus (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-          m3 = { m2| nodes = G.reposition m2 nodes }
+          m3 = G.reposition m2
       in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod Reset
               , ClearError

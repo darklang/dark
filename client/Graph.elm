@@ -214,7 +214,7 @@ outgoingNodes m parent =
                          child
                       |> incomingNodePairs m
                       |> List.map Tuple.first
-                      |> LE.find ((==) parent)
+                      |> LE.find (\n -> n.id == parent.id)
                       |> Maybe.map (always child))
     |> List.append (getArgsOf m parent.id)
 
@@ -273,24 +273,19 @@ entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
   fold (\n list -> n :: list) [] start (connectedNodes m)
 
-reposition : Model -> NodeDict -> NodeDict
-reposition m nodes =
-  let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values nodes)
-      rePosed = roots
-              |> List.map (\r -> repositionChildren m r r.pos |> Tuple3.third)
-              |> List.concat
+reposition : Model -> Model
+reposition m =
+  let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values m.nodes)
 
-      result = List.foldl (\(node, pos) dict ->
-                   Dict.update
-                     (node.id |> deID)
-                     (Maybe.map (\n -> { n | pos=pos}))
-                     dict)
-                nodes
-                rePosed
+      result = List.foldl
+               (\r m2 -> repositionChildren m2 r r.pos |> Tuple3.third)
+               m
+               roots
+
       _ = Dict.map (\k n -> if n.pos == {x=-42,y=-42}
                                then Debug.log "missed one" n
                                else n)
-                   result
+                   result.nodes
   in
      result
 
@@ -298,51 +293,61 @@ reposition m nodes =
 -- return the new position of the node, alongside the (unupdated) node,
 -- the maximum depth that has been achieved, and the maximum width found
 -- when exploring depth-first from the root.
-repositionChildren : Model -> Node -> Pos -> (Int, Int, List (Node, Pos))
+repositionChildren : Model -> Node -> Pos -> (Int, Int, Model)
 repositionChildren m root pos =
   let -- TODO: start by looking up. If there are nodes above us that
       -- havent been placed, then make some room for them.
       -- TODO: hard to tell when two lines overlap each other
+      insert m n pos =
+        let newNode = { n | pos = pos }
+        in { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
+
+      debug4 str (a,b,c,d) = let _ = Debug.log str (a,b,c) in (a,b,c,d)
+      debug3 str (a,b,c) = let _ = Debug.log str (a,b) in (a,b,c)
 
       -- a function to fold across sets of nodes. It keeps track of
       -- where to place nodes, as well as the maximum height that has
       -- been achieved, which we use to place nodes below it later
-      rePosChild child (startX, startY, _, accumulatedNodes) =
+      rePosChild child (startX, startY, _, startModel) =
         let
             newPos = {x=startX, y=startY}
-            endX = startX + nodeWidth child
-            _ = Debug.log "starting on child" (child.name, newPos)
-            (maxChildX, maxChildY, children) = repositionChildren m child newPos
-            maxX = max (endX+20) maxChildX
+            newChild = { child | pos = newPos }
+            (maxChildX, maxChildY, mWithChildren) = repositionChildren startModel newChild newPos
+            maxX = max maxChildX (startX + nodeWidth child + 20)
+            _ = Debug.log "starting on child" (child.name, newChild.pos)
         in
-           -- next node in this row should be over to the right, on the
-           -- same line.
-          (maxX, startY, maxChildY, (child, newPos) :: (children ++ accumulatedNodes))
-
-      (argChildren, nonArgChildren) =
-        List.partition (\n -> n.tipe == Arg) (outgoingNodes m root)
+          -- next node in this row should be over to the right, on the
+          -- same line.
+          (maxX, startY, maxChildY, insert mWithChildren newChild newPos)
 
       -- blocks should be indented
       startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
 
+      -- anonymous functions need to get placed with the function
+      -- they're with, so just update them to this node's position.
+      mWithAnons =
+        List.foldl
+          (\anon model -> insert model anon pos)
+          m
+          (getAnonNodesOf m root.id)
+
+
       -- blocks should be calculated first, as we need to know how deep
       -- they are before we can start to position other outgoing nodes
       -- below them.
-      (maxArgX, _, maxArgY, reArgChildren) =
-        Debug.log ("after arg fold:" ++ root.name)
-          (List.foldl rePosChild (startingX, pos.y+40, pos.y+40, []) argChildren)
+      argChildren = List.filter (\n -> n.tipe == Arg) (outgoingNodes mWithAnons root)
+      (maxArgX, _, maxArgY, mWithArgs) =
+        debug4 ("after arg fold:" ++ root.name)
+          (List.foldl rePosChild (startingX, pos.y+40, pos.y+40, mWithAnons) argChildren)
 
       -- position back on the baseline, but below all the other nodes
-      (maxNonArgX, _, maxNonArgY, reNonArgChildren) =
-        Debug.log ("after non-arg fold:" ++ root.name)
-          (List.foldl rePosChild (pos.x, maxArgY, maxArgY, []) nonArgChildren)
-
-      -- anonymous functions need to get placed with the function
-      -- they're with, so just update them to this node's position.
-      anons = List.map (\anon -> (anon, pos)) (getAnonNodesOf m root.id)
+      nonArgChildren = List.filter (\n -> n.tipe /= Arg) (outgoingNodes mWithArgs root)
+      (maxNonArgX, _, maxNonArgY, mWithNonArgs) =
+        debug4 ("after non-arg fold:" ++ root.name)
+          (List.foldl rePosChild (pos.x, maxArgY, maxArgY, mWithArgs) nonArgChildren)
 
       _ = Debug.log "placing node" (root.name, pos)
   in
-    Debug.log ("result: " ++ root.name)
-    (max maxArgX maxNonArgX, max maxArgY maxNonArgY, reArgChildren ++ reNonArgChildren ++ anons)
+    debug3 ("result: " ++ root.name)
+    (max maxArgX maxNonArgX, max maxArgY maxNonArgY, mWithNonArgs)
 
