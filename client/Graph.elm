@@ -301,30 +301,46 @@ reposition m nodes =
 repositionChildren : Model -> Node -> Pos -> (Int, Int, List (Node, Pos))
 repositionChildren m root pos =
   let
+      -- a function to fold across sets of nodes. It keeps track of
+      -- where to place nodes, as well as the maximum height that has
+      -- been achieved, which we use to place nodes below it later
       rePosChild child (startX, startY, maxY, accumulatedNodes) =
         let
             newPos = {x=startX, y=startY}
-            _ = Debug.log "starting on child" (child.name, newPos)
             endX = startX + nodeWidth child
+            _ = Debug.log "starting on child" (child.name, newPos)
             (maxChildX, maxChildY, children) = repositionChildren m child newPos
             maxX = max (endX+20) maxChildX
             maxY = max startY maxChildY
         in
+           -- next node in this row should be over to the right, on the
+           -- same line.
           (maxX, startY, maxY, (child, newPos) :: (children ++ accumulatedNodes))
 
       (argChildren, nonArgChildren) =
         List.partition (\n -> n.tipe == Arg) (outgoingNodes m root)
 
+      -- blocks should be indented
       startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
+
+      -- blocks should be calculated first, as we need to know how deep
+      -- they are before we can start to position other outgoing nodes
+      -- below them.
       (maxArgX, _, maxArgY, reArgChildren) =
         Debug.log ("after arg fold:" ++ root.name)
-          (List.foldl rePosChild (startingX, pos.y+40, pos.y+40, []) argChildren)
+          (List.foldl rePosChild (startingX,pos.y+40, pos.y+40, []) argChildren)
+
+      -- position back on the baseline, but below all the other nodes
       (maxNonArgX, _, maxNonArgY, reNonArgChildren) =
         Debug.log ("after non-arg fold:" ++ root.name)
           (List.foldl rePosChild (pos.x, maxArgY, maxArgY, []) nonArgChildren)
 
+      -- anonymous functions need to get placed with the function
+      -- they're with, so just update them to this node's position.
       anons = List.map (\anon -> (anon, pos)) (getAnonNodesOf m root.id)
+
       _ = Debug.log "placing node" (root.name, pos)
   in
-    Debug.log ("result: " ++ root.name) (max maxArgX maxNonArgX, max maxArgY maxNonArgY, reArgChildren ++ reNonArgChildren ++ anons)
+    Debug.log ("result: " ++ root.name)
+    (max maxArgX maxNonArgX, max maxArgY maxNonArgY, reArgChildren ++ reNonArgChildren ++ anons)
 
