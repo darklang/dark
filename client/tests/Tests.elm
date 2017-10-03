@@ -55,9 +55,6 @@ suite =
       , \_ -> sharedPrefixList ["abcdd", "abcdde"] == "abcdd"
       , \_ -> sharedPrefixList ["abcdd", "bcddee"] == ""
       ]
-    , d "joinPrefix"
-      [ \_ -> joinPrefix "tWiTt" "Twitter::" == "tWiTter::"
-      ]
     , d "query"
       -- Lowercase search still finds uppercase results
       [ \_ -> (init completes)
