@@ -581,10 +581,11 @@ let fns : Lib.shortfn list = [
         (fun dv cursor ->
           match dv with
           | [DList l; init; DAnon (_, fn)] ->
-            let short_l: dval list = List.take l cursor in
+            let short_l = List.take l cursor in
             let f = fun (accum:dval) (elt:dval) -> fn([accum; elt]) in
-            let end_accum: dval = List.fold ~f ~init short_l in
-            let next_elt: dval = (match List.nth l cursor with
+            let end_accum = List.fold ~f ~init short_l in
+            let next_elt =
+              (match List.nth l cursor with
               | Some elt -> elt
               | None -> DIncomplete)
             in [end_accum; next_elt]
