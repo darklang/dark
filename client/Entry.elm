@@ -184,7 +184,7 @@ submit m cursor value =
         _ ->
           if isValueRepr value
           then RPC ([ SetConstant value (target.id, param.name)]
-                    , FocusExact target.id)
+                    , FocusNext target.id)
           else
             let (f, focus) = addFunction m id value Nothing in
               RPC (f ++ [SetEdge id (target.id, param.name)], focus)
