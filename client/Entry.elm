@@ -149,13 +149,6 @@ addFunction m id name pos =
       in
         (AddFunctionCall id name pos :: List.concat anons, focus)
 
-addByName : Model -> ID -> Name -> MPos -> (List RPC, Focus)
-addByName m id name pos =
-  if isValueRepr name
-  then ([AddValue id name pos], FocusNext id)
-  else addFunction m id name pos
-    -- anon, function, or value
-
 updatePreviewCursor : Model -> ID -> Int -> List RPC
 updatePreviewCursor m id step =
   let baseNode = G.getNodeExn m id in
@@ -169,7 +162,9 @@ submit m cursor value =
   let id = gen_id () in
   case cursor of
     Creating pos ->
-      RPC <| addByName m id value (Just pos)
+      RPC <| if isValueRepr value
+             then ([AddValue id value (Just pos)], FocusNext id)
+             else addFunction m id value (Just pos)
 
     Filling n (ParamHole target param _ as hole) ->
       case String.uncons value of
@@ -190,7 +185,8 @@ submit m cursor value =
           if isValueRepr value
           then RPC ([ SetConstant value (target.id, param.name)]
                     , FocusExact target.id)
-          else let (f, focus) = addFunction m id value Nothing in
+          else
+            let (f, focus) = addFunction m id value Nothing in
               RPC (f ++ [SetEdge id (target.id, param.name)], focus)
 
     Filling n (ResultHole source as hole) ->
@@ -199,11 +195,10 @@ submit m cursor value =
 
         -- TODO: this should be an opcode
         Just ('.', fieldname) ->
-          let (f, focus) = addFunction m id "." Nothing
-              name = "\"" ++ fieldname ++ "\"" in
-          RPC (f ++ [ SetEdge source.id (id, "value")
-                    , SetConstant name (id, "fieldname")]
-              , focus)
+          RPC ([ AddFunctionCall id "." Nothing
+               , SetEdge source.id (id, "value")
+               , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
+              , FocusNothing)
 
         Just ('$', letter) ->
           case G.fromLetter m letter of
@@ -226,7 +221,13 @@ submit m cursor value =
                               (name :: arg :: es) -> (name, Just arg, es)
                               [name] -> (name, Nothing, [])
                               [] -> ("", Nothing, [])
-              (f, focus) = addByName m id name Nothing
+              (f, focus) = if isValueRepr name
+                           then ([ AddFunctionCall id "_" Nothing
+                                 , SetConstant name (id, "value")
+                                 , SetEdge source.id (id, "ignore")
+                                 ]
+                                , FocusNext id)
+                           else addFunction m id name Nothing
           in
           case Autocomplete.findFunction m.complete name of
             Nothing ->
