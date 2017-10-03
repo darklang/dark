@@ -36,11 +36,13 @@ nodeWidth n =
                                           else 8.0)
              |> List.sum
     paramLen = args n
-                |> List.map (\(p, a) ->
-                  case a of
-                    Const c -> if c == "null" then 8 else (len c)
-                    _ -> 14)
-                |> List.sum
+               |> List.map (\(p, a) ->
+                 if p.tipe == "Function" then -space -- remove spaces
+                 else
+                   case a of
+                     Const c -> if c == "null" then 8 else (len c)
+                     _ -> 14)
+               |> List.sum
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
@@ -110,7 +112,7 @@ getArgument pname n =
 
 args : Node -> List (Parameter, Argument)
 args n =
-  List.map2 (,) n.parameters n.arguments
+  Util.zip n.parameters n.arguments
 
 findParam : Node -> Maybe (Int, (Parameter, Argument))
 findParam n = Util.findIndex (\(_, a) -> a == NoArg) (args n)
@@ -150,7 +152,7 @@ findNextHole m start =
     fold func Nothing start (outgoingNodes m)
 
 findParentAnon : Model -> Node -> Maybe Node
-findParentAnon m n = 
+findParentAnon m n =
   let searchParents = List.foldl (\curr accum -> case accum of
     Just result -> Just result
     Nothing -> findParentAnon m curr) Nothing
@@ -222,7 +224,7 @@ incomingNodePairs m n = List.filterMap
                        case a of
                          Edge id -> Just (getNodeExn m id, p.name)
                          _ -> Nothing)
-                    (Util.zip n.parameters n.arguments)
+                    (args n)
 
 incomingNodes : Model -> Node -> List Node
 incomingNodes m n =

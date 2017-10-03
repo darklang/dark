@@ -242,13 +242,16 @@ viewNormalNode m n i =
                ]
 
       -- heading
-      params = n.arguments
+      params = G.args n
               |> List.map
-                    (\a ->
-                      case a of
-                        Const c -> ("arg_const", if c == "null" then "∅" else c)
-                        NoArg -> ("arg_none", "◉")
-                        Edge _ -> ("arg_edge", "◉"))
+                    (\(p, a) ->
+                      if p.tipe == "Function"
+                      then ("", "")
+                      else
+                        case (a, p) of
+                          (Const c, _) -> ("arg_const", if c == "null" then "∅" else c)
+                          (NoArg, _) -> ("arg_none", "◉")
+                          (Edge _, _) -> ("arg_edge", "◉"))
                |> List.map (\(class, val) ->
                               Html.span
                                 [ Attrs.class class]
