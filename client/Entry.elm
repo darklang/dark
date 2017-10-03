@@ -145,7 +145,7 @@ addFunction m id name pos =
           anons = anonpairs |> List.unzip |> Tuple.first
           focus = case anonarg of
             Just f -> f
-            Nothing -> FocusNothing
+            Nothing -> FocusNext id
       in
         (AddFunctionCall id name pos :: List.concat anons, focus)
 
@@ -157,7 +157,7 @@ addByName m id name pos =
     -- anon, function, or value
 
 updatePreviewCursor : Model -> ID -> Int -> List RPC
-updatePreviewCursor m id step = 
+updatePreviewCursor m id step =
   let baseNode = G.getNodeExn m id in
   let anonFuncNode = Debug.log "parent anon" (G.findParentAnon m baseNode) in
   case anonFuncNode of
