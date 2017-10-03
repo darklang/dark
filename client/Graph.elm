@@ -301,22 +301,30 @@ reposition m nodes =
 repositionChildren : Model -> Node -> Pos -> (Int, Int, List (Node, Pos))
 repositionChildren m root pos =
   let
-      rePosChild child (startX, startY, accumulatedNodes) =
+      rePosChild child (startX, startY, maxY, accumulatedNodes) =
         let
             newPos = {x=startX, y=startY}
             _ = Debug.log "starting on child" (child.name, newPos)
             endX = startX + nodeWidth child
             (maxChildX, maxChildY, children) = repositionChildren m child newPos
             maxX = max (endX+20) maxChildX
+            maxY = max startY maxChildY
         in
-          (maxX, startY, (child, newPos) :: (children ++ accumulatedNodes))
+          (maxX, startY, maxY, (child, newPos) :: (children ++ accumulatedNodes))
 
-      children = outgoingNodes m root
+      (argChildren, nonArgChildren) =
+        List.partition (\n -> n.tipe == Arg) (outgoingNodes m root)
+
       startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
-      (maxX, maxY, reChildren) = Debug.log ("after fold:" ++ root.name) (List.foldl rePosChild (startingX, pos.y+40, []) children)
+      (maxArgX, _, maxArgY, reArgChildren) =
+        Debug.log ("after arg fold:" ++ root.name)
+          (List.foldl rePosChild (startingX, pos.y+40, pos.y+40, []) argChildren)
+      (maxNonArgX, _, maxNonArgY, reNonArgChildren) =
+        Debug.log ("after non-arg fold:" ++ root.name)
+          (List.foldl rePosChild (pos.x, maxArgY, maxArgY, []) nonArgChildren)
 
       anons = List.map (\anon -> (anon, pos)) (getAnonNodesOf m root.id)
       _ = Debug.log "placing node" (root.name, pos)
   in
-    Debug.log "result" (maxX, maxY, reChildren ++ anons)
+    Debug.log ("result: " ++ root.name) (max maxArgX maxNonArgX, max maxArgY maxNonArgY, reArgChildren ++ reNonArgChildren ++ anons)
 
