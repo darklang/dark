@@ -84,7 +84,7 @@ viewEntry m =
            m.complete.completions)
 
       autocompletions = case (m.state, m.complete.index) of
-                          (Entering (Filling _ (ParamHole _ _ _)), -1) ->
+                          (Entering _ (Filling _ (ParamHole _ _ _)), -1) ->
                             [ Html.li
                               [ Attrs.class "autocomplete-item greyed" ]
                               [ Html.text "Press down to autocomplete…" ]
@@ -127,7 +127,7 @@ viewEntry m =
 
       paramInfo =
         case m.state of
-          Entering (Filling _ (ParamHole _ param _)) ->
+          Entering _ (Filling _ (ParamHole _ param _)) ->
             Html.div [] [ Html.text (param.name ++ " : " ++ param.tipe)
                         , Html.br [] []
                         , Html.text param.description
@@ -144,7 +144,7 @@ viewEntry m =
       html pos = placeHtml m pos wrapper
   in
     case m.state of
-      Entering (Filling n h) ->
+      Entering _ (Filling n h) ->
         let holePos = holeDisplayPos m h
             edgePos = { x = holePos.x + 10
                       , y = holePos.y + 10}
@@ -152,7 +152,7 @@ viewEntry m =
                       , y = n.pos.y + 10}
         in
         [svgLine m nodePos edgePos edgeStyle, html holePos]
-      Entering (Creating pos) -> [html pos]
+      Entering _ (Creating pos) -> [html pos]
       _ -> []
 
 

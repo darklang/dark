@@ -77,20 +77,20 @@ updateMod mod (m, cmd) =
       RPC (calls, id) -> m ! [rpc m id calls]
       Phantom ->
         case m.state of
-          Entering cursor ->
-            case Entry.submit m cursor m.complete.value of
+          Entering re cursor ->
+            case Entry.submit m re cursor m.complete.value of
               RPC (rpcs, _) -> m ! [phantomRpc m cursor rpcs]
               _ -> m ! []
           _ -> m ! []
       NoChange -> m ! []
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> .pos} ! []
-      Enter entry -> { m | state = Entering entry
-                         , center = case entry of
-                                      Filling n _ -> n.pos
-                                      Creating p -> m.center -- dont move
-                     }
-                     ! [Entry.focusEntry]
+      Enter re entry -> { m | state = Entering re entry
+                            , center = case entry of
+                                         Filling n _ -> n.pos
+                                         Creating p -> m.center -- dont move
+                        }
+                        ! [Entry.focusEntry]
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
@@ -100,10 +100,10 @@ updateMod mod (m, cmd) =
            }, Autocomplete.focusItem complete.index)
       -- applied from left to right
       ChangeCursor step -> case m.state of
-        Selecting id -> let calls = Debug.log "updatePreviewCursor:" (Entry.updatePreviewCursor m id step)
-          in m ! [rpc m FocusNothing calls]
+        Selecting id -> let calls = Entry.updatePreviewCursor m id step
+                        in m ! [rpc m FocusNothing calls]
         Deselected -> m ! []
-        Entering _ -> m ! []
+        Entering _ _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
@@ -119,7 +119,7 @@ update_ msg m =
     (RecordClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod Reset
-                , Enter <| Creating (Viewport.toAbsolute m event.pos)]
+                , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
       else NoChange
 
     ------------------------
@@ -165,7 +165,7 @@ update_ msg m =
             Key.Escape -> Deselect
             code -> Selection.selectByLetter m code
 
-        Entering cursor ->
+        Entering re cursor ->
           if event.ctrlKey then
             case event.keyCode of
               Key.P -> AutocompleteMod SelectUp
@@ -186,7 +186,7 @@ update_ msg m =
                              Just item -> Autocomplete.asName item
                              Nothing -> m.complete.value
                 in
-                   Entry.submit m cursor name
+                   Entry.submit m re cursor name
 
               Key.Escape ->
                 case cursor of

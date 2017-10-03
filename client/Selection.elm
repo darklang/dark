@@ -17,20 +17,20 @@ import Graph as G
 isSelected : Model -> Node -> Bool
 isSelected m n =
   case m.state of
-    Entering (Filling node _) -> n == node
+    Entering _ (Filling node _) -> n == node
     Selecting id -> n.id == id
     _ -> False
 
 entryVisible : State -> Bool
 entryVisible state =
   case state of
-    Entering _ -> True
+    Entering _ _ -> True
     _ -> False
 
 getCursorID : State -> Maybe ID
 getCursorID s =
   case s of
-    Entering (Filling node _) -> Just node.id
+    Entering _ (Filling node _) -> Just node.id
     Selecting id -> Just id
     _ -> Nothing
 

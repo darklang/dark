@@ -55,7 +55,7 @@ reenter m id i =
     case LE.getAt i args of
       Nothing -> NoChange
       Just (p, a) ->
-        let enter = Enter <| Filling n (ParamHole n p i) in
+        let enter = Enter True <| Filling n (ParamHole n p i) in
         case a of
           Edge eid -> Many [ enter
                           , AutocompleteMod (Query <| "$" ++ G.toLetter m eid)]
@@ -79,7 +79,7 @@ enterNext m n =
 
 cursor2mod : EntryCursor -> Modification
 cursor2mod cursor =
-  Many [ Enter <| cursor
+  Many [ Enter False cursor
        , case cursor of
            Filling n (ResultHole _) ->
              AutocompleteMod <| FilterByLiveValue n.liveValue
@@ -97,7 +97,7 @@ updateValue target =
   Many [ AutocompleteMod <| Query target, Phantom ]
 
 createFindSpace : Model -> Modification
-createFindSpace m = Enter <| Creating (Viewport.toAbsolute m Defaults.initialPos)
+createFindSpace m = Enter False <| Creating (Viewport.toAbsolute m Defaults.initialPos)
 ---------------------
 -- Focus
 ---------------------
@@ -157,8 +157,15 @@ updatePreviewCursor m id step =
     Just n -> [UpdateNodeCursor n.id (n.cursor + step)]
     Nothing -> []
 
-submit : Model -> EntryCursor -> String -> Modification
-submit m cursor value =
+
+refocus : Bool -> Focus -> Focus
+refocus re default =
+  case default of
+    FocusNext id -> if re then FocusExact id else FocusNext id
+    f -> f
+
+submit : Model -> Bool -> EntryCursor -> String -> Modification
+submit m re cursor value =
   let id = gen_id () in
   case cursor of
     Creating pos ->
@@ -171,23 +178,24 @@ submit m cursor value =
         Nothing ->
           if param.optional
           then RPC ([SetConstant "null" (target.id, param.name)]
-                  , FocusNext target.id)
+                  , FocusNext target.id |> refocus re)
           else NoChange
 
         Just ('$', letter) ->
           case G.fromLetter m letter of
             Just source ->
               RPC ([ SetEdge source.id (target.id, param.name)]
-                   , FocusNext target.id)
+                   , FocusNext target.id |> refocus re)
             Nothing -> Error <| "No node named '" ++ letter ++ "'"
 
         _ ->
           if isValueRepr value
           then RPC ([ SetConstant value (target.id, param.name)]
-                    , FocusNext target.id)
+                    , FocusNext target.id |> refocus re)
           else
             let (f, focus) = addFunction m id value Nothing in
-              RPC (f ++ [SetEdge id (target.id, param.name)], focus)
+              RPC (f ++ [SetEdge id (target.id, param.name)]
+                  , focus |> refocus re)
 
     Filling n (ResultHole source as hole) ->
       case String.uncons value of

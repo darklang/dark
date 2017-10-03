@@ -85,7 +85,7 @@ type EntryCursor = Creating Pos
                  | Filling Node Hole
 
 type State = Selecting ID
-           | Entering EntryCursor
+           | Entering Bool EntryCursor
            | Deselected
 
 
@@ -158,7 +158,7 @@ type AutocompleteMod = Query String
 type Modification = Error String
                   | ClearError
                   | Select ID
-                  | Enter EntryCursor
+                  | Enter Bool EntryCursor -- reenter?
                   | Deselect
                   | RPC (List RPC, Focus)
                   | ModelMod (Model -> Model)
