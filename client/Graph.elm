@@ -300,7 +300,10 @@ reposition m nodes =
 -- when exploring depth-first from the root.
 repositionChildren : Model -> Node -> Pos -> (Int, Int, List (Node, Pos))
 repositionChildren m root pos =
-  let
+  let -- TODO: start by looking up. If there are nodes above us that
+      -- havent been placed, then make some room for them.
+      -- TODO: hard to tell when two lines overlap each other
+
       -- a function to fold across sets of nodes. It keeps track of
       -- where to place nodes, as well as the maximum height that has
       -- been achieved, which we use to place nodes below it later
