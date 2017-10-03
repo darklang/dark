@@ -299,11 +299,11 @@ class argnode id pos name index nid argids =
       match g.get_children nid with
       | [] -> DIncomplete
       | [caller] ->
-        let anon_node: node = Log.pp "Anon node" (g.getf nid) in
-        let anon_node_cursor: int = anon_node#cursor in
-        let preview_result = Log.pp "Preview result" (preview caller#id g anon_node_cursor) in 
-        let element = List.nth_exn preview_result index in
-        Log.pp "Cursor element" element
+        let anon_node = g.getf nid in
+        let preview_result = preview caller#id g anon_node#cursor in
+        (match List.nth preview_result index with
+        | Some element -> element
+        | None -> DIncomplete)
       | _ -> failwith "more than 1"
     method! anon_id = Some nid
     method! arg_ids = argids
