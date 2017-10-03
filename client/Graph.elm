@@ -304,18 +304,17 @@ repositionChildren m root pos =
       -- a function to fold across sets of nodes. It keeps track of
       -- where to place nodes, as well as the maximum height that has
       -- been achieved, which we use to place nodes below it later
-      rePosChild child (startX, startY, maxY, accumulatedNodes) =
+      rePosChild child (startX, startY, _, accumulatedNodes) =
         let
             newPos = {x=startX, y=startY}
             endX = startX + nodeWidth child
             _ = Debug.log "starting on child" (child.name, newPos)
             (maxChildX, maxChildY, children) = repositionChildren m child newPos
             maxX = max (endX+20) maxChildX
-            maxY = max startY maxChildY
         in
            -- next node in this row should be over to the right, on the
            -- same line.
-          (maxX, startY, maxY, (child, newPos) :: (children ++ accumulatedNodes))
+          (maxX, startY, maxChildY, (child, newPos) :: (children ++ accumulatedNodes))
 
       (argChildren, nonArgChildren) =
         List.partition (\n -> n.tipe == Arg) (outgoingNodes m root)
@@ -328,7 +327,7 @@ repositionChildren m root pos =
       -- below them.
       (maxArgX, _, maxArgY, reArgChildren) =
         Debug.log ("after arg fold:" ++ root.name)
-          (List.foldl rePosChild (startingX,pos.y+40, pos.y+40, []) argChildren)
+          (List.foldl rePosChild (startingX, pos.y+40, pos.y+40, []) argChildren)
 
       -- position back on the baseline, but below all the other nodes
       (maxNonArgX, _, maxNonArgY, reNonArgChildren) =
