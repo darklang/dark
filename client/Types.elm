@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Http
 import Dom
 import Mouse
+import Navigation
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -101,6 +102,7 @@ type Msg
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallBack (List RPC) Focus (Result Http.Error NodeDict)
     | PhantomCallBack (List RPC) EntryCursor (Result Http.Error NodeDict)
+    | LocationChange Navigation.Location
     | Initialization
 
 type Focus = FocusNothing

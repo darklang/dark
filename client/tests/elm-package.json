@@ -23,6 +23,7 @@
         "elm-lang/keyboard": "1.0.1 <= v < 2.0.0",
         "elm-lang/mouse": "1.0.1 <= v < 2.0.0",
         "elm-lang/svg": "2.0.0 <= v < 3.0.0",
+        "elm-lang/navigation": "2.1.0 <= v < 2.1.1",
         "evancz/elm-graphics": "1.0.1 <= v < 2.0.0",
         "matthewsj/elm-ordering": "1.1.0 <= v < 1.1.1",
         "eeue56/elm-html-test": "5.0.1 <= v < 6.0.0",

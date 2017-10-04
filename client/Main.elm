@@ -8,9 +8,9 @@ import Dict
 -- lib
 import Json.Decode as JSD
 import Http
-import Html
 import Keyboard.Event
 import Keyboard.Key as Key
+import Navigation
 
 -- dark
 import RPC exposing (rpc, phantomRpc)
@@ -29,7 +29,8 @@ import Window.Events exposing (onWindow)
 -- TOP-LEVEL
 -----------------------
 main : Program Flags Model Msg
-main = Html.programWithFlags
+main = Navigation.programWithFlags
+       LocationChange
        { init = init
        , view = View.view
        , update = update
@@ -39,8 +40,8 @@ main = Html.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-init : Flags -> ( Model, Cmd Msg )
-init {state, complete} =
+init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
+init {state, complete} location =
   let editor = case state of
             Just e -> e
             Nothing -> Defaults.defaultEditor
