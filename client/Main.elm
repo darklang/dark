@@ -119,7 +119,7 @@ update_ msg m =
 
     (RecordClick event, _) ->
       if event.button == Defaults.leftButton
-      then Many [ AutocompleteMod Reset
+      then Many [ AutocompleteMod ACReset
                 , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
       else NoChange
 
@@ -169,19 +169,19 @@ update_ msg m =
         Entering re cursor ->
           if event.ctrlKey then
             case event.keyCode of
-              Key.P -> AutocompleteMod SelectUp
-              Key.N -> AutocompleteMod SelectDown
+              Key.P -> AutocompleteMod ACSelectUp
+              Key.N -> AutocompleteMod ACSelectDown
               _ -> NoChange
           else
             case event.keyCode of
-              Key.Up -> AutocompleteMod SelectUp
-              Key.Down -> Many [ AutocompleteMod (Open True)
-                               , AutocompleteMod SelectDown]
+              Key.Up -> AutocompleteMod ACSelectUp
+              Key.Down -> Many [ AutocompleteMod (ACOpen True)
+                               , AutocompleteMod ACSelectDown]
               Key.Right ->
                 let sp = Autocomplete.sharedPrefix m.complete in
                 if sp == "" then NoChange
                 else
-                  AutocompleteMod <| Query sp
+                  AutocompleteMod <| ACQuery sp
               Key.Enter ->
                 let name = case Autocomplete.highlighted m.complete of
                              Just item -> Autocomplete.asName item
@@ -191,11 +191,11 @@ update_ msg m =
 
               Key.Escape ->
                 case cursor of
-                  Creating _ -> Many [Deselect, AutocompleteMod Reset]
+                  Creating _ -> Many [Deselect, AutocompleteMod ACReset]
                   Filling node _ -> Many [ Select node.id
-                                         , AutocompleteMod Reset]
+                                         , AutocompleteMod ACReset]
               key ->
-                AutocompleteMod <| Query m.complete.value
+                AutocompleteMod <| ACQuery m.complete.value
 
         Deselected ->
           case event.keyCode of

@@ -147,15 +147,15 @@ type alias Model = { nodes : NodeDict
                    , complete : Autocomplete
                    }
 
-type AutocompleteMod = Query String
-                     | Open Bool
-                     | Reset
-                     | Clear
-                     | Complete String
-                     | SelectDown
-                     | SelectUp
-                     | FilterByLiveValue LiveValue
-                     | FilterByParamType TypeName
+type AutocompleteMod = ACQuery String
+                     | ACOpen Bool
+                     | ACReset
+                     | ACClear
+                     | ACComplete String
+                     | ACSelectDown
+                     | ACSelectUp
+                     | ACFilterByLiveValue LiveValue
+                     | ACFilterByParamType TypeName
 
 type Modification = Error String
                   | ClearError

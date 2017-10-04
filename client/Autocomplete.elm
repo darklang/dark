@@ -221,15 +221,15 @@ regenerate a =
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   (case mod of
-     Query str -> query str a
-     Reset -> reset a
-     Open o -> open o a
-     Clear -> clear a
-     Complete str -> complete str a
-     SelectDown -> selectDown a
-     SelectUp -> selectUp a
-     FilterByLiveValue lv -> forLiveValue lv a
-     FilterByParamType tipe -> forParamType tipe a)
+     ACQuery str -> query str a
+     ACReset -> reset a
+     ACOpen o -> open o a
+     ACClear -> clear a
+     ACComplete str -> complete str a
+     ACSelectDown -> selectDown a
+     ACSelectUp -> selectUp a
+     ACFilterByLiveValue lv -> forLiveValue lv a
+     ACFilterByParamType tipe -> forParamType tipe a)
     |> regenerate
 
 

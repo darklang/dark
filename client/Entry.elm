@@ -58,10 +58,10 @@ reenter m id i =
         let enter = Enter True <| Filling n (ParamHole n p i) in
         case a of
           Edge eid -> Many [ enter
-                          , AutocompleteMod (Query <| "$" ++ G.toLetter m eid)]
+                          , AutocompleteMod (ACQuery <| "$" ++ G.toLetter m eid)]
           NoArg -> enter
           Const c -> Many [ enter
-                          , AutocompleteMod (Query c)]
+                          , AutocompleteMod (ACQuery c)]
 
 -- Enter this exact node
 enterExact : Model -> Node -> Modification
@@ -82,10 +82,10 @@ cursor2mod cursor =
   Many [ Enter False cursor
        , case cursor of
            Filling n (ResultHole _) ->
-             AutocompleteMod <| FilterByLiveValue n.liveValue
+             AutocompleteMod <| ACFilterByLiveValue n.liveValue
            Filling _ (ParamHole _ p _) ->
-             Many [ AutocompleteMod <| FilterByParamType p.tipe
-                  , AutocompleteMod <| Open False ]
+             Many [ AutocompleteMod <| ACFilterByParamType p.tipe
+                  , AutocompleteMod <| ACOpen False ]
            Creating _ ->
              NoChange
        ]
@@ -94,7 +94,7 @@ cursor2mod cursor =
 
 updateValue : String -> Modification
 updateValue target =
-  Many [ AutocompleteMod <| Query target, Phantom ]
+  Many [ AutocompleteMod <| ACQuery target, Phantom ]
 
 createFindSpace : Model -> Modification
 createFindSpace m = Enter False <| Creating (Viewport.toAbsolute m Defaults.initialPos)
