@@ -12,14 +12,15 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
 import Entry
+import Autocomplete
 
 makeRandomChange : Model -> Modification
 makeRandomChange m =
   let id = G.gen_id ()
-      r0 = Util.random () % 100
-      r1 = Util.random () % 100
-      r2 = Util.random () % 100
-      numNodes = Dict.size m.nodes
+      r () = Util.random () % 100
+      r0 = r ()
+      nodes = m.nodes |> Dict.values |> List.filter (\n -> n.pos.x /= -42)
+      numNodes = List.length nodes
       str = "astring"
       int _ = Util.random () % 30
       float _ = (Util.random () % 2341 |> toFloat) / 37.0
@@ -34,36 +35,56 @@ makeRandomChange m =
                      in List.range len 5 |> List.map (\_ -> primitive ())
                         |> String.join "," |> (\s -> "[" ++ s ++ "]")
                 _ -> primitive ()
-
-
   in
-
   if numNodes == 0 -- start something
   then
-    let _ = Debug.log "start something" in
-    RPC ([AddValue id (val ()) (Just m.center)], FocusNothing)
+    RPC ([AddValue id (Debug.log "starting: " (val ())) (Just m.center)], FocusNothing)
 
   else
     let randomIndex = Util.random () % numNodes
-        randomlySelectedNode =
-          m.nodes |> Dict.values |> LE.getAt randomIndex |> deMaybe
+        n = nodes |> LE.getAt randomIndex |> deMaybe
     in
     if r0 > 93 -- delete something
     then
-      let _ = Debug.log "delete something" in
-      RPC ([DeleteNode randomlySelectedNode.id], FocusNothing)
+      RPC ([DeleteNode (Debug.log "delete " n.id)], FocusNothing)
 
     -- else if r0 > 80 -- change a param somewhere
     -- then
     else -- lets add a result
-      let _ = Debug.log "add something" in
-      let n = randomlySelectedNode
-          cursor = if r1 > 50
+      let cursor = if r () > 50
                    then case G.findNextHole m n of
                           Nothing -> Filling n (ResultHole n)
                           Just hole -> Filling (Entry.nodeFromHole hole) hole
                    else Filling n (G.findHole n)
-      in Entry.submit m False cursor (Debug.log "submitting" (val ()))
+          -- pick a random (but appropriate) autocomplete value
+          ac =
+            m.complete
+               |> Autocomplete.reset
+               |> (\ac ->
+                 case cursor of
+                   Filling n (ResultHole _) ->
+                     Autocomplete.forLiveValue n.liveValue ac
+                   Filling _ (ParamHole _ p _) ->
+                     Autocomplete.forParamType p.tipe ac
+                   _ -> ac)
+               |> Autocomplete.regenerate
+          ac2 = List.foldl (\_ ac -> Autocomplete.selectDown ac) ac (List.range 1 (1 + (r () % 10)))
+          selected =
+            ac2
+               |> Autocomplete.highlighted
+               |> deMaybe
+               |> Autocomplete.asName
+          value = let choice = r () in
+                  if choice > 90 then val ()
+                  else
+                  if choice > 70
+                  then
+                    if n.liveValue.tipe == "String" then "String::foreach"
+                       else if n.liveValue.tipe == "List" then "List::foreach"
+                       else "if"
+                       else selected
+
+      in Entry.submit m False (Debug.log "cursor" cursor) (Debug.log "adding" (value))
 
 -- add a new something, connected to a node
 -- pick a random node and pick "next" on it. Now add something that
