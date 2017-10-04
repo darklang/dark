@@ -187,7 +187,7 @@ let parse (str : string) : dval =
     try
       str |> Yojson.Safe.from_string |> dval_of_yojson_
     with Yojson.Json_error e ->
-      Exception.user ~actual:str "Not a valid value"
+      Exception.user ~actual:str ("Not a valid value: \"" ^ str ^ "\"")
 
 
 
