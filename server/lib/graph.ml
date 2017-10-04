@@ -104,6 +104,9 @@ let clear_args (id: id) (g: graph) : graph =
 let delete_arg (t: id) (param:string) (g: graph) : graph =
   update_node t g ~f:(fun n -> n#delete_arg param; Some n)
 
+let delete_all (g: graph) : graph =
+  { g with nodes = NodeMap.empty }
+
 let add_node (node : Node.node) (g : graph) : graph =
   if has_node node#id g then
     Exception.client "A node with this ID already exists!";
@@ -173,6 +176,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Delete_arg (target, param) -> delete_arg target param
     | Clear_args (id) -> clear_args id
     | Delete_node (id) -> delete_node id
+    | Delete_all -> delete_all
     | Noop -> ident
     | _ ->
       Log.pP "op is" op;

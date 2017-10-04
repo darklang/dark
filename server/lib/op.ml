@@ -21,6 +21,7 @@ type op = Add_fn_call of id * pos * string
         | Set_constant of id * string * string
         | Set_edge of id * id * string
         | Delete_arg of id * string
+        | Delete_all
         | Clear_args of id
         | Noop
 [@@deriving eq, yojson, show]
@@ -39,6 +40,7 @@ let id_of_option op : id option =
   | Add_datastore_field _ -> None
   | Set_edge _ -> None
   | Delete_arg _ -> None
+  | Delete_all -> None
   | Noop -> None
 
 let id_of op : id =

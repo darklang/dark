@@ -100,9 +100,11 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack (List RPC) Focus (Result Http.Error NodeDict)
-    | PhantomCallBack (List RPC) EntryCursor (Result Http.Error NodeDict)
+    | RPCCallBack Focus (List RPC) (Result Http.Error NodeDict)
+    | PhantomCallBack EntryCursor (List RPC) (Result Http.Error NodeDict)
     | LocationChange Navigation.Location
+    | AddRandom
+    | ClearGraph
     | Initialization
 
 type Focus = FocusNothing
@@ -122,6 +124,7 @@ type RPC
     | ClearArgs ID
     | RemoveLastField ID
     | UpdateNodeCursor ID Cursor
+    | DeleteAll
 
 type alias Autocomplete = { functions : List Function
                           , completions : List AutocompleteItem

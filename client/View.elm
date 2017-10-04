@@ -37,11 +37,23 @@ view m =
  in
     grid
 
-viewError : Maybe String -> Html.Html msg
+viewError : Maybe String -> Html.Html Msg
 viewError mMsg =
+  let special =
+    [ Html.a
+        [ Events.onClick AddRandom , Attrs.src ""]
+        [ Html.text "random" ]
+      , Html.a
+        [ Events.onClick ClearGraph , Attrs.src ""]
+        [ Html.text "clear" ]
+    ]
+  in
   case mMsg of
-    Just msg -> Html.div [Attrs.id "darkErrors"] [Html.text msg]
-    Nothing -> Html.div [] []
+    Just msg ->
+      Html.div [Attrs.id "darkErrors"] (special ++ [Html.text msg])
+    Nothing ->
+      Html.div [] special
+
 
 
 viewCanvas : Model -> List (Svg.Svg Msg)

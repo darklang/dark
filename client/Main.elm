@@ -19,6 +19,7 @@ import View
 import Defaults
 import Graph as G
 import Entry
+import RandomGraph
 import Autocomplete
 import Selection
 import Viewport
@@ -209,11 +210,17 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
-    (RPCCallBack calls focus (Ok (nodes)), _) ->
+    (ClearGraph, _) ->
+      Many [ RPC ([DeleteAll], FocusNothing), Deselect]
+
+    (AddRandom, _) ->
+      Many [ RandomGraph.makeRandomChange m, Deselect]
+
+    (RPCCallBack focus calls (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
           m3 = G.reposition m2
       in Many [ ModelMod (\_ -> m3)
-              , AutocompleteMod Reset
+              , AutocompleteMod ACReset
               , ClearError
               , case focus of
                   FocusNext id -> Entry.enterNext m3 (G.getNodeExn m3 id)
@@ -221,7 +228,7 @@ update_ msg m =
                   FocusNothing -> NoChange
               ]
 
-    (PhantomCallBack calls cursor (Ok (nodes)), _) ->
+    (PhantomCallBack _ _ (Ok (nodes)), _) ->
       ModelMod (\_ -> { m | phantoms = nodes } )
 
 

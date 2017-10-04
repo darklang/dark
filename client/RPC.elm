@@ -15,20 +15,18 @@ import Types exposing (..)
 
 phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
 phantomRpc m cursor calls =
-  let payload = encodeRPCs m calls
-      json = Http.jsonBody payload
-      url = "/admin/api/phantom"
-      request = Http.post url json decodeGraph
-  in Http.send (PhantomCallBack calls cursor) request
-
+  rpc_ m "/admin/api/phantom" (PhantomCallBack cursor) calls
 
 rpc : Model -> Focus -> List RPC -> Cmd Msg
 rpc m focus calls =
+  rpc_ m "/admin/api/rpc" (RPCCallBack focus) calls
+
+rpc_ : Model -> String -> (List RPC -> Result Http.Error NodeDict -> Msg) -> List RPC -> Cmd Msg
+rpc_ m url callback calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
-      url = "/admin/api/rpc"
       request = Http.post url json decodeGraph
-  in Http.send (RPCCallBack calls focus) request
+  in Http.send (callback calls) request
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
@@ -103,6 +101,9 @@ encodeRPC m call =
 
       NoOp ->
         ("noop", JSE.object [ ])
+
+      DeleteAll ->
+        ("delete_all", JSE.object [ ])
 
   in JSE.object [ (cmd, args) ]
 
