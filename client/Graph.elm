@@ -22,6 +22,12 @@ import Util exposing (deMaybe)
 gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
+isPosUnset : Node -> Bool
+isPosUnset n = n.pos == {x=Defaults.unsetPosition,y=Defaults.unsetPosition}
+
+isPosSet : Node -> Bool
+isPosSet = isPosUnset >> not
+
 nodeWidth : Node -> Int
 nodeWidth n =
   let

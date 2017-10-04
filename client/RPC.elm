@@ -11,6 +11,7 @@ import Json.Decode.Pipeline as JSDP
 
 -- dark
 import Types exposing (..)
+import Defaults
 
 
 phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
@@ -150,7 +151,7 @@ decodeNode =
                         , tipe = liveTipe
                         , json = liveJson
                         , exc = liveExc}
-          , anonID = if anonID == -42 then Nothing else Just <| ID anonID
+          , anonID = if anonID == Defaults.unsetPosition then Nothing else Just <| ID anonID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of
                      "datastore" -> Datastore
@@ -212,11 +213,11 @@ decodeNode =
             |> JSDP.required "info" (JSD.dict JSD.string)
             |> JSDP.required "workarounds" (JSD.list JSD.string))
             Nothing
-    |> JSDP.optional "anon_id" JSD.int -42
+    |> JSDP.optional "anon_id" JSD.int Defaults.unsetPosition
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
-    |> JSDP.optionalAt ["pos", "x"] JSD.int -42
-    |> JSDP.optionalAt ["pos", "y"] JSD.int -42
+    |> JSDP.optionalAt ["pos", "x"] JSD.int Defaults.unsetPosition
+    |> JSDP.optionalAt ["pos", "y"] JSD.int Defaults.unsetPosition
     |> JSDP.required "cursor" JSD.int
 
 
