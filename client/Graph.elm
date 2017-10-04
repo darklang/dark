@@ -297,50 +297,75 @@ entireSubgraph m start =
 
 reposition : Model -> Model
 reposition m =
-  let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values m.nodes)
+  let roots = List.filter isPosSet (Dict.values m.nodes)
 
       result = List.foldl
-               (\r m2 -> repositionChildren m2 r r.pos |> Tuple3.third)
+               (\r m2 -> repositionDown m2 r r.pos |> Tuple3.third)
                m
                roots
 
-      _ = Dict.map (\k n -> if n.pos == {x=-42,y=-42}
+      _ = Dict.map (\k n -> if isPosUnset n
                                then Debug.log "missed one" n
                                else n)
                    result.nodes
   in
      result
 
+setPos : Model -> Node -> Pos -> Model
+setPos m n pos =
+  let newNode = { n | pos = pos }
+  in { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
+
+
+-- Some nodes are "Roots", that is, they have an explicit location.
+-- Almost all other nodes hang from them and do not have locations. We
+-- infer those locations of the hanger-ons in repositionChildren, going
+-- from the roots. However, when a child (non-root) node adds an
+-- attached parent (eg an if statement adds a condition, or a + adds
+-- another + as a param), then the new nodes need to be positioned too.
+-- So we go up til we find an already positioned node, then reposition
+-- off that.
+-- Classic example:
+--  code = toAsciiCode; if code > 110 then code - 13 else code + 13
+-- THis code is shaped like this: toAScii -> `>`, toAscii -> `if`,
+-- `>` -> `if`. If we place the `if` first, then we have no place for
+-- the `>`.
+-- Note: a topological sort would be another solution here.
+-- TODO: handle 2 or more parents
+repositionUp : Model -> Node -> Pos -> (Model, Pos)
+repositionUp m n pos =
+  let parents = incomingNodes m n
+      unpositioned = List.filter isPosUnset parents
+      indented = {x=pos.x+40, y=pos.y}
+      (mPositioned, parentPos) = List.foldl (\n (m,p)  -> repositionUp m n p) (m, indented) unpositioned
+      newPos = {x=pos.x, y=parentPos.y}
+  in
+    (setPos mPositioned n newPos, newPos)
+
 -- given a `root` starting point, and `pos` (the position of the root),
 -- return the new position of the node, alongside the (unupdated) node,
 -- the maximum depth that has been achieved, and the maximum width found
 -- when exploring depth-first from the root.
-repositionChildren : Model -> Node -> Pos -> (Int, Int, Model)
-repositionChildren m root pos =
-  let -- TODO: start by looking up. If there are nodes above us that
-      -- havent been placed, then make some room for them.
-      -- TODO: hard to tell when two lines overlap each other
-      insert m n pos =
-        let newNode = { n | pos = pos }
-        in { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
-
+repositionDown : Model -> Node -> Pos -> (Int, Int, Model)
+repositionDown m root pos =
+  let -- TODO: hard to tell when two lines overlap each other
       debug4 str (a,b,c,d) = let _ = Debug.log str (a,b,c) in (a,b,c,d)
       debug3 str (a,b,c) = let _ = Debug.log str (a,b) in (a,b,c)
 
       -- a function to fold across sets of nodes. It keeps track of
       -- where to place nodes, as well as the maximum height that has
       -- been achieved, which we use to place nodes below it later
-      rePosChild child (startX, startY, _, startModel) =
+      rePosChild child (startX, startY, _, mStart) =
         let
-            newPos = {x=startX, y=startY}
-            newChild = { child | pos = newPos }
-            (maxChildX, maxChildY, mWithChildren) = repositionChildren startModel newChild newPos
+            startPos = {x=startX, y=startY}
+            (mWithRepositionedParents, newPos) = repositionUp mStart child startPos
+            (maxChildX, maxChildY, mWithChildren) = repositionDown mWithRepositionedParents child newPos
             maxX = max maxChildX (startX + nodeWidth child + 20)
-            _ = Debug.log "starting on child" (child.name, newChild.pos)
+            _ = Debug.log "starting on child" (child.name, child.pos)
         in
           -- next node in this row should be over to the right, on the
           -- same line.
-          (maxX, startY, maxChildY, insert mWithChildren newChild newPos)
+          (maxX, startY, maxChildY, mWithChildren)
 
       -- blocks should be indented
       startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
@@ -349,7 +374,7 @@ repositionChildren m root pos =
       -- they're with, so just update them to this node's position.
       mWithAnons =
         List.foldl
-          (\anon model -> insert model anon pos)
+          (\anon model -> setPos model anon pos)
           m
           (getAnonNodesOf m root.id)
 
