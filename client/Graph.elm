@@ -19,6 +19,9 @@ import Types exposing (..)
 import Defaults
 import Util exposing (deMaybe)
 
+gen_id : () -> ID
+gen_id _ = ID (Util.random ())
+
 nodeWidth : Node -> Int
 nodeWidth n =
   let
@@ -273,6 +276,19 @@ entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
   fold (\n list -> n :: list) [] start (connectedNodes m)
 
+-- Considerations to postioning the graph
+--
+-- there may be a set of nodes a,b,c, where a->b and b->c and a->c.
+-- This is challenging because as we don't want to draw b over the line
+-- between a->c, nor do we want to put b and c on the same horizontal
+-- line.
+
+-- We largely want the bulk of the code to be aligned in a single
+-- pipeline. This can be challenging
+
+-- don't consider the width of the parent in the positioning of the
+-- children.
+
 reposition : Model -> Model
 reposition m =
   let roots = List.filter (\n -> n.pos.x /= -42) (Dict.values m.nodes)
@@ -350,4 +366,5 @@ repositionChildren m root pos =
   in
     debug3 ("result: " ++ root.name)
     (max maxArgX maxNonArgX, max maxArgY maxNonArgY, mWithNonArgs)
+
 

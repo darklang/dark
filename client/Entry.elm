@@ -109,8 +109,6 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 ---------------------
 -- Submitting the entry form to the server
 ---------------------
-gen_id : () -> ID
-gen_id _ = ID (Util.random ())
 
 isValueRepr : String -> Bool
 isValueRepr name = String.toLower name == "null"
@@ -121,8 +119,8 @@ isValueRepr name = String.toLower name == "null"
 
 addAnonParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Focus)
 addAnonParam _ id pos name anon_args =
-  let sid = gen_id ()
-      argids = List.map (\_ -> gen_id ()) anon_args
+  let sid = G.gen_id ()
+      argids = List.map (\_ -> G.gen_id ()) anon_args
       anon = AddAnon sid pos argids anon_args
       edge = SetEdge sid (id, name)
   in
@@ -166,7 +164,7 @@ refocus re default =
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  let id = gen_id () in
+  let id = G.gen_id () in
   case cursor of
     Creating pos ->
       RPC <| if isValueRepr value
