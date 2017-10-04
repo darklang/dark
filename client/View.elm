@@ -299,7 +299,7 @@ placeNode m n width attrs classes header body =
   in
     placeHtml m n.pos wrapper
 
-edgeStyle : List (Svg.Attribute msg)
+edgeStyle : List (Svg.Attribute Msg)
 edgeStyle =
   [ SA.strokeWidth Defaults.edgeSize
   , SA.stroke Defaults.edgeStrokeColor
