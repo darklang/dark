@@ -337,13 +337,6 @@ reposition m =
   let roots = List.filter hasPos (Dict.values m.nodes)
       result = repositionLayout m (graph2layout m)
 
-      -- result = List.foldl
-      --          (\r m2 ->
-      --            let _ = Debug.log ("starting at root: " ++ r.name) r.pos in
-      --            repositionDown m2 r r.pos |> Tuple3.third)
-      --          m
-      --          roots
-      --
       _ = Dict.map (\k n -> if hasNoPos n
                                then Debug.log "missed one" n
                                else n)
@@ -359,15 +352,6 @@ blockIndent=20
 ySpacing : Int
 ySpacing=30
 
-
-setPos : Model -> Node -> Pos -> Model
-setPos m n pos =
-  let newNode = { n | pos = pos }
-  in if hasPos n
-        then m
-        else { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
-
-
 -- Some nodes are "Roots", that is, they have an explicit location.
 -- Almost all other nodes hang from them and do not have locations. We
 -- infer those locations of the hanger-ons in repositionChildren, going
@@ -382,93 +366,23 @@ setPos m n pos =
 -- `>` -> `if`. If we place the `if` first, then we have no place for
 -- the `>`.
 -- Note: a topological sort would be another solution here.
-repositionUp : Model -> Node -> Pos -> (Model, Pos, Int)
-repositionUp m n pos =
-  -- we only want to increase Y when this returns. However, the fold
-  -- goes across the parents, so we don't want to increase Y on the
-  -- fold.
-  let parents = List.filter isNotAnon <| incomingNodes m n
-      unpositioned = List.filter hasNoPos parents
-      (mPositioned, parentPos, maxY) =
-        List.foldl
-          (\par (m,p,maxInY) ->
-            let (mPos, newPos, maxUpY) = repositionUp m par p
-            in (mPos, { x=newPos.x+nodeWidth par+paramSpacing,y=pos.y}
-                      , max maxInY (maxUpY + ySpacing)))
-          (m, pos, pos.y)
-          unpositioned
-      nPos = {x=pos.x, y=maxY} -- when we are finished
-  in
-    (setPos mPositioned n nPos, nPos, maxY) -- when we come down
 
 -- given a `root` starting point, and `pos` (the position of the root),
 -- return the new position of the node, alongside the (unupdated) node,
 -- the maximum depth that has been achieved, and the maximum width found
 -- when exploring depth-first from the root.
-repositionDown : Model -> Node -> Pos -> (Int, Int, Model)
-repositionDown m root pos =
-  let -- TODO: hard to tell when two lines overlap each other
-      debug4 str (a,b,c,d) = let _ = Debug.log str (a,b,c) in (a,b,c,d)
-      debug3 str (a,b,c) = let _ = Debug.log str (a,b) in (a,b,c)
-
-      -- a function to fold across sets of nodes. It keeps track of
-      -- where to place nodes, as well as the maximum height that has
-      -- been achieved, which we use to place nodes below it later
-      rePos n (startX, startY, _, mStart) =
-        let
-          startPos = {x=startX, y=startY}
-          (mParents, newPos, maxUpY) = repositionUp mStart n {x=startPos.x+paramSpacing, y=startPos.y}
-          (maxX, maxDownY, mChildren) = repositionDown mParents n {newPos | y=maxUpY}
-          newX = max maxX (startX + nodeWidth n + paramSpacing)
-        in
-          -- next node in this row should be over to the right, on the
-          -- same line.
-          (newX, startY, maxDownY, mChildren)
-
-      -- anonymous functions need to get placed with the function
-      -- they're with, so just update them to this node's position.
-      mAnons =
-        List.foldl
-          (\anon model -> setPos model anon pos)
-          m
-          (getAnonNodesOf m root.id)
-
-      -- blocks should be indented
-      startingX = if hasAnonParam m root.id then pos.x + blockIndent else pos.x
-      startingY = pos.y + ySpacing
-
-      -- blocks should be calculated first, as we need to know how deep
-      -- they are before we can start to position other outgoing nodes
-      -- below them.
-      argChildren = List.filter isArg (outgoingNodes mAnons root)
-      (argX, _, argY, mArgs) =
-        List.foldl
-          rePos
-          (startingX, startingY, startingY, mAnons)
-          argChildren
-
-      -- position back on the baseline, but below all the other nodes
-      nonArgChildren = List.filter isNotArg (outgoingNodes mArgs root)
-      (nonArgX, _, nonArgY, mNonArgs) =
-        List.foldl
-          rePos
-          (pos.x, argY, argY, mArgs)
-          nonArgChildren
-
-  in
-    (max argX nonArgX, max argY nonArgY, mNonArgs)
-
+-- TODO: hard to tell when two lines overlap each other
 
 
 type alias Layout = List LRoot
+
 -- A root: args, children, cant have parents
-
 type LRoot = LRoot Node (List LArg) (List LChild)
+
 -- A normal node, usually a function call. Has args, children, unattached parents
-
 type LChild = LChild Node (List LArg) (List LChild) (List LParent)
--- Args belong to blocks, and can only have children
 
+-- Args belong to blocks, and can only have children
 type LArg = LArg Node (List LChild)
 
 -- A parent is not reachable from the root, but it can reach children of
@@ -535,6 +449,10 @@ posChild m (LChild n args children parents) (x, y, maxX, maxY, nodes, set) =
     let (_, nextY, maxXps, maxYps, pNodes, set2) = posParents m set parents (x+paramSpacing) y
         newN = { n | pos={x=x, y=nextY} }
         set3 = addSet set2 n
+
+        -- blocks should be calculated before children, as we need to
+        -- know how deep they are before we can start to position other
+        -- outgoing nodes below them.
         (_, _, maxXas, maxYas, aNodes, set4) = posArgs m set3 args x maxYps
         (_, _, maxXcs, maxYcs, cNodes, set5) = posChildren m set4 children x maxYas
         newX = max4 maxXps maxXas maxXcs (x + nodeWidth n)
