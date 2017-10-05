@@ -322,6 +322,7 @@ viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =
   n
     |> G.incomingNodePairs m
+    |> List.filter (\(n, p) -> n.tipe /= FunctionDef)
     |> List.map (\(n2, p) -> viewEdge m n2 n p)
 
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg
