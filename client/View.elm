@@ -10,6 +10,7 @@ import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
+import VirtualDom
 
 -- dark
 import Types exposing (..)
@@ -63,8 +64,8 @@ viewCanvas m =
         values = visible |> List.map (viewValue m) |> List.concat
         edges = visible |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
-        yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} [SA.strokeWidth "1px", SA.stroke "#777"]
-        xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} [SA.strokeWidth "1px", SA.stroke "#777"]
+        yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
+        xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         allSvgs = xaxis :: yaxis :: (edges ++ values ++ nodes ++ entry)
     in allSvgs
 
@@ -163,7 +164,7 @@ viewEntry m =
             nodePos = { x = n.pos.x + 10
                       , y = n.pos.y + 10}
         in
-        [svgLine m nodePos edgePos edgeStyle, html holePos]
+        [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
       Entering _ (Creating pos) -> [html pos]
       _ -> []
 
@@ -207,7 +208,7 @@ viewValue m n =
       displayedBelow = newPos.y /= n.pos.y
       edge =
         if displayedBelow
-        then [svgLine m {x=n.pos.x + 10, y=n.pos.y+10} {x=newPos.x+10,y=newPos.y+10} edgeStyle]
+        then [svgLine m {x=n.pos.x + 10, y=n.pos.y+10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
         else []
   in
   edge ++
@@ -336,10 +337,12 @@ viewEdge m source target param =
       m
       spos
       tpos
+      (toString source.id)
+      (toString target.id)
       edgeStyle
 
-svgLine : Model -> Pos -> Pos -> List (Svg.Attribute Msg) -> Svg.Svg Msg
-svgLine m p1a p2a attrs =
+svgLine : Model -> Pos -> Pos -> String -> String -> List (Svg.Attribute Msg) -> Svg.Svg Msg
+svgLine m p1a p2a sourcedebug targetdebug attrs =
   let p1v = Viewport.toViewport m p1a
       p2v = Viewport.toViewport m p2a
   in
@@ -348,6 +351,8 @@ svgLine m p1a p2a attrs =
      , SA.y1 (toString p1v.vy)
      , SA.x2 (toString p2v.vx)
      , SA.y2 (toString p2v.vy)
+     , VirtualDom.attribute "source" sourcedebug
+     , VirtualDom.attribute "target" targetdebug
      ] ++ attrs)
     []
 
