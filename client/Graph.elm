@@ -12,7 +12,7 @@ import Maybe
 -- lib
 import List.Extra as LE
 import Maybe.Extra as ME
-import Tuple3
+-- import Tuple3
 
 -- dark
 import Types exposing (..)
@@ -335,20 +335,22 @@ entireSubgraph m start =
 reposition : Model -> Model
 reposition m =
   let roots = List.filter hasPos (Dict.values m.nodes)
+      result = repositionLayout m (graph2layout m)
 
-      result = List.foldl
-               (\r m2 ->
-                 let _ = Debug.log ("starting at root: " ++ r.name) r.pos in
-                 repositionDown m2 r r.pos |> Tuple3.third)
-               m
-               roots
-
+      -- result = List.foldl
+      --          (\r m2 ->
+      --            let _ = Debug.log ("starting at root: " ++ r.name) r.pos in
+      --            repositionDown m2 r r.pos |> Tuple3.third)
+      --          m
+      --          roots
+      --
       _ = Dict.map (\k n -> if hasNoPos n
                                then Debug.log "missed one" n
                                else n)
                    result.nodes
   in
      result
+
 
 paramSpacing : Int
 paramSpacing=15
@@ -416,7 +418,7 @@ repositionDown m root pos =
         let
           startPos = {x=startX, y=startY}
           (mParents, newPos, maxUpY) = repositionUp mStart n {x=startPos.x+paramSpacing, y=startPos.y}
-          (maxX, maxDownY, mChildren) = repositionDown mParents n {startPos | y=maxUpY}
+          (maxX, maxDownY, mChildren) = repositionDown mParents n {newPos | y=maxUpY}
           newX = max maxX (startX + nodeWidth n + paramSpacing)
         in
           -- next node in this row should be over to the right, on the
@@ -455,5 +457,128 @@ repositionDown m root pos =
 
   in
     (max argX nonArgX, max argY nonArgY, mNonArgs)
+
+
+
+type alias Layout = List LRoot
+-- A root: args, children, cant have parents
+
+type LRoot = LRoot Node (List LArg) (List LChild)
+-- A normal node, usually a function call. Has args, children, unattached parents
+
+type LChild = LChild Node (List LArg) (List LChild) (List LParent)
+-- Args belong to blocks, and can only have children
+
+type LArg = LArg Node (List LChild)
+
+-- A parent is not reachable from the root, but it can reach children of
+-- the root. Technically these could have children, but let's simplify
+-- for now. We could do this by passing a set of already seen nodes.
+type LParent = LParent Node (List LParent)
+
+type alias NextX = Int
+type alias NextY = Int
+type alias MaxX = Int
+type alias MaxY = Int
+
+repositionLayout : Model -> Layout -> Model
+repositionLayout m roots =
+  let pRoots = roots
+               |> List.map (\r -> let (LRoot n _ _) = r
+                                  in posRoot m r n.pos)
+               |> Debug.log "roots"
+               |> List.concat
+               |> List.map (\n -> (n.id |> deID, n))
+               |> Dict.fromList
+               |> Debug.log "new nodes"
+      newNodes = Dict.union pRoots m.nodes
+  in
+    { m | nodes = newNodes }
+
+inSet : IDSet -> Node -> Bool
+inSet set n = Set.member (deID n.id) set
+addSet : IDSet -> Node -> IDSet
+addSet set n = Set.insert (deID n.id) set
+max3 : Int -> Int -> Int -> Int
+max3 x y z = max x y |> max z
+
+posRoot : Model -> LRoot -> Pos -> List Node
+posRoot m (LRoot n args children) pos =
+  let set = Set.empty
+      (_, nextY, _, _, aNodes, set2) = posArgs m set args pos.x pos.y
+      (_, _, _, _, cNodes, _) = posChildren m set2 children pos.x nextY
+      newN = { n | pos = pos }
+  in n :: aNodes ++ cNodes
+
+type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, List Node, IDSet)
+posArg : Model -> LArg -> TraversalInfo -> TraversalInfo
+posArg m (LArg n children) (x, y, maxX, maxY, nodes, set) =
+  if inSet set n then (x,y,x,y,nodes,set)
+  else
+    let set2 = addSet set n in
+    let (_, _, maxXcs, maxYcs, cNodes, set3) = posChildren m set2 children x y
+        newX = (max3 (x + nodeWidth n) maxXcs maxX) + paramSpacing
+    in (newX, y, newX, max maxYcs maxY, {n | pos={x=x,y=y}} :: nodes ++ cNodes, set3)
+
+posArgs : Model -> IDSet -> List LArg -> NextX -> NextY -> TraversalInfo
+posArgs m set args x y =
+  if List.length args == 0
+  then (x, y, x, y, [], set)
+  else List.foldl (posArg m) (x+blockIndent, y+ySpacing, x+blockIndent, y+ySpacing, [], set) args
+
+posChild : Model -> LChild -> TraversalInfo -> TraversalInfo
+posChild m (LChild n args children parents) (x, y, maxX, maxY, nodes, set) =
+  if inSet set n then (x,y,maxX,maxY,nodes, set)
+  else
+    let set2 = addSet set n in
+    let (_, _, maxXas, maxYas, aNodes, set3) = posArgs m set2 args x y
+        (_, _, maxXcs, maxYcs, cNodes, set4) = posChildren m set3 children x maxYas
+        newX = max3 maxXas maxXcs (x + nodeWidth n)
+    in (newX+paramSpacing, y, newX, max maxYcs y, {n | pos={x=x,y=y}} :: nodes ++ aNodes ++ cNodes, set4)
+
+posChildren : Model -> IDSet -> List LChild -> NextX -> NextY -> TraversalInfo
+posChildren m set children x y =
+  if List.length children == 0
+  then (x,y,x,y,[], set)
+  else List.foldl (posChild m) (x, y+ySpacing, x, y+ySpacing, [], set) children
+--
+-- posParents : Model -> List LParent -> Pos -> Int -> (Int, Int, List Node)
+-- posParents m pos
+--
+graph2layout : Model -> Layout
+graph2layout m =
+  let roots = List.filter hasPos (Dict.values m.nodes)
+  in List.map (root2layout m) roots
+
+root2layout : Model -> Node -> LRoot
+root2layout m n =
+  let outgoing = outgoingNodes m n
+      args = List.filter isArg outgoing
+      children = List.filter isNotArg outgoing
+  in
+    LRoot n
+      (List.map (arg2layout m) args)
+      (List.map (child2layout m) children)
+
+arg2layout : Model -> Node -> LArg
+arg2layout m n =
+  LArg n (List.map (child2layout m) (outgoingNodes m n))
+
+parent2layout : Model -> Node -> LParent
+parent2layout m n =
+  LParent n (List.map (parent2layout m) (incomingNodes m n))
+
+child2layout : Model -> Node -> LChild
+child2layout m n =
+  let parents = incomingNodes m n -- TODO: filter by parents already posed
+      outgoing = outgoingNodes m n
+      args = List.filter isArg outgoing
+      children = List.filter isNotArg outgoing
+  in
+  LChild n
+    (List.map (arg2layout m) args)
+    (List.map (child2layout m) children)
+    (List.map (parent2layout m) parents)
+
 
 
