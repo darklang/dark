@@ -309,6 +309,29 @@ entireSubgraph m start =
 -- don't consider the width of the parent in the positioning of the
 -- children.
 
+-- graph algorithm:
+-- - place root node
+--   - call repositionDown on the root
+
+-- repositionDown node:
+-- - go down a level
+-- - for each argument of the parent
+--   - call repositionChild (x+=blockindent), returning the x position of the next argument
+--   - return the maximum depth of the rendered nodes
+-- - for each child of the parent
+--   - call repositionChild (y=max depth), returning the x position of the next child
+
+-- repositionChild node:
+--   - for each parent of the node
+--     - call repositionUp, returning the new y position for this node
+--   - place node
+--   - callRepositionDown on this node
+
+-- repositionUp node:
+--   - for each unpositioned parent of the node
+--     - repositionUp parent
+--   - place node
+--   - return new depth
 reposition : Model -> Model
 reposition m =
   let roots = List.filter hasPos (Dict.values m.nodes)
@@ -328,17 +351,16 @@ reposition m =
      result
 
 paramSpacing : Int
-paramSpacing=10
+paramSpacing=15
 blockIndent: Int
-blockIndent=30
+blockIndent=20
 ySpacing : Int
 ySpacing=30
 
 
-setPos : Model -> String -> Node -> Pos -> Model
-setPos m debug n pos =
+setPos : Model -> Node -> Pos -> Model
+setPos m n pos =
   let newNode = { n | pos = pos }
-      _ = Debug.log (debug ++ ": setting node: '" ++ n.name ++ "' to " ) pos
   in { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
 
 
@@ -356,24 +378,24 @@ setPos m debug n pos =
 -- `>` -> `if`. If we place the `if` first, then we have no place for
 -- the `>`.
 -- Note: a topological sort would be another solution here.
--- TODO: handle 2 or more parents: right now we would increase Y, not X
-repositionUp : Model -> Node -> Pos -> (Model, Pos)
+repositionUp : Model -> Node -> Pos -> (Model, Pos, Int)
 repositionUp m n pos =
+  -- we only want to increase Y when this returns. However, the fold
+  -- goes across the parents, so we don't want to increase Y on the
+  -- fold.
   let parents = List.filter isNotAnon <| incomingNodes m n
       unpositioned = List.filter hasNoPos parents
-      indented = {x=pos.x+paramSpacing, y=pos.y}
-      (mPositioned, parentPos) =
+      (mPositioned, parentPos, maxY) =
         List.foldl
-          (\par (m,p) ->
-            let (mPos, newPos) = repositionUp m par p
-                _ = Debug.log ("up to: " ++ par.name) p
-            -- increment the spacing on the descent
-            in (mPos, {x=newPos.x, y=newPos.y+ySpacing}))
-          (m, indented)
+          (\par (m,p,maxInY) ->
+            let (mPos, newPos, maxUpY) = repositionUp m par p
+            in (mPos, { x=newPos.x+nodeWidth par+paramSpacing,y=pos.y}
+                      , max maxInY (maxUpY + ySpacing)))
+          (m, pos, pos.y)
           unpositioned
-      newPos = {x=pos.x, y=parentPos.y}
+      nPos = {x=pos.x, y=maxY} -- when we are finished
   in
-    (setPos mPositioned "up" n newPos, newPos)
+    (setPos mPositioned n nPos, nPos, maxY) -- when we come down
 
 -- given a `root` starting point, and `pos` (the position of the root),
 -- return the new position of the node, alongside the (unupdated) node,
@@ -391,27 +413,25 @@ repositionDown m root pos =
       rePos n (startX, startY, _, mStart) =
         let
           startPos = {x=startX, y=startY}
-          _ = Debug.log ("down to: " ++ n.name ) startPos
-          (mParents, newPos) = repositionUp mStart n startPos
-          (maxX, maxY, mChildren) = repositionDown mParents n newPos
+          (mParents, newPos, maxUpY) = repositionUp mStart n {x=startPos.x+paramSpacing, y=startPos.y}
+          (maxX, maxDownY, mChildren) = repositionDown mParents n {newPos | y=maxUpY}
           newX = max maxX (startX + nodeWidth n + paramSpacing)
-          _ = Debug.log ("back to: " ++ root.name) newPos
         in
           -- next node in this row should be over to the right, on the
           -- same line.
-          (newX, startY, maxY, mChildren)
-
-      -- blocks should be indented
-      startingX = if hasAnonParam m root.id then pos.x + blockIndent else pos.x
+          (newX, startY, maxDownY, mChildren)
 
       -- anonymous functions need to get placed with the function
       -- they're with, so just update them to this node's position.
       mAnons =
         List.foldl
-          (\anon model -> setPos model "anon" anon pos)
+          (\anon model -> setPos model anon pos)
           m
           (getAnonNodesOf m root.id)
 
+      -- blocks should be indented
+      startingX = if hasAnonParam m root.id then pos.x + blockIndent else pos.x
+      startingY = pos.y + ySpacing
 
       -- blocks should be calculated first, as we need to know how deep
       -- they are before we can start to position other outgoing nodes
@@ -420,7 +440,7 @@ repositionDown m root pos =
       (argX, _, argY, mArgs) =
         List.foldl
           rePos
-          (startingX, pos.y+ySpacing, pos.y+ySpacing, mAnons)
+          (startingX, startingY, startingY, mAnons)
           argChildren
 
       -- position back on the baseline, but below all the other nodes
