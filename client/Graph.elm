@@ -544,7 +544,7 @@ posChildren : Model -> IDSet -> List LChild -> NextX -> NextY -> TraversalInfo
 posChildren m set children x y =
   if List.length children == 0
   then (x,y,x,y,[], set)
-  else List.foldl (posChild m) (x, y+ySpacing, x, y+ySpacing, [], set) children
+  else List.foldl (posChild m) (x, y, x, y+ySpacing, [], set) children
 
 posParent : Model -> LParent -> TraversalInfo -> TraversalInfo
 posParent m (LParent n parents) (x, y, maxX, maxY, nodes, set) =
