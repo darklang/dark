@@ -501,10 +501,12 @@ addSet : IDSet -> Node -> IDSet
 addSet set n = Set.insert (deID n.id) set
 max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
+max4 : Int -> Int -> Int -> Int -> Int
+max4 w x y z = max x y |> max z |> max w
 
 posRoot : Model -> LRoot -> Pos -> List Node
 posRoot m (LRoot n args children) pos =
-  let set = Set.empty
+  let set = addSet Set.empty n
       (_, nextY, _, _, aNodes, set2) = posArgs m set args pos.x pos.y
       (_, _, _, _, cNodes, _) = posChildren m set2 children pos.x nextY
       newN = { n | pos = pos }
@@ -530,20 +532,40 @@ posChild : Model -> LChild -> TraversalInfo -> TraversalInfo
 posChild m (LChild n args children parents) (x, y, maxX, maxY, nodes, set) =
   if inSet set n then (x,y,maxX,maxY,nodes, set)
   else
-    let set2 = addSet set n in
-    let (_, _, maxXas, maxYas, aNodes, set3) = posArgs m set2 args x y
-        (_, _, maxXcs, maxYcs, cNodes, set4) = posChildren m set3 children x maxYas
-        newX = max3 maxXas maxXcs (x + nodeWidth n)
-    in (newX+paramSpacing, y, newX, max maxYcs y, {n | pos={x=x,y=y}} :: nodes ++ aNodes ++ cNodes, set4)
+    let (_, nextY, maxXps, maxYps, pNodes, set2) = posParents m set parents (x+paramSpacing) y
+        newN = { n | pos={x=x, y=nextY} }
+        set3 = addSet set2 n
+        (_, _, maxXas, maxYas, aNodes, set4) = posArgs m set3 args x maxYps
+        (_, _, maxXcs, maxYcs, cNodes, set5) = posChildren m set4 children x maxYas
+        newX = max4 maxXps maxXas maxXcs (x + nodeWidth n)
+    in (newX+paramSpacing, y, newX, max maxYcs y, newN :: nodes ++ aNodes ++ cNodes ++ pNodes, set5)
 
 posChildren : Model -> IDSet -> List LChild -> NextX -> NextY -> TraversalInfo
 posChildren m set children x y =
   if List.length children == 0
   then (x,y,x,y,[], set)
   else List.foldl (posChild m) (x, y+ySpacing, x, y+ySpacing, [], set) children
---
--- posParents : Model -> List LParent -> Pos -> Int -> (Int, Int, List Node)
--- posParents m pos
+
+posParent : Model -> LParent -> TraversalInfo -> TraversalInfo
+posParent m (LParent n parents) (x, y, maxX, maxY, nodes, set) =
+  if inSet set n then (x,y,x,y,nodes,set)
+  else
+    let set2 = addSet set n in
+    let (_, nextY, maxXps, maxYps, pNodes, set3) = posParents m set2 parents x y
+        newN = { n | pos={x=x,y=nextY} }
+        newX = (max3 (x + nodeWidth n) maxXps maxX) + paramSpacing
+    in (newX, y, newX, max maxYps maxY, newN :: nodes ++ pNodes, set3)
+
+posParents : Model -> IDSet -> List LParent -> NextX -> NextY -> TraversalInfo
+posParents m set parents x y =
+  if List.length parents == 0
+  then
+  (x,y,x,y,[],set)
+  else
+    let (nextX, nextY, maxX, maxY, pNodes, set2) = List.foldl (posParent m) (x, y, x, y, [], set) parents
+    in (nextX, maxY+ySpacing, maxX, maxY+ySpacing, pNodes, set2)
+
+
 --
 graph2layout : Model -> Layout
 graph2layout m =
