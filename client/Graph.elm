@@ -361,7 +361,9 @@ ySpacing=30
 setPos : Model -> Node -> Pos -> Model
 setPos m n pos =
   let newNode = { n | pos = pos }
-  in { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
+  in if hasPos n
+        then m
+        else { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
 
 
 -- Some nodes are "Roots", that is, they have an explicit location.
@@ -414,7 +416,7 @@ repositionDown m root pos =
         let
           startPos = {x=startX, y=startY}
           (mParents, newPos, maxUpY) = repositionUp mStart n {x=startPos.x+paramSpacing, y=startPos.y}
-          (maxX, maxDownY, mChildren) = repositionDown mParents n {newPos | y=maxUpY}
+          (maxX, maxDownY, mChildren) = repositionDown mParents n {startPos | y=maxUpY}
           newX = max maxX (startX + nodeWidth n + paramSpacing)
         in
           -- next node in this row should be over to the right, on the
