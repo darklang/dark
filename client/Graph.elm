@@ -22,11 +22,25 @@ import Util exposing (deMaybe)
 gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
-isPosUnset : Node -> Bool
-isPosUnset n = n.pos == {x=Defaults.unsetPosition,y=Defaults.unsetPosition}
+hasNoPos : Node -> Bool
+hasNoPos n = n.pos == {x=Defaults.unsetPosition,y=Defaults.unsetPosition}
 
-isPosSet : Node -> Bool
-isPosSet = isPosUnset >> not
+hasPos : Node -> Bool
+hasPos = hasNoPos >> not
+
+isArg : Node -> Bool
+isArg n = n.tipe == Arg
+
+isNotArg : Node -> Bool
+isNotArg n = n.tipe /= Arg
+
+isAnon : Node -> Bool
+isAnon n = n.tipe == FunctionDef
+
+isNotAnon : Node -> Bool
+isNotAnon n = n.tipe /= FunctionDef
+
+
 
 nodeWidth : Node -> Int
 nodeWidth n =
@@ -297,23 +311,34 @@ entireSubgraph m start =
 
 reposition : Model -> Model
 reposition m =
-  let roots = List.filter isPosSet (Dict.values m.nodes)
+  let roots = List.filter hasPos (Dict.values m.nodes)
 
       result = List.foldl
-               (\r m2 -> repositionDown m2 r r.pos |> Tuple3.third)
+               (\r m2 ->
+                 let _ = Debug.log ("starting at root: " ++ r.name) r.pos in
+                 repositionDown m2 r r.pos |> Tuple3.third)
                m
                roots
 
-      _ = Dict.map (\k n -> if isPosUnset n
+      _ = Dict.map (\k n -> if hasNoPos n
                                then Debug.log "missed one" n
                                else n)
                    result.nodes
   in
      result
 
-setPos : Model -> Node -> Pos -> Model
-setPos m n pos =
+paramSpacing : Int
+paramSpacing=10
+blockIndent: Int
+blockIndent=30
+ySpacing : Int
+ySpacing=30
+
+
+setPos : Model -> String -> Node -> Pos -> Model
+setPos m debug n pos =
   let newNode = { n | pos = pos }
+      _ = Debug.log (debug ++ ": setting node: '" ++ n.name ++ "' to " ) pos
   in { m | nodes = Dict.insert (n.id |> deID) newNode m.nodes}
 
 
@@ -331,16 +356,24 @@ setPos m n pos =
 -- `>` -> `if`. If we place the `if` first, then we have no place for
 -- the `>`.
 -- Note: a topological sort would be another solution here.
--- TODO: handle 2 or more parents
+-- TODO: handle 2 or more parents: right now we would increase Y, not X
 repositionUp : Model -> Node -> Pos -> (Model, Pos)
 repositionUp m n pos =
-  let parents = incomingNodes m n
-      unpositioned = List.filter isPosUnset parents
-      indented = {x=pos.x+40, y=pos.y}
-      (mPositioned, parentPos) = List.foldl (\n (m,p)  -> repositionUp m n p) (m, indented) unpositioned
+  let parents = List.filter isNotAnon <| incomingNodes m n
+      unpositioned = List.filter hasNoPos parents
+      indented = {x=pos.x+paramSpacing, y=pos.y}
+      (mPositioned, parentPos) =
+        List.foldl
+          (\par (m,p) ->
+            let (mPos, newPos) = repositionUp m par p
+                _ = Debug.log ("up to: " ++ par.name) p
+            -- increment the spacing on the descent
+            in (mPos, {x=newPos.x, y=newPos.y+ySpacing}))
+          (m, indented)
+          unpositioned
       newPos = {x=pos.x, y=parentPos.y}
   in
-    (setPos mPositioned n newPos, newPos)
+    (setPos mPositioned "up" n newPos, newPos)
 
 -- given a `root` starting point, and `pos` (the position of the root),
 -- return the new position of the node, alongside the (unupdated) node,
@@ -355,26 +388,27 @@ repositionDown m root pos =
       -- a function to fold across sets of nodes. It keeps track of
       -- where to place nodes, as well as the maximum height that has
       -- been achieved, which we use to place nodes below it later
-      rePosChild child (startX, startY, _, mStart) =
+      rePos n (startX, startY, _, mStart) =
         let
-            startPos = {x=startX, y=startY}
-            (mWithRepositionedParents, newPos) = repositionUp mStart child startPos
-            (maxChildX, maxChildY, mWithChildren) = repositionDown mWithRepositionedParents child newPos
-            maxX = max maxChildX (startX + nodeWidth child + 20)
-            _ = Debug.log "starting on child" (child.name, child.pos)
+          startPos = {x=startX, y=startY}
+          _ = Debug.log ("down to: " ++ n.name ) startPos
+          (mParents, newPos) = repositionUp mStart n startPos
+          (maxX, maxY, mChildren) = repositionDown mParents n newPos
+          newX = max maxX (startX + nodeWidth n + paramSpacing)
+          _ = Debug.log ("back to: " ++ root.name) newPos
         in
           -- next node in this row should be over to the right, on the
           -- same line.
-          (maxX, startY, maxChildY, mWithChildren)
+          (newX, startY, maxY, mChildren)
 
       -- blocks should be indented
-      startingX = if hasAnonParam m root.id then pos.x + 30 else pos.x
+      startingX = if hasAnonParam m root.id then pos.x + blockIndent else pos.x
 
       -- anonymous functions need to get placed with the function
       -- they're with, so just update them to this node's position.
-      mWithAnons =
+      mAnons =
         List.foldl
-          (\anon model -> setPos model anon pos)
+          (\anon model -> setPos model "anon" anon pos)
           m
           (getAnonNodesOf m root.id)
 
@@ -382,20 +416,22 @@ repositionDown m root pos =
       -- blocks should be calculated first, as we need to know how deep
       -- they are before we can start to position other outgoing nodes
       -- below them.
-      argChildren = List.filter (\n -> n.tipe == Arg) (outgoingNodes mWithAnons root)
-      (maxArgX, _, maxArgY, mWithArgs) =
-        debug4 ("after arg fold:" ++ root.name)
-          (List.foldl rePosChild (startingX, pos.y+40, pos.y+40, mWithAnons) argChildren)
+      argChildren = List.filter isArg (outgoingNodes mAnons root)
+      (argX, _, argY, mArgs) =
+        List.foldl
+          rePos
+          (startingX, pos.y+ySpacing, pos.y+ySpacing, mAnons)
+          argChildren
 
       -- position back on the baseline, but below all the other nodes
-      nonArgChildren = List.filter (\n -> n.tipe /= Arg) (outgoingNodes mWithArgs root)
-      (maxNonArgX, _, maxNonArgY, mWithNonArgs) =
-        debug4 ("after non-arg fold:" ++ root.name)
-          (List.foldl rePosChild (pos.x, maxArgY, maxArgY, mWithArgs) nonArgChildren)
+      nonArgChildren = List.filter isNotArg (outgoingNodes mArgs root)
+      (nonArgX, _, nonArgY, mNonArgs) =
+        List.foldl
+          rePos
+          (pos.x, argY, argY, mArgs)
+          nonArgChildren
 
-      _ = Debug.log "placing node" (root.name, pos)
   in
-    debug3 ("result: " ++ root.name)
-    (max maxArgX maxNonArgX, max maxArgY maxNonArgY, mWithNonArgs)
+    (max argX nonArgX, max argY nonArgY, mNonArgs)
 
 
