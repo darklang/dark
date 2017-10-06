@@ -550,7 +550,8 @@ let fns : Lib.shortfn list = [
 
   { n = "List::range"
   ; o = []
-  ; p = [par "start" TInt; par "stop" TInt]
+  ; p = [ par "start" TInt ~d:"First number in the range, will be included"
+        ; par "stop" TInt ~d:"Last number in the range, is included"]
   ; r = TList
   ; d = "Return a list of increasing integers from `start` to `stop`, inclusive"
   ; f = InProcess
