@@ -188,16 +188,18 @@ holeDisplayPos m hole =
 
 viewValue : Model -> Node -> List (Html.Html Msg)
 viewValue m n =
-  let valueStr val tipe = val
-                          |> String.left 120
-                          |> Util.replace "\n" ""
-                          |> Util.replace "\r" ""
-                          |> Util.replace "\\s+" " "
-                          |> (\s -> if String.length s > 55
-                                    then (String.left 55 s) ++ "..."
-                                    else s)
-                          |> \v -> v ++ " :: " ++ tipe
-                          |> Html.text
+  let valueStr val tipe =
+        val
+          |> String.trim
+          |> String.left 120
+          |> Util.replace "\n" ""
+          |> Util.replace "\r" ""
+          |> Util.replace "\\s+" " "
+          |> (\s -> if String.length s > 54
+                    then String.left 54 s ++ "…" ++ String.right 1 (String.trim val)
+                    else s)
+          |> \v -> v ++ " :: " ++ tipe
+          |> Html.text
       -- lv = case Dict.get (n.id |> deID) m.phantoms of
       --   Nothing -> n.liveValue
       --   Just pn -> pn.liveValue
