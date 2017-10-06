@@ -29,14 +29,14 @@ let server =
       let g = G.load host in
       try
         Api.apply_ops g body;
-        if save then G.save !g;
         let result = !g
                      |> Graph.to_frontend_string in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
-        Log.pp  ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):")
+        Log.pP ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):") result;
+        (* work out the result before we save it, incase it has a stackoverflow
+         * or other crashing bug *)
+        if save then G.save !g;
         result
-
-
       with
       | e ->
           let bt = Exn.backtrace () in
