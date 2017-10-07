@@ -177,22 +177,65 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Clear_args (id) -> clear_args id
     | Delete_node (id) -> delete_node id
     | Delete_all -> delete_all
-    | Noop -> ident
+    | NoOp -> ident
+    | SavePoint -> ident
     | _ ->
-      Log.pP "op is" op;
-      failwith "applying unimplemented op"
+      Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
-let add_op (op: Op.op) (g: graph ref) : unit =
-  if op <> Noop then
-    (apply_op op g;
-     g := { !g with ops = !g.ops @ [op]})
+
+let preprocess (ops: Op.op list) : Op.op list =
+  (* - The client can add undopoints when it chooses. *)
+  (* - When we get an undo, we go back to the previous undopoint. *)
+  (* - When we get a redo, we ignore the undo immediately preceding it. If there *)
+  (*   are multiple redos, they'll gradually eliminate the previous undos. *)
+  (* undo algorithm: *)
+  (*   - Step 1: go through the list and remove all undo-redo pairs. After *)
+  (*   removing one pair, reprocess the list to remove others. *)
+  (*   - Step 2: A redo without an undo just before it is pointless. Error if this *)
+  (*   happens. *)
+  (*   - Step 3: there should now only be undos. Going from the front, each time *)
+  (*   there is an undo, drop the undo and all the ops going back to the previous *)
+  (*   savepoint, including the savepoint. Use the undos to go the the *)
+  (*   previous save point, dropping the ops between the undo and the *)
+  ops
+  (* Step 1: remove undo-redo pairs. We do by processing from the back, adding each *)
+  (* element onto the front *)
+  |> List.fold_right ~init:[] ~f:(fun op ops ->
+    match (op :: ops) with
+    | [] -> []
+    | [op] -> [op]
+    | Op.Undo :: Op.Redo :: rest -> rest
+    | Op.Redo :: Op.Redo :: rest -> Op.Redo :: Op.Redo :: rest
+    | _ :: Op.Redo :: rest -> (* Step 2: error on solo redos *)
+        Exception.internal "Found a redo with no previous undo"
+    | ops -> ops)
+  (* Step 3: remove undos and all the ops up to the savepoint. *)
+  (* Go from the front and build the list up. If we hit an undo, drop back until *)
+  (* the last favepoint. *)
+  |> List.fold_left ~init:[] ~f:(fun ops (op: Op.op) ->
+       if op = Op.Undo
+       then
+         ops
+         |> List.drop_while ~f:(fun o -> o <> Op.SavePoint)
+         |> (fun ops -> List.drop ops 1)   (* also drop the savepoint *)
+       else
+         op :: ops)
+  |> List.rev (* previous step leaves the list reversed *)
+  (* Bonus: remove noops *)
+  |> List.filter ~f:((<>) Op.NoOp)
+
+
+let add_ops (g: graph ref) (ops: Op.op list) : unit =
+  let reduced_ops = preprocess ops in
+  List.iter ~f:(fun op -> apply_op op g) reduced_ops;
+  g := { !g with ops = ops }
 
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
 let filename_for name = "appdata/" ^ name ^ ".dark"
 
-let load name : graph ref =
+let load (name: string) (ops: Op.op list) : graph ref =
   let g = create name in
   name
   |> filename_for
@@ -200,7 +243,8 @@ let load name : graph ref =
   |> Yojson.Safe.from_string
   |> oplist_of_yojson
   |> Result.ok_or_failwith
-  |> List.iter ~f:(fun op -> add_op op g);
+  |> (fun os -> os @ ops)
+  |> add_ops g;
   g
 
 let save (g : graph) : unit =

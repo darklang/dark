@@ -25,10 +25,10 @@ let server =
       | ["localhost"] -> "localhost"
       | [a; "localhost"] -> a
       | _ -> failwith @@ "Unsupported domain: " ^ domain in
-
-      let g = G.load host in
+      let g = G.load host [] in
       try
-        Api.apply_ops g body;
+        let ops = Api.to_ops body in
+        g := !(G.load host ops);
         let result = !g
                      |> Graph.to_frontend_string in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in

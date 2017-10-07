@@ -23,8 +23,13 @@ type op = Add_fn_call of id * pos * string
         | Delete_arg of id * string
         | Delete_all
         | Clear_args of id
-        | Noop
+        | SavePoint
+        | Undo
+        | Redo
+        | NoOp
 [@@deriving eq, yojson, show]
+
+type oplist = op list [@@deriving eq, yojson, show]
 
 let id_of_option op : id option =
   match op with
@@ -41,7 +46,10 @@ let id_of_option op : id option =
   | Set_edge _ -> None
   | Delete_arg _ -> None
   | Delete_all -> None
-  | Noop -> None
+  | Undo -> None
+  | Redo -> None
+  | SavePoint -> None
+  | NoOp -> None
 
 let id_of op : id =
   match id_of_option op with

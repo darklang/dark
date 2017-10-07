@@ -73,7 +73,7 @@ type opjsonlist = opjson list [@@deriving yojson]
 
 let json2op (op: opjson) : op =
   match op with
-  | { noop = Some _} -> Noop
+  | { noop = Some _} -> NoOp
   | { add_datastore = Some a } -> Add_datastore (a.id, a.pos, a.name)
   | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_all = Some a } -> Delete_all
@@ -98,12 +98,12 @@ let json2op (op: opjson) : op =
 
   | _ -> failwith "Unexpected opcode"
 
-let apply_ops (g : G.graph ref) (payload: string) : unit =
+let to_ops (payload: string) : op list =
   payload
   |> Yojson.Safe.from_string
   |> opjsonlist_of_yojson
   |> Result.ok_or_failwith
-  |> List.iter ~f:(fun op -> G.add_op (json2op op) g)
+  |> List.map ~f:json2op
 
 
 (*------------------*)

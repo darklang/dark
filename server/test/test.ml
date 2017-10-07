@@ -35,12 +35,73 @@ let fid () = Util.create_id ()
 
 let graph_from_ops (name: string) (ops: Op.op list) : G.graph ref =
   let g = G.create name in
-  List.iter ~f:(fun op -> G.add_op op g) ops;
+  G.add_ops g ops;
   g
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = graph_from_ops "test" ops in
   Node.execute ~scope:RT.Scope.empty (Op.id_of result) (G.gfns !g)
+
+
+let t_undo () =
+  try
+  let n1 = Op.Add_fn_call (fid (), None, "-") in
+  let u1 = Op.SavePoint in
+  let n2 = Op.Add_value (fid (), None, "5") in
+  let e1 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
+  let u2 = Op.SavePoint in
+  let n3 = Op.Add_value (fid (), None, "3") in
+  let e2 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
+  let ops1 = [n1; u1; n2; e1; u2; n3; e2] in
+
+  let u3 = Op.SavePoint in
+  let n4 = Op.Add_value (fid (), None, "6") in
+  let e3 = Op.Set_edge (Op.id_of n4, Op.id_of n1, "b") in
+  let u4 = Op.SavePoint in
+  let n5 = Op.Add_value (fid (), None, "-86") in
+  let e4 = Op.Set_edge (Op.id_of n5, Op.id_of n1, "b") in
+  let ops2 = [u3; n4; e3; u4; n5; e4] in
+
+  let u5 = Op.Undo in
+  let u6 = Op.Undo in
+  let u7 = Op.Redo in
+  let u8 = Op.Redo in
+  let u9 = Op.Undo in
+  let u10 = Op.Redo in
+
+  (* Check assumptions *)
+  let r = execute_ops ops1 n1 in
+  Alcotest.check check_dval "t_undo_1" r (DInt 2);
+  let r2 = execute_ops (List.append ops1 ops2) n1 in
+  Alcotest.check check_dval "t_undo_2" r2 (DInt 91);
+
+  (* First undo *)
+  let r3 = execute_ops (List.concat [ops1; ops2; [u5]]) n1 in
+  Alcotest.check check_dval "t_undo_3" r3 (DInt (-1));
+
+  (* Second undo *)
+  let r4 = execute_ops (List.concat [ops1; ops2; [u5;u6]]) n1 in
+  Alcotest.check check_dval "t_undo_4" r4 (DInt 2);
+
+  (* First redo *)
+  let r5 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7]]) n1 in
+  Alcotest.check check_dval "t_undo_5" r5 (DInt (-1));
+
+  (* Second redo *)
+  let r6 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8]]) n1 in
+  Alcotest.check check_dval "t_undo_6" r6 (DInt 91);
+
+  (* Another undo *)
+  let r7 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8;u9]]) n1 in
+  Alcotest.check check_dval "t_undo_7" r7 (DInt (-1));
+
+  (* Another redo *)
+  let r8 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8;u9;u10]]) n1 in
+  Alcotest.check check_dval "t_undo_8" r8 (DInt 91)
+
+  with
+  | e -> handle_exception e
+
 
 let t_graph_param_order () =
   (* The specific problem here was that we passed the parameters in the order they were added, rather than matching them to param names. *)
@@ -67,8 +128,8 @@ let t_fns_with_edges () =
   let edges = "edges: [" ^ p1str ^ ", " ^ p2str ^ "]" in
   let fncall = "{add_function_call: {name: \"-\", pos: {x: 0, y: 0}, " in
   let fncall = "[" ^ fncall ^ edges ^ "}}]" in
-  let g = graph_from_ops "test" [v1; v2] in
-  Api.apply_ops g fncall;
+  let ops = Api.to_ops fncall in
+  let g = graph_from_ops "test" (v1 :: v2 :: ops) in
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
   let r = Node.execute ~scope:RT.Scope.empty rid (G.gfns !g) in
   Alcotest.check check_dval "t_fns_with_edges" r (DInt 2)
@@ -113,9 +174,9 @@ let t_load_save _ =
   let name = "test_load_save" in
   let g = graph_from_ops name [n1; n2; n3; n4; e1; e2] in
   let _ = G.save !g in
-  let g1 = G.load name in
+  let g1 = G.load name [] in
   let _ = G.save !g in
-  let g2 = G.load name in
+  let g2 = G.load name [] in
   Alcotest.check check_graph "graph_load_save_1" !g !g1;
   Alcotest.check check_graph "graph_load_save_2" !g !g2
 
