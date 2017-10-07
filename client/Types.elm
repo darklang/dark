@@ -125,6 +125,9 @@ type RPC
     | RemoveLastField ID
     | UpdateNodeCursor ID Cursor
     | DeleteAll
+    | SavePoint
+    | Undo
+    | Redo
 
 type alias Autocomplete = { functions : List Function
                           , completions : List AutocompleteItem

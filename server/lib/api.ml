@@ -50,6 +50,14 @@ type add_datastore_field = { tipe: string [@key "type"]
 type noop = { fake: int option [@default None]
             } [@@deriving yojson]
 
+type redo = { fake: int option [@default None]
+            } [@@deriving yojson]
+
+type undo = { fake: int option [@default None]
+            } [@@deriving yojson]
+
+type savepoint = { fake: int option [@default None]
+                 } [@@deriving yojson]
 (* ---------------- *)
 (* Read the command out *)
 (* ---------------- *)
@@ -67,6 +75,9 @@ type opjson =
   ; delete_node: delete_node option [@default None]
   ; clear_args: clear_args option [@default None]
   ; add_datastore_field: add_datastore_field option [@default None]
+  ; redo: redo option [@default None]
+  ; undo: undo option [@default None]
+  ; savepoint: savepoint option [@default None]
   ; noop: noop option [@default None]
   } [@@deriving yojson]
 type opjsonlist = opjson list [@@deriving yojson]
@@ -74,6 +85,9 @@ type opjsonlist = opjson list [@@deriving yojson]
 let json2op (op: opjson) : op =
   match op with
   | { noop = Some _} -> NoOp
+  | { redo = Some _} -> Redo
+  | { undo = Some _} -> Undo
+  | { savepoint = Some _} -> SavePoint
   | { add_datastore = Some a } -> Add_datastore (a.id, a.pos, a.name)
   | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_all = Some a } -> Delete_all

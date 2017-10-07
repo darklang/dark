@@ -34,6 +34,9 @@ encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   calls
   |> List.filter ((/=) NoOp)
+  |> (\cs -> if cs == [Undo] || cs == [Redo]
+             then cs
+             else SavePoint :: cs)
   |> List.map (encodeRPC m)
   |> JSE.list
 
@@ -101,11 +104,19 @@ encodeRPC m call =
         ("remove_last_field", JSE.object [ jseId id ])
 
       NoOp ->
-        ("noop", JSE.object [ ])
+        ("noop", JSE.object [])
 
       DeleteAll ->
-        ("delete_all", JSE.object [ ])
+        ("delete_all", JSE.object [])
 
+      SavePoint ->
+        ("savepoint", JSE.object [])
+
+      Undo ->
+        ("undo", JSE.object [])
+
+      Redo ->
+        ("redo", JSE.object [])
   in JSE.object [ (cmd, args) ]
 
 decodeNode : JSD.Decoder Node
