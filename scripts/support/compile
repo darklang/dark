@@ -63,7 +63,7 @@ def ocaml_build():
     return run_backend(cd + build)
 
 def ocaml_test():
-  return run_backend("cd server && ocamlbuild test.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt && _build/test/test.native 2>&1")
+  return run_backend("cd server && ocamlbuild test.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt && unbuffer _build/test/test.native 2>&1")
 
 def reload_server():
   global profile
