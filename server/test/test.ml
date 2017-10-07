@@ -194,8 +194,12 @@ let suite =
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
   ; "anon functions work", `Slow, t_lambda_with_foreach
   ; "test_node_deletion", `Slow,t_node_deletion
+  ; "undos", `Slow, t_undo
   ]
 
 let () =
-  let () = Printexc.record_backtrace true in
-  Alcotest.run "suite" [ "tests", suite ]
+  Exn.initialize_module ();
+  Printexc.record_backtrace true;
+  Alcotest.run ~argv:[|"--verbose"; "--show-errors"|] "suite" [ "tests", suite ]
+
+
