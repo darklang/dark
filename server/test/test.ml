@@ -17,21 +17,6 @@ let handle_exception e =
   print_endline bt;
   raise e (* still need to raise so the test doesn't pass *)
 
-
-let t_param_order () =
-  let node = new Node.func 1 None "-" in
-  check_dval
-    "param_order"
-    (node#execute
-       ~scope:RT.Scope.empty
-       { getf = (fun g -> node)
-       ; get_children = (fun _ -> [])
-       ; get_deepest = (fun _ -> [])
-       }
-       (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
-                                ; ("b", RT.DInt 1)]))
-    (RT.DInt 0)
-
 let fid () = Util.create_id ()
 
 let ops2g (name: string) (ops: Op.op list) : G.graph ref =
@@ -44,6 +29,26 @@ let execute_ops (ops : Op.op list) (result : Op.op) =
   Node.execute ~scope:RT.Scope.empty (Op.id_of result) (G.gfns !g)
 
 
+(* ----------------------- *)
+(* The tests *)
+(* ----------------------- *)
+
+let t_param_order () =
+  let node = new Node.func 1 None "-" in
+  check_dval
+    "param_order"
+    (RT.DInt 0)
+    (node#execute
+       ~scope:RT.Scope.empty
+       { getf = (fun g -> node)
+       ; get_children = (fun _ -> [])
+       ; get_deepest = (fun _ -> [])
+       }
+       (RT.DvalMap.of_alist_exn [ ("a", RT.DInt 1)
+                                ; ("b", RT.DInt 1)]))
+
+
+
 let t_undo_fns () =
   let n1 = Op.SavePoint in
   let n2 = Op.Add_fn_call (fid (), None, "-") in
@@ -53,30 +58,29 @@ let t_undo_fns () =
   let r = Op.Redo in
 
   AT.check AT.int "undocount"
-  (G.undo_count !(ops2g "g" [n1; n1; n1; n1; n2; n3; n4; u; u; u])) 3;
+  3 (G.undo_count !(ops2g "g" [n1; n1; n1; n1; n2; n3; n4; u; u; u]));
 
-  AT.check AT.bool "redoable"
-  (G.is_redoable !(ops2g "g" [n1; n2; n3; n4; u])) true;
-  AT.check AT.bool "undoable"
-  (G.is_undoable !(ops2g "g" [n1; n2; n3; n4])) true;
+  AT.check AT.bool "redoable" true
+    (G.is_redoable !(ops2g "g" [n1; n2; n3; n4; u]));
+  AT.check AT.bool "undoable" true
+    (G.is_undoable !(ops2g "g" [n1; n2; n3; n4]));
 
 
-  AT.check AT.bool "not redoable"
-  (G.is_redoable !(ops2g "g" [n1; n2; n3; n4; u; r])) false;
-  AT.check AT.bool "not undoable"
-  (G.is_undoable !(ops2g "g" [n1; n2; n3; n4; u])) false;
+  AT.check AT.bool "not redoable" false
+    (G.is_redoable !(ops2g "g" [n1; n2; n3; n4; u; r]));
+  AT.check AT.bool "not undoable" false
+    (G.is_undoable !(ops2g "g" [n1; n2; n3; n4; u]));
 
 
   let both = !(ops2g "g" [n1; n1; n2; n3; n4; u; r; u]) in
-  AT.check AT.bool "both_undo" (G.is_undoable both) true;
-  AT.check AT.bool "both_redo" (G.is_redoable both) true;
+  AT.check AT.bool "both_undo" true (G.is_undoable both);
+  AT.check AT.bool "both_redo" true (G.is_redoable both);
 
   let neither = !(ops2g "g" [n2; n3; n4]) in
-  AT.check AT.bool "neither_undo" (G.is_undoable neither) false;
-  AT.check AT.bool "neither_redo" (G.is_redoable neither) false
+  AT.check AT.bool "neither_undo" false (G.is_undoable neither);
+  AT.check AT.bool "neither_redo" false (G.is_redoable neither)
 
 let t_undo () =
-  try
   let n1 = Op.Add_fn_call (fid (), None, "-") in
   let u1 = Op.SavePoint in
   let n2 = Op.Add_value (fid (), None, "5") in
@@ -103,36 +107,33 @@ let t_undo () =
 
   (* Check assumptions *)
   let r = execute_ops ops1 n1 in
-  check_dval "t_undo_1" r (DInt 2);
+  check_dval "t_undo_1" (DInt 2) r;
   let r2 = execute_ops (List.append ops1 ops2) n1 in
-  check_dval "t_undo_2" r2 (DInt 91);
+  check_dval "t_undo_2" (DInt 91) r2;
 
   (* First undo *)
   let r3 = execute_ops (List.concat [ops1; ops2; [u5]]) n1 in
-  check_dval "t_undo_3" r3 (DInt (-1));
+  check_dval "t_undo_3" (DInt (-1)) r3;
 
   (* Second undo *)
   let r4 = execute_ops (List.concat [ops1; ops2; [u5;u6]]) n1 in
-  check_dval "t_undo_4" r4 (DInt 2);
+  check_dval "t_undo_4" (DInt 2) r4;
 
   (* First redo *)
   let r5 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7]]) n1 in
-  check_dval "t_undo_5" r5 (DInt (-1));
+  check_dval "t_undo_5" (DInt (-1)) r5;
 
   (* Second redo *)
   let r6 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8]]) n1 in
-  check_dval "t_undo_6" r6 (DInt 91);
+  check_dval "t_undo_6" (DInt 91) r6;
 
   (* Another undo *)
   let r7 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8;u9]]) n1 in
-  check_dval "t_undo_7" r7 (DInt (-1));
+  check_dval "t_undo_7" (DInt (-1)) r7;
 
   (* Another redo *)
   let r8 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8;u9;u10]]) n1 in
-  check_dval "t_undo_8" r8 (DInt 91)
-
-  with
-  | e -> handle_exception e
+  check_dval "t_undo_8" (DInt 91) r8
 
 
 let t_graph_param_order () =
@@ -144,8 +145,8 @@ let t_graph_param_order () =
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r1 = execute_ops [add; v1; v2; e1; e2] add in
   let r2 = execute_ops [add; v1; v2; e2; e1] add in
-  check_dval "graph_param_order_1" r2 (DInt 2);
-  check_dval "graph_param_order_2" r1 (DInt 2)
+  check_dval "graph_param_order_1" (DInt 2) r2;
+  check_dval "graph_param_order_2" (DInt 2) r1
 
 (* TODO: test with param_Edge *)
 let t_fns_with_edges () =
@@ -164,7 +165,7 @@ let t_fns_with_edges () =
   let g = ops2g "test" (v1 :: v2 :: ops) in
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
   let r = Node.execute ~scope:RT.Scope.empty rid (G.gfns !g) in
-  check_dval "t_fns_with_edges" r (DInt 2)
+  check_dval "t_fns_with_edges" (DInt 2) r
 
 
 let t_int_add_works () =
@@ -175,7 +176,7 @@ let t_int_add_works () =
   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in
   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in
   let r = execute_ops [add; v1; v2; e2; e1] add in
-  check_dval "int_add" r (DInt 8)
+  check_dval "int_add" (DInt 8) r
 
 let t_node_deletion _ =
   (* check the argument gets deleted too *)
@@ -187,7 +188,7 @@ let t_node_deletion _ =
   let nodes = G.incoming_nodes (Op.id_of n2) !g in
   AT.check
     (AT.list (AT.pair AT.int AT.string))
-    "node_deletion" nodes [];
+    "node_deletion" [] nodes;
   try
     let _ = G.to_frontend !g in ()
   with
