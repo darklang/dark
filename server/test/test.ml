@@ -43,6 +43,35 @@ let execute_ops (ops : Op.op list) (result : Op.op) =
   Node.execute ~scope:RT.Scope.empty (Op.id_of result) (G.gfns !g)
 
 
+let t_undo_fns () =
+  let n1 = Op.SavePoint in
+  let n2 = Op.Add_fn_call (fid (), None, "-") in
+  let n3 = Op.Add_value (fid (), None, "-86") in
+  let n4 = Op.Set_edge (Op.id_of n3, Op.id_of n2, "b") in
+  let u = Op.Undo in
+  let r = Op.Redo in
+
+  Alcotest.check Alcotest.int "undocount" (G.undo_count !(graph_from_ops "g"
+  [n1; n1; n1; n1; n2; n3; n4; u; u; u])) 3;
+
+  Alcotest.check Alcotest.bool "redoable" (G.is_redoable !(graph_from_ops "g" [n1; n2; n3; n4; u])) true;
+  Alcotest.check Alcotest.bool "undoable" (G.is_undoable !(graph_from_ops "g" [n1; n2; n3; n4])) true;
+
+
+  Alcotest.check Alcotest.bool "not redoable" (G.is_redoable !(graph_from_ops
+  "g" [n1; n2; n3; n4; u; r])) false;
+  Alcotest.check Alcotest.bool "not undoable" (G.is_undoable !(graph_from_ops
+  "g" [n1; n2; n3; n4; u])) false;
+
+
+  let both = !(graph_from_ops "g" [n1; n1; n2; n3; n4; u; r; u]) in
+  Alcotest.check Alcotest.bool "both_undo" (G.is_undoable both) true;
+  Alcotest.check Alcotest.bool "both_redo" (G.is_redoable both) true;
+
+  let neither = !(graph_from_ops "g" [n2; n3; n4]) in
+  Alcotest.check Alcotest.bool "neither_undo" (G.is_undoable neither) false;
+  Alcotest.check Alcotest.bool "neither_redo" (G.is_redoable neither) false
+
 let t_undo () =
   try
   let n1 = Op.Add_fn_call (fid (), None, "-") in
@@ -256,6 +285,7 @@ let suite =
   ; "anon functions work", `Slow, t_lambda_with_foreach
   ; "test_node_deletion", `Slow,t_node_deletion
   ; "undos", `Slow, t_undo
+  ; "undo_fns", `Slow, t_undo_fns
   ]
 
 let () =

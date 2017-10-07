@@ -182,6 +182,9 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
+(* ------------------------- *)
+(* Undo *)
+(* ------------------------- *)
 
 let preprocess (ops: Op.op list) : Op.op list =
   (* - The client can add undopoints when it chooses. *)
@@ -223,6 +226,26 @@ let preprocess (ops: Op.op list) : Op.op list =
   |> List.rev (* previous step leaves the list reversed *)
   (* Bonus: remove noops *)
   |> List.filter ~f:((<>) Op.NoOp)
+
+
+let undo_count (g: graph) : int =
+  g.ops
+    |> List.rev
+    |> List.take_while ~f:((=) Op.Undo)
+    |> List.length
+
+let is_undoable (g: graph) : bool =
+  g.ops
+    |> preprocess
+    |> List.exists ~f:((=) Op.SavePoint)
+
+let is_redoable (g: graph) : bool =
+  g.ops |> List.last |> (=) (Some Op.Undo)
+
+
+(* ------------------------- *)
+(* Build *)
+(* ------------------------- *)
 
 
 let add_ops (g: graph ref) (ops: Op.op list) : unit =
@@ -280,7 +303,10 @@ let to_frontend_nodes (g: graph) : Yojson.Safe.json =
   |> Node.nodejsonlist_to_yojson
 
 let to_frontend (g : graph) : Yojson.Safe.json =
-  `Assoc [ ("nodes", to_frontend_nodes g)]
+  `Assoc [ ("nodes", to_frontend_nodes g)
+         ; ("redoable", `Bool (is_redoable g))
+         ; ("undo_count", `Int (undo_count g))
+         ; ("undoable", `Bool (is_undoable g)) ]
 
 let to_frontend_string (g: graph) : string =
   g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
