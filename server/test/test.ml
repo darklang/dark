@@ -8,6 +8,15 @@ module RT = Runtime
 let check_dval = Alcotest.testable RT.pp_dval RT.equal_dval
 let check_graph = Alcotest.testable G.pp_graph G.equal_graph
 
+let handle_exception e =
+  (* Builtin testing doesnt seem to print exceptions *)
+  let bt = Exn.backtrace () in
+  let msg = Exn.to_string e in
+  print_endline ("Exception: " ^ msg);
+  print_endline bt;
+  raise e (* still need to raise so the test doesn't pass *)
+
+
 let t_param_order () =
   let node = new Node.func 1 None "-" in
   Alcotest.check check_dval
@@ -174,7 +183,8 @@ let t_hmac_signing _ =
   Alcotest.check Alcotest.string "hmac_signing_2" expected_header actual
 
 let suite =
-  let () = Printexc.record_backtrace true in
+  Exn.initialize_module ();
+  Printexc.record_backtrace true;
   [ "param args are in the right order", `Quick, t_param_order
   ; "Calling Int::add", `Slow, t_int_add_works
   ; "graph ordering doesnt break param order", `Slow, t_graph_param_order
