@@ -103,7 +103,7 @@ updateMod mod (m, cmd) =
       -- applied from left to right
       ChangeCursor step -> case m.state of
         Selecting id -> let calls = Entry.updatePreviewCursor m id step
-                        in m ! [rpc m FocusNothing calls]
+                        in m ! [rpc m FocusSame calls]
         Deselected -> m ! []
         Entering _ _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
@@ -133,7 +133,6 @@ update_ msg m =
     (GlobalKeyPress event, state) ->
       if event.ctrlKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
       then
-        let _ = Debug.log "got one of them" event.keyCode in
         case event.keyCode of
           Key.Z -> RPC ([Undo], FocusNothing)
           Key.Y -> RPC ([Redo], FocusNothing)
@@ -233,7 +232,8 @@ update_ msg m =
               , case focus of
                   FocusNext id -> Entry.enterNext m3 (G.getNodeExn m3 id)
                   FocusExact id -> Entry.enterExact m3 (G.getNodeExn m3 id)
-                  FocusNothing -> NoChange
+                  FocusSame -> NoChange
+                  FocusNothing -> Deselect
               ]
 
     (PhantomCallBack _ _ (Ok (nodes)), _) ->

@@ -134,7 +134,7 @@ addFunction m id name pos =
     -- not a real function, but hard to thread an error here, so let the
     -- server fail instead
     Nothing ->
-      ([AddFunctionCall id name pos], FocusNothing)
+      ([AddFunctionCall id name pos], FocusSame)
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
@@ -204,7 +204,7 @@ submit m re cursor value =
           RPC ([ AddFunctionCall id "." Nothing
                , SetEdge source.id (id, "value")
                , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
-              , FocusNothing)
+              , FocusSame)
 
         Just ('$', letter) ->
           case G.fromLetter m letter of

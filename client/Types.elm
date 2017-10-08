@@ -107,9 +107,10 @@ type Msg
     | ClearGraph
     | Initialization
 
-type Focus = FocusNothing
+type Focus = FocusNothing -- deselect
            | FocusExact ID
            | FocusNext ID
+           | FocusSame -- unchanged
 
 type RPC
     = NoOp
