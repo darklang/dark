@@ -3,6 +3,23 @@
 import sys
 import subprocess
 import threading
+import fcntl
+import os
+import time
+import tty
+import termios
+
+# http://ballingt.com/nonblocking-stdin-in-python-3/
+class nonblocking(object):
+    def __init__(self, stream):
+        self.stream = stream
+        self.fd = self.stream.fileno()
+    def __enter__(self):
+        self.orig_fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl | os.O_NONBLOCK)
+    def __exit__(self, *args):
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl)
+
 
 # Make io unbuffered
 def flush(fn):
@@ -24,15 +41,18 @@ def initial_compile():
   compile(["client/Main.elm", "server/main/dark.ml"])
 
 def process_watchers():
-  files = []
-
-  for f in sys.stdin:
-    if "***BATCHEND***" in f:
-      compile(files)
-      files = []
-    else:
-      f, _ = f.strip().split(" ")
-      files.append(f)
+  with nonblocking(sys.stdin):
+    while True:
+      files = set()
+      c = sys.stdin.read(100000)
+      if c == "":
+        time.sleep(1)
+      else:
+        for f in c.split("\n"):
+          if f != "***BATCHEND***" and f != "":
+            f, _ = f.strip().split(" ")
+            files.add(f)
+        compile(files)
 
 def background_task(fn):
   threading.Thread(target=fn).start()
