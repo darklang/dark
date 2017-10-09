@@ -9,6 +9,7 @@ import Set
 
 -- dark
 import Autocomplete exposing (..)
+import Types exposing (..)
 
 
 
@@ -32,16 +33,16 @@ suite =
                                     , optional = False
                                     , description = ""
                                     }]
-                    , return_type = "Boolean"
+                    , returnTipe = TBool
                     , description = ""
                     })
-          [ ("Twit::somefunc", "Object")
-          , ("Twit::someOtherFunc", "Object")
-          , ("Twit::yetAnother", "Object")
-          , ("+", "Integer")
-          , ("Int::add", "Integer")
-          , ("Dict::keys", "Object")
-          , ("List::head", "List")
+          [ ("Twit::somefunc", TObj)
+          , ("Twit::someOtherFunc", TObj)
+          , ("Twit::yetAnother", TObj)
+          , ("+", TInt)
+          , ("Int::add", TInt)
+          , ("Dict::keys", TObj)
+          , ("List::head", TList)
           ] in
   describe "autocomplete"
     [ d "containsOrdered"
@@ -141,7 +142,7 @@ suite =
       |> (==) -1
       -- Filter by method signature for typed values
       , \_ -> (init completes)
-      |> forLiveValue {value="[]", tipe="List",json="[]", exc=Nothing}
+      |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
       |> query ""
       |> .completions
       |> List.map asName
@@ -149,7 +150,7 @@ suite =
       |> (==) (Set.fromList ["List::head"])
        -- Show allowed fields for objects
       , \_ -> (init completes)
-      |> forLiveValue {value="5", tipe="Integer", json="5", exc=Nothing}
+      |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
       |> query ""
       |> .completions
       |> List.map asName
