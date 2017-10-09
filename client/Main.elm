@@ -18,6 +18,7 @@ import Types exposing (..)
 import View
 import Defaults
 import Graph as G
+import Runtime as RT
 import Entry
 import RandomGraph
 import Autocomplete
@@ -41,13 +42,25 @@ main = Navigation.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
+flag2function : FlagFunction -> Function
+flag2function fn =
+  { name = fn.name
+  , description = fn.description
+  , returnTipe = RT.str2tipe fn.return_type
+  , parameters = List.map (\p -> { name = p.name
+                                 , tipe = RT.str2tipe p.tipe
+                                 , anon_args = p.anon_args
+                                 , optional = p.optional
+                                 , description = p.description}) fn.parameters
+  }
+
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
 init {state, complete} location =
   let editor = case state of
             Just e -> e
             Nothing -> Defaults.defaultEditor
       m = Defaults.defaultModel editor
-      m2 = { m | complete = Autocomplete.init complete}
+      m2 = { m | complete = Autocomplete.init (List.map flag2function complete)}
   in
     (m2, rpc m FocusNothing [])
 

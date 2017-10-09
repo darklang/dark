@@ -12,6 +12,7 @@ import Json.Decode.Pipeline as JSDP
 -- dark
 import Types exposing (..)
 import Defaults
+import Runtime as RT
 
 
 phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
@@ -61,7 +62,7 @@ encodeRPC m call =
         ("add_datastore_field",
            JSE.object [ jseId id
                       , ("name", JSE.string name)
-                      , ("tipe", JSE.string tipe)])
+                      , ("tipe", JSE.string (tipe |> RT.tipe2str))])
 
       AddFunctionCall id name pos ->
         ("add_function_call",
@@ -121,10 +122,10 @@ encodeRPC m call =
 
 decodeNode : JSD.Decoder Node
 decodeNode =
-  let toParameter: Name -> TypeName -> List String -> Bool -> String -> Parameter
+  let toParameter: Name -> String -> List String -> Bool -> String -> Parameter
       toParameter name tipe anon_args optional description =
         { name = name
-        , tipe = tipe
+        , tipe = tipe |> RT.str2tipe
         , anon_args = anon_args
         , optional = optional
         , description = description}
@@ -148,18 +149,18 @@ decodeNode =
                      _ -> Debug.crash "impossible"
 
 
-      toNode : Name -> Int -> List(FieldName,TypeName) ->
+      toNode : Name -> Int -> List (FieldName, String) ->
                List Parameter -> List (List JSD.Value) -> String ->
                String -> String -> Maybe Exception -> Int -> List Int ->
                String -> Int -> Int -> Int -> Node
       toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe x y cursor =
           { name = name
           , id = ID id
-          , fields = fields
+          , fields = List.map (\(f,tipe) -> (f, RT.str2tipe tipe)) fields
           , parameters = parameters
           , arguments = List.map toArg arguments
           , liveValue = { value = liveValue
-                        , tipe = liveTipe
+                        , tipe = liveTipe |> RT.str2tipe
                         , json = liveJson
                         , exc = liveExc}
           , anonID = if anonID == Defaults.unsetPosition then Nothing else Just <| ID anonID

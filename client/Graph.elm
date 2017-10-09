@@ -60,7 +60,7 @@ nodeWidth n =
              |> List.sum
     paramLen = args n
                |> List.map (\(p, a) ->
-                 if p.tipe == "Function" then -space -- remove spaces
+                 if p.tipe == TFun then -space -- remove spaces
                  else
                    case a of
                      Const c -> if c == "null" then 8 else (len c)

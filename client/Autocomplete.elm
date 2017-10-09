@@ -5,6 +5,7 @@ import Dict
 import Json.Decode as JSD
 import Dom.Scroll
 import Task
+import Maybe.Extra as ME
 
 -- lib
 import List.Extra as LE
@@ -12,6 +13,7 @@ import List.Extra as LE
 -- dark
 import Util exposing (deMaybe)
 import Types exposing (..)
+import Runtime as RT
 
 -- show the prev 5
 -- obvi this should use getClientBoundingBox, but that's tough in Elm
@@ -40,7 +42,7 @@ init functions = { functions = functions
 forLiveValue : LiveValue -> Autocomplete -> Autocomplete
 forLiveValue lv a = { a | liveValue = Just lv }
 
-forParamType : String -> Autocomplete -> Autocomplete
+forParamType : Tipe -> Autocomplete -> Autocomplete
 forParamType tipe a = { a | tipe = Just tipe }
 
 reset : Autocomplete -> Autocomplete
@@ -124,8 +126,9 @@ asTypeString item =
   case item of
     ACFunction f -> f.parameters
                     |> List.map .tipe
+                    |> List.map RT.tipe2str
                     |> String.join ", "
-                    |> (\s -> "(" ++ s ++ ") ⟶  " ++ f.return_type)
+                    |> (\s -> "(" ++ s ++ ") ⟶  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
 
 asString : AutocompleteItem -> String
@@ -178,7 +181,7 @@ regenerate a =
   let lcq = String.toLower a.value
       -- fields of objects
       fields = case a.liveValue of
-                 Just lv -> if lv.tipe == "Obj"
+                 Just lv -> if lv.tipe == TObj
                             then jsonFields lv.json
                             else []
                  Nothing -> []
@@ -187,8 +190,8 @@ regenerate a =
       options =
         a.functions
         |> List.filter
-           (\{return_type} ->
-              a.tipe == Nothing || a.tipe == Just return_type)
+           (\{returnTipe} ->
+              a.tipe == Nothing || (a.tipe) == Just returnTipe)
         |> List.filter
           (\fn ->
              case a.liveValue of
@@ -234,9 +237,11 @@ update mod a =
 
 
 
-findParamByType : Function -> TypeName -> Maybe Parameter
+findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
-  LE.find (\p -> p.tipe == tipe || p.tipe == "Any") parameters
+  parameters
+  |> LE.find (\p -> p.tipe == tipe || p.tipe == TAny)
+  -- |> ME.prev (LE.find (\p -> p.tipe == TAny) parameters)
 
 findFirstParam : Function -> Maybe Parameter -> Maybe Parameter
 findFirstParam {parameters} except =

@@ -12,6 +12,7 @@ import Defaults
 import Graph as G
 import Types exposing (..)
 import Util
+import Runtime as RT
 import Autocomplete
 import Viewport
 
@@ -137,7 +138,7 @@ addFunction m id name pos =
       ([AddFunctionCall id name pos], FocusSame)
     Just fn ->
       -- automatically add anonymous functions
-      let fn_args = List.filter (\p -> p.tipe == "Function") fn.parameters
+      let fn_args = List.filter (\p -> p.tipe == TFun) fn.parameters
           anonpairs = List.map (\p -> addAnonParam m id pos p.name p.anon_args) fn_args
           anonarg = anonpairs |> List.head |> Maybe.map Tuple.second
           anons = anonpairs |> List.unzip |> Tuple.first
@@ -154,7 +155,6 @@ updatePreviewCursor m id step =
   case anonFuncNode of
     Just n -> [UpdateNodeCursor n.id (n.cursor + step)]
     Nothing -> []
-
 
 refocus : Bool -> Focus -> Focus
 refocus re default =

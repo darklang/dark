@@ -79,8 +79,8 @@ makeRandomChange m =
                   else
                   if choice > 70
                   then
-                    if n.liveValue.tipe == "String" then "String::foreach"
-                       else if n.liveValue.tipe == "List" then "List::foreach"
+                    if n.liveValue.tipe == TStr then "String::foreach"
+                       else if n.liveValue.tipe == TList then "List::foreach"
                        else "if"
                        else selected
 

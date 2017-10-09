@@ -14,7 +14,6 @@ import Keyboard.Event exposing (KeyboardEvent)
 type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
-type alias TypeName = Name
 type alias Cursor = Int
 
 type alias Exception =
@@ -30,13 +29,25 @@ type alias Exception =
   , workarounds : List String }
 
 type alias LiveValue = { value : String
-                       , tipe : String
+                       , tipe : Tipe
                        , json : String
                        , exc : Maybe Exception}
 
 type ID = ID Int
 deID : ID -> Int
 deID (ID x) = x
+
+type Tipe = TInt
+          | TStr
+          | TChar
+          | TBool
+          | TFloat
+          | TObj
+          | TList
+          | TAny
+          | TFun
+          | TNull
+          | TIncomplete
 
 -- There are two coordinate systems. Pos is an absolute position in the
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
@@ -64,7 +75,7 @@ type alias Node = { name : Name
                   , tipe : NodeType
                   , liveValue : LiveValue
                   -- for DSes
-                  , fields : List (FieldName, TypeName)
+                  , fields : List (FieldName, Tipe)
                   -- for functions
                   , parameters : List Parameter
                   , arguments : List Argument
@@ -115,7 +126,7 @@ type Focus = FocusNothing -- deselect
 type RPC
     = NoOp
     | AddDatastore ID Name MPos
-    | AddDatastoreField ID FieldName TypeName
+    | AddDatastoreField ID FieldName Tipe
     | AddFunctionCall ID Name MPos
     | AddAnon ID MPos (List ID) (List String)
     | AddValue ID String MPos
@@ -136,7 +147,7 @@ type alias Autocomplete = { functions : List Function
                           , value : String
                           , open : Bool
                           , liveValue : Maybe LiveValue
-                          , tipe : Maybe TypeName
+                          , tipe : Maybe Tipe
                           }
 type AutocompleteItem = ACFunction Function
                       | ACField FieldName
@@ -162,7 +173,7 @@ type AutocompleteMod = ACQuery String
                      | ACSelectDown
                      | ACSelectUp
                      | ACFilterByLiveValue LiveValue
-                     | ACFilterByParamType TypeName
+                     | ACFilterByParamType Tipe
 
 type Modification = Error String
                   | ClearError
@@ -179,7 +190,7 @@ type Modification = Error String
 
 -- name, type optional
 type alias Parameter = { name: Name
-                       , tipe: TypeName
+                       , tipe: Tipe
                        , anon_args: List String
                        , optional: Bool
                        , description: String
@@ -188,12 +199,28 @@ type alias Parameter = { name: Name
 type alias Function = { name: Name
                       , parameters: List Parameter
                       , description: String
-                      , return_type: String
+                      , returnTipe: Tipe
                       }
 
+type alias FlagParameter = { name: Name
+                           , tipe: String
+                           , anon_args: List String
+                           , optional: Bool
+                           , description: String
+                           }
+
+type alias FlagFunction = { name: Name
+                          , parameters: List FlagParameter
+                          , description: String
+                          , return_type: String
+                          }
+
+
+
 type alias Flags =
-  { state: Maybe Editor
-  , complete: List Function
+  {
+    state: Maybe Editor
+  , complete: List FlagFunction
   }
 
 -- Values that we serialize

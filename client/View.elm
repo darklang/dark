@@ -19,6 +19,7 @@ import Entry
 import Graph as G
 import Defaults
 import Viewport
+import Runtime as RT
 import Selection
 import Autocomplete
 
@@ -141,7 +142,7 @@ viewEntry m =
       paramInfo =
         case m.state of
           Entering _ (Filling _ (ParamHole _ param _)) ->
-            Html.div [] [ Html.text (param.name ++ " : " ++ param.tipe)
+            Html.div [] [ Html.text (param.name ++ " : " ++ RT.tipe2str param.tipe)
                         , Html.br [] []
                         , Html.text param.description
                         ]
@@ -188,7 +189,7 @@ holeDisplayPos m hole =
 
 viewValue : Model -> Node -> List (Html.Html Msg)
 viewValue m n =
-  let valueStr val tipe =
+  let valueStr val tipeStr =
         val
           |> String.trim
           |> String.left 120
@@ -198,7 +199,7 @@ viewValue m n =
           |> (\s -> if String.length s > 54
                     then String.left 54 s ++ "…" ++ String.right 1 (String.trim val)
                     else s)
-          |> \v -> v ++ " :: " ++ tipe
+          |> \v -> v ++ " :: " ++ tipeStr
           |> Html.text
       -- lv = case Dict.get (n.id |> deID) m.phantoms of
       --   Nothing -> n.liveValue
@@ -218,7 +219,7 @@ viewValue m n =
       (case lv.exc of
         Nothing -> Html.pre
                     [Attrs.class class, Attrs.title lv.value]
-                    [valueStr lv.value lv.tipe]
+                    [valueStr lv.value (RT.tipe2str lv.tipe)]
         Just exc -> Html.span
                       [ Attrs.class <| "unexpected " ++ class
                       , Attrs.title
@@ -260,7 +261,7 @@ viewNormalNode m n i =
       params = G.args n
               |> List.map
                     (\(p, a) ->
-                      if p.tipe == "Function"
+                      if p.tipe == TFun
                       then ("", "")
                       else
                         case (a, p) of
@@ -278,7 +279,7 @@ viewNormalNode m n i =
 
 
       -- fields (in list)
-      viewField (name, tipe) = [ Html.text (name ++ " : " ++ tipe)
+      viewField (name, tipe) = [ Html.text (name ++ " : " ++ (RT.tipe2str tipe))
                                , Html.br [] []]
       viewFields = List.map viewField n.fields
 

@@ -44,3 +44,9 @@ findIndex fn l =
 
 zip : List a -> List b -> List (a, b)
 zip a b = List.map2 (,) a b
+
+resultIsOk : Result a b -> Bool
+resultIsOk r =
+  case r of
+    Ok _ -> True
+    Err _ -> False
