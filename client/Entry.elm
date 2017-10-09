@@ -191,9 +191,44 @@ submit m re cursor value =
           then RPC ([ SetConstant value (target.id, param.name)]
                     , FocusNext target.id |> refocus re)
           else
-            let (f, focus) = addFunction m id value Nothing in
-              RPC (f ++ [SetEdge id (target.id, param.name)]
-                  , focus |> refocus re)
+            let (name, arg, extras) = case String.split " " value of
+                                (name :: arg :: es) -> (name, Just arg, es)
+                                [name] -> (name, Nothing, [])
+                                [] -> ("", Nothing, [])
+                fn = Autocomplete.findFunction m.complete name
+                argEdges = case (fn, arg) of
+                  (Just fn, Just arg) ->
+                    if isValueRepr arg
+                    then 
+                      let tipedP = Autocomplete.findParamByType fn (RT.tipeOf arg) in
+                      case tipedP of
+                        Just tipedP -> Ok <| [SetConstant arg (id, tipedP.name)]
+                        Nothing -> Err <| "No parameter for argument: " ++ arg
+                    else
+                      case String.uncons arg of
+                        Just ('$', letter) ->
+                          case G.fromLetter m letter of
+                            Nothing -> Err <| "No node named '" ++ letter ++ "'"
+                            Just lNode ->
+                              let tipedP = Autocomplete.findParamByType fn (lNode.liveValue.tipe) in
+                              case tipedP of
+                                Nothing -> Err <| "No parameter for argument with the right type: " ++ arg
+                                Just tipedP -> Ok <| [SetEdge lNode.id (id, tipedP.name)]
+                        Just _ ->
+                          Err <| "We don't currently support arguments like `" ++ arg ++ "`"
+                        Nothing -> Ok [] -- empty string
+                  _ -> Ok []
+            in
+            if extras /= []
+            then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
+            else
+              let (f, focus) = addFunction m id name Nothing
+                  edges = [SetEdge id (target.id, param.name)]
+              in
+              case argEdges of
+                Ok argEdges -> RPC (f ++ edges ++ argEdges, focus)
+                Err err -> Error err
+
 
     Filling n (ResultHole source as hole) ->
       case String.uncons value of
