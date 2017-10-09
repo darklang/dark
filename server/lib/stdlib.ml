@@ -332,7 +332,7 @@ let fns : Lib.shortfn list = [
               error
                 ~actual:(DList result)
                 ~result:(DList result)
-                ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr !example_value) ^ " is a " ^ (get_type !example_value))
+                ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr !example_value) ^ " is a " ^ (tipename !example_value))
                 ~expected:"every value to be a char"
                 "Foreach expects you to return chars"
           | args -> fail args)

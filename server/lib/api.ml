@@ -3,6 +3,7 @@ open Types
 
 open Op
 module G = Graph
+module RT = Runtime
 
 (* Opcodes as sent via the API. We do this to get type checking *)
 type pos = Types.pos [@@deriving yojson]
@@ -139,18 +140,18 @@ type functionlist = function_ list [@@deriving yojson]
 let functions =
   Libs.fns
   |> String.Map.to_alist
-  |> List.map ~f:(fun (k,(v:Runtime.fn))
+  |> List.map ~f:(fun (k,(v:RT.fn))
                    -> { name = k
                       ; parameters =
                         List.map ~f:(fun p : param_ ->
                           { name = p.name
-                          ; tipe = Runtime.tipename p.tipe
+                          ; tipe = RT.tipe2str p.tipe
                           ; anon_args = p.anon_args
                           ; optional = p.optional
                           ; description = p.description })
                         v.parameters
                       ; description = v.description
-                      ; return_type = Runtime.tipename v.return_type
+                      ; return_type = RT.tipe2str v.return_type
                       })
   |> functionlist_to_yojson
   |> Yojson.Safe.pretty_to_string

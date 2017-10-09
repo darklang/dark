@@ -107,22 +107,55 @@ let rec equal_dval (a: dval) (b: dval) =
   | DObj o1, DObj o2 -> DvalMap.equal equal_dval o1 o2
   | _, _ -> false
 
-let get_type (dv : dval) : string =
+type tipe = TInt
+          | TStr
+          | TChar
+          | TBool
+          | TFloat
+          | TObj
+          | TList
+          | TAny
+          | TFun
+          | TNull
+          | TIncomplete
+          [@@deriving yojson, show]
+
+let tipe2str t : string =
+  match t with
+  | TInt -> "Int"
+  | TStr -> "Str"
+  | TChar -> "Char"
+  | TBool -> "Bool"
+  | TFloat -> "Float"
+  | TObj -> "Obj"
+  | TList -> "List"
+  | TFun -> "Function"
+  | TNull -> "Nothing"
+  | TAny -> "Any"
+  | TIncomplete -> "<incomplete>"
+
+
+let tipeOf (dv : dval) : tipe =
   match dv with
-  | DInt _ -> "Int"
-  | DStr _ -> "Str"
-  | DBool _ -> "Bool"
-  | DFloat _ -> "Float"
-  | DChar _ -> "Char"
-  | DNull -> "Nothing"
-  | DAnon _ -> "Anon"
-  | DList _ -> "List"
-  | DObj _ -> "Obj"
-  | DIncomplete -> "n/a"
-  (* | _ -> failwith "get_type not implemented yet" *)
+  | DInt _ -> TInt
+  | DStr _ -> TStr
+  | DBool _ -> TBool
+  | DFloat _ -> TFloat
+  | DChar _ -> TChar
+  | DNull -> TNull
+  | DAnon _ -> TFun
+  | DList _ -> TList
+  | DObj _ -> TObj
+  | DIncomplete -> TIncomplete
+
+  let tipename (dv: dval) : string = 
+    dv |> tipeOf |> tipe2str
+
+let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
+  `String (t |> tipe2str)
 
 let to_error_repr (dv : dval) : string =
-  (to_repr dv) ^ " (" ^ (get_type dv) ^ ")"
+  (to_repr dv) ^ " (" ^ (tipename dv) ^ ")"
 
 let pp = Log.pp ~f:to_repr
 let pP = Log.pP ~f:to_repr
@@ -195,32 +228,6 @@ let parse (str : string) : dval =
 (* Functions *)
 (* ------------------------- *)
 type execute_t = (dval_map -> dval)
-type tipe = TInt
-          | TStr
-          | TChar
-          | TBool
-          | TFloat
-          | TObj
-          | TList
-          | TAny
-          | TFun
-          [@@deriving yojson, show]
-
-let tipename t =
-  match t with
-  | TInt -> "Int"
-  | TStr -> "Str"
-  | TChar -> "Char"
-  | TBool -> "Bool"
-  | TFloat -> "Float"
-  | TObj -> "Obj"
-  | TList -> "List"
-  | TAny -> "Any"
-  | TFun -> "Function"
-
-let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
-  `String (tipename t)
-
 type argument = AEdge of int
               | AConst of dval [@@deriving yojson, show]
 
@@ -239,7 +246,7 @@ let param_to_string (param: param) : string =
   param.name
   ^ (if param.optional then "?" else "")
   ^ " : "
-  ^ (tipename param.tipe)
+  ^ (tipe2str param.tipe)
 
 
 type ccfunc = InProcess of (dval list -> dval)
@@ -262,9 +269,9 @@ let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") 
     ; long = long
     ; tipe = "Runtime"
     ; actual = actual |> dval_to_yojson |> Yojson.Safe.pretty_to_string
-    ; actual_tipe = actual |> get_type
+    ; actual_tipe = actual |> tipename 
     ; result = result |> dval_to_yojson |> Yojson.Safe.pretty_to_string
-    ; result_tipe = result |> get_type
+    ; result_tipe = result |> tipename
     ; expected = expected
     ; info = info
     ; workarounds = workarounds
@@ -289,7 +296,7 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
            let range = List.range 0 (List.length arglist) in
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
            let invalid = List.filter_map all
-                           ~f:(fun (i,p,a) -> if get_type a <> tipename p.tipe
+                           ~f:(fun (i,p,a) -> if tipeOf a <> p.tipe
                                               && p.tipe <> TAny
                                then Some (i,p,a)
                                else None) in
@@ -299,14 +306,14 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
 
            | (i,p,DIncomplete) :: _ ->
               Exception.user
-                ~expected:(tipename p.tipe)
+                ~expected:(tipe2str p.tipe)
                 ~actual:"missing"
                 (fn.name ^ " is missing an argument: " ^ p.name)
 
            | (i,p,a) :: _ ->
               error
                 ~actual:a
-                ~expected:(tipename p.tipe)
+                ~expected:(tipe2str p.tipe)
                 (fn.name ^ " was called with the wrong type to parameter: " ^ p.name))
 
   | API f ->
