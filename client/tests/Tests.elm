@@ -10,6 +10,8 @@ import Set
 -- dark
 import Autocomplete exposing (..)
 import Types exposing (..)
+import Entry as E
+import Util
 
 
 
@@ -22,8 +24,9 @@ d s fs = describe s (List.indexedMap
                        fs
                     )
 
-suite : Test
-suite =
+
+autocomplete : Test
+autocomplete =
   let completes =
         List.map (\(name,tipe) ->
                     { name = name
@@ -170,4 +173,49 @@ suite =
       |> List.length
       |> (==) 0
       ]
+    ]
+
+entryParser : Test
+entryParser =
+                  -- basics fns
+  let parses = [ "+ 3 4"
+               , "+"
+               , "+ 3"
+               , "aFunction"
+               , "AfunctionWith::sInIt 5 2"
+               -- strings
+               , "\"a string\""
+               , "     \"spaces front\""
+               , "\"spaces back\"        "
+               -- numbers
+               , "6.42"
+               , "-6"
+               , "- -6 -7.53"
+               -- vars 
+               , "$a"
+               , "- $a $c"
+               -- infix
+               , "$c + $a"
+               , "$c - $a"
+               -- infix with functions that aren't obvious infix things
+               , "$c String::foreach"
+               , "$c Int::add 5"
+               , "(String::first $c) String::is_substring (String.concat \"a\" \"b\")"
+               -- parens
+               , "($c % 3) == 0"
+               , "($c % 3) == ($a * 1)"
+               -- Lists
+               , "[ 1, 2, 3, $c - 5, $c ]"
+               -- Objs
+               , "{ 1: 2, 3: 4, $c: $d}"
+               -- Complex
+               , "{ $c: func ($d + 2) 5}"
+               ]
+      doesntParse = ["$A", "AFucntionWith;;InIt", "5. ", " 5.6.3"]
+  in
+  describe "entryParser"
+    [ describe "should parse"
+       (List.map (\str -> d str [\_ -> E.parse str |> Util.resultIsOk]) parses)
+    , describe "shouldn't parse"
+      (List.map (\str -> d str [\_ -> E.parse str |> Util.resultIsOk |> not]) doesntParse)
     ]
