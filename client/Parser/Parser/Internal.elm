@@ -1,4 +1,4 @@
-module Parser.Internal exposing
+module Parser.Parser.Internal exposing
   ( Parser(..)
   , Step(..)
   , State

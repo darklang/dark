@@ -1,4 +1,4 @@
-module Parser exposing
+module Parser.Parser exposing
   ( Parser
   , run
   , int, float, symbol, keyword, end
@@ -34,7 +34,7 @@ module Parser exposing
 -}
 
 import Char
-import Parser.Internal as Internal exposing (Parser(..), Step(..))
+import Parser.Parser.Internal as Internal exposing (Parser(..), Step(..))
 import ParserPrimitives as Prim
 
 

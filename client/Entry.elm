@@ -2,12 +2,14 @@ module Entry exposing (..)
 
 -- builtins
 import Task
-import Char
-import Result
+import Result exposing (Result)
+import Regex
 
 -- lib
 import Dom
 import List.Extra as LE
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end )
+import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
 import Defaults
@@ -189,125 +191,81 @@ type STFnCall = STFnCall String (List STExpr)
 -- parsing framework
 --------------------------------
 
--- Error is a string. 2nd string is the remaining string after the successful application of the rule.
-type alias EResult a = Result String (String, a)
+parseFully : String -> Result String SyntaxTree
+parseFully str =
+  Parser.Parser.run expr str |> Result.mapError toString
 
--- if the match is successful, return it. If not, ignore it and get the next one. (TODO: build up error string)
-type alias MatchRule a b = { start: Char -> Bool -- if true start matching
-                           , body: Char -> Bool -- while true keep consuming
-                           , end: Maybe Char -> Bool -- must also be true to match (can be discarded in postProcess)
-                           , postProcess: Char -> String -> Maybe Char -> b
-                           , constructor: (b -> a)
-                           }
+token : String -> (String -> a) -> String -> Parser a
+token name ctor re =
+  PInternal.Parser <| \({ source, offset, indent, context, row, col } as state) ->
+    let substring = String.dropLeft offset source in
+    case Regex.find (Regex.AtMost 1) ("^" ++ re |> Regex.regex) substring of
+      [{match}] -> Good (ctor match) { state | offset = offset + String.length match }
+      [] -> Bad (Parser.Parser.Fail <| "Regex " ++ name ++ " not matched: /" ++ re ++ "/") state
+      _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
+      
+----------------------
+-- the actual parser
+----------------------
 
-(|.|) : (String -> EResult a) -> (String -> EResult a) -> String -> EResult a
-(|.|) a b str =
-  let result = a str in
-  if Util.resultIsOk result
-  then result
-  else b str
+full : Parser STExpr
+full =
+  succeed identity
+    |= expr
+    |. end
 
--- Consumes `str` so long as the conditions are correct. If the conditions are not matched, return a failure.
--- consume the first char, check it, put it in the consumed pile
--- consume chars so long as the body is true
--- when the body is no longer true, check the _next_ char.
--- call postProcess with the first, last and middle, turn into a string
--- pass the consumed stirng into the constructor
--- pass the rest of the string into the first value in the pair
--- if there's a failure, return a failing result.
-match : MatchRule a b -> String -> EResult a
-match rule str =
-  let consume : (Char -> Bool) -> String -> (String, String)
-      consume fn str = -- (remaining, consumed)
-        case String.uncons str of
-          Nothing -> (str, "")
-          Just (char, rest) ->
-            if fn char
-            then let (remaining, consumed) = consume fn rest in (remaining, String.cons char consumed)
-            else (String.cons char rest, "")
-  in
-    case String.uncons str of
-      Nothing -> Result.Err "First char doesn't match"
-      Just (first, rest) ->
-        let (unconsumed, consumed) = consume rule.body rest
-            (last, remaining) = case String.uncons unconsumed of
-              Nothing -> (Nothing, unconsumed)
-              Just (last, remaining)  -> (Just last, remaining)
-        in
-          if rule.start first && rule.end last
-          then Result.Ok (remaining, rule.postProcess first consumed last |> rule.constructor)
-          else Result.Err "Last char doesn't match"
+value : Parser STExpr
+value = oneOf [string, number, char]
 
+expr : Parser STExpr
+expr = oneOf [value, var, fnCall]
 
-parse : String -> Result String SyntaxTree
-parse str =
-  case matchExpr str of
-    Result.Ok ("", a) -> Result.Ok a
-    Result.Ok (unconsumed, consumed) -> Result.Err <| "Got a " ++ toString consumed ++ " but didn't fully parse: " ++ unconsumed
-    Result.Err err -> Result.Err err
+whitespace : Parser String
+whitespace = token "whitespace" identity "\\s*"
 
-matchValue : String -> EResult STExpr
-matchValue = matchString |.| matchNumber |.| matchChar
+string : Parser STExpr
+string = token "string" (STValue >> STEValue) "\"(?:[^\"\\\\]|\\\\.)*\""
 
-matchExpr : String -> EResult STExpr
-matchExpr = matchValue |.| matchVar --|.| matchFnCall
+char : Parser STExpr
+char = token "char" (STValue >> STEValue) "'[a-z]'" 
 
-matchString : String -> EResult STExpr
-matchString =
-  match { start = (==) '"'
-        , body = (/=) '"'
-        , end = (==) <| Just '"'
-        , constructor = STValue >> STEValue
-        , postProcess = \start body end -> String.cons start body ++ String.fromChar (end |> Util.deMaybe)
-        }
+number : Parser STExpr
+number = token "number" (STValue >> STEValue) "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
 
-matchChar : String -> EResult STExpr
-matchChar =
-  match { start = (==) '\''
-        , body = (/=) '\''
-        , end = (==) <| Just '\''
-        , constructor = STValue >> STEValue
-        , postProcess = \start body end -> String.cons start body ++ String.fromChar (end |> Util.deMaybe)
-        }
+var : Parser STExpr
+var = token "var" (STVar >> STEVar) "\\$[a-z]" 
 
+fnCall : Parser STExpr
+fnCall = 
+  succeed STEFnCall
+    |= (succeed STFnCall
+        |. whitespace
+        |= fnName
+        |. whitespace
+        |= repeat zeroOrMore fnArg
+        )
 
-matchNumber : String -> EResult STExpr
-matchNumber =
-  match { start = Char.isDigit
-        , body = \c -> Char.isDigit c || c == '.'
-        , end = always True
-        , constructor = STValue >> STEValue
-        , postProcess = \start body end -> String.cons start body
-        }
+fnName : Parser String
+fnName = token "fnName" identity "[a-zA-Z:!@#$%^&*-_+|/?><]+"
 
-matchVar : String -> EResult STExpr
-matchVar =
-  match { start = (==) '$'
-        , body = always False
-        , end = \c -> c |> Maybe.withDefault 'A' |> Char.isLower
-        , constructor = STVar >> STEVar
-        , postProcess = \start body end -> end |> Util.deMaybe |> String.fromChar
-        }
-
--- matchFnCall str =
---   let list = String.toList str
---   String.fol
+fnArg : Parser STExpr
+fnArg =
+  succeed identity
+    |. whitespace
+    |= oneOf [value, var]
   
---   if 
-
-
   
  
 submit2 : Model -> Bool -> EntryCursor -> String -> Modification
 submit2 m re cursor value =
-  let ast = parse value
+  let ast = parseFully value
   in case ast of
     Ok east -> Error <| toString east
     Err error -> Error <| toString error 
 
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
-submit = submit1
+submit = submit2
 
 submit1 : Model -> Bool -> EntryCursor -> String -> Modification
 submit1 m re cursor value =

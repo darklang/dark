@@ -25,7 +25,8 @@
         "elm-lang/navigation": "2.1.0 <= v < 2.1.1",
         "evancz/elm-graphics": "1.0.1 <= v < 2.0.0",
         "matthewsj/elm-ordering": "1.1.0 <= v < 1.1.1",
-        "elm-lang/virtual-dom": "2.0.0 <= v < 3.0.0"
+        "elm-lang/virtual-dom": "2.0.0 <= v < 3.0.0",
+        "elm-tools/parser-primitives": "1.0.0 <= v < 2.0.0"
     },
     "elm-version": "0.18.0 <= v < 0.19.0"
 }

@@ -213,9 +213,25 @@ entryParser =
                ]
       doesntParse = ["$A", "AFucntionWith;;InIt", "5. ", " 5.6.3"]
   in
+
   describe "entryParser"
     [ describe "should parse"
-       (List.map (\str -> d str [\_ -> E.parse str |> Util.resultIsOk]) parses)
+       (List.map 
+       (\str ->
+         test str
+               (\_ ->
+                 let result = E.parseFully str in
+                 Expect.equal True (Util.resultIsOk result)
+                   |> Expect.onFail (toString result)))
+       parses)
+
     , describe "shouldn't parse"
-      (List.map (\str -> d str [\_ -> E.parse str |> Util.resultIsOk |> not]) doesntParse)
+       (List.map 
+       (\str ->
+         test str
+               (\_ ->
+                 let result = E.parseFully str in
+                 Expect.equal False (Util.resultIsOk result)
+                   |> Expect.onFail (toString result)))
+       doesntParse)
     ]
