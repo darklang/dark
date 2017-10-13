@@ -211,7 +211,10 @@ entryParser =
                -- Complex
                , "{ $c: func ($d + 2) 5}"
                ]
-      doesntParse = ["$A", "AFucntionWith;;InIt", "5. ", " 5.6.3"]
+      doesntParse = ["$A"
+                    , "AFucntionWith;;InIt"
+                    , "5. "
+                    , " 5.6.3"]
   in
 
   describe "entryParser"
