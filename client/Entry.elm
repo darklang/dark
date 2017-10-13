@@ -8,6 +8,7 @@ import Regex
 -- lib
 import Dom
 import List.Extra as LE
+import Result.Extra as RE
 import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map )
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
@@ -284,11 +285,125 @@ fnArg =
 
 submit2 : Model -> Bool -> EntryCursor -> String -> Modification
 submit2 m re cursor value =
-  let ast = parseFully value
-  in case ast of
-    Ok east -> Error <| toString east
+  let pt = parseFully value
+  in case pt of
+    Ok ept -> Error <| toString ept
     Err error -> Error <| toString error
-  
+
+
+----------------------
+-- the AST
+----------------------
+type AST = ACreating ACreating
+         | AFillParam AFillParam
+         | AFillResult AFillResult
+         | AError String
+         | ANothing
+
+type ACreating = ACFnCall String (List AExpr)
+               | ACValue String
+
+type AExpr = AFnCall String (List AExpr)
+           | AValue String
+           | AVar Node
+
+type AFillParam = APBlank 
+                | APVar (Node, Parameter) Node 
+                | APConst (Node, Parameter) String 
+                | APFnCall (Node, Parameter) String (List AExpr) 
+
+type AFillResult = ARVar Node Node
+                 | ARNewValue Node String 
+                 | ARFnCall Node String (List AExpr)
+                 | ARFieldName Node String
+
+convertArgs : Model -> List PExpr -> Result String (List AExpr)
+convertArgs m args =
+  (List.map (convertArg m) args) |> RE.combine
+
+
+
+convertArg : Model -> PExpr -> Result String AExpr
+convertArg m pexpr =
+  case pexpr of
+    PFnCall name args ->
+      case convertArgs m args of
+        Ok converted -> Ok <| AFnCall name converted
+        Err msg -> Err msg
+    PValue value -> Ok <| AValue value
+    PVar letter -> 
+      case G.fromLetter m letter of
+        Just source ->
+          Ok <| AVar source
+        Nothing ->
+          Err <| "letter doesnt exist"
+
+submit3 : Model -> Bool -> EntryCursor -> String -> AST
+submit3 m re cursor input =
+  let pt = parseFully input
+  in case pt of
+  Err pt -> AError <| "Could not parse: " ++ toString pt
+  Ok pt ->
+  case (cursor, pt) of
+
+    -- Creating 
+    (Creating pos, PBlank) ->
+      ANothing
+    (Creating pos, PFieldname _) ->
+      AError <| "cant have a fieldname here"
+    (Creating pos, PExpr (PVar _)) -> 
+      AError <| "cant have a var here"
+    (Creating pos, PExpr (PValue value)) -> 
+      ACreating <| ACValue value
+    (Creating pos, PExpr (PFnCall name args)) -> 
+      case convertArgs m args of
+        Ok converted ->
+          ACreating <| ACFnCall name converted
+        Err msg ->
+          AError msg
+
+    -- Filling Params
+    (Filling _ (ParamHole target param _), PBlank) ->
+      if param.optional
+      then AFillParam <| APConst (target, param) "null"
+      else ANothing
+    (Filling _ (ParamHole target param _), PFieldname _) ->
+      AError <| "cant have a fieldname here"
+    (Filling _ (ParamHole target param _), PExpr (PVar letter)) -> 
+      case G.fromLetter m letter of
+        Just source ->
+          AFillParam <| APVar (target, param) source
+        Nothing ->
+          AError "letter doesnt exist"
+    (Filling _ (ParamHole target param _), PExpr (PValue value )) ->
+      AFillParam <| APConst (target, param) value
+    (Filling _ (ParamHole target param _), PExpr (PFnCall name args)) ->
+      case convertArgs m args of
+        Ok converted ->
+          AFillParam <| APFnCall (target, param) name converted
+        Err msg ->
+          AError msg
+
+    -- Filling Result
+    (Filling _ (ResultHole source), PBlank) ->
+      ANothing
+    (Filling _ (ResultHole source), PFieldname fieldname) ->
+      AFillResult <| ARFieldName source fieldname
+    (Filling _ (ResultHole source), PExpr (PVar letter)) -> 
+      case G.fromLetter m letter of
+        Nothing ->
+          AError "letter doesnt exist"
+        Just target ->
+          AFillResult <| ARVar source target
+    (Filling _ (ResultHole source), PExpr (PValue value )) ->
+      AFillResult <| ARNewValue source value
+    (Filling _ (ResultHole source), PExpr (PFnCall name args)) ->
+      case convertArgs m args of
+        Ok converted ->
+          AFillResult <| ARFnCall source name converted
+        Err msg ->
+          AError msg
+
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit = submit1
@@ -417,23 +532,26 @@ submit1 m re cursor value =
                     Just p -> [SetEdge source.id (id, p.name)]
 
                   argEdges = case (arg, otherP) of
-                    (Nothing, _) -> Ok []
+                    (Nothing, _) ->
+                      Ok []
                     (Just arg, Nothing) ->
-                        Err <| "No parameter exists for arg: " ++ arg
+                      Err <| "No parameter exists for arg: " ++ arg
                     (Just arg, Just p) ->
                       if isValueRepr arg
-                      then Ok <| [SetConstant arg (id, p.name)]
+                      then
+                        Ok <| [SetConstant arg (id, p.name)]
                       else
                         case String.uncons arg of
                           Just ('$', letter) ->
                             case G.fromLetter m letter of
                               Just lNode ->
                                 Ok <| [SetEdge lNode.id (id, p.name)]
-                              Nothing -> Err <| "No node named '"
-                                             ++ letter ++ "'"
+                              Nothing ->
+                                Err <| "No node named '" ++ letter ++ "'"
                           Just _ ->
                             Err <| "We don't currently support arguments like `" ++ arg ++ "`"
-                          Nothing -> Ok [] -- empty string
+                          Nothing ->
+                            Ok [] -- empty string
               in
               if extras /= []
               then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
