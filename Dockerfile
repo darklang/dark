@@ -27,8 +27,8 @@ RUN apt-get update && \
                        make=4.1-9.1 \
                        m4=1.4.18-1 \
                        rsync=3.1.2-1 \
-                       git=1:2.11.0-2ubuntu0.2 \
-                       curl=7.52.1-4ubuntu1.1 \
+                       git=1:2.11.0-2ubuntu0.3 \
+                       curl=7.52.1-4ubuntu1.2 \
                        wget=1.18-2ubuntu1 \
                        sudo=1.8.19p1-1ubuntu1.1 \
                        locales=2.24-9ubuntu2.2 \
@@ -36,11 +36,11 @@ RUN apt-get update && \
                        expect=5.45-7 \
                        ocaml=4.02.3-6ubuntu2 \
                        opam=1.2.2-5build5 \
-                       libpq-dev=9.6.4-0ubuntu0.17.04.1 \
-             		       libev-dev=1:4.22-1 \
+                       libpq-dev=9.6.5-0ubuntu0.17.04 \
+             		   libev-dev=1:4.22-1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
-                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.1 \
+                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.2 \
                        libpcre3-dev=2:8.39-3 \
                        && rm -rf /var/lib/apt/lists/*
 
