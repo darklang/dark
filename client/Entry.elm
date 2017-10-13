@@ -8,7 +8,7 @@ import Regex
 -- lib
 import Dom
 import List.Extra as LE
-import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore )
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map )
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
@@ -170,7 +170,7 @@ refocus re default =
 -- parsing framework
 --------------------------------
 
-parseFully : String -> Result String SyntaxTree
+parseFully : String -> Result String PTop
 parseFully str =
   Parser.Parser.run full str |> Result.mapError toString
 
@@ -198,28 +198,35 @@ debug name =
 ----------------------
 -- the actual parser
 ----------------------
-type alias SyntaxTree = STExpr
 
-type STValue = STValue String
+type PTop = PBlank
+          | PExpr PExpr
+          | PFieldname String
 
-type STExpr = STEFnCall STFnCall
-            | STEValue STValue
-            | STEVar STVar
+type PExpr = PFnCall String (List PExpr)
+           | PValue String
+           | PVar String
 
-type STVar = STVar String
-
-type STFnCall = STFnCall String (List STExpr)
-
-full : Parser STExpr
+full : Parser PTop
 full =
   succeed identity
-    |= expr
+    |= top
     |. end
 
-value : Parser STExpr
+top : Parser PTop
+top =
+  oneOf [fieldname, map PExpr expr]
+
+fieldname : Parser PTop
+fieldname =
+  succeed PFieldname
+    |. symbol "."
+    |= fnName
+
+value : Parser PExpr
 value = oneOf [string, number, char, list, obj, true, false, null]
 
-expr : Parser STExpr
+expr : Parser PExpr
 expr =
   succeed identity
     |. whitespace
@@ -229,64 +236,62 @@ expr =
 whitespace : Parser String
 whitespace = token "whitespace" identity "\\s*"
 
-string : Parser STExpr
-string = token "string" (STValue >> STEValue) "\"(?:[^\"\\\\]|\\\\.)*\""
+string : Parser PExpr
+string = token "string" PValue "\"(?:[^\"\\\\]|\\\\.)*\""
 
-char : Parser STExpr
-char = token "char" (STValue >> STEValue) "'[a-z]'" 
+char : Parser PExpr
+char = token "char" PValue "'[a-z]'" 
 
-number : Parser STExpr
-number = token "number" (STValue >> STEValue) "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
+number : Parser PExpr
+number = token "number" PValue "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
 
-var : Parser STExpr
-var = token "var" (STVar >> STEVar) "\\$[a-z]" 
+var : Parser PExpr
+var = token "var" PVar "\\$[a-z]" 
 
-list : Parser STExpr
-list = token "list" (STValue >> STEValue) "\\[.*\\]"
+list : Parser PExpr
+list = token "list" PValue "\\[.*\\]"
 
-true : Parser STExpr
-true = tokenCI "true" (STValue >> STEValue) "true"
+true : Parser PExpr
+true = tokenCI "true" PValue  "true"
 
-false : Parser STExpr
-false = tokenCI "false" (STValue >> STEValue) "false"
+false : Parser PExpr
+false = tokenCI "false" PValue "false"
 
-null : Parser STExpr
-null = tokenCI "null" (STValue >> STEValue) "null"
+null : Parser PExpr
+null = tokenCI "null" PValue "null"
 
-obj : Parser STExpr
-obj = token "obj" (STValue >> STEValue) "{.*}"
+obj : Parser PExpr
+obj = token "obj" PValue "{.*}"
 
-fnCall : Parser STExpr
+fnCall : Parser PExpr
 fnCall = 
-  succeed STEFnCall
-    |= (succeed STFnCall
-        |. whitespace
-        |= fnName
-        |. whitespace
-        |= repeat zeroOrMore fnArg
-        )
+  succeed PFnCall
+    |. whitespace
+    |= fnName
+    |. whitespace
+    |= repeat zeroOrMore fnArg
 
 fnName : Parser String
 fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><]+"
 
-fnArg : Parser STExpr
+fnArg : Parser PExpr
 fnArg =
   succeed identity
     |. whitespace
     |= oneOf [value, var]
     |. whitespace
-  
- 
+
+
 submit2 : Model -> Bool -> EntryCursor -> String -> Modification
 submit2 m re cursor value =
   let ast = parseFully value
   in case ast of
     Ok east -> Error <| toString east
-    Err error -> Error <| toString error 
-
+    Err error -> Error <| toString error
+  
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
-submit = submit2
+submit = submit1
 
 submit1 : Model -> Bool -> EntryCursor -> String -> Modification
 submit1 m re cursor value =
