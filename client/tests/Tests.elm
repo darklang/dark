@@ -187,6 +187,7 @@ entryParser =
                , "\"a string\""
                , "     \"spaces front\""
                , "\"spaces back\"        "
+               , "\"escaped \\\" quote\""
                -- numbers
                , "6.42"
                , "-6"
@@ -215,13 +216,26 @@ entryParser =
                , "{ 1: 2, 3: 4, $c: $d}"
                -- Complex
                , "{ $c: func ($d + 2) 5}"
+               -- Fieldname
+               , ".someField"
+               , "   .someField2"
+               , "$c.someField"
+               -- Blank
+               , ""
                ]
-      doesntParse = ["$A"
+      doesntParse = [
+                    -- letters
+                      "$A"
+                    -- bad
                     , "AFucntionWith;;InIt"
+                    -- numbers
                     , "5. "
                     , " 5.6.3"
+                    -- lists and objects
                     , "[a:asd,,,, ,m,se]"
                     , "{a:asd,,,, ,m,se}"
+                    -- field
+                    , "   .someF ield"
                     ]
   in
 
