@@ -196,13 +196,19 @@ parseFully str =
   Parser.Parser.run full str |> Result.mapError toString
 
 token : String -> (String -> a) -> String -> Parser a
-token name ctor re =
+token name ctor re =  token_ name ctor ("^" ++ re |> Regex.regex)
+
+tokenCI : String -> (String -> a) -> String -> Parser a
+tokenCI name ctor re =  token_ name ctor ("^" ++ re |> Regex.regex |> Regex.caseInsensitive)
+
+token_ : String -> (String -> a) -> Regex.Regex -> Parser a
+token_ name ctor re =
   PInternal.Parser <| \({ source, offset, indent, context, row, col } as state) ->
     let substring = String.dropLeft offset source in
-    case Regex.find (Regex.AtMost 1) ("^" ++ re |> Regex.regex) substring of
+    case Regex.find (Regex.AtMost 1) re substring of
       [{match}] -> Good (ctor match) { state | offset = offset + String.length match 
                                              , col = col + String.length match}
-      [] -> Bad (Parser.Parser.Fail <| "Regex " ++ name ++ " not matched: /" ++ re ++ "/") state
+      [] -> Bad (Parser.Parser.Fail <| "Regex " ++ name ++ " not matched: /" ++ toString re ++ "/") state
       _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
 
 debug : String -> Parser a -> Parser a
@@ -221,7 +227,7 @@ full =
     |. end
 
 value : Parser STExpr
-value = oneOf [string, number, char]
+value = oneOf [string, number, char, list, obj, true, false, null]
 
 expr : Parser STExpr
 expr =
@@ -244,6 +250,21 @@ number = token "number" (STValue >> STEValue) "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0
 
 var : Parser STExpr
 var = token "var" (STVar >> STEVar) "\\$[a-z]" 
+
+list : Parser STExpr
+list = token "list" (STValue >> STEValue) "\\[.*\\]"
+
+true : Parser STExpr
+true = tokenCI "true" (STValue >> STEValue) "true"
+
+false : Parser STExpr
+false = tokenCI "false" (STValue >> STEValue) "false"
+
+null : Parser STExpr
+null = tokenCI "null" (STValue >> STEValue) "null"
+
+obj : Parser STExpr
+obj = token "obj" (STValue >> STEValue) "{.*}"
 
 fnCall : Parser STExpr
 fnCall = 

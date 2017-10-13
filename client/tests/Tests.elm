@@ -194,6 +194,10 @@ entryParser =
                -- vars 
                , "$a"
                , "- $a $c"
+               -- bools
+               , "true"
+               , "    false    "
+               , " FaLsE "
                -- infix
                , "$c + $a"
                , "$c - $a"
@@ -204,6 +208,7 @@ entryParser =
                -- parens
                , "($c % 3) == 0"
                , "($c % 3) == ($a * 1)"
+               , "(5) == (0)"
                -- Lists
                , "[ 1, 2, 3, $c - 5, $c ]"
                -- Objs
@@ -214,7 +219,10 @@ entryParser =
       doesntParse = ["$A"
                     , "AFucntionWith;;InIt"
                     , "5. "
-                    , " 5.6.3"]
+                    , " 5.6.3"
+                    , "[a:asd,,,, ,m,se]"
+                    , "{a:asd,,,, ,m,se}"
+                    ]
   in
 
   describe "entryParser"
