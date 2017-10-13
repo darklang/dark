@@ -171,7 +171,7 @@ refocus re default =
 -- parsing framework
 --------------------------------
 
-parseFully : String -> Result String PTop
+parseFully : String -> Result String ParseTree
 parseFully str =
   Parser.Parser.run full str |> Result.mapError toString
 
@@ -200,25 +200,30 @@ debug name =
 -- the actual parser
 ----------------------
 
-type PTop = PBlank
-          | PExpr PExpr
-          | PFieldname String
+type ParseTree = PBlank
+               | PExpr PExpr
+               | PFieldname String
 
 type PExpr = PFnCall String (List PExpr)
            | PValue String
            | PVar String
 
-full : Parser PTop
+full : Parser ParseTree
 full =
   succeed identity
     |= top
     |. end
 
-top : Parser PTop
+top : Parser ParseTree
 top =
-  oneOf [fieldname, map PExpr expr]
+  oneOf [fieldname, map PExpr expr, blank]
 
-fieldname : Parser PTop
+blank : Parser ParseTree
+blank =
+  succeed PBlank
+    |. end
+
+fieldname : Parser ParseTree
 fieldname =
   succeed PFieldname
     |. symbol "."
@@ -287,9 +292,8 @@ submit2 : Model -> Bool -> EntryCursor -> String -> Modification
 submit2 m re cursor value =
   let pt = parseFully value
   in case pt of
-    Ok ept -> Error <| toString ept
+    Ok pt -> Error <| toString <| pt2ast m re cursor pt 
     Err error -> Error <| toString error
-
 
 ----------------------
 -- the AST
@@ -322,7 +326,6 @@ convertArgs m args =
   (List.map (convertArg m) args) |> RE.combine
 
 
-
 convertArg : Model -> PExpr -> Result String AExpr
 convertArg m pexpr =
   case pexpr of
@@ -338,12 +341,8 @@ convertArg m pexpr =
         Nothing ->
           Err <| "letter doesnt exist"
 
-submit3 : Model -> Bool -> EntryCursor -> String -> AST
-submit3 m re cursor input =
-  let pt = parseFully input
-  in case pt of
-  Err pt -> AError <| "Could not parse: " ++ toString pt
-  Ok pt ->
+pt2ast : Model -> Bool -> EntryCursor -> ParseTree -> AST
+pt2ast m re cursor pt =
   case (cursor, pt) of
 
     -- Creating 
