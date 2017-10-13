@@ -166,27 +166,6 @@ refocus re default =
     FocusNext id -> if re then FocusExact id else FocusNext id
     f -> f
 
-type alias EAST = EExpr
-type EExpr = EExpr String (List EArg)
-type EArg = EValue String
-          | ENode String
-          | EKnownTipe Tipe
-          | EAnother EExpr
-
-
-type alias SyntaxTree = STExpr
-
-type STValue = STValue String
-
-type STExpr = STEFnCall STFnCall
-            | STEValue STValue
-            | STEVar STVar
-
-type STVar = STVar String
-
---type FnCall = FnCall (STExpr) String (List STExpr)
-type STFnCall = STFnCall String (List STExpr)
-
 --------------------------------
 -- parsing framework
 --------------------------------
@@ -219,6 +198,17 @@ debug name =
 ----------------------
 -- the actual parser
 ----------------------
+type alias SyntaxTree = STExpr
+
+type STValue = STValue String
+
+type STExpr = STEFnCall STFnCall
+            | STEValue STValue
+            | STEVar STVar
+
+type STVar = STVar String
+
+type STFnCall = STFnCall String (List STExpr)
 
 full : Parser STExpr
 full =
