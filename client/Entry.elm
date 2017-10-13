@@ -193,14 +193,14 @@ type STFnCall = STFnCall String (List STExpr)
 
 parseFully : String -> Result String SyntaxTree
 parseFully str =
-  Parser.Parser.run expr str |> Result.mapError toString
+  Parser.Parser.run full str |> Result.mapError toString
 
 token : String -> (String -> a) -> String -> Parser a
 token name ctor re =
   PInternal.Parser <| \({ source, offset, indent, context, row, col } as state) ->
-    let substring = String.dropLeft offset source in
+    let substring = String.dropLeft offset source |> Debug.log ("substring " ++ name) in
     case Regex.find (Regex.AtMost 1) ("^" ++ re |> Regex.regex) substring of
-      [{match}] -> Good (ctor match) { state | offset = offset + String.length match }
+      [{match}] -> Good (ctor (Debug.log "match" match)) { state | offset = offset + String.length match }
       [] -> Bad (Parser.Parser.Fail <| "Regex " ++ name ++ " not matched: /" ++ re ++ "/") state
       _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
       
@@ -218,7 +218,11 @@ value : Parser STExpr
 value = oneOf [string, number, char]
 
 expr : Parser STExpr
-expr = oneOf [value, var, fnCall]
+expr =
+  succeed identity
+    |. whitespace
+    |= oneOf [value, var, fnCall]
+    |. whitespace
 
 whitespace : Parser String
 whitespace = token "whitespace" identity "\\s*"
@@ -246,7 +250,7 @@ fnCall =
         )
 
 fnName : Parser String
-fnName = token "fnName" identity "[a-zA-Z:!@#$%^&*-_+|/?><]+"
+fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><]+"
 
 fnArg : Parser STExpr
 fnArg =
