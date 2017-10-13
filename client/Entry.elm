@@ -8,7 +8,7 @@ import Regex
 -- lib
 import Dom
 import List.Extra as LE
-import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end )
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore )
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
@@ -198,11 +198,17 @@ parseFully str =
 token : String -> (String -> a) -> String -> Parser a
 token name ctor re =
   PInternal.Parser <| \({ source, offset, indent, context, row, col } as state) ->
-    let substring = String.dropLeft offset source |> Debug.log ("substring " ++ name) in
+    let substring = String.dropLeft offset source in
     case Regex.find (Regex.AtMost 1) ("^" ++ re |> Regex.regex) substring of
-      [{match}] -> Good (ctor (Debug.log "match" match)) { state | offset = offset + String.length match }
+      [{match}] -> Good (ctor match) { state | offset = offset + String.length match 
+                                             , col = col + String.length match}
       [] -> Bad (Parser.Parser.Fail <| "Regex " ++ name ++ " not matched: /" ++ re ++ "/") state
       _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
+
+debug : String -> Parser a -> Parser a
+debug name =
+  Parser.Parser.map (Debug.log name)
+  
       
 ----------------------
 -- the actual parser
@@ -257,7 +263,7 @@ fnArg =
   succeed identity
     |. whitespace
     |= oneOf [value, var]
-  
+    |. whitespace
   
  
 submit2 : Model -> Bool -> EntryCursor -> String -> Modification
