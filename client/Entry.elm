@@ -18,7 +18,6 @@ import Parser.Parser.Internal as PInternal exposing (Step(..))
 import Defaults
 import Graph as G
 import Types exposing (..)
-import Util
 import Autocomplete
 import Viewport
 
@@ -215,6 +214,14 @@ fieldname =
     |. symbol "."
     |= fnName
 
+parensExpr : Parser PExpr
+parensExpr =
+  succeed identity
+    |. symbol "("
+    |= expr
+    |. symbol ")"
+  
+
 value : Parser PExpr
 value = oneOf [string, number, char, list, obj, true, false, null]
 
@@ -222,7 +229,7 @@ expr : Parser PExpr
 expr =
   succeed identity
     |. whitespace
-    |= oneOf [value, var, fnCall]
+    |= oneOf [value, var, fnCall, lazy (\_ -> parensExpr)]
     |. whitespace
 
 whitespace : Parser String
@@ -264,7 +271,9 @@ fnCall =
     |. whitespace
     |= fnName
     |. whitespace
-    |= repeat zeroOrMore fnArg
+    -- this lazy shouldn't be necessary, but there's a run-time error if
+    -- you don't
+    |= repeat zeroOrMore (lazy (\_ -> fnArg))
 
 fnName : Parser String
 fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]+"
@@ -273,8 +282,9 @@ fnArg : Parser PExpr
 fnArg =
   succeed identity
     |. whitespace
-    |= oneOf [value, var]
+    |= lazy (\_ -> expr)
     |. whitespace
+
 
 
 ----------------------
