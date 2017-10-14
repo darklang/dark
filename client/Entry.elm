@@ -283,7 +283,7 @@ fnCall =
     |= repeat zeroOrMore fnArg
 
 fnName : Parser String
-fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><]+"
+fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]+"
 
 fnArg : Parser PExpr
 fnArg =
