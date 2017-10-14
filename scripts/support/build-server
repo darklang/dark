@@ -59,7 +59,7 @@ def process_watchers():
 
   while True:
     if len(inputBuffer) == 0:
-      time.sleep(0.3)
+      time.sleep(0.1)
     else:
       bufferLock.acquire()
       input = inputBuffer.copy()
