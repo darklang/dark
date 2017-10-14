@@ -407,6 +407,7 @@ createArg m fn id (arg, param) =
    AFnCall name args -> 
      let fnid = G.gen_id ()
      in createFn m fnid name args Nothing Nothing
+        |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
 createFn : Model -> ID -> String -> List AExpr -> Maybe Pos -> Maybe Node -> Result String (List RPC)
 createFn m id name args mpos implicit = 
