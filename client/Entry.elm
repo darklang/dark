@@ -292,17 +292,10 @@ fnArg =
     |. whitespace
 
 
-submit2 : Model -> Bool -> EntryCursor -> String -> Modification
-submit2 m re cursor value =
-  let pt = parseFully value
-  in case pt of
-    Ok pt -> Error <| toString <| pt2ast m re cursor pt 
-    Err error -> Error <| toString error
-
 ----------------------
 -- the AST
 ----------------------
-type AST = ACreating ACreating
+type AST = ACreating Pos ACreating
          | AFillParam AFillParam
          | AFillResult AFillResult
          | AError String
@@ -343,25 +336,25 @@ convertArg m pexpr =
         Just source ->
           Ok <| AVar source
         Nothing ->
-          Err <| "letter doesnt exist"
+          Err <| "letter doesnt exist: " ++ letter
 
 pt2ast : Model -> Bool -> EntryCursor -> ParseTree -> AST
 pt2ast m re cursor pt =
   case (cursor, pt) of
 
     -- Creating 
-    (Creating pos, PBlank) ->
+    (Creating _, PBlank) ->
       ANothing
-    (Creating pos, PFieldname _) ->
+    (Creating _, PFieldname _) ->
       AError <| "cant have a fieldname here"
-    (Creating pos, PExpr (PVar _)) -> 
+    (Creating _, PExpr (PVar _)) -> 
       AError <| "cant have a var here"
     (Creating pos, PExpr (PValue value)) -> 
-      ACreating <| ACValue value
+      ACreating pos <| ACValue value
     (Creating pos, PExpr (PFnCall name args)) -> 
       case convertArgs m args of
         Ok converted ->
-          ACreating <| ACFnCall name converted
+          ACreating pos <| ACFnCall name converted
         Err msg ->
           AError msg
 
@@ -377,7 +370,7 @@ pt2ast m re cursor pt =
         Just source ->
           AFillParam <| APVar (target, param) source
         Nothing ->
-          AError "letter doesnt exist"
+          AError <| "letter doesnt exist: " ++ letter
     (Filling _ (ParamHole target param _), PExpr (PValue value )) ->
       AFillParam <| APConst (target, param) value
     (Filling _ (ParamHole target param _), PExpr (PFnCall name args)) ->
@@ -395,7 +388,7 @@ pt2ast m re cursor pt =
     (Filling _ (ResultHole source), PExpr (PVar letter)) -> 
       case G.fromLetter m letter of
         Nothing ->
-          AError "letter doesnt exist"
+          AError <| "letter doesnt exist: " ++ letter
         Just target ->
           AFillResult <| ARVar source target
     (Filling _ (ResultHole source), PExpr (PValue value )) ->
@@ -408,8 +401,222 @@ pt2ast m re cursor pt =
           AError msg
 
 
+----------------------
+-- execute the AST
+----------------------
+createArg : Function -> ID -> (AExpr, Parameter) -> List RPC
+createArg fn id (arg, param) = 
+  case arg of
+   AVar n -> [SetEdge n.id (id, param.name)]
+   AValue v -> [SetConstant v (id, param.name)]
+   _ -> Debug.crash "asd"
+
+createFn : Model -> String -> List AExpr -> Maybe Pos -> Modification
+createFn m name args pos = 
+  let id = G.gen_id () in
+  let fn = Autocomplete.findFunction m.complete name
+  in case fn of
+       Nothing -> Error "fn doesnt exist"
+       Just fn ->
+         let (fs, _) = addFunction m id name pos
+             pairs = List.map2 (,) args fn.parameters
+             argEdges = List.map (createArg fn id) pairs |> List.concat
+  in RPC (fs ++ argEdges, FocusNothing)
+-- TODO: check we didnt drop a parameter
+-- TODO: handle implicit argument
+
+execute : Model -> AST -> Modification
+execute m ast =
+  let id = G.gen_id () in
+  case ast of
+    ACreating pos (ACValue value) ->
+      RPC <| ([AddValue id value (Just pos)], FocusNext id)
+
+    ACreating pos (ACFnCall name args) ->
+      createFn m name args (Just pos)
+
+    _ -> Error <| "TODO" ++ toString ast
+
+
+submit3 : Model -> Bool -> EntryCursor -> String -> Modification
+submit3 m re cursor value =
+  let id = G.gen_id () in
+  case cursor of
+    Creating pos ->
+      RPC <| if isValueRepr value
+             then ([AddValue id value (Just pos)], FocusNext id)
+             else addFunction m id value (Just pos)
+
+    Filling n (ParamHole target param _ as hole) ->
+      case String.uncons value of
+        Nothing ->
+          if param.optional
+          then RPC ([SetConstant "null" (target.id, param.name)]
+                  , FocusNext target.id |> refocus re)
+          else NoChange
+
+        Just ('$', letter) ->
+          case G.fromLetter m letter of
+            Just source ->
+              RPC ([ SetEdge source.id (target.id, param.name)]
+                   , FocusNext target.id |> refocus re)
+            Nothing -> Error <| "No node named '" ++ letter ++ "'"
+
+        _ ->
+          if isValueRepr value
+          then RPC ([ SetConstant value (target.id, param.name)]
+                    , FocusNext target.id |> refocus re)
+          else
+            let (name, arg, extras) = case String.split " " value of
+                                (name :: arg :: es) -> (name, Just arg, es)
+                                [name] -> (name, Nothing, [])
+                                [] -> ("", Nothing, [])
+                fn = Autocomplete.findFunction m.complete name
+                argEdges = case (fn, arg) of
+                  (Just fn, Just arg) ->
+                    if isValueRepr arg
+                    then 
+                      let tipedP = Autocomplete.findParamByType fn (RT.tipeOf arg) in
+                      case tipedP of
+                        Just tipedP -> Ok <| [SetConstant arg (id, tipedP.name)]
+                        Nothing -> Err <| "No parameter for argument: " ++ arg
+                    else
+                      case String.uncons arg of
+                        Just ('$', letter) ->
+                          case G.fromLetter m letter of
+                            Nothing -> Err <| "No node named '" ++ letter ++ "'"
+                            Just lNode ->
+                              let tipedP = Autocomplete.findParamByType fn (lNode.liveValue.tipe) in
+                              case tipedP of
+                                Nothing -> Err <| "No parameter for argument with the right type: " ++ arg
+                                Just tipedP -> Ok <| [SetEdge lNode.id (id, tipedP.name)]
+                        Just _ ->
+                          Err <| "We don't currently support arguments like `" ++ arg ++ "`"
+                        Nothing -> Ok [] -- empty string
+                  _ -> Ok []
+            in
+            if extras /= []
+            then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
+            else
+              let (f, focus) = addFunction m id name Nothing
+                  edges = [SetEdge id (target.id, param.name)]
+              in
+              case argEdges of
+                Ok argEdges -> RPC (f ++ edges ++ argEdges, focus)
+                Err err -> Error err
+
+
+    Filling n (ResultHole source as hole) ->
+      case String.uncons value of
+        Nothing -> NoChange
+
+        -- TODO: this should be an opcode
+        Just ('.', fieldname) ->
+          RPC ([ AddFunctionCall id "." Nothing
+               , SetEdge source.id (id, "value")
+               , SetConstant ("\"" ++ fieldname ++ "\"") (id, "fieldname")]
+              , FocusSame)
+
+        Just ('$', letter) ->
+          case G.fromLetter m letter of
+            Nothing ->
+              Error <| "No node named '" ++ letter ++ "'"
+            Just target ->
+              -- TODO: use type
+              case G.findParam target of
+                Nothing -> Error "There are no argument slots available"
+                Just (_, (param, _)) ->
+                  RPC ([ SetEdge source.id (target.id, param.name)]
+                       , FocusExact target.id)
+
+        _ ->
+          -- this is new functions only
+          -- lets allow 1 thing, integer only, for now
+          -- so we find the first parameter that isnt that parameter
+
+          let (name, arg, extras) = case String.split " " value of
+                              (name :: arg :: es) -> (name, Just arg, es)
+                              [name] -> (name, Nothing, [])
+                              [] -> ("", Nothing, [])
+              (f, focus) = if isValueRepr name
+                           then ([ AddFunctionCall id "_" Nothing
+                                 , SetConstant name (id, "value")
+                                 , SetEdge source.id (id, "ignore")
+                                 ]
+                                , FocusNext id)
+                           else addFunction m id name Nothing
+          in
+          case Autocomplete.findFunction m.complete name of
+            Nothing ->
+              -- Unexpected, let the server reply with an error
+              RPC (f, focus)
+            Just fn ->
+              -- tipedP: parameter to connect the previous node to
+              -- arg: the 2nd word in the autocmplete box
+              -- otherP: first argument that isn't tipedP
+              let tipedP = Autocomplete.findParamByType fn n.liveValue.tipe
+                  otherP = Autocomplete.findFirstParam fn tipedP
+
+                  tipedEdges = case tipedP of
+                    Nothing -> []
+                    Just p -> [SetEdge source.id (id, p.name)]
+
+                  argEdges = case (arg, otherP) of
+                    (Nothing, _) ->
+                      Ok []
+                    (Just arg, Nothing) ->
+                      Err <| "No parameter exists for arg: " ++ arg
+                    (Just arg, Just p) ->
+                      if isValueRepr arg
+                      then
+                        Ok <| [SetConstant arg (id, p.name)]
+                      else
+                        case String.uncons arg of
+                          Just ('$', letter) ->
+                            case G.fromLetter m letter of
+                              Just lNode ->
+                                Ok <| [SetEdge lNode.id (id, p.name)]
+                              Nothing ->
+                                Err <| "No node named '" ++ letter ++ "'"
+                          Just _ ->
+                            Err <| "We don't currently support arguments like `" ++ arg ++ "`"
+                          Nothing ->
+                            Ok [] -- empty string
+              in
+              if extras /= []
+              then Error <| "Too many arguments: `" ++ String.join " " extras ++ "`"
+              else
+                case argEdges of
+                  Ok edges -> RPC (f ++ tipedEdges ++ edges, focus)
+                  Err err -> Error err
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+submit2 : Model -> Bool -> EntryCursor -> String -> Modification
+submit2 m re cursor value =
+  let pt = parseFully value
+  in case pt of
+    Ok pt -> execute m <| pt2ast m re cursor pt 
+    Err error -> Error <| toString error
+
+
+
 submit : Model -> Bool -> EntryCursor -> String -> Modification
-submit = submit1
+submit = submit2
 
 submit1 : Model -> Bool -> EntryCursor -> String -> Modification
 submit1 m re cursor value =
