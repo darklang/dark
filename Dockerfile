@@ -37,7 +37,7 @@ RUN apt-get update && \
                        ocaml=4.02.3-6ubuntu2 \
                        opam=1.2.2-5build5 \
                        libpq-dev=9.6.5-0ubuntu0.17.04 \
-             		   libev-dev=1:4.22-1 \
+                        libev-dev=1:4.22-1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
                        libcurl4-gnutls-dev=7.52.1-4ubuntu1.2 \
@@ -50,6 +50,7 @@ RUN echo 'deb-src https://deb.nodesource.com/node_8.x zesty main' >> /etc/apt/so
 RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
 RUN apt-get update
 RUN apt-get install -y nodejs # this changes a lot so let’s not pin it
+RUN npm install -g yarn
 
 # dont run as root
 RUN adduser --disabled-password --gecos '' dark
@@ -66,9 +67,9 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
 # Elm
-RUN npm install elm@0.18.0
-RUN npm install elm-test@0.18.8 # test
-RUN npm install elm-oracle@1.1.1 # dev
+RUN yarn add elm@0.18.0
+RUN yarn add elm-test@0.18.8 # test
+RUN yarn add elm-oracle@1.1.1 # dev
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
 # Ocaml
@@ -107,7 +108,7 @@ RUN opam install pcre.7.3.0
 # RUN sed -i ocaml-better-errors/_oasis -e s/Pcre/pcre/g
 # RUN cd ocaml-better-errors && oasis setup -setup-update dynamic && make
 # RUN mv ocaml-better-errors/main.byte bin/better-errors
-RUN npm install ocamlBetterErrors
+RUN yarn add ocamlBetterErrors
 RUN cp node_modules/ocamlBetterErrors/berror.native ~/bin/better-errors
 RUN chmod +x ~/bin/better-errors
 
