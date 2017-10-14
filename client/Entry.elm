@@ -11,7 +11,7 @@ import Dom
 import List.Extra as LE
 import Result.Extra as RE
 import Maybe.Extra as ME
-import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..))
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..), inContext)
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
@@ -158,7 +158,7 @@ refocus re default =
 
 parseFully : String -> Result String ParseTree
 parseFully str =
-  Parser.Parser.run full str |> Result.mapError toString
+  Parser.Parser.run full (Debug.log "starting to parse" str) |> Result.mapError toString
 
 token : String -> (String -> a) -> String -> Parser a
 token name ctor re =  token_ name ctor ("^" ++ re |> Regex.regex)
@@ -168,6 +168,7 @@ tokenCI name ctor re =  token_ name ctor ("^" ++ re |> Regex.regex |> Regex.case
 
 token_ : String -> (String -> a) -> Regex.Regex -> Parser a
 token_ name ctor re =
+  inContext name <|
   PInternal.Parser <| \({ source, offset, indent, context, row, col } as state) ->
     let substring = String.dropLeft offset source in
     case Regex.find (Regex.AtMost 1) re substring of
@@ -195,13 +196,15 @@ type PExpr = PFnCall String (List PExpr)
 
 full : Parser ParseTree
 full =
+  inContext "full" <|
   succeed identity
     |= top
     |. end
 
 top : Parser ParseTree
 top =
-  oneOf [fieldname, map PExpr expr, blank]
+  inContext "top" <|
+  oneOf [fieldname, map PExpr expr, map PExpr fnCall, blank]
 
 blank : Parser ParseTree
 blank =
@@ -210,26 +213,31 @@ blank =
 
 fieldname : Parser ParseTree
 fieldname =
+  inContext "fieldname" <|
   succeed PFieldname
     |. symbol "."
     |= fnName
 
 parensExpr : Parser PExpr
 parensExpr =
+  inContext "parensExpr" <|
   succeed identity
     |. symbol "("
-    |= expr
+    |= lazy (\_ -> expr)
     |. symbol ")"
   
 
 value : Parser PExpr
-value = oneOf [string, number, char, list, obj, true, false, null]
+value =
+  inContext "value" <|
+  oneOf [string, number, char, list, obj, true, false, null]
 
 expr : Parser PExpr
 expr =
+  inContext "expr" <|
   succeed identity
     |. whitespace
-    |= oneOf [value, var, fnCall, lazy (\_ -> parensExpr)]
+    |= oneOf [value, var, lazy (\_ -> fnCallWithParens), lazy (\_ -> parensExpr)]
     |. whitespace
 
 whitespace : Parser String
@@ -246,6 +254,7 @@ number = token "number" PValue "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
 
 var : Parser PExpr
 var =
+  inContext "var" <|
   succeed PVar 
     |. symbol "$"
     |= keep (Exactly 1) Char.isLower
@@ -265,9 +274,36 @@ null = tokenCI "null" PValue "null"
 obj : Parser PExpr
 obj = token "obj" PValue "{.*}"
 
+fnCallWithParens : Parser PExpr
+fnCallWithParens = 
+  inContext "fnCallWithParens" <|
+  succeed identity
+    |. symbol "("
+    |= lazy (\_ -> fnCall)
+    |. symbol ")"
+
 fnCall : Parser PExpr
 fnCall = 
+  inContext "fnCall" <|
+  oneOf [lazy (\_ -> prefixFnCall), lazy (\_ -> infixFnCall)]
+
+
+
+prefixFnCall : Parser PExpr
+prefixFnCall =
+  inContext "prefixFnCall" <|
   succeed PFnCall
+    |= fnName
+    |. whitespace
+    -- this lazy shouldn't be necessary, but there's a run-time error if
+    -- you don't
+    |= repeat zeroOrMore (lazy (\_ -> fnArg))
+
+infixFnCall : Parser PExpr
+infixFnCall =
+  inContext "infixFnCall" <|
+  succeed (\arg name args -> PFnCall name (arg :: args))
+    |= lazy (\_ -> fnArg)
     |. whitespace
     |= fnName
     |. whitespace
@@ -275,11 +311,14 @@ fnCall =
     -- you don't
     |= repeat zeroOrMore (lazy (\_ -> fnArg))
 
+
+
 fnName : Parser String
-fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]+"
+fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=][a-zA-Z0-9:!@#%&\\*\\-_\\+\\|/\\?><=]+"
 
 fnArg : Parser PExpr
 fnArg =
+  inContext "fnArg" <|
   succeed identity
     |. whitespace
     |= lazy (\_ -> expr)
