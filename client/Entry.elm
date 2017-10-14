@@ -4,12 +4,13 @@ module Entry exposing (..)
 import Task
 import Result exposing (Result)
 import Regex
+import Char
 
 -- lib
 import Dom
 import List.Extra as LE
 import Result.Extra as RE
-import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map )
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..))
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
@@ -252,7 +253,10 @@ number : Parser PExpr
 number = token "number" PValue "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
 
 var : Parser PExpr
-var = token "var" PVar "\\$[a-z]" 
+var =
+  succeed PVar 
+    |. symbol "$"
+    |= keep (Exactly 1) Char.isLower
 
 list : Parser PExpr
 list = token "list" PValue "\\[.*\\]"
