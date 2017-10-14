@@ -405,18 +405,20 @@ pt2ast m cursor pt =
 ----------------------
 -- execute the AST
 ----------------------
-createArg : Function -> ID -> (AExpr, Parameter) -> List RPC
-createArg fn id (arg, param) = 
+createArg : Model -> Function -> ID -> (AExpr, Parameter) -> Result String (List RPC)
+createArg m fn id (arg, param) = 
   case arg of
-   AVar n -> [SetEdge n.id (id, param.name)]
-   AValue v -> [SetConstant v (id, param.name)]
-   _ -> Debug.crash "asd"
+   AVar n -> Ok [SetEdge n.id (id, param.name)]
+   AValue v -> Ok [SetConstant v (id, param.name)]
+   AFnCall name args -> 
+     let fnid = G.gen_id ()
+     in createFn m fnid name args Nothing Nothing
 
-createFn : Model -> ID -> String -> List AExpr -> Maybe Pos -> Maybe Node -> Modification
+createFn : Model -> ID -> String -> List AExpr -> Maybe Pos -> Maybe Node -> Result String (List RPC)
 createFn m id name args mpos implicit = 
   let fn = Autocomplete.findFunction m.complete name
   in case fn of
-       Nothing -> Error "fn doesnt exist"
+       Nothing -> Err "fn doesnt exist"
        Just fn ->
          let (fs, _) = addFunction m id name mpos
              -- get param for implicit
@@ -426,17 +428,19 @@ createFn m id name args mpos implicit =
              impA = Maybe.map AVar implicit
 
              -- strip param used for implicit
-             params = List.filter (\p -> (Just p) == impP) fn.parameters
+             params = List.filter (\p -> (Just p) /= impP) fn.parameters
 
              -- combine
              extra = Maybe.map2 (,) impA impP |> ME.toList
              pairs = extra ++ (List.map2 (,) args params)
 
-             argEdges = List.map (createArg fn id) pairs |> List.concat
+             argEdges = List.map (createArg m fn id) pairs
          in
           if List.length pairs < List.length extra + List.length args
-          then Error "Too many argument and not enough parameters"
-          else RPC (fs ++ argEdges, FocusNext id)
+          then Err <| "Too many argument and not enough parameters: " ++ (toString pairs) ++ (toString extra) ++ (toString args)
+          else (Ok fs) :: argEdges
+               |> RE.combine 
+               |> Result.map List.concat 
 
 execute : Model -> Bool -> AST -> Modification
 execute m re ast =
@@ -447,7 +451,9 @@ execute m re ast =
               , FocusNext id)
 
     ACreating pos (ACFnCall name args) ->
-      createFn m id name args (Just pos) Nothing
+      case createFn m id name args (Just pos) Nothing of
+        Ok fns -> RPC (fns, FocusNext id)
+        Err msg -> Error msg
 
     AFillParam (APBlank (target, param)) ->
       RPC ([SetConstant "null" (target.id, param.name)]
@@ -463,10 +469,10 @@ execute m re ast =
 
     AFillParam (APFnCall (target, param) name args) ->
       -- TODO: take over the positioning
-      let mod = createFn m id name args Nothing Nothing
-      in Many [mod,
-               RPC ([SetEdge id (target.id, param.name)]
-                    , FocusNext target.id)]
+      case createFn m id name args Nothing Nothing of
+        Ok fns -> RPC (fns ++ [SetEdge id (target.id, param.name)]
+                    , FocusNext target.id)
+        Err msg -> Error msg
 
     AFillResult (ARFieldName source name) ->
       RPC ([ AddFunctionCall id "." Nothing
@@ -489,7 +495,9 @@ execute m re ast =
           , FocusNext id)
 
     AFillResult (ARFnCall source name args) ->
-      createFn m id name args Nothing (Just source) 
+      case createFn m id name args Nothing (Just source) of
+        Ok fns -> RPC (fns, FocusNext id)
+        Err msg -> Error msg
 
     AError msg ->
       Error msg
