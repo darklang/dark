@@ -3,4 +3,4 @@
 script=$(basename $0)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo | $DIR/run-in-docker "$script" ${@}
+$DIR/run-in-docker "$script" ${@} <&0
