@@ -211,7 +211,8 @@ top =
        -- Expressions combined with infixFnCalls are left-recursive. To
        -- prevent infinite recursion, we specify a recursion limit.
        -- Because we are really only allowing a short string here, 3 or
-       -- 4 should be plenty, but let's say 20 just in case.
+       -- 4 should be plenty. Increasing this makes parsing incredibly
+       -- slow, as each expression requires n! recurses.
        , map PExpr (expr 4)]
 
 blank : Parser ParseTree
