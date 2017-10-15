@@ -9,6 +9,10 @@ module Parser.Parser exposing
   , Error, Problem(..), Context, inContext
   )
 
+-- This is a vendored version of elm-tools/parser. It has been hacked in the following ways:
+-- - `oneOf` has been changed to keep going even if one of it's parsers commits
+-- - There is debugging information everywhere, controlled by the debug function.
+
 {-|
 
 # Parsers
@@ -87,6 +91,11 @@ run (Parser parse) source =
           , problem = problem
           , context = context
           }
+
+debug : String -> a -> a
+debug str val = 
+  -- Debug.log str val
+  val
 
 
 -- ERRORS
@@ -190,7 +199,8 @@ Seems weird, but it is often useful in combination with
 -}
 fail : String -> Parser a
 fail message =
-  Parser <| \state -> Bad (Fail message) state
+  Parser <| \state ->
+    debug "Badfail" <| Bad (Fail message) state
 
 
 
@@ -216,12 +226,12 @@ an integer or `null`:
 map : (a -> b) -> Parser a -> Parser b
 map func (Parser parse) =
   Parser <| \state1 ->
-    case parse state1 of
+    case (printContext "map" parse state1) of
       Good a state2 ->
-        Good (func a) state2
+        debug "Good-map" <| Good (func a) state2
 
       Bad x state2 ->
-        Bad x state2
+        debug "Bad-map" <| Bad x state2
 
 
 {-| **This function is not used much in practice.** It is nicer to use
@@ -251,20 +261,32 @@ We can also use `map2` to define `(|.)` and `(|=)` like this:
     (|=) funcParser argParser =
       map2 (\func arg -> func arg) funcParser argParser
 -}
+printContext : String -> (State -> Step a) -> State -> Step a
+printContext msg parse state = 
+  let outputStrFn msg con = List.map (\c -> c.description ++ " (" ++ msg ++ "): " ++ (toString c.row) ++ ", " ++ (toString c.col)) con |> String.join "\n"
+      outputFn c = let _ = debug (outputStrFn msg c) () in c
+      result = parse { state | context = (outputFn state.context)}
+      debug_state s = "{" ++ toString s.row ++ ", " ++ toString s.col ++ "}" ++ (s.context |> List.head |> Maybe.map .description |> toString)
+  in
+    -- result
+    case result of
+      Good _ _ -> let _ = debug ("GOOD (" ++ msg ++ ")") (debug_state state) in result
+      Bad _ _ -> let _ = debug ("BAD (" ++ msg ++ ")") (debug_state state) in result
+
 map2 : (a -> b -> value) -> Parser a -> Parser b -> Parser value
 map2 func (Parser parseA) (Parser parseB) =
   Parser <| \state1 ->
-    case parseA state1 of
+    case printContext "map2A" parseA state1 of
       Bad x state2 ->
-        Bad x state2
+        debug "Badmap2A" <| Bad x state2
 
       Good a state2 ->
-        case parseB state2 of
+        case printContext "map2B" parseB state2 of
           Bad x state3 ->
-            Bad x state3
+            debug "Bad-map2B" <| Bad x state3
 
           Good b state3 ->
-            Good (func a b) state3
+             debug "Good-map2B " <| Good (func a b) state3
 
 
 {-| **Keep** a value in a parser pipeline.
@@ -307,16 +329,16 @@ infixl 5 |=
 andThen : (a -> Parser b) -> Parser a -> Parser b
 andThen callback (Parser parseA) =
   Parser <| \state1 ->
-    case parseA state1 of
+    case printContext "andThen2" parseA state1 of
       Bad x state2 ->
-        Bad x state2
+        debug "Bad-andThen" <| Bad x state2
 
       Good a state2 ->
         let
           (Parser parseB) =
             callback a
         in
-          parseB state2
+          printContext "andThen2" parseB state2
 
 
 
@@ -376,7 +398,7 @@ lazy thunk =
       (Parser parse) =
         thunk ()
     in
-      parse state
+      printContext "lazy" parse state
 
 
 
@@ -422,19 +444,26 @@ oneOfHelp : State -> List Problem -> List (Parser a) -> Step a
 oneOfHelp state problems parsers =
   case parsers of
     [] ->
-      Bad (BadOneOf (List.reverse problems)) state
+      debug "Bad-doneOneOfhelp" <| Bad (BadOneOf (List.reverse problems)) state
 
     Parser parse :: remainingParsers ->
-      case parse state of
+      case printContext "oneOfHelp" parse state of
         Good _ _ as step ->
-          step
+          debug "Good-oneOfHelp" <| step
 
         Bad problem { row, col } as step ->
           if state.row == row && state.col == col then
-            oneOfHelp state (problem :: problems) remainingParsers
+            debug "Bad-oneOfHelp(cont)" <| oneOfHelp state (problem :: problems) remainingParsers
 
           else
-            step
+            -- HACKED: as originally written, the oneOfHelp parser stops
+            -- if any of the remainingParsers commits. That is, if any
+            -- of the parsers match anything, it stops. It does this by
+            -- checking the row/col in the state. We actually want to
+            -- keep going, so we return the original state, tricking
+            -- oneOfHelp calls in higher levels of recursion into
+            -- thinking we matched nothing.
+            debug "Bad-oneOfHelp" <| Bad problem state
 
 
 
@@ -478,32 +507,32 @@ repeatExactly n parse revList state1 =
     Good (List.reverse revList) state1
 
   else
-    case parse state1 of
+    case (printContext "repeatExactly" parse state1) of
       Good a state2 ->
         if state1.row == state2.row && state1.col == state2.col then
-          Bad BadRepeat state2
+          debug "Good(->bad)-repeatExactly" <| Bad BadRepeat state2
         else
-          repeatExactly (n - 1) parse (a :: revList) state2
+          debug "Good-repeatExactly" <| repeatExactly (n - 1) parse (a :: revList) state2
 
       Bad x state2 ->
-        Bad x state2
+        debug "Bad" <| Bad x state2
 
 
 repeatAtLeast : Int -> (State -> Step a) -> List a -> State -> Step (List a)
 repeatAtLeast n parse revList state1 =
-  case parse state1 of
+  case (printContext "repeatAtLeast" parse state1) of
     Good a state2 ->
       if state1.row == state2.row && state1.col == state2.col then
-        Bad BadRepeat state2
+        debug "Good(->bad)-repeatAtLeast" <| Bad BadRepeat state2
       else
-        repeatAtLeast (n - 1) parse (a :: revList) state2
+        debug "Good-repeatAtLeast" <| repeatAtLeast (n - 1) parse (a :: revList) state2
 
     Bad x state2 ->
       if state1.row == state2.row && state1.col == state2.col && n <= 0 then
-        Good (List.reverse revList) state1
+        debug "Bad(->good)-repeatAtLeast" <| Good (List.reverse revList) state1
 
       else
-        Bad x state2
+        debug "Bad-repeatAtLeast" <| Bad x state2
 
 
 
@@ -532,20 +561,20 @@ both parsers. Read more about it [here][1] and [here][2].
 delayedCommitMap : (a -> b -> value) -> Parser a -> Parser b -> Parser value
 delayedCommitMap func (Parser parseA) (Parser parseB) =
   Parser <| \state1 ->
-    case parseA state1 of
+    case (printContext "delayedA" parseA state1) of
       Bad x _ ->
-        Bad x state1
+        debug "Bad-delayedA" <| Bad x state1
 
       Good a state2 ->
-        case parseB state2 of
+        case printContext "delayedB" parseB state2 of
           Good b state3 ->
-            Good (func a b) state3
+            debug "Good-delayedB" <| Good (func a b) state3
 
           Bad x state3 ->
             if state2.row == state3.row && state2.col == state3.col then
-              Bad x state1
+              debug "Bad-delayedB(s1)" <| Bad x state1
             else
-              Bad x state3
+              debug "Bad-delayedB" <| Bad x state3
 
 
 
@@ -580,10 +609,10 @@ token makeProblem str =
         Prim.isSubString str offset row col source
     in
       if newOffset == -1 then
-        Bad (makeProblem str) state
+        debug "Badtoken" <| Bad (makeProblem str) state
 
       else
-        Good ()
+        debug "Good token" <| Good ()
           { source = source
           , offset = newOffset
           , indent = indent
@@ -625,7 +654,7 @@ int =
   Parser <| \{ source, offset, indent, context, row, col } ->
     case intHelp offset (Prim.isSubChar isZero offset source) source of
       Err badOffset ->
-        Bad BadInt
+        debug "Bad" <| Bad BadInt
           { source = source
           , offset = badOffset
           , indent = indent
@@ -720,7 +749,7 @@ float =
   Parser <| \{ source, offset, indent, context, row, col } ->
     case floatHelp offset (Prim.isSubChar isZero offset source) source of
       Err badOffset ->
-        Bad BadFloat
+        debug "Bad" <| Bad BadFloat
           { source = source
           , offset = badOffset
           , indent = indent
@@ -795,10 +824,10 @@ end : Parser ()
 end =
   Parser <| \state ->
     if String.length state.source == state.offset then
-      Good () state
+      debug "Good-end" <| Good () state
 
     else
-      Bad ExpectingEnd state
+      debug "Bad-end" <| Bad ExpectingEnd state
 
 
 
@@ -859,7 +888,7 @@ sourceMap func (Parser parse) =
   Parser <| \({source, offset} as state1) ->
     case parse state1 of
       Bad x state2 ->
-        Bad x state2
+        debug "Bad" <| Bad x state2
 
       Good a state2 ->
         let
@@ -968,7 +997,7 @@ ignoreExactly n predicate source offset indent context row col =
         Prim.isSubChar predicate offset source
     in
       if newOffset == -1 then
-        Bad BadRepeat
+        debug "Bad" <| Bad BadRepeat
           { source = source
           , offset = offset
           , indent = indent
@@ -1002,7 +1031,7 @@ ignoreAtLeast n predicate source offset indent context row col =
           , col = col
           }
       in
-        if n <= 0 then Good () state else Bad BadRepeat state
+        if n <= 0 then Good () state else debug "Bad" <| Bad BadRepeat state
 
     -- matched a newline
     else if newOffset == -2 then
@@ -1045,7 +1074,7 @@ ignoreUntil str =
         Prim.findSubString False str offset row col source
     in
       if newOffset == -1 then
-        Bad (ExpectingClosing str) state
+        debug "Bad" <| Bad (ExpectingClosing str) state
 
       else
         Good ()
@@ -1097,12 +1126,12 @@ inContext ctx (Parser parse) =
       state1 =
         changeContext (Context row col ctx :: context) initialState
     in
-      case parse state1 of
+      case printContext "incontext" parse state1 of
         Good a state2 ->
-          Good a (changeContext context state2)
+          debug "Good changeContext" <| Good a (changeContext context state2)
 
         Bad _ _ as step ->
-          step
+          debug "Bad changeContext" <| step
 
 
 changeContext : List Context -> State -> State
