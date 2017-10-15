@@ -224,40 +224,36 @@ entryParser =
                -- Blank
                , ""
                ]
-      doesntParse = [
-                    -- letters
-                      "$A"
-                    -- bad
-                    , "AFucntionWith;;InIt"
-                    -- numbers
-                    , "5. "
-                    , " 5.6.3"
-                    -- lists and objects
-                    , "[a:asd,,,, ,m,se]"
-                    , "{a:asd,,,, ,m,se}"
-                    -- field
-                    , "   .someF ield"
-                    ]
+      shouldntParse = [
+                      -- letters
+                        "$A"
+                      -- bad
+                      , "AFucntionWith;;InIt"
+                      -- numbers
+                      , "5. "
+                      , " 5.6.3"
+                      -- lists and objects
+                      , "[a:asd,,,, ,m,se]"
+                      , "{a:asd,,,, ,m,se}"
+                      -- field
+                      , "   .someF ield"
+                      ]
+      exactly = [ ("-6", E.PExpr <| E.PValue "-6")]
+      todo = ["String.concat"] -- we should all this so we can give a better warning later
+      test_parsing expectedFn str =
+        test ("parsing \"" ++ str ++ "\"")
+          (\_ ->
+            let result = E.parseFully str in
+            Expect.true "" (expectedFn result)
+              |> Expect.onFail (toString result))
+ 
   in
 
   describe "entryParser"
     [ describe "should parse"
-       (List.map 
-       (\str ->
-         test str
-               (\_ ->
-                 let result = E.parseFully str in
-                 Expect.equal True (Util.resultIsOk result)
-                   |> Expect.onFail (toString result)))
-       parses)
-
+     <| List.map (test_parsing Util.resultIsOk) parses
     , describe "shouldn't parse"
-       (List.map 
-       (\str ->
-         test str
-               (\_ ->
-                 let result = E.parseFully str in
-                 Expect.equal False (Util.resultIsOk result)
-                   |> Expect.onFail (toString result)))
-       doesntParse)
+     <| List.map (test_parsing (Util.resultIsOk >> not)) shouldntParse
+    , describe "works exactly"
+     <| List.map (\(str, expected) -> test_parsing ((==) <| Result.Ok expected) str) exactly
     ]
