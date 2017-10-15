@@ -163,10 +163,10 @@ parseFully str =
     |> Result.map (Debug.log "parsed")
 
 token : String -> (String -> a) -> String -> Parser a
-token name ctor re =  token_ (name++":/" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex)
+token name ctor re =  token_ (name++": /" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex)
 
 tokenCI : String -> (String -> a) -> String -> Parser a
-tokenCI name ctor re =  token_ (name++":/" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex |> Regex.caseInsensitive)
+tokenCI name ctor re =  token_ (name++": /" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex |> Regex.caseInsensitive)
 
 token_ : String -> (String -> a) -> Regex.Regex -> Parser a
 token_ name ctor re =
