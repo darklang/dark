@@ -205,7 +205,7 @@ entryParser =
                -- infix with functions that aren't obvious infix things
                , "$c String::foreach"
                , "$c Int::add 5"
-               , "(String::first $c) String::is_substring (String.concat \"a\" \"b\")"
+               , "(String::first $c  ) String::is_substring (  String::concat \"a\" \"b\")"
                -- parens
                , "($c % 3) == 0"
                , "($c % 3) == ($a * 1)"
