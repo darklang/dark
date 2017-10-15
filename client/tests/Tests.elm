@@ -177,53 +177,108 @@ autocomplete =
 
 entryParser : Test
 entryParser =
-                  -- basics fns
-  let parses = [ "+ 3 4"
-               , "+"
-               , "+ 3"
-               , "aFunction"
-               , "AfunctionWith::sInIt 5 2"
-               -- strings
-               , "\"a string\""
-               , "     \"spaces front\""
-               , "\"spaces back\"        "
-               , "\"escaped \\\" quote\""
-               -- numbers
-               , "6.42"
-               , "-6"
-               , "- -6 -7.53"
-               -- vars 
-               , "$a"
-               , "- $a $c"
-               -- bools
-               , "true"
-               , "    false    "
-               , " FaLsE "
-               -- infix
-               , "$c + $a"
-               , "$c - $a"
-               -- infix with functions that aren't obvious infix things
-               , "$c String::foreach"
-               , "$c Int::add 5"
-               , "(String::first $c  ) String::is_substring (  String::concat \"a\" \"b\")"
-               -- parens
-               , "($c % 3) == 0"
-               , "($c % 3) == ($a * 1)"
-               , "$c == 3 && $a + 1 < 4"
-               , "(5) == (0)"
-               -- Lists
-               , "[ 1, 2, 3, $c - 5, $c ]"
-               -- Objs
-               , "{ 1: 2, 3: 4, $c: $d}"
-               -- Complex
-               , "{ $c: func ($d + 2) 5}"
-               -- Fieldname
-               , ".someField"
-               , "   .someField2"
-               , "$c.someField"
-               -- Blank
-               , ""
-               ]
+  let exactly =
+        -- basics fns
+        [ ("+"
+          , E.PExpr (E.PFnCall "+" []))
+        , ("aFunction"
+          , E.PExpr (E.PFnCall "aFunction" []))
+        , ("+ 3 4"
+          , E.PExpr (E.PFnCall "+" ([E.PValue "3",E.PValue "4"])))
+        , ("+ 3"
+          , E.PExpr (E.PFnCall "+" ([E.PValue "3"])))
+        , ("AfunctionWith::sInIt 5 2"
+          , E.PExpr (E.PFnCall "AfunctionWith::sInIt" ([E.PValue "5",E.PValue "2"])))
+
+        -- strings
+        , ("\"a string\""
+          , E.PExpr (E.PValue "\"a string\""))
+        , ("\"spaces back\"        "
+          , E.PExpr (E.PValue "\"spaces back\""))
+        , ("     \"spaces front\""
+          , E.PExpr (E.PValue "\"spaces front\""))
+        , ("\"escaped \\\" quote\""
+          , E.PExpr (E.PValue "\"escaped \\\" quote\""))
+
+        -- numbers
+        , ("5"
+          , E.PExpr <| E.PValue "5")
+        , ("6.42"
+          , E.PExpr (E.PValue "6.42"))
+        , ("-6"
+          , E.PExpr (E.PValue "-6"))
+        , ("- -6 -7.53"
+          , E.PExpr (E.PFnCall "-" ([E.PValue "-6",E.PValue "-7.53"])))
+ 
+        -- vars 
+        , ("$a"
+          , E.PExpr (E.PVar "a"))
+        , ("- $a $c"
+          , E.PExpr (E.PFnCall "-" ([E.PVar "a",E.PVar "c"])))
+
+        -- bools
+        , ("    false    "
+          , E.PExpr (E.PValue "false"))
+        , ("true"
+          , E.PExpr (E.PValue "true"))
+        , (" FaLsE "
+          , E.PExpr (E.PValue "FaLsE"))
+
+        -- infix
+        , ("$c + $a"
+          , E.PExpr (E.PFnCall "+" ([E.PVar "c",E.PVar "a"])))
+        , ("$c - $a"
+          , E.PExpr (E.PFnCall "-" ([E.PVar "c",E.PVar "a"])))
+        , ("-5 == -6"
+          , E.PExpr (E.PFnCall "==" ([E.PValue "-5", E.PValue "-6"])))
+        , ("6-2"
+          , E.PExpr (E.PFnCall "-" ([E.PValue "6", E.PValue "2"])))
+ 
+        -- infix with functions that aren't obvious infix things
+        , ("$c String::foreach"
+          , E.PExpr (E.PFnCall "String::foreach" ([E.PVar "c"])))
+        , ("(String::first $c  ) String::is_substring (  String::concat \"a\" \"b\")"
+          , E.PExpr (E.PFnCall "String::is_substring" ([E.PFnCall "String::first" ([E.PVar "c"]),E.PFnCall "String::concat" ([E.PValue "\"a\"",E.PValue "\"b\""])])))
+        , ("$c Int::add 5"
+          , E.PExpr (E.PFnCall "Int::add" ([E.PVar "c",E.PValue "5"])))
+
+        -- parens
+        , ("($c % 3) == ($a * 1)"
+          , E.PExpr (E.PFnCall "==" ([E.PFnCall "%" ([E.PVar "c",E.PValue "3"]),E.PFnCall "*" ([E.PVar "a",E.PValue "1"])])))
+        , ("($c % 3) == 0"
+          , E.PExpr (E.PFnCall "==" ([E.PFnCall "%" ([E.PVar "c",E.PValue "3"]),E.PValue "0"])))
+        , ("(5)"
+          , E.PExpr <| E.PValue "5")
+        , ("(5) == -6"
+          , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "-6"])))
+        , ("(5) == (0)"
+          , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "0"])))
+        , ("$c == 3 && $a + 1 < 4"
+          , E.PExpr
+             (E.PFnCall "&&"
+                [ (E.PFnCall "==" [E.PVar "c",E.PValue "3"])
+                , (E.PFnCall "<" 
+                   [E.PFnCall "+" [E.PVar "a",E.PValue "1"]
+                   , E.PValue "4"
+                   ]
+                  )
+                ]
+             ))
+
+        -- Fieldname
+        , (".someField"
+          , E.PFieldname "someField")
+        , ("   .someField2"
+          , E.PFieldname "someField2")
+
+        -- Objs
+        , ("{ 1: 2, 3: 4}"
+          , E.PExpr (E.PValue "{ 1: 2, 3: 4}"))
+
+        -- Lists (TODO)
+        , ("[1, 2, 3, 4]"
+          , E.PExpr (E.PValue "[1, 2, 3, 4]"))
+        ]
       shouldntParse = [
                       -- letters
                         "$A"
@@ -232,14 +287,18 @@ entryParser =
                       -- numbers
                       , "5. "
                       , " 5.6.3"
-                      -- lists and objects
-                      , "[a:asd,,,, ,m,se]"
-                      , "{a:asd,,,, ,m,se}"
                       -- field
                       , "   .someF ield"
                       ]
-      exactly = [ ("-6", E.PExpr <| E.PValue "-6")]
-      todo = ["String.concat"] -- we should all this so we can give a better warning later
+
+      todo = [ "String.concat" -- we should parse this so we can give a better warning later
+             , "{ 1: 2, 3: 4, $c: $d}"
+             , "{ $c: func ($d + 2) 5}"
+             , "[a:asd,,,, ,m,se]" -- error
+             , "[ 1, 2, 3, $c - 5, $c ]"
+             , "$c.someField"
+             , "{a:asd,,,, ,m,se}" -- error
+             ] 
       test_parsing expectedFn str =
         test ("parsing \"" ++ str ++ "\"")
           (\_ ->
@@ -250,9 +309,7 @@ entryParser =
   in
 
   describe "entryParser"
-    [ describe "should parse"
-     <| List.map (test_parsing Util.resultIsOk) parses
-    , describe "shouldn't parse"
+    [ describe "shouldn't parse"
      <| List.map (test_parsing (Util.resultIsOk >> not)) shouldntParse
     , describe "works exactly"
      <| List.map (\(str, expected) -> test_parsing ((==) <| Result.Ok expected) str) exactly
