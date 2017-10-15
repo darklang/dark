@@ -10,7 +10,7 @@ import Set
 -- dark
 import Autocomplete exposing (..)
 import Types exposing (..)
-import Entry as E
+import EntryParser as E
 import Util
 
 
