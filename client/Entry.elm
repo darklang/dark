@@ -176,7 +176,7 @@ token_ name ctor re =
     case Regex.find (Regex.AtMost 1) re substring of
       [{match}] -> Good (ctor match) { state | offset = offset + String.length match 
                                              , col = col + String.length match}
-      [] -> Bad (Parser.Parser.Fail <| "Regex not matched: " ++ name) state
+      [] -> Bad (Parser.Parser.Fail <| "Regex not matched: " ++ name ++ (" on \"" ++ state.source ++ "\"")) state
       _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
 
 debug : String -> Parser a -> Parser a
@@ -206,7 +206,13 @@ full =
 top : Parser ParseTree
 top =
   inContext "top" <|
-  oneOf [fieldname, map PExpr fnCall, map PExpr expr, blank]
+  oneOf [ fieldname
+        , blank
+       -- Expressions combined with infixFnCalls are left-recursive. To
+       -- prevent infinite recursion, we specify a recursion limit.
+       -- Because we are really only allowing a short string here, 3 or
+       -- 4 should be plenty, but let's say 20 just in case.
+       , map PExpr (expr 4)]
 
 blank : Parser ParseTree
 blank =
@@ -219,14 +225,15 @@ fieldname =
   delayedCommit whitespace <|
   succeed PFieldname
     |. symbol "."
-    |= fnName
+    |= longFnName
+    |. end
 
-parensExpr : Parser PExpr
-parensExpr =
+parensExpr : Int -> Parser PExpr
+parensExpr depth =
   inContext "parensExpr" <|
-  delayedCommit (symbol "(") <|
   succeed identity
-    |= lazy (\_ -> expr)
+    |. symbol "("
+    |= lazy (\_ -> expr depth)
     |. symbol ")"
   
 
@@ -239,13 +246,18 @@ value =
     |. whitespace
 
 
-expr : Parser PExpr
-expr =
-  inContext "expr" <|
-  delayedCommit whitespace <|
-  succeed identity
-    |= oneOf [value, var, lazy (\_ -> fnCallWithParens), lazy (\_ -> parensExpr)]
-    |. whitespace
+expr : Int -> Parser PExpr
+expr depth =
+
+ if depth == 1
+  then oneOf [value, var]
+  else
+    let d = depth-1 in
+    inContext "expr" <|
+    delayedCommit whitespace <|
+    succeed identity
+      |= oneOf [lazy (\_ -> fnCall d), lazy (\_ -> parensExpr d), value, var]
+      |. whitespace
 
 whitespace : Parser String
 whitespace = token "whitespace" identity "\\s*"
@@ -281,57 +293,57 @@ null = tokenCI "null" PValue "null"
 obj : Parser PExpr
 obj = token "obj" PValue "{.*}"
 
-fnCallWithParens : Parser PExpr
-fnCallWithParens = 
-  inContext "fnCallWithParens" <|
-  delayedCommit (symbol "(") <|
-  delayedCommit whitespace <|
-  succeed identity
-    |= lazy (\_ -> fnCall)
-    |. whitespace
-    |. symbol ")"
-
-fnCall : Parser PExpr
-fnCall = 
+fnCall : Int -> Parser PExpr
+fnCall depth = 
   inContext "fnCall" <|
   delayedCommit whitespace <|
   succeed identity
-    |= oneOf [lazy (\_ -> prefixFnCall), lazy (\_ -> infixFnCall)]
+    -- because a prefixFnCall can match false/null/-6 that can be valid first args of infix, do infix first
+    |= oneOf [lazy (\_ -> infixFnCall depth), lazy (\_ -> prefixFnCall depth)]
     |. whitespace
 
-prefixFnCall : Parser PExpr
-prefixFnCall =
+prefixFnCall : Int -> Parser PExpr
+prefixFnCall depth =
   inContext "prefixFnCall" <|
   succeed PFnCall
     |= fnName
     |. whitespace
     -- this lazy shouldn't be necessary, but there's a run-time error if
     -- you don't
-    |= repeat zeroOrMore (lazy (\_ -> fnArg))
+    |= repeat zeroOrMore (lazy (\_ -> fnArg depth))
     |. whitespace
 
-infixFnCall : Parser PExpr
-infixFnCall =
+infixFnCall : Int -> Parser PExpr
+infixFnCall depth =
   inContext "infixFnCall" <|
   succeed (\arg name args -> PFnCall name (arg :: args))
-    |= lazy (\_ -> fnArg)
+    |= lazy (\_ -> fnArg depth)
     |. whitespace
     |= fnName
     |. whitespace
     -- this lazy shouldn't be necessary, but there's a run-time error if
     -- you don't
-    |= repeat zeroOrMore (lazy (\_ -> fnArg))
+    |= repeat zeroOrMore (lazy (\_ -> fnArg depth))
     |. whitespace
 
 fnName : Parser String
-fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=][0-9a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]*"
+fnName = oneOf [ twoLetterFnName, oneLetterFnName, longFnName ]
 
-fnArg : Parser PExpr
-fnArg =
+oneLetterFnName : Parser String
+oneLetterFnName = token "oneLetterFnName" identity "[%&\\*\\-_\\+><=]"
+
+twoLetterFnName : Parser String
+twoLetterFnName = token "twoLetterFnName" identity "=="
+
+longFnName : Parser String
+longFnName = token "longFnName" identity "[a-zA-Z][0-9a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]*"
+
+fnArg : Int -> Parser PExpr
+fnArg depth =
   inContext "fnArg" <|
   delayedCommit whitespace <|
   succeed identity
-    |= lazy (\_ -> expr)
+    |= lazy (\_ -> expr depth)
     |. whitespace
 
 
