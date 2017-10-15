@@ -225,6 +225,8 @@ entryParser =
           , E.PExpr (E.PValue "FaLsE"))
 
         -- infix
+        , ("5 + 6"
+          , E.PExpr (E.PFnCall "+" ([E.PValue "5",E.PValue "6"])))
         , ("$c + $a"
           , E.PExpr (E.PFnCall "+" ([E.PVar "c",E.PVar "a"])))
         , ("$c - $a"
@@ -249,6 +251,8 @@ entryParser =
           , E.PExpr (E.PFnCall "==" ([E.PFnCall "%" ([E.PVar "c",E.PValue "3"]),E.PValue "0"])))
         , ("(5)"
           , E.PExpr <| E.PValue "5")
+        , ("(5 + 7)"
+          , E.PExpr (E.PFnCall "+" ([E.PValue "5", E.PValue "7"])))
         , ("(5) == -6"
           , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "-6"])))
         , ("(5) == (0)"
