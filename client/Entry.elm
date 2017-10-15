@@ -11,7 +11,7 @@ import Dom
 import List.Extra as LE
 import Result.Extra as RE
 import Maybe.Extra as ME
-import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..), inContext)
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..), inContext, delayedCommit)
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
@@ -216,6 +216,7 @@ blank =
 fieldname : Parser ParseTree
 fieldname =
   inContext "fieldname" <|
+  delayedCommit whitespace <|
   succeed PFieldname
     |. symbol "."
     |= fnName
@@ -223,8 +224,8 @@ fieldname =
 parensExpr : Parser PExpr
 parensExpr =
   inContext "parensExpr" <|
+  delayedCommit (symbol "(") <|
   succeed identity
-    |. symbol "("
     |= lazy (\_ -> expr)
     |. symbol ")"
   
@@ -232,13 +233,17 @@ parensExpr =
 value : Parser PExpr
 value =
   inContext "value" <|
-  oneOf [string, number, char, list, obj, true, false, null]
+  delayedCommit whitespace <|
+  succeed identity
+    |= oneOf [string, number, char, list, obj, true, false, null]
+    |. whitespace
+
 
 expr : Parser PExpr
 expr =
   inContext "expr" <|
+  delayedCommit whitespace <|
   succeed identity
-    |. whitespace
     |= oneOf [value, var, lazy (\_ -> fnCallWithParens), lazy (\_ -> parensExpr)]
     |. whitespace
 
@@ -279,17 +284,20 @@ obj = token "obj" PValue "{.*}"
 fnCallWithParens : Parser PExpr
 fnCallWithParens = 
   inContext "fnCallWithParens" <|
+  delayedCommit (symbol "(") <|
+  delayedCommit whitespace <|
   succeed identity
-    |. symbol "("
     |= lazy (\_ -> fnCall)
+    |. whitespace
     |. symbol ")"
 
 fnCall : Parser PExpr
 fnCall = 
   inContext "fnCall" <|
-  oneOf [lazy (\_ -> prefixFnCall), lazy (\_ -> infixFnCall)]
-
-
+  delayedCommit whitespace <|
+  succeed identity
+    |= oneOf [lazy (\_ -> prefixFnCall), lazy (\_ -> infixFnCall)]
+    |. whitespace
 
 prefixFnCall : Parser PExpr
 prefixFnCall =
@@ -300,6 +308,7 @@ prefixFnCall =
     -- this lazy shouldn't be necessary, but there's a run-time error if
     -- you don't
     |= repeat zeroOrMore (lazy (\_ -> fnArg))
+    |. whitespace
 
 infixFnCall : Parser PExpr
 infixFnCall =
@@ -312,17 +321,16 @@ infixFnCall =
     -- this lazy shouldn't be necessary, but there's a run-time error if
     -- you don't
     |= repeat zeroOrMore (lazy (\_ -> fnArg))
-
-
+    |. whitespace
 
 fnName : Parser String
-fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=][a-zA-Z0-9:!@#%&\\*\\-_\\+\\|/\\?><=]*"
+fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=][0-9a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]*"
 
 fnArg : Parser PExpr
 fnArg =
   inContext "fnArg" <|
+  delayedCommit whitespace <|
   succeed identity
-    |. whitespace
     |= lazy (\_ -> expr)
     |. whitespace
 
