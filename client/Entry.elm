@@ -316,7 +316,7 @@ infixFnCall =
 
 
 fnName : Parser String
-fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=][a-zA-Z0-9:!@#%&\\*\\-_\\+\\|/\\?><=]+"
+fnName = token "fnName" identity "[a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=][a-zA-Z0-9:!@#%&\\*\\-_\\+\\|/\\?><=]*"
 
 fnArg : Parser PExpr
 fnArg =
