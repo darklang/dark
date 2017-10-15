@@ -158,13 +158,15 @@ refocus re default =
 
 parseFully : String -> Result String ParseTree
 parseFully str =
-  Parser.Parser.run full (Debug.log "starting to parse" str) |> Result.mapError toString
+  Parser.Parser.run full (Debug.log "starting to parse" str)
+    |> Result.mapError toString
+    |> Result.map (Debug.log "parsed")
 
 token : String -> (String -> a) -> String -> Parser a
-token name ctor re =  token_ name ctor ("^" ++ re |> Regex.regex)
+token name ctor re =  token_ (name++":/" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex)
 
 tokenCI : String -> (String -> a) -> String -> Parser a
-tokenCI name ctor re =  token_ name ctor ("^" ++ re |> Regex.regex |> Regex.caseInsensitive)
+tokenCI name ctor re =  token_ (name++":/" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex |> Regex.caseInsensitive)
 
 token_ : String -> (String -> a) -> Regex.Regex -> Parser a
 token_ name ctor re =
@@ -174,7 +176,7 @@ token_ name ctor re =
     case Regex.find (Regex.AtMost 1) re substring of
       [{match}] -> Good (ctor match) { state | offset = offset + String.length match 
                                              , col = col + String.length match}
-      [] -> Bad (Parser.Parser.Fail <| "Regex " ++ name ++ " not matched: /" ++ toString re ++ "/") state
+      [] -> Bad (Parser.Parser.Fail <| "Regex not matched: " ++ name) state
       _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
 
 debug : String -> Parser a -> Parser a
@@ -204,7 +206,7 @@ full =
 top : Parser ParseTree
 top =
   inContext "top" <|
-  oneOf [fieldname, map PExpr expr, map PExpr fnCall, blank]
+  oneOf [fieldname, map PExpr fnCall, map PExpr expr, blank]
 
 blank : Parser ParseTree
 blank =
