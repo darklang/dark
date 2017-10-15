@@ -141,6 +141,7 @@ def ignore(filename):
             , ".merlin"
             , "client/elm-stuff"
             , "client/tests/elm-stuff"
+            , "client/repl-temp"
             , "server/static/elm.js"
             , "server/cache/"
             , "server/_build/"
