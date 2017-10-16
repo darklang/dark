@@ -46,7 +46,7 @@ selectByLetter m code =
 
 
 
-selectNextNode : Model -> ID -> (Pos -> Pos -> Bool) -> Modification
+selectNextNode : Model -> ID -> (Node -> Node -> Bool) -> Modification
 selectNextNode m id cond =
   -- if we're currently in a node, follow the direction. For now, pick
   -- the nearest node to it, that it's connected to, that's roughly in
@@ -56,7 +56,7 @@ selectNextNode m id cond =
     n
     |> G.connectedNodes m
     -- that are above us
-    |> List.filter (\o -> cond n.pos o.pos)
+    |> List.filter (\o -> cond n o)
     -- the nearest to us
     |> List.sortBy (\other -> G.distance other n)
     |> List.head

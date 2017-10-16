@@ -13,13 +13,14 @@ import Util exposing (deMaybe)
 import Graph as G
 import Entry
 import Autocomplete
+import Defaults
 
 makeRandomChange : Model -> Modification
 makeRandomChange m =
   let id = G.gen_id ()
       r () = Util.random () % 100
       r0 = r ()
-      nodes = m.nodes |> Dict.values |> List.filter (\n -> n.pos.x /= -42)
+      nodes = m.nodes |> Dict.values |> List.filter (\n -> G.posx n /= Defaults.unsetInt)
       numNodes = List.length nodes
       str = "astring"
       int _ = Util.random () % 30
@@ -38,7 +39,7 @@ makeRandomChange m =
   in
   if numNodes == 0 -- start something
   then
-    RPC ([AddValue id (Debug.log "starting: " (val ())) (Just m.center)], FocusNothing)
+    RPC ([AddValue id (Debug.log "starting: " (val ())) (Root m.center)], FocusNothing)
 
   else
     let randomIndex = Util.random () % numNodes

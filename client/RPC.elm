@@ -45,9 +45,11 @@ encodeRPCs m calls =
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
   let jsePos pos = case pos of
-                     Just {x,y} -> ("pos", JSE.object [ ("x", JSE.int x)
-                                                      , ("y", JSE.int y)])
-                     Nothing -> ("pos", JSE.null)
+                     Root {x,y} -> ("pos", JSE.list [ JSE.string "Root"
+                                                    , JSE.object [ ("x", JSE.int x)
+                                                                 , ("y", JSE.int y)]])
+                     Dependent -> ("pos", JSE.list [ JSE.string "Dependent" ])
+                     Free -> ("pos", JSE.list [ JSE.string "Free" ])
       jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
@@ -143,14 +145,13 @@ decodeNode =
                                         Debug.crash <| "Unexpected: " ++ op
                                       Result.Err e ->
                                         Debug.crash <| "Invalid: " ++ e
-                     _ -> Debug.crash "impossible"
-
+                     _ -> Debug.crash "Bad argument in RPC"
 
       toNode : Name -> Int -> List (FieldName, String) ->
                List Parameter -> List (List JSD.Value) -> String ->
                String -> String -> Maybe Exception -> Int -> List Int ->
-               String -> Int -> Int -> Int -> Node
-      toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe x y cursor =
+               String -> String -> Maybe Int -> Maybe Int -> Int -> Node
+      toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe posType x y cursor =
           { name = name
           , id = ID id
           , fields = List.map (\(f,tipe) -> (f, RT.str2tipe tipe)) fields
@@ -160,7 +161,7 @@ decodeNode =
                         , tipe = liveTipe |> RT.str2tipe
                         , json = liveJson
                         , exc = liveExc}
-          , anonID = if anonID == Defaults.unsetPosition then Nothing else Just <| ID anonID
+          , anonID = if anonID == Defaults.unsetInt then Nothing else Just <| ID anonID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of
                      "datastore" -> Datastore
@@ -170,7 +171,11 @@ decodeNode =
                      "page" -> Page
                      "arg" -> Arg
                      _ -> Debug.crash "shouldnt happen"
-          , pos = {x=x, y=y}
+          , pos = case (posType, x, y) of
+                    ("Root", Just x, Just y) -> Root {x=x, y=y}
+                    ("Dependent", Nothing, Nothing) -> Dependent
+                    ("Free", Nothing, Nothing) -> Free
+                    _ -> Debug.crash "Bad Pos in RPC"
           , cursor = cursor
           , visible = tipe /= "definition"
           }
@@ -222,11 +227,12 @@ decodeNode =
             |> JSDP.required "info" (JSD.dict JSD.string)
             |> JSDP.required "workarounds" (JSD.list JSD.string))
             Nothing
-    |> JSDP.optional "anon_id" JSD.int Defaults.unsetPosition
+    |> JSDP.optional "anon_id" JSD.int Defaults.unsetInt
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
-    |> JSDP.optionalAt ["pos", "x"] JSD.int Defaults.unsetPosition
-    |> JSDP.optionalAt ["pos", "y"] JSD.int Defaults.unsetPosition
+    |> JSDP.required "pos" (JSD.index 0 JSD.string)
+    |> JSDP.required "pos" (JSD.index 1 (JSD.maybe (JSD.field "x" JSD.int)))
+    |> JSDP.required "pos" (JSD.index 1 (JSD.maybe (JSD.field "y" JSD.int)))
     |> JSDP.required "cursor" JSD.int
 
 

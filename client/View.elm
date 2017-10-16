@@ -162,8 +162,8 @@ viewEntry m =
         let holePos = holeDisplayPos m h
             edgePos = { x = holePos.x + 10
                       , y = holePos.y + 10}
-            nodePos = { x = n.pos.x + 10
-                      , y = n.pos.y + 10}
+            nodePos = { x = G.posx n + 10
+                      , y = G.posy n + 10}
         in
         [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
       Entering _ (Creating pos) -> [html pos]
@@ -176,14 +176,14 @@ valueDisplayPos m n =
   then Entry.holeCreatePos m (ResultHole n)
   else
     let xpad = max (G.nodeWidth n + 50) 250
-    in {x=n.pos.x+xpad, y=n.pos.y}
+    in {x=(G.posx n)+xpad, y=G.posy n}
 
 holeDisplayPos : Model -> Hole -> Pos
 holeDisplayPos m hole =
   case hole of
     ResultHole _ -> let {x,y} = Entry.holeCreatePos m hole
                     in {x=x, y=y + 50}
-    ParamHole n _ _ -> {x=n.pos.x-350, y=n.pos.y-100}
+    ParamHole n _ _ -> {x=(G.posx n)-350, y=(G.posy) n-100}
 
 
 
@@ -208,10 +208,10 @@ viewValue m n =
       isPhantom = lv /= n.liveValue
       class = if isPhantom then "phantom" else "preview"
       newPos = valueDisplayPos m n
-      displayedBelow = newPos.y /= n.pos.y
+      displayedBelow = newPos.y /= G.posy n
       edge =
         if displayedBelow
-        then [svgLine m {x=n.pos.x + 10, y=n.pos.y+10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
+        then [svgLine m {x=G.posx n + 10, y=G.posy n +10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
         else []
   in
   edge ++
@@ -313,7 +313,7 @@ placeNode m n width attrs classes header body =
       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
       wrapper = Html.div [] [ node, header_wrapper ]
   in
-    placeHtml m n.pos wrapper
+    placeHtml m (G.pos n) wrapper
 
 edgeStyle : List (Svg.Attribute Msg)
 edgeStyle =
@@ -333,10 +333,10 @@ viewEdge m source target param =
     let targetPos = target.pos
         (sourceW, sourceH) = G.nodeSize source
         (targetW, targetH) = G.nodeSize target
-        spos = { x = source.pos.x + 10
-               , y = source.pos.y + (sourceH // 2)}
-        tpos = { x = target.pos.x + 10
-               , y = target.pos.y + (targetH // 2)}
+        spos = { x = G.posx source + 10
+               , y = G.posy source + (sourceH // 2)}
+        tpos = { x = G.posx target + 10
+               , y = G.posy target + (targetH // 2)}
     in svgLine
       m
       spos

@@ -12,7 +12,7 @@ import Maybe.Extra as ME
 
 -- dark
 import Defaults
-import Graph as G
+import Graph as G exposing (posy, posx)
 import Types exposing (..)
 import Autocomplete
 import Viewport
@@ -27,15 +27,15 @@ nodeFromHole h = case h of
 holeCreatePos : Model -> Hole -> Pos
 holeCreatePos m hole =
   case hole of
-    ParamHole n _ i -> {x=n.pos.x-50+(i*50), y=n.pos.y-40}
+    ParamHole n _ i -> {x=(posx n)-50+(i*50), y=(posy n)-40}
     ResultHole n ->
       let connected = G.entireSubgraph m n
           lowest = connected
-                   |> List.map (\n -> n.pos.y)
+                   |> List.map (\n -> posy n)
                    |> List.maximum
-                   |> Maybe.withDefault n.pos.y
+                   |> Maybe.withDefault (posy n)
       in
-      {x=n.pos.x, y=lowest+40}
+      {x=posx n, y=lowest+40}
 
 
 ---------------------
@@ -160,10 +160,10 @@ createArg m fn id (arg, param) =
    AValue v -> Ok [SetConstant v (id, param.name)]
    AFnCall name args -> 
      let fnid = G.gen_id ()
-     in createFn m fnid name args Nothing Nothing
+     in createFn m fnid name args Dependent Nothing 
         |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
-createFn : Model -> ID -> String -> List AExpr -> Maybe Pos -> Maybe Node -> Result String (List RPC)
+createFn : Model -> ID -> String -> List AExpr -> MPos -> Maybe Node -> Result String (List RPC)
 createFn m id name args mpos implicit = 
   let fn = Autocomplete.findFunction m.complete name
   in case fn of
@@ -198,11 +198,11 @@ execute m re ast =
   let id = G.gen_id () in
   case ast of
     ACreating pos (ACValue value) ->
-      RPC <| ([AddValue id value (Just pos)]
+      RPC <| ([AddValue id value (Root pos)]
              , FocusNext id)
 
     ACreating pos (ACFnCall name args) ->
-      case createFn m id name args (Just pos) Nothing of
+      case createFn m id name args (Root pos) Nothing of
         Ok fns -> RPC (fns, FocusNext id)
         Err msg -> Error msg
 
@@ -220,13 +220,13 @@ execute m re ast =
 
     AFillParam (APFnCall (target, param) name args) ->
       -- TODO: take over the positioning
-      case createFn m id name args Nothing Nothing of
+      case createFn m id name args Dependent Nothing of
         Ok fns -> RPC (fns ++ [SetEdge id (target.id, param.name)]
                       , FocusNext target.id)
         Err msg -> Error msg
 
     AFillResult (ARFieldName source name) ->
-      RPC ([ AddFunctionCall id "." Nothing
+      RPC ([ AddFunctionCall id "." Dependent
            , SetEdge source.id (id, "value")
            , SetConstant ("\"" ++ name ++ "\"") (id, "fieldname")]
           , FocusNext id)
@@ -240,13 +240,13 @@ execute m re ast =
               , FocusExact target.id)
 
     AFillResult (ARNewValue source value) ->
-      RPC ([ AddFunctionCall id "_" Nothing
+      RPC ([ AddFunctionCall id "_" Dependent
            , SetConstant value (id, "value")
            , SetEdge source.id (id, "ignore")]
           , FocusNext id)
 
     AFillResult (ARFnCall source name args) ->
-      case createFn m id name args Nothing (Just source) of
+      case createFn m id name args Dependent (Just source) of
         Ok fns -> RPC (fns, FocusNext id)
         Err msg -> Error msg
 

@@ -4,7 +4,6 @@ module Types exposing (..)
 import Dict exposing (Dict)
 import Http
 import Dom
-import Mouse
 import Navigation
 
 -- libs
@@ -54,9 +53,10 @@ type Tipe = TInt
 -- within the viewport and we map Absolute positions back to the
 -- viewport to display in the browser.
 type alias Pos = {x: Int, y: Int }
-type alias MPos = Maybe Pos
+type MPos = Free
+          | Root Pos 
+          | Dependent
 type alias VPos =  {vx: Int, vy: Int }
-type alias Position = Mouse.Position
 
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias LeftButton = Bool
@@ -71,7 +71,7 @@ type NodeType = FunctionCall
 type alias NodeDict = Dict Int Node
 type alias Node = { name : Name
                   , id : ID
-                  , pos : Pos
+                  , pos : MPos
                   , tipe : NodeType
                   , liveValue : LiveValue
                   -- for DSes

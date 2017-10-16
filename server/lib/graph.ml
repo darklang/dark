@@ -159,13 +159,13 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
          |> List.zip_exn anon_names
          |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
                           argid
-                          None
+                          Dependent
                           argname
                           i
                           nid
                           argids)
          |> List.append [ new Node.anonfn nid
-                          None
+                          Free
                           argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, pos) -> update_node_position id pos
@@ -262,7 +262,7 @@ let load (name: string) (ops: Op.op list) : graph ref =
   let g = create name in
   name
   |> filename_for
-  |> Util.readfile2 ~default:"[]"
+  |> Util.readfile ~default:"[]"
   |> Yojson.Safe.from_string
   |> oplist_of_yojson
   |> Result.ok_or_failwith

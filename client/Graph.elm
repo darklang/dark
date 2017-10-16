@@ -23,10 +23,22 @@ gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
 hasNoPos : Node -> Bool
-hasNoPos n = n.pos == {x=Defaults.unsetPosition,y=Defaults.unsetPosition}
+hasNoPos n = n.pos == Free || n.pos == Dependent
 
 hasPos : Node -> Bool
 hasPos = hasNoPos >> not
+
+pos : Node -> Pos
+pos n =
+  case n.pos of 
+    Root pos -> pos
+    _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
+
+posx : Node -> Int
+posx n = (pos n).x
+
+posy : Node -> Int
+posy n = (pos n).y
 
 isArg : Node -> Bool
 isArg n = n.tipe == Arg
@@ -97,14 +109,14 @@ orderedNodes m =
   m.nodes
     |> Dict.values
     |> List.filter (\n -> n.tipe /= FunctionDef)
-    |> List.map (\n -> (n.pos.x, n.pos.y, n.id |> deID))
+    |> List.map (\n -> (posx n, posy n, n.id |> deID))
     |> List.sortWith Ordering.natural
     |> List.map (\(_,_,id) -> getNodeExn m (ID id))
 
 distance : Node -> Node -> Float
 distance n1 n2 =
-  let xdiff = toFloat (n2.pos.x - n1.pos.x) ^ 2
-      ydiff = toFloat (n2.pos.y - n1.pos.y) ^ 2
+  let xdiff = toFloat (posx n2 - posx n1) ^ 2
+      ydiff = toFloat (posy n2 - posy n1) ^ 2
   in
     sqrt (xdiff + ydiff)
 
@@ -394,7 +406,7 @@ type alias MaxY = Int
 repositionLayout : Model -> Layout -> Model
 repositionLayout m roots =
   List.foldl (\r m -> let (LRoot n _ _) = r
-                      in posRoot m r n.pos.x n.pos.y) m roots
+                      in posRoot m r (posx n) (posy n)) m roots
 
 seen : Model -> Node -> Bool
 seen m n = case Dict.get (deID n.id) m.nodes of
@@ -403,7 +415,7 @@ seen m n = case Dict.get (deID n.id) m.nodes of
 
 position : Model -> Node -> Int -> Int -> Model
 position m n x y =
-  let nodes = Dict.insert (deID n.id) { n | pos = {x=x,y=y}} m.nodes
+  let nodes = Dict.insert (deID n.id) { n | pos = Root {x=x,y=y}} m.nodes
   in {m | nodes = nodes }
 
 max3 : Int -> Int -> Int -> Int
