@@ -2,14 +2,18 @@
 
 set -euo pipefail
 
-function fix_dir {
+function fix_dir_stdin {
   sed -e "s!$DIR!/home/dark/app!g"
+}
+
+function fix_dir_stdout {
+  sed -e "s!/home/dark/app!$DIR!g" | sed -e "s!/home/dark/.opam/.*/bin!$DIR/scripts!g"
 }
 
 # Replace any filenames with the in-container filenames (stdin)
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 ARGS=${@}
-ARGS=$(echo ${ARGS} | fix_dir)
+ARGS=$(echo ${ARGS} | fix_dir_stdin)
 
 NAME=$(docker ps --latest --quiet)
 
@@ -18,6 +22,6 @@ if [ -t 0 ] ;
 then
   docker exec -it "${NAME}" ${ARGS} ;
 else
-  # Replace any filenames with the in-container filenames (stdout + stderr)
-  { cat <&0 | fix_dir | docker exec -i "${NAME}" ${ARGS} 2>&1 1>&3 3>&- | fix_dir; } 3>&1 1>&2 | fix_dir
+  # Replace any in-container filenames with host filesnames (stdout + stderr)
+  { cat <&0 | fix_dir_stdin | docker exec -i "${NAME}" ${ARGS} 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
 fi
