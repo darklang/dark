@@ -155,10 +155,11 @@ update_ msg m =
           Selecting id ->
             case event.keyCode of
               Key.Backspace ->
-                let next = G.incomingNodes m (G.getNodeExn m id) in
-                Many [ RPC ([DeleteNode id], FocusNothing)
-                    , case List.head next of
-                        Just next -> Select next.id
+                let prev = G.incomingNodes m (G.getNodeExn m id)
+                    next = G.outgoingNodes m (G.getNodeExn m id) in
+                Many [ RPC ([DeleteNode id], FocusSame)
+                    , case List.head (List.append prev next) of
+                        Just n -> Select n.id
                         Nothing -> Deselect
                     ]
               Key.Up -> Selection.selectNextNode m id (\n o -> n.y > o.y)
