@@ -303,6 +303,8 @@ entryParser =
         , "[ 1, 2, 3, $c - 5, $c ]"
         , "$c.someField"
         , "+ + +"
+        , "if (($c % 3) == 0)"
+        , "$i % 3 == 0"
         ]
       todo_should_error =
         [ "String.concat" -- we should parse this so we can give a better warning later
