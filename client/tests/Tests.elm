@@ -185,6 +185,8 @@ entryParser =
           , E.PExpr (E.PFnCall "aFunction" []))
         , ("+ 3 4"
           , E.PExpr (E.PFnCall "+" ([E.PValue "3",E.PValue "4"])))
+        , ("+4"
+          , E.PExpr (E.PFnCall "+" ([E.PValue "4"])))
         , ("+ 3"
           , E.PExpr (E.PFnCall "+" ([E.PValue "3"])))
         , ("AfunctionWith::sInIt 5 2"
@@ -295,14 +297,18 @@ entryParser =
                       , "   .someF ield"
                       ]
 
-      todo = [ "String.concat" -- we should parse this so we can give a better warning later
-             , "{ 1: 2, 3: 4, $c: $d}"
-             , "{ $c: func ($d + 2) 5}"
-             , "[a:asd,,,, ,m,se]" -- error
-             , "[ 1, 2, 3, $c - 5, $c ]"
-             , "$c.someField"
-             , "{a:asd,,,, ,m,se}" -- error
-             ] 
+      todo_should_parse =
+        [ "{ 1: 2, 3: 4, $c: $d}"
+        , "{ $c: func ($d + 2) 5}"
+        , "[ 1, 2, 3, $c - 5, $c ]"
+        , "$c.someField"
+        , "+ + +"
+        ]
+      todo_should_error =
+        [ "String.concat" -- we should parse this so we can give a better warning later
+        , "[a:asd,,,, ,m,se]" -- error
+        , "{a:asd,,,, ,m,se}" -- error
+        ] 
       test_parsing expectedFn str =
         test ("parsing \"" ++ str ++ "\"")
           (\_ ->
