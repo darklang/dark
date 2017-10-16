@@ -1,20 +1,6 @@
 open Core
 open Lwt.Infix
 
-let readfile ?(default="") f : string =
-  (* Has a 65k limit *)
-  let flags = [Unix.O_RDONLY; Unix.O_CREAT] in
-  let file = Unix.openfile f ~mode:flags ~perm:0o640 in
-  let len = 1000000 in
-  let raw = Bytes.create len in
-  let count = Unix.read file ~buf:raw ~pos:0 ~len in
-  let str = Caml.Bytes.sub_string raw 0 count in
-  if str = "" then
-    default
-  else
-    str
-
-(* TODO: Some files only work with readfile above, some only with readfile below *)
 let readfile2 ?(default="") f : string =
   let ic = Caml.open_in f in
   try

@@ -262,7 +262,7 @@ let load (name: string) (ops: Op.op list) : graph ref =
   let g = create name in
   name
   |> filename_for
-  |> Util.readfile ~default:"[]"
+  |> Util.readfile2 ~default:"[]"
   |> Yojson.Safe.from_string
   |> oplist_of_yojson
   |> Result.ok_or_failwith
