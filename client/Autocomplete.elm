@@ -5,7 +5,6 @@ import Dict
 import Json.Decode as JSD
 import Dom.Scroll
 import Task
-import Maybe.Extra as ME
 
 -- lib
 import List.Extra as LE

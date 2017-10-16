@@ -134,7 +134,6 @@ type RPC
     | SetEdge ID (ID, ParamName)
     | DeleteNode ID
     | ClearArgs ID
-    | RemoveLastField ID
     | UpdateNodeCursor ID Cursor
     | DeleteAll
     | SavePoint

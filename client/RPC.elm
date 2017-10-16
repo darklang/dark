@@ -101,9 +101,6 @@ encodeRPC m call =
       ClearArgs id ->
         ("clear_args", JSE.object [ jseId id ])
 
-      RemoveLastField id ->
-        ("remove_last_field", JSE.object [ jseId id ])
-
       NoOp ->
         ("noop", JSE.object [])
 
