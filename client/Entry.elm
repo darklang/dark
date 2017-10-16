@@ -160,7 +160,7 @@ createArg m fn id (arg, param) =
    AValue v -> Ok [SetConstant v (id, param.name)]
    AFnCall name args -> 
      let fnid = G.gen_id ()
-     in createFn m fnid name args Dependent Nothing 
+     in createFn m fnid name args (Dependent Nothing) Nothing 
         |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
 createFn : Model -> ID -> String -> List AExpr -> MPos -> Maybe Node -> Result String (List RPC)
@@ -220,13 +220,13 @@ execute m re ast =
 
     AFillParam (APFnCall (target, param) name args) ->
       -- TODO: take over the positioning
-      case createFn m id name args Dependent Nothing of
+      case createFn m id name args (Dependent Nothing) Nothing of
         Ok fns -> RPC (fns ++ [SetEdge id (target.id, param.name)]
                       , FocusNext target.id)
         Err msg -> Error msg
 
     AFillResult (ARFieldName source name) ->
-      RPC ([ AddFunctionCall id "." Dependent
+      RPC ([ AddFunctionCall id "." (Dependent Nothing)
            , SetEdge source.id (id, "value")
            , SetConstant ("\"" ++ name ++ "\"") (id, "fieldname")]
           , FocusNext id)
@@ -240,13 +240,13 @@ execute m re ast =
               , FocusExact target.id)
 
     AFillResult (ARNewValue source value) ->
-      RPC ([ AddFunctionCall id "_" Dependent
+      RPC ([ AddFunctionCall id "_" (Dependent Nothing)
            , SetConstant value (id, "value")
            , SetEdge source.id (id, "ignore")]
           , FocusNext id)
 
     AFillResult (ARFnCall source name args) ->
-      case createFn m id name args Dependent (Just source) of
+      case createFn m id name args (Dependent Nothing) (Just source) of
         Ok fns -> RPC (fns, FocusNext id)
         Err msg -> Error msg
 

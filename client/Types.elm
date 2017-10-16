@@ -53,11 +53,14 @@ type Tipe = TInt
 -- within the viewport and we map Absolute positions back to the
 -- viewport to display in the browser.
 type alias Pos = {x: Int, y: Int }
-type MPos = Free
-          | Root Pos 
-          | Dependent
-          | NoPos
 type alias VPos =  {vx: Int, vy: Int }
+
+-- MPos is a Node's position. Only roots have a stored position
+-- server-side, but we need to position the other nodes
+type MPos = Root Pos 
+          | Free (Maybe Pos)
+          | Dependent (Maybe Pos)
+          | NoPos (Maybe Pos)
 
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias LeftButton = Bool

@@ -23,7 +23,12 @@ gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
 hasNoPos : Node -> Bool
-hasNoPos n = n.pos == Free || n.pos == Dependent
+hasNoPos n =
+  case n.pos of 
+    Free Nothing -> True
+    Dependent Nothing -> True
+    NoPos Nothing -> True
+    _ -> True
 
 hasPos : Node -> Bool
 hasPos = hasNoPos >> not
@@ -32,6 +37,8 @@ pos : Node -> Pos
 pos n =
   case n.pos of 
     Root pos -> pos
+    Free (Just pos) -> pos
+    Dependent (Just pos) -> pos
     _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
 
 posx : Node -> Int
@@ -352,8 +359,8 @@ reposition m =
       result = repositionLayout m (graph2layout m)
 
       _ = Dict.map (\k n -> if hasNoPos n
-                               then Debug.log "missed one" n
-                               else n)
+                            then Debug.log "missed one" n
+                            else n)
                    result.nodes
   in
      result

@@ -48,9 +48,9 @@ encodeRPC m call =
                      Root {x,y} -> ("pos", JSE.list [ JSE.string "Root"
                                                     , JSE.object [ ("x", JSE.int x)
                                                                  , ("y", JSE.int y)]])
-                     Dependent -> ("pos", JSE.list [ JSE.string "Dependent" ])
-                     Free -> ("pos", JSE.list [ JSE.string "Free" ])
-                     NoPos -> ("pos", JSE.list [ JSE.string "NoPos" ])
+                     Dependent _ -> ("pos", JSE.list [ JSE.string "Dependent" ])
+                     Free _ -> ("pos", JSE.list [ JSE.string "Free" ])
+                     NoPos _ -> ("pos", JSE.list [ JSE.string "NoPos" ])
       jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
@@ -174,9 +174,9 @@ decodeNode =
                      _ -> Debug.crash "shouldnt happen"
           , pos = case (posType, x, y) of
                     ("Root", Just x, Just y) -> Root {x=x, y=y}
-                    ("Dependent", Nothing, Nothing) -> Dependent
-                    ("Free", Nothing, Nothing) -> Free
-                    ("NoPos", Nothing, Nothing) -> NoPos
+                    ("Dependent", Nothing, Nothing) -> Dependent Nothing
+                    ("Free", Nothing, Nothing) -> Free Nothing
+                    ("NoPos", Nothing, Nothing) -> NoPos Nothing
                     _ -> Debug.crash "Bad Pos in RPC"
           , cursor = cursor
           , visible = tipe /= "definition"
@@ -233,8 +233,8 @@ decodeNode =
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "pos" (JSD.index 0 JSD.string)
-    |> JSDP.required "pos" (JSD.index 1 (JSD.maybe (JSD.field "x" JSD.int)))
-    |> JSDP.required "pos" (JSD.index 1 (JSD.maybe (JSD.field "y" JSD.int)))
+    |> JSDP.required "pos" (JSD.maybe (JSD.index 1 (JSD.field "x" JSD.int)))
+    |> JSDP.required "pos" (JSD.maybe (JSD.index 1 (JSD.field "y" JSD.int)))
     |> JSDP.required "cursor" JSD.int
 
 
