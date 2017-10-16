@@ -222,7 +222,7 @@ execute m re ast =
       -- TODO: take over the positioning
       case createFn m id name args Nothing Nothing of
         Ok fns -> RPC (fns ++ [SetEdge id (target.id, param.name)]
-                    , FocusNext target.id)
+                      , FocusNext target.id)
         Err msg -> Error msg
 
     AFillResult (ARFieldName source name) ->

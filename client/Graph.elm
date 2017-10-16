@@ -459,7 +459,7 @@ posParent : LParent -> TraversalInfo -> TraversalInfo
 posParent (LParent n parents) (x, y, maxX, maxY, m) =
   if seen m n then (x,y,x,y,m)
   else
-  --TODO see if we can take the first position away
+    -- TODO see if we can take the first position away
     let m2 = position m n x y in -- don't have position yet, but dont want to visit twice
     let (_, nextY, maxXps, maxYps, m3) = posParents m2 parents x y
         m4 = position m3 n x nextY
