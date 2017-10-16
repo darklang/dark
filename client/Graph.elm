@@ -23,15 +23,17 @@ gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
 hasNoPos : Node -> Bool
-hasNoPos n =
-  case n.pos of 
-    Free Nothing -> True
-    Dependent Nothing -> True
-    NoPos Nothing -> True
-    _ -> True
+hasNoPos = hasPos >> not
 
 hasPos : Node -> Bool
-hasPos = hasNoPos >> not
+hasPos n = 
+  case n.pos of 
+    Free Nothing -> False
+    Dependent Nothing -> False
+    NoPos Nothing -> False
+    _ -> True
+
+
 
 pos : Node -> Pos
 pos n =
@@ -422,7 +424,13 @@ seen m n = case Dict.get (deID n.id) m.nodes of
 
 position : Model -> Node -> Int -> Int -> Model
 position m n x y =
-  let nodes = Dict.insert (deID n.id) { n | pos = Root {x=x,y=y}} m.nodes
+  let pos = {x=x,y=y}
+      newPos = case n.pos of
+                 Root _ -> Root pos
+                 Free _ -> Free (Just pos)
+                 Dependent _ -> Dependent (Just pos)
+                 NoPos _ -> NoPos (Just pos)
+      nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
   in {m | nodes = nodes }
 
 max3 : Int -> Int -> Int -> Int
