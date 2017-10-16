@@ -33,7 +33,7 @@ type schema = { basePath: string
 let parse (filename: string) : schema =
   match
     filename
-    |> Util.readfile2
+    |> Util.readfile
     |> Yojson.Safe.from_string
     |> schema_of_yojson
   with

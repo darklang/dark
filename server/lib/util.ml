@@ -1,7 +1,7 @@
 open Core
 open Lwt.Infix
 
-let readfile2 ?(default="") f : string =
+let readfile ?(default="") f : string =
   try
     let ic = Caml.open_in f in
     (try
