@@ -50,6 +50,7 @@ encodeRPC m call =
                                                                  , ("y", JSE.int y)]])
                      Dependent -> ("pos", JSE.list [ JSE.string "Dependent" ])
                      Free -> ("pos", JSE.list [ JSE.string "Free" ])
+                     NoPos -> ("pos", JSE.list [ JSE.string "NoPos" ])
       jseId (ID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
@@ -175,6 +176,7 @@ decodeNode =
                     ("Root", Just x, Just y) -> Root {x=x, y=y}
                     ("Dependent", Nothing, Nothing) -> Dependent
                     ("Free", Nothing, Nothing) -> Free
+                    ("NoPos", Nothing, Nothing) -> NoPos
                     _ -> Debug.crash "Bad Pos in RPC"
           , cursor = cursor
           , visible = tipe /= "definition"

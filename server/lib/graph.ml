@@ -165,7 +165,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
                           nid
                           argids)
          |> List.append [ new Node.anonfn nid
-                          Free
+                          NoPos
                           argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
     | Update_node_position (id, pos) -> update_node_position id pos

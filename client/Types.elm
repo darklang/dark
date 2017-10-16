@@ -56,6 +56,7 @@ type alias Pos = {x: Int, y: Int }
 type MPos = Free
           | Root Pos 
           | Dependent
+          | NoPos
 type alias VPos =  {vx: Int, vy: Int }
 
 type alias MouseEvent = {pos: VPos, button: Int}
