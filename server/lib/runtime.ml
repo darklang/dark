@@ -21,9 +21,9 @@ and dval = DInt of int
          | DObj of dval_map
          | DIncomplete [@@deriving show, sexp]
 
-let rec to_repr_ (indent: int) (dv : dval) : string =
-  let nl = "\n" ^ (String.make indent ' ') in
-  let inl = "\n" ^ (String.make (indent + 2) ' ') in
+let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
+  let nl = if pp then "\n" ^ (String.make indent ' ') else "" in
+  let inl = if pp then "\n" ^ (String.make (indent + 2) ' ') else "" in
   let indent = indent + 2 in
   match dv with
   | DInt i -> string_of_int i
@@ -40,7 +40,7 @@ let rec to_repr_ (indent: int) (dv : dval) : string =
       then "[]"
       else
         "[ " ^ inl ^
-        (String.concat ~sep:", " (List.map ~f:(to_repr_ indent) l))
+        (String.concat ~sep:", " (List.map ~f:(to_repr_ indent pp) l))
         ^ nl ^ "]"
   | DObj o ->
     if DvalMap.is_empty o
@@ -48,13 +48,16 @@ let rec to_repr_ (indent: int) (dv : dval) : string =
     else
         let strs = DvalMap.fold o
           ~init:[]
-          ~f:(fun ~key ~data l -> (key ^ ": " ^ (to_repr_ indent data)) :: l) in
+          ~f:(fun ~key ~data l -> (key ^ ": " ^ (to_repr_ indent pp data)) :: l) in
         "{ " ^ inl ^
         (String.concat ~sep:("," ^ inl) strs)
         ^ nl ^ "}"
 
 let to_repr (dv : dval) : string =
-  to_repr_ 0 dv
+  to_repr_ 0 true dv
+
+let to_repr_ugly (dv : dval) : string =
+  to_repr_ 0 false dv
 
 
 
@@ -74,7 +77,7 @@ module RealDvalMap = Map.Make (struct
     let sexp_of_t = sexp_of_dval
   end)
 
-let rec to_string (dv : dval) : string =
+let rec to_url_string (dv : dval) : string =
   match dv with
   | DInt i -> string_of_int i
   | DBool true -> "true"
@@ -86,11 +89,11 @@ let rec to_string (dv : dval) : string =
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
-    "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_string l)) ^ " ]"
+    "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_url_string l)) ^ " ]"
   | DObj o ->
     let strs = DvalMap.fold o
         ~init:[]
-        ~f:(fun ~key ~data l -> (key ^ ": " ^ to_string data) :: l) in
+        ~f:(fun ~key ~data l -> (key ^ ": " ^ to_url_string data) :: l) in
 
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
 

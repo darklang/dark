@@ -133,9 +133,12 @@ decodeNode =
       toArg strs = case strs of
                      [name, val] -> case JSD.decodeValue JSD.string name of
                                       Result.Ok "AConst" ->
-                                        if (toString val) == "\"<incomplete>\""
-                                        then NoArg
-                                        else Const (toString val)
+                                        case JSD.decodeValue JSD.string val of
+                                                 Result.Ok stringifiedVal ->
+                                                  if stringifiedVal == "<incomplete>"
+                                                  then NoArg
+                                                  else Const stringifiedVal
+                                                 Result.Err exc -> Const (toString exc)
                                       Result.Ok "AEdge" ->
                                         val
                                         |> JSD.decodeValue JSD.int

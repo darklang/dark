@@ -74,7 +74,7 @@ let oauth_params (secret: Secret.twitter_secret) url verb (args : dval_map) : (s
                   |> DvalMap.filter_map ~f:(fun v ->
                       match v with
                       | RT.DNull -> None
-                      | v -> Some (RT.to_string v))
+                      | v -> Some (RT.to_url_string v))
                   |> DvalMap.to_alist
   in
   let signature =
@@ -103,7 +103,7 @@ let rec dvalmap2query (args: dval_map) : string =
         if data = Runtime.DIncomplete
         then RT.error "Incorrect type" ~actual:data
         else if data = Runtime.DNull then l
-        else (key ^ "=" ^ (Runtime.to_string data)) :: l)
+        else (key ^ "=" ^ (Runtime.to_url_string data)) :: l)
   |> String.concat ~sep:"&"
 
 let call (endpoint: string) (verb: Http.verb) (args: dval_map) : dval =

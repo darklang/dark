@@ -23,6 +23,15 @@ let log = Log.pp ~name:"execution"
 let loG = Log.pP ~name:"execution"
 
 (* For serializing to json only *)
+type argumentjson = AEdge of int
+                  | AConst of string [@@deriving yojson, show]
+
+let arg_to_frontend (a: RT.argument) : argumentjson =
+  match a with
+  | RT.AEdge i -> AEdge i
+  | RT.AConst c -> AConst (RT.to_repr_ugly c)
+
+
 type valuejson = { value: string
                  ; tipe: string [@key "type"]
                  ; json: string
@@ -35,7 +44,7 @@ type nodejson = { name: string
                 ; live: valuejson
                 ; cursor: int
                 ; parameters: param list
-                ; arguments: argument list
+                ; arguments: argumentjson list
                 ; anon_id: id option
                 ; arg_ids : id list
                 } [@@deriving to_yojson, show]
@@ -94,7 +103,7 @@ class virtual node id pos =
       ; live = { value = value ; tipe = tipe; json = json; exc=exc }
       ; parameters = self#parameters
       ; arguments = List.map
-            ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name)
+            ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name |> arg_to_frontend)
             self#parameters
       ; anon_id = self#anon_id
       ; arg_ids = self#arg_ids
