@@ -35,7 +35,7 @@ encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   calls
   |> List.filter ((/=) NoOp)
-  |> (\cs -> if cs == [Undo] || cs == [Redo]
+  |> (\cs -> if cs == [Undo] || cs == [Redo] || cs == []
              then cs
              else SavePoint :: cs)
   |> List.map (encodeRPC m)
