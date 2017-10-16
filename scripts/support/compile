@@ -56,14 +56,14 @@ def ocaml_build():
   # check for success
   global profile
   cd = "cd server &&"
-  build = " ocamlbuild -j 0 dark.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt > /dev/null"
+  build = " ocamlbuild -j 0 dark.native"
   if profile:
     return run_backend(cd + landmarks + build)
   else:
     return run_backend(cd + build)
 
 def ocaml_test():
-  return run_backend("cd server && ocamlbuild test.native 2>&1 | ~/bin/better-errors | tee ocamlbuild_output.txt && ! grep 'Error' ocamlbuild_output.txt && unbuffer _build/test/test.native 2>&1")
+  return run_backend("cd server && ocamlbuild test.native && unbuffer _build/test/test.native 2>&1")
 
 def reload_server():
   global profile

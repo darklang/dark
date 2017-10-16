@@ -99,19 +99,6 @@ RUN opam install ocp-indent.1.6.1 # dev
 RUN opam install batteries.2.7.0
 RUN opam install landmarks.1.1
 
-# better-errors
-RUN opam install ansiterminal.0.7
-RUN opam install pcre.7.3.0
-# The npm installer might be unreliable. Keeping these here
-# RUN git clone https://github.com/gasche/ocaml-better-errors
-# RUN sed -i ocaml-better-errors/_oasis -e s/Batteries/batteries/g
-# RUN sed -i ocaml-better-errors/_oasis -e s/Pcre/pcre/g
-# RUN cd ocaml-better-errors && oasis setup -setup-update dynamic && make
-# RUN mv ocaml-better-errors/main.byte bin/better-errors
-RUN yarn add ocamlBetterErrors
-RUN cp node_modules/ocamlBetterErrors/berror.native ~/bin/better-errors
-RUN chmod +x ~/bin/better-errors
-
 # Environment
 ENV TERM=xterm-256color
 
