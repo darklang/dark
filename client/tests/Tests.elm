@@ -185,8 +185,6 @@ entryParser =
           , E.PExpr (E.PFnCall "aFunction" []))
         , ("+ 3 4"
           , E.PExpr (E.PFnCall "+" ([E.PValue "3",E.PValue "4"])))
-        , ("+4"
-          , E.PExpr (E.PFnCall "+" ([E.PValue "4"])))
         , ("+ 3"
           , E.PExpr (E.PFnCall "+" ([E.PValue "3"])))
         , ("AfunctionWith::sInIt 5 2"
@@ -253,23 +251,6 @@ entryParser =
           , E.PExpr (E.PFnCall "==" ([E.PFnCall "%" ([E.PVar "c",E.PValue "3"]),E.PValue "0"])))
         , ("(5)"
           , E.PExpr <| E.PValue "5")
-        , ("(5 + 7)"
-          , E.PExpr (E.PFnCall "+" ([E.PValue "5", E.PValue "7"])))
-        , ("(5) == -6"
-          , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "-6"])))
-        , ("(5) == (0)"
-          , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "0"])))
-        , ("$c == 3 && $a + 1 < 4"
-          , E.PExpr
-             (E.PFnCall "&&"
-                [ (E.PFnCall "==" [E.PVar "c",E.PValue "3"])
-                , (E.PFnCall "<" 
-                   [E.PFnCall "+" [E.PVar "a",E.PValue "1"]
-                   , E.PValue "4"
-                   ]
-                  )
-                ]
-             ))
 
         -- Fieldname
         , (".someField"
@@ -305,11 +286,30 @@ entryParser =
         , "+ + +"
         , "if (($c % 3) == 0)"
         , "$i % 3 == 0"
+        , "+4"
+          -- , E.PExpr (E.PFnCall "+" ([E.PValue "4"])))
         ]
       todo_should_error =
         [ "String.concat" -- we should parse this so we can give a better warning later
         , "[a:asd,,,, ,m,se]" -- error
         , "{a:asd,,,, ,m,se}" -- error
+        , "(5 + 7)"
+          -- , E.PExpr (E.PFnCall "+" ([E.PValue "5", E.PValue "7"])))
+        , "(5) == -6"
+          -- , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "-6"])))
+        , "(5) == (0)"
+          -- , E.PExpr (E.PFnCall "==" ([E.PValue "5", E.PValue "0"])))
+        , "$c == 3 && $a + 1 < 4"
+          -- , E.PExpr
+          --    (E.PFnCall "&&"
+          --       [ (E.PFnCall "==" [E.PVar "c",E.PValue "3"])
+          --       , (E.PFnCall "<"
+          --          [E.PFnCall "+" [E.PVar "a",E.PValue "1"]
+          --          , E.PValue "4"
+          --          ]
+          --         )
+          --       ]
+          --    ))
         ] 
       test_parsing expectedFn str =
         test ("parsing \"" ++ str ++ "\"")
