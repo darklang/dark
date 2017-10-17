@@ -271,21 +271,22 @@ let rec count_subgraph_positions g (traversed:Int_set.t ref) (n:Node.node) : (in
 let verify (g: graph) : unit =
   (* if all the nodes in a subgraph are dependent/noPos, then that isn't a valid state. *)
   (* For each node, get all of its parents and children, transitively. Mark them done. Check the subgraph has exactly one root/free. *)
-  let traversed = ref (Int_set.empty) in
-  NodeMap.iter ~f:(fun n ->
-    if not (Int_set.mem !traversed n#id)
-    then
-      let (real, fake, free, dep, none) = count_subgraph_positions g traversed n in
-      if real + free <> 1
-      then Exception.user
-             ("Nodes have the wrong counts - "
-             ^ "real root: " ^ (string_of_int real)
-             ^ "fake root: " ^ (string_of_int fake)
-             ^ "free: " ^ (string_of_int free)
-             ^ "dep: " ^ (string_of_int dep)
-             ^ "none: " ^ (string_of_int none))
-      else ()
-     ) g.nodes 
+  ()
+  (* let traversed = ref (Int_set.empty) in
+   * NodeMap.iter ~f:(fun n ->
+   *   if not (Int_set.mem !traversed n#id)
+   *   then
+   *     let (real, fake, free, dep, none) = count_subgraph_positions g traversed n in
+   *     if real + free <> 1
+   *     then Exception.user
+   *            ("Nodes have the wrong counts - "
+   *            ^ "real root: " ^ (string_of_int real)
+   *            ^ "fake root: " ^ (string_of_int fake)
+   *            ^ "free: " ^ (string_of_int free)
+   *            ^ "dep: " ^ (string_of_int dep)
+   *            ^ "none: " ^ (string_of_int none))
+   *     else ()
+   *    ) g.nodes  *)
 
 
 (* ------------------------- *)
