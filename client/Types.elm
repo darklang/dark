@@ -13,6 +13,7 @@ import Keyboard.Event exposing (KeyboardEvent)
 type alias Name = String
 type alias FieldName = Name
 type alias ParamName = Name
+type alias VariableName = Name
 type alias Cursor = Int
 
 type alias Exception =
@@ -73,6 +74,7 @@ type NodeType = FunctionCall
               | Arg
 
 type alias NodeDict = Dict Int Node
+type alias NodeList = List Node
 type alias Node = { name : Name
                   , id : ID
                   , pos : MPos
@@ -150,10 +152,11 @@ type alias Autocomplete = { functions : List Function
                           , open : Bool
                           , liveValue : Maybe LiveValue
                           , tipe : Maybe Tipe
+                          , nodes : Maybe NodeList
                           }
 type AutocompleteItem = ACFunction Function
                       | ACField FieldName
-
+                      | ACVariable VariableName
 
 type alias Model = { nodes : NodeDict
                    , phantoms : NodeDict
@@ -175,7 +178,7 @@ type AutocompleteMod = ACQuery String
                      | ACSelectDown
                      | ACSelectUp
                      | ACFilterByLiveValue LiveValue
-                     | ACFilterByParamType Tipe
+                     | ACFilterByParamType Tipe NodeList
 
 type Modification = Error String
                   | ClearError

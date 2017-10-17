@@ -60,26 +60,26 @@ reenter m id i =
 
 -- Enter this exact node
 enterExact : Model -> Node -> Modification
-enterExact _ selected =
+enterExact m selected =
   Filling selected (G.findHole selected)
-  |> cursor2mod
+  |> cursor2mod (G.orderedNodes m)
 
 -- Enter the next needed node, searching from here
 enterNext : Model -> Node -> Modification
 enterNext m n =
-  cursor2mod <|
+  cursor2mod (G.orderedNodes m) <|
     case G.findNextHole m n of
       Nothing -> Filling n (ResultHole n)
       Just hole -> Filling (nodeFromHole hole) hole
 
-cursor2mod : EntryCursor -> Modification
-cursor2mod cursor =
+cursor2mod : NodeList -> EntryCursor -> Modification
+cursor2mod ns cursor =
   Many [ Enter False cursor
        , case cursor of
            Filling n (ResultHole _) ->
              AutocompleteMod <| ACFilterByLiveValue n.liveValue
            Filling _ (ParamHole _ p _) ->
-             Many [ AutocompleteMod <| ACFilterByParamType p.tipe
+             Many [ AutocompleteMod <| ACFilterByParamType p.tipe ns
                   , AutocompleteMod <| ACOpen False ]
            Creating _ ->
              NoChange

@@ -66,7 +66,7 @@ makeRandomChange m =
                    Filling n (ResultHole _) ->
                      Autocomplete.forLiveValue n.liveValue ac
                    Filling _ (ParamHole _ p _) ->
-                     Autocomplete.forParamType p.tipe ac
+                     Autocomplete.forParamType p.tipe (G.orderedNodes m) ac
                    _ -> ac)
                |> Autocomplete.regenerate
           ac2 = List.foldl (\_ ac -> Autocomplete.selectDown ac) ac (List.range 1 (1 + (r () % 10)))

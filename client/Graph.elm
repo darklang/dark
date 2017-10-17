@@ -17,7 +17,7 @@ import Maybe.Extra as ME
 -- dark
 import Types exposing (..)
 import Defaults
-import Util exposing (deMaybe)
+import Util exposing (deMaybe, int2letter, letter2int)
 
 gen_id : () -> ID
 gen_id _ = ID (Util.random ())
@@ -129,11 +129,6 @@ distance n1 n2 =
   in
     sqrt (xdiff + ydiff)
 
-int2letter : Int -> String
-int2letter i = 'a' |> Char.toCode |> (+) i |> Char.fromCode |> String.fromChar
-
-letter2int : String -> Int
-letter2int s = s |> String.uncons |> Maybe.withDefault ('!', "") |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
 
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)

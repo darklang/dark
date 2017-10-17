@@ -10,7 +10,7 @@ import Task
 import List.Extra as LE
 
 -- dark
-import Util exposing (deMaybe)
+import Util exposing (deMaybe, int2letter, letter2int)
 import Types exposing (..)
 import Runtime as RT
 
@@ -36,13 +36,14 @@ init functions = { functions = functions
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
+                 , nodes = Nothing
                  }
 
 forLiveValue : LiveValue -> Autocomplete -> Autocomplete
 forLiveValue lv a = { a | liveValue = Just lv }
 
-forParamType : Tipe -> Autocomplete -> Autocomplete
-forParamType tipe a = { a | tipe = Just tipe }
+forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
+forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
 
 reset : Autocomplete -> Autocomplete
 reset a = init a.functions
@@ -119,6 +120,7 @@ asName aci =
   case aci of
     ACFunction {name} -> name
     ACField name -> "." ++ name
+    ACVariable name -> "$" ++ name
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -129,6 +131,7 @@ asTypeString item =
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ⟶  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
+    ACVariable _ -> ""
 
 asString : AutocompleteItem -> String
 asString aci =
@@ -157,6 +160,13 @@ jsonFields json =
     |> Dict.keys
     |> List.map ACField
 
+variablesForType : NodeList -> Tipe -> List AutocompleteItem
+variablesForType ns t =
+    ns
+      |> List.indexedMap (,)
+      |> List.filter (\(_, n) -> n.liveValue.tipe == t)
+      |> List.map (\(i, _) -> int2letter i)
+      |> List.map ACVariable
 
 -- Implementation:
 -- n The autocomplete list should include:
@@ -185,6 +195,10 @@ regenerate a =
                             else []
                  Nothing -> []
 
+      -- variables
+      variables = case (a.tipe, a.nodes) of
+                      (Just t, Just ns)  -> variablesForType ns t
+                      _ -> []
       -- functions
       options =
         a.functions
@@ -198,6 +212,7 @@ regenerate a =
                Nothing -> True)
         |> List.map (\s -> ACFunction s)
         |> List.append fields
+        |> List.append variables
         |> List.filter
            (\i -> i
                   |> (\i -> if 1 >= String.length lcq
@@ -231,7 +246,7 @@ update mod a =
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
      ACFilterByLiveValue lv -> forLiveValue lv a
-     ACFilterByParamType tipe -> forParamType tipe a)
+     ACFilterByParamType tipe nodes -> forParamType tipe nodes a)
     |> regenerate
 
 

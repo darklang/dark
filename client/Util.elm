@@ -2,6 +2,7 @@ module Util exposing (..)
 
 -- builtin
 import Regex
+import Char
 
 -- lib
 import List.Extra as LE
@@ -50,3 +51,9 @@ resultIsOk r =
   case r of
     Ok _ -> True
     Err _ -> False
+
+int2letter : Int -> String
+int2letter i = 'a' |> Char.toCode |> (+) i |> Char.fromCode |> String.fromChar
+
+letter2int : String -> Int
+letter2int s = s |> String.uncons |> Maybe.withDefault ('!', "") |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
