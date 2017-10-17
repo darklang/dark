@@ -8,6 +8,7 @@ import Task
 
 -- lib
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Util exposing (deMaybe, int2letter, letter2int)
@@ -129,9 +130,23 @@ asTypeString item =
                     |> List.map .tipe
                     |> List.map RT.tipe2str
                     |> String.join ", "
-                    |> (\s -> "(" ++ s ++ ") ⟶  " ++ (RT.tipe2str f.returnTipe))
+                    |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
-    ACVariable (_, node) -> node.liveValue.value
+    ACVariable (_, n) -> Util.zip n.parameters n.arguments
+                      |> List.map (\(p, a) -> if p.tipe == TFun
+                                               then Nothing
+                                               else
+                                                   case a of
+                                                   Const c -> if c == "null" then Just "null" else Just c
+                                                   NoArg -> Just "$"
+                                                   Edge _ -> Just "$")
+                      |> List.filter ME.isJust
+                      |> List.map (\m ->
+                                       case m of
+                                           Just a -> a
+                                           Nothing -> "")
+                      |> String.join " "
+                      |> (\s -> "[" ++ n.name ++ " " ++ s ++ "] -> " ++ n.liveValue.value)
 
 asString : AutocompleteItem -> String
 asString aci =
