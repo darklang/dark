@@ -46,9 +46,8 @@ reenter : Model -> ID -> Int -> Modification
 reenter m id i =
   -- TODO: Allow the input to be edited
   let n = G.getNodeExn m id
-      args = G.args n
   in
-    case LE.getAt i args of
+    case LE.getAt i n.arguments of
       Nothing -> NoChange
       Just (p, a) ->
         let enter = Enter True <| Filling n (ParamHole n p i) in

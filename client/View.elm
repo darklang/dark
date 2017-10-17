@@ -258,8 +258,8 @@ viewNormalNode m n i =
                ]
 
       -- heading
-      params = G.args n
-              |> List.map
+      params = n.arguments
+               |> List.map
                     (\(p, a) ->
                       if p.tipe == TFun
                       then ("", "")

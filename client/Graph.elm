@@ -79,7 +79,7 @@ nodeWidth n =
                                           then 5.0
                                           else 8.0)
              |> List.sum
-    paramLen = args n
+    paramLen = n.arguments
                |> List.map (\(p, a) ->
                  if p.tipe == TFun then -space -- remove spaces
                  else
@@ -91,7 +91,7 @@ nodeWidth n =
     --                  Datastore -> 2
     --                  Page -> 2.2
     --                  _ -> 1
-    width = 6.0 + len n.name + paramLen + (args n |> List.length |> toFloat |> (+) 1.0 |> (*) space)
+    width = 6.0 + len n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 1.0 |> (*) space)
   in
     round(width)
 
@@ -149,17 +149,13 @@ getNodeExn m id = getNode m id |> deMaybe
 
 getArgument : ParamName -> Node -> Argument
 getArgument pname n =
-  case LE.find (\(p, _) -> p.name == pname) (args n) of
+  case LE.find (\(p, _) -> p.name == pname) n.arguments of
     Just (_, a) -> a
     Nothing ->
       Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ toString n
 
-args : Node -> List (Parameter, Argument)
-args n =
-  Util.zip n.parameters n.arguments
-
 findParam : Node -> Maybe (Int, (Parameter, Argument))
-findParam n = Util.findIndex (\(_, a) -> a == NoArg) (args n)
+findParam n = Util.findIndex (\(_, a) -> a == NoArg) n.arguments
 
 findHole : Node -> Hole
 findHole n =
@@ -268,7 +264,7 @@ incomingNodePairs m n = List.filterMap
                        case a of
                          Edge id -> Just (getNodeExn m id, p.name)
                          _ -> Nothing)
-                    (args n)
+                    n.arguments
 
 incomingNodes : Model -> Node -> List Node
 incomingNodes m n =

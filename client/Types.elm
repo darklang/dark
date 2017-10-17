@@ -81,8 +81,7 @@ type alias Node = { name : Name
                   -- for DSes
                   , fields : List (FieldName, Tipe)
                   -- for functions
-                  , parameters : List Parameter
-                  , arguments : List Argument
+                  , arguments : List (Parameter, Argument)
                   -- for anonfns
                   , anonID : Maybe ID
                   , argIDs : List ID

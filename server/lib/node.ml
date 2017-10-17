@@ -43,8 +43,7 @@ type nodejson = { name: string
                 ; pos : pos
                 ; live: valuejson
                 ; cursor: int
-                ; parameters: param list
-                ; arguments: argumentjson list
+                ; arguments: (param * argumentjson) list
                 ; anon_id: id option
                 ; arg_ids : id list
                 } [@@deriving to_yojson, show]
@@ -99,9 +98,8 @@ class virtual node id pos =
       ; tipe = self#tipe
       ; pos = pos
       ; live = { value = value ; tipe = tipe; json = json; exc=exc }
-      ; parameters = self#parameters
       ; arguments = List.map
-            ~f:(fun p -> RT.ArgMap.find_exn self#arguments p.name |> arg_to_frontend)
+            ~f:(fun p -> (p, RT.ArgMap.find_exn self#arguments p.name |> arg_to_frontend))
             self#parameters
       ; anon_id = self#anon_id
       ; arg_ids = self#arg_ids

@@ -131,38 +131,40 @@ decodeNode =
         , anon_args = anon_args
         , optional = optional
         , description = description}
-      toArg: List JSD.Value -> Argument
-      toArg strs = case strs of
-                     [name, val] -> case JSD.decodeValue JSD.string name of
-                                      Result.Ok "AConst" ->
-                                        case JSD.decodeValue JSD.string val of
-                                                 Result.Ok stringifiedVal ->
-                                                  if stringifiedVal == "<incomplete>"
-                                                  then NoArg
-                                                  else Const stringifiedVal
-                                                 Result.Err exc -> Const (toString exc)
-                                      Result.Ok "AEdge" ->
-                                        val
-                                        |> JSD.decodeValue JSD.int
-                                        |> Result.withDefault (-1)
-                                        |> ID
-                                        |> Edge
-                                      Result.Ok op ->
-                                        Debug.crash <| "Unexpected: " ++ op
-                                      Result.Err e ->
-                                        Debug.crash <| "Invalid: " ++ e
-                     _ -> Debug.crash "Bad argument in RPC"
-
+      toArgument: List JSD.Value -> Argument
+      toArgument strs =
+        case strs of
+          [name, val] ->
+            case JSD.decodeValue JSD.string name of
+              Result.Ok "AConst" ->
+                case JSD.decodeValue JSD.string val of
+                  Result.Ok stringifiedVal ->
+                    if stringifiedVal == "<incomplete>"
+                    then NoArg
+                    else Const stringifiedVal
+                  Result.Err exc ->
+                    Const (toString exc)
+              Result.Ok "AEdge" ->
+                val
+                |> JSD.decodeValue JSD.int
+                |> Result.withDefault (-1)
+                |> ID
+                |> Edge
+              Result.Ok op ->
+                Debug.crash <| "Unexpected: " ++ op
+              Result.Err e ->
+                Debug.crash <| "Invalid: " ++ e
+          _ ->
+            Debug.crash "Bad argument in RPC"
       toNode : Name -> Int -> List (FieldName, String) ->
-               List Parameter -> List (List JSD.Value) -> String ->
+               List (Parameter, Argument) -> String ->
                String -> String -> Maybe Exception -> Int -> List Int ->
                String -> String -> Maybe Int -> Maybe Int -> Int -> Node
-      toNode name id fields parameters arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe posType x y cursor =
+      toNode name id fields arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe posType x y cursor =
           { name = name
           , id = ID id
           , fields = List.map (\(f,tipe) -> (f, RT.str2tipe tipe)) fields
-          , parameters = parameters
-          , arguments = List.map toArg arguments
+          , arguments = arguments
           , liveValue = { value = liveValue
                         , tipe = liveTipe |> RT.str2tipe
                         , json = liveJson
@@ -209,15 +211,18 @@ decodeNode =
                                  (JSD.map2 (,)
                                     (JSD.index 0 JSD.string)
                                     (JSD.index 1 JSD.string))) []
-    |> JSDP.required "parameters"
+    |> JSDP.required "arguments"
          (JSD.list
-            (JSDP.decode toParameter
-               |> JSDP.required "name" JSD.string
-               |> JSDP.required "tipe" JSD.string
-               |> JSDP.required "anon_args" (JSD.list JSD.string)
-               |> JSDP.required "optional" JSD.bool
-               |> JSDP.required "description" JSD.string))
-    |> JSDP.required "arguments" (JSD.list (JSD.list JSD.value))
+           (JSD.map2 (,)
+            (JSD.index 0
+              (JSDP.decode toParameter
+                |> JSDP.required "name" JSD.string
+                |> JSDP.required "tipe" JSD.string
+                |> JSDP.required "anon_args" (JSD.list JSD.string)
+                |> JSDP.required "optional" JSD.bool
+                |> JSDP.required "description" JSD.string))
+            (JSD.index 1
+              (JSD.map toArgument (JSD.list JSD.value)))))
     |> JSDP.requiredAt ["live", "value"] JSD.string
     |> JSDP.requiredAt ["live", "type"] JSD.string
     |> JSDP.requiredAt ["live", "json"] JSD.string
