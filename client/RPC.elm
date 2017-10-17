@@ -106,9 +106,6 @@ encodeRPC m call =
       DeleteNode id ->
         ("delete_node", JSE.object [ jseId id ])
 
-      ClearArgs id ->
-        ("clear_args", JSE.object [ jseId id ])
-
       NoOp ->
         ("noop", JSE.object [])
 

@@ -8,25 +8,23 @@ type json = Yojson.Safe.json
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-type op = Add_fn_call of id * pos * string
+type op = NoOp
         | Add_datastore of id * pos * string
-        | Add_value of id * pos * string
-        (* id, pos, args, argnames *)
-        | Add_anon of id * pos * id list * string list
         (* id, name, type, is_list *)
         | Add_datastore_field of id * string * string * bool
-        | Update_node_position of id * pos
-        | Update_node_cursor of id * int
-        | Delete_node of id
+        | Add_fn_call of id * pos * string
+        (* id, pos, args, argnames *)
+        | Add_anon of id * pos * id list * string list
+        | Add_value of id * pos * string
         | Set_constant of id * string * string
         | Set_edge of id * id * string
-        | Delete_arg of id * string
+        | Delete_node of id
+        | Update_node_position of id * pos
+        | Update_node_cursor of id * int
         | Delete_all
-        | Clear_args of id
         | SavePoint
         | Undo
         | Redo
-        | NoOp
 [@@deriving eq, yojson, show]
 
 type oplist = op list [@@deriving eq, yojson, show]
@@ -40,11 +38,9 @@ let id_of_option op : id option =
   | Add_anon (id, _, _, _) -> Some id
   | Update_node_position (id, _) -> Some id
   | Update_node_cursor (id, _) -> Some id
-  | Clear_args (id) -> Some id
   | Delete_node (id) -> Some id
   | Add_datastore_field _ -> None
   | Set_edge _ -> None
-  | Delete_arg _ -> None
   | Delete_all -> None
   | Undo -> None
   | Redo -> None

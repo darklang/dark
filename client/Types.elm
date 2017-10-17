@@ -137,7 +137,6 @@ type RPC
     | SetConstant Name (ID, ParamName)
     | SetEdge ID (ID, ParamName)
     | DeleteNode ID
-    | ClearArgs ID
     | UpdateNodeCursor ID Cursor
     | UpdateNodePosition ID MPos
     | DeleteAll

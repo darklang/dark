@@ -80,8 +80,6 @@ class virtual node id pos =
     method arguments : arg_map = RT.ArgMap.empty
     method set_arg (name: string) (value: argument) : unit =
       Exception.internal "This node doesn't support set_arg"
-    method clear_args : unit =
-      Exception.internal "This node doesn't support clear_args"
     method delete_arg (name: string) : unit =
       Exception.internal "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
@@ -180,8 +178,6 @@ class virtual has_arguments id pos =
     method arguments = args
     method set_arg (name: string) (value: argument) : unit =
       args <- ArgMap.change args name (fun _ -> Some value)
-    method clear_args : unit =
-      args <- ArgMap.map args (fun _ -> RT.blank_arg)
     method delete_arg (name: string) : unit =
       self#set_arg name RT.blank_arg
   end

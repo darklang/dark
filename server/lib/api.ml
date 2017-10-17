@@ -12,7 +12,6 @@ type pos = Types.pos [@@deriving yojson]
 (* opcodes *)
 (* ---------------- *)
 type delete_node = { id: int } [@@deriving yojson]
-type clear_args = { id: int } [@@deriving yojson]
 type update_node_position = { id: int ; pos: pos} [@@deriving yojson]
 type update_node_cursor = { id: int ; cursor: int} [@@deriving yojson]
 type add_datastore = { id: int
@@ -38,10 +37,6 @@ type set_edge = { source: int
                 ; target: int
                 ; param: string
                 } [@@deriving yojson]
-type delete_arg = { source: int
-                   ; target: int
-                   ; param: string
-                   } [@@deriving yojson]
 type delete_all = { fake : int option [@default None]
                   } [@@deriving yojson]
 type add_datastore_field = { tipe: string [@key "type"]
@@ -71,10 +66,8 @@ type opjson =
   ; update_node_position: update_node_position option [@default None]
   ; update_node_cursor: update_node_cursor option [@default None]
   ; set_edge: set_edge option [@default None]
-  ; delete_arg: delete_arg option [@default None]
   ; delete_all: delete_all option [@default None]
   ; delete_node: delete_node option [@default None]
-  ; clear_args: clear_args option [@default None]
   ; add_datastore_field: add_datastore_field option [@default None]
   ; redo: redo option [@default None]
   ; undo: undo option [@default None]
@@ -90,10 +83,8 @@ let json2op (op: opjson) : op =
   | { undo = Some _} -> Undo
   | { savepoint = Some _} -> SavePoint
   | { add_datastore = Some a } -> Add_datastore (a.id, a.pos, a.name)
-  | { delete_arg = Some a } -> Delete_arg (a.target, a.param)
   | { delete_all = Some a } -> Delete_all
   | { delete_node = Some a } -> Delete_node a.id
-  | { clear_args = Some a } -> Clear_args a.id
   | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.args, a.argnames)
   | { add_function_call = Some a } -> Add_fn_call (a.id, a.pos, a.name)
   | { add_value = Some a } -> Add_value (a.id, a.pos, a.value)

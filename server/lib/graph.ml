@@ -112,9 +112,6 @@ let set_const (t: id) (param: string) (v : string) (g: graph) : graph =
 let set_edge (s : id) (t : id) (param: string) (g: graph) : graph =
   set_arg (RT.AEdge s) t param g
 
-let clear_args (id: id) (g: graph) : graph =
-  update_node id g ~f:(fun n -> n#clear_args; Some n)
-
 let delete_arg (t: id) (param:string) (g: graph) : graph =
   update_node t g ~f:(fun n -> n#delete_arg param; Some n)
 
@@ -173,8 +170,6 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     | Set_constant (target, param, value) ->
       set_const target param value
     | Set_edge (src, target, param) -> set_edge src target param
-    | Delete_arg (target, param) -> delete_arg target param
-    | Clear_args (id) -> clear_args id
     | Delete_node (id) -> delete_node id
     | Delete_all -> delete_all
     | NoOp -> ident
