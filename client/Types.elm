@@ -91,6 +91,8 @@ type alias Node = { name : Name
                   , cursor: Cursor
                   }
 
+type alias Variable = (VariableName, Node)
+
 type Argument = Const String
               | Edge ID
               | NoArg
@@ -156,7 +158,7 @@ type alias Autocomplete = { functions : List Function
                           }
 type AutocompleteItem = ACFunction Function
                       | ACField FieldName
-                      | ACVariable VariableName
+                      | ACVariable Variable
 
 type alias Model = { nodes : NodeDict
                    , phantoms : NodeDict

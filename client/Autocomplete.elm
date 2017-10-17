@@ -120,7 +120,7 @@ asName aci =
   case aci of
     ACFunction {name} -> name
     ACField name -> "." ++ name
-    ACVariable name -> "$" ++ name
+    ACVariable (name, _) -> "$" ++ name
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -131,7 +131,7 @@ asTypeString item =
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ⟶  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
-    ACVariable _ -> ""
+    ACVariable (_, node) -> node.liveValue.value
 
 asString : AutocompleteItem -> String
 asString aci =
@@ -165,7 +165,7 @@ variablesForType ns t =
     ns
       |> List.indexedMap (,)
       |> List.filter (\(_, n) -> n.liveValue.tipe == t)
-      |> List.map (\(i, _) -> int2letter i)
+      |> List.map (\(i, n) -> (int2letter i, n))
       |> List.map ACVariable
 
 -- Implementation:
