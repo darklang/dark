@@ -22,8 +22,8 @@ and dval = DInt of int
          | DIncomplete [@@deriving show, sexp]
 
 let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
-  let nl = if pp then "\n" ^ (String.make indent ' ') else "" in
-  let inl = if pp then "\n" ^ (String.make (indent + 2) ' ') else " " in
+  let nl = if pp then "\n" ^ (String.make indent ' ') else " " in
+  let inl = if pp then "\n" ^ (String.make (indent + 2) ' ') else "" in
   let indent = indent + 2 in
   match dv with
   | DInt i -> string_of_int i
