@@ -29,6 +29,7 @@ let server =
       try
         let ops = Api.to_ops body in
         g := !(G.load host ops);
+        G.verify !g;
         let result = !g
                      |> Graph.to_frontend_string in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in

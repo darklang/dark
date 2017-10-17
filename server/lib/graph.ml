@@ -38,16 +38,32 @@ let create (name : string) : graph ref =
       ; nodes = NodeMap.empty
       }
 
-let get_children (g: graph) (id: id) : Node.node list =
+let outgoing_nodes id g : (id * string) list =
   g.nodes
   |> NodeMap.data
-  |> List.filter ~f:(fun n ->
-      n#arguments
-     |> RT.ArgMap.data
-     |> List.filter ~f:((=) (RT.AEdge id))
-     |> List.is_empty
-     |> not)
+  |> List.map
+    ~f:(fun n ->
+        Map.filter_mapi n#arguments
+          ~f:(fun ~key ~data -> match data with | RT.AConst _ -> None
+                                                | RT.AEdge i ->
+                                                  if i = id
+                                                  then Some (n#id,key)
+                                                  else None))
+  |> List.map ~f:String.Map.data
+  |> List.concat
 
+
+
+let get_children (g: graph) (id: id) : Node.node list =
+  outgoing_nodes id g |> List.map ~f:Tuple.T2.get1 |> List.map ~f:(get_node g)
+
+let get_parents (g: graph) (id: id) : Node.node list =
+  (get_node g id)#arguments
+  |> Map.data
+  |> List.filter_map ~f:(fun arg -> match arg with | RT.AEdge id -> Some id
+                                                   | _ -> None)
+  |> List.map ~f:(get_node g)
+ 
 let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list =
   let cs = get_children g id in
   if cs = []
@@ -55,8 +71,6 @@ let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list 
   else cs
        |> List.map ~f:(fun n -> get_deepest ~depth:(depth+1) g n#id)
        |> List.concat
-
-
 
 let gfns (g: graph) : Node.gfns =
   { getf = get_node g
@@ -112,24 +126,10 @@ let add_node (node : Node.node) (g : graph) : graph =
     Exception.client "A node with this ID already exists!";
   change_node node#id g ~f:(fun x -> Some node)
 
-let incoming_nodes id g : (id * string) list =
-  g.nodes
-  |> Int.Map.data
-  |> List.map
-    ~f:(fun n ->
-        Map.filter_mapi n#arguments
-          ~f:(fun ~key ~data -> match data with | RT.AConst _ -> None
-                                                | RT.AEdge i ->
-                                                  if i = id
-                                                  then Some (n#id,key)
-                                                  else None))
-  |> List.map ~f:String.Map.data
-  |> List.concat
-
 let rec delete_node id (g: graph) : graph =
   let node = get_node g id in
   let deps = node#dependent_nodes (gfns g) in
-  let nodes = incoming_nodes id g in
+  let nodes = outgoing_nodes id g in
   let g = List.fold_left ~init:g nodes
       ~f:(fun g_ (id2, param) -> delete_arg id2 param g_) in
   let g = update_node id ~f:(fun x -> None) g in
@@ -247,11 +247,48 @@ let is_redoable (g: graph) : bool =
 (* Build *)
 (* ------------------------- *)
 
-
 let add_ops (g: graph ref) (ops: Op.op list) : unit =
   let reduced_ops = preprocess ops in
   List.iter ~f:(fun op -> apply_op op g) reduced_ops;
   g := { !g with ops = ops }
+
+
+let rec count_subgraph_positions g (traversed:Int_set.t ref) (n:Node.node) : (int * int * int * int) = 
+  if Int_set.mem !traversed n#id
+  then (0,0,0,0)
+  else
+    (traversed := Int_set.add !traversed n#id;
+    let sum = List.fold_left ~init:(0,0,0,0)
+       ~f:(fun (cs1, cs2, cs3, cs4) (c1, c2, c3, c4) ->
+             (c1+cs1, c2+cs2, c3+cs3, c4+cs4)) in
+    let parent_counts = n#id |> get_parents g |> List.map ~f:(count_subgraph_positions g traversed) in
+    let child_counts = n#id |> get_children g |> List.map ~f:(count_subgraph_positions g traversed) in 
+    let mine = match n#pos with
+    | Root _ -> (1,0,0,0)
+    | Free -> (0,1,0,0)
+    | Dependent -> (0,0,1,0)
+    | NoPos -> (0,0,0,1) in
+     sum (mine :: (List.append parent_counts child_counts))
+    )
+
+let verify (g: graph) : unit =
+  (* if all the nodes in a subgraph are dependent/noPos, then that isn't a valid state. *)
+  (* For each node, get all of its parents and children, transitively. Mark them done. Check the subgraph has exactly one root/free. *)
+  let traversed = ref (Int_set.empty) in
+  NodeMap.iter ~f:(fun n ->
+    if not (Int_set.mem !traversed n#id)
+    then
+      let (root, free, dep, none) = count_subgraph_positions g traversed n in
+      if root + free <> 1
+      then Exception.user
+             ("Nodes have the wrong counts - "
+             ^ "root: " ^ (string_of_int root)
+             ^ "free: " ^ (string_of_int free)
+             ^ "dep: " ^ (string_of_int dep)
+             ^ "none: " ^ (string_of_int none))
+      else ()
+     ) g.nodes 
+
 
 (* ------------------------- *)
 (* Serialization *)

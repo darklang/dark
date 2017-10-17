@@ -185,7 +185,7 @@ let t_node_deletion _ =
   let e1 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let d1 = Op.Delete_node (Op.id_of n2) in
   let g = ops2g "graph" [n1; n2; e1; d1] in
-  let nodes = G.incoming_nodes (Op.id_of n2) !g in
+  let nodes = G.outgoing_nodes (Op.id_of n2) !g in
   AT.check
     (AT.list (AT.pair AT.int AT.string))
     "node_deletion" [] nodes;
