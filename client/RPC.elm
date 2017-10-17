@@ -98,6 +98,11 @@ encodeRPC m call =
           JSE.object [ jseId id
                      , ("cursor", JSE.int cursor)])
 
+      UpdateNodePosition id pos ->
+        ("update_node_position",
+          JSE.object [ jseId id
+                     , jsePos pos])
+
       DeleteNode id ->
         ("delete_node", JSE.object [ jseId id ])
 

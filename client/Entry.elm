@@ -208,7 +208,7 @@ execute m re ast =
 
     AFillParam (APBlank (target, param)) ->
       RPC ([SetConstant "null" (target.id, param.name)]
-           , FocusNext target.id |> refocus re)
+          , FocusNext target.id |> refocus re)
 
     AFillParam (APVar (target, param) source) ->
       RPC ([SetEdge source.id (target.id, param.name)]
@@ -219,9 +219,15 @@ execute m re ast =
           , FocusNext target.id |> refocus re)
 
     AFillParam (APFnCall (target, param) name args) ->
-      -- TODO: take over the positioning
-      case createFn m id name args (Dependent Nothing) Nothing of
-        Ok fns -> RPC (fns ++ [SetEdge id (target.id, param.name)]
+      let (targetPos, newPos) = 
+        case target.pos of
+          Root p -> (Dependent Nothing, Root {x=p.x, y=p.y-30})
+          Free p -> (Dependent Nothing, Free p)
+          p -> (p, Dependent Nothing)
+      in
+      case createFn m id name args newPos Nothing of
+        Ok fns -> RPC (fns ++ [ SetEdge id (target.id, param.name)
+                              , UpdateNodePosition target.id targetPos]
                       , FocusNext target.id)
         Err msg -> Error msg
 

@@ -139,6 +139,7 @@ type RPC
     | DeleteNode ID
     | ClearArgs ID
     | UpdateNodeCursor ID Cursor
+    | UpdateNodePosition ID MPos
     | DeleteAll
     | SavePoint
     | Undo
