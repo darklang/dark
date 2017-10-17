@@ -29,7 +29,7 @@ type argumentjson = AEdge of int
 let arg_to_frontend (a: RT.argument) : argumentjson =
   match a with
   | RT.AEdge i -> AEdge i
-  | RT.AConst c -> AConst (RT.to_repr_ugly c)
+  | RT.AConst c -> AConst (RT.to_repr ~pp:false c)
 
 
 type valuejson = { value: string

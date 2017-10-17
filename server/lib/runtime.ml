@@ -23,7 +23,7 @@ and dval = DInt of int
 
 let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   let nl = if pp then "\n" ^ (String.make indent ' ') else "" in
-  let inl = if pp then "\n" ^ (String.make (indent + 2) ' ') else "" in
+  let inl = if pp then "\n" ^ (String.make (indent + 2) ' ') else " " in
   let indent = indent + 2 in
   match dv with
   | DInt i -> string_of_int i
@@ -53,13 +53,8 @@ let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
         (String.concat ~sep:("," ^ inl) strs)
         ^ nl ^ "}"
 
-let to_repr (dv : dval) : string =
-  to_repr_ 0 true dv
-
-let to_repr_ugly (dv : dval) : string =
-  to_repr_ 0 false dv
-
-
+let to_repr ?(pp : bool = true) (dv : dval) : string =
+  to_repr_ 0 pp dv
 
 let to_comparable_repr (dvm : dval_map) : string =
   Map.to_alist ~key_order:`Increasing dvm
