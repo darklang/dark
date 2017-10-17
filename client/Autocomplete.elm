@@ -132,7 +132,7 @@ asTypeString item =
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
-    ACVariable (_, n) -> Util.zip n.parameters n.arguments
+    ACVariable (_, n) -> n.arguments
                       |> List.map (\(p, a) -> if p.tipe == TFun
                                                then Nothing
                                                else
