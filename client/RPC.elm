@@ -174,7 +174,7 @@ decodeNode =
           , tipe = case tipe of
                      "datastore" -> Datastore
                      "function" -> FunctionCall
-                     "definition" -> FunctionDef
+                     "definition" -> Block
                      "value" -> Value
                      "page" -> Page
                      "arg" -> Arg

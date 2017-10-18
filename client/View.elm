@@ -172,7 +172,7 @@ viewEntry m =
 
 valueDisplayPos : Model -> Node -> Pos
 valueDisplayPos m n =
-  if (G.outgoingNodes m n |> List.length |> (==) 1) && G.hasAnonParam m n.id
+  if (G.outgoingNodes m n |> List.length |> (==) 1) && G.hasBlockParam m n.id
   then Entry.holeCreatePos m (ResultHole n)
   else
     let xpad = max (G.nodeWidth n + 50) 250
@@ -243,7 +243,7 @@ viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
   case n.tipe of
     Arg -> viewNormalNode m n i
-    FunctionDef -> Html.div [] []
+    Block -> Html.div [] []
     _ -> viewNormalNode m n i
 
 -- TODO: If there are default parameters, show them inline in
@@ -325,7 +325,7 @@ viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =
   n
     |> G.incomingNodePairs m
-    |> List.filter (\(n, p) -> n.tipe /= FunctionDef)
+    |> List.filter (\(n, _) -> G.isNotBlock n)
     |> List.map (\(n2, p) -> viewEdge m n2 n p)
 
 viewEdge : Model -> Node -> Node -> ParamName -> Svg.Svg Msg

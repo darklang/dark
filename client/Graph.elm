@@ -55,13 +55,11 @@ isArg n = n.tipe == Arg
 isNotArg : Node -> Bool
 isNotArg n = n.tipe /= Arg
 
-isAnon : Node -> Bool
-isAnon n = n.tipe == FunctionDef
+isBlock : Node -> Bool
+isBlock n = n.tipe == Block
 
-isNotAnon : Node -> Bool
-isNotAnon n = n.tipe /= FunctionDef
-
-
+isNotBlock : Node -> Bool
+isNotBlock = not << isBlock
 
 nodeWidth : Node -> Int
 nodeWidth n =
@@ -105,19 +103,17 @@ nodeSize : Node -> (Int, Int)
 nodeSize node =
   (nodeWidth node, nodeHeight node)
 
-
-
-anonNodes : Model -> List Node
-anonNodes m =
+blockNodes : Model -> List Node
+blockNodes m =
   m.nodes
     |> Dict.values
-    |> List.filter (\n -> n.tipe == FunctionDef)
+    |> List.filter isBlock
 
 orderedNodes : Model -> List Node
 orderedNodes m =
   m.nodes
     |> Dict.values
-    |> List.filter (\n -> n.tipe /= FunctionDef)
+    |> List.filter isNotBlock
     |> List.map (\n -> (posx n, posy n, n.id |> deID))
     |> List.sortWith Ordering.natural
     |> List.map (\(_,_,id) -> getNodeExn m (ID id))
@@ -285,30 +281,28 @@ getCallerOf m id =
 getArgsOf : Model -> ID -> List Node
 getArgsOf m id =
   id
-  |> getAnonNodesOf m
+  |> getBlockNodesOf m
   |> List.map (\anon -> anon |> .argIDs |> List.map (getNodeExn m))
   |> List.concat
 
-getAnonNodesOf : Model -> ID -> List Node
-getAnonNodesOf m id =
+getBlockNodesOf : Model -> ID -> List Node
+getBlockNodesOf m id =
   id
   |> getNodeExn m
   |> incomingNodePairs m
-  |> List.filter (\(n, _) -> n.tipe == FunctionDef)
+  |> List.filter (\(n, _) -> isBlock n)
   |> List.map Tuple.first
 
-hasAnonParam : Model -> ID -> Bool
-hasAnonParam m id =
+hasBlockParam : Model -> ID -> Bool
+hasBlockParam m id =
   id
   |> getNodeExn m
   |> incomingNodePairs m
-  |> List.any (\(n, _) -> n.tipe == FunctionDef)
+  |> List.any (\(n, _) -> isBlock n)
 
 entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
   fold (\n list -> n :: list) [] start (connectedNodes m)
-
-
 
 -- Considerations to postioning the graph
 --
