@@ -265,6 +265,9 @@ entryParser =
         -- Lists (TODO)
         , ("[1, 2, 3, 4]"
           , E.PExpr (E.PValue "[1, 2, 3, 4]"))
+
+        , ("if ((3 % 3) == 0)"
+          ,E.PExpr (E.PFnCall "if" ([E.PFnCall "==" ([E.PFnCall "%" ([E.PValue "3", E.PValue "3"]),E.PValue "0"])])))
         ]
       shouldntParse = [
                       -- letters

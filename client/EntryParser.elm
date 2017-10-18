@@ -75,7 +75,7 @@ top =
        -- Because we are really only allowing a short string here, 3 or
        -- 4 should be plenty. Increasing this makes parsing incredibly
        -- slow, as each expression requires n! recurses.
-       , map PExpr (expr 4)]
+       , map PExpr (expr 8)]
 
 blank : Parser ParseTree
 blank =
