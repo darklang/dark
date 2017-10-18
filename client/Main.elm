@@ -157,7 +157,7 @@ update_ msg m =
               Key.Backspace ->
                 let prev = G.incomingNodes m (G.getNodeExn m id)
                     next = G.outgoingNodes m (G.getNodeExn m id) in
-                Many [ RPC ([DeleteNode id], FocusSame)
+                Many [ RPC (Entry.withNodePositioning m [DeleteNode id], FocusSame)
                     , case List.head (List.append prev next) of
                         Just n -> Select n.id
                         Nothing -> Deselect

@@ -26,8 +26,8 @@ hasNoPos : Node -> Bool
 hasNoPos = hasPos >> not
 
 hasPos : Node -> Bool
-hasPos n = 
-  case n.pos of 
+hasPos n =
+  case n.pos of
     Free Nothing -> False
     Dependent Nothing -> False
     NoPos Nothing -> False
@@ -37,11 +37,23 @@ hasPos n =
 
 pos : Node -> Pos
 pos n =
-  case n.pos of 
+  case n.pos of
     Root pos -> pos
     Free (Just pos) -> pos
     Dependent (Just pos) -> pos
     _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
+
+isRoot : Node -> Bool
+isRoot n =
+  case n.pos of
+    Root _ -> True
+    _ -> False
+
+isFree : Node -> Bool
+isFree n =
+  case n.pos of
+    Free _ -> True
+    _ -> False
 
 posx : Node -> Int
 posx n = (pos n).x
@@ -321,6 +333,22 @@ hasBlockParam m id =
 entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
   fold (\n list -> n :: list) [] start (connectedNodes m)
+
+toSubgraphs : Model -> List (List Node)
+toSubgraphs m =
+  (List.foldl
+    (\node (subgraphs, set) ->
+      if Set.member (node.id |> deID) set
+      then (subgraphs, set)
+      else
+        let newSub = entireSubgraph m node
+            newSet = newSub |> List.map (.id >> deID) |> Set.fromList
+        in (newSub :: subgraphs, Set.union set newSet))
+    ([], Set.empty)
+    (m.nodes |> Dict.values))
+    |> Tuple.first
+
+
 
 -- Considerations to postioning the graph
 --

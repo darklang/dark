@@ -26,7 +26,7 @@ initialPos = {vx=475, vy=325}
 moveSize : Int
 moveSize = 50
 unsetInt : Int
-unsetInt = -12345678
+unsetInt = 12345678
 
 defaultEditor : Editor
 defaultEditor = {}

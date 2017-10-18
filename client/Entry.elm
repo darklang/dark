@@ -3,6 +3,7 @@ module Entry exposing (..)
 -- builtins
 import Task
 import Result exposing (Result)
+import Dict
 
 -- lib
 import Dom
@@ -11,6 +12,7 @@ import Result.Extra as RE
 import Maybe.Extra as ME
 
 -- dark
+import Util
 import Defaults
 import Graph as G exposing (posy, posx)
 import Types exposing (..)
@@ -190,48 +192,193 @@ createFn m id name args mpos implicit =
                |> RE.combine
                |> Result.map List.concat
 
+-- Algorithm: when we delete or create a node, we have a new set of
+-- subgraphs. These subgraphs may have no root/free, or multiple
+-- root/frees. All nodes are positioned already.
 
+-- If a subgraph has no root, pick the top-left node. Should it be free
+-- or root? If the deleted node was a root, than make it a root. Otherwise, make it free.
+
+-- If a subgraph has two or more roots, pick the top-left of the roots
+-- as the winner. If it has two or more frees, same deal. Use the
+-- "relative" top left, but maybe skip that for now.
+
+withNodePositioning : Model -> List RPC -> List RPC
+withNodePositioning m ops = ops ++ (createNodePositioning m ops)
+
+createNodePositioning : Model -> List RPC -> List RPC
+createNodePositioning m ops =
+  let newM = List.foldl model m ops
+      wasDelete = List.any (\op -> case op of
+                              DeleteNode id -> G.isRoot (G.getNodeExn m id)
+                              _ -> False) ops
+      subgraphs = G.toSubgraphs newM
+      topLeftOf nodes =
+        nodes
+        |> List.sortWith
+             (\n1 n2 -> case compare (G.posx n1) (G.posx n2) of
+                          EQ -> compare (G.posy n1) (G.posy n2)
+                          a -> a)
+        |> Debug.log "sorted"
+        |> List.head
+        |> Util.deMaybe
+        |> Debug.log "winner"
+  in
+    subgraphs
+    |> List.map
+        (\subgraph ->
+          let roots = List.filter G.isRoot (Debug.log "subgraph" subgraph)
+              rootCount = List.length (Debug.log "roots" roots)
+              frees = List.filter G.isFree subgraph
+              freeCount = List.length (Debug.log "frees" frees)
+          in
+            if rootCount + freeCount == 1
+            then
+              let newRoot = topLeftOf subgraph
+                  oldRoot = List.head (roots ++ frees) |> Util.deMaybe
+              in [UpdateNodePosition oldRoot.id (Dependent <| Just <| G.pos oldRoot), UpdateNodePosition newRoot.id (Root <| G.pos newRoot)]
+
+            -- TODO, if we just added a parent to the root, it should become then new root. So we actually need to pick a new root here
+            else if rootCount > 0
+            then
+              -- pick the topleft root and make it the winner, everything else is dependent
+              let winner = topLeftOf roots
+              in List.filterMap
+                  (\n -> if n == winner
+                          then Nothing
+                          else Just (UpdateNodePosition n.id (Dependent Nothing)))
+                  (roots ++ frees)
+
+            else if freeCount > 0
+            then -- pick the topleft free and make it the winner, everything else is dependent
+              let winner = topLeftOf frees
+              in List.filterMap
+                  (\n -> if n == winner
+                          then Nothing
+                          else Just (UpdateNodePosition n.id (Dependent Nothing)))
+                  frees
+
+            else -- no root or free, promote one. To free or root? If root was deleted, to a root.
+              let winner = topLeftOf subgraph in
+              if wasDelete
+              then [UpdateNodePosition winner.id (Root (G.pos winner))]
+              else [UpdateNodePosition winner.id (Free Nothing)]
+        )
+    |> List.concat
+
+
+
+
+-- The graph actions are on the server, the layout is on the client.
+-- Awkward!! We cant use the server-side to pick winners. For example,
+-- in the case that we remove a node, creating 4 new subgraphs. While
+-- the server might know the new subgraphs, it won't know the positions
+-- cause they layout is on the client. So we do a shitty model of the
+-- RPC behaviour. We could use phantom instead.
+model : RPC -> Model -> Model
+model op m =
+  let
+    param name = { name = name
+                 , tipe = TAny
+                 , anon_args = []
+                 , optional = False
+                 , description = "fake"
+                 }
+    fake id pos =
+      { name = "fake"
+      , id = ID id
+      , pos = pos
+      , tipe = FunctionCall
+      , liveValue = { value = "fake value"
+                    , tipe = TAny
+                    , json = "\" fake value \""
+                    , exc = Nothing}
+      , fields = []
+      , arguments = []
+      , blockID = Nothing
+      , argIDs = []
+      , visible = True
+      , cursor = 0
+      }
+    setArg node name arg =
+      let args = List.filter (\(p, a) -> p.name /= name) node.arguments
+      in { node | arguments = (param name, arg) :: args }
+    rmByArg cond node =
+      let args = List.filter (\(_, a) -> not (cond a)) node.arguments
+      in { node | arguments = args }
+    update ns n = Dict.insert (n.id |> deID) n ns
+    newNodes =
+      case Debug.log "op" op of
+        AddDatastore (ID id) _ pos ->
+          fake id pos |> update m.nodes
+        AddValue (ID id) _ pos ->
+          fake id pos |> update m.nodes
+
+        -- function call has args but since they dont do anything, add
+        -- them later if any set_edges come through
+        AddFunctionCall (ID id) name pos ->
+          fake id pos |> update m.nodes
+
+        -- I think the args can't be connected to anything else here, so
+        -- nbd. But, more set_edges might connect things together. But I
+        -- dont think we're dealing with that yet.
+        AddAnon (ID id) pos argids _ ->
+          fake id pos |> update m.nodes
+
+        SetConstant c (id, paramname) ->
+          setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
+        SetEdge source (target, paramname) ->
+          setArg (G.getNodeExn m target) paramname (Edge source) |> update m.nodes
+
+        DeleteNode id ->
+          let children = G.outgoingNodes m (G.getNodeExn m id)
+              newNodes = List.map (rmByArg ((==) (Edge id))) children
+              new = List.foldl (flip update) m.nodes newNodes
+          in new
+             |> Dict.remove (id |> deID)
+             |> Debug.log "removed"
+
+        -- we could model many of these, but they can't happen in an
+        -- Entry form so don't care
+        other ->
+          Debug.crash <| "Can't model this: " ++ (toString other)
+  in
+    { m | nodes = newNodes }
 
 execute : Model -> Bool -> AST -> Modification
 execute m re ast =
-  let id = G.gen_id () in
+  let id = G.gen_id ()
+      rpc = \(ops, focus) -> RPC (withNodePositioning m ops, focus) in
   case ast of
     ACreating pos (ACValue value) ->
-      RPC ([AddValue id value (Root pos)]
+      rpc ([AddValue id value (Root pos)]
           , FocusNext id)
 
     ACreating pos (ACFnCall name args) ->
       case createFn m id name args (Root pos) Nothing of
-        Ok fns -> RPC (fns, FocusNext id)
+        Ok fns -> rpc (fns, FocusNext id)
         Err msg -> Error msg
 
     AFillParam (APBlank (target, param)) ->
-      RPC ([SetConstant "null" (target.id, param.name)]
+      rpc ([SetConstant "null" (target.id, param.name)]
           , FocusNext target.id |> refocus re)
 
     AFillParam (APVar (target, param) source) ->
-      RPC ([SetEdge source.id (target.id, param.name)]
+      rpc ([SetEdge source.id (target.id, param.name)]
           , FocusNext target.id |> refocus re)
 
     AFillParam (APConst (target, param) value) ->
-      RPC ([SetConstant value (target.id, param.name)]
+      rpc ([SetConstant value (target.id, param.name)]
           , FocusNext target.id |> refocus re)
 
     AFillParam (APFnCall (target, param) name args) ->
-      let (targetPos, newPos) =
-        case target.pos of
-          Root p -> (Dependent Nothing, Root {x=p.x, y=p.y-30})
-          Free p -> (Dependent Nothing, Free p)
-          p -> (p, Dependent Nothing)
-      in
-      case createFn m id name args newPos Nothing of
-        Ok fns -> RPC (fns ++ [ SetEdge id (target.id, param.name)
-                              , UpdateNodePosition target.id targetPos]
+     case createFn m id name args (Dependent Nothing) Nothing of
+        Ok fns -> rpc (fns ++ [ SetEdge id (target.id, param.name)]
                       , FocusNext target.id)
         Err msg -> Error msg
 
     AFillResult (ARFieldName source name) ->
-      RPC ([ AddFunctionCall id "." (Dependent Nothing)
+      rpc ([ AddFunctionCall id "." (Dependent Nothing)
            , SetEdge source.id (id, "value")
            , SetConstant ("\"" ++ name ++ "\"") (id, "fieldname")]
           , FocusNext id)
@@ -241,18 +388,18 @@ execute m re ast =
       case G.findParam target of
         Nothing -> Error "There are no argument slots available"
         Just (_, (param, _)) ->
-          RPC ([ SetEdge source.id (target.id, param.name)]
+          rpc ([ SetEdge source.id (target.id, param.name)]
               , FocusExact target.id)
 
     AFillResult (ARNewValue source value) ->
-      RPC ([ AddFunctionCall id "_" (Dependent Nothing)
+      rpc ([ AddFunctionCall id "_" (Dependent Nothing)
            , SetConstant value (id, "value")
            , SetEdge source.id (id, "ignore")]
           , FocusNext id)
 
     AFillResult (ARFnCall source name args) ->
       case createFn m id name args (Dependent Nothing) (Just source) of
-        Ok fns -> RPC (fns, FocusNext id)
+        Ok fns -> rpc (fns, FocusNext id)
         Err msg -> Error msg
 
     AError msg ->
