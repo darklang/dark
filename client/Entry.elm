@@ -153,17 +153,17 @@ refocus re default =
 -- execute the AST
 ----------------------
 createArg : Model -> Function -> ID -> (AExpr, Parameter) -> Result String (List RPC)
-createArg m fn id (arg, param) = 
+createArg m fn id (arg, param) =
   case arg of
    AVar n -> Ok [SetEdge n.id (id, param.name)]
    AValue v -> Ok [SetConstant v (id, param.name)]
-   AFnCall name args -> 
+   AFnCall name args ->
      let fnid = G.gen_id ()
-     in createFn m fnid name args (Dependent Nothing) Nothing 
+     in createFn m fnid name args (Dependent Nothing) Nothing
         |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
 createFn : Model -> ID -> String -> List AExpr -> MPos -> Maybe Node -> Result String (List RPC)
-createFn m id name args mpos implicit = 
+createFn m id name args mpos implicit =
   let fn = Autocomplete.findFunction m.complete name
   in case fn of
        Nothing -> Err "fn doesnt exist"
@@ -187,8 +187,8 @@ createFn m id name args mpos implicit =
           if List.length pairs < List.length extra + List.length args
           then Err <| "Too many argument and not enough parameters: " ++ (toString pairs) ++ (toString extra) ++ (toString args)
           else (Ok fs) :: argEdges
-               |> RE.combine 
-               |> Result.map List.concat 
+               |> RE.combine
+               |> Result.map List.concat
 
 
 
@@ -197,8 +197,8 @@ execute m re ast =
   let id = G.gen_id () in
   case ast of
     ACreating pos (ACValue value) ->
-      RPC <| ([AddValue id value (Root pos)]
-             , FocusNext id)
+      RPC ([AddValue id value (Root pos)]
+          , FocusNext id)
 
     ACreating pos (ACFnCall name args) ->
       case createFn m id name args (Root pos) Nothing of
@@ -218,7 +218,7 @@ execute m re ast =
           , FocusNext target.id |> refocus re)
 
     AFillParam (APFnCall (target, param) name args) ->
-      let (targetPos, newPos) = 
+      let (targetPos, newPos) =
         case target.pos of
           Root p -> (Dependent Nothing, Root {x=p.x, y=p.y-30})
           Free p -> (Dependent Nothing, Free p)
@@ -260,11 +260,10 @@ execute m re ast =
 
     ANothing ->
       NoChange
- 
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
   let pt = EntryParser.parseFully value
   in case pt of
-    Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt 
+    Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt
     Err error -> Error <| toString error
