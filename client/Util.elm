@@ -57,3 +57,6 @@ int2letter i = 'a' |> Char.toCode |> (+) i |> Char.fromCode |> String.fromChar
 
 letter2int : String -> Int
 letter2int s = s |> String.uncons |> Maybe.withDefault ('!', "") |> Tuple.first |> Char.toCode |> (-) (Char.toCode 'a') |> (*) (-1)
+
+debugStringable : String -> a -> a
+debugStringable prefix x = Debug.log (prefix ++ ": " ++ toString x) x
