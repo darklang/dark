@@ -141,10 +141,7 @@ asTypeString item =
                                                    NoArg -> Just "$"
                                                    Edge _ -> Just "$")
                       |> List.filter ME.isJust
-                      |> List.map (\m ->
-                                       case m of
-                                           Just a -> a
-                                           Nothing -> "")
+                      |> List.map deMaybe
                       |> String.join " "
                       |> (\s -> "[" ++ n.name ++ " " ++ s ++ "] -> " ++ n.liveValue.value)
 
