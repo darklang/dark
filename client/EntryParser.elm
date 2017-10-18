@@ -37,7 +37,7 @@ token_ name ctor re =
   PInternal.Parser <| \({ source, offset, indent, context, row, col } as state) ->
     let substring = String.dropLeft offset source in
     case Regex.find (Regex.AtMost 1) re substring of
-      [{match}] -> Good (ctor match) { state | offset = offset + String.length match 
+      [{match}] -> Good (ctor match) { state | offset = offset + String.length match
                                              , col = col + String.length match}
       [] -> Bad (Parser.Parser.Fail <| "Regex not matched: " ++ name ++ (" on \"" ++ state.source ++ "\"")) state
       _ -> Debug.crash <| "Should never get more than 1 match for regex: " ++ name
@@ -45,8 +45,7 @@ token_ name ctor re =
 debug : String -> Parser a -> Parser a
 debug name =
   Parser.Parser.map (Debug.log name)
-  
-      
+
 ----------------------
 -- the actual parser
 ----------------------
@@ -99,7 +98,6 @@ parensExpr depth =
     |. symbol "("
     |= lazy (\_ -> expr depth)
     |. symbol ")"
-  
 
 value : Parser PExpr
 value =
@@ -130,7 +128,7 @@ string : Parser PExpr
 string = token "string" PValue "\"(?:[^\"\\\\]|\\\\.)*\""
 
 char : Parser PExpr
-char = token "char" PValue "'[a-z]'" 
+char = token "char" PValue "'[a-z]'"
 
 number : Parser PExpr
 number = token "number" PValue "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
@@ -138,7 +136,7 @@ number = token "number" PValue "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?"
 var : Parser PExpr
 var =
   inContext "var" <|
-  succeed PVar 
+  succeed PVar
     |. symbol "$"
     |= keep (Exactly 1) Char.isLower
 
@@ -158,7 +156,7 @@ obj : Parser PExpr
 obj = token "obj" PValue "{.*}"
 
 fnCall : Int -> Parser PExpr
-fnCall depth = 
+fnCall depth =
   inContext "fnCall" <|
   delayedCommit whitespace <|
   succeed identity
@@ -229,12 +227,12 @@ type AExpr = AFnCall String (List AExpr)
            | AVar Node
 
 type AFillParam = APBlank (Node, Parameter)
-                | APVar (Node, Parameter) Node 
-                | APConst (Node, Parameter) String 
-                | APFnCall (Node, Parameter) String (List AExpr) 
+                | APVar (Node, Parameter) Node
+                | APConst (Node, Parameter) String
+                | APFnCall (Node, Parameter) String (List AExpr)
 
 type AFillResult = ARVar Node Node
-                 | ARNewValue Node String 
+                 | ARNewValue Node String
                  | ARFnCall Node String (List AExpr)
                  | ARFieldName Node String
 
@@ -251,7 +249,7 @@ convertArg m pexpr =
         Ok converted -> Ok <| AFnCall name converted
         Err msg -> Err msg
     PValue value -> Ok <| AValue value
-    PVar letter -> 
+    PVar letter ->
       case G.fromLetter m letter of
         Just source ->
           Ok <| AVar source
@@ -262,16 +260,16 @@ pt2ast : Model -> EntryCursor -> ParseTree -> AST
 pt2ast m cursor pt =
   case (cursor, pt) of
 
-    -- Creating 
+    -- Creating
     (Creating _, PBlank) ->
       ANothing
     (Creating _, PFieldname _) ->
       AError <| "cant have a fieldname here"
-    (Creating _, PExpr (PVar _)) -> 
+    (Creating _, PExpr (PVar _)) ->
       AError <| "cant have a var here"
-    (Creating pos, PExpr (PValue value)) -> 
+    (Creating pos, PExpr (PValue value)) ->
       ACreating pos <| ACValue value
-    (Creating pos, PExpr (PFnCall name args)) -> 
+    (Creating pos, PExpr (PFnCall name args)) ->
       case convertArgs m args of
         Ok converted ->
           ACreating pos <| ACFnCall name converted
@@ -285,7 +283,7 @@ pt2ast m cursor pt =
       else ANothing
     (Filling _ (ParamHole target param _), PFieldname _) ->
       AError <| "cant have a fieldname here"
-    (Filling _ (ParamHole target param _), PExpr (PVar letter)) -> 
+    (Filling _ (ParamHole target param _), PExpr (PVar letter)) ->
       case G.fromLetter m letter of
         Just source ->
           AFillParam <| APVar (target, param) source
@@ -305,7 +303,7 @@ pt2ast m cursor pt =
       ANothing
     (Filling _ (ResultHole source), PFieldname fieldname) ->
       AFillResult <| ARFieldName source fieldname
-    (Filling _ (ResultHole source), PExpr (PVar letter)) -> 
+    (Filling _ (ResultHole source), PExpr (PVar letter)) ->
       case G.fromLetter m letter of
         Nothing ->
           AError <| "letter doesnt exist: " ++ letter
@@ -319,5 +317,3 @@ pt2ast m cursor pt =
           AFillResult <| ARFnCall source name converted
         Err msg ->
           AError msg
-
-
