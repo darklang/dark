@@ -85,7 +85,7 @@ type alias Node = { name : Name
                   -- for functions
                   , arguments : List (Parameter, Argument)
                   -- for anonfns
-                  , anonID : Maybe ID
+                  , blockID : Maybe ID
                   , argIDs : List ID
                   , visible : Bool
                   , cursor: Cursor

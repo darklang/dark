@@ -160,7 +160,7 @@ decodeNode =
                List (Parameter, Argument) -> String ->
                String -> String -> Maybe Exception -> Int -> List Int ->
                String -> String -> Maybe Int -> Maybe Int -> Int -> Node
-      toNode name id fields arguments liveValue liveTipe liveJson liveExc anonID argIDs tipe posType x y cursor =
+      toNode name id fields arguments liveValue liveTipe liveJson liveExc blockID argIDs tipe posType x y cursor =
           { name = name
           , id = ID id
           , fields = List.map (\(f,tipe) -> (f, RT.str2tipe tipe)) fields
@@ -169,7 +169,7 @@ decodeNode =
                         , tipe = liveTipe |> RT.str2tipe
                         , json = liveJson
                         , exc = liveExc}
-          , anonID = if anonID == Defaults.unsetInt then Nothing else Just <| ID anonID
+          , blockID = if blockID == Defaults.unsetInt then Nothing else Just <| ID blockID
           , argIDs = List.map ID argIDs
           , tipe = case tipe of
                      "datastore" -> Datastore

@@ -189,7 +189,7 @@ findParentBlock m n =
     Nothing -> findParentBlock m curr) Nothing
   in
     case n.tipe of
-      Arg -> Maybe.map (getNodeExn m) n.anonID
+      Arg -> Maybe.map (getNodeExn m) n.blockID
       _ -> searchParents (incomingNodes m n)
 
 -- Starting with `start`, traverse the graph, folding using `func`. Will not
@@ -273,7 +273,7 @@ getCallerOf : Model -> ID -> Maybe Node
 getCallerOf m id =
   id
   |> getNodeExn m
-  |> .anonID
+  |> .blockID
   |> Maybe.andThen (\block -> getNodeExn m block
                              |> outgoingNodes m
                              |> List.head)
