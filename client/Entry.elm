@@ -137,8 +137,8 @@ addFunction m id name pos =
 updatePreviewCursor : Model -> ID -> Int -> List RPC
 updatePreviewCursor m id step =
   let baseNode = G.getNodeExn m id in
-  let anonFuncNode = Debug.log "parent anon" (G.findParentAnon m baseNode) in
-  case anonFuncNode of
+  let blockNode = Debug.log "parent block" (G.findParentBlock m baseNode) in
+  case blockNode of
     Just n -> [UpdateNodeCursor n.id (n.cursor + step)]
     Nothing -> []
 

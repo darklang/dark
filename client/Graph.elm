@@ -182,11 +182,11 @@ findNextHole m start =
   in
     fold func Nothing start (outgoingNodes m)
 
-findParentAnon : Model -> Node -> Maybe Node
-findParentAnon m n =
+findParentBlock : Model -> Node -> Maybe Node
+findParentBlock m n =
   let searchParents = List.foldl (\curr accum -> case accum of
     Just result -> Just result
-    Nothing -> findParentAnon m curr) Nothing
+    Nothing -> findParentBlock m curr) Nothing
   in
     case n.tipe of
       Arg -> Maybe.map (getNodeExn m) n.anonID
@@ -274,7 +274,7 @@ getCallerOf m id =
   id
   |> getNodeExn m
   |> .anonID
-  |> Maybe.andThen (\anon -> getNodeExn m anon
+  |> Maybe.andThen (\block -> getNodeExn m block
                              |> outgoingNodes m
                              |> List.head)
 
@@ -282,7 +282,7 @@ getArgsOf : Model -> ID -> List Node
 getArgsOf m id =
   id
   |> getBlockNodesOf m
-  |> List.map (\anon -> anon |> .argIDs |> List.map (getNodeExn m))
+  |> List.map (\block -> block |> .argIDs |> List.map (getNodeExn m))
   |> List.concat
 
 getBlockNodesOf : Model -> ID -> List Node
