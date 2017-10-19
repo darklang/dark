@@ -613,9 +613,21 @@ root2layout m n =
       (List.map (arg2layout m) args)
       (List.map (child2layout m) children)
 
+-- we have a sorting problem in out arg2layout
+-- we sometimes get the nice if block indentation that we want, but only
+-- if we position the if first (ie. it's the first node in the list returned by outgoingNodes)
+-- if not, we get the bog standard no indentation version
+-- TODO: we need to come up with some actual rules for this
 arg2layout : Model -> Node -> LArg
 arg2layout m n =
-  LArg n (List.map (child2layout m) (outgoingNodes m n))
+  let outgoing = outgoingNodes m n
+      sortedOutgoingNodes   = List.sortWith (\a b ->
+                               case (a.name, b.name) of
+                               ("if", "if") -> EQ
+                               ("if", _)    -> LT
+                               (_, "if")    -> GT
+                               _ -> EQ) outgoing
+  in LArg n (List.map (child2layout m) sortedOutgoingNodes)
 
 parent2layout : Model -> Node -> LParent
 parent2layout m n =
