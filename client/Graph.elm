@@ -369,8 +369,8 @@ dependentNodes m n =
                           (TFun, Edge id) -> Just id
                           _ -> Nothing)
     |> List.append n.argIDs
-    |> List.append (ME.toList n.anonID)
-    |> List.append (if n.tipe == FunctionDef
+    |> List.append (ME.toList n.blockID)
+    |> List.append (if n.tipe == Block
                     then outgoingNodes m n |> List.map .id
                     else [])
     |> LE.uniqueBy deID
