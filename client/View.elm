@@ -43,11 +43,10 @@ viewError : Maybe String -> Html.Html Msg
 viewError mMsg =
   let special =
     [ Html.a
-        [ Events.onClick AddRandom , Attrs.src ""]
+        [ Events.onClick AddRandom , Attrs.src "", Attrs.class "specialButton"]
         [ Html.text "random" ]
       , Html.a
-        [ Events.onClick ClearGraph , Attrs.src ""]
-        [ Html.text "clear" ]
+        [ Events.onClick ClearGraph , Attrs.src "", Attrs.class "specialButton"]
     ]
   in
   case mMsg of
