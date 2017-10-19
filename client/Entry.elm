@@ -200,7 +200,12 @@ withNodePositioning m ops = ops ++ (createNodePositioning m ops)
 
 createNodePositioning : Model -> List RPC -> List RPC
 createNodePositioning m ops =
-  let newM = List.foldl model m ops
+  let newM = Debug.log "modelled" <| List.foldl model m ops
+      wasAddAnon =
+         List.any (\op -> case op of
+                            AddAnon _ _ _ _ -> True
+                            _ -> False)
+         ops
       deletedNode =
         ops
         |> List.filterMap (\op -> case op of
@@ -240,7 +245,11 @@ createNodePositioning m ops =
               frees = List.filter G.isFree subgraph
               freeCount = List.length (Debug.log "frees" frees)
           in
-            if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
+            if wasAddAnon
+            then []
+
+
+            else if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
             then
               -- things are exactly as they should be, but we might need
               -- to update the root on which the graph hangs. Let's take
@@ -251,10 +260,10 @@ createNodePositioning m ops =
               then []
               else [toDep root, toRoot newRoot root]
 
-            else if rootCount == 1 && freeCount == 0
+            else if rootCount == 0 && freeCount == 1
             then
               -- Same, but with frees
-              let free = List.head roots |> Util.deMaybe
+              let free = List.head frees |> Util.deMaybe
                   newFree = G.highestParent newM free in
               if newFree == free
               then []
@@ -321,9 +330,9 @@ model op m =
       , visible = True
       , cursor = 0
       }
-    rmByArg cond node =
-      let args = List.filter (\(_, a) -> not (cond a)) node.arguments
-      in { node | arguments = args }
+    setArg node name arg =
+      let args = List.filter (\(p, a) -> p.name /= name) node.arguments
+      in { node | arguments = (param name, arg) :: args }
     update ns n = Dict.insert (n.id |> deID) n ns
     newNodes =
       case Debug.log "op" op of
@@ -344,9 +353,9 @@ model op m =
           fake id pos |> update m.nodes
 
         SetConstant c (id, paramname) ->
-          G.setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
+          setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
         SetEdge source (target, paramname) ->
-          G.setArg (G.getNodeExn m target) paramname (Edge source) |> update m.nodes
+          setArg (G.getNodeExn m target) paramname (Edge source) |> update m.nodes
 
         DeleteNode id ->
           (G.deleteNode m id).nodes

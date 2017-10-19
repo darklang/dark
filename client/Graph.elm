@@ -376,37 +376,10 @@ dependentNodes m n =
     |> LE.uniqueBy deID
     |> Debug.log "clearing dependents"
 
-  -- TODO: if is anon, then the foreach/if is a dependent
-
-setArg : Node -> ParamName -> Argument -> Node
-setArg node name arg =
-  let args = List.map (\(p, a) ->
-    if p.name == name then (p, arg) else (p,a)) node.arguments
-  in { node | arguments = args }
-
 deleteArg : (Argument -> Bool) -> Node -> Node
 deleteArg cond n =
   let args = List.filter (\(_, a) -> not (cond a)) n.arguments
   in { n | arguments = args }
-
--- ported from backend
--- todo : Model -> ID -> List ID
--- todo m id =
---   let n = getNodeExn m id
---       deps = dependentNodes m n
---       ns1 = outgoingNodes m n
---       ns2 = List.map (deleteArg ((/=) (Edge n.id))) ns1
---       nd1 = List.foldl (\n ns -> Dict.insert (n.id |> deID) n ns) m.nodes ns2
---       nd2 = Dict.remove (id |> deID) nd1
---       m2 = List.foldl
---              (\d newM ->
---                if hasNode newM d
---                then deleteNode newM d
---                else newM)
---              { m | nodes = nd2 }
---              deps
---   in m2
-
 
 -- ported from backend
 nodesForDeletion : Model -> ID -> List ID
@@ -437,10 +410,17 @@ deleteNode m id =
   let ids = nodesForDeletion m id
 
       -- remove the nodes
-      remaining = Dict.filter (\_ n -> List.member n.id ids) m.nodes
+      remaining = Dict.filter (\_ n -> not <| List.member n.id ids) m.nodes
 
       -- remove any args pointing to the nodes
-      nodes = Dict.map (\_ n -> deleteArg ((/=) (Edge n.id)) n) remaining
+      nodes = Dict.map
+               (\_ n ->
+                  List.foldl
+                    (\id n -> deleteArg ((==) (Edge id)) n)
+                    n
+                    (n.id :: ids)
+               )
+               remaining
   in { m | nodes = nodes }
 
 
