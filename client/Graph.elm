@@ -278,18 +278,6 @@ incomingNodePairs m n = List.filterMap
                          _ -> Nothing)
                     n.arguments
 
-argumentEdges : Model -> Node -> List Node
-argumentEdges m n = if isNotFunctionCall n then []
-                    else
-                        n.arguments
-                        |> List.filterMap (\(p, a) ->
-                                case a of
-                                    Edge id -> Just <| getNodeExn m id
-                                    _ -> Nothing)
-                        |> List.filter isBlock
-                        |> List.concatMap (\n -> n.argIDs)
-                        |> List.map (\id -> getNodeExn m id)
-
 incomingNodes : Model -> Node -> List Node
 incomingNodes m n =
   incomingNodePairs m n

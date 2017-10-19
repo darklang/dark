@@ -322,17 +322,9 @@ edgeStyle =
   ]
 
 viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
-viewNodeEdges m n =
-    let incomingEdges = n
-                      |> G.incomingNodePairs m
-                      |> List.map Tuple.first
-                      |> List.filter G.isNotBlock
-                      |> (List.map <| viewEdge m n)
-        argumentEdges = n
-                      |> G.argumentEdges m
-                      |> (List.map <| viewEdge m n)
-    in
-        incomingEdges ++ argumentEdges
+viewNodeEdges m n = n
+                    |> G.outgoingNodes m
+                    |> (List.map <| viewEdge m n)
 
 viewEdge : Model -> Node -> Node -> Svg.Svg Msg
 viewEdge m source target =
