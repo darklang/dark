@@ -61,6 +61,12 @@ isBlock n = n.tipe == Block
 isNotBlock : Node -> Bool
 isNotBlock = not << isBlock
 
+isFunctionCall : Node -> Bool
+isFunctionCall n = n.tipe == FunctionCall
+
+isNotFunctionCall : Node -> Bool
+isNotFunctionCall = not << isFunctionCall
+
 nodeWidth : Node -> Int
 nodeWidth n =
   let
@@ -256,6 +262,18 @@ incomingNodePairs m n = List.filterMap
                          Edge id -> Just (getNodeExn m id, p.name)
                          _ -> Nothing)
                     n.arguments
+
+argumentEdges : Model -> Node -> List Node
+argumentEdges m n = if isNotFunctionCall n then []
+                    else
+                        n.arguments
+                        |> List.filterMap (\(p, a) ->
+                                case a of
+                                    Edge id -> Just <| getNodeExn m id
+                                    _ -> Nothing)
+                        |> List.filter isBlock
+                        |> List.concatMap (\n -> n.argIDs)
+                        |> List.map (\id -> getNodeExn m id)
 
 incomingNodes : Model -> Node -> List Node
 incomingNodes m n =
