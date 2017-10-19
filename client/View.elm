@@ -325,11 +325,12 @@ viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
 viewNodeEdges m n =
     let incomingEdges = n
                       |> G.incomingNodePairs m
-                      |> List.filter (\(n, _) -> G.isNotBlock n)
-                      |> List.map (\(n2, _) -> viewEdge m n2 n)
+                      |> List.map Tuple.first
+                      |> List.filter G.isNotBlock
+                      |> (List.map <| viewEdge m n)
         argumentEdges = n
                       |> G.argumentEdges m
-                      |> List.map(\n2 -> viewEdge m n2 n)
+                      |> (List.map <| viewEdge m n)
     in
         incomingEdges ++ argumentEdges
 
