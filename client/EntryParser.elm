@@ -70,7 +70,7 @@ toErrorMessage pe = case pe.cursor of
                       Nothing -> noContextErrorMessage pe
 
 noContextErrorMessage : ParseError -> String
-noContextErrorMessage pe = "Error parsing expression: `" ++ pe.source ++ "`: " ++ (toString pe.problem)
+noContextErrorMessage pe = "Error parsing expression: `" ++ pe.source ++ "`: " ++ (ppProblem pe.problem)
 
 ppProblem : Problem -> String
 ppProblem p = case p of
