@@ -152,11 +152,14 @@ update_ msg m =
           _ -> NoChange
       else
         case state of
-          Selecting id ->
+          Selecting id_ ->
+            -- quick error checking, in case the focus has gone bad
+            if not <| G.hasNode m id_ then Entry.createFindSpace m else let id = id_ in
             case event.keyCode of
               Key.Backspace ->
                 let prev = G.incomingNodes m (G.getNodeExn m id)
                     next = G.outgoingNodes m (G.getNodeExn m id) in
+                -- FocusSame gets called later, after the RPC, so just doesn't change anything
                 Many [ RPC (Entry.withNodePositioning m [DeleteNode id], FocusSame)
                     , case List.head (List.append prev next) of
                         Just n -> Select n.id
