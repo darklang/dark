@@ -72,6 +72,13 @@ toErrorMessage pe = case pe.cursor of
 noContextErrorMessage : ParseError -> String
 noContextErrorMessage pe = "Error parsing expression: `" ++ pe.source ++ "`: " ++ (toString pe.problem)
 
+ppProblem : Problem -> String
+ppProblem p = case p of
+                  Parser.Parser.BadOneOf l -> case List.head l of
+                                                  Just h -> toString h
+                                                  Nothing -> "Unknown"
+                  _ -> toString p
+
 
 type ParseTree = PBlank
                | PExpr PExpr
