@@ -192,27 +192,27 @@ createFn m id name args mpos implicit =
                |> RE.combine
                |> Result.map List.concat
 
--- Algorithm: when we delete or create a node, we have a new set of
--- subgraphs. These subgraphs may have no root/free, or multiple
--- root/frees. All nodes are positioned already.
-
--- If a subgraph has no root, pick the top-left node. Should it be free
--- or root? If the deleted node was a root, than make it a root. Otherwise, make it free.
-
--- If a subgraph has two or more roots, pick the top-left of the roots
--- as the winner. If it has two or more frees, same deal. Use the
--- "relative" top left, but maybe skip that for now.
-
+-- When we delete or create a node, we have a new set of subgraphs.
+-- These subgraphs may have no root/free, or multiple root/frees. So we
+-- need to reset them, and get the graph to be consistent.
 withNodePositioning : Model -> List RPC -> List RPC
 withNodePositioning m ops = ops ++ (createNodePositioning m ops)
 
 createNodePositioning : Model -> List RPC -> List RPC
 createNodePositioning m ops =
   let newM = List.foldl model m ops
-      wasDelete = List.any (\op -> case op of
-                              DeleteNode id -> G.isRoot (G.getNodeExn m id)
-                              _ -> False) ops
+      deletedNode =
+        ops
+        |> List.filterMap (\op -> case op of
+                                 DeleteNode id -> Just (G.getNodeExn m id)
+                                 _ -> Nothing)
+        |> List.head
+      deletedWasRoot = ME.unwrap False G.isRoot deletedNode
       subgraphs = G.toSubgraphs newM
+      toDep n = UpdateNodePosition n.id (Dependent <| Just <| G.pos n)
+      toRoot n root = UpdateNodePosition n.id (Root <| G.pos root)
+      toFree n = UpdateNodePosition n.id (Free <| Just <| G.pos n)
+      without n ns = List.filter ((/=) n) ns
       topLeftOf nodes =
         nodes
         |> List.sortWith
@@ -226,47 +226,68 @@ createNodePositioning m ops =
   in
     subgraphs
     |> List.map
-        (\subgraph ->
+        -- Technically, we store positions on nodes. Let's ignore that
+        -- for a sec. Actually, it is subgraphs that have positions. The
+        -- entire subgraph (aka cluster of connected nodes) has a single
+        -- position. So we could, theoretically store positions on
+        -- subgraphs on the server.
+        -- However, we also need to store the node off of which the
+        -- subgraph "hangs", as this is difficult (and potentialy
+        -- inconsistent) to figure out dynamically.
+       (\subgraph ->
           let roots = List.filter G.isRoot (Debug.log "subgraph" subgraph)
               rootCount = List.length (Debug.log "roots" roots)
               frees = List.filter G.isFree subgraph
               freeCount = List.length (Debug.log "frees" frees)
           in
-            if rootCount + freeCount == 1
+            if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
             then
-              let newRoot = topLeftOf subgraph
-                  oldRoot = List.head (roots ++ frees) |> Util.deMaybe
-              in [UpdateNodePosition oldRoot.id (Dependent <| Just <| G.pos oldRoot), UpdateNodePosition newRoot.id (Root <| G.pos newRoot)]
+              -- things are exactly as they should be, but we might need
+              -- to update the root on which the graph hangs. Let's take
+              -- the root and climb its parents.
+              let root = List.head roots |> Util.deMaybe
+                  newRoot = G.highestParent newM root in
+              if newRoot == root
+              then []
+              else [toDep root, toRoot newRoot root]
 
-            -- TODO, if we just added a parent to the root, it should become then new root. So we actually need to pick a new root here
-            else if rootCount > 0
+            else if rootCount == 1 && freeCount == 0
             then
-              -- pick the topleft root and make it the winner, everything else is dependent
-              let winner = topLeftOf roots
-              in List.filterMap
-                  (\n -> if n == winner
-                          then Nothing
-                          else Just (UpdateNodePosition n.id (Dependent Nothing)))
-                  (roots ++ frees)
+              -- Same, but with frees
+              let free = List.head roots |> Util.deMaybe
+                  newFree = G.highestParent newM free in
+              if newFree == free
+              then []
+              else [toDep free, toFree newFree]
 
-            else if freeCount > 0
-            then -- pick the topleft free and make it the winner, everything else is dependent
-              let winner = topLeftOf frees
-              in List.filterMap
-                  (\n -> if n == winner
-                          then Nothing
-                          else Just (UpdateNodePosition n.id (Dependent Nothing)))
-                  frees
+            -- We just merged some graphs. Let's pick the top-left root,
+            -- and get rid of all other positions.
+            else if rootCount >= 1
+            then let winner = topLeftOf roots
+                 in List.map toDep (without winner (roots ++ frees))
 
-            else -- no root or free, promote one. To free or root? If root was deleted, to a root.
-              let winner = topLeftOf subgraph in
-              if wasDelete
-              then [UpdateNodePosition winner.id (Root (G.pos winner))]
-              else [UpdateNodePosition winner.id (Free Nothing)]
+            -- Same, for free
+            else if freeCount >= 1
+            then let winner = topLeftOf frees
+                 in List.map toDep (without winner (roots ++ frees))
+
+            -- We might just have deleted the node on which this graph
+            -- hung, and that stored the position. It's first child in
+            -- this subgraph is the best choice. But, nodes are actually
+            -- laid out here, so let's pick the top-left in the subgraph
+            -- cause it's simpler.
+            -- TODO: we might get multiple subgraphs in the same position...
+            else if rootCount + freeCount == 0 && deletedWasRoot
+            then [toRoot (topLeftOf subgraph) (deletedNode |> Util.deMaybe)]
+
+            -- These nodes are also laid out, so pick the top-left
+            else if rootCount + freeCount == 0 && not deletedWasRoot
+            then [toFree (topLeftOf subgraph)]
+            else
+              Debug.log "no weird subgraph condition found" []
         )
-    |> List.concat
-
-
+      |> List.concat
+      |> Debug.log "new ops"
 
 
 -- The graph actions are on the server, the layout is on the client.
@@ -300,9 +321,6 @@ model op m =
       , visible = True
       , cursor = 0
       }
-    setArg node name arg =
-      let args = List.filter (\(p, a) -> p.name /= name) node.arguments
-      in { node | arguments = (param name, arg) :: args }
     rmByArg cond node =
       let args = List.filter (\(_, a) -> not (cond a)) node.arguments
       in { node | arguments = args }
@@ -326,17 +344,13 @@ model op m =
           fake id pos |> update m.nodes
 
         SetConstant c (id, paramname) ->
-          setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
+          G.setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
         SetEdge source (target, paramname) ->
-          setArg (G.getNodeExn m target) paramname (Edge source) |> update m.nodes
+          G.setArg (G.getNodeExn m target) paramname (Edge source) |> update m.nodes
 
         DeleteNode id ->
-          let children = G.outgoingNodes m (G.getNodeExn m id)
-              newNodes = List.map (rmByArg ((==) (Edge id))) children
-              new = List.foldl (flip update) m.nodes newNodes
-          in new
-             |> Dict.remove (id |> deID)
-             |> Debug.log "removed"
+          (G.deleteNode m id).nodes
+
 
         -- we could model many of these, but they can't happen in an
         -- Entry form so don't care

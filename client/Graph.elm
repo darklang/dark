@@ -150,6 +150,9 @@ fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
 toLetter : Model -> ID -> String
 toLetter m id = m |> orderedNodes |> LE.findIndex (\n -> n.id == id) |> deMaybe |> int2letter
 
+hasNode : Model -> ID -> Bool
+hasNode m id = Dict.member (deID id) m.nodes
+
 getNode : Model -> ID -> Maybe Node
 getNode m id = Dict.get (deID id) m.nodes
 
@@ -348,6 +351,98 @@ toSubgraphs m =
     (m.nodes |> Dict.values))
     |> Tuple.first
 
+-- Only follows the first edge, goes as high as it can. This is intended
+-- to allow more consistency. Once it hit a node with no parents, it's
+-- done (even if the parent's sibling might have a higher parent).
+highestParent : Model -> Node -> Node
+highestParent m n =
+  case incomingNodes m n |> List.head of
+    Just node -> highestParent m node
+    Nothing -> n
+
+-- ported from backend
+dependentNodes : Model -> Node -> List ID
+dependentNodes m n =
+  n.arguments
+    |> List.filterMap (\(p, a) ->
+                          case (p.tipe, a) of
+                          (TFun, Edge id) -> Just id
+                          _ -> Nothing)
+    |> List.append n.argIDs
+    |> List.append (ME.toList n.anonID)
+    |> List.append (if n.tipe == FunctionDef
+                    then outgoingNodes m n |> List.map .id
+                    else [])
+    |> LE.uniqueBy deID
+    |> Debug.log "clearing dependents"
+
+  -- TODO: if is anon, then the foreach/if is a dependent
+
+setArg : Node -> ParamName -> Argument -> Node
+setArg node name arg =
+  let args = List.map (\(p, a) ->
+    if p.name == name then (p, arg) else (p,a)) node.arguments
+  in { node | arguments = args }
+
+deleteArg : (Argument -> Bool) -> Node -> Node
+deleteArg cond n =
+  let args = List.filter (\(_, a) -> not (cond a)) n.arguments
+  in { n | arguments = args }
+
+-- ported from backend
+-- todo : Model -> ID -> List ID
+-- todo m id =
+--   let n = getNodeExn m id
+--       deps = dependentNodes m n
+--       ns1 = outgoingNodes m n
+--       ns2 = List.map (deleteArg ((/=) (Edge n.id))) ns1
+--       nd1 = List.foldl (\n ns -> Dict.insert (n.id |> deID) n ns) m.nodes ns2
+--       nd2 = Dict.remove (id |> deID) nd1
+--       m2 = List.foldl
+--              (\d newM ->
+--                if hasNode newM d
+--                then deleteNode newM d
+--                else newM)
+--              { m | nodes = nd2 }
+--              deps
+--   in m2
+
+
+-- ported from backend
+nodesForDeletion : Model -> ID -> List ID
+nodesForDeletion m id =
+  let n = getNodeExn m id
+      deps = dependentNodes m n
+      -- recursion will be messy, but go 3 layers down.
+      transitive =
+        List.map (\id -> dependentNodes m (getNodeExn m id)) deps
+      transitive2 =
+        transitive
+        |> List.concat
+        |> List.map (\id -> dependentNodes m (getNodeExn m id))
+      transitive3 =
+        transitive2
+        |> List.concat
+        |> List.map (\id -> dependentNodes m (getNodeExn m id))
+  in
+      transitive3
+      |> List.concat
+      |> (++) deps
+      |> (::) id
+      |> LE.uniqueBy deID
+
+
+deleteNode : Model -> ID -> Model
+deleteNode m id =
+  let ids = nodesForDeletion m id
+
+      -- remove the nodes
+      remaining = Dict.filter (\_ n -> List.member n.id ids) m.nodes
+
+      -- remove any args pointing to the nodes
+      nodes = Dict.map (\_ n -> deleteArg ((/=) (Edge n.id)) n) remaining
+  in { m | nodes = nodes }
+
 
 
 -- Considerations to postioning the graph
@@ -388,11 +483,12 @@ toSubgraphs m =
 --   - return new depth
 reposition : Model -> Model
 reposition m =
-  let roots = List.filter hasPos (Dict.values m.nodes)
+  let subgraphs = toSubgraphs m
+      roots = List.filter hasPos (Dict.values m.nodes)
       result = repositionLayout m (graph2layout m)
 
       _ = Dict.map (\k n -> if hasNoPos n
-                            then Debug.log "missed one" n
+                            then if isFree n then Debug.log "unpositioned free" n else Debug.log "missed one" n
                             else n)
                    result.nodes
   in
