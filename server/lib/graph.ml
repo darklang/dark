@@ -63,7 +63,7 @@ let get_parents (g: graph) (id: id) : Node.node list =
   |> List.filter_map ~f:(fun arg -> match arg with | RT.AEdge id -> Some id
                                                    | _ -> None)
   |> List.map ~f:(get_node g)
- 
+
 let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list =
   let cs = get_children g id in
   if cs = []
@@ -93,7 +93,10 @@ let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : gra
             | None -> Exception.client "can't update missing node")
 
 let update_node_position (id: id) (pos: pos) (g: graph) : graph =
-  update_node id g ~f:(fun n -> n#update_pos pos; Some n)
+  if has_node id g
+  then
+    update_node id g ~f:(fun n -> n#update_pos pos; Some n)
+  else g
 
 let update_node_cursor (id: id) (cursor: int) (g: graph) : graph =
   update_node id g ~f:(fun n -> n#update_cursor cursor; Some n)
@@ -248,7 +251,7 @@ let add_ops (g: graph ref) (ops: Op.op list) : unit =
   g := { !g with ops = ops }
 
 
-let rec count_subgraph_positions g (traversed:Int_set.t ref) (n:Node.node) : (int * int * int * int * int) = 
+let rec count_subgraph_positions g (traversed:Int_set.t ref) (n:Node.node) : (int * int * int * int * int) =
   if Int_set.mem !traversed n#id
   then (0,0,0,0,0)
   else
@@ -257,7 +260,7 @@ let rec count_subgraph_positions g (traversed:Int_set.t ref) (n:Node.node) : (in
        ~f:(fun (cs1, cs2, cs3, cs4, cs5) (c1, c2, c3, c4, c5) ->
              (c1+cs1, c2+cs2, c3+cs3, c4+cs4, c5+cs5)) in
     let parent_counts = n#id |> get_parents g |> List.map ~f:(count_subgraph_positions g traversed) in
-    let child_counts = n#id |> get_children g |> List.map ~f:(count_subgraph_positions g traversed) in 
+    let child_counts = n#id |> get_children g |> List.map ~f:(count_subgraph_positions g traversed) in
     let mine = match n#pos with
     | Root _ -> if get_parents g n#id |> List.length |> (=) 0
                 then (1,0,0,0,0)
