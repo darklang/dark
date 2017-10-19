@@ -621,12 +621,12 @@ root2layout m n =
 arg2layout : Model -> Node -> LArg
 arg2layout m n =
   let outgoing = outgoingNodes m n
-      sortedOutgoingNodes   = List.sortWith (\a b ->
-                               case (a.name, b.name) of
-                               ("if", "if") -> EQ
-                               ("if", _)    -> LT
-                               (_, "if")    -> GT
-                               _ -> EQ) outgoing
+      sortedOutgoingNodes = List.sortWith (\a b ->
+                              case (a.name, b.name) of
+                              ("if", "if") -> EQ
+                              ("if", _)    -> LT
+                              (_, "if")    -> GT
+                              _            -> EQ) outgoing
   in LArg n (List.map (child2layout m) sortedOutgoingNodes)
 
 parent2layout : Model -> Node -> LParent
