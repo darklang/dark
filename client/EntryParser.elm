@@ -60,8 +60,20 @@ fromParserError p = { source = p.source, problem = p.problem, cursor = Nothing }
 addCursorToError : ParseError -> EntryCursor -> ParseError
 addCursorToError pe c = { pe | cursor = Just c }
 
+
+maxErrorSize : Int
+maxErrorSize = 70
+
 toErrorMessage : ParseError -> String
-toErrorMessage pe = case pe.cursor of
+toErrorMessage pe = pe
+                  |> toFullErrorMessage
+                  |> (\x -> if (String.length x) > maxErrorSize
+                            then (String.slice 0 (maxErrorSize - 3) x) ++ "..."
+                            else x
+                     )
+
+toFullErrorMessage : ParseError -> String
+toFullErrorMessage pe = case pe.cursor of
                       Just c  -> case c of
                                      Creating _ -> noContextErrorMessage pe
                                      Filling n h -> case h of
