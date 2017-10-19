@@ -47,6 +47,7 @@ viewError mMsg =
         [ Html.text "random" ]
       , Html.a
         [ Events.onClick ClearGraph , Attrs.src "", Attrs.class "specialButton"]
+        [ Html.text "clear" ]
     ]
   in
   case mMsg of
