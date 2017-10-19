@@ -18,7 +18,7 @@ timestamp a = Native.Timestamp.timestamp a
 
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
-               in (size.width, size.height)
+               in (size.width, size.height - 45) -- TODO: fix this
 
 random : () -> Int
 random a = Native.Random.random a

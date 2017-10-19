@@ -35,13 +35,13 @@ view m =
                  [ SA.width "100%"
                  , SA.height (toString h) ]
                  (viewCanvas m)
+               , viewButtons
                ]
  in
     grid
 
-viewError : Maybe String -> Html.Html Msg
-viewError mMsg =
-  let special =
+viewButtons : Html.Html Msg
+viewButtons = Html.div [Attrs.id "buttons"]
     [ Html.a
         [ Events.onClick AddRandom , Attrs.src "", Attrs.class "specialButton"]
         [ Html.text "random" ]
@@ -49,12 +49,13 @@ viewError mMsg =
         [ Events.onClick ClearGraph , Attrs.src "", Attrs.class "specialButton"]
         [ Html.text "clear" ]
     ]
-  in
-  case mMsg of
+
+viewError : Maybe String -> Html.Html Msg
+viewError mMsg = case mMsg of
     Just msg ->
-      Html.div [Attrs.id "darkErrors"] (special ++ [Html.text msg])
+      Html.div [Attrs.id "darkErrors"] [Html.text msg]
     Nothing ->
-      Html.div [] special
+      Html.div [Attrs.id "darkErrors"] [Html.text "Dark"]
 
 
 

@@ -198,6 +198,11 @@ Node Header
 /*   right: 0px; */
 /* } */
 
+#buttons {
+    position: absolute;
+    left: 0px;
+}
+
 .specialButton {
   margin-right: 4px;
 }
