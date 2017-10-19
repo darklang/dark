@@ -7,22 +7,21 @@ import Char
 
 -- lib
 import Result.Extra as RE
-import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..), inContext, delayedCommit)
+import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..), inContext, delayedCommit, Problem)
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
 import Graph as G
 import Types exposing (..)
 
-
 --------------------------------
 -- parsing framework
 --------------------------------
 
-parseFully : String -> Result String ParseTree
+parseFully : String -> Result ParseError ParseTree
 parseFully str =
   Parser.Parser.run full (Debug.log "starting to parse" str)
-    |> Result.mapError toString
+    |> Result.mapError fromParserError
     |> Result.map (Debug.log "parsed")
 
 token : String -> (String -> a) -> String -> Parser a
@@ -49,6 +48,30 @@ debug name =
 ----------------------
 -- the actual parser
 ----------------------
+
+type alias ParseError = { source : String
+                        , problem : Problem
+                        , cursor  : Maybe EntryCursor
+                        }
+
+fromParserError : Parser.Parser.Error -> ParseError
+fromParserError p = { source = p.source, problem = p.problem, cursor = Nothing }
+
+addCursorToError : ParseError -> EntryCursor -> ParseError
+addCursorToError pe c = { pe | cursor = Just c }
+
+toErrorMessage : ParseError -> String
+toErrorMessage pe = case pe.cursor of
+                      Just c  -> case c of
+                                     Creating _ -> noContextErrorMessage pe
+                                     Filling n h -> case h of
+                                                        ResultHole _ -> noContextErrorMessage pe
+                                                        ParamHole n2 p i -> (noContextErrorMessage pe) ++ " in argument #" ++ (toString i) ++ " for an `" ++ (n2.name) ++ "`"
+                      Nothing -> noContextErrorMessage pe
+
+noContextErrorMessage : ParseError -> String
+noContextErrorMessage pe = "Error parsing expression: `" ++ pe.source ++ "`: " ++ (toString pe.problem)
+
 
 type ParseTree = PBlank
                | PExpr PExpr
