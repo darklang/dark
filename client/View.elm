@@ -3,6 +3,7 @@ module View exposing (view)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Regex exposing (regex)
 
 -- lib
 import Svg
@@ -240,6 +241,14 @@ viewValue m n =
                           [Html.text exc.short ]])]
 
 
+getClass : String -> String
+getClass func = case String.slice 0 4 func of
+                "if"   -> "conditional"
+                "else" -> "conditional"
+                "then" -> "conditional"
+                "List" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
+                _ -> "name"
+
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
   case n.tipe of
@@ -276,7 +285,7 @@ viewNormalNode m n i =
 
       heading = Html.span
                 [ Attrs.class "title"]
-                ((Html.span [Attrs.class "name"] [Html.text n.name]) :: params)
+                ((Html.span [Attrs.class <| getClass n.name] [Html.text n.name]) :: params)
 
 
       -- fields (in list)

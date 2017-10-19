@@ -112,7 +112,6 @@ Nodes
   font-size: 14px;
   background: #272728;
   padding-top: 2px;
-  padding-left: 5px;
   padding-bottom: 10px;
 }
 
@@ -172,6 +171,26 @@ Nodes
   color: red;
 }
 
+.node .conditional {
+  color: #ba8baf;
+}
+
+.node .iter {
+  color: #7cafc2;
+}
+
+.node.arg {
+  text-align: center;
+}
+
+.node.functioncall {
+  text-align: center;
+}
+
+.node .arg_const {
+  font-style: italic;
+}
+
 
 /********************
 Node Header
@@ -185,7 +204,7 @@ Node Header
 
 .letter {
   margin-top: 4px;
-  color: #999900;
+  color: #dc9656;
   font-size: 12px;
   float: right;
   margin-right: 8px;
