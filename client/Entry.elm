@@ -200,7 +200,7 @@ withNodePositioning m ops = ops ++ (createNodePositioning m ops)
 
 createNodePositioning : Model -> List RPC -> List RPC
 createNodePositioning m ops =
-  let newM = Debug.log "modelled" <| List.foldl model m ops
+  let newM = List.foldl model m ops
       wasAddAnon =
          List.any (\op -> case op of
                             AddAnon _ _ _ _ -> True
