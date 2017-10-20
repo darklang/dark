@@ -7,7 +7,7 @@ module S = Clu.Server
 module Request = Clu.Request
 module Header = C.Header
 module G = Graph
-
+module RT = Runtime
 
 let server =
   let stop,stopper = Lwt.wait () in
@@ -18,14 +18,10 @@ let server =
     (* let headers = req |> Request.headers |> Header.to_string in *)
     (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
-    let admin_rpc_handler body (domain: string) (save: bool) : string =
+    let admin_rpc_handler body (host: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
-      let host = match String.split domain '.' with
-      | ["localhost"] -> "localhost"
-      | [a; "localhost"] -> a
-      | _ -> failwith @@ "Unsupported domain: " ^ domain in
-      let g = G.load host [] in
+     let g = G.load host [] in
       try
         let ops = Api.to_ops body in
         g := !(G.load host ops);
@@ -57,6 +53,20 @@ let server =
       S.respond_file ~fname ()
     in
 
+    let user_page_handler host body uri =
+      let g = G.load host [] in
+      let pages = G.get_pages !g in
+      match List.filter ~f:(fun p -> p#get_arg_value "url" (G.gfns !g) = RT.DStr (Uri.path uri)) pages with
+      | [] ->
+        S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
+      | [page] ->
+        S.respond_string ~status:`OK ~body:(G.execute_node page !g |> RT.to_url_string) ()
+      | _ ->
+        S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
+
+
+    in
+
     (* let auth_handler handler *)
     (*   = match auth with *)
     (*   | (Some `Basic ("dark", "eapnsdc")) *)
@@ -70,6 +80,11 @@ let server =
       (fun req_body ->
          try
            let domain = Uri.host uri |> Option.value ~default:"" in
+           let domain = match String.split domain '.' with
+           | ["localhost"] -> "localhost"
+           | [a; "localhost"] -> a
+           | _ -> failwith @@ "Unsupported domain: " ^ domain in
+
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
              S.respond_string ~status:`OK
@@ -89,11 +104,11 @@ let server =
            | "/admin/test" ->
              static_handler (Uri.of_string "/templates/test.html")
            | p when (String.length p) < 8 ->
-             S.respond_string ~status:`Not_implemented ~body:"app routing" ()
+             user_page_handler domain req_body uri
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
              static_handler uri
            | _ ->
-             S.respond_string ~status:`Not_implemented ~body:"app routing" ()
+             user_page_handler domain req_body uri
          with
          | e ->
            let backtrace = Exn.backtrace () in

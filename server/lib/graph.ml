@@ -29,6 +29,11 @@ type graph = { name : string
 let get_node (g: graph) (id: id) : Node.node =
   NodeMap.find_exn g.nodes id
 
+let get_pages (g: graph) : Node.node list =
+  g.nodes
+  |> NodeMap.data
+  |> List.filter ~f:(fun n -> n#is_page)
+
 let has_node (id: id) (g: graph) : bool =
   NodeMap.mem g.nodes id
 
@@ -321,10 +326,14 @@ let save (g : graph) : unit =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
+
+let execute_node (n: Node.node) (g: graph) : RT.dval =
+  Log.pP ~name:"execution" ~ind:0 ("\n\n*************execute_node************") n#debug_name;
+  Node.execute ~ind:0 ~scope:RT.Scope.empty n#id (gfns g)
+
 let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
-    Log.pP ~name:"execution" ~ind:0 ("\n\n*************node_value************") n#debug_name;
-    let dv = Node.execute ~ind:0 ~scope:RT.Scope.empty n#id (gfns g) in
+    let dv = execute_node n g in
     ( RT.to_repr dv
     , RT.tipename dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string

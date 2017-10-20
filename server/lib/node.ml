@@ -79,6 +79,10 @@ class virtual node id pos =
     method arguments : arg_map = RT.ArgMap.empty
     method set_arg (name: string) (value: argument) : unit =
       Exception.internal "This node doesn't support set_arg"
+    method get_arg (name: string) : argument option =
+      Exception.internal "This node doesn't support get_arg"
+    method get_arg_value (name: string) (gfns:node gfns_): dval =
+      Exception.internal "This node doesn't support get_arg_value"
     method delete_arg (name: string) : unit =
       Exception.internal "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
@@ -173,10 +177,17 @@ class virtual has_arguments id pos =
         self#parameters
         |> List.map ~f:(fun (p: param) -> (p.name, RT.AConst DIncomplete))
         |> RT.ArgMap.of_alist_exn
-    method arguments = args
-    method set_arg (name: string) (value: argument) : unit =
+    method! arguments = args
+    method! set_arg (name: string) (value: argument) : unit =
       args <- ArgMap.change args name (fun _ -> Some value)
-    method delete_arg (name: string) : unit =
+    method! get_arg (name: string) : argument option =
+      ArgMap.find self#arguments name
+    method! get_arg_value (name: string) (gfns:gfns): dval =
+      match ArgMap.find self#arguments name with
+      | None -> RT.DNull
+      | Some (RT.AConst v) -> v
+      | Some (RT.AEdge id) -> execute id ~scope:RT.Scope.empty gfns
+    method! delete_arg (name: string) : unit =
       self#set_arg name RT.blank_arg
   end
 
@@ -230,16 +241,15 @@ class func (id : id) pos (name : string) =
     method! preview (cursor: int) (g: gfns) (args: dval_map) : dval list =
       loG "previewing function" name;
       match self#fn.preview with
-      (* if there's no value, no point previewing 5 *)
       | None -> Util.list_repeat (List.length self#fn.parameters) RT.DIncomplete
       | Some f -> self#fn.parameters
                      |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
                      |> fun dvs -> f dvs cursor
-    method! is_page = self#name = "Page_page"
-    method tipe = if String.is_substring ~substring:"page" self#name
-      then self#name
-      (* TODO: rename to "call" *)
+    method! is_page = String.is_substring ~substring:"Page::" self#name
+    method tipe =
+      if self#is_page
+      then "page"
       else "function"
   end
 
