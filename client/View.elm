@@ -242,11 +242,12 @@ viewValue m n =
 
 
 getClass : String -> String
-getClass func = case String.slice 0 4 func of
+getClass func = case String.slice 0 6 func of
                 "if"   -> "conditional"
                 "else" -> "conditional"
                 "then" -> "conditional"
-                "List" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
+                "List::" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
+                "String" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
                 _ -> "name"
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
