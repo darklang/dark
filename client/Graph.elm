@@ -323,7 +323,7 @@ hasBlockParam m id =
 
 entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
-  fold (\n list -> n :: list) [] start (connectedNodes m)
+  fold (\n list -> n :: list) [] start (\n -> incomingNodes m n ++ outgoingNodes m n)
 
 toSubgraphs : Model -> List (List Node)
 toSubgraphs m =
