@@ -107,8 +107,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 ---------------------
 -- Submitting the entry form to the server
 ---------------------
-addAnonParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Focus)
-addAnonParam _ id pos name anon_args =
+addBlockParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Focus)
+addBlockParam _ id pos name anon_args =
   let sid = G.gen_id ()
       argids = List.map (\_ -> G.gen_id ()) anon_args
       anon = AddAnon sid pos argids anon_args
@@ -128,7 +128,7 @@ addFunction m id name pos =
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == TFun) fn.parameters
-          anonpairs = List.map (\p -> addAnonParam m id pos p.name p.anon_args) fn_args
+          anonpairs = List.map (\p -> addBlockParam m id pos p.name p.anon_args) fn_args
           anonarg = anonpairs |> List.head |> Maybe.map Tuple.second
           anons = anonpairs |> List.unzip |> Tuple.first
           focus = case anonarg of
