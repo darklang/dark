@@ -111,7 +111,7 @@ addBlockParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Fo
 addBlockParam _ id pos name block_args =
   let sid = G.gen_id ()
       argids = List.map (\_ -> G.gen_id ()) block_args
-      block = AddAnon sid pos argids block_args
+      block = AddBlock sid pos argids block_args
       edge = SetEdge sid (id, name)
   in
     ([block, edge], FocusNext id)
@@ -126,9 +126,9 @@ addFunction m id name pos =
     Nothing ->
       ([AddFunctionCall id name pos], FocusSame)
     Just fn ->
-      -- automatically add anonymous functions
+      -- automatically add blocks
       let fn_args = List.filter (\p -> p.tipe == TFun) fn.parameters
-          blockpairs = List.map (\p -> addBlockParam m id pos p.name p.anon_args) fn_args
+          blockpairs = List.map (\p -> addBlockParam m id pos p.name p.block_args) fn_args
           blockarg = blockpairs |> List.head |> Maybe.map Tuple.second
           blocks = blockpairs |> List.unzip |> Tuple.first
           focus = case blockarg of
@@ -202,9 +202,9 @@ withNodePositioning m ops = ops ++ (createNodePositioning m ops)
 createNodePositioning : Model -> List RPC -> List RPC
 createNodePositioning m ops =
   let newM = List.foldl model m ops
-      wasAddAnon =
+      wasAddBlock =
          List.any (\op -> case op of
-                            AddAnon _ _ _ _ -> True
+                            AddBlock _ _ _ _ -> True
                             _ -> False)
          ops
       deletedNode =
@@ -246,7 +246,7 @@ createNodePositioning m ops =
               frees = List.filter G.isFree subgraph
               freeCount = List.length (Debug.log "frees" frees)
           in
-            if wasAddAnon
+            if wasAddBlock
             then []
 
 
@@ -311,7 +311,7 @@ model op m =
   let
     param name = { name = name
                  , tipe = TAny
-                 , anon_args = []
+                 , block_args = []
                  , optional = False
                  , description = "fake"
                  }
@@ -350,7 +350,7 @@ model op m =
         -- I think the args can't be connected to anything else here, so
         -- nbd. But, more set_edges might connect things together. But I
         -- dont think we're dealing with that yet.
-        AddAnon (ID id) pos argids _ ->
+        AddBlock (ID id) pos argids _ ->
           fake id pos |> update m.nodes
 
         SetConstant c (id, paramname) ->

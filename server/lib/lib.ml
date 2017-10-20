@@ -5,7 +5,7 @@ let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   { name = name
   ; tipe = tipe
   ; optional = opt
-  ; anon_args = args
+  ; block_args = args
   ; description = d
   }
 

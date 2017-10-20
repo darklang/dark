@@ -21,7 +21,7 @@ type add_function_call = { id: int
                          ; name: string
                          ; pos: pos
                          } [@@deriving yojson]
-type add_anon = { id: int
+type add_block = { id: int
                 ; pos: pos
                 ; args: int list
                 ; argnames: string list} [@@deriving yojson]
@@ -62,7 +62,7 @@ type opjson =
   ; set_constant : set_constant option [@default None]
   ; add_datastore: add_datastore option [@default None]
   ; add_function_call: add_function_call option [@default None]
-  ; add_anon: add_anon option [@default None]
+  ; add_block: add_block option [@default None]
   ; update_node_position: update_node_position option [@default None]
   ; update_node_cursor: update_node_cursor option [@default None]
   ; set_edge: set_edge option [@default None]
@@ -85,7 +85,7 @@ let json2op (op: opjson) : op =
   | { add_datastore = Some a } -> Add_datastore (a.id, a.pos, a.name)
   | { delete_all = Some a } -> Delete_all
   | { delete_node = Some a } -> Delete_node a.id
-  | { add_anon = Some a } -> Add_anon (a.id, a.pos, a.args, a.argnames)
+  | { add_block = Some a } -> Add_block (a.id, a.pos, a.args, a.argnames)
   | { add_function_call = Some a } -> Add_fn_call (a.id, a.pos, a.name)
   | { add_value = Some a } -> Add_value (a.id, a.pos, a.value)
   | { update_node_position = Some a } -> Update_node_position (a.id, a.pos)
@@ -117,7 +117,7 @@ let to_ops (payload: string) : op list =
 (*------------------*)
 type param_ = { name: string
               ; tipe: string
-              ; anon_args : string list
+              ; block_args : string list
               ; optional: bool
               ; description: string
               } [@@deriving yojson]
@@ -137,7 +137,7 @@ let functions =
                         List.map ~f:(fun p : param_ ->
                           { name = p.name
                           ; tipe = RT.tipe2str p.tipe
-                          ; anon_args = p.anon_args
+                          ; block_args = p.block_args
                           ; optional = p.optional
                           ; description = p.description })
                         v.parameters

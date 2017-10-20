@@ -49,7 +49,7 @@ flag2function fn =
   , returnTipe = RT.str2tipe fn.return_type
   , parameters = List.map (\p -> { name = p.name
                                  , tipe = RT.str2tipe p.tipe
-                                 , anon_args = p.anon_args
+                                 , block_args = p.block_args
                                  , optional = p.optional
                                  , description = p.description}) fn.parameters
   }

@@ -71,8 +71,8 @@ encodeRPC m call =
         ("add_function_call",
            JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
 
-      AddAnon id pos args argnames ->
-        ("add_anon", JSE.object [ jseId id
+      AddBlock id pos args argnames ->
+        ("add_block", JSE.object [ jseId id
                                 , jsePos pos
                                 , ("args", JSE.list (List.map (JSE.int << deID) args))
                                 , ("argnames", JSE.list (List.map (JSE.string) argnames))])
@@ -125,10 +125,10 @@ encodeRPC m call =
 decodeNode : JSD.Decoder Node
 decodeNode =
   let toParameter: Name -> String -> List String -> Bool -> String -> Parameter
-      toParameter name tipe anon_args optional description =
+      toParameter name tipe block_args optional description =
         { name = name
         , tipe = tipe |> RT.str2tipe
-        , anon_args = anon_args
+        , block_args = block_args
         , optional = optional
         , description = description}
       toArgument: List JSD.Value -> Argument
@@ -218,7 +218,7 @@ decodeNode =
               (JSDP.decode toParameter
                 |> JSDP.required "name" JSD.string
                 |> JSDP.required "tipe" JSD.string
-                |> JSDP.required "anon_args" (JSD.list JSD.string)
+                |> JSDP.required "block_args" (JSD.list JSD.string)
                 |> JSDP.required "optional" JSD.bool
                 |> JSDP.required "description" JSD.string))
             (JSD.index 1
@@ -239,7 +239,7 @@ decodeNode =
             |> JSDP.required "info" (JSD.dict JSD.string)
             |> JSDP.required "workarounds" (JSD.list JSD.string))
             Nothing
-    |> JSDP.optional "anon_id" JSD.int Defaults.unsetInt
+    |> JSDP.optional "block_id" JSD.int Defaults.unsetInt
     |> JSDP.required "arg_ids" (JSD.list JSD.int)
     |> JSDP.required "type" JSD.string
     |> JSDP.required "pos" (JSD.index 0 JSD.string)

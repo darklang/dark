@@ -44,7 +44,7 @@ type nodejson = { name: string
                 ; live: valuejson
                 ; cursor: int
                 ; arguments: (param * argumentjson) list
-                ; anon_id: id option
+                ; block_id: id option
                 ; arg_ids : id list
                 } [@@deriving to_yojson, show]
 type nodejsonlist = nodejson list [@@deriving to_yojson, show]
@@ -87,7 +87,7 @@ class virtual node id pos =
       Exception.internal "This node doesn't support delete_arg"
     method edges : id_map = IdMap.empty
     method dependent_nodes (_:node gfns_) : id list = []
-    method anon_id = None
+    method block_id = None
     method arg_ids = []
     method update_pos _pos : unit =
       pos <- _pos
@@ -105,7 +105,7 @@ class virtual node id pos =
       ; arguments = List.map
             ~f:(fun p -> (p, RT.ArgMap.find_exn self#arguments p.name |> arg_to_frontend))
             self#parameters
-      ; anon_id = self#anon_id
+      ; block_id = self#block_id
       ; arg_ids = self#arg_ids
       ; cursor = cursor
       }
@@ -205,7 +205,7 @@ class func (id : id) pos (name : string) =
     method private argpairs : (RT.param * argument) list =
         List.map ~f:(fun p -> (p, DvalMap.find_exn args p.name)) self#fn.parameters
     method! dependent_nodes (g: gfns) =
-      (* If the node has an anonymous function argument, delete it if this node is *)
+      (* If the node has an block argument, delete it if this node is *)
       (* deleted *)
       self#argpairs
         |> List.filter_map ~f:(fun (p, arg : param * argument) : id option ->
@@ -237,7 +237,7 @@ class func (id : id) pos (name : string) =
                 RT.pP ~name:"execution" ~ind ("r (cached):" ^ self#debug_name) v;
                 v
 
-     (* Get a value to use as the preview for anonfns used by this node *)
+     (* Get a value to use as the preview for blocks used by this node *)
     method! preview (cursor: int) (g: gfns) (args: dval_map) : dval list =
       loG "previewing function" name;
       match self#fn.preview with
@@ -263,10 +263,10 @@ class datastore id pos table =
   end
 
 (* ----------------------- *)
-(* Anonymous functions *)
+(* Blocks *)
 (* ----------------------- *)
 
-(* Anonymous functions are graphs with built-in arguments. There is no return
+(* Blocks are graphs with built-in arguments. There is no return
  * value, we simply return the last operation (which is a bit haphazardly
  * defined right now)
  *
@@ -274,17 +274,17 @@ class datastore id pos table =
    they actually don't, they should in theory, but it was easier to implement
    one big node collection). They are used for higher-order functions.
 
-   As we build these functions up, we start with a known number of
+   As we build these blocks up, we start with a known number of
    inputs - initially 1 - and a single output.
 
    TODO: `preview` is sorta confused. I'm unclear what it does.
    *)
 
-let anonexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
-   loG ~ind ("get anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+let blockexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
+   loG ~ind ("get blockexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
    loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
   (fun (args : dval list) ->
-     loG ~ind ("exe anonexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+     loG ~ind ("exe blockexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
      loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
      let newscope = List.zip_exn argids args |> Scope.of_alist_exn in
      let scope = Scope.merge newscope scope ~f:(fun ~key v ->
@@ -294,7 +294,7 @@ let anonexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id 
        | `Both (v1, v2) -> Some v1) in
      loG ~ind "with scope: " scope;
      let result = execute ~ind rid ~scope g in
-     RT.pp ~name:"execution" ~ind ("r anonexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
+     RT.pp ~name:"execution" ~ind ("r blockexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
   )
 
 class argnode id pos name index nid argids =
@@ -312,24 +312,24 @@ class argnode id pos name index nid argids =
       match g.get_children nid with
       | [] -> DIncomplete
       | [caller] ->
-        let anon_node = g.getf nid in
-        let preview_result = preview caller#id g anon_node#cursor in
+        let block_node = g.getf nid in
+        let preview_result = preview caller#id g block_node#cursor in
         (match List.nth preview_result index with
         | Some element -> element
         | None -> DIncomplete)
       | _ -> failwith "more than 1"
-    method! anon_id = Some nid
+    method! block_id = Some nid
     method! arg_ids = argids
     method update_cursor (_cursor:int) : unit =
       cursor <- _cursor
   end
 
-class anonfn id pos argids =
+class block id pos argids =
   object
     inherit node id pos
     method dependent_nodes (g: gfns) =
       List.append argids (g.get_children id |> List.map ~f:(fun n -> n#id))
-    method name = "<anonfn>"
+    method name = "<block>"
     method execute ?(ind=0) ?(cursor=0) ~scope:scope (g: gfns) (_) : dval =
       let debugname = g.get_children id |> List.hd_exn |> (fun n -> n#debug_name) in
       let return = argids
@@ -339,7 +339,7 @@ class anonfn id pos argids =
       |> List.sort ~cmp:(fun ((d1, n1):int*node) ((d2, n2):int*node) -> compare d1 d2)
       |> List.hd_exn
       |> Tuple.T2.get2 in
-      DAnon (id, anonexecutor ~ind ~scope debugname return#id argids g)
+      DBlock (id, blockexecutor ~ind ~scope debugname return#id argids g)
     method update_cursor (_cursor:int) : unit =
       cursor <- _cursor
     method tipe = "definition"

@@ -158,10 +158,10 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore id pos table)
     | Add_value (id, pos, expr) ->
       add_node (new Node.value id pos expr)
-    | Add_anon (nid, pos, argids, anon_names) ->
+    | Add_block (nid, pos, argids, block_names) ->
       (fun g ->
          argids
-         |> List.zip_exn anon_names
+         |> List.zip_exn block_names
          |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
                           argid
                           Dependent
@@ -169,7 +169,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
                           i
                           nid
                           argids)
-         |> List.append [ new Node.anonfn nid
+         |> List.append [ new Node.block nid
                           NoPos
                           argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))

@@ -32,7 +32,7 @@ autocomplete =
                     { name = name
                     , parameters = [{ name = "x"
                                     , tipe = tipe
-                                    , anon_args = []
+                                    , block_args = []
                                     , optional = False
                                     , description = ""
                                     }]

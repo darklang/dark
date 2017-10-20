@@ -201,7 +201,7 @@ let t_load_save _ =
   let n1 = Op.Add_fn_call (fid (), Free, "-") in
   let n2 = Op.Add_value (fid (), Free, "5") in
   let n3 = Op.Add_value (fid (), Free, "3") in
-  let n4 = Op.Add_anon (fid (), Free, [], []) in
+  let n4 = Op.Add_block (fid (), Free, [], []) in
   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in
   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in
   let name = "test_load_save" in
@@ -217,13 +217,13 @@ let t_lambda_with_foreach () =
   let v = Op.Add_value (fid (), Free, "\"some string\"") in
   let fe = Op.Add_fn_call (fid (), Free, "String::foreach") in
   let upper = Op.Add_fn_call (fid (), Free, "Char::toUppercase") in
-  let anon_id = fid () in
-  let anon_arg = fid () in
-  let anon = Op.Add_anon (anon_id, Free, [anon_arg], ["item"]) in
+  let block_id = fid () in
+  let block_arg = fid () in
+  let block = Op.Add_block (block_id, Free, [block_arg], ["item"]) in
   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in
-  let e2 = Op.Set_edge (Op.id_of anon, Op.id_of fe, "f") in
-  let e3 = Op.Set_edge (anon_arg, Op.id_of upper, "c") in
-  let r = execute_ops [v; fe; upper; anon; e1; e2; e3] fe in
+  let e2 = Op.Set_edge (Op.id_of block, Op.id_of fe, "f") in
+  let e3 = Op.Set_edge (block_arg, Op.id_of upper, "c") in
+  let r = execute_ops [v; fe; upper; block; e1; e2; e3] fe in
   check_dval "lambda_wit_foreach"  r (DStr "SOME STRING")
 
 let t_hmac_signing _ =
@@ -286,7 +286,7 @@ let suite =
   ; "hmac signing works", `Slow, t_hmac_signing
     (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
-  ; "anon functions work", `Slow, t_lambda_with_foreach
+  ; "blocks work", `Slow, t_lambda_with_foreach
   ; "test_node_deletion", `Slow,t_node_deletion
   ; "undos", `Slow, t_undo
   ; "undo_fns", `Slow, t_undo_fns

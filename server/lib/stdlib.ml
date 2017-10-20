@@ -309,7 +309,7 @@ let fns : Lib.shortfn list = [
   ; d = "Iterate over each character in the string, performing the operation in the block on each one"
   ; f = InProcess
         (function
-          | [DStr s; DAnon (id, fn)] ->
+          | [DStr s; DBlock (id, fn)] ->
             let all_chars = ref true in
             let example_value = ref DIncomplete in
             let result = s
@@ -490,7 +490,7 @@ let fns : Lib.shortfn list = [
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
         (function
-          | [DList l; DAnon (id, fn)] ->
+          | [DList l; DBlock (id, fn)] ->
             (let f (dv: dval) : bool = DBool true = fn [dv]
             in
             match List.find ~f l with
@@ -574,14 +574,14 @@ let fns : Lib.shortfn list = [
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
         (function
-          | [DList l; init; DAnon (_, fn)] ->
+          | [DList l; init; DBlock (_, fn)] ->
             let f (dv1: dval) (dv2: dval) : dval = fn [dv1; dv2] in
             List.fold ~f ~init l
           | args -> fail args)
   ; pr = Some
         (fun dv cursor ->
           match dv with
-          | [DList l; init; DAnon (_, fn)] ->
+          | [DList l; init; DBlock (_, fn)] ->
             let short_l = List.take l cursor in
             let f = fun (accum:dval) (elt:dval) -> fn([accum; elt]) in
             let end_accum = List.fold ~f ~init short_l in
@@ -640,7 +640,7 @@ let fns : Lib.shortfn list = [
   ; d = "Return only values in `l` which meet the function's criteria"
   ; f = InProcess
         (function
-          | [DList l; DAnon (id, fn)] ->
+          | [DList l; DBlock (id, fn)] ->
             let f (dv: dval) : bool =
             match fn [dv] with
             | DBool b -> b
@@ -662,7 +662,7 @@ let fns : Lib.shortfn list = [
   those calls"
   ; f = InProcess
         (function
-          | [DList l; DAnon (_, fn)] ->
+          | [DList l; DBlock (_, fn)] ->
             let f (dv: dval) : dval = fn [dv]
             in
             DList (List.map ~f l)
@@ -681,7 +681,7 @@ let fns : Lib.shortfn list = [
   function. Both functions get 'v' piped into them"
   ; f = InProcess
         (function
-          | [v; DBool cond; DAnon (_, fntrue); DAnon (_, fnfalse)] ->
+          | [v; DBool cond; DBlock (_, fntrue); DBlock (_, fnfalse)] ->
               if cond then fntrue [v] else fnfalse [v]
           | args -> fail args)
   (* we could do better here by getting a value for which this is true/false *)

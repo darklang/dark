@@ -13,7 +13,7 @@ and dval = DInt of int
          | DChar of char
          | DFloat of float
          | DBool of bool
-         | DAnon of id * (dval list -> dval)
+         | DBlock of id * (dval list -> dval)
          | DList of dval list
          (* TODO: make null more like option. Maybe that's for the type
             system *)
@@ -32,7 +32,7 @@ let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
-  | DAnon (id, _) -> "<anon:" ^ string_of_int id ^ ">"
+  | DBlock (id, _) -> "<block:" ^ string_of_int id ^ ">"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
@@ -80,7 +80,7 @@ let rec to_url_string (dv : dval) : string =
   | DStr s -> s
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
-  | DAnon _ -> "<anon>"
+  | DBlock _ -> "<block>"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
@@ -141,7 +141,7 @@ let tipeOf (dv : dval) : tipe =
   | DFloat _ -> TFloat
   | DChar _ -> TChar
   | DNull -> TNull
-  | DAnon _ -> TFun
+  | DBlock _ -> TFun
   | DList _ -> TList
   | DObj _ -> TObj
   | DIncomplete -> TIncomplete
@@ -189,7 +189,7 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   | DFloat f -> `Float f
   | DNull -> `Null
   | DChar c -> `String (Char.to_string c)
-  | DAnon _ -> `String "<anon>"
+  | DBlock _ -> `String "<block>"
   | DIncomplete -> `String "<incomplete>"
   | DList l -> `List (List.map l dval_to_yojson)
   | DObj o -> o
@@ -235,7 +235,7 @@ type arg_map = argument ArgMap.t
 
 type param = { name: string
              ; tipe: tipe
-             ; anon_args : string list
+             ; block_args : string list
              ; optional : bool
              ; description : string
             } [@@deriving yojson, show]

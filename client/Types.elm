@@ -84,7 +84,7 @@ type alias Node = { name : Name
                   , fields : List (FieldName, Tipe)
                   -- for functions
                   , arguments : List (Parameter, Argument)
-                  -- for anonfns
+                  -- for blocks
                   , blockID : Maybe ID
                   , argIDs : List ID
                   , visible : Bool
@@ -135,7 +135,7 @@ type RPC
     | AddDatastore ID Name MPos
     | AddDatastoreField ID FieldName Tipe
     | AddFunctionCall ID Name MPos
-    | AddAnon ID MPos (List ID) (List String)
+    | AddBlock ID MPos (List ID) (List String)
     | AddValue ID String MPos
     | SetConstant Name (ID, ParamName)
     | SetEdge ID (ID, ParamName)
@@ -198,7 +198,7 @@ type Modification = Error String
 -- name, type optional
 type alias Parameter = { name: Name
                        , tipe: Tipe
-                       , anon_args: List String
+                       , block_args: List String
                        , optional: Bool
                        , description: String
                        }
@@ -211,7 +211,7 @@ type alias Function = { name: Name
 
 type alias FlagParameter = { name: Name
                            , tipe: String
-                           , anon_args: List String
+                           , block_args: List String
                            , optional: Bool
                            , description: String
                            }

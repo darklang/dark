@@ -14,7 +14,7 @@ type op = NoOp
         | Add_datastore_field of id * string * string * bool
         | Add_fn_call of id * pos * string
         (* id, pos, args, argnames *)
-        | Add_anon of id * pos * id list * string list
+        | Add_block of id * pos * id list * string list
         | Add_value of id * pos * string
         | Set_constant of id * string * string
         | Set_edge of id * id * string
@@ -35,7 +35,7 @@ let id_of_option op : id option =
   | Add_datastore (id, _, _) -> Some id
   | Add_value (id, _, _) -> Some id
   | Set_constant (id, _, _) -> Some id
-  | Add_anon (id, _, _, _) -> Some id
+  | Add_block (id, _, _, _) -> Some id
   | Update_node_position (id, _) -> Some id
   | Update_node_cursor (id, _) -> Some id
   | Delete_node (id) -> Some id
