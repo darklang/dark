@@ -108,13 +108,13 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 -- Submitting the entry form to the server
 ---------------------
 addBlockParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Focus)
-addBlockParam _ id pos name anon_args =
+addBlockParam _ id pos name block_args =
   let sid = G.gen_id ()
-      argids = List.map (\_ -> G.gen_id ()) anon_args
-      anon = AddAnon sid pos argids anon_args
+      argids = List.map (\_ -> G.gen_id ()) block_args
+      block = AddAnon sid pos argids block_args
       edge = SetEdge sid (id, name)
   in
-    ([anon, edge], FocusNext id)
+    ([block, edge], FocusNext id)
 
 
 addFunction : Model -> ID -> Name -> MPos -> (List RPC, Focus)
@@ -128,14 +128,14 @@ addFunction m id name pos =
     Just fn ->
       -- automatically add anonymous functions
       let fn_args = List.filter (\p -> p.tipe == TFun) fn.parameters
-          anonpairs = List.map (\p -> addBlockParam m id pos p.name p.anon_args) fn_args
-          anonarg = anonpairs |> List.head |> Maybe.map Tuple.second
-          anons = anonpairs |> List.unzip |> Tuple.first
-          focus = case anonarg of
+          blockpairs = List.map (\p -> addBlockParam m id pos p.name p.anon_args) fn_args
+          blockarg = blockpairs |> List.head |> Maybe.map Tuple.second
+          blocks = blockpairs |> List.unzip |> Tuple.first
+          focus = case blockarg of
             Just f -> f
             Nothing -> FocusNext id
       in
-        (AddFunctionCall id name pos :: List.concat anons, focus)
+        (AddFunctionCall id name pos :: List.concat blocks, focus)
 
 updatePreviewCursor : Model -> ID -> Int -> List RPC
 updatePreviewCursor m id step =
