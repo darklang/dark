@@ -81,7 +81,7 @@ let server =
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->
              S.respond_string ~status:`OK ~body:"" ()
-           | "/shutdown" ->
+           | "/admin/api/shutdown" ->
              Lwt.wakeup stopper ();
              S.respond_string ~status:`OK ~body:"Disembowelment" ()
            | "/admin/ui" ->
