@@ -213,6 +213,9 @@ entryParser =
         -- vars 
         , ("$a"
           , E.PExpr (E.PVar "a"))
+        -- implicit placeholder
+        , ("$_"
+          , E.PExpr (E.PVar "_"))
         , ("- $a $c"
           , E.PExpr (E.PFnCall "-" ([E.PVar "a",E.PVar "c"])))
 
