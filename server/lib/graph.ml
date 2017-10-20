@@ -300,12 +300,12 @@ let verify (g: graph) : unit =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
-let filename_for name = "appdata/" ^ name ^ ".dark"
+let filename_for namespace name = namespace ^ "/" ^ name ^ ".dark"
 
-let load (name: string) (ops: Op.op list) : graph ref =
+let load ?(namespace="appdata") (name: string) (ops: Op.op list) : graph ref =
   let g = create name in
   name
-  |> filename_for
+  |> filename_for namespace
   |> Util.readfile ~default:"[]"
   |> Yojson.Safe.from_string
   |> oplist_of_yojson
@@ -314,8 +314,8 @@ let load (name: string) (ops: Op.op list) : graph ref =
   |> add_ops g;
   g
 
-let save (g : graph) : unit =
-  let filename = filename_for g.name in
+let save ?(namespace="appdata") (g : graph) : unit =
+  let filename = filename_for namespace g.name in
   g.ops
   |> oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
@@ -358,3 +358,13 @@ let to_frontend (g : graph) : Yojson.Safe.json =
 
 let to_frontend_string (g: graph) : string =
   g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
+
+let save_test (g: graph) : string =
+  let name = g.name ^ "_" ^ (Unix.gettimeofday () |> string_of_float) in
+  let g = {g with name = name} in
+  save ~namespace:"testdata/" g;
+  (* TODO: pull this out into an executable, so they can be built separately *)
+  let filename = "testdata/" ^ name ^ ".graph" in
+  Util.writefile filename (to_frontend_string g);
+  filename
+

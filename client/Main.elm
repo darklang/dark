@@ -13,7 +13,7 @@ import Keyboard.Key as Key
 import Navigation
 
 -- dark
-import RPC exposing (rpc, phantomRpc)
+import RPC exposing (rpc, phantomRpc, saveTest)
 import Types exposing (..)
 import View
 import Defaults
@@ -98,6 +98,7 @@ updateMod mod (m, cmd) =
               _ -> m ! []
           _ -> m ! []
       NoChange -> m ! []
+      MakeCmd cmd -> m ! [cmd]
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> G.pos} ! []
       Enter re entry -> { m | state = Entering re entry
@@ -237,6 +238,9 @@ update_ msg m =
     (ClearGraph, _) ->
       Many [ RPC ([DeleteAll], FocusNothing), Deselect]
 
+    (SaveTestButton, _) ->
+      MakeCmd saveTest
+
     (AddRandom, _) ->
       Many [ RandomGraph.makeRandomChange m, Deselect]
 
@@ -256,6 +260,8 @@ update_ msg m =
     (PhantomCallBack _ _ (Ok (nodes)), _) ->
       ModelMod (\_ -> { m | phantoms = nodes } )
 
+    (SaveTestCallBack (Ok msg), _) ->
+      Error <| "Success! " ++ msg
 
 
 
@@ -273,6 +279,9 @@ update_ msg m =
 
     (PhantomCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
+
+    (SaveTestCallBack (Err err), _) ->
+      Error <| "Error: " ++ (toString err)
 
 
     (FocusEntry _, _) ->

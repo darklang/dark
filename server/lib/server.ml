@@ -53,6 +53,14 @@ let server =
       S.respond_file ~fname ()
     in
 
+    let save_test_handler host =
+      let g = G.load host [] in
+      let filename = G.save_test !g in
+      S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
+    in
+
+
+
     let user_page_handler host body uri =
       let g = G.load host [] in
       let pages = G.get_pages !g in
@@ -103,6 +111,8 @@ let server =
              admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
            | "/admin/test" ->
              static_handler (Uri.of_string "/templates/test.html")
+           | "/admin/api/save_test" ->
+             save_test_handler domain
            | p when (String.length p) < 8 ->
              user_page_handler domain req_body uri
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->

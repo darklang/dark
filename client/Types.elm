@@ -58,7 +58,7 @@ type alias VPos =  {vx: Int, vy: Int }
 
 -- MPos is a Node's position. Only roots have a stored position
 -- server-side, but we need to position the other nodes
-type MPos = Root Pos 
+type MPos = Root Pos
           | Free (Maybe Pos)
           | Dependent (Maybe Pos)
           | NoPos (Maybe Pos)
@@ -120,9 +120,11 @@ type Msg
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallBack Focus (List RPC) (Result Http.Error NodeDict)
     | PhantomCallBack EntryCursor (List RPC) (Result Http.Error NodeDict)
+    | SaveTestCallBack (Result Http.Error String)
     | LocationChange Navigation.Location
     | AddRandom
     | ClearGraph
+    | SaveTestButton
     | Initialization
 
 type Focus = FocusNothing -- deselect
@@ -143,7 +145,7 @@ type RPC
     | UpdateNodeCursor ID Cursor
     | UpdateNodePosition ID MPos
     | DeleteAll
-    | SavePoint
+    | Savepoint
     | Undo
     | Redo
 
@@ -190,6 +192,7 @@ type Modification = Error String
                   | RPC (List RPC, Focus)
                   | ModelMod (Model -> Model)
                   | NoChange
+                  | MakeCmd (Cmd Msg)
                   | AutocompleteMod AutocompleteMod
                   | Phantom
                   | Many (List Modification)

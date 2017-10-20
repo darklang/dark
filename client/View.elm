@@ -44,11 +44,20 @@ view m =
 viewButtons : Html.Html Msg
 viewButtons = Html.div [Attrs.id "buttons"]
     [ Html.a
-        [ Events.onClick AddRandom , Attrs.src "", Attrs.class "specialButton"]
-        [ Html.text "random" ]
-      , Html.a
-        [ Events.onClick ClearGraph , Attrs.src "", Attrs.class "specialButton"]
-        [ Html.text "clear" ]
+      [ Events.onClick AddRandom
+      , Attrs.src ""
+      , Attrs.class "specialButton"]
+      [ Html.text "Random" ]
+    , Html.a
+      [ Events.onClick ClearGraph
+      , Attrs.src ""
+      , Attrs.class "specialButton"]
+      [ Html.text "Clear" ]
+    , Html.a
+      [ Events.onClick SaveTestButton
+      , Attrs.src ""
+      , Attrs.class "specialButton"]
+      [ Html.text "SaveTest" ]
     ]
 
 viewError : Maybe String -> Html.Html Msg

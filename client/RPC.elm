@@ -1,4 +1,4 @@
-module RPC exposing (rpc, phantomRpc)
+module RPC exposing (rpc, phantomRpc, saveTest)
 
 -- builtin
 import Dict exposing (Dict)
@@ -30,6 +30,26 @@ rpc_ m url callback calls =
       request = Http.post url json decodeGraph
   in Http.send (callback calls) request
 
+postString : String -> Http.Request String
+postString url =
+  Http.request
+    { method = "POST"
+    , headers = []
+    , url = url
+    , body = Http.emptyBody
+    , expect = Http.expectString
+    , timeout = Nothing
+    , withCredentials = False
+    }
+
+saveTest : Cmd Msg
+saveTest =
+  let url = "/admin/api/save_test"
+      request = postString url
+  in Http.send SaveTestCallBack request
+
+
+
 
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
@@ -37,7 +57,7 @@ encodeRPCs m calls =
   |> List.filter ((/=) NoOp)
   |> (\cs -> if cs == [Undo] || cs == [Redo] || cs == []
              then cs
-             else SavePoint :: cs)
+             else Savepoint :: cs)
   |> List.map (encodeRPC m)
   |> JSE.list
 
@@ -112,7 +132,7 @@ encodeRPC m call =
       DeleteAll ->
         ("delete_all", JSE.object [])
 
-      SavePoint ->
+      Savepoint ->
         ("savepoint", JSE.object [])
 
       Undo ->
