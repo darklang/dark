@@ -33,6 +33,7 @@ holeCreatePos m hole =
     ResultHole n ->
       let connected = G.entireSubgraph m n
           lowest = connected
+                   |> List.filter .visible
                    |> List.map (\n -> posy n)
                    |> List.maximum
                    |> Maybe.withDefault (posy n)
