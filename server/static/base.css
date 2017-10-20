@@ -191,6 +191,10 @@ Nodes
   font-style: italic;
 }
 
+.node .arg_edge {
+    color: #585858;
+}
+
 
 /********************
 Node Header
