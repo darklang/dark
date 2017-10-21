@@ -94,7 +94,7 @@ nodeWidth n =
              |> List.sum
     paramLen = n.arguments
                |> List.map (\(p, a) ->
-                 if p.tipe == TFun then -space -- remove spaces
+                 if p.tipe == TBlock then -space -- remove spaces
                  else
                    case a of
                      Const c -> if c == "null" then 8 else (len c)
@@ -357,7 +357,7 @@ dependentNodes m n =
   n.arguments
     |> List.filterMap (\(p, a) ->
                           case (p.tipe, a) of
-                          (TFun, Edge id) -> Just id
+                          (TBlock, Edge id) -> Just id
                           _ -> Nothing)
     |> List.append n.argIDs
     |> List.append (ME.toList n.blockID)

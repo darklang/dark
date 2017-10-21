@@ -127,8 +127,8 @@ addFunction m id name pos =
       ([AddFunctionCall id name pos], FocusSame)
     Just fn ->
       -- automatically add blocks
-      let fn_args = List.filter (\p -> p.tipe == TFun) fn.parameters
-          blockpairs = List.map (\p -> addBlockParam m id pos p.name p.block_args) fn_args
+      let block_args = List.filter (\p -> p.tipe == TBlock) fn.parameters
+          blockpairs = List.map (\p -> addBlockParam m id pos p.name p.block_args) block_args
           blockarg = blockpairs |> List.head |> Maybe.map Tuple.second
           blocks = blockpairs |> List.unzip |> Tuple.first
           focus = case blockarg of

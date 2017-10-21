@@ -133,7 +133,7 @@ asTypeString item =
                     |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
     ACVariable (_, n) -> n.arguments
-                      |> List.map (\(p, a) -> if p.tipe == TFun
+                      |> List.map (\(p, a) -> if p.tipe == TBlock
                                                then Nothing
                                                else
                                                    case a of

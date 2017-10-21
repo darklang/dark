@@ -10,7 +10,7 @@ let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   }
 
 let func ?(d:string = "") ?(name:string="f") args : param =
-  par name TFun ~args ~d
+  par name TBlock ~args ~d
 
 
 (* Shorthand *)

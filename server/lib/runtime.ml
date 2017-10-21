@@ -113,7 +113,7 @@ type tipe = TInt
           | TObj
           | TList
           | TAny
-          | TFun
+          | TBlock
           | TNull
           | TIncomplete
           [@@deriving yojson, show]
@@ -127,7 +127,7 @@ let tipe2str t : string =
   | TFloat -> "Float"
   | TObj -> "Obj"
   | TList -> "List"
-  | TFun -> "Function"
+  | TBlock -> "Block"
   | TNull -> "Nothing"
   | TAny -> "Any"
   | TIncomplete -> "<incomplete>"
@@ -141,12 +141,12 @@ let tipeOf (dv : dval) : tipe =
   | DFloat _ -> TFloat
   | DChar _ -> TChar
   | DNull -> TNull
-  | DBlock _ -> TFun
+  | DBlock _ -> TBlock
   | DList _ -> TList
   | DObj _ -> TObj
   | DIncomplete -> TIncomplete
 
-  let tipename (dv: dval) : string = 
+  let tipename (dv: dval) : string =
     dv |> tipeOf |> tipe2str
 
 let tipe_to_yojson (t: tipe) : Yojson.Safe.json =

@@ -26,7 +26,7 @@ isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s
 
 
 tipe2str : Tipe -> String
-tipe2str t = 
+tipe2str t =
   case t of
     TInt -> "Int"
     TStr -> "Str"
@@ -35,13 +35,13 @@ tipe2str t =
     TFloat -> "Float"
     TObj -> "Obj"
     TList -> "List"
-    TFun -> "Function"
+    TBlock -> "Block"
     TNull -> "Nothing"
     TAny -> "Any"
     TIncomplete -> "<incomplete>"
 
 str2tipe : String -> Tipe
-str2tipe t = 
+str2tipe t =
   case t of
   "Int" -> TInt
   "Str" -> TStr
@@ -50,7 +50,7 @@ str2tipe t =
   "Float" -> TFloat
   "Obj" -> TObj
   "List" -> TList
-  "Function" -> TFun
+  "Block" -> TBlock
   "Nothing" -> TNull
   "Any" -> TAny
   "<incomplete>" -> TIncomplete

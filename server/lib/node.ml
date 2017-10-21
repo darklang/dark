@@ -210,7 +210,7 @@ class func (id : id) pos (name : string) =
       self#argpairs
         |> List.filter_map ~f:(fun (p, arg : param * argument) : id option ->
                                  match (p.tipe, arg) with
-                                 | (RT.TFun, RT.AEdge id) -> Some id
+                                 | (RT.TBlock, RT.AEdge id) -> Some id
                                  | _ -> None)
     method! parameters : param list = self#fn.parameters
     method name = self#fn.name

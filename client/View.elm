@@ -281,7 +281,7 @@ viewNormalNode m n i =
       params = n.arguments
                |> List.map
                     (\(p, a) ->
-                      if p.tipe == TFun
+                      if p.tipe == TBlock
                       then ("", "")
                       else
                         case (a, p) of
