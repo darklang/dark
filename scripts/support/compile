@@ -180,6 +180,7 @@ def ignore(filename):
             , "server/dark.native"
             , "server/test.byte"
             , "server/test.native"
+            , "server/convert_to_graph.native"
             , "server/gmon.out"
             , "server/profile.json"
             , "server/testdata"
