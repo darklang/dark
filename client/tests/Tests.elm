@@ -3,6 +3,7 @@ module Tests exposing (..)
 -- tests
 import Expect exposing (Expectation)
 import Test exposing (..)
+import DarkTestData exposing (..)
 
 -- builtins
 import Set
@@ -209,8 +210,8 @@ entryParser =
           , E.PExpr (E.PValue "-6"))
         , ("- -6 -7.53"
           , E.PExpr (E.PFnCall "-" ([E.PValue "-6",E.PValue "-7.53"])))
- 
-        -- vars 
+
+        -- vars
         , ("$a"
           , E.PExpr (E.PVar "a"))
         -- implicit placeholder
@@ -238,7 +239,7 @@ entryParser =
           , E.PExpr (E.PFnCall "==" ([E.PValue "-5", E.PValue "-6"])))
         , ("6-2"
           , E.PExpr (E.PFnCall "-" ([E.PValue "6", E.PValue "2"])))
- 
+
         -- infix with functions that aren't obvious infix things
         , ("$c String::foreach"
           , E.PExpr (E.PFnCall "String::foreach" ([E.PVar "c"])))
@@ -316,14 +317,14 @@ entryParser =
           --         )
           --       ]
           --    ))
-        ] 
+        ]
       test_parsing expectedFn str =
         test ("parsing \"" ++ str ++ "\"")
           (\_ ->
             let result = E.parseFully str in
             Expect.true "" (expectedFn result)
               |> Expect.onFail (toString result))
- 
+
   in
 
   describe "entryParser"

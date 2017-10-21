@@ -2,6 +2,7 @@
 
 import sys
 import subprocess
+import glob
 
 # Make io unbuffered
 def flush(fn):
@@ -47,7 +48,34 @@ def elm_make():
     # unbuffer makes elm think it's talking a terminal
     return run_frontend("cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
+def convert_dark_file_to_graph(filename):
+  return subprocess.check_output(["server/convert_to_graph.native", filename])
+
+def stringify(json):
+  return json.decode() \
+             .replace("\"", "\\\"") \
+             .replace("\n", "\\n") \
+             .replace("\r", "\\r")
+
+def generate_elm_test_data():
+  graphs = []
+  for d in glob.glob("server/testdata/*.dark"):
+    graphs += [stringify(convert_dark_file_to_graph(d))]
+  filename = "client/tests/DarkTestData.elm"
+  graphs = "\"\n  , \"".join(graphs)
+  output = """module DarkTestData exposing (..)
+
+data : List String
+data =
+  [ \"""" + graphs + """\"]
+"""
+
+  with open(filename, "w") as file:
+    file.write(output)
+
+
 def elm_test():
+  generate_elm_test_data()
   return run_test("cd client && unbuffer elm-test")
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json'"
@@ -57,10 +85,11 @@ def ocaml_build():
   global profile
   cd = "cd server &&"
   build = " ocamlbuild -j 0 dark.native"
+  build_converter = " && ocamlbuild -j 0 convert_to_graph.native"
   if profile:
     return run_backend(cd + landmarks + build)
   else:
-    return run_backend(cd + build)
+    return run_backend(cd + build + build_converter)
 
 def ocaml_test():
   return run_backend("cd server && ocamlbuild test.native && unbuffer _build/test/test.native 2>&1")
@@ -142,6 +171,7 @@ def ignore(filename):
             , "client/elm-stuff"
             , "client/tests/elm-stuff"
             , "client/repl-temp"
+            , "client/tests/DarkTestData.elm"
             , "server/static/elm.js"
             , "server/cache/"
             , "server/_build/"
