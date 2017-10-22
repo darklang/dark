@@ -322,6 +322,17 @@ let save ?(filename=None) (g : graph) : unit =
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
 
+let minimize g : graph =
+  let ops =
+    g.ops
+    |> preprocess
+    |> List.fold_left ~init:[]
+        ~f:(fun ops op -> if op = Op.Delete_all
+                          then []
+                          else (ops @ [op]))
+    |> List.filter ~f:((<>) Op.SavePoint)
+  in { g with ops = ops }
+
 
 (* ------------------------- *)
 (* To Frontend JSON *)
@@ -362,6 +373,7 @@ let to_frontend_string (g: graph) : string =
 let save_test (g: graph) : string =
   let name = g.name ^ "_" ^ (Unix.gettimeofday () |> int_of_float |> string_of_int) in
   let g = {g with name = name} in
+  let g = minimize g in
   let filename = "testdata/" ^ name ^ ".dark" in
   save ~filename:(Some filename) g;
   filename
