@@ -180,7 +180,7 @@ var =
   inContext "var" <|
   succeed PVar
     |. symbol "$"
-    |= keep (Exactly 1) (\x -> (Char.isLower x) || (x == '_'))
+    |= keep (Exactly 1) Char.isLower
 
 list : Parser PExpr
 list = token "list" PValue "\\[.*\\]"
@@ -264,11 +264,9 @@ type AST = ACreating Pos ACreating
 type ACreating = ACFnCall String (List AExpr)
                | ACValue String
 
-type ARef = APlaceholder | ANode Node
-
 type AExpr = AFnCall String (List AExpr)
            | AValue String
-           | AVar ARef
+           | AVar Node
 
 type AFillParam = APBlank (Node, Parameter)
                 | APVar (Node, Parameter) Node
@@ -294,15 +292,11 @@ convertArg m pexpr =
         Err msg -> Err msg
     PValue value -> Ok <| AValue value
     PVar letter ->
-      if letter == G.implicitPlaceholderLetter
-      then
-          Ok <| AVar APlaceholder
-      else
-        case G.fromLetter m letter of
-          Just source ->
-            Ok <| AVar (ANode source)
-          Nothing ->
-            Err <| "letter doesnt exist: " ++ letter
+      case G.fromLetter m letter of
+        Just source ->
+          Ok <| AVar source
+        Nothing ->
+          Err <| "letter doesnt exist: " ++ letter
 
 pt2ast : Model -> EntryCursor -> ParseTree -> AST
 pt2ast m cursor pt =

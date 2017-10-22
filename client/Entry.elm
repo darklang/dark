@@ -18,7 +18,7 @@ import Graph as G exposing (posy, posx)
 import Types exposing (..)
 import Autocomplete
 import Viewport
-import EntryParser exposing (AST(..), ACreating(..), AExpr(..), AFillParam(..), AFillResult(..), ARef(..))
+import EntryParser exposing (AST(..), ACreating(..), AExpr(..), AFillParam(..), AFillResult(..))
 
 
 nodeFromHole : Hole -> Node
@@ -155,61 +155,40 @@ refocus re default =
 ----------------------
 -- execute the AST
 ----------------------
-createArg : Model -> Function -> ID -> Maybe Node -> (AExpr, Parameter) -> Result String (List RPC)
-createArg m fn id placeholderNode (arg, param) =
+createArg : Model -> Function -> ID -> (AExpr, Parameter) -> Result String (List RPC)
+createArg m fn id (arg, param) =
   case arg of
-   AVar r -> case r of
-             ANode n -> Ok [SetEdge n.id (id, param.name)]
-             APlaceholder -> Err <| "Unbound placeholder"
+   AVar n -> Ok [SetEdge n.id (id, param.name)]
    AValue v -> Ok [SetConstant v (id, param.name)]
    AFnCall name args ->
      let fnid = G.gen_id ()
-     in createFn m fnid name args (Dependent Nothing) Nothing placeholderNode
+     in createFn m fnid name args (Dependent Nothing) Nothing
         |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
-
-getExprParamPairs : Model -> ID -> Function -> List AExpr -> Maybe Node -> Maybe Node -> List (AExpr, Parameter)
-getExprParamPairs m id fn args implicit placeholderNode =
-      case placeholderNode of
-        Just n -> fn.parameters |> List.map2 (,) (bindPlaceholderRefToNode args n)
-        Nothing -> injectImplicit m id fn args implicit
-
-bindPlaceholderRefToNode : List AExpr -> Node -> List AExpr
-bindPlaceholderRefToNode args node = args
-                                    |> List.map (\x -> case x of
-                                                    AVar APlaceholder -> AVar (ANode node)
-                                                    _              -> x)
-
-injectImplicit : Model -> ID -> Function -> List AExpr -> Maybe Node -> List (AExpr, Parameter)
-injectImplicit m id fn args implicit =
-    let impP = Maybe.andThen
-               (\n -> Autocomplete.findParamByType fn n.liveValue.tipe)
-               implicit
-        -- get arg for implicit
-        impA = Maybe.map (AVar << ANode) implicit
-
-        -- strip param used for implicit
-        params = List.filter (\p -> (Just p) /= impP) fn.parameters
-
-        -- combine
-        extra = Maybe.map2 (,) impA impP |> ME.toList
-        pairs = extra ++ (List.map2 (,) args params)
-    in
-        pairs
-
-
-createFn : Model -> ID -> String -> List AExpr -> MPos -> Maybe Node -> Maybe Node -> Result String (List RPC)
-createFn m id name args mpos implicit placeholderNode =
+createFn : Model -> ID -> String -> List AExpr -> MPos -> Maybe Node -> Result String (List RPC)
+createFn m id name args mpos implicit =
   let fn = Autocomplete.findFunction m.complete name
   in case fn of
        Nothing -> Err "fn doesnt exist"
        Just fn ->
          let (fs, _) = addFunction m id name mpos
-             pairs = getExprParamPairs m id fn args implicit placeholderNode
-             argEdges = List.map (createArg m fn id placeholderNode) pairs
+             -- get param for implicit
+             impP = Maybe.andThen
+               (\n -> Autocomplete.findParamByType fn n.liveValue.tipe)
+               implicit
+             impA = Maybe.map AVar implicit
+
+             -- strip param used for implicit
+             params = List.filter (\p -> (Just p) /= impP) fn.parameters
+
+             -- combine
+             extra = Maybe.map2 (,) impA impP |> ME.toList
+             pairs = extra ++ (List.map2 (,) args params)
+
+             argEdges = List.map (createArg m fn id) pairs
          in
-          if List.length pairs < List.length args + ((List.length pairs) - (List.length args))
-          then Err <| "Too many argument and not enough parameters: " ++ (toString pairs) ++ (toString args)
+          if List.length pairs < List.length extra + List.length args
+          then Err <| "Too many argument and not enough parameters: " ++ (toString pairs) ++ (toString extra) ++ (toString args)
           else (Ok fs) :: argEdges
                |> RE.combine
                |> Result.map List.concat
@@ -400,7 +379,7 @@ execute m re ast =
           , FocusNext id)
 
     ACreating pos (ACFnCall name args) ->
-      case createFn m id name args (Root pos) Nothing Nothing of
+      case createFn m id name args (Root pos) Nothing of
         Ok fns -> rpc (fns, FocusNext id)
         Err msg -> Error msg
 
@@ -417,7 +396,7 @@ execute m re ast =
           , FocusNext target.id |> refocus re)
 
     AFillParam (APFnCall (target, param) name args) ->
-     case createFn m id name args (Dependent Nothing) Nothing Nothing of
+     case createFn m id name args (Dependent Nothing) Nothing of
         Ok fns -> rpc (fns ++ [ SetEdge id (target.id, param.name)]
                       , FocusNext target.id)
         Err msg -> Error msg
@@ -443,7 +422,7 @@ execute m re ast =
           , FocusNext id)
 
     AFillResult (ARFnCall source name args) ->
-      case createFn m id name args (Dependent Nothing) (Just source) (Just source) of
+      case createFn m id name args (Dependent Nothing) (Just source) of
         Ok fns -> rpc (fns, FocusNext id)
         Err msg -> Error msg
 
