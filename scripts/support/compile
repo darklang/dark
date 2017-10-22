@@ -53,6 +53,7 @@ def convert_dark_file_to_graph(filename):
 
 def stringify(json):
   return json.decode() \
+             .replace("\\", "\\\\") \
              .replace("\"", "\\\"") \
              .replace("\n", "\\n") \
              .replace("\r", "\\r")
