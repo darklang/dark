@@ -290,13 +290,9 @@ entryParser =
         , "+ + +"
         , "if (($c % 3) == 0)"
         , "$i % 3 == 0"
+        , "if (1 + 0) (true && true)"
         , "+4"
           -- , E.PExpr (E.PFnCall "+" ([E.PValue "4"])))
-        ]
-      todo_should_error =
-        [ "String.concat" -- we should parse this so we can give a better warning later
-        , "[a:asd,,,, ,m,se]" -- error
-        , "{a:asd,,,, ,m,se}" -- error
         , "(5 + 7)"
           -- , E.PExpr (E.PFnCall "+" ([E.PValue "5", E.PValue "7"])))
         , "(5) == -6"
@@ -314,6 +310,11 @@ entryParser =
           --         )
           --       ]
           --    ))
+        ]
+      todo_should_error =
+        [ "String.concat" -- we should parse this so we can give a better warning later
+        , "[a:asd,,,, ,m,se]" -- error
+        , "{a:asd,,,, ,m,se}" -- error
         ]
       test_parsing expectedFn str =
         test ("parsing \"" ++ str ++ "\"")
