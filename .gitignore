@@ -12,5 +12,4 @@
 /server/ocamlbuild_output.txt
 /server/profile.json
 /client/tests/DarkTestData.elm
-/server/bin/convert_to_graph.ml
 /server/testdata/*.dark
