@@ -25,6 +25,13 @@ d s fs = describe s (List.indexedMap
                        fs
                     )
 
+-- layout : Test
+-- layout =
+--   let m = DarkTestData.equals |> RPC.decode |> G.reposition
+--       node = m.nodes |> List.head |> deMaybe
+--       m2 = Entry.enterExact node
+--       m3 = Enter.submit m2 False "if"
+--   in expect m3.positioningIsCorrect
 
 autocomplete : Test
 autocomplete =
