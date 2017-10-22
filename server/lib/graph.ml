@@ -360,7 +360,7 @@ let to_frontend_string (g: graph) : string =
   g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
 
 let save_test (g: graph) : string =
-  let name = g.name ^ "_" ^ (Unix.gettimeofday () |> string_of_float) in
+  let name = g.name ^ "_" ^ (Unix.gettimeofday () |> int_of_float |> string_of_int) in
   let g = {g with name = name} in
   let filename = "testdata/" ^ name ^ ".dark" in
   save ~filename:(Some filename) g;
