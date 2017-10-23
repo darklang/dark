@@ -36,13 +36,13 @@ view m =
                  [ SA.width "100%"
                  , SA.height (toString h) ]
                  (viewCanvas m)
-               , viewButtons
+               , viewButtons m.center
                ]
  in
     grid
 
-viewButtons : Html.Html Msg
-viewButtons = Html.div [Attrs.id "buttons"]
+viewButtons : Pos -> Html.Html Msg
+viewButtons center = Html.div [Attrs.id "buttons"]
     [ Html.a
       [ Events.onClick AddRandom
       , Attrs.src ""
@@ -58,6 +58,7 @@ viewButtons = Html.div [Attrs.id "buttons"]
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "SaveTest" ]
+    , Html.text (toString center)
     ]
 
 viewError : Maybe String -> Html.Html Msg
