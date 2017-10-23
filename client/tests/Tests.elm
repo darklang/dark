@@ -25,9 +25,11 @@ d s fs = describe s (List.indexedMap
                        fs
                     )
 
--- layout : Test
--- layout =
---   let m = DarkTestData.equals |> RPC.decode |> G.reposition
+layout : Test
+layout =
+  let m = DarkTestData.layout_simple_equals in
+  describe "layout test" [test "0" (\_ -> Expect.notEqual m "")]
+  --  |> RPC.decode |> G.reposition
 --       node = m.nodes |> List.head |> deMaybe
 --       m2 = Entry.enterExact node
 --       m3 = Enter.submit m2 False "if"
