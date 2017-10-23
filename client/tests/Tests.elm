@@ -1,9 +1,8 @@
-module Tests exposing (..)
+module Tests exposing (all)
 
 -- tests
+import ElmTest.Extra exposing (Test, describe, test, skip)
 import Expect exposing (Expectation)
-import Test exposing (..)
-import DarkTestData exposing (..)
 
 -- builtins
 import Set
@@ -12,6 +11,7 @@ import Json.Decode as JSD
 -- libs
 
 -- dark
+import DarkTestData exposing (..)
 import Defaults
 import Graph as G
 import Autocomplete exposing (..)
@@ -19,6 +19,13 @@ import RPC
 import Types exposing (..)
 import EntryParser as E
 import Util
+
+all : Test
+all =
+  describe "All tests"
+    [ layoutValidates
+    , autocomplete
+    , entryParser ]
 
 
 

@@ -83,7 +83,7 @@ tests =
 
 def elm_test():
   generate_elm_test_data()
-  return run_test("cd client && unbuffer elm-test")
+  return run_test("cd client && unbuffer ~/node_modules/lobo/bin/lobo.js --noUpdate --prompt=n --showTodo --showSkip")
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json'"
 def ocaml_build():
