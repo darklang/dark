@@ -33,8 +33,6 @@ isPositioned n =
     NoPos Nothing -> False
     _ -> True
 
-
-
 pos : Node -> Pos
 pos n =
   case n.pos of
@@ -65,7 +63,7 @@ isArg : Node -> Bool
 isArg n = n.tipe == Arg
 
 isNotArg : Node -> Bool
-isNotArg n = n.tipe /= Arg
+isNotArg = not << isArg
 
 isBlock : Node -> Bool
 isBlock n = n.tipe == Block
@@ -643,9 +641,15 @@ validate m =
   m.nodes
   |> Dict.values
   |> List.map
-       (\n -> if notPositioned n && (not (isBlock n))
-              then let _ = Debug.log "bad positioning" n
-                   in False
-               else True)
+       (\n -> if isBlock n
+              then True
+              else if notPositioned n
+              then let _ = Debug.log "unpositioned node" n in False
+              else if posx n == Defaults.unsetInt || posy n == Defaults.unsetInt
+              then let _ = Debug.log "in hell" n in False
+              else True
+              -- TODO no nodes overlap
+              -- TODO any rules about space between nodes
+       )
   |> List.all identity
 
