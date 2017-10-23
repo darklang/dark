@@ -283,9 +283,9 @@ createNodePositioning m ops =
         -- subgraph "hangs", as this is difficult (and potentialy
         -- inconsistent) to figure out dynamically.
        (\subgraph ->
-          let roots = List.filter G.isRoot (Debug.log "subgraph" subgraph)
+          let roots = (Debug.log "subgraph" subgraph) |> List.filter G.isRoot |> List.filter G.isNotBlock
               rootCount = List.length (Debug.log "roots" roots)
-              frees = List.filter G.isFree subgraph
+              frees = subgraph |> List.filter G.isFree |> List.filter G.isNotBlock
               freeCount = List.length (Debug.log "frees" frees)
           in
             if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
@@ -353,11 +353,11 @@ model op m =
                  , optional = False
                  , description = "fake"
                  }
-    fake id pos =
+    fake id pos tipe =
       { name = "fake"
       , id = ID id
       , pos = pos
-      , tipe = FunctionCall
+      , tipe = tipe
       , liveValue = { value = "fake value"
                     , tipe = TAny
                     , json = "\" fake value \""
@@ -374,22 +374,23 @@ model op m =
       in { node | arguments = (param name, arg) :: args }
     update ns n = Dict.insert (n.id |> deID) n ns
     newNodes =
+
       case Debug.log "op" op of
         AddDatastore (ID id) _ pos ->
-          fake id pos |> update m.nodes
+          fake id pos Datastore |> update m.nodes
         AddValue (ID id) _ pos ->
-          fake id pos |> update m.nodes
+          fake id pos Value |> update m.nodes
 
         -- function call has args but since they dont do anything, add
         -- them later if any set_edges come through
         AddFunctionCall (ID id) name pos ->
-          fake id pos |> update m.nodes
+          fake id pos FunctionCall |> update m.nodes
 
         -- I think the args can't be connected to anything else here, so
         -- nbd. But, more set_edges might connect things together. But I
         -- dont think we're dealing with that yet.
         AddBlock (ID id) pos argids _ ->
-          fake id pos |> update m.nodes
+          fake id pos Block |> update m.nodes
 
         SetConstant c (id, paramname) ->
           setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
