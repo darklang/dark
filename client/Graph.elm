@@ -12,7 +12,6 @@ import Maybe
 -- lib
 import List.Extra as LE
 import Maybe.Extra as ME
--- import Tuple3
 
 -- dark
 import Types exposing (..)
@@ -636,20 +635,21 @@ child2layout m n =
 
 
 
-validate : Model -> Bool
+validate : Model -> Result (List String) (List ())
 validate m =
   m.nodes
   |> Dict.values
   |> List.map
-       (\n -> if isBlock n
-              then True
+      (\n -> if isBlock n
+              then Ok ()
               else if notPositioned n
-              then let _ = Debug.log "unpositioned node" n in False
+              then Err ("unpositioned node", n)
               else if posx n == Defaults.unsetInt || posy n == Defaults.unsetInt
-              then let _ = Debug.log "in hell" n in False
-              else True
+              then Err ("in hell", n)
+              else Ok ()
               -- TODO no nodes overlap
               -- TODO any rules about space between nodes
-       )
-  |> List.all identity
+      )
+  |> Util.combineResult
+  |> Result.mapError (List.map (\(name, node) -> name ++ ": " ++ (toString node)))
 

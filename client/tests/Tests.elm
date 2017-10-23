@@ -1,7 +1,7 @@
 module Tests exposing (all)
 
 -- tests
-import ElmTest.Extra exposing (Test, describe, test, skip)
+import ElmTest.Extra exposing (Test, describe, test, skip, todo)
 import Expect exposing (Expectation)
 
 -- builtins
@@ -52,7 +52,8 @@ layoutValidates =
           { m | nodes = nodes }
           |> G.reposition
           |> G.validate
-          |> Expect.true "is validated"
+          |> (\r -> Expect.true "true" (Util.resultIsOk r)
+                    |> Expect.onFail (toString r))
    )]
 
 --       node = m.nodes |> List.head |> deMaybe
@@ -316,7 +317,7 @@ entryParser =
                       , "   .someF ield"
                       ]
 
-      todo_should_parse =
+      todoShouldParse =
         [ "{ 1: 2, 3: 4, $c: $d}"
         , "{ $c: func ($d + 2) 5}"
         , "[ 1, 2, 3, $c - 5, $c ]"
@@ -327,6 +328,7 @@ entryParser =
         , "if (1 + 0) (true && true)"
         , "+4"
           -- , E.PExpr (E.PFnCall "+" ([E.PValue "4"])))
+        , "3 <= 5"
         , "(5 + 7)"
           -- , E.PExpr (E.PFnCall "+" ([E.PValue "5", E.PValue "7"])))
         , "(5) == -6"
@@ -345,12 +347,18 @@ entryParser =
           --       ]
           --    ))
         ]
-      todo_should_error =
+      todoShouldError =
         [ "String.concat" -- we should parse this so we can give a better warning later
         , "[a:asd,,,, ,m,se]" -- error
         , "{a:asd,,,, ,m,se}" -- error
         ]
-      test_parsing expectedFn str =
+      testParsing expectedFn str =
+        test ("parsing \"" ++ str ++ "\"")
+          (\_ ->
+            let result = E.parseFully str in
+            Expect.true "" (expectedFn result)
+              |> Expect.onFail (toString result))
+      todoParsing expectedFn str =
         test ("parsing \"" ++ str ++ "\"")
           (\_ ->
             let result = E.parseFully str in
@@ -361,7 +369,11 @@ entryParser =
 
   describe "entryParser"
     [ describe "shouldn't parse"
-     <| List.map (test_parsing (Util.resultIsOk >> not)) shouldntParse
+     <| List.map (testParsing (Util.resultIsOk >> not)) shouldntParse
     , describe "works exactly"
-     <| List.map (\(str, expected) -> test_parsing ((==) <| Result.Ok expected) str) exactly
+     <| List.map (\(str, expected) -> testParsing ((==) <| Result.Ok expected) str) exactly
+    , describe "todo: should parse"
+     <| List.map (todoParsing Util.resultIsOk) todoShouldParse
+    , describe "todo: shouldnt parse"
+     <| List.map (testParsing (Util.resultIsOk >> not)) todoShouldError
     ]

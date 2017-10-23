@@ -20,9 +20,8 @@ import Types exposing (..)
 
 parseFully : String -> Result ParseError ParseTree
 parseFully str =
-  Parser.Parser.run full (Debug.log "starting to parse" str)
+  Parser.Parser.run full str
     |> Result.mapError fromParserError
-    |> Result.map (Debug.log "parsed")
 
 token : String -> (String -> a) -> String -> Parser a
 token name ctor re =  token_ (name++": /" ++ re ++ "/") ctor ("^" ++ re |> Regex.regex)

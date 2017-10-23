@@ -61,3 +61,17 @@ letter2int s = s |> String.uncons |> Maybe.withDefault ('!', "") |> Tuple.first 
 logF : String -> (a -> b) -> a -> a
 logF msg fn obj =
   let _ = Debug.log msg (fn obj) in obj
+
+-- like Result.Extra.combine but also combines errors
+combineResult : List (Result x a) -> Result (List x) (List a)
+combineResult results =
+    List.foldl
+      (\r rs ->
+        case (r, rs) of
+          (Ok a, Ok bs) -> Ok (a :: bs)
+          (Err a, Ok _) -> Err [a]
+          (Ok _, Err bs) -> Err bs
+          (Err a, Err bs) -> Err (a :: bs)
+      )
+      (Ok [])
+      results
