@@ -22,11 +22,11 @@ import Util exposing (deMaybe, int2letter, letter2int)
 gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
-hasNoPos : Node -> Bool
-hasNoPos = hasPos >> not
+notPositioned : Node -> Bool
+notPositioned = isPositioned >> not
 
-hasPos : Node -> Bool
-hasPos n =
+isPositioned : Node -> Bool
+isPositioned n =
   case n.pos of
     Free Nothing -> False
     Dependent Nothing -> False
@@ -451,16 +451,7 @@ deleteNode m id =
 --   - return new depth
 reposition : Model -> Model
 reposition m =
-  let subgraphs = toSubgraphs m
-      roots = List.filter hasPos (Dict.values m.nodes)
-      result = repositionLayout m (graph2layout m)
-
-      _ = Dict.map (\k n -> if hasNoPos n
-                            then if isFree n then Debug.log "unpositioned free" n else Debug.log "missed one" n
-                            else n)
-                   result.nodes
-  in
-     result
+  repositionLayout m (graph2layout m)
 
 paramSpacing : Int
 paramSpacing=15
@@ -515,7 +506,7 @@ repositionLayout m roots =
 seen : Model -> Node -> Bool
 seen m n = case Dict.get (deID n.id) m.nodes of
   Nothing -> False
-  Just n -> hasPos n
+  Just n -> isPositioned n
 
 position : Model -> Node -> Int -> Int -> Model
 position m n x y =
@@ -600,7 +591,7 @@ posParents m parents x y =
 --
 graph2layout : Model -> Layout
 graph2layout m =
-  let roots = List.filter hasPos (Dict.values m.nodes)
+  let roots = List.filter isPositioned (Dict.values m.nodes)
   in List.map (root2layout m) roots
 
 root2layout : Model -> Node -> LRoot
