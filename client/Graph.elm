@@ -345,9 +345,10 @@ toSubgraphs m =
 -- Only follows the first edge, goes as high as it can. This is intended
 -- to allow more consistency. Once it hit a node with no parents, it's
 -- done (even if the parent's sibling might have a higher parent).
+-- IGNORES BLOCKS.
 highestParent : Model -> Node -> Node
 highestParent m n =
-  case incomingNodes m n |> List.head of
+  case incomingNodes m n |> List.filter isNotBlock |> List.head of
     Just node -> highestParent m node
     Nothing -> n
 
