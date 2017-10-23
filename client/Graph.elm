@@ -154,7 +154,10 @@ getNode : Model -> ID -> Maybe Node
 getNode m id = Dict.get (deID id) m.nodes
 
 getNodeExn : Model -> ID -> Node
-getNodeExn m id = getNode m id |> deMaybe
+getNodeExn m id =
+  if Dict.member (deID id) m.nodes
+  then getNode m id |> deMaybe
+  else Debug.crash <| "Missing node: " ++ toString id
 
 getArgument : ParamName -> Node -> Argument
 getArgument pname n =
