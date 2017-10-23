@@ -7,9 +7,15 @@ import DarkTestData exposing (..)
 
 -- builtins
 import Set
+import Json.Decode as JSD
+
+-- libs
 
 -- dark
+import Defaults
+import Graph as G
 import Autocomplete exposing (..)
+import RPC
 import Types exposing (..)
 import EntryParser as E
 import Util
@@ -27,9 +33,21 @@ d s fs = describe s (List.indexedMap
 
 layout : Test
 layout =
-  let m = DarkTestData.layout_simple_equals in
-  describe "layout test" [test "0" (\_ -> Expect.notEqual m "")]
-  --  |> RPC.decode |> G.reposition
+  describe "layout test"
+  [test "layout_equals_ifarg"
+  (\_ ->
+    let json = DarkTestData.layout_equals_ifarg
+        result = JSD.decodeString RPC.decodeGraph json
+        m = Defaults.defaultModel Defaults.defaultEditor
+    in case result of
+        Err msg -> Expect.fail msg
+        Ok nodes ->
+          { m | nodes = nodes }
+          |> G.reposition
+          |> G.validate
+          |> Expect.true "is validated"
+   )]
+
 --       node = m.nodes |> List.head |> deMaybe
 --       m2 = Entry.enterExact node
 --       m3 = Enter.submit m2 False "if"

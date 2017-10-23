@@ -1,4 +1,4 @@
-module RPC exposing (rpc, phantomRpc, saveTest)
+module RPC exposing (..)
 
 -- builtin
 import Dict exposing (Dict)

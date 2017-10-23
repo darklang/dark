@@ -638,3 +638,14 @@ child2layout m n =
 
 
 
+validate : Model -> Bool
+validate m =
+  m.nodes
+  |> Dict.values
+  |> List.map
+       (\n -> if notPositioned n && (not (isBlock n))
+              then let _ = Debug.log "bad positioning" n
+                   in False
+               else True)
+  |> List.all identity
+
