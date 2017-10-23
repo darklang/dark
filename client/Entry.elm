@@ -246,11 +246,7 @@ createNodePositioning m ops =
               frees = List.filter G.isFree subgraph
               freeCount = List.length (Debug.log "frees" frees)
           in
-            if wasAddBlock
-            then []
-
-
-            else if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
+            if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
             then
               -- things are exactly as they should be, but we might need
               -- to update the root on which the graph hangs. Let's take
