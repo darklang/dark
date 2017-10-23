@@ -168,11 +168,32 @@ createArg m fn id placeholderNode (arg, param) =
         |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
 
+-- Takes a function and a list of AExprs that are to be its arguments
+-- along with an implicit node, and a node to bind to `$_` args
+-- and returns a list of AExprs bound to Parameters of that function
 getExprParamPairs : Model -> ID -> Function -> List AExpr -> Maybe Node -> Maybe Node -> List (AExpr, Parameter)
 getExprParamPairs m id fn args implicit placeholderNode =
-      case placeholderNode of
-        Just n -> fn.parameters |> List.map2 (,) (bindPlaceholderRefToNode args n)
-        Nothing -> injectImplicit m id fn args implicit
+    case (placeholderNode, (directArgsContainPlaceholder args)) of
+        (Just n, True) -> fn.parameters |> List.map2 (,) (bindPlaceholderRefToNode args n)
+        _ -> injectImplicit m id fn args implicit
+
+directArgsContainPlaceholder : List AExpr -> Bool
+directArgsContainPlaceholder args = argsContainPlaceholder (\_ -> False) args
+
+nestedArgsContainPlaceholder : List AExpr -> Bool
+nestedArgsContainPlaceholder args = argsContainPlaceholder (\x -> nestedArgsContainPlaceholder x) args
+
+argsContainPlaceholder : (List AExpr -> Bool) -> List AExpr -> Bool
+argsContainPlaceholder nestedfn args = args
+                            |> List.filter (\x ->
+                                        case x of
+                                            AVar r -> case r of
+                                                          APlaceholder -> True
+                                                          _            -> False
+                                            AFnCall _ a -> nestedfn a
+                                            _      -> False)
+                            |> (not << List.isEmpty)
+
 
 bindPlaceholderRefToNode : List AExpr -> Node -> List AExpr
 bindPlaceholderRefToNode args node = args
@@ -208,8 +229,8 @@ createFn m id name args mpos implicit placeholderNode =
              pairs = getExprParamPairs m id fn args implicit placeholderNode
              argEdges = List.map (createArg m fn id placeholderNode) pairs
          in
-          if List.length pairs < List.length args + ((List.length pairs) - (List.length args))
-          then Err <| "Too many argument and not enough parameters: " ++ (toString pairs) ++ (toString args)
+          if List.length pairs < List.length args + (implicit |> Maybe.map (\_ -> 1) |> Maybe.withDefault 0)
+          then Err <| "Too many arguments and not enough parameters: " ++ (toString pairs) ++ (toString args)
           else (Ok fs) :: argEdges
                |> RE.combine
                |> Result.map List.concat
@@ -439,7 +460,10 @@ execute m re ast =
           , FocusNext id)
 
     AFillResult (ARFnCall source name args) ->
-      case createFn m id name args (Dependent Nothing) (Just source) (Just source) of
+      let placeholder = Just source
+          implicit    = if (not << nestedArgsContainPlaceholder) args then (Just source) else Nothing
+      in
+      case createFn m id name args (Dependent Nothing) implicit placeholder of
         Ok fns -> rpc (fns, FocusNext id)
         Err msg -> Error msg
 

@@ -263,6 +263,11 @@ type AST = ACreating Pos ACreating
 type ACreating = ACFnCall String (List AExpr)
                | ACValue String
 
+-- TODO(ian): replace this with
+-- type ARef = ABoundPlaceholder Node | ANode Node
+-- to do so we'll need to pass the `Cursor` down to
+-- converArg(s) and do the binding of placeholders at this point
+-- we can then clean up `createfn`.
 type ARef = APlaceholder | ANode Node
 
 type AExpr = AFnCall String (List AExpr)
