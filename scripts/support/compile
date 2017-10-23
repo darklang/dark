@@ -148,6 +148,8 @@ def mark(should, f):
     should.elm_package = True
   elif "Tests.elm" in f:
     should.elm_test = True
+  elif "server/testdata/" in f:
+    should.elm_test = True
   elif ".elm" in f or ".js" in f:
     should.elm_make = True
 
@@ -190,7 +192,6 @@ def ignore(filename):
             , "server/convert_to_graph.native"
             , "server/gmon.out"
             , "server/profile.json"
-            , "server/testdata"
             , "server/ocamlbuild_output.txt"
   ]
   for i in ignores:
