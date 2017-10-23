@@ -141,6 +141,9 @@ distance n1 n2 =
     sqrt (xdiff + ydiff)
 
 
+implicitPlaceholderLetter : String
+implicitPlaceholderLetter = "_"
+
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
 
