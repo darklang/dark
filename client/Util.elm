@@ -75,3 +75,13 @@ combineResult results =
       )
       (Ok [])
       results
+
+
+containsOrdered : List a -> List a -> Bool
+containsOrdered needle haystack =
+  case (needle, haystack) of
+    ([], _) -> True
+    (_, []) -> False
+    (n :: ns, h :: hs) -> if n == h
+                          then containsOrdered ns hs
+                          else containsOrdered (n :: ns) hs
