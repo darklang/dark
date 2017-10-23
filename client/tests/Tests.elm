@@ -31,8 +31,8 @@ d s fs = describe s (List.indexedMap
                        fs
                     )
 
-layout : Test
-layout =
+layoutValidates : Test
+layoutValidates =
   describe "layout test"
   [test "layout_equals_ifarg"
   (\_ ->
