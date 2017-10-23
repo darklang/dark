@@ -6,36 +6,36 @@ import Expect exposing (Expectation)
 
 -- builtins
 import Json.Decode as JSD
+import Dict
 
 -- libs
 
 -- dark
+import Autocomplete
+import DarkTestCode
 import DarkTestData exposing (..)
 import Defaults
 import Graph as G
 import RPC
-import Util
+import Util exposing (deMaybe)
+import Entry
+import Types exposing (..)
 
 all : Test
 all =
   describe "layout test"
   [test "layout_equals_ifarg"
   (\_ ->
-    let json = DarkTestData.layout_equals_ifarg
+    let json = DarkTestData.simple_equals
         result = JSD.decodeString RPC.decodeGraph json
         m = Defaults.defaultModel Defaults.defaultEditor
+        m2 = { m | complete = Autocomplete.init DarkTestCode.functions}
     in case result of
         Err msg -> Expect.fail msg
         Ok nodes ->
-          { m | nodes = nodes }
-          |> G.reposition
-          |> G.validate
-          |> (\r -> Expect.true "true" (Util.resultIsOk r)
-                    |> Expect.onFail (toString r))
+          let m3 = { m2 | nodes = nodes }
+              node = nodes |> Dict.values |> List.head |> deMaybe
+              cursor = Filling node (ParamHole node (node.arguments |> List.head |> deMaybe |> Tuple.first) 0)
+              mod = Entry.submit m3 False cursor "if"
+          in Expect.equal mod (RPC ([], FocusSame))
    )]
-
---       node = m.nodes |> List.head |> deMaybe
---       m2 = Entry.enterExact node
---       m3 = Enter.submit m2 False "if"
---   in expect m3.positioningIsCorrect
-
