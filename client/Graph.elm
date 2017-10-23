@@ -448,7 +448,9 @@ deleteNode m id =
 --   - return new depth
 reposition : Model -> Model
 reposition m =
-  repositionLayout m (graph2layout m)
+  let m2 = repositionRoots m
+      m3 = repositionFrees m2
+  in m3
 
 paramSpacing : Int
 paramSpacing=15
@@ -494,6 +496,23 @@ type alias NextX = Int
 type alias NextY = Int
 type alias MaxX = Int
 type alias MaxY = Int
+
+--       roots = List.filter isRoot (Dict.values m.nodes)
+--       frees = List.filter isFree (Dict.values m.nodes)
+-- repositionLayout m (List.map (root2layout m) roots)
+--       m3 = repositionLayout m (List.map (root2layout m) frees)
+
+repositionRoots : Model -> Model
+repositionRoots m =
+  let roots = List.filter isRoot (Dict.values m.nodes)
+  in repositionLayout m (List.map (root2layout m) roots)
+
+repositionFrees : Model -> Model
+repositionFrees m =
+  m
+  -- let frees = List.filter isFree (Dict.values m.nodes)
+  -- in repositionLayout m (List.map (root2layout m) frees)
+
 
 repositionLayout : Model -> Layout -> Model
 repositionLayout m roots =
@@ -584,12 +603,6 @@ posParents m parents x y =
     let (nextX, nextY, maxX, maxY, m2) = List.foldl posParent (x, y, x, y, m) parents
     in (nextX, maxY+ySpacing, maxX, maxY+ySpacing, m2)
 
-
---
-graph2layout : Model -> Layout
-graph2layout m =
-  let roots = List.filter isPositioned (Dict.values m.nodes)
-  in List.map (root2layout m) roots
 
 root2layout : Model -> Node -> LRoot
 root2layout m n =
