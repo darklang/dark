@@ -12,3 +12,4 @@
 /server/ocamlbuild_output.txt
 /server/profile.json
 /client/tests/DarkTestData.elm
+.DS_Store

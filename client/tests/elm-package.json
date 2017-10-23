@@ -5,9 +5,7 @@
     "license": "BSD3",
     "source-directories": [
         "..",
-        ".",
-        "../../../node_modules/lobo/runner",
-        "../../../node_modules/lobo/plugin/elm-test-extra"
+        "."
     ],
     "exposed-modules": [],
     "native-modules": true,
@@ -33,9 +31,7 @@
         "elm-tools/parser-primitives": "1.0.0 <= v < 2.0.0",
 
         "eeue56/elm-html-test": "5.0.1 <= v < 6.0.0",
-        "elm-community/elm-test": "4.2.0 <= v < 5.0.0",
-        "benansell/lobo-elm-test-extra": "2.0.0 <= v < 3.0.0",
-        "mgold/elm-random-pcg": "5.0.0 <= v <6.0.0"
+        "elm-community/elm-test": "4.2.0 <= v < 5.0.0"
     },
     "elm-version": "0.18.0 <= v < 0.19.0"
 }

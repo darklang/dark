@@ -106,7 +106,4 @@ ENV TERM=xterm-256color
 # Doing otherwise will force a large recompile of the container for
 # everyone
 
-RUN yarn add lobo-cli@0.0.2 # test
-RUN yarn add lobo@0.3.3 # test
-
 CMD ["app", "scripts", "builder"]

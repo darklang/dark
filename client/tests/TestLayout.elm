@@ -1,7 +1,7 @@
-module TestLayout exposing (all)
+module TestLayout exposing (..)
 
 -- tests
-import ElmTest.Extra exposing (Test, describe, test, skip, todo)
+import Test exposing (..)
 import Expect exposing (Expectation, pass, fail)
 
 -- builtins
@@ -22,11 +22,6 @@ import Types exposing (..)
 
 all : Test
 all =
-  describe "layout test"
-  [testAddBlockAsNewRoot]
-
-testAddBlockAsNewRoot : Test
-testAddBlockAsNewRoot =
   test "layout_equals_ifarg"
   (\_ ->
     let json = DarkTestData.simple_equals

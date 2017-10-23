@@ -1,7 +1,7 @@
 module TestEntryParser exposing (all)
 
 -- tests
-import ElmTest.Extra exposing (Test, describe, test, skip, todo)
+import Test exposing (..)
 import Expect exposing (Expectation)
 
 -- builtins
