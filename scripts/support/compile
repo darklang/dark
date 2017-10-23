@@ -3,6 +3,7 @@
 import sys
 import subprocess
 import glob
+import os.path as path
 
 # Make io unbuffered
 def flush(fn):
@@ -60,16 +61,21 @@ def stringify(json):
 
 def generate_elm_test_data():
   graphs = []
+  names = []
   for d in glob.glob("server/testdata/*.dark"):
-    graphs += [stringify(convert_dark_file_to_graph(d))]
+    names.append(path.basename(path.splitext(d)[0]))
+    graphs.append(stringify(convert_dark_file_to_graph(d)))
   filename = "client/tests/DarkTestData.elm"
-  graphs = "\"\n  , \"".join(graphs)
+  testnames = "\n  , ".join(names)
+  tests = [n + " : String\n" + n + " = \"" + g + "\"\n" for (n,g) in zip(names,graphs)]
   output = """module DarkTestData exposing (..)
 
-data : List String
-data =
-  [ \"""" + graphs + """\"]
-"""
+tests : List String
+tests =
+  [ """ + testnames + """
+  ]
+
+""" + "\n\n".join(tests)
 
   with open(filename, "w") as file:
     file.write(output)
