@@ -71,6 +71,12 @@ all =
           , E.PExpr (E.PFnCall "+" ([E.PVar "c",E.PVar "a"])))
         , ("$c - $a"
           , E.PExpr (E.PFnCall "-" ([E.PVar "c",E.PVar "a"])))
+        , ("$c || $a"
+          , E.PExpr (E.PFnCall "||" ([E.PVar "c",E.PVar "a"])))
+        , ("$c <= $a"
+          , E.PExpr (E.PFnCall "<=" ([E.PVar "c",E.PVar "a"])))
+        , ("$c >= $a"
+          , E.PExpr (E.PFnCall ">=" ([E.PVar "c",E.PVar "a"])))
         , ("-5 == -6"
           , E.PExpr (E.PFnCall "==" ([E.PValue "-5", E.PValue "-6"])))
         , ("6-2"
