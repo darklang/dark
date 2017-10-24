@@ -187,12 +187,16 @@ Nodes
   text-align: center;
 }
 
+.node.value {
+  text-align: center;
+}
+
 .node .arg_const {
   font-style: italic;
 }
 
 .node .arg_edge {
-    color: #585858;
+  color: #585858;
 }
 
 
