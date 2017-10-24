@@ -31,7 +31,7 @@ toNodes m (n1, n2) = (toNode m n1, toNode m n2)
 
 checkOverlap : (NodeBounds, NodeBounds) -> Bool
 checkOverlap (n1, n2) =
-    let horizontalOverlap = (n1.left <= n2.right) && (n2.right >= n1.left)
+    let horizontalOverlap = (n1.left <= n2.right) && (n1.right >= n2.left)
         verticalOverlap   = (n1.bottom >= n2.top) && (n1.top <= n2.bottom)
     in
         horizontalOverlap && verticalOverlap
