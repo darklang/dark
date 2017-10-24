@@ -11,11 +11,6 @@ import Expect exposing (Expectation, pass, fail)
 -- dark
 import Util exposing (deMaybe)
 
-all : Test
-all =
-  describe "util"
-  [containsOrdered]
-
 containsOrdered : Test
 containsOrdered =
   let t l r e =
