@@ -31,3 +31,17 @@ containsOrdered =
     , t [1,2,5] [1,4,2] False
     ]
 
+uniqueCombinations : Test
+uniqueCombinations =
+    let t l r = test (toString l ++ " <=> " ++ toString r)
+                      (\_ -> if ((Util.uniqueCombinations l) == r)
+                             then Expect.pass
+                             else Expect.fail ("Expected: " ++ (toString r) ++ ", got: " ++ (l |> Util.uniqueCombinations |> toString)))
+    in  describe "uniqueCombinations"
+        [ t [1,2,3]   [(1,2), (1,3), (2,3)]
+        , t [1,2,3,4] [(1,2), (1,3), (1,4), (2,3), (2,4), (3,4)]
+        , t [] []
+        , t [1] []
+        , t [1,2] [(1,2)]
+        , t ["foo", "bar"] [("foo", "bar")]
+        ]
