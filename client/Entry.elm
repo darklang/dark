@@ -111,7 +111,7 @@ addBlockParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Fo
 addBlockParam _ id pos name block_args =
   let sid = G.gen_id ()
       argids = List.map (\_ -> G.gen_id ()) block_args
-      block = AddBlock sid pos argids block_args
+      block = AddBlock sid (NoPos Nothing) argids block_args
       edge = SetEdge sid (id, name)
   in
     ([block, edge], FocusNext id)
