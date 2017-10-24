@@ -76,7 +76,6 @@ combineResult results =
       (Ok [])
       results
 
-
 containsOrdered : List a -> List a -> Bool
 containsOrdered needle haystack =
   case (needle, haystack) of
@@ -85,3 +84,11 @@ containsOrdered needle haystack =
     (n :: ns, h :: hs) -> if n == h
                           then containsOrdered ns hs
                           else containsOrdered (n :: ns) hs
+
+-- Given [1,2,3,4], this will return [(1,2), (1,3), (1,4), (2,3), (2,4), (3,4)]
+uniqueCombinations : List a -> List (a, a)
+uniqueCombinations xs = xs
+                      |> LE.tails
+                      |> zip xs
+                      |> List.concatMap (\(x, ys) -> List.map (\y -> (x, y)) ys)
+                      |> List.filter (\(x, y) -> x /= y)
