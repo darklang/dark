@@ -12,9 +12,10 @@ import Json.Decode as JSD
 -- dark
 import Autocomplete
 import DarkTestCode
-import DarkTestData exposing (..)
+import DarkTestData
 import Defaults
 import Graph as G
+import Overlap as O
 import RPC
 import Util exposing (deMaybe)
 import Entry
@@ -22,6 +23,12 @@ import Types exposing (..)
 
 center : Pos
 center = {x=475, y=325}
+
+expectResult : Result a b -> Expectation
+expectResult r =
+  case r of
+    Ok ok -> Expect.pass
+    Err err -> Expect.fail (toString err)
 
 opNamesAndPoses : List RPC -> List (String, MPos)
 opNamesAndPoses rpcs =
@@ -39,14 +46,25 @@ opNamesAndPoses rpcs =
         x -> ("other: " ++ toString x, NoPos Nothing)
     ) rpcs
 
+modelFrom : String -> Model
+modelFrom json =
+  let result = JSD.decodeString RPC.decodeGraph json
+      m = Defaults.defaultModel Defaults.defaultEditor
+      m2 = { m | complete = Autocomplete.init DarkTestCode.functions}
+  in case result of
+      Err msg -> Debug.crash <| "Error while reading test file: " ++ msg
+      Ok nodes ->
+        G.reposition { m2 | nodes = nodes }
+
+
+
 testIfAlone : Test
 testIfAlone =
   test "layout_ifAlone"
   (\_ ->
-    let m = Defaults.defaultModel Defaults.defaultEditor
-        m2 = { m | complete = Autocomplete.init DarkTestCode.functions}
+    let m = modelFrom DarkTestData.empty
         cursor = Creating center
-        mod = Entry.submit m2 False cursor "if" in
+        mod = Entry.submit m False cursor "if" in
     case mod of
       RPC (rpcs, _) ->
         let ops = opNamesAndPoses rpcs
@@ -59,25 +77,22 @@ testIfAlone =
       _ -> Expect.fail "wrong type of mod"
    )
 
-expectResult : Result a b -> Expectation
-expectResult r =
-  case r of
-    Ok ok -> Expect.pass
-    Err err -> Expect.fail (toString err)
-
-
 testAddBlockAsNewRoot : Test
 testAddBlockAsNewRoot =
   test "layout_if_as_arg"
   (\_ ->
-    let json = DarkTestData.layout_if_as_arg
-        result = JSD.decodeString RPC.decodeGraph json
-        m = Defaults.defaultModel Defaults.defaultEditor
-        m2 = { m | complete = Autocomplete.init DarkTestCode.functions}
-    in case result of
-        Err msg -> Expect.fail msg
-        Ok nodes ->
-          let m3 = G.reposition { m2 | nodes = nodes }
+    let m = modelFrom DarkTestData.layout_if_as_arg
+    in expectResult (G.validate m)
+  )
 
-          in expectResult (G.validate m3)
+
+triple : Test
+triple =
+  test "overlap_test_triple"
+  (\_ ->
+    let m = modelFrom DarkTestData.overlaptriple
+        overlap = O.overlappingNodes m
+    in case overlap of
+         [] -> Expect.pass
+         _  -> Expect.fail <| "Nodes overlap " ++ (O.ppNodePairs overlap)
    )
