@@ -9,6 +9,7 @@ import Keyboard.Key as Key
 -- dark
 import Types exposing (..)
 import Graph as G
+import Entry
 
 ------------------
 -- cursor stuff
@@ -63,4 +64,14 @@ selectNextNode m id cond =
     |> Maybe.map (\n -> Select n.id)
     |> Maybe.withDefault NoChange
 
+deleteSelected : Model -> ID -> Modification
+deleteSelected m id =
+  let prev = G.incomingNodes m (G.getNodeExn m id)
+      next = G.outgoingNodes m (G.getNodeExn m id) in
+      -- FocusSame gets called later, after the RPC, so just doesn't change anything
+   Many [ RPC (Entry.withNodePositioning m [DeleteNode id], FocusSame)
+        , case List.head (List.append prev next) of
+            Just n -> Select n.id
+            Nothing -> Deselect
+        ]
 
