@@ -6,16 +6,15 @@ import Expect exposing (Expectation, pass, fail)
 
 -- builtins
 import Json.Decode as JSD
-import Dict
 
 -- libs
-import List.Extra as LE
 
 -- dark
 import Autocomplete
 import DarkTestCode
 import DarkTestData exposing (..)
 import Defaults
+import Graph as G
 import RPC
 import Util exposing (deMaybe)
 import Entry
@@ -52,39 +51,33 @@ testIfAlone =
       RPC (rpcs, _) ->
         let ops = opNamesAndPoses rpcs
             expected = [ ("if", Root center)
-                       , ("Block: then", Dependent Nothing)
-                       , ("Block: else", Dependent Nothing)]
+                       , ("Block: then", NoPos Nothing)
+                       , ("Block: else", NoPos Nothing)]
         in if (Util.containsOrdered expected ops)
            then Expect.pass
            else Expect.equal ops expected
       _ -> Expect.fail "wrong type of mod"
    )
 
+expectResult : Result a b -> Expectation
+expectResult r =
+  case r of
+    Ok ok -> Expect.pass
+    Err err -> Expect.fail (toString err)
+
 
 testAddBlockAsNewRoot : Test
 testAddBlockAsNewRoot =
-  test "layout_equals_ifarg"
+  test "layout_if_as_arg"
   (\_ ->
-    let json = DarkTestData.simple_equals
+    let json = DarkTestData.layout_if_as_arg
         result = JSD.decodeString RPC.decodeGraph json
         m = Defaults.defaultModel Defaults.defaultEditor
         m2 = { m | complete = Autocomplete.init DarkTestCode.functions}
     in case result of
         Err msg -> Expect.fail msg
         Ok nodes ->
-          let m3 = { m2 | nodes = nodes }
-              node = nodes |> Dict.values |> List.head |> deMaybe
-              cursor = Filling node (ParamHole node (node.arguments |> List.head |> deMaybe |> Tuple.first) 0)
-              mod = Entry.submit m3 False cursor "if"
-          in case mod of
-               RPC (rpcs, _) ->
-                 let updates = List.filter
-                                 (\r -> case r of
-                                          UpdateNodePosition _ _ -> True
-                                          _ -> False) rpcs
-                 in case updates of
-                      [ UpdateNodePosition (ID 95509132) (Dependent (Just _))
-                      , UpdateNodePosition (ID _) (Root _)] -> Expect.pass
-                      _ -> Expect.fail "bad shape of output"
-               _ -> Expect.fail "wrong type of mod"
+          let m3 = G.reposition { m2 | nodes = nodes }
+
+          in expectResult (G.validate m3)
    )
