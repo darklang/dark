@@ -277,6 +277,11 @@ fold_ func (seen, bAcc) start nextfn =
 
 
 
+-- we have a sorting problem in how we draw nodes
+-- we sometimes get the nice if block indentation that we want, but only
+-- if we position the if first (ie. it's the first node in the list returned by outgoingNodes)
+-- if not, we get the bog standard no indentation version
+-- TODO: we need to come up with some actual rules for this
 outgoingNodes : Model -> Node -> List Node
 outgoingNodes m parent =
   m.nodes
@@ -288,6 +293,12 @@ outgoingNodes m parent =
                       |> LE.find (\n -> n.id == parent.id)
                       |> Maybe.map (always child))
     |> List.append (getArgsOf m parent.id)
+    |> List.sortWith (\a b ->
+                          case (a.name, b.name) of
+                          ("if", "if") -> EQ
+                          ("if", _)    -> LT
+                          (_, "if")    -> GT
+                          _            -> EQ)
 
 incomingNodePairs : Model -> Node -> List (Node, ParamName)
 incomingNodePairs m n = List.filterMap
@@ -637,21 +648,10 @@ root2layout m n =
       (List.map (arg2layout m) args)
       (List.map (child2layout m) children)
 
--- we have a sorting problem in out arg2layout
--- we sometimes get the nice if block indentation that we want, but only
--- if we position the if first (ie. it's the first node in the list returned by outgoingNodes)
--- if not, we get the bog standard no indentation version
--- TODO: we need to come up with some actual rules for this
 arg2layout : Model -> Node -> LArg
-arg2layout m n =
-  let outgoing = outgoingNodes m n
-      sortedOutgoingNodes = List.sortWith (\a b ->
-                              case (a.name, b.name) of
-                              ("if", "if") -> EQ
-                              ("if", _)    -> LT
-                              (_, "if")    -> GT
-                              _            -> EQ) outgoing
-  in LArg n (List.map (child2layout m) sortedOutgoingNodes)
+arg2layout m n = outgoingNodes m n
+               |> List.map (child2layout m)
+               |> LArg n
 
 parent2layout : Model -> Node -> LParent
 parent2layout m n =
