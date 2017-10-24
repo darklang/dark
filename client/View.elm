@@ -225,31 +225,32 @@ viewValue m n =
         if displayedBelow
         then [svgLine m {x=G.posx m n + 10, y=G.posy m n +10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
         else []
-  in
-  edge ++
-  [placeHtml m newPos
-      (case lv.exc of
-        Nothing -> Html.pre
-                    [Attrs.class class, Attrs.title lv.value]
-                    [valueStr lv.value (RT.tipe2str lv.tipe)]
-        Just exc -> Html.span
-                      [ Attrs.class <| "unexpected " ++ class
-                      , Attrs.title
-                          ( "Problem: " ++ exc.short
-                          ++ "\n\nActual value: " ++ exc.actual
-                          ++ "\n\nExpected: " ++ exc.expected
-                          ++ "\n\nMore info: " ++ exc.long
-                        ) ]
-                      [ Html.pre
-                        [ ]
-                        [ valueStr exc.result exc.resultType ]
-                      , Html.span
-                          [Attrs.class "info" ]
-                          [Html.text "ⓘ "]
-                      , Html.span
-                          [Attrs.class "explanation" ]
-                          [Html.text exc.short ]])]
-
+      allOutputs = edge ++
+                    [placeHtml m newPos
+                        (case lv.exc of
+                          Nothing -> Html.pre
+                                      [Attrs.class class, Attrs.title lv.value]
+                                      [valueStr lv.value (RT.tipe2str lv.tipe)]
+                          Just exc -> Html.span
+                                        [ Attrs.class <| "unexpected " ++ class
+                                        , Attrs.title
+                                            ( "Problem: " ++ exc.short
+                                            ++ "\n\nActual value: " ++ exc.actual
+                                            ++ "\n\nExpected: " ++ exc.expected
+                                            ++ "\n\nMore info: " ++ exc.long
+                                          ) ]
+                                        [ Html.pre
+                                          [ ]
+                                          [ valueStr exc.result exc.resultType ]
+                                        , Html.span
+                                            [Attrs.class "info" ]
+                                            [Html.text "ⓘ "]
+                                        , Html.span
+                                            [Attrs.class "explanation" ]
+                                            [Html.text exc.short ]])]
+  in if G.hasRelativePos n
+     then []
+     else allOutputs
 
 getClass : String -> String
 getClass func = case String.slice 0 6 func of

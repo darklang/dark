@@ -8,12 +8,6 @@ import Navigation
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
-import Either exposing (Either)
-
-type Either a b
-    = Left a
-    | Right b
-
 
 type alias Name = String
 type alias FieldName = Name
@@ -63,9 +57,10 @@ type alias VPos =  {vx: Int, vy: Int }
 
 -- MPos is a Node's position. Only roots have a stored position
 -- server-side, but we need to position the other nodes
+type DepPos = DPos Pos | DVPos VPos
 type MPos = Root Pos
           | Free (Maybe VPos) -- relative to the viewport
-          | Dependent (Maybe (Either Pos VPos))
+          | Dependent (Maybe DepPos)
           | NoPos (Maybe Pos)
 
 type alias MouseEvent = {pos: VPos, button: Int}

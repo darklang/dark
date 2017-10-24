@@ -257,7 +257,7 @@ createNodePositioning m ops =
         |> List.head
       deletedWasRoot = ME.unwrap False G.isRoot deletedNode
       subgraphs = G.toSubgraphs newM
-      toDep n = UpdateNodePosition n.id (Dependent <| Just <| Left <| G.pos m n)
+      toDep n = UpdateNodePosition n.id (Dependent <| Just <| DPos <| G.pos m n)
       toRoot n root = UpdateNodePosition n.id (Root <| G.pos m root)
       toFree n = UpdateNodePosition n.id (G.pos m n |> Viewport.toViewport m |> Just |> Free)
       without n ns = List.filter ((/=) n) ns

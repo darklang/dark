@@ -33,13 +33,21 @@ isPositioned n =
     NoPos Nothing -> False
     _ -> True
 
+hasRelativePos : Node -> Bool
+hasRelativePos n =
+  case n.pos of
+    Free _ -> True
+    Dependent (Just (DVPos _)) -> True
+    _ -> False
+
+
 pos : Model -> Node -> Pos
 pos m n =
   case n.pos of
     Root pos -> pos
     Free (Just pos) -> Viewport.toAbsolute m pos
-    Dependent (Just (Left pos)) -> pos
-    Dependent (Just (Right pos)) -> Viewport.toAbsolute m pos
+    Dependent (Just (DPos pos)) -> pos
+    Dependent (Just (DVPos pos)) -> Viewport.toAbsolute m pos
     _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
 
 isRoot : Node -> Bool
@@ -516,12 +524,10 @@ repositionRoots m =
 repositionFrees : Model -> Model
 repositionFrees m =
   let frees = List.filter isFree (Dict.values m.nodes)
-  in case List.head frees of
-       Just free ->
-         let vpos = {vx=10, vy=10}
-             pos = Free <| Just vpos
-         in repositionLayout m FreeDep (List.map (root2layout m) [{free | pos = pos}])
-       Nothing -> m
+      positions = List.repeat (List.length frees) 100 |> LE.scanl1 (+) |> Debug.log "positions"
+      pairs = Util.zip frees positions
+      pFrees = List.map (\(n, ypos) -> { n | pos = Free <| Just <| {vx=10, vy=10+ypos} }) pairs
+  in repositionLayout m FreeDep (List.map (root2layout m) pFrees)
 
 repositionLayout : Model -> DepType -> Layout -> Model
 repositionLayout m depType roots =
@@ -540,8 +546,8 @@ position m depType n x y =
                  Root _ -> Root pos
                  Free _ -> Free <| Just (Viewport.toViewport m pos)
                  Dependent _ -> if depType == FreeDep
-                                then Dependent <| Just <| Right <| (Viewport.toViewport m pos)
-                                else Dependent <| Just <| Left <| pos
+                                then Dependent <| Just <| DVPos <| (Viewport.toViewport m pos)
+                                else Dependent <| Just <| DPos <| pos
                  NoPos _ -> NoPos (Just pos)
       nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
   in {m | nodes = nodes }
