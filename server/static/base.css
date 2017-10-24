@@ -121,14 +121,11 @@ Nodes
 }
 
 .node.page {
-  padding: 0.5em 1.7em;
   text-align: center;
 }
 
 .page .title {
   font-weight: bold;
-  font-size: 1.37em;
-  margin: 1em 0;
 }
 
 .datastore .title {
