@@ -30,6 +30,12 @@ expectResult r =
     Ok ok -> Expect.pass
     Err err -> Expect.fail (toString err)
 
+expectNoOverlap : List (Node, Node) -> Expectation
+expectNoOverlap overlap =
+  case overlap of
+    [] -> Expect.pass
+    _  -> Expect.fail <| "Nodes overlap " ++ (O.ppNodePairs overlap)
+
 opNamesAndPoses : List RPC -> List (String, MPos)
 opNamesAndPoses rpcs =
   List.map
@@ -46,16 +52,27 @@ opNamesAndPoses rpcs =
         x -> ("other: " ++ toString x, NoPos Nothing)
     ) rpcs
 
-modelFrom : String -> Model
-modelFrom json =
+modelFrom : (String, String) -> Model
+modelFrom (name, json) =
   let result = JSD.decodeString RPC.decodeGraph json
       m = Defaults.defaultModel Defaults.defaultEditor
       m2 = { m | complete = Autocomplete.init DarkTestCode.functions}
   in case result of
-      Err msg -> Debug.crash <| "Error while reading test file: " ++ msg
+      Err msg -> Debug.crash <| "Error while reading test file " ++ name ++ ": " ++ msg
       Ok nodes ->
         G.reposition { m2 | nodes = nodes }
 
+testAllLayouts : Test
+testAllLayouts =
+  describe "Test All Layouts"
+    (List.map
+      (\(name, json) ->
+        let m = modelFrom (name, json) in
+        describe name
+          [ test "overlap" (\_ -> O.overlappingNodes m |> expectNoOverlap)
+          , test "nodes positioned" (\_ -> G.validate m |> expectResult)
+          ])
+       DarkTestData.tests)
 
 
 testIfAlone : Test
@@ -75,24 +92,4 @@ testIfAlone =
            then Expect.pass
            else Expect.equal ops expected
       _ -> Expect.fail "wrong type of mod"
-   )
-
-testAddBlockAsNewRoot : Test
-testAddBlockAsNewRoot =
-  test "layout_if_as_arg"
-  (\_ ->
-    let m = modelFrom DarkTestData.layout_if_as_arg
-    in expectResult (G.validate m)
-  )
-
-
-triple : Test
-triple =
-  test "overlap_test_triple"
-  (\_ ->
-    let m = modelFrom DarkTestData.overlaptriple
-        overlap = O.overlappingNodes m
-    in case overlap of
-         [] -> Expect.pass
-         _  -> Expect.fail <| "Nodes overlap " ++ (O.ppNodePairs overlap)
    )

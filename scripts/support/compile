@@ -67,10 +67,10 @@ def generate_elm_test_data():
     graphs.append(stringify(convert_dark_file_to_graph(d)))
   filename = "client/tests/DarkTestData.elm"
   testnames = "\n  , ".join(names)
-  tests = [n + " : String\n" + n + " = \"" + g + "\"\n" for (n,g) in zip(names,graphs)]
+  tests = [n + " : (String, String)\n" + n + " = (\"" + n + "\", \"" + g + "\")\n" for (n,g) in zip(names,graphs)]
   output = """module DarkTestData exposing (..)
 
-tests : List String
+tests : List (String, String)
 tests =
   [ """ + testnames + """
   ]
