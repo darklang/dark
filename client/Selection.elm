@@ -58,7 +58,7 @@ selectNextNode m id cond =
     -- that are above us
     |> List.filter (\o -> cond n o)
     -- the nearest to us
-    |> List.sortBy (\other -> G.distance other n)
+    |> List.sortBy (\other -> G.distance m other n)
     |> List.head
     |> Maybe.map (\n -> Select n.id)
     |> Maybe.withDefault NoChange

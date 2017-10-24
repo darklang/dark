@@ -20,7 +20,7 @@ makeRandomChange m =
   let id = G.gen_id ()
       r () = Util.random () % 100
       r0 = r ()
-      nodes = m.nodes |> Dict.values |> List.filter (\n -> G.posx n /= Defaults.unsetInt)
+      nodes = m.nodes |> Dict.values |> List.filter (\n -> G.posx m n /= Defaults.unsetInt)
       numNodes = List.length nodes
       str = "astring"
       int _ = Util.random () % 30

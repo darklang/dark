@@ -100,10 +100,10 @@ updateMod mod (m, cmd) =
       NoChange -> m ! []
       MakeCmd cmd -> m ! [cmd]
       Select id -> { m | state = Selecting id
-                       , center = G.getNodeExn m id |> G.pos} ! []
+                       , center = G.getNodeExn m id |> G.pos m} ! []
       Enter re entry -> { m | state = Entering re entry
                             , center = case entry of
-                                         Filling n _ -> G.pos n
+                                         Filling n _ -> G.pos m n
                                          Creating p -> m.center -- dont move
                         }
                         ! [Entry.focusEntry]
@@ -166,18 +166,18 @@ update_ msg m =
                         Just n -> Select n.id
                         Nothing -> Deselect
                     ]
-              Key.Up -> Selection.selectNextNode m id (\n o -> G.posy n > G.posy o)
-              Key.Down -> Selection.selectNextNode m id (\n o -> G.posy n < G.posy o)
+              Key.Up -> Selection.selectNextNode m id (\n o -> G.posy m n > G.posy m o)
+              Key.Down -> Selection.selectNextNode m id (\n o -> G.posy m n < G.posy m o)
               Key.Left -> if event.altKey
                 then
                   ChangeCursor -1
                 else
-                  Selection.selectNextNode m id (\n o -> G.posx n > G.posx o)
+                  Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
               Key.Right -> if event.altKey
                 then
                   ChangeCursor 1
                 else
-                  Selection.selectNextNode m id (\n o -> G.posx n < G.posx o)
+                  Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
               Key.Enter -> Entry.enterExact m (G.getNodeExn m id)
               Key.One -> Entry.reenter m id 0
               Key.Two -> Entry.reenter m id 1

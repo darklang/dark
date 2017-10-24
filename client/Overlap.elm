@@ -39,7 +39,7 @@ checkOverlap (n1, n2) =
 bounds : Model -> Node -> NodeBounds
 bounds m n =
     let id              = n.id
-        topLeft         = G.pos n
+        topLeft         = G.pos m n
         (width, height) = G.nodeSize n
         bottomRight     = {x = topLeft.x + width, y = topLeft.y + height}
     in

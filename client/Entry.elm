@@ -29,16 +29,16 @@ nodeFromHole h = case h of
 holeCreatePos : Model -> Hole -> Pos
 holeCreatePos m hole =
   case hole of
-    ParamHole n _ i -> {x=(posx n)-50+(i*50), y=(posy n)-40}
+    ParamHole n _ i -> {x=(posx m n)-50+(i*50), y=(posy m n)-40}
     ResultHole n ->
       let connected = G.entireSubgraph m n
           lowest = connected
                    |> List.filter .visible
-                   |> List.map (\n -> posy n)
+                   |> List.map (\n -> posy m n)
                    |> List.maximum
-                   |> Maybe.withDefault (posy n)
+                   |> Maybe.withDefault (posy m n)
       in
-      {x=posx n, y=lowest+40}
+      {x=posx m n, y=lowest+40}
 
 
 ---------------------
@@ -257,15 +257,15 @@ createNodePositioning m ops =
         |> List.head
       deletedWasRoot = ME.unwrap False G.isRoot deletedNode
       subgraphs = G.toSubgraphs newM
-      toDep n = UpdateNodePosition n.id (Dependent <| Just <| G.pos n)
-      toRoot n root = UpdateNodePosition n.id (Root <| G.pos root)
-      toFree n = UpdateNodePosition n.id (Free <| Just <| G.pos n)
+      toDep n = UpdateNodePosition n.id (Dependent <| Just <| Left <| G.pos m n)
+      toRoot n root = UpdateNodePosition n.id (Root <| G.pos m root)
+      toFree n = UpdateNodePosition n.id (G.pos m n |> Viewport.toViewport m |> Just |> Free)
       without n ns = List.filter ((/=) n) ns
       topLeftOf nodes =
         nodes
         |> List.sortWith
-             (\n1 n2 -> case compare (G.posx n1) (G.posx n2) of
-                          EQ -> compare (G.posy n1) (G.posy n2)
+             (\n1 n2 -> case compare (G.posx m n1) (G.posx m n2) of
+                          EQ -> compare (G.posy m n1) (G.posy m n2)
                           a -> a)
         |> Debug.log "sorted"
         |> List.head

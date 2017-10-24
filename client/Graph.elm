@@ -16,6 +16,7 @@ import Maybe.Extra as ME
 -- dark
 import Types exposing (..)
 import Defaults
+import Viewport
 import Util exposing (deMaybe, int2letter, letter2int)
 
 gen_id : () -> ID
@@ -32,12 +33,13 @@ isPositioned n =
     NoPos Nothing -> False
     _ -> True
 
-pos : Node -> Pos
-pos n =
+pos : Model -> Node -> Pos
+pos m n =
   case n.pos of
     Root pos -> pos
-    Free (Just pos) -> pos
-    Dependent (Just pos) -> pos
+    Free (Just pos) -> Viewport.toAbsolute m pos
+    Dependent (Just (Left pos)) -> pos
+    Dependent (Just (Right pos)) -> Viewport.toAbsolute m pos
     _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
 
 isRoot : Node -> Bool
@@ -52,11 +54,11 @@ isFree n =
     Free _ -> True
     _ -> False
 
-posx : Node -> Int
-posx n = (pos n).x
+posx : Model -> Node -> Int
+posx m n = (pos m n).x
 
-posy : Node -> Int
-posy n = (pos n).y
+posy : Model -> Node -> Int
+posy m n = (pos m n).y
 
 isArg : Node -> Bool
 isArg n = n.tipe == Arg
@@ -127,16 +129,16 @@ blockNodes m =
 orderedNodes : Model -> List Node
 orderedNodes m =
   m.nodes
-    |> Dict.values
-    |> List.filter isNotBlock
-    |> List.map (\n -> (posx n, posy n, n.id |> deID))
-    |> List.sortWith Ordering.natural
-    |> List.map (\(_,_,id) -> getNodeExn m (ID id))
+  |> Dict.values
+  |> List.filter isNotBlock
+  |> List.map (\n -> (posx m n, posy m n, n.id |> deID))
+  |> List.sortWith Ordering.natural
+  |> List.map (\(_,_,id) -> getNodeExn m (ID id))
 
-distance : Node -> Node -> Float
-distance n1 n2 =
-  let xdiff = toFloat (posx n2 - posx n1) ^ 2
-      ydiff = toFloat (posy n2 - posy n1) ^ 2
+distance : Model -> Node -> Node -> Float
+distance m n1 n2 =
+  let xdiff = toFloat (posx m n2 - posx m n1) ^ 2
+      ydiff = toFloat (posy m n2 - posy m n1) ^ 2
   in
     sqrt (xdiff + ydiff)
 
@@ -504,40 +506,42 @@ type alias NextY = Int
 type alias MaxX = Int
 type alias MaxY = Int
 
---       roots = List.filter isRoot (Dict.values m.nodes)
---       frees = List.filter isFree (Dict.values m.nodes)
--- repositionLayout m (List.map (root2layout m) roots)
---       m3 = repositionLayout m (List.map (root2layout m) frees)
+type DepType = FreeDep | RootDep
 
 repositionRoots : Model -> Model
 repositionRoots m =
   let roots = List.filter isRoot (Dict.values m.nodes)
-  in repositionLayout m (List.map (root2layout m) roots)
+  in repositionLayout m RootDep (List.map (root2layout m) roots)
 
 repositionFrees : Model -> Model
 repositionFrees m =
-  m
-  -- let frees = List.filter isFree (Dict.values m.nodes)
-  -- in repositionLayout m (List.map (root2layout m) frees)
+  let frees = List.filter isFree (Dict.values m.nodes)
+  in case List.head frees of
+       Just free ->
+         let vpos = {vx=10, vy=10}
+             pos = Free <| Just vpos
+         in repositionLayout m FreeDep (List.map (root2layout m) [{free | pos = pos}])
+       Nothing -> m
 
-
-repositionLayout : Model -> Layout -> Model
-repositionLayout m roots =
+repositionLayout : Model -> DepType -> Layout -> Model
+repositionLayout m depType roots =
   List.foldl (\r m -> let (LRoot n _ _) = r
-                      in posRoot m r (posx n) (posy n)) m roots
+                      in posRoot m depType r (posx m n) (posy m n)) m roots
 
 seen : Model -> Node -> Bool
 seen m n = case Dict.get (deID n.id) m.nodes of
   Nothing -> False
   Just n -> isPositioned n
 
-position : Model -> Node -> Int -> Int -> Model
-position m n x y =
+position : Model -> DepType -> Node -> Int -> Int -> Model
+position m depType n x y =
   let pos = {x=x,y=y}
       newPos = case n.pos of
                  Root _ -> Root pos
-                 Free _ -> Free (Just pos)
-                 Dependent _ -> Dependent (Just pos)
+                 Free _ -> Free <| Just (Viewport.toViewport m pos)
+                 Dependent _ -> if depType == FreeDep
+                                then Dependent <| Just <| Right <| (Viewport.toViewport m pos)
+                                else Dependent <| Just <| Left <| pos
                  NoPos _ -> NoPos (Just pos)
       nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
   in {m | nodes = nodes }
@@ -547,67 +551,67 @@ max3 x y z = max x y |> max z
 max4 : Int -> Int -> Int -> Int -> Int
 max4 w x y z = max x y |> max z |> max w
 
-posRoot : Model -> LRoot -> Int -> Int -> Model
-posRoot m (LRoot n args children) x y =
-  let m2 = position m n x y
-      (_, nextY, _, _, m3) = posArgs m2 args x y
-      (_, _, _, _, m4) = posChildren m3 children x nextY
+posRoot : Model -> DepType -> LRoot -> Int -> Int -> Model
+posRoot m depType (LRoot n args children) x y =
+  let m2 = position m depType n x y
+      (_, nextY, _, _, m3) = posArgs m2 depType args x y
+      (_, _, _, _, m4) = posChildren m3 depType children x nextY
   in m4
 
 type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, Model)
-posArg : LArg -> TraversalInfo -> TraversalInfo
-posArg (LArg n children) (x, y, maxX, maxY, m) =
+posArg : DepType -> LArg -> TraversalInfo -> TraversalInfo
+posArg depType (LArg n children) (x, y, maxX, maxY, m) =
   if seen m n then (x,y,x,y,m)
   else
-    let m2 = position m n x y in
-    let (_, _, maxXcs, maxYcs, m3) = posChildren m2 children x y
+    let m2 = position m depType n x y in
+    let (_, _, maxXcs, maxYcs, m3) = posChildren m2 depType children x y
         newX = (max3 (x + nodeWidth n) maxXcs maxX) + paramSpacing
     in (newX, y, newX, max maxYcs maxY, m3)
 
-posArgs : Model -> List LArg -> NextX -> NextY -> TraversalInfo
-posArgs m args x y =
+posArgs : Model -> DepType -> List LArg -> NextX -> NextY -> TraversalInfo
+posArgs m depType args x y =
   if List.length args == 0
   then (x, y, x, y, m)
-  else List.foldl posArg (x+blockIndent, y+ySpacing, x+blockIndent, y+ySpacing, m) args
+  else List.foldl (posArg depType) (x+blockIndent, y+ySpacing, x+blockIndent, y+ySpacing, m) args
 
-posChild : LChild -> TraversalInfo -> TraversalInfo
-posChild (LChild n args children parents) (x, y, maxX, maxY, m) =
+posChild : DepType -> LChild -> TraversalInfo -> TraversalInfo
+posChild depType (LChild n args children parents) (x, y, maxX, maxY, m) =
   if seen m n then (x,y,maxX,maxY,m)
   else
-    let (_, nextY, maxXps, maxYps, m2) = posParents m parents (x+paramSpacing) y
-        m3 = position m2 n x nextY
+    let (_, nextY, maxXps, maxYps, m2) = posParents m depType parents (x+paramSpacing) y
+        m3 = position m2 depType n x nextY
 
         -- blocks should be calculated before children, as we need to
         -- know how deep they are before we can start to position other
         -- outgoing nodes below them.
-        (_, _, maxXas, maxYas, m4) = posArgs m3 args x maxYps
-        (_, _, maxXcs, maxYcs, m5) = posChildren m4 children x maxYas
+        (_, _, maxXas, maxYas, m4) = posArgs m3 depType args x maxYps
+        (_, _, maxXcs, maxYcs, m5) = posChildren m4 depType children x maxYas
         newX = max4 maxXps maxXas maxXcs (x + nodeWidth n)
     in (newX+paramSpacing, y, newX, max maxYcs y, m5)
 
-posChildren : Model -> List LChild -> NextX -> NextY -> TraversalInfo
-posChildren m children x y =
+posChildren : Model -> DepType -> List LChild -> NextX -> NextY -> TraversalInfo
+posChildren m depType children x y =
   if List.length children == 0
   then (x,y,x,y,m)
-  else List.foldl posChild (x, y, x, y+ySpacing, m) children
+  else List.foldl (posChild depType) (x, y, x, y+ySpacing, m) children
 
-posParent : LParent -> TraversalInfo -> TraversalInfo
-posParent (LParent n parents) (x, y, maxX, maxY, m) =
+posParent : DepType -> LParent -> TraversalInfo -> TraversalInfo
+posParent depType (LParent n parents) (x, y, maxX, maxY, m) =
   if seen m n then (x,y,x,y,m)
   else
     -- TODO see if we can take the first position away
-    let m2 = position m n x y in -- don't have position yet, but dont want to visit twice
-    let (_, nextY, maxXps, maxYps, m3) = posParents m2 parents x y
-        m4 = position m3 n x nextY
+    let m2 = position m depType n x y in -- don't have position yet, but dont want to visit twice
+    let (_, nextY, maxXps, maxYps, m3) = posParents m2 depType parents x y
+        m4 = position m3 depType n x nextY
         newX = (max3 (x + nodeWidth n) maxXps maxX) + paramSpacing
     in (newX, y, newX, max maxYps maxY, m4)
 
-posParents : Model -> List LParent -> NextX -> NextY -> TraversalInfo
-posParents m parents x y =
+posParents : Model -> DepType -> List LParent -> NextX -> NextY -> TraversalInfo
+posParents m depType parents x y =
   if List.length parents == 0
   then (x,y,x,y,m)
   else
-    let (nextX, nextY, maxX, maxY, m2) = List.foldl posParent (x, y, x, y, m) parents
+    let (nextX, nextY, maxX, maxY, m2) = List.foldl (posParent depType) (x, y, x, y, m) parents
     in (nextX, maxY+ySpacing, maxX, maxY+ySpacing, m2)
 
 
@@ -664,7 +668,7 @@ validate m =
               then Ok ()
               else if notPositioned n
               then Err ("unpositioned node", n)
-              else if posx n == Defaults.unsetInt || posy n == Defaults.unsetInt
+              else if posx m n == Defaults.unsetInt || posy m n == Defaults.unsetInt
               then Err ("in hell", n)
               else Ok ()
               -- TODO no nodes overlap

@@ -174,8 +174,8 @@ viewEntry m =
         let holePos = holeDisplayPos m h
             edgePos = { x = holePos.x + 10
                       , y = holePos.y + 10}
-            nodePos = { x = G.posx n + 10
-                      , y = G.posy n + 10}
+            nodePos = { x = G.posx m n + 10
+                      , y = G.posy m n + 10}
         in
         [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
       Entering _ (Creating pos) -> [html pos]
@@ -188,14 +188,14 @@ valueDisplayPos m n =
   then Entry.holeCreatePos m (ResultHole n)
   else
     let xpad = max (G.nodeWidth n + 50) 250
-    in {x=(G.posx n)+xpad, y=G.posy n}
+    in {x=(G.posx m n)+xpad, y=G.posy m n}
 
 holeDisplayPos : Model -> Hole -> Pos
 holeDisplayPos m hole =
   case hole of
     ResultHole _ -> let {x,y} = Entry.holeCreatePos m hole
                     in {x=x, y=y + 50}
-    ParamHole n _ _ -> {x=(G.posx n)-350, y=(G.posy) n-100}
+    ParamHole n _ _ -> {x=(G.posx m n)-350, y=(G.posy m n)-100}
 
 
 
@@ -220,10 +220,10 @@ viewValue m n =
       isPhantom = lv /= n.liveValue
       class = if isPhantom then "phantom" else "preview"
       newPos = valueDisplayPos m n
-      displayedBelow = newPos.y /= G.posy n
+      displayedBelow = newPos.y /= G.posy m n
       edge =
         if displayedBelow
-        then [svgLine m {x=G.posx n + 10, y=G.posy n +10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
+        then [svgLine m {x=G.posx m n + 10, y=G.posy m n +10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
         else []
   in
   edge ++
@@ -334,7 +334,7 @@ placeNode m n width attrs classes header body =
       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
       wrapper = Html.div [] [ node, header_wrapper ]
   in
-    placeHtml m (G.pos n) wrapper
+    placeHtml m (G.pos m n) wrapper
 
 edgeStyle : List (Svg.Attribute Msg)
 edgeStyle =
@@ -352,10 +352,10 @@ viewEdge m source target =
     let targetPos = target.pos
         (sourceW, sourceH) = G.nodeSize source
         (targetW, targetH) = G.nodeSize target
-        spos = { x = G.posx source + 10
-               , y = G.posy source + (sourceH // 2)}
-        tpos = { x = G.posx target + 10
-               , y = G.posy target + (targetH // 2)}
+        spos = { x = G.posx m source + 10
+               , y = G.posy m source + (sourceH // 2)}
+        tpos = { x = G.posx m target + 10
+               , y = G.posy m target + (targetH // 2)}
     in svgLine
       m
       spos
