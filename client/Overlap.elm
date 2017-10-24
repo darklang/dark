@@ -11,6 +11,7 @@ import Graph as G
 overlappingNodes : Model -> List (Node, Node)
 overlappingNodes m = m.nodes
                    |> Dict.values
+                   |> List.filter G.hasPos
                    |> List.map (bounds m)
                    |> Util.uniqueCombinations
                    |> List.filter checkOverlap

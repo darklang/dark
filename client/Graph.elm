@@ -62,6 +62,12 @@ isFree n =
     Free _ -> True
     _ -> False
 
+hasPos : Node -> Bool
+hasPos n =
+    case n.pos of
+      NoPos _ -> False
+      _       -> True
+
 posx : Model -> Node -> Int
 posx m n = (pos m n).x
 
