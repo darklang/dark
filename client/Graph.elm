@@ -546,9 +546,9 @@ type alias MaxY = Int
 -- TODO: make this true
 type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, Model)
 
-debug : String -> Node -> TraversalInfo -> ()
-debug fn n (x, y, maxX, maxY, _) =
-  let _ = Debug.log (fn ++ ": " ++ n.name) (x, y, maxX, maxY) in ()
+debug : Model -> String -> Node -> TraversalInfo -> ()
+debug m fn n (x, y, maxX, maxY, _) =
+  let _ = Debug.log (fn ++ " " ++ n.name ++ " (" ++ "seen: " ++ (seen m n |> toString) ++ ")") (x, y, maxX, maxY) in ()
 
 -- Here we mean:
 -- MaxX:  The rightmost/X-most point something was pos'd at as a result of the fold (incl. recursive walks)
@@ -573,7 +573,7 @@ posArgs m depType n x y =
 
 posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
 posArg depType n ((x, y, maxX, maxY, m) as ti) =
-  let _ = debug "posArg" n ti in
+  let _ = debug m "posArg" n ti in
   if seen m n then (x,y,x,y,m)
   else
     let m2 = position m depType n x y in
@@ -592,7 +592,7 @@ posChildren m depType n x y =
 
 posChild : DepType -> Node -> TraversalInfo -> TraversalInfo
 posChild depType n ((x, y, maxX, maxY, m) as ti) =
-  let _ = debug "posChild" n ti in
+  let _ = debug m "posChild" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
     let (maxXps, maxYps, m2) = posParents m depType n (x+paramSpacing) y
@@ -616,7 +616,7 @@ posParents m depType n x y =
 
 posParent : DepType -> Node -> TraversalInfo -> TraversalInfo
 posParent depType n ((x, y, maxX, maxY, m) as ti) =
-  let _ = debug "posParent" n ti in
+  let _ = debug m "posParent" n ti in
   if seen m n then (x,y,x,y,m)
   else
     -- TODO see if we can take the first position away
