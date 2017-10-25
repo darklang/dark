@@ -480,6 +480,7 @@ deleteNode m id =
 --     - repositionUp parent
 --   - place node
 --   - return new depth
+-- TODO: hard to tell when two lines overlap each other
 reposition : Model -> Model
 reposition m =
   let m2 = repositionRoots m
@@ -492,12 +493,6 @@ blockIndent: Int
 blockIndent=20
 ySpacing : Int
 ySpacing=30
-
--- TODO: hard to tell when two lines overlap each other
-type alias NextX = Int
-type alias NextY = Int
-type alias MaxX = Int
-type alias MaxY = Int
 
 type DepType = FreeDep | RootDep
 
@@ -538,12 +533,28 @@ position m depType n x y =
       nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
   in {m | nodes = nodes }
 
-max3 : Int -> Int -> Int -> Int
-max3 x y z = max x y |> max z
-max4 : Int -> Int -> Int -> Int -> Int
-max4 w x y z = max x y |> max z |> max w
-max5 : Int -> Int -> Int -> Int -> Int -> Int
-max5 v w x y z = max x y |> max z |> max w |> max v
+type alias NextX = Int
+type alias NextY = Int
+type alias MaxX = Int
+type alias MaxY = Int
+
+-- Here we mean:
+-- NextX: The nextX co-ordinate for a sibling in the current fold to pos itself
+-- NextX: The nextY co-ordinate for a sibling in the current fold to pos itself
+-- MaxX:  The rightmost/X-most point we have drawn something in the current fold
+-- MaxY:  The bottomost/Y-most point we have drawn something in the current fold
+-- TODO: make this true
+type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, Model)
+
+debug : String -> Node -> TraversalInfo -> ()
+debug fn n (x, y, maxX, maxY, _) =
+  let _ = Debug.log (fn ++ ": " ++ n.name) (x, y, maxX, maxY) in ()
+
+-- Here we mean:
+-- MaxX:  The rightmost/X-most point something was pos'd at as a result of the fold (incl. recursive walks)
+-- MaxY:  The bottomost/Y-most point something was pos'd at as a result of the fold (incl. recursive walks)
+-- TODO: make this true
+type alias SpaceInfo = (MaxX, MaxY, Model)
 
 posRoot : Model -> DepType -> Node -> Int -> Int -> Model
 posRoot m depType n x y =
@@ -554,17 +565,11 @@ posRoot m depType n x y =
       (_, _, m4) = posChildren m3 depType n x maxY
   in m4
 
--- Here we mean:
--- NextX: The nextX co-ordinate for a sibling in the current fold to pos itself
--- NextX: The nextY co-ordinate for a sibling in the current fold to pos itself
--- MaxX:  The rightmost/X-most point we have drawn something in the current fold
--- MaxY:  The bottomost/Y-most point we have drawn something in the current fold
-type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, Model)
-
--- Here we mean:
--- MaxX:  The rightmost/X-most point something was pos'd at as a result of the fold (incl. recursive walks)
--- MaxY:  The bottomost/Y-most point something was pos'd at as a result of the fold (incl. recursive walks)
-type alias SpaceInfo = (MaxX, MaxY, Model)
+posArgs : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
+posArgs m depType n x y =
+  let args = outgoingNodes m n |> List.filter isArg
+      (_, _, maxX, maxY, m2) = List.foldl (posArg depType) (x, y, x, y, m) args
+  in (maxX, maxY, m2)
 
 posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
 posArg depType n ((x, y, maxX, maxY, m) as ti) =
@@ -577,16 +582,11 @@ posArg depType n ((x, y, maxX, maxY, m) as ti) =
         newX = (max3 (x + nodeWidth n) maxXcs maxX) + paramSpacing
     in (newX, y, newX, max maxYcs maxY, m3)
 
-posArgs : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
-posArgs m depType n x y =
-  let args = outgoingNodes m n |> List.filter isArg
-      (_, _, maxX, maxY, m2) = List.foldl (posArg depType) (x, y, x, y, m) args
+posChildren : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
+posChildren m depType n x y =
+  let children = outgoingNodes m n |> List.filter isNotArg
+      (_, _, maxX, maxY, m2) = List.foldl (posChild depType) (x, y, x, y, m) children
   in (maxX, maxY, m2)
-
-debug : String -> Node -> TraversalInfo -> ()
-debug fn n (x, y, maxX, maxY, _) =
-  let _ = Debug.log (fn ++ ": " ++ n.name) (x, y, maxX, maxY) in ()
-
 
 posChild : DepType -> Node -> TraversalInfo -> TraversalInfo
 posChild depType n ((x, y, maxX, maxY, m) as ti) =
@@ -604,10 +604,10 @@ posChild depType n ((x, y, maxX, maxY, m) as ti) =
         newX = max4 maxXps maxXas maxXcs (x + nodeWidth n)
     in (newX+paramSpacing, y, newX, max maxYcs y, m5)
 
-posChildren : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
-posChildren m depType n x y =
-  let children = outgoingNodes m n |> List.filter isNotArg
-      (_, _, maxX, maxY, m2) = List.foldl (posChild depType) (x, y, x, y, m) children
+posParents : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
+posParents m depType n x y =
+  let parents = incomingNodes m n |> List.filter isNotBlock
+      (_, _, maxX, maxY, m2) = List.foldl (posParent depType) (x, y, x, y, m) parents
   in (maxX, maxY, m2)
 
 posParent : DepType -> Node -> TraversalInfo -> TraversalInfo
@@ -627,11 +627,12 @@ posParent depType n ((x, y, maxX, maxY, m) as ti) =
         newX = (max5 (x + nodeWidth n) maxXps maxX maxXas maxXcs) + paramSpacing
     in (newX, y, newX, ySpacing+(max maxYps maxY), m6)
 
-posParents : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
-posParents m depType n x y =
-  let parents = incomingNodes m n |> List.filter isNotBlock
-      (_, _, maxX, maxY, m2) = List.foldl (posParent depType) (x, y, x, y, m) parents
-  in (maxX, maxY, m2)
+max3 : Int -> Int -> Int -> Int
+max3 x y z = max x y |> max z
+max4 : Int -> Int -> Int -> Int -> Int
+max4 w x y z = max x y |> max z |> max w
+max5 : Int -> Int -> Int -> Int -> Int -> Int
+max5 v w x y z = max x y |> max z |> max w |> max v
 
 validate : Model -> Result (List String) (List ())
 validate m =
