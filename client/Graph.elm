@@ -595,18 +595,19 @@ posChild depType n ((x, y, maxX, maxY, m) as ti) =
   let _ = debug m "posChild" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
-    let (maxXps, maxYps, m2) = posParents m depType n (x+paramSpacing) y
-        m3 = position m2 depType n x maxYps
+    let m2 = position m depType n x y in
+    let (maxXps, maxYps, m3) = posParents m2 depType n (x+paramSpacing) y
+        m4 = position m3 depType n x maxYps
         nextY = maxYps + ySpacing
         -- blocks should be calculated before children, as we need to
         -- know how deep they are before we can start to position other
         -- outgoing nodes below them.
-        (maxXas, maxYas, m4) = posArgs m3 depType n (x+blockIndent) nextY
-        (maxXcs, maxYcs, m5) = posChildren m4 depType n x maxYas
+        (maxXas, maxYas, m5) = posArgs m4 depType n (x+blockIndent) nextY
+        (maxXcs, maxYcs, m6) = posChildren m5 depType n x maxYas
         newX = max4 maxXps maxXas maxXcs (x + nodeWidth n)
         maxDrawnX = newX -- TODO, wrong
         maxDrawnY = max maxYcs y -- TODO, wrong
-    in (newX+paramSpacing, y, maxDrawnX, maxDrawnY, m5)
+    in (newX+paramSpacing, y, maxDrawnX, maxDrawnY, m6)
 
 posParents : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
 posParents m depType n x y =
@@ -628,10 +629,10 @@ posParent depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXas, maxYas, m5) = posArgs m4 depType n (x+blockIndent) nextY
         (maxXcs, maxYcs, m6) = posChildren m5 depType n x maxYas
 
-        newX = (max5 (x + nodeWidth n) maxXps maxX maxXas maxXcs) + paramSpacing
+        newX = (max5 (x + nodeWidth n) maxXps maxX maxXas maxXcs)
         maxDrawnX = newX -- TODO, wrong
-        maxDrawnY = (max maxYps y) + ySpacing -- TODO, wrong
-    in (newX, y, maxDrawnX, maxDrawnY, m6)
+        maxDrawnY = (max5 maxYps maxY (y + ySpacing) maxYas maxYcs) -- TODO, wrong
+    in (newX + paramSpacing, y, maxDrawnX, maxDrawnY, m6)
 
 max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
