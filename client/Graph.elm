@@ -542,6 +542,8 @@ max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
 max4 : Int -> Int -> Int -> Int -> Int
 max4 w x y z = max x y |> max z |> max w
+max5 : Int -> Int -> Int -> Int -> Int -> Int
+max5 v w x y z = max x y |> max z |> max w |> max v
 
 posRoot : Model -> DepType -> Node -> Int -> Int -> Model
 posRoot m depType n x y =
@@ -606,8 +608,12 @@ posParent depType n ((x, y, maxX, maxY, m) as ti) =
     let m2 = position m depType n x y in -- don't have position yet, but dont want to visit twice
     let (maxXps, maxYps, m3) = posParents m2 depType n x y
         m4 = position m3 depType n x maxYps
-        newX = (max3 (x + nodeWidth n) maxXps maxX) + paramSpacing
-    in (newX, y, newX, ySpacing+(max maxYps maxY), m4)
+
+        (maxXas, maxYas, m5) = posArgs m4 depType n (x+blockIndent) (maxYps+ySpacing)
+        (maxXcs, maxYcs, m6) = posChildren m5 depType n x maxYas
+
+        newX = (max5 (x + nodeWidth n) maxXps maxX maxXas maxXcs) + paramSpacing
+    in (newX, y, newX, ySpacing+(max maxYps maxY), m6)
 
 posParents : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
 posParents m depType n x y =
