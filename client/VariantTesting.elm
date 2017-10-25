@@ -1,0 +1,53 @@
+module VariantTesting exposing (parseVariantTestsFromQueryString, variantIsActive)
+
+import List.Extra as LE
+
+-- dark
+import Types exposing (..)
+
+-- Quick and dirty client side only, code-managed variant testing thingy
+-- would be much nicer if we could just read a config file from disk in the server
+-- and push that info down to client, but that seems like a lot of work for now?
+
+parseVariantTestsFromQueryString : String -> Maybe (List VariantTest)
+parseVariantTestsFromQueryString s = case String.uncons s of
+                                       Just ('?', rest) -> rest
+                                                           |> String.split "&"
+                                                           |> List.filterMap splitOnEquals
+                                                           |> List.filterMap toVariantTest
+                                                           |> uniqueTests
+                                                           |> Just
+                                       Nothing          -> Nothing
+                                       _                -> Nothing
+
+-- eg. (variantIsActive m (PreviewValues IfOnly))
+variantIsActive : Model -> VariantTest -> Bool
+variantIsActive m vt = m.tests
+                     |> List.member vt
+
+toVariantTest : (String, Bool) -> Maybe VariantTest
+toVariantTest s = case s of
+                    (_, False) -> Nothing
+                    (test, _)  -> case (String.toLower test) of
+                                    "ifonly"       -> Just (PreviewValues IfOnly)
+                                    "selectedpath" -> Just (PreviewValues SelectedPath)
+                                    _              -> Nothing
+
+-- drops the second if we have a bunch of the same varian
+uniqueTests : List VariantTest -> List VariantTest
+uniqueTests xs = xs
+               |> LE.uniqueBy (\x -> case x of
+                                     PreviewValues _ -> "PV") -- well this is lovely
+
+
+splitOnEquals : String -> Maybe (String, Bool)
+splitOnEquals s = if String.contains "=" s
+                   then case (String.split "=" s) of
+                          []  -> Nothing
+                          [_] -> Nothing
+                          x :: xs -> case (xs |> String.join "=" |> String.toLower) of
+                                       "true"  -> Just (x, True)
+                                       "false" -> Just (x, False)
+                                       _       -> Nothing
+                   else Nothing
+

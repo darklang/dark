@@ -25,6 +25,7 @@ import Autocomplete
 import Selection
 import Viewport
 import Window.Events exposing (onWindow)
+import VariantTesting exposing (parseVariantTestsFromQueryString)
 
 
 -----------------------
@@ -59,8 +60,11 @@ init {state, complete} location =
   let editor = case state of
             Just e -> e
             Nothing -> Defaults.defaultEditor
+      tests = case parseVariantTestsFromQueryString location.search of
+                  Just t  -> t
+                  Nothing -> []
       m = Defaults.defaultModel editor
-      m2 = { m | complete = Autocomplete.init (List.map flag2function complete)}
+      m2 = { m | complete = Autocomplete.init (List.map flag2function complete), tests = tests }
   in
     (m2, rpc m FocusNothing [])
 

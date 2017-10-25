@@ -41,7 +41,7 @@ defaultModel e = { nodes = Dict.empty
                  , lastMsg = Initialization
                  , lastMod = NoChange
                  , center = {x=initialPos.vx, y=initialPos.vy}
-
+                 , tests = []
                  -- editor TODO
                  -- these load before the graph does, causing
                  -- exceptions. We'll need to only run these after the

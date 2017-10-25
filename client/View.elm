@@ -36,13 +36,13 @@ view m =
                  [ SA.width "100%"
                  , SA.height (toString h) ]
                  (viewCanvas m)
-               , viewButtons m.center
+               , viewButtons m
                ]
  in
     grid
 
-viewButtons : Pos -> Html.Html Msg
-viewButtons center = Html.div [Attrs.id "buttons"]
+viewButtons : Model -> Html.Html Msg
+viewButtons m = Html.div [Attrs.id "buttons"]
     [ Html.a
       [ Events.onClick AddRandom
       , Attrs.src ""
@@ -58,7 +58,12 @@ viewButtons center = Html.div [Attrs.id "buttons"]
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "SaveTest" ]
-    , Html.text (toString center)
+    , Html.span
+      [ Attrs.class "specialButton"]
+      [Html.text (toString m.center)]
+    , Html.span
+      [ Attrs.class "specialButton"]
+      [Html.text ("Active tests: " ++ toString m.tests)]
     ]
 
 viewError : Maybe String -> Html.Html Msg

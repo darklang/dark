@@ -162,12 +162,18 @@ type AutocompleteItem = ACFunction Function
                       | ACField FieldName
                       | ACVariable Variable
 
+type PreviewValuesVariant = IfOnly
+                          | SelectedPath
+
+type VariantTest = PreviewValues PreviewValuesVariant
+
 type alias Model = { nodes : NodeDict
                    , phantoms : NodeDict
                    , center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
+                   , tests   : List VariantTest
                    -- these values are serialized via Editor
                    , tempFieldName : FieldName
                    , state : State
