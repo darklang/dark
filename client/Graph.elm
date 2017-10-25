@@ -554,7 +554,16 @@ posRoot m depType n x y =
       (_, _, m4) = posChildren m3 depType n x maxY
   in m4
 
+-- Here we mean:
+-- NextX: The nextX co-ordinate for a sibling in the current fold to pos itself
+-- NextX: The nextY co-ordinate for a sibling in the current fold to pos itself
+-- MaxX:  The rightmost/X-most point we have drawn something in the current fold
+-- MaxY:  The bottomost/Y-most point we have drawn something in the current fold
 type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, Model)
+
+-- Here we mean:
+-- MaxX:  The rightmost/X-most point something was pos'd at as a result of the fold (incl. recursive walks)
+-- MaxY:  The bottomost/Y-most point something was pos'd at as a result of the fold (incl. recursive walks)
 type alias SpaceInfo = (MaxX, MaxY, Model)
 
 posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
