@@ -580,7 +580,9 @@ posArg depType n ((x, y, maxX, maxY, m) as ti) =
     let nextY = y + ySpacing
         (maxXcs, maxYcs, m3) = posChildren m2 depType n x nextY
         newX = (max3 (x + nodeWidth n) maxXcs maxX) + paramSpacing
-    in (newX, y, newX, max maxYcs maxY, m3)
+        maxDrawnX = newX -- TODO, wrong
+        maxDrawnY = max maxYcs maxY -- TODO, wrong
+    in (newX, y, maxDrawnX, maxDrawnY, m3)
 
 posChildren : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
 posChildren m depType n x y =
@@ -602,7 +604,9 @@ posChild depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXas, maxYas, m4) = posArgs m3 depType n (x+blockIndent) nextY
         (maxXcs, maxYcs, m5) = posChildren m4 depType n x maxYas
         newX = max4 maxXps maxXas maxXcs (x + nodeWidth n)
-    in (newX+paramSpacing, y, newX, max maxYcs y, m5)
+        maxDrawnX = newX -- TODO, wrong
+        maxDrawnY = max maxYcs y -- TODO, wrong
+    in (newX+paramSpacing, y, maxDrawnX, maxDrawnY, m5)
 
 posParents : Model -> DepType -> Node -> NextX -> NextY -> SpaceInfo
 posParents m depType n x y =
@@ -625,7 +629,9 @@ posParent depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXcs, maxYcs, m6) = posChildren m5 depType n x maxYas
 
         newX = (max5 (x + nodeWidth n) maxXps maxX maxXas maxXcs) + paramSpacing
-    in (newX, y, newX, ySpacing+(max maxYps maxY), m6)
+        maxDrawnX = newX -- TODO, wrong
+        maxDrawnY = (max maxYps y) + ySpacing -- TODO, wrong
+    in (newX, y, maxDrawnX, maxDrawnY, m6)
 
 max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
