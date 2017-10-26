@@ -663,13 +663,9 @@ posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXcs, maxYcs, m6) = posChildren m5 depType n (NX <| (nx x) + spacing.childrenX) ((PY << my) maxYas)
 
         rightmostX = max5 (nx x + nodeWidth n) (mx maxXps) (mx maxXas) (mx maxXcs) (mx maxX)
-        bottomMostY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
+        bottomMostY = MY (max (my maxYcs) (my maxY))
     in (NX <| rightmostX+spacing.siblingX, y, MX rightmostX, bottomMostY, m6)
 
-max3 : Int -> Int -> Int -> Int
-max3 x y z = max x y |> max z
-max4 : Int -> Int -> Int -> Int -> Int
-max4 w x y z = max x y |> max z |> max w
 max5 : Int -> Int -> Int -> Int -> Int -> Int
 max5 v w x y z = max x y |> max z |> max w |> max v
 
