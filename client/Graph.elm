@@ -635,6 +635,24 @@ debug : Model -> String -> Node -> TraversalInfo -> ()
 debug m fn n (x, y, maxX, maxY, _) =
   let _ = Debug.log (fn ++ " " ++ n.name ++ " (" ++ "seen: " ++ (seen m n |> toString) ++ ")") (x, y, maxX, maxY) in ()
 
+posNode : Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
+posNode spacing depType n ((x, y, maxX, maxY, m) as ti) =
+  if seen m n then (x,y,maxX,maxY,m)
+  else
+    let m2 = markAsSeen m depType n in
+    let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x + spacing.parentX) y
+        nextY = (my maxYps) + ySpacing
+        m4 = position m3 depType n (nx x) nextY
+
+        (maxXas, maxYas, m5) = posArgs m4 depType n (NX <| nx x+spacing.argsX) (PY nextY)
+        (maxXcs, maxYcs, m6) = posChildren m5 depType n (NX <| (nx x) + spacing.childrenX) ((PY << my) maxYas)
+
+        newX = (max5 (nx x + nodeWidth n) (mx maxXps) (mx maxX) (mx maxXas) (mx maxXcs))
+        maxDrawnX = MX newX
+        overallMaxY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
+    in (NX <| newX+spacing.siblingX, y, maxDrawnX, overallMaxY, m6)
+
+
 posRoot : Model -> DepType -> Node -> Int -> Int -> Model
 posRoot m depType n x y =
   -- let _ = Debug.log ("posRoot: " ++ n.name) (x,y) in
@@ -649,19 +667,6 @@ posArgs m depType n x y =
       (_, _, maxX, maxY, m2) = List.foldl (posArg depType) (x, y, (MX << nx) x, (MY << py) y, m) args
       -- _ = debug m "posArgs" n (x, y, MX -1, MY -1, m)
   in (maxX, maxY, m2)
-
-posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
-posArg depType n ((x, y, maxX, maxY, m) as ti) =
-  -- let _ = debug m "posArg" n ti in
-  if seen m n then (x,y,maxX,maxY,m)
-  else
-    let nextY = (py y) + ySpacing
-        m2 = position m depType n (nx x) nextY in
-    let (maxXcs, maxYcs, m3) = posChildren m2 depType n x (PY nextY)
-        newX = (max3 ((nx x) + nodeWidth n) (mx maxXcs) (mx maxX)) + paramSpacing
-        nextX = NX newX
-        maxDrawnX = MX newX
-    in (nextX, y, maxDrawnX, maxYcs, m3)
 
 -- if there are no children to pos, then passed NextY is returned as MaxY
 posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
@@ -681,23 +686,8 @@ type alias Spacing = { parentX : Int
                      , childrenX: Int
                      , siblingX: Int}
 
-posNode : Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
-posNode spacing depType n ((x, y, maxX, maxY, m) as ti) =
-  if seen m n then (x,y,maxX,maxY,m)
-  else
-    let m2 = markAsSeen m depType n in
-    let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x + spacing.parentX) y
-        nextY = (my maxYps) + ySpacing
-        m4 = position m3 depType n (nx x) nextY
-
-        (maxXas, maxYas, m5) = posArgs m4 depType n (NX <| nx x+spacing.argsX) (PY nextY)
-        (maxXcs, maxYcs, m6) = posChildren m5 depType n (NX <| (nx x) + spacing.childrenX) ((PY << my) maxYas)
-
-        newX = (max5 (nx x + nodeWidth n) (mx maxXps) (mx maxX) (mx maxXas) (mx maxXcs))
-        maxDrawnX = MX newX
-        overallMaxY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
-    in (NX <| newX+spacing.siblingX, y, maxDrawnX, overallMaxY, m6)
-
+posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
+posArg = posNode {parentX = 0, argsX = 0, childrenX = 0, siblingX=paramSpacing}
 
 posChild : DepType -> Node -> TraversalInfo -> TraversalInfo
 posChild = posNode {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX=paramSpacing}
