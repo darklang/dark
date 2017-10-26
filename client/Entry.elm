@@ -474,9 +474,22 @@ execute m re ast =
     ANothing ->
       NoChange
 
+addDB : String -> MPos -> Modification
+addDB name pos =
+  let id = G.gen_id () in
+  RPC ([AddDatastore id name pos], FocusExact id)
+
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  let pt = EntryParser.parseFully value
-  in case pt of
-    Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt
-    Err error -> Error <| EntryParser.toErrorMessage <| EntryParser.addCursorToError error cursor
+  if String.startsWith "DB" value -- hack for now
+  then
+    case cursor of
+      Creating pos ->
+        let name = String.dropLeft 2 value |> String.trim
+        in addDB name (Root pos)
+      _ -> NoChange
+  else
+    let pt = EntryParser.parseFully value
+    in case pt of
+      Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt
+      Err error -> Error <| EntryParser.toErrorMessage <| EntryParser.addCursorToError error cursor
