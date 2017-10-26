@@ -618,26 +618,21 @@ py p =
 -- full space used by the node (and all its children, etc), can we place
 -- it's sibling. That's what the folds are for.
 
--- Here we mean:
--- NextX: The nextX co-ordinate for a sibling in the current fold to pos itself
--- NextY: The nextY co-ordinate for a sibling in the current fold to pos itself
--- TODO: make this true
 type alias TraversalInfo = (NextX, PrevY, MaxX, MaxY, Model)
-
--- Here we mean:
--- MaxX:  The rightmost/X-most point in the box being drawn by this node
--- MaxY:  The top Y co-ord of the bottomost/Y-most node in the box being drawn by this node
--- TODO: make this true
 type alias SpaceInfo = (MaxX, MaxY, Model)
-
+type alias Force = Bool
+type alias Spacing = { parentX : Int
+                     , argsX: Int
+                     , childrenX: Int
+                     , siblingX: Int}
 
 debug : Model -> String -> Node -> TraversalInfo -> ()
 debug m fn n (x, y, maxX, maxY, _) =
   let _ = Debug.log (fn ++ " " ++ n.name ++ " (" ++ "seen: " ++ (seen m n |> toString) ++ ")") (x, y, maxX, maxY) in ()
 
-posNode : Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
-posNode spacing depType n ((x, y, maxX, maxY, m) as ti) =
-  if seen m n then (x,y,maxX,maxY,m)
+posNode : Force -> Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
+posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
+  if not force && seen m n then (x,y,maxX,maxY,m)
   else
     let m2 = markAsSeen m depType n in
     let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x + spacing.parentX) y
@@ -651,15 +646,6 @@ posNode spacing depType n ((x, y, maxX, maxY, m) as ti) =
         maxDrawnX = MX newX
         overallMaxY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
     in (NX <| newX+spacing.siblingX, y, maxDrawnX, overallMaxY, m6)
-
-
-posRoot : Model -> DepType -> Node -> Int -> Int -> Model
-posRoot m depType n x y =
-  -- let _ = Debug.log ("posRoot: " ++ n.name) (x,y) in
-  let m2 = position m depType n x y
-      (_, MY maxY, m3) = posArgs m2 depType n (NX <| x+blockIndent) (PY y)
-      (_, _, m4) = posChildren m3 depType n (NX x) (PY maxY)
-  in m4
 
 posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posArgs m depType n x y =
@@ -681,19 +667,23 @@ posParents m depType n x y =
       (_, _, maxX, maxY, m2) = List.foldl (posParent depType) (x, y, (MX << nx) x, (MY << py) y, m) parents
   in (maxX, maxY, m2)
 
-type alias Spacing = { parentX : Int
-                     , argsX: Int
-                     , childrenX: Int
-                     , siblingX: Int}
+posRoot : Model -> DepType -> Node -> Int -> Int -> Model
+posRoot m depType n x y =
+  let (_, _, _, _, m2) = posRoot_ depType n (NX x, PY (y-ySpacing), MX x, MY (y-ySpacing), m)
+  in m2
+
+posRoot_ : DepType -> Node -> TraversalInfo -> TraversalInfo
+posRoot_ = posNode True {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX=0}
+
 
 posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
-posArg = posNode {parentX = 0, argsX = 0, childrenX = 0, siblingX=paramSpacing}
+posArg = posNode False {parentX = 0, argsX = 0, childrenX = 0, siblingX=paramSpacing}
 
 posChild : DepType -> Node -> TraversalInfo -> TraversalInfo
-posChild = posNode {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX=paramSpacing}
+posChild = posNode False {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX=paramSpacing}
 
 posParent : DepType -> Node -> TraversalInfo -> TraversalInfo
-posParent = posNode {parentX = 0, argsX = blockIndent, childrenX=blockIndent, siblingX=paramSpacing}
+posParent = posNode False {parentX = 0, argsX = blockIndent, childrenX=blockIndent, siblingX=paramSpacing}
 
 max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
