@@ -281,7 +281,8 @@ viewNormalNode m n i =
       -- header
       header = [ Html.span
                    [Attrs.class "letter"]
-                   [Html.text (toString <| deID <| n.id)]
+                   [Html.text (Util.int2letter i)]
+                   --  [Html.text (toString <| deID <| n.id)]
                ]
 
       -- heading
