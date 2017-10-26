@@ -19,7 +19,7 @@ and dval = DInt of int
             system *)
          | DNull
          | DObj of dval_map
-         | DIncomplete [@@deriving show, sexp]
+         | DIncomplete [@@deriving show]
 
 let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   let nl = if pp then "\n" ^ (String.make indent ' ') else " " in
@@ -63,14 +63,6 @@ let to_comparable_repr (dvm : dval_map) : string =
 
 let dummy_compare dv1 dv2 =
   String.compare (to_repr dv1) (to_repr dv2)
-
-module RealDvalMap = Map.Make (struct
-    type t = dval
-
-    let compare = dummy_compare
-    let t_of_sexp = dval_of_sexp
-    let sexp_of_t = sexp_of_dval
-  end)
 
 let rec to_url_string (dv : dval) : string =
   match dv with
