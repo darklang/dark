@@ -325,6 +325,7 @@ createNodePositioning m ops =
             -- laid out here, so let's pick the top-left in the subgraph
             -- cause it's simpler.
             -- TODO: we might get multiple subgraphs in the same position...
+            -- TODO: in which case we can just use the node's current position
             else if rootCount + freeCount == 0 && deletedWasRoot
             then [toRoot (topLeftOf subgraph) (deletedNode |> Util.deMaybe)]
 
