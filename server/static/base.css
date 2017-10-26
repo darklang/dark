@@ -130,10 +130,10 @@ Nodes
 
 .datastore .title {
   font-weight: bold;
-  font-size: 1.37em;
-  margin: 0;
-  border-bottom: 1px solid #777;
-  padding-bottom: 0.25em;
+  /* font-size: 1.37em; */
+  /* margin: 0; */
+  /* border-bottom: 1px solid #777; */
+  /* padding-bottom: 0.25em; */
 }
 
 .list {
