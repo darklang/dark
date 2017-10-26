@@ -520,6 +520,9 @@ seen m n = case Dict.get (deID n.id) m.nodes of
   Nothing -> False
   Just n -> isPositioned n
 
+markAsSeen : Model -> DepType -> Node -> Model
+markAsSeen m dt n = position m dt n -1 -1
+
 position : Model -> DepType -> Node -> Int -> Int -> Model
 position m depType n x y =
   let pos = {x=x,y=y}
@@ -538,12 +541,6 @@ nx : NextX -> Int
 nx p =
   case p of
     NX b -> b
-
-type NextY = NY Int
-ny : NextY -> Int
-ny p =
-  case p of
-    NY b -> b
 
 type MaxX = MX Int
 mx : MaxX -> Int
@@ -573,7 +570,7 @@ py p =
 -- NextX: The nextX co-ordinate for a sibling in the current fold to pos itself
 -- NextY: The nextY co-ordinate for a sibling in the current fold to pos itself
 -- TODO: make this true
-type alias TraversalInfo = (NextX, NextY, MaxX, MaxY, Model)
+type alias TraversalInfo = (NextX, PrevY, MaxX, MaxY, Model)
 
 -- Here we mean:
 -- MaxX:  The rightmost/X-most point in the box being drawn by this node
@@ -599,7 +596,9 @@ posArgs m depType n x y =
   let args = outgoingNodes m n |> List.filter isArg
       (_, _, maxX, maxY, m2) = List.foldl (posArg depType) (x, NY <| py y + ySpacing, (MX << nx) x, (MY << py) y, m) args
       _ = debug m "posArgs" n (x, (NY << py) y, MX -1, MY -1, m)
-  in (maxX, maxY, m2)
+  in if List.length args == 0
+     then (maxX, (MY << py) y, m2)
+     else (maxX, maxY, m2)
 
 posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
 posArg depType n ((x, y, maxX, maxY, m) as ti) =
@@ -626,8 +625,8 @@ posChild depType n ((x, y, maxX, maxY, m) as ti) =
   let _ = debug m "posChild" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
-    let m2 = position m depType n (nx x) (ny y) in
-    let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x + paramSpacing) ((PY << my) maxY)
+    let m2 = markAsSeen m depType n in
+    let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x + paramSpacing) ((PY << ny) y)
         newY = (my maxYps) + ySpacing
         m4 = position m3 depType n (nx x) newY
         -- blocks should be calculated before children, as we need to
@@ -651,9 +650,8 @@ posParent depType n ((x, y, maxX, maxY, m) as ti) =
   let _ = debug m "posParent" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
-    -- TODO see if we can take the first position away
-    let m2 = position m depType n (nx x) (ny y) in -- don't have position yet, but dont want to visit twice
-    let (maxXps, maxYps, m3) = posParents m2 depType n x ((PY << my) maxY) -- TODO: maybe bug
+    let m2 = markAsSeen m depType n in
+    let (maxXps, maxYps, m3) = posParents m2 depType n x ((PY << ny) y) -- TODO: maybe bug
         newY = (my maxYps) + ySpacing
         m4 = position m3 depType n (nx x) newY
 
