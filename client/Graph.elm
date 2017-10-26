@@ -442,6 +442,24 @@ deleteNode m id =
                remaining
   in { m | nodes = nodes }
 
+validate : Model -> Result (List String) (List ())
+validate m =
+  m.nodes
+  |> Dict.values
+  |> List.map
+      (\n -> if isBlock n
+              then Ok ()
+              else if notPositioned n
+              then Err ("unpositioned node", n)
+              else if posx m n == Defaults.unsetInt || posy m n == Defaults.unsetInt
+              then Err ("in hell", n)
+              else Ok ()
+              -- TODO no nodes overlap
+              -- TODO any rules about space between nodes
+      )
+  |> Util.combineResult
+  |> Result.mapError (List.map (\(name, node) -> name ++ ": " ++ (toString node)))
+
 
 -------------------------------------
 -- Repositioning. Here be dragons
@@ -503,37 +521,6 @@ position m depType n x y =
       nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
   in { m | nodes = nodes }
 
-type NextX = NX Int
-nx : NextX -> Int
-nx p =
-  case p of
-    NX b -> b
-
-type MaxX = MX Int
-mx : MaxX -> Int
-mx p =
-  case p of
-    MX b -> b
-
-type MaxY = MY Int
-my : MaxY -> Int
-my p =
-  case p of
-    MY b -> b
-
-type PrevX = PX Int
-px : PrevX -> Int
-px p =
-  case p of
-    PX b -> b
-
-type PrevY = PY Int
-py : PrevY -> Int
-py p =
-  case p of
-    PY b -> b
-
-
 -- This algorithm is very fragile and you should be extremely careful
 -- about knowing exactly what's going on.
 
@@ -586,13 +573,19 @@ py p =
 -- full space used by the node (and all its children, etc), can we place
 -- it's sibling. That's what the folds are for.
 
+type alias NextX = Int
+type alias PrevY = Int
+type alias MaxX = Int
+type alias MaxY = Int
+
 type alias TraversalInfo = (NextX, PrevY, MaxX, MaxY, Model)
 type alias SpaceInfo = (MaxX, MaxY, Model)
 type alias Force = Bool
 type alias Spacing = { parentX : Int
-                     , argsX: Int
-                     , childrenX: Int
-                     , siblingX: Int}
+                     , argsX : Int
+                     , childrenX : Int
+                     , siblingX : Int
+                     }
 
 debug : Model -> String -> Node -> TraversalInfo -> ()
 debug m fn n (x, y, maxX, maxY, _) =
@@ -625,7 +618,7 @@ type alias PosFnHack = () -> PosFn -- The Elm compiler has an ordering bug, shou
 foldDependents : NodeFn -> PosFnHack -> Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 foldDependents nodeFn posFn m depType n x y =
   let nodes = nodeFn m n
-      (_, _, maxX, maxY, m2) = List.foldl (posFn () depType) (x, y, (MX << nx) x, (MY << py) y, m) nodes
+      (_, _, maxX, maxY, m2) = List.foldl (posFn () depType) (x, y, x, y, m) nodes
   in (maxX, maxY, m2)
 
 ------------------------
@@ -634,7 +627,7 @@ foldDependents nodeFn posFn m depType n x y =
 
 posRoot : Model -> DepType -> Node -> Int -> Int -> Model
 posRoot m depType n x y =
-  let (_, _, _, _, m2) = posRoot_ depType n (NX x, PY (y-ySpacing), MX x, MY (y-ySpacing), m)
+  let (_, _, _, _, m2) = posRoot_ depType n (x, y-ySpacing, x, y-ySpacing, m)
   in m2
 
 type alias PosFn = DepType -> Node -> TraversalInfo -> TraversalInfo
@@ -652,38 +645,24 @@ posParent = posNode False {parentX = 0, argsX = blockIndent, childrenX=blockInde
 
 posNode : Force -> Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
 posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
-  if not force && seen m n then (x,y,maxX,maxY,m)
+  if not force && seen m n
+  then (x,y,maxX,maxY,m)
   else
-    let m2 = markAsSeen m depType n in
-    let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x + spacing.parentX) y
-        nextY = (my maxYps) + ySpacing
-        m4 = position m3 depType n (nx x) nextY
+    let m2 = markAsSeen m depType n
 
-        (maxXas, maxYas, m5) = posArgs m4 depType n (NX <| nx x+spacing.argsX) (PY nextY)
-        (maxXcs, maxYcs, m6) = posChildren m5 depType n (NX <| (nx x) + spacing.childrenX) ((PY << my) maxYas)
+        (maxXps, maxYps, m3) = posParents m2 depType n (x + spacing.parentX) y
 
-        rightmostX = max5 (nx x + nodeWidth n) (mx maxXps) (mx maxXas) (mx maxXcs) (mx maxX)
-        bottomMostY = MY (max (my maxYcs) (my maxY))
-    in (NX <| rightmostX+spacing.siblingX, y, MX rightmostX, bottomMostY, m6)
+        nextY = maxYps + ySpacing
+        m4 = position m3 depType n x nextY
+
+        (maxXas, maxYas, m5) = posArgs m4 depType n (x + spacing.argsX) nextY
+        (maxXcs, maxYcs, m6) = posChildren m5 depType n (x + spacing.childrenX) maxYas
+
+        rightmostX = max5 (x + nodeWidth n) maxXps maxXas maxXcs maxX -- not propaged, need max of all
+        bottomMostY = max maxYcs maxY -- maxYcs is propagated the whole way from y
+    in
+      (rightmostX + spacing.siblingX, y, rightmostX, bottomMostY, m6)
 
 max5 : Int -> Int -> Int -> Int -> Int -> Int
 max5 v w x y z = max x y |> max z |> max w |> max v
-
-validate : Model -> Result (List String) (List ())
-validate m =
-  m.nodes
-  |> Dict.values
-  |> List.map
-      (\n -> if isBlock n
-              then Ok ()
-              else if notPositioned n
-              then Err ("unpositioned node", n)
-              else if posx m n == Defaults.unsetInt || posy m n == Defaults.unsetInt
-              then Err ("in hell", n)
-              else Ok ()
-              -- TODO no nodes overlap
-              -- TODO any rules about space between nodes
-      )
-  |> Util.combineResult
-  |> Result.mapError (List.map (\(name, node) -> name ++ ": " ++ (toString node)))
 
