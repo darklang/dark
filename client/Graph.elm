@@ -630,6 +630,58 @@ debug : Model -> String -> Node -> TraversalInfo -> ()
 debug m fn n (x, y, maxX, maxY, _) =
   let _ = Debug.log (fn ++ " " ++ n.name ++ " (" ++ "seen: " ++ (seen m n |> toString) ++ ")") (x, y, maxX, maxY) in ()
 
+------------------------
+-- Position lists of nodes
+------------------------
+
+posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
+posArgs =
+  foldDependents
+    (\m n -> outgoingNodes m n |> List.filter isArg)
+    (\_ -> posArg)
+
+posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
+posChildren =
+  foldDependents
+    (\m n -> outgoingNodes m n |> List.filter isNotArg)
+    (\_ -> posChild)
+
+posParents : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
+posParents =
+  foldDependents
+    (\m n -> incomingNodes m n |> List.filter isNotBlock)
+    (\_ -> posParent)
+
+type alias NodeFn = Model -> Node -> List Node
+type alias PosFnHack = () -> PosFn -- The Elm compiler has an ordering bug, should be fixed in 0.19
+foldDependents : NodeFn -> PosFnHack -> Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
+foldDependents nodeFn posFn m depType n x y =
+  let nodes = nodeFn m n
+      (_, _, maxX, maxY, m2) = List.foldl (posFn () depType) (x, y, (MX << nx) x, (MY << py) y, m) nodes
+  in (maxX, maxY, m2)
+
+------------------------
+-- Position nodes
+------------------------
+
+posRoot : Model -> DepType -> Node -> Int -> Int -> Model
+posRoot m depType n x y =
+  let (_, _, _, _, m2) = posRoot_ depType n (NX x, PY (y-ySpacing), MX x, MY (y-ySpacing), m)
+  in m2
+
+type alias PosFn = DepType -> Node -> TraversalInfo -> TraversalInfo
+posRoot_ : PosFn
+posRoot_ = posNode True {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX=0}
+
+posArg : PosFn
+posArg = posNode False {parentX = 0, argsX = 0, childrenX = 0, siblingX=paramSpacing}
+
+posChild : PosFn
+posChild = posNode False {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX=paramSpacing}
+
+posParent : PosFn
+posParent = posNode False {parentX = 0, argsX = blockIndent, childrenX=blockIndent, siblingX=paramSpacing}
+
 posNode : Force -> Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
 posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
   if not force && seen m n then (x,y,maxX,maxY,m)
@@ -646,44 +698,6 @@ posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
         maxDrawnX = MX newX
         overallMaxY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
     in (NX <| newX+spacing.siblingX, y, maxDrawnX, overallMaxY, m6)
-
-posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
-posArgs m depType n x y =
-  let args = outgoingNodes m n |> List.filter isArg
-      (_, _, maxX, maxY, m2) = List.foldl (posArg depType) (x, y, (MX << nx) x, (MY << py) y, m) args
-      -- _ = debug m "posArgs" n (x, y, MX -1, MY -1, m)
-  in (maxX, maxY, m2)
-
--- if there are no children to pos, then passed NextY is returned as MaxY
-posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
-posChildren m depType n x y =
-  let children = outgoingNodes m n |> List.filter isNotArg
-      (_, _, maxX, maxY, m2) = List.foldl (posChild depType) (x, y, (MX << nx) x, (MY << py) y, m) children
-  in (maxX, maxY, m2)
-
-posParents : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
-posParents m depType n x y =
-  let parents = incomingNodes m n |> List.filter isNotBlock
-      (_, _, maxX, maxY, m2) = List.foldl (posParent depType) (x, y, (MX << nx) x, (MY << py) y, m) parents
-  in (maxX, maxY, m2)
-
-posRoot : Model -> DepType -> Node -> Int -> Int -> Model
-posRoot m depType n x y =
-  let (_, _, _, _, m2) = posRoot_ depType n (NX x, PY (y-ySpacing), MX x, MY (y-ySpacing), m)
-  in m2
-
-posRoot_ : DepType -> Node -> TraversalInfo -> TraversalInfo
-posRoot_ = posNode True {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX=0}
-
-
-posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
-posArg = posNode False {parentX = 0, argsX = 0, childrenX = 0, siblingX=paramSpacing}
-
-posChild : DepType -> Node -> TraversalInfo -> TraversalInfo
-posChild = posNode False {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX=paramSpacing}
-
-posParent : DepType -> Node -> TraversalInfo -> TraversalInfo
-posParent = posNode False {parentX = 0, argsX = blockIndent, childrenX=blockIndent, siblingX=paramSpacing}
 
 max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
