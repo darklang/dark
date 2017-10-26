@@ -567,6 +567,57 @@ py p =
   case p of
     PY b -> b
 
+
+-- This algorithm is very fragile and you should be extremely careful
+-- about knowing exactly what's going on.
+
+-- Walk:
+-- We walk the graph from the Root. There may be multiple roots and
+-- multiple leaves, and we have to reach everything. So starting from
+-- the root, we look for its children, and then children place their
+-- parents, which may have more children, which may have more parents,
+-- etc, etc, etc.
+
+-- Block model:
+
+-- The code uses MaxX and MaxY a lot. These represent a box drawn around
+-- this node and all the nodes that it is responsible for. When drawing
+-- your children, for example, we calculate the space used by the first
+-- child, and all of its children, parents, etc, and get the MaxX and
+-- MaxY for all of that. We consider that a big box around it, and when
+-- we draw the second child, we're not going to use the same space ever.
+-- For a node with parents, that box will create a lot of Y space, and
+-- after knowing the Y space, we know where we can poistion the node
+-- itself.
+
+-- PrevY
+-- PrevY indicates where our box starts. It is actually the y position of the node placed
+-- The algorithm requires us to iterate through empty lists, and so we don't
+-- want to increase the y spacing until the last minute to place ourselves.
+
+-- MaxY
+-- MaxY is very similar to prevY. However, it includes all the other
+-- nodes we've been propagating through. See folds below.
+
+-- Folds
+-- We fold along lists of nodes (parents, children, args). As we do so,
+-- we measure the size of the boxes as MaxX and MaxY, and propagate them
+-- through the folds. When we wrote this algorithm, forgetting to
+-- propagate these led to significant spacing bugs.
+
+-- TODO put this inline in posChild
+-- prevY is propagated through here, and the max of each function call
+-- is the max of anything we've seen so far. However, it needs to be
+-- maxed with maxY _of all the other nodes in this fold_. Don't forget
+-- this.
+
+-- X spacing:
+-- We place nodes in a single pass from left-to-right. So we position a
+-- node (and all its parents, children, etc [obviously excluding those
+-- that happened earlier in the walk]), and only then, when we know the
+-- full space used by the node (and all its children, etc), can we place
+-- it's sibling. That's what the folds are for.
+
 -- Here we mean:
 -- NextX: The nextX co-ordinate for a sibling in the current fold to pos itself
 -- NextY: The nextY co-ordinate for a sibling in the current fold to pos itself

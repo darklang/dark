@@ -1,6 +1,0 @@
-* Block Model
-* MaxY from fold vs. propagating up/down recursion (discussion)
-* MaxY from fold vs. propagating up/down recursion (discussion)
-* When to add spacing/indent/width to calls to folds from within posChild/posParent/posNode*
-* The graph walk and the state carried thru the walk
-* PrevY vs. MaxY (specifically why it's so important to the box model)
