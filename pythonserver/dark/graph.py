@@ -1,10 +1,3 @@
-
-def get_all_graphnames() -> List[str]:
-  return [f[:-5] for f in os.listdir("appdata") if f.endswith(".dark")]
-
-def filename_for(name:str) -> str:
-  return "appdata/" + name + ".dark"
-
 class Graph:
 
   def __getattr__(self, name:str) -> Any:
@@ -99,16 +92,3 @@ class Graph:
     return self.execute(node)
 
 
-  def to_debug(self, cursor:Optional[ID]) -> str:
-    result = []
-    edges = self.to_frontend_edges()
-    for e in edges:
-      out = "%s --(%s)--> %s)" % (e["source"], e["paramname"], e["target"])
-      result.append(out)
-    for n in self.nodes.values():
-      if n.id() in self.edges and \
-         len(self.edges[n.id()]) == 0 and \
-         len(self.reverse_edges[n.id()]) == 0:
-        result.append("Solo node: " + n.id())
-
-    return "\n".join(sorted(result))
