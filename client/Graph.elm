@@ -443,44 +443,11 @@ deleteNode m id =
   in { m | nodes = nodes }
 
 
+-------------------------------------
+-- Repositioning. Here be dragons
+-------------------------------------
 
--- Considerations to postioning the graph
---
--- there may be a set of nodes a,b,c, where a->b and b->c and a->c.
--- This is challenging because as we don't want to draw b over the line
--- between a->c, nor do we want to put b and c on the same horizontal
--- line.
 
--- We largely want the bulk of the code to be aligned in a single
--- pipeline. This can be challenging
-
--- don't consider the width of the parent in the positioning of the
--- children.
-
--- graph algorithm:
--- - place root node
---   - call repositionDown on the root
-
--- repositionDown node:
--- - go down a level
--- - for each argument of the parent
---   - call repositionChild (x+=blockindent), returning the x position of the next argument
---   - return the maximum depth of the rendered nodes
--- - for each child of the parent
---   - call repositionChild (y=max depth), returning the x position of the next child
-
--- repositionChild node:
---   - for each parent of the node
---     - call repositionUp, returning the new y position for this node
---   - place node
---   - callRepositionDown on this node
-
--- repositionUp node:
---   - for each unpositioned parent of the node
---     - repositionUp parent
---   - place node
---   - return new depth
--- TODO: hard to tell when two lines overlap each other
 reposition : Model -> Model
 reposition m =
   let m2 = repositionRoots m
@@ -504,7 +471,7 @@ repositionRoots m =
 repositionFrees : Model -> Model
 repositionFrees m =
   let frees = List.filter isFree (Dict.values m.nodes)
-      positions = List.repeat (List.length frees) 100 |> LE.scanl1 (+) |> Debug.log "positions"
+      positions = List.repeat (List.length frees) 100 |> LE.scanl1 (+)
       pairs = Util.zip frees positions
       pFrees = List.map (\(n, ypos) -> { n | pos = Free <| Just <| {vx=10, vy=10+ypos} }) pairs
   in repositionLayout m FreeDep pFrees
@@ -525,7 +492,6 @@ markAsSeen m dt n = position m dt n -1 -1
 
 position : Model -> DepType -> Node -> Int -> Int -> Model
 position m depType n x y =
-  let _ = Debug.log ("Positioning " ++ (toString n.id)) (x, y) in
   let pos = {x=x,y=y}
       newPos = case n.pos of
                  Root _ -> Root pos
@@ -535,7 +501,7 @@ position m depType n x y =
                                 else Dependent <| Just <| DPos <| pos
                  NoPos _ -> NoPos (Just pos)
       nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
-  in {m | nodes = nodes }
+  in { m | nodes = nodes }
 
 type NextX = NX Int
 nx : NextX -> Int
@@ -591,9 +557,11 @@ py p =
 -- itself.
 
 -- PrevY
--- PrevY indicates where our box starts. It is actually the y position of the node placed
--- The algorithm requires us to iterate through empty lists, and so we don't
--- want to increase the y spacing until the last minute to place ourselves.
+-- PrevY indicates where our box starts. It is actually the y position
+-- of the node placed bottommost in the box above us. (By y position, we
+-- mean the top of the bottommost node) The algorithm requires us to
+-- iterate through empty lists, and so we don't want to increase the y
+-- spacing until the last minute to place ourselves.
 
 -- MaxY
 -- MaxY is very similar to prevY. However, it includes all the other
@@ -671,16 +639,16 @@ posRoot m depType n x y =
 
 type alias PosFn = DepType -> Node -> TraversalInfo -> TraversalInfo
 posRoot_ : PosFn
-posRoot_ = posNode True {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX=0}
+posRoot_ = posNode True {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX = 0}
 
 posArg : PosFn
-posArg = posNode False {parentX = 0, argsX = 0, childrenX = 0, siblingX=paramSpacing}
+posArg = posNode False {parentX = 0, argsX = 0, childrenX = 0, siblingX = paramSpacing}
 
 posChild : PosFn
-posChild = posNode False {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX=paramSpacing}
+posChild = posNode False {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX = paramSpacing}
 
 posParent : PosFn
-posParent = posNode False {parentX = 0, argsX = blockIndent, childrenX=blockIndent, siblingX=paramSpacing}
+posParent = posNode False {parentX = 0, argsX = blockIndent, childrenX=blockIndent, siblingX = paramSpacing}
 
 posNode : Force -> Spacing -> DepType -> Node -> TraversalInfo -> TraversalInfo
 posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
@@ -694,10 +662,9 @@ posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXas, maxYas, m5) = posArgs m4 depType n (NX <| nx x+spacing.argsX) (PY nextY)
         (maxXcs, maxYcs, m6) = posChildren m5 depType n (NX <| (nx x) + spacing.childrenX) ((PY << my) maxYas)
 
-        newX = (max5 (nx x + nodeWidth n) (mx maxXps) (mx maxX) (mx maxXas) (mx maxXcs))
-        maxDrawnX = MX newX
-        overallMaxY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
-    in (NX <| newX+spacing.siblingX, y, maxDrawnX, overallMaxY, m6)
+        rightmostX = max5 (nx x + nodeWidth n) (mx maxXps) (mx maxXas) (mx maxXcs) (mx maxX)
+        bottomMostY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
+    in (NX <| rightmostX+spacing.siblingX, y, MX rightmostX, bottomMostY, m6)
 
 max3 : Int -> Int -> Int -> Int
 max3 x y z = max x y |> max z
