@@ -525,6 +525,7 @@ markAsSeen m dt n = position m dt n -1 -1
 
 position : Model -> DepType -> Node -> Int -> Int -> Model
 position m depType n x y =
+  let _ = Debug.log ("Positioning " ++ (toString n.id)) (x, y) in
   let pos = {x=x,y=y}
       newPos = case n.pos of
                  Root _ -> Root pos
@@ -585,7 +586,7 @@ debug m fn n (x, y, maxX, maxY, _) =
 
 posRoot : Model -> DepType -> Node -> Int -> Int -> Model
 posRoot m depType n x y =
-  let _ = Debug.log ("posRoot: " ++ n.name) (x,y) in
+  -- let _ = Debug.log ("posRoot: " ++ n.name) (x,y) in
   let m2 = position m depType n x y
       (_, MY maxY, m3) = posArgs m2 depType n (NX <| x+blockIndent) (PY y)
       (_, _, m4) = posChildren m3 depType n (NX x) (PY maxY)
@@ -595,12 +596,12 @@ posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posArgs m depType n x y =
   let args = outgoingNodes m n |> List.filter isArg
       (_, _, maxX, maxY, m2) = List.foldl (posArg depType) (x, y, (MX << nx) x, (MY << py) y, m) args
-      _ = debug m "posArgs" n (x, y, MX -1, MY -1, m)
+      -- _ = debug m "posArgs" n (x, y, MX -1, MY -1, m)
   in (maxX, maxY, m2)
 
 posArg : DepType -> Node -> TraversalInfo -> TraversalInfo
 posArg depType n ((x, y, maxX, maxY, m) as ti) =
-  let _ = debug m "posArg" n ti in
+  -- let _ = debug m "posArg" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
     let nextY = (py y) + ySpacing
@@ -616,12 +617,10 @@ posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posChildren m depType n x y =
   let children = outgoingNodes m n |> List.filter isNotArg
       (_, _, maxX, maxY, m2) = List.foldl (posChild depType) (x, y, (MX << nx) x, (MY << py) y, m) children
-      _ = debug m "posChildren" n (x, y, MX -1, MY -1, m)
   in (maxX, maxY, m2)
 
 posChild : DepType -> Node -> TraversalInfo -> TraversalInfo
 posChild depType n ((x, y, maxX, maxY, m) as ti) =
-  let _ = debug m "posChild" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
     let m2 = markAsSeen m depType n in
@@ -635,31 +634,30 @@ posChild depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXcs, maxYcs, m6) = posChildren m5 depType n x ((PY << my) maxYas)
         newX = max4 (mx maxXps) (mx maxXas) (mx maxXcs) (nx x + nodeWidth n)
         maxDrawnX = MX newX
-    in (NX <| newX+paramSpacing, y, maxDrawnX, maxYcs, m6)
+        overallMaxY = MY <| max (my maxYcs) (my maxY)
+    in (NX <| newX+paramSpacing, y, maxDrawnX, overallMaxY, m6)
 
 posParents : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posParents m depType n x y =
   let parents = incomingNodes m n |> List.filter isNotBlock
       (_, _, maxX, maxY, m2) = List.foldl (posParent depType) (x, y, (MX << nx) x, (MY << py) y, m) parents
-      _ = debug m "posParents" n (x, y, MX -1, MY -1, m)
   in (maxX, maxY, m2)
 
 posParent : DepType -> Node -> TraversalInfo -> TraversalInfo
 posParent depType n ((x, y, maxX, maxY, m) as ti) =
-  let _ = debug m "posParent" n ti in
   if seen m n then (x,y,maxX,maxY,m)
   else
     let m2 = markAsSeen m depType n in
-    let (maxXps, maxYps, m3) = posParents m2 depType n x y -- ??
+    let (maxXps, maxYps, m3) = posParents m2 depType n (NX <| nx x) y -- ??
         nextY = (my maxYps) + ySpacing
         m4 = position m3 depType n (nx x) nextY
 
         (maxXas, maxYas, m5) = posArgs m4 depType n (NX <| (nx x)+blockIndent) (PY nextY)
-        (maxXcs, maxYcs, m6) = posChildren m5 depType n x ((PY << my) maxYas)
+        (maxXcs, maxYcs, m6) = posChildren m5 depType n (NX <| (nx x)+blockIndent) ((PY << my) maxYas)
 
         newX = (max5 (nx x + nodeWidth n) (mx maxXps) (mx maxX) (mx maxXas) (mx maxXcs))
         maxDrawnX = MX newX
-        maxDrawnY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs)) -- TODO, wrong
+        maxDrawnY = MY (max5 (my maxYps) (my maxY) (py y) (my maxYas) (my maxYcs))
     in (NX <| newX + paramSpacing, y, maxDrawnX, maxDrawnY, m6)
 
 max3 : Int -> Int -> Int -> Int
