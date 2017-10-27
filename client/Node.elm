@@ -2,21 +2,16 @@ module Node exposing (..)
 
 -- builtin
 import Char
-import Ordering
 import List
-import Tuple
-import Dict
 import Set
 import Maybe
 
 -- lib
 import List.Extra as LE
-import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
 import Defaults
-import Viewport
 import Util exposing (deMaybe, int2letter, letter2int)
 
 gen_id : () -> ID
