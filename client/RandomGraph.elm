@@ -11,13 +11,14 @@ import List.Extra as LE
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Graph as G
+import Node as N
 import Entry
 import Autocomplete
 import Defaults
 
 makeRandomChange : Model -> Modification
 makeRandomChange m =
-  let id = G.gen_id ()
+  let id = N.gen_id ()
       r () = Util.random () % 100
       r0 = r ()
       nodes = m.nodes |> Dict.values |> List.filter (\n -> G.posx m n /= Defaults.unsetInt)

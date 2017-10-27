@@ -7,6 +7,7 @@ import List
 import Types exposing (..)
 import Util
 import Graph as G
+import Node as N
 
 overlappingNodes : Model -> List (Node, Node)
 overlappingNodes m = m.nodes
@@ -41,7 +42,7 @@ bounds : Model -> Node -> NodeBounds
 bounds m n =
     let id              = n.id
         topLeft         = G.pos m n
-        (width, height) = G.nodeSize n
+        (width, height) = N.nodeSize n
         bottomRight     = {x = topLeft.x + width, y = topLeft.y + height}
     in
     { id = id, top = topLeft.y, bottom = bottomRight.y, right = bottomRight.x, left = topLeft.x }

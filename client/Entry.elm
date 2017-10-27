@@ -15,6 +15,7 @@ import Maybe.Extra as ME
 import Util
 import Defaults
 import Graph as G exposing (posy, posx)
+import Node as N
 import Types exposing (..)
 import Autocomplete
 import Viewport
@@ -109,8 +110,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 ---------------------
 addBlockParam : Model -> ID -> MPos -> ParamName -> List String -> (List RPC, Focus)
 addBlockParam _ id pos name block_args =
-  let sid = G.gen_id ()
-      argids = List.map (\_ -> G.gen_id ()) block_args
+  let sid = N.gen_id ()
+      argids = List.map (\_ -> N.gen_id ()) block_args
       block = AddBlock sid (NoPos Nothing) argids block_args
       edge = SetEdge sid (id, name)
   in
@@ -139,8 +140,8 @@ addFunction m id name pos =
 
 updatePreviewCursor : Model -> ID -> Int -> List RPC
 updatePreviewCursor m id step =
-  let baseNode = G.getNodeExn m id in
-  let blockNode = Debug.log "parent block" (G.findParentBlock m baseNode) in
+  let baseNode = G.getNodeExn m id
+      blockNode = G.findParentBlock m baseNode in
   case blockNode of
     Just n -> [UpdateNodeCursor n.id (n.cursor + step)]
     Nothing -> []
@@ -163,7 +164,7 @@ createArg m fn id placeholderNode (arg, param) =
              APlaceholder -> Err <| "Unbound placeholder"
    AValue v -> Ok [SetConstant v (id, param.name)]
    AFnCall name args ->
-     let fnid = G.gen_id ()
+     let fnid = N.gen_id ()
      in createFn m fnid name args (Dependent Nothing) Nothing placeholderNode
         |> Result.map (\rpcs -> rpcs ++ [SetEdge fnid (id, param.name)])
 
@@ -283,9 +284,9 @@ createNodePositioning m ops =
         -- subgraph "hangs", as this is difficult (and potentialy
         -- inconsistent) to figure out dynamically.
        (\subgraph ->
-          let roots = (Debug.log "subgraph" subgraph) |> List.filter G.isRoot |> List.filter G.isNotBlock
+          let roots = (Debug.log "subgraph" subgraph) |> List.filter G.isRoot |> List.filter N.isNotBlock
               rootCount = List.length (Debug.log "roots" roots)
-              frees = subgraph |> List.filter G.isFree |> List.filter G.isNotBlock
+              frees = subgraph |> List.filter G.isFree |> List.filter N.isNotBlock
               freeCount = List.length (Debug.log "frees" frees)
           in
             if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
@@ -411,7 +412,7 @@ model op m =
 
 execute : Model -> Bool -> AST -> Modification
 execute m re ast =
-  let id = G.gen_id ()
+  let id = N.gen_id ()
       rpc = \(ops, focus) -> RPC (withNodePositioning m ops, focus) in
   case ast of
     ACreating pos (ACValue value) ->
@@ -477,7 +478,7 @@ execute m re ast =
 
 addDB : String -> MPos -> Modification
 addDB name pos =
-  let id = G.gen_id () in
+  let id = N.gen_id () in
   RPC ([AddDatastore id name pos], FocusExact id)
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification

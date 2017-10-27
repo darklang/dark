@@ -268,7 +268,10 @@ type ACreating = ACFnCall String (List AExpr)
 -- to do so we'll need to pass the `Cursor` down to
 -- converArg(s) and do the binding of placeholders at this point
 -- we can then clean up `createfn`.
+implicitPlaceholderLetter : String
+implicitPlaceholderLetter = "_"
 type ARef = APlaceholder | ANode Node
+
 
 type AExpr = AFnCall String (List AExpr)
            | AValue String
@@ -298,7 +301,7 @@ convertArg m pexpr =
         Err msg -> Err msg
     PValue value -> Ok <| AValue value
     PVar letter ->
-      if letter == G.implicitPlaceholderLetter
+      if letter == implicitPlaceholderLetter
       then
           Ok <| AVar APlaceholder
       else

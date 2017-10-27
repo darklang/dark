@@ -1,7 +1,6 @@
 module Graph exposing (..)
 
 -- builtin
-import Char
 import Ordering
 import List
 import Tuple
@@ -14,41 +13,16 @@ import List.Extra as LE
 import Maybe.Extra as ME
 
 -- dark
+import Node as N
 import Types exposing (..)
 import Defaults
 import Viewport
 import Util exposing (deMaybe, int2letter, letter2int)
 
-gen_id : () -> ID
-gen_id _ = ID (Util.random ())
 
-notPositioned : Node -> Bool
-notPositioned = isPositioned >> not
-
-isPositioned : Node -> Bool
-isPositioned n =
-  case n.pos of
-    Free Nothing -> False
-    Dependent Nothing -> False
-    NoPos Nothing -> False
-    _ -> True
-
-hasRelativePos : Node -> Bool
-hasRelativePos n =
-  case n.pos of
-    Free _ -> True
-    Dependent (Just (DVPos _)) -> True
-    _ -> False
-
-
-pos : Model -> Node -> Pos
-pos m n =
-  case n.pos of
-    Root pos -> pos
-    Free (Just pos) -> Viewport.toAbsolute m pos
-    Dependent (Just (DPos pos)) -> pos
-    Dependent (Just (DVPos pos)) -> Viewport.toAbsolute m pos
-    _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
+-------------------------
+-- positioning
+-------------------------
 
 isRoot : Node -> Bool
 isRoot n =
@@ -68,86 +42,47 @@ hasPos n =
       NoPos _ -> False
       _       -> True
 
+notPositioned : Node -> Bool
+notPositioned = isPositioned >> not
+
+isPositioned : Node -> Bool
+isPositioned n =
+  case n.pos of
+    Free Nothing -> False
+    Dependent Nothing -> False
+    NoPos Nothing -> False
+    _ -> True
+
+hasRelativePos : Node -> Bool
+hasRelativePos n =
+  case n.pos of
+    Free _ -> True
+    Dependent (Just (DVPos _)) -> True
+    _ -> False
+
+pos : Model -> Node -> Pos
+pos m n =
+  case n.pos of
+    Root pos -> pos
+    Free (Just pos) -> Viewport.toAbsolute m pos
+    Dependent (Just (DPos pos)) -> pos
+    Dependent (Just (DVPos pos)) -> Viewport.toAbsolute m pos
+    _ -> {x=Defaults.unsetInt, y=Defaults.unsetInt}
+
 posx : Model -> Node -> Int
 posx m n = (pos m n).x
 
 posy : Model -> Node -> Int
 posy m n = (pos m n).y
 
-isArg : Node -> Bool
-isArg n = n.tipe == Arg
 
-isNotArg : Node -> Bool
-isNotArg = not << isArg
 
-isBlock : Node -> Bool
-isBlock n = n.tipe == Block
-
-isNotBlock : Node -> Bool
-isNotBlock = not << isBlock
-
-isFunctionCall : Node -> Bool
-isFunctionCall n = n.tipe == FunctionCall
-
-isNotFunctionCall : Node -> Bool
-isNotFunctionCall = not << isFunctionCall
-
-nodeWidth : Node -> Int
-nodeWidth n =
-  let
-    space = 3.5
-    fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
-    fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
-    len name = name
-             |> String.toList
-             |> List.map (\c -> if c == ' '
-                                then 3.5
-                                else if Set.member c fours
-                                     then 4.0
-                                     else if Set.member c fives
-                                          then 5.0
-                                          else 8.0)
-             |> List.sum
-    paramLen = n.arguments
-               |> List.map (\(p, a) ->
-                 if p.tipe == TBlock then -space -- remove spaces
-                 else
-                   case a of
-                     Const c -> if c == "null" then 8 else (len c)
-                     _ -> 14)
-               |> List.sum
-    -- nameMultiple = case n.tipe of
-    --                  Datastore -> 2
-    --                  Page -> 2.2
-    --                  _ -> 1
-    width = 6.0 + len n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 1.0 |> (*) space)
-  in
-    round(width)
-
-nodeHeight : Node -> Int
-nodeHeight n =
-  case n.tipe of
-    Datastore -> Defaults.nodeHeight * ( 1 + (List.length n.fields))
-    _ -> Defaults.nodeHeight
-
-nodeSize : Node -> (Int, Int)
-nodeSize node =
-  (nodeWidth node, nodeHeight node)
 
 blockNodes : Model -> List Node
 blockNodes m =
   m.nodes
     |> Dict.values
-    |> List.filter isBlock
-
-orderedNodes : Model -> List Node
-orderedNodes m =
-  m.nodes
-  |> Dict.values
-  |> List.filter isNotBlock
-  |> List.map (\n -> (posx m n, posy m n, n.id |> deID))
-  |> List.sortWith Ordering.natural
-  |> List.map (\(_,_,id) -> getNodeExn m (ID id))
+    |> List.filter N.isBlock
 
 distance : Model -> Node -> Node -> Float
 distance m n1 n2 =
@@ -156,9 +91,14 @@ distance m n1 n2 =
   in
     sqrt (xdiff + ydiff)
 
-
-implicitPlaceholderLetter : String
-implicitPlaceholderLetter = "_"
+orderedNodes : Model -> List Node
+orderedNodes m =
+  m.nodes
+  |> Dict.values
+  |> List.filter N.isNotBlock
+  |> List.map (\n -> (posx m n, posy m n, n.id |> deID))
+  |> List.sortWith Ordering.natural
+  |> List.map (\(_,_,id) -> getNodeExn m (ID id))
 
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
@@ -178,13 +118,9 @@ getNodeExn m id =
   then getNode m id |> deMaybe
   else Debug.crash <| "Missing node: " ++ toString id
 
-getArgument : ParamName -> Node -> Argument
-getArgument pname n =
-  case LE.find (\(p, _) -> p.name == pname) n.arguments of
-    Just (_, a) -> a
-    Nothing ->
-      Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ toString n
-
+------------------------
+-- holes
+------------------------
 findParam : Node -> Maybe (Int, (Parameter, Argument))
 findParam n = Util.findIndex (\(_, a) -> a == NoArg) n.arguments
 
@@ -224,13 +160,21 @@ findNextHole m start =
 
 findParentBlock : Model -> Node -> Maybe Node
 findParentBlock m n =
-  let searchParents = List.foldl (\curr accum -> case accum of
-    Just result -> Just result
-    Nothing -> findParentBlock m curr) Nothing
+  let searchParents =
+        List.foldl
+          (\curr accum -> case accum of
+                            Just result -> Just result
+                            Nothing -> findParentBlock m curr)
+          Nothing
   in
     case n.tipe of
       Arg -> Maybe.map (getNodeExn m) n.blockID
       _ -> searchParents (incomingNodes m n)
+
+
+------------------------
+-- Subgraph
+------------------------
 
 -- Starting with `start`, traverse the graph, folding using `func`. Will not
 -- visit the same node twice.
@@ -271,11 +215,32 @@ fold_ func (seen, bAcc) start nextfn =
     -- g({a,b,c,f}, f) -> ({a,b,c,f,g}, g)
     -- h({a,b,c,f,g), g) -> ({a,b,c,f,g,h}, h)
   -- d({a,b,c,f,g,h}, h) -> ({a,b,c,f,g,h,d}, h)
+
+entireSubgraph : Model -> Node -> List Node
+entireSubgraph m start =
+  fold (\n list -> n :: list) [] start (\n -> incomingNodes m n ++ outgoingNodes m n)
+
+toSubgraphs : Model -> List (List Node)
+toSubgraphs m =
+  (List.foldl
+    (\node (subgraphs, set) ->
+      if Set.member (node.id |> deID) set
+      then (subgraphs, set)
+      else
+        let newSub = entireSubgraph m node
+            newSet = newSub |> List.map (.id >> deID) |> Set.fromList
+        in (newSub :: subgraphs, Set.union set newSet))
+    ([], Set.empty)
+    (m.nodes |> Dict.values))
+    |> Tuple.first
+
   -- e({a,b,c,f,g,h,d}, h) -> ({a,b,c,f,g,h,d,e}, h)
   -- x({a,b,c,f,g,h,d,e}, h) -> ({a,b,c,f,g,h,d,e,x}, x)
 
 
-
+-------------------
+-- connected nodes
+-------------------
 
 -- we have a sorting problem in how we draw nodes
 -- we sometimes get the nice if block indentation that we want, but only
@@ -341,7 +306,7 @@ getBlockNodesOf m id =
   id
   |> getNodeExn m
   |> incomingNodePairs m
-  |> List.filter (\(n, _) -> isBlock n)
+  |> List.filter (\(n, _) -> N.isBlock n)
   |> List.map Tuple.first
 
 hasBlockParam : Model -> ID -> Bool
@@ -349,25 +314,8 @@ hasBlockParam m id =
   id
   |> getNodeExn m
   |> incomingNodePairs m
-  |> List.any (\(n, _) -> isBlock n)
+  |> List.any (\(n, _) -> N.isBlock n)
 
-entireSubgraph : Model -> Node -> List Node
-entireSubgraph m start =
-  fold (\n list -> n :: list) [] start (\n -> incomingNodes m n ++ outgoingNodes m n)
-
-toSubgraphs : Model -> List (List Node)
-toSubgraphs m =
-  (List.foldl
-    (\node (subgraphs, set) ->
-      if Set.member (node.id |> deID) set
-      then (subgraphs, set)
-      else
-        let newSub = entireSubgraph m node
-            newSet = newSub |> List.map (.id >> deID) |> Set.fromList
-        in (newSub :: subgraphs, Set.union set newSet))
-    ([], Set.empty)
-    (m.nodes |> Dict.values))
-    |> Tuple.first
 
 -- Only follows the first edge, goes as high as it can. This is intended
 -- to allow more consistency. Once it hit a node with no parents, it's
@@ -375,7 +323,7 @@ toSubgraphs m =
 -- IGNORES BLOCKS.
 highestParent : Model -> Node -> Node
 highestParent m n =
-  case incomingNodes m n |> List.filter isNotBlock |> List.head of
+  case incomingNodes m n |> List.filter N.isNotBlock |> List.head of
     Just node -> highestParent m node
     Nothing -> n
 
@@ -447,7 +395,7 @@ validate m =
   m.nodes
   |> Dict.values
   |> List.map
-      (\n -> if isBlock n
+      (\n -> if N.isBlock n
               then Ok ()
               else if notPositioned n
               then Err ("unpositioned node", n)
@@ -598,19 +546,19 @@ debug m fn n (x, y, maxX, maxY, _) =
 posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posArgs =
   foldDependents
-    (\m n -> outgoingNodes m n |> List.filter isArg)
+    (\m n -> outgoingNodes m n |> List.filter N.isArg)
     (\_ -> posArg)
 
 posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posChildren =
   foldDependents
-    (\m n -> outgoingNodes m n |> List.filter isNotArg)
+    (\m n -> outgoingNodes m n |> List.filter N.isNotArg)
     (\_ -> posChild)
 
 posParents : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posParents =
   foldDependents
-    (\m n -> incomingNodes m n |> List.filter isNotBlock)
+    (\m n -> incomingNodes m n |> List.filter N.isNotBlock)
     (\_ -> posParent)
 
 type alias NodeFn = Model -> Node -> List Node
@@ -658,7 +606,7 @@ posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
         (maxXas, maxYas, m5) = posArgs m4 depType n (x + spacing.argsX) nextY
         (maxXcs, maxYcs, m6) = posChildren m5 depType n (x + spacing.childrenX) maxYas
 
-        rightmostX = max5 (x + nodeWidth n) maxXps maxXas maxXcs maxX -- not propaged, need max of all
+        rightmostX = max5 (x + N.nodeWidth n) maxXps maxXas maxXcs maxX -- not propaged, need max of all
         bottomMostY = max maxYcs maxY -- maxYcs is propagated the whole way from y
     in
       (rightmostX + spacing.siblingX, y, rightmostX, bottomMostY, m6)

@@ -18,6 +18,7 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Entry
 import Graph as G
+import Node as N
 import Defaults
 import Viewport
 import Runtime as RT
@@ -192,7 +193,7 @@ valueDisplayPos m n =
   if (G.outgoingNodes m n |> List.length |> (==) 1) && G.hasBlockParam m n.id
   then Entry.holeCreatePos m (ResultHole n)
   else
-    let xpad = max (G.nodeWidth n + 50) 250
+    let xpad = max (N.nodeWidth n + 50) 250
     in {x=(G.posx m n)+xpad, y=G.posy m n}
 
 holeDisplayPos : Model -> Hole -> Pos
@@ -323,7 +324,7 @@ viewNormalNode m n i =
     placeNode
       m
       n
-      (G.nodeWidth n)
+      (N.nodeWidth n)
       []
       []
       header
@@ -357,8 +358,8 @@ viewNodeEdges m n = n
 viewEdge : Model -> Node -> Node -> Svg.Svg Msg
 viewEdge m source target =
     let targetPos = target.pos
-        (sourceW, sourceH) = G.nodeSize source
-        (targetW, targetH) = G.nodeSize target
+        (sourceW, sourceH) = N.nodeSize source
+        (targetW, targetH) = N.nodeSize target
         spos = { x = G.posx m source + 10
                , y = G.posy m source + (sourceH // 2)}
         tpos = { x = G.posx m target + 10
