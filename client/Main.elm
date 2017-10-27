@@ -249,7 +249,10 @@ update_ msg m =
               , case focus of
                   FocusNext id -> Entry.enterNext m3 (G.getNodeExn m3 id)
                   FocusExact id -> Entry.enterExact m3 (G.getNodeExn m3 id)
-                  FocusSame -> NoChange
+                  FocusSame ->
+                    case m.state of
+                      Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
+                      _ -> NoChange
                   FocusNothing -> Deselect
               ]
 

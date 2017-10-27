@@ -9,6 +9,7 @@ import Keyboard.Key as Key
 -- dark
 import Types exposing (..)
 import Graph as G
+import Node as N
 import Entry
 
 ------------------
@@ -66,8 +67,8 @@ selectNextNode m id cond =
 
 deleteSelected : Model -> ID -> Modification
 deleteSelected m id =
-  let prev = G.incomingNodes m (G.getNodeExn m id)
-      next = G.outgoingNodes m (G.getNodeExn m id) in
+  let prev = G.incomingNodes m (G.getNodeExn m id) |> List.filter N.isNotBlock
+      next = G.outgoingNodes m (G.getNodeExn m id) |> List.filter N.isNotArg in
       -- FocusSame gets called later, after the RPC, so just doesn't change anything
    Many [ RPC (Entry.withNodePositioning m [DeleteNode id], FocusSame)
         , case List.head (List.append prev next) of

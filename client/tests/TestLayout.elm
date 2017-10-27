@@ -6,6 +6,7 @@ import Expect exposing (Expectation, pass, fail)
 
 -- builtins
 import Json.Decode as JSD
+import Dict
 
 -- libs
 
@@ -19,6 +20,7 @@ import Overlap as O
 import RPC
 import Util exposing (deMaybe)
 import Entry
+import Selection
 import Types exposing (..)
 
 center : Pos
@@ -29,6 +31,12 @@ expectResult r =
   case r of
     Ok ok -> Expect.pass
     Err err -> Expect.fail (toString err)
+
+firstNode : Model -> Node
+firstNode m = firstNodeWhere m (always True)
+
+firstNodeWhere : Model -> (Node -> Bool) -> Node
+firstNodeWhere m cond = m.nodes |> Dict.values |> List.filter cond |> List.head |> deMaybe
 
 expectNoOverlap : List (Node, Node) -> Expectation
 expectNoOverlap overlap =
@@ -92,4 +100,20 @@ testIfAlone =
            then Expect.pass
            else Expect.equal ops expected
       _ -> Expect.fail "wrong type of mod"
+   )
+
+
+testDeleteIf : Test
+testDeleteIf =
+  test "layout_DeleteIf"
+  (\_ ->
+    let m = modelFrom DarkTestData.simple_if
+        if_ = firstNodeWhere m (\n -> n.name == "if")
+        m2 = { m | state = (Selecting if_.id) }
+        mod = Selection.deleteSelected m if_.id in
+    case mod of
+     -- this might be a bit brittle but I dont feel like making a framework for this now
+     Many [_, Select _] -> Expect.fail "selected something but shouldnt have"
+     Many [_, Deselect] -> Expect.pass
+     _ -> Expect.fail "Something completely unexpected"
    )
