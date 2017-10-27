@@ -24,6 +24,7 @@ import Viewport
 import Runtime as RT
 import Selection
 import Autocomplete
+import VariantTesting as VT
 
 view : Model -> Html.Html Msg
 view m =
@@ -75,12 +76,26 @@ viewError mMsg = case mMsg of
       Html.div [Attrs.id "darkErrors"] [Html.text "Dark"]
 
 
+shouldShowPreview : Model -> Node -> Bool
+shouldShowPreview m n = 
+  let selected = case m.state of
+                   Selecting id -> id
+                   _            -> ID -1
+  in
+  if VT.variantIsActive m (PreviewValues IfOnly)
+  then if n.name == "if" || n.name == "val"
+       then True
+       else if n.id == selected then True
+       else case G.findParentBlock m n of
+              Nothing -> True
+              _       -> False
+  else True -- otherwise true
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let visible = List.filter .visible (G.orderedNodes m)
         nodes = List.indexedMap (\i n -> viewNode m n i) visible
-        values = visible |> List.map (viewValue m) |> List.concat
+        values = visible |> List.filter (shouldShowPreview m) |> List.map (viewValue m) |> List.concat
         edges = visible |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
@@ -224,6 +239,12 @@ viewValue m n =
       --   Just pn -> pn.liveValue
       lv = n.liveValue
       isPhantom = lv /= n.liveValue
+      displayValue = if VT.variantIsActive m (PreviewValues IfOnly) && n.name == "if"
+                     then case N.getArgument "cond" n of
+                           Const s -> { value = s, tipe = TBool, json = "", exc = Nothing }
+                           Edge id -> (G.getNodeExn m id).liveValue
+                           _       -> lv
+                     else lv
       class = if isPhantom then "phantom" else "preview"
       newPos = valueDisplayPos m n
       displayedBelow = newPos.y /= G.posy m n
@@ -235,8 +256,8 @@ viewValue m n =
                     [placeHtml m newPos
                         (case lv.exc of
                           Nothing -> Html.pre
-                                      [Attrs.class class, Attrs.title lv.value]
-                                      [valueStr lv.value (RT.tipe2str lv.tipe)]
+                                      [Attrs.class class, Attrs.title displayValue.value]
+                                      [valueStr displayValue.value (RT.tipe2str displayValue.tipe)]
                           Just exc -> Html.span
                                         [ Attrs.class <| "unexpected " ++ class
                                         , Attrs.title
