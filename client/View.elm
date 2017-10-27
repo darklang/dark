@@ -356,7 +356,7 @@ placeNode m n width attrs classes header body =
   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
       selectedCl = if Selection.isSelected m n then ["selected"] else []
       class = String.toLower (toString n.tipe)
-      classStr = String.join " " (["node", class] ++ selectedCl ++ classes)
+      classStr = String.join " " (["node", class] ++ [n.name] ++ selectedCl ++ classes)
       node = Html.div
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
