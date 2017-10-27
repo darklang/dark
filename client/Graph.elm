@@ -390,25 +390,6 @@ deleteNode m id =
                remaining
   in { m | nodes = nodes }
 
-validate : Model -> Result (List String) (List ())
-validate m =
-  m.nodes
-  |> Dict.values
-  |> List.map
-      (\n -> if N.isBlock n
-              then Ok ()
-              else if notPositioned n
-              then Err ("unpositioned node", n)
-              else if posx m n == Defaults.unsetInt || posy m n == Defaults.unsetInt
-              then Err ("in hell", n)
-              else Ok ()
-              -- TODO no nodes overlap
-              -- TODO any rules about space between nodes
-      )
-  |> Util.combineResult
-  |> Result.mapError (List.map (\(name, node) -> name ++ ": " ++ (toString node)))
-
-
 -------------------------------------
 -- Repositioning. Here be dragons
 -------------------------------------

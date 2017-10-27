@@ -16,7 +16,7 @@ import DarkTestCode
 import DarkTestData
 import Defaults
 import Graph as G
-import Overlap as O
+import GraphValidator as GV
 import RPC
 import Util exposing (deMaybe)
 import Entry
@@ -37,12 +37,6 @@ firstNode m = firstNodeWhere m (always True)
 
 firstNodeWhere : Model -> (Node -> Bool) -> Node
 firstNodeWhere m cond = m.nodes |> Dict.values |> List.filter cond |> List.head |> deMaybe
-
-expectNoOverlap : List (Node, Node) -> Expectation
-expectNoOverlap overlap =
-  case overlap of
-    [] -> Expect.pass
-    _  -> Expect.fail <| "Nodes overlap " ++ (O.ppNodePairs overlap)
 
 opNamesAndPoses : List RPC -> List (String, MPos)
 opNamesAndPoses rpcs =
@@ -77,9 +71,7 @@ testAllLayouts =
       (\(name, json) ->
         let m = modelFrom (name, json) in
         describe name
-          [ test "overlap" (\_ -> O.overlappingNodes m |> expectNoOverlap)
-          , test "nodes positioned" (\_ -> G.validate m |> expectResult)
-          ])
+          [ test "nodes positioned" (\_ -> GV.validate m |> expectResult)])
        DarkTestData.tests)
 
 
