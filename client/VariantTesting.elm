@@ -31,6 +31,7 @@ toVariantTest s = case s of
                     (test, _)  -> case (String.toLower test) of
                                     "ifonly"       -> Just (PreviewValues IfOnly)
                                     "selectedpath" -> Just (PreviewValues SelectedPath)
+                                    "blocktypes"   -> Just (PreviewValues BlockTypes)
                                     _              -> Nothing
 
 toCSSClass : VariantTest -> String
@@ -38,6 +39,7 @@ toCSSClass vt =
   let test = case vt of
     PreviewValues IfOnly -> "ifonly"
     PreviewValues SelectedPath -> "selectedpath"
+    PreviewValues BlockTypes  -> "blocktypes"
     -- _  -> "default" -- Please never do this, let the compiler tell you if you missed a variant
   in test ++ "-variant"
 

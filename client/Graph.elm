@@ -172,6 +172,12 @@ findParentBlock m n =
       _ -> searchParents (incomingNodes m n)
 
 
+insideBlock : Model -> Node -> Bool
+insideBlock m n =
+  case findParentBlock m n of
+    Just _ -> True
+    _      -> False
+
 ------------------------
 -- Subgraph
 ------------------------

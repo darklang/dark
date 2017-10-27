@@ -164,6 +164,7 @@ type AutocompleteItem = ACFunction Function
 
 type PreviewValuesVariant = IfOnly
                           | SelectedPath
+                          | BlockTypes
 
 type VariantTest = PreviewValues PreviewValuesVariant
 

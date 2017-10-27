@@ -86,9 +86,7 @@ shouldShowPreview m n =
   then if n.name == "if" || n.name == "val"
        then True
        else if n.id == selected then True
-       else case G.findParentBlock m n of
-              Nothing -> True
-              _       -> False
+       else not <| G.insideBlock m n
   else True -- otherwise true
 
 viewCanvas : Model -> List (Svg.Svg Msg)
@@ -223,6 +221,9 @@ holeDisplayPos m hole =
 viewValue : Model -> Node -> List (Html.Html Msg)
 viewValue m n =
   let valueStr val tipeStr =
+        if VT.variantIsActive m (PreviewValues BlockTypes) && G.insideBlock m n && (n.name /= "val")
+        then Html.text tipeStr
+        else
         val
           |> String.trim
           |> String.left 120
