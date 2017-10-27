@@ -1,11 +1,11 @@
-module TestOverlap exposing (..)
+module TestGraphValidator exposing (..)
 
 -- tests
 import Test exposing (..)
 import Expect exposing (Expectation, pass, fail)
 
 -- dark
-import Overlap exposing (NodeBounds)
+import GraphValidator exposing (NodeBounds)
 import Types exposing (..)
 
 buildBound : (Int, Int, Int, Int) -> NodeBounds
@@ -19,7 +19,7 @@ checkOverlap =
                 (\_ -> let builtL = buildBound l
                            builtR = buildBound r
                        in
-                           if Overlap.checkOverlap (builtL, builtR) == e
+                           if GraphValidator.checkOverlap (builtL, builtR) == e
                            then Expect.pass
                            else Expect.equal l r
                 |> Expect.onFail (if e then "was False, expected True" else "was True, expected False"))
