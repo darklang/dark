@@ -253,11 +253,13 @@ class func (id : id) pos (name : string) =
       else "function"
   end
 
+
 class datastore id pos table =
   object
     inherit node id pos
     val table : string = table
-    method execute ?(ind=0) ?(cursor=0) ~scope:scope _ (_ : dval_map) : dval = DStr "todo datastore execute"
+    method execute ?(ind=0) ?(cursor=0) ~scope:scope _ (_ : dval_map) : dval =
+      DOpaque (new RT.opaque table)
     method name = "DS-" ^ table
     method tipe = "datastore"
   end

@@ -483,7 +483,7 @@ addDB name pos =
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  if String.startsWith "DB" value -- hack for now
+  if String.startsWith "DB " value -- hack for now
   then
     case cursor of
       Creating pos ->
