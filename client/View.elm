@@ -30,9 +30,9 @@ view : Model -> Html.Html Msg
 view m =
   let (w, h) = Util.windowSize ()
       grid = Html.div
-               [ Attrs.id "grid"
+               ([ Attrs.id "grid"
                , Events.on "mousedown" (decodeClickEvent RecordClick)
-               ]
+               ] ++ List.map (\x -> (Attrs.class << VT.toCSSClass) x) m.tests)
                [ viewError m.error
                , Svg.svg
                  [ SA.width "100%"

@@ -1,4 +1,4 @@
-module VariantTesting exposing (parseVariantTestsFromQueryString, variantIsActive)
+module VariantTesting exposing (parseVariantTestsFromQueryString, variantIsActive, toCSSClass)
 
 import List.Extra as LE
 
@@ -33,6 +33,14 @@ toVariantTest s = case s of
                                     "selectedpath" -> Just (PreviewValues SelectedPath)
                                     _              -> Nothing
 
+toCSSClass : VariantTest -> String
+toCSSClass vt =
+  let test = case vt of
+    PreviewValues IfOnly -> "ifonly"
+    PreviewValues SelectedPath -> "selectedpath"
+    -- _  -> "default" -- Please never do this, let the compiler tell you if you missed a variant
+  in test ++ "-variant"
+
 -- drops the second if we have a bunch of the same varian
 uniqueTests : List VariantTest -> List VariantTest
 uniqueTests xs = xs
@@ -47,6 +55,7 @@ splitOnEquals s = if String.contains "=" s
                           [_] -> Nothing
                           x :: xs -> case (xs |> String.join "=" |> String.toLower) of
                                        "true"  -> Just (x, True)
+                                       "1"     -> Just (x, True)
                                        "false" -> Just (x, False)
                                        _       -> Nothing
                    else Nothing
