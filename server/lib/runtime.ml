@@ -1,7 +1,16 @@
 open Core
 open Types
 
+class opaque (d: string) =
+  object (self)
+    val mutable data : string = d
+    method get : string = data
+    method set d : unit = data <- d
+  end
 
+
+let pp_opaque f (o:opaque) : string =
+  "<opaque>"
 
 (* ------------------------- *)
 (* Values *)
@@ -10,6 +19,7 @@ module DvalMap = String.Map
 type dval_map = dval DvalMap.t [@opaque]
 and dval = DInt of int
          | DStr of string
+         | DOpaque of opaque
          | DChar of char
          | DFloat of float
          | DBool of bool
@@ -33,6 +43,7 @@ let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
   | DBlock (id, _) -> "<block:" ^ string_of_int id ^ ">"
+  | DOpaque o -> "<opaque:" ^ o#get ^ ">"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
@@ -73,6 +84,7 @@ let rec to_url_string (dv : dval) : string =
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
   | DBlock _ -> "<block>"
+  | DOpaque v -> "<opaque>"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DList l ->
@@ -103,6 +115,7 @@ type tipe = TInt
           | TBool
           | TFloat
           | TObj
+          | TOpaque
           | TList
           | TAny
           | TBlock
@@ -117,6 +130,7 @@ let tipe2str t : string =
   | TChar -> "Char"
   | TBool -> "Bool"
   | TFloat -> "Float"
+  | TOpaque -> "Opaque"
   | TObj -> "Obj"
   | TList -> "List"
   | TBlock -> "Block"
@@ -137,6 +151,7 @@ let tipeOf (dv : dval) : tipe =
   | DList _ -> TList
   | DObj _ -> TObj
   | DIncomplete -> TIncomplete
+  | DOpaque _ -> TOpaque
 
   let tipename (dv: dval) : string =
     dv |> tipeOf |> tipe2str
@@ -182,6 +197,7 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   | DNull -> `Null
   | DChar c -> `String (Char.to_string c)
   | DBlock _ -> `String "<block>"
+  | DOpaque _ -> `String "<opaque>"
   | DIncomplete -> `String "<incomplete>"
   | DList l -> `List (List.map l dval_to_yojson)
   | DObj o -> o
@@ -259,7 +275,7 @@ let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") 
     ; long = long
     ; tipe = "Runtime"
     ; actual = actual |> dval_to_yojson |> Yojson.Safe.pretty_to_string
-    ; actual_tipe = actual |> tipename 
+    ; actual_tipe = actual |> tipename
     ; result = result |> dval_to_yojson |> Yojson.Safe.pretty_to_string
     ; result_tipe = result |> tipename
     ; expected = expected

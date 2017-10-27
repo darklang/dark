@@ -36,6 +36,7 @@ tipe2str t =
     TObj -> "Obj"
     TList -> "List"
     TBlock -> "Block"
+    TOpaque -> "Opaque"
     TNull -> "Nothing"
     TAny -> "Any"
     TIncomplete -> "<incomplete>"
@@ -51,6 +52,7 @@ str2tipe t =
   "Obj" -> TObj
   "List" -> TList
   "Block" -> TBlock
+  "Opaque" -> TOpaque
   "Nothing" -> TNull
   "Any" -> TAny
   "<incomplete>" -> TIncomplete

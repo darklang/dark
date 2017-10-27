@@ -45,6 +45,7 @@ type Tipe = TInt
           | TList
           | TAny
           | TBlock
+          | TOpaque
           | TNull
           | TIncomplete
 
