@@ -33,7 +33,7 @@ validate m =
                            _      -> []
       overlappingNodes = m
                        |> O.overlappingNodes
-                       |> List.filter (\(a, b) -> (not <| List.member a positionedNodes) && (not <| List.member b positionedNodes))
+                       |> List.filter (\(a, b) -> (List.member a positionedNodes) && (List.member b positionedNodes))
                        |> List.map (\t -> "overlapping nodes: " ++ (O.ppNodes t))
       errs = unpositionedNodes ++ overlappingNodes
   in if List.length errs == 0
