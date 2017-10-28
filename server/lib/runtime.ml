@@ -228,6 +228,8 @@ let parse (str : string) : dval =
     with Yojson.Json_error e ->
       Exception.user ~actual:str ("Not a valid value: \"" ^ str ^ "\"")
 
+let to_dobj (pairs: (string*dval) list) : dval =
+  DObj (DvalMap.of_alist_exn pairs)
 
 
 (* ------------------------- *)
