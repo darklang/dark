@@ -1,10 +1,6 @@
 #!/usr/bin/env python3.6
 
-import datetime
-import fcntl
-import os
 import subprocess
-import sys
 import sys
 import threading
 import time
@@ -27,6 +23,10 @@ def compile(files):
 
 def initial_compile():
   compile(["client/elm-package.json", "client/Tests/elm-package.json", "client/Main.elm", "server/main/dark.ml"])
+
+def start_postgres():
+  print("--------------------------\n-- Starting postgres\n-----------------------\n\n\n\n")
+  run('sudo su postgres -c "/etc/init.d/postgresql start"')
 
 # It is extremely challenging to get a non-blocking read on stdin.
 # Essentially, we want to read everything from stdin and then compile.
@@ -73,7 +73,7 @@ def process_watchers():
             try:
               f, _ = f.strip().split(" ")
               files.add(f)
-            except: 
+            except:
               print("exception splitting: " + f)
       compile(files)
 
@@ -83,6 +83,7 @@ def background_task(fn):
 def main():
   watch = False
   compile = False
+
   for f in sys.argv[1:]:
     if f == "--compile":
       compile = True
@@ -91,6 +92,7 @@ def main():
 
   if compile and watch:
     background_task(initial_compile)
+    start_postgres()
     process_watchers()
   else:
     if compile:
