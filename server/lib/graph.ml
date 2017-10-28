@@ -343,9 +343,9 @@ let minimize g : graph =
 (* To Frontend JSON *)
 (* ------------------------- *)
 
-let execute_node (n: Node.node) (g: graph) : RT.dval =
+let execute_node (n: Node.node) ?(scope=RT.Scope.empty) (g: graph) : RT.dval =
   Log.pP ~name:"execution" ~ind:0 ("\n\n*************execute_node************") n#debug_name;
-  Node.execute ~ind:0 ~scope:RT.Scope.empty n#id (gfns g)
+  Node.execute ~ind:0 ~scope n#id (gfns g)
 
 let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
