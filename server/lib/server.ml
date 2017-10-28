@@ -13,10 +13,6 @@ let server =
   let stop,stopper = Lwt.wait () in
 
   let callback _ req req_body =
-    let uri = req |> Request.uri in
-    (* let meth = req |> Request.meth |> Code.string_of_method in *)
-    (* let headers = req |> Request.headers |> Header.to_string in *)
-    (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
     let admin_rpc_handler body (host: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
@@ -87,11 +83,18 @@ let server =
       req_body |> Cohttp_lwt_body.to_string >>=
       (fun req_body ->
          try
+           let uri = req |> Request.uri in
+           let verb = req |> Request.meth in
+           (* let headers = req |> Request.headers |> Header.to_string in *)
+           (* let auth = req |> Request.headers |> Header.get_authorization in *)
+
            let domain = Uri.host uri |> Option.value ~default:"" in
            let domain = match String.split domain '.' with
            | ["localhost"] -> "localhost"
            | [a; "localhost"] -> a
            | _ -> failwith @@ "Unsupported domain: " ^ domain in
+
+           Log.pP "req: " (domain, C.Code.string_of_method verb, uri);
 
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
