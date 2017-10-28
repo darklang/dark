@@ -1,5 +1,3 @@
-# Development dockerfile for Dark
-
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
@@ -105,5 +103,29 @@ ENV TERM=xterm-256color
 ## ADD NEW PACKAGES HERE
 # Doing otherwise will force a large recompile of the container for
 # everyone
+
+USER root
+RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN apt-get update && apt-get install -y python-software-properties software-properties-common postgresql-10 postgresql-client-10 postgresql-contrib-10
+
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
+    createdb -O dark proddb
+
+# Adjust PostgreSQL configuration so that remote connections to the
+# database are possible.
+#RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
+
+RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
+
+# Expose the PostgreSQL port
+#EXPOSE 5432
+
+user dark
+
+# Add VOLUMEs to allow backup of config, logs and databases
+VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
 CMD ["app", "scripts", "builder"]
