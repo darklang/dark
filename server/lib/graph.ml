@@ -29,13 +29,18 @@ type graph = { name : string
 let get_node (g: graph) (id: id) : Node.node =
   NodeMap.find_exn g.nodes id
 
-let get_pages (g: graph) : Node.node list =
-  g.nodes
-  |> NodeMap.data
-  |> List.filter ~f:(fun n -> n#is_page)
-
 let has_node (id: id) (g: graph) : bool =
   NodeMap.mem g.nodes id
+
+let page_GETs (g: graph) : Node.node list =
+  g.nodes
+  |> NodeMap.data
+  |> List.filter ~f:(fun n -> n#is_page_GET)
+
+let page_POSTs (g: graph) : Node.node list =
+  g.nodes
+  |> NodeMap.data
+  |> List.filter ~f:(fun n -> n#is_page_POST)
 
 let create (name : string) : graph ref =
   ref { name = name

@@ -70,7 +70,8 @@ class virtual node id pos =
     method id = id
     method debug_name : string = "(" ^ string_of_int id ^ ") " ^ self#name
     method pos = pos
-    method is_page = false
+    method is_page_GET = false
+    method is_page_POST = false
     method is_datasink = false
     method is_datasource = false
     method parameters : param list = []
@@ -246,9 +247,10 @@ class func (id : id) pos (name : string) =
                      |> List.map ~f:(fun (p: param) -> p.name)
                      |> List.map ~f:(DvalMap.find_exn args)
                      |> fun dvs -> f dvs cursor
-    method! is_page = String.is_substring ~substring:"Page::" self#name
+    method! is_page_GET = self#name = "Page::GET"
+    method! is_page_POST = self#name = "Page::POST"
     method tipe =
-      if self#is_page
+      if self#is_page_GET || self#is_page_POST
       then "page"
       else "function"
   end
