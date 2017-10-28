@@ -833,4 +833,21 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "Page::POST"
+  ; o = []
+  ; p = [par "url" TStr; par "val" TAny]
+  ; r = TNull
+  ; d = "Create a page at `url` that prints `value`"
+  ; f = InProcess
+        (function
+          | [DStr url; value] -> value
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
+
 ]
