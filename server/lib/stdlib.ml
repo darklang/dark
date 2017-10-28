@@ -365,6 +365,21 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "String::length"
+  ; o = []
+  ; p = [par "s" TStr]
+  ; r = TInt
+  ; d = "Returns the length of the string"
+  ; f = InProcess
+        (function
+          | [DStr s] -> DInt (String.length s)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
   (* { n = "String::join" *)
   (* ; o = [] *)
   (* ; p = [par "l" TList; par "separator" TStr] *)
