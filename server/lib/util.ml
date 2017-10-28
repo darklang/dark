@@ -47,3 +47,9 @@ let random_string length =
 let list_repeat times item =
   List.init times ~f:(fun _ -> item)
 
+let merge_left = Map.merge ~f:(fun ~key v ->
+    match v with
+    | `Left v -> Some v
+    | `Right v -> Some v
+    | `Both (v1, v2) -> Some v1)
+

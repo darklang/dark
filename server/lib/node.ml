@@ -289,11 +289,7 @@ let blockexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id
      loG ~ind ("exe blockexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
      loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
      let newscope = List.zip_exn argids args |> Scope.of_alist_exn in
-     let scope = Scope.merge newscope scope ~f:(fun ~key v ->
-       match v with
-       | `Left v -> Some v
-       | `Right v -> Some v
-       | `Both (v1, v2) -> Some v1) in
+     let scope = Util.merge_left newscope scope in
      loG ~ind "with scope: " scope;
      let result = execute ~ind rid ~scope g in
      RT.pp ~name:"execution" ~ind ("r blockexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
