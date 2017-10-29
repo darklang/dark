@@ -265,6 +265,9 @@ class func (id : id) pos (name : string) =
                      |> fun dvs -> f dvs cursor
     method! is_page_GET = self#name = "Page::GET"
     method! is_page_POST = self#name = "Page::POST"
+    (* hack  *)
+    method! is_datasink = self#is_page_POST || self#name = "DB::insert"
+    method! is_datasource = self#is_page_GET || self#is_page_POST
     method tipe =
       if self#is_page_GET || self#is_page_POST
       then "page"
@@ -280,6 +283,8 @@ class datastore id pos table =
       DOpaque (new RT.opaque table)
     method name = "DS-" ^ table
     method tipe = "datastore"
+    method! is_datasink = true
+    method! is_datasource = true
   end
 
 (* ----------------------- *)
