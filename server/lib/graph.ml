@@ -306,7 +306,6 @@ let minimize (g : graph) : graph =
 (* ------------------------- *)
 
   (* def find_sink_edges(self, node:Node) -> Set[Tuple[Node, Node]]: *)
-  (*   # debug("finding sink edges: %s" % (node)) *)
   (*   results : Set[Tuple[Node, Node]] = set() *)
   (*   for _, c in self.get_children(node).items(): *)
   (*     if c.is_datasink(): *)
@@ -316,13 +315,15 @@ let minimize (g : graph) : graph =
   (*   return results *)
   (*  *)
   (* def run_input(self, node:Node, val:Any) -> None: *)
-  (*   # debug("running input: %s (%s)" % (node, val)) *)
   (*   for (parent, sink) in self.find_sink_edges(node): *)
-  (*     # debug("run_input on sink,parent: %s, %s" %(sink, parent)) *)
   (*     self.execute(sink, only=parent, eager={node: val}) *)
 
-let run_output (g: graph) (scope: RT.scope) (n: Node.node) : RT.dval =
-  Node.execute ~scope (gfns g) n
+let run_input (g: graph) (scope: RT.scope) (n: Node.node) : RT.dval =
+  (* for now, just run the single sink of this page. *)
+  Node.execute (gfns g) ~scope n
+
+let run_output (g: graph) (n: Node.node) : RT.dval =
+  Node.execute (gfns g) n
 
 
 (* ------------------------- *)

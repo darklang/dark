@@ -143,9 +143,10 @@ and execute_arg ?(ind=0) ?(cursor=0) ?(scope=RT.Scope.empty) (g: gfns) (arg: RT.
   | RT.AConst dv -> dv
   | RT.AEdge id -> execute ~ind:(ind+1) ~cursor ~scope g (g.get_node id)
 
-
+(* only: there can be multiple edges going into a sink, so make sure we only go out that path *)
+(* eager: this stops you cycling on the specific page, because it needs outputs,
+ * but we can't execute it, but we already know what it's source value is.*)
   (* def execute(self, node:Node, only:Node = None, eager:Dict[Node, Any] = {}) -> Any: *)
-  (*   # debug("executing node: %s, with only=%s and eager=%s" % (node, only, eager)) *)
   (*   if node in eager: *)
   (*     result = eager[node] *)
   (*   else: *)
@@ -155,11 +156,11 @@ and execute_arg ?(ind=0) ?(cursor=0) ?(scope=RT.Scope.empty) (g: gfns) (arg: RT.
   (*       if only in [None, p]: *)
   (*         # make sure we don't traverse beyond datasources *)
   (*         new_only = p if p.is_datasource() else None *)
-  (*  *)
+
   (*         args[paramname] = self.execute(p, eager=eager, only=new_only) *)
-  (*  *)
+
   (*     result = node.exe( **args ) *)
-  (*  *)
+
   (*   return pyr.freeze(result) *)
 
 
