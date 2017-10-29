@@ -83,7 +83,7 @@ let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list 
        |> List.concat
 
 let gfns (g: graph) : Node.gfns =
-  { getf = get_node g
+  { get_node = get_node g
   ; get_children = get_children g
   ; get_deepest = get_deepest g
   }
@@ -306,7 +306,7 @@ let save ?(filename=None) (g : graph) : unit =
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
 
-let minimize g : graph =
+let minimize (g : graph) : graph =
   let ops =
     g.ops
     |> preprocess
@@ -319,16 +319,37 @@ let minimize g : graph =
 
 
 (* ------------------------- *)
-(* To Frontend JSON *)
+(* Execution *)
 (* ------------------------- *)
 
-let execute_node (n: Node.node) ?(scope=RT.Scope.empty) (g: graph) : RT.dval =
-  Log.pP ~name:"execution" ~ind:0 ("\n\n*************execute_node************") n#debug_name;
-  Node.execute ~ind:0 ~scope n#id (gfns g)
+  (* def find_sink_edges(self, node:Node) -> Set[Tuple[Node, Node]]: *)
+  (*   # debug("finding sink edges: %s" % (node)) *)
+  (*   results : Set[Tuple[Node, Node]] = set() *)
+  (*   for _, c in self.get_children(node).items(): *)
+  (*     if c.is_datasink(): *)
+  (*       results |= {(node, c)} *)
+  (*     else: *)
+  (*       results |= self.find_sink_edges(c) *)
+  (*   return results *)
+  (*  *)
+  (* def run_input(self, node:Node, val:Any) -> None: *)
+  (*   # debug("running input: %s (%s)" % (node, val)) *)
+  (*   for (parent, sink) in self.find_sink_edges(node): *)
+  (*     # debug("run_input on sink,parent: %s, %s" %(sink, parent)) *)
+  (*     self.execute(sink, only=parent, eager={node: val}) *)
+  (*  *)
+  (* def run_output(self, node:Node) -> Any: *)
+  (*   # print("run_output on node: %s" % (node)) *)
+  (*   return self.execute(node) *)
+  (*  *)
 
+
+(* ------------------------- *)
+(* To Frontend JSON *)
+(* ------------------------- *)
 let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
-    let dv = execute_node n g in
+    let dv = Node.execute (gfns g) n in
     ( RT.to_repr dv
     , RT.tipename dv
     , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string

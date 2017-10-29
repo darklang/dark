@@ -61,7 +61,7 @@ let server =
                   then G.page_GETs !g
                   else G.page_POSTs !g in
       let matches = List.filter
-          ~f:(fun p -> p#get_arg_value "url" (G.gfns !g) =
+          ~f:(fun p -> p#get_arg_value (G.gfns !g) "url" =
                         (RT.DStr (Uri.path uri))) pages in
       match matches with
       | [] ->
@@ -74,7 +74,7 @@ let server =
                  let uri_dval = RT.query_to_dval (Uri.query uri) in
                  let scope_dval = RT.obj_merge body_dval uri_dval in
                  let scope = RT.Scope.singleton page#id scope_dval in
-                 G.execute_node page ~scope !g |> RT.to_url_string) ()
+                 Node.execute (G.gfns !g) page ~scope |> RT.to_url_string) ()
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
 

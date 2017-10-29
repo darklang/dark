@@ -26,8 +26,7 @@ let ops2g (name: string) (ops: Op.op list) : G.graph ref =
 
 let execute_ops (ops : Op.op list) (result : Op.op) =
   let g = ops2g "test" ops in
-  Node.execute ~scope:RT.Scope.empty (Op.id_of result) (G.gfns !g)
-
+  Node.execute (G.gfns !g) (G.get_node !g (Op.id_of result))
 
 (* ----------------------- *)
 (* The tests *)
@@ -40,7 +39,7 @@ let t_param_order () =
     (RT.DInt 0)
     (node#execute
        ~scope:RT.Scope.empty
-       { getf = (fun g -> node)
+       { get_node = (fun g -> node)
        ; get_children = (fun _ -> [])
        ; get_deepest = (fun _ -> [])
        }
@@ -164,7 +163,8 @@ let t_fns_with_edges () =
   let ops = Api.to_ops fncall in
   let g = ops2g "test" (v1 :: v2 :: ops) in
   let rid = List.nth_exn !g.ops 2 |> Op.id_of in
-  let r = Node.execute ~scope:RT.Scope.empty rid (G.gfns !g) in
+  let return = G.get_node !g rid in
+  let r = Node.execute ~scope:RT.Scope.empty  (G.gfns !g) return in
   check_dval "t_fns_with_edges" (DInt 2) r
 
 

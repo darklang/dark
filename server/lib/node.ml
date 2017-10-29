@@ -54,7 +54,7 @@ type nodejsonlist = nodejson list [@@deriving to_yojson, show]
 (* ------------------------ *)
 
 
-type 'a gfns_ = { getf : (id -> 'a)
+type 'a gfns_ = { get_node : (id -> 'a)
                 ; get_children : (id -> 'a list)
                 ; get_deepest : (id -> (int * 'a) list)
                 }
@@ -82,7 +82,7 @@ class virtual node id pos =
       Exception.internal "This node doesn't support set_arg"
     method get_arg (name: string) : argument option =
       Exception.internal "This node doesn't support get_arg"
-    method get_arg_value (name: string) (gfns:node gfns_): dval =
+    method get_arg_value (gfns:node gfns_) (name: string) : dval =
       Exception.internal "This node doesn't support get_arg_value"
     method delete_arg (name: string) : unit =
       Exception.internal "This node doesn't support delete_arg"
@@ -95,7 +95,7 @@ class virtual node id pos =
     method cursor = cursor
     method update_cursor (_cursor:int) : unit =
       Exception.internal "This node doesn't support cursor"
-    method preview (cursor: int) (gfns: node gfns_) (args: dval_map) : dval list =
+    method preview (gfns: node gfns_) (cursor: int) (args: dval_map) : dval list =
       Exception.internal "This node doesn't support preview"
     method to_frontend (value, tipe, json, exc : string * string * string * Exception.exception_data option) : nodejson =
       { name = self#name
@@ -121,35 +121,54 @@ let show_node (n:node) =
   show_nodejson (n#to_frontend ("test", "test", "test", None))
 
 let debug_id (g:gfns) (id:id) =
-  (g.getf id)#debug_name
+  (g.get_node id)#debug_name
 
 
 (* ------------------------- *)
 (* Graph traversal and execution *)
 (* ------------------------- *)
 
-let rec execute ?(ind:int=0) ?(cursor=0) (id: id) ~scope:scope (g: gfns) : dval =
-  match Scope.find scope id with
+
+let rec execute ?(ind=0) ?(cursor=0) ?(scope=RT.Scope.empty) (g: gfns) (n: node) : dval =
+  match Scope.find scope n#id with
   | Some v -> v
   | None ->
-    let n = g.getf id in
-    loG ~ind "Execute" n#debug_name;
-    n#arguments
-    |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
-        match arg with
-        | RT.AConst dv -> dv
-        | RT.AEdge id -> execute ~ind:(ind+1) ~cursor id ~scope g)
-    |> n#execute ~ind:(ind+1) ~cursor ~scope:scope g
+      loG ~ind "Execute" n#debug_name;
+      let args =
+        RT.ArgMap.map ~f:(execute_arg ~ind ~cursor ~scope g) n#arguments in
+      n#execute ~ind:(ind+1) ~cursor ~scope g args
 
-let rec preview (id: id) (g: gfns) (cursor: int) : dval list =
-  let n = g.getf id in
+and execute_arg ?(ind=0) ?(cursor=0) ?(scope=RT.Scope.empty) (g: gfns) (arg: RT.argument) : dval =
+  match arg with
+  | RT.AConst dv -> dv
+  | RT.AEdge id -> execute ~ind:(ind+1) ~cursor ~scope g (g.get_node id)
+
+
+  (* def execute(self, node:Node, only:Node = None, eager:Dict[Node, Any] = {}) -> Any: *)
+  (*   # debug("executing node: %s, with only=%s and eager=%s" % (node, only, eager)) *)
+  (*   if node in eager: *)
+  (*     result = eager[node] *)
+  (*   else: *)
+  (*     args = {} *)
+  (*     for paramname, p in self.get_parents(node).items(): *)
+  (*       # make sure we don't traverse beyond datasinks (see find_sink_edges) *)
+  (*       if only in [None, p]: *)
+  (*         # make sure we don't traverse beyond datasources *)
+  (*         new_only = p if p.is_datasource() else None *)
+  (*  *)
+  (*         args[paramname] = self.execute(p, eager=eager, only=new_only) *)
+  (*  *)
+  (*     result = node.exe( **args ) *)
+  (*  *)
+  (*   return pyr.freeze(result) *)
+
+
+
+
+let rec preview (g: gfns) (cursor: int) (n: node) : dval list =
   loG "previewing" n#debug_name;
-  n#arguments
-  |> RT.ArgMap.mapi ~f:(fun ~key:(param:string) ~data:(arg:RT.argument) ->
-      match arg with
-      | RT.AConst dv -> dv
-      | RT.AEdge id -> execute ~cursor ~scope:Scope.empty id g)
-  |> n#preview cursor g
+  let args = RT.ArgMap.map ~f:(execute_arg g) n#arguments in
+  n#preview g cursor args
 
 
 
@@ -183,11 +202,10 @@ class virtual has_arguments id pos =
       args <- ArgMap.change args name (fun _ -> Some value)
     method! get_arg (name: string) : argument option =
       ArgMap.find self#arguments name
-    method! get_arg_value (name: string) (gfns:gfns): dval =
+    method! get_arg_value (g: gfns) (name: string) : dval =
       match ArgMap.find self#arguments name with
       | None -> RT.DNull
-      | Some (RT.AConst v) -> v
-      | Some (RT.AEdge id) -> execute id ~scope:RT.Scope.empty gfns
+      | Some arg -> execute_arg g arg
     method! delete_arg (name: string) : unit =
       self#set_arg name RT.blank_arg
   end
@@ -239,7 +257,7 @@ class func (id : id) pos (name : string) =
                 v
 
      (* Get a value to use as the preview for blocks used by this node *)
-    method! preview (cursor: int) (g: gfns) (args: dval_map) : dval list =
+    method! preview (g: gfns) (cursor: int) (args: dval_map) : dval list =
       loG "previewing function" name;
       match self#fn.preview with
       | None -> Util.list_repeat (List.length self#fn.parameters) RT.DIncomplete
@@ -284,17 +302,18 @@ class datastore id pos table =
    TODO: `preview` is sorta confused. I'm unclear what it does.
    *)
 
-let blockexecutor ?(ind=0) ~scope:scope (debugname:string) (rid: id) (argids: id list) (g: gfns) : (dval list -> dval) =
-   loG ~ind ("get blockexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+let blockexecutor ?(ind=0) ~scope:scope (g: gfns) (debugname:string) (return: node) (argids: id list) : (dval list -> dval) =
+   loG ~ind ("get blockexecutor " ^ debugname ^ " w/ return ") (debug_id g return#id);
    loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
   (fun (args : dval list) ->
-     loG ~ind ("exe blockexecutor " ^ debugname ^ " w/ return ") (debug_id g rid);
+     loG ~ind ("exe blockexecutor " ^ debugname ^ " w/ return ") (debug_id g return#id);
      loG ~ind "with params: " (List.map ~f:(debug_id g) argids);
      let newscope = List.zip_exn argids args |> Scope.of_alist_exn in
      let scope = Util.merge_left newscope scope in
      loG ~ind "with scope: " scope;
-     let result = execute ~ind rid ~scope g in
-     RT.pp ~name:"execution" ~ind ("r blockexecutor " ^ debugname ^ " w/ return " ^ (debug_id g rid)) result
+     let result = execute ~ind ~scope g return in
+     RT.pp ~name:"execution" ~ind
+       ("r blockexecutor " ^ debugname ^ " w/ return " ^ (debug_id g return#id)) result
   )
 
 class argnode id pos name index nid argids =
@@ -312,8 +331,8 @@ class argnode id pos name index nid argids =
       match g.get_children nid with
       | [] -> DIncomplete
       | [caller] ->
-        let block_node = g.getf nid in
-        let preview_result = preview caller#id g block_node#cursor in
+        let block_node = g.get_node nid in
+        let preview_result = preview g block_node#cursor caller in
         (match List.nth preview_result index with
         | Some element -> element
         | None -> DIncomplete)
@@ -332,14 +351,14 @@ class block id pos argids =
     method name = "<block>"
     method execute ?(ind=0) ?(cursor=0) ~scope:scope (g: gfns) (_) : dval =
       let debugname = g.get_children id |> List.hd_exn |> (fun n -> n#debug_name) in
-      let return = argids
-      |> List.map ~f:(g.get_deepest)
-      |> List.concat
-      (* The ordering is intensional here. Sort first on largest y, then smallest x *)
-      |> List.sort ~cmp:(fun ((d1, n1):int*node) ((d2, n2):int*node) -> compare d1 d2)
-      |> List.hd_exn
-      |> Tuple.T2.get2 in
-      DBlock (id, blockexecutor ~ind ~scope debugname return#id argids g)
+      let return =
+        argids
+        |> List.map ~f:(g.get_deepest)
+        |> List.concat
+        |> List.sort ~cmp:(fun ((d1, n1):int*node) ((d2, n2):int*node) -> compare d1 d2)
+        |> List.hd_exn
+        |> Tuple.T2.get2 in
+      DBlock (id, blockexecutor ~ind ~scope g debugname return argids)
     method update_cursor (_cursor:int) : unit =
       cursor <- _cursor
     method tipe = "definition"
