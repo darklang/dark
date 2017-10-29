@@ -428,7 +428,11 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DList l] -> List.hd_exn l
+          | [DList l] ->
+            (match List.hd l with
+             | Some dv -> dv
+             | None -> DNull)
+
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -846,8 +850,6 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
-
-
 
 
 ]
