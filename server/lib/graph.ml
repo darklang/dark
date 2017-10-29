@@ -151,46 +151,6 @@ let rec delete_node id (g: graph) : graph =
   g
 
 (* ------------------------- *)
-(* Ops *)
-(* ------------------------- *)
-let apply_op (op : Op.op) (g : graph ref) : unit =
-  g :=
-    !g |>
-    match op with
-    | Add_fn_call (id, pos, name) ->
-      add_node (new Node.func id pos name)
-    | Add_datastore (id, pos, table) ->
-      add_node (new Node.datastore id pos table)
-    | Add_value (id, pos, expr) ->
-      add_node (new Node.value id pos expr)
-    | Add_block (nid, pos, argids, block_names) ->
-      (fun g ->
-         argids
-         |> List.zip_exn block_names
-         |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
-                          argid
-                          Dependent
-                          argname
-                          i
-                          nid
-                          argids)
-         |> List.append [ new Node.block nid
-                          NoPos
-                          argids ]
-         |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
-    | Update_node_position (id, pos) -> update_node_position id pos
-    | Update_node_cursor (id, cursor) -> update_node_cursor id cursor
-    | Set_constant (target, param, value) ->
-      set_const target param value
-    | Set_edge (src, target, param) -> set_edge src target param
-    | Delete_node (id) -> delete_node id
-    | Delete_all -> delete_all
-    | NoOp -> ident
-    | SavePoint -> ident
-    | _ ->
-      Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
-
-(* ------------------------- *)
 (* Undo *)
 (* ------------------------- *)
 
@@ -255,31 +215,49 @@ let is_redoable (g: graph) : bool =
 (* Build *)
 (* ------------------------- *)
 
+let apply_op (op : Op.op) (g : graph ref) : unit =
+  g :=
+    !g |>
+    match op with
+    | Add_fn_call (id, pos, name) ->
+      add_node (new Node.func id pos name)
+    | Add_datastore (id, pos, table) ->
+      add_node (new Node.datastore id pos table)
+    | Add_value (id, pos, expr) ->
+      add_node (new Node.value id pos expr)
+    | Add_block (nid, pos, argids, block_names) ->
+      (fun g ->
+         argids
+         |> List.zip_exn block_names
+         |> List.mapi ~f:(fun i (argname, argid) -> new Node.argnode
+                          argid
+                          Dependent
+                          argname
+                          i
+                          nid
+                          argids)
+         |> List.append [ new Node.block nid
+                          NoPos
+                          argids ]
+         |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
+    | Update_node_position (id, pos) -> update_node_position id pos
+    | Update_node_cursor (id, cursor) -> update_node_cursor id cursor
+    | Set_constant (target, param, value) ->
+      set_const target param value
+    | Set_edge (src, target, param) -> set_edge src target param
+    | Delete_node (id) -> delete_node id
+    | Delete_all -> delete_all
+    | NoOp -> ident
+    | SavePoint -> ident
+    | _ ->
+      Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
+
+
 let add_ops (g: graph ref) (ops: Op.op list) : unit =
   let reduced_ops = preprocess ops in
   List.iter ~f:(fun op -> apply_op op g) reduced_ops;
   g := { !g with ops = ops }
 
-
-let rec count_subgraph_positions g (traversed:Int_set.t ref) (n:Node.node) : (int * int * int * int * int) =
-  if Int_set.mem !traversed n#id
-  then (0,0,0,0,0)
-  else
-    (traversed := Int_set.add !traversed n#id;
-    let sum = List.fold_left ~init:(0,0,0,0,0)
-       ~f:(fun (cs1, cs2, cs3, cs4, cs5) (c1, c2, c3, c4, c5) ->
-             (c1+cs1, c2+cs2, c3+cs3, c4+cs4, c5+cs5)) in
-    let parent_counts = n#id |> get_parents g |> List.map ~f:(count_subgraph_positions g traversed) in
-    let child_counts = n#id |> get_children g |> List.map ~f:(count_subgraph_positions g traversed) in
-    let mine = match n#pos with
-    | Root _ -> if get_parents g n#id |> List.length |> (=) 0
-                then (1,0,0,0,0)
-                else (0,1,0,0,0)
-    | Free -> (0,0,1,0,0)
-    | Dependent -> (0,0,0,1,0)
-    | NoPos -> (0,0,0,0,1) in
-     sum (mine :: (List.append parent_counts child_counts))
-    )
 
 (* ------------------------- *)
 (* Serialization *)
