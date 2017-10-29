@@ -380,6 +380,23 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "String::append"
+  ; o = []
+  ; p = [par "s1" TStr; par "s2" TStr]
+  ; r = TStr
+  ; d = "Concatenates the two strings and returns the joined string"
+  ; f = InProcess
+        (function
+          | [DStr s1; DStr s2] -> DStr (s1 ^ s2)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
+
   (* { n = "String::join" *)
   (* ; o = [] *)
   (* ; p = [par "l" TList; par "separator" TStr] *)
