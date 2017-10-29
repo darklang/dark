@@ -21,9 +21,7 @@ let server =
       try
         let ops = Api.to_ops body in
         g := !(G.load host ops);
-        G.verify !g;
-        let result = !g
-                     |> Graph.to_frontend_string in
+        let result = Graph.to_frontend_string !g in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
