@@ -337,11 +337,9 @@ let minimize (g : graph) : graph =
   (*   for (parent, sink) in self.find_sink_edges(node): *)
   (*     # debug("run_input on sink,parent: %s, %s" %(sink, parent)) *)
   (*     self.execute(sink, only=parent, eager={node: val}) *)
-  (*  *)
-  (* def run_output(self, node:Node) -> Any: *)
-  (*   # print("run_output on node: %s" % (node)) *)
-  (*   return self.execute(node) *)
-  (*  *)
+
+let run_output (g: graph) (scope: RT.scope) (n: Node.node) : RT.dval =
+  Node.execute ~scope (gfns g) n
 
 
 (* ------------------------- *)

@@ -57,24 +57,33 @@ let server =
 
     let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) =
       let g = G.load host [] in
-      let pages = if C.Code.method_of_string "GET" = verb
+      let gfns = G.gfns !g in
+      let is_get = C.Code.method_of_string "GET" = verb in
+      let pages = if is_get
                   then G.page_GETs !g
                   else G.page_POSTs !g in
-      let matches = List.filter
-          ~f:(fun p -> p#get_arg_value (G.gfns !g) "url" =
-                        (RT.DStr (Uri.path uri))) pages in
+      let matches =
+        List.filter
+          ~f:(fun p -> p#get_arg_value gfns "url" = RT.DStr (Uri.path uri))
+          pages in
       match matches with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
-        S.respond_string ~status:`OK
+        S.respond_string
+          ~status:`OK
           ~body:(let body_dval = if body = ""
                                  then RT.DNull
                                  else RT.parse body in
                  let uri_dval = RT.query_to_dval (Uri.query uri) in
                  let scope_dval = RT.obj_merge body_dval uri_dval in
                  let scope = RT.Scope.singleton page#id scope_dval in
-                 Node.execute (G.gfns !g) page ~scope |> RT.to_url_string) ()
+                 let result =
+                   if is_get
+                   then G.run_output !g scope page
+                   else Node.execute  ~scope (G.gfns !g) page in
+                 RT.to_url_string result)
+          ()
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
 
