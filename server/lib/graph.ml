@@ -54,24 +54,29 @@ let outgoing_nodes id g : (id * string) list =
   |> List.map
     ~f:(fun n ->
         Map.filter_mapi n#arguments
-          ~f:(fun ~key ~data -> match data with | RT.AConst _ -> None
-                                                | RT.AEdge i ->
-                                                  if i = id
-                                                  then Some (n#id,key)
-                                                  else None))
+          ~f:(fun ~key ~data ->
+              match data with
+              | RT.AConst _ -> None
+              | RT.AEdge i ->
+                if i = id
+                then Some (n#id, key)
+                else None))
   |> List.map ~f:String.Map.data
   |> List.concat
 
-
-
 let get_children (g: graph) (id: id) : Node.node list =
-  outgoing_nodes id g |> List.map ~f:Tuple.T2.get1 |> List.map ~f:(get_node g)
+  outgoing_nodes id g
+  |> List.map ~f:Tuple.T2.get1
+  |> List.map ~f:(get_node g)
 
 let get_parents (g: graph) (id: id) : Node.node list =
   (get_node g id)#arguments
   |> Map.data
-  |> List.filter_map ~f:(fun arg -> match arg with | RT.AEdge id -> Some id
-                                                   | _ -> None)
+  |> List.filter_map
+    ~f:(fun arg ->
+      match arg with
+      | RT.AEdge id -> Some id
+      | _ -> None)
   |> List.map ~f:(get_node g)
 
 let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list =
