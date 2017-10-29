@@ -57,14 +57,26 @@ let server =
 
 
 
-    let user_page_handler host body uri =
+    let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) =
       let g = G.load host [] in
-      let pages = G.get_pages !g in
-      match List.filter ~f:(fun p -> p#get_arg_value "url" (G.gfns !g) = RT.DStr (Uri.path uri)) pages with
+      let pages = if C.Code.method_of_string "GET" = verb
+                  then G.page_GETs !g
+                  else G.page_POSTs !g in
+      let matches = List.filter
+          ~f:(fun p -> p#get_arg_value "url" (G.gfns !g) =
+                        (RT.DStr (Uri.path uri))) pages in
+      match matches with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
-        S.respond_string ~status:`OK ~body:(G.execute_node page !g |> RT.to_url_string) ()
+        S.respond_string ~status:`OK
+          ~body:(let body_dval = if body = ""
+                                 then RT.DNull
+                                 else RT.parse body in
+                 let uri_dval = RT.query_to_dval (Uri.query uri) in
+                 let scope_dval = RT.obj_merge body_dval uri_dval in
+                 let scope = RT.Scope.singleton page#id scope_dval in
+                 G.execute_node page ~scope !g |> RT.to_url_string) ()
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
 
@@ -117,11 +129,11 @@ let server =
            | "/admin/api/save_test" ->
              save_test_handler domain
            | p when (String.length p) < 8 ->
-             user_page_handler domain req_body uri
+             user_page_handler domain verb req_body uri
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
              static_handler uri
            | _ ->
-             user_page_handler domain req_body uri
+             user_page_handler domain verb req_body uri
          with
          | e ->
            let backtrace = Exn.backtrace () in

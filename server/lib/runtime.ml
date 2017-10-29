@@ -165,6 +165,19 @@ let to_error_repr (dv : dval) : string =
 let pp = Log.pp ~f:to_repr
 let pP = Log.pP ~f:to_repr
 
+
+(* ------------------------- *)
+(* Functions *)
+(* ------------------------- *)
+let obj_merge (l: dval) (r: dval) : dval =
+  match l, r with
+  | DObj l, DObj r -> DObj (Util.merge_left l r)
+  | DNull, DObj r -> DObj r
+  | DObj l, DNull -> DObj l
+  | _ -> Exception.user "was expecting objs"
+
+
+
 (* ------------------------- *)
 (* JSON *)
 (* ------------------------- *)
@@ -226,10 +239,24 @@ let parse (str : string) : dval =
     try
       str |> Yojson.Safe.from_string |> dval_of_yojson_
     with Yojson.Json_error e ->
-      Exception.user ~actual:str ("Not a valid value: \"" ^ str ^ "\"")
+      Exception.user ~actual:str ("Not a valid value: '" ^ str ^ "'")
 
 let to_dobj (pairs: (string*dval) list) : dval =
   DObj (DvalMap.of_alist_exn pairs)
+
+let query_to_dval (query: (string * string list) list) : dval =
+  query
+  |> List.map ~f:(fun (key,vals) ->
+                   let dval =
+                     match vals with
+                     | [] -> DNull
+                     | [v] -> if v = "" then DNull else parse v
+                     | vals -> DList (List.map ~f:parse vals)
+                   in (key, dval))
+  |> DvalMap.of_alist_exn
+  |> fun x -> DObj x
+
+
 
 
 (* ------------------------- *)
