@@ -6,6 +6,8 @@ module RT = Runtime
 
 module NodeMap = Int.Map
 type nodemap = Node.node NodeMap.t [@@deriving eq]
+type node = Node.node
+
 
 let pp_nodemap nm =
   let to_s ~key ~data = (show_id key) ^ ": " ^ (Node.show_node data) in
@@ -26,18 +28,18 @@ type graph = { name : string
              } [@@deriving eq, show]
 
 
-let get_node (g: graph) (id: id) : Node.node =
+let get_node (g: graph) (id: id) : node =
   NodeMap.find_exn g.nodes id
 
 let has_node (id: id) (g: graph) : bool =
   NodeMap.mem g.nodes id
 
-let page_GETs (g: graph) : Node.node list =
+let page_GETs (g: graph) : node list =
   g.nodes
   |> NodeMap.data
   |> List.filter ~f:(fun n -> n#is_page_GET)
 
-let page_POSTs (g: graph) : Node.node list =
+let page_POSTs (g: graph) : node list =
   g.nodes
   |> NodeMap.data
   |> List.filter ~f:(fun n -> n#is_page_POST)
@@ -64,12 +66,12 @@ let outgoing_nodes id g : (id * string) list =
   |> List.map ~f:String.Map.data
   |> List.concat
 
-let get_children (g: graph) (id: id) : Node.node list =
+let get_children (g: graph) (id: id) : node list =
   outgoing_nodes id g
   |> List.map ~f:Tuple.T2.get1
   |> List.map ~f:(get_node g)
 
-let get_parents (g: graph) (id: id) : Node.node list =
+let get_parents (g: graph) (id: id) : node list =
   (get_node g id)#arguments
   |> Map.data
   |> List.filter_map
@@ -79,7 +81,7 @@ let get_parents (g: graph) (id: id) : Node.node list =
       | _ -> None)
   |> List.map ~f:(get_node g)
 
-let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * Node.node) list =
+let rec get_deepest ?(depth:int=0) (g: graph) (id: id) : (int * node) list =
   let cs = get_children g id in
   if cs = []
   then [depth+1, get_node g id]
@@ -97,10 +99,10 @@ let gfns (g: graph) : Node.gfns =
 (* ------------------------- *)
 (* Updating *)
 (* ------------------------- *)
-let change_node (id: id) (g: graph) ~(f: (Node.node option -> Node.node option)) : graph =
+let change_node (id: id) (g: graph) ~(f: (node option -> node option)) : graph =
   { g with nodes = NodeMap.change g.nodes id ~f }
 
-let update_node (id: id) (g : graph) ~(f: (Node.node -> Node.node option)) : graph =
+let update_node (id: id) (g : graph) ~(f: (node -> node option)) : graph =
   change_node
     id
     g
@@ -136,7 +138,7 @@ let delete_arg (t: id) (param:string) (g: graph) : graph =
 let delete_all (g: graph) : graph =
   { g with nodes = NodeMap.empty }
 
-let add_node (node : Node.node) (g : graph) : graph =
+let add_node (node : node) (g : graph) : graph =
   if has_node node#id g then
     Exception.client "A node with this ID already exists!";
   change_node node#id g ~f:(fun x -> Some node)
@@ -305,31 +307,34 @@ let minimize (g : graph) : graph =
 (* Execution *)
 (* ------------------------- *)
 
-  (* def find_sink_edges(self, node:Node) -> Set[Tuple[Node, Node]]: *)
-  (*   results : Set[Tuple[Node, Node]] = set() *)
-  (*   for _, c in self.get_children(node).items(): *)
-  (*     if c.is_datasink(): *)
-  (*       results |= {(node, c)} *)
-  (*     else: *)
-  (*       results |= self.find_sink_edges(c) *)
-  (*   return results *)
-  (*  *)
-  (* def run_input(self, node:Node, val:Any) -> None: *)
-  (*   for (parent, sink) in self.find_sink_edges(node): *)
-  (*     self.execute(sink, only=parent, eager={node: val}) *)
+let rec find_sink_edges (g: graph) (n: node) : (node * node) list =
+  get_children g n#id
+  |> List.map ~f:(fun c -> if c#is_datasink
+                   then [(n,c)]
+                   else find_sink_edges g c)
+  |> List.concat
 
-let run_input (g: graph) (scope: RT.scope) (n: Node.node) : RT.dval =
-  (* for now, just run the single sink of this page. *)
-  Node.execute (gfns g) ~scope n
+(* TODO: we're missing bits from the original algorithms, but I'm not sure
+ * they're right. See also Node.execute.  *)
+(* def run_input(self, node:Node, val:Any) -> None: *)
+(*   for (parent, sink) in self.find_sink_edges(node): *)
+(*     self.execute(sink, only=parent, eager={node: val}) *)
 
-let run_output (g: graph) (n: Node.node) : RT.dval =
+let run_input (g: graph) (scope: RT.scope) (n: node) : unit =
+  (* A sink is where the input goes (eg to the db or an API) *)
+  find_sink_edges g n
+  |> List.iter ~f:(fun (p, s) -> ignore (Node.execute ~scope (gfns g) s))
+
+let run_output (g: graph) (n: node) : RT.dval =
+  (* TODO: scope matters here because the output might depend on the input. we just
+   * need to make sure it doesn't use the scope immediately. *)
   Node.execute (gfns g) n
 
 
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-let node_value (n: Node.node) (g: graph) : (string * string * string * Exception.exception_data option) =
+let node_value (n: node) (g: graph) : (string * string * string * Exception.exception_data option) =
   try
     let dv = Node.execute (gfns g) n in
     ( RT.to_repr dv

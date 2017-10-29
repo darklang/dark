@@ -80,8 +80,10 @@ let server =
                  let scope = RT.Scope.singleton page#id scope_dval in
                  let result =
                    if is_get
-                   then G.run_output !g scope page
-                   else Node.execute  ~scope (G.gfns !g) page in
+                   then G.run_output !g page
+                   (* Posts have values, I guess we should be getting the result from it *)
+                   else (G.run_input !g scope page;
+                         DStr "") in
                  RT.to_url_string result)
           ()
       | _ ->
