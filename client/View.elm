@@ -362,7 +362,7 @@ placeNode m n width attrs classes header body =
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
-      wrapper = Html.div [] [ node, header_wrapper ]
+      wrapper = Html.div [Events.onClick (NodeClick n)] [ node, header_wrapper ]
   in
     placeHtml m (G.pos m n) wrapper
 
