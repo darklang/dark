@@ -14,6 +14,53 @@ import Types exposing (..)
 import Defaults
 import Runtime as RT
 
+type alias RPCNode = { argIDs : List Int
+                     , arguments : List ( Parameter, Argument )
+                     , blockID : Int
+                     , cursor : Int
+                     , fields : List ( FieldName, String )
+                     , id : Int
+                     , liveExc : Maybe Exception
+                     , liveJson : String
+                     , liveTipe : String
+                     , liveValue : String
+                     , name : Name
+                     , posType : String
+                     , posX : Maybe Int
+                     , posY : Maybe Int
+                     , tipe : String
+                     }
+
+toNode : RPCNode -> Node
+toNode rn = { name = rn.name
+            , id = ID rn.id
+            , fields = List.map (\(f,tipe) -> (f, RT.str2tipe rn.tipe)) rn.fields
+            , arguments = rn.arguments
+            , liveValue = { value = rn.liveValue
+                          , tipe = rn.liveTipe |> RT.str2tipe
+                          , json = rn.liveJson
+                          , exc = rn.liveExc 
+                          }
+            , blockID = if rn.blockID == Defaults.unsetInt then Nothing else Just <| ID rn.blockID
+            , argIDs = List.map ID rn.argIDs
+            , tipe = case rn.tipe of
+                      "datastore" -> Datastore
+                      "function" -> FunctionCall
+                      "definition" -> Block
+                      "value" -> Value
+                      "page" -> Page
+                      "arg" -> Arg
+                      _ -> Debug.crash "shouldnt happen"
+            , pos = case (rn.posType, rn.posX, rn.posY) of
+                      ("Root", Just x, Just y) -> Root {x=x, y=y}
+                      ("Dependent", Nothing, Nothing) -> Dependent Nothing
+                      ("Free", Nothing, Nothing) -> Free Nothing
+                      ("NoPos", Nothing, Nothing) -> NoPos Nothing
+                      _ -> Debug.crash "Bad Pos in RPC"
+            , cursor = rn.cursor
+            , visible = rn.tipe /= "definition"
+            , face = ""
+            }
 
 phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
 phantomRpc m cursor calls =
@@ -142,8 +189,8 @@ encodeRPC m call =
         ("redo", JSE.object [])
   in JSE.object [ (cmd, args) ]
 
-decodeNode : JSD.Decoder Node
-decodeNode =
+decodeRPCNode : JSD.Decoder RPCNode
+decodeRPCNode =
   let toParameter: Name -> String -> List String -> Bool -> String -> Parameter
       toParameter name tipe block_args optional description =
         { name = name
@@ -176,37 +223,26 @@ decodeNode =
                 Debug.crash <| "Invalid: " ++ e
           _ ->
             Debug.crash "Bad argument in RPC"
-      toNode : Name -> Int -> List (FieldName, String) ->
+      toRPCNode : Name -> Int -> List (FieldName, String) ->
                List (Parameter, Argument) -> String ->
                String -> String -> Maybe Exception -> Int -> List Int ->
-               String -> String -> Maybe Int -> Maybe Int -> Int -> Node
-      toNode name id fields arguments liveValue liveTipe liveJson liveExc blockID argIDs tipe posType x y cursor =
-          { name = name
-          , id = ID id
-          , fields = List.map (\(f,tipe) -> (f, RT.str2tipe tipe)) fields
+               String -> String -> Maybe Int -> Maybe Int -> Int -> RPCNode
+      toRPCNode name id fields arguments liveValue liveTipe liveJson liveExc blockID argIDs tipe posType x y cursor =
+          { name      = name
+          , id        = id
+          , fields    = fields
           , arguments = arguments
-          , liveValue = { value = liveValue
-                        , tipe = liveTipe |> RT.str2tipe
-                        , json = liveJson
-                        , exc = liveExc}
-          , blockID = if blockID == Defaults.unsetInt then Nothing else Just <| ID blockID
-          , argIDs = List.map ID argIDs
-          , tipe = case tipe of
-                     "datastore" -> Datastore
-                     "function" -> FunctionCall
-                     "definition" -> Block
-                     "value" -> Value
-                     "page" -> Page
-                     "arg" -> Arg
-                     _ -> Debug.crash "shouldnt happen"
-          , pos = case (posType, x, y) of
-                    ("Root", Just x, Just y) -> Root {x=x, y=y}
-                    ("Dependent", Nothing, Nothing) -> Dependent Nothing
-                    ("Free", Nothing, Nothing) -> Free Nothing
-                    ("NoPos", Nothing, Nothing) -> NoPos Nothing
-                    _ -> Debug.crash "Bad Pos in RPC"
-          , cursor = cursor
-          , visible = tipe /= "definition"
+          , liveValue = liveValue
+          , liveTipe  = liveTipe
+          , liveJson  = liveJson
+          , liveExc   = liveExc
+          , blockID   = blockID
+          , argIDs    = argIDs
+          , tipe      = tipe
+          , posType   = posType
+          , posX      = x
+          , posY      = y
+          , cursor    = cursor
           }
       toExc : String -> String -> String -> String -> String ->
               String -> String -> String -> Dict String String ->
@@ -224,7 +260,7 @@ decodeNode =
              , workarounds=workarounds }
 
 
-  in JSDP.decode toNode
+  in JSDP.decode toRPCNode
     |> JSDP.required "name" JSD.string
     |> JSDP.required "id" JSD.int
     |> JSDP.optional "fields" (JSD.list
@@ -270,12 +306,13 @@ decodeNode =
 
 decodeGraph : JSD.Decoder (NodeDict)
 decodeGraph =
-  let toGraph : List Node -> (NodeDict)
-      toGraph nodes =
-        let nodedict = List.foldl
+  let toGraph : List RPCNode -> (NodeDict)
+      toGraph rpcnodes =
+        let nodes = List.map toNode rpcnodes
+            nodedict = List.foldl
                     (\v d -> Dict.insert (v.id |> deID) v d)
                     Dict.empty
                     nodes
         in (nodedict)
   in JSDP.decode toGraph
-    |> JSDP.required "nodes" (JSD.list decodeNode)
+    |> JSDP.required "nodes" (JSD.list decodeRPCNode)

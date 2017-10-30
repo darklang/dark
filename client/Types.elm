@@ -91,6 +91,7 @@ type alias Node = { name : Name
                   , argIDs : List ID
                   , visible : Bool
                   , cursor: Cursor
+                  , face: String
                   }
 
 type alias Variable = (VariableName, Node)

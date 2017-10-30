@@ -370,6 +370,7 @@ model op m =
       , argIDs = []
       , visible = True
       , cursor = 0
+      , face = ""
       }
     setArg node name arg =
       let args = List.filter (\(p, a) -> p.name /= name) node.arguments
