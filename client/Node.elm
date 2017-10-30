@@ -84,3 +84,19 @@ getArgument pname n =
     Nothing ->
       Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ toString n
 
+isPrimitive : Node -> Bool
+isPrimitive n =
+  case n.liveValue.tipe of
+    TInt        -> True
+    TStr        -> False
+    TChar       -> True
+    TBool       -> True
+    TFloat      -> True
+    TObj        -> False
+    TList       -> False
+    TAny        -> False
+    TBlock      -> False
+    TOpaque     -> False
+    TNull       -> False
+    TIncomplete -> False
+
