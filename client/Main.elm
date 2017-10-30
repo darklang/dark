@@ -111,6 +111,7 @@ updateMod mod (m, cmd) =
                                          Creating p -> m.center -- dont move
                         }
                         ! [Entry.focusEntry]
+--      Drag d -> { m | state = Dragging d } ! []
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
@@ -231,6 +232,64 @@ update_ msg m =
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
+
+--    ------------------------
+--    -- dragging
+--    ------------------------
+--    (DragNodeStart node event, _) ->
+--      NoChange
+--      -- If we're already dragging a slot don't change the nodea
+--      -- TODO: reenable
+--      -- if m.drag == NoDrag && event.button == Defaults.leftButton
+--      -- then
+--      --   let offset = Canvas.findOffset node.pos event.pos in
+--      --   Drag <| DragNode node.id offset
+--      -- else NoChange
+--
+--    (DragNodeMove id offset pos, _) ->
+--      -- While it's kinda nasty to update a node in place, the drawing
+--      -- code get's really complex if we don't do this.
+--      let update = Canvas.updateDragPosition pos offset id m.nodes in
+--      Many [ ModelMod (\m -> { m | nodes = update })
+--           -- TODO reenable and fix
+--           -- , Drag <| DragNode id pos
+--           ]
+--
+--    (DragNodeEnd id _, _) ->
+--      let node = G.getNodeExn m id in
+--      Many [ Entry.enter m id True
+--           , RPC <| UpdateNodePosition id node.pos]
+--
+--    (DragNodeMove id offset pos, _) ->
+--      -- While it's kinda nasty to update a node in place, the drawing
+--      -- code get's really complex if we don't do this.
+--      let update = Canvas.updateDragPosition pos offset id m.nodes in
+--      Many [ ModelMod (\m -> { m | nodes = update })
+--           -- TODO reenable and fix
+--      -- if m.drag == NoDrag && event.button == Defaults.leftButton
+--      -- then
+--      --   let offset = Canvas.findOffset node.pos event.pos in
+--      --   Drag <| DragNode node.id offset
+--      -- else NoChange
+--
+--    (DragNodeMove id offset pos, _) ->
+--      -- While it's kinda nasty to update a node in place, the drawing
+--      -- code get's really complex if we don't do this.
+--      let update = Canvas.updateDragPosition pos offset id m.nodes in
+--      Many [ ModelMod (\m -> { m | nodes = update })
+--           -- TODO reenable and fix
+--           -- , Drag <| DragNode id pos
+--           ]
+--
+--    (DragNodeEnd id _, _) ->
+--      let node = G.getNodeExn m id in
+--      Many [ Entry.enter m id True
+--           , RPC <| UpdateNodePosition id node.pos]
+
+
+    -----------------
+    -- Buttons
+    -----------------
     (ClearGraph, _) ->
       Many [ RPC ([DeleteAll], FocusNothing), Deselect]
 
@@ -282,7 +341,6 @@ update_ msg m =
     (SaveTestCallBack (Err err), _) ->
       Error <| "Error: " ++ (toString err)
 
-
     (FocusEntry _, _) ->
       NoChange
 
@@ -315,3 +373,15 @@ subscriptions m =
            (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
   in Sub.batch
     (List.concat [keySubs])
+
+--  let dragSubs =
+--        case m.state of
+--          -- we use IDs here because the node will change
+--          -- before they're triggered
+--          Dragging (DragNode id offset) ->
+--            [ Mouse.moves (DragNodeMove id offset)
+--            , Mouse.ups (DragNodeEnd id)]
+--          Dragging (DragSlot _ _ _) ->
+--            [ Mouse.moves DragSlotMove
+--            , Mouse.ups DragSlotStop]
+--          _ -> []
