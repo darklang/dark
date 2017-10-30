@@ -77,7 +77,7 @@ viewError mMsg = case mMsg of
 
 
 shouldShowPreview : Model -> Node -> Bool
-shouldShowPreview m n = 
+shouldShowPreview m n =
   let selected = case m.state of
                    Selecting id -> id
                    _            -> ID -1
@@ -362,7 +362,10 @@ placeNode m n width attrs classes header body =
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
-      wrapper = Html.div [Events.onClick (NodeClick n)] [ node, header_wrapper ]
+      events = [ Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
+               , Events.onClick (NodeClick n)
+               ]
+      wrapper = Html.div events [ node, header_wrapper ]
   in
     placeHtml m (G.pos m n) wrapper
 

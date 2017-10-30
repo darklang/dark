@@ -11,6 +11,7 @@ import Http
 import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
+import Mouse
 
 -- dark
 import RPC exposing (rpc, phantomRpc, saveTest)
@@ -111,7 +112,7 @@ updateMod mod (m, cmd) =
                                          Creating p -> m.center -- dont move
                         }
                         ! [Entry.focusEntry]
---      Drag d -> { m | state = Dragging d } ! []
+      Drag id offset -> { m | state = Dragging id offset } ! []
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
@@ -125,6 +126,7 @@ updateMod mod (m, cmd) =
                         in m ! [rpc m FocusSame calls]
         Deselected -> m ! []
         Entering _ _ -> m ! []
+        Dragging _ _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
@@ -229,63 +231,46 @@ update_ msg m =
               Key.Right -> ModelMod Viewport.moveRight
               _ -> Selection.selectByLetter m event.keyCode
 
+          Dragging _ _ -> NoChange
+
     (EntryInputMsg target, _) ->
       Entry.updateValue target
 
 
---    ------------------------
---    -- dragging
---    ------------------------
---    (DragNodeStart node event, _) ->
---      NoChange
---      -- If we're already dragging a slot don't change the nodea
---      -- TODO: reenable
---      -- if m.drag == NoDrag && event.button == Defaults.leftButton
---      -- then
---      --   let offset = Canvas.findOffset node.pos event.pos in
---      --   Drag <| DragNode node.id offset
---      -- else NoChange
---
---    (DragNodeMove id offset pos, _) ->
---      -- While it's kinda nasty to update a node in place, the drawing
---      -- code get's really complex if we don't do this.
---      let update = Canvas.updateDragPosition pos offset id m.nodes in
---      Many [ ModelMod (\m -> { m | nodes = update })
---           -- TODO reenable and fix
---           -- , Drag <| DragNode id pos
---           ]
---
---    (DragNodeEnd id _, _) ->
---      let node = G.getNodeExn m id in
---      Many [ Entry.enter m id True
---           , RPC <| UpdateNodePosition id node.pos]
---
---    (DragNodeMove id offset pos, _) ->
---      -- While it's kinda nasty to update a node in place, the drawing
---      -- code get's really complex if we don't do this.
---      let update = Canvas.updateDragPosition pos offset id m.nodes in
---      Many [ ModelMod (\m -> { m | nodes = update })
---           -- TODO reenable and fix
---      -- if m.drag == NoDrag && event.button == Defaults.leftButton
---      -- then
---      --   let offset = Canvas.findOffset node.pos event.pos in
---      --   Drag <| DragNode node.id offset
---      -- else NoChange
---
---    (DragNodeMove id offset pos, _) ->
---      -- While it's kinda nasty to update a node in place, the drawing
---      -- code get's really complex if we don't do this.
---      let update = Canvas.updateDragPosition pos offset id m.nodes in
---      Many [ ModelMod (\m -> { m | nodes = update })
---           -- TODO reenable and fix
---           -- , Drag <| DragNode id pos
---           ]
---
---    (DragNodeEnd id _, _) ->
---      let node = G.getNodeExn m id in
---      Many [ Entry.enter m id True
---           , RPC <| UpdateNodePosition id node.pos]
+   ------------------------
+   -- dragging
+   ------------------------
+    (DragNodeStart node event, _) ->
+      case m.state of
+        -- If we're already dragging a slot don't change the node
+        Dragging id startVPos ->
+          NoChange
+        _ ->
+          if event.button == Defaults.leftButton
+          then Drag node.id event.pos
+          else NoChange
 
+    (DragNodeEnd id mousePos, _) ->
+      case m.state of
+        Dragging id startVPos ->
+          let xDiff = mousePos.x-startVPos.vx
+              yDiff = mousePos.y-startVPos.vy
+              (m2, root) = G.moveSubgraph m id xDiff yDiff in
+          Many [ ModelMod (always m2)
+               , RPC ([UpdateNodePosition root.id root.pos], FocusSame)
+               , Deselect ]
+        _ -> NoChange
+
+
+    (DragNodeMove id mousePos, _) ->
+      case m.state of
+        Dragging id startVPos ->
+          let xDiff = mousePos.x-startVPos.vx
+              yDiff = mousePos.y-startVPos.vy
+              (m2, root) = G.moveSubgraph m id xDiff yDiff in
+          Many [ ModelMod (always m2)
+               , Drag id {vx=mousePos.x, vy=mousePos.y} ]
+        _ -> NoChange
 
     -----------------
     -- Buttons
@@ -371,17 +356,15 @@ subscriptions m =
   let keySubs =
         [onWindow "keydown"
            (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
+      dragSubs =
+        case m.state of
+          -- we use IDs here because the node will change
+          -- before they're triggered
+          Dragging id offset ->
+            [ Mouse.moves (DragNodeMove id)
+            , Mouse.ups (DragNodeEnd id)]
+          _ -> []
   in Sub.batch
-    (List.concat [keySubs])
+    (List.concat [keySubs, dragSubs])
 
---  let dragSubs =
---        case m.state of
---          -- we use IDs here because the node will change
---          -- before they're triggered
---          Dragging (DragNode id offset) ->
---            [ Mouse.moves (DragNodeMove id offset)
---            , Mouse.ups (DragNodeEnd id)]
---          Dragging (DragSlot _ _ _) ->
---            [ Mouse.moves DragSlotMove
---            , Mouse.ups DragSlotStop]
---          _ -> []
+

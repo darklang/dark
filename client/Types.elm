@@ -5,6 +5,7 @@ import Dict exposing (Dict)
 import Http
 import Dom
 import Navigation
+import Mouse
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -106,12 +107,15 @@ type EntryCursor = Creating Pos
 
 type State = Selecting ID
            | Entering Bool EntryCursor
+           | Dragging ID VPos
            | Deselected
-
 
 type Msg
     = NodeClick Node
     | RecordClick MouseEvent
+    | DragNodeStart Node MouseEvent
+    | DragNodeMove ID Mouse.Position
+    | DragNodeEnd ID Mouse.Position
     -- we have the actual node when this is created, but by the time we
     -- use the others the node will be changed
     | EntryInputMsg String
@@ -205,6 +209,7 @@ type Modification = Error String
                   | Phantom
                   | Many (List Modification)
                   | ChangeCursor Int
+                  | Drag ID VPos
 
 -- name, type optional
 type alias Parameter = { name: Name

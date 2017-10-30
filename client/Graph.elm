@@ -30,6 +30,15 @@ isRoot n =
     Root _ -> True
     _ -> False
 
+
+isDependent : Node -> Bool
+isDependent n =
+  case n.pos of
+    Dependent _ -> True
+    _ -> False
+
+
+
 isFree : Node -> Bool
 isFree n =
   case n.pos of
@@ -243,6 +252,27 @@ toSubgraphs m =
   -- e({a,b,c,f,g,h,d}, h) -> ({a,b,c,f,g,h,d,e}, h)
   -- x({a,b,c,f,g,h,d,e}, h) -> ({a,b,c,f,g,h,d,e,x}, x)
 
+moveSubgraph : Model -> ID -> Int -> Int -> (Model, Node)
+moveSubgraph m id offsetX offsetY =
+  let n = getNodeExn m id
+      sg : List Node
+      sg = entireSubgraph m n
+      root = List.filter isRoot sg
+      free = List.filter isFree sg
+      rest = List.filter isDependent sg
+      depType = if List.isEmpty root then FreeDep else RootDep
+      new = List.map
+        (\n ->
+          let x = offsetX + posx m n
+              y = offsetY + posy m n
+          in updateNodePosition m RootDep n x y)
+        sg
+      newDict = List.map (\n -> (n.id |> deID, n)) new |> Dict.fromList
+      newNodes = Dict.union newDict m.nodes
+      resultNode = root ++ free |> List.head |> deMaybe
+  in ({ m | nodes = newNodes}, resultNode)
+
+
 
 -------------------
 -- connected nodes
@@ -443,17 +473,25 @@ seen m n = case Dict.get (deID n.id) m.nodes of
 markAsSeen : Model -> DepType -> Node -> Model
 markAsSeen m dt n = position m dt n -1 -1
 
-position : Model -> DepType -> Node -> Int -> Int -> Model
-position m depType n x y =
+updateNodePosition : Model -> DepType -> Node -> Int -> Int -> Node
+updateNodePosition m depType n x y =
   let pos = {x=x,y=y}
+      vppos = Viewport.toViewport m pos
       newPos = case n.pos of
                  Root _ -> Root pos
-                 Free _ -> Free <| Just (Viewport.toViewport m pos)
-                 Dependent _ -> if depType == FreeDep
-                                then Dependent <| Just <| DVPos <| (Viewport.toViewport m pos)
-                                else Dependent <| Just <| DPos <| pos
+                 Free _ -> Free <| Just vppos
+                 Dependent _ ->
+                   if depType == FreeDep
+                   then Dependent <| Just <| DVPos <| vppos
+                   else Dependent <| Just <| DPos <| pos
                  NoPos _ -> NoPos (Just pos)
-      nodes = Dict.insert (deID n.id) { n | pos = newPos} m.nodes
+  in { n | pos = newPos }
+
+
+position : Model -> DepType -> Node -> Int -> Int -> Model
+position m depType n x y =
+  let newN = updateNodePosition m depType n x y
+      nodes = Dict.insert (deID n.id) newN m.nodes
   in { m | nodes = nodes }
 
 -- This algorithm is very fragile and you should be extremely careful
