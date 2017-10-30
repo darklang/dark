@@ -256,6 +256,17 @@ update_ msg m =
           then Drag node.id event.pos
           else NoChange
 
+    (DragNodeMove id mousePos, _) ->
+      case m.state of
+        Dragging id startVPos ->
+          let xDiff = mousePos.x-startVPos.vx
+              yDiff = mousePos.y-startVPos.vy
+              (m2, _) = G.moveSubgraph m id xDiff yDiff in
+          Many [ ModelMod (always m2)
+               -- update the drag so we offset correctly next time
+               , Drag id {vx=mousePos.x, vy=mousePos.y} ]
+        _ -> NoChange
+
     (DragNodeEnd id mousePos, _) ->
       case m.state of
         Dragging id startVPos ->
@@ -263,18 +274,7 @@ update_ msg m =
               yDiff = mousePos.y-startVPos.vy
               (m2, root) = G.moveSubgraph m id xDiff yDiff in
           Many [ ModelMod (always m2)
-               , RPC ([UpdateNodePosition root.id root.pos], FocusSame)
-               , Deselect ]
-        _ -> NoChange
-
-    (DragNodeMove id mousePos, _) ->
-      case m.state of
-        Dragging id startVPos ->
-          let xDiff = mousePos.x-startVPos.vx
-              yDiff = mousePos.y-startVPos.vy
-              (m2, root) = G.moveSubgraph m id xDiff yDiff in
-          Many [ ModelMod (always m2)
-               , Drag id {vx=mousePos.x, vy=mousePos.y} ]
+               , RPC ([UpdateNodePosition root.id root.pos], FocusSame) ]
         _ -> NoChange
 
     -----------------
