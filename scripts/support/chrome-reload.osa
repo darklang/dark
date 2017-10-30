@@ -7,7 +7,7 @@ tell application "Google Chrome"
 		set tabList to every tab of aWindow
 		repeat with atab in tabList
 			if (URL of atab contains "localhost") then
-        my logit("reloading" & URL of atab)
+        my logit("reloading " & URL of atab)
 				tell atab to reload
 			end if
 		end repeat
