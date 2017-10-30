@@ -21,6 +21,14 @@ Top level
   background: #1c1c1d;
   /* background-size: 2em 2em; */
   position: relative;
+
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
 }
 
 /********************
@@ -108,6 +116,7 @@ Nodes
 }
 
 .node {
+  cursor: default;
   box-sizing: border-box;
   font-size: 14px;
   background: #272728;
