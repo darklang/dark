@@ -4,7 +4,7 @@ module Graph exposing (..)
 import Ordering
 import List
 import Tuple
-import Dict
+import Dict exposing (Dict)
 import Set
 import Maybe
 
@@ -425,6 +425,80 @@ deleteNode m id =
                )
                remaining
   in { m | nodes = nodes }
+
+updateGraph : Model -> Model
+updateGraph m = m
+              |> collapseIfs
+              |> reposition
+
+-- TODO: add node display
+collapseIfs : Model -> Model
+collapseIfs m =
+  let ifs = m.nodes |> Dict.values |> List.filter (\n -> n.name == "if")
+      toCollapse = collapsableIfs m ifs
+      toHide = toCollapse |> Dict.keys
+      nodes = m.nodes |> Dict.filter (\i _ -> not <| List.member i toHide) |> Dict.map (mapArguments toCollapse)
+  in
+      { m | nodes = nodes }
+
+-- Given an (id2hide -> id2replaceitwith) map and a (id, node) k/v pair
+-- from the dict (passed as separate params bc of Dict.map's signature)
+-- replace all occurrences of the id2hides with their id2replaceitwith
+-- in the node's argumentd
+mapArguments : Dict Int Int -> Int -> Node -> Node
+mapArguments ids2hide _ node =
+  let newArgs = List.map (\(p, a) ->
+                            case a of
+                              Edge id ->
+                                case Dict.get (deID id) ids2hide of
+                                  Just newId -> (p, Edge (ID newId))
+                                  Nothing    -> (p, a)
+                              a -> (p, a)) node.arguments
+  in
+      { node | arguments = newArgs }
+                                
+
+collapsableIfs : Model -> List Node -> Dict Int Int
+collapsableIfs m ns = ns
+                  |> List.filterMap (\n ->
+                    let parents = collapsableParents m n
+                    in  case parents of
+                        [] -> Nothing
+                        ps -> Just ps)
+                  |> List.concat
+                  |> Dict.fromList
+
+collapsableParents : Model -> Node -> List (Int, Int)
+collapsableParents m ifnode =
+  let ifID = ifnode.id |> deID
+      cond = N.getArgument "cond" ifnode
+      parentsOfIf = incomingNodes m ifnode
+      firstParent = 
+        case cond of
+          Edge id ->
+            let parent = getNodeExn m id
+                children = outgoingNodes m parent |> List.filter (\n -> n /= ifnode)
+            in
+            case (incomingNodes m parent, children) of
+              ([x], []) -> [(deID <| parent.id, ifID)]
+              ([], [])  -> [(deID <| parent.id, ifID)]
+              _   -> []
+          _ -> []
+      secondParent =
+        case firstParent of
+          [] -> []
+          [(fpID, _)] -> 
+            let fp = getNodeExn m (ID fpID) in
+            case incomingNodes m fp of
+              [y] -> 
+                let otherKids = outgoingNodes m y |> List.filter (\n -> n /= fp) |> List.length
+                    otherParents = (incomingNodes m y) |> List.filter (\n -> not (List.member n parentsOfIf)) |> List.length
+                in if otherKids + otherParents == 0 && N.isPrimitive y && N.isNotBlock y
+                   then [(deID <| y.id, ifID)]
+                   else []
+              _   -> []
+          _ -> []
+  in firstParent ++ secondParent
 
 -------------------------------------
 -- Repositioning. Here be dragons

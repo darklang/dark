@@ -286,7 +286,7 @@ update_ msg m =
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
       let m2 = { m | nodes = nodes }
-          m3 = G.reposition m2
+          m3 = G.updateGraph m2
       in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod ACReset
               , ClearError
