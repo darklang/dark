@@ -112,7 +112,7 @@ type State = Selecting ID
            | Deselected
 
 type Msg
-    = NodeClick Node
+    = NodeClick Node MouseEvent
     | RecordClick MouseEvent
     | DragNodeStart Node MouseEvent
     | DragNodeMove ID Mouse.Position

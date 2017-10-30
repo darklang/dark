@@ -136,15 +136,6 @@ update_ : Msg -> Model -> Modification
 update_ msg m =
   case (msg, m.state) of
 
-    (NodeClick node, _) ->
-      Select node.id
-
-    (RecordClick event, _) ->
-      if event.button == Defaults.leftButton
-      then Many [ AutocompleteMod ACReset
-                , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
-      else NoChange
-
     ------------------------
     -- entry node
     ------------------------
@@ -237,9 +228,24 @@ update_ msg m =
       Entry.updateValue target
 
 
-   ------------------------
-   -- dragging
-   ------------------------
+    ------------------------
+    -- mouse
+    ------------------------
+
+    -- The interaction between the different mouse states is a little
+    -- tricky. RecordClick needs to be a global handler, and so it would
+    -- typicaly fire at the same time as NodeClick (which is set on a
+    -- Node). We use stopPropagating the prevent them from interacting.
+
+    (NodeClick node _, _) ->
+      Select node.id
+
+    (RecordClick event, _) ->
+      if event.button == Defaults.leftButton
+      then Many [ AutocompleteMod ACReset
+                , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
+      else NoChange
+
     (DragNodeStart node event, _) ->
       case m.state of
         -- If we're already dragging a slot don't change the node
@@ -260,7 +266,6 @@ update_ msg m =
                , RPC ([UpdateNodePosition root.id root.pos], FocusSame)
                , Deselect ]
         _ -> NoChange
-
 
     (DragNodeMove id mousePos, _) ->
       case m.state of
