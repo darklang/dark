@@ -108,16 +108,35 @@ isPrimitive n =
     TIncomplete -> False
 
 generateFace : Node -> NodeList -> Node
-generateFace ifn parents = 
+generateFace ifn parents =
   if ifn.name /= "if"
   then Debug.crash "Tried to generate a face for a node that's not an if"
-  else 
-    let face = 
+  else
+    let face =
         case parents of
           [] -> Debug.crash "Tried to generate a face for an if w/ no parents"
-          [a] -> "one"
-          a :: b :: [] -> "two"
+          [a] -> nodeToFace a Nothing
+          a :: b :: [] -> nodeToFace a (Just (nodeToFace b Nothing))
           _ -> Debug.crash "Tried to generate a face for an if w/ 2 many ps"
     in
         { ifn | face = face }
+
+nodeToFace : Node -> Maybe String -> String
+nodeToFace a b =
+  let placeholder =
+      case b of
+        Just s -> "(" ++ s ++ ")"
+        Nothing -> "$_"
+      argLen = List.length a.arguments
+      arguments = List.map (Tuple.second) a.arguments
+      transformedArguments =
+        List.map (\p ->
+          case p of
+            Const s -> s
+            Edge _  -> placeholder
+            NoArg   -> "") arguments
+  in
+      if argLen == 2
+      then String.join (" " ++ a.name ++ " ") transformedArguments
+      else a.name ++ " " ++ (String.join " " transformedArguments)
 
