@@ -62,7 +62,7 @@ def stringify(json):
 def generate_elm_test_data():
   graphs = []
   names = []
-  for d in glob.glob("server/testdata/*.dark"):
+  for d in glob.glob("server/appdata/test_*.dark"):
     names.append(path.basename(path.splitext(d)[0]))
     graphs.append(stringify(convert_dark_file_to_graph(d)))
   filename = "client/tests/DarkTestData.elm"

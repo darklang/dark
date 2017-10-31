@@ -8,6 +8,7 @@
 /server/dark.install
 /server/static/elm.js
 /server/appdata/*.dark
+!/server/appdata/test_*.dark
 /server/cache
 /server/ocamlbuild_output.txt
 /server/profile.json

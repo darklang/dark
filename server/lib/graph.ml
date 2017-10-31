@@ -363,10 +363,14 @@ let to_frontend_string (g: graph) : string =
   g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
 
 let save_test (g: graph) : string =
-  let name = g.name ^ "_" ^ (Unix.gettimeofday () |> int_of_float |> string_of_int) in
-  let g = {g with name = name} in
   let g = minimize g in
-  let filename = "testdata/" ^ name ^ ".dark" in
+  let filename = "appdata/test_" ^ g.name ^ ".dark" in
+  let name = if Sys.file_exists filename = `Yes
+             then g.name ^ "_"
+                  ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
+             else g.name in
+  let g = {g with name = name } in
+  let filename = "appdata/test_" ^ name ^ ".dark" in
   save ~filename:(Some filename) g;
   filename
 
