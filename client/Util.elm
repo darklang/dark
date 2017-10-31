@@ -92,3 +92,6 @@ uniqueCombinations xs = xs
                       |> zip xs
                       |> List.concatMap (\(x, ys) -> List.map (\y -> (x, y)) ys)
                       |> List.filter (\(x, y) -> x /= y)
+
+hdExn : List a -> a
+hdExn l =  l |> List.head |> deMaybe

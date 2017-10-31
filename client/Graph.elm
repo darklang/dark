@@ -385,6 +385,17 @@ deleteArg cond n =
   let args = List.filter (\(_, a) -> not (cond a)) n.arguments
   in { n | arguments = args }
 
+fromList : List Node -> NodeDict
+fromList = DE.fromListBy (\n -> n.id |> deID)
+
+updateAndRemove : Model -> List Node -> List Node -> Model
+updateAndRemove m toUpdate toRemove =
+  let updateDict = fromList toUpdate
+      removeDict = fromList toRemove
+      afterRemoved = Dict.diff m.nodes removeDict
+      afterUpdated = Dict.union updateDict afterRemoved
+  in { m | nodes = afterUpdated }
+
 -- ported from backend
 nodesForDeletion : Model -> ID -> List ID
 nodesForDeletion m id =
@@ -430,6 +441,7 @@ deleteNode m id =
 updateGraph : Model -> Model
 updateGraph m = m
               |> collapseIfs
+              |> collapseArgsWithSoloChildren
               |> reposition
 
 collapseIfs : Model -> Model
@@ -692,7 +704,7 @@ debug m fn n (x, y, maxX, maxY, _) =
 posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posArgs =
   foldDependents
-    (\m n -> outgoingNodes m n |> List.filter N.isArg)
+    (\m n -> getArgsOf m n.id)
     (\_ -> posArg)
 
 posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
@@ -759,4 +771,45 @@ posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
 
 max5 : Int -> Int -> Int -> Int -> Int -> Int
 max5 v w x y z = max x y |> max z |> max w |> max v
+
+
+
+------------
+-- avoiding merge conflicts by putting this here for now
+------------
+replaceArgEdge : Model -> Node -> Node -> Node -> Node
+replaceArgEdge m arg toRemove toReplace =
+  { arg | arguments =
+    List.map
+      (\(p,a) ->
+        case a of
+          Edge id -> if id == toRemove.id
+                     then (p, Edge toReplace.id)
+                     else (p, Edge id)
+          _ -> (p,a))
+      arg.arguments }
+
+
+
+removeArg : Model -> Node -> (List Node, List Node)
+removeArg m arg =
+  let block = getNodeExn m (deMaybe arg.blockID)
+      blockFn = getCallerOf m arg.id |> deMaybe
+      child = outgoingNodes m arg |> Util.hdExn
+      newChild = replaceArgEdge m child arg blockFn
+      newArgIDs = newChild.id :: LE.remove arg.id block.argIDs
+      newBlock = { block | argIDs = newArgIDs }
+      toRemove = [arg]
+      toUpdate = [newBlock, newChild]
+  in (toRemove, toUpdate)
+
+collapseArgsWithSoloChildren : Model -> Model
+collapseArgsWithSoloChildren m =
+  let args = m.nodes |> Dict.values |> List.filter N.isArg
+      isHideable n = outgoingNodes m n |> List.length |> (==) 1
+      hideableArgs = args |> List.filter isHideable
+      processed = List.map (removeArg m) hideableArgs
+      (toRemove, toUpdate) = List.unzip processed
+  in updateAndRemove m (List.concat toUpdate) (List.concat toRemove)
+
 
