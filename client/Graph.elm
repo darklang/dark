@@ -442,17 +442,21 @@ collapseIfs m =
                  |> DE.fromListDedupe (\a b -> a ++ b) -- append on dedupe
       withFaces = generateFaces m ifs2hidden
       nodes = m.nodes
+            |> Dict.union withFaces
             |> Dict.filter (\i _ -> not <| List.member i toHide)
             |> Dict.map (mapArguments toCollapse)
-      -- Dict.union gives preference to the first in presence of a collision
-      nodes2 = Dict.union withFaces nodes
   in
-      { m | nodes = nodes2 }
+      { m | nodes = nodes }
 
 -- return a NodeDict of the ifnodes with their `face` attribute correctly
 -- constructed
 generateFaces : Model -> Dict Int (List Int) -> NodeDict
-generateFaces m d = Dict.empty
+generateFaces m d = Dict.map (\id collapsed -> 
+  let ifnode = getNodeExn m (ID id)
+      parents = List.map (getNodeExn m << ID) collapsed
+  in
+      N.generateFace ifnode parents
+  ) d
 
 -- Given an (id2hide -> id2replaceitwith) map and a (id, node) k/v pair
 -- from the dict (passed as separate params bc of Dict.map's signature)

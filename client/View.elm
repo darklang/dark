@@ -309,20 +309,23 @@ viewNormalNode m n i =
                ]
 
       -- heading
-      params = n.arguments
-               |> List.map
-                    (\(p, a) ->
-                      if p.tipe == TBlock
-                      then ("", "")
-                      else
-                        case (a, p) of
-                          (Const c, _) -> ("arg_const", if c == "null" then "∅" else c)
-                          (NoArg, _) -> ("arg_none", "◉")
-                          (Edge _, _) -> ("arg_edge", "◉"))
-               |> List.map (\(class, val) ->
-                              Html.span
-                                [ Attrs.class class]
-                                [ Html.text <| " " ++ val])
+      paramtext = if N.hasFace n
+                  then [("arg_const", n.face)]
+                  else
+                    n.arguments
+                            |> List.map
+                                (\(p, a) ->
+                                  if p.tipe == TBlock
+                                  then ("", "")
+                                  else
+                                    case (a, p) of
+                                      (Const c, _) -> ("arg_const", if c == "null" then "∅" else c)
+                                      (NoArg, _) -> ("arg_none", "◉")
+                                      (Edge _, _) -> ("arg_edge", "◉"))
+      params = List.map (\(class, val) ->
+        Html.span
+        [ Attrs.class class]
+        [ Html.text <| " " ++ val]) paramtext
 
       heading = Html.span
                 [ Attrs.class "title"]

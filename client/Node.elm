@@ -35,6 +35,9 @@ isFunctionCall n = n.tipe == FunctionCall
 isNotFunctionCall : Node -> Bool
 isNotFunctionCall = not << isFunctionCall
 
+hasFace : Node -> Bool
+hasFace n = String.length n.face > 0
+
 nodeWidth : Node -> Int
 nodeWidth n =
   let
@@ -51,14 +54,18 @@ nodeWidth n =
                                           then 5.0
                                           else 8.0)
              |> List.sum
-    paramLen = n.arguments
-               |> List.map (\(p, a) ->
-                 if p.tipe == TBlock then -space -- remove spaces
-                 else
-                   case a of
-                     Const c -> if c == "null" then 8 else (len c)
-                     _ -> 14)
-               |> List.sum
+    faceLen = len n.face
+    paramLen =  if faceLen > 0
+                then faceLen
+                else
+                  n.arguments
+                          |> List.map (\(p, a) ->
+                            if p.tipe == TBlock then -space -- remove spaces
+                            else
+                              case a of
+                                Const c -> if c == "null" then 8 else (len c)
+                                _ -> 14)
+                          |> List.sum
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
@@ -99,4 +106,13 @@ isPrimitive n =
     TOpaque     -> False
     TNull       -> False
     TIncomplete -> False
+
+generateFace : Node -> NodeList -> Node
+generateFace ifn parents = 
+  if ifn.name /= "if"
+  then Debug.crash "Tried to generate a face for a node that's not an if"
+  else 
+    let face = "foobar"
+    in
+        { ifn | face = face }
 
