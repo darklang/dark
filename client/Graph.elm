@@ -440,6 +440,14 @@ collapseIfs m =
                  |> List.map (T2.swap)  -- to v,k assoc list
                  |> List.map (\(a, b) -> (a, [b]))  -- listify the second elem
                  |> DE.fromListDedupe (\a b -> a ++ b) -- append on dedupe
+                 -- TODO: clean
+                 |> Dict.map (\k v ->
+                                case v of
+                                  a :: b :: [] ->
+                                    if isIncoming m (getNodeExn m (ID k)) (ID a)
+                                    then a :: b :: []
+                                    else b :: a :: []
+                                  _ -> v)
       withFaces = generateFaces m ifs2hidden
       nodes = m.nodes
             |> Dict.union withFaces
@@ -448,6 +456,11 @@ collapseIfs m =
   in
       { m | nodes = nodes }
 
+isIncoming : Model -> Node -> ID -> Bool
+isIncoming m n id = incomingNodes m n
+                  |> List.map .id
+                  |> List.member id
+  
 -- return a NodeDict of the ifnodes with their `face` attribute correctly
 -- constructed
 generateFaces : Model -> Dict Int (List Int) -> NodeDict
