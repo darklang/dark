@@ -82,8 +82,6 @@ type alias Node = { name : Name
                   , pos : MPos
                   , tipe : NodeType
                   , liveValue : LiveValue
-                  -- for DSes
-                  , fields : List (FieldName, Tipe)
                   -- for functions
                   , arguments : List (Parameter, Argument)
                   -- for blocks

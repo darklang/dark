@@ -34,12 +34,11 @@ type alias RPCNode = { argIDs : List Int
 toNode : RPCNode -> Node
 toNode rn = { name = rn.name
             , id = ID rn.id
-            , fields = List.map (\(f,tipe) -> (f, RT.str2tipe rn.tipe)) rn.fields
             , arguments = rn.arguments
             , liveValue = { value = rn.liveValue
                           , tipe = rn.liveTipe |> RT.str2tipe
                           , json = rn.liveJson
-                          , exc = rn.liveExc 
+                          , exc = rn.liveExc
                           }
             , blockID = if rn.blockID == Defaults.unsetInt then Nothing else Just <| ID rn.blockID
             , argIDs = List.map ID rn.argIDs

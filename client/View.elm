@@ -308,21 +308,7 @@ viewNormalNode m n i =
                 [ Attrs.class "title"]
                 ((Html.span [Attrs.class <| getClass n.name] [Html.text n.name]) :: params)
 
-
-      -- fields (in list)
-      viewField (name, tipe) = [ Html.text (name ++ " : " ++ (RT.tipe2str tipe))
-                               , Html.br [] []]
-      viewFields = List.map viewField n.fields
-
-      -- list
-      list = if viewFields /= []
-             then
-               [Html.span
-                 [Attrs.class "list"]
-                 (List.concat viewFields)]
-             else []
-
-  in
+   in
     placeNode
       m
       n
@@ -330,7 +316,7 @@ viewNormalNode m n i =
       []
       []
       header
-      (heading :: list)
+      [heading]
 
 placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> List (Html.Html Msg) -> Html.Html Msg
 placeNode m n width attrs classes header body =

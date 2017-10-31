@@ -76,9 +76,7 @@ nodeWidth n =
 
 nodeHeight : Node -> Int
 nodeHeight n =
-  case n.tipe of
-    Datastore -> Defaults.nodeHeight * ( 1 + (List.length n.fields))
-    _ -> Defaults.nodeHeight
+  Defaults.nodeHeight
 
 nodeSize : Node -> (Int, Int)
 nodeSize node =

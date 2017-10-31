@@ -364,7 +364,6 @@ model op m =
                     , tipe = TAny
                     , json = "\" fake value \""
                     , exc = Nothing}
-      , fields = []
       , arguments = []
       , blockID = Nothing
       , argIDs = []
