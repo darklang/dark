@@ -11,6 +11,8 @@ import Maybe
 -- lib
 import List.Extra as LE
 import Maybe.Extra as ME
+import Tuple2 as T2
+import Dict.Extra as DE
 
 -- dark
 import Node as N
@@ -83,9 +85,6 @@ posx m n = (pos m n).x
 
 posy : Model -> Node -> Int
 posy m n = (pos m n).y
-
-
-
 
 blockNodes : Model -> List Node
 blockNodes m =
@@ -431,15 +430,29 @@ updateGraph m = m
               |> collapseIfs
               |> reposition
 
--- TODO: add node display
 collapseIfs : Model -> Model
 collapseIfs m =
   let ifs = m.nodes |> Dict.values |> List.filter (\n -> n.name == "if")
       toCollapse = collapsableIfs m ifs
       toHide = toCollapse |> Dict.keys
-      nodes = m.nodes |> Dict.filter (\i _ -> not <| List.member i toHide) |> Dict.map (mapArguments toCollapse)
+      ifs2hidden = toCollapse
+                 |> Dict.toList  -- to k,v assoc list
+                 |> List.map (T2.swap)  -- to v,k assoc list
+                 |> List.map (\(a, b) -> (a, [b]))  -- listify the second elem
+                 |> DE.fromListDedupe (\a b -> a ++ b) -- append on dedupe
+      withFaces = generateFaces m ifs2hidden
+      nodes = m.nodes
+            |> Dict.filter (\i _ -> not <| List.member i toHide)
+            |> Dict.map (mapArguments toCollapse)
+      -- Dict.union gives preference to the first in presence of a collision
+      nodes2 = Dict.union withFaces nodes
   in
-      { m | nodes = nodes }
+      { m | nodes = nodes2 }
+
+-- return a NodeDict of the ifnodes with their `face` attribute correctly
+-- constructed
+generateFaces : Model -> Dict Int (List Int) -> NodeDict
+generateFaces m d = Dict.empty
 
 -- Given an (id2hide -> id2replaceitwith) map and a (id, node) k/v pair
 -- from the dict (passed as separate params bc of Dict.map's signature)
@@ -456,7 +469,7 @@ mapArguments ids2hide _ node =
                               a -> (p, a)) node.arguments
   in
       { node | arguments = newArgs }
-                                
+
 
 collapsableIfs : Model -> List Node -> Dict Int Int
 collapsableIfs m ns = ns
@@ -473,11 +486,12 @@ collapsableParents m ifnode =
   let ifID = ifnode.id |> deID
       cond = N.getArgument "cond" ifnode
       parentsOfIf = incomingNodes m ifnode
-      firstParent = 
+      firstParent =
         case cond of
           Edge id ->
-            let parent = getNodeExn m id
-                children = outgoingNodes m parent |> List.filter (\n -> n /= ifnode)
+            let parent   = getNodeExn m id
+                children = outgoingNodes m parent
+                         |> List.filter (\n -> n /= ifnode)
             in
             case (incomingNodes m parent, children) of
               ([x], []) -> [(deID <| parent.id, ifID)]
@@ -485,19 +499,30 @@ collapsableParents m ifnode =
               _   -> []
           _ -> []
       secondParent =
+        -- we want to collapse the `if`'s grandparent iff:
+        -- 1) it has no children that are not direct parents of `if`
+        -- 2) it has either 0 parents, OR if it has a parent that it only has
+        -- 1 parent and that parent is also a parent of `if`
         case firstParent of
           [] -> []
-          [(fpID, _)] -> 
+          [(fpID, _)] ->
             let fp = getNodeExn m (ID fpID) in
             case incomingNodes m fp of
-              [y] -> 
-                let otherKids = outgoingNodes m y |> List.filter (\n -> n /= fp) |> List.length
-                    otherParents = (incomingNodes m y) |> List.filter (\n -> not (List.member n parentsOfIf)) |> List.length
-                in if otherKids + otherParents == 0 && N.isPrimitive y && N.isNotBlock y
-                   then [(deID <| y.id, ifID)]
-                   else []
-              _   -> []
-          _ -> []
+              [y] ->
+                let otherKids = outgoingNodes m y
+                              |> List.filter (\n -> n /= fp)
+                              |> List.length
+                    otherParents = incomingNodes m y
+                                 |> List.filter (\n -> not (List.member n parentsOfIf))
+                                 |> List.length
+                in if otherKids + otherParents == 0
+                    && N.isPrimitive y && N.isNotBlock y
+                   then
+                     [(deID <| y.id, ifID)]
+                   else
+                     []
+              _   -> [] -- wildcard for the `case incomingNodes m fp`
+          _ -> [] -- wildcard for `case firstParent`
   in firstParent ++ secondParent
 
 -------------------------------------
