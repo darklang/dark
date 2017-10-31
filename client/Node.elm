@@ -112,7 +112,12 @@ generateFace ifn parents =
   if ifn.name /= "if"
   then Debug.crash "Tried to generate a face for a node that's not an if"
   else 
-    let face = "foobar"
+    let face = 
+        case parents of
+          [] -> Debug.crash "Tried to generate a face for an if w/ no parents"
+          [a] -> "one"
+          a :: b :: [] -> "two"
+          _ -> Debug.crash "Tried to generate a face for an if w/ 2 many ps"
     in
         { ifn | face = face }
 

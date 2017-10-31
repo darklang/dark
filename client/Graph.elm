@@ -32,6 +32,8 @@ isRoot n =
     Root _ -> True
     _ -> False
 
+isNotRoot : Node -> Bool
+isNotRoot = not << isRoot
 
 isDependent : Node -> Bool
 isDependent n =
@@ -431,6 +433,7 @@ updateGraph m = m
               |> reposition
 
 collapseIfs : Model -> Model
+-- TODO: propagate root-ness
 collapseIfs m =
   let ifs = m.nodes |> Dict.values |> List.filter (\n -> n.name == "if")
       toCollapse = collapsableIfs m ifs
@@ -451,8 +454,8 @@ collapseIfs m =
       withFaces = generateFaces m ifs2hidden
       nodes = m.nodes
             |> Dict.union withFaces
+            |> Dict.map (replaceArguments toCollapse)
             |> Dict.filter (\i _ -> not <| List.member i toHide)
-            |> Dict.map (mapArguments toCollapse)
   in
       { m | nodes = nodes }
 
@@ -460,11 +463,11 @@ isIncoming : Model -> Node -> ID -> Bool
 isIncoming m n id = incomingNodes m n
                   |> List.map .id
                   |> List.member id
-  
+
 -- return a NodeDict of the ifnodes with their `face` attribute correctly
 -- constructed
 generateFaces : Model -> Dict Int (List Int) -> NodeDict
-generateFaces m d = Dict.map (\id collapsed -> 
+generateFaces m d = Dict.map (\id collapsed ->
   let ifnode = getNodeExn m (ID id)
       parents = List.map (getNodeExn m << ID) collapsed
   in
@@ -475,8 +478,8 @@ generateFaces m d = Dict.map (\id collapsed ->
 -- from the dict (passed as separate params bc of Dict.map's signature)
 -- replace all occurrences of the id2hides with their id2replaceitwith
 -- in the node's argumentd
-mapArguments : Dict Int Int -> Int -> Node -> Node
-mapArguments ids2hide _ node =
+replaceArguments : Dict Int Int -> Int -> Node -> Node
+replaceArguments ids2hide _ node =
   let newArgs = List.map (\(p, a) ->
                             case a of
                               Edge id ->
@@ -510,9 +513,9 @@ collapsableParents m ifnode =
                 children = outgoingNodes m parent
                          |> List.filter (\n -> n /= ifnode)
             in
-            case (incomingNodes m parent, children) of
-              ([x], []) -> [(deID <| parent.id, ifID)]
-              ([], [])  -> [(deID <| parent.id, ifID)]
+            case (incomingNodes m parent, children, isRoot parent) of
+              ([x], [], False) -> [(deID <| parent.id, ifID)]
+              ([], [], False)  -> [(deID <| parent.id, ifID)]
               _   -> []
           _ -> []
       secondParent =
@@ -533,7 +536,7 @@ collapsableParents m ifnode =
                                  |> List.filter (\n -> not (List.member n parentsOfIf))
                                  |> List.length
                 in if otherKids + otherParents == 0
-                    && N.isPrimitive y && N.isNotBlock y
+                    && N.isPrimitive y && N.isNotBlock y && isNotRoot y
                    then
                      [(deID <| y.id, ifID)]
                    else
