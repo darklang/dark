@@ -104,6 +104,7 @@ updateMod mod (m, cmd) =
           _ -> m ! []
       NoChange -> m ! []
       MakeCmd cmd -> m ! [cmd]
+      SetState state -> { m | state = state } ! []
       Select id -> { m | state = Selecting id
                        , center = G.getNodeExn m id |> G.pos m} ! []
       Enter re entry -> { m | state = Entering re entry
@@ -112,7 +113,8 @@ updateMod mod (m, cmd) =
                                          Creating p -> m.center -- dont move
                         }
                         ! [Entry.focusEntry]
-      Drag id offset -> { m | state = Dragging id offset } ! []
+      Drag id offset hasMoved state ->
+        { m | state = Dragging id offset hasMoved state } ! []
       ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
@@ -124,9 +126,7 @@ updateMod mod (m, cmd) =
       ChangeCursor step -> case m.state of
         Selecting id -> let calls = Entry.updatePreviewCursor m id step
                         in m ! [rpc m FocusSame calls]
-        Deselected -> m ! []
-        Entering _ _ -> m ! []
-        Dragging _ _ -> m ! []
+        _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
@@ -222,7 +222,7 @@ update_ msg m =
               Key.Right -> ModelMod Viewport.moveRight
               _ -> Selection.selectByLetter m event.keyCode
 
-          Dragging _ _ -> NoChange
+          Dragging _ _ _ _ -> NoChange
 
     (EntryInputMsg target, _) ->
       Entry.updateValue target
@@ -237,45 +237,45 @@ update_ msg m =
     -- typicaly fire at the same time as NodeClick (which is set on a
     -- Node). We use stopPropagating the prevent them from interacting.
 
-    (NodeClick node _, _) ->
-      Select node.id
-
-    (RecordClick event, _) ->
+    (GlobalClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
                 , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
       else NoChange
 
-    (DragNodeStart node event, _) ->
-      case m.state of
-        -- If we're already dragging a slot don't change the node
-        Dragging id startVPos ->
-          NoChange
-        _ ->
-          if event.button == Defaults.leftButton
-          then Drag node.id event.pos
-          else NoChange
+    (NodeClickDown node event, _) ->
+      if event.button == Defaults.leftButton
+      then Drag node.id event.pos False m.state
+      else NoChange
 
     (DragNodeMove id mousePos, _) ->
       case m.state of
-        Dragging id startVPos ->
+        Dragging id startVPos _ origState ->
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               (m2, _) = G.moveSubgraph m id xDiff yDiff in
           Many [ ModelMod (always m2)
                -- update the drag so we offset correctly next time
-               , Drag id {vx=mousePos.x, vy=mousePos.y} ]
+               , Drag id {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    (DragNodeEnd id mousePos, _) ->
-      case m.state of
-        Dragging id startVPos ->
-          let xDiff = mousePos.x-startVPos.vx
-              yDiff = mousePos.y-startVPos.vy
-              (m2, root) = G.moveSubgraph m id xDiff yDiff in
-          Many [ ModelMod (always m2)
-               , RPC ([UpdateNodePosition root.id root.pos], FocusSame) ]
-        _ -> NoChange
+    (NodeClickUp id event, _) ->
+      if event.button == Defaults.leftButton
+      then
+        case m.state of
+          Dragging id startVPos hasMoved origState ->
+            if hasMoved
+            then
+              let xDiff = event.pos.vx-startVPos.vx
+                  yDiff = event.pos.vy-startVPos.vy
+                  (m2, root) = G.moveSubgraph m id xDiff yDiff in
+                Many [ ModelMod (always m2)
+                     , SetState origState
+                     , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
+            else Select id
+          _ -> Debug.crash "it can never not be dragging"
+      else NoChange
+
 
     -----------------
     -- Buttons
@@ -365,9 +365,8 @@ subscriptions m =
         case m.state of
           -- we use IDs here because the node will change
           -- before they're triggered
-          Dragging id offset ->
-            [ Mouse.moves (DragNodeMove id)
-            , Mouse.ups (DragNodeEnd id)]
+          Dragging id offset _ _ ->
+            [ Mouse.moves (DragNodeMove id)]
           _ -> []
   in Sub.batch
     (List.concat [keySubs, dragSubs])

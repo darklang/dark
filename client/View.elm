@@ -31,7 +31,7 @@ view m =
   let (w, h) = Util.windowSize ()
       grid = Html.div
                ([ Attrs.id "grid"
-               , Events.on "mouseup" (decodeClickEvent RecordClick)
+               , Events.on "mouseup" (decodeClickEvent GlobalClick)
                ] ++ List.map (\x -> (Attrs.class << VT.toCSSClass) x) m.tests)
                [ viewError m.error
                , Svg.svg
@@ -362,8 +362,11 @@ placeNode m n width attrs classes header body =
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
-      events = [ Events.on "mousedown" (decodeClickEvent (DragNodeStart n))
-               , Events.onWithOptions "mouseup" { stopPropagation = True, preventDefault = False } (decodeClickEvent (NodeClick n))
+      events = [ Events.on "mousedown" (decodeClickEvent (NodeClickDown n))
+               , Events.onWithOptions
+                   "mouseup"
+                   { stopPropagation = True, preventDefault = False }
+                   (decodeClickEvent (NodeClickUp n.id))
                ]
       wrapper = Html.div events [ node, header_wrapper ]
   in

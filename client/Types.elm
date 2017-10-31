@@ -55,7 +55,7 @@ type Tipe = TInt
 -- within the viewport and we map Absolute positions back to the
 -- viewport to display in the browser.
 type alias Pos = {x: Int, y: Int }
-type alias VPos =  {vx: Int, vy: Int }
+type alias VPos = {vx: Int, vy: Int }
 
 -- MPos is a Node's position. Only roots have a stored position
 -- server-side, but we need to position the other nodes
@@ -66,7 +66,7 @@ type MPos = Root Pos
           | NoPos (Maybe Pos)
 
 type alias MouseEvent = {pos: VPos, button: Int}
-type alias LeftButton = Bool
+type alias IsLeftButton = Bool
 
 type NodeType = FunctionCall
               | Block
@@ -106,19 +106,19 @@ type Hole = ResultHole Node
 type EntryCursor = Creating Pos
                  | Filling Node Hole
 
+type alias IsReentering = Bool
 type State = Selecting ID
-           | Entering Bool EntryCursor
-           | Dragging ID VPos
+           | Entering IsReentering EntryCursor
+           | Dragging ID VPos HasMoved State
            | Deselected
 
 type Msg
-    = NodeClick Node MouseEvent
-    | RecordClick MouseEvent
-    | DragNodeStart Node MouseEvent
+    = GlobalClick MouseEvent
+    | NodeClickDown Node MouseEvent
+    -- we have the actual node when NodeClickUp is created, but by the time we
+    -- use it the proper node will be changed
+    | NodeClickUp ID MouseEvent
     | DragNodeMove ID Mouse.Position
-    | DragNodeEnd ID Mouse.Position
-    -- we have the actual node when this is created, but by the time we
-    -- use the others the node will be changed
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -197,11 +197,12 @@ type AutocompleteMod = ACQuery String
                      | ACFilterByLiveValue LiveValue
                      | ACFilterByParamType Tipe NodeList
 
+type alias HasMoved = Bool
 type Modification = Error String
                   | ClearError
                   | Select ID
-                  | Enter Bool EntryCursor -- reenter?
                   | Deselect
+                  | Enter IsReentering EntryCursor -- reenter?
                   | RPC (List RPC, Focus)
                   | ModelMod (Model -> Model)
                   | NoChange
@@ -210,7 +211,8 @@ type Modification = Error String
                   | Phantom
                   | Many (List Modification)
                   | ChangeCursor Int
-                  | Drag ID VPos
+                  | Drag ID VPos HasMoved State
+                  | SetState State
 
 -- name, type optional
 type alias Parameter = { name: Name

@@ -21,6 +21,8 @@ isSelected m n =
   case m.state of
     Entering _ (Filling node _) -> n == node
     Selecting id -> n.id == id
+    Dragging _ _ _ (Entering _ (Filling node _)) -> n == node
+    Dragging _ _ _ (Selecting id) -> n.id == id
     _ -> False
 
 entryVisible : State -> Bool
