@@ -484,7 +484,9 @@ replaceArguments ids2hide _ node =
                             case a of
                               Edge id ->
                                 case Dict.get (deID id) ids2hide of
-                                  Just newId -> (p, Edge (ID newId))
+                                  Just newId -> if newId /= (deID node.id)
+                                                then (p, Edge (ID newId))
+                                                else (p, NoArg)
                                   Nothing    -> (p, a)
                               a -> (p, a)) node.arguments
   in
