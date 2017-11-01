@@ -8,11 +8,13 @@ import Json.Decode as JSD
 
 -- lib
 import Json.Decode.Pipeline as JSDP
+import Dict.Extra as DE
 
 -- dark
 import Types exposing (..)
 import Defaults
 import Runtime as RT
+import Util exposing (deMaybe)
 
 type alias RPCNode = { argIDs : List Int
                      , arguments : List ( Parameter, Argument )
@@ -31,35 +33,125 @@ type alias RPCNode = { argIDs : List Int
                      , tipe : String
                      }
 
-toNode : RPCNode -> Node
-toNode rn = { name = rn.name
-            , id = ID rn.id
-            , arguments = rn.arguments
-            , liveValue = { value = rn.liveValue
-                          , tipe = rn.liveTipe |> RT.str2tipe
-                          , json = rn.liveJson
-                          , exc = rn.liveExc
-                          }
-            , blockID = if rn.blockID == Defaults.unsetInt then Nothing else Just <| ID rn.blockID
-            , argIDs = List.map ID rn.argIDs
-            , tipe = case rn.tipe of
-                      "datastore" -> Datastore
-                      "function" -> FunctionCall
-                      "definition" -> Block
-                      "value" -> Value
-                      "page" -> Page
-                      "arg" -> Arg
-                      _ -> Debug.crash "shouldnt happen"
-            , pos = case (rn.posType, rn.posX, rn.posY) of
-                      ("Root", Just x, Just y) -> Root {x=x, y=y}
-                      ("Dependent", Nothing, Nothing) -> Dependent Nothing
-                      ("Free", Nothing, Nothing) -> Free Nothing
-                      ("NoPos", Nothing, Nothing) -> NoPos Nothing
-                      _ -> Debug.crash "Bad Pos in RPC"
-            , cursor = rn.cursor
-            , visible = rn.tipe /= "definition"
+type alias FullNode = { name : Name
+                      , id : ID
+                      , pos : MPos
+                      , tipe : NodeType
+                      , liveValue : LiveValue
+                      , cursor: Cursor
+                      -- for functions
+                      , arguments : List (Parameter, Argument)
+                      -- for blocks
+                      , blockID : Maybe ID
+                      , argIDs : List ID
+                      }
+
+
+toFullNode : RPCNode -> FullNode
+toFullNode rn = { name = rn.name
+                , id = ID rn.id
+                , arguments = rn.arguments
+                , liveValue = { value = rn.liveValue
+                              , tipe = rn.liveTipe |> RT.str2tipe
+                              , json = rn.liveJson
+                              , exc = rn.liveExc
+                              }
+                , argIDs = List.map ID rn.argIDs
+                , blockID = if rn.blockID == Defaults.unsetInt then Nothing else Just <| ID rn.blockID
+                , tipe = case rn.tipe of
+                          "datastore" -> Datastore
+                          "function" -> FunctionCall
+                          "value" -> Value
+                          "page" -> Page
+                          "arg" -> Arg
+                          _ -> Debug.crash "shouldnt happen"
+                , pos = case (rn.posType, rn.posX, rn.posY) of
+                          ("Root", Just x, Just y) -> Root {x=x, y=y}
+                          ("Dependent", Nothing, Nothing) -> Dependent Nothing
+                          ("Free", Nothing, Nothing) -> Free Nothing
+                          ("NoPos", Nothing, Nothing) -> NoPos Nothing
+                          _ -> Debug.crash "Bad Pos in RPC"
+                , cursor = rn.cursor
+                }
+
+toNode : FullNode -> Node
+toNode fn = { name = fn.name
+            , id = fn.id
+            , arguments = fn.arguments
+            , liveValue = fn.liveValue
+            , tipe = fn.tipe
+            , pos = fn.pos
+            , cursor = fn.cursor
             , face = ""
+            -- todo kill
+            , blockID = Nothing
+            , argIDs = []
+            , visible = False
             }
+
+
+-- removeArg : Model -> Node -> (List Node, List Node)
+-- removeArg m arg =
+--   let block = getNodeExn m (deMaybe arg.blockID)
+--       blockFn = getCallerOf m arg.id |> deMaybe
+--       child = outgoingNodes m arg |> Util.hdExn
+--       newChild = replaceArgEdge m child arg blockFn
+--       newArgIDs = newChild.id :: LE.remove arg.id block.argIDs
+--       newBlock = { block | argIDs = newArgIDs }
+--       toRemove = [arg]
+--       toUpdate = [newBlock, newChild]
+--   in (toRemove, toUpdate)
+--
+-- collapseArgsWithSoloChildren : Model -> Model
+-- collapseArgsWithSoloChildren m =
+--   let args = m.nodes |> Dict.values |> List.filter N.isArg
+--       isHideable n = outgoingNodes m n |> List.length |> (==) 1
+--       hideableArgs = args |> List.filter isHideable
+--       processed = List.map (removeArg m) hideableArgs
+--       (toRemove, toUpdate) = List.unzip processed
+--   in updateAndRemove m (List.concat toUpdate) (List.concat toRemove)
+--
+--
+fixupBlockNodes : Dict Int FullNode -> Dict Int FullNode
+fixupBlockNodes nodes =
+  let findParent id =
+        nodes
+        |> Dict.values
+        |> List.filter
+             (\n ->
+               List.any
+                 (\(p,a) ->
+                   case a of
+                     Edge eid -> id == eid
+                     _ -> False)
+                 n.arguments)
+        |> List.head |> deMaybe
+      stdParent = { name = "parent"
+                  , tipe = TAny
+                  , block_args = []
+                  , optional = False
+                  , description = ""
+                  }
+      convertArg _ n =
+        let arguments = [(stdParent, Const "todo")]
+        in { n | arguments = arguments }
+      convertFn _ n =
+        let (blocks, others) =
+              List.partition (\(p,a) -> p.tipe == TBlock) n.arguments
+            blockIDs =
+              List.map (\(p,a) ->
+                case a of
+                  Edge id -> let block = Dict.get (deID id) nodes |> Util.deMaybe
+                             in block.id :: block.argIDs
+                  _ -> Debug.crash "should all be blocks")
+              blocks
+        in { n | arguments = others
+               -- , deleteWith = []
+        }
+  in nodes
+      |> Dict.map convertArg
+      |> Dict.map convertFn
+
 
 phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
 phantomRpc m cursor calls =
@@ -303,15 +395,15 @@ decodeRPCNode =
     |> JSDP.required "cursor" JSD.int
 
 
-decodeGraph : JSD.Decoder (NodeDict)
+decodeGraph : JSD.Decoder NodeDict
 decodeGraph =
-  let toGraph : List RPCNode -> (NodeDict)
-      toGraph rpcnodes =
-        let nodes = List.map toNode rpcnodes
-            nodedict = List.foldl
-                    (\v d -> Dict.insert (v.id |> deID) v d)
-                    Dict.empty
-                    nodes
-        in (nodedict)
+  let toGraph : List RPCNode -> NodeDict
+      toGraph rpcNodes =
+        let nodes = List.map toFullNode rpcNodes
+            nodeDict = DE.fromListBy (.id >> deID) nodes
+            nodeDict2 = fixupBlockNodes nodeDict
+            nodeDict3 = Dict.filter (\_ n -> n.tipe /= Block) nodeDict2
+            nodeDict4 = Dict.map (\_ n -> toNode n) nodeDict3
+        in nodeDict4
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeRPCNode)

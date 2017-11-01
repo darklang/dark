@@ -24,10 +24,10 @@ isNotArg : Node -> Bool
 isNotArg = not << isArg
 
 isBlock : Node -> Bool
-isBlock n = n.tipe == Block
+isBlock n = False
 
 isNotBlock : Node -> Bool
-isNotBlock = not << isBlock
+isNotBlock n = True
 
 isFunctionCall : Node -> Bool
 isFunctionCall n = n.tipe == FunctionCall

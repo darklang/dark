@@ -290,8 +290,7 @@ outgoingNodes m parent =
     |> Dict.values
     |> List.filterMap (\child ->
                          child
-                      |> incomingNodePairs m
-                      |> List.map Tuple.first
+                      |> incomingNodes m
                       |> LE.find (\n -> n.id == parent.id)
                       |> Maybe.map (always child))
     |> List.append (getArgsOf m parent.id)
@@ -357,29 +356,29 @@ hasBlockParam m id =
 -- Only follows the first edge, goes as high as it can. This is intended
 -- to allow more consistency. Once it hit a node with no parents, it's
 -- done (even if the parent's sibling might have a higher parent).
--- IGNORES BLOCKS.
 highestParent : Model -> Node -> Node
 highestParent m n =
-  case incomingNodes m n |> List.filter N.isNotBlock |> List.head of
+  case incomingNodes m n |> List.head of
     Just node -> highestParent m node
     Nothing -> n
 
 -- ported from backend
 dependentNodes : Model -> Node -> List ID
 dependentNodes m n =
-  n.arguments
-    |> List.filterMap (\(p, a) ->
-                          case (p.tipe, a) of
-                          (TBlock, Edge id) -> Just id
-                          _ -> Nothing)
-    |> List.append n.argIDs
-    |> List.append (ME.toList n.blockID)
-    |> List.append (if n.tipe == Block
-                    then outgoingNodes m n |> List.map .id
-                    else [])
-    |> LE.uniqueBy deID
-    |> Debug.log "clearing dependents"
-
+  Debug.crash "todo"
+  -- n.arguments
+  --   |> List.filterMap (\(p, a) ->
+  --                         case (p.tipe, a) of
+  --                         (TBlock, Edge id) -> Just id
+  --                         _ -> Nothing)
+  --   |> List.append n.argIDs
+  --   |> List.append (ME.toList n.blockID)
+  --   |> List.append (if n.tipe == TODOKILLBLOCK
+  --                   then outgoingNodes m n |> List.map .id
+  --                   else [])
+  --   |> LE.uniqueBy deID
+  --   |> Debug.log "clearing dependents"
+  --
 deleteArg : (Argument -> Bool) -> Node -> Node
 deleteArg cond n =
   let args = List.filter (\(_, a) -> not (cond a)) n.arguments

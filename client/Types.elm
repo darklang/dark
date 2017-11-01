@@ -84,12 +84,12 @@ type alias Node = { name : Name
                   , liveValue : LiveValue
                   -- for functions
                   , arguments : List (Parameter, Argument)
-                  -- for blocks
+                  , cursor: Cursor
+                  , face: String
+                  -- TODO to kill
                   , blockID : Maybe ID
                   , argIDs : List ID
                   , visible : Bool
-                  , cursor: Cursor
-                  , face: String
                   }
 
 type alias Variable = (VariableName, Node)
