@@ -369,33 +369,9 @@ updateAndRemove m toUpdate toRemove =
       afterUpdated = Dict.union updateDict afterRemoved
   in { m | nodes = afterUpdated }
 
--- ported from backend
-nodesForDeletion : Model -> ID -> List ID
-nodesForDeletion m id =
-  let n = getNodeExn m id
-      deps = dependentNodes m n
-      -- recursion will be messy, but go 3 layers down.
-      transitive =
-        List.map (\id -> dependentNodes m (getNodeExn m id)) deps
-      transitive2 =
-        transitive
-        |> List.concat
-        |> List.map (\id -> dependentNodes m (getNodeExn m id))
-      transitive3 =
-        transitive2
-        |> List.concat
-        |> List.map (\id -> dependentNodes m (getNodeExn m id))
-  in
-      transitive3
-      |> List.concat
-      |> (++) deps
-      |> (::) id
-      |> LE.uniqueBy deID
-
-
 deleteNode : Model -> ID -> Model
 deleteNode m id =
-  let ids = nodesForDeletion m id
+  let ids = dependentNodes m (getNodeExn m id)
 
       -- remove the nodes
       remaining = Dict.filter (\_ n -> not <| List.member n.id ids) m.nodes
