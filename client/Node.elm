@@ -121,16 +121,16 @@ isPrimitive n =
     TIncomplete -> False
 
 generateFace : Node -> NodeList -> Node
-generateFace ifn parents =
+generateFace ifn ancestors =
   if ifn.name /= "if"
   then Debug.crash "Tried to generate a face for a node that's not an if"
   else
     let face =
-        case parents of
-          [] -> Debug.crash "Tried to generate a face for an if w/ no parents"
+        case ancestors of
+          [] -> Debug.crash "Tried to generate a face for an if w/ no ancestors"
           [a] -> nodeToFace a Nothing
           a :: b :: [] -> nodeToFace a (Just (nodeToFace b Nothing))
-          _ -> Debug.crash "Tried to generate a face for an if w/ 2 many ps"
+          _ -> Debug.crash "Tried to generate a face for an if w/ too many ancestors"
     in
         { ifn | face = face }
 

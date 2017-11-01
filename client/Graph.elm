@@ -393,12 +393,24 @@ deleteNode m id =
 
 updateGraph : Model -> Model
 updateGraph m = m
-              -- |> collapseIfs
+              |> collapseIfs
               -- |> collapseArgsWithSoloChildren
               |> reposition
 
+-- Takes a model, searches its nodes for `if` nodes whose
+-- parent and grandparent meet a specific criteria
+-- (see `collapsableAncestors` for said criteria)
+-- and removes them from the graph, placing a textual representation
+-- of them on the `if` nodes face.
+--
+--         5
+--        /
+--     == 0
+--    /
+--  if          becomes  (if 5 == 0) where "5 == 0" is the face of the if.
+--
 collapseIfs : Model -> Model
--- TODO: propagate root-ness
+-- TODO: propagate rooted-ness (ie.
 collapseIfs m =
   let ifs = m.nodes |> Dict.values |> List.filter (\n -> n.name == "if")
       toCollapse = collapsableIfs m ifs
@@ -408,18 +420,19 @@ collapseIfs m =
                  |> List.map (T2.swap)  -- to v,k assoc list
                  |> List.map (\(a, b) -> (a, [b]))  -- listify the second elem
                  |> DE.fromListDedupe (\a b -> a ++ b) -- append on dedupe
-                 -- TODO: clean
+                 -- TODO: clean this up, we're sorting the ancestors topologically
+                 -- in a strange way.
                  |> Dict.map (\k v ->
                                 case v of
-                                  a :: b :: [] ->
+                                  [a, b] ->
                                     if isIncoming m (getNodeExn m (ID k)) (ID a)
-                                    then a :: b :: []
-                                    else b :: a :: []
+                                    then [a, b]
+                                    else [b, a]
                                   _ -> v)
       withFaces = generateFaces m ifs2hidden
       nodes = m.nodes
             |> Dict.union withFaces
-            |> Dict.map (replaceArguments toCollapse)
+            |> Dict.map (redirectEdges toCollapse)
             |> Dict.filter (\i _ -> not <| List.member i toHide)
   in
       { m | nodes = nodes }
@@ -434,21 +447,25 @@ isIncoming m n id = incomingNodes m n
 generateFaces : Model -> Dict Int (List Int) -> NodeDict
 generateFaces m d = Dict.map (\id collapsed ->
   let ifnode = getNodeExn m (ID id)
-      parents = List.map (getNodeExn m << ID) collapsed
+      ancestors = List.map (getNodeExn m << ID) collapsed
   in
-      N.generateFace ifnode parents
+      N.generateFace ifnode ancestors
   ) d
 
 -- Given an (id2hide -> id2replaceitwith) map and a (id, node) k/v pair
 -- from the dict (passed as separate params bc of Dict.map's signature)
 -- replace all occurrences of the id2hides with their id2replaceitwith
 -- in the node's argumentd
-replaceArguments : Dict Int Int -> Int -> Node -> Node
-replaceArguments ids2hide _ node =
+redirectEdges : Dict Int Int -> Int -> Node -> Node
+redirectEdges ids2hide _ node =
   let newArgs = List.map (\(p, a) ->
                             case a of
                               Edge id b ->
                                 case Dict.get (deID id) ids2hide of
+                                  -- if the replacement ID of the node
+                                  -- we're hiding is this node (ie. would
+                                  -- result in an edge to itself), we remove
+                                  -- the edge and make it a NoArg.
                                   Just newId -> if newId /= (deID node.id)
                                                 then (p, Edge (ID newId) b)
                                                 else (p, NoArg)
@@ -461,19 +478,19 @@ replaceArguments ids2hide _ node =
 collapsableIfs : Model -> List Node -> Dict Int Int
 collapsableIfs m ns = ns
                   |> List.filterMap (\n ->
-                    let parents = collapsableParents m n
-                    in  case parents of
+                    let ancestors = collapsableAncestors m n
+                    in  case ancestors of
                         [] -> Nothing
                         ps -> Just ps)
                   |> List.concat
                   |> Dict.fromList
 
-collapsableParents : Model -> Node -> List (Int, Int)
-collapsableParents m ifnode =
+collapsableAncestors : Model -> Node -> List (Int, Int)
+collapsableAncestors m ifnode =
   let ifID = ifnode.id |> deID
       cond = N.getArgument "cond" ifnode
       parentsOfIf = incomingNodes m ifnode
-      firstParent =
+      parent =
         case cond of
           Edge id _ ->
             let parent   = getNodeExn m id
@@ -485,32 +502,32 @@ collapsableParents m ifnode =
               ([], [], False)  -> [(deID <| parent.id, ifID)]
               _   -> []
           _ -> []
-      secondParent =
+      grandparent =
         -- we want to collapse the `if`'s grandparent iff:
         -- 1) it has no children that are not direct parents of `if`
         -- 2) it has either 0 parents, OR if it has a parent that it only has
         -- 1 parent and that parent is also a parent of `if`
-        case firstParent of
+        case parent of
           [] -> []
-          [(fpID, _)] ->
-            let fp = getNodeExn m (ID fpID) in
-            case incomingNodes m fp of
-              [y] ->
-                let otherKids = outgoingNodes m y
-                              |> List.filter (\n -> n /= fp)
+          [(pID, _)] ->
+            let p = getNodeExn m (ID pID) in
+            case incomingNodes m p of
+              [grandparent] ->
+                let otherKids = outgoingNodes m grandparent
+                              |> List.filter (\n -> n /= p)
                               |> List.length
-                    otherParents = incomingNodes m y
+                    otherParents = incomingNodes m grandparent
                                  |> List.filter (\n -> not (List.member n parentsOfIf))
                                  |> List.length
                 in if otherKids + otherParents == 0
-                    && N.isPrimitive y && isNotRoot y
+                    && N.isPrimitive grandparent && isNotRoot grandparent
                    then
-                     [(deID <| y.id, ifID)]
+                     [(deID <| grandparent.id, ifID)]
                    else
                      []
-              _   -> [] -- wildcard for the `case incomingNodes m fp`
-          _ -> [] -- wildcard for `case firstParent`
-  in firstParent ++ secondParent
+              _   -> [] -- wildcard for the `case incomingNodes m p`
+          _ -> [] -- wildcard for `case parent`
+  in parent ++ grandparent
 
 -------------------------------------
 -- Repositioning. Here be dragons
