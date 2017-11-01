@@ -189,7 +189,7 @@ viewEntry m =
 
 valueDisplayPos : Model -> Node -> Pos
 valueDisplayPos m n =
-  if (G.outgoingNodes m n |> List.length |> (==) 1) && G.hasBlockParam m n.id
+  if (G.outgoingNodes m n |> List.length |> (==) 1) && n.isBlockParent
   then Entry.holeCreatePos m (ResultHole n)
   else
     let xpad = max (N.nodeWidth n + 50) 250
@@ -298,7 +298,7 @@ viewNormalNode m n i =
                                     case (a, p) of
                                       (Const c, _) -> ("arg_const", if c == "null" then "∅" else c)
                                       (NoArg, _) -> ("arg_none", "◉")
-                                      (Edge _, _) -> ("arg_edge", "◉"))
+                                      (Edge _ _, _) -> ("arg_edge", "◉"))
       params = List.map (\(class, val) ->
         Html.span
         [ Attrs.class class]

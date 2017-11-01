@@ -56,7 +56,7 @@ reenter m id i =
       Just (p, a) ->
         let enter = Enter True <| Filling n (ParamHole n p i) in
         case a of
-          Edge eid -> Many [ enter
+          Edge eid _ -> Many [ enter
                           , AutocompleteMod (ACQuery <| "$" ++ G.toLetter m eid)]
           NoArg -> enter
           Const c -> Many [ enter
@@ -398,7 +398,7 @@ model op m =
         SetConstant c (id, paramname) ->
           setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
         SetEdge source (target, paramname) ->
-          setArg (G.getNodeExn m target) paramname (Edge source) |> update m.nodes
+          setArg (G.getNodeExn m target) paramname (Edge source False) |> update m.nodes
 
         DeleteNode id ->
           (G.deleteNode m id).nodes

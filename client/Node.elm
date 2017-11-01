@@ -23,6 +23,28 @@ isArg n = n.tipe == Arg
 isNotArg : Node -> Bool
 isNotArg = not << isArg
 
+isParentEdge : ID -> Argument -> Bool
+isParentEdge id arg = getParentID arg == Just id
+
+isBlockEdge : Argument -> Bool
+isBlockEdge arg =
+  case arg of
+    Edge _ True -> True
+    _ -> False
+
+isFnEdge : Argument -> Bool
+isFnEdge arg =
+  case arg of
+    Edge _ False -> True
+    _ -> False
+
+getParentID : Argument -> Maybe ID
+getParentID arg =
+  case arg of
+    Edge id _ -> Just id
+    _ -> Nothing
+
+
 isBlock : Node -> Bool
 isBlock n = False
 
@@ -131,7 +153,7 @@ nodeToFace a b =
         List.map (\p ->
           case p of
             Const s -> s
-            Edge _  -> placeholder
+            Edge _ _ -> placeholder
             NoArg   -> "") arguments
   in
       if argLen == 2

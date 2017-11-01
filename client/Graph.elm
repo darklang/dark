@@ -10,7 +10,6 @@ import Maybe
 
 -- lib
 import List.Extra as LE
-import Maybe.Extra as ME
 import Tuple2 as T2
 import Dict.Extra as DE
 
@@ -278,36 +277,56 @@ moveSubgraph m id offsetX offsetY =
 -------------------
 -- connected nodes
 -------------------
-
--- we have a sorting problem in how we draw nodes
--- we sometimes get the nice if block indentation that we want, but only
--- if we position the if first (ie. it's the first node in the list returned by outgoingNodes)
--- if not, we get the bog standard no indentation version
+-- We have a sorting problem in how we draw nodes. We sometimes get the
+-- nice if block indentation that we want, but only if we position the
+-- if first (ie. it's the first node in the list returned by
+-- outgoingNodes). If not, we get the bog standard no indentation version
 -- TODO: we need to come up with some actual rules for this
-outgoingNodes : Model -> Node -> List Node
-outgoingNodes m parent =
-  m.nodes
-    |> Dict.values
-    |> List.filterMap (\child ->
-                         child
-                      |> incomingNodes m
-                      |> LE.find (\n -> n.id == parent.id)
-                      |> Maybe.map (always child))
-    |> List.append (getArgsOf m parent.id)
-    |> List.sortWith (\a b ->
+sortByIf : List Node -> List Node
+sortByIf nodes =
+  nodes
+  |> List.sortWith (\a b ->
                           case (a.name, b.name) of
                           ("if", "if") -> EQ
                           ("if", _)    -> LT
                           (_, "if")    -> GT
                           _            -> EQ)
 
+
+outgoingNodesWhere : (Parameter -> Argument -> Node -> Bool) -> Model -> Node -> List Node
+outgoingNodesWhere cond m n =
+  m.nodes
+  |> Dict.values
+  |> List.filterMap
+       (\child ->
+          child.arguments
+          |> List.filter
+               (\(p, a) ->
+                 let parentID = N.getParentID a
+                 in if parentID == Just n.id
+                    then (cond p a (getNodeExn m (deMaybe parentID)))
+                    else False)
+          |> List.head
+          |> Maybe.map (always child))
+  |> sortByIf
+
+outgoingNodes : Model -> Node -> List Node
+outgoingNodes = outgoingNodesWhere (\_ _ _ -> True)
+
+argNodes : Model -> Node -> List Node
+argNodes = outgoingNodesWhere (\p a n -> N.isBlockEdge a)
+
+childNodes : Model -> Node -> List Node
+childNodes = outgoingNodesWhere (\p a n -> N.isFnEdge a)
+
 incomingNodePairs : Model -> Node -> List (Node, ParamName)
-incomingNodePairs m n = List.filterMap
-                    (\(p, a) ->
-                       case a of
-                         Edge id -> Just (getNodeExn m id, p.name)
-                         _ -> Nothing)
-                    n.arguments
+incomingNodePairs m n =
+  List.filterMap
+    (\(p, a) ->
+      case a of
+        Edge id _ -> Just (getNodeExn m id, p.name)
+        _ -> Nothing)
+    n.arguments
 
 incomingNodes : Model -> Node -> List Node
 incomingNodes m n =
@@ -316,31 +335,8 @@ incomingNodes m n =
 
 connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
-  let candidates = incomingNodes m n ++ outgoingNodes m n
-  in
-     List.filter .visible candidates
+  incomingNodes m n ++ outgoingNodes m n
 
-getArgsOf : Model -> ID -> List Node
-getArgsOf m id =
-  id
-  |> getBlockNodesOf m
-  |> List.map (\block -> block |> .argIDs |> List.map (getNodeExn m))
-  |> List.concat
-
-getBlockNodesOf : Model -> ID -> List Node
-getBlockNodesOf m id =
-  id
-  |> getNodeExn m
-  |> incomingNodePairs m
-  |> List.filter (\(n, _) -> N.isBlock n)
-  |> List.map Tuple.first
-
-hasBlockParam : Model -> ID -> Bool
-hasBlockParam m id =
-  id
-  |> getNodeExn m
-  |> incomingNodePairs m
-  |> List.any (\(n, _) -> N.isBlock n)
 
 
 -- Only follows the first edge, goes as high as it can. This is intended
@@ -408,7 +404,7 @@ deleteNode m id =
       nodes = Dict.map
                (\_ n ->
                   List.foldl
-                    (\id n -> deleteArg ((==) (Edge id)) n)
+                    (\id n -> deleteArg (N.isParentEdge id) n)
                     n
                     (n.id :: ids)
                )
@@ -471,10 +467,10 @@ replaceArguments : Dict Int Int -> Int -> Node -> Node
 replaceArguments ids2hide _ node =
   let newArgs = List.map (\(p, a) ->
                             case a of
-                              Edge id ->
+                              Edge id b ->
                                 case Dict.get (deID id) ids2hide of
                                   Just newId -> if newId /= (deID node.id)
-                                                then (p, Edge (ID newId))
+                                                then (p, Edge (ID newId) b)
                                                 else (p, NoArg)
                                   Nothing    -> (p, a)
                               a -> (p, a)) node.arguments
@@ -499,7 +495,7 @@ collapsableParents m ifnode =
       parentsOfIf = incomingNodes m ifnode
       firstParent =
         case cond of
-          Edge id ->
+          Edge id _ ->
             let parent   = getNodeExn m id
                 children = outgoingNodes m parent
                          |> List.filter (\n -> n /= ifnode)
@@ -681,19 +677,19 @@ debug m fn n (x, y, maxX, maxY, _) =
 posArgs : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posArgs =
   foldDependents
-    (\m n -> getArgsOf m n.id)
+    (\m n -> argNodes m n)
     (\_ -> posArg)
 
 posChildren : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posChildren =
   foldDependents
-    (\m n -> outgoingNodes m n |> List.filter N.isNotArg)
+    (\m n -> childNodes m n)
     (\_ -> posChild)
 
 posParents : Model -> DepType -> Node -> NextX -> PrevY -> SpaceInfo
 posParents =
   foldDependents
-    (\m n -> incomingNodes m n |> List.filter N.isNotBlock)
+    (\m n -> incomingNodes m n)
     (\_ -> posParent)
 
 type alias NodeFn = Model -> Node -> List Node
@@ -760,9 +756,9 @@ replaceArgEdge m arg toRemove toReplace =
     List.map
       (\(p,a) ->
         case a of
-          Edge id -> if id == toRemove.id
-                     then (p, Edge toReplace.id)
-                     else (p, Edge id)
+          Edge id b -> if id == toRemove.id
+                       then (p, Edge toReplace.id b)
+                       else (p, Edge id b)
           _ -> (p,a))
       arg.arguments }
 

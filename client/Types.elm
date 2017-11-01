@@ -85,18 +85,19 @@ type alias Node = { name : Name
                   , face: String
                   , arguments : List (Parameter, Argument)
                   -- for blocks
-                  , isBlockParent : Bool
                   , deleteWith : List ID
                   , cursor: Cursor
                   -- TODO to kill
                   , argIDs : List ID
                   , visible : Bool
+                  , isBlockParent : Bool
                   }
 
 type alias Variable = (VariableName, Node)
 
+type alias IsBlockEdge = Bool
 type Argument = Const String
-              | Edge ID
+              | Edge ID IsBlockEdge
               | NoArg
 
 type Hole = ResultHole Node

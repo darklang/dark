@@ -90,7 +90,7 @@ toNode fn = { name = fn.name
             , face = ""
             -- todo kill
             , argIDs = []
-            , visible = False
+            , visible = True
             , isBlockParent = fn.isBlockParent
             , deleteWith = fn.deleteWith
             }
@@ -98,7 +98,7 @@ toNode fn = { name = fn.name
 
 fixupBlockNodes : Dict Int FullNode -> Dict Int FullNode
 fixupBlockNodes nodes =
-  let findParent id =
+  let findChildOf id =
         nodes
         |> Dict.values
         |> List.filter
@@ -106,10 +106,12 @@ fixupBlockNodes nodes =
                List.any
                  (\(p,a) ->
                    case a of
-                     Edge eid -> id == eid
+                     Edge eid False -> id == eid
                      _ -> False)
                  n.arguments)
-        |> List.head |> deMaybe
+        |> Util.hdExn
+        |> .id
+
       stdParent = { name = "parent"
                   , tipe = TAny
                   , block_args = []
@@ -117,7 +119,10 @@ fixupBlockNodes nodes =
                   , description = ""
                   }
       convertArg _ n =
-        let arguments = [(stdParent, Const "todo")]
+        let arguments =
+              if n.tipe == Arg
+              then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) True)]
+              else n.arguments
         in { n | arguments = arguments }
       convertFn _ n =
         let (blocks, others) =
@@ -125,10 +130,10 @@ fixupBlockNodes nodes =
             blockIDs =
               List.map (\(p,a) ->
                 case a of
-                  Edge id -> let block = Dict.get (deID id) nodes |> Util.deMaybe
-                             in block.id :: block.argIDs
+                  Edge id _ -> let block = Dict.get (deID id) nodes |> Util.deMaybe
+                               in block.id :: block.argIDs
                   _ -> Debug.crash "should all be blocks")
-              blocks
+                blocks
         in { n | arguments = others
                , deleteWith = List.concat blockIDs
                , isBlockParent = blocks |> List.isEmpty |> not
@@ -292,7 +297,7 @@ decodeRPCNode =
                 |> JSD.decodeValue JSD.int
                 |> Result.withDefault (-1)
                 |> ID
-                |> Edge
+                |> \id -> Edge id False
               Result.Ok op ->
                 Debug.crash <| "Unexpected: " ++ op
               Result.Err e ->
