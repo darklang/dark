@@ -77,10 +77,10 @@ viewError mMsg = case mMsg of
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let visible = List.filter .visible (G.orderedNodes m)
-        nodes = List.indexedMap (\i n -> viewNode m n i) visible
-        values = visible |> List.map (viewValue m) |> List.concat
-        edges = visible |> List.map (viewNodeEdges m) |> List.concat
+    let ordered = G.orderedNodes m
+        nodes = List.indexedMap (\i n -> viewNode m n i) ordered
+        values = ordered |> List.map (viewValue m) |> List.concat
+        edges = ordered |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]

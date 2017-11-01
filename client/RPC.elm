@@ -90,7 +90,6 @@ toNode fn = { name = fn.name
             , face = ""
             -- todo kill
             , argIDs = []
-            , visible = True
             , isBlockParent = fn.isBlockParent
             , deleteWith = fn.deleteWith
             }

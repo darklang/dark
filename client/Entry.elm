@@ -34,7 +34,6 @@ holeCreatePos m hole =
     ResultHole n ->
       let connected = G.entireSubgraph m n
           lowest = connected
-                   |> List.filter .visible
                    |> List.map (\n -> posy m n)
                    |> List.maximum
                    |> Maybe.withDefault (posy m n)
@@ -368,7 +367,6 @@ model op m =
       , isBlockParent = False
       , deleteWith = []
       , argIDs = []
-      , visible = True
       , cursor = 0
       , face = ""
       }
