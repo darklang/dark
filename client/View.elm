@@ -192,7 +192,7 @@ valueDisplayPos m n =
   if (G.outgoingNodes m n |> List.length |> (==) 1) && n.isBlockParent
   then Entry.holeCreatePos m (ResultHole n)
   else
-    let xpad = max (N.nodeWidth n + 50) 250
+    let xpad = max (N.nodeWidth n + 50) 400
     in {x=(G.posx m n)+xpad, y=G.posy m n}
 
 holeDisplayPos : Model -> Hole -> Pos

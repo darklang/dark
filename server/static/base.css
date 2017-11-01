@@ -3,7 +3,7 @@ html {
 }
 
 body {
-	font-family: 'Roboto', Arial, Helvetica, sans-serif;
+	font-family: 'Fira Mono', monospace;
   margin: 0;
   padding: 0;
   height: 100%;
@@ -198,11 +198,12 @@ Nodes
 }
 
 .node .arg_const {
-  font-style: italic;
+  font-size: 90%;
 }
 
 .node .arg_edge {
   color: #585858;
+  font-size: 80%;
 }
 
 

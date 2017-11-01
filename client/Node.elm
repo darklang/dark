@@ -56,18 +56,18 @@ hasFace n = String.length n.face > 0
 nodeWidth : Node -> Int
 nodeWidth n =
   let
-    space = 3.5
+    space = 4.5
     fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
     fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
     len name = name
              |> String.toList
              |> List.map (\c -> if c == ' '
-                                then 3.5
+                                then 4.5
                                 else if Set.member c fours
-                                     then 4.0
+                                     then 4.5
                                      else if Set.member c fives
-                                          then 5.0
-                                          else 8.0)
+                                          then 7.0
+                                          else 9.5)
              |> List.sum
     faceLen = len n.face
     paramLen =  if faceLen > 0
@@ -79,13 +79,13 @@ nodeWidth n =
                             else
                               case a of
                                 Const c -> if c == "null" then 8 else (len c)
-                                _ -> 14)
+                                _ -> 16)
                           |> List.sum
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
     --                  _ -> 1
-    width = 6.0 + len n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 1.0 |> (*) space)
+    width = 7.0 + len n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 1.0 |> (*) space)
   in
     round(width)
 
