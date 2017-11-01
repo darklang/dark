@@ -232,7 +232,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       add_node (new Node.datastore id pos table)
     | Add_value (id, pos, expr) ->
       add_node (new Node.value id pos expr)
-    | Add_block (nid, pos, argids, block_names) ->
+    | Add_block (blockid, pos, argids, block_names) ->
       (fun g ->
          argids
          |> List.zip_exn block_names
@@ -241,9 +241,9 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
                           Dependent
                           argname
                           i
-                          nid
+                          blockid
                           argids)
-         |> List.append [ new Node.block nid
+         |> List.append [ new Node.block blockid
                           NoPos
                           argids ]
          |> List.fold_left ~init:g ~f:(fun g n -> add_node n g))
