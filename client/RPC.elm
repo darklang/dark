@@ -88,7 +88,6 @@ toNode fn = { name = fn.name
             , pos = fn.pos
             , cursor = fn.cursor
             , face = ""
-            -- todo kill
             , isBlockParent = fn.isBlockParent
             , deleteWith = fn.deleteWith
             }
