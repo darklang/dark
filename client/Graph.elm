@@ -389,8 +389,8 @@ deleteNode m id =
 
 updateGraph : Model -> Model
 updateGraph m = m
-              |> collapseIfs
-              |> collapseArgsWithSoloChildren
+              -- |> collapseIfs
+              -- |> collapseArgsWithSoloChildren
               |> reposition
 
 collapseIfs : Model -> Model
