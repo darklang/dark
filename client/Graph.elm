@@ -730,8 +730,8 @@ max5 v w x y z = max x y |> max z |> max w |> max v
 ------------
 -- avoiding merge conflicts by putting this here for now
 ------------
-replaceArgEdge : Model -> IsBlockEdge -> Node -> Node -> Node -> Node
-replaceArgEdge m isBlock arg toRemove toReplace =
+replaceArgEdge : IsBlockEdge -> Node -> Node -> Node -> Node
+replaceArgEdge isBlock arg toRemove toReplace =
   { arg | arguments =
     List.map
       (\(p,a) ->
@@ -748,7 +748,7 @@ removeArg : Model -> Node -> (Node, Node)
 removeArg m arg =
   let blockFn = incomingNodes m arg |> Util.hdExn
       child = outgoingNodes m arg |> Util.hdExn
-      newChild = replaceArgEdge m True child arg blockFn
+      newChild = replaceArgEdge True child arg blockFn
       toRemove = arg
       toUpdate = newChild
   in (toRemove, toUpdate)
