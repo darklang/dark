@@ -69,7 +69,6 @@ type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
 type NodeType = FunctionCall
-              | Block
               | Datastore
               | Value
               | Page

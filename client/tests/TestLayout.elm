@@ -77,7 +77,7 @@ testAllLayouts =
 
 testIfAlone : Test
 testIfAlone =
-  test "layout_ifAlone"
+  test "layout of if alone"
   (\_ ->
     let m = modelFrom DarkTestData.empty
         cursor = Creating center

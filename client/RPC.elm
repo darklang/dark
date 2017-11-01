@@ -32,11 +32,11 @@ type alias RPCNode = { argIDs : List Int
                      , posY : Maybe Int
                      , tipe : String
                      }
-
+type FullNodeType = FArg | FBlock | FFunctionCall | FDatastore | FValue | FPage
 type alias FullNode = { name : Name
                       , id : ID
                       , pos : MPos
-                      , tipe : NodeType
+                      , tipe : FullNodeType
                       , liveValue : LiveValue
                       , cursor: Cursor
                       -- for functions
@@ -61,12 +61,12 @@ toFullNode rn = { name = rn.name
                 , argIDs = List.map ID rn.argIDs
                 , blockID = if rn.blockID == Defaults.unsetInt then Nothing else Just <| ID rn.blockID
                 , tipe = case rn.tipe of
-                          "datastore" -> Datastore
-                          "function" -> FunctionCall
-                          "value" -> Value
-                          "page" -> Page
-                          "arg" -> Arg
-                          "definition" -> Block
+                          "datastore" -> FDatastore
+                          "function" -> FFunctionCall
+                          "value" -> FValue
+                          "page" -> FPage
+                          "arg" -> FArg
+                          "block" -> FBlock
                           _ -> Debug.crash "shouldnt happen"
                 , pos = case (rn.posType, rn.posX, rn.posY) of
                           ("Root", Just x, Just y) -> Root {x=x, y=y}
@@ -84,7 +84,13 @@ toNode fn = { name = fn.name
             , id = fn.id
             , arguments = fn.arguments
             , liveValue = fn.liveValue
-            , tipe = fn.tipe
+            , tipe = case fn.tipe of
+                FBlock -> Debug.crash "Blocks should be gone"
+                FDatastore -> Datastore
+                FFunctionCall -> FunctionCall
+                FValue -> Value
+                FPage -> Page
+                FArg -> Arg
             , pos = fn.pos
             , cursor = fn.cursor
             , face = ""
@@ -117,7 +123,7 @@ fixupBlockNodes nodes =
                   }
       convertArg _ n =
         let arguments =
-              if n.tipe == Arg
+              if n.tipe == FArg
               then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) True)]
               else n.arguments
         in { n | arguments = arguments }
@@ -389,7 +395,7 @@ decodeGraph =
         let nodes = List.map toFullNode rpcNodes
             nodeDict = DE.fromListBy (.id >> deID) nodes
             nodeDict2 = fixupBlockNodes nodeDict
-            nodeDict3 = Dict.filter (\_ n -> n.tipe /= Block) nodeDict2
+            nodeDict3 = Dict.filter (\_ n -> n.tipe /= FBlock) nodeDict2
             nodeDict4 = Dict.map (\_ n -> toNode n) nodeDict3
         in nodeDict4
   in JSDP.decode toGraph

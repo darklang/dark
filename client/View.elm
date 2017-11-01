@@ -268,15 +268,6 @@ getClass func = case String.slice 0 6 func of
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
-  case n.tipe of
-    Arg -> viewNormalNode m n i
-    Block -> Html.div [] []
-    _ -> viewNormalNode m n i
-
--- TODO: If there are default parameters, show them inline in
--- the node body
-viewNormalNode : Model -> Node -> Int -> Html.Html Msg
-viewNormalNode m n i =
   let
       -- header
       header = [ Html.span

@@ -364,7 +364,7 @@ class block id pos argids =
       DBlock (id, blockexecutor ~ind ~scope g debugname return argids)
     method update_cursor (_cursor:int) : unit =
       cursor <- _cursor
-    method tipe = "definition"
+    method tipe = "block"
     method! parameters = []
     method! arg_ids = argids
   end

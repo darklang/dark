@@ -4,6 +4,7 @@ module Entry exposing (..)
 import Task
 import Result exposing (Result)
 import Dict
+import Set
 
 -- lib
 import Dom
@@ -243,12 +244,7 @@ withNodePositioning m ops = ops ++ (createNodePositioning m ops)
 
 createNodePositioning : Model -> List RPC -> List RPC
 createNodePositioning m ops =
-  let newM = List.foldl model m ops
-      wasAddBlock =
-         List.any (\op -> case op of
-                            AddBlock _ _ _ _ -> True
-                            _ -> False)
-         ops
+  let (newM, _) = List.foldl model (m, Set.empty) ops
       deletedNode =
         ops
         |> List.filterMap (\op -> case op of
@@ -345,9 +341,10 @@ createNodePositioning m ops =
 -- the server might know the new subgraphs, it won't know the positions
 -- cause they layout is on the client. So we do a shitty model of the
 -- RPC behaviour. We could use phantom instead.
-model : RPC -> Model -> Model
-model op m =
+model : RPC -> (Model, Set.Set Int) -> (Model, Set.Set Int)
+model op mAndBlocks =
   let
+    (m, blocks) = mAndBlocks
     param name = { name = name
                  , tipe = TAny
                  , block_args = []
@@ -373,8 +370,12 @@ model op m =
       let args = List.filter (\(p, a) -> p.name /= name) node.arguments
       in { node | arguments = (param name, arg) :: args }
     update ns n = Dict.insert (n.id |> deID) n ns
+    newBlocks =
+      case op of
+        AddBlock (ID id) _ _ _ ->
+          Set.insert id blocks
+        _ -> blocks
     newNodes =
-
       case Debug.log "op" op of
         AddDatastore (ID id) _ pos ->
           fake id pos Datastore |> update m.nodes
@@ -386,16 +387,18 @@ model op m =
         AddFunctionCall (ID id) name pos ->
           fake id pos FunctionCall |> update m.nodes
 
-        -- I think the args can't be connected to anything else here, so
-        -- nbd. But, more set_edges might connect things together. But I
-        -- dont think we're dealing with that yet.
+        -- We can ignore AddBlock because the arguments won't be
+        -- connected to anything yet. But if that changes, this will
+        -- need to be modelled.
         AddBlock (ID id) pos argids _ ->
-          fake id pos Block |> update m.nodes
+          m.nodes
 
         SetConstant c (id, paramname) ->
           setArg (G.getNodeExn m id) paramname (Const c) |> update m.nodes
-        SetEdge source (target, paramname) ->
-          setArg (G.getNodeExn m target) paramname (Edge source False) |> update m.nodes
+        SetEdge (ID source) (target, paramname) ->
+          if Set.member source blocks -- ignore blocks, see AddBlock
+          then m.nodes
+          else setArg (G.getNodeExn m target) paramname (Edge (ID source) False) |> update m.nodes
 
         DeleteNode id ->
           (G.deleteNode m id).nodes
@@ -406,7 +409,7 @@ model op m =
         other ->
           Debug.crash <| "Can't model this: " ++ (toString other)
   in
-    { m | nodes = newNodes }
+    ({ m | nodes = newNodes }, newBlocks)
 
 execute : Model -> Bool -> AST -> Modification
 execute m re ast =
