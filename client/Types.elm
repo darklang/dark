@@ -91,7 +91,7 @@ type alias Node = { name : Name
 
 type alias Variable = (VariableName, Node)
 
-type alias IsBlockEdge = Bool
+type IsBlockEdge = BlockEdge | FnEdge
 type Argument = Const String
               | Edge ID IsBlockEdge
               | NoArg

@@ -29,13 +29,13 @@ isParentEdge id arg = getParentID arg == Just id
 isBlockEdge : Argument -> Bool
 isBlockEdge arg =
   case arg of
-    Edge _ True -> True
+    Edge _ BlockEdge -> True
     _ -> False
 
 isFnEdge : Argument -> Bool
 isFnEdge arg =
   case arg of
-    Edge _ False -> True
+    Edge _ FnEdge -> True
     _ -> False
 
 getParentID : Argument -> Maybe ID

@@ -112,7 +112,7 @@ replaceBlockNodes nodes =
                List.any
                  (\(p,a) ->
                    case a of
-                     Edge eid False -> id == eid
+                     Edge eid FnEdge -> id == eid
                      _ -> False)
                  n.arguments)
         |> Util.hdExn
@@ -129,7 +129,7 @@ replaceBlockNodes nodes =
       convertArg _ n =
         let arguments =
               if n.tipe == FArg
-              then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) True)]
+              then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) BlockEdge)]
               else n.arguments
         in { n | arguments = arguments }
 
@@ -309,7 +309,7 @@ decodeRPCNode =
                 |> JSD.decodeValue JSD.int
                 |> Result.withDefault (-1)
                 |> ID
-                |> \id -> Edge id False
+                |> \id -> Edge id FnEdge
               Result.Ok op ->
                 Debug.crash <| "Unexpected: " ++ op
               Result.Err e ->

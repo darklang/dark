@@ -398,7 +398,7 @@ model op mAndBlocks =
         SetEdge (ID source) (target, paramname) ->
           if Set.member source blocks -- ignore blocks, see AddBlock
           then m.nodes
-          else setArg (G.getNodeExn m target) paramname (Edge (ID source) False) |> update m.nodes
+          else setArg (G.getNodeExn m target) paramname (Edge (ID source) FnEdge) |> update m.nodes
 
         DeleteNode id ->
           (G.deleteNode m id).nodes

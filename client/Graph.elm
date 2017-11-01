@@ -748,7 +748,7 @@ removeArg : Model -> Node -> (Node, Node)
 removeArg m arg =
   let blockFn = incomingNodes m arg |> Util.hdExn
       child = outgoingNodes m arg |> Util.hdExn
-      newChild = replaceArgEdge True child arg blockFn
+      newChild = replaceArgEdge BlockEdge child arg blockFn
       toRemove = arg
       toUpdate = newChild
   in (toRemove, toUpdate)
