@@ -274,16 +274,27 @@ moveSubgraph m id offsetX offsetY =
 -- nice if block indentation that we want, but only if we position the
 -- if first (ie. it's the first node in the list returned by
 -- outgoingNodes). If not, we get the bog standard no indentation version
+--
+-- Similarly, we want 'then' nodes to be drawn before 'elses'.
+--
 -- TODO: we need to come up with some actual rules for this
-sortByIf : List Node -> List Node
-sortByIf nodes =
+forceOrdering : List Node -> List Node
+forceOrdering nodes =
   nodes
-  |> List.sortWith (\a b ->
-                          case (a.name, b.name) of
-                          ("if", "if") -> EQ
-                          ("if", _)    -> LT
-                          (_, "if")    -> GT
-                          _            -> EQ)
+  |> List.sortWith
+      (\a b ->
+        case (a.name, b.name) of
+          ("if", "if") -> EQ
+          ("if", _)    -> LT
+          (_, "if")    -> GT
+          _            -> EQ)
+  |> List.sortWith
+      (\a b ->
+        case (a.name, b.name) of
+          ("then", "else") -> LT
+          ("else", "then") -> GT
+          _                -> EQ)
+
 
 
 outgoingNodesWhere : (Parameter -> Argument -> Node -> Bool) -> Model -> Node -> List Node
@@ -301,7 +312,7 @@ outgoingNodesWhere cond m n =
                     else False)
           |> List.head
           |> Maybe.map (always child))
-  |> sortByIf
+  |> forceOrdering
 
 outgoingNodes : Model -> Node -> List Node
 outgoingNodes = outgoingNodesWhere (\_ _ _ -> True)
