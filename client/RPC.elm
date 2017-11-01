@@ -99,8 +99,8 @@ toNode fn = { name = fn.name
             }
 
 
-fixupBlockNodes : Dict Int FullNode -> Dict Int FullNode
-fixupBlockNodes nodes =
+replaceBlockNodes : Dict Int FullNode -> Dict Int FullNode
+replaceBlockNodes nodes =
   let findChildOf id =
         nodes
         |> Dict.values
@@ -144,6 +144,7 @@ fixupBlockNodes nodes =
   in nodes
       |> Dict.map convertArg
       |> Dict.map convertFn
+      |> Dict.filter (\_ n -> n.tipe /= FBlock)
 
 
 phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
@@ -394,9 +395,8 @@ decodeGraph =
       toGraph rpcNodes =
         let nodes = List.map toFullNode rpcNodes
             nodeDict = DE.fromListBy (.id >> deID) nodes
-            nodeDict2 = fixupBlockNodes nodeDict
-            nodeDict3 = Dict.filter (\_ n -> n.tipe /= FBlock) nodeDict2
-            nodeDict4 = Dict.map (\_ n -> toNode n) nodeDict3
-        in nodeDict4
+            nodeDict2 = replaceBlockNodes nodeDict
+            nodeDict3 = Dict.map (\_ n -> toNode n) nodeDict2
+        in nodeDict3
   in JSDP.decode toGraph
     |> JSDP.required "nodes" (JSD.list decodeRPCNode)
