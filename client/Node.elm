@@ -44,13 +44,6 @@ getParentID arg =
     Edge id _ -> Just id
     _ -> Nothing
 
-
-isBlock : Node -> Bool
-isBlock n = False
-
-isNotBlock : Node -> Bool
-isNotBlock n = True
-
 isFunctionCall : Node -> Bool
 isFunctionCall n = n.tipe == FunctionCall
 

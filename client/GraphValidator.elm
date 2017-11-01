@@ -15,13 +15,11 @@ validate m =
   let posPartitionedNodes = m.nodes
                           |> Dict.values
                           |> List.map
-                              (\n -> if N.isBlock n
-                                      then Ok n
-                                      else if G.notPositioned n
-                                      then Err ("unpositioned node", n)
-                                      else if G.posx m n == Defaults.unsetInt || G.posy m n == Defaults.unsetInt
-                                      then Err ("in hell", n)
-                                      else Ok n
+                              (\n -> if G.notPositioned n
+                                     then Err ("unpositioned node", n)
+                                     else if G.posx m n == Defaults.unsetInt || G.posy m n == Defaults.unsetInt
+                                     then Err ("in hell", n)
+                                     else Ok n
                               )
                           |> Util.combineResult
       positionedNodes  = case posPartitionedNodes of

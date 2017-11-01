@@ -87,12 +87,6 @@ posx m n = (pos m n).x
 posy : Model -> Node -> Int
 posy m n = (pos m n).y
 
-blockNodes : Model -> List Node
-blockNodes m =
-  m.nodes
-    |> Dict.values
-    |> List.filter N.isBlock
-
 distance : Model -> Node -> Node -> Float
 distance m n1 n2 =
   let xdiff = toFloat (posx m n2 - posx m n1) ^ 2
@@ -104,7 +98,6 @@ orderedNodes : Model -> List Node
 orderedNodes m =
   m.nodes
   |> Dict.values
-  |> List.filter N.isNotBlock
   |> List.map (\n -> (posx m n, posy m n, n.id |> deID))
   |> List.sortWith Ordering.natural
   |> List.map (\(_,_,id) -> getNodeExn m (ID id))
@@ -233,7 +226,7 @@ fold_ func (seen, bAcc) start nextfn =
 
 entireSubgraph : Model -> Node -> List Node
 entireSubgraph m start =
-  fold (\n list -> n :: list) [] start (\n -> incomingNodes m n ++ outgoingNodes m n)
+  fold (\n list -> n :: list) [] start (\n -> connectedNodes m n)
 
 toSubgraphs : Model -> List (List Node)
 toSubgraphs m =
@@ -499,7 +492,7 @@ collapsableParents m ifnode =
                                  |> List.filter (\n -> not (List.member n parentsOfIf))
                                  |> List.length
                 in if otherKids + otherParents == 0
-                    && N.isPrimitive y && N.isNotBlock y && isNotRoot y
+                    && N.isPrimitive y && isNotRoot y
                    then
                      [(deID <| y.id, ifID)]
                    else

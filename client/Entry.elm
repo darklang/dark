@@ -279,12 +279,12 @@ createNodePositioning m ops =
         -- subgraph "hangs", as this is difficult (and potentialy
         -- inconsistent) to figure out dynamically.
        (\subgraph ->
-          let roots = (Debug.log "subgraph" subgraph) |> List.filter G.isRoot |> List.filter N.isNotBlock
-              rootCount = List.length (Debug.log "roots" roots)
-              frees = subgraph |> List.filter G.isFree |> List.filter N.isNotBlock
-              freeCount = List.length (Debug.log "frees" frees)
+          let roots = subgraph |> List.filter G.isRoot
+              rootCount = List.length roots
+              frees = subgraph |> List.filter G.isFree
+              freeCount = List.length frees
           in
-            if (Debug.log "rootCount" rootCount) == 1 && (Debug.log "freeCount" freeCount) == 0
+            if rootCount == 1 && freeCount == 0
             then
               -- things are exactly as they should be, but we might need
               -- to update the root on which the graph hangs. Let's take
