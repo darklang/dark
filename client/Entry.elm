@@ -366,7 +366,6 @@ model op m =
       , arguments = []
       , isBlockParent = False
       , deleteWith = []
-      , argIDs = []
       , cursor = 0
       , face = ""
       }

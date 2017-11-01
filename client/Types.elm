@@ -88,8 +88,6 @@ type alias Node = { name : Name
                   , isBlockParent : Bool
                   , deleteWith : List ID
                   , cursor: Cursor
-                  -- TODO to kill
-                  , argIDs : List ID
                   }
 
 type alias Variable = (VariableName, Node)
