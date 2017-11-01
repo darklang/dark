@@ -17,7 +17,7 @@ let server =
     let admin_rpc_handler body (host: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
-     let g = G.load host [] in
+      let g = G.load host [] in
       try
         let ops = Api.to_ops body in
         g := !(G.load host ops);
@@ -30,17 +30,18 @@ let server =
         result
       with
       | e ->
-          let bt = Exn.backtrace () in
-             let msg = Exn.to_string e in
-             print_endline (G.show_graph !g);
-             print_endline ("Exception: " ^ msg);
-             print_endline bt;
-             raise e
+        let bt = Exn.backtrace () in
+        let msg = Exn.to_string e in
+        print_endline (G.show_graph !g);
+        print_endline ("Exception: " ^ msg);
+        print_endline bt;
+        raise e
     in
 
     let admin_ui_handler () =
       let template = Util.readfile_lwt "templates/ui.html" in
-      template >|= Util.string_replace "ALLFUNCTIONS" (Api.functions) in
+      template >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
+    in
 
     let static_handler uri =
       let fname = S.resolve_file ~docroot:"." ~uri in
@@ -52,8 +53,6 @@ let server =
       let filename = G.save_test !g in
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
-
-
 
     let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) =
       let g = G.load host [] in
@@ -88,8 +87,6 @@ let server =
           ()
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
-
-
     in
 
     (* let auth_handler handler *)
