@@ -82,12 +82,13 @@ type alias Node = { name : Name
                   , pos : MPos
                   , tipe : NodeType
                   , liveValue : LiveValue
-                  -- for functions
-                  , arguments : List (Parameter, Argument)
-                  , cursor: Cursor
                   , face: String
+                  , arguments : List (Parameter, Argument)
+                  -- for blocks
+                  , isBlockParent : Bool
+                  , deleteWith : List ID
+                  , cursor: Cursor
                   -- TODO to kill
-                  , blockID : Maybe ID
                   , argIDs : List ID
                   , visible : Bool
                   }

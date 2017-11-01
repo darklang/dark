@@ -177,15 +177,15 @@ findParentBlock m n =
                             Nothing -> findParentBlock m curr)
           Nothing
   in
-    case n.tipe of
-      Arg -> Maybe.map (getNodeExn m) n.blockID
-      _ -> searchParents (incomingNodes m n)
+      if n.isBlockParent
+      then Just n
+      else searchParents (incomingNodes m n)
 
 
 insideBlock : Model -> Node -> Bool
 insideBlock m n =
   case findParentBlock m n of
-    Just _ -> True
+    Just n -> True
     _      -> False
 
 ------------------------
@@ -313,22 +313,12 @@ incomingNodes : Model -> Node -> List Node
 incomingNodes m n =
   incomingNodePairs m n
   |> List.map Tuple.first
-  |> List.append (getCallerOf m n.id |> ME.toList)
 
 connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
   let candidates = incomingNodes m n ++ outgoingNodes m n
   in
      List.filter .visible candidates
-
-getCallerOf : Model -> ID -> Maybe Node
-getCallerOf m id =
-  id
-  |> getNodeExn m
-  |> .blockID
-  |> Maybe.andThen (\block -> getNodeExn m block
-                             |> outgoingNodes m
-                             |> List.head)
 
 getArgsOf : Model -> ID -> List Node
 getArgsOf m id =
@@ -365,20 +355,8 @@ highestParent m n =
 -- ported from backend
 dependentNodes : Model -> Node -> List ID
 dependentNodes m n =
-  Debug.crash "todo"
-  -- n.arguments
-  --   |> List.filterMap (\(p, a) ->
-  --                         case (p.tipe, a) of
-  --                         (TBlock, Edge id) -> Just id
-  --                         _ -> Nothing)
-  --   |> List.append n.argIDs
-  --   |> List.append (ME.toList n.blockID)
-  --   |> List.append (if n.tipe == TODOKILLBLOCK
-  --                   then outgoingNodes m n |> List.map .id
-  --                   else [])
-  --   |> LE.uniqueBy deID
-  --   |> Debug.log "clearing dependents"
-  --
+  n.deleteWith |> LE.uniqueBy deID
+
 deleteArg : (Argument -> Bool) -> Node -> Node
 deleteArg cond n =
   let args = List.filter (\(_, a) -> not (cond a)) n.arguments
@@ -792,14 +770,11 @@ replaceArgEdge m arg toRemove toReplace =
 
 removeArg : Model -> Node -> (List Node, List Node)
 removeArg m arg =
-  let block = getNodeExn m (deMaybe arg.blockID)
-      blockFn = getCallerOf m arg.id |> deMaybe
+  let blockFn = incomingNodes m arg |> Util.hdExn
       child = outgoingNodes m arg |> Util.hdExn
       newChild = replaceArgEdge m child arg blockFn
-      newArgIDs = newChild.id :: LE.remove arg.id block.argIDs
-      newBlock = { block | argIDs = newArgIDs }
       toRemove = [arg]
-      toUpdate = [newBlock, newChild]
+      toUpdate = [newChild]
   in (toRemove, toUpdate)
 
 collapseArgsWithSoloChildren : Model -> Model

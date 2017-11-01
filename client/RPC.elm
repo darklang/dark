@@ -42,8 +42,10 @@ type alias FullNode = { name : Name
                       -- for functions
                       , arguments : List (Parameter, Argument)
                       -- for blocks
+                      , isBlockParent : Bool
                       , blockID : Maybe ID
                       , argIDs : List ID
+                      , deleteWith : List ID
                       }
 
 
@@ -64,6 +66,7 @@ toFullNode rn = { name = rn.name
                           "value" -> Value
                           "page" -> Page
                           "arg" -> Arg
+                          "definition" -> Block
                           _ -> Debug.crash "shouldnt happen"
                 , pos = case (rn.posType, rn.posX, rn.posY) of
                           ("Root", Just x, Just y) -> Root {x=x, y=y}
@@ -72,6 +75,8 @@ toFullNode rn = { name = rn.name
                           ("NoPos", Nothing, Nothing) -> NoPos Nothing
                           _ -> Debug.crash "Bad Pos in RPC"
                 , cursor = rn.cursor
+                , deleteWith = []
+                , isBlockParent = False
                 }
 
 toNode : FullNode -> Node
@@ -84,34 +89,13 @@ toNode fn = { name = fn.name
             , cursor = fn.cursor
             , face = ""
             -- todo kill
-            , blockID = Nothing
             , argIDs = []
             , visible = False
+            , isBlockParent = fn.isBlockParent
+            , deleteWith = fn.deleteWith
             }
 
 
--- removeArg : Model -> Node -> (List Node, List Node)
--- removeArg m arg =
---   let block = getNodeExn m (deMaybe arg.blockID)
---       blockFn = getCallerOf m arg.id |> deMaybe
---       child = outgoingNodes m arg |> Util.hdExn
---       newChild = replaceArgEdge m child arg blockFn
---       newArgIDs = newChild.id :: LE.remove arg.id block.argIDs
---       newBlock = { block | argIDs = newArgIDs }
---       toRemove = [arg]
---       toUpdate = [newBlock, newChild]
---   in (toRemove, toUpdate)
---
--- collapseArgsWithSoloChildren : Model -> Model
--- collapseArgsWithSoloChildren m =
---   let args = m.nodes |> Dict.values |> List.filter N.isArg
---       isHideable n = outgoingNodes m n |> List.length |> (==) 1
---       hideableArgs = args |> List.filter isHideable
---       processed = List.map (removeArg m) hideableArgs
---       (toRemove, toUpdate) = List.unzip processed
---   in updateAndRemove m (List.concat toUpdate) (List.concat toRemove)
---
---
 fixupBlockNodes : Dict Int FullNode -> Dict Int FullNode
 fixupBlockNodes nodes =
   let findParent id =
@@ -146,7 +130,8 @@ fixupBlockNodes nodes =
                   _ -> Debug.crash "should all be blocks")
               blocks
         in { n | arguments = others
-               -- , deleteWith = []
+               , deleteWith = List.concat blockIDs
+               , isBlockParent = blocks |> List.isEmpty |> not
         }
   in nodes
       |> Dict.map convertArg
