@@ -168,11 +168,7 @@ type AutocompleteItem = ACFunction Function
                       | ACField FieldName
                       | ACVariable Variable
 
-type PreviewValuesVariant = IfOnly
-                          | SelectedPath
-                          | BlockTypes
-
-type VariantTest = PreviewValues PreviewValuesVariant
+type VariantTest = StubVariant
 
 type alias Model = { nodes : NodeDict
                    , phantoms : NodeDict

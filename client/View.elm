@@ -75,25 +75,11 @@ viewError mMsg = case mMsg of
     Nothing ->
       Html.div [Attrs.id "darkErrors"] [Html.text "Dark"]
 
-
-shouldShowPreview : Model -> Node -> Bool
-shouldShowPreview m n =
-  let selected = case m.state of
-                   Selecting id -> id
-                   _            -> ID -1
-  in
-  if VT.variantIsActive m (PreviewValues IfOnly)
-  then if n.name == "if" || n.name == "val"
-       then True
-       else if n.id == selected then True
-       else not <| G.insideBlock m n
-  else True -- otherwise true
-
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let visible = List.filter .visible (G.orderedNodes m)
         nodes = List.indexedMap (\i n -> viewNode m n i) visible
-        values = visible |> List.filter (shouldShowPreview m) |> List.map (viewValue m) |> List.concat
+        values = visible |> List.map (viewValue m) |> List.concat
         edges = visible |> List.map (viewNodeEdges m) |> List.concat
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
@@ -221,9 +207,6 @@ holeDisplayPos m hole =
 viewValue : Model -> Node -> List (Html.Html Msg)
 viewValue m n =
   let valueStr val tipeStr =
-        if VT.variantIsActive m (PreviewValues BlockTypes) && G.insideBlock m n && (n.name /= "val")
-        then Html.text tipeStr
-        else
         val
           |> String.trim
           |> String.left 120
@@ -240,12 +223,6 @@ viewValue m n =
       --   Just pn -> pn.liveValue
       lv = n.liveValue
       isPhantom = lv /= n.liveValue
-      displayValue = if VT.variantIsActive m (PreviewValues IfOnly) && n.name == "if"
-                     then case N.getArgument "cond" n of
-                           Const s -> { value = s, tipe = TBool, json = "", exc = Nothing }
-                           Edge id -> (G.getNodeExn m id).liveValue
-                           _       -> lv
-                     else lv
       class = if isPhantom then "phantom" else "preview"
       newPos = valueDisplayPos m n
       displayedBelow = newPos.y /= G.posy m n
@@ -257,8 +234,8 @@ viewValue m n =
                     [placeHtml m newPos
                         (case lv.exc of
                           Nothing -> Html.pre
-                                      [Attrs.class class, Attrs.title displayValue.value]
-                                      [valueStr displayValue.value (RT.tipe2str displayValue.tipe)]
+                                      [Attrs.class class, Attrs.title lv.value]
+                                      [valueStr lv.value (RT.tipe2str lv.tipe)]
                           Just exc -> Html.span
                                         [ Attrs.class <| "unexpected " ++ class
                                         , Attrs.title

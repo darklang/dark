@@ -20,7 +20,6 @@ parseVariantTestsFromQueryString s = case String.uncons s of
                                        Nothing          -> Nothing
                                        _                -> Nothing
 
--- eg. (variantIsActive m (PreviewValues IfOnly))
 variantIsActive : Model -> VariantTest -> Bool
 variantIsActive m vt = m.tests
                      |> List.member vt
@@ -29,17 +28,13 @@ toVariantTest : (String, Bool) -> Maybe VariantTest
 toVariantTest s = case s of
                     (_, False) -> Nothing
                     (test, _)  -> case (String.toLower test) of
-                                    "ifonly"       -> Just (PreviewValues IfOnly)
-                                    "selectedpath" -> Just (PreviewValues SelectedPath)
-                                    "blocktypes"   -> Just (PreviewValues BlockTypes)
                                     _              -> Nothing
 
 toCSSClass : VariantTest -> String
 toCSSClass vt =
-  let test = case vt of
-    PreviewValues IfOnly -> "ifonly"
-    PreviewValues SelectedPath -> "selectedpath"
-    PreviewValues BlockTypes  -> "blocktypes"
+  let test =
+        case vt of
+          StubVariant -> "stub"
     -- _  -> "default" -- Please never do this, let the compiler tell you if you missed a variant
   in test ++ "-variant"
 
@@ -47,7 +42,7 @@ toCSSClass vt =
 uniqueTests : List VariantTest -> List VariantTest
 uniqueTests xs = xs
                |> LE.uniqueBy (\x -> case x of
-                                     PreviewValues _ -> "PV") -- well this is lovely
+                                     StubVariant -> "SV") -- well this is lovely
 
 
 splitOnEquals : String -> Maybe (String, Bool)
