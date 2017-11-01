@@ -101,7 +101,10 @@ toNode fn = { name = fn.name
 
 replaceBlockNodes : Dict Int FullNode -> Dict Int FullNode
 replaceBlockNodes nodes =
-  let findChildOf id =
+
+  let  -- find the single child of a block known to have exactly 1 child
+      findChildOf : ID -> ID
+      findChildOf id =
         nodes
         |> Dict.values
         |> List.filter
@@ -121,12 +124,16 @@ replaceBlockNodes nodes =
                   , optional = False
                   , description = ""
                   }
+
+      -- Args parents were the Block, now the fn they're an arg to
       convertArg _ n =
         let arguments =
               if n.tipe == FArg
               then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) True)]
               else n.arguments
         in { n | arguments = arguments }
+
+      -- Fns has block parents, remove them and keep track of that info
       convertFn _ n =
         let (blocks, others) =
               List.partition (\(p,a) -> p.tipe == TBlock) n.arguments
@@ -140,7 +147,8 @@ replaceBlockNodes nodes =
         in { n | arguments = others
                , deleteWith = List.concat blockIDs
                , isBlockParent = blocks |> List.isEmpty |> not
-        }
+           }
+
   in nodes
       |> Dict.map convertArg
       |> Dict.map convertFn
