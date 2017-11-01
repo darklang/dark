@@ -74,13 +74,13 @@ nodeWidth n =
                 then faceLen
                 else
                   n.arguments
-                          |> List.map (\(p, a) ->
-                            if p.tipe == TBlock then -space -- remove spaces
-                            else
-                              case a of
-                                Const c -> if c == "null" then 8 else (len c)
-                                _ -> 16)
-                          |> List.sum
+                  |> List.map (\(p, a) ->
+                    if p.tipe == TBlock then -space -- remove spaces
+                    else
+                      case a of
+                        Const c -> if c == "null" then 8 else (len c)
+                        _ -> 16)
+                  |> List.sum
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
