@@ -12,7 +12,7 @@ import List.Extra as LE
 -- dark
 import Types exposing (..)
 import Defaults
-import Util exposing (deMaybe, int2letter, letter2int)
+import Util exposing (deMaybe, int2letter, letter2int, deMaybeM)
 
 gen_id : () -> ID
 gen_id _ = ID (Util.random ())
@@ -100,12 +100,23 @@ nodeSize : Node -> (Int, Int)
 nodeSize node =
   (nodeWidth node, nodeHeight node)
 
+getEdgeTo : ID -> Node -> Argument
+getEdgeTo id n =
+  n.arguments
+  |> LE.find (\(_, a) ->
+        case a of
+          Edge eid _ -> True
+          _ -> False)
+  |> deMaybeM ("Looking for an edge which doesn't exist: " ++ toString id ++ toString n)
+  |> Tuple.second
+
+
 getArgument : ParamName -> Node -> Argument
 getArgument pname n =
-  case LE.find (\(p, _) -> p.name == pname) n.arguments of
-    Just (_, a) -> a
-    Nothing ->
-      Debug.crash <| "Looking for a name which doesn't exist: " ++ pname ++ toString n
+  n.arguments
+  |> LE.find (\(p, _) -> p.name == pname)
+  |> deMaybeM ("Looking for a name which doesn't exist: " ++ pname ++ toString n)
+  |> Tuple.second
 
 isPrimitive : Node -> Bool
 isPrimitive n =

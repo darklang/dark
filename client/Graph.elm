@@ -352,7 +352,6 @@ highestParent m n =
     Just node -> highestParent m node
     Nothing -> n
 
--- ported from backend
 dependentNodes : Model -> Node -> List ID
 dependentNodes m n =
   n.deleteWith |> LE.uniqueBy deID
@@ -393,7 +392,7 @@ deleteNode m id =
 updateGraph : Model -> Model
 updateGraph m = m
               |> collapseIfs
-              -- |> collapseArgsWithSoloChildren
+              |> collapseArgsWithSoloChildren
               |> reposition
 
 -- Takes a model, searches its nodes for `if` nodes whose
@@ -710,7 +709,7 @@ posRoot_ : PosFn
 posRoot_ = posNode True {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX = 0}
 
 posArg : PosFn
-posArg = posNode False {parentX = 0, argsX = 0, childrenX = 0, siblingX = paramSpacing}
+posArg = posNode False {parentX = 0, argsX = blockIndent, childrenX = 0, siblingX = paramSpacing}
 
 posChild : PosFn
 posChild = posNode False {parentX = paramSpacing, argsX = blockIndent, childrenX = 0, siblingX = paramSpacing}
@@ -746,24 +745,28 @@ max5 v w x y z = max x y |> max z |> max w |> max v
 ------------
 -- avoiding merge conflicts by putting this here for now
 ------------
-replaceArgEdge : Node -> Node -> Node -> Node
-replaceArgEdge arg toRemove toReplace =
-  { arg | arguments =
+replaceArgEdge : EdgeType -> Node -> Node -> Node -> Node
+replaceArgEdge edgeType child oldParent newParent =
+  { child | arguments =
     List.map
       (\(p,a) ->
         case a of
-          Edge id b -> if id == toRemove.id
-                       then (p, Edge toReplace.id b)
+          Edge id _ -> if id == oldParent.id
+                       then (p, Edge newParent.id edgeType)
                        else (p, a)
           _ -> (p,a))
-      arg.arguments }
+      child.arguments }
 
 
 removeArg : Model -> Node -> (Node, Node)
 removeArg m arg =
   let blockFn = incomingNodes m arg |> Util.hdExn
       child = outgoingNodes m arg |> Util.hdExn
-      newChild = replaceArgEdge child arg blockFn
+      existingEdge = N.getEdgeTo blockFn.id arg
+      edgeType = case existingEdge of
+                   Edge _ tipe -> tipe
+                   _ -> FnEdge -- cant happen
+      newChild = replaceArgEdge edgeType child arg blockFn
       toRemove = arg
       toUpdate = newChild
   in (toRemove, toUpdate)

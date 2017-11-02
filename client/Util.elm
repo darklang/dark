@@ -27,10 +27,15 @@ htmlSize : String -> (Float, Float)
 htmlSize str = let size = Native.Size.size str
                in (size.width, size.height)
 
+deMaybeM : String -> Maybe a -> a
+deMaybeM msg x =
+  case x of
+    Just y -> y
+    Nothing -> Debug.crash msg
+
+
 deMaybe : Maybe a -> a
-deMaybe x = case x of
-              Nothing -> Debug.crash "not possible"
-              Just y -> y
+deMaybe = deMaybeM "deMaybe - nothing there"
 
 rematch : String -> String -> Bool
 rematch re s = Regex.contains (Regex.regex re) s
