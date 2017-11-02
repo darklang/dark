@@ -349,6 +349,11 @@ connectedNodes : Model -> Node -> List Node
 connectedNodes m n =
   incomingNodes m n ++ outgoingNodes m n
 
+isIncoming : Model -> Node -> ID -> Bool
+isIncoming m n id = incomingNodes m n
+                    |> List.map .id
+                    |> List.member id
+
 
 
 -- Only follows the first edge, goes as high as it can. This is intended
@@ -397,11 +402,56 @@ deleteNode m id =
                remaining
   in { m | nodes = nodes }
 
-updateGraph : Model -> Model
-updateGraph m = m
+--------------------------
+-- Graph tidying
+--------------------------
+
+tidyGraph : Model -> Model
+tidyGraph m = m
               |> collapseIfs
               |> collapseArgsWithSoloChildren
               |> reposition
+
+
+replaceArgEdge : EdgeType -> Node -> Node -> Node -> Node
+replaceArgEdge edgeType child oldParent newParent =
+  { child | arguments =
+    List.map
+      (\(p,a) ->
+        case a of
+          Edge id _ -> if id == oldParent.id
+                       then (p, Edge newParent.id edgeType)
+                       else (p, a)
+          _ -> (p,a))
+      child.arguments }
+
+
+removeArg : Model -> Node -> (Node, Node)
+removeArg m arg =
+  let blockFn = incomingNodes m arg |> Util.hdExn
+      child = outgoingNodes m arg |> Util.hdExn
+      existingEdge = N.getEdgeTo blockFn.id arg
+      edgeType = case existingEdge of
+                   Just (Edge _ tipe) -> tipe
+                   _ -> FnEdge -- cant happen
+      newChild = replaceArgEdge edgeType child arg blockFn
+      toRemove = arg
+      toUpdate = newChild
+  in (toRemove, toUpdate)
+
+collapseArgsWithSoloChildren : Model -> Model
+collapseArgsWithSoloChildren m =
+  let isHideable n = outgoingNodes m n |> List.length |> (==) 1
+      (toRemove, toUpdate) = m.nodes
+                             |> Dict.values
+                             |> List.filter N.isArg
+                             -- args
+                             |> List.filter isHideable
+                             |> List.map (removeArg m)
+                             |> List.unzip
+  in updateAndRemove m toUpdate toRemove
+
+
 
 -- Takes a model, searches its nodes for `if` nodes whose
 -- parent and grandparent meet a specific criteria
@@ -442,11 +492,6 @@ collapseIfs m =
             |> Dict.filter (\i _ -> not <| List.member i toHide)
   in
       { m | nodes = nodes }
-
-isIncoming : Model -> Node -> ID -> Bool
-isIncoming m n id = incomingNodes m n
-                  |> List.map .id
-                  |> List.member id
 
 -- return a NodeDict of the ifnodes with their `face` attribute correctly
 -- constructed
@@ -748,47 +793,5 @@ posNode force spacing depType n ((x, y, maxX, maxY, m) as ti) =
 max5 : Int -> Int -> Int -> Int -> Int -> Int
 max5 v w x y z = max x y |> max z |> max w |> max v
 
-
-
-------------
--- avoiding merge conflicts by putting this here for now
-------------
-replaceArgEdge : EdgeType -> Node -> Node -> Node -> Node
-replaceArgEdge edgeType child oldParent newParent =
-  { child | arguments =
-    List.map
-      (\(p,a) ->
-        case a of
-          Edge id _ -> if id == oldParent.id
-                       then (p, Edge newParent.id edgeType)
-                       else (p, a)
-          _ -> (p,a))
-      child.arguments }
-
-
-removeArg : Model -> Node -> (Node, Node)
-removeArg m arg =
-  let blockFn = incomingNodes m arg |> Util.hdExn
-      child = outgoingNodes m arg |> Util.hdExn
-      existingEdge = N.getEdgeTo blockFn.id arg
-      edgeType = case existingEdge of
-                   Just (Edge _ tipe) -> tipe
-                   _ -> FnEdge -- cant happen
-      newChild = replaceArgEdge edgeType child arg blockFn
-      toRemove = arg
-      toUpdate = newChild
-  in (toRemove, toUpdate)
-
-collapseArgsWithSoloChildren : Model -> Model
-collapseArgsWithSoloChildren m =
-  let isHideable n = outgoingNodes m n |> List.length |> (==) 1
-      (toRemove, toUpdate) = m.nodes
-                             |> Dict.values
-                             |> List.filter N.isArg
-                             -- args
-                             |> List.filter isHideable
-                             |> List.map (removeArg m)
-                             |> List.unzip
-  in updateAndRemove m toUpdate toRemove
 
 
