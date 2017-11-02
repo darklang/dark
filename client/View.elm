@@ -264,6 +264,8 @@ getClass func = case String.slice 0 6 func of
                 "if"   -> "conditional"
                 "else" -> "conditional"
                 "then" -> "conditional"
+                "val" -> "iter"
+                "char" -> "iter"
                 "List::" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
                 "String" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
                 _ -> "name"
@@ -356,13 +358,13 @@ viewEdge m target edge =
         edgePos = { x = spos.x + ((tpos.x - spos.x) // 4)
                   , y = spos.y + 4}
         label = case (target.tipe, edge) of
-                  -- (Arg, _) -> Nothing -- leave disabled for now
+                  (Arg, _) -> Nothing
                   (_, Edge _ (BlockEdge l)) -> Just l
                   _ -> Nothing
         edgeLabel = Maybe.map (\l ->
                       placeHtml m edgePos
                         (Html.div
-                          [Attrs.class "edgelabel"]
+                          [Attrs.class <| "edgelabel " ++ getClass l]
                           [Html.text l])) label
     in ( svgLine
          m

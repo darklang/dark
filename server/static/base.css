@@ -2,6 +2,25 @@ html {
   height: 100%;
 }
 
+/* From "default dark" in https://chriskempson.github.io/base16/ */
+.base00 { color: #181818; }
+.base01 { color: #282828; }
+.base02 { color: #383838; }
+.base03 { color: #585858; }
+.base04 { color: #b8b8b8; }
+.base05 { color: #d8d8d8; }
+.base06 { color: #e8e8e8; }
+.base07 { color: #f8f8f8; }
+.base08 { color: #ab4642; }
+.base09 { color: #dc9656; }
+.base0A { color: #f7ca88; }
+.base0B { color: #a1b56c; }
+.base0C { color: #86c1b9; }
+.base0D { color: #7cafc2; }
+.base0E { color: #ba8baf; }
+.base0F { color: #a16946; }
+
+
 body {
 	font-family: 'Fira Mono', monospace;
   margin: 0;
@@ -179,15 +198,14 @@ Nodes
 
 .edgelabel {
   font-size: 6px;
-  color: #dc9656;
   margin: 0px -3px;
 }
 
-.node .conditional {
+.conditional {
   color: #ba8baf;
 }
 
-.node .iter {
+.iter {
   color: #7cafc2;
 }
 
