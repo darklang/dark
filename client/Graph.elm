@@ -278,9 +278,9 @@ moveSubgraph m id offsetX offsetY =
 -- Similarly, we want 'then' nodes to be drawn before 'elses'.
 --
 -- TODO: we need to come up with some actual rules for this
-forceOrdering : List Node -> List Node
-forceOrdering nodes =
-  nodes
+forceOrdering : Node -> List Node -> List Node
+forceOrdering parent children =
+  children
   |> List.sortWith
       (\a b ->
         case (a.name, b.name) of
@@ -293,6 +293,14 @@ forceOrdering nodes =
         case (a.name, b.name) of
           ("then", "else") -> LT
           ("else", "then") -> GT
+          _                -> EQ)
+  |> List.sortWith
+      (\a b ->
+        case (N.getEdgeTo parent.id a, N.getEdgeTo parent.id b) of
+          ( Just (Edge _ (BlockEdge "then"))
+          , Just (Edge _ (BlockEdge "else"))) -> LT
+          ( Just (Edge _ (BlockEdge "else"))
+          , Just (Edge _ (BlockEdge "then"))) -> GT
           _                -> EQ)
 
 
@@ -312,7 +320,7 @@ outgoingNodesWhere cond m n =
                     else False)
           |> List.head
           |> Maybe.map (always child))
-  |> forceOrdering
+  |> forceOrdering n
 
 outgoingNodes : Model -> Node -> List Node
 outgoingNodes = outgoingNodesWhere (\_ _ _ -> True)
@@ -764,7 +772,7 @@ removeArg m arg =
       child = outgoingNodes m arg |> Util.hdExn
       existingEdge = N.getEdgeTo blockFn.id arg
       edgeType = case existingEdge of
-                   Edge _ tipe -> tipe
+                   Just (Edge _ tipe) -> tipe
                    _ -> FnEdge -- cant happen
       newChild = replaceArgEdge edgeType child arg blockFn
       toRemove = arg

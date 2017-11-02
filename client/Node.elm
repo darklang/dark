@@ -127,15 +127,14 @@ nodeSize : Node -> (Int, Int)
 nodeSize node =
   (nodeWidth node, nodeHeight node)
 
-getEdgeTo : ID -> Node -> Argument
+getEdgeTo : ID -> Node -> Maybe Argument
 getEdgeTo id n =
   n.arguments
   |> LE.find (\(_, a) ->
         case a of
           Edge eid _ -> True
           _ -> False)
-  |> deMaybeM ("Looking for an edge which doesn't exist: " ++ toString id ++ toString n)
-  |> Tuple.second
+  |> Maybe.map Tuple.second
 
 
 getArgument : ParamName -> Node -> Argument
