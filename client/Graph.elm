@@ -367,11 +367,10 @@ fromList = DE.fromListBy (\n -> n.id |> deID)
 
 updateAndRemove : Model -> List Node -> List Node -> Model
 updateAndRemove m toUpdate toRemove =
-  let updateDict = fromList toUpdate
-      removeDict = fromList toRemove
-      afterRemoved = Dict.diff m.nodes removeDict
-      afterUpdated = Dict.union updateDict afterRemoved
-  in { m | nodes = afterUpdated }
+  let nodes = fromList toRemove
+              |> Dict.diff m.nodes
+              |> Dict.union (fromList toUpdate)
+  in { m | nodes = nodes }
 
 deleteNode : Model -> ID -> Model
 deleteNode m id =
@@ -760,7 +759,6 @@ replaceArgEdge arg toRemove toReplace =
       arg.arguments }
 
 
-
 removeArg : Model -> Node -> (Node, Node)
 removeArg m arg =
   let blockFn = incomingNodes m arg |> Util.hdExn
@@ -772,11 +770,14 @@ removeArg m arg =
 
 collapseArgsWithSoloChildren : Model -> Model
 collapseArgsWithSoloChildren m =
-  let args = m.nodes |> Dict.values |> List.filter N.isArg
-      isHideable n = outgoingNodes m n |> List.length |> (==) 1
-      hideableArgs = args |> List.filter isHideable
-      processed = List.map (removeArg m) hideableArgs
-      (toRemove, toUpdate) = List.unzip processed
+  let isHideable n = outgoingNodes m n |> List.length |> (==) 1
+      (toRemove, toUpdate) = m.nodes
+                             |> Dict.values
+                             |> List.filter N.isArg
+                             -- args
+                             |> List.filter isHideable
+                             |> List.map (removeArg m)
+                             |> List.unzip
   in updateAndRemove m toUpdate toRemove
 
 
