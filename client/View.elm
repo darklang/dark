@@ -80,11 +80,13 @@ viewCanvas m =
     let ordered = G.orderedNodes m
         nodes = List.indexedMap (\i n -> viewNode m n i) ordered
         values = ordered |> List.map (viewValue m) |> List.concat
-        edges = ordered |> List.map (viewNodeEdges m) |> List.concat
+        (edges, edgeMaybeLabels) = ordered |> List.map (viewNodeEdges m) |> List.concat |> List.unzip
+        edgeLabels = edgeMaybeLabels |> List.filterMap identity
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
-        allSvgs = xaxis :: yaxis :: (edges ++ values ++ nodes ++ entry)
+
+        allSvgs = xaxis :: yaxis :: (edges ++ values ++ nodes ++ entry ++ edgeLabels)
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -335,14 +337,13 @@ edgeStyle =
   , SA.stroke Defaults.edgeStrokeColor
   ]
 
-viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
+viewNodeEdges : Model -> Node -> List (Svg.Svg Msg, Maybe (Svg.Svg Msg))
 viewNodeEdges m n = n.arguments
                     |> List.map Tuple.second
                     |> List.filter N.isParentEdge
                     |> (List.map <| viewEdge m n)
-                    |> List.concat
 
-viewEdge : Model -> Node -> Argument -> List (Svg.Svg Msg)
+viewEdge : Model -> Node -> Argument -> (Svg.Svg Msg, Maybe (Svg.Svg Msg))
 viewEdge m target edge =
     let source = edge |> N.getParentID |> deMaybe |> G.getNodeExn m
         targetPos = target.pos
@@ -352,14 +353,24 @@ viewEdge m target edge =
                , y = G.posy m source + (sourceH // 2)}
         tpos = { x = G.posx m target + 10
                , y = G.posy m target + (targetH // 2)}
-    in [ svgLine
+        edgePos = { x = spos.x + ((tpos.x - spos.x) // 4)
+                  , y = spos.y + 4}
+        label = case edge of
+                  Edge _ (BlockEdge l) -> Just l
+                  _ -> Nothing
+        edgeLabel = Maybe.map (\l ->
+                      placeHtml m edgePos
+                        (Html.div
+                          [Attrs.class "edgelabel"]
+                          [Html.text l])) label
+    in ( svgLine
          m
          spos
          tpos
          (toString source.id)
          (toString target.id)
          edgeStyle
-       ]
+       , edgeLabel)
 
 svgLine : Model -> Pos -> Pos -> String -> String -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine m p1a p2a sourcedebug targetdebug attrs =

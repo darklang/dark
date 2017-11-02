@@ -177,6 +177,12 @@ Nodes
   color: red;
 }
 
+.edgelabel {
+  font-size: 6px;
+  color: #dc9656;
+  margin: 0px -3px;
+}
+
 .node .conditional {
   color: #ba8baf;
 }
