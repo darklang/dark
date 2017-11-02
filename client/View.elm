@@ -355,8 +355,9 @@ viewEdge m target edge =
                , y = G.posy m target + (targetH // 2)}
         edgePos = { x = spos.x + ((tpos.x - spos.x) // 4)
                   , y = spos.y + 4}
-        label = case edge of
-                  Edge _ (BlockEdge l) -> Just l
+        label = case (target.tipe, edge) of
+                  -- (Arg, _) -> Nothing -- leave disabled for now
+                  (_, Edge _ (BlockEdge l)) -> Just l
                   _ -> Nothing
         edgeLabel = Maybe.map (\l ->
                       placeHtml m edgePos
