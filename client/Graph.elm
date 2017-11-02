@@ -384,7 +384,7 @@ deleteNode m id =
       nodes = Dict.map
                (\_ n ->
                   List.foldl
-                    (\id n -> deleteArg (N.isParentEdge id) n)
+                    (\id n -> deleteArg (N.isParentEdgeOf id) n)
                     n
                     (n.id :: ids)
                )
@@ -747,14 +747,14 @@ max5 v w x y z = max x y |> max z |> max w |> max v
 ------------
 -- avoiding merge conflicts by putting this here for now
 ------------
-replaceArgEdge : EdgeType -> Node -> Node -> Node -> Node
-replaceArgEdge isBlock arg toRemove toReplace =
+replaceArgEdge : Node -> Node -> Node -> Node
+replaceArgEdge arg toRemove toReplace =
   { arg | arguments =
     List.map
       (\(p,a) ->
         case a of
           Edge id b -> if id == toRemove.id
-                       then (p, Edge toReplace.id isBlock)
+                       then (p, Edge toReplace.id b)
                        else (p, a)
           _ -> (p,a))
       arg.arguments }
@@ -765,7 +765,7 @@ removeArg : Model -> Node -> (Node, Node)
 removeArg m arg =
   let blockFn = incomingNodes m arg |> Util.hdExn
       child = outgoingNodes m arg |> Util.hdExn
-      newChild = replaceArgEdge BlockEdge child arg blockFn
+      newChild = replaceArgEdge child arg blockFn
       toRemove = arg
       toUpdate = newChild
   in (toRemove, toUpdate)

@@ -23,13 +23,16 @@ isArg n = n.tipe == Arg
 isNotArg : Node -> Bool
 isNotArg = not << isArg
 
-isParentEdge : ID -> Argument -> Bool
-isParentEdge id arg = getParentID arg == Just id
+isParentEdgeOf : ID -> Argument -> Bool
+isParentEdgeOf id arg = getParentID arg == Just id
+
+isParentEdge : Argument -> Bool
+isParentEdge arg = isBlockEdge arg || isFnEdge arg
 
 isBlockEdge : Argument -> Bool
 isBlockEdge arg =
   case arg of
-    Edge _ BlockEdge -> True
+    Edge _ (BlockEdge _) -> True
     _ -> False
 
 isFnEdge : Argument -> Bool

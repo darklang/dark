@@ -129,7 +129,7 @@ replaceBlockNodes nodes =
       convertArg _ n =
         let arguments =
               if n.tipe == FArg
-              then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) BlockEdge)]
+              then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) (BlockEdge n.name))]
               else n.arguments
         in { n | arguments = arguments }
 

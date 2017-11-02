@@ -336,26 +336,30 @@ edgeStyle =
   ]
 
 viewNodeEdges : Model -> Node -> List (Svg.Svg Msg)
-viewNodeEdges m n = n
-                    |> G.outgoingNodes m
+viewNodeEdges m n = n.arguments
+                    |> List.map Tuple.second
+                    |> List.filter N.isParentEdge
                     |> (List.map <| viewEdge m n)
+                    |> List.concat
 
-viewEdge : Model -> Node -> Node -> Svg.Svg Msg
-viewEdge m source target =
-    let targetPos = target.pos
+viewEdge : Model -> Node -> Argument -> List (Svg.Svg Msg)
+viewEdge m target edge =
+    let source = edge |> N.getParentID |> deMaybe |> G.getNodeExn m
+        targetPos = target.pos
         (sourceW, sourceH) = N.nodeSize source
         (targetW, targetH) = N.nodeSize target
         spos = { x = G.posx m source + 10
                , y = G.posy m source + (sourceH // 2)}
         tpos = { x = G.posx m target + 10
                , y = G.posy m target + (targetH // 2)}
-    in svgLine
-      m
-      spos
-      tpos
-      (toString source.id)
-      (toString target.id)
-      edgeStyle
+    in [ svgLine
+         m
+         spos
+         tpos
+         (toString source.id)
+         (toString target.id)
+         edgeStyle
+       ]
 
 svgLine : Model -> Pos -> Pos -> String -> String -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine m p1a p2a sourcedebug targetdebug attrs =

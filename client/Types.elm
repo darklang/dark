@@ -91,7 +91,8 @@ type alias Node = { name : Name
 
 type alias Variable = (VariableName, Node)
 
-type EdgeType = BlockEdge | FnEdge
+type EdgeType = BlockEdge ParamName
+              | FnEdge
 type Argument = Const String
               | Edge ID EdgeType
               | NoArg
