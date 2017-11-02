@@ -397,23 +397,27 @@ let fns : Lib.shortfn list = [
 
 
 
-  (* { n = "String::join" *)
-  (* ; o = [] *)
-  (* ; p = [par "l" TList; par "separator" TStr] *)
-  (* ; r = TStr *)
-  (* ; d = "Combines a list of strings with the provided separator" *)
-  (* ; f = InProcess *)
-  (*       (function *)
-  (*         | [DList l; DStr sep] -> *)
-  (*             List.map ~f:f(fun (DStr s) -> s) *)
-  (*             DList (String.to_list s |> List.map ~f:(fun c -> DChar c)) *)
-  (*         | args -> fail args) *)
-  (* ; pr = None *)
-  (* ; pu = true *)
-  (* } *)
-  (* ; *)
-  (*  *)
-  (*  *)
+  { n = "String::join"
+  ; o = []
+  ; p = [par "l" TList; par "separator" TStr]
+  ; r = TStr
+  ; d = "Combines a list of strings with the provided separator"
+  ; f = InProcess
+        (function
+          | [DList l; DStr sep] ->
+            let s = List.map ~f:(fun s ->
+                match s with
+                | DStr st -> st
+                | _  -> to_repr s) l
+            in
+            DStr (String.concat ~sep s)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
 
 
   { n = "String::fromList"
