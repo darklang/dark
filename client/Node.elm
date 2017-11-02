@@ -56,12 +56,39 @@ isNotFunctionCall = not << isFunctionCall
 hasFace : Node -> Bool
 hasFace n = String.length n.face > 0
 
+type alias ModuleName = String
+type alias FunctionName = String
+parseNodeName : String -> (Maybe ModuleName, FunctionName)
+parseNodeName s =
+  case String.split "::" s of -- single level namespace only for now
+    [mn, fn]  -> (Just mn, fn)
+    _         -> (Nothing, s)
+
+ppModName : ModuleName -> ModuleName
+ppModName mn =
+  case mn of
+    "List"   -> "[]"
+    "String" -> "“”"
+    "Dict"   -> "{}"
+    "Date"   -> "Date"
+    "Char"   -> "‘’"
+    "Page"   -> "://"
+    "DB"     -> "DB"
+    _        -> mn
+
 nodeWidth : Node -> Int
 nodeWidth n =
   let
     space = 4.5
     fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
     fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
+    namelen name =
+      let (mdName, fnName) = parseNodeName name
+          mnRepr = mdName
+          |> Maybe.map ppModName
+          |> Maybe.withDefault ""
+          length = len (mnRepr ++ fnName)
+      in if String.length mnRepr == 0 then length else length + (3 * space)
     len name = name
              |> String.toList
              |> List.map (\c -> if c == ' '
@@ -88,7 +115,7 @@ nodeWidth n =
     --                  Datastore -> 2
     --                  Page -> 2.2
     --                  _ -> 1
-    width = 7.0 + len n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 1.0 |> (*) space)
+    width = 6.0 + namelen n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 0.5 |> (*) space)
   in
     round(width)
 

@@ -266,9 +266,20 @@ getClass func = case String.slice 0 6 func of
                 "then" -> "conditional"
                 "val" -> "iter"
                 "char" -> "iter"
-                "List::" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
-                "String" -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
-                _ -> "name"
+                _       -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
+
+
+viewNodeName : Node -> List (Html.Html Msg)
+viewNodeName n =
+  let (mdName, fnName) = N.parseNodeName n.name
+      mnRepr = mdName
+             |> Maybe.map N.ppModName
+      fnClass = getClass fnName
+      fnSpan  = Html.span [Attrs.class <| fnClass] [Html.text fnName]
+  in
+      case mnRepr of
+        Just mn -> [Html.span [Attrs.class "module"] [Html.text mn]] ++ [fnSpan]
+        Nothing -> [fnSpan]
 
 viewNode : Model -> Node -> Int -> Html.Html Msg
 viewNode m n i =
@@ -299,10 +310,7 @@ viewNode m n i =
         [ Attrs.class class]
         [ Html.text <| " " ++ val]) paramtext
 
-      heading = Html.span
-                [ Attrs.class "title"]
-                ((Html.span [Attrs.class <| getClass n.name] [Html.text n.name]) :: params)
-
+      heading = Html.span [Attrs.class "title"] ((viewNodeName n) ++ params)
    in
     placeNode
       m
