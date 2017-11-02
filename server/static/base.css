@@ -92,6 +92,7 @@ form {
 #autocomplete-holder {
   overflow-y: hidden;
   max-height: 250px;
+  font-size: 85%;
 }
 
 .autocomplete-item.highlighted {
@@ -148,8 +149,14 @@ Nodes
   color: black;
 }
 
+.node.selected .module {
+  background: white;
+  color: black;
+  border-right: 1px solid black;
+}
+
 .node.page {
-  text-align: center;
+  // padding-left: 8px;
 }
 
 .page .title {
@@ -194,6 +201,7 @@ Nodes
 
 .node .arg_none {
   color: red;
+  font-size: 80%;
 }
 
 .edgelabel {
@@ -203,22 +211,24 @@ Nodes
 
 .conditional {
   color: #ba8baf;
+  padding-left: 4px;
 }
 
 .iter {
   color: #7cafc2;
+  padding-left: 4px;
 }
 
 .node.arg {
-  text-align: center;
+  // padding-left: 8px;
 }
 
 .node.functioncall {
-  text-align: center;
+  // padding-left: 8px;
 }
 
 .node.value {
-  text-align: center;
+  // padding-left: 8px;
 }
 
 .node .arg_const {
@@ -228,6 +238,20 @@ Nodes
 .node .arg_edge {
   color: #585858;
   font-size: 80%;
+}
+
+.node .module {
+  padding-right: 4px;
+  padding-left: 4px;
+  padding-bottom: 3px;
+  padding-top: 2px;
+  background: #323234;
+  height: 100%;
+  margin-right: 4px;
+}
+
+.node .name {
+  padding-left: 4px;
 }
 
 
