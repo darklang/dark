@@ -91,9 +91,9 @@ type alias Node = { name : Name
 
 type alias Variable = (VariableName, Node)
 
-type IsBlockEdge = BlockEdge | FnEdge
+type EdgeType = BlockEdge | FnEdge
 type Argument = Const String
-              | Edge ID IsBlockEdge
+              | Edge ID EdgeType
               | NoArg
 
 type Hole = ResultHole Node

@@ -747,7 +747,7 @@ max5 v w x y z = max x y |> max z |> max w |> max v
 ------------
 -- avoiding merge conflicts by putting this here for now
 ------------
-replaceArgEdge : IsBlockEdge -> Node -> Node -> Node -> Node
+replaceArgEdge : EdgeType -> Node -> Node -> Node -> Node
 replaceArgEdge isBlock arg toRemove toReplace =
   { arg | arguments =
     List.map
