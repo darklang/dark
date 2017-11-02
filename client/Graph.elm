@@ -375,7 +375,7 @@ updateAndRemove m toUpdate toRemove =
 
 deleteNode : Model -> ID -> Model
 deleteNode m id =
-  let ids = dependentNodes m (getNodeExn m id)
+  let ids = id :: (dependentNodes m (getNodeExn m id))
 
       -- remove the nodes
       remaining = Dict.filter (\_ n -> not <| List.member n.id ids) m.nodes
