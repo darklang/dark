@@ -155,10 +155,6 @@ Nodes
   border-right: 1px solid black;
 }
 
-.node.page {
-  // padding-left: 8px;
-}
-
 .page .title {
   font-weight: bold;
 }
@@ -219,18 +215,6 @@ Nodes
   padding-left: 4px;
 }
 
-.node.arg {
-  // padding-left: 8px;
-}
-
-.node.functioncall {
-  // padding-left: 8px;
-}
-
-.node.value {
-  // padding-left: 8px;
-}
-
 .node .arg_const {
   font-size: 90%;
 }
@@ -272,13 +256,6 @@ Node Header
   float: right;
   margin-right: 8px;
 }
-
-/* Put it in the top right */
-/* body .elm-overlay .elm-mini-controls { */
-/*   top: 0; */
-/*   bottom: auto; */
-/*   right: 0px; */
-/* } */
 
 #buttons {
     position: absolute;
