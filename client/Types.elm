@@ -167,7 +167,8 @@ type AutocompleteItem = ACFunction Function
 
 type VariantTest = StubVariant
 
-type alias Model = { nodes : NodeDict
+type alias Model = { savedNodes : NodeDict
+                   , nodes : NodeDict
                    , phantoms : NodeDict
                    , center : Pos
                    , error : Maybe String

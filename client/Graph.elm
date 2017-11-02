@@ -406,11 +406,13 @@ deleteNode m id =
 -- Graph tidying
 --------------------------
 
-tidyGraph : Model -> Model
-tidyGraph m = m
-              |> collapseIfs
-              |> collapseArgsWithSoloChildren
-              |> reposition
+tidyGraph : Model -> Maybe ID -> Model
+tidyGraph m focus =
+  let m2 = { m | nodes = m.savedNodes } in
+  m2
+  |> collapseIfs focus
+  |> collapseArgsWithSoloChildren
+  |> reposition
 
 
 replaceArgEdge : EdgeType -> Node -> Node -> Node -> Node
@@ -465,31 +467,34 @@ collapseArgsWithSoloChildren m =
 --    /
 --  if          becomes  (if 5 == 0) where "5 == 0" is the face of the if.
 --
-collapseIfs : Model -> Model
+collapseIfs : Maybe ID -> Model -> Model
 -- TODO: propagate rooted-ness (ie.
-collapseIfs m =
-  let ifs = m.nodes |> Dict.values |> List.filter (\n -> n.name == "if")
-      toCollapse = collapsableIfs m ifs
+collapseIfs focus m =
+  let ifs = m.nodes
+            |> Dict.values
+            |> List.filter (\n -> n.name == "if")
+            |> List.filter (\n -> focus /= Just (n.id))
+      toCollapse = collapsableIfs focus m ifs
       toHide = toCollapse |> Dict.keys
       ifs2hidden = toCollapse
-                 |> Dict.toList  -- to k,v assoc list
-                 |> List.map (T2.swap)  -- to v,k assoc list
-                 |> List.map (\(a, b) -> (a, [b]))  -- listify the second elem
-                 |> DE.fromListDedupe (\a b -> a ++ b) -- append on dedupe
-                 -- TODO: clean this up, we're sorting the ancestors topologically
-                 -- in a strange way.
-                 |> Dict.map (\k v ->
-                                case v of
-                                  [a, b] ->
-                                    if isIncoming m (getNodeExn m (ID k)) (ID a)
-                                    then [a, b]
-                                    else [b, a]
-                                  _ -> v)
+                   |> Dict.toList  -- to k,v assoc list
+                   |> List.map (T2.swap)  -- to v,k assoc list
+                   |> List.map (\(a, b) -> (a, [b]))  -- listify the second elem
+                   |> DE.fromListDedupe (\a b -> a ++ b) -- append on dedupe
+                   -- TODO: clean this up, we're sorting the ancestors topologically
+                   -- in a strange way.
+                   |> Dict.map (\k v ->
+                                  case v of
+                                    [a, b] ->
+                                      if isIncoming m (getNodeExn m (ID k)) (ID a)
+                                      then [a, b]
+                                      else [b, a]
+                                    _ -> v)
       withFaces = generateFaces m ifs2hidden
       nodes = m.nodes
-            |> Dict.union withFaces
-            |> Dict.map (redirectEdges toCollapse)
-            |> Dict.filter (\i _ -> not <| List.member i toHide)
+              |> Dict.union withFaces
+              |> Dict.map (redirectEdges toCollapse)
+              |> Dict.filter (\i _ -> not <| List.member i toHide)
   in
       { m | nodes = nodes }
 
@@ -526,15 +531,21 @@ redirectEdges ids2hide _ node =
       { node | arguments = newArgs }
 
 
-collapsableIfs : Model -> List Node -> Dict Int Int
-collapsableIfs m ns = ns
-                  |> List.filterMap (\n ->
-                    let ancestors = collapsableAncestors m n
-                    in  case ancestors of
-                        [] -> Nothing
-                        ps -> Just ps)
-                  |> List.concat
-                  |> Dict.fromList
+collapsableIfs : Maybe ID -> Model -> List Node -> Dict Int Int
+collapsableIfs focus m ns =
+  ns
+  |> List.filterMap (\n ->
+    let ancestors = collapsableAncestors m n
+    in case (focus, ancestors) of
+         (_, []) -> Nothing
+         (Just focus, ps) ->
+           -- dont collapse when an involved node is focused
+           if List.member (deID focus) (List.map Tuple.first ps)
+           then Nothing
+           else Just ps
+         (_, ps) -> Just ps)
+  |> List.concat
+  |> Dict.fromList
 
 collapsableAncestors : Model -> Node -> List (Int, Int)
 collapsableAncestors m ifnode =

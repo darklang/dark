@@ -129,7 +129,7 @@ updateMod mod (m, cmd) =
         _ -> m ! []
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
-    (newm, Cmd.batch [cmd, newcmd])
+    (G.tidyGraph newm (Selection.getCursorID newm.state), Cmd.batch [cmd, newcmd])
 
 
 update_ : Msg -> Model -> Modification
@@ -290,17 +290,16 @@ update_ msg m =
       Many [ RandomGraph.makeRandomChange m, Deselect]
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
-      let m2 = { m | nodes = nodes }
-          m3 = G.tidyGraph m2
-      in Many [ ModelMod (\_ -> m3)
+      let m2 = { m | savedNodes = nodes }
+      in Many [ ModelMod (\_ -> m2)
               , AutocompleteMod ACReset
               , ClearError
               , case focus of
-                  FocusNext id -> Entry.enterNext m3 (G.getNodeExn m3 id)
-                  FocusExact id -> Entry.enterExact m3 (G.getNodeExn m3 id)
+                  FocusNext id -> Entry.enterNext m2 (G.getNodeExn m2 id)
+                  FocusExact id -> Entry.enterExact m2 (G.getNodeExn m2 id)
                   FocusSame ->
                     case m.state of
-                      Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
+                      Selecting id -> if G.getNode m2 id == Nothing then Deselect else NoChange
                       _ -> NoChange
                   FocusNothing -> Deselect
               ]
