@@ -183,7 +183,7 @@ viewEntry m =
             edgePos = { x = holePos.x + 10
                       , y = holePos.y + 10}
             nodePos = { x = G.posx m n + 10
-                      , y = G.posy m n + 10}
+                      , y = G.posy m n}
         in
         [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
       Entering _ (Creating pos) -> [html pos]
@@ -205,7 +205,7 @@ holeDisplayPos m hole =
     ResultHole _ -> let {x,y} = Entry.holeCreatePos m hole
                     in {x=x, y=y + 50}
     ParamHole id _ _ ->
-      let n = gn id in {x=(G.posx m n)-350, y=(G.posy m n)-100}
+      let n = gn id in {x=(G.posx m n)+100, y=(G.posy m n)-100}
 
 
 
