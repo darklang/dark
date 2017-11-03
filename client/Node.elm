@@ -187,6 +187,7 @@ nodeToFace a b =
           case p of
             Const s -> s
             Edge _ _ -> placeholder
+            ElidedArg -> ""
             NoArg   -> "") arguments
   in
       if argLen == 2

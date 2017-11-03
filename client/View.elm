@@ -304,10 +304,11 @@ viewNode m n i =
                                   if p.tipe == TBlock
                                   then ("", "")
                                   else
-                                    case (a, p) of
-                                      (Const c, _) -> ("arg_const", if c == "null" then "∅" else c)
-                                      (NoArg, _) -> ("arg_none", "◉")
-                                      (Edge _ _, _) -> ("arg_edge", "◉"))
+                                    case a of
+                                      Const c -> ("arg_const", if c == "null" then "∅" else c)
+                                      ElidedArg -> Debug.crash "Nodes with elided args should have faces defined"
+                                      NoArg -> ("arg_none", "◉")
+                                      Edge _ _ -> ("arg_edge", "◉"))
       params = List.map (\(class, val) ->
         Html.span
         [ Attrs.class class]

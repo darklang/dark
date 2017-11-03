@@ -93,11 +93,13 @@ type alias Variable = (VariableName, Node)
 
 type EdgeType = BlockEdge ParamName
               | FnEdge
+
 type Argument = Const String
               | Edge ID EdgeType
               | NoArg
+              | ElidedArg
 
-type Hole = ResultHole ID 
+type Hole = ResultHole ID
           | ParamHole ID Parameter Int
 
 type EntryCursor = Creating Pos

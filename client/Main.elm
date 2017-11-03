@@ -108,6 +108,7 @@ reenter m id i =
           Edge eid _ -> Many [ enter
                           , AutocompleteMod (ACQuery <| "$" ++ G.toLetter m eid)]
           NoArg -> enter
+          ElidedArg -> Debug.crash "ElidedArgs should already be expanded"
           Const c -> Many [ enter
                           , AutocompleteMod (ACQuery c)]
 

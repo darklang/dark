@@ -139,6 +139,7 @@ asTypeString item =
                                                    case a of
                                                    Const c -> if c == "null" then Just "null" else Just c
                                                    NoArg -> Just "$"
+                                                   ElidedArg -> Just "$"
                                                    Edge _ _ -> Just "$")
                       |> List.filter ME.isJust
                       |> List.map deMaybe
