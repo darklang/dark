@@ -77,7 +77,7 @@ toFullErrorMessage pe = case pe.cursor of
                                      Creating _ -> noContextErrorMessage pe
                                      Filling n h -> case h of
                                                         ResultHole _ -> noContextErrorMessage pe
-                                                        ParamHole n2 p i -> (noContextErrorMessage pe) ++ " in argument #" ++ (toString i) ++ " for an `" ++ (n2.name) ++ "`"
+                                                        ParamHole _ p i -> (noContextErrorMessage pe) -- ++ " in argument #" ++ (toString i) ++ " for an `" ++ (n2.name) ++ "`"
                       Nothing -> noContextErrorMessage pe
 
 noContextErrorMessage : ParseError -> String
@@ -313,6 +313,7 @@ convertArg m pexpr =
 
 pt2ast : Model -> EntryCursor -> ParseTree -> AST
 pt2ast m cursor pt =
+  let gn = G.getNodeExn m in
   case (cursor, pt) of
 
     -- Creating
@@ -334,22 +335,22 @@ pt2ast m cursor pt =
     -- Filling Params
     (Filling _ (ParamHole target param _), PBlank) ->
       if param.optional
-      then AFillParam <| APConst (target, param) "null"
+      then AFillParam <| APConst (gn target, param) "null"
       else ANothing
     (Filling _ (ParamHole target param _), PFieldname _) ->
       AError <| "cant have a fieldname here"
     (Filling _ (ParamHole target param _), PExpr (PVar letter)) ->
       case G.fromLetter m letter of
         Just source ->
-          AFillParam <| APVar (target, param) source
+          AFillParam <| APVar (gn target, param) source
         Nothing ->
           AError <| "letter doesnt exist: " ++ letter
     (Filling _ (ParamHole target param _), PExpr (PValue value )) ->
-      AFillParam <| APConst (target, param) value
+      AFillParam <| APConst (gn target, param) value
     (Filling _ (ParamHole target param _), PExpr (PFnCall name args)) ->
       case convertArgs m args of
         Ok converted ->
-          AFillParam <| APFnCall (target, param) name converted
+          AFillParam <| APFnCall (gn target, param) name converted
         Err msg ->
           AError msg
 
@@ -357,18 +358,18 @@ pt2ast m cursor pt =
     (Filling _ (ResultHole source), PBlank) ->
       ANothing
     (Filling _ (ResultHole source), PFieldname fieldname) ->
-      AFillResult <| ARFieldName source fieldname
+      AFillResult <| ARFieldName (gn source) fieldname
     (Filling _ (ResultHole source), PExpr (PVar letter)) ->
       case G.fromLetter m letter of
         Nothing ->
           AError <| "letter doesnt exist: " ++ letter
         Just target ->
-          AFillResult <| ARVar source target
+          AFillResult <| ARVar (gn source) target
     (Filling _ (ResultHole source), PExpr (PValue value )) ->
-      AFillResult <| ARNewValue source value
+      AFillResult <| ARNewValue (gn source) value
     (Filling _ (ResultHole source), PExpr (PFnCall name args)) ->
       case convertArgs m args of
         Ok converted ->
-          AFillResult <| ARFnCall source name converted
+          AFillResult <| ARFnCall (gn source) name converted
         Err msg ->
           AError msg

@@ -129,8 +129,8 @@ findParam n = Util.findIndex (\(_, a) -> a == NoArg) n.arguments
 findHole : Node -> Hole
 findHole n =
   case findParam n of
-    Nothing -> ResultHole n
-    Just (i, (p, _)) -> ParamHole n p i
+    Nothing -> ResultHole n.id
+    Just (i, (p, _)) -> ParamHole n.id p i
 
 findParamHole : Node -> Maybe Hole -> Maybe Hole
 findParamHole n mh =
@@ -138,7 +138,7 @@ findParamHole n mh =
     Just h -> Just h
     Nothing ->
       findParam n
-      |> Maybe.map (\(i, (p, _)) -> ParamHole n p i)
+      |> Maybe.map (\(i, (p, _)) -> ParamHole n.id p i)
 
 findNextArgHole : Model -> Node -> Maybe Hole
 findNextArgHole m n =
@@ -155,7 +155,7 @@ findNextHole m start =
           case findNextArgHole m n of
             Just h -> Just h
             Nothing -> case outgoingNodes m n of
-                         [] -> Just (ResultHole n)
+                         [] -> Just (ResultHole n.id)
                          _ -> Nothing
   in
     fold func Nothing start (outgoingNodes m)

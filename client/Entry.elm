@@ -8,7 +8,6 @@ import Set
 
 -- lib
 import Dom
-import List.Extra as LE
 import Result.Extra as RE
 import Maybe.Extra as ME
 
@@ -23,17 +22,20 @@ import Viewport
 import EntryParser exposing (AST(..), ACreating(..), AExpr(..), AFillParam(..), AFillResult(..), ARef(..))
 
 
-nodeFromHole : Hole -> Node
-nodeFromHole h = case h of
-                   ResultHole n -> n
-                   ParamHole n _ _ -> n
+idFromHole : Hole -> ID
+idFromHole h =
+  case h of
+    ResultHole id -> id
+    ParamHole id _ _ -> id
 
 holeCreatePos : Model -> Hole -> Pos
 holeCreatePos m hole =
+  let gn = G.getNodeExn m in
   case hole of
-    ParamHole n _ i -> {x=(posx m n)-50+(i*50), y=(posy m n)-40}
-    ResultHole n ->
-      let connected = G.entireSubgraph m n
+    ParamHole id _ i -> let n = gn id in {x=(posx m n)-50+(i*50), y=(posy m n)-40}
+    ResultHole id ->
+      let n = gn id
+          connected = G.entireSubgraph m n
           lowest = connected
                    |> List.map (\n -> posy m n)
                    |> List.maximum
@@ -45,52 +47,6 @@ holeCreatePos m hole =
 ---------------------
 -- Nodes
 ---------------------
--- Reenter an existing node to edit the existing inputs
-reenter : Model -> ID -> Int -> Modification
-reenter m id i =
-  -- TODO: Allow the input to be edited
-  let n = G.getNodeExn m id
-  in
-    case LE.getAt i n.arguments of
-      Nothing -> NoChange
-      Just (p, a) ->
-        let enter = Enter True <| Filling n (ParamHole n p i) in
-        case a of
-          Edge eid _ -> Many [ enter
-                          , AutocompleteMod (ACQuery <| "$" ++ G.toLetter m eid)]
-          NoArg -> enter
-          Const c -> Many [ enter
-                          , AutocompleteMod (ACQuery c)]
-
--- Enter this exact node
-enterExact : Model -> Node -> Modification
-enterExact m selected =
-  Filling selected (G.findHole selected)
-  |> cursor2mod (G.orderedNodes m)
-
--- Enter the next needed node, searching from here
-enterNext : Model -> Node -> Modification
-enterNext m n =
-  cursor2mod (G.orderedNodes m) <|
-    case G.findNextHole m n of
-      Nothing -> Filling n (ResultHole n)
-      Just hole -> Filling (nodeFromHole hole) hole
-
-cursor2mod : NodeList -> EntryCursor -> Modification
-cursor2mod ns cursor =
-  Many [ Enter False cursor
-       , case cursor of
-           Filling n (ResultHole _) ->
-             AutocompleteMod <| ACFilterByLiveValue n.liveValue
-           Filling _ (ParamHole _ p _) ->
-             Many [ AutocompleteMod <| ACFilterByParamType p.tipe ns
-                  , AutocompleteMod <| ACOpen False ]
-           Creating _ ->
-             NoChange
-       ]
-
-
-
 updateValue : String -> Modification
 updateValue target =
   Many [ AutocompleteMod <| ACQuery target, Phantom ]

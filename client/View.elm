@@ -177,8 +177,9 @@ viewEntry m =
       html pos = placeHtml m pos wrapper
   in
     case m.state of
-      Entering _ (Filling n h) ->
-        let holePos = holeDisplayPos m h
+      Entering _ (Filling id h) ->
+        let n = G.getNodeExn m id
+            holePos = holeDisplayPos m h
             edgePos = { x = holePos.x + 10
                       , y = holePos.y + 10}
             nodePos = { x = G.posx m n + 10
@@ -192,17 +193,19 @@ viewEntry m =
 valueDisplayPos : Model -> Node -> Pos
 valueDisplayPos m n =
   if (G.outgoingNodes m n |> List.length |> (==) 1) && n.isBlockParent
-  then Entry.holeCreatePos m (ResultHole n)
+  then Entry.holeCreatePos m (ResultHole n.id)
   else
     let xpad = max (N.nodeWidth n + 50) 400
     in {x=(G.posx m n)+xpad, y=G.posy m n}
 
 holeDisplayPos : Model -> Hole -> Pos
 holeDisplayPos m hole =
+  let gn = G.getNodeExn m in
   case hole of
     ResultHole _ -> let {x,y} = Entry.holeCreatePos m hole
                     in {x=x, y=y + 50}
-    ParamHole n _ _ -> {x=(G.posx m n)-350, y=(G.posy m n)-100}
+    ParamHole id _ _ ->
+      let n = gn id in {x=(G.posx m n)-350, y=(G.posy m n)-100}
 
 
 

@@ -19,6 +19,7 @@ import Defaults
 makeRandomChange : Model -> Modification
 makeRandomChange m =
   let id = N.gen_id ()
+      gn = G.getNodeExn m
       r () = Util.random () % 100
       r0 = r ()
       nodes = m.nodes |> Dict.values |> List.filter (\n -> G.posx m n /= Defaults.unsetInt)
@@ -55,16 +56,17 @@ makeRandomChange m =
     else -- lets add a result
       let cursor = if r () > 50
                    then case G.findNextHole m n of
-                          Nothing -> Filling n (ResultHole n)
-                          Just hole -> Filling (Entry.nodeFromHole hole) hole
-                   else Filling n (G.findHole n)
+                          Nothing -> Filling n.id (ResultHole n.id)
+                          Just hole -> Filling (Entry.idFromHole hole) hole
+                   else Filling n.id (G.findHole n)
           -- pick a random (but appropriate) autocomplete value
           ac =
             m.complete
                |> Autocomplete.reset
                |> (\ac ->
                  case cursor of
-                   Filling n (ResultHole _) ->
+                   Filling id (ResultHole _) ->
+                     let n = gn id in
                      Autocomplete.forLiveValue n.liveValue ac
                    Filling _ (ParamHole _ p _) ->
                      Autocomplete.forParamType p.tipe (G.orderedNodes m) ac

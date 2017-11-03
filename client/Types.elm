@@ -97,11 +97,11 @@ type Argument = Const String
               | Edge ID EdgeType
               | NoArg
 
-type Hole = ResultHole Node
-          | ParamHole Node Parameter Int
+type Hole = ResultHole ID 
+          | ParamHole ID Parameter Int
 
 type EntryCursor = Creating Pos
-                 | Filling Node Hole
+                 | Filling ID Hole
 
 type alias IsReentering = Bool
 type State = Selecting ID

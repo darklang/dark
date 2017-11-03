@@ -12,6 +12,7 @@ import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
+import List.Extra as LE
 
 -- dark
 import RPC exposing (rpc, phantomRpc, saveTest)
@@ -27,6 +28,7 @@ import Selection
 import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
+
 
 
 -----------------------
@@ -88,8 +90,59 @@ update msg m =
             , lastMod = mods}
      , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
+---------------------------------------------
+-- TODO: put these into updatemod so it doesn't use out of date info
+---------------------------------------------
+
+-- Reenter an existing node to edit the existing inputs
+reenter : Model -> ID -> Int -> Modification
+reenter m id i =
+  -- TODO: Allow the input to be edited
+  let n = G.getNodeExn m id
+  in
+    case LE.getAt i n.arguments of
+      Nothing -> NoChange
+      Just (p, a) ->
+        let enter = Enter True <| Filling n.id (ParamHole n.id p i) in
+        case a of
+          Edge eid _ -> Many [ enter
+                          , AutocompleteMod (ACQuery <| "$" ++ G.toLetter m eid)]
+          NoArg -> enter
+          Const c -> Many [ enter
+                          , AutocompleteMod (ACQuery c)]
+
+-- Enter this exact node
+enterExact : Model -> Node -> Modification
+enterExact m selected =
+  Filling selected.id (G.findHole selected)
+  |> cursor2mod m
+
+-- Enter the next needed node, searching from here
+enterNext : Model -> Node -> Modification
+enterNext m n =
+  cursor2mod m <|
+    case G.findNextHole m n of
+      Nothing -> Filling n.id (ResultHole n.id)
+      Just hole -> Filling (Entry.idFromHole hole) hole
+
+cursor2mod : Model -> EntryCursor -> Modification
+cursor2mod m cursor =
+  let ns = G.orderedNodes m in
+  Many [ Enter False cursor
+       , case cursor of
+           Filling id (ResultHole _) ->
+             AutocompleteMod <| ACFilterByLiveValue ((G.getNodeExn m id).liveValue)
+           Filling _ (ParamHole _ p _) ->
+             Many [ AutocompleteMod <| ACFilterByParamType p.tipe ns
+                  , AutocompleteMod <| ACOpen False ]
+           Creating _ ->
+             NoChange
+       ]
+
+
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
+  -- if you ever have a node in here, you're doing it wrong. Use an ID.
   let (newm, newcmd) =
     case mod of
       Error e -> { m | error = Just e} ! []
@@ -109,7 +162,7 @@ updateMod mod (m, cmd) =
                        , center = G.getNodeExn m id |> G.pos m} ! []
       Enter re entry -> { m | state = Entering re entry
                             , center = case entry of
-                                         Filling n _ -> G.pos m n
+                                         Filling id _ -> G.pos m (G.getNodeExn m id)
                                          Creating p -> m.center -- dont move
                         }
                         ! [Entry.focusEntry]
@@ -168,17 +221,17 @@ update_ msg m =
                   ChangeCursor 1
                 else
                   Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
-              Key.Enter -> Entry.enterExact m (G.getNodeExn m id)
-              Key.One -> Entry.reenter m id 0
-              Key.Two -> Entry.reenter m id 1
-              Key.Three -> Entry.reenter m id 2
-              Key.Four -> Entry.reenter m id 3
-              Key.Five -> Entry.reenter m id 4
-              Key.Six -> Entry.reenter m id 5
-              Key.Seven -> Entry.reenter m id 6
-              Key.Eight -> Entry.reenter m id 7
-              Key.Nine -> Entry.reenter m id 8
-              Key.Zero -> Entry.reenter m id 9
+              Key.Enter -> enterExact m (G.getNodeExn m id)
+              Key.One -> reenter m id 0
+              Key.Two -> reenter m id 1
+              Key.Three -> reenter m id 2
+              Key.Four -> reenter m id 3
+              Key.Five -> reenter m id 4
+              Key.Six -> reenter m id 5
+              Key.Seven -> reenter m id 6
+              Key.Eight -> reenter m id 7
+              Key.Nine -> reenter m id 8
+              Key.Zero -> reenter m id 9
               Key.Escape -> Deselect
               code -> Selection.selectByLetter m code
 
@@ -208,8 +261,8 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling node _ -> Many [ Select node.id
-                                          , AutocompleteMod ACReset]
+                    Filling id _ -> Many [ Select id
+                                         , AutocompleteMod ACReset]
                 key ->
                   AutocompleteMod <| ACQuery m.complete.value
 
@@ -291,21 +344,24 @@ update_ msg m =
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
       let m2 = { m | savedNodes = nodes, nodes = nodes }
-      in Many [ ModelMod (\_ -> m2)
+          m3 = G.tidyGraph m2 (Selection.getCursorID m2.state)
+      in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod ACReset
               , ClearError
+              -- focus should be valid after tidy graph because we make
+              -- sure not to delete it.
               , case focus of
-                  FocusNext id -> Entry.enterNext m2 (G.getNodeExn m2 id)
-                  FocusExact id -> Entry.enterExact m2 (G.getNodeExn m2 id)
+                  FocusNext id -> enterNext m3 (G.getNodeExn m3 id)
+                  FocusExact id -> enterExact m3 (G.getNodeExn m3 id)
                   FocusSame ->
                     case m.state of
-                      Selecting id -> if G.getNode m2 id == Nothing then Deselect else NoChange
+                      Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
                       _ -> NoChange
                   FocusNothing -> Deselect
               ]
 
     (PhantomCallBack _ _ (Ok (nodes)), _) ->
-      ModelMod (\_ -> { m | phantoms = nodes } )
+      ModelMod (\newm -> { newm | phantoms = nodes } )
 
     (SaveTestCallBack (Ok msg), _) ->
       Error <| "Success! " ++ msg
@@ -337,19 +393,6 @@ update_ msg m =
       NoChange
 
     t -> Error <| "Dark Client Error: nothing for " ++ (toString t)
-
-    ------------------------
-    -- datastores
-    -------------------------
-    -- (ADD_DS_FIELD_NAME, SubmitMsg, _) ->
-    --     ({ m | state = ADD_DS_FIELD_TYPE
-    --          , tempFieldName = m.inputValue
-    --      }, Cmd.none)
-
-    -- (ADD_DS_FIELD_TYPE, SubmitMsg, Just id) ->
-    --   ({ m | state = ADD_DS_FIELD_NAME
-    --    }, rpc m <| AddDatastoreField id m.tempFieldName m.inputValue)
-
 
 
 -----------------------

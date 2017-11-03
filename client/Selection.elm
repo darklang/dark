@@ -19,9 +19,9 @@ import Entry
 isSelected : Model -> Node -> Bool
 isSelected m n =
   case m.state of
-    Entering _ (Filling node _) -> n == node
+    Entering _ (Filling id _) -> n.id == id
     Selecting id -> n.id == id
-    Dragging _ _ _ (Entering _ (Filling node _)) -> n == node
+    Dragging _ _ _ (Entering _ (Filling id _)) -> n.id == id
     Dragging _ _ _ (Selecting id) -> n.id == id
     _ -> False
 
@@ -34,7 +34,7 @@ entryVisible state =
 getCursorID : State -> Maybe ID
 getCursorID s =
   case s of
-    Entering _ (Filling node _) -> Just node.id
+    Entering _ (Filling id _) -> Just id
     Selecting id -> Just id
     _ -> Nothing
 
