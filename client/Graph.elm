@@ -523,10 +523,14 @@ redirectEdges ids2hide _ node =
                                   -- if the replacement ID of the node
                                   -- we're hiding is this node (ie. would
                                   -- result in an edge to itself), we remove
-                                  -- the edge and make it a NoArg.
+                                  -- the edge and make it a `Const "null"`
+                                  -- We tried making this a NoArg, but then
+                                  -- findNextHole would find a ParamHole here and
+                                  -- try to complete this argument even though it's
+                                  -- filled, just elided.
                                   Just newId -> if newId /= (deID node.id)
                                                 then (p, Edge (ID newId) b)
-                                                else (p, NoArg)
+                                                else (p, Const "null")
                                   Nothing    -> (p, a)
                               a -> (p, a)) node.arguments
   in
