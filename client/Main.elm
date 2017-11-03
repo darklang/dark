@@ -290,7 +290,7 @@ update_ msg m =
       Many [ RandomGraph.makeRandomChange m, Deselect]
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
-      let m2 = { m | savedNodes = nodes }
+      let m2 = { m | savedNodes = nodes, nodes = nodes }
       in Many [ ModelMod (\_ -> m2)
               , AutocompleteMod ACReset
               , ClearError
