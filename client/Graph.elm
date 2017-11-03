@@ -411,7 +411,7 @@ tidyGraph m focus =
   let m2 = { m | nodes = m.savedNodes } in
   m2
   |> collapseIfs focus
-  |> collapseArgsWithSoloChildren
+  |> collapseArgsWithSoloChildren focus
   |> reposition
 
 
@@ -441,14 +441,16 @@ removeArg m arg =
       toUpdate = newChild
   in (toRemove, toUpdate)
 
-collapseArgsWithSoloChildren : Model -> Model
-collapseArgsWithSoloChildren m =
-  let isHideable n = outgoingNodes m n |> List.length |> (==) 1
+collapseArgsWithSoloChildren : Maybe ID -> Model -> Model
+collapseArgsWithSoloChildren focus m =
+  let focused = Maybe.withDefault (ID -1) focus
+      isHideable n = outgoingNodes m n |> List.length |> (==) 1
       (toRemove, toUpdate) = m.nodes
                              |> Dict.values
                              |> List.filter N.isArg
                              -- args
                              |> List.filter isHideable
+                             |> List.filter (\arg -> List.all (\n -> n.id /= focused) (arg :: connectedNodes m arg))
                              |> List.map (removeArg m)
                              |> List.unzip
   in updateAndRemove m toUpdate toRemove
