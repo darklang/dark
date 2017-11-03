@@ -28,6 +28,7 @@ import Selection
 import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
+import Util
 
 
 
@@ -84,7 +85,7 @@ port setStorage : Editor -> Cmd a
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let mods = update_ msg m
-      (newm, newc) = updateMod mods (m, Cmd.none)
+      (newm, newc) = updateMod m mods (m, Cmd.none)
   in
     ({ newm | lastMsg = msg
             , lastMod = mods}
@@ -140,9 +141,26 @@ cursor2mod m cursor =
              NoChange
        ]
 
+selectCenter : Pos -> Pos -> Pos
+selectCenter old new =
+  -- ignore the Util.windowSize y hack
+  let (xSize, ySize) = Util.windowSize ()
+      xThreshold     = xSize // 10
+      yThreshold     = ySize // 10
+      fakeCenter     = Defaults.initialPos
+      newY           = if (new.y > (old.y + (ySize - fakeCenter.vy) - yThreshold))
+                       || (new.y < (old.y - fakeCenter.vy + yThreshold))
+                       then new.y
+                       else old.y
+      newX           = if (new.x > (old.x + (xSize - fakeCenter.vx) - xThreshold))
+                       || (new.x < (old.x - fakeCenter.vx + xThreshold))
+                       then new.x
+                       else old.x
+  in
+      { x = newX, y = newY }
 
-updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
-updateMod mod (m, cmd) =
+updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
+updateMod origm mod (m, cmd) =
   -- if you ever have a node in here, you're doing it wrong. Use an ID.
   let (newm, newcmd) =
     case mod of
@@ -160,10 +178,10 @@ updateMod mod (m, cmd) =
       MakeCmd cmd -> m ! [cmd]
       SetState state -> { m | state = state } ! []
       Select id -> { m | state = Selecting id
-                       , center = G.getNodeExn m id |> G.pos m} ! []
+                       , center = G.getNodeExn m id |> G.pos m |> selectCenter origm.center} ! []
       Enter re entry -> { m | state = Entering re entry
                             , center = case entry of
-                                         Filling id _ -> G.pos m (G.getNodeExn m id)
+                                         Filling id _ -> selectCenter origm.center (G.pos m (G.getNodeExn m id))
                                          Creating p -> m.center -- dont move
                         }
                         ! [Entry.focusEntry]
@@ -181,7 +199,7 @@ updateMod mod (m, cmd) =
         Selecting id -> let calls = Entry.updatePreviewCursor m id step
                         in m ! [rpc m FocusSame calls]
         _ -> m ! []
-      Many mods -> List.foldl updateMod (m, Cmd.none) mods
+      Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
     (G.tidyGraph newm (Selection.getCursorID newm.state), Cmd.batch [cmd, newcmd])
 
