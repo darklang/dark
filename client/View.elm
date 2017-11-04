@@ -180,10 +180,13 @@ viewEntry m =
       Entering _ (Filling id h) ->
         let n = G.getNodeExn m id
             holePos = holeDisplayPos m h
-            edgePos = { x = holePos.x + 10
+            edgePos = { x = holePos.x + 8
                       , y = holePos.y + 10}
-            nodePos = { x = G.posx m n + 10
-                      , y = G.posy m n}
+            extraY = if edgePos.y > G.posy m n
+                     then 22
+                     else 0
+            nodePos = { x = G.posx m n + 8
+                      , y = G.posy m n + extraY}
         in
         [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
       Entering _ (Creating pos) -> [html pos]
@@ -233,7 +236,7 @@ viewValue m n =
       displayedBelow = newPos.y /= G.posy m n
       edge =
         if displayedBelow
-        then [svgLine m {x=G.posx m n + 10, y=G.posy m n +10} {x=newPos.x+10,y=newPos.y+10} "" "" edgeStyle]
+        then [svgLine m {x=G.posx m n + 8, y=G.posy m n +10} {x=newPos.x+8,y=newPos.y+10} "" "" edgeStyle]
         else []
       allOutputs = edge ++
                     [placeHtml m newPos
@@ -363,9 +366,9 @@ viewEdge m target edge =
         targetPos = target.pos
         (sourceW, sourceH) = N.nodeSize source
         (targetW, targetH) = N.nodeSize target
-        spos = { x = G.posx m source + 10
+        spos = { x = G.posx m source + 8
                , y = G.posy m source + (sourceH // 2)}
-        tpos = { x = G.posx m target + 10
+        tpos = { x = G.posx m target + 8
                , y = G.posy m target + (targetH // 2)}
         edgePos = { x = spos.x + ((tpos.x - spos.x) // 4)
                   , y = spos.y + 4}
