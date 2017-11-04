@@ -96,13 +96,12 @@ distance m n1 n2 =
 
 orderedNodes : Model -> List Node
 orderedNodes m =
-  let (frees, normals) = List.partition isFree (Dict.values m.nodes)
-  in
-  normals
-  |> List.map (\n -> (posy m n, posx m n, n.id |> deID))
-  |> List.sortWith Ordering.natural
-  |> List.map (\(_,_,id) -> getNodeExn m (ID id))
-  |> (\ns -> ns ++ frees)
+  let (frees, normals) = List.partition hasRelativePos (Dict.values m.nodes)
+      sort ns = ns
+                |> List.map (\n -> (posy m n, posx m n, n.id |> deID))
+                |> List.sortWith Ordering.natural
+                |> List.map (\(_,_,id) -> getNodeExn m (ID id))
+  in sort normals ++ sort frees
 
 fromLetter : Model -> String -> Maybe Node
 fromLetter m letter = m |> orderedNodes |> LE.getAt (letter2int letter)
