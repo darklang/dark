@@ -117,9 +117,9 @@ getNode m id = Dict.get (deID id) m.nodes
 
 getNodeExn : Model -> ID -> Node
 getNodeExn m id =
-  if Dict.member (deID id) m.nodes
-  then getNode m id |> deMaybe
-  else Debug.crash <| "Missing node: " ++ toString id
+  case getNode m id of
+    Nothing -> Debug.crash <| "Missing node: " ++ toString id
+    Just node -> node
 
 ------------------------
 -- holes
