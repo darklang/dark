@@ -177,14 +177,25 @@ updateMod origm mod (m, cmd) =
       NoChange -> m ! []
       MakeCmd cmd -> m ! [cmd]
       SetState state -> { m | state = state } ! []
-      Select id -> { m | state = Selecting id
-                       , center = G.getNodeExn m id |> G.pos m |> selectCenter origm.center} ! []
-      Enter re entry -> { m | state = Entering re entry
-                            , center = case entry of
-                                         Filling id _ -> selectCenter origm.center (G.pos m (G.getNodeExn m id))
-                                         Creating p -> m.center -- dont move
-                        }
-                        ! [Entry.focusEntry]
+      Select id ->
+        let n = G.getNodeExn m id in
+        { m | state = Selecting id
+            , center = if G.hasRelativePos n
+                       then m.center
+                       else G.pos m n |> selectCenter origm.center} ! []
+      Enter re entry ->
+        { m | state = Entering re entry
+            , center =
+                case entry of
+                  Filling id _ ->
+                    let n = G.getNodeExn m id in
+                    if G.hasRelativePos n
+                    then m.center
+                    else selectCenter origm.center (G.pos m n)
+                  Creating p ->
+                    m.center -- dont move
+        }
+        ! [Entry.focusEntry]
       Drag id offset hasMoved state ->
         { m | state = Dragging id offset hasMoved state } ! []
       ModelMod mm -> mm m ! []
