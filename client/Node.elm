@@ -80,7 +80,7 @@ nodeWidth : Node -> Int
 nodeWidth n =
   let
     space = 4.5
-    fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '/', '.', ' ', ',', '{', '}']
+    fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '.', ' ', ',', '{', '}']
     fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
     namelen name =
       let (mdName, fnName) = parseNodeName name
