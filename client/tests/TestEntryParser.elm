@@ -40,6 +40,8 @@ all =
         -- numbers
         , ("5"
           , E.PExpr <| E.PValue "5")
+        , ("/"
+          , E.PExpr (E.PFnCall "/" []))
         , ("6.42"
           , E.PExpr (E.PValue "6.42"))
         , ("-6"
