@@ -202,6 +202,7 @@ type Modification = Error String
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
                   | ModelMod (Model -> Model)
+                  | SetPhantoms NodeDict
                   | NoChange
                   | MakeCmd (Cmd Msg)
                   | AutocompleteMod AutocompleteMod

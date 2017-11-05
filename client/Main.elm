@@ -198,6 +198,8 @@ updateMod origm mod (m, cmd) =
         ! [Entry.focusEntry]
       SetCenter c ->
         { m | center = c } ! []
+      SetPhantoms ps ->
+        { m | phantoms = ps } ! []
       Drag id offset hasMoved state ->
         { m | state = Dragging id offset hasMoved state } ! []
       ModelMod mm -> mm m ! []
@@ -396,7 +398,7 @@ update_ msg m =
               ]
 
     (PhantomCallBack _ _ (Ok (nodes)), _) ->
-      ModelMod (\newm -> { newm | phantoms = nodes } )
+      SetPhantoms nodes
 
     (SaveTestCallBack (Ok msg), _) ->
       Error <| "Success! " ++ msg
@@ -413,7 +415,7 @@ update_ msg m =
       Error <| "Network error: is the server running?"
 
     (PhantomCallBack _ _ (Err (Http.BadStatus error)), _) ->
-      ModelMod (\_ -> { m | phantoms = Dict.empty } )
+      SetPhantoms Dict.empty
 
     (PhantomCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
