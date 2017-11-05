@@ -7,10 +7,21 @@
     <link rel="stylesheet" type="text/css" href="/static/reset-normalize.css" />
     <link rel="stylesheet" type="text/css" href="/static/base.css" />
     <link href="https://fonts.googleapis.com/css?family=Fira+Mono" rel="stylesheet">
-    <script src="/static/elm.js"> </script>
-  </head>
-  <body>
     <script type="text/javascript">
+    function stopTab(event) {
+      if (event.keyCode == 9) {
+        event.preventDefault();
+        event.stopImmedatePropagation();
+      }
+      else {
+      }
+    }
+    </script>
+    <script src="/static/elm.js"> </script>
+
+  </head>
+  <body onKeyDown="stopTab(event)" onKeyUp="stopTab(event)">
+   <script type="text/javascript">
      complete = ALLFUNCTIONS;
      try {
        storage = localStorage.getItem('editor');

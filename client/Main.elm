@@ -263,6 +263,7 @@ update_ msg m =
               Key.Nine -> reenter m id 8
               Key.Zero -> reenter m id 9
               Key.Escape -> Deselect
+              Key.Tab -> Error <| "Got a tab key"
               code -> Selection.selectByLetter m code
 
           Entering re cursor ->
