@@ -177,10 +177,10 @@ type alias Model = { savedNodes : NodeDict
                    , lastMsg : Msg
                    , lastMod : Modification
                    , tests   : List VariantTest
-                   -- these values are serialized via Editor
-                   , tempFieldName : FieldName
-                   , state : State
                    , complete : Autocomplete
+                   , state : State
+                   -- these values are serialized via Editor
+                   , openNodes : List ID
                    }
 
 type AutocompleteMod = ACQuery String
@@ -240,11 +240,11 @@ type alias FlagFunction = { name: Name
 
 
 type alias Flags =
-  {
-    state: Maybe Editor
+  { editorState: Maybe Editor
   , complete: List FlagFunction
   }
 
 -- Values that we serialize
-type alias Editor = {}
+type alias Editor = { openNodes : List Int
+                    }
 

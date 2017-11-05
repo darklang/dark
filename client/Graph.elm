@@ -407,12 +407,22 @@ deleteNode m id =
 -- Graph tidying
 --------------------------
 
-tidyGraph : Model -> Maybe ID -> Model
-tidyGraph m focus =
+toggleOpenNode : Model -> ID -> Model
+toggleOpenNode m id =
+  if isOpenNode m id
+  then { m | openNodes = List.filter ((/=) id) m.openNodes }
+  else { m | openNodes = id :: m.openNodes }
+
+isOpenNode : Model -> ID -> Bool
+isOpenNode m id =
+  List.member id m.openNodes
+
+tidyGraph : Model -> Model
+tidyGraph m =
   let m2 = { m | nodes = m.savedNodes } in
   m2
-  |> collapseIfs focus
-  |> collapseArgsWithSoloChildren focus
+  |> collapseIfs
+  |> collapseArgsWithSoloChildren
   |> reposition
 
 
@@ -442,16 +452,18 @@ removeArg m arg =
       toUpdate = newChild
   in (toRemove, toUpdate)
 
-collapseArgsWithSoloChildren : Maybe ID -> Model -> Model
-collapseArgsWithSoloChildren focus m =
-  let focused = Maybe.withDefault (ID -1) focus
-      isHideable n = outgoingNodes m n |> List.length |> (==) 1
+collapseArgsWithSoloChildren : Model -> Model
+collapseArgsWithSoloChildren m =
+  let isHideable n = outgoingNodes m n |> List.length |> (==) 1
       (toRemove, toUpdate) = m.nodes
                              |> Dict.values
                              |> List.filter N.isArg
                              -- args
                              |> List.filter isHideable
-                             |> List.filter (\arg -> List.all (\n -> n.id /= focused) (arg :: connectedNodes m arg))
+                             |> List.filter (\arg ->
+                                  List.all
+                                    (\n -> isOpenNode m n.id |> not)
+                                    (arg :: connectedNodes m arg))
                              |> List.map (removeArg m)
                              |> List.unzip
   in updateAndRemove m toUpdate toRemove
@@ -470,14 +482,14 @@ collapseArgsWithSoloChildren focus m =
 --    /
 --  if          becomes  (if 5 == 0) where "5 == 0" is the face of the if.
 --
-collapseIfs : Maybe ID -> Model -> Model
+collapseIfs : Model -> Model
 -- TODO: propagate rooted-ness (ie.
-collapseIfs focus m =
+collapseIfs m =
   let ifs = m.nodes
             |> Dict.values
             |> List.filter (\n -> n.name == "if")
-            |> List.filter (\n -> focus /= Just (n.id))
-      toCollapse = collapsableIfs focus m ifs
+            |> List.filter (\n -> isOpenNode m n.id |> not)
+      toCollapse = collapsableIfs m ifs
       toHide = toCollapse |> Dict.keys
       ifs2hidden = toCollapse
                    |> Dict.toList  -- to k,v assoc list
@@ -538,19 +550,17 @@ redirectEdges ids2hide _ node =
       { node | arguments = newArgs }
 
 
-collapsableIfs : Maybe ID -> Model -> List Node -> Dict Int Int
-collapsableIfs focus m ns =
+collapsableIfs : Model -> List Node -> Dict Int Int
+collapsableIfs m ns =
   ns
   |> List.filterMap (\n ->
     let ancestors = collapsableAncestors m n
-    in case (focus, ancestors) of
-         (_, []) -> Nothing
-         (Just focus, ps) ->
+    in case ancestors of
+         ps ->
            -- dont collapse when an involved node is focused
-           if List.member (deID focus) (List.map Tuple.first ps)
+           if List.any (isOpenNode m) (List.map (Tuple.first >> ID) ps)
            then Nothing
-           else Just ps
-         (_, ps) -> Just ps)
+           else Just ps)
   |> List.concat
   |> Dict.fromList
 

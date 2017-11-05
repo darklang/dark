@@ -60,8 +60,8 @@ flag2function fn =
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
-init {state, complete} location =
-  let editor = case state of
+init {editorState, complete} location =
+  let editor = case editorState of
             Just e -> e
             Nothing -> Defaults.defaultEditor
       tests = case parseVariantTestsFromQueryString location.search of
@@ -212,7 +212,7 @@ updateMod origm mod (m, cmd) =
         _ -> m ! []
       Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
-    (G.tidyGraph newm (Selection.getCursorID newm.state), Cmd.batch [cmd, newcmd])
+    (G.tidyGraph newm, Cmd.batch [cmd, newcmd])
 
 
 update_ : Msg -> Model -> Modification
@@ -263,7 +263,7 @@ update_ msg m =
               Key.Nine -> reenter m id 8
               Key.Zero -> reenter m id 9
               Key.Escape -> Deselect
-              Key.Tab -> Error <| "Got a tab key"
+              Key.Tab -> ModelMod (\m -> G.toggleOpenNode m id)
               code -> Selection.selectByLetter m code
 
           Entering re cursor ->
@@ -375,7 +375,7 @@ update_ msg m =
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
       let m2 = { m | savedNodes = nodes, nodes = nodes }
-          m3 = G.tidyGraph m2 (Selection.getCursorID m2.state)
+          m3 = G.tidyGraph m2
       in Many [ ModelMod (\_ -> m3)
               , AutocompleteMod ACReset
               , ClearError

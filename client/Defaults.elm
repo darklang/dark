@@ -29,10 +29,11 @@ unsetInt : Int
 unsetInt = 12345678
 
 defaultEditor : Editor
-defaultEditor = {}
+defaultEditor = { openNodes = []
+                }
 
 model2editor : Model -> Editor
-model2editor m = {}
+model2editor m = {openNodes = List.map deID m.openNodes}
 
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
@@ -43,11 +44,11 @@ defaultModel e = { nodes = Dict.empty
                  , lastMod = NoChange
                  , center = {x=initialPos.vx, y=initialPos.vy}
                  , tests = []
-                 -- editor TODO
+                 -- editor
+                 , openNodes = List.map ID e.openNodes
                  -- these load before the graph does, causing
                  -- exceptions. We'll need to only run these after the
                  -- graph loads
                  , complete = Autocomplete.empty
-                 , tempFieldName = ""
                  , state = Deselected
                  }
