@@ -200,6 +200,7 @@ type Modification = Error String
                   | Deselect
                   | Enter IsReentering EntryCursor -- reenter?
                   | RPC (List RPC, Focus)
+                  | SetCenter Pos
                   | ModelMod (Model -> Model)
                   | NoChange
                   | MakeCmd (Cmd Msg)

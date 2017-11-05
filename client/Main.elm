@@ -196,6 +196,8 @@ updateMod origm mod (m, cmd) =
                     m.center -- dont move
         }
         ! [Entry.focusEntry]
+      SetCenter c ->
+        { m | center = c } ! []
       Drag id offset hasMoved state ->
         { m | state = Dragging id offset hasMoved state } ! []
       ModelMod mm -> mm m ! []
@@ -212,6 +214,8 @@ updateMod origm mod (m, cmd) =
         _ -> m ! []
       Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
+      -- TODO: dragging is broken because we tidy (hence reposition) the
+      -- new graph every update
     (G.tidyGraph newm (Selection.getCursorID newm.state), Cmd.batch [cmd, newcmd])
 
 
@@ -300,10 +304,10 @@ update_ msg m =
           Deselected ->
             case event.keyCode of
               Key.Enter -> Entry.createFindSpace m
-              Key.Up -> ModelMod Viewport.moveUp
-              Key.Down -> ModelMod Viewport.moveDown
-              Key.Left -> ModelMod Viewport.moveLeft
-              Key.Right -> ModelMod Viewport.moveRight
+              Key.Up -> SetCenter <| Viewport.moveUp m.center
+              Key.Down -> SetCenter <| Viewport.moveDown m.center
+              Key.Left -> SetCenter <| Viewport.moveLeft m.center
+              Key.Right -> SetCenter <| Viewport.moveRight m.center
               _ -> Selection.selectByLetter m event.keyCode
 
           Dragging _ _ _ _ -> NoChange

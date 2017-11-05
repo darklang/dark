@@ -14,18 +14,18 @@ toAbsolute m pos =
   let d = Defaults.defaultModel {} |> .center in
   { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.y}
 
-moveUp : Model -> Model
-moveUp m =
-  { m | center = {x=m.center.x, y=m.center.y - Defaults.moveSize }}
+moveUp : Pos -> Pos
+moveUp c =
+  {x=c.x, y=c.y - Defaults.moveSize }
 
-moveDown : Model -> Model
-moveDown m =
-  { m | center = {x=m.center.x, y=m.center.y + Defaults.moveSize }}
+moveDown : Pos -> Pos
+moveDown c =
+  {x=c.x, y=c.y + Defaults.moveSize }
 
-moveLeft : Model -> Model
-moveLeft m =
-  { m | center = {x=m.center.x - Defaults.moveSize, y=m.center.y }}
+moveLeft : Pos -> Pos
+moveLeft c =
+  {x=c.x - Defaults.moveSize, y=c.y }
 
-moveRight : Model -> Model
-moveRight m =
-  { m | center = {x=m.center.x + Defaults.moveSize, y=m.center.y }}
+moveRight : Pos -> Pos
+moveRight c =
+  {x=c.x + Defaults.moveSize, y=c.y }
