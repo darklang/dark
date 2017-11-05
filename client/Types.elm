@@ -169,8 +169,8 @@ type AutocompleteItem = ACFunction Function
 
 type VariantTest = StubVariant
 
-type alias Model = { savedNodes : NodeDict
-                   , nodes : NodeDict
+type alias Model = { backingNodes : NodeDict -- the actual nodes
+                   , nodes : NodeDict -- the transformed view nodes
                    , phantoms : NodeDict
                    , center : Pos
                    , error : Maybe String
@@ -201,7 +201,8 @@ type Modification = Error String
                   | Enter IsReentering EntryCursor -- reenter?
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
-                  | ModelMod (Model -> Model)
+                  | SetBackingNodes NodeDict
+                  | SetViewNodes NodeDict
                   | SetPhantoms NodeDict
                   | NoChange
                   | MakeCmd (Cmd Msg)

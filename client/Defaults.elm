@@ -36,7 +36,7 @@ model2editor m = {}
 
 defaultModel : Editor -> Model
 defaultModel e = { nodes = Dict.empty
-                 , savedNodes = Dict.empty
+                 , backingNodes = Dict.empty
                  , phantoms = Dict.empty
                  , error = Nothing
                  , lastMsg = Initialization

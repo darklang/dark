@@ -159,6 +159,10 @@ selectCenter old new =
   in
       { x = newX, y = newY }
 
+recalculateView : Model -> Model
+recalculateView m =
+  G.tidyGraph m (Selection.getCursorID m.state)
+
 updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
   -- if you ever have a node in here, you're doing it wrong. Use an ID.
@@ -176,15 +180,19 @@ updateMod origm mod (m, cmd) =
           _ -> m ! []
       NoChange -> m ! []
       MakeCmd cmd -> m ! [cmd]
-      SetState state -> { m | state = state } ! []
+      SetState state ->
+        -- DOES NOT RECALCULATE VIEW
+        { m | state = state } ! []
       Select id ->
         let n = G.getNodeExn m id in
-        { m | state = Selecting id
+        recalculateView
+        ({ m | state = Selecting id
             , center = if G.hasRelativePos n
                        then m.center
-                       else G.pos m n |> selectCenter origm.center} ! []
+                       else G.pos m n |> selectCenter origm.center}) ! []
       Enter re entry ->
-        { m | state = Entering re entry
+        recalculateView
+        ({ m | state = Entering re entry
             , center =
                 case entry of
                   Filling id _ ->
@@ -194,15 +202,20 @@ updateMod origm mod (m, cmd) =
                     else selectCenter origm.center (G.pos m n)
                   Creating p ->
                     m.center -- dont move
-        }
+        })
         ! [Entry.focusEntry]
       SetCenter c ->
         { m | center = c } ! []
       SetPhantoms ps ->
         { m | phantoms = ps } ! []
+      SetBackingNodes nodes ->
+        (recalculateView { m | backingNodes = nodes }) ! []
+      SetViewNodes nodes ->
+        -- viewNodes are pretty temporary. They get overwritten on state
+        -- changes, backing node changes, and probably other changes too.
+        { m | nodes = nodes } ! []
       Drag id offset hasMoved state ->
         { m | state = Dragging id offset hasMoved state } ! []
-      ModelMod mm -> mm m ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
         let complete = Autocomplete.update mod m.complete
@@ -216,9 +229,7 @@ updateMod origm mod (m, cmd) =
         _ -> m ! []
       Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
-      -- TODO: dragging is broken because we tidy (hence reposition) the
-      -- new graph every update
-    (G.tidyGraph newm (Selection.getCursorID newm.state), Cmd.batch [cmd, newcmd])
+    (newm, Cmd.batch [cmd, newcmd])
 
 
 update_ : Msg -> Model -> Modification
@@ -344,7 +355,7 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               (m2, _) = G.moveSubgraph m id xDiff yDiff in
-          Many [ ModelMod (always m2)
+          Many [ SetViewNodes m2.nodes
                -- update the drag so we offset correctly next time
                , Drag id {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
@@ -359,9 +370,11 @@ update_ msg m =
               let xDiff = event.pos.vx-startVPos.vx
                   yDiff = event.pos.vy-startVPos.vy
                   (m2, root) = G.moveSubgraph m id xDiff yDiff in
-                Many [ ModelMod (always m2)
-                     , SetState origState
-                     , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
+                Many
+                  [ -- final x/y update, tiny diff like in DragNodeMove
+                    SetViewNodes m2.nodes
+                  , SetState origState
+                  , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
             else Select id
           _ -> Debug.crash "it can never not be dragging"
       else NoChange
@@ -380,21 +393,23 @@ update_ msg m =
       Many [ RandomGraph.makeRandomChange m, Deselect]
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
-      let m2 = { m | savedNodes = nodes, nodes = nodes }
-          m3 = G.tidyGraph m2 (Selection.getCursorID m2.state)
-      in Many [ ModelMod (\_ -> m3)
+      let m2 = { m | backingNodes = nodes, nodes = nodes }
+          m3 = recalculateView m2
+          -- we should calculate this later, but we can't right now
+          newState =
+            case focus of
+              FocusNext id -> enterNext m3 (G.getNodeExn m3 id)
+              FocusExact id -> enterExact m3 (G.getNodeExn m3 id)
+              FocusSame ->
+                case m.state of
+                  Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
+                  _ -> NoChange
+              FocusNothing -> Deselect
+
+      in Many [ SetBackingNodes nodes
               , AutocompleteMod ACReset
               , ClearError
-              -- focus should be valid after tidy graph because we make
-              -- sure not to delete it.
-              , case focus of
-                  FocusNext id -> enterNext m3 (G.getNodeExn m3 id)
-                  FocusExact id -> enterExact m3 (G.getNodeExn m3 id)
-                  FocusSame ->
-                    case m.state of
-                      Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
-                      _ -> NoChange
-                  FocusNothing -> Deselect
+              , newState
               ]
 
     (PhantomCallBack _ _ (Ok (nodes)), _) ->

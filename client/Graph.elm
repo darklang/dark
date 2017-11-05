@@ -409,7 +409,7 @@ deleteNode m id =
 
 tidyGraph : Model -> Maybe ID -> Model
 tidyGraph m focus =
-  let m2 = { m | nodes = m.savedNodes } in
+  let m2 = { m | nodes = m.backingNodes } in
   m2
   |> collapseIfs focus
   |> collapseArgsWithSoloChildren focus
