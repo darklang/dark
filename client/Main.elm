@@ -60,8 +60,8 @@ flag2function fn =
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
-init {state, complete} location =
-  let editor = case state of
+init {editorState, complete} location =
+  let editor = case editorState of
             Just e -> e
             Nothing -> Defaults.defaultEditor
       tests = case parseVariantTestsFromQueryString location.search of
@@ -159,10 +159,6 @@ selectCenter old new =
   in
       { x = newX, y = newY }
 
-recalculateView : Model -> Model
-recalculateView m =
-  G.tidyGraph m (Selection.getCursorID m.state)
-
 updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
   -- if you ever have a node in here, you're doing it wrong. Use an ID.
@@ -185,13 +181,13 @@ updateMod origm mod (m, cmd) =
         { m | state = state } ! []
       Select id ->
         let n = G.getNodeExn m id in
-        recalculateView
+        G.recalculateView
         ({ m | state = Selecting id
             , center = if G.hasRelativePos n
                        then m.center
                        else G.pos m n |> selectCenter origm.center}) ! []
       Enter re entry ->
-        recalculateView
+        G.recalculateView
         ({ m | state = Entering re entry
             , center =
                 case entry of
@@ -209,7 +205,9 @@ updateMod origm mod (m, cmd) =
       SetPhantoms ps ->
         { m | phantoms = ps } ! []
       SetBackingNodes nodes ->
-        (recalculateView { m | backingNodes = nodes }) ! []
+        (G.recalculateView { m | backingNodes = nodes }) ! []
+      ToggleOpenNode id ->
+        G.toggleOpenNode m id ! []
       SetViewNodes nodes ->
         -- viewNodes are pretty temporary. They get overwritten on state
         -- changes, backing node changes, and probably other changes too.
@@ -280,7 +278,7 @@ update_ msg m =
               Key.Nine -> reenter m id 8
               Key.Zero -> reenter m id 9
               Key.Escape -> Deselect
-              Key.Tab -> Error <| "Got a tab key"
+              Key.Tab -> ToggleOpenNode id
               code -> Selection.selectByLetter m code
 
           Entering re cursor ->
@@ -394,7 +392,7 @@ update_ msg m =
 
     (RPCCallBack focus calls (Ok (nodes)), _) ->
       let m2 = { m | backingNodes = nodes, nodes = nodes }
-          m3 = recalculateView m2
+          m3 = G.recalculateView m2
           -- we should calculate this later, but we can't right now
           newState =
             case focus of

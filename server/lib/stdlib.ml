@@ -234,6 +234,21 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "!="
+  ; o = ["notEquals"]
+  ; p = [par "a" TAny; par "b" TAny]
+  ; r = TBool
+  ; d = "Returns true if the two value are not equal"
+  ; f = InProcess
+        (function
+          | [a; b] -> DBool (not (equal_dval a b))
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
   (* ====================================== *)
   (* Bool *)
   (* ====================================== *)

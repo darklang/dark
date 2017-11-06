@@ -149,6 +149,10 @@ Nodes
   color: black;
 }
 
+.node.open {
+  border: 0.5px groove mediumvioletred;
+}
+
 .node.selected .module {
   background: white;
   color: black;

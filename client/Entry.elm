@@ -219,10 +219,8 @@ createNodePositioning m ops =
              (\n1 n2 -> case compare (G.posx m n1) (G.posx m n2) of
                           EQ -> compare (G.posy m n1) (G.posy m n2)
                           a -> a)
-        |> Debug.log "sorted"
         |> List.head
         |> Util.deMaybe
-        |> Debug.log "winner"
   in
     subgraphs
     |> List.map
@@ -288,7 +286,6 @@ createNodePositioning m ops =
               Debug.log "no weird subgraph condition found" []
         )
       |> List.concat
-      |> Debug.log "new ops"
 
 
 -- The graph actions are on the server, the layout is on the client.
@@ -332,7 +329,7 @@ model op mAndBlocks =
           Set.insert id blocks
         _ -> blocks
     newNodes =
-      case Debug.log "op" op of
+      case op of
         AddDatastore (ID id) _ pos ->
           fake id pos Datastore |> update m.nodes
         AddValue (ID id) _ pos ->

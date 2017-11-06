@@ -11,7 +11,6 @@
     function stopTab(event) {
       if (event.keyCode == 9) {
         event.preventDefault();
-        event.stopImmedatePropagation();
       }
       else {
       }
@@ -24,16 +23,16 @@
    <script type="text/javascript">
      complete = ALLFUNCTIONS;
      try {
-       storage = localStorage.getItem('editor');
-       state = JSON.parse(storage);
-       elmapp = Elm.Main.fullscreen({state: state, complete: complete});
+       storage = localStorage.getItem('editorState');
+       editorState = JSON.parse(storage);
+       elmapp = Elm.Main.fullscreen({editorState: editorState, complete: complete});
      }
      catch (e) {
-       console.log("Elm threw when called with " + JSON.stringify(state));
-       elmapp = Elm.Main.fullscreen({state: null, complete: complete});
+       console.log("Elm threw when called with " + JSON.stringify(editorState));
+       elmapp = Elm.Main.fullscreen({editorState: null, complete: complete});
      }
-     elmapp.ports.setStorage.subscribe(function (state) {
-       localStorage.setItem('editor', JSON.stringify(state))
+     elmapp.ports.setStorage.subscribe(function (editorState) {
+       localStorage.setItem('editorState', JSON.stringify(editorState))
      });
     </script>
   </body>
