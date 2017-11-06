@@ -158,6 +158,10 @@ Nodes
   border: 0.5px groove mediumvioletred;
 }
 
+.node.open.selected {
+  border: 1.25px solid mediumvioletred;
+}
+
 .node.selected .module {
   background: white;
   color: black;
