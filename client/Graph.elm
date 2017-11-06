@@ -417,6 +417,11 @@ isOpenNode : Model -> ID -> Bool
 isOpenNode m id =
   List.member id m.openNodes
 
+isCollapsable : Model -> ID -> Bool
+isCollapsable m id =
+  let n = getNodeExn m id in
+    (not <| isOpenNode m id) && (N.isComplete n)
+
 tidyGraph : Model -> Model
 tidyGraph m =
   let m2 = { m | nodes = m.savedNodes } in
@@ -462,7 +467,7 @@ collapseArgsWithSoloChildren m =
                              |> List.filter isHideable
                              |> List.filter (\arg ->
                                   List.all
-                                    (\n -> isOpenNode m n.id |> not)
+                                    (\n -> isCollapsable m n.id)
                                     (arg :: connectedNodes m arg))
                              |> List.map (removeArg m)
                              |> List.unzip
@@ -488,7 +493,7 @@ collapseIfs m =
   let ifs = m.nodes
             |> Dict.values
             |> List.filter (\n -> n.name == "if")
-            |> List.filter (\n -> isOpenNode m n.id |> not)
+            |> List.filter (\n -> isCollapsable m n.id)
       toCollapse = collapsableIfs m ifs
       toHide = toCollapse |> Dict.keys
       ifs2hidden = toCollapse

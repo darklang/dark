@@ -17,6 +17,10 @@ import Util exposing (deMaybe, int2letter, letter2int, deMaybeM)
 gen_id : () -> ID
 gen_id _ = ID (Util.random ())
 
+isComplete : Node -> Bool
+isComplete n =
+  List.all (\(_,a) -> a /= NoArg) n.arguments
+
 isArg : Node -> Bool
 isArg n = n.tipe == Arg
 
