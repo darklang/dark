@@ -12,6 +12,7 @@ import Maybe
 import List.Extra as LE
 import Tuple2 as T2
 import Dict.Extra as DE
+import Maybe.Extra as ME
 
 -- dark
 import Node as N
@@ -581,36 +582,50 @@ collapsableAncestors m ifnode =
                          |> List.filter (\n -> n /= ifnode)
             in
             case (incomingNodes m parent, children, isRoot parent) of
-              ([x], [], False) -> [(deID <| parent.id, ifID)]
-              ([], [], False)  -> [(deID <| parent.id, ifID)]
-              _   -> []
-          _ -> []
-      grandparent =
+              ([x], [], False) -> Just parent
+              ([], [], False)  -> Just parent
+              _   -> Nothing
+          _ -> Nothing
+      soleGrandparent =
+        case parent of
+          Nothing -> Nothing
+          Just p ->
+            case incomingNodes m p of
+              [grandparent] -> Just grandparent
+              _   -> Nothing
+      collapsableGp =
         -- we want to collapse the `if`'s grandparent iff:
         -- 1) it has no children that are not direct parents of `if`
         -- 2) it has either 0 parents, OR if it has a parent that it only has
         -- 1 parent and that parent is also a parent of `if`
-        case parent of
-          [] -> []
-          [(pID, _)] ->
-            let p = getNodeExn m (ID pID) in
-            case incomingNodes m p of
-              [grandparent] ->
-                let otherKids = outgoingNodes m grandparent
-                              |> List.filter (\n -> n /= p)
+        case soleGrandparent of
+          Nothing -> Nothing
+          Just gp ->
+            let otherKids = outgoingNodes m gp
+                          |> List.filter (\n -> n /= (deMaybe parent))
+                          |> List.length
+                otherParents = incomingNodes m gp
+                              |> List.filter (\n -> not (List.member n parentsOfIf))
                               |> List.length
-                    otherParents = incomingNodes m grandparent
-                                 |> List.filter (\n -> not (List.member n parentsOfIf))
-                                 |> List.length
-                in if otherKids + otherParents == 0
-                    && N.isPrimitive grandparent && isNotRoot grandparent
-                   then
-                     [(deID <| grandparent.id, ifID)]
-                   else
-                     []
-              _   -> [] -- wildcard for the `case incomingNodes m p`
-          _ -> [] -- wildcard for `case parent`
-  in parent ++ grandparent
+            in if otherKids + otherParents == 0
+                && N.isPrimitive gp && isNotRoot gp
+                then
+                  Just gp
+                else
+                  Nothing
+      -- don't collapse the parent if sole grandparent
+      -- exists but isn't collapsable.
+      collapsableParent =
+        case (soleGrandparent, collapsableGp) of
+          (Just gp, Nothing) -> Nothing
+          _ -> parent
+      toTuple ancestor =
+        case ancestor of
+          Just a -> Just (deID <| a.id, ifID)
+          Nothing -> Nothing
+      pTuple = toTuple collapsableParent
+      gpTuple = toTuple collapsableGp
+  in (ME.toList pTuple) ++ (ME.toList gpTuple)
 
 -------------------------------------
 -- Repositioning. Here be dragons
