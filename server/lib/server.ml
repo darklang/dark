@@ -54,10 +54,20 @@ let server =
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
-    let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) =
+    let form_parser form =
+      form |> Uri.query_of_encoded |> RT.query_to_dval
+    in
+
+    let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) (ctype: string) =
       let g = G.load host [] in
       let gfns = G.gfns !g in
       let is_get = C.Code.method_of_string "GET" = verb in
+      let _  = print_endline ctype in
+      let body_parser =
+        match ctype with
+        | "application/json" -> RT.parse
+        | "application/x-www-form-urlencoded" -> let _ = (print_endline "here") in form_parser
+        | _ -> RT.parse in
       let pages = if is_get
                   then G.page_GETs !g
                   else G.page_POSTs !g in
@@ -73,7 +83,7 @@ let server =
           ~status:`OK
           ~body:(let body_dval = if body = ""
                                  then RT.DNull
-                                 else RT.parse body in
+                                 else body_parser body in
                  let uri_dval = RT.query_to_dval (Uri.query uri) in
                  let scope_dval = RT.obj_merge body_dval uri_dval in
                  let scope = RT.Scope.singleton page#id scope_dval in
@@ -103,7 +113,12 @@ let server =
          try
            let uri = req |> Request.uri in
            let verb = req |> Request.meth in
-           (* let headers = req |> Request.headers |> Header.to_string in *)
+           let headers = req |> Request.headers in
+           let content_type =
+             match Header.get headers "content-type" with
+             | None -> "unknown"
+             | Some v -> v
+           in
            (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
            let domain = Uri.host uri |> Option.value ~default:"" in
@@ -135,11 +150,11 @@ let server =
            | "/admin/api/save_test" ->
              save_test_handler domain
            | p when (String.length p) < 8 ->
-             user_page_handler domain verb req_body uri
+             user_page_handler domain verb req_body uri content_type
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
              static_handler uri
            | _ ->
-             user_page_handler domain verb req_body uri
+             user_page_handler domain verb req_body uri content_type
          with
          | e ->
            let backtrace = Exn.backtrace () in

@@ -250,8 +250,8 @@ let query_to_dval (query: (string * string list) list) : dval =
                    let dval =
                      match vals with
                      | [] -> DNull
-                     | [v] -> if v = "" then DNull else parse v
-                     | vals -> DList (List.map ~f:parse vals)
+                     | [v] -> if v = "" then DNull else DStr v
+                     | vals -> DList (List.map ~f:(fun x -> DStr x) vals)
                    in (key, dval))
   |> DvalMap.of_alist_exn
   |> fun x -> DObj x
