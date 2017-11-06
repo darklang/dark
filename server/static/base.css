@@ -135,6 +135,11 @@ Nodes
   display: block;
 }
 
+/* NODEWIDTH:
+ * If you change the width of the node in any way, you need to go fix
+ * client/Node.elm:nodeWidth, which tried to copy the render exactly.
+ * This includes font, font width, padding, margin, border, etc, if it
+ * affects width at all */
 .node {
   cursor: default;
   box-sizing: border-box;

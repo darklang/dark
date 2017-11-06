@@ -83,25 +83,30 @@ ppModName mn =
 nodeWidth : Node -> Int
 nodeWidth n =
   let
-    space = 4.5
+    -- this was originally written for a font with kerning. We're now
+    -- using monospace so it doesn't matter, but leaving it in in case
+    -- we switch back in the near future.
+    modulePadding = 12.0
+    fnPadding = 4.0
     fours = Set.fromList ['i', 'l', '[', ',', ']', 'l', ':', '.', ' ', ',', '{', '}']
     fives = Set.fromList ['I', 't', Char.fromCode 34 ] -- '"'
     namelen name =
       let (mdName, fnName) = parseNodeName name
           mnRepr = mdName
-          |> Maybe.map ppModName
-          |> Maybe.withDefault ""
-          length = len (mnRepr ++ fnName)
-      in if String.length mnRepr == 0 then length else length + (3 * space)
+                   |> Maybe.map ppModName
+                   |> Maybe.withDefault ""
+      in if mnRepr == ""
+         then len fnName
+         else len mnRepr + modulePadding + len fnName
     len name = name
              |> String.toList
              |> List.map (\c -> if c == ' '
-                                then 4.5
+                                then 8.4
                                 else if Set.member c fours
-                                     then 4.5
+                                     then 8.4
                                      else if Set.member c fives
-                                          then 7.0
-                                          else 9.5)
+                                          then 8.4
+                                          else 8.4)
              |> List.sum
     faceLen = len n.face
     paramLen =  if faceLen > 0
@@ -109,19 +114,22 @@ nodeWidth n =
                 else
                   n.arguments
                   |> List.map (\(p, a) ->
-                    if p.tipe == TBlock then -space -- remove spaces
+                    if p.tipe == TBlock then 0
                     else
                       case a of
-                        Const c -> if c == "null" then 8 else (len c)
-                        _ -> 16)
+                        -- fonts are 90% on consts, 80% on args
+                        Const "null" -> 8.4 * 8.4 * 0.9
+                        Const c -> (len c + 8.4) * 0.9
+                        -- target + space, which is shrunk
+                        _ -> 17.91)
                   |> List.sum
     -- nameMultiple = case n.tipe of
     --                  Datastore -> 2
     --                  Page -> 2.2
     --                  _ -> 1
-    width = 6.0 + namelen n.name + paramLen + (n.arguments |> List.length |> toFloat |> (+) 0.5 |> (*) space)
+    width = 4.0 + fnPadding + namelen n.name + paramLen
   in
-    round(width)
+    ceiling(width)
 
 nodeHeight : Node -> Int
 nodeHeight n =
