@@ -109,7 +109,7 @@ let server =
            let domain = Uri.host uri |> Option.value ~default:"" in
            let domain = match String.split domain '.' with
            | ["localhost"] -> "localhost"
-           | [a; "localhost"] -> a
+           | a :: rest -> a
            | _ -> failwith @@ "Unsupported domain: " ^ domain in
 
            Log.pP "req: " (domain, C.Code.string_of_method verb, uri);
