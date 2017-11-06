@@ -210,7 +210,7 @@ updateMod origm mod (m, cmd) =
       SetBackingNodes nodes ->
         (G.recalculateView { m | backingNodes = nodes }) ! []
       ToggleOpenNode id ->
-        G.toggleOpenNode m id ! []
+        (G.recalculateView <| G.toggleOpenNode m id) ! []
       SetViewNodes nodes ->
         -- viewNodes are pretty temporary. They get overwritten on state
         -- changes, backing node changes, and probably other changes too.
