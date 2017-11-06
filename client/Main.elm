@@ -116,8 +116,11 @@ reenter m id i =
 -- Enter this exact node
 enterExact : Model -> Node -> Modification
 enterExact m selected =
-  Filling selected.id (G.findHole selected)
-  |> cursor2mod m
+  if G.outgoingNodes m selected |> List.isEmpty
+  then
+    Filling selected.id (G.findHole selected)
+    |> cursor2mod m
+  else Select selected.id
 
 -- Enter the next needed node, searching from here
 enterNext : Model -> Node -> Modification

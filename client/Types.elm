@@ -198,7 +198,7 @@ type Modification = Error String
                   | ClearError
                   | Select ID
                   | Deselect
-                  | Enter IsReentering EntryCursor -- reenter?
+                  | Enter IsReentering EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
                   | SetBackingNodes NodeDict
