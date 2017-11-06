@@ -236,7 +236,7 @@ oneLetterFnName : Parser String
 oneLetterFnName = token "oneLetterFnName" identity "[%&\\*\\-_\\+/><=]"
 
 twoLetterFnName : Parser String
-twoLetterFnName = token "twoLetterFnName" identity "==|<=|>=|&&|\\|\\|"
+twoLetterFnName = token "twoLetterFnName" identity "==|<=|!=|>=|&&|\\|\\|"
 
 longFnName : Parser String
 longFnName = token "longFnName" identity "[a-zA-Z][0-9a-zA-Z:!@#%&\\*\\-_\\+\\|/\\?><=]*"
