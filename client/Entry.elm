@@ -105,7 +105,8 @@ updatePreviewCursor m id step =
 refocus : Bool -> Focus -> Focus
 refocus re default =
   case default of
-    FocusNext id -> if re then FocusExact id else FocusNext id
+    FocusNext id -> if re then Refocus id else default
+    FocusExact id -> if re then Refocus id else default
     f -> f
 
 

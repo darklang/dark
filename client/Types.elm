@@ -133,6 +133,7 @@ type Msg
     | Initialization
 
 type Focus = FocusNothing -- deselect
+           | Refocus ID
            | FocusExact ID
            | FocusNext ID
            | FocusSame -- unchanged

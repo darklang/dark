@@ -113,9 +113,16 @@ reenter m id i =
           Const c -> Many [ enter
                           , AutocompleteMod (ACQuery c)]
 
--- Enter this exact node
+-- Enter this exact node. If there's no ParamHole use ResultHole
 enterExact : Model -> Node -> Modification
 enterExact m selected =
+  let hole = G.findHole selected in
+  Filling selected.id hole
+  |> cursor2mod m
+
+-- Enter node and if there's no hole for it, Select instead
+reenterNode : Model -> Node -> Modification
+reenterNode m selected =
   let hole = G.findHole selected in
   if (hole == ResultHole selected.id)
      && (G.outgoingNodes m selected |> List.isEmpty |> not)
@@ -402,6 +409,7 @@ update_ msg m =
           newState =
             case focus of
               FocusNext id -> enterNext m3 (G.getNodeExn m3 id)
+              Refocus id -> reenterNode m3 (G.getNodeExn m3 id)
               FocusExact id -> enterExact m3 (G.getNodeExn m3 id)
               FocusSame ->
                 case m.state of
