@@ -332,8 +332,10 @@ placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> 
 placeNode m n width attrs classes header body =
   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
       selectedCl = if Selection.isSelected m n then ["selected"] else []
+      openCl = if G.isOpenNode m n.id then ["open"] else []
       class = String.toLower (toString n.tipe)
-      classStr = String.join " " (["node", class] ++ [n.name] ++ selectedCl ++ classes)
+      classStr = String.join " "
+        (["node", class, n.name] ++ selectedCl ++ openCl ++ classes)
       node = Html.div
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
