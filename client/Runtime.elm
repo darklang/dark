@@ -24,6 +24,10 @@ isBool s = String.toLower s == "true" || String.toLower s == "false"
 isChar : String -> Bool
 isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s "\'"
 
+isCompatible : Tipe -> Tipe -> Bool
+isCompatible t1 t2 =
+  t1 == TAny || t2 == TAny || t1 == t2
+
 
 tipe2str : Tipe -> String
 tipe2str t =

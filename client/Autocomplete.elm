@@ -178,7 +178,7 @@ variablesForType : NodeList -> Tipe -> List AutocompleteItem
 variablesForType ns t =
     ns
       |> List.indexedMap (,)
-      |> List.filter (\(_, n) -> n.liveValue.tipe == t)
+      |> List.filter (\(_, n) -> RT.isCompatible t n.liveValue.tipe)
       |> List.map (\(i, n) -> (int2letter i, n))
       |> List.map ACVariable
 
@@ -218,7 +218,9 @@ regenerate a =
         a.functions
         |> List.filter
            (\{returnTipe} ->
-              a.tipe == Nothing || (a.tipe) == Just returnTipe)
+              case a.tipe of
+                Just t -> RT.isCompatible returnTipe t
+                Nothing -> True)
         |> List.filter
           (\fn ->
              case a.liveValue of
@@ -268,8 +270,7 @@ update mod a =
 findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
   parameters
-  |> LE.find (\p -> p.tipe == tipe || p.tipe == TAny)
-  -- |> ME.prev (LE.find (\p -> p.tipe == TAny) parameters)
+  |> LE.find (\p -> RT.isCompatible p.tipe tipe)
 
 findFirstParam : Function -> Maybe Parameter -> Maybe Parameter
 findFirstParam {parameters} except =
