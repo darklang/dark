@@ -62,11 +62,10 @@ let server =
       let g = G.load host [] in
       let gfns = G.gfns !g in
       let is_get = C.Code.method_of_string "GET" = verb in
-      let _  = print_endline ctype in
       let body_parser =
         match ctype with
         | "application/json" -> RT.parse
-        | "application/x-www-form-urlencoded" -> let _ = (print_endline "here") in form_parser
+        | "application/x-www-form-urlencoded" -> form_parser
         | _ -> RT.parse in
       let pages = if is_get
                   then G.page_GETs !g
