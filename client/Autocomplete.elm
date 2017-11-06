@@ -9,6 +9,7 @@ import Task
 -- lib
 import List.Extra as LE
 import Maybe.Extra as ME
+import String.Extra as SE
 
 -- dark
 import Util exposing (deMaybe, int2letter, letter2int)
@@ -144,7 +145,7 @@ asTypeString item =
                       |> List.filter ME.isJust
                       |> List.map deMaybe
                       |> String.join " "
-                      |> (\s -> "[" ++ n.name ++ " " ++ s ++ "] -> " ++ n.liveValue.value)
+                      |> (\s -> "[" ++ n.name ++ " " ++ s ++ "] -> " ++ (n.liveValue.value |> SE.ellipsis 20))
 
 asString : AutocompleteItem -> String
 asString aci =
