@@ -116,11 +116,13 @@ reenter m id i =
 -- Enter this exact node
 enterExact : Model -> Node -> Modification
 enterExact m selected =
-  if G.outgoingNodes m selected |> List.isEmpty
-  then
-    Filling selected.id (G.findHole selected)
+  let hole = G.findHole selected in
+  if (hole == ResultHole selected.id)
+     && (G.outgoingNodes m selected |> List.isEmpty |> not)
+  then Select selected.id
+  else
+    Filling selected.id hole
     |> cursor2mod m
-  else Select selected.id
 
 -- Enter the next needed node, searching from here
 enterNext : Model -> Node -> Modification
