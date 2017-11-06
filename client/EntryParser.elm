@@ -233,7 +233,7 @@ fnName : Parser String
 fnName = oneOf [ twoLetterFnName, oneLetterFnName, longFnName ]
 
 oneLetterFnName : Parser String
-oneLetterFnName = token "oneLetterFnName" identity "[%&\\*\\-_\\+/><=]"
+oneLetterFnName = token "oneLetterFnName" identity "[%\\^&\\*\\-_\\+/><=]"
 
 twoLetterFnName : Parser String
 twoLetterFnName = token "twoLetterFnName" identity "==|<=|!=|>=|&&|\\|\\|"

@@ -2,6 +2,8 @@ open Core
 open Runtime
 open Lib
 
+module B = Batteries
+
 let list_repeat = Util.list_repeat
 
 let list_preview =
@@ -143,6 +145,20 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "^"
+  ; o = ["Int::pow"]
+  ; p = [par "a" TInt ; par "b" TInt]
+  ; r = TInt
+  ; d = "Raise a to the bth power"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (B.Int.pow a b)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
 
   { n = "/"
   ; o = ["Int::divide"]
@@ -229,6 +245,99 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; pu = false
+  }
+  ;
+
+  { n = "Int::sqrt"
+  ; o = []
+  ; p = [par "a" TInt]
+  ; r = TFloat
+  ; d = "Get the square root of an Int"
+  ; f = InProcess
+        (function
+          | [DInt a] -> DFloat (float_of_int a |> sqrt)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "Int::toFloat"
+  ; o = []
+  ; p = [par "a" TInt]
+  ; r = TFloat
+  ; d = "Converts an Int to a Float"
+  ; f = InProcess
+        (function
+          | [DInt a] -> DFloat (float a)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+  (* ====================================== *)
+  (* Floats *)
+  (* ====================================== *)
+
+
+  { n = "Float::ceiling"
+  ; o = []
+  ; p = [par "a" TFloat]
+  ; r = TInt
+  ; d = "Round above to an integer value"
+  ; f = InProcess
+        (function
+          | [DFloat a] -> DInt (Float.round_up a |> int_of_float)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "Float::floor"
+  ; o = []
+  ; p = [par "a" TFloat]
+  ; r = TInt
+  ; d = "Round down to an integer value"
+  ; f = InProcess
+        (function
+          | [DFloat a] -> DInt (Float.round_down a |> int_of_float)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "Float::round"
+  ; o = []
+  ; p = [par "a" TFloat]
+  ; r = TInt
+  ; d = "Round to nearest integer value"
+  ; f = InProcess
+        (function
+          | [DFloat a] -> DInt (Float.round a |> int_of_float)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "Float::sqrt"
+  ; o = []
+  ; p = [par "a" TFloat]
+  ; r = TFloat
+  ; d = "Get the square root of a float"
+  ; f = InProcess
+        (function
+          | [DFloat a] -> DFloat (sqrt a)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
   }
   ;
 
