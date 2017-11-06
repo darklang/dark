@@ -43,6 +43,23 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "Dict::values"
+  ; o = []
+  ; p = [par "dict" TObj]
+  ; r = TList
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DObj o] -> DList (DvalMap.data o)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+
+
   { n = "."
   ; o = ["get_field"]
   ; p = [par "value" TObj; par "fieldname" TStr]
