@@ -218,6 +218,21 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "Int::random"
+  ; o = []
+  ; p = [par "a" TInt ; par "b" TInt]
+  ; r = TInt
+  ; d = "Returns a random integer between a and b (inclusive)"
+  ; f = InProcess
+        (function
+          | [DInt a; DInt b] -> DInt (a + (Random.int (b - a)))
+          | args -> fail args)
+  ; pr = None
+  ; pu = false
+  }
+  ;
+
+
   (* ====================================== *)
   (* Any *)
   (* ====================================== *)
