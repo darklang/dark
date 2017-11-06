@@ -328,14 +328,19 @@ viewNode m n i =
       header
       [heading]
 
+escapeCSSName : String -> String
+escapeCSSName s =
+  Util.replace "[^0-9a-zA-Z_-]" "_" s
+
 placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> List (Html.Html Msg) -> Html.Html Msg
 placeNode m n width attrs classes header body =
   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
       selectedCl = if Selection.isSelected m n then ["selected"] else []
       openCl = if G.isOpenNode m n.id then ["open"] else []
       class = String.toLower (toString n.tipe)
+      nameCl = n.name |> escapeCSSName
       classStr = String.join " "
-        (["node", class, n.name] ++ selectedCl ++ openCl ++ classes)
+        (["node", class, nameCl] ++ selectedCl ++ openCl ++ classes)
       node = Html.div
                 (width_attr :: (Attrs.class classStr) :: attrs)
                 body
