@@ -71,7 +71,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DObj value; DStr fieldname] ->
             (match DvalMap.find value fieldname with
-             | None -> error
+             | None -> raise_error
                          ("Value has no field named: " ^ fieldname)
                          ~actual:(DObj value)
 

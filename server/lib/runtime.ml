@@ -298,19 +298,21 @@ type fn = { name : string
           }
 
 let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(long="") (short: string) =
- raise
-   (Exception.DarkException
-    { short = short
-    ; long = long
-    ; tipe = "Runtime"
-    ; actual = actual |> dval_to_yojson |> Yojson.Safe.pretty_to_string
-    ; actual_tipe = actual |> tipename
-    ; result = result |> dval_to_yojson |> Yojson.Safe.pretty_to_string
-    ; result_tipe = result |> tipename
-    ; expected = expected
-    ; info = info
-    ; workarounds = workarounds
-    })
+  Exception.DarkException
+  { short = short
+  ; long = long
+  ; tipe = "Runtime"
+  ; actual = actual |> dval_to_yojson |> Yojson.Safe.pretty_to_string
+  ; actual_tipe = actual |> tipename
+  ; result = result |> dval_to_yojson |> Yojson.Safe.pretty_to_string
+  ; result_tipe = result |> tipename
+  ; expected = expected
+  ; info = info
+  ; workarounds = workarounds
+  }
+
+let raise_error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(long="") (short: string) =
+ raise (error ~actual ~result ~info ~expected ~workarounds ~long short)
 
 exception TypeError of dval list
 
@@ -346,7 +348,7 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
                 (fn.name ^ " is missing an argument: " ^ p.name)
 
            | (i,p,a) :: _ ->
-              error
+              raise_error
                 ~actual:a
                 ~expected:(tipe2str p.tipe)
                 (fn.name ^ " was called with the wrong type to parameter: " ^ p.name))
@@ -356,7 +358,7 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
         f args
       with
       | TypeError args ->
-          error (fn.name ^ " is missing a parameter")
+          raise_error (fn.name ^ " is missing a parameter")
             ~expected:(fn.parameters |> List.map ~f:param_to_string |> String.concat ~sep:", ")
             ~actual:DIncomplete
 
