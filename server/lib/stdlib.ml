@@ -1056,9 +1056,9 @@ let fns : Lib.shortfn list = [
 
   { n = "Page::POST"
   ; o = []
-  ; p = [par "url" TStr; par "val" TAny]
-  ; r = TNull
-  ; d = "Create a page at `url` that prints `value`"
+  ; p = [par "url" TStr; par "redir" TStr]
+  ; r = TAny
+  ; d = "Create a page at `url` that optionally redirects to `redir`"
   ; f = InProcess
         (function
           | [DStr url; value] -> value

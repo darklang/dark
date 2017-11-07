@@ -78,22 +78,29 @@ let server =
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
-        S.respond_string
-          ~status:`OK
-          ~body:(let body_dval = if body = ""
-                                 then RT.DNull
-                                 else body_parser body in
-                 let uri_dval = RT.query_to_dval (Uri.query uri) in
-                 let scope_dval = RT.obj_merge body_dval uri_dval in
-                 let scope = RT.Scope.singleton page#id scope_dval in
-                 let result =
-                   if is_get
-                   then G.run_output !g page
-                   (* Posts have values, I guess we should be getting the result from it *)
-                   else (G.run_input !g scope page;
-                         DStr "") in
-                 RT.to_url_string result)
-          ()
+        let body =
+          let body_dval =
+            if body = ""
+            then RT.DNull
+            else body_parser body in
+          let uri_dval = RT.query_to_dval (Uri.query uri) in
+          let scope_dval = RT.obj_merge body_dval uri_dval in
+          let scope = RT.Scope.singleton page#id scope_dval in
+          let result =
+            if is_get
+            then G.run_output !g page
+            (* Posts have values, I guess we should be getting the result from it *)
+            else (G.run_input !g scope page; DStr "") in
+          RT.to_url_string result
+        in
+
+        if is_get
+        then S.respond_string ~status:`OK ~body:body ()
+        else let redir = page#get_arg_value gfns "redir" in
+          (match redir with
+          | DStr "" | DNull -> S.respond_string ~status:`OK ~body:body ()
+          | DStr s  -> S.respond_redirect (Uri.of_string s) ()
+          | _       -> S.respond_string ~status:`Internal_server_error ~body:"500: Type error in `redir` of Page::POST" ())
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
     in
