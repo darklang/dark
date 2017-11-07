@@ -176,6 +176,16 @@ let obj_merge (l: dval) (r: dval) : dval =
   | DObj l, DNull -> DObj l
   | _ -> Exception.user "was expecting objs"
 
+let to_char dv =
+  match dv with
+  | DChar c -> Some c
+  | _ -> None
+
+let to_int dv =
+  match dv with
+  | DInt i -> Some i
+  | _ -> None
+
 
 
 (* ------------------------- *)

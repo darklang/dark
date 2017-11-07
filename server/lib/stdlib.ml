@@ -13,6 +13,18 @@ let list_preview =
                      | None -> [DIncomplete])
                    | args -> [DIncomplete]
 
+(* type coerces one list to another using a function *)
+let list_coerce ~(f: dval -> 'a option) (l : dval list) :
+  (('a list, (dval list * dval)) Result.t) =
+    l
+    |> List.map ~f:(fun dv -> match f dv with
+        | Some v -> Result.Ok v
+        | None -> Result.Error (l, dv))
+    |> Result.all
+
+let (>>|) = Result.(>>|)
+
+
 let fns : Lib.shortfn list = [
   (* { n = "Page::page" *)
   (* ; o = [] *)
@@ -342,6 +354,33 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "Int::sum"
+  ; o = []
+  ; p = [par "a" TList]
+  ; r = TInt
+  ; d = "Returns the sum of all the ints in the list"
+  ; f = InProcess
+        (function
+          | [DList l] ->
+            l
+            |> list_coerce ~f:to_int
+            >>| List.fold_left ~f:(+) ~init:0
+            >>| (fun x -> DInt x)
+            |> Result.map_error ~f:(fun (result, example_value) ->
+                error
+                  ~actual:(DList result)
+                  ~result:(DList result)
+                  ~long:("Int::sum requires all values to be integers, but " ^ (to_repr example_value) ^ " is a " ^ (tipename example_value))
+                  ~expected:"every list item to be an int "
+                  "Sum expects you to pass a list of ints")
+            |> Result.ok_exn
+          | args -> fail args)
+  ; pr = None
+  ; pu = false
+  }
+  ;
+
+
   (* ====================================== *)
   (* Any *)
   (* ====================================== *)
@@ -466,31 +505,20 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DStr s; DBlock (id, fn)] ->
-            let all_chars = ref true in
-            let example_value = ref DIncomplete in
-            let result = s
-              |> String.to_list
-              |> List.map ~f:(fun c -> match fn [(DChar c)] with
-                                       | DChar c -> DChar c
-                                       | dv ->
-                                           if !all_chars
-                                           then
-                                             (all_chars := false;
-                                             example_value := dv);
-                                           dv) in
-            if !all_chars
-            then DStr (result
-                       |> List.map ~f:(function
-                                         | DChar c -> c
-                                         | _ -> Exception.internal "char?")
-                       |> String.of_char_list)
-            else
-              error
-                ~actual:(DList result)
-                ~result:(DList result)
-                ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr !example_value) ^ " is a " ^ (tipename !example_value))
-                ~expected:"every value to be a char"
-                "Foreach expects you to return chars"
+            s
+            |> String.to_list
+            |> List.map ~f:(fun c -> fn [(DChar c)])
+            |> list_coerce ~f:to_char
+            >>| String.of_char_list
+            >>| (fun x -> DStr x)
+            |> Result.map_error ~f:(fun (result, example_value) ->
+                error
+                  ~actual:(DList result)
+                  ~result:(DList result)
+                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr example_value) ^ " is a " ^ (tipename example_value))
+                  ~expected:"every value to be a char"
+                  "Foreach expects you to return chars")
+            |> Result.ok_exn
           | args -> fail args)
   ; pr = Some
         (fun dv cursor ->
@@ -584,7 +612,7 @@ let fns : Lib.shortfn list = [
           | [DList l] ->
               DStr (l |> List.map ~f:(function
                                       | DChar c -> c
-                                      | dv -> error ~actual:dv "expected a char")
+                                      | dv -> raise_error ~actual:dv "expected a char")
                       |> String.of_char_list)
           | args -> fail args)
   ; pr = None
