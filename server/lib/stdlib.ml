@@ -2,8 +2,6 @@ open Core
 open Runtime
 open Lib
 
-module B = Batteries
-
 let list_repeat = Util.list_repeat
 
 let list_preview =
@@ -158,13 +156,13 @@ let fns : Lib.shortfn list = [
   ;
 
   { n = "^"
-  ; o = ["Int::pow"]
-  ; p = [par "a" TInt ; par "b" TInt]
+  ; o = ["Int::power"]
+  ; p = [par "base" TInt ; par "exponent" TInt]
   ; r = TInt
-  ; d = "Raise a to the bth power"
+  ; d = "Raise `base` to the power of `exponent`"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (B.Int.pow a b)
+          | [DInt base; DInt exp] -> DInt (Int.pow base exp)
           | args -> fail args)
   ; pr = None
   ; pu = true
