@@ -565,8 +565,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { n = "String::append"
-  ; o = []
+  { n = "++"
+  ; o = ["String::append"]
   ; p = [par "s1" TStr; par "s2" TStr]
   ; r = TStr
   ; d = "Concatenates the two strings and returns the joined string"
