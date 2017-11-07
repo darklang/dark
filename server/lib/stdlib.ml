@@ -574,8 +574,6 @@ let fns : Lib.shortfn list = [
   ;
 
 
-
-
   { n = "String::fromList"
   ; o = []
   ; p = [par "l" TList]
@@ -588,6 +586,21 @@ let fns : Lib.shortfn list = [
                                       | DChar c -> c
                                       | dv -> error ~actual:dv "expected a char")
                       |> String.of_char_list)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+
+  { n = "String::fromChar"
+  ; o = []
+  ; p = [par "c" TChar]
+  ; r = TChar
+  ; d = "Converts a char to a string"
+  ; f = InProcess
+        (function
+          | [DChar c] -> DStr (Char.to_string c)
           | args -> fail args)
   ; pr = None
   ; pu = true
