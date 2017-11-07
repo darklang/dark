@@ -253,7 +253,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a random integer between a and b (inclusive)"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (a + (Random.int (b - a)))
+          (* +1 as Random.int is exclusive *)
+          | [DInt a; DInt b] -> DInt (a + 1 + (Random.int (b - a)))
           | args -> fail args)
   ; pr = None
   ; pu = false
