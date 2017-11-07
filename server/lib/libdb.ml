@@ -80,12 +80,13 @@ let fns : Lib.shortfn list = [
   ; d = "Insert `val` into `table` indexed by `key`"
   ; f = InProcess
         (function
+          | [o; key; DIncomplete] -> DIncomplete
           | [DOpaque o; DStr key; value] ->
             with_postgres o (fun table -> kv_upsert table key value);
             DNull
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; pu = false
   }
   ;
 
@@ -101,7 +102,7 @@ let fns : Lib.shortfn list = [
             with_postgres o (fun table -> kv_delete table key)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; pu = false
   }
   ;
 

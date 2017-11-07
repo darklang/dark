@@ -1061,7 +1061,7 @@ let fns : Lib.shortfn list = [
   ; d = "Create a page at `url` that optionally redirects to `redir`"
   ; f = InProcess
         (function
-          | [DStr url; value] -> value
+          | [DStr url; DStr redir] -> DIncomplete
           | args -> fail args)
   ; pr = None
   ; pu = true
