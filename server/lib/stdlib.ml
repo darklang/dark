@@ -281,7 +281,7 @@ let fns : Lib.shortfn list = [
   ; d = "Converts an Int to a Float"
   ; f = InProcess
         (function
-          | [DInt a] -> DFloat (float a)
+          | [DInt a] -> DFloat (float_of_int a)
           | args -> fail args)
   ; pr = None
   ; pu = true
