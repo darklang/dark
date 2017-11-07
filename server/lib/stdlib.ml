@@ -294,7 +294,7 @@ let fns : Lib.shortfn list = [
 
 
   { n = "Float::ceiling"
-  ; o = []
+  ; o = ["Float::round_up"]
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round above to an integer value"
@@ -309,7 +309,7 @@ let fns : Lib.shortfn list = [
 
 
   { n = "Float::floor"
-  ; o = []
+  ; o = ["Float::round_down"]
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round down to an integer value"
