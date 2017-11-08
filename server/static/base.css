@@ -110,6 +110,27 @@ form {
   padding: 0.8em 1em;
 }
 
+.node.string-entry {
+  position: relative;
+  width: 330px;
+  padding: 0.2em 0.4em;
+}
+
+.string-container::before {
+  content: "“";
+}
+
+.string-container #darkEntry {
+  color: black;
+  border: 1px solid #666;
+  background: white;
+}
+
+.string-container::after{
+  content: "”";
+}
+
+
 .node.entry .types {
   float: right;
   text-transform: lowercase;

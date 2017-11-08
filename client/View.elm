@@ -98,8 +98,88 @@ placeHtml m pos html =
     ]
     [ html ]
 
+
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
+  if String.startsWith "\"" m.complete.value
+  then viewStringEntry m
+  else viewNormalEntry m
+
+
+-- The view we see is different from the value representation in a few
+-- ways:
+-- - the start and end quotes are skipped
+-- - all other quotes are escaped
+transformToStringEntry : String -> String
+transformToStringEntry s_ =
+  -- the first time we won't have a closing quote so add it
+  let s = if String.endsWith "\"" s_ then s_ else s_ ++ "\"" in
+  s
+  |> String.dropLeft 1
+  |> String.dropRight 1
+  |> Util.replace "\\\\\"" "\""
+  |> Debug.log "toStringEntry"
+
+transformFromStringEntry : String -> String
+transformFromStringEntry s =
+  let s2 = s
+           |> Util.replace "\"" "\\\""
+  in
+  "\"" ++ s2 ++ "\""
+  |> Debug.log "fromStringEntry"
+
+viewStringEntry : Model -> List (Svg.Svg Msg)
+viewStringEntry m =
+  let
+      -- stick with the overlapping things for now, just ignore the back
+      -- one
+      value = transformToStringEntry m.complete.value
+
+      searchInput = Html.input [ Attrs.id Defaults.entryID
+                               , Events.onInput (\s -> EntryInputMsg (transformFromStringEntry s))
+                               , Attrs.value value
+                               , Attrs.spellcheck False
+                               , Attrs.autocomplete False
+                               ] []
+
+      input = Html.div
+              [ Attrs.id "string-container"
+              , Attrs.class "string-container"]
+              [searchInput ]
+
+      viewForm = Html.form
+                 [ Events.onSubmit (EntrySubmitMsg) ]
+                 [ input ]
+
+      -- outer node wrapper
+      classes = "function node string-entry"
+
+      wrapper = Html.div
+                [ Attrs.class classes
+                , Attrs.width 100]
+                [ viewForm ]
+      html pos = placeHtml m pos wrapper
+  in
+    case m.state of
+      Entering _ (Filling id h) ->
+        let n = G.getNodeExn m id
+            holePos = holeDisplayPos m h
+            edgePos = { x = holePos.x + 8
+                      , y = holePos.y + 10}
+            extraY = if edgePos.y > G.posy m n
+                     then 22
+                     else 0
+            nodePos = { x = G.posx m n + 8
+                      , y = G.posy m n + extraY}
+        in
+        [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
+      Entering _ (Creating pos) -> [html pos]
+      _ -> []
+
+
+
+viewNormalEntry : Model -> List (Svg.Svg Msg)
+viewNormalEntry m =
   let autocompleteList =
         (List.indexedMap
            (\i item ->
@@ -168,7 +248,7 @@ viewEntry m =
           _ -> Html.div [] []
 
       -- outer node wrapper
-      classes = "selection function node entry"
+      classes = "function node entry"
 
       wrapper = Html.div
                 [ Attrs.class classes

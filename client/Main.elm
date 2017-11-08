@@ -246,12 +246,6 @@ update_ : Msg -> Model -> Modification
 update_ msg m =
   case (msg, m.state) of
 
-    ------------------------
-    -- entry node
-    ------------------------
-    (EntrySubmitMsg, _) ->
-      NoChange -- just keep this here to prevent the page from loading
-
     (GlobalKeyPress event, state) ->
       if event.ctrlKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
       then
@@ -335,8 +329,17 @@ update_ msg m =
 
           Dragging _ _ _ _ -> NoChange
 
+
+    ------------------------
+    -- entry node
+    ------------------------
     (EntryInputMsg target, _) ->
-      Entry.updateValue target
+      Many [ Entry.updateValue target
+           , MakeCmd Entry.focusEntry
+           ]
+
+    (EntrySubmitMsg, _) ->
+      NoChange -- just keep this here to prevent the page from loading
 
 
     ------------------------
