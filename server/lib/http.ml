@@ -7,6 +7,17 @@ type route_param_map = string RouteParamMap.t
 let routes (g: G.graph) : (string * G.node) list =
   G.page_routes g
 
+let url_for (g: G.graph) (n: G.node) : string option =
+  let url = n#get_arg_value (G.gfns g) "url" in
+  match url with
+  | DStr s -> Some s
+  | _      -> None
+
+let url_for_exn (g: G.graph) (n: G.node) : string =
+  match (url_for g n) with
+  | Some s -> s
+  | None -> Exception.internal "Called url_for_exn on a node without a `url` param"
+
 let split_uri_path (path: string) : string list =
   let subs  = String.split ~on:'/' path in
   List.filter ~f:(fun x -> String.length x > 0) subs
@@ -42,7 +53,8 @@ let unbound_path_variables (path: string) : string list =
   List.drop (split_uri_path path) 1
 
 (* assumes route and path match *)
-let parse_route ~(path: string) ~(route: string) : (string * route_param_map) =
+let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : (string * route_param_map) =
+  let path = Uri.path uri in
   if path_matches_route ~path:path route
   then
     let rpm = RouteParamMap.empty in

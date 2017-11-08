@@ -72,6 +72,9 @@ let server =
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
+        (* TODO: there's a bunch of intermingled concerns in here, which
+         * is probably a smell of of how hacky our Page/DB features are. *)
+        let route = Http.url_for_exn !g page in
         let body =
           let body_dval =
             if body = ""
@@ -82,7 +85,17 @@ let server =
           let scope = RT.Scope.singleton page#id scope_dval in
           let result =
             if is_get
-            then G.run_output !g page
+            then
+              if Http.has_route_variables route
+              then
+                let (model, rpm) = Http.bind_route_params_exn ~uri:uri ~route:route in
+                let id =
+                  match Map.find rpm "id" with
+                  | Some s -> s
+                  | None -> Exception.internal "We only support :id url params rn" in
+                Libdb.kv_fetch model id
+              else
+                G.run_output !g page
             (* Posts have values, I guess we should be getting the result from it *)
             else (G.run_input !g scope page; DStr "") in
           RT.to_url_string result
