@@ -27,22 +27,11 @@ type graph = { name : string
              ; nodes : nodemap [@printer fun fmt nm -> fprintf fmt "%s" (pp_nodemap nm)]
              } [@@deriving eq, show]
 
-
 let get_node (g: graph) (id: id) : node =
   NodeMap.find_exn g.nodes id
 
 let has_node (id: id) (g: graph) : bool =
   NodeMap.mem g.nodes id
-
-let page_GETs (g: graph) : node list =
-  g.nodes
-  |> NodeMap.data
-  |> List.filter ~f:(fun n -> n#is_page_GET)
-
-let page_POSTs (g: graph) : node list =
-  g.nodes
-  |> NodeMap.data
-  |> List.filter ~f:(fun n -> n#is_page_POST)
 
 let create (name : string) : graph ref =
   ref { name = name
@@ -94,6 +83,24 @@ let gfns (g: graph) : Node.gfns =
   ; get_children = get_children g
   ; get_deepest = get_deepest g
   }
+
+let page_GETs (g: graph) : node list =
+  g.nodes
+  |> NodeMap.data
+  |> List.filter ~f:(fun n -> n#is_page_GET)
+
+let page_POSTs (g: graph) : node list =
+  g.nodes
+  |> NodeMap.data
+  |> List.filter ~f:(fun n -> n#is_page_POST)
+
+let page_routes (g: graph) : (string * node) list =
+  let pages = List.append (page_GETs g) (page_POSTs g)
+  in List.filter_map ~f:(fun n ->
+         let url = n#get_arg_value (gfns g) "url" in
+         match url with
+         | DStr s -> Some (s, n)
+         | _      -> None) pages
 
 
 (* ------------------------- *)

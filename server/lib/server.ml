@@ -67,14 +67,8 @@ let server =
         | "application/json" -> RT.parse
         | "application/x-www-form-urlencoded" -> form_parser
         | _ -> RT.parse in
-      let pages = if is_get
-                  then G.page_GETs !g
-                  else G.page_POSTs !g in
-      let matches =
-        List.filter
-          ~f:(fun p -> p#get_arg_value gfns "url" = RT.DStr (Uri.path uri))
-          pages in
-      match matches with
+      let pages = Http.pages_matching_route ~uri:uri !g in
+      match pages with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
