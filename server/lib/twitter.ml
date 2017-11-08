@@ -106,7 +106,7 @@ let rec dvalmap2query (args: dval_map) : string =
         else (key ^ "=" ^ (Runtime.to_url_string data)) :: l)
   |> String.concat ~sep:"&"
 
-let call (endpoint: string) (verb: Http.verb) (args: dval_map) : dval =
+let call (endpoint: string) (verb: Httpclient.verb) (args: dval_map) : dval =
   let prefix = "https://api.twitter.com" in
   let url = prefix ^ endpoint in
   let result =
@@ -114,11 +114,11 @@ let call (endpoint: string) (verb: Http.verb) (args: dval_map) : dval =
     | GET ->
       let query = dvalmap2query args in
       let header = (authorization_header url "GET" args) in
-      Http.call (url ^ "?" ^ query) verb [header] ""
+      Httpclient.call (url ^ "?" ^ query) verb [header] ""
     | POST ->
       let body = "" in
       let header = (authorization_header url "POST" args) in
-      Http.call url verb [header] body
+      Httpclient.call url verb [header] body
   in
   result |> Yojson.Safe.from_string |> Runtime.dval_of_yojson_
 
