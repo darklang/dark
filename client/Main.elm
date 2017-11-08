@@ -232,11 +232,11 @@ updateMod origm mod (m, cmd) =
         in
           ({ m | complete = Autocomplete.update mod m.complete
            }, Autocomplete.focusItem complete.index)
-      -- applied from left to right
       ChangeCursor step -> case m.state of
         Selecting id -> let calls = Entry.updatePreviewCursor m id step
                         in m ! [rpc m FocusSame calls]
         _ -> m ! []
+      -- applied from left to right
       Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
