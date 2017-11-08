@@ -61,45 +61,45 @@ all =
     , d "query"
       -- Lowercase search still finds uppercase results
       [ \_ -> (init completes)
-      |> query "lis"
+      |> setQuery "lis"
       |> .completions
       |> List.map asName
       |> (==) ["List::head"]
       -- Search finds multiple prefixes
       , \_ -> (init completes)
-      |> query "twit::"
+      |> setQuery "twit::"
       |> .completions
       |> List.map asName
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
       -- Search finds only prefixed
       , \_ ->(init completes)
-      |> query "twit::y"
+      |> setQuery "twit::y"
       |> .completions
       |> List.map asName
       |> (==) ["Twit::yetAnother"]
       -- Search anywhere
       , \_ -> (init completes)
-      |> query "Another"
+      |> setQuery "Another"
       |> .completions
       |> List.map asName
       |> (==) ["Twit::yetAnother"]
-      -- Show results when the only option is the query
+      -- Show results when the only option is the setQuery
       , \_ -> (init completes)
-      |> query "List::head"
+      |> setQuery "List::head"
       |> .completions
       |> List.map asName
       |> List.length
       |> (==) 1
       -- Scrolling down a bit works
       , \_ -> (init completes)
-      |> query "Twit"
+      |> setQuery "Twit"
       |> selectDown
       |> selectDown
       |> .index
       |> (==) 2
       -- Scrolling loops one way
       , \_ -> (init completes)
-      |> query "Twit"
+      |> setQuery "Twit"
       |> selectDown
       |> selectDown
       |> selectDown
@@ -107,7 +107,7 @@ all =
       |> (==) 0
       -- Scrolling loops the other way
       , \_ -> (init completes)
-      |> query "Twit"
+      |> setQuery "Twit"
       |> selectDown
       |> selectUp
       |> selectUp
@@ -115,7 +115,7 @@ all =
       |> (==) 2
        -- Scrolling loops the other way without going forward first
       , \_ -> (init completes)
-      |> query "Twit"
+      |> setQuery "Twit"
       |> selectUp
       |> selectUp
       |> .index
@@ -128,24 +128,24 @@ all =
       |> (==) 5
         -- Reduced results goes back to start of list
       , \_ -> (init completes)
-      |> query "Twit"
+      |> setQuery "Twit"
       |> selectDown
       |> selectDown
-      |> query "Twit::y"
+      |> setQuery "Twit::y"
       |> .index
       |> (==) 0
       -- Don't show cursor when the list is empty
       , \_ -> (init completes)
-      |> query "Twit"
+      |> setQuery "Twit"
       |> selectDown
       |> selectDown
-      |> query "Twitxxx"
+      |> setQuery "Twitxxx"
       |> .index
       |> (==) -1
       -- Filter by method signature for typed values
       , \_ -> (init completes)
       |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
-      |> query ""
+      |> setQuery ""
       |> .completions
       |> List.map asName
       |> Set.fromList
@@ -153,21 +153,21 @@ all =
        -- Show allowed fields for objects
       , \_ -> (init completes)
       |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
-      |> query ""
+      |> setQuery ""
       |> .completions
       |> List.map asName
       |> Set.fromList
       |> (==) (Set.fromList ["Int::add", "+"])
       -- By default the list shows results
       , \_ -> (init completes)
-      |> query ""
+      |> setQuery ""
       |> .completions
       |> List.length
       |> (/=) 0
       -- But not when we tell it not to
       , \_ -> (init completes)
       |> open False
-      |> query ""
+      |> setQuery ""
       |> .completions
       |> List.length
       |> (==) 0

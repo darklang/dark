@@ -49,7 +49,7 @@ holeCreatePos m hole =
 ---------------------
 updateValue : String -> Modification
 updateValue target =
-  Many [ AutocompleteMod <| ACQuery target ]
+  Many [ AutocompleteMod <| ACSetQuery target ]
 
 createFindSpace : Model -> Modification
 createFindSpace m = Enter False <| Creating (Viewport.toAbsolute m Defaults.initialPos)

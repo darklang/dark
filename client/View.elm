@@ -12,6 +12,7 @@ import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import VirtualDom
+import String.Extra as SE
 
 -- dark
 import Types exposing (..)
@@ -101,7 +102,7 @@ placeHtml m pos html =
 
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
-  if String.startsWith "\"" m.complete.value
+  if Autocomplete.isStringEntry m.complete
   then viewStringEntry m
   else viewNormalEntry m
 
@@ -135,17 +136,33 @@ viewStringEntry m =
       -- one
       value = transformToStringEntry m.complete.value
 
-      searchInput = Html.input [ Attrs.id Defaults.entryID
-                               , Events.onInput (\s -> EntryInputMsg (transformFromStringEntry s))
-                               , Attrs.value value
-                               , Attrs.spellcheck False
-                               , Attrs.autocomplete False
-                               ] []
+      smallInput =
+        Html.input [ Attrs.id Defaults.entryID
+                   , Events.onInput (EntryInputMsg << transformFromStringEntry)
+                   , Attrs.value value
+                   , Attrs.spellcheck False
+                   , Attrs.autocomplete False
+                   ] []
+
+
+      largeInput =
+        Html.textarea [ Attrs.id Defaults.entryID
+                      , Events.onInput (EntryInputMsg << transformFromStringEntry)
+                      , Attrs.value value
+                      , Attrs.spellcheck False
+                      , Attrs.cols 50
+                      , Attrs.rows (5 + SE.countOccurrences "\n" value)
+                      , Attrs.autocomplete False
+                      ] []
+
+      stringInput = if Autocomplete.isSmallStringEntry m.complete
+                    then smallInput
+                    else largeInput
 
       input = Html.div
               [ Attrs.id "string-container"
               , Attrs.class "string-container"]
-              [searchInput ]
+              [ stringInput ]
 
       viewForm = Html.form
                  [ Events.onSubmit (EntrySubmitMsg) ]

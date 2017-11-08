@@ -184,7 +184,8 @@ type alias Model = { backingNodes : NodeDict -- the actual nodes
                    , openNodes : List ID
                    }
 
-type AutocompleteMod = ACQuery String
+type AutocompleteMod = ACSetQuery String
+                     | ACAppendQuery String
                      | ACOpen Bool
                      | ACReset
                      | ACClear

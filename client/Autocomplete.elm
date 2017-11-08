@@ -51,7 +51,7 @@ reset : Autocomplete -> Autocomplete
 reset a = init a.functions
 
 clear : Autocomplete -> Autocomplete
-clear a = let cleared = query "" a in
+clear a = let cleared = setQuery "" a in
           { cleared | index = -1 }
 
 open : Bool -> Autocomplete -> Autocomplete
@@ -195,8 +195,16 @@ variablesForType ns t =
 -- y Press enter to select
 -- y Press right to fill as much as is definitive
 
-query : String -> Autocomplete -> Autocomplete
-query q a = { a | value = q } |> regenerate
+setQuery : String -> Autocomplete -> Autocomplete
+setQuery q a = { a | value = q } |> regenerate
+
+appendQuery : String -> Autocomplete -> Autocomplete
+appendQuery str a =
+  let q = if isStringEntry a |> Debug.log "isstring"
+          then String.dropRight 1 a.value ++ str ++ "\""
+          else a.value ++ str
+      _ = Debug.log "str" str
+  in setQuery (Debug.log "q" q) a
 
 
 regenerate : Autocomplete -> Autocomplete
@@ -254,7 +262,8 @@ regenerate a =
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   (case mod of
-     ACQuery str -> query str a
+     ACSetQuery str -> setQuery str a
+     ACAppendQuery str -> appendQuery str a
      ACReset -> reset a
      ACOpen o -> open o a
      ACClear -> clear a
@@ -280,4 +289,13 @@ findFunction : Autocomplete -> String -> Maybe Function
 findFunction a name =
   LE.find (\f -> f.name == name) a.functions
 
+isStringEntry : Autocomplete -> Bool
+isStringEntry a = String.startsWith "\"" a.value
 
+isSmallStringEntry : Autocomplete -> Bool
+isSmallStringEntry a =
+  isStringEntry a && not (isLargeStringEntry a)
+
+isLargeStringEntry : Autocomplete -> Bool
+isLargeStringEntry a =
+  isStringEntry a && String.contains "\n" a.value

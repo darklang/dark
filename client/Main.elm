@@ -107,11 +107,11 @@ reenter m id i =
         let enter = Enter True <| Filling n.id (ParamHole n.id p i) in
         case a of
           Edge eid _ -> Many [ enter
-                          , AutocompleteMod (ACQuery <| "$" ++ G.toLetter m eid)]
+                          , AutocompleteMod (ACSetQuery <| "$" ++ G.toLetter m eid)]
           NoArg -> enter
           ElidedArg -> Debug.crash "ElidedArgs should already be expanded"
           Const c -> Many [ enter
-                          , AutocompleteMod (ACQuery c)]
+                          , AutocompleteMod (ACSetQuery c)]
 
 -- Enter this exact node. If there's no ParamHole use ResultHole
 enterExact : Model -> Node -> Modification
@@ -292,6 +292,15 @@ update_ msg m =
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
+                Key.Enter ->
+                  if Autocomplete.isSmallStringEntry m.complete
+                  then
+                    Many [ AutocompleteMod (ACAppendQuery "\n")
+                         , MakeCmd Entry.focusEntry
+                         ]
+                  else if Autocomplete.isLargeStringEntry m.complete
+                  then Entry.submit m re cursor m.complete.value
+                  else NoChange
                 _ -> NoChange
             else
               case event.keyCode of
@@ -302,13 +311,15 @@ update_ msg m =
                   let sp = Autocomplete.sharedPrefix m.complete in
                   if sp == "" then NoChange
                   else
-                    AutocompleteMod <| ACQuery sp
+                    AutocompleteMod <| ACSetQuery sp
                 Key.Enter ->
                   let name = case Autocomplete.highlighted m.complete of
-                              Just item -> Autocomplete.asName item
-                              Nothing -> m.complete.value
+                               Just item -> Autocomplete.asName item
+                               Nothing -> m.complete.value
                   in
-                    Entry.submit m re cursor name
+                  if Autocomplete.isLargeStringEntry m.complete
+                  then AutocompleteMod (ACSetQuery m.complete.value)
+                  else Entry.submit m re cursor name
 
                 Key.Escape ->
                   case cursor of
@@ -316,7 +327,7 @@ update_ msg m =
                     Filling id _ -> Many [ Select id
                                          , AutocompleteMod ACReset]
                 key ->
-                  AutocompleteMod <| ACQuery m.complete.value
+                  AutocompleteMod <| ACSetQuery m.complete.value
 
           Deselected ->
             case event.keyCode of
