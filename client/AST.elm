@@ -6,10 +6,11 @@ import Html
 import Html.Attributes as Attrs
 
 -- lib
--- import String.Extra as SE
+import String.Extra as SE
 
 -- dark
 import Types exposing (..)
+import Runtime as RT
 
 ppPrefix : FnName -> List Expr -> Element
 ppPrefix name exprs =
@@ -47,11 +48,18 @@ ppVarname v = Leaf ("varname", v)
 pp : Expr -> Element
 pp expr =
   case expr of
-    Value v -> Leaf ("value", v)
+    Value v ->
+     let cssClass = v |> RT.tipeOf |> toString |> String.toLower
+         valu  =
+           -- TODO: remove
+           if RT.isString v
+           then "“" ++ (SE.unquote v) ++ "”"
+           else v
+     in  Leaf ("value " ++ cssClass, valu)
 
     Let vars expr ->
       Nested "letexpr"
-        [ Leaf ("let", "let")
+        [ Leaf ("let keyword", "let")
         , Nested "letbindings"
             (List.map
               (\(l, r) ->
@@ -63,17 +71,17 @@ pp expr =
               )
               vars
              )
-        , Leaf ("in" , "in")
+        , Leaf ("in keyword" , "in")
         , Nested "letbody" [pp expr]
         ]
 
 
     If cond ifbody elsebody ->
       Nested "ifexpr"
-        [ Leaf ("if", "if")
+        [ Leaf ("if keyword", "if")
         , Nested "cond" [pp cond]
         , Nested "ifbody" [(pp ifbody)]
-        , Leaf ("else", "else")
+        , Leaf ("else keyword", "else")
         , Nested "elsebody" [(pp elsebody)]
         ]
 

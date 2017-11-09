@@ -56,6 +56,7 @@ Top level
 
 .code {
   font-size: 10pt;
+  font-family: 'Fira Code', monospace;
   white-space: pre;
 }
 
@@ -71,7 +72,18 @@ div.lambdaexpr {
   display: block;
   padding-left: 8px;
   margin-left: 8px;
-  border-left: 1px solid red;
+  border-left: 1px solid #dc9656;
+}
+
+div.lambdabinding, div.arrow {
+  color: #dc9656;
+
+}
+
+.value.tstr {
+  color: #ba8baf;
+  font-style: italic;
+  letter-spacing: -0.75px;
 }
 
 div.lambdabody {
@@ -92,7 +104,9 @@ div.leaf {
   margin-left: 8px;
 }
 
-
+.code .keyword {
+  color: #a1b56c;
+}
 
 /********************
 Entry (is also a node)

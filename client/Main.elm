@@ -32,7 +32,8 @@ sampleAST =
   Let [ ("l", FnCall "List::range" [Value "1", Value "100"])
       ]
       (FnCall "List::foreach"
-        [ Lambda ["var"]
+        [ Variable "l"
+        , Lambda ["var"]
             (If
                (FnCall "=="
                  [ FnCall "%" [Variable "var", Value "15"]
@@ -52,7 +53,6 @@ sampleAST =
                      ])
                    (Value "\"Fizz\"")
                    (FnCall "toString" [Variable "var"]))))
-        , Variable "l"
         ])
 
 
