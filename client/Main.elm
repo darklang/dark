@@ -35,11 +35,23 @@ sampleAST =
         [ Lambda ["var"]
             (If
                (FnCall "=="
-                 [ FnCall "<" [Variable "var", Value "15"]
+                 [ FnCall "%" [Variable "var", Value "15"]
                  , Value "0"
                  ])
                (Value "\"FizzBuzz\"")
-               (Value "\"Buzz\""))
+               (If
+                 (FnCall "=="
+                   [ FnCall "%" [Variable "var", Value "5"]
+                   , Value "0"
+                   ])
+                 (Value "\"Buzz\"")
+                 (If
+                   (FnCall "=="
+                     [ FnCall "%" [Variable "var", Value "3"]
+                     , Value "0"
+                     ])
+                   (Value "\"Fizz\"")
+                   (FnCall "toString" [Variable "var"]))))
         , Variable "l"
         ])
 

@@ -56,7 +56,7 @@ infixStringRep name exprs =
 
 isInfix : FnName -> Bool
 isInfix name =
-  List.member name ["<", "=="]
+  List.member name ["<", "==", "%"]
 
 
 pp : Expr -> String
