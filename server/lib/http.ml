@@ -4,20 +4,20 @@ module G = Graph
 module RouteParamMap = String.Map
 type route_param_map = string RouteParamMap.t
 
-let routes (g: G.graph) : (string * G.node) list =
-  G.page_routes g
-
-let url_for (g: G.graph) (n: G.node) : string option =
-  let url = n#get_arg_value (G.gfns g) "url" in
-  match url with
-  | DStr s -> Some s
-  | _      -> None
-
-let url_for_exn (g: G.graph) (n: G.node) : string =
-  match (url_for g n) with
-  | Some s -> s
-  | None -> Exception.internal "Called url_for_exn on a node without a `url` param"
-
+(* let routes (g: G.graph) : (string * G.node) list = *)
+(*   G.page_routes g *)
+(*  *)
+(* let url_for (g: G.graph) (n: G.node) : string option = *)
+(*   let url = n#get_arg_value (G.gfns g) "url" in *)
+(*   match url with *)
+(*   | DStr s -> Some s *)
+(*   | _      -> None *)
+(*  *)
+(* let url_for_exn (g: G.graph) (n: G.node) : string = *)
+(*   match (url_for g n) with *)
+(*   | Some s -> s *)
+(*   | None -> Exception.internal "Called url_for_exn on a node without a `url` param" *)
+(*  *)
 let split_uri_path (path: string) : string list =
   let subs  = String.split ~on:'/' path in
   List.filter ~f:(fun x -> String.length x > 0) subs
@@ -31,15 +31,15 @@ let controller (path_or_route : string) : string option =
 let path_matches_route ~(path: string) (route: string) : bool =
   (path = route) || ((controller path) = (controller route))
 
-let matching_routes ~(uri: Uri.t) (g: G.graph) : (string * G.node) list =
-  let path = Uri.path uri in
-  let rs   = routes g in
-  List.filter ~f:(fun (route, _) -> path_matches_route ~path:path route) rs
-
-let pages_matching_route ~(uri: Uri.t) (g: G.graph) : G.node list =
-  let rs = matching_routes ~uri:uri g in
-  List.map ~f:Tuple.T2.get2 rs
-
+(* let matching_routes ~(uri: Uri.t) (g: G.graph) : (string * G.node) list = *)
+(*   let path = Uri.path uri in *)
+(*   let rs   = routes g in *)
+(*   List.filter ~f:(fun (route, _) -> path_matches_route ~path:path route) rs *)
+(*  *)
+(* let pages_matching_route ~(uri: Uri.t) (g: G.graph) : G.node list = *)
+(*   let rs = matching_routes ~uri:uri g in *)
+(*   List.map ~f:Tuple.T2.get2 rs *)
+(*  *)
 let route_variables (route: string) : string list =
   let suffix = List.drop (split_uri_path route) 1 in
   suffix
