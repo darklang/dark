@@ -38,8 +38,8 @@ sampleAST =
                  [ FnCall "<" [Variable "var", Value "15"]
                  , Value "0"
                  ])
-               (Value "FizzBuzz")
-               (Value "Buzz"))
+               (Value "\"FizzBuzz\"")
+               (Value "\"Buzz\""))
         , Variable "l"
         ])
 
@@ -83,7 +83,7 @@ init {editorState, complete} location =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init (List.map flag2function complete)
                , tests = tests
-               , topLevels = [{pos=m.center, expr=sampleAST}]
+               , topLevels = [{pos={x=100, y=m.center.y}, expr=sampleAST}]
       }
   in
     (m2, rpc m FocusNothing [])
