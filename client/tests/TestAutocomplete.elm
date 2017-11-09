@@ -143,22 +143,22 @@ all =
       |> .index
       |> (==) -1
       -- Filter by method signature for typed values
-      , \_ -> (init completes)
-      |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
-      |> setQuery ""
-      |> .completions
-      |> List.map asName
-      |> Set.fromList
-      |> (==) (Set.fromList ["List::head"])
-       -- Show allowed fields for objects
-      , \_ -> (init completes)
-      |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
-      |> setQuery ""
-      |> .completions
-      |> List.map asName
-      |> Set.fromList
-      |> (==) (Set.fromList ["Int::add", "+"])
-      -- By default the list shows results
+      -- , \_ -> (init completes)
+      -- |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
+      -- |> setQuery ""
+      -- |> .completions
+      -- |> List.map asName
+      -- |> Set.fromList
+      -- |> (==) (Set.fromList ["List::head"])
+      --  -- Show allowed fields for objects
+      -- , \_ -> (init completes)
+      -- |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
+      -- |> setQuery ""
+      -- |> .completions
+      -- |> List.map asName
+      -- |> Set.fromList
+      -- |> (==) (Set.fromList ["Int::add", "+"])
+      -- -- By default the list shows results
       , \_ -> (init completes)
       |> setQuery ""
       |> .completions
