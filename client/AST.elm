@@ -2,109 +2,107 @@ module AST exposing (..)
 
 -- builtin
 import List
-import String
+import Html
+import Html.Attributes as Attrs
 
 -- lib
-import String.Extra as SE
+-- import String.Extra as SE
 
 -- dark
 import Types exposing (..)
 
-indent : Int -> String -> String
-indent depth s =
-  let spaces = String.repeat depth " " in
-  spaces ++ SE.replace "\n" ("\n" ++ spaces) s
+ppPrefix : FnName -> List Expr -> Element
+ppPrefix name exprs =
+  Nested "fncall prefix"
+    (Leaf ("op " ++ name, name)
+     :: (List.map pp exprs))
 
-mapExceptFirst : (a -> a) -> List a -> List a
-mapExceptFirst fn l =
-  case l of
-    [] -> []
-    [val] -> [val]
-    (first :: rest) -> first :: (List.map fn rest)
 
-withParens : String -> String
-withParens s =
-  "(" ++ s ++ ")"
-
-nestedToStringRep : Expr -> String
-nestedToStringRep expr =
-  case expr of
-    Let _ _ -> expr |> pp |> withParens
-    If _ _ _ -> expr |> pp |> withParens
-    FnCall _ _ -> expr |> pp |> withParens
-    Lambda _ _ -> pp expr
-    Variable _ -> pp expr
-    Value _ -> pp expr
-
-prefixStringRep : FnName -> List Expr -> String
-prefixStringRep name exprs =
-  name
-  ++ " "
-  ++ (exprs
-      |> List.map nestedToStringRep
-      |> String.join " ")
-
-infixStringRep : FnName -> List Expr -> String
-infixStringRep name exprs =
+ppInfix : FnName -> List Expr -> Element
+ppInfix name exprs =
   case exprs of
     [first, second] ->
-      (nestedToStringRep first)
-      ++ " " ++ name
-      ++ " " ++ (nestedToStringRep second)
+      Nested "fncall infix"
+        [ pp first
+        , Leaf ("op " ++ name, name)
+        , pp second
+        ]
     _ ->
-      prefixStringRep (withParens name) []
+      Debug.crash "using infix with the wrong number of things"
 
 isInfix : FnName -> Bool
 isInfix name =
   List.member name ["<", "==", "%"]
 
 
-pp : Expr -> String
-pp = toStringRep
 
 
+type alias Class = String
+type Element = Leaf (Class, String)
+             | Nested Class (List Element)
 
-toStringRep : Expr -> String
-toStringRep expr =
+ppVarname : VarName -> Element
+ppVarname v = Leaf ("varname", v)
+
+pp : Expr -> Element
+pp expr =
   case expr of
-    Value v -> v
+    Value v -> Leaf ("value", v)
 
     Let vars expr ->
-      let varStr =
-        vars
-        |> List.map (\(var, expr) -> var ++ " = " ++ pp expr)
-        |> mapExceptFirst (indent 2)
-        |> String.join "\n" in
-      "let "
-      ++ varStr
-      ++ " in \n"
-      ++ pp expr
+      Nested "let"
+        [ Leaf ("let", "let")
+        , Nested "letbindings"
+            (List.map
+              (\(l, r) ->
+                Nested "letbinding"
+                  [ ppVarname l
+                  , Leaf ("letbind", "=")
+                  , pp r
+                  ]
+              )
+              vars
+             )
+        , Leaf ("in" , "in")
+        , pp expr
+        ]
+
 
     If cond ifblock elseblock ->
-      "if " ++ nestedToStringRep cond ++ " {\n"
-      ++ indent 2 (pp ifblock)
-      ++ "\n} else {\n"
-      ++ indent 2 (pp elseblock)
-      ++ "\n}"
+      Nested "ifexpr"
+        [ Leaf ("if", "if")
+        , Nested "cond" [pp cond]
+        , Nested "ifblock" [(pp ifblock)]
+        , Leaf ("else", "else")
+        , Nested "elseblock" [(pp elseblock)]
+        ]
+
+    Variable name ->
+      ppVarname name
 
     FnCall name exprs ->
       if isInfix name
-      then infixStringRep name exprs
-      else prefixStringRep name exprs
+      then ppInfix name exprs
+      else ppPrefix name exprs
 
     Lambda vars expr ->
-      "\n  (\\"
-      ++ (String.join " " vars)
-      ++ " -> \n"
-      ++ (pp expr |> indent 4)
-      ++ ")"
-
-    Variable name ->
-      name
+      Nested "lambda"
+        [ Nested "lambdabinding" (List.map ppVarname vars)
+        , Leaf ("arrow" , "->")
+        , pp expr
+        ]
 
 
 
+elemToHtml : Element -> Html.Html Msg
+elemToHtml elem =
+  case elem of
+    Leaf (class, content) ->
+      Html.div [Attrs.class class] [Html.text content]
+    Nested class elems ->
+      Html.div [Attrs.class class] (List.map elemToHtml elems)
 
-
+toHtml : Expr -> Html.Html Msg
+toHtml expr = expr |> pp |> elemToHtml
 
 

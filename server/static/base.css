@@ -59,6 +59,14 @@ Top level
   white-space: pre;
 }
 
+.code div {
+  display: inline-block;
+}
+
+.code div::before {
+  content: " ";
+}
+
 
 
 /********************

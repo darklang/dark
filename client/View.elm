@@ -82,8 +82,8 @@ viewCanvas m =
 
 viewAST : Model -> Code -> Svg.Svg Msg
 viewAST m code =
-  let str = AST.toStringRep code.expr
-  in placeHtml m code.pos (Html.div [Attrs.class "code"] [Html.text str])
+  let html = AST.toHtml code.expr
+  in placeHtml m code.pos (Html.div [Attrs.class "code"] [html])
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
