@@ -27,6 +27,22 @@ import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 
+sampleAST : Expr
+sampleAST =
+  Let [ ("l", FnCall "List::range" [Value "1", Value "100"])
+      ]
+      (FnCall "List::foreach"
+        [ Lambda ["var"]
+            (If
+               (FnCall "=="
+                 [ FnCall "<" [Variable "var", Value "15"]
+                 , Value "0"
+                 ])
+               (Value "FizzBuzz")
+               (Value "Buzz"))
+        , Variable "l"
+        ])
+
 
 
 -----------------------
@@ -65,7 +81,10 @@ init {editorState, complete} location =
                   Just t  -> t
                   Nothing -> []
       m = Defaults.defaultModel editor
-      m2 = { m | complete = Autocomplete.init (List.map flag2function complete), tests = tests }
+      m2 = { m | complete = Autocomplete.init (List.map flag2function complete)
+               , tests = tests
+               , topLevels = [{pos=m.center, expr=sampleAST}]
+      }
   in
     (m2, rpc m FocusNothing [])
 

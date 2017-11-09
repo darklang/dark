@@ -108,16 +108,29 @@ type AutocompleteItem = ACFunction Function
 
 type VariantTest = StubVariant
 
-type alias Expr = Int
+type alias VarName = String
+type alias FnName = String
+
+type Expr = If Expr Expr Expr
+          | FnCall FnName (List Expr)
+          | Variable VarName
+          -- let x1 = expr1; x2 = expr2 in expr3
+          | Let (List (VarName, Expr)) Expr
+          | Lambda (List VarName) Expr
+          | Value String
+
+type alias Code = { expr : Expr
+                  , pos : Pos
+                  }
 
 type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
-                   , tests   : List VariantTest
+                   , tests : List VariantTest
                    , complete : Autocomplete
                    , state : State
-                   , topLevels : List Expr
+                   , topLevels : List Code
                    }
 
 type AutocompleteMod = ACSetQuery String
