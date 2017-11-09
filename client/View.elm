@@ -19,6 +19,7 @@ import Util exposing (deMaybe)
 import Defaults
 import Viewport
 import Autocomplete
+import AST
 
 view : Model -> Html.Html Msg
 view m =
@@ -73,10 +74,16 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let
         entry = viewEntry m
+        asts = List.map (viewAST m) m.topLevels
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
-        allSvgs = xaxis :: yaxis :: entry
+        allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
+
+viewAST : Model -> Code -> Svg.Svg Msg
+viewAST m code =
+  let str = AST.toStringRep code.expr
+  in placeHtml m code.pos (Html.div [] [Html.text str])
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
