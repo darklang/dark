@@ -50,7 +50,7 @@ pp expr =
     Value v -> Leaf ("value", v)
 
     Let vars expr ->
-      Nested "let"
+      Nested "letexpr"
         [ Leaf ("let", "let")
         , Nested "letbindings"
             (List.map
@@ -64,17 +64,17 @@ pp expr =
               vars
              )
         , Leaf ("in" , "in")
-        , pp expr
+        , Nested "letbody" [pp expr]
         ]
 
 
-    If cond ifblock elseblock ->
+    If cond ifbody elsebody ->
       Nested "ifexpr"
         [ Leaf ("if", "if")
         , Nested "cond" [pp cond]
-        , Nested "ifblock" [(pp ifblock)]
+        , Nested "ifbody" [(pp ifbody)]
         , Leaf ("else", "else")
-        , Nested "elseblock" [(pp elseblock)]
+        , Nested "elsebody" [(pp elsebody)]
         ]
 
     Variable name ->
@@ -86,10 +86,10 @@ pp expr =
       else ppPrefix name exprs
 
     Lambda vars expr ->
-      Nested "lambda"
+      Nested "lambdaexpr"
         [ Nested "lambdabinding" (List.map ppVarname vars)
         , Leaf ("arrow" , "->")
-        , pp expr
+        , Nested "lambdabody" [pp expr]
         ]
 
 
@@ -98,9 +98,9 @@ elemToHtml : Element -> Html.Html Msg
 elemToHtml elem =
   case elem of
     Leaf (class, content) ->
-      Html.div [Attrs.class class] [Html.text content]
+      Html.div [Attrs.class <| "leaf " ++ class] [Html.text content]
     Nested class elems ->
-      Html.div [Attrs.class class] (List.map elemToHtml elems)
+      Html.div [Attrs.class <| "nested " ++ class] (List.map elemToHtml elems)
 
 toHtml : Expr -> Html.Html Msg
 toHtml expr = expr |> pp |> elemToHtml
