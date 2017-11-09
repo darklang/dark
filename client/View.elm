@@ -3,7 +3,6 @@ module View exposing (view)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Regex exposing (regex)
 
 -- lib
 import Svg
@@ -17,23 +16,17 @@ import String.Extra as SE
 -- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
-import Entry
-import Graph as G
-import Node as N
 import Defaults
 import Viewport
-import Runtime as RT
-import Selection
 import Autocomplete
-import VariantTesting as VT
 
 view : Model -> Html.Html Msg
 view m =
   let (w, h) = Util.windowSize ()
       grid = Html.div
-               ([ Attrs.id "grid"
+               [ Attrs.id "grid"
                , Events.on "mouseup" (decodeClickEvent GlobalClick)
-               ] ++ List.map (\x -> (Attrs.class << VT.toCSSClass) x) m.tests)
+               ]
                [ viewError m.error
                , Svg.svg
                  [ SA.width "100%"
@@ -78,16 +71,11 @@ viewError mMsg = case mMsg of
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
-    let ordered = G.orderedNodes m
-        nodes = List.indexedMap (\i n -> viewNode m n i) ordered
-        values = ordered |> List.map (viewValue m) |> List.concat
-        (edges, edgeMaybeLabels) = ordered |> List.map (viewNodeEdges m) |> List.concat |> List.unzip
-        edgeLabels = edgeMaybeLabels |> List.filterMap identity
+    let
         entry = viewEntry m
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
-
-        allSvgs = xaxis :: yaxis :: (edges ++ values ++ nodes ++ entry ++ edgeLabels)
+        allSvgs = xaxis :: yaxis :: entry
     in allSvgs
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
@@ -178,18 +166,7 @@ viewStringEntry m =
       html pos = placeHtml m pos wrapper
   in
     case m.state of
-      Entering _ (Filling id h) ->
-        let n = G.getNodeExn m id
-            holePos = holeDisplayPos m h
-            edgePos = { x = holePos.x + 8
-                      , y = holePos.y + 10}
-            extraY = if edgePos.y > G.posy m n
-                     then 22
-                     else 0
-            nodePos = { x = G.posx m n + 8
-                      , y = G.posy m n + extraY}
-        in
-        [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
+      Entering _ (Filling) -> [html m.center]
       Entering _ (Creating pos) -> [html pos]
       _ -> []
 
@@ -214,11 +191,11 @@ viewNormalEntry m =
            m.complete.completions)
 
       autocompletions = case (m.state, m.complete.index) of
-                          (Entering _ (Filling _ (ParamHole _ _ _)), -1) ->
-                            [ Html.li
-                              [ Attrs.class "autocomplete-item greyed" ]
-                              [ Html.text "Press down to autocomplete…" ]
-                            ]
+                          -- (Entering _ (Filling _ (ParamHole _ _ _)), -1) ->
+                          --   [ Html.li
+                          --     [ Attrs.class "autocomplete-item greyed" ]
+                          --     [ Html.text "Press down to autocomplete…" ]
+                          --   ]
                           _ -> autocompleteList
 
 
@@ -257,11 +234,11 @@ viewNormalEntry m =
 
       paramInfo =
         case m.state of
-          Entering _ (Filling _ (ParamHole _ param _)) ->
-            Html.div [] [ Html.text (param.name ++ " : " ++ RT.tipe2str param.tipe)
-                        , Html.br [] []
-                        , Html.text param.description
-                        ]
+          -- Entering _ (Filling _ (ParamHole _ param _)) ->
+          --   Html.div [] [ Html.text (param.name ++ " : " ++ RT.tipe2str param.tipe)
+          --               , Html.br [] []
+          --               , Html.text param.description
+          --               ]
           _ -> Html.div [] []
 
       -- outer node wrapper
@@ -274,226 +251,35 @@ viewNormalEntry m =
       html pos = placeHtml m pos wrapper
   in
     case m.state of
-      Entering _ (Filling id h) ->
-        let n = G.getNodeExn m id
-            holePos = holeDisplayPos m h
-            edgePos = { x = holePos.x + 8
-                      , y = holePos.y + 10}
-            extraY = if edgePos.y > G.posy m n
-                     then 22
-                     else 0
-            nodePos = { x = G.posx m n + 8
-                      , y = G.posy m n + extraY}
-        in
-        [svgLine m nodePos edgePos "" "" edgeStyle, html holePos]
+      Entering _ (Filling) -> [html m.center]
       Entering _ (Creating pos) -> [html pos]
       _ -> []
 
-
-valueDisplayPos : Model -> Node -> Pos
-valueDisplayPos m n =
-  if (G.outgoingNodes m n |> List.length |> (==) 1) && n.isBlockParent
-  then Entry.holeCreatePos m (ResultHole n.id)
-  else
-    let xpad = max (N.nodeWidth n + 50) 400
-    in {x=(G.posx m n)+xpad, y=G.posy m n}
-
-holeDisplayPos : Model -> Hole -> Pos
-holeDisplayPos m hole =
-  let gn = G.getNodeExn m in
-  case hole of
-    ResultHole _ -> let {x,y} = Entry.holeCreatePos m hole
-                    in {x=x, y=y + 50}
-    ParamHole id _ _ ->
-      let n = gn id in {x=(G.posx m n)+100, y=(G.posy m n)-100}
-
-
-
-viewValue : Model -> Node -> List (Html.Html Msg)
-viewValue m n =
-  let valueStr val tipeStr =
-        val
-          |> String.trim
-          |> String.left 120
-          |> Util.replace "\n" ""
-          |> Util.replace "\r" ""
-          |> Util.replace "\\s+" " "
-          |> (\s -> if String.length s > 54
-                    then String.left 54 s ++ "…" ++ String.right 1 (String.trim val)
-                    else s)
-          |> \v -> v ++ " :: " ++ tipeStr
-          |> Html.text
-      -- lv = case Dict.get (n.id |> deID) m.phantoms of
-      --   Nothing -> n.liveValue
-      --   Just pn -> pn.liveValue
-      lv = n.liveValue
-      isPhantom = lv /= n.liveValue
-      class = if isPhantom then "phantom" else "preview"
-      newPos = valueDisplayPos m n
-      displayedBelow = newPos.y /= G.posy m n
-      edge =
-        if displayedBelow
-        then [svgLine m {x=G.posx m n + 8, y=G.posy m n +10} {x=newPos.x+8,y=newPos.y+10} "" "" edgeStyle]
-        else []
-      allOutputs = edge ++
-                    [placeHtml m newPos
-                        (case lv.exc of
-                          Nothing -> Html.pre
-                                      [Attrs.class class, Attrs.title lv.value]
-                                      [valueStr lv.value (RT.tipe2str lv.tipe)]
-                          Just exc -> Html.span
-                                        [ Attrs.class <| "unexpected " ++ class
-                                        , Attrs.title
-                                            ( "Problem: " ++ exc.short
-                                            ++ "\n\nActual value: " ++ exc.actual
-                                            ++ "\n\nExpected: " ++ exc.expected
-                                            ++ "\n\nMore info: " ++ exc.long
-                                          ) ]
-                                        [ Html.pre
-                                          [ ]
-                                          [ valueStr exc.result exc.resultType ]
-                                        , Html.span
-                                            [Attrs.class "info" ]
-                                            [Html.text "ⓘ "]
-                                        , Html.span
-                                            [Attrs.class "explanation" ]
-                                            [Html.text exc.short ]])]
-  in if G.hasRelativePos n
-     then []
-     else allOutputs
-
-getClass : String -> String
-getClass func = case String.slice 0 6 func of
-                "if"   -> "conditional"
-                "else" -> "conditional"
-                "then" -> "conditional"
-                "val" -> "iter"
-                "char" -> "iter"
-                _       -> if Regex.contains (regex "foreach|filter|fold|find_first") func then "iter" else "name"
-
-
-viewNodeName : Node -> List (Html.Html Msg)
-viewNodeName n =
-  let (mdName, fnName) = N.parseNodeName n.name
-      mnRepr = mdName
-             |> Maybe.map N.ppModName
-      fnClass = getClass fnName
-      fnSpan  = Html.span [Attrs.class <| fnClass] [Html.text fnName]
-  in
-      case mnRepr of
-        Just mn -> [Html.span [Attrs.class "module"] [Html.text mn]] ++ [fnSpan]
-        Nothing -> [fnSpan]
-
-viewNode : Model -> Node -> Int -> Html.Html Msg
-viewNode m n i =
-  let
-      -- header
-      header = [ Html.span
-                   [Attrs.class "letter"]
-                   [Html.text (Util.int2letter i)]
-                   --  [Html.text (toString <| deID <| n.id)]
-               ]
-
-      -- heading
-      paramtext = if N.hasFace n
-                  then [("arg_const", n.face)]
-                  else
-                    n.arguments
-                            |> List.map
-                                (\(p, a) ->
-                                  if p.tipe == TBlock
-                                  then ("", "")
-                                  else
-                                    case a of
-                                      Const c -> ("arg_const", if c == "null" then "∅" else c)
-                                      ElidedArg -> Debug.crash "Nodes with elided args should have faces defined"
-                                      NoArg -> ("arg_none", "◉")
-                                      Edge _ _ -> ("arg_edge", "◉"))
-      params = List.map (\(class, val) ->
-        Html.span
-        [ Attrs.class class]
-        [ Html.text <| " " ++ val]) paramtext
-
-      heading = Html.span [Attrs.class "title"] ((viewNodeName n) ++ params)
-   in
-    placeNode
-      m
-      n
-      (N.nodeWidth n)
-      []
-      []
-      header
-      [heading]
 
 escapeCSSName : String -> String
 escapeCSSName s =
   Util.replace "[^0-9a-zA-Z_-]" "_" s
 
-placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> List (Html.Html Msg) -> Html.Html Msg
-placeNode m n width attrs classes header body =
-  let width_attr = Attrs.style [("width", (toString width) ++ "px")]
-      selectedCl = if Selection.isSelected m n then ["selected"] else []
-      openCl = if G.isOpenNode m n.id then ["open"] else []
-      class = String.toLower (toString n.tipe)
-      nameCl = n.name |> escapeCSSName
-      classStr = String.join " "
-        (["node", class, nameCl] ++ selectedCl ++ openCl ++ classes)
-      node = Html.div
-                (width_attr :: (Attrs.class classStr) :: attrs)
-                body
-      header_wrapper = Html.div [Attrs.class "header", width_attr ] header
-      events = [ Events.on "mousedown" (decodeClickEvent (NodeClickDown n))
-               , Events.onWithOptions
-                   "mouseup"
-                   { stopPropagation = True, preventDefault = False }
-                   (decodeClickEvent (NodeClickUp n.id))
-               ]
-      wrapper = Html.div events [ node, header_wrapper ]
-  in
-    placeHtml m (G.pos m n) wrapper
-
-edgeStyle : List (Svg.Attribute Msg)
-edgeStyle =
-  [ SA.strokeWidth Defaults.edgeSize
-  , SA.stroke Defaults.edgeStrokeColor
-  ]
-
-viewNodeEdges : Model -> Node -> List (Svg.Svg Msg, Maybe (Svg.Svg Msg))
-viewNodeEdges m n = n.arguments
-                    |> List.map Tuple.second
-                    |> List.filter N.isParentEdge
-                    |> (List.map <| viewEdge m n)
-
-viewEdge : Model -> Node -> Argument -> (Svg.Svg Msg, Maybe (Svg.Svg Msg))
-viewEdge m target edge =
-    let source = edge |> N.getParentID |> deMaybe |> G.getNodeExn m
-        targetPos = target.pos
-        (sourceW, sourceH) = N.nodeSize source
-        (targetW, targetH) = N.nodeSize target
-        spos = { x = G.posx m source + 8
-               , y = G.posy m source + (sourceH // 2)}
-        tpos = { x = G.posx m target + 8
-               , y = G.posy m target + (targetH // 2)}
-        edgePos = { x = spos.x + ((tpos.x - spos.x) // 4)
-                  , y = spos.y + 4}
-        label = case (target.tipe, edge) of
-                  (Arg, _) -> Nothing
-                  (_, Edge _ (BlockEdge l)) -> Just l
-                  _ -> Nothing
-        edgeLabel = Maybe.map (\l ->
-                      placeHtml m edgePos
-                        (Html.div
-                          [Attrs.class <| "edgelabel " ++ getClass l]
-                          [Html.text l])) label
-    in ( svgLine
-         m
-         spos
-         tpos
-         (toString source.id)
-         (toString target.id)
-         edgeStyle
-       , edgeLabel)
-
+-- placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> List (Html.Html Msg) -> Html.Html Msg
+-- placeNode m n width attrs classes header body =
+--   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
+--       class = String.toLower (toString n.tipe)
+--       classStr = String.join " "
+--         (["node", class] ++ classes)
+--       node = Html.div
+--                 (width_attr :: (Attrs.class classStr) :: attrs)
+--                 body
+--       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
+--       events = [ Events.on "mousedown" (decodeClickEvent (NodeClickDown n))
+--                , Events.onWithOptions
+--                    "mouseup"
+--                    { stopPropagation = True, preventDefault = False }
+--                    (decodeClickEvent (NodeClickUp n.id))
+--                ]
+--       wrapper = Html.div events [ node, header_wrapper ]
+--   in
+--     placeHtml m (G.pos m n) wrapper
+--
 svgLine : Model -> Pos -> Pos -> String -> String -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine m p1a p2a sourcedebug targetdebug attrs =
   let p1v = Viewport.toViewport m p1a

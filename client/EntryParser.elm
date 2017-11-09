@@ -6,12 +6,10 @@ import Regex
 import Char
 
 -- lib
-import Result.Extra as RE
 import Parser.Parser exposing (Parser, (|.), (|=), succeed, symbol, float, ignore, zeroOrMore, oneOf, lazy, keep, repeat, end, oneOrMore, map , Count(..), inContext, delayedCommit, Problem)
 import Parser.Parser.Internal as PInternal exposing (Step(..))
 
 -- dark
-import Graph as G
 import Types exposing (..)
 
 --------------------------------
@@ -50,14 +48,10 @@ debug name =
 
 type alias ParseError = { source : String
                         , problem : Problem
-                        , cursor  : Maybe EntryCursor
                         }
 
 fromParserError : Parser.Parser.Error -> ParseError
-fromParserError p = { source = p.source, problem = p.problem, cursor = Nothing }
-
-addCursorToError : ParseError -> EntryCursor -> ParseError
-addCursorToError pe c = { pe | cursor = Just c }
+fromParserError p = { source = p.source, problem = p.problem}
 
 
 maxErrorSize : Int
@@ -72,13 +66,7 @@ toErrorMessage pe = pe
                      )
 
 toFullErrorMessage : ParseError -> String
-toFullErrorMessage pe = case pe.cursor of
-                      Just c  -> case c of
-                                     Creating _ -> noContextErrorMessage pe
-                                     Filling n h -> case h of
-                                                        ResultHole _ -> noContextErrorMessage pe
-                                                        ParamHole _ p i -> (noContextErrorMessage pe) -- ++ " in argument #" ++ (toString i) ++ " for an `" ++ (n2.name) ++ "`"
-                      Nothing -> noContextErrorMessage pe
+toFullErrorMessage pe = noContextErrorMessage pe
 
 noContextErrorMessage : ParseError -> String
 noContextErrorMessage pe = "Error parsing expression: `" ++ pe.source ++ "`: " ++ (ppProblem pe.problem)
@@ -263,6 +251,8 @@ type AST = ACreating Pos ACreating
 type ACreating = ACFnCall String (List AExpr)
                | ACValue String
 
+type Node = Something
+
 -- TODO(ian): replace this with
 -- type ARef = ABoundPlaceholder Node | ANode Node
 -- to do so we'll need to pass the `Cursor` down to
@@ -287,89 +277,66 @@ type AFillResult = ARVar Node Node
                  | ARFnCall Node String (List AExpr)
                  | ARFieldName Node String
 
-convertArgs : Model -> List PExpr -> Result String (List AExpr)
-convertArgs m args =
-  (List.map (convertArg m) args) |> RE.combine
 
-
-convertArg : Model -> PExpr -> Result String AExpr
-convertArg m pexpr =
-  case pexpr of
-    PFnCall name args ->
-      case convertArgs m args of
-        Ok converted -> Ok <| AFnCall name converted
-        Err msg -> Err msg
-    PValue value -> Ok <| AValue value
-    PVar letter ->
-      if letter == implicitPlaceholderLetter
-      then
-          Ok <| AVar APlaceholder
-      else
-        case G.fromLetter m letter of
-          Just source ->
-            Ok <| AVar (ANode source)
-          Nothing ->
-            Err <| "letter doesnt exist: " ++ letter
-
-pt2ast : Model -> EntryCursor -> ParseTree -> AST
-pt2ast m cursor pt =
-  let gn = G.getNodeExn m in
-  case (cursor, pt) of
-
-    -- Creating
-    (Creating _, PBlank) ->
-      ANothing
-    (Creating _, PFieldname _) ->
-      AError <| "cant have a fieldname here"
-    (Creating _, PExpr (PVar _)) ->
-      AError <| "cant have a var here"
-    (Creating pos, PExpr (PValue value)) ->
-      ACreating pos <| ACValue value
-    (Creating pos, PExpr (PFnCall name args)) ->
-      case convertArgs m args of
-        Ok converted ->
-          ACreating pos <| ACFnCall name converted
-        Err msg ->
-          AError msg
-
-    -- Filling Params
-    (Filling _ (ParamHole target param _), PBlank) ->
-      if param.optional
-      then AFillParam <| APConst (gn target, param) "null"
-      else ANothing
-    (Filling _ (ParamHole target param _), PFieldname _) ->
-      AError <| "cant have a fieldname here"
-    (Filling _ (ParamHole target param _), PExpr (PVar letter)) ->
-      case G.fromLetter m letter of
-        Just source ->
-          AFillParam <| APVar (gn target, param) source
-        Nothing ->
-          AError <| "letter doesnt exist: " ++ letter
-    (Filling _ (ParamHole target param _), PExpr (PValue value )) ->
-      AFillParam <| APConst (gn target, param) value
-    (Filling _ (ParamHole target param _), PExpr (PFnCall name args)) ->
-      case convertArgs m args of
-        Ok converted ->
-          AFillParam <| APFnCall (gn target, param) name converted
-        Err msg ->
-          AError msg
-
-    -- Filling Result
-    (Filling _ (ResultHole source), PBlank) ->
-      ANothing
-    (Filling _ (ResultHole source), PFieldname fieldname) ->
-      AFillResult <| ARFieldName (gn source) fieldname
-    (Filling _ (ResultHole source), PExpr (PVar letter)) ->
-      case G.fromLetter m letter of
-        Nothing ->
-          AError <| "letter doesnt exist: " ++ letter
-        Just target ->
-          AFillResult <| ARVar (gn source) target
-    (Filling _ (ResultHole source), PExpr (PValue value )) ->
-      AFillResult <| ARNewValue (gn source) value
-    (Filling _ (ResultHole source), PExpr (PFnCall name args)) ->
-      case convertArgs m args of
-        Ok converted ->
-          AFillResult <| ARFnCall (gn source) name converted
-        Err msg ->
-          AError msg
+-- pt2ast : Model -> EntryCursor -> ParseTree -> AST
+-- pt2ast m cursor pt =
+--   let gn = G.getNodeExn m in
+--   case (cursor, pt) of
+--
+--     -- Creating
+--     (Creating _, PBlank) ->
+--       ANothing
+--     (Creating _, PFieldname _) ->
+--       AError <| "cant have a fieldname here"
+--     (Creating _, PExpr (PVar _)) ->
+--       AError <| "cant have a var here"
+--     (Creating pos, PExpr (PValue value)) ->
+--       ACreating pos <| ACValue value
+--     (Creating pos, PExpr (PFnCall name args)) ->
+--       case convertArgs m args of
+--         Ok converted ->
+--           ACreating pos <| ACFnCall name converted
+--         Err msg ->
+--           AError msg
+--
+--     -- Filling Params
+--     (Filling _ (ParamHole target param _), PBlank) ->
+--       if param.optional
+--       then AFillParam <| APConst (gn target, param) "null"
+--       else ANothing
+--     (Filling _ (ParamHole target param _), PFieldname _) ->
+--       AError <| "cant have a fieldname here"
+--     (Filling _ (ParamHole target param _), PExpr (PVar letter)) ->
+--       case G.fromLetter m letter of
+--         Just source ->
+--           AFillParam <| APVar (gn target, param) source
+--         Nothing ->
+--           AError <| "letter doesnt exist: " ++ letter
+--     (Filling _ (ParamHole target param _), PExpr (PValue value )) ->
+--       AFillParam <| APConst (gn target, param) value
+--     (Filling _ (ParamHole target param _), PExpr (PFnCall name args)) ->
+--       case convertArgs m args of
+--         Ok converted ->
+--           AFillParam <| APFnCall (gn target, param) name converted
+--         Err msg ->
+--           AError msg
+--
+--     -- Filling Result
+--     (Filling _ (ResultHole source), PBlank) ->
+--       ANothing
+--     (Filling _ (ResultHole source), PFieldname fieldname) ->
+--       AFillResult <| ARFieldName (gn source) fieldname
+--     (Filling _ (ResultHole source), PExpr (PVar letter)) ->
+--       case G.fromLetter m letter of
+--         Nothing ->
+--           AError <| "letter doesnt exist: " ++ letter
+--         Just target ->
+--           AFillResult <| ARVar (gn source) target
+--     (Filling _ (ResultHole source), PExpr (PValue value )) ->
+--       AFillResult <| ARNewValue (gn source) value
+--     (Filling _ (ResultHole source), PExpr (PFnCall name args)) ->
+--       case convertArgs m args of
+--         Ok converted ->
+--           AFillResult <| ARFnCall (gn source) name converted
+--         Err msg ->
+--           AError msg

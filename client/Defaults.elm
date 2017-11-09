@@ -1,7 +1,5 @@
 module Defaults exposing (..)
 
-import Dict
-
 import Types exposing (..)
 import Autocomplete
 
@@ -29,26 +27,23 @@ unsetInt : Int
 unsetInt = 12345678
 
 defaultEditor : Editor
-defaultEditor = { openNodes = []
-                }
+defaultEditor = { }
 
 model2editor : Model -> Editor
-model2editor m = {openNodes = List.map deID m.openNodes}
+model2editor m = {}
 
 defaultModel : Editor -> Model
-defaultModel e = { nodes = Dict.empty
-                 , backingNodes = Dict.empty
-                 , phantoms = Dict.empty
-                 , error = Nothing
+defaultModel e = { error = Nothing
                  , lastMsg = Initialization
                  , lastMod = NoChange
                  , center = {x=initialPos.vx, y=initialPos.vy}
+                 , complete = Autocomplete.empty
+                 , state = Deselected
                  , tests = []
+                 , topLevels = []
+
                  -- editor
-                 , openNodes = List.map ID e.openNodes
                  -- these load before the graph does, causing
                  -- exceptions. We'll need to only run these after the
                  -- graph loads
-                 , complete = Autocomplete.empty
-                 , state = Deselected
                  }
