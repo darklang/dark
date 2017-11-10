@@ -2,6 +2,7 @@
 /.browser-trigger
 /client/elm-stuff
 /client/tests/elm-stuff
+/server/static/base.css
 /server/_build
 /server/*.byte
 /server/*.native

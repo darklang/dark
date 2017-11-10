@@ -123,9 +123,12 @@ RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 # Expose the PostgreSQL port
 #EXPOSE 5432
 
-user dark
-
 # Add VOLUMEs to allow backup of config, logs and databases
+user dark
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
+
+######################
+# Quick hacks below this line, to avoid massive recompiles
+RUN yarn add less@2.7.3 # dev
 
 CMD ["app", "scripts", "builder"]

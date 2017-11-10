@@ -86,6 +86,9 @@ def elm_test():
   generate_elm_test_data()
   return run_test("cd client && unbuffer elm-test")
 
+def less_compile():
+  return run_frontend("lessc server/static/base.less server/static/base.css")
+
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json'"
 def ocaml_build():
   # better-errors doesn't preserve exit codes, so save the output and
@@ -122,6 +125,7 @@ class Should:
     self.elm_package = False
     self.elm_make = False
     self.elm_test = False
+    self.less_compile = False
     self.reload_browser = False
     self.reload_server = False
 
@@ -134,7 +138,9 @@ def execute(should):
   should.elm_make |= ep
   em = should.elm_make and elm_make()
 
-  should.reload_browser |= rs or em
+  lc = should.less_compile and less_compile()
+
+  should.reload_browser |= rs or em or lc
   rb = should.reload_browser and reload_browser()
 
   should.ocaml_test |= ob
@@ -155,13 +161,17 @@ def mark(should, f):
     should.elm_make = True
 
   # Ocaml
-  elif ("test/test.ml" in f):
+  elif "test/test.ml" in f:
     should.ocaml_test = True
 
   elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
     should.ocaml_build = True
 
-  elif (".css" in f) or (".html" in f):
+  # Web
+  elif ".less" in f:
+    should.less_compile = True
+
+  elif ".html" in f:
     should.reload_browser = True
 
   # Other

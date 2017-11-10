@@ -22,7 +22,11 @@ def compile(files):
   run("scripts/support/compile " + " ".join(files))
 
 def initial_compile():
-  compile(["client/elm-package.json", "client/Tests/elm-package.json", "client/Main.elm", "server/main/dark.ml"])
+  compile([ "client/elm-package.json",
+            "client/Tests/elm-package.json",
+            "client/Main.elm",
+            "server/main/dark.ml",
+            "server/static/base.less"])
 
 def start_postgres():
   print("--------------------------\n-- Starting postgres\n-----------------------\n\n\n\n")
