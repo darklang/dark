@@ -51,7 +51,7 @@ type alias Special = Int
 type ID = ID Int
 
 type EntryCursor = Creating Pos
-                 | Filling
+                 -- | Filling
 
 type alias IsReentering = Bool
 type alias HasMoved = Bool

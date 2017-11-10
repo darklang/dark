@@ -95,7 +95,7 @@ init {editorState, complete} location =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init (List.map flag2function complete)
                , tests = tests
-               , toplevels = [{id=ID 5, pos={x=100, y=m.center.y}, expr=sampleAST}]
+               , toplevels = []
       }
   in
     (m2, rpc m FocusNothing [])
@@ -269,8 +269,8 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling -> Many [ Select (ID 5)
-                                    , AutocompleteMod ACReset]
+                    -- Filling -> Many [ Select (ID 5)
+                    --                 , AutocompleteMod ACReset]
                 key ->
                   AutocompleteMod <| ACSetQuery m.complete.value
 

@@ -173,7 +173,7 @@ viewStringEntry m =
       html pos = placeHtml m pos wrapper
   in
     case m.state of
-      Entering _ (Filling) -> [html m.center]
+      -- Entering _ (Filling) -> [html m.center]
       Entering _ (Creating pos) -> [html pos]
       _ -> []
 
@@ -258,7 +258,7 @@ viewNormalEntry m =
       html pos = placeHtml m pos wrapper
   in
     case m.state of
-      Entering _ (Filling) -> [html m.center]
+      -- Entering _ (Filling) -> [html m.center]
       Entering _ (Creating pos) -> [html pos]
       _ -> []
 
