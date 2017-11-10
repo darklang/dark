@@ -66,66 +66,93 @@ Top level
   white-space: pre;
 }
 
-.code div {
+/**************
+ * AST layout rules
+ **************/
+.indent {
+  margin-left: 16px;
+}
+
+.layout-block {
+  display: block;
+  & > .nested > .atom {
+    margin-left: 0px;
+  }
+}
+
+.layout-inline {
   display: inline-block;
 }
 
-.letexpr > .letbody {
-  display: block;
-}
-
-div.lambdaexpr {
-  display: block;
-  padding-left: 8px;
+.highlighted-indent {
   margin-left: 8px;
+  padding-left: 8px;
   border-left: 1px solid @orange;
 }
 
-div.lambdabinding, div.arrow {
-  color: @orange;
-}
+/**************
+ * AST css
+ **************/
+.code {
+  .layout-block;
 
-.value.tstr {
-  color: @purple;
-  font-style: italic;
-  letter-spacing: -0.75px;
-}
+  div {
+    .layout-inline;
+  }
 
-div.lambdabody {
-  display: block;
-}
+  .letexpr > .letbody {
+    .layout-block;
+  }
 
-div.ifbody {
-  display: block;
-  margin-left: 8px;
-  margin-right: 8px;
-}
+  .lambdaexpr {
+    .layout-block;
+    .highlighted-indent;
+  }
 
-div.elsebody {
-  display: block;
-  margin-left: 8px;
-  margin-right: 8px;
-}
+  .lambdabinding, .arrow {
+    color: @orange;
+  }
 
-div.atom {
-  margin-left: 4px;
-  margin-right: 4px;
-}
+  .value.tstr {
+    color: @purple;
+    font-style: italic;
+    letter-spacing: -0.75px;
+  }
 
-.code .moduleseparator {
-  color: @green;
-}
+  .lambdabody {
+    .layout-block;
+  }
 
-.code .keyword {
-  color: @green;
-}
+  .ifbody {
+    .layout-block;
+    .indent;
+  }
 
-.precedence-1 .precedence-2 {
-  background-color: @grey1;
-}
+  .elsebody {
+    .layout-block;
+    .indent;
+  }
 
-.precedence-1 {
-  background-color: @black2;
+  .atom {
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+
+  .moduleseparator {
+    color: @green;
+  }
+
+  .keyword {
+    color: @green;
+  }
+
+  .precedence-1 {
+    background-color: @black2;
+
+    .precedence-2 {
+      background-color: @grey1;
+    }
+  }
 }
 
 /********************
