@@ -29,7 +29,7 @@ import Util
 
 sampleAST : Expr
 sampleAST =
-  Let [ ("l", FnCall "List::range" [Value "1", Value "100"])
+  Let [ ("l", FnCall "List::range" [FnCall "+" [Value "1", Value "2"], Value "100"])
       ]
       (FnCall "List::foreach"
         [ Variable "l"

@@ -26,8 +26,8 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background-color: #131314;
-  color:#cccccc;
+  background-color: #282828;
+  color:#b8b8b8;
 }
 
 /********************
@@ -37,7 +37,7 @@ Top level
 #grid {
   /* background-color: transparent; */
   /* background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent); */
-  background: #1c1c1d;
+  background: #181818;
   /* background-size: 2em 2em; */
   position: relative;
 
@@ -92,16 +92,19 @@ div.lambdabody {
 
 div.ifbody {
   display: block;
-  margin-left: 16px;
+  margin-left: 8px;
+  margin-right: 8px;
 }
 
 div.elsebody {
   display: block;
-  margin-left: 16px;
+  margin-left: 8px;
+  margin-right: 8px;
 }
 
 div.atom {
-  margin-left: 8px;
+  margin-left: 4px;
+  margin-right: 4px;
 }
 
 .code .moduleseparator {
@@ -110,6 +113,14 @@ div.atom {
 
 .code .keyword {
   color: #a1b56c;
+}
+
+.precedence-1 .precedence-2 {
+  background-color: #383838;
+}
+
+.precedence-1 {
+  background-color: #282828;
 }
 
 /********************

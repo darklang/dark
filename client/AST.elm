@@ -12,6 +12,9 @@ import String.Extra as SE
 import Types exposing (..)
 import Runtime as RT
 
+depthString : Int -> String
+depthString n = "precedence-" ++ (toString n)
+
 ppFn : FnName -> Element
 ppFn name =
   case String.split "::" name of
@@ -23,28 +26,28 @@ ppFn name =
       ]
     _ -> Leaf ("fnname atom", name)
 
-ppPrefix : FnName -> List Expr -> Element
-ppPrefix name exprs =
-  Nested "fncall prefix"
+ppPrefix : FnName -> List Expr -> Int -> Element
+ppPrefix name exprs nest =
+  Nested ("fncall prefix " ++ (depthString nest))
     ((Nested ("op " ++ name) [ppFn name])
-    :: (List.map pp exprs))
+    :: (List.map (pp (nest + 1)) exprs))
 
 
-ppInfix : FnName -> List Expr -> Element
-ppInfix name exprs =
+ppInfix : FnName -> List Expr -> Int -> Element
+ppInfix name exprs nesting =
   case exprs of
     [first, second] ->
-      Nested "fncall infix"
-        [ pp first
+      Nested ("fncall infix " ++ (depthString nesting))
+        [ Nested "lhs" [pp (nesting + 1) first]
         , Nested ("op " ++ name) [ppFn name]
-        , pp second
+        , Nested "rhs" [pp nesting second]
         ]
     _ ->
       Debug.crash "using infix with the wrong number of things"
 
 isInfix : FnName -> Bool
 isInfix name =
-  List.member name ["<", "==", "%"]
+  List.member name ["<", "==", "%", "+"]
 
 
 type alias Class = String
@@ -54,8 +57,8 @@ type Element = Leaf (Class, String)
 ppVarname : VarName -> Element
 ppVarname v = Leaf ("varname atom", v)
 
-pp : Expr -> Element
-pp expr =
+pp : Int -> Expr -> Element
+pp nest expr =
   case expr of
     Value v ->
      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
@@ -75,23 +78,23 @@ pp expr =
                 Nested "letbinding"
                   [ ppVarname l
                   , Leaf ("letbind atom", "=")
-                  , pp r
+                  , pp nest r
                   ]
               )
               vars
              )
         , Leaf ("in keyword atom" , "in")
-        , Nested "letbody" [pp expr]
+        , Nested "letbody" [pp nest expr]
         ]
 
 
     If cond ifbody elsebody ->
       Nested "ifexpr"
         [ Leaf ("if keyword atom", "if")
-        , Nested "cond" [pp cond]
-        , Nested "ifbody" [(pp ifbody)]
+        , Nested "cond" [pp (nest + 1) cond]
+        , Nested "ifbody" [(pp 0 ifbody)]
         , Leaf ("else keyword atom", "else")
-        , Nested "elsebody" [(pp elsebody)]
+        , Nested "elsebody" [(pp 0 elsebody)]
         ]
 
     Variable name ->
@@ -99,14 +102,14 @@ pp expr =
 
     FnCall name exprs ->
       if isInfix name
-      then ppInfix name exprs
-      else ppPrefix name exprs
+      then ppInfix name exprs nest
+      else ppPrefix name exprs nest
 
     Lambda vars expr ->
       Nested "lambdaexpr"
         [ Nested "lambdabinding" (List.map ppVarname vars)
         , Leaf ("arrow atom" , "->")
-        , Nested "lambdabody" [pp expr]
+        , Nested "lambdabody" [pp 0 expr]
         ]
 
 
@@ -120,6 +123,6 @@ elemToHtml elem =
       Html.div [Attrs.class <| "nested " ++ class] (List.map elemToHtml elems)
 
 toHtml : Expr -> Html.Html Msg
-toHtml expr = expr |> pp |> elemToHtml
+toHtml expr = expr |> pp 0 |> elemToHtml
 
 
