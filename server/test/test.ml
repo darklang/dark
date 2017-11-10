@@ -117,21 +117,24 @@ let handle_exception e =
 (*   check_dval "int_add" (DInt 8) r *)
 (*  *)
 
-(* let t_load_save _ = *)
-(*   let n1 = Op.Add_fn_call (fid (), Free, "-") in *)
-(*   let n2 = Op.Add_value (fid (), Free, "5") in *)
-(*   let n3 = Op.Add_value (fid (), Free, "3") in *)
-(*   let e1 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in *)
-(*   let e2 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in *)
-(*   let name = "test_load_save" in *)
-(*   let g = ops2g name [n1; n2; n3; e1; e2] in *)
-(*   let _ = G.save !g in *)
-(*   let g1 = G.load name [] in *)
-(*   let _ = G.save !g in *)
-(*   let g2 = G.load name [] in *)
-(*   check_graph "graph_load_save_1" !g !g1; *)
-(*   check_graph "graph_load_save_2" !g !g2 *)
-(*  *)
+let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
+  let c = C.create name in
+  C.add_ops c ops;
+  c
+
+let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
+
+let t_load_save _ =
+  let n1 = Op.SetAST { id = 1; pos = { x = 0; y = 0 }; ast = Ast.Variable "foo" }  in
+  let name = "test_load_save" in
+  let c = ops2c name [n1] in
+  let _ = C.save !c in
+  let c1 = C.load name [] in
+  let _ = C.save !c in
+  let c2 = C.load name [] in
+  check_canvas "canvas_load_save_1" !c !c1;
+  check_canvas "canvas_load_save_2" !c !c2
+
 
 let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
@@ -187,8 +190,8 @@ let suite =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
   [
-  (* ; "roundtrip through saving and loading", `Slow, t_load_save *)
-    "hmac signing works", `Slow, t_hmac_signing
+    "roundtrip through saving and loading", `Slow, t_load_save
+  ; "hmac signing works", `Slow, t_hmac_signing
     (* This test is broken, see comment in Api.json2op *)
   (* ; "functions with edges work too" >:: t_fns_with_edges *)
   (* ; "undos", `Slow, t_undo *)
