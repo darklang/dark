@@ -193,6 +193,7 @@ def ignore(filename):
             , "client/repl-temp"
             , "client/tests/DarkTestData.elm"
             , "server/static/elm.js"
+            , "server/static/base.css"
             , "server/cache/"
             , "server/_build/"
             , "server/appdata/"
