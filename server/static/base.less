@@ -3,22 +3,22 @@ html {
 }
 
 /* From "default dark" in https://chriskempson.github.io/base16/ */
-.base00 { color: #181818; }
-.base01 { color: #282828; }
-.base02 { color: #383838; }
-.base03 { color: #585858; }
-.base04 { color: #b8b8b8; }
-.base05 { color: #d8d8d8; }
-.base06 { color: #e8e8e8; }
-.base07 { color: #f8f8f8; }
-.base08 { color: #ab4642; }
-.base09 { color: #dc9656; }
-.base0A { color: #f7ca88; }
-.base0B { color: #a1b56c; }
-.base0C { color: #86c1b9; }
-.base0D { color: #7cafc2; }
-.base0E { color: #ba8baf; }
-.base0F { color: #a16946; }
+@black1: #181818;
+@black2: #282828;
+@grey1 : #383838;
+@grey2 : #585858;
+@grey3 : #b8b8b8;
+@white3: #d8d8d8;
+@white2: #e8e8e8;
+@white1: #f8f8f8;
+@red   : #ab4642;
+@orange: #dc9656;
+@yellow: #f7ca88;
+@green : #a1b56c;
+@cyan  : #86c1b9;
+@blue  : #7cafc2;
+@purple: #ba8baf;
+@brown : #a16946;
 
 
 body {
@@ -26,8 +26,8 @@ body {
   margin: 0;
   padding: 0;
   height: 100%;
-  background-color: #282828;
-  color:#b8b8b8;
+  background-color: @black2;
+  color: @grey3;
 }
 
 /********************
@@ -37,7 +37,7 @@ Top level
 #grid {
   /* background-color: transparent; */
   /* background-image: linear-gradient(0deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent), linear-gradient(90deg, transparent 24%, rgba(255, 255, 255, .05) 25%, rgba(255, 255, 255, .05) 26%, transparent 27%, transparent 74%, rgba(255, 255, 255, .05) 75%, rgba(255, 255, 255, .05) 76%, transparent 77%, transparent); */
-  background: #181818;
+  background: @black1;
   /* background-size: 2em 2em; */
   position: relative;
 
@@ -72,16 +72,15 @@ div.lambdaexpr {
   display: block;
   padding-left: 8px;
   margin-left: 8px;
-  border-left: 1px solid #dc9656;
+  border-left: 1px solid @orange;
 }
 
 div.lambdabinding, div.arrow {
-  color: #dc9656;
-
+  color: @orange;
 }
 
 .value.tstr {
-  color: #ba8baf;
+  color: @purple;
   font-style: italic;
   letter-spacing: -0.75px;
 }
@@ -108,19 +107,19 @@ div.atom {
 }
 
 .code .moduleseparator {
-  color: #a1b56c;
+  color: @green;
 }
 
 .code .keyword {
-  color: #a1b56c;
+  color: @green;
 }
 
 .precedence-1 .precedence-2 {
-  background-color: #383838;
+  background-color: @grey1;
 }
 
 .precedence-1 {
-  background-color: #282828;
+  background-color: @black2;
 }
 
 /********************
