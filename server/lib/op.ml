@@ -10,7 +10,7 @@ type json = Yojson.Safe.json
 (* ------------------------- *)
 type op = NoOp
         | SetAST of Ast.toplevel
-        | Delete_all
+        | DeleteAll
         | SavePoint
         | Undo
         | Redo

@@ -74,7 +74,7 @@ let json2op (op: opjson) : op =
   | { redo = Some _} -> Redo
   | { undo = Some _} -> Undo
   | { savepoint = Some _} -> SavePoint
-  | { delete_all = Some a } -> Delete_all
+  | { delete_all = Some a } -> DeleteAll
   | _ -> Exception.internal "Unexpected opcode"
 
 let to_ops (payload: string) : op list =

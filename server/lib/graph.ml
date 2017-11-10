@@ -138,7 +138,7 @@ let minimize (g : graph) : graph =
     g.ops
     |> preprocess
     |> List.fold_left ~init:[]
-        ~f:(fun ops op -> if op = Op.Delete_all
+        ~f:(fun ops op -> if op = Op.DeleteAll
                           then []
                           else (ops @ [op]))
     |> List.filter ~f:((<>) Op.SavePoint)
