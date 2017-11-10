@@ -52,12 +52,15 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
   let id = ID (Util.random ()) in
+  let hid1 = ID (Util.random ()) in
+  let hid2 = ID (Util.random ()) in
+  let hid3 = ID (Util.random ()) in
   case cursor of
     Creating pos ->
       let ast =
           case value of
-            "if" -> (If Hole Hole Hole)
-            _    -> Hole
+            "if" -> (If (Hole hid1) (Hole hid2) (Hole hid3))
+            _    -> Hole hid3
       in
       RPC ([SetAST id pos ast], FocusNext id)
   -- let pt = EntryParser.parseFully value

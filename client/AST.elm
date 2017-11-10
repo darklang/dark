@@ -20,11 +20,11 @@ ppFn name =
   case String.split "::" name of
     [mod, n] ->
       Nested "namegroup atom"
-      [ Leaf ("module", mod)
-      , Leaf ("moduleseparator", "::")
-      , Leaf ("fnname", n)
+      [ Leaf (Nothing, "module", mod)
+      , Leaf (Nothing, "moduleseparator", "::")
+      , Leaf (Nothing, "fnname", n)
       ]
-    _ -> Leaf ("fnname atom", name)
+    _ -> Leaf (Nothing, "fnname atom", name)
 
 ppPrefix : FnName -> List Expr -> Int -> Element
 ppPrefix name exprs nest =
@@ -51,11 +51,11 @@ isInfix name =
 
 
 type alias Class = String
-type Element = Leaf (Class, String)
+type Element = Leaf (Maybe ID, Class, String)
              | Nested Class (List Element)
 
 ppVarname : VarName -> Element
-ppVarname v = Leaf ("varname atom", v)
+ppVarname v = Leaf (Nothing, "varname atom", v)
 
 pp : Int -> Expr -> Element
 pp nest expr =
@@ -67,33 +67,33 @@ pp nest expr =
            if RT.isString v
            then "“" ++ (SE.unquote v) ++ "”"
            else v
-     in  Leaf ("atom value " ++ cssClass, valu)
+     in  Leaf (Nothing, "atom value " ++ cssClass, valu)
 
     Let vars expr ->
       Nested "letexpr"
-        [ Leaf ("let keyword atom", "let")
+        [ Leaf (Nothing, "let keyword atom", "let")
         , Nested "letbindings"
             (List.map
               (\(l, r) ->
                 Nested "letbinding"
                   [ ppVarname l
-                  , Leaf ("letbind atom", "=")
+                  , Leaf (Nothing, "letbind atom", "=")
                   , pp nest r
                   ]
               )
               vars
              )
-        , Leaf ("in keyword atom" , "in")
+        , Leaf (Nothing, "in keyword atom" , "in")
         , Nested "letbody" [pp nest expr]
         ]
 
 
     If cond ifbody elsebody ->
       Nested "ifexpr"
-        [ Leaf ("if keyword atom", "if")
+        [ Leaf (Nothing, "if keyword atom", "if")
         , Nested "cond" [pp (nest + 1) cond]
         , Nested "ifbody" [(pp 0 ifbody)]
-        , Leaf ("else keyword atom", "else")
+        , Leaf (Nothing, "else keyword atom", "else")
         , Nested "elsebody" [(pp 0 elsebody)]
         ]
 
@@ -108,18 +108,23 @@ pp nest expr =
     Lambda vars expr ->
       Nested "lambdaexpr"
         [ Nested "lambdabinding" (List.map ppVarname vars)
-        , Leaf ("arrow atom" , "->")
+        , Leaf (Nothing, "arrow atom" , "->")
         , Nested "lambdabody" [pp 0 expr]
         ]
 
-    Hole -> Leaf ("hole atom", "()")
+    Hole id -> Leaf (Just id, "hole atom", "()")
 
 
 elemToHtml : Element -> Html.Html Msg
 elemToHtml elem =
   case elem of
-    Leaf (class, content) ->
-      Html.div [Attrs.class <| "leaf " ++ class] [Html.text content]
+    Leaf (id, class, content) ->
+      let idAttrs =
+        case id of
+          Just i -> [Attrs.id (toString (deID i))]
+          Nothing -> []
+      in
+      Html.div ([Attrs.class <| "leaf " ++ class] ++ idAttrs) [Html.text content]
     Nested class elems ->
       Html.div [Attrs.class <| "nested " ++ class] (List.map elemToHtml elems)
 

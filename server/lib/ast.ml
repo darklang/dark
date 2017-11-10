@@ -14,7 +14,7 @@ type expr = If of expr * expr * expr
           | Let of (varname * expr) list * expr
           | Lambda of varname list * expr
           | Value of RT.dval
-          | Hole
+          | Hole of int
           [@@deriving eq, yojson, show]
 
 type ast = expr [@@deriving eq, yojson, show]
@@ -38,7 +38,7 @@ and api_if = { cond: api_expr
              ; else_: api_expr [@key "else"]
              }
 and api_value = string
-and api_hole = { fake: int option [@default None] }
+and api_hole = { id: int }
 [@@deriving yojson]
 
 type api_ast = api_expr [@@deriving yojson]
@@ -58,8 +58,8 @@ let rec api_expr2expr (e: api_expr) : expr =
     If (a2e a.cond, a2e a.then_, a2e a.else_)
   | { value = Some a } ->
     Value (RT.parse a)
-  | { hole = Some _ } ->
-    Hole
+  | { hole = Some a } ->
+    Hole a.id
   | _ -> Exception.internal "Unexpected opexpr"
 
 let api_ast2ast = api_expr2expr
@@ -81,7 +81,7 @@ let rec expr2api_expr (e: expr) : api_expr =
                        }}
   | Value v ->
     { empty with value = Some (RT.dval_to_json_string v) }
-  | Hole -> { empty with hole = Some { fake = None } }
+  | Hole id -> { empty with hole = Some { id = id } }
   | _ -> Exception.internal "Unexpected opexpr"
 
 let ast2api_ast = expr2api_expr

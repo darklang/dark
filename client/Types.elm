@@ -50,6 +50,9 @@ type alias LiveValue = Int
 type alias Special = Int
 type ID = ID Int
 
+deID : ID -> Int
+deID (ID i) = i
+
 type EntryCursor = Creating Pos
                  -- | Filling
 
@@ -119,7 +122,7 @@ type Expr = If Expr Expr Expr
           | Let (List (VarName, Expr)) Expr
           | Lambda (List VarName) Expr
           | Value String
-          | Hole
+          | Hole ID
 
 type alias Toplevel = { id : ID
                       , pos : Pos
