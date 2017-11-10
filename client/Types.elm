@@ -62,11 +62,11 @@ type State = Selecting ID
 
 type Msg
     = GlobalClick MouseEvent
-    | NodeClickDown Special MouseEvent
+    | ToplevelClickDown Toplevel MouseEvent
     -- we have the actual node when NodeClickUp is created, but by the time we
     -- use it the proper node will be changed
-    | NodeClickUp ID MouseEvent
-    | DragNodeMove ID Mouse.Position
+    | ToplevelClickUp ID MouseEvent
+    | DragToplevel ID Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent

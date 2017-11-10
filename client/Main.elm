@@ -308,12 +308,12 @@ update_ msg m =
                 , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
       else NoChange
 
-    (NodeClickDown node event, _) ->
+    (ToplevelClickDown node event, _) ->
       if event.button == Defaults.leftButton
       then Drag event.pos False m.state
       else NoChange
 
-    (DragNodeMove id mousePos, _) ->
+    (DragToplevel id mousePos, _) ->
       case m.state of
         -- Dragging startVPos _ origState ->
         --   let xDiff = mousePos.x-startVPos.vx
@@ -324,23 +324,25 @@ update_ msg m =
         --        , Drag id {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    (NodeClickUp id event, _) ->
+    (ToplevelClickUp id event, _) ->
       if event.button == Defaults.leftButton
       then
-        case m.state of
-          -- Dragging id startVPos hasMoved origState ->
-          --   if hasMoved
-          --   then
-          --     let xDiff = event.pos.vx-startVPos.vx
-          --         yDiff = event.pos.vy-startVPos.vy
-          --         (m2, root) = G.moveSubgraph m id xDiff yDiff in
-          --       Many
-          --         [ -- final x/y update, tiny diff like in DragNodeMove
-          --           SetViewNodes m2.nodes
-          --         , SetState origState
-          --         , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
-          --   else Select id
-          _ -> Debug.crash "it can never not be dragging"
+        Select id
+        -- case m.state of
+        --   Dragging id startVPos hasMoved origState ->
+        --     Select id
+        --     -- if hasMoved
+        --     -- then
+        --     --   let xDiff = event.pos.vx-startVPos.vx
+        --     --       yDiff = event.pos.vy-startVPos.vy
+        --     --       (m2, root) = G.moveSubgraph m id xDiff yDiff in
+        --     --     Many
+        --     --       [ -- final x/y update, tiny diff like in DragNodeMove
+        --     --         SetViewNodes m2.nodes
+        --     --       , SetState origState
+        --     --       , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
+        --     else Select id
+        --   _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
 
@@ -406,7 +408,7 @@ subscriptions m =
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging offset _ _ ->
-            [ Mouse.moves (DragNodeMove (ID 5))]
+            [ Mouse.moves (DragToplevel (ID 5))]
           _ -> []
   in Sub.batch
     (List.concat [keySubs, dragSubs])

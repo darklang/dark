@@ -87,7 +87,13 @@ viewAST m tl =
         case m.state of
           Selecting id -> if id == tl.id then "selected" else ""
           _ -> ""
-  in placeHtml m tl.pos (Html.div [Attrs.class ("code " ++ selected)] [html])
+      events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
+               , Events.onWithOptions
+                   "mouseup"
+                   { stopPropagation = True, preventDefault = False }
+                   (decodeClickEvent (ToplevelClickUp tl.id))
+               ]
+  in placeHtml m tl.pos (Html.div (events ++ [Attrs.class ("code " ++ selected)]) [html])
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
