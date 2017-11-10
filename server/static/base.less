@@ -60,12 +60,6 @@ Top level
  * AST
  **************/
 
-.code {
-  font-size: 10pt;
-  font-family: 'Fira Code', monospace;
-  white-space: pre;
-}
-
 /**************
  * AST layout rules
  **************/
@@ -94,10 +88,19 @@ Top level
  * AST css
  **************/
 .code {
+  font-size: 10pt;
+  font-family: 'Fira Code', monospace;
+  padding: 8px;
+  white-space: pre;
+  width: max-content;
   .layout-block;
 
   div {
     .layout-inline;
+  }
+
+  &.selected {
+    background-color: lighten(@black1, 5%);
   }
 
   .letexpr > .letbody {

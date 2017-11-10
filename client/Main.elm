@@ -168,13 +168,8 @@ updateMod origm mod (m, cmd) =
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
-      Select _ -> m ! []
-        -- let n = G.getNodeExn m id in
-        -- G.recalculateView
-        -- ({ m | state = Selecting id
-        --     , center = if G.hasRelativePos n
-        --                then m.center
-        --                else G.pos m n |> selectCenter origm.center}) ! []
+      Select id ->
+        { m | state = Selecting id } ! []
       Enter re entry ->
       --   G.recalculateView
       ({ m | state = Entering re entry
@@ -362,23 +357,14 @@ update_ msg m =
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
     (RPCCallBack focus calls (Ok (toplevels)), _) ->
-      let _ = Nothing
-          -- we should calculate this later, but we can't right now
-          -- newState =
-          --   case focus of
-          --     FocusNext id -> enterNext m3 (G.getNodeExn m3 id)
-          --     Refocus id -> reenterNode m3 (G.getNodeExn m3 id)
-          --     FocusExact id -> enterExact m3 (G.getNodeExn m3 id)
-          --     FocusSame ->
-          --       case m.state of
-          --         Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
-          --         _ -> NoChange
-          --     FocusNothing -> Deselect
-          --
+      let newState =
+            case focus of
+              FocusNext id -> Select id
+              _            -> NoChange
       in Many [ SetToplevels toplevels
               , AutocompleteMod ACReset
               , ClearError
-              -- , newState
+              , newState
               ]
 
     (SaveTestCallBack (Ok msg), _) ->

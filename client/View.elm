@@ -83,7 +83,11 @@ viewCanvas m =
 viewAST : Model -> Toplevel -> Svg.Svg Msg
 viewAST m tl =
   let html = AST.toHtml tl.expr
-  in placeHtml m tl.pos (Html.div [Attrs.class "code"] [html])
+      selected =
+        case m.state of
+          Selecting id -> if id == tl.id then "selected" else ""
+          _ -> ""
+  in placeHtml m tl.pos (Html.div [Attrs.class ("code " ++ selected)] [html])
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
