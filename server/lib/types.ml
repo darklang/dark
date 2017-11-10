@@ -1,10 +1,6 @@
 open Core
 
-type pos_ = { x:int; y:int }[@@deriving yojson, eq, show]
-type pos = Free
-         | Root of pos_
-         | Dependent
-         | NoPos
-         [@@deriving yojson, eq, show]
+type pos = { x:int; y:int }[@@deriving eq, show, yojson]
 
-type id = int [@@deriving eq, yojson, show]
+type id = int [@@deriving eq, show, yojson]
+

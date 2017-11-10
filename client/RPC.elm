@@ -62,7 +62,7 @@ encodeRPC m call =
       SetAST id pos expr ->
         ("set_ast", JSE.object [ encodeID id
                                , encodePos pos
-                               , ("expr", encodeAST expr)])
+                               , ("ast", encodeAST expr)])
 
       NoOp ->
         ("noop", JSE.object [])
@@ -85,7 +85,8 @@ encodeAST expr =
   let e = encodeAST in
   case expr of
     If cond then_ else_ ->
-      JSE.object [("type", JSE.string "if"), ("cond", e cond), ("then", e then_), ("else", e else_)]
+      JSE.object [("if", JSE.object [("cond", e cond), ("then", e then_), ("else", e else_)])]
+    Value v -> JSE.object [("value", JSE.string v)]
     _ -> JSE.object [("type", JSE.string "todo")]
 
 

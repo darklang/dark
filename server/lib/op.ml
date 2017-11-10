@@ -9,6 +9,7 @@ type json = Yojson.Safe.json
 (* Ops *)
 (* ------------------------- *)
 type op = NoOp
+        | SetAST of Ast.toplevel
         | Delete_all
         | SavePoint
         | Undo

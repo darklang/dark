@@ -4,14 +4,17 @@ open Types
 
 module RT = Runtime
 
-type oplist = Op.op list [@@deriving eq, yojson, show]
+type oplist = Op.op list [@@deriving eq, show, yojson]
+type toplevellist = Ast.toplevel list [@@deriving eq, show, yojson]
 type graph = { name : string
              ; ops : oplist
+             ; toplevels: toplevellist
              } [@@deriving eq, show]
 
 let create (name : string) : graph ref =
   ref { name = name
       ; ops = []
+      ; toplevels = []
       }
 
 let page_GETs (g: graph) : 'a list =
@@ -81,6 +84,8 @@ let is_undoable (g: graph) : bool =
 let is_redoable (g: graph) : bool =
   g.ops |> List.last |> (=) (Some Op.Undo)
 
+let add_toplevel (toplevel: Ast.toplevel) (g: graph) : graph =
+  { g with toplevels = g.toplevels @ [toplevel] }
 
 (* ------------------------- *)
 (* Build *)
@@ -92,6 +97,7 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
     match op with
     | NoOp -> ident
     | SavePoint -> ident
+    | SetAST toplevel -> add_toplevel toplevel
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
