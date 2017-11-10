@@ -88,6 +88,7 @@ encodeAST expr =
     If cond then_ else_ ->
       JSE.object [("if", JSE.object [("cond", e cond), ("then", e then_), ("else", e else_)])]
     Value v -> JSE.object [("value", JSE.string v)]
+    Hole -> JSE.object [("hole", JSE.object [])]
     _ -> JSE.object [("type", JSE.string "todo")]
 
 decodeIf : JSD.Decoder Expr
@@ -103,10 +104,15 @@ decodeValue =
   JSDP.decode Value
   |> JSDP.required "value" JSD.string
 
+decodeHole : JSD.Decoder Expr
+decodeHole =
+  let toHole _ = Hole in
+  JSDP.decode toHole
+  |> JSDP.required "hole" (JSD.dict JSD.int)
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
-  JSD.oneOf [decodeIf, decodeValue]
+  JSD.oneOf [decodeIf, decodeValue, decodeHole]
 
 
 decodeToplevel : JSD.Decoder Toplevel

@@ -112,6 +112,7 @@ pp nest expr =
         , Nested "lambdabody" [pp 0 expr]
         ]
 
+    Hole -> Leaf ("hole atom", "()")
 
 
 elemToHtml : Element -> Html.Html Msg

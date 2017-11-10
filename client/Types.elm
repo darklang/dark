@@ -119,6 +119,7 @@ type Expr = If Expr Expr Expr
           | Let (List (VarName, Expr)) Expr
           | Lambda (List VarName) Expr
           | Value String
+          | Hole
 
 type alias Toplevel = { id : ID
                       , pos : Pos
