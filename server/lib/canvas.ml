@@ -148,8 +148,12 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
+
+let toplevel_to_frontend = Ast.toplevel_to_yojson
+
 let to_frontend (c : canvas) : Yojson.Safe.json =
-  `Assoc [ ("redoable", `Bool (is_redoable c))
+  `Assoc [ ("toplevels", `List (List.map ~f:toplevel_to_frontend c.toplevels))
+         ; ("redoable", `Bool (is_redoable c))
          ; ("undo_count", `Int (undo_count c))
          ; ("undoable", `Bool (is_undoable c)) ]
 

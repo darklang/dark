@@ -4,6 +4,7 @@ module RPC exposing (..)
 import Http
 import Json.Encode as JSE
 import Json.Decode as JSD
+import Json.Decode.Pipeline as JSDP
 
 -- lib
 
@@ -89,7 +90,70 @@ encodeAST expr =
     Value v -> JSE.object [("value", JSE.string v)]
     _ -> JSE.object [("type", JSE.string "todo")]
 
+decodeExpr : JSD.Decoder Expr
+decodeExpr =
+  -- let toExpr =
+  -- in
+  JSDP.decode toExpr
+  |> JSDP.optional
 
-decodeCanvas : JSD.Decoder Int
-decodeCanvas = JSD.int
+
+decodeTopLevel : JSD.Decoder TopLevel
+decodeTopLevel =
+  let toTopLevel id x y expr =  { id = ID id, pos = { x=x, y=y }, expr = expr }
+  in
+  JSDP.decode toTopLevel
+  |> JSDP.required "id" JSD.int
+  |> JSDP.requiredAt ["pos", "x"] JSD.int
+  |> JSDP.requiredAt ["pos", "y"] JSD.int
+  |> JSDP.required "ast" decodeExpr
+
+decodeRPC : JSD.Decoder Int
+decodeRPC = JSD.int
+
+-- decodeRPCNode : JSD.Decoder RPCNode
+-- -  in JSDP.decode toRPCNode
+-- -    |> JSDP.required "name" JSD.string
+-- -    |> JSDP.required "id" JSD.int
+-- -    |> JSDP.optional "fields" (JSD.list
+-- -                                 (JSD.map2 (,)
+-- -                                    (JSD.index 0 JSD.string)
+-- -                                    (JSD.index 1 JSD.string))) []
+-- -    |> JSDP.required "arguments"
+-- -         (JSD.list
+-- -           (JSD.map2 (,)
+-- -            (JSD.index 0
+-- -              (JSDP.decode toParameter
+-- -                |> JSDP.required "name" JSD.string
+-- -                |> JSDP.required "tipe" JSD.string
+-- -                |> JSDP.required "block_args" (JSD.list JSD.string)
+-- -                |> JSDP.required "optional" JSD.bool
+-- -                |> JSDP.required "description" JSD.string))
+-- -            (JSD.index 1
+-- -              (JSD.map toArgument (JSD.list JSD.value)))))
+-- -    |> JSDP.requiredAt ["live", "value"] JSD.string
+-- -    |> JSDP.requiredAt ["live", "type"] JSD.string
+-- -    |> JSDP.requiredAt ["live", "json"] JSD.string
+-- -    |> JSDP.optionalAt ["live", "exc"]
+-- -         (JSDP.decode toExc
+-- -            |> JSDP.required "short" JSD.string
+-- -            |> JSDP.required "long" JSD.string
+-- -            |> JSDP.required "tipe" JSD.string
+-- -            |> JSDP.required "actual" JSD.string
+-- -            |> JSDP.required "actual_tipe" JSD.string
+-- -            |> JSDP.required "result" JSD.string
+-- -            |> JSDP.required "result_tipe" JSD.string
+-- -            |> JSDP.required "expected" JSD.string
+-- -            |> JSDP.required "info" (JSD.dict JSD.string)
+-- -            |> JSDP.required "workarounds" (JSD.list JSD.string))
+-- -            Nothing
+-- -    |> JSDP.optional "block_id" JSD.int Defaults.unsetInt
+-- -    |> JSDP.required "arg_ids" (JSD.list JSD.int)
+-- -    |> JSDP.required "type" JSD.string
+-- -    |> JSDP.required "pos" (JSD.index 0 JSD.string)
+-- -    |> JSDP.required "pos" (JSD.maybe (JSD.index 1 (JSD.field "x" JSD.int)))
+-- -    |> JSDP.required "pos" (JSD.maybe (JSD.index 1 (JSD.field "y" JSD.int)))
+-- -    |> JSDP.required "cursor" JSD.int
+
+
 

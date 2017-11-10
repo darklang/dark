@@ -120,9 +120,10 @@ type Expr = If Expr Expr Expr
           | Lambda (List VarName) Expr
           | Value String
 
-type alias Code = { expr : Expr
-                  , pos : Pos
-                  }
+type alias TopLevel = { id : ID
+                      , pos : Pos
+                      , expr : Expr
+                      }
 
 type alias Model = { center : Pos
                    , error : Maybe String
@@ -131,7 +132,7 @@ type alias Model = { center : Pos
                    , tests : List VariantTest
                    , complete : Autocomplete
                    , state : State
-                   , topLevels : List Code
+                   , topLevels : List TopLevel
                    }
 
 type AutocompleteMod = ACSetQuery String

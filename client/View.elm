@@ -80,10 +80,10 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
 
-viewAST : Model -> Code -> Svg.Svg Msg
-viewAST m code =
-  let html = AST.toHtml code.expr
-  in placeHtml m code.pos (Html.div [Attrs.class "code"] [html])
+viewAST : Model -> TopLevel -> Svg.Svg Msg
+viewAST m tl =
+  let html = AST.toHtml tl.expr
+  in placeHtml m tl.pos (Html.div [Attrs.class "code"] [html])
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
