@@ -72,7 +72,7 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack Focus (List RPC) (Result Http.Error Special)
+    | RPCCallBack Focus (List RPC) (Result Http.Error (List Toplevel))
     | SaveTestCallBack (Result Http.Error String)
     | LocationChange Navigation.Location
     | AddRandom
@@ -120,7 +120,7 @@ type Expr = If Expr Expr Expr
           | Lambda (List VarName) Expr
           | Value String
 
-type alias TopLevel = { id : ID
+type alias Toplevel = { id : ID
                       , pos : Pos
                       , expr : Expr
                       }
@@ -132,7 +132,7 @@ type alias Model = { center : Pos
                    , tests : List VariantTest
                    , complete : Autocomplete
                    , state : State
-                   , topLevels : List TopLevel
+                   , toplevels : List Toplevel
                    }
 
 type AutocompleteMod = ACSetQuery String
@@ -150,6 +150,7 @@ type Modification = Error String
                   | ClearError
                   | Select ID
                   | Deselect
+                  | SetToplevels (List Toplevel)
                   | Enter IsReentering EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos

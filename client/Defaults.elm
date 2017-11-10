@@ -40,7 +40,7 @@ defaultModel e = { error = Nothing
                  , complete = Autocomplete.empty
                  , state = Deselected
                  , tests = []
-                 , topLevels = []
+                 , toplevels = []
 
                  -- editor
                  -- these load before the graph does, causing

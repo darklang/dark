@@ -74,13 +74,13 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let
         entry = viewEntry m
-        asts = List.map (viewAST m) m.topLevels
+        asts = List.map (viewAST m) m.toplevels
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
 
-viewAST : Model -> TopLevel -> Svg.Svg Msg
+viewAST : Model -> Toplevel -> Svg.Svg Msg
 viewAST m tl =
   let html = AST.toHtml tl.expr
   in placeHtml m tl.pos (Html.div [Attrs.class "code"] [html])

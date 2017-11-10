@@ -95,7 +95,7 @@ init {editorState, complete} location =
       m = Defaults.defaultModel editor
       m2 = { m | complete = Autocomplete.init (List.map flag2function complete)
                , tests = tests
-               , topLevels = [{pos={x=100, y=m.center.y}, expr=sampleAST}]
+               , toplevels = [{id=ID 5, pos={x=100, y=m.center.y}, expr=sampleAST}]
       }
   in
     (m2, rpc m FocusNothing [])
@@ -188,6 +188,9 @@ updateMod origm mod (m, cmd) =
       --             Creating p ->
       --               m.center -- dont move
       }) ! [Entry.focusEntry]
+
+      SetToplevels tls ->
+        { m | toplevels = tls } ! []
 
       SetCenter c ->
         { m | center = c } ! []
@@ -358,7 +361,7 @@ update_ msg m =
     -- (AddRandom, _) ->
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
-    (RPCCallBack focus calls (Ok (nodes)), _) ->
+    (RPCCallBack focus calls (Ok (toplevels)), _) ->
       let _ = Nothing
           -- we should calculate this later, but we can't right now
           -- newState =
@@ -372,8 +375,8 @@ update_ msg m =
           --         _ -> NoChange
           --     FocusNothing -> Deselect
           --
-      in Many [
-                AutocompleteMod ACReset
+      in Many [ SetToplevels toplevels
+              , AutocompleteMod ACReset
               , ClearError
               -- , newState
               ]
