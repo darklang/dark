@@ -49,7 +49,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 --
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
-submit m re cursor value = NoChange
+submit m re cursor value =
+  RPC ([SetAST (ID 5) {x=150, y=350} (If (Value "0") (Value "0") (Value "0"))], FocusNext (ID 5))
   -- let pt = EntryParser.parseFully value
   -- in case pt of
   --   Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt

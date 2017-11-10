@@ -53,8 +53,17 @@ encodeRPCs m calls =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let (cmd, args) =
+  let encodePos pos = case pos of
+                        {x,y} -> ("pos", JSE.object [ ("x", JSE.int x)
+                                                    , ("y", JSE.int y)])
+      encodeID (ID id) = ("id", JSE.int id)
+      (cmd, args) =
     case call of
+      SetAST id pos expr ->
+        ("set_ast", JSE.object [ encodeID id
+                               , encodePos pos
+                               , ("expr", encodeAST expr)])
+
       NoOp ->
         ("noop", JSE.object [])
 
@@ -70,6 +79,15 @@ encodeRPC m call =
       Redo ->
         ("redo", JSE.object [])
   in JSE.object [ (cmd, args) ]
+
+encodeAST : Expr -> JSE.Value
+encodeAST expr =
+  let e = encodeAST in
+  case expr of
+    If cond then_ else_ ->
+      JSE.object [("type", JSE.string "if"), ("cond", e cond), ("then", e then_), ("else", e else_)]
+    _ -> JSE.object [("type", JSE.string "todo")]
+
 
 decodeCanvas : JSD.Decoder Int
 decodeCanvas = JSD.int

@@ -48,14 +48,14 @@ type alias IsLeftButton = Bool
 -- Placeholder for whatever the new "Node" is
 type alias LiveValue = Int
 type alias Special = Int
-type alias SP = Int -- short form: "ID"
+type ID = ID Int
 
 type EntryCursor = Creating Pos
                  | Filling
 
 type alias IsReentering = Bool
 type alias HasMoved = Bool
-type State = Selecting SP
+type State = Selecting ID
            | Entering IsReentering EntryCursor
            | Dragging VPos HasMoved State
            | Deselected
@@ -65,8 +65,8 @@ type Msg
     | NodeClickDown Special MouseEvent
     -- we have the actual node when NodeClickUp is created, but by the time we
     -- use it the proper node will be changed
-    | NodeClickUp SP MouseEvent
-    | DragNodeMove SP Mouse.Position
+    | NodeClickUp ID MouseEvent
+    | DragNodeMove ID Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -81,13 +81,14 @@ type Msg
     | Initialization
 
 type Focus = FocusNothing -- deselect
-           | Refocus SP
-           | FocusExact SP
-           | FocusNext SP
+           | Refocus ID
+           | FocusExact ID
+           | FocusNext ID
            | FocusSame -- unchanged
 
 type RPC
     = NoOp
+    | SetAST ID Pos Expr
     | DeleteAll
     | Savepoint
     | Undo
@@ -146,7 +147,7 @@ type AutocompleteMod = ACSetQuery String
 
 type Modification = Error String
                   | ClearError
-                  | Select SP
+                  | Select ID
                   | Deselect
                   | Enter IsReentering EntryCursor
                   | RPC (List RPC, Focus)

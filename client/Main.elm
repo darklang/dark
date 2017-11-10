@@ -175,9 +175,9 @@ updateMod origm mod (m, cmd) =
         --     , center = if G.hasRelativePos n
         --                then m.center
         --                else G.pos m n |> selectCenter origm.center}) ! []
-      Enter re entry -> m ! []
+      Enter re entry ->
       --   G.recalculateView
-      --   ({ m | state = Entering re entry
+      ({ m | state = Entering re entry
       --       , center =
       --           case entry of
       --             Filling id _ ->
@@ -187,8 +187,8 @@ updateMod origm mod (m, cmd) =
       --               else selectCenter origm.center (G.pos m n)
       --             Creating p ->
       --               m.center -- dont move
-      --   })
-      --   ! [Entry.focusEntry]
+      }) ! [Entry.focusEntry]
+
       SetCenter c ->
         { m | center = c } ! []
       Drag offset hasMoved state ->
@@ -233,15 +233,15 @@ update_ msg m =
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
-                Key.Enter ->
-                  if Autocomplete.isSmallStringEntry m.complete
-                  then
-                    Many [ AutocompleteMod (ACAppendQuery "\n")
-                         , MakeCmd Entry.focusEntry
-                         ]
-                  else if Autocomplete.isLargeStringEntry m.complete
-                  then Entry.submit m re cursor m.complete.value
-                  else NoChange
+                -- Key.Enter ->
+                --   if Autocomplete.isSmallStringEntry m.complete
+                --   then
+                --     Many [ AutocompleteMod (ACAppendQuery "\n")
+                --          , MakeCmd Entry.focusEntry
+                --          ]
+                --   else if Autocomplete.isLargeStringEntry m.complete
+                --   then Entry.submit m re cursor m.complete.value
+                --   else NoChange
                 _ -> NoChange
             else
               case event.keyCode of
@@ -258,14 +258,15 @@ update_ msg m =
                                Just item -> Autocomplete.asName item
                                Nothing -> m.complete.value
                   in
-                  if Autocomplete.isLargeStringEntry m.complete
-                  then AutocompleteMod (ACSetQuery m.complete.value)
-                  else Entry.submit m re cursor name
+                  -- if Autocomplete.isLargeStringEntry m.complete
+                  -- then AutocompleteMod (ACSetQuery m.complete.value)
+                  -- else
+                    Entry.submit m re cursor name
 
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling -> Many [ Select 5
+                    Filling -> Many [ Select (ID 5)
                                     , AutocompleteMod ACReset]
                 key ->
                   AutocompleteMod <| ACSetQuery m.complete.value
@@ -416,7 +417,7 @@ subscriptions m =
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging offset _ _ ->
-            [ Mouse.moves (DragNodeMove 5)]
+            [ Mouse.moves (DragNodeMove (ID 5))]
           _ -> []
   in Sub.batch
     (List.concat [keySubs, dragSubs])
