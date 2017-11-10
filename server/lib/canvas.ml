@@ -6,21 +6,21 @@ module RT = Runtime
 
 type oplist = Op.op list [@@deriving eq, show, yojson]
 type toplevellist = Ast.toplevel list [@@deriving eq, show, yojson]
-type graph = { name : string
-             ; ops : oplist
-             ; toplevels: toplevellist
-             } [@@deriving eq, show]
+type canvas = { name : string
+              ; ops : oplist
+              ; toplevels: toplevellist
+              } [@@deriving eq, show]
 
-let create (name : string) : graph ref =
+let create (name : string) : canvas ref =
   ref { name = name
       ; ops = []
       ; toplevels = []
       }
 
-let page_GETs (g: graph) : 'a list =
+let page_GETs (c: canvas) : 'a list =
   []
 
-let page_POSTs (g: graph) : 'a list =
+let page_POSTs (c: canvas) : 'a list =
   []
 
 
@@ -70,30 +70,30 @@ let preprocess (ops: Op.op list) : Op.op list =
   |> List.filter ~f:((<>) Op.NoOp)
 
 
-let undo_count (g: graph) : int =
-  g.ops
+let undo_count (c: canvas) : int =
+  c.ops
     |> List.rev
     |> List.take_while ~f:((=) Op.Undo)
     |> List.length
 
-let is_undoable (g: graph) : bool =
-  g.ops
+let is_undoable (c: canvas) : bool =
+  c.ops
     |> preprocess
     |> List.exists ~f:((=) Op.SavePoint)
 
-let is_redoable (g: graph) : bool =
-  g.ops |> List.last |> (=) (Some Op.Undo)
+let is_redoable (c: canvas) : bool =
+  c.ops |> List.last |> (=) (Some Op.Undo)
 
-let add_toplevel (toplevel: Ast.toplevel) (g: graph) : graph =
-  { g with toplevels = g.toplevels @ [toplevel] }
+let add_toplevel (toplevel: Ast.toplevel) (c: canvas) : canvas =
+  { c with toplevels = c.toplevels @ [toplevel] }
 
 (* ------------------------- *)
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (op : Op.op) (g : graph ref) : unit =
-  g :=
-    !g |>
+let apply_op (op : Op.op) (c : canvas ref) : unit =
+  c :=
+    !c |>
     match op with
     | NoOp -> ident
     | SavePoint -> ident
@@ -102,10 +102,10 @@ let apply_op (op : Op.op) (g : graph ref) : unit =
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
 
-let add_ops (g: graph ref) (ops: Op.op list) : unit =
+let add_ops (c: canvas ref) (ops: Op.op list) : unit =
   let reduced_ops = preprocess ops in
-  List.iter ~f:(fun op -> apply_op op g) reduced_ops;
-  g := { !g with ops = ops }
+  List.iter ~f:(fun op -> apply_op op c) reduced_ops;
+  c := { !c with ops = ops }
 
 
 (* ------------------------- *)
@@ -113,8 +113,8 @@ let add_ops (g: graph ref) (ops: Op.op list) : unit =
 (* ------------------------- *)
 let filename_for name = "appdata/" ^ name ^ ".dark"
 
-let load ?(filename=None) (name: string) (ops: Op.op list) : graph ref =
-  let g = create name in
+let load ?(filename=None) (name: string) (ops: Op.op list) : canvas ref =
+  let c = create name in
   let filename = Option.value filename ~default:(filename_for name) in
   filename
   |> Util.readfile ~default:"[]"
@@ -122,49 +122,49 @@ let load ?(filename=None) (name: string) (ops: Op.op list) : graph ref =
   |> oplist_of_yojson
   |> Result.ok_or_failwith
   |> (fun os -> os @ ops)
-  |> add_ops g;
-  g
+  |> add_ops c;
+  c
 
-let save ?(filename=None) (g : graph) : unit =
-  let filename = Option.value filename ~default:(filename_for g.name) in
-  g.ops
+let save ?(filename=None) (c : canvas) : unit =
+  let filename = Option.value filename ~default:(filename_for c.name) in
+  c.ops
   |> oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
 
-let minimize (g : graph) : graph =
+let minimize (c : canvas) : canvas =
   let ops =
-    g.ops
+    c.ops
     |> preprocess
     |> List.fold_left ~init:[]
         ~f:(fun ops op -> if op = Op.DeleteAll
                           then []
                           else (ops @ [op]))
     |> List.filter ~f:((<>) Op.SavePoint)
-  in { g with ops = ops }
+  in { c with ops = ops }
 
 
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-let to_frontend (g : graph) : Yojson.Safe.json =
-  `Assoc [ ("redoable", `Bool (is_redoable g))
-         ; ("undo_count", `Int (undo_count g))
-         ; ("undoable", `Bool (is_undoable g)) ]
+let to_frontend (c : canvas) : Yojson.Safe.json =
+  `Assoc [ ("redoable", `Bool (is_redoable c))
+         ; ("undo_count", `Int (undo_count c))
+         ; ("undoable", `Bool (is_undoable c)) ]
 
-let to_frontend_string (g: graph) : string =
-  g |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
+let to_frontend_string (c: canvas) : string =
+  c |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
 
-let save_test (g: graph) : string =
-  let g = minimize g in
-  let filename = "appdata/test_" ^ g.name ^ ".dark" in
+let save_test (c: canvas) : string =
+  let c = minimize c in
+  let filename = "appdata/test_" ^ c.name ^ ".dark" in
   let name = if Sys.file_exists filename = `Yes
-             then g.name ^ "_"
+             then c.name ^ "_"
                   ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
-             else g.name in
-  let g = {g with name = name } in
+             else c.name in
+  let c = {c with name = name } in
   let filename = "appdata/test_" ^ name ^ ".dark" in
-  save ~filename:(Some filename) g;
+  save ~filename:(Some filename) c;
   filename
 

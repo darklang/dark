@@ -1,7 +1,7 @@
 open Core
 open Types
 
-module G = Graph
+module C = Canvas
 module Map = Map.Poly
 module RT = Runtime
 module AT = Alcotest

@@ -2,7 +2,6 @@ open Core
 open Types
 
 open Op
-module G = Graph
 module RT = Runtime
 
 (* Opcodes as sent via the API. We do this to get type checking *)

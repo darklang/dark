@@ -2,11 +2,10 @@ open Core
 open Lwt
 
 module Clu = Cohttp_lwt_unix
-module C = Cohttp
 module S = Clu.Server
 module Request = Clu.Request
-module Header = C.Header
-module G = Graph
+module Header = Cohttp.Header
+module C = Canvas
 module RT = Runtime
 
 let server =
@@ -17,22 +16,22 @@ let server =
     let admin_rpc_handler body (host: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
-      let g = G.load host [] in
+      let g = C.load host [] in
       try
         let ops = Api.to_ops body in
-        g := !(G.load host ops);
-        let result = Graph.to_frontend_string !g in
+        g := !(C.load host ops);
+        let result = C.to_frontend_string !g in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
          * or other crashing bug *)
-        if save then G.save !g;
+        if save then C.save !g;
         result
       with
       | e ->
         let bt = Exn.backtrace () in
         let msg = Exn.to_string e in
-        print_endline (G.show_graph !g);
+        print_endline (C.show_canvas !g);
         print_endline ("Exception: " ^ msg);
         print_endline bt;
         raise e
@@ -49,8 +48,8 @@ let server =
     in
 
     let save_test_handler host =
-      let g = G.load host [] in
-      let filename = G.save_test !g in
+      let g = C.load host [] in
+      let filename = C.save_test !g in
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
@@ -58,9 +57,9 @@ let server =
     (*   form |> Uri.query_of_encoded |> RT.query_to_dval *)
     (* in *)
     (*  *)
-    (* let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) (ctype: string) = *)
-      (* let g = G.load host [] in *)
-      (* let is_get = C.Code.method_of_string "GET" = verb in *)
+    (* let user_page_handler (host: string) (verb: Cohttp.Code.meth) (body: string) (uri: Uri.t) (ctype: string) = *)
+      (* let g = C.load host [] in *)
+      (* let is_get = Cohttp.Code.method_of_string "GET" = verb in *)
       (* let body_parser = *)
       (*   match ctype with *)
       (*   | "application/json" -> RT.parse *)
@@ -94,9 +93,9 @@ let server =
       (*             | None -> Exception.internal "We only support :id url params rn" in *)
       (*           Libdb.kv_fetch model id *)
       (*         else *)
-      (*           G.run_output !g page *)
+      (*           C.run_output !g page *)
       (*       (* Posts have values, I guess we should be getting the result from it *) *)
-      (*       else (G.run_input !g scope page; DStr "") in *)
+      (*       else (C.run_input !g scope page; DStr "") in *)
       (*     RT.to_url_string result *)
       (*   in *)
       (*  *)
@@ -139,7 +138,7 @@ let server =
            | a :: rest -> a
            | _ -> failwith @@ "Unsupported domain: " ^ domain in
 
-           Log.pP "req: " (domain, C.Code.string_of_method verb, uri);
+           Log.pP "req: " (domain, Cohttp.Code.string_of_method verb, uri);
 
            match (Uri.path uri) with
            | "/admin/api/rpc" ->

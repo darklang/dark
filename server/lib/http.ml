@@ -1,20 +1,20 @@
 open Core
-module G = Graph
+module C = Canvas
 
 module RouteParamMap = String.Map
 type route_param_map = string RouteParamMap.t
 
-(* let routes (g: G.graph) : (string * G.node) list = *)
-(*   G.page_routes g *)
+(* let routes (c: C.canvas) : (string * C.node) list = *)
+(*   C.page_routes c *)
 (*  *)
-(* let url_for (g: G.graph) (n: G.node) : string option = *)
-(*   let url = n#get_arg_value (G.gfns g) "url" in *)
+(* let url_for (c: C.canvas) (n: C.node) : string option = *)
+(*   let url = n#get_arg_value (C.gfns c) "url" in *)
 (*   match url with *)
 (*   | DStr s -> Some s *)
 (*   | _      -> None *)
 (*  *)
-(* let url_for_exn (g: G.graph) (n: G.node) : string = *)
-(*   match (url_for g n) with *)
+(* let url_for_exn (c: C.canvas) (n: C.node) : string = *)
+(*   match (url_for c n) with *)
 (*   | Some s -> s *)
 (*   | None -> Exception.internal "Called url_for_exn on a node without a `url` param" *)
 (*  *)
@@ -31,13 +31,13 @@ let controller (path_or_route : string) : string option =
 let path_matches_route ~(path: string) (route: string) : bool =
   (path = route) || ((controller path) = (controller route))
 
-(* let matching_routes ~(uri: Uri.t) (g: G.graph) : (string * G.node) list = *)
+(* let matching_routes ~(uri: Uri.t) (c: C.canvas) : (string * C.node) list = *)
 (*   let path = Uri.path uri in *)
-(*   let rs   = routes g in *)
+(*   let rs   = routes c in *)
 (*   List.filter ~f:(fun (route, _) -> path_matches_route ~path:path route) rs *)
 (*  *)
-(* let pages_matching_route ~(uri: Uri.t) (g: G.graph) : G.node list = *)
-(*   let rs = matching_routes ~uri:uri g in *)
+(* let pages_matching_route ~(uri: Uri.t) (c: C.canvas) : C.node list = *)
+(*   let rs = matching_routes ~uri:uri c in *)
 (*   List.map ~f:Tuple.T2.get2 rs *)
 (*  *)
 let route_variables (route: string) : string list =

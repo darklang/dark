@@ -50,7 +50,7 @@ def elm_make():
     return run_frontend("cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
-  return subprocess.check_output(["server/convert_to_graph.native", filename])
+  return subprocess.check_output(["server/darkfile_to_rpc.native", filename])
 
 def stringify(json):
   return json.decode() \
@@ -96,7 +96,7 @@ def ocaml_build():
   global profile
   cd = "cd server &&"
   build = " ocamlbuild -j 0 dark.native"
-  build_converter = " && ocamlbuild -j 0 convert_to_graph.native"
+  build_converter = " && ocamlbuild -j 0 darkfile_to_rpc.native"
   if profile:
     return run_backend(cd + landmarks + build)
   else:
@@ -201,7 +201,7 @@ def ignore(filename):
             , "server/dark.native"
             , "server/test.byte"
             , "server/test.native"
-            , "server/convert_to_graph.native"
+            , "server/darkfile_to_rpc.native"
             , "server/gmon.out"
             , "server/profile.json"
             , "server/ocamlbuild_output.txt"
