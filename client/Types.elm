@@ -112,6 +112,12 @@ type AutocompleteItem = ACFunction Function
 
 type VariantTest = StubVariant
 
+
+
+type alias Class = String
+type Element = Leaf (Maybe ID, Class, String)
+             | Nested Class (List Element)
+
 type alias VarName = String
 type alias FnName = String
 
@@ -124,9 +130,11 @@ type Expr = If Expr Expr Expr
           | Value String
           | Hole ID
 
+type alias AST = Expr
+
 type alias Toplevel = { id : ID
                       , pos : Pos
-                      , expr : Expr
+                      , ast : AST
                       }
 
 type alias Model = { center : Pos

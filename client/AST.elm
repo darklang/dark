@@ -2,8 +2,6 @@ module AST exposing (..)
 
 -- builtin
 import List
-import Html
-import Html.Attributes as Attrs
 
 -- lib
 import String.Extra as SE
@@ -15,8 +13,10 @@ import Runtime as RT
 depthString : Int -> String
 depthString n = "precedence-" ++ (toString n)
 
-ppFn : FnName -> Element
-ppFn name =
+-- v is short for Visit
+
+vFn : FnName -> Element
+vFn name =
   case String.split "::" name of
     [mod, n] ->
       Nested "namegroup atom"
@@ -26,21 +26,21 @@ ppFn name =
       ]
     _ -> Leaf (Nothing, "fnname atom", name)
 
-ppPrefix : FnName -> List Expr -> Int -> Element
-ppPrefix name exprs nest =
+vPrefix : FnName -> List Expr -> Int -> Element
+vPrefix name exprs nest =
   Nested ("fncall prefix " ++ (depthString nest))
-    ((Nested ("op " ++ name) [ppFn name])
-    :: (List.map (pp (nest + 1)) exprs))
+    ((Nested ("op " ++ name) [vFn name])
+    :: (List.map (vExpr (nest + 1)) exprs))
 
 
-ppInfix : FnName -> List Expr -> Int -> Element
-ppInfix name exprs nesting =
+vInfix : FnName -> List Expr -> Int -> Element
+vInfix name exprs nesting =
   case exprs of
     [first, second] ->
       Nested ("fncall infix " ++ (depthString nesting))
-        [ Nested "lhs" [pp (nesting + 1) first]
-        , Nested ("op " ++ name) [ppFn name]
-        , Nested "rhs" [pp nesting second]
+        [ Nested "lhs" [vExpr (nesting + 1) first]
+        , Nested ("op " ++ name) [vFn name]
+        , Nested "rhs" [vExpr nesting second]
         ]
     _ ->
       Debug.crash "using infix with the wrong number of things"
@@ -49,16 +49,11 @@ isInfix : FnName -> Bool
 isInfix name =
   List.member name ["<", "==", "%", "+"]
 
+vVarname : VarName -> Element
+vVarname v = Leaf (Nothing, "varname atom", v)
 
-type alias Class = String
-type Element = Leaf (Maybe ID, Class, String)
-             | Nested Class (List Element)
-
-ppVarname : VarName -> Element
-ppVarname v = Leaf (Nothing, "varname atom", v)
-
-pp : Int -> Expr -> Element
-pp nest expr =
+vExpr : Int -> Expr -> Element
+vExpr nest expr =
   case expr of
     Value v ->
      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
@@ -76,59 +71,43 @@ pp nest expr =
             (List.map
               (\(l, r) ->
                 Nested "letbinding"
-                  [ ppVarname l
+                  [ vVarname l
                   , Leaf (Nothing, "letbind atom", "=")
-                  , pp nest r
+                  , vExpr nest r
                   ]
               )
               vars
              )
         , Leaf (Nothing, "in keyword atom" , "in")
-        , Nested "letbody" [pp nest expr]
+        , Nested "letbody" [vExpr nest expr]
         ]
 
 
     If cond ifbody elsebody ->
       Nested "ifexpr"
         [ Leaf (Nothing, "if keyword atom", "if")
-        , Nested "cond" [pp (nest + 1) cond]
-        , Nested "ifbody" [(pp 0 ifbody)]
+        , Nested "cond" [vExpr (nest + 1) cond]
+        , Nested "ifbody" [(vExpr 0 ifbody)]
         , Leaf (Nothing, "else keyword atom", "else")
-        , Nested "elsebody" [(pp 0 elsebody)]
+        , Nested "elsebody" [(vExpr 0 elsebody)]
         ]
 
     Variable name ->
-      ppVarname name
+      vVarname name
 
     FnCall name exprs ->
       if isInfix name
-      then ppInfix name exprs nest
-      else ppPrefix name exprs nest
+      then vInfix name exprs nest
+      else vPrefix name exprs nest
 
     Lambda vars expr ->
       Nested "lambdaexpr"
-        [ Nested "lambdabinding" (List.map ppVarname vars)
+        [ Nested "lambdabinding" (List.map vVarname vars)
         , Leaf (Nothing, "arrow atom" , "->")
-        , Nested "lambdabody" [pp 0 expr]
+        , Nested "lambdabody" [vExpr 0 expr]
         ]
 
     Hole id -> Leaf (Just id, "hole atom", "()")
 
-
-elemToHtml : Element -> Html.Html Msg
-elemToHtml elem =
-  case elem of
-    Leaf (id, class, content) ->
-      let idAttrs =
-        case id of
-          Just i -> [Attrs.id (toString (deID i))]
-          Nothing -> []
-      in
-      Html.div ([Attrs.class <| "leaf " ++ class] ++ idAttrs) [Html.text content]
-    Nested class elems ->
-      Html.div [Attrs.class <| "nested " ++ class] (List.map elemToHtml elems)
-
-toHtml : Expr -> Html.Html Msg
-toHtml expr = expr |> pp 0 |> elemToHtml
-
-
+walk : AST -> Element
+walk = vExpr 0

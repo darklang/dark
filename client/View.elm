@@ -19,7 +19,7 @@ import Util exposing (deMaybe)
 import Defaults
 import Viewport
 import Autocomplete
-import AST
+import ViewAST
 
 view : Model -> Html.Html Msg
 view m =
@@ -82,7 +82,7 @@ viewCanvas m =
 
 viewAST : Model -> Toplevel -> Svg.Svg Msg
 viewAST m tl =
-  let html = AST.toHtml tl.expr
+  let html = ViewAST.toHtml tl.ast
       selected =
         case m.state of
           Selecting id -> if id == tl.id then "selected" else ""

@@ -114,16 +114,18 @@ decodeExpr : JSD.Decoder Expr
 decodeExpr =
   JSD.oneOf [decodeIf, decodeValue, decodeHole]
 
+decodeAST : JSD.Decoder AST
+decodeAST = decodeExpr
 
 decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
-  let toToplevel id x y expr =  { id = ID id, pos = { x=x, y=y }, expr = expr }
+  let toToplevel id x y ast =  { id = ID id, pos = { x=x, y=y }, ast = ast }
   in
   JSDP.decode toToplevel
   |> JSDP.required "id" JSD.int
   |> JSDP.requiredAt ["pos", "x"] JSD.int
   |> JSDP.requiredAt ["pos", "y"] JSD.int
-  |> JSDP.required "ast" decodeExpr
+  |> JSDP.required "ast" decodeAST
 
 decodeRPC : JSD.Decoder (List Toplevel)
 decodeRPC =
