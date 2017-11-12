@@ -170,7 +170,7 @@ body {
   cursor: default;
   box-sizing: border-box;
   font-size: 14px;
-  background: #272728;
+  background: @black2;
   width: 330px;
   padding: 0.8em 1em;
 
@@ -186,24 +186,21 @@ body {
       padding: 2px;
       width: 300px;
     }
-    br {
-      padding-bottom: 10px;
-    }
     #entryBox {
       z-index: 20;
       width: 300px;
       position: relative;
-      color: #000;
-      border: 1px solid #666;
+      color: black;
+      border: 1px solid @grey2;
       background: transparent;
     }
     #suggestionBox {
       position: absolute;
       top: 0;
       left: 0;
-      color: #ccc;
-      background: white;
-      border: 1px solid #fff;
+      color: @grey3;
+      background: @white1;
+      border: 1px solid @white1;
     }
   }
   #autocomplete-holder {
@@ -216,7 +213,7 @@ body {
       background: #1c3670;
     }
     &.greyed {
-      color: grey;
+      color: @grey2;
     }
   }
 }
