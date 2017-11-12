@@ -26,37 +26,7 @@ import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
-import AST
 import Toplevel as TL
-
-sampleAST : Expr
-sampleAST =
-  Let [ ("l", FnCall "List::range" [FnCall "+" [Value "1", Value "2"], Value "100"])
-      ]
-      (FnCall "List::foreach"
-        [ Variable "l"
-        , Lambda ["var"]
-            (If
-               (FnCall "=="
-                 [ FnCall "%" [Variable "var", Value "15"]
-                 , Value "0"
-                 ])
-               (Value "\"FizzBuzz\"")
-               (If
-                 (FnCall "=="
-                   [ FnCall "%" [Variable "var", Value "5"]
-                   , Value "0"
-                   ])
-                 (Value "\"Buzz\"")
-                 (If
-                   (FnCall "=="
-                     [ FnCall "%" [Variable "var", Value "3"]
-                     , Value "0"
-                     ])
-                   (Value "\"Fizz\"")
-                   (FnCall "toString" [Variable "var"]))))
-        ])
-
 
 
 -----------------------
