@@ -11,21 +11,32 @@ import Html.Attributes as Attrs
 import Types exposing (..)
 import AST
 
+type alias HtmlVisitState = { holeID : HID }
 
-elemToHtml : Element -> Html.Html Msg
-elemToHtml elem =
+elemToHtml : HtmlVisitState -> Element -> Html.Html Msg
+elemToHtml state elem =
   case elem of
     Leaf (id, class, content) ->
       let idAttrs =
         case id of
-          Just i -> [Attrs.id (toString (deID i))]
+          Just (HID i) -> [Attrs.id (toString i)]
           Nothing -> []
-      in
-      Html.div ([Attrs.class <| "leaf " ++ class] ++ idAttrs) [Html.text content]
-    Nested class elems ->
-      Html.div [Attrs.class <| "nested " ++ class] (List.map elemToHtml elems)
+      in if id == Just state.holeID
+          then
+            Html.div
+              ([Attrs.class <| "leaf " ++ class] ++ idAttrs)
+              [Html.input [] [Html.text content]]
+          else
+            Html.div
+              ([Attrs.class <| "leaf " ++ class] ++ idAttrs)
+              [Html.text content]
 
-toHtml : Expr -> Html.Html Msg
-toHtml expr = expr |> AST.walk |> elemToHtml
+    Nested class elems ->
+      Html.div
+        [Attrs.class <| "nested " ++ class]
+        (List.map (elemToHtml state) elems)
+
+toHtml : HID -> Expr -> Html.Html Msg
+toHtml holeID expr = expr |> AST.walk |> elemToHtml {holeID = holeID}
 
 

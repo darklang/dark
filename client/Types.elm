@@ -48,17 +48,15 @@ type alias IsLeftButton = Bool
 -- Placeholder for whatever the new "Node" is
 type alias LiveValue = Int
 type alias Special = Int
-type ID = ID Int
-
-deID : ID -> Int
-deID (ID i) = i
+type HID = HID Int
+type TLID = TLID Int
 
 type EntryCursor = Creating Pos
                  -- | Filling
 
 type alias IsReentering = Bool
 type alias HasMoved = Bool
-type State = Selecting ID
+type State = Selecting TLID HID
            | Entering IsReentering EntryCursor
            | Dragging VPos HasMoved State
            | Deselected
@@ -68,8 +66,8 @@ type Msg
     | ToplevelClickDown Toplevel MouseEvent
     -- we have the actual node when NodeClickUp is created, but by the time we
     -- use it the proper node will be changed
-    | ToplevelClickUp ID MouseEvent
-    | DragToplevel ID Mouse.Position
+    | ToplevelClickUp TLID MouseEvent
+    | DragToplevel TLID Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -84,14 +82,14 @@ type Msg
     | Initialization
 
 type Focus = FocusNothing -- deselect
-           | Refocus ID
-           | FocusExact ID
-           | FocusNext ID
+           | Refocus TLID
+           | FocusExact TLID
+           | FocusNext TLID
            | FocusSame -- unchanged
 
 type RPC
     = NoOp
-    | SetAST ID Pos Expr
+    | SetAST TLID Pos Expr
     | DeleteAll
     | Savepoint
     | Undo
@@ -115,7 +113,7 @@ type VariantTest = StubVariant
 
 
 type alias Class = String
-type Element = Leaf (Maybe ID, Class, String)
+type Element = Leaf (Maybe HID, Class, String)
              | Nested Class (List Element)
 
 type alias VarName = String
@@ -128,11 +126,11 @@ type Expr = If Expr Expr Expr
           | Let (List (VarName, Expr)) Expr
           | Lambda (List VarName) Expr
           | Value String
-          | Hole ID
+          | Hole HID
 
 type alias AST = Expr
 
-type alias Toplevel = { id : ID
+type alias Toplevel = { id : TLID
                       , pos : Pos
                       , ast : AST
                       }
@@ -160,7 +158,7 @@ type AutocompleteMod = ACSetQuery String
 
 type Modification = Error String
                   | ClearError
-                  | Select ID
+                  | Select TLID HID
                   | Deselect
                   | SetToplevels (List Toplevel)
                   | Enter IsReentering EntryCursor

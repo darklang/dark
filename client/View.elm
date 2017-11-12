@@ -82,10 +82,13 @@ viewCanvas m =
 
 viewAST : Model -> Toplevel -> Svg.Svg Msg
 viewAST m tl =
-  let html = ViewAST.toHtml tl.ast
+  let hid = case m.state of
+             Selecting _ hid -> hid
+             _ -> HID 0
+      html = ViewAST.toHtml hid tl.ast
       selected =
         case m.state of
-          Selecting id -> if id == tl.id then "selected" else ""
+          Selecting tlid _ -> if tlid == tl.id then "selected" else ""
           _ -> ""
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions

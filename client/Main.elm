@@ -26,6 +26,8 @@ import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
+import AST
+import Toplevel as TL
 
 sampleAST : Expr
 sampleAST =
@@ -168,8 +170,8 @@ updateMod origm mod (m, cmd) =
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
-      Select id ->
-        { m | state = Selecting id } ! []
+      Select tlid hid ->
+        { m | state = Selecting tlid hid } ! []
       Enter re entry ->
       --   G.recalculateView
       ({ m | state = Entering re entry
@@ -216,7 +218,7 @@ update_ msg m =
           _ -> NoChange
       else
         case state of
-          Selecting id_ ->
+          Selecting tlid hid ->
             -- quick error checking, in case the focus has gone bad
             case event.keyCode of
               -- Key.Up -> Selection.selectNextNode m id (\n o -> G.posy m n > G.posy m o)
@@ -327,7 +329,7 @@ update_ msg m =
     (ToplevelClickUp id event, _) ->
       if event.button == Defaults.leftButton
       then
-        Select id
+        Select id (TL.firstHole m id)
         -- case m.state of
         --   Dragging id startVPos hasMoved origState ->
         --     Select id
@@ -359,9 +361,10 @@ update_ msg m =
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
     (RPCCallBack focus calls (Ok (toplevels)), _) ->
-      let newState =
+      let m2 = { m | toplevels = toplevels }
+          newState =
             case focus of
-              FocusNext id -> Select id
+              FocusNext tlid -> Select tlid (TL.firstHole m2 tlid)
               _            -> NoChange
       in Many [ SetToplevels toplevels
               , AutocompleteMod ACReset
@@ -408,7 +411,7 @@ subscriptions m =
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging offset _ _ ->
-            [ Mouse.moves (DragToplevel (ID 5))]
+            [ Mouse.moves (DragToplevel (TLID 76))]
           _ -> []
   in Sub.batch
     (List.concat [keySubs, dragSubs])

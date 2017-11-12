@@ -5,6 +5,7 @@ import List
 
 -- lib
 import String.Extra as SE
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -108,6 +109,43 @@ vExpr nest expr =
         ]
 
     Hole id -> Leaf (Just id, "hole atom", "()")
+
+findFirstHole_ : Expr -> Maybe HID
+findFirstHole_ expr =
+  let ffList : List Expr -> Maybe HID
+      ffList exprs =
+        List.filterMap findFirstHole_ exprs
+        |> List.head
+  in
+  case expr of
+    Value v ->
+      Nothing
+
+    Let vars expr ->
+      vars
+      |> List.map Tuple.second
+      |> ffList
+      |> ME.or (findFirstHole_ expr)
+
+    If cond ifbody elsebody ->
+      findFirstHole_ elsebody
+      |> ME.or (findFirstHole_ ifbody)
+      |> ME.or (findFirstHole_ cond)
+
+    Variable name ->
+      Nothing
+
+    FnCall name exprs ->
+      ffList exprs
+
+    Lambda vars expr ->
+      findFirstHole_ expr
+
+    Hole id -> Just id
+
+findFirstHole : AST -> HID
+findFirstHole ast = findFirstHole_ ast |> Maybe.withDefault (HID 0)
+
 
 walk : AST -> Element
 walk = vExpr 0

@@ -51,10 +51,10 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  let id = ID (Util.random ()) in
-  let hid1 = ID (Util.random ()) in
-  let hid2 = ID (Util.random ()) in
-  let hid3 = ID (Util.random ()) in
+  let id = TLID (Util.random ()) in
+  let hid1 = HID (Util.random ()) in
+  let hid2 = HID (Util.random ()) in
+  let hid3 = HID (Util.random ()) in
   case cursor of
     Creating pos ->
       let ast =

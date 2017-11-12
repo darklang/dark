@@ -57,7 +57,7 @@ encodeRPC m call =
   let encodePos pos = case pos of
                         {x,y} -> ("pos", JSE.object [ ("x", JSE.int x)
                                                     , ("y", JSE.int y)])
-      encodeID (ID id) = ("id", JSE.int id)
+      encodeID (TLID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
       SetAST id pos expr ->
@@ -88,7 +88,7 @@ encodeAST expr =
     If cond then_ else_ ->
       JSE.object [("if", JSE.object [("cond", e cond), ("then", e then_), ("else", e else_)])]
     Value v -> JSE.object [("value", JSE.string v)]
-    Hole id -> JSE.object [("hole", JSE.object [("id", JSE.int (deID id))])]
+    Hole (HID id) -> JSE.object [("hole", JSE.object [("id", JSE.int id)])]
     _ -> JSE.object [("type", JSE.string "todo")]
 
 decodeIf : JSD.Decoder Expr
@@ -106,7 +106,7 @@ decodeValue =
 
 decodeHole : JSD.Decoder Expr
 decodeHole =
-  let toHole i = Hole (ID i) in
+  let toHole i = Hole (HID i) in
   JSDP.decode toHole
   |> JSDP.requiredAt ["hole", "id"] JSD.int
 
@@ -119,7 +119,7 @@ decodeAST = decodeExpr
 
 decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
-  let toToplevel id x y ast =  { id = ID id, pos = { x=x, y=y }, ast = ast }
+  let toToplevel id x y ast =  { id = TLID id, pos = { x=x, y=y }, ast = ast }
   in
   JSDP.decode toToplevel
   |> JSDP.required "id" JSD.int
