@@ -141,7 +141,7 @@ updateMod origm mod (m, cmd) =
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
       Select tlid hid ->
-        { m | state = Selecting tlid hid } ! []
+        { m | state = Selecting tlid hid } ! [] --[Entry.focusEntry]
       Enter re entry ->
       --   G.recalculateView
       ({ m | state = Entering re entry
