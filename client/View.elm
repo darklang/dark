@@ -231,15 +231,15 @@ viewNormalEntry m =
 
       indentHtml = "<span style=\"font-family:sans-serif; font-size:14px;\">" ++ indent ++ "</span>"
       (width, _) = Util.htmlSize indentHtml
-      w = width |> toString
+      w = toString width ++ "px"
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
-                               , Attrs.style [("text-indent", w ++ "px")]
+                               , Attrs.style [("text-indent", w)]
                                , Attrs.value search
                                , Attrs.spellcheck False
                                , Attrs.autocomplete False
                                ] []
-      suggestionInput = Html.input [ Attrs.id "suggestion"
+      suggestionInput = Html.input [ Attrs.id "suggestionBox"
                                    , Attrs.disabled True
                                    , Attrs.value suggestion
                                    ] []
@@ -261,11 +261,8 @@ viewNormalEntry m =
           --               ]
           _ -> Html.div [] []
 
-      -- outer node wrapper
-      classes = "function node entry"
-
       wrapper = Html.div
-                [ Attrs.class classes
+                [ Attrs.class "entry"
                 , Attrs.width 100]
                 [ paramInfo, viewForm ]
       html pos = placeHtml m pos wrapper

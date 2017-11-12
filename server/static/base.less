@@ -162,80 +162,64 @@ body {
  * Entry box
  ********************/
 
-#search-container {
+
+.entry {
+  // headers need to be relative to position them. We need to be above
+  // the headers, and position:relative allows us to do it.
   position: relative;
-
-  input {
-    padding: 2px;
-    width: 300px;
-  }
-
-  br {
-    padding-bottom: 10px;
-  }
-
-  #darkEntry {
-    z-index: 20;
-    width: 300px;
-    position: relative;
-    color: #000;
-    border: 1px solid #666;
-    background: transparent;
-  }
-
-  #suggestion {
-    position: absolute;
-    top: 0;
-    left: 0;
-    color: #ccc;
-    background: white;
-    border: 1px solid #fff;
-  }
-}
-form {
-  display: inline;
-}
-
-#autocomplete-holder {
-  overflow-y: hidden;
-  max-height: 250px;
-  font-size: 85%;
-}
-
-.autocomplete-item {
-  &.highlighted {
-    background: #1c3670;
-  }
-
-  &.greyed {
-    color: grey;
-  }
-}
-
-.node {
   cursor: default;
   box-sizing: border-box;
   font-size: 14px;
   background: #272728;
-  padding-top: 2px;
-  padding-bottom: 8.5px;
+  width: 330px;
+  padding: 0.8em 1em;
 
-  &.entry {
-    // headers need to be relative to position them. We need to be above
-    // the headers, and position:relative allows us to do it.
+  .types {
+    float: right;
+    text-transform: lowercase;
+    font-family: monospace;
+    font-size: 80%;
+  }
+  #search-container {
     position: relative;
-    width: 330px;
-    padding: 0.8em 1em;
-
-    .types {
-      float: right;
-      text-transform: lowercase;
-      font-family: monospace;
-      font-size: 80%;
+    input {
+      padding: 2px;
+      width: 300px;
+    }
+    br {
+      padding-bottom: 10px;
+    }
+    #entryBox {
+      z-index: 20;
+      width: 300px;
+      position: relative;
+      color: #000;
+      border: 1px solid #666;
+      background: transparent;
+    }
+    #suggestionBox {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: #ccc;
+      background: white;
+      border: 1px solid #fff;
+    }
+  }
+  #autocomplete-holder {
+    overflow-y: hidden;
+    max-height: 250px;
+    font-size: 85%;
+  }
+  .autocomplete-item {
+    &.highlighted {
+      background: #1c3670;
+    }
+    &.greyed {
+      color: grey;
     }
   }
 }
-
 
 
 /* .node.string-entry { */
