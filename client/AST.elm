@@ -144,7 +144,7 @@ findFirstHole_ expr =
     Hole id -> Just id
 
 findFirstHole : AST -> HID
-findFirstHole ast = findFirstHole_ ast |> Maybe.withDefault (HID 0)
+findFirstHole ast = findFirstHole_ ast |> Maybe.withDefault (HID 3)
 
 
 walk : AST -> Element
