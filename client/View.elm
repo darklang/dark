@@ -85,7 +85,7 @@ viewAST m tl =
   let hid = case m.state of
              Selecting _ hid -> hid
              _ -> HID 0
-      html = ViewAST.toHtml hid tl.ast
+      html = ViewAST.toHtml hid (normalEntryHtml m) tl.ast
       selected =
         case m.state of
           Selecting tlid _ -> if tlid == tl.id then "selected" else ""
@@ -191,9 +191,16 @@ viewStringEntry m =
       _ -> []
 
 
-
 viewNormalEntry : Model -> List (Svg.Svg Msg)
 viewNormalEntry m =
+  case m.state of
+    Entering _ (Creating pos) ->
+      [placeHtml m pos (normalEntryHtml m)]
+    _ -> []
+
+
+normalEntryHtml : Model -> Html.Html Msg
+normalEntryHtml m =
   let autocompleteList =
         (List.indexedMap
            (\i item ->
@@ -265,12 +272,8 @@ viewNormalEntry m =
                 [ Attrs.class "entry"
                 , Attrs.width 100]
                 [ paramInfo, viewForm ]
-      html pos = placeHtml m pos wrapper
   in
-    case m.state of
-      -- Entering _ (Filling) -> [html m.center]
-      Entering _ (Creating pos) -> [html pos]
-      _ -> []
+      wrapper
 
 
 escapeCSSName : String -> String

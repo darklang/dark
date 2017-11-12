@@ -11,7 +11,8 @@ import Html.Attributes as Attrs
 import Types exposing (..)
 import AST
 
-type alias HtmlVisitState = { holeID : HID }
+type alias HtmlVisitState = { holeID : HID
+                            , holeHtml : Html.Html Msg}
 
 elemToHtml : HtmlVisitState -> Element -> Html.Html Msg
 elemToHtml state elem =
@@ -25,7 +26,7 @@ elemToHtml state elem =
           then
             Html.div
               ([Attrs.class <| "leaf " ++ class] ++ idAttrs)
-              [Html.input [] [Html.text content]]
+              [state.holeHtml]
           else
             Html.div
               ([Attrs.class <| "leaf " ++ class] ++ idAttrs)
@@ -36,7 +37,11 @@ elemToHtml state elem =
         [Attrs.class <| "nested " ++ class]
         (List.map (elemToHtml state) elems)
 
-toHtml : HID -> Expr -> Html.Html Msg
-toHtml holeID expr = expr |> AST.walk |> elemToHtml {holeID = holeID}
+toHtml : HID -> Html.Html Msg -> Expr -> Html.Html Msg
+toHtml holeID holeHtml expr =
+  expr
+  |> AST.walk
+  |> elemToHtml { holeID = holeID
+                , holeHtml = holeHtml}
 
 
