@@ -168,11 +168,9 @@ body {
   // the headers, and position:relative allows us to do it.
   position: relative;
   cursor: default;
-  box-sizing: border-box;
   font-size: 14px;
   background: @black2;
-  width: 330px;
-  padding: 0.8em 1em;
+  width: 300px; // keeps autocomplete appearing when Creating
 
   .types {
     float: right;
@@ -183,7 +181,6 @@ body {
   #search-container {
     position: relative;
     input {
-      padding: 2px;
       width: 300px;
     }
     #entryBox {
@@ -191,7 +188,6 @@ body {
       width: 300px;
       position: relative;
       color: black;
-      border: 1px solid @grey2;
       background: transparent;
     }
     #suggestionBox {
@@ -200,7 +196,6 @@ body {
       left: 0;
       color: @grey3;
       background: @white1;
-      border: 1px solid @white1;
     }
   }
   #autocomplete-holder {
