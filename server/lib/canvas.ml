@@ -85,7 +85,9 @@ let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
 
 let add_toplevel (toplevel: Ast.toplevel) (c: canvas) : canvas =
-  { c with toplevels = c.toplevels @ [toplevel] }
+  let tls = List.filter ~f:(fun x -> x.id <> toplevel.id) c.toplevels
+  in
+  { c with toplevels = tls @ [toplevel] }
 
 (* ------------------------- *)
 (* Build *)
