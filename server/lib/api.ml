@@ -24,6 +24,8 @@ type undo = { fake: int option [@default None]
 type savepoint = { fake: int option [@default None]
                  } [@@deriving yojson]
 
+type delete_ast = { id: int } [@@deriving yojson]
+
 
 (* ---------------- *)
 (* Read the command out *)
@@ -35,6 +37,7 @@ type opjson =
   ; savepoint: savepoint option [@default None]
   ; noop: noop option [@default None]
   ; delete_all: delete_all option [@default None]
+  ; delete_ast: delete_ast option [@default None]
 
   } [@@deriving yojson]
 type opjsonlist = opjson list [@@deriving yojson]
@@ -48,6 +51,7 @@ let json2op (op: opjson) : op =
   | { undo = Some _} -> Undo
   | { savepoint = Some _} -> SavePoint
   | { delete_all = Some a } -> DeleteAll
+  | { delete_ast = Some a } -> DeleteAST a.id
   | _ -> Exception.internal "Unexpected opcode"
 
 let to_ops (payload: string) : op list =

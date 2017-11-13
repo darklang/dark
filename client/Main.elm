@@ -196,6 +196,7 @@ update_ msg m =
               -- Key.Down -> Selection.selectNextNode m id (\n o -> G.posy m n < G.posy m o)
               -- Key.Left -> Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
               -- Key.Right -> Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
+              Key.Backspace -> Many [ RPC ([DeleteAST tlid], FocusNothing), Deselect ]
               Key.Escape -> Deselect
               Key.Enter  -> Enter False (Filling tlid hid)
               Key.Tab    ->

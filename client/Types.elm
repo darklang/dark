@@ -91,6 +91,7 @@ type RPC
     = NoOp
     | SetAST TLID Pos Expr
     | DeleteAll
+    | DeleteAST TLID
     | Savepoint
     | Undo
     | Redo

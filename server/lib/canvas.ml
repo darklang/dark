@@ -89,6 +89,11 @@ let add_toplevel (toplevel: Ast.toplevel) (c: canvas) : canvas =
   in
   { c with toplevels = tls @ [toplevel] }
 
+let remove_toplevel_by_id (id: int) (c: canvas) : canvas =
+  let tls = List.filter ~f:(fun x -> x.id <> id) c.toplevels
+  in
+  { c with toplevels = tls }
+
 (* ------------------------- *)
 (* Build *)
 (* ------------------------- *)
@@ -100,6 +105,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | NoOp -> ident
     | SavePoint -> ident
     | SetAST toplevel -> add_toplevel toplevel
+    | DeleteAST id -> remove_toplevel_by_id id
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 

@@ -11,6 +11,7 @@ type json = Yojson.Safe.json
 type op = NoOp
         | SetAST of Ast.toplevel
         | DeleteAll
+        | DeleteAST of int
         | SavePoint
         | Undo
         | Redo

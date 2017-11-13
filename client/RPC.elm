@@ -79,6 +79,10 @@ encodeRPC m call =
 
       Redo ->
         ("redo", JSE.object [])
+
+      DeleteAST (TLID id) ->
+        ("delete_ast", JSE.object [("id", JSE.int id)])
+
   in JSE.object [ (cmd, args) ]
 
 encodeAST : Expr -> JSE.Value
