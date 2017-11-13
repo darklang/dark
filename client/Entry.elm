@@ -60,8 +60,8 @@ submit m re cursor value =
       ast = case value of
               "if" ->
                 (If (Hole hid1) (Hole hid2) (Hole hid3))
-              _    ->
-                Hole hid3
+              str ->
+                FnCall str [Hole hid1]
   in
   case cursor of
     Creating pos ->

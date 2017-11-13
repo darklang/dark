@@ -87,9 +87,29 @@ encodeAST expr =
   case expr of
     If cond then_ else_ ->
       JSE.object [("if", JSE.object [("cond", e cond), ("then", e then_), ("else", e else_)])]
-    Value v -> JSE.object [("value", JSE.string v)]
-    Hole (HID id) -> JSE.object [("hole", JSE.object [("id", JSE.int id)])]
-    _ -> JSE.object [("type", JSE.string "todo")]
+    FnCall n exprs ->
+      JSE.object [( "fncall"
+                  , JSE.object [ ("name", JSE.string n)
+                               , ("arguments", JSE.list (List.map e exprs))
+                               ]
+                 )]
+    Variable v ->
+      JSE.object [("variable", JSE.string v)]
+    Let binds body ->
+      JSE.object [("let"
+                  , JSE.object [ ("bindings"
+                                 , List.map (\(v, bexpr) ->
+                                     JSE.object [ ("name", JSE.string v)
+                                                , ("expr", e bexpr)]) binds |> JSE.list)
+                               , ("body", e body)]
+                 )]
+    Lambda vars body ->
+      JSE.object [("lambda", JSE.object [ ("vars", List.map JSE.string vars |> JSE.list)
+                                        , ("body", e body)])]
+    Value v ->
+      JSE.object [("value", JSE.string v)]
+    Hole (HID id) ->
+      JSE.object [("hole", JSE.object [("id", JSE.int id)])]
 
 decodeIf : JSD.Decoder Expr
 decodeIf =
@@ -98,6 +118,36 @@ decodeIf =
   |> JSDP.requiredAt ["if", "cond"] de
   |> JSDP.requiredAt ["if", "then"] de
   |> JSDP.requiredAt ["if", "else"] de
+
+decodeFnCall : JSD.Decoder Expr
+decodeFnCall =
+  let de = (JSD.lazy (\_ -> decodeExpr)) in
+  JSDP.decode FnCall
+  |> JSDP.requiredAt ["fncall", "name"] JSD.string
+  |> JSDP.requiredAt ["fncall", "arguments"] (JSD.list de)
+
+decodeVariable : JSD.Decoder Expr
+decodeVariable =
+  JSDP.decode Variable
+  |> JSDP.required "variable" JSD.string
+
+decodeLet : JSD.Decoder Expr
+decodeLet =
+  let de = (JSD.lazy (\_ -> decodeExpr))
+      be = JSDP.decode (,)
+           |> JSDP.required "name" JSD.string
+           |> JSDP.required "expr" de
+  in
+  JSDP.decode Let
+  |> JSDP.requiredAt ["let", "binding"] (JSD.list be)
+  |> JSDP.requiredAt ["let", "body"] de
+
+decodeLambda : JSD.Decoder Expr
+decodeLambda =
+  let de = (JSD.lazy (\_ -> decodeExpr)) in
+  JSDP.decode Lambda
+  |> JSDP.requiredAt ["lambda", "vars"] (JSD.list JSD.string)
+  |> JSDP.requiredAt ["lambda", "body"] de
 
 decodeValue : JSD.Decoder Expr
 decodeValue =
@@ -112,7 +162,20 @@ decodeHole =
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
-  JSD.oneOf [decodeIf, decodeValue, decodeHole]
+  JSD.oneOf [ decodeIf
+            -- TODO: check if elm 0.19 is saner than this
+            -- elm 0.18 gives "Cannot read property `tag` of undefined` which
+            -- leads to https://github.com/elm-lang/elm-compiler/issues/1562
+            -- and https://github.com/elm-lang/elm-compiler/issues/1591
+            -- which gets potentially fixed by
+            -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
+            , JSD.lazy (\_ -> decodeFnCall)
+            , decodeVariable
+            , JSD.lazy (\_ -> decodeLet)
+            , JSD.lazy (\_ -> decodeLambda)
+            , decodeValue
+            , decodeHole
+            ]
 
 decodeAST : JSD.Decoder AST
 decodeAST = decodeExpr
