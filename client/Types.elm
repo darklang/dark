@@ -52,7 +52,7 @@ type HID = HID Int
 type TLID = TLID Int
 
 type EntryCursor = Creating Pos
-                 -- | Filling
+                 | Filling TLID HID
 
 type alias IsReentering = Bool
 type alias HasMoved = Bool

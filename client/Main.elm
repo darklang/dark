@@ -236,8 +236,8 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    -- Filling -> Many [ Select (ID 5)
-                    --                 , AutocompleteMod ACReset]
+                    Filling tlid hid -> Many [ Deselect
+                                             , AutocompleteMod ACReset]
                 key ->
                   AutocompleteMod <| ACSetQuery m.complete.value
 

@@ -19,6 +19,8 @@ import Types exposing (..)
 import Viewport
 -- import EntryParser exposing (AST(..), ACreating(..), AExpr(..), AFillParam(..), AFillResult(..), ARef(..))
 import Util
+import AST
+import Toplevel as TL
 
 
 ---------------------
@@ -51,18 +53,24 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  let id = TLID (Util.random ()) in
-  let hid1 = HID (Util.random ()) in
-  let hid2 = HID (Util.random ()) in
-  let hid3 = HID (Util.random ()) in
+  let id = TLID (Util.random ())
+      hid1 = HID (Util.random ())
+      hid2 = HID (Util.random ())
+      hid3 = HID (Util.random ())
+      ast = case value of
+              "if" ->
+                (If (Hole hid1) (Hole hid2) (Hole hid3))
+              _    ->
+                Hole hid3
+  in
   case cursor of
     Creating pos ->
-      let ast =
-          case value of
-            "if" -> (If (Hole hid1) (Hole hid2) (Hole hid3))
-            _    -> Hole hid3
-      in
       RPC ([SetAST id pos ast], FocusNext id)
+    Filling tlid hid ->
+      let tl = TL.getTL m tlid in
+      RPC ([ SetAST tl.id tl.pos (AST.replaceHole hid ast tl.ast)]
+           , FocusNext tlid)
+
   -- let pt = EntryParser.parseFully value
   -- in case pt of
   --   Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt

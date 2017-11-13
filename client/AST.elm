@@ -146,6 +146,44 @@ findFirstHole_ expr =
 findFirstHole : AST -> HID
 findFirstHole ast = findFirstHole_ ast |> Maybe.withDefault (HID 3)
 
+replaceHole : HID -> Expr -> AST -> AST
+replaceHole hid replacement ast =
+  replaceHole_ hid replacement ast
+
+replaceHole_ : HID -> Expr -> Expr -> Expr
+replaceHole_ hid replacement expr =
+  let rh = replaceHole_ hid replacement
+      rhList : List Expr -> List Expr
+      rhList exprs = List.map rh exprs
+  in
+  case expr of
+    Value v ->
+      Value v
+
+    Let vars expr ->
+      let vs = List.map (\(vn, e) -> (vn, rh e)) vars
+      in Let vs (rh expr)
+
+    If cond ifbody elsebody ->
+      If (rh cond) (rh ifbody) (rh elsebody)
+
+    Variable name ->
+      Variable name
+
+    FnCall name exprs ->
+      FnCall name (rhList exprs)
+
+    Lambda vars expr ->
+      Lambda vars (rh expr)
+
+    Hole id ->
+      if id == hid
+      then replacement
+      else expr
+
+
+
+
 
 walk : AST -> Element
 walk = vExpr 0
