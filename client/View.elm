@@ -84,11 +84,18 @@ viewAST : Model -> Toplevel -> Svg.Svg Msg
 viewAST m tl =
   let hid = case m.state of
              Selecting _ hid -> hid
+             Entering _ (Filling _ hid) -> hid
              _ -> HID 0
-      html = ViewAST.toHtml hid (normalEntryHtml m) tl.ast
+      holeHtml =
+       case m.state of
+        Selecting _ hid -> Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
+        Entering _ (Filling _ hid) -> normalEntryHtml m
+        _ -> Html.div [] []
+      html = ViewAST.toHtml hid holeHtml tl.ast
       selected =
         case m.state of
           Selecting tlid _ -> if tlid == tl.id then "selected" else ""
+          Entering _ (Filling tlid _) -> if tlid == tl.id then "selected" else ""
           _ -> ""
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions

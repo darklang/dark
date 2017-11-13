@@ -6,10 +6,13 @@ import List
 -- lib
 import String.Extra as SE
 import Maybe.Extra as ME
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
 import Runtime as RT
+
+import Util exposing (deMaybe)
 
 depthString : Int -> String
 depthString n = "precedence-" ++ (toString n)
@@ -108,7 +111,7 @@ vExpr nest expr =
         , Nested "lambdabody" [vExpr 0 expr]
         ]
 
-    Hole id -> Leaf (Just id, "hole atom", "[＿＿＿＿＿＿]")
+    Hole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
 findFirstHole_ : Expr -> Maybe HID
 findFirstHole_ expr =
@@ -181,9 +184,45 @@ replaceHole_ hid replacement expr =
       then replacement
       else expr
 
+listHoles : Expr -> List HID
+listHoles expr =
+  let lhList : List Expr -> List HID
+      lhList exprs =
+        exprs
+        |> List.map listHoles
+        |> List.concat
+  in
+  case expr of
+    Value v ->
+      []
 
+    Let vars expr ->
+      vars
+      |> List.map Tuple.second
+      |> (++) [expr]
+      |> lhList
 
+    If cond ifbody elsebody ->
+      lhList [cond, ifbody, elsebody]
 
+    Variable name ->
+      []
+
+    FnCall name exprs ->
+      lhList exprs
+
+    Lambda vars expr ->
+      listHoles expr
+
+    Hole id -> [id]
+
+findNextHole : HID -> AST -> HID
+findNextHole cur ast =
+  let holes = listHoles ast
+  in case (LE.dropWhile (\x -> x /= cur) holes) of
+     cur :: next :: _ -> next
+     [cur] -> holes |> List.head |> deMaybe
+     [] -> HID 237
 
 walk : AST -> Element
 walk = vExpr 0

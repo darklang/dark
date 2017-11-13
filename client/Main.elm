@@ -27,6 +27,7 @@ import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import Toplevel as TL
+import AST
 
 
 -----------------------
@@ -141,7 +142,7 @@ updateMod origm mod (m, cmd) =
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
       Select tlid hid ->
-        { m | state = Selecting tlid hid } ! [Entry.focusEntry]
+        { m | state = Selecting tlid hid } ! []
       Enter re entry ->
       --   G.recalculateView
       ({ m | state = Entering re entry
@@ -196,6 +197,12 @@ update_ msg m =
               -- Key.Left -> Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
               -- Key.Right -> Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
               Key.Escape -> Deselect
+              Key.Enter  -> Enter False (Filling tlid hid)
+              Key.Tab    ->
+                let tl = TL.getTL m tlid
+                    nh = AST.findNextHole hid tl.ast
+                in
+                    Select tlid nh
               _ -> NoChange
 
           Entering re cursor ->
