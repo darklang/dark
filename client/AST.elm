@@ -108,7 +108,7 @@ vExpr nest expr =
         , Nested "lambdabody" [vExpr 0 expr]
         ]
 
-    Hole id -> Leaf (Just id, "hole atom", "()")
+    Hole id -> Leaf (Just id, "hole atom", "[＿＿＿＿＿＿]")
 
 findFirstHole_ : Expr -> Maybe HID
 findFirstHole_ expr =
