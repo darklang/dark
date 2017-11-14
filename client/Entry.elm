@@ -21,6 +21,7 @@ import Viewport
 import Util
 import AST
 import Toplevel as TL
+import Runtime as RT
 
 
 ---------------------
@@ -61,7 +62,9 @@ submit m re cursor value =
               "if" ->
                 (If (Hole hid1) (Hole hid2) (Hole hid3))
               str ->
-                FnCall str [Hole hid1]
+                if RT.tipeOf str == TIncomplete || AST.isInfix str
+                then FnCall str [Hole hid1]
+                else Value str
   in
   case cursor of
     Creating pos ->
