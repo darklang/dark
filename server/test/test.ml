@@ -125,7 +125,7 @@ let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
 let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
 
 let t_load_save _ =
-  let n1 = Op.SetAST { id = 1; pos = { x = 0; y = 0 }; ast = Ast.Value DNull }  in
+  let n1 = Op.SetAST { id = 1; pos = { x = 0; y = 0 }; ast = Ast.Value "5" }  in
   let name = "test_load_save" in
   let c = ops2c name [n1] in
   let _ = C.save !c in
