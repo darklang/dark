@@ -285,7 +285,7 @@ type param = { name: string
              ; block_args : string list
              ; optional : bool
              ; description : string
-            } [@@deriving yojson, show]
+             } [@@deriving yojson, show]
 
 let param_to_string (param: param) : string =
   param.name
