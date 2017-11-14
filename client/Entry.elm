@@ -67,26 +67,27 @@ createFunction m name =
   in
     case fn of
       Just function ->
-        Just <| FnCall name (holes (List.length function.parameters))
+        Just <| FnCall (hid ()) name (holes (List.length function.parameters))
       Nothing -> Nothing
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
   let id = tlid ()
+      eid = hid ()
       hid1 = hid ()
       hid2 = hid ()
       hid3 = hid ()
       ast = case value of
               "if" ->
-                Just (If (Hole hid1) (Hole hid2) (Hole hid3))
+                Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
               "let" ->
-                Just (Let [] (Hole hid1))
+                Just (Let eid [] (Hole hid1))
               "lambda" ->
-                Just (Lambda ["var"] (Hole hid1))
+                Just (Lambda eid ["var"] (Hole hid1))
               str ->
                 if RT.tipeOf str == TIncomplete || AST.isInfix str
                 then createFunction m value
-                else Just <| Value str
+                else Just <| Value eid str
   in
   case (ast, cursor) of
     (Nothing, _) -> NoChange

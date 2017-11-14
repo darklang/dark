@@ -58,7 +58,7 @@ vVarname v = Leaf (Nothing, "varname atom", v)
 vExpr : Int -> Expr -> Element
 vExpr nest expr =
   case expr of
-    Value v ->
+    Value _ v ->
      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
          valu  =
            -- TODO: remove
@@ -67,7 +67,7 @@ vExpr nest expr =
            else v
      in  Leaf (Nothing, "atom value " ++ cssClass, valu)
 
-    Let vars expr ->
+    Let _ vars expr ->
       Nested "letexpr"
         [ Leaf (Nothing, "let keyword atom", "let")
         , Nested "letbindings"
@@ -86,7 +86,7 @@ vExpr nest expr =
         ]
 
 
-    If cond ifbody elsebody ->
+    If _ cond ifbody elsebody ->
       Nested "ifexpr"
         [ Leaf (Nothing, "if keyword atom", "if")
         , Nested "cond" [vExpr (nest + 1) cond]
@@ -95,15 +95,15 @@ vExpr nest expr =
         , Nested "elsebody" [(vExpr 0 elsebody)]
         ]
 
-    Variable name ->
+    Variable _ name ->
       vVarname name
 
-    FnCall name exprs ->
+    FnCall _ name exprs ->
       if isInfix name
       then vInfix name exprs nest
       else vPrefix name exprs nest
 
-    Lambda vars expr ->
+    Lambda _ vars expr ->
       Nested "lambdaexpr"
         [ Nested "lambdabinding" (List.map vVarname vars)
         , Leaf (Nothing, "arrow atom" , "->")
@@ -120,27 +120,27 @@ findFirstHole_ expr =
         |> List.head
   in
   case expr of
-    Value v ->
+    Value _ v ->
       Nothing
 
-    Let vars expr ->
+    Let _ vars expr ->
       vars
       |> List.map Tuple.second
       |> ffList
       |> ME.or (findFirstHole_ expr)
 
-    If cond ifbody elsebody ->
+    If _ cond ifbody elsebody ->
       findFirstHole_ elsebody
       |> ME.or (findFirstHole_ ifbody)
       |> ME.or (findFirstHole_ cond)
 
-    Variable name ->
+    Variable _ name ->
       Nothing
 
-    FnCall name exprs ->
+    FnCall _ name exprs ->
       ffList exprs
 
-    Lambda vars expr ->
+    Lambda _ vars expr ->
       findFirstHole_ expr
 
     Hole id -> Just id
@@ -159,24 +159,24 @@ replaceHole_ hid replacement expr =
       rhList exprs = List.map rh exprs
   in
   case expr of
-    Value v ->
-      Value v
+    Value eid v ->
+      Value eid v
 
-    Let vars expr ->
+    Let eid vars expr ->
       let vs = List.map (\(vn, e) -> (vn, rh e)) vars
-      in Let vs (rh expr)
+      in Let eid vs (rh expr)
 
-    If cond ifbody elsebody ->
-      If (rh cond) (rh ifbody) (rh elsebody)
+    If eid cond ifbody elsebody ->
+      If eid (rh cond) (rh ifbody) (rh elsebody)
 
-    Variable name ->
-      Variable name
+    Variable eid name ->
+      Variable eid name
 
-    FnCall name exprs ->
-      FnCall name (rhList exprs)
+    FnCall eid name exprs ->
+      FnCall eid name (rhList exprs)
 
-    Lambda vars expr ->
-      Lambda vars (rh expr)
+    Lambda eid vars expr ->
+      Lambda eid vars (rh expr)
 
     Hole id ->
       if id == hid
@@ -192,25 +192,25 @@ listHoles expr =
         |> List.concat
   in
   case expr of
-    Value v ->
+    Value _ v ->
       []
 
-    Let vars expr ->
+    Let _ vars expr ->
       vars
       |> List.map Tuple.second
       |> (++) [expr]
       |> lhList
 
-    If cond ifbody elsebody ->
+    If _ cond ifbody elsebody ->
       lhList [cond, ifbody, elsebody]
 
-    Variable name ->
+    Variable _ name ->
       []
 
-    FnCall name exprs ->
+    FnCall _ name exprs ->
       lhList exprs
 
-    Lambda vars expr ->
+    Lambda _ vars expr ->
       listHoles expr
 
     Hole id -> [id]

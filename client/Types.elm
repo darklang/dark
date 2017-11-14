@@ -48,8 +48,8 @@ type alias IsLeftButton = Bool
 -- Placeholder for whatever the new "Node" is
 type alias LiveValue = Int
 type alias Special = Int
-type HID = HID Int
 type TLID = TLID Int
+type HID = HID Int -- TODO: this is an Expr ID, change name to EID
 
 type EntryCursor = Creating Pos
                  | Filling TLID HID
@@ -120,13 +120,13 @@ type Element = Leaf (Maybe HID, Class, String)
 type alias VarName = String
 type alias FnName = String
 
-type Expr = If Expr Expr Expr
-          | FnCall FnName (List Expr)
-          | Variable VarName
+type Expr = If HID Expr Expr Expr
+          | FnCall HID FnName (List Expr)
+          | Variable HID VarName
           -- let x1 = expr1; x2 = expr2 in expr3
-          | Let (List (VarName, Expr)) Expr
-          | Lambda (List VarName) Expr
-          | Value String
+          | Let HID (List (VarName, Expr)) Expr
+          | Lambda HID (List VarName) Expr
+          | Value HID String
           | Hole HID
 
 type alias AST = Expr

@@ -7,14 +7,15 @@ module RT = Runtime
 (* --------------------- *)
 type fnname = string [@@deriving eq, yojson, show]
 type varname = string [@@deriving eq, yojson, show]
+type id = Types.id [@@deriving eq, yojson, show]
 
-type expr = If of expr * expr * expr
-          | FnCall of fnname * expr list
-          | Variable of varname
-          | Let of (varname * expr) list * expr
-          | Lambda of varname list * expr
-          | Value of string
-          | Hole of int
+type expr = If of id * expr * expr * expr
+          | FnCall of id * fnname * expr list
+          | Variable of id * varname
+          | Let of id * (varname * expr) list * expr
+          | Lambda of id * varname list * expr
+          | Value of id * string
+          | Hole of id
           [@@deriving eq, yojson, show]
 
 type ast = expr [@@deriving eq, yojson, show]
@@ -37,30 +38,36 @@ type api_expr =
   ; value: api_value option [@default None]
   ; hole: api_hole option [@default None]
   }
-and api_if = { cond: api_expr
+and api_if = { ifid : int [@key "id"]
+             ; cond: api_expr
              ; then_: api_expr [@key "then"]
              ; else_: api_expr [@key "else"]
              }
-and api_fncall = { name : fnname
+and api_fncall = { fnid : int [@key "id"]
+                 ; fnname : fnname [@key "name"]
                  ; arguments: api_expr list
                  }
-and api_variable = varname
-and api_let = { bindings: api_let_binding list
+and api_variable = { varid : int [@key "id"]
+                   ; varname: varname [@key "name"]}
+and api_let = { letid : int [@key "id"]
+              ; bindings: api_let_binding list
               ; letbody: api_expr [@key "body"]
               }
 and api_let_binding = { bname: varname [@key "name"]
                       ; bexpr: api_expr [@key "expr"]
                       }
-and api_lambda = { vars: varname list
+and api_lambda = { lambdaid : int [@key "id"]
+                 ; varnames: varname list
                  ; lambdabody: api_expr [@key "body"]
                  }
-and api_value = string
-and api_hole = { id: int }
+and api_value = { valueid : int [@key "id"]
+                ; valuestr: string }
+and api_hole = { holeid: int [@key "id"]}
 [@@deriving yojson]
 
 type api_ast = api_expr [@@deriving yojson]
 
-type api_toplevel = { id: int
+type api_toplevel = { tlid: int [@key "id"]
                     ; pos: Types.pos
                     ; ast: api_ast
                     } [@@deriving yojson]
@@ -72,19 +79,19 @@ let rec api_expr2expr (e: api_expr) : expr =
   let a2e = api_expr2expr in
   match e with
   | { if_ = Some a } ->
-    If (a2e a.cond, a2e a.then_, a2e a.else_)
+    If (a.ifid, a2e a.cond, a2e a.then_, a2e a.else_)
   | { fncall = Some a } ->
-    FnCall (a.name, List.map ~f:a2e a.arguments)
+    FnCall (a.fnid, a.fnname, List.map ~f:a2e a.arguments)
   | { variable = Some a } ->
-    Variable a
+    Variable (a.varid, a.varname)
   | { let_ = Some a } ->
-    Let (List.map ~f:(fun b -> (b.bname, a2e b.bexpr)) a.bindings, a2e a.letbody)
+    Let (a.letid, List.map ~f:(fun b -> (b.bname, a2e b.bexpr)) a.bindings, a2e a.letbody)
   | { lambda = Some a } ->
-    Lambda (a.vars, a2e a.lambdabody)
+    Lambda (a.lambdaid, a.varnames, a2e a.lambdabody)
   | { value = Some a } ->
-    Value a
+    Value (a.valueid, a.valuestr)
   | { hole = Some a } ->
-    Hole a.id
+    Hole (a.holeid)
   | _ -> Exception.internal "Unexpected api_expr"
 
 let api_ast2ast = api_expr2expr
@@ -103,30 +110,33 @@ let rec expr2api_expr (e: expr) : api_expr =
               ; hole  = None } in
   let e2a = expr2api_expr in
   match e with
-  | If (cond, then_, else_) ->
-      { empty with if_ = Some { cond = e2a cond
-                       ; then_ = e2a then_
-                       ; else_ = e2a else_
+  | If (id, cond, then_, else_) ->
+      { empty with if_ = Some { ifid = id
+                              ; cond = e2a cond
+                              ; then_ = e2a then_
+                              ; else_ = e2a else_
                        }}
-  | FnCall (name, args) ->
-    { empty with fncall = Some { name; arguments = List.map ~f:e2a args } }
-  | Variable v ->
-    { empty with variable = Some v }
-  | Let (binds, body) ->
-    { empty with let_ = Some { bindings = List.map ~f:(fun (v,e) -> { bname = v; bexpr = e2a e }) binds
+  | FnCall (id, name, args) ->
+    { empty with fncall = Some { fnid = id; fnname = name; arguments = List.map ~f:e2a args }}
+  | Variable (id, name) ->
+    { empty with variable = Some { varid = id; varname = name }}
+  | Let (id, binds, body) ->
+    { empty with let_ = Some { letid = id
+                             ; bindings = List.map ~f:(fun (v,e) -> { bname = v; bexpr = e2a e }) binds
                              ; letbody  = e2a body
                              }
     }
-  | Lambda (vars, body) ->
-    { empty with lambda = Some { vars; lambdabody = e2a body } }
-  | Value v ->
-    { empty with value = Some v }
-  | Hole id -> { empty with hole = Some { id = id } }
+  | Lambda (id, varnames, body) ->
+    { empty with lambda = Some { lambdaid = id; varnames; lambdabody = e2a body }}
+  | Value (id, str) ->
+    { empty with value = Some { valueid = id; valuestr = str }}
+  | Hole id ->
+    { empty with hole = Some { holeid = id }}
 
 let ast2api_ast = expr2api_expr
 
 let toplevel2api_toplevel (tl: toplevel) : api_toplevel =
-  { id = tl.id
+  { tlid = tl.id
   ; pos = tl.pos
   ; ast = ast2api_ast tl.ast }
 
@@ -148,23 +158,23 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
     | Hole id ->
       DIncomplete
 
-    | Let (bindings, body) ->
+    | Let (_, bindings, body) ->
       let bound = List.fold_left ~init:st
           ~f:(fun st (name, expr) ->
           String.Map.add ~key:name ~data:(exe st expr) st) bindings
       in exe bound expr
 
-    | Value s ->
+    | Value (_, s) ->
       RT.parse s
 
-    | Variable name ->
+    | Variable (_, name) ->
         (match Symtable.find st name with
         | None ->
           (* TODO we can put this in a DError and have great error messages *)
           DIncomplete
         | Some result -> result)
 
-    | FnCall (name, exprs) ->
+    | FnCall (id, name, exprs) ->
       let fn = Libs.get_fn_exn name in
       let argvals = List.map ~f:(exe st) exprs in
       (* equalize length *)
@@ -181,13 +191,13 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
         |> RT.DvalMap.of_alist_exn in
       RT.exe ~ind:0 fn args
 
-    | If (cond, ifbody, elsebody) ->
+    | If (id, cond, ifbody, elsebody) ->
       (match (exe st cond) with
       | DBool true -> exe st ifbody
       | DBool false -> exe st elsebody
       | _ -> DIncomplete) (* TODO: better error *)
 
-    | Lambda (vars, body) ->
+    | Lambda (id, vars, body) ->
       (* TODO: this will errror if the number of args and vars arent equal *)
       DBlock (fun args ->
           let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in

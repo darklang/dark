@@ -45,7 +45,7 @@ type opjsonlist = opjson list [@@deriving yojson]
 let json2op (op: opjson) : op =
   match op with
   | { set_ast = Some a } ->
-    SetAST { id = a.id; pos = a.pos; ast = Ast.api_ast2ast a.ast }
+    SetAST { id = a.tlid; pos = a.pos; ast = Ast.api_ast2ast a.ast }
   | { noop = Some _} -> NoOp
   | { redo = Some _} -> Redo
   | { undo = Some _} -> Undo
