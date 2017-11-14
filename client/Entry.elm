@@ -52,24 +52,43 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 --     f -> f
 --
 
+tlid : () -> TLID
+tlid unit = TLID (Util.random unit)
+
+hid : () -> HID
+hid unit = HID (Util.random unit)
+
+createFunction : Model -> FnName -> Maybe Expr
+createFunction m name =
+  let holes count = List.map (\_ -> Hole (hid ())) (List.range 1 count)
+      fn = m.complete.functions
+           |> List.filter (\fn -> fn.name == name)
+           |> List.head
+  in
+    case fn of
+      Just function ->
+        Just <| FnCall name (holes (List.length function.parameters))
+      Nothing -> Nothing
+
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  let id = TLID (Util.random ())
-      hid1 = HID (Util.random ())
-      hid2 = HID (Util.random ())
-      hid3 = HID (Util.random ())
+  let id = tlid ()
+      hid1 = hid ()
+      hid2 = hid ()
+      hid3 = hid ()
       ast = case value of
               "if" ->
-                (If (Hole hid1) (Hole hid2) (Hole hid3))
+                Just (If (Hole hid1) (Hole hid2) (Hole hid3))
               str ->
                 if RT.tipeOf str == TIncomplete || AST.isInfix str
-                then FnCall str [Hole hid1]
-                else Value str
+                then createFunction m value
+                else Just <| Value str
   in
-  case cursor of
-    Creating pos ->
+  case (ast, cursor) of
+    (Nothing, _) -> NoChange
+    (Just ast, Creating pos) ->
       RPC ([SetAST id pos ast], FocusNext id)
-    Filling tlid hid ->
+    (Just ast, Filling tlid hid) ->
       let tl = TL.getTL m tlid in
       RPC ([ SetAST tl.id tl.pos (AST.replaceHole hid ast tl.ast)]
            , FocusNext tlid)
