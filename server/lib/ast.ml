@@ -13,7 +13,7 @@ type expr = If of expr * expr * expr
           | Variable of varname
           | Let of (varname * expr) list * expr
           | Lambda of varname list * expr
-          | Value of RT.dval
+          | Value of string
           | Hole of int
           [@@deriving eq, yojson, show]
 
@@ -82,7 +82,7 @@ let rec api_expr2expr (e: api_expr) : expr =
   | { lambda = Some a } ->
     Lambda (a.vars, a2e a.lambdabody)
   | { value = Some a } ->
-    Value (RT.parse a)
+    Value a
   | { hole = Some a } ->
     Hole a.id
   | _ -> Exception.internal "Unexpected api_expr"
@@ -120,7 +120,7 @@ let rec expr2api_expr (e: expr) : api_expr =
   | Lambda (vars, body) ->
     { empty with lambda = Some { vars; lambdabody = e2a body } }
   | Value v ->
-    { empty with value = Some (RT.dval_to_json_string v) }
+    { empty with value = Some v }
   | Hole id -> { empty with hole = Some { id = id } }
 
 let ast2api_ast = expr2api_expr
@@ -134,3 +134,48 @@ let toplevel_to_frontend (tl: toplevel) : Yojson.Safe.json =
   tl
   |> toplevel2api_toplevel
   |> api_toplevel_to_yojson
+
+
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
+module Symtable = RT.DvalMap
+type symtable = RT.dval_map
+
+let rec exe (st: symtable) (expr: expr) : RT.dval =
+  match expr with
+  | Hole id ->
+    DIncomplete
+  | Let (bindings, body) ->
+    let bound = List.fold_left ~init:st
+        ~f:(fun st (name, expr) ->
+        String.Map.add ~key:name ~data:(exe st expr) st) bindings
+    in exe bound expr
+  | Value s ->
+    RT.parse s
+  | Variable name ->
+      (match Symtable.find st name with
+      | None ->
+        (* TODO we can put this in a DError and have great error messages *)
+        DIncomplete
+      | Some result -> result)
+  | FnCall (name, exprs) ->
+    let fn = Libs.get_fn_exn name in
+    let argvals = List.map ~f:(exe st) exprs in
+    let args =
+       fn.parameters
+       |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
+        |> RT.DvalMap.of_alist_exn in
+    RT.exe ~ind:0 fn args
+  | If (cond, ifbody, elsebody) ->
+    (match (exe st cond) with
+    | DBool true -> exe st ifbody
+    | DBool false -> exe st elsebody
+    | _ -> DIncomplete)
+  | Lambda (vars, body) ->
+    DBlock (0, (fun args ->
+        let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
+        let new_st = Util.merge_left bindings st in
+        exe new_st body))
+
+

@@ -153,16 +153,30 @@ let minimize (c : canvas) : canvas =
   in { c with ops = ops }
 
 
+let execute_ast (c: canvas) (tl: Ast.toplevel) : (id * RT.dval) list =
+  let st = Ast.Symtable.empty in
+  let dv = Ast.exe st tl.ast in
+  [(tl.id, dv)]
+
+
+
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
 
 
 let to_frontend (c : canvas) : Yojson.Safe.json =
-  `Assoc [ ("toplevels", `List (List.map ~f:Ast.toplevel_to_frontend c.toplevels))
-         ; ("redoable", `Bool (is_redoable c))
-         ; ("undo_count", `Int (undo_count c))
-         ; ("undoable", `Bool (is_undoable c)) ]
+  let vals = c.toplevels
+             |> List.map ~f:(execute_ast c)
+             |> List.concat
+             |> List.map ~f:(fun (id, dv) ->
+                 `Assoc [("id", `Int id); ("value", RT.dval_to_yojson dv)])
+  in `Assoc
+        [ ("values", `List vals)
+        ; ("toplevels", `List (List.map ~f:Ast.toplevel_to_frontend c.toplevels))
+        ; ("redoable", `Bool (is_redoable c))
+        ; ("undo_count", `Int (undo_count c))
+        ; ("undoable", `Bool (is_undoable c)) ]
 
 let to_frontend_string (c: canvas) : string =
   c |> to_frontend |> Yojson.Safe.pretty_to_string ~std:true
