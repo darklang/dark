@@ -17,7 +17,7 @@ getTL m id =
 
 firstHole : Model -> TLID -> HID
 firstHole m id =
-  getTL m id |> .ast |> AST.findFirstHole
+  getTL m id |> .ast |> AST.listHoles |> List.head |> deMaybe
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =

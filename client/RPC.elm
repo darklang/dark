@@ -107,7 +107,9 @@ encodeAST expr =
       JSE.object [("let"
                   , JSE.object [ ("bindings"
                                  , List.map (\(v, bexpr) ->
-                                     JSE.object [ ("name", JSE.string v)
+                                     JSE.object [ (case v of
+                                                     Named s -> ("name", JSE.string s)
+                                                     BindHole (HID id) -> ("hole", JSE.object [("id", JSE.int id)]))
                                                 , ("expr", e bexpr)]) binds |> JSE.list)
                                , ("body", e body)]
                  )]
@@ -142,12 +144,18 @@ decodeVariable =
 decodeLet : JSD.Decoder Expr
 decodeLet =
   let de = (JSD.lazy (\_ -> decodeExpr))
-      be = JSDP.decode (,)
-           |> JSDP.required "name" JSD.string
-           |> JSDP.required "expr" de
+      db hid e = (BindHole (HID hid), e)
+      dn n e = (Named n, e)
+      dbindhole = JSDP.decode db
+                  |> JSDP.requiredAt ["hole", "id"] JSD.int
+                  |> JSDP.required "expr" de
+      dnamed = JSDP.decode dn
+               |> JSDP.required "name" JSD.string
+               |> JSDP.required "expr" de
+      vb = JSD.oneOf [dbindhole, dnamed]
   in
   JSDP.decode Let
-  |> JSDP.requiredAt ["let", "bindings"] (JSD.list be)
+  |> JSDP.requiredAt ["let", "bindings"] (JSD.list vb)
   |> JSDP.requiredAt ["let", "body"] de
 
 decodeLambda : JSD.Decoder Expr

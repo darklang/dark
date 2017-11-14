@@ -121,11 +121,13 @@ type Element = Leaf (Maybe HID, Class, String)
 type alias VarName = String
 type alias FnName = String
 
+
+type VarBind = Named VarName | BindHole HID
+
 type Expr = If Expr Expr Expr
           | FnCall FnName (List Expr)
           | Variable VarName
-          -- let x1 = expr1; x2 = expr2 in expr3
-          | Let (List (VarName, Expr)) Expr
+          | Let (List (VarBind, Expr)) Expr
           | Lambda (List VarName) Expr
           | Value String
           | Hole HID

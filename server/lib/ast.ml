@@ -8,10 +8,19 @@ module RT = Runtime
 type fnname = string [@@deriving eq, yojson, show]
 type varname = string [@@deriving eq, yojson, show]
 
+type varbinding = Named of varname
+                | BindHole of int
+                [@@deriving eq, yojson, show]
+
+let is_unbound (vb: varbinding) : bool =
+  match vb with
+  | BindHole _ -> true
+  | Named _ -> false
+
 type expr = If of expr * expr * expr
           | FnCall of fnname * expr list
           | Variable of varname
-          | Let of (varname * expr) list * expr
+          | Let of (varbinding * expr) list * expr
           | Lambda of varname list * expr
           | Value of string
           | Hole of int
@@ -48,7 +57,8 @@ and api_variable = varname
 and api_let = { bindings: api_let_binding list
               ; letbody: api_expr [@key "body"]
               }
-and api_let_binding = { bname: varname [@key "name"]
+and api_let_binding = { bname: varname option [@key "name"] [@default None]
+                      ; bhole: api_hole option [@key "hole"] [@default None]
                       ; bexpr: api_expr [@key "expr"]
                       }
 and api_lambda = { vars: varname list
@@ -78,7 +88,15 @@ let rec api_expr2expr (e: api_expr) : expr =
   | { variable = Some a } ->
     Variable a
   | { let_ = Some a } ->
-    Let (List.map ~f:(fun b -> (b.bname, a2e b.bexpr)) a.bindings, a2e a.letbody)
+    let b2e b =
+      (match b.bname with
+       | Some n -> (Named n, a2e b.bexpr)
+       | None ->
+         (match b.bhole with
+          | Some hole -> (BindHole hole.id, a2e b.bexpr)
+          | None -> Exception.internal "Let binding missing name _and_ hole id"))
+    in
+    Let (List.map ~f:b2e a.bindings, a2e a.letbody)
   | { lambda = Some a } ->
     Lambda (a.vars, a2e a.lambdabody)
   | { value = Some a } ->
@@ -113,7 +131,13 @@ let rec expr2api_expr (e: expr) : api_expr =
   | Variable v ->
     { empty with variable = Some v }
   | Let (binds, body) ->
-    { empty with let_ = Some { bindings = List.map ~f:(fun (v,e) -> { bname = v; bexpr = e2a e }) binds
+    let b2a (vb, e) =
+      let bempty = { bname = None; bhole = None; bexpr = e2a e } in
+      (match vb with
+       | BindHole id -> { bempty with bhole = Some { id = id } }
+       | Named s -> { bempty with bname = Some s })
+    in
+    { empty with let_ = Some { bindings = List.map ~f:b2a binds
                              ; letbody  = e2a body
                              }
     }
@@ -149,10 +173,18 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
       DIncomplete
 
     | Let (bindings, body) ->
-      let bound = List.fold_left ~init:st
-          ~f:(fun st (name, expr) ->
-          String.Map.add ~key:name ~data:(exe st expr) st) bindings
-      in exe bound expr
+      if Util.list_any ~f:(fun (vb, _) -> is_unbound vb) bindings
+      then DIncomplete
+      else
+        let vars = List.filter_map ~f:(fun (vb, expr) ->
+            (match vb with
+             | Named s -> Some (s, expr)
+             | BindHole _ -> None)) bindings
+        in
+        let bound = List.fold_left ~init:st
+            ~f:(fun st (name, expr) ->
+            String.Map.add ~key:name ~data:(exe st expr) st) vars
+        in exe bound expr
 
     | Value s ->
       RT.parse s

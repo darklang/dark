@@ -5,7 +5,6 @@ import List
 
 -- lib
 import String.Extra as SE
-import Maybe.Extra as ME
 import List.Extra as LE
 
 -- dark
@@ -55,6 +54,12 @@ isInfix name =
 vVarname : VarName -> Element
 vVarname v = Leaf (Nothing, "varname atom", v)
 
+vVarBind : VarBind -> Element
+vVarBind v =
+  case v of
+    Named s -> Leaf (Nothing, "varname atom", s)
+    BindHole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
+
 vExpr : Int -> Expr -> Element
 vExpr nest expr =
   case expr of
@@ -74,7 +79,7 @@ vExpr nest expr =
             (List.map
               (\(l, r) ->
                 Nested "letbinding"
-                  [ vVarname l
+                  [ vVarBind l
                   , Leaf (Nothing, "letbind atom", "=")
                   , vExpr nest r
                   ]
@@ -112,42 +117,6 @@ vExpr nest expr =
 
     Hole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
-findFirstHole_ : Expr -> Maybe HID
-findFirstHole_ expr =
-  let ffList : List Expr -> Maybe HID
-      ffList exprs =
-        List.filterMap findFirstHole_ exprs
-        |> List.head
-  in
-  case expr of
-    Value v ->
-      Nothing
-
-    Let vars expr ->
-      vars
-      |> List.map Tuple.second
-      |> ffList
-      |> ME.or (findFirstHole_ expr)
-
-    If cond ifbody elsebody ->
-      findFirstHole_ elsebody
-      |> ME.or (findFirstHole_ ifbody)
-      |> ME.or (findFirstHole_ cond)
-
-    Variable name ->
-      Nothing
-
-    FnCall name exprs ->
-      ffList exprs
-
-    Lambda vars expr ->
-      findFirstHole_ expr
-
-    Hole id -> Just id
-
-findFirstHole : AST -> HID
-findFirstHole ast = findFirstHole_ ast |> Maybe.withDefault (HID 3)
-
 replaceHole : HID -> Expr -> AST -> AST
 replaceHole hid replacement ast =
   replaceHole_ hid replacement ast
@@ -163,7 +132,19 @@ replaceHole_ hid replacement expr =
       Value v
 
     Let vars expr ->
-      let vs = List.map (\(vn, e) -> (vn, rh e)) vars
+      let vs = List.map (\(vb, e) ->
+         case vb of
+           -- TODO: replace this with a different replaceBindHole
+           -- that gets called from the submit of a special entry box
+           Named s -> (Named s, rh e)
+           BindHole id ->
+             if id == hid
+             then
+               case replacement of
+                 Value s -> (Named (SE.unquote s), e)
+                 _       -> (BindHole id, e)
+             else (BindHole id, rh e)
+             ) vars
       in Let vs (rh expr)
 
     If cond ifbody elsebody ->
@@ -183,6 +164,13 @@ replaceHole_ hid replacement expr =
       then replacement
       else expr
 
+
+bindHoleHID : VarBind -> Maybe HID
+bindHoleHID vb =
+  case vb of
+    BindHole hid -> Just hid
+    Named _ -> Nothing
+
 listHoles : Expr -> List HID
 listHoles expr =
   let lhList : List Expr -> List HID
@@ -190,16 +178,23 @@ listHoles expr =
         exprs
         |> List.map listHoles
         |> List.concat
+      bhList : List VarBind -> List HID
+      bhList = List.filterMap bindHoleHID
   in
   case expr of
     Value v ->
       []
 
     Let vars expr ->
-      vars
-      |> List.map Tuple.second
-      |> (++) [expr]
-      |> lhList
+      let exprHoles = vars
+                      |> List.map Tuple.second
+                      |> (++) [expr]
+                      |> lhList
+          bindHoles = vars
+                    |> List.map Tuple.first
+                    |> bhList
+      in
+          bindHoles ++ exprHoles
 
     If cond ifbody elsebody ->
       lhList [cond, ifbody, elsebody]

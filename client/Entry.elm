@@ -80,7 +80,7 @@ submit m re cursor value =
               "if" ->
                 Just (If (Hole hid1) (Hole hid2) (Hole hid3))
               "let" ->
-                Just (Let [] (Hole hid1))
+                Just (Let [(BindHole hid1, Hole hid2)] (Hole hid3))
               "lambda" ->
                 Just (Lambda ["var"] (Hole hid1))
               str ->
