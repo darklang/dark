@@ -194,7 +194,7 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
         let bound = List.fold_left ~init:st
             ~f:(fun st (name, expr) ->
             String.Map.add ~key:name ~data:(exe st expr) st) vars
-        in exe bound expr
+        in exe bound body
 
     | Value (_, s) ->
       RT.parse s
@@ -236,6 +236,11 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
           let new_st = Util.merge_left bindings st in
           exe new_st body))
   with
-  | e -> DIncomplete
+  | e ->
+    let bt = Exn.backtrace () in
+    let msg = Exn.to_string e in
+    print_endline bt;
+    print_endline msg;
+    DIncomplete
 
 
