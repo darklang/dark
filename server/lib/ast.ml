@@ -172,6 +172,8 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
       let argvals =
         if length_diff > 0
         then argvals @ (List.init length_diff (fun _ -> RT.DNull))
+        else if length_diff = 0
+        then argvals
         else Exception.user ("Too many args in fncall to " ^ name) in
       let args =
         fn.parameters
