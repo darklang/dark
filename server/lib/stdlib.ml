@@ -909,26 +909,45 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  (* ====================================== *)
+  (* Hacks for autocomplete*)
+  (* ====================================== *)
+
+
   { n = "if"
   ; o = []
-  ; p = [par "v" TAny; par "cond" TBool; func ~name:"ftrue" ["then"]; func ~name:"ffalse" ["else"]]
+  ; p = [par "cond" TBool]
   ; r = TAny
-  ; d = "If cond is true, calls the `then` function. Otherwise calls the `else`
-  function. Both functions get 'v' piped into them"
-  ; f = InProcess
-        (function
-          | [v; DBool cond; DBlock fntrue; DBlock fnfalse] ->
-              if cond then fntrue [v] else fnfalse [v]
-          | args -> fail args)
-  (* we could do better here by getting a value for which this is true/false *)
-  ; pr = Some (fun dv cursor -> dv)
+  ; d = "If cond is true, executes the `then` expression. Otherwise runs the `else` expression."
+  ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it" )
+  ; pr = None
   ; pu = true
   }
   ;
 
 
+  { n = "lambda"
+  ; o = []
+  ; p = [par "vars" TList; par "body" TAny]
+  ; r = TAny
+  ; d = "Creates an anonymous function, useful for iterating through foreach"
+  ; f = InProcess (fun _ -> failwith "Lambda is a placeholer, we shouldn't be calling it" )
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
 
+  { n = "let"
+  ; o = []
+  ; p = [par "bindings" TList; par "body" TAny]
+  ; r = TAny
+  ; d = "Execute and bind the variables in binding, and then execute body, possibly using those expressions. Execution is strict."
+  ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it" )
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
   (* ====================================== *)
   (* Date *)

@@ -79,6 +79,10 @@ submit m re cursor value =
       ast = case value of
               "if" ->
                 Just (If (Hole hid1) (Hole hid2) (Hole hid3))
+              "let" ->
+                Just (Let [] (Hole hid1))
+              "lambda" ->
+                Just (Lambda ["var"] (Hole hid1))
               str ->
                 if RT.tipeOf str == TIncomplete || AST.isInfix str
                 then createFunction m value
