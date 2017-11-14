@@ -53,3 +53,6 @@ let merge_left = Map.merge ~f:(fun ~key v ->
     | `Right v -> Some v
     | `Both (v1, v2) -> Some v1)
 
+let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
+  List.length (List.filter ~f l) > 0
+

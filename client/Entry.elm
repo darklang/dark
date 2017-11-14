@@ -81,7 +81,7 @@ submit m re cursor value =
               "if" ->
                 Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
               "let" ->
-                Just (Let eid [] (Hole hid1))
+                Just (Let eid [(BindHole hid1, Hole hid2)] (Hole hid3))
               "lambda" ->
                 Just (Lambda eid ["var"] (Hole hid1))
               str ->

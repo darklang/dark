@@ -58,7 +58,7 @@ type alias IsReentering = Bool
 type alias HasMoved = Bool
 type State = Selecting TLID HID
            | Entering IsReentering EntryCursor
-           | Dragging VPos HasMoved State
+           | Dragging TLID VPos HasMoved State
            | Deselected
 
 type Msg
@@ -92,6 +92,7 @@ type RPC
     | SetAST TLID Pos Expr
     | DeleteAll
     | DeleteAST TLID
+    | MoveAST TLID Pos
     | Savepoint
     | Undo
     | Redo
@@ -120,11 +121,13 @@ type Element = Leaf (Maybe HID, Class, String)
 type alias VarName = String
 type alias FnName = String
 
+type VarBind = Named VarName | BindHole HID
+
 type Expr = If HID Expr Expr Expr
           | FnCall HID FnName (List Expr)
           | Variable HID VarName
           -- let x1 = expr1; x2 = expr2 in expr3
-          | Let HID (List (VarName, Expr)) Expr
+          | Let HID (List (VarBind, Expr)) Expr
           | Lambda HID (List VarName) Expr
           | Value HID String
           | Hole HID
@@ -169,7 +172,7 @@ type Modification = Error String
                   | MakeCmd (Cmd Msg)
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
-                  | Drag VPos HasMoved State
+                  | Drag TLID VPos HasMoved State
                   | SetState State
 
 -- name, type optional
