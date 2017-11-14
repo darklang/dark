@@ -46,8 +46,7 @@ vInfix name exprs nesting =
         , Nested ("op " ++ name) [vFn name]
         , Nested "rhs" [vExpr nesting second]
         ]
-    _ ->
-      Debug.crash "using infix with the wrong number of things"
+    _ -> vPrefix ("(" ++ name ++ ")") exprs nesting
 
 isInfix : FnName -> Bool
 isInfix name =
