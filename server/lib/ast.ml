@@ -146,36 +146,48 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
   match expr with
   | Hole id ->
     DIncomplete
+
   | Let (bindings, body) ->
     let bound = List.fold_left ~init:st
         ~f:(fun st (name, expr) ->
         String.Map.add ~key:name ~data:(exe st expr) st) bindings
     in exe bound expr
+
   | Value s ->
     RT.parse s
+
   | Variable name ->
       (match Symtable.find st name with
       | None ->
         (* TODO we can put this in a DError and have great error messages *)
         DIncomplete
       | Some result -> result)
+
   | FnCall (name, exprs) ->
     let fn = Libs.get_fn_exn name in
     let argvals = List.map ~f:(exe st) exprs in
+    (* equalize length *)
+    let length_diff = List.length fn.parameters - List.length argvals in
+    let argvals =
+      if length_diff > 0
+      then argvals @ (List.init length_diff (fun _ -> RT.DNull))
+      else Exception.user ("Too many args in fncall to " ^ name) in
     let args =
-       fn.parameters
-       |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
-        |> RT.DvalMap.of_alist_exn in
+      fn.parameters
+      |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
+      |> RT.DvalMap.of_alist_exn in
     RT.exe ~ind:0 fn args
+
   | If (cond, ifbody, elsebody) ->
     (match (exe st cond) with
     | DBool true -> exe st ifbody
     | DBool false -> exe st elsebody
-    | _ -> DIncomplete)
+    | _ -> DIncomplete) (* TODO: better error *)
+
   | Lambda (vars, body) ->
-    DBlock (0, (fun args ->
+    DBlock (fun args ->
         let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
         let new_st = Util.merge_left bindings st in
-        exe new_st body))
+        exe new_st body)
 
 

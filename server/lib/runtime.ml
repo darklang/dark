@@ -23,7 +23,7 @@ and dval = DInt of int
          | DChar of char
          | DFloat of float
          | DBool of bool
-         | DBlock of id * (dval list -> dval)
+         | DBlock of (dval list -> dval)
          | DList of dval list
          (* TODO: make null more like option. Maybe that's for the type
             system *)
@@ -42,7 +42,7 @@ let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
-  | DBlock (id, _) -> "<block:" ^ string_of_int id ^ ">"
+  | DBlock _ -> "<block>"
   | DOpaque o -> "<opaque:" ^ o#get ^ ">"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
