@@ -143,7 +143,7 @@ decodeLet =
            |> JSDP.required "expr" de
   in
   JSDP.decode Let
-  |> JSDP.requiredAt ["let", "binding"] (JSD.list be)
+  |> JSDP.requiredAt ["let", "bindings"] (JSD.list be)
   |> JSDP.requiredAt ["let", "body"] de
 
 decodeLambda : JSD.Decoder Expr
