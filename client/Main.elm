@@ -162,8 +162,8 @@ updateMod origm mod (m, cmd) =
 
       SetCenter c ->
         { m | center = c } ! []
-      Drag offset hasMoved state ->
-        { m | state = Dragging offset hasMoved state } ! []
+      Drag tlid offset hasMoved state ->
+        { m | state = Dragging tlid offset hasMoved state } ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
         let complete = Autocomplete.update mod m.complete
@@ -258,7 +258,7 @@ update_ msg m =
               Key.Right -> SetCenter <| Viewport.moveRight m.center
               _ -> NoChange
 
-          Dragging _ _ _ -> NoChange
+          Dragging _ _ _ _ -> NoChange
 
 
     ------------------------
@@ -288,41 +288,38 @@ update_ msg m =
                 , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
       else NoChange
 
-    (ToplevelClickDown node event, _) ->
+    (ToplevelClickDown tl event, _) ->
       if event.button == Defaults.leftButton
-      then Drag event.pos False m.state
+      then Drag tl.id event.pos False m.state
       else NoChange
 
     (DragToplevel id mousePos, _) ->
       case m.state of
-        -- Dragging startVPos _ origState ->
-        --   let xDiff = mousePos.x-startVPos.vx
-        --       yDiff = mousePos.y-startVPos.vy
-        --       (m2, _) = G.moveSubgraph m id xDiff yDiff in
-        --   Many [ SetViewNodes m2.nodes
-        --        -- update the drag so we offset correctly next time
-        --        , Drag id {vx=mousePos.x, vy=mousePos.y} True origState ]
+        Dragging tlid startVPos _ origState ->
+          let xDiff = mousePos.x-startVPos.vx
+              yDiff = mousePos.y-startVPos.vy
+              m2 = TL.move tlid xDiff yDiff m in
+          Many [ SetToplevels m2.toplevels
+               , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
     (ToplevelClickUp id event, _) ->
       if event.button == Defaults.leftButton
       then
-        Select id (TL.firstHole m id)
-        -- case m.state of
-        --   Dragging id startVPos hasMoved origState ->
-        --     Select id
-        --     -- if hasMoved
-        --     -- then
-        --     --   let xDiff = event.pos.vx-startVPos.vx
-        --     --       yDiff = event.pos.vy-startVPos.vy
-        --     --       (m2, root) = G.moveSubgraph m id xDiff yDiff in
-        --     --     Many
-        --     --       [ -- final x/y update, tiny diff like in DragNodeMove
-        --     --         SetViewNodes m2.nodes
-        --     --       , SetState origState
-        --     --       , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
-        --     else Select id
-        --   _ -> Debug.crash "it can never not be dragging"
+        case m.state of
+          Dragging tlid startVPos hasMoved origState ->
+            if hasMoved
+            then
+              let xDiff = event.pos.vx-startVPos.vx
+                  yDiff = event.pos.vy-startVPos.vy
+                  m2    = TL.move tlid xDiff yDiff m
+                  tl    = TL.getTL m2 id
+              in
+                  Many
+                  [ SetState origState
+                  , RPC ([MoveAST tl.id tl.pos], FocusSame)]
+            else Select id (TL.firstHole m id)
+          _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
 
@@ -388,8 +385,8 @@ subscriptions m =
         case m.state of
           -- we use IDs here because the node will change
           -- before they're triggered
-          Dragging offset _ _ ->
-            [ Mouse.moves (DragToplevel (TLID 76))]
+          Dragging id offset _ _ ->
+            [ Mouse.moves (DragToplevel id)]
           _ -> []
   in Sub.batch
     (List.concat [keySubs, dragSubs])

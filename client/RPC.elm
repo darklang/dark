@@ -80,8 +80,12 @@ encodeRPC m call =
       Redo ->
         ("redo", JSE.object [])
 
-      DeleteAST (TLID id) ->
-        ("delete_ast", JSE.object [("id", JSE.int id)])
+      DeleteAST id ->
+        ("delete_ast", JSE.object [encodeID id])
+
+      MoveAST id pos ->
+        ("move_ast", JSE.object [ encodeID id
+                                , encodePos pos])
 
   in JSE.object [ (cmd, args) ]
 

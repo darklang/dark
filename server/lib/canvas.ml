@@ -84,7 +84,7 @@ let is_undoable (c: canvas) : bool =
 let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
 
-let add_toplevel (toplevel: Ast.toplevel) (c: canvas) : canvas =
+let upsert_toplevel (toplevel: Ast.toplevel) (c: canvas) : canvas =
   let tls = List.filter ~f:(fun x -> x.id <> toplevel.id) c.toplevels
   in
   { c with toplevels = tls @ [toplevel] }
@@ -93,6 +93,13 @@ let remove_toplevel_by_id (id: int) (c: canvas) : canvas =
   let tls = List.filter ~f:(fun x -> x.id <> id) c.toplevels
   in
   { c with toplevels = tls }
+
+let move_toplevel (id: int) (pos: pos) (c: canvas) : canvas =
+  match List.find ~f:(fun t -> t.id = id) c.toplevels with
+  | Some (tl) ->
+    let ntl = { tl with pos = pos } in
+    upsert_toplevel ntl c
+  | None -> c
 
 (* ------------------------- *)
 (* Build *)
@@ -104,8 +111,9 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     match op with
     | NoOp -> ident
     | SavePoint -> ident
-    | SetAST toplevel -> add_toplevel toplevel
+    | SetAST toplevel -> upsert_toplevel toplevel
     | DeleteAST id -> remove_toplevel_by_id id
+    | MoveAST (id, pos) -> move_toplevel id pos
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
