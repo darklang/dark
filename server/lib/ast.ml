@@ -185,6 +185,7 @@ let rec exe (st: symtable) (expr: expr) : RT.dval =
     | _ -> DIncomplete) (* TODO: better error *)
 
   | Lambda (vars, body) ->
+    (* TODO: this will errror if the number of args and vars arent equal *)
     DBlock (fun args ->
         let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
         let new_st = Util.merge_left bindings st in
