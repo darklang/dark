@@ -164,6 +164,45 @@ replaceHole_ hid replacement expr =
       then replacement
       else expr
 
+replaceBindHole : HID -> VarName -> AST -> AST
+replaceBindHole hid replacement ast =
+  replaceBindHole_ hid replacement ast
+
+replaceBindHole_ : HID -> VarName -> Expr -> Expr
+replaceBindHole_ hid replacement expr =
+  let rbh = replaceBindHole_ hid replacement
+      rbhList : List Expr -> List Expr
+      rbhList exprs = List.map rbh exprs
+  in
+  case expr of
+    Value eid v ->
+      Value eid v
+
+    Let eid vars expr ->
+      let vs = List.map (\(vb, e) ->
+         case vb of
+           Named s -> (Named s, rbh e)
+           BindHole id ->
+             if id == hid
+             then (Named replacement, e)
+             else (BindHole id, rbh e)
+             ) vars
+      in Let eid vs (rbh expr)
+
+    If eid cond ifbody elsebody ->
+      If eid (rbh cond) (rbh ifbody) (rbh elsebody)
+
+    Variable eid name ->
+      Variable eid name
+
+    FnCall eid name exprs ->
+      FnCall eid name (rbhList exprs)
+
+    Lambda eid vars expr ->
+      Lambda eid vars (rbh expr)
+
+    Hole id ->
+      Hole id
 
 bindHoleHID : VarBind -> Maybe HID
 bindHoleHID vb =
@@ -171,6 +210,54 @@ bindHoleHID vb =
     BindHole hid -> Just hid
     Named _ -> Nothing
 
+listBindHoles : Expr -> List HID
+listBindHoles expr =
+  let lbhList : List Expr -> List HID
+      lbhList exprs =
+        exprs
+        |> List.map listBindHoles
+        |> List.concat
+      bhList : List VarBind -> List HID
+      bhList = List.filterMap bindHoleHID
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ vars expr ->
+      let exprBindHoles = vars
+                        |> List.map Tuple.second
+                        |> (++) [expr]
+                        |> lbhList
+          bindHoles = vars
+                    |> List.map Tuple.first
+                    |> bhList
+      in
+          bindHoles ++ exprBindHoles
+
+    If _ cond ifbody elsebody ->
+      lbhList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lbhList exprs
+
+    Lambda _ vars expr ->
+      listBindHoles expr
+
+    -- note this is empty, which is the difference between this and listHoles
+    Hole id ->
+      []
+
+-- TODO: figure out how we can define this
+-- this in terms of listBindHoles and a listExprHoles
+--
+-- a naive concatenation would be a) another dupe'd walk
+-- plus b) lead to even more ordering issues
+--
+-- time for a proper visitor abstraction?
 listHoles : Expr -> List HID
 listHoles expr =
   let lhList : List Expr -> List HID

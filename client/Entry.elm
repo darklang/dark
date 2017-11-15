@@ -77,26 +77,37 @@ submit m re cursor value =
       hid1 = hid ()
       hid2 = hid ()
       hid3 = hid ()
-      ast = case value of
-              "if" ->
-                Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
-              "let" ->
-                Just (Let eid [(BindHole hid1, Hole hid2)] (Hole hid3))
-              "lambda" ->
-                Just (Lambda eid ["var"] (Hole hid1))
-              str ->
-                if RT.tipeOf str == TIncomplete || AST.isInfix str
-                then createFunction m value
-                else Just <| Value eid str
+      parseAst v =
+        case v of
+          "if" ->
+            Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
+          "let" ->
+              Just (Let eid [(BindHole hid1, Hole hid2)] (Hole hid3))
+          "lambda" ->
+            Just (Lambda eid ["var"] (Hole hid1))
+          str ->
+            if RT.tipeOf str == TIncomplete || AST.isInfix str
+            then createFunction m value
+            else Just <| Value eid str
+
   in
-  case (ast, cursor) of
-    (Nothing, _) -> NoChange
-    (Just ast, Creating pos) ->
-      RPC ([SetAST id pos ast], FocusNext id)
-    (Just ast, Filling tlid hid) ->
-      let tl = TL.getTL m tlid in
-      RPC ([ SetAST tl.id tl.pos (AST.replaceHole hid ast tl.ast)]
-           , FocusNext tlid)
+  case cursor of
+    Creating pos ->
+      case parseAst value of
+        Nothing -> NoChange
+        Just v -> RPC ([SetAST id pos v], FocusNext id)
+    Filling tlid hid ->
+      let tl = TL.getTL m tlid
+      in
+          if TL.isBindHole m tlid hid
+          then
+            RPC ([SetAST tl.id tl.pos (AST.replaceBindHole hid value tl.ast)]
+            , FocusNext tl.id)
+          else
+            case parseAst value of
+              Nothing -> NoChange
+              Just v -> RPC ([SetAST tl.id tl.pos (AST.replaceHole hid v tl.ast)]
+              , FocusNext tl.id)
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of

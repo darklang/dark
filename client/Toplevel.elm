@@ -19,6 +19,10 @@ firstHole : Model -> TLID -> HID
 firstHole m id =
   getTL m id |> .ast |> AST.listHoles |> List.head |> Maybe.withDefault (HID 3)
 
+isBindHole : Model -> TLID -> HID -> Bool
+isBindHole m tlid hid =
+  getTL m tlid |> .ast |> AST.listBindHoles |> List.member hid
+
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
   let mapped = List.map (\t ->

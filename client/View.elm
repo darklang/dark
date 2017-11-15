@@ -20,6 +20,7 @@ import Defaults
 import Viewport
 import Autocomplete
 import ViewAST
+import Toplevel as TL
 
 view : Model -> Html.Html Msg
 view m =
@@ -89,7 +90,10 @@ viewAST m tl =
       holeHtml =
        case m.state of
         Selecting _ hid -> Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
-        Entering _ (Filling _ hid) -> normalEntryHtml m
+        Entering _ (Filling _ hid) ->
+          if TL.isBindHole m tl.id hid
+          then identifierEntryHtml m
+          else normalEntryHtml m
         _ -> Html.div [] []
       html = ViewAST.toHtml hid holeHtml tl.ast
       selected =
@@ -204,6 +208,33 @@ viewNormalEntry m =
     Entering _ (Creating pos) ->
       [placeHtml m pos (normalEntryHtml m)]
     _ -> []
+
+
+identifierEntryHtml : Model -> Html.Html Msg
+identifierEntryHtml m =
+  let
+      inputBox =
+        Html.input [ Attrs.id Defaults.entryID
+                   , Events.onInput EntryInputMsg
+                   , Attrs.value m.complete.value
+                   , Attrs.spellcheck False
+                   , Attrs.autocomplete False
+                   ] []
+
+      input = Html.div
+              [ Attrs.id "identifier-container"
+              , Attrs.class "identifier-container"]
+              [ inputBox ]
+
+      viewForm = Html.form
+                 [ Events.onSubmit (EntrySubmitMsg) ]
+                 [ input ]
+
+      classes = "identifier-entry"
+  in Html.div
+      [ Attrs.class classes
+      , Attrs.width 100]
+      [ viewForm ]
 
 
 normalEntryHtml : Model -> Html.Html Msg
