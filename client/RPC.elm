@@ -126,7 +126,7 @@ encodeAST expr =
     Lambda id vars body ->
       JSE.object [("lambda"
                   , JSE.object [ eid id
-                               , ("vars", List.map JSE.string vars |> JSE.list)
+                               , ("varnames", List.map JSE.string vars |> JSE.list)
                                , ("body", e body)])]
 
     Value id v ->
