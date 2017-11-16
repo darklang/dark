@@ -38,8 +38,20 @@ type toplevel = { id: Types.id
 (* API Types and Fns *)
 (* --------------------- *)
 
+type livevalue = { value: string
+                 ; tipe: string [@key "type"]
+                 ; json: string
+                 ; exc: Exception.exception_data option
+                 } [@@deriving yojson, show]
+
+type analysis_record = { livevalue: livevalue
+  (* available_symbols: varname list *)
+                       } [@@deriving yojson, show]
+
+
 type api_expr =
-  { if_: api_if option [@key "if"] [@default None]
+  { analysis_record: analysis_record
+  ; if_: api_if option [@key "if"] [@default None]
   ; fncall: api_fncall option [@default None]
   ; variable: api_variable option [@default None]
   ; let_: api_let option [@key "let"] [@default None]
@@ -118,55 +130,58 @@ let api_ast2ast = api_expr2expr
 (* to API *)
 (* --------------------- *)
 
-let rec expr2api_expr (e: expr) : api_expr =
-  let empty = { if_ = None
-              ; fncall = None
-              ; variable = None
-              ; let_ = None
-              ; lambda = None
-              ; value = None
-              ; hole  = None } in
+let to_id = failwith "todo"
+
+let rec expr2api_expr (results: analysis_results) (e: expr) : api_expr =
+  let init = { analysis_record = get_analysis_result results (e |> to_id)
+             ; if_ = None
+             ; fncall = None
+             ; variable = None
+             ; let_ = None
+             ; lambda = None
+             ; value = None
+             ; hole  = None } in
   let e2a = expr2api_expr in
   match e with
   | If (id, cond, then_, else_) ->
-      { empty with if_ = Some { ifid = id
-                              ; cond = e2a cond
-                              ; then_ = e2a then_
-                              ; else_ = e2a else_
+      { init with if_ = Some { ifid = id
+                             ; cond = e2a cond
+                             ; then_ = e2a then_
+                             ; else_ = e2a else_
                        }}
   | FnCall (id, name, args) ->
-    { empty with fncall = Some { fnid = id; fnname = name; arguments = List.map ~f:e2a args }}
+    { init with fncall = Some { fnid = id; fnname = name; arguments = List.map ~f:e2a args }}
   | Variable (id, name) ->
-    { empty with variable = Some { varid = id; varname = name }}
+    { init with variable = Some { varid = id; varname = name }}
   | Let (id, binds, body) ->
     let b2a (vb, e) =
-      let bempty = { bname = None; bhole = None; bexpr = e2a e } in
+      let binit = { bname = None; bhole = None; bexpr = e2a e } in
       (match vb with
-       | BindHole id -> { bempty with bhole = Some { holeid = id } }
-       | Named s -> { bempty with bname = Some s })
+       | BindHole id -> { binit with bhole = Some { holeid = id } }
+       | Named s -> { binit with bname = Some s })
     in
-    { empty with let_ = Some { letid = id
-                             ; bindings = List.map ~f:b2a binds
-                             ; letbody  = e2a body
-                             }
+    { init with let_ = Some { letid = id
+                            ; bindings = List.map ~f:b2a binds
+                            ; letbody  = e2a body
+                            }
     }
   | Lambda (id, varnames, body) ->
-    { empty with lambda = Some { lambdaid = id; varnames; lambdabody = e2a body }}
+    { init with lambda = Some { lambdaid = id; varnames; lambdabody = e2a body }}
   | Value (id, str) ->
-    { empty with value = Some { valueid = id; valuestr = str }}
+    { init with value = Some { valueid = id; valuestr = str }}
   | Hole id ->
-    { empty with hole = Some { holeid = id }}
+    { init with hole = Some { holeid = id }}
 
 let ast2api_ast = expr2api_expr
 
-let toplevel2api_toplevel (tl: toplevel) : api_toplevel =
+let toplevel2api_toplevel (ar: analysis_results) (tl: toplevel) : api_toplevel =
   { tlid = tl.id
   ; pos = tl.pos
-  ; ast = ast2api_ast tl.ast }
+  ; ast = ast2api_ast ar tl.ast }
 
-let toplevel_to_frontend (tl: toplevel) : Yojson.Safe.json =
+let toplevel_to_frontend (ar: analysis_results) (tl: toplevel) : Yojson.Safe.json =
   tl
-  |> toplevel2api_toplevel
+  |> toplevel2api_toplevel ar
   |> api_toplevel_to_yojson
 
 
