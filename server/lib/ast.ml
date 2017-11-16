@@ -44,14 +44,16 @@ type livevalue = { value: string
                  ; exc: Exception.exception_data option
                  } [@@deriving yojson, show]
 
-type analysis_record = { livevalue: livevalue
-  (* available_symbols: varname list *)
+type analysis_record = { livevalue: (id * dval) list
+                      (* available_symbols: varname list *)
                        } [@@deriving yojson, show]
 
+    (* ( RT.to_repr dv *)
+    (* , RT.tipename dv *)
+    (* , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string *)
 
 type api_expr =
-  { analysis_record: analysis_record
-  ; if_: api_if option [@key "if"] [@default None]
+  { if_: api_if option [@key "if"] [@default None]
   ; fncall: api_fncall option [@default None]
   ; variable: api_variable option [@default None]
   ; let_: api_let option [@key "let"] [@default None]
@@ -177,7 +179,8 @@ let ast2api_ast = expr2api_expr
 let toplevel2api_toplevel (ar: analysis_results) (tl: toplevel) : api_toplevel =
   { tlid = tl.id
   ; pos = tl.pos
-  ; ast = ast2api_ast ar tl.ast }
+  ; ast = ast2api_ast tl.ast
+  ; analysis_results = analysis_results_to_api ar}
 
 let toplevel_to_frontend (ar: analysis_results) (tl: toplevel) : Yojson.Safe.json =
   tl
