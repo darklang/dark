@@ -14,11 +14,5 @@ let loG = Log.pP ~name:"execution"
 
 (* For serializing to json only *)
 
-type valuejson = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving to_yojson, show]
-
 
 

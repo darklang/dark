@@ -46,7 +46,10 @@ type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
 -- Placeholder for whatever the new "Node" is
-type alias LiveValue = Int
+type alias LiveValue = { value : String
+                       , tipe : Tipe
+                       , json : String
+                       , exc : Maybe Exception}
 type alias Special = Int
 type TLID = TLID Int
 type HID = HID Int -- TODO: this is an Expr ID, change name to EID
@@ -134,6 +137,11 @@ type Expr = If HID Expr Expr Expr
 
 type alias AST = Expr
 
+type alias Analysis = { livevalues : Dict HID LiveValue
+                      , available_symbols : Dict HID (List String)
+                      }
+
+
 type alias Toplevel = { id : TLID
                       , pos : Pos
                       , ast : AST
@@ -147,6 +155,7 @@ type alias Model = { center : Pos
                    , complete : Autocomplete
                    , state : State
                    , toplevels : List Toplevel
+                   , analysis : Analysis
                    }
 
 type AutocompleteMod = ACSetQuery String
