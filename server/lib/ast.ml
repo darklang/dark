@@ -38,20 +38,6 @@ type toplevel = { id: Types.id
 (* API Types and Fns *)
 (* --------------------- *)
 
-type livevalue = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving yojson, show]
-
-type analysis_record = { livevalue: (id * dval) list
-                      (* available_symbols: varname list *)
-                       } [@@deriving yojson, show]
-
-    (* ( RT.to_repr dv *)
-    (* , RT.tipename dv *)
-    (* , dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string *)
-
 type api_expr =
   { if_: api_if option [@key "if"] [@default None]
   ; fncall: api_fncall option [@default None]
@@ -132,11 +118,8 @@ let api_ast2ast = api_expr2expr
 (* to API *)
 (* --------------------- *)
 
-let to_id = failwith "todo"
-
-let rec expr2api_expr (results: analysis_results) (e: expr) : api_expr =
-  let init = { analysis_record = get_analysis_result results (e |> to_id)
-             ; if_ = None
+let rec expr2api_expr (e: expr) : api_expr =
+  let init = { if_ = None
              ; fncall = None
              ; variable = None
              ; let_ = None
@@ -176,15 +159,15 @@ let rec expr2api_expr (results: analysis_results) (e: expr) : api_expr =
 
 let ast2api_ast = expr2api_expr
 
-let toplevel2api_toplevel (ar: analysis_results) (tl: toplevel) : api_toplevel =
+let toplevel2api_toplevel (tl: toplevel) : api_toplevel =
   { tlid = tl.id
   ; pos = tl.pos
   ; ast = ast2api_ast tl.ast
-  ; analysis_results = analysis_results_to_api ar}
+  }
 
-let toplevel_to_frontend (ar: analysis_results) (tl: toplevel) : Yojson.Safe.json =
+let toplevel_to_frontend (tl: toplevel) : Yojson.Safe.json =
   tl
-  |> toplevel2api_toplevel ar
+  |> toplevel2api_toplevel
   |> api_toplevel_to_yojson
 
 
@@ -287,3 +270,9 @@ let execute (ast: expr) : (RT.dval * dval_store) =
   in
   (exec ~trace Symtable.empty ast, value_store)
 
+let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+  let alist = Hashtbl.to_alist ds in
+  let jsonified = List.map ~f:(fun (id, dv) ->
+      `Assoc [("id", `Int id); ("value", RT.dval_to_yojson dv)]) alist
+  in
+  `List jsonified
