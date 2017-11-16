@@ -162,8 +162,9 @@ let minimize (c : canvas) : canvas =
 
 
 let execute_ast (c: canvas) (tl: Ast.toplevel) : (id * RT.dval) list =
-  let st = Ast.Symtable.empty in
-  let dv = Ast.exe st tl.ast in
+  (* TODO: pluck out the value_store *)
+  let (dv, ht) = Ast.execute tl.ast in
+  let _ = Log.pp "Hashtable:" ht in
   [(tl.id, dv)]
 
 

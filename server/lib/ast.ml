@@ -191,71 +191,96 @@ let toplevel_to_frontend (ar: analysis_results) (tl: toplevel) : Yojson.Safe.jso
 module Symtable = RT.DvalMap
 type symtable = RT.dval_map
 
-let rec exe (st: symtable) (expr: expr) : RT.dval =
+let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (expr: expr) : RT.dval =
+  let exe = exec ~trace in
   try
-    (match expr with
-    | Hole id ->
-      DIncomplete
+    let value =
+      (match expr with
+       | Hole id ->
+         RT.DIncomplete
 
-    | Let (_, bindings, body) ->
-      if Util.list_any ~f:(fun (vb, _) -> is_unbound vb) bindings
-      then DIncomplete
-      else
-        let vars = List.filter_map ~f:(fun (vb, expr) ->
-            (match vb with
-             | Named s -> Some (s, expr)
-             | BindHole _ -> None)) bindings
-        in
-        let bound = List.fold_left ~init:st
-            ~f:(fun st (name, expr) ->
-            String.Map.add ~key:name ~data:(exe st expr) st) vars
-        in exe bound body
+       | Let (_, bindings, body) ->
+         if Util.list_any ~f:(fun (vb, _) -> is_unbound vb) bindings
+         then RT.DIncomplete
+         else
+           let vars = List.filter_map ~f:(fun (vb, expr) ->
+               (match vb with
+                | Named s -> Some (s, expr)
+                | BindHole _ -> None)) bindings
+           in
+           let bound = List.fold_left ~init:st
+               ~f:(fun st (name, expr) ->
+                   String.Map.add ~key:name ~data:(exe st expr) st) vars
+           in exe bound body
 
-    | Value (_, s) ->
-      RT.parse s
+       | Value (_, s) ->
+         RT.parse s
 
-    | Variable (_, name) ->
-        (match Symtable.find st name with
-        | None ->
-          (* TODO we can put this in a DError and have great error messages *)
-          DIncomplete
-        | Some result -> result)
+       | Variable (_, name) ->
+         (match Symtable.find st name with
+          | None ->
+            (* TODO we can put this in a DError and have great error messages *)
+            RT.DIncomplete
+          | Some result -> result)
 
-    | FnCall (id, name, exprs) ->
-      let fn = Libs.get_fn_exn name in
-      let argvals = List.map ~f:(exe st) exprs in
-      (* equalize length *)
-      let length_diff = List.length fn.parameters - List.length argvals in
-      let argvals =
-        if length_diff > 0
-        then argvals @ (List.init length_diff (fun _ -> RT.DNull))
-        else if length_diff = 0
-        then argvals
-        else Exception.user ("Too many args in fncall to " ^ name) in
-      let args =
-        fn.parameters
-        |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
-        |> RT.DvalMap.of_alist_exn in
-      RT.exe ~ind:0 fn args
+       | FnCall (id, name, exprs) ->
+         let fn = Libs.get_fn_exn name in
+         let argvals = List.map ~f:(exe st) exprs in
+         (* equalize length *)
+         let length_diff = List.length fn.parameters - List.length argvals in
+         let argvals =
+           if length_diff > 0
+           then argvals @ (List.init length_diff (fun _ -> RT.DNull))
+           else if length_diff = 0
+           then argvals
+           else Exception.user ("Too many args in fncall to " ^ name) in
+         let args =
+           fn.parameters
+           |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
+           |> RT.DvalMap.of_alist_exn in
+         RT.exe ~ind:0 fn args
 
-    | If (id, cond, ifbody, elsebody) ->
-      (match (exe st cond) with
-      | DBool true -> exe st ifbody
-      | DBool false -> exe st elsebody
-      | _ -> DIncomplete) (* TODO: better error *)
+       | If (id, cond, ifbody, elsebody) ->
+         (match (exe st cond) with
+          | DBool true -> exe st ifbody
+          | DBool false -> exe st elsebody
+          | _ -> RT.DIncomplete) (* TODO: better error *)
 
-    | Lambda (id, vars, body) ->
-      (* TODO: this will errror if the number of args and vars arent equal *)
-      DBlock (fun args ->
-          let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
-          let new_st = Util.merge_left bindings st in
-          exe new_st body))
+       | Lambda (id, vars, body) ->
+         (* TODO: this will errror if the number of args and vars arent equal *)
+         DBlock (fun args ->
+             let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
+             let new_st = Util.merge_left bindings st in
+             exe new_st body))
+    in
+    trace expr value st; value
   with
   | e ->
     let bt = Exn.backtrace () in
     let msg = Exn.to_string e in
     print_endline bt;
     print_endline msg;
-    DIncomplete
+    RT.DIncomplete
 
+let to_tuple (expr: expr) : (id * expr) =
+  match expr with
+  | Hole (id) -> (id, expr)
+  | Value (id, s) -> (id, expr)
+  | Variable (id, name) -> (id, expr)
+  | Let (id, bindings, body) -> (id, expr)
+  | FnCall (id, me, exprs) -> (id, expr)
+  | If (id, cond, ifbody, elsebody) -> (id, expr)
+  | Lambda (id, vars, body) -> (id, expr)
+
+let to_id (expr: expr) : id =
+  to_tuple expr |> Tuple.T2.get1
+
+type dval_store = RT.dval Int.Table.t
+
+let execute (ast: expr) : (RT.dval * dval_store) =
+  let value_store = Int.Table.create () in
+  let trace expr dval st =
+    Hashtbl.set value_store ~key:(to_id expr) ~data:dval
+  in
+  (exec ~trace Symtable.empty ast, value_store)
 
