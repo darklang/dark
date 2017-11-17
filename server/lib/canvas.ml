@@ -183,7 +183,7 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
                         ; ("ast_value", v |> Ast.dval_to_livevalue
                                           |> Ast.livevalue_to_yojson)
                         ; ("live_values", Ast.dval_store_to_yojson ds)
-                        ; ("symbols", Ast.sym_store_to_yojson syms)
+                        ; ("available_varnames", Ast.sym_store_to_yojson syms)
                         ])
   in `Assoc
         [ ("analyses", `List vals)

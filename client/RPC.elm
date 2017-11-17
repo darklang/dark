@@ -116,7 +116,7 @@ encodeAST expr =
     Variable id v ->
       JSE.object [("variable"
                   , JSE.object [ eid id
-                               , ("varname", JSE.string v)])]
+                               , ("name", JSE.string v)])]
 
     Let id binds body ->
       JSE.object [("let"
@@ -278,7 +278,7 @@ decodeTLAResult =
   |> JSDP.required "id" JSD.int
   |> JSDP.required "ast_value" decodeLiveValue
   |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
-  |> JSDP.optional "available_varnames" (JSD.dict (JSD.list JSD.string)) Dict.empty
+  |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
 
 decodeToplevel : JSD.Decoder Toplevel

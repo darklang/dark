@@ -102,6 +102,7 @@ type RPC
     | Redo
 
 type alias Autocomplete = { functions : List Function
+                          , varnames : List VarName
                           , completions : List AutocompleteItem
                           , index : Int
                           , value : String
@@ -112,7 +113,7 @@ type alias Autocomplete = { functions : List Function
 
 type AutocompleteItem = ACFunction Function
                       | ACField String
-                      -- | ACVariable Variable
+                      | ACVariable VarName
 
 type VariantTest = StubVariant
 
@@ -172,6 +173,7 @@ type AutocompleteMod = ACSetQuery String
                      | ACSelectDown
                      | ACSelectUp
                      | ACFilterByLiveValue LiveValue
+                     | ACSetAvailableVarnames (List VarName)
                      -- | ACFilterByParamType Tipe NodeList
 
 type Modification = Error String

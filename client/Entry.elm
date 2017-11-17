@@ -3,7 +3,7 @@ module Entry exposing (..)
 -- builtins
 import Task
 -- import Result exposing (Result)
--- import Dict
+import Dict
 -- import Set
 
 -- lib
@@ -22,6 +22,7 @@ import Util
 import AST
 import Toplevel as TL
 import Runtime as RT
+import Analysis
 
 
 ---------------------
@@ -104,7 +105,17 @@ submit m re cursor value =
             RPC ([SetAST tl.id tl.pos (AST.replaceBindHole id value tl.ast)]
             , FocusNext tl.id)
           else
-            case parseAst value of
+            -- check if value is in model.varnames
+            let (ID rid) = id
+                availableVars =
+                  let avd = Analysis.getAvailableVarnames m tlid
+                  in (Dict.get rid avd) |> (Maybe.withDefault [])
+                holeReplacement =
+                  if List.member value availableVars
+                  then Just (Variable (gid ()) value)
+                  else parseAst value
+            in
+            case holeReplacement of
               Nothing -> NoChange
               Just v -> RPC ([SetAST tl.id tl.pos (AST.replaceHole id v tl.ast)]
               , FocusNext tl.id)

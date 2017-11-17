@@ -32,6 +32,7 @@ empty = init []
 
 init : List Function -> Autocomplete
 init functions = { functions = functions
+                 , varnames = []
                  , completions = List.map ACFunction functions
                  , index = -1
                  , open = True
@@ -121,6 +122,7 @@ asName aci =
   case aci of
     ACFunction {name} -> name
     ACField name -> "." ++ name
+    ACVariable name -> name
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -131,6 +133,7 @@ asTypeString item =
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
+    ACVariable _ -> ""
 
 asString : AutocompleteItem -> String
 asString aci =
@@ -219,9 +222,9 @@ regenerate a =
         --      case a.liveValue of
         --        Just {tipe} -> Nothing /= findParamByType fn tipe
         --        Nothing -> True)
-        |> List.map (\s -> ACFunction s)
+        |> List.map ACFunction
         -- |> List.append fields
-        -- |> List.append variables
+        |> List.append (List.map ACVariable a.varnames)
         |> List.filter
            (\i -> i
                   |> (\i -> if 1 >= String.length lcq
@@ -244,6 +247,10 @@ regenerate a =
                    else a.index
      }
 
+setVarnames : List VarName -> Autocomplete -> Autocomplete
+setVarnames vs a =
+  { a | varnames = vs }
+
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   (case mod of
@@ -255,7 +262,8 @@ update mod a =
      ACComplete str -> complete str a
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
-     ACFilterByLiveValue lv -> forLiveValue lv a)
+     ACFilterByLiveValue lv -> forLiveValue lv a
+     ACSetAvailableVarnames vs -> setVarnames vs a)
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
     |> regenerate
 

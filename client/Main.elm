@@ -3,7 +3,7 @@ port module Main exposing (..)
 
 -- builtins
 import Maybe
--- import Dict
+import Dict
 
 -- lib
 import Json.Decode as JSD
@@ -28,6 +28,8 @@ import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import Toplevel as TL
 import AST
+import Analysis
+import Util exposing (deMaybe)
 
 
 -----------------------
@@ -144,18 +146,16 @@ updateMod origm mod (m, cmd) =
       Select tlid hid ->
         { m | state = Selecting tlid hid } ! []
       Enter re entry ->
-      --   G.recalculateView
-      ({ m | state = Entering re entry
-      --       , center =
-      --           case entry of
-      --             Filling id _ ->
-      --               let n = G.getNodeExn m id in
-      --               if G.hasRelativePos n
-      --               then m.center
-      --               else selectCenter origm.center (G.pos m n)
-      --             Creating p ->
-      --               m.center -- dont move
-      }) ! [Entry.focusEntry]
+        let varnames =
+            case entry of
+              Creating _ -> []
+              Filling tlid (ID eid) ->
+                let avd = Analysis.getAvailableVarnames m tlid
+                in (Dict.get eid avd) |> (Maybe.withDefault [])
+            (complete, acCmd) = processAutocompleteMod m (ACSetAvailableVarnames varnames)
+        in
+      ({ m | state = Entering re entry, complete = complete
+      }) ! ([acCmd, Entry.focusEntry])
 
       SetToplevels tls tlars ->
         { m | toplevels = tls
@@ -168,15 +168,18 @@ updateMod origm mod (m, cmd) =
         { m | state = Dragging tlid offset hasMoved state } ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
-        let complete = Autocomplete.update mod m.complete
-        in
-          ({ m | complete = Autocomplete.update mod m.complete
-           }, Autocomplete.focusItem complete.index)
+        let (complete, cmd) = processAutocompleteMod m mod
+        in ({ m | complete = complete }
+            , cmd)
       -- applied from left to right
       Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
 
+processAutocompleteMod : Model -> AutocompleteMod -> (Autocomplete, Cmd Msg)
+processAutocompleteMod m mod =
+  let complete = Autocomplete.update mod m.complete
+  in (complete, Autocomplete.focusItem complete.index)
 
 update_ : Msg -> Model -> Modification
 update_ msg m =
