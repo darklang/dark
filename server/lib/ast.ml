@@ -268,3 +268,63 @@ let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
       `Assoc [("id", `Int id); ("value", RT.dval_to_yojson dv)]) alist
   in
   `List jsonified
+
+module SymSet = Set.Make(String)
+type sym_set = SymSet.t
+
+let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
+  let sexe = sym_exec ~trace in
+  try
+    let _ =
+      (match expr with
+       | Hole id -> ()
+       | Value (_, s) -> ()
+       | Variable (_, name) -> ()
+
+       | Let (_, bindings, body) ->
+         let vars = List.filter_map ~f:(fun (vb, expr) ->
+             (match vb with
+              | Named s -> Some (s, expr)
+              | BindHole _ -> None)) bindings
+         in
+         let bound = List.fold_left ~init:st
+             ~f:(fun st (name, expr) -> sexe st expr; SymSet.add st name) vars
+         in sexe bound body
+
+       | FnCall (id, name, exprs) -> List.iter ~f:(sexe st) exprs
+
+       | If (id, cond, ifbody, elsebody) ->
+         sexe st cond;
+         sexe st ifbody;
+         sexe st elsebody
+
+       | Lambda (id, vars, body) ->
+         let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) vars in
+         sexe new_st body)
+    in
+    trace expr st
+  with
+  | e ->
+    let bt = Exn.backtrace () in
+    let msg = Exn.to_string e in
+    print_endline bt;
+    print_endline msg;
+
+type sym_store = sym_set Int.Table.t
+
+let symbolic_execute (ast: expr) : sym_store =
+  let sym_store = Int.Table.create () in
+  let trace expr st =
+    Hashtbl.set sym_store ~key:(to_id expr) ~data:st
+  in
+  sym_exec ~trace SymSet.empty ast; sym_store
+
+let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
+  let alist = Hashtbl.to_alist st in
+  let jsonified = List.map ~f:(fun (id, syms) ->
+      let sym_list = SymSet.to_list syms in
+      let json_sym_list = List.map ~f:(fun s -> `String s) sym_list in
+      `Assoc [("id", `Int id); ("syms", `List json_sym_list)]) alist
+  in
+  `List jsonified
+

@@ -161,10 +161,11 @@ let minimize (c : canvas) : canvas =
   in { c with ops = ops }
 
 
-let execute_ast (c: canvas) (tl: Ast.toplevel) : (id * RT.dval * Ast.dval_store) list =
+let execute_ast (c: canvas) (tl: Ast.toplevel) : (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
+  let traced_symbols = Ast.symbolic_execute tl.ast in
   let (ast_value, traced_values) = Ast.execute tl.ast in
   let _ = Log.pp "Hashtable:" traced_values in
-  [(tl.id, ast_value, traced_values)]
+  [(tl.id, ast_value, traced_values, traced_symbols)]
 
 
 
@@ -177,10 +178,11 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
              |> List.map ~f:(execute_ast c)
              |> List.concat
-             |> List.map ~f:(fun (id, v, ds) ->
+             |> List.map ~f:(fun (id, v, ds, syms) ->
                  `Assoc [ ("id", `Int id)
                         ; ("ast_value", RT.dval_to_yojson v)
                         ; ("live_values", Ast.dval_store_to_yojson ds)
+                        ; ("symbols", Ast.sym_store_to_yojson syms)
                         ])
   in `Assoc
         [ ("analyses", `List vals)
