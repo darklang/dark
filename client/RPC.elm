@@ -19,7 +19,9 @@ rpc : Model -> Focus -> List RPC -> Cmd Msg
 rpc m focus calls =
   rpc_ m "/admin/api/rpc" (RPCCallBack focus) calls
 
-rpc_ : Model -> String -> (List RPC -> Result Http.Error (List Toplevel) -> Msg) -> List RPC -> Cmd Msg
+rpc_ : Model -> String ->
+ (List RPC -> Result Http.Error RPCResult -> Msg) ->
+ List RPC -> Cmd Msg
 rpc_ m url callback calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
@@ -247,10 +249,10 @@ decodeLiveValue =
              , workarounds=workarounds }
   in
   JSDP.decode toLiveValue
-    |> JSDP.requiredAt ["live", "value"] JSD.string
-    |> JSDP.requiredAt ["live", "type"] JSD.string
-    |> JSDP.requiredAt ["live", "json"] JSD.string
-    |> JSDP.optionalAt ["live", "exc"]
+    |> JSDP.required "value" JSD.string
+    |> JSDP.required "type" JSD.string
+    |> JSDP.required "json" JSD.string
+    |> JSDP.optional "exc"
          (JSDP.decode toExc
             |> JSDP.required "short" JSD.string
             |> JSDP.required "long" JSD.string
@@ -264,14 +266,14 @@ decodeLiveValue =
             |> JSDP.required "workarounds" (JSD.list JSD.string))
             Nothing
 
-decodeAnalyses : JSD.Decoder Analysis
-decodeAnalyses =
-  let toAnalysis tlid astValue liveValues =
+decodeTLAResult : JSD.Decoder TLAResult
+decodeTLAResult =
+  let toTLAResult tlid astValue liveValues =
         { id = TLID tlid
         , astValue = astValue
         , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
         } in
-  JSDP.decode toAnalysis
+  JSDP.decode toTLAResult
   |> JSDP.required "id" JSD.int
   |> JSDP.required "ast_value" decodeLiveValue
   |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
@@ -287,13 +289,10 @@ decodeToplevel =
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "ast" decodeAST
 
--- TODO: we need to either amend Toplevel on the client
--- side to merge the toplevel's analyses or
--- have a wrapper type
-decodeRPC : JSD.Decoder (List Toplevel)
+decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode identity
+  JSDP.decode (,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
-  -- |> JSDP.required "analyses" (JSD.list decodeAnalyses)
+  |> JSDP.required "analyses" (JSD.list decodeTLAResult)
 
 

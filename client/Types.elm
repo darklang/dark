@@ -64,6 +64,7 @@ type State = Selecting TLID ID
            | Dragging TLID VPos HasMoved State
            | Deselected
 
+type alias RPCResult = (List Toplevel, List TLAResult)
 type Msg
     = GlobalClick MouseEvent
     | ToplevelClickDown Toplevel MouseEvent
@@ -76,7 +77,7 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack Focus (List RPC) (Result Http.Error (List Toplevel))
+    | RPCCallBack Focus (List RPC) (Result Http.Error RPCResult)
     | SaveTestCallBack (Result Http.Error String)
     | LocationChange Navigation.Location
     | AddRandom
@@ -137,10 +138,10 @@ type Expr = If ID Expr Expr Expr
 
 type alias AST = Expr
 
-type alias Analysis = { id: TLID
-                      , astValue: LiveValue
-                      , liveValues : Dict Int LiveValue
-                      }
+type alias TLAResult = { id: TLID
+                       , astValue: LiveValue
+                       , liveValues : Dict Int LiveValue
+                       }
 
 
 type alias Toplevel = { id : TLID
@@ -156,7 +157,7 @@ type alias Model = { center : Pos
                    , complete : Autocomplete
                    , state : State
                    , toplevels : List Toplevel
-                   -- , analysis : LiveValue
+                   , analysis : List TLAResult
                    }
 
 type AutocompleteMod = ACSetQuery String
@@ -174,7 +175,7 @@ type Modification = Error String
                   | ClearError
                   | Select TLID ID
                   | Deselect
-                  | SetToplevels (List Toplevel)
+                  | SetToplevels (List Toplevel) (List TLAResult)
                   | Enter IsReentering EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos

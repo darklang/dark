@@ -157,8 +157,10 @@ updateMod origm mod (m, cmd) =
       --               m.center -- dont move
       }) ! [Entry.focusEntry]
 
-      SetToplevels tls ->
-        { m | toplevels = tls } ! []
+      SetToplevels tls tlars ->
+        { m | toplevels = tls
+            , analysis = tlars
+        } ! []
 
       SetCenter c ->
         { m | center = c } ! []
@@ -299,7 +301,7 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move tlid xDiff yDiff m in
-          Many [ SetToplevels m2.toplevels
+          Many [ SetToplevels m2.toplevels m2.analysis
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
@@ -335,13 +337,13 @@ update_ msg m =
     -- (AddRandom, _) ->
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
-    (RPCCallBack focus calls (Ok (toplevels)), _) ->
+    (RPCCallBack focus calls (Ok (toplevels, analysis)), _) ->
       let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
               FocusNext tlid -> Select tlid (TL.firstHole m2 tlid)
               _            -> NoChange
-      in Many [ SetToplevels toplevels
+      in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
               , ClearError
               , newState

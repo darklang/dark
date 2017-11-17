@@ -29,6 +29,8 @@ defaultModel e = { error = Nothing
                  , state = Deselected
                  , tests = []
                  , toplevels = []
+                 , analysis = []
+
 
                  -- editor
                  -- these load before the graph does, causing

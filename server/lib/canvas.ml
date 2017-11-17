@@ -180,7 +180,8 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
                  `Assoc [ ("id", `Int id)
-                        ; ("ast_value", RT.dval_to_yojson v)
+                        ; ("ast_value", v |> Ast.dval_to_livevalue
+                                          |> Ast.livevalue_to_yojson)
                         ; ("live_values", Ast.dval_store_to_yojson ds)
                         ; ("symbols", Ast.sym_store_to_yojson syms)
                         ])

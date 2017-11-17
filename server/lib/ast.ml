@@ -262,12 +262,29 @@ let execute (ast: expr) : (RT.dval * dval_store) =
   in
   (exec ~trace Symtable.empty ast, value_store)
 
-let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in
-  let jsonified = List.map ~f:(fun (id, dv) ->
-      `Assoc [("id", `Int id); ("value", RT.dval_to_yojson dv)]) alist
-  in
-  `List jsonified
+  `Assoc (
+    List.map ~f:(fun (id, v) ->
+        (string_of_int id, f v))
+      alist)
+
+type livevalue = { value: string
+                 ; tipe: string [@key "type"]
+                 ; json: string
+                 ; exc: Exception.exception_data option
+                 } [@@deriving to_yojson, show]
+
+let dval_to_livevalue (dv: RT.dval) : livevalue =
+  { value = RT.to_repr dv
+  ; tipe = RT.tipename dv
+  ; json = dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string
+  ; exc = None
+  }
+
+let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+  ht_to_json_dict ds ~f:(fun dv -> dv |> dval_to_livevalue |> livevalue_to_yojson)
+
 
 module SymSet = Set.Make(String)
 type sym_set = SymSet.t
@@ -320,11 +337,8 @@ let symbolic_execute (ast: expr) : sym_store =
   sym_exec ~trace SymSet.empty ast; sym_store
 
 let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
-  let alist = Hashtbl.to_alist st in
-  let jsonified = List.map ~f:(fun (id, syms) ->
-      let sym_list = SymSet.to_list syms in
-      let json_sym_list = List.map ~f:(fun s -> `String s) sym_list in
-      `Assoc [("id", `Int id); ("syms", `List json_sym_list)]) alist
-  in
-  `List jsonified
+  ht_to_json_dict st ~f:(fun syms ->
+      `List (syms
+             |> SymSet.to_list
+             |> List.map ~f:(fun s -> `String s)))
 
