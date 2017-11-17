@@ -13,11 +13,6 @@ type varbinding = Named of varname
                 | BindHole of int
                 [@@deriving eq, yojson, show]
 
-let is_unbound (vb: varbinding) : bool =
-  match vb with
-  | BindHole _ -> true
-  | Named _ -> false
-
 type expr = If of id * expr * expr * expr
           | FnCall of id * fnname * expr list
           | Variable of id * varname
@@ -186,18 +181,15 @@ let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (exp
          RT.DIncomplete
 
        | Let (_, bindings, body) ->
-         if Util.list_any ~f:(fun (vb, _) -> is_unbound vb) bindings
-         then RT.DIncomplete
-         else
-           let vars = List.filter_map ~f:(fun (vb, expr) ->
-               (match vb with
-                | Named s -> Some (s, expr)
-                | BindHole _ -> None)) bindings
-           in
-           let bound = List.fold_left ~init:st
-               ~f:(fun st (name, expr) ->
-                   String.Map.add ~key:name ~data:(exe st expr) st) vars
-           in exe bound body
+         let vars = List.filter_map ~f:(fun (vb, expr) ->
+             (match vb with
+              | Named s -> Some (s, expr)
+              | BindHole _ -> None)) bindings
+         in
+         let bound = List.fold_left ~init:st
+             ~f:(fun st (name, expr) ->
+                 String.Map.add ~key:name ~data:(exe st expr) st) vars
+         in exe bound body
 
        | Value (_, s) ->
          RT.parse s
