@@ -180,10 +180,10 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
              |> List.map ~f:(fun (id, v, ds) ->
                  `Assoc [ ("id", `Int id)
                         ; ("ast_value", RT.dval_to_yojson v)
-                        ; ("traced_values", Ast.dval_store_to_yojson ds)
+                        ; ("live_values", Ast.dval_store_to_yojson ds)
                         ])
   in `Assoc
-        [ ("values", `List vals)
+        [ ("analyses", `List vals)
         ; ("toplevels", `List (List.map ~f:Ast.toplevel_to_frontend c.toplevels))
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))

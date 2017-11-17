@@ -137,8 +137,9 @@ type Expr = If HID Expr Expr Expr
 
 type alias AST = Expr
 
-type alias Analysis = { livevalues : Dict HID LiveValue
-                      , available_symbols : Dict HID (List String)
+type alias Analysis = { id: TLID
+                      , astValue: LiveValue
+                      , liveValues : Dict Int LiveValue
                       }
 
 
@@ -155,7 +156,7 @@ type alias Model = { center : Pos
                    , complete : Autocomplete
                    , state : State
                    , toplevels : List Toplevel
-                   , analysis : Analysis
+                   -- , analysis : LiveValue
                    }
 
 type AutocompleteMod = ACSetQuery String

@@ -6,11 +6,14 @@ import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict exposing (Dict)
+import Dict.Extra as DE
 
 -- lib
 
 -- dark
 import Types exposing (..)
+import Runtime as RT
+import Util
 
 rpc : Model -> Focus -> List RPC -> Cmd Msg
 rpc m focus calls =
@@ -225,7 +228,7 @@ decodeLiveValue : JSD.Decoder LiveValue
 decodeLiveValue =
   let toLiveValue value tipe json exc =
       { value = value
-      , tipe = tipe
+      , tipe = RT.str2tipe tipe
       , json = json
       , exc = exc}
       toExc : String -> String -> String -> String -> String ->
@@ -263,12 +266,15 @@ decodeLiveValue =
 
 decodeAnalyses : JSD.Decoder Analysis
 decodeAnalyses =
-  let toAnalysis liveValues availableVarnames =
-        { liveValues = liveValues
-        , availableVarnames = availableVarnames} in
+  let toAnalysis tlid astValue liveValues =
+        { id = TLID tlid
+        , astValue = astValue
+        , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
+        } in
   JSDP.decode toAnalysis
-  |> JSDP.required "livevalues" (JSD.dict decodeHID (decodeLiveValue))
-  |> JSDP.required "available_varnames" (JSD.dict decodeHID (JSD.list JSD.string))
+  |> JSDP.required "id" JSD.int
+  |> JSDP.required "ast_value" decodeLiveValue
+  |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
 
 
 decodeToplevel : JSD.Decoder Toplevel
@@ -281,10 +287,13 @@ decodeToplevel =
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "ast" decodeAST
 
+-- TODO: we need to either amend Toplevel on the client
+-- side to merge the toplevel's analyses or
+-- have a wrapper type
 decodeRPC : JSD.Decoder (List Toplevel)
 decodeRPC =
   JSDP.decode identity
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
-  |> JSDP.required "analysis_results" decodeAnalyses
+  -- |> JSDP.required "analyses" (JSD.list decodeAnalyses)
 
 
