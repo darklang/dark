@@ -117,21 +117,21 @@ vExpr nest expr =
 
     Hole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
-replaceHole : HID -> Expr -> AST -> AST
-replaceHole hid replacement ast =
-  replaceHole_ hid replacement ast
+replaceHole : ID -> Expr -> AST -> AST
+replaceHole id replacement ast =
+  replaceHole_ id replacement ast
 
-replaceHole_ : HID -> Expr -> Expr -> Expr
+replaceHole_ : ID -> Expr -> Expr -> Expr
 replaceHole_ hid replacement expr =
   let rh = replaceHole_ hid replacement
       rhList : List Expr -> List Expr
       rhList exprs = List.map rh exprs
   in
   case expr of
-    Value eid v ->
-      Value eid v
+    Value id v ->
+      Value id v
 
-    Let eid vars expr ->
+    Let id vars expr ->
       let vs = List.map (\(vb, e) ->
          case vb of
            -- TODO: replace this with a different replaceBindHole
@@ -145,40 +145,40 @@ replaceHole_ hid replacement expr =
                  _         -> (BindHole id, e)
              else (BindHole id, rh e)
              ) vars
-      in Let eid vs (rh expr)
+      in Let id vs (rh expr)
 
-    If eid cond ifbody elsebody ->
-      If eid (rh cond) (rh ifbody) (rh elsebody)
+    If id cond ifbody elsebody ->
+      If id (rh cond) (rh ifbody) (rh elsebody)
 
-    Variable eid name ->
-      Variable eid name
+    Variable id name ->
+      Variable id name
 
-    FnCall eid name exprs ->
-      FnCall eid name (rhList exprs)
+    FnCall id name exprs ->
+      FnCall id name (rhList exprs)
 
-    Lambda eid vars expr ->
-      Lambda eid vars (rh expr)
+    Lambda id vars expr ->
+      Lambda id vars (rh expr)
 
     Hole id ->
       if id == hid
       then replacement
       else expr
 
-replaceBindHole : HID -> VarName -> AST -> AST
+replaceBindHole : ID -> VarName -> AST -> AST
 replaceBindHole hid replacement ast =
   replaceBindHole_ hid replacement ast
 
-replaceBindHole_ : HID -> VarName -> Expr -> Expr
+replaceBindHole_ : ID -> VarName -> Expr -> Expr
 replaceBindHole_ hid replacement expr =
   let rbh = replaceBindHole_ hid replacement
       rbhList : List Expr -> List Expr
       rbhList exprs = List.map rbh exprs
   in
   case expr of
-    Value eid v ->
-      Value eid v
+    Value id v ->
+      Value id v
 
-    Let eid vars expr ->
+    Let id vars expr ->
       let vs = List.map (\(vb, e) ->
          case vb of
            Named s -> (Named s, rbh e)
@@ -187,38 +187,38 @@ replaceBindHole_ hid replacement expr =
              then (Named replacement, e)
              else (BindHole id, rbh e)
              ) vars
-      in Let eid vs (rbh expr)
+      in Let id vs (rbh expr)
 
-    If eid cond ifbody elsebody ->
-      If eid (rbh cond) (rbh ifbody) (rbh elsebody)
+    If id cond ifbody elsebody ->
+      If id (rbh cond) (rbh ifbody) (rbh elsebody)
 
-    Variable eid name ->
-      Variable eid name
+    Variable id name ->
+      Variable id name
 
-    FnCall eid name exprs ->
-      FnCall eid name (rbhList exprs)
+    FnCall id name exprs ->
+      FnCall id name (rbhList exprs)
 
-    Lambda eid vars expr ->
-      Lambda eid vars (rbh expr)
+    Lambda id vars expr ->
+      Lambda id vars (rbh expr)
 
     Hole id ->
       Hole id
 
-bindHoleHID : VarBind -> Maybe HID
-bindHoleHID vb =
+bindHoleID : VarBind -> Maybe ID
+bindHoleID vb =
   case vb of
     BindHole hid -> Just hid
     Named _ -> Nothing
 
-listBindHoles : Expr -> List HID
+listBindHoles : Expr -> List ID
 listBindHoles expr =
-  let lbhList : List Expr -> List HID
+  let lbhList : List Expr -> List ID
       lbhList exprs =
         exprs
         |> List.map listBindHoles
         |> List.concat
-      bhList : List VarBind -> List HID
-      bhList = List.filterMap bindHoleHID
+      bhList : List VarBind -> List ID
+      bhList = List.filterMap bindHoleID
   in
   case expr of
     Value _ v ->
@@ -258,15 +258,15 @@ listBindHoles expr =
 -- plus b) lead to even more ordering issues
 --
 -- time for a proper visitor abstraction?
-listHoles : Expr -> List HID
+listHoles : Expr -> List ID
 listHoles expr =
-  let lhList : List Expr -> List HID
+  let lhList : List Expr -> List ID
       lhList exprs =
         exprs
         |> List.map listHoles
         |> List.concat
-      bhList : List VarBind -> List HID
-      bhList = List.filterMap bindHoleHID
+      bhList : List VarBind -> List ID
+      bhList = List.filterMap bindHoleID
   in
   case expr of
     Value _ v ->
@@ -297,13 +297,13 @@ listHoles expr =
 
     Hole id -> [id]
 
-findNextHole : HID -> AST -> HID
+findNextHole : ID -> AST -> ID
 findNextHole cur ast =
   let holes = listHoles ast
   in case (LE.dropWhile (\x -> x /= cur) holes) of
      cur :: next :: _ -> next
      [cur] -> holes |> List.head |> deMaybe
-     [] -> HID 237
+     [] -> ID 237
 
 walk : AST -> Element
 walk = vExpr 0

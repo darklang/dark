@@ -52,14 +52,14 @@ type alias LiveValue = { value : String
                        , exc : Maybe Exception}
 type alias Special = Int
 type TLID = TLID Int
-type HID = HID Int -- TODO: this is an Expr ID, change name to EID
+type ID = ID Int
 
 type EntryCursor = Creating Pos
-                 | Filling TLID HID
+                 | Filling TLID ID
 
 type alias IsReentering = Bool
 type alias HasMoved = Bool
-type State = Selecting TLID HID
+type State = Selecting TLID ID
            | Entering IsReentering EntryCursor
            | Dragging TLID VPos HasMoved State
            | Deselected
@@ -118,22 +118,22 @@ type VariantTest = StubVariant
 
 
 type alias Class = String
-type Element = Leaf (Maybe HID, Class, String)
+type Element = Leaf (Maybe ID, Class, String)
              | Nested Class (List Element)
 
 type alias VarName = String
 type alias FnName = String
 
-type VarBind = Named VarName | BindHole HID
+type VarBind = Named VarName | BindHole ID
 
-type Expr = If HID Expr Expr Expr
-          | FnCall HID FnName (List Expr)
-          | Variable HID VarName
+type Expr = If ID Expr Expr Expr
+          | FnCall ID FnName (List Expr)
+          | Variable ID VarName
           -- let x1 = expr1; x2 = expr2 in expr3
-          | Let HID (List (VarBind, Expr)) Expr
-          | Lambda HID (List VarName) Expr
-          | Value HID String
-          | Hole HID
+          | Let ID (List (VarBind, Expr)) Expr
+          | Lambda ID (List VarName) Expr
+          | Value ID String
+          | Hole ID
 
 type alias AST = Expr
 
@@ -172,7 +172,7 @@ type AutocompleteMod = ACSetQuery String
 
 type Modification = Error String
                   | ClearError
-                  | Select TLID HID
+                  | Select TLID ID
                   | Deselect
                   | SetToplevels (List Toplevel)
                   | Enter IsReentering EntryCursor

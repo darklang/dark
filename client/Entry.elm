@@ -55,28 +55,28 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 tlid : () -> TLID
 tlid unit = TLID (Util.random unit)
 
-hid : () -> HID
-hid unit = HID (Util.random unit)
+gid : () -> ID -- Generate ID
+gid unit = ID (Util.random unit)
 
 createFunction : Model -> FnName -> Maybe Expr
 createFunction m name =
-  let holes count = List.map (\_ -> Hole (hid ())) (List.range 1 count)
+  let holes count = List.map (\_ -> Hole (gid ())) (List.range 1 count)
       fn = m.complete.functions
            |> List.filter (\fn -> fn.name == name)
            |> List.head
   in
     case fn of
       Just function ->
-        Just <| FnCall (hid ()) name (holes (List.length function.parameters))
+        Just <| FnCall (gid ()) name (holes (List.length function.parameters))
       Nothing -> Nothing
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
   let id = tlid ()
-      eid = hid ()
-      hid1 = hid ()
-      hid2 = hid ()
-      hid3 = hid ()
+      eid = gid ()
+      hid1 = gid ()
+      hid2 = gid ()
+      hid3 = gid ()
       parseAst v =
         case v of
           "if" ->
@@ -96,17 +96,17 @@ submit m re cursor value =
       case parseAst value of
         Nothing -> NoChange
         Just v -> RPC ([SetAST id pos v], FocusNext id)
-    Filling tlid hid ->
+    Filling tlid id ->
       let tl = TL.getTL m tlid
       in
-          if TL.isBindHole m tlid hid
+          if TL.isBindHole m tlid id
           then
-            RPC ([SetAST tl.id tl.pos (AST.replaceBindHole hid value tl.ast)]
+            RPC ([SetAST tl.id tl.pos (AST.replaceBindHole id value tl.ast)]
             , FocusNext tl.id)
           else
             case parseAst value of
               Nothing -> NoChange
-              Just v -> RPC ([SetAST tl.id tl.pos (AST.replaceHole hid v tl.ast)]
+              Just v -> RPC ([SetAST tl.id tl.pos (AST.replaceHole id v tl.ast)]
               , FocusNext tl.id)
 
   -- let pt = EntryParser.parseFully value

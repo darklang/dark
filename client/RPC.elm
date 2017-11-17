@@ -96,7 +96,7 @@ encodeRPC m call =
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
   let e = encodeAST
-      eid (HID id) = ("id", JSE.int id) in
+      eid (ID id) = ("id", JSE.int id) in
   case expr of
     If id cond then_ else_ ->
       JSE.object [("if"
@@ -123,7 +123,7 @@ encodeAST expr =
                                  , List.map (\(v, bexpr) ->
                                      JSE.object [ (case v of
                                                      Named s -> ("name", JSE.string s)
-                                                     BindHole (HID id) -> ("hole", JSE.object [("id", JSE.int id)]))
+                                                     BindHole (ID id) -> ("hole", JSE.object [("id", JSE.int id)]))
                                                 , ("expr", e bexpr)]) binds |> JSE.list)
                                , ("body", e body)])]
 
@@ -141,14 +141,14 @@ encodeAST expr =
     Hole id ->
       JSE.object [("hole", JSE.object [eid id])]
 
-decodeHID : JSD.Decoder HID
-decodeHID = JSD.map HID JSD.int
+decodeID : JSD.Decoder ID
+decodeID = JSD.map ID JSD.int
 
 decodeIf : JSD.Decoder Expr
 decodeIf =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
   JSDP.decode If
-  |> JSDP.requiredAt ["if", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["if", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["if", "cond"] de
   |> JSDP.requiredAt ["if", "then"] de
   |> JSDP.requiredAt ["if", "else"] de
@@ -157,20 +157,20 @@ decodeFnCall : JSD.Decoder Expr
 decodeFnCall =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
   JSDP.decode FnCall
-  |> JSDP.requiredAt ["fncall", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["fncall", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["fncall", "name"] JSD.string
   |> JSDP.requiredAt ["fncall", "arguments"] (JSD.list de)
 
 decodeVariable : JSD.Decoder Expr
 decodeVariable =
   JSDP.decode Variable
-  |> JSDP.requiredAt ["variable", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["variable", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["variable", "name"] JSD.string
 
 decodeLet : JSD.Decoder Expr
 decodeLet =
   let de = (JSD.lazy (\_ -> decodeExpr))
-      db hid e = (BindHole (HID hid), e)
+      db id e = (BindHole (ID id), e)
       dn n e = (Named n, e)
       dbindhole = JSDP.decode db
                   |> JSDP.requiredAt ["hole", "id"] JSD.int
@@ -181,7 +181,7 @@ decodeLet =
       vb = JSD.oneOf [dbindhole, dnamed]
   in
   JSDP.decode Let
-  |> JSDP.requiredAt ["let", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["let", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["let", "bindings"] (JSD.list vb)
   |> JSDP.requiredAt ["let", "body"] de
 
@@ -189,20 +189,20 @@ decodeLambda : JSD.Decoder Expr
 decodeLambda =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
   JSDP.decode Lambda
-  |> JSDP.requiredAt ["lambda", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["lambda", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["lambda", "varnames"] (JSD.list JSD.string)
   |> JSDP.requiredAt ["lambda", "body"] de
 
 decodeValue : JSD.Decoder Expr
 decodeValue =
   JSDP.decode Value
-  |> JSDP.requiredAt ["value", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["value", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["value", "valuestr"] JSD.string
 
 decodeHole : JSD.Decoder Expr
 decodeHole =
   JSDP.decode Hole
-  |> JSDP.requiredAt ["hole", "id"] (JSD.lazy (\_ -> decodeHID))
+  |> JSDP.requiredAt ["hole", "id"] (JSD.lazy (\_ -> decodeID))
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =

@@ -83,19 +83,19 @@ viewCanvas m =
 
 viewAST : Model -> Toplevel -> Svg.Svg Msg
 viewAST m tl =
-  let hid = case m.state of
-             Selecting _ hid -> hid
-             Entering _ (Filling _ hid) -> hid
-             _ -> HID 0
+  let id = case m.state of
+            Selecting _ id -> id
+            Entering _ (Filling _ id) -> id
+            _ -> ID 0
       holeHtml =
        case m.state of
-        Selecting _ hid -> Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
-        Entering _ (Filling _ hid) ->
-          if TL.isBindHole m tl.id hid
+        Selecting _ id -> Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
+        Entering _ (Filling _ id) ->
+          if TL.isBindHole m tl.id id
           then identifierEntryHtml m
           else normalEntryHtml m
         _ -> Html.div [] []
-      html = ViewAST.toHtml hid holeHtml tl.ast
+      html = ViewAST.toHtml id holeHtml tl.ast
       selected =
         case m.state of
           Selecting tlid _ -> if tlid == tl.id then "selected" else ""

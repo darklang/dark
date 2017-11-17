@@ -15,13 +15,13 @@ getTL m id =
   LE.find (\tl -> tl.id == id) m.toplevels
   |> deMaybe
 
-firstHole : Model -> TLID -> HID
+firstHole : Model -> TLID -> ID
 firstHole m id =
-  getTL m id |> .ast |> AST.listHoles |> List.head |> Maybe.withDefault (HID 3)
+  getTL m id |> .ast |> AST.listHoles |> List.head |> Maybe.withDefault (ID 3)
 
-isBindHole : Model -> TLID -> HID -> Bool
-isBindHole m tlid hid =
-  getTL m tlid |> .ast |> AST.listBindHoles |> List.member hid
+isBindHole : Model -> TLID -> ID -> Bool
+isBindHole m tlid id =
+  getTL m tlid |> .ast |> AST.listBindHoles |> List.member id
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
