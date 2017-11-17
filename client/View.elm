@@ -18,6 +18,7 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Defaults
 import Viewport
+import Analysis
 import Autocomplete
 import ViewAST
 import Toplevel as TL
@@ -95,7 +96,8 @@ viewAST m tl =
           then identifierEntryHtml m
           else normalEntryHtml m
         _ -> Html.div [] []
-      html = ViewAST.toHtml id holeHtml tl.ast
+      lvs = Analysis.getLiveValues m tl.id
+      html = ViewAST.toHtml id holeHtml lvs tl.ast
       selected =
         case m.state of
           Selecting tlid _ -> if tlid == tl.id then "selected" else ""

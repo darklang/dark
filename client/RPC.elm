@@ -268,15 +268,17 @@ decodeLiveValue =
 
 decodeTLAResult : JSD.Decoder TLAResult
 decodeTLAResult =
-  let toTLAResult tlid astValue liveValues =
+  let toTLAResult tlid astValue liveValues availableVarnames =
         { id = TLID tlid
         , astValue = astValue
         , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
+        , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
         } in
   JSDP.decode toTLAResult
   |> JSDP.required "id" JSD.int
   |> JSDP.required "ast_value" decodeLiveValue
   |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
+  |> JSDP.optional "available_varnames" (JSD.dict (JSD.list JSD.string)) Dict.empty
 
 
 decodeToplevel : JSD.Decoder Toplevel

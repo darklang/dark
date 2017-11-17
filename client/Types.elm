@@ -120,7 +120,7 @@ type VariantTest = StubVariant
 
 type alias Class = String
 type Element = Leaf (Maybe ID, Class, String)
-             | Nested Class (List Element)
+             | Nested (Maybe ID, Class) (List Element)
 
 type alias VarName = String
 type alias FnName = String
@@ -138,9 +138,12 @@ type Expr = If ID Expr Expr Expr
 
 type alias AST = Expr
 
+type alias LVDict = Dict Int LiveValue
+type alias AVDict = Dict Int (List VarName)
 type alias TLAResult = { id: TLID
                        , astValue: LiveValue
-                       , liveValues : Dict Int LiveValue
+                       , liveValues : LVDict
+                       , availableVarnames : AVDict
                        }
 
 
