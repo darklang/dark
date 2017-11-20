@@ -49,7 +49,7 @@ vInfix id name exprs nesting =
 
 isInfix : FnName -> Bool
 isInfix name =
-  List.member name ["<", "==", "%", "+"]
+  List.member name ["<", "==", "%", "+", "-", "^"]
 
 vVarname : Maybe ID -> VarName -> Element
 vVarname mId v = Leaf (mId, "varname atom", v)
