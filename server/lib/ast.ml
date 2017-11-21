@@ -185,6 +185,16 @@ type symtable = RT.dval_map
 
 let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (expr: expr) : RT.dval =
   let exe = exec ~trace in
+
+  (* TODO:
+   * Lambdas are easy, exe the lambda expr and apply it to [param]
+   * Functions are less easy as the function application needs an expr but
+   * we can hack it by dumping the param dval to string and making it a Value??
+   *)
+  let inject_param_and_execute (st: symtable) (param: RT.dval) (exp: expr) : RT.dval =
+    exe st exp
+  in
+
   try
     let value =
       (match expr with
@@ -241,7 +251,22 @@ let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (exp
              let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
              let new_st = Util.merge_left bindings st in
              exe new_st body)
-       | Thread (_, _) -> DIncomplete)
+       | Thread (id, exprs) ->
+         (* For each expr, execute it, and then thread the previous result thru *)
+        (match exprs with
+        | e :: es ->
+          let fst = exe st e in
+          let results =
+            List.fold_left
+            ~init:[fst]
+            ~f:(fun results nxt ->
+                let previous = List.hd_exn results in
+                let value = inject_param_and_execute st previous nxt in
+                value :: results
+              ) es
+          in
+            List.hd_exn results
+        | _ -> DIncomplete))
     in
     trace expr value st; value
   with
