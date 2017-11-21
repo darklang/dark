@@ -76,40 +76,37 @@ viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
     let
         entry = viewEntry m
-        asts = List.map (viewAST m) m.toplevels
+        asts = List.map (viewTL m) m.toplevels
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
 
-viewAST : Model -> Toplevel -> Svg.Svg Msg
-viewAST m tl =
-  let id = case m.state of
-            Selecting _ id -> id
-            Entering _ (Filling _ id) -> id
-            _ -> ID 0
-      holeHtml =
-       case m.state of
-        Selecting _ id -> Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
-        Entering _ (Filling _ id) ->
-          if TL.isBindHole m tl.id id
-          then identifierEntryHtml m
-          else normalEntryHtml m
-        _ -> Html.div [] []
-      lvs = Analysis.getLiveValues m tl.id
-      html = ViewAST.toHtml id holeHtml lvs tl.ast
-      selected =
+viewTL : Model -> Toplevel -> Svg.Svg Msg
+viewTL m tl =
+  let (id, holeHtml, selected) =
         case m.state of
-          Selecting tlid _ -> if tlid == tl.id then "selected" else ""
-          Entering _ (Filling tlid _) -> if tlid == tl.id then "selected" else ""
-          _ -> ""
+          Selecting tlid id ->
+            ( id
+            , Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
+            , if tlid == tl.id then "selected" else "")
+          Entering _ (Filling tlid id) ->
+            ( id
+            , if TL.isBindHole m tl.id id
+              then identifierEntryHtml m
+              else normalEntryHtml m
+            , if tlid == tl.id then "selected" else "")
+          _ -> (ID 0, Html.div [] [], "")
+
+      lvs = Analysis.getLiveValues m tl.id
+      ast = ViewAST.toHtml id holeHtml lvs tl.ast
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions
                    "mouseup"
                    { stopPropagation = True, preventDefault = False }
                    (decodeClickEvent (ToplevelClickUp tl.id))
                ]
-  in placeHtml m tl.pos (Html.div (events ++ [Attrs.class ("code " ++ selected)]) [html])
+  in placeHtml m tl.pos (Html.div (events ++ [Attrs.class ("code " ++ selected)]) [ast])
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
