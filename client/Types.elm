@@ -136,6 +136,7 @@ type Expr = If ID Expr Expr Expr
           | Lambda ID (List VarName) Expr
           | Value ID String
           | Hole ID
+          | Thread ID (List Expr)
 
 type alias AST = Expr
 

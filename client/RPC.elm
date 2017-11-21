@@ -153,6 +153,11 @@ encodeAST expr =
     Hole id ->
       JSE.object [("hole", JSE.object [eid id])]
 
+    Thread id exprs ->
+      JSE.object [( "thread"
+                  , JSE.object [ eid id
+                               , ("threadexprs", JSE.list (List.map e exprs)) ])]
+
 decodeID : JSD.Decoder ID
 decodeID = JSD.map ID JSD.int
 
@@ -216,6 +221,13 @@ decodeHole =
   JSDP.decode Hole
   |> JSDP.requiredAt ["hole", "id"] (JSD.lazy (\_ -> decodeID))
 
+decodeThread : JSD.Decoder Expr
+decodeThread =
+  let de = (JSD.lazy (\_ -> decodeExpr)) in
+  JSDP.decode Thread
+  |> JSDP.requiredAt ["thread", "id"] (JSD.lazy (\_ -> decodeID))
+  |> JSDP.requiredAt ["thread", "threadexprs"] (JSD.list de)
+
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
   JSD.oneOf [ JSD.lazy (\_ -> decodeIf)
@@ -231,6 +243,7 @@ decodeExpr =
             , JSD.lazy (\_ -> decodeLambda)
             , JSD.lazy (\_ -> decodeValue)
             , JSD.lazy (\_ -> decodeHole)
+            , JSD.lazy (\_ -> decodeThread)
             ]
 
 decodeAST : JSD.Decoder AST

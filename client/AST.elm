@@ -117,6 +117,12 @@ vExpr nest expr =
 
     Hole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
+    Thread id exprs ->
+      Nested (Just id, "threadexpr")
+      (exprs
+       |> List.map (\e -> Nested (Nothing, "threadmember") [vExpr 0 expr])
+       |> List.intersperse (Leaf (Nothing, "thread atom", "|>")))
+
 replaceHole : ID -> Expr -> AST -> AST
 replaceHole id replacement ast =
   replaceHole_ id replacement ast
