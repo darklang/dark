@@ -120,7 +120,7 @@ vExpr nest expr =
     Thread id exprs ->
       Nested (Just id, "threadexpr")
       (exprs
-       |> List.map (\e -> Nested (Nothing, "threadmember") [vExpr 0 expr])
+       |> List.map (\e -> Nested (Nothing, "threadmember") [vExpr 0 e])
        |> List.intersperse (Leaf (Nothing, "thread atom", "|>")))
 
 replaceHole : ID -> Expr -> AST -> AST
@@ -171,7 +171,21 @@ replaceHole_ hid replacement expr =
       else expr
 
     Thread id exprs ->
-      Thread id (rhList exprs)
+      let countHoles =
+            List.foldr (\c acc ->
+              case c of
+                Hole _ -> acc + 1
+                _      -> acc) 0
+          preCount = countHoles exprs
+          reppedExprs = rhList exprs
+          postCount = countHoles reppedExprs
+          nexprs =
+            -- if the hole filled was in the current thread, then add a hole
+            if preCount /= postCount
+            then reppedExprs ++ [Hole (ID (Util.random ()))]
+            else reppedExprs
+      in
+      Thread id nexprs
 
 replaceBindHole : ID -> VarName -> AST -> AST
 replaceBindHole hid replacement ast =
