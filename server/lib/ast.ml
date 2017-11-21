@@ -176,6 +176,10 @@ let toplevel_to_frontend (tl: toplevel) : Yojson.Safe.json =
   |> toplevel2api_toplevel
   |> api_toplevel_to_yojson
 
+let is_hole (expr: expr) =
+  match expr with
+  | Hole _ -> true
+  | _ -> false
 
 (* -------------------- *)
 (* Execution *)
@@ -186,13 +190,44 @@ type symtable = RT.dval_map
 let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (expr: expr) : RT.dval =
   let exe = exec ~trace in
 
-  (* TODO:
-   * Lambdas are easy, exe the lambda expr and apply it to [param]
-   * Functions are less easy as the function application needs an expr but
-   * we can hack it by dumping the param dval to string and making it a Value??
+  (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
+   * -- it's definitely not a good thing to be doing, for a variety of reasons.
+   *     - We dump the passed dval to json to stick it into a Value
+   *     - More generally, we're mutating the ASTs exprs to inject dvals into them
+   *
+   * `Thread` as a separate construct in the AST as opposed to just being a function application
+   * is probably the root cause of this. Right now, we don't have function application in the language
+   * as FnCall is the AST element that actually handles interacting with the OCaml runtime to do
+   * useful work. We're going to need to make this a functional language with functions-as-values
+   * and application as a first-class concept sooner rather than later.
    *)
   let inject_param_and_execute (st: symtable) (param: RT.dval) (exp: expr) : RT.dval =
-    exe st exp
+    match expr with
+    | Lambda _ ->
+      let result = exe st expr in
+      (match result with
+       | DBlock blk -> blk [param]
+       | _ -> DIncomplete)
+    | FnCall (id, name, exprs) ->
+      (* find first hole, attempt to inject there *)
+      let nexprs =
+        let (i, first) =
+          (match (List.findi ~f:(fun i x -> is_hole x) exprs) with
+           | Some (idx, exp) -> (idx, exp)
+           | None -> Exception.internal "Tried to pipe w/o a hole on RHS")
+        in
+        let newf =
+          (match first with
+           | Hole id -> Value (id, (RT.dval_to_json_string param))
+           | _ -> Exception.internal "Can't happen")
+        in
+        (match (List.split_n exprs (i - 1)) with
+         | (before, oldfirst :: after) -> List.append before (newf :: after)
+         | (before, []) -> Exception.internal "i is in the list, therefore i-1 can't be off the end")
+      in
+      let new_func = FnCall (id, name, nexprs) in
+      exe st new_func
+    | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
   in
 
   try
