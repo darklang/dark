@@ -25,11 +25,6 @@ type expr = If of id * expr * expr * expr
 
 type ast = expr [@@deriving eq, yojson, show]
 
-type toplevel = { id: Types.id
-                ; pos: Types.pos
-                ; ast: ast
-                } [@@deriving eq, show, yojson]
-
 (* --------------------- *)
 (* API Types and Fns *)
 (* --------------------- *)
@@ -76,11 +71,6 @@ and api_hole = { holeid: int [@key "id"]}
 [@@deriving yojson]
 
 type api_ast = api_expr [@@deriving yojson]
-
-type api_toplevel = { tlid: int [@key "id"]
-                    ; pos: Types.pos
-                    ; ast: api_ast
-                    } [@@deriving yojson]
 
 (* --------------------- *)
 (* from API *)
@@ -164,17 +154,6 @@ let rec expr2api_expr (e: expr) : api_expr =
     { init with thread = Some { threadid = id; threadexprs = List.map ~f:e2a exprs }}
 
 let ast2api_ast = expr2api_expr
-
-let toplevel2api_toplevel (tl: toplevel) : api_toplevel =
-  { tlid = tl.id
-  ; pos = tl.pos
-  ; ast = ast2api_ast tl.ast
-  }
-
-let toplevel_to_frontend (tl: toplevel) : Yojson.Safe.json =
-  tl
-  |> toplevel2api_toplevel
-  |> api_toplevel_to_yojson
 
 let is_hole (expr: expr) =
   match expr with

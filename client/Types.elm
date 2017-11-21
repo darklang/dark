@@ -93,10 +93,10 @@ type Focus = FocusNothing -- deselect
 
 type RPC
     = NoOp
-    | SetAST TLID Pos Expr
+    | SetTL TLID Pos Expr (Maybe HandlerSpec)
+    | DeleteTL TLID
+    | MoveTL TLID Pos
     | DeleteAll
-    | DeleteAST TLID
-    | MoveAST TLID Pos
     | Savepoint
     | Undo
     | Redo
@@ -139,6 +139,11 @@ type Expr = If ID Expr Expr Expr
 
 type alias AST = Expr
 
+type alias HandlerSpec = { module_ : String
+                         , name : String
+                         , modifiers : List String
+                         }
+
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
 type alias TLAResult = { id: TLID
@@ -151,6 +156,7 @@ type alias TLAResult = { id: TLID
 type alias Toplevel = { id : TLID
                       , pos : Pos
                       , ast : AST
+                      , handlerSpec : Maybe HandlerSpec
                       }
 
 type alias Model = { center : Pos

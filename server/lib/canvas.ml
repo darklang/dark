@@ -3,9 +3,10 @@ open Util
 open Types
 
 module RT = Runtime
+module TL = Toplevel
 
 type oplist = Op.op list [@@deriving eq, show, yojson]
-type toplevellist = Ast.toplevel list [@@deriving eq, show, yojson]
+type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : oplist
               ; toplevels: toplevellist
@@ -84,7 +85,7 @@ let is_undoable (c: canvas) : bool =
 let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
 
-let upsert_toplevel (toplevel: Ast.toplevel) (c: canvas) : canvas =
+let upsert_toplevel (toplevel: TL.toplevel) (c: canvas) : canvas =
   let tls = List.filter ~f:(fun x -> x.id <> toplevel.id) c.toplevels
   in
   { c with toplevels = tls @ [toplevel] }
@@ -111,9 +112,9 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     match op with
     | NoOp -> ident
     | SavePoint -> ident
-    | SetAST toplevel -> upsert_toplevel toplevel
-    | DeleteAST id -> remove_toplevel_by_id id
-    | MoveAST (id, pos) -> move_toplevel id pos
+    | SetTL toplevel -> upsert_toplevel toplevel
+    | DeleteTL id -> remove_toplevel_by_id id
+    | MoveTL (id, pos) -> move_toplevel id pos
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
@@ -161,7 +162,7 @@ let minimize (c : canvas) : canvas =
   in { c with ops = ops }
 
 
-let execute_ast (c: canvas) (tl: Ast.toplevel) : (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
+let execute_ast (c: canvas) (tl: TL.toplevel) : (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
   let traced_symbols = Ast.symbolic_execute tl.ast in
   let (ast_value, traced_values) = Ast.execute tl.ast in
   let _ = Log.pp "Hashtable:" traced_values in
@@ -187,7 +188,7 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
                         ])
   in `Assoc
         [ ("analyses", `List vals)
-        ; ("toplevels", `List (List.map ~f:Ast.toplevel_to_frontend c.toplevels))
+        ; ("toplevels", `List (List.map ~f:TL.toplevel_to_frontend c.toplevels))
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]

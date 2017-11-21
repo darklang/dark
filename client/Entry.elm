@@ -96,13 +96,13 @@ submit m re cursor value =
     Creating pos ->
       case parseAst value of
         Nothing -> NoChange
-        Just v -> RPC ([SetAST id pos v], FocusNext id)
+        Just v -> RPC ([SetTL id pos v Nothing], FocusNext id)
     Filling tlid id ->
       let tl = TL.getTL m tlid
       in
           if TL.isBindHole m tlid id
           then
-            RPC ([SetAST tl.id tl.pos (AST.replaceBindHole id value tl.ast)]
+            RPC ([SetTL tl.id tl.pos (AST.replaceBindHole id value tl.ast) tl.handlerSpec]
             , FocusNext tl.id)
           else
             -- check if value is in model.varnames
@@ -117,7 +117,7 @@ submit m re cursor value =
             in
             case holeReplacement of
               Nothing -> NoChange
-              Just v -> RPC ([SetAST tl.id tl.pos (AST.replaceHole id v tl.ast)]
+              Just v -> RPC ([SetTL tl.id tl.pos (AST.replaceHole id v tl.ast) tl.handlerSpec]
               , FocusNext tl.id)
 
   -- let pt = EntryParser.parseFully value

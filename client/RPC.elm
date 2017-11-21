@@ -57,7 +57,6 @@ encodeRPCs m calls =
   |> List.map (encodeRPC m)
   |> JSE.list
 
-
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
   let encodePos pos = case pos of
@@ -66,10 +65,21 @@ encodeRPC m call =
       encodeID (TLID id) = ("id", JSE.int id)
       (cmd, args) =
     case call of
-      SetAST id pos expr ->
-        ("set_ast", JSE.object [ encodeID id
-                               , encodePos pos
-                               , ("ast", encodeAST expr)])
+      SetTL id pos expr spec ->
+        ("set_tl",
+          JSE.object [
+              encodeID id
+            , encodePos pos
+            , ("ast", encodeAST expr)
+            , ("handler_spec",
+                case spec of
+                  Nothing -> JSE.null
+                  Just spec ->
+                    JSE.object [
+                        ("name", JSE.string spec.name)
+                      , ("module", JSE.string spec.module_)
+                      , ("modifiers"
+                      , JSE.list <| List.map JSE.string spec.modifiers)]) ])
 
       NoOp ->
         ("noop", JSE.object [])
@@ -86,11 +96,11 @@ encodeRPC m call =
       Redo ->
         ("redo", JSE.object [])
 
-      DeleteAST id ->
-        ("delete_ast", JSE.object [encodeID id])
+      DeleteTL id ->
+        ("delete_tl", JSE.object [encodeID id])
 
-      MoveAST id pos ->
-        ("move_ast", JSE.object [ encodeID id
+      MoveTL id pos ->
+        ("move_tl", JSE.object [ encodeID id
                                 , encodePos pos])
 
   in JSE.object [ (cmd, args) ]
@@ -280,16 +290,32 @@ decodeTLAResult =
   |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
   |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
+decodeHandlerSpec : JSD.Decoder HandlerSpec
+decodeHandlerSpec =
+  let toHS module_ name modifiers =
+        { name = name
+        , module_ = module_
+        , modifiers = modifiers}
+  in
+  JSDP.decode toHS
+  |> JSDP.required "name" JSD.string
+  |> JSDP.required "module" JSD.string
+  |> JSDP.required "modifiers" (JSD.list JSD.string)
 
 decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
-  let toToplevel id x y ast =  { id = TLID id, pos = { x=x, y=y }, ast = ast }
+  let toToplevel id x y ast hs =
+        { id = TLID id
+        , pos = { x=x, y=y }
+        , ast = ast
+        , handlerSpec = hs}
   in
   JSDP.decode toToplevel
   |> JSDP.required "id" JSD.int
   |> JSDP.requiredAt ["pos", "x"] JSD.int
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "ast" decodeAST
+  |> JSDP.required "handler_spec" (JSD.nullable decodeHandlerSpec)
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
