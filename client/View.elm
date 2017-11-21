@@ -106,7 +106,10 @@ viewTL m tl =
                    { stopPropagation = True, preventDefault = False }
                    (decodeClickEvent (ToplevelClickUp tl.id))
                ]
-  in placeHtml m tl.pos (Html.div (events ++ [Attrs.class ("code " ++ selected)]) [ast])
+      html = Html.div
+               (events ++ [Attrs.class ("ast " ++ selected)])
+               [ast]
+  in placeHtml m tl.pos html
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =
