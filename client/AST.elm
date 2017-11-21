@@ -170,6 +170,9 @@ replaceHole_ hid replacement expr =
       then replacement
       else expr
 
+    Thread id exprs ->
+      Thread id (rhList exprs)
+
 replaceBindHole : ID -> VarName -> AST -> AST
 replaceBindHole hid replacement ast =
   replaceBindHole_ hid replacement ast
@@ -209,6 +212,9 @@ replaceBindHole_ hid replacement expr =
 
     Hole id ->
       Hole id
+
+    Thread id exprs ->
+      Thread id (rbhList exprs)
 
 bindHoleID : VarBind -> Maybe ID
 bindHoleID vb =
@@ -257,6 +263,9 @@ listBindHoles expr =
     Hole id ->
       []
 
+    Thread _ exprs ->
+      lbhList exprs
+
 -- TODO: figure out how we can define this
 -- this in terms of listBindHoles and a listExprHoles
 --
@@ -302,6 +311,9 @@ listHoles expr =
       listHoles expr
 
     Hole id -> [id]
+
+    Thread _ exprs ->
+      lhList exprs
 
 findNextHole : ID -> AST -> ID
 findNextHole cur ast =
