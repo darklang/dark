@@ -14,6 +14,7 @@ type varbinding = Named of varname
                 [@@deriving eq, yojson, show]
 
 type expr = If of id * expr * expr * expr
+          | Thread of id * expr list
           | FnCall of id * fnname * expr list
           | Variable of id * varname
           | Let of id * (varbinding * expr) list * expr
@@ -41,6 +42,7 @@ type api_expr =
   ; lambda: api_lambda option [@default None]
   ; value: api_value option [@default None]
   ; hole: api_hole option [@default None]
+  ; thread: api_thread option [@default None]
   }
 and api_if = { ifid : int [@key "id"]
              ; cond: api_expr
@@ -64,6 +66,9 @@ and api_let_binding = { bname: varname option [@key "name"] [@default None]
 and api_lambda = { lambdaid : int [@key "id"]
                  ; varnames: varname list
                  ; lambdabody: api_expr [@key "body"]
+                 }
+and api_thread = { threadid : int [@key "id"]
+                 ; threadexprs: api_expr list
                  }
 and api_value = { valueid : int [@key "id"]
                 ; valuestr: string }
@@ -105,6 +110,8 @@ let rec api_expr2expr (e: api_expr) : expr =
     Value (a.valueid, a.valuestr)
   | { hole = Some a } ->
     Hole (a.holeid)
+  | { thread = Some a } ->
+    Thread (a.threadid, List.map ~f:a2e a.threadexprs)
   | _ -> Exception.internal "Unexpected api_expr"
 
 let api_ast2ast = api_expr2expr
@@ -120,7 +127,9 @@ let rec expr2api_expr (e: expr) : api_expr =
              ; let_ = None
              ; lambda = None
              ; value = None
-             ; hole  = None } in
+             ; hole  = None
+             ; thread = None
+             } in
   let e2a = expr2api_expr in
   match e with
   | If (id, cond, then_, else_) ->
@@ -151,6 +160,8 @@ let rec expr2api_expr (e: expr) : api_expr =
     { init with value = Some { valueid = id; valuestr = str }}
   | Hole id ->
     { init with hole = Some { holeid = id }}
+  | Thread (id, exprs) ->
+    { init with thread = Some { threadid = id; threadexprs = List.map ~f:e2a exprs }}
 
 let ast2api_ast = expr2api_expr
 
@@ -229,7 +240,8 @@ let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (exp
          DBlock (fun args ->
              let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
              let new_st = Util.merge_left bindings st in
-             exe new_st body))
+             exe new_st body)
+       | Thread (_, _) -> DIncomplete)
     in
     trace expr value st; value
   with
@@ -249,6 +261,7 @@ let to_tuple (expr: expr) : (id * expr) =
   | FnCall (id, me, exprs) -> (id, expr)
   | If (id, cond, ifbody, elsebody) -> (id, expr)
   | Lambda (id, vars, body) -> (id, expr)
+  | Thread (id, exprs) -> (id, expr)
 
 let to_id (expr: expr) : id =
   to_tuple expr |> Tuple.T2.get1
@@ -317,7 +330,10 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
 
        | Lambda (id, vars, body) ->
          let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) vars in
-         sexe new_st body)
+         sexe new_st body
+
+       | Thread (id, exprs) ->
+         List.iter ~f:(fun expr -> sexe st expr) exprs)
     in
     trace expr st
   with
