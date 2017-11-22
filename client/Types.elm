@@ -95,6 +95,7 @@ type RPC
     = NoOp
     | SetTL TLID Pos Expr (Maybe HandlerSpec)
     | DeleteTL TLID
+    | CloseThread TLID ID
     | MoveTL TLID Pos
     | DeleteAll
     | Savepoint

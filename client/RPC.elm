@@ -99,9 +99,13 @@ encodeRPC m call =
       DeleteTL id ->
         ("delete_tl", JSE.object [encodeID id])
 
+      CloseThread tlid (ID threadid) ->
+        ("close_thread", JSE.object [ encodeID tlid
+                                 , ("threadid", JSE.int threadid)])
+
       MoveTL id pos ->
         ("move_tl", JSE.object [ encodeID id
-                                , encodePos pos])
+                               , encodePos pos])
 
   in JSE.object [ (cmd, args) ]
 

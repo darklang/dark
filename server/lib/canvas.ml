@@ -102,6 +102,13 @@ let move_toplevel (id: int) (pos: pos) (c: canvas) : canvas =
     upsert_toplevel ntl c
   | None -> c
 
+let close_thread (tlid: int) (threadid: int) (c: canvas) : canvas =
+  c
+  (* match List.find ~f:(fun t -> t.id = tlid) c.toplevels with *)
+  (* | Some (tl) -> *)
+  (* | None -> c *)
+
+
 (* ------------------------- *)
 (* Build *)
 (* ------------------------- *)
@@ -114,6 +121,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | SavePoint -> ident
     | SetTL toplevel -> upsert_toplevel toplevel
     | DeleteTL id -> remove_toplevel_by_id id
+    | CloseThread (tlid, thid) -> close_thread tlid thid
     | MoveTL (id, pos) -> move_toplevel id pos
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)

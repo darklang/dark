@@ -25,6 +25,7 @@ type savepoint = { fake: int option [@default None]
                  } [@@deriving yojson]
 
 type delete_tl = { id: int } [@@deriving yojson]
+type close_thread = { id: int; thid: int } [@@deriving yojson]
 type move_tl = { id: int ; pos: pos } [@@deriving yojson]
 
 
@@ -34,6 +35,7 @@ type move_tl = { id: int ; pos: pos } [@@deriving yojson]
 type opjson =
   { set_tl : Toplevel.api_toplevel option [@default None]
   ; delete_tl: delete_tl option [@default None]
+  ; close_thread: close_thread option [@default None]
   ; move_tl: move_tl option [@default None]
   ; redo: redo option [@default None]
   ; undo: undo option [@default None]
@@ -52,6 +54,7 @@ let json2op (op: opjson) : op =
           ; ast = Ast.api_ast2ast a.ast
           ; handler_spec = a.handler_spec}
   | { delete_tl = Some a } -> DeleteTL a.id
+  | { close_thread = Some a } -> CloseThread (a.id, a.thid)
   | { move_tl = Some a } -> MoveTL (a.id, a.pos)
   | { noop = Some _} -> NoOp
   | { redo = Some _} -> Redo
