@@ -98,9 +98,10 @@ submit m re cursor value =
   in
   case cursor of
     Creating pos ->
+      let sample = {name = "/new", module_ = "HTTP", modifiers = ["POST"]} in
       case parseAst value of
         Nothing -> NoChange
-        Just v -> RPC ([SetTL id pos v Nothing], FocusNext id)
+        Just v -> RPC ([SetTL id pos v (Just sample)], FocusNext id)
     Filling tlid id ->
       let tl = TL.getTL m tlid
       in

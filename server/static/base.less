@@ -20,6 +20,7 @@ html {
 @purple: #ba8baf;
 @brown : #a16946;
 
+@top-border: lighten(@black1, 5%) 2px dotted;
 
 body {
   font-family: 'Fira Mono', monospace;
@@ -56,6 +57,39 @@ body {
   margin-right: 4px;
 }
 
+.toplevel {
+  display: flex;
+  flex-direction: column;
+}
+
+/**************
+ * header
+ **************/
+.header {
+  // applied to children
+  display: flex;
+  flex-direction: row;
+
+  & > div {
+    // center it
+    border-right: @top-border;
+    margin-right: 2px;
+    padding-right: 2px;
+    color: @yellow;
+    font-size: 50%;
+    &::last-child  {
+      border-right: none;
+      margin-right: 0px;
+      padding-right: 0px;
+    }
+  }
+}
+
+.ast {
+}
+
+
+
 /**************
  * AST
  **************/
@@ -85,7 +119,7 @@ body {
 }
 
 /**************
- * AST css
+ * AST
  **************/
 .ast {
   font-size: 10pt;
@@ -93,7 +127,7 @@ body {
   padding: 8px;
   white-space: pre;
   width: max-content;
-  border: lighten(@black1, 5%) 2px dotted;
+  border: @top-border;
   .layout-block;
 
   div {

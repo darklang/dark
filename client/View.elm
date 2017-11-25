@@ -99,16 +99,26 @@ viewTL m tl =
           _ -> (ID 0, Html.div [] [], "")
 
       lvs = Analysis.getLiveValues m tl.id
-      ast = ViewAST.toHtml id holeHtml lvs tl.ast
+      ast = Html.div
+              [ Attrs.class ("ast " ++ selected) ]
+              [ ViewAST.toHtml id holeHtml lvs tl.ast]
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions
                    "mouseup"
                    { stopPropagation = True, preventDefault = False }
                    (decodeClickEvent (ToplevelClickUp tl.id))
                ]
-      html = Html.div
-               (events ++ [Attrs.class ("ast " ++ selected)])
-               [ast]
+      header =
+        case tl.handlerSpec of
+          Nothing -> Html.span [] []
+          Just spec ->
+            Html.div
+              [Attrs.class "header"]
+              [ Html.div [Attrs.class "module"] [Html.text spec.module_]
+              , Html.div [Attrs.class "name"] [Html.text spec.name]
+              , Html.div [Attrs.class "modifiers"] [Html.text <| String.join ", " spec.modifiers]]
+
+      html = Html.div (Attrs.class "toplevel" :: events) [header, ast]
   in placeHtml m tl.pos html
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
