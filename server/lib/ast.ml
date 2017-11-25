@@ -25,6 +25,22 @@ type expr = If of id * expr * expr * expr
 
 type ast = expr [@@deriving eq, yojson, show]
 
+let to_tuple (expr: expr) : (id * expr) =
+  match expr with
+  | Hole (id) -> (id, expr)
+  | Value (id, s) -> (id, expr)
+  | Variable (id, name) -> (id, expr)
+  | Let (id, bindings, body) -> (id, expr)
+  | FnCall (id, me, exprs) -> (id, expr)
+  | If (id, cond, ifbody, elsebody) -> (id, expr)
+  | Lambda (id, vars, body) -> (id, expr)
+  | Thread (id, exprs) -> (id, expr)
+
+let to_id (expr: expr) : id =
+  to_tuple expr |> Tuple.T2.get1
+
+
+
 (* --------------------- *)
 (* API Types and Fns *)
 (* --------------------- *)
@@ -166,8 +182,10 @@ let is_hole (expr: expr) =
 module Symtable = RT.DvalMap
 type symtable = RT.dval_map
 
-let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (expr: expr) : RT.dval =
-  let exe = exec ~trace in
+let empty_trace _ _ _ = ()
+
+let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: symtable) (expr: expr) : RT.dval =
+  let exe = exec_ ~trace in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
    * -- it's definitely not a good thing to be doing, for a variety of reasons.
@@ -291,28 +309,21 @@ let rec exec ~(trace: (expr -> RT.dval -> symtable -> unit)) (st: symtable) (exp
     print_endline msg;
     RT.DIncomplete
 
-let to_tuple (expr: expr) : (id * expr) =
-  match expr with
-  | Hole (id) -> (id, expr)
-  | Value (id, s) -> (id, expr)
-  | Variable (id, name) -> (id, expr)
-  | Let (id, bindings, body) -> (id, expr)
-  | FnCall (id, me, exprs) -> (id, expr)
-  | If (id, cond, ifbody, elsebody) -> (id, expr)
-  | Lambda (id, vars, body) -> (id, expr)
-  | Thread (id, exprs) -> (id, expr)
+let execute = exec_
 
-let to_id (expr: expr) : id =
-  to_tuple expr |> Tuple.T2.get1
+(* -------------------- *)
+(* Analysis *)
+(* -------------------- *)
+
 
 type dval_store = RT.dval Int.Table.t
 
-let execute (ast: expr) : (RT.dval * dval_store) =
+let execute_saving_intermediates (ast: expr) : (RT.dval * dval_store) =
   let value_store = Int.Table.create () in
   let trace expr dval st =
     Hashtbl.set value_store ~key:(to_id expr) ~data:dval
   in
-  (exec ~trace Symtable.empty ast, value_store)
+  (exec_ ~trace Symtable.empty ast, value_store)
 
 let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in

@@ -4,22 +4,18 @@ module C = Canvas
 module RouteParamMap = String.Map
 type route_param_map = string RouteParamMap.t
 
-(* let routes (c: C.canvas) : (string * C.node) list = *)
-(*   C.page_routes c *)
-(*  *)
-(* let url_for (c: C.canvas) (n: C.node) : string option = *)
-(*   let url = n#get_arg_value (C.gfns c) "url" in *)
-(*   match url with *)
-(*   | DStr s -> Some s *)
-(*   | _      -> None *)
-(*  *)
-(* let url_for_exn (c: C.canvas) (n: C.node) : string = *)
-(*   match (url_for c n) with *)
-(*   | Some s -> s *)
-(*   | None -> Exception.internal "Called url_for_exn on a node without a `url` param" *)
-(*  *)
+let url_for (tl: Toplevel.toplevel) : string option =
+  match tl.handler_spec with
+  | Some hs when String.lowercase hs.module_ = "http" -> Some hs.name
+  | _ -> None
+
+let url_for_exn (tl: Toplevel.toplevel) : string =
+  match (url_for tl) with
+  | Some s -> s
+  | None -> Exception.internal "Called url_for_exn on a toplevel without a `url` param"
+
 let split_uri_path (path: string) : string list =
-  let subs  = String.split ~on:'/' path in
+  let subs = String.split ~on:'/' path in
   List.filter ~f:(fun x -> String.length x > 0) subs
 
 let controller (path_or_route : string) : string option =
@@ -31,15 +27,17 @@ let controller (path_or_route : string) : string option =
 let path_matches_route ~(path: string) (route: string) : bool =
   (path = route) || ((controller path) = (controller route))
 
-(* let matching_routes ~(uri: Uri.t) (c: C.canvas) : (string * C.node) list = *)
-(*   let path = Uri.path uri in *)
-(*   let rs   = routes c in *)
-(*   List.filter ~f:(fun (route, _) -> path_matches_route ~path:path route) rs *)
-(*  *)
-(* let pages_matching_route ~(uri: Uri.t) (c: C.canvas) : C.node list = *)
-(*   let rs = matching_routes ~uri:uri c in *)
-(*   List.map ~f:Tuple.T2.get2 rs *)
-(*  *)
+let matching_routes ~(uri: Uri.t) (c: C.canvas) : Toplevel.toplevel list =
+  let path = Uri.path uri in
+  c.toplevels
+  |> List.filter
+    ~f:(fun tl -> url_for tl <> None)
+  |> List.filter
+    ~f:(fun tl -> path_matches_route ~path:path (url_for_exn tl))
+
+let pages_matching_route ~(uri: Uri.t) (c: C.canvas) : Toplevel.toplevel list =
+  matching_routes ~uri:uri c
+
 let route_variables (route: string) : string list =
   let suffix = List.drop (split_uri_path route) 1 in
   suffix

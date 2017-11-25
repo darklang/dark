@@ -20,12 +20,10 @@ type toplevel = { id: Types.id
 (* --------------------- *)
 (* API Types and Fns *)
 (* --------------------- *)
-type api_handler_spec = handler_spec [@@deriving yojson]
-
 type api_toplevel = { tlid: int [@key "id"]
                     ; pos: Types.pos
                     ; ast: Ast.api_ast
-                    ; handler_spec: api_handler_spec option
+                    ; handler_spec: handler_spec option
                     } [@@deriving yojson]
 
 (* --------------------- *)

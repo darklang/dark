@@ -18,13 +18,6 @@ let create (name : string) : canvas ref =
       ; toplevels = []
       }
 
-let page_GETs (c: canvas) : 'a list =
-  []
-
-let page_POSTs (c: canvas) : 'a list =
-  []
-
-
 (* ------------------------- *)
 (* Undo *)
 (* ------------------------- *)
@@ -170,10 +163,17 @@ let minimize (c : canvas) : canvas =
   in { c with ops = ops }
 
 
-let execute_ast (c: canvas) (tl: TL.toplevel) : (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
+(* ------------------------- *)
+(* Execution *)
+(* ------------------------- *)
+
+let execute (c: canvas) (tl: TL.toplevel) : RT.dval =
+  Ast.execute Ast.Symtable.empty tl.ast
+
+
+let execute_for_analysis (c: canvas) (tl: TL.toplevel) : (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
   let traced_symbols = Ast.symbolic_execute tl.ast in
-  let (ast_value, traced_values) = Ast.execute tl.ast in
-  let _ = Log.pp "Hashtable:" traced_values in
+  let (ast_value, traced_values) = Ast.execute_saving_intermediates tl.ast in
   [(tl.id, ast_value, traced_values, traced_symbols)]
 
 
@@ -185,7 +185,7 @@ let execute_ast (c: canvas) (tl: TL.toplevel) : (id * RT.dval * Ast.dval_store *
 
 let to_frontend (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
-             |> List.map ~f:(execute_ast c)
+             |> List.map ~f:(execute_for_analysis c)
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
                  `Assoc [ ("id", `Int id)
