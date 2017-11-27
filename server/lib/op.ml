@@ -12,7 +12,6 @@ type op = NoOp
         | SetTL of Toplevel.toplevel
         | DeleteAll
         | DeleteTL of int
-        | CloseThread of int * int
         | MoveTL of int * pos
         | SavePoint
         | Undo
