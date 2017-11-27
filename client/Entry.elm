@@ -84,14 +84,13 @@ submit m re cursor value =
       parseAst v =
         case v of
           "if" ->
-            Just (If eid (Thread tid1 [Hole hid1]) (Thread tid2 [Hole hid2]) (Thread tid3 [Hole hid3]))
+            Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
           "let" ->
-              Just (Let eid [(BindHole hid1, Thread tid1 [Hole hid2])] (Thread tid2 [Hole hid3]))
+              Just (Let eid [(BindHole hid1, Hole hid2)] (Hole hid3))
           "lambda" ->
-            Just (Lambda eid ["var"] (Thread tid1 [Hole hid1]))
+            Just (Lambda eid ["var"] (Hole hid1))
           str ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
-            -- TODO: create Threads here also -- and perhaps one fewer hole if we're the RHS of a thread already?
             then createFunction m value
             else Just <| Value eid str
 

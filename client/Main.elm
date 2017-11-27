@@ -202,7 +202,11 @@ update_ msg m =
               -- Key.Left -> Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
               -- Key.Right -> Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
               Key.Backspace -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
-              Key.Escape -> Deselect
+              Key.Escape ->
+                -- if AST.isThreadHole tl.ast hid
+                -- then Many [ RPC ([SetTL tl.id tl.pos (AST.closeThread tl hid) tl.handlerSpec], FocusNext tl.id)
+                -- else
+                Deselect
               Key.Enter  -> Enter False (Filling tlid hid)
               Key.Tab    ->
                 let tl = TL.getTL m tlid
