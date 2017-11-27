@@ -187,6 +187,70 @@ replaceHole_ hid replacement expr =
       in
       Thread id nexprs
 
+toID : Expr -> ID
+toID expr =
+  case expr of
+    Value id _ -> id
+    Let id _ _ -> id
+    If id _ _ _ -> id
+    Variable id _ -> id
+    FnCall id _ _ -> id
+    Lambda id _ _ -> id
+    Hole id -> id
+    Thread id _ -> id
+
+closeThread : ID -> AST -> AST
+closeThread threadid ast =
+  closeThread_ threadid ast
+
+closeThread_ : ID -> Expr -> Expr
+closeThread_ threadid expr =
+  let ct = closeThread_ threadid
+      ctList = List.map ct
+  in
+  case expr of
+    Value id v ->
+      Value id v
+
+    Let id vars expr ->
+      let vs = List.map (\(vb, e) ->
+         case vb of
+           Named s -> (Named s, ct e)
+           BindHole id -> (BindHole id, ct e)) vars
+      in Let id vs (ct expr)
+
+    If id cond ifbody elsebody ->
+      If id (ct cond) (ct ifbody) (ct elsebody)
+
+    Variable id name ->
+      Variable id name
+
+    FnCall id name exprs ->
+      FnCall id name (ctList exprs)
+
+    Lambda id vars expr ->
+      Lambda id vars (ct expr)
+
+    Hole id ->
+      Hole id
+
+    Thread id exprs ->
+      if id == threadid
+      then
+        let rexprs = List.reverse exprs
+            nexprs =
+              case rexprs of
+                last :: rest ->
+                  case last of
+                    Hole _ -> rest
+                    _ -> last :: rest
+                _ -> rexprs
+            rnexprs = List.reverse nexprs
+        in
+          Thread id rnexprs
+      else
+        Thread id (ctList exprs)
+
 replaceBindHole : ID -> VarName -> AST -> AST
 replaceBindHole hid replacement ast =
   replaceBindHole_ hid replacement ast
