@@ -70,7 +70,7 @@ let server =
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
-        let route = Http.url_for_exn page |> Log.pp "url" in
+        let route = Http.url_for_exn page in
         let body =
           let body_dval =
             if body = ""
