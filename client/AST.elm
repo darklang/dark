@@ -247,7 +247,10 @@ closeThread_ threadid expr =
                 _ -> rexprs
             rnexprs = List.reverse nexprs
         in
-          Thread id rnexprs
+            case rnexprs of
+              [] -> Hole id
+              [x] -> x
+              xs -> Thread id xs
       else
         Thread id (ctList exprs)
 
