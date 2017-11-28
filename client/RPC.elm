@@ -46,13 +46,17 @@ saveTest =
       request = postString url
   in Http.send SaveTestCallBack request
 
-encodeHoleOr : (HoleOr v) -> String -> (v -> JSE.Value) -> (String, JSE.Value)
-encodeHoleOr v name encoder =
+encodeVariant : String -> List JSE.Value -> JSE.Value
+encodeVariant name vals =
+  JSE.list (JSE.string name :: vals)
+
+encodeHoleOr : (HoleOr v) -> (v -> JSE.Value) -> JSE.Value
+encodeHoleOr v encoder =
   case v of
     Full s ->
-      (name, JSE.list [JSE.string "Full", encoder s])
+      encodeVariant "Full" [encoder s]
     Empty (ID id) ->
-      (name, JSE.list [JSE.string "Empty", JSE.int id])
+      encodeVariant "Empty" [JSE.int id]
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
@@ -67,182 +71,184 @@ encodeRPCs m calls =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let encodePos pos = case pos of
-                        {x,y} -> ("pos", JSE.object [ ("x", JSE.int x)
-                                                    , ("y", JSE.int y)])
-      encodeID (TLID id) = ("id", JSE.int id)
-      (cmd, args) =
+  let encodePos pos =
+        case pos of
+          {x,y} ->
+            JSE.object [ ("x", JSE.int x)
+                       , ("y", JSE.int y)]
+      encodeID (TLID id) = JSE.int id
+      ev = encodeVariant
+  in
     case call of
       SetTL id pos expr spec ->
-        ("set_tl",
-          JSE.object [
-              encodeID id
-            , encodePos pos
-            , ("ast", encodeAST expr)
-            , ("handler_spec",
-                 JSE.object [
-                    encodeHoleOr spec.name "name" JSE.string
-                  , encodeHoleOr spec.module_ "module" JSE.string
-                  , encodeHoleOr spec.modifier "modifier" JSE.string])])
+        let hs = JSE.object
+                   [ ("name", encodeHoleOr spec.name JSE.string)
+                   , ("module", encodeHoleOr spec.module_ JSE.string)
+                   , ("modifier", encodeHoleOr spec.modifier JSE.string)]
+        in ev "SetTL" [JSE.object [ ("id", encodeID id)
+                                  , ("pos", encodePos pos)
+                                  , ("ast", encodeAST expr)
+                                  , ("handler_spec", hs)]]
+
+      CreateDB id pos name ->
+        ev "CreateDB" [ encodeID id
+                      , encodePos pos
+                      , JSE.string name]
 
       NoOp ->
-        ("noop", JSE.object [])
+        ev "NoOp" []
 
       DeleteAll ->
-        ("delete_all", JSE.object [])
+        ev "DeleteAll" []
 
       Savepoint ->
-        ("savepoint", JSE.object [])
+        ev "Savepoint" []
 
       Undo ->
-        ("undo", JSE.object [])
+        ev "Undo" []
 
       Redo ->
-        ("redo", JSE.object [])
+        ev "Redo" []
 
       DeleteTL id ->
-        ("delete_tl", JSE.object [encodeID id])
+        ev "DeleteTL" [encodeID id]
 
       MoveTL id pos ->
-        ("move_tl", JSE.object [ encodeID id
-                                , encodePos pos])
-
-  in JSE.object [ (cmd, args) ]
+        ev "MoveTL" [ encodeID id
+                    , encodePos pos]
 
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
   let e = encodeAST
-      eid (ID id) = ("id", JSE.int id)
+      eid (ID id) = JSE.int id
+      ev = encodeVariant
  in
   case expr of
     If id cond then_ else_ ->
-      JSE.object [("if"
-                  , JSE.object [ eid id
-                               , ("cond", e cond)
-                               , ("then", e then_)
-                               , ("else", e else_)])]
+      ev "If" [eid id, e cond, e then_, e else_]
 
     FnCall id n exprs ->
-      JSE.object [( "fncall"
-                  , JSE.object [ eid id
-                               , ("name", JSE.string n)
-                               , ("arguments", JSE.list (List.map e exprs)) ])]
+      ev "FnCall" [ eid id
+                  , JSE.string n
+                  , JSE.list (List.map e exprs)]
 
     Variable id v ->
-      JSE.object [("variable"
-                  , JSE.object [ eid id
-                               , ("name", JSE.string v)])]
+      ev "Variable" [ eid id
+                    , JSE.string v]
 
     Let id binds body ->
-      JSE.object [("let"
-                  , JSE.object [ eid id
-                               , ("bindings"
-                                 , List.map (\(v, bexpr) ->
-                                     JSE.object [ encodeHoleOr v "name" JSE.string
-                                                , ("expr", e bexpr)]) binds |> JSE.list)
-                               , ("body", e body)])]
+      ev "Let" [ eid id
+                    , (List.map (\(v, bexpr) ->
+                        JSE.list [ encodeHoleOr v JSE.string
+                                 , e bexpr])
+                        binds) |> JSE.list
+               , e body]
 
     Lambda id vars body ->
-      JSE.object [("lambda"
-                  , JSE.object [ eid id
-                               , ("varnames", List.map JSE.string vars |> JSE.list)
-                               , ("body", e body)])]
+      ev "Lambda" [ eid id
+                  , List.map JSE.string vars |> JSE.list
+                  , e body]
 
     Value id v ->
-      JSE.object [("value"
-                  , JSE.object [ eid id
-                               , ("valuestr", JSE.string v)])]
+      ev "Value" [ eid id
+                 , JSE.string v]
 
     Hole id ->
-      JSE.object [("hole", JSE.object [eid id])]
+      ev "Hole" [eid id]
 
     Thread id exprs ->
-      JSE.object [( "thread"
-                  , JSE.object [ eid id
-                               , ("threadexprs", JSE.list (List.map e exprs)) ])]
+      ev "Thread" [ eid id
+                  , JSE.list (List.map e exprs)]
 
 decodeID : JSD.Decoder ID
 decodeID = JSD.map ID JSD.int
 
+  -- about the lazy decodeExpr and decodeID
+  -- TODO: check if elm 0.19 is saner than this
+  -- elm 0.18 gives "Cannot read property `tag` of undefined` which
+  -- leads to https://github.com/elm-lang/elm-compiler/issues/1562
+  -- and https://github.com/elm-lang/elm-compiler/issues/1591
+  -- which gets potentially fixed by
+  -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
+
+
 decodeIf : JSD.Decoder Expr
 decodeIf =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSDP.decode If
-  |> JSDP.requiredAt ["if", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["if", "cond"] de
-  |> JSDP.requiredAt ["if", "then"] de
-  |> JSDP.requiredAt ["if", "else"] de
+  JSD.map4 If
+    (JSD.index 1 decodeID)
+    (JSD.index 2 de)
+    (JSD.index 3 de)
+    (JSD.index 4 de)
 
 decodeFnCall : JSD.Decoder Expr
 decodeFnCall =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSDP.decode FnCall
-  |> JSDP.requiredAt ["fncall", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["fncall", "name"] JSD.string
-  |> JSDP.requiredAt ["fncall", "arguments"] (JSD.list de)
+  JSD.map3 FnCall
+    (JSD.index 1 decodeID)
+    (JSD.index 2 JSD.string)
+    (JSD.index 3 (JSD.list de))
+
 
 decodeVariable : JSD.Decoder Expr
 decodeVariable =
-  JSDP.decode Variable
-  |> JSDP.requiredAt ["variable", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["variable", "name"] JSD.string
+  JSD.map2 Variable
+    (JSD.index 1 decodeID)
+    (JSD.index 2 JSD.string)
 
 decodeLet : JSD.Decoder Expr
 decodeLet =
   let de = (JSD.lazy (\_ -> decodeExpr))
-      dtuple = JSDP.decode (,)
-               |> JSDP.required "name" (decodeHoleOr JSD.string)
-               |> JSDP.required "expr" de
-      vb = dtuple
+      vb = JSD.map2 (,)
+             (JSD.index 0 (decodeHoleOr JSD.string))
+             (JSD.index 1 de)
   in
-  JSDP.decode Let
-  |> JSDP.requiredAt ["let", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["let", "bindings"] (JSD.list vb)
-  |> JSDP.requiredAt ["let", "body"] de
+  JSD.map3 Let
+    (JSD.index 1 decodeID)
+    (JSD.index 2 (JSD.list vb))
+    (JSD.index 3 de)
 
 decodeLambda : JSD.Decoder Expr
 decodeLambda =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSDP.decode Lambda
-  |> JSDP.requiredAt ["lambda", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["lambda", "varnames"] (JSD.list JSD.string)
-  |> JSDP.requiredAt ["lambda", "body"] de
+  JSD.map3 Lambda
+    (JSD.index 1 decodeID)
+    (JSD.index 2 (JSD.list JSD.string))
+    (JSD.index 3 de)
 
 decodeValue : JSD.Decoder Expr
 decodeValue =
-  JSDP.decode Value
-  |> JSDP.requiredAt ["value", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["value", "valuestr"] JSD.string
+  JSD.map2 Value
+    (JSD.index 1 decodeID)
+    (JSD.index 2 JSD.string)
 
 decodeHole : JSD.Decoder Expr
 decodeHole =
-  JSDP.decode Hole
-  |> JSDP.requiredAt ["hole", "id"] (JSD.lazy (\_ -> decodeID))
+  JSD.map Hole
+    (JSD.index 1 decodeID)
 
 decodeThread : JSD.Decoder Expr
 decodeThread =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSDP.decode Thread
-  |> JSDP.requiredAt ["thread", "id"] (JSD.lazy (\_ -> decodeID))
-  |> JSDP.requiredAt ["thread", "threadexprs"] (JSD.list de)
+  JSD.map2 Thread
+    (JSD.index 1 decodeID)
+    (JSD.index 2 (JSD.list de))
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
-  JSD.oneOf [ JSD.lazy (\_ -> decodeIf)
-            -- TODO: check if elm 0.19 is saner than this
-            -- elm 0.18 gives "Cannot read property `tag` of undefined` which
-            -- leads to https://github.com/elm-lang/elm-compiler/issues/1562
-            -- and https://github.com/elm-lang/elm-compiler/issues/1591
-            -- which gets potentially fixed by
-            -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
-            , JSD.lazy (\_ -> decodeFnCall)
-            , JSD.lazy (\_ -> decodeVariable)
-            , JSD.lazy (\_ -> decodeLet)
-            , JSD.lazy (\_ -> decodeLambda)
-            , JSD.lazy (\_ -> decodeValue)
-            , JSD.lazy (\_ -> decodeHole)
-            , JSD.lazy (\_ -> decodeThread)
-            ]
+  JSD.index 0 JSD.string
+  |> JSD.andThen (\str ->
+    case str of
+      "Let" -> decodeLet
+      "Hole" -> decodeHole
+      "Value" -> decodeValue
+      "If" -> decodeIf
+      "FnCall" -> decodeFnCall
+      "Lambda" -> decodeLambda
+      "Variable" -> decodeVariable
+      "Thread" -> decodeThread
+      _ -> JSD.fail <| "Expected Expr, got: " ++ str)
+
 
 decodeAST : JSD.Decoder AST
 decodeAST = decodeExpr

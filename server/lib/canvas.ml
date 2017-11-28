@@ -189,7 +189,7 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
                         ])
   in `Assoc
         [ ("analyses", `List vals)
-        ; ("toplevels", `List (List.map ~f:TL.toplevel_to_frontend c.toplevels))
+        ; ("toplevels", TL.toplevellist_to_yojson c.toplevels)
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]
