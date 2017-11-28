@@ -33,7 +33,7 @@ updateValue target =
   Many [ AutocompleteMod <| ACSetQuery target ]
 
 createFindSpace : Model -> Modification
-createFindSpace m = Enter False <| Creating (Viewport.toAbsolute m Defaults.initialPos)
+createFindSpace m = Enter False (Creating (Viewport.toAbsolute m Defaults.initialPos)) Nothing
 ---------------------
 -- Focus
 ---------------------

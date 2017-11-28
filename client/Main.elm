@@ -130,6 +130,13 @@ selectCenter old new =
   in
       { x = newX, y = newY }
 
+oldThread : State -> CurrentThread
+oldThread s =
+  case s of
+    Selecting _ _ t -> t
+    Entering  _ _ t -> t
+    _ -> Nothing
+
 updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
   -- if you ever have a node in here, you're doing it wrong. Use an ID.
@@ -143,9 +150,9 @@ updateMod origm mod (m, cmd) =
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
-      Select tlid hid ->
-        { m | state = Selecting tlid hid } ! []
-      Enter re entry ->
+      Select tlid hid thread ->
+        { m | state = Selecting tlid hid thread } ! []
+      Enter re entry thread ->
         let varnames =
             case entry of
               Creating _ -> []
@@ -154,7 +161,7 @@ updateMod origm mod (m, cmd) =
                 in (Dict.get eid avd) |> (Maybe.withDefault [])
             (complete, acCmd) = processAutocompleteMod m (ACSetAvailableVarnames varnames)
         in
-      ({ m | state = Entering re entry, complete = complete
+      ({ m | state = Entering re entry thread, complete = complete
       }) ! ([acCmd, Entry.focusEntry])
 
       SetToplevels tls tlars ->
@@ -194,7 +201,7 @@ update_ msg m =
           _ -> NoChange
       else
         case state of
-          Selecting tlid hid ->
+          Selecting tlid hid thread ->
             -- quick error checking, in case the focus has gone bad
             case event.keyCode of
               -- Key.Up -> Selection.selectNextNode m id (\n o -> G.posy m n > G.posy m o)
@@ -203,38 +210,41 @@ update_ msg m =
               -- Key.Right -> Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
               Key.Backspace -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
               Key.Escape ->
-                -- if AST.isThreadHole tl.ast hid
-                -- then Many [ RPC ([SetTL tl.id tl.pos (AST.closeThread tl hid) tl.handlerSpec], FocusNext tl.id)
-                -- else
-                Deselect
-              Key.Enter  -> Enter False (Filling tlid hid)
+                let tl = TL.getTL m tlid in
+                case thread of
+                  Just tid -> Many [ RPC ([SetTL tl.id tl.pos (AST.closeThread tid tl.ast) tl.handlerSpec], FocusNext tl.id) ]
+                  Nothing -> Deselect
+              Key.Enter  -> Enter False (Filling tlid hid) thread
               Key.Tab    ->
                 let tl = TL.getTL m tlid
                     nh = TL.findNextHole tl hid
                 in
-                    Select tlid nh
+                    Select tlid nh thread
               _ -> NoChange
 
-          Entering re cursor ->
+          Entering re cursor thread ->
             if event.ctrlKey then
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.T ->
-                  case cursor of
-                    Filling tlid hid ->
-                      let tl = TL.getTL m tlid
-                          (nast, tid)  = AST.wrapInThread hid tl.ast
-                          ntl = { tl | ast = nast }
-                          m2 = TL.replace m ntl
-                          name =
-                            case Autocomplete.highlighted m2.complete of
-                              Just item -> Autocomplete.asName item
-                              Nothing -> m2.complete.value
-                      in
-                          Many [ (Entry.submit m2 re cursor name)
-                               , (SetState state) ]
-                    Creating _ -> NoChange
+                    case thread of
+                      Just _ -> NoChange
+                      Nothing ->
+                        case cursor of
+                          Filling tlid hid ->
+                            let tl = TL.getTL m tlid
+                                (nast, tid)  = AST.wrapInThread hid tl.ast
+                                ntl = { tl | ast = nast }
+                                m2 = TL.replace m ntl
+                                name =
+                                  case Autocomplete.highlighted m2.complete of
+                                    Just item -> Autocomplete.asName item
+                                    Nothing -> m2.complete.value
+                            in
+                                Many [ (SetState (Entering re cursor (Just tid)))
+                                     , (Entry.submit m2 re cursor name)]
+                          Creating _ -> NoChange
 
 
                 -- Key.Enter ->
@@ -311,7 +321,7 @@ update_ msg m =
     (GlobalClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
-                , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
+                , Enter False (Creating (Viewport.toAbsolute m event.pos)) Nothing]
       else NoChange
 
     (ToplevelClickDown tl event, _) ->
@@ -344,7 +354,7 @@ update_ msg m =
                   Many
                   [ SetState origState
                   , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            else Select id (TL.firstHole m id)
+            else Select id (TL.firstHole m id) Nothing
           _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
@@ -365,7 +375,7 @@ update_ msg m =
       let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
-              FocusNext tlid -> Select tlid (TL.firstHole m2 tlid)
+              FocusNext tlid -> Select tlid (TL.firstHole m2 tlid) (oldThread m.state)
               _            -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset

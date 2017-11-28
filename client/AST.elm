@@ -2,6 +2,7 @@ module AST exposing (..)
 
 -- builtin
 import List
+import Tuple
 
 -- lib
 import String.Extra as SE

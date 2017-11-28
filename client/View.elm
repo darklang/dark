@@ -86,11 +86,11 @@ viewHoleOrText m id h =
   case h of
     Empty hid ->
       case m.state of
-        Selecting _ _ ->
+        Selecting _ _ _ ->
           if hid == id
           then selectedHoleHtml
           else unselectedHoleHtml
-        Entering _ _ ->
+        Entering _ _ _ ->
           if hid == id
           then identifierEntryHtml m
           else unselectedHoleHtml
@@ -109,12 +109,12 @@ viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
   let (id, bindHoleHtml, exprHoleHtml, class) =
         case m.state of
-          Selecting tlid id ->
+          Selecting tlid id _ ->
             ( id
             , selectedHoleHtml
             , selectedHoleHtml
             , if tlid == tl.id then "selected" else "")
-          Entering _ (Filling tlid id) ->
+          Entering _ (Filling tlid id) _ ->
             ( id
             , identifierEntryHtml m
             , normalEntryHtml m
@@ -241,14 +241,14 @@ viewStringEntry m =
   in
     case m.state of
       -- Entering _ (Filling) -> [html m.center]
-      Entering _ (Creating pos) -> [html pos]
+      Entering _ (Creating pos) _ -> [html pos]
       _ -> []
 
 
 viewNormalEntry : Model -> List (Svg.Svg Msg)
 viewNormalEntry m =
   case m.state of
-    Entering _ (Creating pos) ->
+    Entering _ (Creating pos) _ ->
       [placeHtml m pos (normalEntryHtml m)]
     _ -> []
 
