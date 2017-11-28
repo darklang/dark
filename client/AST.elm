@@ -212,10 +212,7 @@ closeThread_ threadid expr =
       Value id v
 
     Let id vars expr ->
-      let vs = List.map (\(vb, e) ->
-         case vb of
-           Named s -> (Named s, ct e)
-           BindHole id -> (BindHole id, ct e)) vars
+      let vs = List.map (\(vb, e) -> (vb, ct e)) vars
       in Let id vs (ct expr)
 
     If id cond ifbody elsebody ->

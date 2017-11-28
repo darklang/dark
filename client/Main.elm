@@ -26,6 +26,7 @@ import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
+import AST
 import Toplevel as TL
 import Analysis
 import Util exposing (deMaybe)
