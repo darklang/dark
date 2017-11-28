@@ -395,5 +395,75 @@ listHoles expr =
 walk : AST -> Element
 walk = vExpr 0
 
+-- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> AST -> (AST, ID)
-wrapInThread id ast = (ast, id)
+wrapInThread id ast =
+  let tw = wrapInThread_ id ast
+  in (tw.expr, deMaybe tw.threadID)
+
+type alias ThreadWrap = { expr: Expr, threadID: Maybe ID }
+wrapInThread_ : ID -> Expr -> ThreadWrap
+wrapInThread_ hid expr =
+  let wt e = wrapInThread_ hid e
+      pluckId xs =
+        xs
+        |> List.filterMap .threadID
+        |> List.head
+      wrap e =
+        case e of
+          Thread id _ -> { expr = e, threadID = Just id }
+          _ ->
+            let tid = ID (Util.random())
+            in { expr = Thread tid [e], threadID = Just tid }
+      wrapOr e fn =
+        if (toID e) == hid
+        then wrap e
+        else fn e
+      noWrap e = { expr = e, threadID = Nothing }
+      filterMaybe xs = xs |> List.filterMap identity |> List.head
+  in
+      case expr of
+        Value _ _ -> wrapOr expr noWrap
+        Hole _ -> wrapOr expr noWrap
+        Variable _ _ -> wrapOr expr noWrap
+
+        Let id vars expr ->
+          wrapOr expr (\_ ->
+            let vs = List.map (\(vb, e) -> (vb, wt e)) vars
+                newVars = List.map (\(vb, tw) -> (vb, tw.expr)) vs
+                vId = vs |> List.map Tuple.second |> pluckId
+                bw = wt expr
+                tid = filterMaybe [vId, bw.threadID]
+            in
+                { expr = Let id newVars bw.expr, threadID = tid })
+
+        If id cond ifbody elsebody ->
+          wrapOr expr (\_ ->
+            let newCond     = wt cond
+                newIfbody   = wt ifbody
+                newElsebody = wt elsebody
+                tid = filterMaybe [newCond.threadID, newIfbody.threadID, newElsebody.threadID]
+            in
+            { expr = If id newCond.expr newIfbody.expr newElsebody.expr, threadID = tid })
+
+        FnCall id name exprs ->
+          wrapOr expr (\_ ->
+            let nexprs = List.map wt exprs
+                newExprs = List.map .expr nexprs
+                tid = filterMaybe (List.map .threadID nexprs)
+            in
+                { expr = FnCall id name newExprs, threadID = tid })
+
+        Lambda id vars expr ->
+          wrapOr expr (\_ ->
+            let newBody = wt expr in
+            { expr = Lambda id vars newBody.expr, threadID = newBody.threadID })
+
+        Thread id exprs ->
+          wrapOr expr (\_ ->
+            let nexprs = List.map wt exprs
+                newExprs = List.map .expr nexprs
+                tid = filterMaybe (List.map .threadID nexprs)
+            in
+                { expr = Thread id newExprs, threadID = tid })
+

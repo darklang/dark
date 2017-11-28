@@ -225,7 +225,8 @@ update_ msg m =
                     Filling tlid hid ->
                       let tl = TL.getTL m tlid
                           (nast, tid)  = AST.wrapInThread hid tl.ast
-                          m2 = TL.replace m tl
+                          ntl = { tl | ast = nast }
+                          m2 = TL.replace m ntl
                           name =
                             case Autocomplete.highlighted m2.complete of
                               Just item -> Autocomplete.asName item
