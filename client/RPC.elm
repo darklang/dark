@@ -320,8 +320,8 @@ decodeHandlerSpec =
         , modifier = modifier}
   in
   JSDP.decode toHS
-  |> JSDP.required "name" (decodeHoleOr JSD.string)
   |> JSDP.required "module" (decodeHoleOr JSD.string)
+  |> JSDP.required "name" (decodeHoleOr JSD.string)
   |> JSDP.required "modifier" (decodeHoleOr JSD.string)
 
 decodeToplevel : JSD.Decoder Toplevel

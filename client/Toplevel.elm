@@ -38,7 +38,7 @@ handlerSpecHoles tl =
           Empty hid -> [hid]
           _ -> []
       spec = tl.handlerSpec
-  in e2l spec.name ++ e2l spec.module_ ++ e2l spec.modifier
+  in e2l spec.module_ ++ e2l spec.name ++ e2l spec.modifier
 
 replaceHandlerSpecHole : ID -> String -> HandlerSpec -> HandlerSpec
 replaceHandlerSpecHole id value hs =
