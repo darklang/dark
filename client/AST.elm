@@ -406,3 +406,6 @@ findNextHole cur ast =
 
 walk : AST -> Element
 walk = vExpr 0
+
+wrapInThread : ID -> AST -> (AST, ID)
+wrapInThread id ast = (ast, id)

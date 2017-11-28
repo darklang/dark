@@ -15,6 +15,10 @@ getTL m id =
   LE.find (\tl -> tl.id == id) m.toplevels
   |> deMaybe
 
+replace : Model -> Toplevel -> Model
+replace m tl =
+  update m tl.id (\_ -> tl)
+
 firstHole : Model -> TLID -> ID
 firstHole m id =
   getTL m id |> .ast |> AST.listHoles |> List.head |> Maybe.withDefault (ID 3)

@@ -220,6 +220,22 @@ update_ msg m =
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
+                Key.T ->
+                  case cursor of
+                    Filling tlid hid ->
+                      let tl = TL.getTL m tlid
+                          (nast, tid)  = AST.wrapInThread hid tl.ast
+                          m2 = TL.replace m tl
+                          name =
+                            case Autocomplete.highlighted m2.complete of
+                              Just item -> Autocomplete.asName item
+                              Nothing -> m2.complete.value
+                      in
+                          Many [ (Entry.submit m2 re cursor name)
+                               , (SetState state) ]
+                    Creating _ -> NoChange
+
+
                 -- Key.Enter ->
                 --   if Autocomplete.isSmallStringEntry m.complete
                 --   then
