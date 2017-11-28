@@ -34,8 +34,8 @@ RUN apt-get update && \
                        expect=5.45-7 \
                        ocaml=4.02.3-6ubuntu2 \
                        opam=1.2.2-5build5 \
-                       libpq-dev=9.6.5-0ubuntu0.17.04 \
-                        libev-dev=1:4.22-1 \
+                       libpq-dev=9.6.6-0ubuntu0.17.04 \
+                       libev-dev=1:4.22-1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
                        libcurl4-gnutls-dev=7.52.1-4ubuntu1.3 \
