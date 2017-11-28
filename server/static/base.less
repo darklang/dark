@@ -62,30 +62,35 @@ body {
   flex-direction: column;
 }
 
+.selectedHole {
+  width: auto;
+  background-color: @grey1;
+  color: @grey1;
+}
+
 /**************
  * header
  **************/
 .header {
+  .layout-inline;
   // applied to children
-  display: flex;
-  flex-direction: row;
 
   & > div {
     // center it
-    border-right: @top-border;
-    margin-right: 2px;
-    padding-right: 2px;
+    /* border-right: @top-border; */
+    /* margin-right: 2px; */
+    /* padding-right: 2px; */
+    /* &::last-child  { */
+    /*   border-right: none; */
+    /*   margin-right: 0px; */
+    /*   padding-right: 0px; */
+    /* } */
+    /*  */
+
     color: @yellow;
     font-size: 50%;
-    &::last-child  {
-      border-right: none;
-      margin-right: 0px;
-      padding-right: 0px;
-    }
+    width: 80px;
   }
-}
-
-.ast {
 }
 
 
@@ -136,11 +141,6 @@ body {
 
   &.selected {
     background-color: lighten(@black1, 5%);
-  }
-
-  .selectedHole {
-    background-color: @grey1;
-    color: @grey1;
   }
 
   .letexpr > .letbody {
