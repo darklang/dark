@@ -5,7 +5,6 @@ import List
 
 -- lib
 import String.Extra as SE
-import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -57,8 +56,8 @@ vVarname mId v = Leaf (mId, "varname atom", v)
 vVarBind : VarBind -> Element
 vVarBind v =
   case v of
-    Named s -> Leaf (Nothing, "varname atom", s)
-    BindHole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
+    Full s -> Leaf (Nothing, "varname atom", s)
+    Empty id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
 vExpr : Int -> Expr -> Element
 vExpr nest expr =
@@ -142,14 +141,14 @@ replaceHole_ hid replacement expr =
          case vb of
            -- TODO: replace this with a different replaceBindHole
            -- that gets called from the submit of a special entry box
-           Named s -> (Named s, rh e)
-           BindHole id ->
+           Full s -> (Full s, rh e)
+           Empty id ->
              if id == hid
              then
                case replacement of
-                 Value _ s -> (Named (SE.unquote s), e)
-                 _         -> (BindHole id, e)
-             else (BindHole id, rh e)
+                 Value _ s -> (Full (SE.unquote s), e)
+                 _         -> (Empty id, e)
+             else (Empty id, rh e)
              ) vars
       in Let id vs (rh expr)
 
@@ -271,11 +270,11 @@ replaceBindHole_ hid replacement expr =
     Let id vars expr ->
       let vs = List.map (\(vb, e) ->
          case vb of
-           Named s -> (Named s, rbh e)
-           BindHole id ->
+           Full s -> (Full s, rbh e)
+           Empty id ->
              if id == hid
-             then (Named replacement, e)
-             else (BindHole id, rbh e)
+             then (Full replacement, e)
+             else (Empty id, rbh e)
              ) vars
       in Let id vs (rbh expr)
 
@@ -300,8 +299,8 @@ replaceBindHole_ hid replacement expr =
 bindHoleID : VarBind -> Maybe ID
 bindHoleID vb =
   case vb of
-    BindHole hid -> Just hid
-    Named _ -> Nothing
+    Empty hid -> Just hid
+    Full _ -> Nothing
 
 listBindHoles : Expr -> List ID
 listBindHoles expr =
@@ -395,14 +394,6 @@ listHoles expr =
 
     Thread _ exprs ->
       lhList exprs
-
-findNextHole : ID -> AST -> ID
-findNextHole cur ast =
-  let holes = listHoles ast
-  in case (LE.dropWhile (\x -> x /= cur) holes) of
-     cur :: next :: _ -> next
-     [cur] -> holes |> List.head |> deMaybe
-     [] -> ID 237
 
 walk : AST -> Element
 walk = vExpr 0

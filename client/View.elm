@@ -82,6 +82,13 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
 
+viewHoleOrText : Html.Html Msg -> HoleOr String -> Html.Html Msg
+viewHoleOrText holeHtml h =
+  case h of
+    Empty id -> holeHtml
+    Full s -> Html.text s
+
+
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
   let (id, holeHtml, selected) =
@@ -108,16 +115,13 @@ viewTL m tl =
                    { stopPropagation = True, preventDefault = False }
                    (decodeClickEvent (ToplevelClickUp tl.id))
                ]
+      spec = tl.handlerSpec
       header =
-        case tl.handlerSpec of
-          Nothing -> Html.span [] []
-          Just spec ->
-            Html.div
-              [Attrs.class "header"]
-              [ Html.div [Attrs.class "module"] [Html.text spec.module_]
-              , Html.div [Attrs.class "name"] [Html.text spec.name]
-              , Html.div [Attrs.class "modifiers"] [Html.text <| String.join ", " spec.modifiers]]
-
+        Html.div
+          [Attrs.class "header"]
+          [ Html.div [Attrs.class "module"] [viewHoleOrText holeHtml spec.module_]
+          , Html.div [Attrs.class "name"] [viewHoleOrText holeHtml spec.name]
+          , Html.div [Attrs.class "modifier"] [viewHoleOrText holeHtml spec.modifier]]
       html = Html.div (Attrs.class "toplevel" :: events) [header, ast]
   in placeHtml m tl.pos html
 

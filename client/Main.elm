@@ -27,7 +27,6 @@ import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import Toplevel as TL
-import AST
 import Analysis
 import Util exposing (deMaybe)
 
@@ -210,7 +209,7 @@ update_ msg m =
               Key.Enter  -> Enter False (Filling tlid hid)
               Key.Tab    ->
                 let tl = TL.getTL m tlid
-                    nh = AST.findNextHole hid tl.ast
+                    nh = TL.findNextHole tl hid
                 in
                     Select tlid nh
               _ -> NoChange

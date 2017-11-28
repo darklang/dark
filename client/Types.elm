@@ -93,7 +93,7 @@ type Focus = FocusNothing -- deselect
 
 type RPC
     = NoOp
-    | SetTL TLID Pos Expr (Maybe HandlerSpec)
+    | SetTL TLID Pos Expr HandlerSpec
     | DeleteTL TLID
     | MoveTL TLID Pos
     | DeleteAll
@@ -126,7 +126,7 @@ type Element = Leaf (Maybe ID, Class, String)
 type alias VarName = String
 type alias FnName = String
 
-type VarBind = Named VarName | BindHole ID
+type alias VarBind = HoleOr VarName
 
 type Expr = If ID Expr Expr Expr
           | FnCall ID FnName (List Expr)
@@ -140,9 +140,12 @@ type Expr = If ID Expr Expr Expr
 
 type alias AST = Expr
 
-type alias HandlerSpec = { module_ : String
-                         , name : String
-                         , modifiers : List String
+type HoleOr a = Empty ID
+              | Full a
+
+type alias HandlerSpec = { module_ : HoleOr String
+                         , name : HoleOr String
+                         , modifier : HoleOr String
                          }
 
 type alias LVDict = Dict Int LiveValue
@@ -157,7 +160,7 @@ type alias TLAResult = { id: TLID
 type alias Toplevel = { id : TLID
                       , pos : Pos
                       , ast : AST
-                      , handlerSpec : Maybe HandlerSpec
+                      , handlerSpec : HandlerSpec
                       }
 
 type alias Model = { center : Pos

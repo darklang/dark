@@ -27,6 +27,20 @@ isBindHole : Model -> TLID -> ID -> Bool
 isBindHole m tlid id =
   getTL m tlid |> .ast |> AST.listBindHoles |> List.member id
 
+specHandlerHoles : Toplevel -> List ID
+specHandlerHoles tl = []
+
+
+findNextHole : Toplevel -> ID -> ID
+findNextHole tl cur =
+  let astHoles = AST.listHoles tl.ast
+      holes = astHoles ++ (specHandlerHoles tl)
+  in case (LE.dropWhile (\x -> x /= cur) holes) of
+     cur :: next :: _ -> next
+     [cur] -> holes |> List.head |> deMaybe
+     [] -> ID 237
+
+
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
   let mapped = List.map (\t ->

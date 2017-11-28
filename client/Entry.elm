@@ -86,7 +86,7 @@ submit m re cursor value =
           "if" ->
             Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
           "let" ->
-              Just (Let eid [(BindHole hid1, Hole hid2)] (Hole hid3))
+              Just (Let eid [(Empty hid1, Hole hid2)] (Hole hid3))
           "lambda" ->
             Just (Lambda eid ["var"] (Hole hid1))
           str ->
@@ -97,10 +97,10 @@ submit m re cursor value =
   in
   case cursor of
     Creating pos ->
-      let sample = {name = "/new", module_ = "HTTP", modifiers = ["POST"]} in
+      let sample = {name = Full "/new", module_ = Full "HTTP", modifier = Full "POST"} in
       case parseAst value of
         Nothing -> NoChange
-        Just v -> RPC ([SetTL id pos v (Just sample)], FocusNext id)
+        Just v -> RPC ([SetTL id pos v sample], FocusNext id)
     Filling tlid id ->
       let tl = TL.getTL m tlid
       in

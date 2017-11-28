@@ -46,6 +46,14 @@ saveTest =
       request = postString url
   in Http.send SaveTestCallBack request
 
+encodeHoleOr : (HoleOr v) -> String -> (v -> JSE.Value) -> (String, JSE.Value)
+encodeHoleOr v name encoder =
+  case v of
+    Full s ->
+      (name, encoder s)
+    Empty (ID id) ->
+      (name, JSE.object [("hole", JSE.object [("id", JSE.int id)])])
+
 
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
@@ -72,14 +80,10 @@ encodeRPC m call =
             , encodePos pos
             , ("ast", encodeAST expr)
             , ("handler_spec",
-                case spec of
-                  Nothing -> JSE.null
-                  Just spec ->
-                    JSE.object [
-                        ("name", JSE.string spec.name)
-                      , ("module", JSE.string spec.module_)
-                      , ("modifiers"
-                      , JSE.list <| List.map JSE.string spec.modifiers)]) ])
+                 JSE.object [
+                    encodeHoleOr spec.name "name" JSE.string
+                  , encodeHoleOr spec.module_ "module" JSE.string
+                  , encodeHoleOr spec.modifier "modifier" JSE.string])])
 
       NoOp ->
         ("noop", JSE.object [])
@@ -108,7 +112,8 @@ encodeRPC m call =
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
   let e = encodeAST
-      eid (ID id) = ("id", JSE.int id) in
+      eid (ID id) = ("id", JSE.int id)
+ in
   case expr of
     If id cond then_ else_ ->
       JSE.object [("if"
@@ -133,9 +138,7 @@ encodeAST expr =
                   , JSE.object [ eid id
                                , ("bindings"
                                  , List.map (\(v, bexpr) ->
-                                     JSE.object [ (case v of
-                                                     Named s -> ("name", JSE.string s)
-                                                     BindHole (ID id) -> ("hole", JSE.object [("id", JSE.int id)]))
+                                     JSE.object [ encodeHoleOr v "name" JSE.string
                                                 , ("expr", e bexpr)]) binds |> JSE.list)
                                , ("body", e body)])]
 
@@ -187,8 +190,8 @@ decodeVariable =
 decodeLet : JSD.Decoder Expr
 decodeLet =
   let de = (JSD.lazy (\_ -> decodeExpr))
-      db id e = (BindHole (ID id), e)
-      dn n e = (Named n, e)
+      db id e = (Empty (ID id), e)
+      dn n e = (Full n, e)
       dbindhole = JSDP.decode db
                   |> JSDP.requiredAt ["hole", "id"] JSD.int
                   |> JSDP.required "expr" de
@@ -303,17 +306,28 @@ decodeTLAResult =
   |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
   |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
+decodeHoleOr : JSD.Decoder a -> JSD.Decoder (HoleOr a)
+decodeHoleOr d =
+  let dhole = JSDP.decode Empty
+              |> JSDP.required "id" decodeID
+      dnamed = JSD.map Full d
+  in JSD.oneOf [dhole, dnamed]
+
+
+
+
+
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
-  let toHS module_ name modifiers =
+  let toHS module_ name modifier =
         { name = name
         , module_ = module_
-        , modifiers = modifiers}
+        , modifier = modifier}
   in
   JSDP.decode toHS
-  |> JSDP.required "name" JSD.string
-  |> JSDP.required "module" JSD.string
-  |> JSDP.required "modifiers" (JSD.list JSD.string)
+  |> JSDP.required "name" (decodeHoleOr JSD.string)
+  |> JSDP.required "module" (decodeHoleOr JSD.string)
+  |> JSDP.required "modifier" (decodeHoleOr JSD.string)
 
 decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
@@ -328,7 +342,7 @@ decodeToplevel =
   |> JSDP.requiredAt ["pos", "x"] JSD.int
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "ast" decodeAST
-  |> JSDP.required "handler_spec" (JSD.nullable decodeHandlerSpec)
+  |> JSDP.required "handler_spec" decodeHandlerSpec
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =

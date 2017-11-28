@@ -7,7 +7,7 @@ module RT = Runtime
 (* --------------------- *)
 type handler_spec = { module_ : string [@key "module"]
                     ; name : string
-                    ; modifiers : string list
+                    ; modifier : string
                     } [@@deriving eq, show, yojson]
 
 
