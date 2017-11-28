@@ -124,11 +124,17 @@ let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
 
 let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
 
+let empty_handler_spec : Toplevel.handler_spec
+  = { name = Empty 9356
+    ; module_ = Empty 465
+    ; modifier = Empty 576}
+
 let t_load_save _ =
   let n1 = Op.SetTL { id = 1
                     ; pos = { x = 0; y = 0 }
                     ; ast = Ast.Value (123, "5")
-                    ; handler_spec = None } in
+                    ; handler_spec = empty_handler_spec
+                    } in
   let name = "test_load_save" in
   let c = ops2c name [n1] in
   let _ = C.save !c in

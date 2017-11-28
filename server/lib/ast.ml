@@ -8,9 +8,9 @@ module RT = Runtime
 type fnname = string [@@deriving eq, yojson, show]
 type varname = string [@@deriving eq, yojson, show]
 type id = Types.id [@@deriving eq, yojson, show]
+type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show]
 
-type varbinding = Named of varname
-                | BindHole of int
+type varbinding = varname or_hole
                 [@@deriving eq, yojson, show]
 
 type expr = If of id * expr * expr * expr
@@ -70,8 +70,7 @@ and api_let = { letid : int [@key "id"]
               ; bindings: api_let_binding list
               ; letbody: api_expr [@key "body"]
               }
-and api_let_binding = { bname: varname option [@key "name"] [@default None]
-                      ; bhole: api_hole option [@key "hole"] [@default None]
+and api_let_binding = { bname: varname or_hole [@key "name"]
                       ; bexpr: api_expr [@key "expr"]
                       }
 and api_lambda = { lambdaid : int [@key "id"]
@@ -101,14 +100,7 @@ let rec api_expr2expr (e: api_expr) : expr =
   | { variable = Some a } ->
     Variable (a.varid, a.varname)
   | { let_ = Some a } ->
-    let b2e b =
-      (match b.bname with
-       | Some n -> (Named n, a2e b.bexpr)
-       | None ->
-         (match b.bhole with
-          | Some hole -> (BindHole hole.holeid, a2e b.bexpr)
-          | None -> Exception.internal "Let binding missing name _and_ hole id"))
-    in
+    let b2e b = (b.bname, a2e b.bexpr) in
     Let (a.letid, List.map ~f:b2e a.bindings, a2e a.letbody)
   | { lambda = Some a } ->
     Lambda (a.lambdaid, a.varnames, a2e a.lambdabody)
@@ -149,12 +141,7 @@ let rec expr2api_expr (e: expr) : api_expr =
   | Variable (id, name) ->
     { init with variable = Some { varid = id; varname = name }}
   | Let (id, binds, body) ->
-    let b2a (vb, e) =
-      let binit = { bname = None; bhole = None; bexpr = e2a e } in
-      (match vb with
-       | BindHole id -> { binit with bhole = Some { holeid = id } }
-       | Named s -> { binit with bname = Some s })
-    in
+    let b2a (vb, e) = { bname = vb; bexpr = e2a e } in
     { init with let_ = Some { letid = id
                             ; bindings = List.map ~f:b2a binds
                             ; letbody  = e2a body
@@ -236,8 +223,8 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
        | Let (_, bindings, body) ->
          let vars = List.filter_map ~f:(fun (vb, expr) ->
              (match vb with
-              | Named s -> Some (s, expr)
-              | BindHole _ -> None)) bindings
+              | Full s -> Some (s, expr)
+              | Empty _ -> None)) bindings
          in
          let bound = List.fold_left ~init:st
              ~f:(fun st (name, expr) ->
@@ -364,8 +351,8 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
        | Let (_, bindings, body) ->
          let vars = List.filter_map ~f:(fun (vb, expr) ->
              (match vb with
-              | Named s -> Some (s, expr)
-              | BindHole _ -> None)) bindings
+              | Full s -> Some (s, expr)
+              | Empty _ -> None)) bindings
          in
          let bound = List.fold_left ~init:st
              ~f:(fun st (name, expr) -> sexe st expr; SymSet.add st name) vars

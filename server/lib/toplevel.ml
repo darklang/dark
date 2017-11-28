@@ -5,25 +5,27 @@ module RT = Runtime
 (* --------------------- *)
 (* Types *)
 (* --------------------- *)
-type handler_spec = { module_ : string [@key "module"]
-                    ; name : string
-                    ; modifier : string
+
+type handler_spec = { module_ : string Types.or_hole [@key "module"]
+                    ; name : string Types.or_hole
+                    ; modifier : string Types.or_hole
                     } [@@deriving eq, show, yojson]
 
 
 type toplevel = { id: Types.id
                 ; pos: Types.pos
                 ; ast: Ast.ast
-                ; handler_spec : handler_spec option
+                ; handler_spec : handler_spec
                 } [@@deriving eq, show, yojson]
 
 (* --------------------- *)
 (* API Types and Fns *)
 (* --------------------- *)
+
 type api_toplevel = { tlid: int [@key "id"]
                     ; pos: Types.pos
                     ; ast: Ast.api_ast
-                    ; handler_spec: handler_spec option
+                    ; handler_spec: handler_spec
                     } [@@deriving yojson]
 
 (* --------------------- *)

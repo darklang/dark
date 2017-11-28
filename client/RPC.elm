@@ -50,9 +50,9 @@ encodeHoleOr : (HoleOr v) -> String -> (v -> JSE.Value) -> (String, JSE.Value)
 encodeHoleOr v name encoder =
   case v of
     Full s ->
-      (name, encoder s)
+      (name, JSE.list [JSE.string "Full", encoder s])
     Empty (ID id) ->
-      (name, JSE.object [("hole", JSE.object [("id", JSE.int id)])])
+      (name, JSE.list [JSE.string "Empty", JSE.int id])
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
@@ -168,10 +168,10 @@ decodeIf : JSD.Decoder Expr
 decodeIf =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
   JSDP.decode If
-  |> JSDP.requiredAt ["if", "id"] (JSD.lazy (\_ -> decodeID))
+  |> JSDP.requiredAt ["if", "ifid"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["if", "cond"] de
-  |> JSDP.requiredAt ["if", "then"] de
-  |> JSDP.requiredAt ["if", "else"] de
+  |> JSDP.requiredAt ["if", "then_"] de
+  |> JSDP.requiredAt ["if", "else_"] de
 
 decodeFnCall : JSD.Decoder Expr
 decodeFnCall =
@@ -190,15 +190,10 @@ decodeVariable =
 decodeLet : JSD.Decoder Expr
 decodeLet =
   let de = (JSD.lazy (\_ -> decodeExpr))
-      db id e = (Empty (ID id), e)
-      dn n e = (Full n, e)
-      dbindhole = JSDP.decode db
-                  |> JSDP.requiredAt ["hole", "id"] JSD.int
-                  |> JSDP.required "expr" de
-      dnamed = JSDP.decode dn
-               |> JSDP.required "name" JSD.string
+      dtuple = JSDP.decode (,)
+               |> JSDP.required "name" (decodeHoleOr JSD.string)
                |> JSDP.required "expr" de
-      vb = JSD.oneOf [dbindhole, dnamed]
+      vb = dtuple
   in
   JSDP.decode Let
   |> JSDP.requiredAt ["let", "id"] (JSD.lazy (\_ -> decodeID))
@@ -308,12 +303,12 @@ decodeTLAResult =
 
 decodeHoleOr : JSD.Decoder a -> JSD.Decoder (HoleOr a)
 decodeHoleOr d =
-  let dhole = JSDP.decode Empty
-              |> JSDP.required "id" decodeID
-      dnamed = JSD.map Full d
-  in JSD.oneOf [dhole, dnamed]
-
-
+  JSD.index 0 JSD.string
+  |> JSD.andThen (\str ->
+    case str of
+      "Full" -> JSD.map Full (JSD.index 1 d)
+      "Empty" -> JSD.map Empty (JSD.index 1 decodeID)
+      _ -> JSD.fail "Neither full nor empty")
 
 
 

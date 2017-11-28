@@ -5,8 +5,10 @@ module RouteParamMap = String.Map
 type route_param_map = string RouteParamMap.t
 
 let url_for (tl: Toplevel.toplevel) : string option =
-  match tl.handler_spec with
-  | Some hs when String.lowercase hs.module_ = "http" -> Some hs.name
+  let spec = tl.handler_spec in
+  match spec.module_, spec.name with
+  | Full module_, Full name when String.lowercase module_ = "http" ->
+    Some name
   | _ -> None
 
 let url_for_exn (tl: Toplevel.toplevel) : string =
