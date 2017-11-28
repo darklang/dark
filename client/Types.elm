@@ -167,6 +167,12 @@ type alias Toplevel = { id : TLID
                       , handlerSpec : HandlerSpec
                       }
 
+type alias Type = String
+type alias DBSchema = { id : TLID
+                      , pos : Pos
+                      -- , schema : List (String, Type)
+                      }
+
 type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg

@@ -6,16 +6,19 @@ module RT = Runtime
 module TL = Toplevel
 
 type oplist = Op.op list [@@deriving eq, show, yojson]
+type dblist = Db.db list [@@deriving eq, show, yojson]
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : oplist
               ; toplevels: toplevellist
+              ; dbs: dblist
               } [@@deriving eq, show]
 
 let create (name : string) : canvas ref =
   ref { name = name
       ; ops = []
       ; toplevels = []
+      ; dbs = []
       }
 
 (* ------------------------- *)
@@ -94,6 +97,9 @@ let move_toplevel (id: int) (pos: pos) (c: canvas) : canvas =
     let ntl = { tl with pos = pos } in
     upsert_toplevel ntl c
   | None -> c
+
+let create_db (id: id) (pos: pos) (name: string) (c: canvas) : canvas =
+  failwith "todo: create_db"
 
 (* ------------------------- *)
 (* Build *)

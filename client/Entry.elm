@@ -81,15 +81,16 @@ submit m re cursor value =
       hid1 = gid ()
       hid2 = gid ()
       hid3 = gid ()
-      parseAst v =
-        case v of
-          "if" ->
+      parseAst str =
+        let firstWord = String.split " " str in
+        case firstWord of
+          ["if"] ->
             Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
-          "let" ->
+          ["let"] ->
               Just (Let eid [(Empty hid1, Hole hid2)] (Hole hid3))
-          "lambda" ->
+          ["lambda"] ->
             Just (Lambda eid ["var"] (Hole hid1))
-          str ->
+          _ ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
             then createFunction m value
             else Just <| Value eid str
@@ -100,9 +101,16 @@ submit m re cursor value =
       let emptyHS = { name = Empty (gid ())
                     , module_ = Empty (gid ())
                     , modifier = Empty (gid ())} in
-      case parseAst value of
-        Nothing -> NoChange
-        Just v -> RPC ([SetTL id pos v emptyHS], FocusNext id)
+      if String.startsWith "DB" value
+      then
+        let dbName = value
+                     |> String.dropLeft 2
+                     |> String.trim in
+          RPC ([CreateDB id pos dbName], FocusNext id)
+      else
+        case parseAst value of
+          Nothing -> NoChange
+          Just v -> RPC ([SetTL id pos v emptyHS], FocusNext id)
     Filling tlid id ->
       let tl = TL.getTL m tlid in
       if TL.isBindHole m tlid id

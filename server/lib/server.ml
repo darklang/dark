@@ -84,12 +84,7 @@ let server =
             then
               if Http.has_route_variables route
               then
-                let (model, rpm) = Http.bind_route_params_exn ~uri:uri ~route:route in
-                let id =
-                  match Map.find rpm "id" with
-                  | Some s -> s
-                  | None -> Exception.internal "We only support :id url params rn" in
-                Libdb.kv_fetch model id
+                failwith "TODO"
               else
                 Ast.execute st page.ast
             (* Posts have values, I guess we should be getting the result from it *)
