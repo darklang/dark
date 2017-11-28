@@ -428,12 +428,12 @@ wrapInThread_ hid expr =
         Hole _ -> wrapOr expr noWrap
         Variable _ _ -> wrapOr expr noWrap
 
-        Let id vars expr ->
+        Let id vars bexpr ->
           wrapOr expr (\_ ->
             let vs = List.map (\(vb, e) -> (vb, wt e)) vars
                 newVars = List.map (\(vb, tw) -> (vb, tw.expr)) vs
                 vId = vs |> List.map Tuple.second |> pluckId
-                bw = wt expr
+                bw = wt bexpr
                 tid = filterMaybe [vId, bw.threadID]
             in
                 { expr = Let id newVars bw.expr, threadID = tid })
@@ -455,9 +455,9 @@ wrapInThread_ hid expr =
             in
                 { expr = FnCall id name newExprs, threadID = tid })
 
-        Lambda id vars expr ->
+        Lambda id vars lexpr ->
           wrapOr expr (\_ ->
-            let newBody = wt expr in
+            let newBody = wt lexpr in
             { expr = Lambda id vars newBody.expr, threadID = newBody.threadID })
 
         Thread id exprs ->
