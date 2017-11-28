@@ -168,10 +168,10 @@ decodeIf : JSD.Decoder Expr
 decodeIf =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
   JSDP.decode If
-  |> JSDP.requiredAt ["if", "ifid"] (JSD.lazy (\_ -> decodeID))
+  |> JSDP.requiredAt ["if", "id"] (JSD.lazy (\_ -> decodeID))
   |> JSDP.requiredAt ["if", "cond"] de
-  |> JSDP.requiredAt ["if", "then_"] de
-  |> JSDP.requiredAt ["if", "else_"] de
+  |> JSDP.requiredAt ["if", "then"] de
+  |> JSDP.requiredAt ["if", "else"] de
 
 decodeFnCall : JSD.Decoder Expr
 decodeFnCall =
