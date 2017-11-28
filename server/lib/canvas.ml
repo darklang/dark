@@ -55,7 +55,7 @@ let preprocess (ops: Op.op list) : Op.op list =
        if op = Op.Undo
        then
          ops
-         |> List.drop_while ~f:(fun o -> o <> Op.SavePoint)
+         |> List.drop_while ~f:(fun o -> o <> Op.Savepoint)
          |> (fun ops -> List.drop ops 1)   (* also drop the savepoint *)
        else
          op :: ops)
@@ -73,7 +73,7 @@ let undo_count (c: canvas) : int =
 let is_undoable (c: canvas) : bool =
   c.ops
     |> preprocess
-    |> List.exists ~f:((=) Op.SavePoint)
+    |> List.exists ~f:((=) Op.Savepoint)
 
 let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
@@ -104,10 +104,11 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     !c |>
     match op with
     | NoOp -> ident
-    | SavePoint -> ident
+    | Savepoint -> ident
     | SetTL toplevel -> upsert_toplevel toplevel
     | DeleteTL id -> remove_toplevel_by_id id
     | MoveTL (id, pos) -> move_toplevel id pos
+    | CreateDB (id, pos, name) -> create_db id pos name
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
@@ -151,7 +152,7 @@ let minimize (c : canvas) : canvas =
         ~f:(fun ops op -> if op = Op.DeleteAll
                           then []
                           else (ops @ [op]))
-    |> List.filter ~f:((<>) Op.SavePoint)
+    |> List.filter ~f:((<>) Op.Savepoint)
   in { c with ops = ops }
 
 

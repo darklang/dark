@@ -13,7 +13,8 @@ type op = NoOp
         | DeleteAll
         | DeleteTL of int
         | MoveTL of int * pos
-        | SavePoint
+        | CreateDB of int * pos * string
+        | Savepoint
         | Undo
         | Redo
 [@@deriving eq, yojson, show]

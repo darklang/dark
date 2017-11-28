@@ -93,11 +93,13 @@ type Focus = FocusNothing -- deselect
            | FocusNext TLID
            | FocusSame -- unchanged
 
+type alias DBName = String
 type RPC
     = NoOp
     | SetTL TLID Pos Expr HandlerSpec
     | DeleteTL TLID
     | MoveTL TLID Pos
+    | CreateDB TLID Pos DBName
     | DeleteAll
     | Savepoint
     | Undo
