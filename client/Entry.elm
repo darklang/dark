@@ -104,27 +104,31 @@ submit m re cursor value =
         Nothing -> NoChange
         Just v -> RPC ([SetTL id pos v emptyHS], FocusNext id)
     Filling tlid id ->
-      let tl = TL.getTL m tlid
-      in
-          if TL.isBindHole m tlid id
-          then
-            RPC ([SetTL tl.id tl.pos (AST.replaceBindHole id value tl.ast) tl.handlerSpec]
-            , FocusNext tl.id)
-          else
-            -- check if value is in model.varnames
-            let (ID rid) = id
-                availableVars =
-                  let avd = Analysis.getAvailableVarnames m tlid
-                  in (Dict.get rid avd) |> (Maybe.withDefault [])
-                holeReplacement =
-                  if List.member value availableVars
-                  then Just (Variable (gid ()) value)
-                  else parseAst value
-            in
-            case holeReplacement of
-              Nothing -> NoChange
-              Just v -> RPC ([SetTL tl.id tl.pos (AST.replaceHole id v tl.ast) tl.handlerSpec]
-              , FocusNext tl.id)
+      let tl = TL.getTL m tlid in
+      if TL.isBindHole m tlid id
+      then
+        RPC ([SetTL tl.id tl.pos (AST.replaceBindHole id value tl.ast) tl.handlerSpec]
+        , FocusNext tl.id)
+      else if TL.isHandlerSpecHole m tlid id
+      then
+        RPC ([ SetTL tl.id tl.pos tl.ast
+                 (TL.replaceHandlerSpecHole id value tl.handlerSpec)]
+             , FocusNext tl.id)
+      else
+        -- check if value is in model.varnames
+        let (ID rid) = id
+            availableVars =
+              let avd = Analysis.getAvailableVarnames m tlid
+              in (Dict.get rid avd) |> (Maybe.withDefault [])
+            holeReplacement =
+              if List.member value availableVars
+              then Just (Variable (gid ()) value)
+              else parseAst value
+        in
+        case holeReplacement of
+          Nothing -> NoChange
+          Just v -> RPC ([SetTL tl.id tl.pos (AST.replaceHole id v tl.ast) tl.handlerSpec]
+          , FocusNext tl.id)
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of

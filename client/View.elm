@@ -21,7 +21,6 @@ import Viewport
 import Analysis
 import Autocomplete
 import ViewAST
-import Toplevel as TL
 
 view : Model -> Html.Html Msg
 view m =
@@ -82,33 +81,55 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
 
-viewHoleOrText : Html.Html Msg -> HoleOr String -> Html.Html Msg
-viewHoleOrText holeHtml h =
+viewHoleOrText : Model -> ID -> HoleOr String -> Html.Html Msg
+viewHoleOrText m id h =
   case h of
-    Empty id -> holeHtml
+    Empty hid ->
+      case m.state of
+        Selecting _ _ ->
+          if hid == id
+          then selectedHoleHtml
+          else unselectedHoleHtml
+        Entering _ _ ->
+          if hid == id
+          then identifierEntryHtml m
+          else unselectedHoleHtml
+        _ -> unselectedHoleHtml
     Full s -> Html.text s
 
+selectedHoleHtml : Html.Html Msg
+selectedHoleHtml =
+  Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
+
+unselectedHoleHtml : Html.Html Msg
+unselectedHoleHtml =
+  Html.div [] [Html.text "＿＿＿＿＿＿"]
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
-  let (id, holeHtml, selected) =
+  let (id, bindHoleHtml, exprHoleHtml, class) =
         case m.state of
           Selecting tlid id ->
             ( id
-            , Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
+            , selectedHoleHtml
+            , selectedHoleHtml
             , if tlid == tl.id then "selected" else "")
           Entering _ (Filling tlid id) ->
             ( id
-            , if TL.isBindHole m tl.id id
-              then identifierEntryHtml m
-              else normalEntryHtml m
+            , identifierEntryHtml m
+            , normalEntryHtml m
             , if tlid == tl.id then "selected" else "")
-          _ -> (ID 0, Html.div [] [], "")
+          _ -> (ID 0, Html.div [] [], Html.div [] [], "")
 
       lvs = Analysis.getLiveValues m tl.id
       ast = Html.div
-              [ Attrs.class ("ast " ++ selected) ]
-              [ ViewAST.toHtml id holeHtml lvs tl.ast]
+              [ Attrs.class ("ast " ++ class) ]
+              [ ViewAST.toHtml
+                { holeID = id
+                , bindHoleHtml = bindHoleHtml
+                , exprHoleHtml = exprHoleHtml
+                , liveValues = lvs }
+                tl.ast]
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions
                    "mouseup"
@@ -119,9 +140,15 @@ viewTL m tl =
       header =
         Html.div
           [Attrs.class "header"]
-          [ Html.div [Attrs.class "module"] [viewHoleOrText holeHtml spec.module_]
-          , Html.div [Attrs.class "name"] [viewHoleOrText holeHtml spec.name]
-          , Html.div [Attrs.class "modifier"] [viewHoleOrText holeHtml spec.modifier]]
+          [ Html.div
+            [ Attrs.class "module"]
+            [ viewHoleOrText m id spec.module_]
+          , Html.div
+            [ Attrs.class "name"]
+            [ viewHoleOrText m id spec.name]
+          , Html.div
+            [Attrs.class "modifier"]
+            [ viewHoleOrText m id spec.modifier]]
       html = Html.div (Attrs.class "toplevel" :: events) [header, ast]
   in placeHtml m tl.pos html
 

@@ -27,14 +27,38 @@ isBindHole : Model -> TLID -> ID -> Bool
 isBindHole m tlid id =
   getTL m tlid |> .ast |> AST.listBindHoles |> List.member id
 
-specHandlerHoles : Toplevel -> List ID
-specHandlerHoles tl = []
+isHandlerSpecHole : Model -> TLID -> ID -> Bool
+isHandlerSpecHole m tlid id =
+  getTL m tlid |> handlerSpecHoles |> List.member id
+
+handlerSpecHoles : Toplevel -> List ID
+handlerSpecHoles tl =
+  let e2l a =
+        case a of
+          Empty hid -> [hid]
+          _ -> []
+      spec = tl.handlerSpec
+  in e2l spec.name ++ e2l spec.module_ ++ e2l spec.modifier
+
+replaceHandlerSpecHole : ID -> String -> HandlerSpec -> HandlerSpec
+replaceHandlerSpecHole id value hs =
+  let rh a =
+        case a of
+          Empty hid ->
+            if id == hid
+            then Full value
+            else a
+          _ -> a
+  in { name = rh hs.name
+     , module_ = rh hs.module_
+     , modifier = rh hs.modifier
+     }
 
 
 findNextHole : Toplevel -> ID -> ID
 findNextHole tl cur =
   let astHoles = AST.listHoles tl.ast
-      holes = astHoles ++ (specHandlerHoles tl)
+      holes = astHoles ++ (handlerSpecHoles tl)
   in case (LE.dropWhile (\x -> x /= cur) holes) of
      cur :: next :: _ -> next
      [cur] -> holes |> List.head |> deMaybe
