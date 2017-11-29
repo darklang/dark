@@ -9,10 +9,13 @@ type json = Yojson.Safe.json
 (* Ops *)
 (* ------------------------- *)
 type op = NoOp
-        | SetHandler of int * pos * Handler.handler
-        | CreateDB of int * pos * Db.db
-        | DeleteTL of int
-        | MoveTL of int * pos
+        | SetHandler of tlid * pos * Handler.handler
+        | CreateDB of tlid * pos * string
+        | AddDBRow of tlid * id * id
+        | SetDBRowName of tlid * id * string
+        | SetDBRowType of tlid * id * string
+        | DeleteTL of tlid
+        | MoveTL of tlid * pos
         | Savepoint
         | DeleteAll
         | Undo

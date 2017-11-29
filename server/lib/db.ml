@@ -5,8 +5,9 @@ open Runtime
 module PG = Postgresql
 
 
-type db = { id: Types.id
+type db = { tlid: Types.id
           ; name: string
+          ; rows: (string * string) list
           } [@@deriving eq, show, yojson]
 
 

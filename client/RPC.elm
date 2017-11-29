@@ -71,15 +71,22 @@ encodeRPC m call =
                    [ ("name", encodeHoleOr h.spec.name JSE.string)
                    , ("module", encodeHoleOr h.spec.module_ JSE.string)
                    , ("modifier", encodeHoleOr h.spec.modifier JSE.string)]
-            handler = JSE.object [ ("id", encodeTLID id)
+            handler = JSE.object [ ("tlid", encodeTLID id)
                                  , ("spec", hs)
                                  , ("ast", encodeAST h.ast) ] in
         ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
       CreateDB id pos name ->
-        let db = JSE.object [ ("id", encodeTLID id)
-                            , ("name", JSE.string name)] in
-        ev "CreateDB" [encodeTLID id, encodePos pos, db]
+        ev "CreateDB" [encodeTLID id, encodePos pos, JSE.string name]
+
+      AddDBRow tlid rownameid rowtypeid ->
+        ev "AddDBRow" [encodeTLID tlid, encodeID rownameid, encodeID rowtypeid]
+
+      SetDBRowName tlid id name ->
+        ev "SetDBRowName" [encodeTLID tlid, encodeID id, JSE.string name]
+
+      SetDBRowType tlid id tipe ->
+        ev "SetDBRowType" [encodeTLID tlid, encodeID id, JSE.string tipe]
 
       NoOp -> ev "NoOp" []
       DeleteAll -> ev "DeleteAll" []
@@ -230,7 +237,7 @@ decodeHandler =
 
 decodeDB : JSD.Decoder DB
 decodeDB =
-  let toDB name = {name = name} in
+  let toDB name = {name = name, rows = []} in
   JSDP.decode toDB
   |> JSDP.required "name" JSD.string
 
@@ -238,7 +245,7 @@ decodeDB =
 decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
   let toToplevel id x y data =
-        { id = TLID id
+        { id = id
         , pos = { x=x, y=y }
         , data = data }
       variant = decodeVariants
@@ -247,7 +254,7 @@ decodeToplevel =
 
   in
   JSDP.decode toToplevel
-  |> JSDP.required "id" JSD.int
+  |> JSDP.required "tlid" decodeTLID
   |> JSDP.requiredAt ["pos", "x"] JSD.int
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "data" variant

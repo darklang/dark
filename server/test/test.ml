@@ -133,7 +133,7 @@ let empty_handler_spec : Handler.spec
 let t_load_save _ =
   let n1 = Op.SetHandler ( 1
                          , { x = 0; y = 0 }
-                         , { id = 1
+                         , { tlid = 1
                            ; ast = Ast.Value (123, "5")
                            ; spec = empty_handler_spec}) in
   let name = "test_load_save" in

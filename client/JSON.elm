@@ -123,6 +123,8 @@ encodeTLID (TLID id) = JSE.int id
 decodeID : JSD.Decoder ID
 decodeID = JSD.map ID JSD.int
 
+decodeTLID : JSD.Decoder TLID
+decodeTLID = JSD.map TLID JSD.int
 ------------------------------------
 -- Misc
 ------------------------------------

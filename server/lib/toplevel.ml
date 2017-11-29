@@ -6,7 +6,7 @@ type tldata = Handler of Handler.handler
             | DB of Db.db
             [@@deriving eq, show, yojson]
 
-type toplevel = { id: Types.id
+type toplevel = { tlid: Types.id
                 ; pos: Types.pos
                 ; data: tldata
                 } [@@deriving eq, show, yojson]

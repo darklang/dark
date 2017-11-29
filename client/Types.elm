@@ -94,11 +94,13 @@ type Focus = FocusNothing -- deselect
            | FocusNext TLID Predecessor
            | FocusSame -- unchanged
 
-type alias DBName = String
 type RPC
     = NoOp
     | SetHandler TLID Pos Handler
     | CreateDB TLID Pos DBName
+    | AddDBRow TLID ID ID
+    | SetDBRowName TLID ID DBRowName
+    | SetDBRowType TLID ID DBRowType
     | DeleteTL TLID
     | MoveTL TLID Pos
     | DeleteAll
@@ -156,7 +158,11 @@ type alias HandlerSpec = { module_ : HoleOr String
 type alias Handler = { ast : AST
                      , spec : HandlerSpec }
 
-type alias DB = { name : String }
+type alias DBName = String
+type alias DBRowName = String
+type alias DBRowType = String
+type alias DB = { name : DBName
+                , rows : List (HoleOr DBRowName, HoleOr DBRowType)}
 
 type TLData = TLHandler Handler
             | TLDB DB

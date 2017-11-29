@@ -81,23 +81,26 @@ let is_undoable (c: canvas) : bool =
 let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
 
-let upsert_toplevel (id: id) (pos: pos) (data: TL.tldata) (c: canvas) : canvas =
-  let toplevel : TL.toplevel = { id = id
+(* ------------------------- *)
+(* Toplevel *)
+(* ------------------------- *)
+let upsert_toplevel (tlid: tlid) (pos: pos) (data: TL.tldata) (c: canvas) : canvas =
+  let toplevel : TL.toplevel = { tlid = tlid
                                ; pos = pos
                                ; data = data} in
-  let tls = List.filter ~f:(fun x -> x.id <> toplevel.id) c.toplevels
+  let tls = List.filter ~f:(fun x -> x.tlid <> toplevel.tlid) c.toplevels
   in
   { c with toplevels = tls @ [toplevel] }
 
-let remove_toplevel_by_id (id: int) (c: canvas) : canvas =
-  let tls = List.filter ~f:(fun x -> x.id <> id) c.toplevels
+let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
+  let tls = List.filter ~f:(fun x -> x.tlid <> tlid) c.toplevels
   in
   { c with toplevels = tls }
 
-let move_toplevel (id: int) (pos: pos) (c: canvas) : canvas =
-  match List.find ~f:(fun t -> t.id = id) c.toplevels with
+let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
+  match List.find ~f:(fun t -> t.tlid = tlid) c.toplevels with
   | Some tl ->
-    upsert_toplevel tl.id pos tl.data c
+    upsert_toplevel tl.tlid pos tl.data c
   | None ->
     Exception.client "No toplevel for this ID"
 
@@ -110,10 +113,21 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     !c |>
     match op with
     | NoOp -> ident
-    | SetHandler (id, pos, handler) -> upsert_toplevel id pos (TL.Handler handler)
-    | CreateDB (id, pos, db) -> upsert_toplevel id pos (TL.DB db)
-    | DeleteTL id -> remove_toplevel_by_id id
-    | MoveTL (id, pos) -> move_toplevel id pos
+    | SetHandler (tlid, pos, handler) ->
+      upsert_toplevel tlid pos (TL.Handler handler)
+    | CreateDB (tlid, pos, name) ->
+      let db : Db.db = { tlid = tlid
+                       ; name = name
+                       ; rows = []} in
+      upsert_toplevel tlid pos (TL.DB db)
+    | AddDBRow (tlid, rowid, typeid) ->
+      ident
+    | SetDBRowName (tlid, id, name) ->
+      ident
+    | SetDBRowType (tlid, id, tipe) ->
+      ident
+    | DeleteTL tlid -> remove_toplevel_by_id tlid
+    | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
@@ -166,8 +180,6 @@ let minimize (c : canvas) : canvas =
 (* Execution *)
 (* ------------------------- *)
 
-
-
 let execute (c: canvas) (eh: Handler.handler) : RT.dval =
   Ast.execute Ast.Symtable.empty eh.ast
 
@@ -176,7 +188,7 @@ let execute_for_analysis (c: canvas) (eh: Handler.handler) :
     (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
   let traced_symbols = Ast.symbolic_execute eh.ast in
   let (ast_value, traced_values) = Ast.execute_saving_intermediates eh.ast in
-  [(eh.id, ast_value, traced_values, traced_symbols)]
+  [(eh.tlid, ast_value, traced_values, traced_symbols)]
 
 
 

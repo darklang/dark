@@ -6,7 +6,7 @@ type spec = { module_ : string Types.or_hole [@key "module"]
             } [@@deriving eq, show, yojson]
 
 
-type handler = { id: Types.id
+type handler = { tlid: Types.tlid
                ; ast: Ast.ast
                ; spec : spec
                } [@@deriving eq, show, yojson]
