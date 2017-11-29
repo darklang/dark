@@ -167,7 +167,7 @@ replaceHole_ hid replacement expr =
 
     Hole id ->
       if id == hid
-      then replacement
+      then (replaceID id replacement)
       else expr
 
     Thread id exprs ->
@@ -186,6 +186,19 @@ replaceHole_ hid replacement expr =
             else reppedExprs
       in
       Thread id nexprs
+
+replaceID : ID -> Expr -> Expr
+replaceID newID expr =
+  case expr of
+    Value id s -> Value newID s
+    Let id bs e -> Let newID bs e
+    If id c t f -> If newID c t f
+    Variable id s -> Variable newID s
+    FnCall id n b -> FnCall newID n b
+    Lambda id vs b -> Lambda newID vs b
+    Hole id -> Hole newID
+    Thread id es -> Thread newID es
+
 
 toID : Expr -> ID
 toID expr =
