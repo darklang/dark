@@ -481,3 +481,46 @@ wrapInThread_ hid expr =
             in
                 { expr = Thread id newExprs, threadID = tid })
 
+subtree : ID -> AST -> AST
+subtree id ast =
+  deMaybe (subExpr id ast)
+
+subExpr : ID -> Expr -> Maybe Expr
+subExpr id expr =
+  let se = subExpr id
+      returnOr fn e =
+        if (toID e) == id
+        then Just e
+        else fn e
+      nothing = (\_ -> Nothing)
+      returnOrNothing = returnOr (\_ -> Nothing)
+      filterMaybe xs = xs |> List.filterMap identity |> List.head
+  in
+  case expr of
+        Value _ _ -> returnOrNothing expr
+        Hole _ -> returnOrNothing expr
+        Variable _ _ -> returnOrNothing expr
+        Let id vars bexpr ->
+          returnOr (\_ ->
+            let vs = vars |> List.map Tuple.second |> List.map se
+                be = se bexpr
+            in
+                filterMaybe (be :: vs)) expr
+
+        If id cond ifbody elsebody ->
+          returnOr (\_ ->
+            let c  = se cond
+                ib = se ifbody
+                eb = se elsebody
+            in
+                filterMaybe [c, ib, eb]) expr
+
+        FnCall id name exprs ->
+          returnOr (\_ -> exprs |> List.map se |> filterMaybe) expr
+
+        Lambda id vars lexpr ->
+          returnOr (\_ -> se lexpr) expr
+
+        Thread id exprs ->
+          returnOr (\_ -> exprs |> List.map se |> filterMaybe) expr
+
