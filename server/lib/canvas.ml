@@ -97,7 +97,7 @@ let remove_toplevel_by_id (id: int) (c: canvas) : canvas =
 let move_toplevel (id: int) (pos: pos) (c: canvas) : canvas =
   match List.find ~f:(fun t -> t.id = id) c.toplevels with
   | Some tl ->
-    upsert_toplevel tl.id tl.pos tl.data c
+    upsert_toplevel tl.id pos tl.data c
   | None ->
     Exception.client "No toplevel for this ID"
 
