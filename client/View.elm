@@ -120,8 +120,15 @@ viewTL m tl =
                    (decodeClickEvent (ToplevelClickUp tl.id))
                ]
 
+      class = case m.state of
+          Selecting tlid _ _ ->
+            if tlid == tl.id then "selected" else ""
+          Entering _ (Filling tlid _) _ ->
+            if tlid == tl.id then "selected" else ""
+          _ -> ""
+
       html = Html.div
-        (Attrs.class "toplevel" :: events)
+        (Attrs.class ("toplevel " ++ class) :: events)
         body
 
   in
@@ -141,23 +148,21 @@ viewDB m tl db =
 
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
-  let (id, bindHoleHtml, exprHoleHtml, class) =
+  let (id, bindHoleHtml, exprHoleHtml) =
         case m.state of
           Selecting tlid id _ ->
             ( id
             , selectedHoleHtml
-            , selectedHoleHtml
-            , if tlid == tl.id then "selected" else "")
+            , selectedHoleHtml)
           Entering _ (Filling tlid id) _ ->
             ( id
             , identifierEntryHtml m
-            , normalEntryHtml m
-            , if tlid == tl.id then "selected" else "")
-          _ -> (ID 0, Html.div [] [], Html.div [] [], "")
+            , normalEntryHtml m)
+          _ -> (ID 0, Html.div [] [], Html.div [] [])
 
       lvs = Analysis.getLiveValues m tl.id
       ast = Html.div
-              [ Attrs.class ("ast " ++ class) ]
+              [ Attrs.class "ast"]
               [ ViewAST.toHtml
                 { holeID = id
                 , bindHoleHtml = bindHoleHtml

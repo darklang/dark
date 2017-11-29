@@ -57,20 +57,41 @@ body {
   margin-right: 4px;
 }
 
+
+//*************
+// Toplevel
+//*************
 .toplevel {
   display: flex;
   flex-direction: column;
+  width: max-content;
+
+  &.selected {
+    background-color: lighten(@black1, 5%);
+  }
+
+  .selectedHole {
+    width: auto;
+    background-color: @grey1;
+    color: @grey1;
+  }
 }
 
-.selectedHole {
-  width: auto;
-  background-color: @grey1;
-  color: @grey1;
+
+//*************
+// DB
+//*************
+.db {
+  margin: 10px;
+  font-weight: bold;
 }
 
-/**************
- * header
- **************/
+
+//*************
+// Handler
+//*************
+
+// header
 .header {
   .layout-inline;
   // applied to children
@@ -95,13 +116,9 @@ body {
 
 
 
-/**************
- * AST
- **************/
-
-/**************
- * AST layout rules
- **************/
+//*************
+// AST macros
+//*************
 .indent {
   margin-left: 16px;
 }
@@ -123,9 +140,9 @@ body {
   border-left: 1px solid @orange;
 }
 
-/**************
- * AST
- **************/
+//*************
+// AST
+//*************
 .ast {
   font-size: 10pt;
   font-family: 'Fira Code', monospace;
@@ -137,10 +154,6 @@ body {
 
   div {
     .layout-inline;
-  }
-
-  &.selected {
-    background-color: lighten(@black1, 5%);
   }
 
   .letexpr > .letbody {
