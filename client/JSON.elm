@@ -6,7 +6,6 @@ import Json.Decode as JSD
 import Dict
 
 -- lib
-import Json.Decode.Pipeline as JSDP
 
 -- dark
 import Types exposing (..)
