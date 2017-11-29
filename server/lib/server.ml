@@ -22,7 +22,7 @@ let server =
         g := !(C.load host ops);
         let result = C.to_frontend_string !g in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
-        Log.pP ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):") result;
+        Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
          * or other crashing bug *)
         if save then C.save !g;
