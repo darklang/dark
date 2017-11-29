@@ -87,11 +87,11 @@ type Msg
     | SaveTestButton
     | Initialization
 
-type alias Previous = Maybe ID
+type alias Predecessor = Maybe ID
 type Focus = FocusNothing -- deselect
            | Refocus TLID
            | FocusExact TLID
-           | FocusNext TLID Previous
+           | FocusNext TLID Predecessor
            | FocusSame -- unchanged
 
 type alias DBName = String

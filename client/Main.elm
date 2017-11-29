@@ -4,6 +4,7 @@ port module Main exposing (..)
 -- builtins
 import Maybe
 import Dict
+import List.Extra as LE
 
 -- lib
 import Json.Decode as JSD
@@ -385,7 +386,16 @@ update_ msg m =
               FocusNext tlid prev ->
                 let thread = oldThread m.state in
                 case prev of
-                  Just hid -> Select tlid hid thread
+                  Just pred ->
+                    let tl = TL.getTL m2 tlid
+                        holes = TL.allHoles tl
+                        next =
+                          LE.elemIndex pred holes
+                          |> Maybe.map ((+) 1)
+                          |> Maybe.andThen (\i -> LE.getAt i holes)
+                          |> Maybe.withDefault (TL.firstHole m2 tlid)
+                    in
+                    Select tlid next thread
                   Nothing -> Select tlid (TL.firstHole m2 tlid) thread
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis

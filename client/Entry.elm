@@ -10,6 +10,7 @@ import Dict
 import Dom
 -- import Result.Extra as RE
 -- import Maybe.Extra as ME
+import List.Extra as LE
 
 -- dark
 -- import Util
@@ -144,9 +145,17 @@ submit m re cursor value =
             case holeReplacement of
               Nothing -> NoChange
               Just v ->
-                let replacement = AST.replaceHole id v h.ast in
+                let
+                    replacement = AST.replaceHole id v h.ast
+                    holes = TL.allHoles tl
+                    predecessor =
+                      LE.elemIndex id holes
+                      |> Maybe.map (\i -> i - 1)
+                      |> Maybe.map (max 0)
+                      |> Maybe.andThen (\i -> LE.getAt i holes)
+                in
                 RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
-              , FocusNext tl.id Nothing)
+              , FocusNext tl.id predecessor)
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
