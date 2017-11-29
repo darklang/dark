@@ -60,11 +60,9 @@ encodeRPCs m calls =
 
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let encodePos pos =
-        case pos of
-          {x,y} ->
-            JSE.object [ ("x", JSE.int x)
-                       , ("y", JSE.int y)]
+  let encodePos {x,y} =
+        JSE.object [ ("x", JSE.int x)
+                   , ("y", JSE.int y)]
       ev = encodeVariant
   in
     case call of
@@ -75,61 +73,38 @@ encodeRPC m call =
                    , ("modifier", encodeHoleOr h.spec.modifier JSE.string)]
             handler = JSE.object [ ("id", encodeTLID id)
                                  , ("spec", hs)
-                                 , ("ast", encodeAST h.ast) ]
-        in ev "SetHandler" [encodeTLID id, encodePos pos, handler]
+                                 , ("ast", encodeAST h.ast) ] in
+        ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
       CreateDB id pos name ->
-        ev "CreateDB" [ encodeTLID id
-                      , encodePos pos
-                      , JSE.string name]
+        ev "CreateDB" [encodeTLID id, encodePos pos, JSE.string name]
 
-      NoOp ->
-        ev "NoOp" []
-
-      DeleteAll ->
-        ev "DeleteAll" []
-
-      Savepoint ->
-        ev "Savepoint" []
-
-      Undo ->
-        ev "Undo" []
-
-      Redo ->
-        ev "Redo" []
-
-      DeleteTL id ->
-        ev "DeleteTL" [encodeTLID id]
-
-      MoveTL id pos ->
-        ev "MoveTL" [ encodeTLID id
-                    , encodePos pos]
+      NoOp -> ev "NoOp" []
+      DeleteAll -> ev "DeleteAll" []
+      Savepoint -> ev "Savepoint" []
+      Undo -> ev "Undo" []
+      Redo -> ev "Redo" []
+      DeleteTL id -> ev "DeleteTL" [encodeTLID id]
+      MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
 
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
   let e = encodeAST
       eid = encodeID
-      ev = encodeVariant
- in
+      ev = encodeVariant in
   case expr of
-    If id cond then_ else_ ->
-      ev "If" [eid id, e cond, e then_, e else_]
-
     FnCall id n exprs ->
       ev "FnCall" [ eid id
                   , JSE.string n
                   , JSE.list (List.map e exprs)]
 
-    Variable id v ->
-      ev "Variable" [ eid id
-                    , JSE.string v]
-
     Let id binds body ->
       ev "Let" [ eid id
-                    , (List.map (\(v, bexpr) ->
-                        JSE.list [ encodeHoleOr v JSE.string
-                                 , e bexpr])
-                        binds) |> JSE.list
+               , (List.map (\(v, bexpr) ->
+                                 JSE.list [ encodeHoleOr v JSE.string
+                                          , e bexpr])
+                    binds)
+                  |> JSE.list
                , e body]
 
     Lambda id vars body ->
@@ -137,22 +112,15 @@ encodeAST expr =
                   , List.map JSE.string vars |> JSE.list
                   , e body]
 
-    Value id v ->
-      ev "Value" [ eid id
-                 , JSE.string v]
-
-    Hole id ->
-      ev "Hole" [eid id]
-
-    Thread id exprs ->
-      ev "Thread" [ eid id
-                  , JSE.list (List.map e exprs)]
+    If id cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
+    Variable id v -> ev "Variable" [ eid id , JSE.string v]
+    Value id v -> ev "Value" [ eid id , JSE.string v]
+    Hole id -> ev "Hole" [eid id]
+    Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
 
 
 
-
-
-  -- about the lazy decodeExpr and decodeID
+  -- about the lazy decodeExpr
   -- TODO: check if elm 0.19 is saner than this
   -- elm 0.18 gives "Cannot read property `tag` of undefined` which
   -- leads to https://github.com/elm-lang/elm-compiler/issues/1562
@@ -160,55 +128,25 @@ encodeAST expr =
   -- which gets potentially fixed by
   -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
 
-decodeIf : JSD.Decoder Expr
-decodeIf =
-  let de = (JSD.lazy (\_ -> decodeExpr)) in
-  decodeVariant4 If decodeID de de de
-
-decodeFnCall : JSD.Decoder Expr
-decodeFnCall =
-  let de = (JSD.lazy (\_ -> decodeExpr)) in
-  decodeVariant3 FnCall decodeID JSD.string (JSD.list de)
-
-decodeVariable : JSD.Decoder Expr
-decodeVariable =
-  decodeVariant2 Variable decodeID JSD.string
-
-decodeLet : JSD.Decoder Expr
-decodeLet =
-  let de = (JSD.lazy (\_ -> decodeExpr))
-      vb = decodePair (decodeHoleOr JSD.string) de in
-  decodeVariant3 Let decodeID (JSD.list vb) de
-
-decodeLambda : JSD.Decoder Expr
-decodeLambda =
-  let de = (JSD.lazy (\_ -> decodeExpr)) in
-  decodeVariant3 Lambda decodeID (JSD.list JSD.string) de
-
-decodeValue : JSD.Decoder Expr
-decodeValue =
-  decodeVariant2 Value decodeID JSD.string
-
-decodeHole : JSD.Decoder Expr
-decodeHole =
-  decodeVariant1 Hole decodeID
-
-decodeThread : JSD.Decoder Expr
-decodeThread =
-  let de = (JSD.lazy (\_ -> decodeExpr)) in
-  decodeVariant2 Thread decodeID (JSD.list de)
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
+  let de = (JSD.lazy (\_ -> decodeExpr))
+      did = decodeID
+      dv4 = decodeVariant4
+      dv3 = decodeVariant3
+      dv2 = decodeVariant2
+      dv1 = decodeVariant1
+      vb = decodePair (decodeHoleOr JSD.string) de in
   decodeVariants
-    [ ("Let", JSD.lazy (\_ -> decodeLet))
-    , ("Hole", JSD.lazy (\_ -> decodeHole))
-    , ("Value", JSD.lazy (\_ -> decodeValue))
-    , ("If", JSD.lazy (\_ -> decodeIf))
-    , ("FnCall", JSD.lazy (\_ -> decodeFnCall))
-    , ("Lambda", JSD.lazy (\_ -> decodeLambda))
-    , ("Variable", JSD.lazy (\_ -> decodeVariable))
-    , ("Thread", JSD.lazy (\_ -> decodeThread))
+    [ ("Let", dv3 Let did (JSD.list vb) de)
+    , ("Hole", dv1 Hole did)
+    , ("Value", dv2 Value did JSD.string)
+    , ("If", dv4 If did de de de)
+    , ("FnCall", dv3 FnCall did JSD.string (JSD.list de))
+    , ("Lambda", dv3 Lambda did (JSD.list JSD.string) de)
+    , ("Variable", dv2 Variable did JSD.string)
+    , ("Thread", dv2 Thread did (JSD.list de))
     ]
 
 decodeAST : JSD.Decoder AST
