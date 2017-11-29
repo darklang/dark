@@ -77,7 +77,9 @@ encodeRPC m call =
         ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
       CreateDB id pos name ->
-        ev "CreateDB" [encodeTLID id, encodePos pos, JSE.string name]
+        let db = JSE.object [ ("id", encodeTLID id)
+                            , ("name", JSE.string name)] in
+        ev "CreateDB" [encodeTLID id, encodePos pos, db]
 
       NoOp -> ev "NoOp" []
       DeleteAll -> ev "DeleteAll" []
