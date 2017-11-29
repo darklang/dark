@@ -111,8 +111,8 @@ viewTL m tl =
         case tl.data of
           TLHandler h ->
             viewHandler m tl h
-          TLDB _ ->
-            Debug.crash "add tldb"
+          TLDB db ->
+            viewDB m tl db
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions
                    "mouseup"
@@ -126,6 +126,17 @@ viewTL m tl =
 
   in
       placeHtml m tl.pos html
+
+viewDB : Model -> Toplevel -> DB -> List (Html.Html Msg)
+viewDB m tl db =
+  [
+    Html.div
+      [ Attrs.class "db"]
+      [ Html.div
+          [ Attrs.class "name"]
+          [ Html.text db.name]
+      ]
+  ]
 
 
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
