@@ -203,12 +203,7 @@ update_ msg m =
       else
         case state of
           Selecting tlid hid thread ->
-            -- quick error checking, in case the focus has gone bad
             case event.keyCode of
-              -- Key.Up -> Selection.selectNextNode m id (\n o -> G.posy m n > G.posy m o)
-              -- Key.Down -> Selection.selectNextNode m id (\n o -> G.posy m n < G.posy m o)
-              -- Key.Left -> Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
-              -- Key.Right -> Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
               Key.Backspace ->
                 Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
               Key.Escape ->
