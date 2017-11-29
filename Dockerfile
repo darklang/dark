@@ -26,7 +26,7 @@ RUN apt-get update && \
                        m4=1.4.18-1 \
                        rsync=3.1.2-1 \
                        git=1:2.11.0-2ubuntu0.3 \
-                       curl=7.52.1-4ubuntu1.3 \
+                       curl=7.52.1-4ubuntu1.4 \
                        wget=1.18-2ubuntu1 \
                        sudo=1.8.19p1-1ubuntu1.1 \
                        locales=2.24-9ubuntu2.2 \
@@ -38,7 +38,7 @@ RUN apt-get update && \
                        libev-dev=1:4.22-1 \
                        libgmp-dev=2:6.1.2+dfsg-1 \
                        pkg-config=0.29.1-0ubuntu1 \
-                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.3 \
+                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.4 \
                        libpcre3-dev=2:8.39-3 \
                        && rm -rf /var/lib/apt/lists/*
 
