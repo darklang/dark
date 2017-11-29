@@ -111,8 +111,8 @@ viewTL m tl =
         case tl.data of
           TLHandler h ->
             viewHandler m tl h
-          _ ->
-            []
+          TLDB _ ->
+            Debug.crash "add tldb"
       events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions
                    "mouseup"
