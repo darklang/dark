@@ -9,12 +9,12 @@ type json = Yojson.Safe.json
 (* Ops *)
 (* ------------------------- *)
 type op = NoOp
-        | SetTL of Toplevel.toplevel
-        | DeleteAll
+        | SetHandler of int * pos * Handler.handler
+        | CreateDB of int * pos * Db.db
         | DeleteTL of int
         | MoveTL of int * pos
-        | CreateDB of int * pos * string
         | Savepoint
+        | DeleteAll
         | Undo
         | Redo
 [@@deriving eq, yojson, show]

@@ -110,33 +110,43 @@ submit m re cursor value =
       else
         case parseAst value of
           Nothing -> NoChange
-          Just v -> RPC ([SetTL id pos v emptyHS], FocusNext id)
+          Just v ->
+            let handler = { ast = v, spec = emptyHS } in
+            RPC ([SetHandler id pos handler], FocusNext id)
     Filling tlid id ->
       let tl = TL.getTL m tlid in
-      if TL.isBindHole m tlid id
-      then
-        RPC ([SetTL tl.id tl.pos (AST.replaceBindHole id value tl.ast) tl.handlerSpec]
-        , FocusNext tl.id)
-      else if TL.isHandlerSpecHole m tlid id
-      then
-        RPC ([ SetTL tl.id tl.pos tl.ast
-                 (TL.replaceHandlerSpecHole id value tl.handlerSpec)]
-             , FocusNext tl.id)
-      else
-        -- check if value is in model.varnames
-        let (ID rid) = id
-            availableVars =
-              let avd = Analysis.getAvailableVarnames m tlid
-              in (Dict.get rid avd) |> (Maybe.withDefault [])
-            holeReplacement =
-              if List.member value availableVars
-              then Just (Variable (gid ()) value)
-              else parseAst value
-        in
-        case holeReplacement of
-          Nothing -> NoChange
-          Just v -> RPC ([SetTL tl.id tl.pos (AST.replaceHole id v tl.ast) tl.handlerSpec]
-          , FocusNext tl.id)
+      case tl.data of
+        TLDB _ ->
+          NoChange
+        TLHandler h ->
+          if TL.isBindHole h id
+          then
+            let replacement = AST.replaceBindHole id value h.ast in
+            RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
+                , FocusNext tl.id)
+
+          else if TL.isSpecHole h id
+          then
+            let replacement = TL.replaceSpecHole id value h.spec in
+            RPC ([ SetHandler tl.id tl.pos { h | spec = replacement }]
+                 , FocusNext tl.id)
+          else
+            -- check if value is in model.varnames
+            let (ID rid) = id
+                availableVars =
+                  let avd = Analysis.getAvailableVarnames m tlid
+                  in Dict.get rid avd |> Maybe.withDefault []
+                holeReplacement =
+                  if List.member value availableVars
+                  then Just (Variable (gid ()) value)
+                  else parseAst value
+            in
+            case holeReplacement of
+              Nothing -> NoChange
+              Just v ->
+                let replacement = AST.replaceHole id v h.ast in
+                RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
+              , FocusNext tl.id)
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of

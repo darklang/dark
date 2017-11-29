@@ -107,6 +107,29 @@ unselectedHoleHtml =
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
+  let body =
+        case tl.data of
+          TLHandler h ->
+            viewHandler m tl h
+          _ ->
+            []
+      events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
+               , Events.onWithOptions
+                   "mouseup"
+                   { stopPropagation = True, preventDefault = False }
+                   (decodeClickEvent (ToplevelClickUp tl.id))
+               ]
+
+      html = Html.div
+        (Attrs.class "toplevel" :: events)
+        body
+
+  in
+      placeHtml m tl.pos html
+
+
+viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
+viewHandler m tl h =
   let (id, bindHoleHtml, exprHoleHtml, class) =
         case m.state of
           Selecting tlid id _ ->
@@ -129,28 +152,21 @@ viewTL m tl =
                 , bindHoleHtml = bindHoleHtml
                 , exprHoleHtml = exprHoleHtml
                 , liveValues = lvs }
-                tl.ast]
-      events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
-               , Events.onWithOptions
-                   "mouseup"
-                   { stopPropagation = True, preventDefault = False }
-                   (decodeClickEvent (ToplevelClickUp tl.id))
-               ]
-      spec = tl.handlerSpec
+                h.ast]
       header =
         Html.div
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "module"]
-            [ viewHoleOrText m id spec.module_]
+            [ viewHoleOrText m id h.spec.module_]
           , Html.div
             [ Attrs.class "name"]
-            [ viewHoleOrText m id spec.name]
+            [ viewHoleOrText m id h.spec.name]
           , Html.div
             [Attrs.class "modifier"]
-            [ viewHoleOrText m id spec.modifier]]
-      html = Html.div (Attrs.class "toplevel" :: events) [header, ast]
-  in placeHtml m tl.pos html
+            [ viewHoleOrText m id h.spec.modifier]]
+  in
+      [header, ast]
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
 placeHtml m pos html =

@@ -81,7 +81,10 @@ let is_undoable (c: canvas) : bool =
 let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
 
-let upsert_toplevel (toplevel: TL.toplevel) (c: canvas) : canvas =
+let upsert_toplevel (id: id) (pos: pos) (data: TL.tldata) (c: canvas) : canvas =
+  let toplevel : TL.toplevel = { id = id
+                               ; pos = pos
+                               ; data = data} in
   let tls = List.filter ~f:(fun x -> x.id <> toplevel.id) c.toplevels
   in
   { c with toplevels = tls @ [toplevel] }
@@ -93,13 +96,10 @@ let remove_toplevel_by_id (id: int) (c: canvas) : canvas =
 
 let move_toplevel (id: int) (pos: pos) (c: canvas) : canvas =
   match List.find ~f:(fun t -> t.id = id) c.toplevels with
-  | Some (tl) ->
-    let ntl = { tl with pos = pos } in
-    upsert_toplevel ntl c
-  | None -> c
-
-let create_db (id: id) (pos: pos) (name: string) (c: canvas) : canvas =
-  failwith "todo: create_db"
+  | Some tl ->
+    upsert_toplevel tl.id tl.pos tl.data c
+  | None ->
+    Exception.client "No toplevel for this ID"
 
 (* ------------------------- *)
 (* Build *)
@@ -110,11 +110,11 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     !c |>
     match op with
     | NoOp -> ident
-    | Savepoint -> ident
-    | SetTL toplevel -> upsert_toplevel toplevel
+    | SetHandler (id, pos, handler) -> upsert_toplevel id pos (TL.Handler handler)
+    | CreateDB (id, pos, db) -> upsert_toplevel id pos (TL.DB db)
     | DeleteTL id -> remove_toplevel_by_id id
     | MoveTL (id, pos) -> move_toplevel id pos
-    | CreateDB (id, pos, name) -> create_db id pos name
+    | Savepoint -> ident
     | _ ->
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
@@ -166,14 +166,17 @@ let minimize (c : canvas) : canvas =
 (* Execution *)
 (* ------------------------- *)
 
-let execute (c: canvas) (tl: TL.toplevel) : RT.dval =
-  Ast.execute Ast.Symtable.empty tl.ast
 
 
-let execute_for_analysis (c: canvas) (tl: TL.toplevel) : (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
-  let traced_symbols = Ast.symbolic_execute tl.ast in
-  let (ast_value, traced_values) = Ast.execute_saving_intermediates tl.ast in
-  [(tl.id, ast_value, traced_values, traced_symbols)]
+let execute (c: canvas) (eh: Handler.handler) : RT.dval =
+  Ast.execute Ast.Symtable.empty eh.ast
+
+
+let execute_for_analysis (c: canvas) (eh: Handler.handler) :
+    (id * RT.dval * Ast.dval_store * Ast.sym_store) list =
+  let traced_symbols = Ast.symbolic_execute eh.ast in
+  let (ast_value, traced_values) = Ast.execute_saving_intermediates eh.ast in
+  [(eh.id, ast_value, traced_values, traced_symbols)]
 
 
 
@@ -184,6 +187,7 @@ let execute_for_analysis (c: canvas) (tl: TL.toplevel) : (id * RT.dval * Ast.dva
 
 let to_frontend (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
+             |> TL.handlers
              |> List.map ~f:(execute_for_analysis c)
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
@@ -195,7 +199,7 @@ let to_frontend (c : canvas) : Yojson.Safe.json =
                         ])
   in `Assoc
         [ ("analyses", `List vals)
-        ; ("toplevels", TL.toplevellist_to_yojson c.toplevels)
+        ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]

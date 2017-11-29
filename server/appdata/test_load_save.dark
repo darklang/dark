@@ -1,11 +1,12 @@
 [
   [
-    "SetTL",
+    "SetHandler",
+    1,
+    { "x": 0, "y": 0 },
     {
       "id": 1,
-      "pos": { "x": 0, "y": 0 },
       "ast": [ "Value", 123, "5" ],
-      "handler_spec": {
+      "spec": {
         "module": [ "Empty", 465 ],
         "name": [ "Empty", 9356 ],
         "modifier": [ "Empty", 576 ]

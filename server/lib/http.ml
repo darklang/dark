@@ -1,18 +1,19 @@
 open Core
+
 module C = Canvas
+module TL = Toplevel
 
 module RouteParamMap = String.Map
 type route_param_map = string RouteParamMap.t
 
-let url_for (tl: Toplevel.toplevel) : string option =
-  let spec = tl.handler_spec in
-  match spec.module_, spec.name with
+let url_for (eh: Handler.handler) : string option =
+  match eh.spec.module_, eh.spec.name with
   | Full module_, Full name when String.lowercase module_ = "http" ->
     Some name
   | _ -> None
 
-let url_for_exn (tl: Toplevel.toplevel) : string =
-  match (url_for tl) with
+let url_for_exn (eh: Handler.handler) : string =
+  match (url_for eh) with
   | Some s -> s
   | None -> Exception.internal "Called url_for_exn on a toplevel without a `url` param"
 
@@ -29,15 +30,16 @@ let controller (path_or_route : string) : string option =
 let path_matches_route ~(path: string) (route: string) : bool =
   (path = route) || ((controller path) = (controller route))
 
-let matching_routes ~(uri: Uri.t) (c: C.canvas) : Toplevel.toplevel list =
+let matching_routes ~(uri: Uri.t) (c: C.canvas) : Handler.handler list =
   let path = Uri.path uri in
   c.toplevels
+  |> TL.handlers
   |> List.filter
     ~f:(fun tl -> url_for tl <> None)
   |> List.filter
     ~f:(fun tl -> path_matches_route ~path:path (url_for_exn tl))
 
-let pages_matching_route ~(uri: Uri.t) (c: C.canvas) : Toplevel.toplevel list =
+let pages_matching_route ~(uri: Uri.t) (c: C.canvas) : Handler.handler list =
   matching_routes ~uri:uri c
 
 let route_variables (route: string) : string list =

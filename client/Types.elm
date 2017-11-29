@@ -96,10 +96,10 @@ type Focus = FocusNothing -- deselect
 type alias DBName = String
 type RPC
     = NoOp
-    | SetTL TLID Pos Expr HandlerSpec
+    | SetHandler TLID Pos Handler
+    | CreateDB TLID Pos DBName
     | DeleteTL TLID
     | MoveTL TLID Pos
-    | CreateDB TLID Pos DBName
     | DeleteAll
     | Savepoint
     | Undo
@@ -152,6 +152,20 @@ type alias HandlerSpec = { module_ : HoleOr String
                          , modifier : HoleOr String
                          }
 
+type alias Handler = { ast : AST
+                     , spec : HandlerSpec }
+
+type alias DB = { name : String }
+
+type TLData = TLHandler Handler
+            | TLDB DB
+
+type alias Toplevel = { id : TLID
+                      , pos : Pos
+                      , data : TLData
+                      }
+
+
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
 type alias TLAResult = { id: TLID
@@ -159,19 +173,6 @@ type alias TLAResult = { id: TLID
                        , liveValues : LVDict
                        , availableVarnames : AVDict
                        }
-
-
-type alias Toplevel = { id : TLID
-                      , pos : Pos
-                      , ast : AST
-                      , handlerSpec : HandlerSpec
-                      }
-
-type alias Type = String
-type alias DBSchema = { id : TLID
-                      , pos : Pos
-                      -- , schema : List (String, Type)
-                      }
 
 type alias Model = { center : Pos
                    , error : Maybe String

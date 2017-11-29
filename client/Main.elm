@@ -208,12 +208,16 @@ update_ msg m =
               -- Key.Down -> Selection.selectNextNode m id (\n o -> G.posy m n < G.posy m o)
               -- Key.Left -> Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
               -- Key.Right -> Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
-              Key.Backspace -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+              Key.Backspace ->
+                Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
               Key.Escape ->
                 let tl = TL.getTL m tlid in
-                case thread of
-                  Just tid -> Many [ RPC ([SetTL tl.id tl.pos (AST.closeThread tid tl.ast) tl.handlerSpec], FocusNext tl.id) ]
-                  Nothing -> Deselect
+                case (thread, tl.data) of
+                  (Just tid, TLHandler h) ->
+                    let replacement = AST.closeThread tid h.ast in
+                    RPC ( [SetHandler tl.id tl.pos { h | ast = replacement}]
+                        , FocusNext tl.id)
+                  _ -> Deselect
               Key.Enter  -> Enter False (Filling tlid hid) thread
               Key.Tab    ->
                 let tl = TL.getTL m tlid
@@ -228,23 +232,26 @@ update_ msg m =
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.T ->
-                    case thread of
-                      Just _ -> NoChange
-                      Nothing ->
-                        case cursor of
-                          Filling tlid hid ->
-                            let tl = TL.getTL m tlid
-                                (nast, tid)  = AST.wrapInThread hid tl.ast
-                                ntl = { tl | ast = nast }
-                                m2 = TL.replace m ntl
-                                name =
-                                  case Autocomplete.highlighted m2.complete of
-                                    Just item -> Autocomplete.asName item
-                                    Nothing -> m2.complete.value
-                            in
-                                Many [ (SetState (Entering re cursor (Just tid)))
-                                     , (Entry.submit m2 re cursor name)]
-                          Creating _ -> NoChange
+                  case thread of
+                    Just _ -> NoChange
+                    Nothing ->
+                      case cursor of
+                        Filling tlid hid ->
+                          let tl = TL.getTL m tlid in
+                          case tl.data of
+                            TLDB _ -> NoChange
+                            TLHandler h ->
+                              let (nast, tid) = AST.wrapInThread hid h.ast
+                                  nh = { h | ast = nast }
+                                  m2 = TL.replace m { tl | data = TLHandler nh }
+                                  name =
+                                    case Autocomplete.highlighted m2.complete of
+                                      Just item -> Autocomplete.asName item
+                                      Nothing -> m2.complete.value
+                          in
+                              Many [ (SetState (Entering re cursor (Just tid)))
+                                   , (Entry.submit m2 re cursor name)]
+                        Creating _ -> NoChange
 
 
                 -- Key.Enter ->

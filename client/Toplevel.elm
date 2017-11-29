@@ -21,27 +21,26 @@ replace m tl =
 
 firstHole : Model -> TLID -> ID
 firstHole m id =
-  getTL m id |> .ast |> AST.listHoles |> List.head |> Maybe.withDefault (ID 3)
+  getTL m id |> allHoles |> List.head |> Maybe.withDefault (ID 3)
 
-isBindHole : Model -> TLID -> ID -> Bool
-isBindHole m tlid id =
-  getTL m tlid |> .ast |> AST.listBindHoles |> List.member id
+isBindHole : Handler -> ID -> Bool
+isBindHole h id =
+  h.ast |> AST.listBindHoles |> List.member id
 
-isHandlerSpecHole : Model -> TLID -> ID -> Bool
-isHandlerSpecHole m tlid id =
-  getTL m tlid |> handlerSpecHoles |> List.member id
+isSpecHole : Handler -> ID -> Bool
+isSpecHole h id =
+  h |> specHoles |> List.member id
 
-handlerSpecHoles : Toplevel -> List ID
-handlerSpecHoles tl =
+specHoles : Handler -> List ID
+specHoles h =
   let e2l a =
         case a of
           Empty hid -> [hid]
           _ -> []
-      spec = tl.handlerSpec
-  in e2l spec.module_ ++ e2l spec.name ++ e2l spec.modifier
+  in e2l h.spec.module_ ++ e2l h.spec.name ++ e2l h.spec.modifier
 
-replaceHandlerSpecHole : ID -> String -> HandlerSpec -> HandlerSpec
-replaceHandlerSpecHole id value hs =
+replaceSpecHole : ID -> String -> HandlerSpec -> HandlerSpec
+replaceSpecHole id value hs =
   let rh a =
         case a of
           Empty hid ->
@@ -54,12 +53,17 @@ replaceHandlerSpecHole id value hs =
      , modifier = rh hs.modifier
      }
 
+allHoles : Toplevel -> List ID
+allHoles tl =
+  case tl.data of
+    TLHandler h ->
+      AST.listHoles h.ast ++ specHoles h
+    TLDB _ -> []
 
 findNextHole : Toplevel -> ID -> ID
 findNextHole tl cur =
-  let astHoles = AST.listHoles tl.ast
-      holes = astHoles ++ (handlerSpecHoles tl)
-  in case (LE.dropWhile (\x -> x /= cur) holes) of
+  let holes = allHoles tl in
+  case (LE.dropWhile (\x -> x /= cur) holes) of
      cur :: next :: _ -> next
      [cur] -> holes |> List.head |> deMaybe
      [] -> ID 237

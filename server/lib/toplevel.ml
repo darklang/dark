@@ -2,21 +2,29 @@ open Core
 
 module RT = Runtime
 
-(* --------------------- *)
-(* Types *)
-(* --------------------- *)
-
-type handler_spec = { module_ : string Types.or_hole [@key "module"]
-                    ; name : string Types.or_hole
-                    ; modifier : string Types.or_hole
-                    } [@@deriving eq, show, yojson]
-
+type tldata = Handler of Handler.handler
+            | DB of Db.db
+            [@@deriving eq, show, yojson]
 
 type toplevel = { id: Types.id
                 ; pos: Types.pos
-                ; ast: Ast.ast
-                ; handler_spec : handler_spec
+                ; data: tldata
                 } [@@deriving eq, show, yojson]
 
-type toplevellist = toplevel list [@@deriving eq, show, yojson]
+type toplevel_list = toplevel list [@@deriving eq, show, yojson]
 
+let as_handler (tl: toplevel) : Handler.handler option =
+  match tl.data with
+  | Handler h -> Some h
+  | _ -> None
+
+let as_db (tl: toplevel) : Db.db option =
+  match tl.data with
+  | DB db -> Some db
+  | _ -> None
+
+let handlers (tls: toplevel_list) : Handler.handler list =
+  List.filter_map ~f:as_handler tls
+
+let dbs (tls: toplevel_list) : Db.db list =
+  List.filter_map ~f:as_db tls
