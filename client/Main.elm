@@ -216,7 +216,7 @@ update_ msg m =
                   (Just tid, TLHandler h) ->
                     let replacement = AST.closeThread tid h.ast in
                     RPC ( [SetHandler tl.id tl.pos { h | ast = replacement}]
-                        , FocusNext tl.id)
+                        , FocusNext tl.id Nothing)
                   _ -> Deselect
               Key.Enter  -> Enter False (Filling tlid hid) thread
               Key.Tab    ->
@@ -382,8 +382,12 @@ update_ msg m =
       let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
-              FocusNext tlid -> Select tlid (TL.firstHole m2 tlid) (oldThread m.state)
-              _            -> NoChange
+              FocusNext tlid prev ->
+                let thread = oldThread m.state in
+                case prev of
+                  Just hid -> Select tlid hid thread
+                  Nothing -> Select tlid (TL.firstHole m2 tlid) thread
+              _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
               , ClearError

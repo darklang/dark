@@ -106,13 +106,13 @@ submit m re cursor value =
         let dbName = value
                      |> String.dropLeft 2
                      |> String.trim in
-          RPC ([CreateDB id pos dbName], FocusNext id)
+          RPC ([CreateDB id pos dbName], FocusNext id Nothing)
       else
         case parseAst value of
           Nothing -> NoChange
           Just v ->
             let handler = { ast = v, spec = emptyHS } in
-            RPC ([SetHandler id pos handler], FocusNext id)
+            RPC ([SetHandler id pos handler], FocusNext id Nothing)
     Filling tlid id ->
       let tl = TL.getTL m tlid in
       case tl.data of
@@ -123,13 +123,13 @@ submit m re cursor value =
           then
             let replacement = AST.replaceBindHole id value h.ast in
             RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
-                , FocusNext tl.id)
+                , FocusNext tl.id Nothing)
 
           else if TL.isSpecHole h id
           then
             let replacement = TL.replaceSpecHole id value h.spec in
             RPC ([ SetHandler tl.id tl.pos { h | spec = replacement }]
-                 , FocusNext tl.id)
+                 , FocusNext tl.id Nothing)
           else
             -- check if value is in model.varnames
             let (ID rid) = id
@@ -146,7 +146,7 @@ submit m re cursor value =
               Just v ->
                 let replacement = AST.replaceHole id v h.ast in
                 RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
-              , FocusNext tl.id)
+              , FocusNext tl.id Nothing)
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
