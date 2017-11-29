@@ -14,6 +14,7 @@ import Dict.Extra as DE
 import Types exposing (..)
 import Runtime as RT
 import Util
+import JSON exposing (..)
 
 rpc : Model -> Focus -> List RPC -> Cmd Msg
 rpc m focus calls =
@@ -46,18 +47,6 @@ saveTest =
       request = postString url
   in Http.send SaveTestCallBack request
 
-encodeVariant : String -> List JSE.Value -> JSE.Value
-encodeVariant name vals =
-  JSE.list (JSE.string name :: vals)
-
-encodeHoleOr : (HoleOr v) -> (v -> JSE.Value) -> JSE.Value
-encodeHoleOr v encoder =
-  case v of
-    Full s ->
-      encodeVariant "Full" [encoder s]
-    Empty (ID id) ->
-      encodeVariant "Empty" [JSE.int id]
-
 
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
@@ -76,22 +65,21 @@ encodeRPC m call =
           {x,y} ->
             JSE.object [ ("x", JSE.int x)
                        , ("y", JSE.int y)]
-      encodeID (TLID id) = JSE.int id
       ev = encodeVariant
   in
     case call of
-      SetTL id pos expr spec ->
+      SetHandler id pos h ->
         let hs = JSE.object
-                   [ ("name", encodeHoleOr spec.name JSE.string)
-                   , ("module", encodeHoleOr spec.module_ JSE.string)
-                   , ("modifier", encodeHoleOr spec.modifier JSE.string)]
-        in ev "SetTL" [JSE.object [ ("id", encodeID id)
-                                  , ("pos", encodePos pos)
-                                  , ("ast", encodeAST expr)
-                                  , ("handler_spec", hs)]]
+                   [ ("name", encodeHoleOr h.spec.name JSE.string)
+                   , ("module", encodeHoleOr h.spec.module_ JSE.string)
+                   , ("modifier", encodeHoleOr h.spec.modifier JSE.string)]
+            handler = JSE.object [ ("id", encodeTLID id)
+                                 , ("spec", hs)
+                                 , ("ast", encodeAST h.ast) ]
+        in ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
       CreateDB id pos name ->
-        ev "CreateDB" [ encodeID id
+        ev "CreateDB" [ encodeTLID id
                       , encodePos pos
                       , JSE.string name]
 
@@ -111,16 +99,16 @@ encodeRPC m call =
         ev "Redo" []
 
       DeleteTL id ->
-        ev "DeleteTL" [encodeID id]
+        ev "DeleteTL" [encodeTLID id]
 
       MoveTL id pos ->
-        ev "MoveTL" [ encodeID id
+        ev "MoveTL" [ encodeTLID id
                     , encodePos pos]
 
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
   let e = encodeAST
-      eid (ID id) = JSE.int id
+      eid = encodeID
       ev = encodeVariant
  in
   case expr of
@@ -160,8 +148,9 @@ encodeAST expr =
       ev "Thread" [ eid id
                   , JSE.list (List.map e exprs)]
 
-decodeID : JSD.Decoder ID
-decodeID = JSD.map ID JSD.int
+
+
+
 
   -- about the lazy decodeExpr and decodeID
   -- TODO: check if elm 0.19 is saner than this
@@ -171,84 +160,56 @@ decodeID = JSD.map ID JSD.int
   -- which gets potentially fixed by
   -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
 
-
 decodeIf : JSD.Decoder Expr
 decodeIf =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSD.map4 If
-    (JSD.index 1 decodeID)
-    (JSD.index 2 de)
-    (JSD.index 3 de)
-    (JSD.index 4 de)
+  decodeVariant4 If decodeID de de de
 
 decodeFnCall : JSD.Decoder Expr
 decodeFnCall =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSD.map3 FnCall
-    (JSD.index 1 decodeID)
-    (JSD.index 2 JSD.string)
-    (JSD.index 3 (JSD.list de))
-
+  decodeVariant3 FnCall decodeID JSD.string (JSD.list de)
 
 decodeVariable : JSD.Decoder Expr
 decodeVariable =
-  JSD.map2 Variable
-    (JSD.index 1 decodeID)
-    (JSD.index 2 JSD.string)
+  decodeVariant2 Variable decodeID JSD.string
 
 decodeLet : JSD.Decoder Expr
 decodeLet =
   let de = (JSD.lazy (\_ -> decodeExpr))
-      vb = JSD.map2 (,)
-             (JSD.index 0 (decodeHoleOr JSD.string))
-             (JSD.index 1 de)
-  in
-  JSD.map3 Let
-    (JSD.index 1 decodeID)
-    (JSD.index 2 (JSD.list vb))
-    (JSD.index 3 de)
+      vb = decodePair (decodeHoleOr JSD.string) de in
+  decodeVariant3 Let decodeID (JSD.list vb) de
 
 decodeLambda : JSD.Decoder Expr
 decodeLambda =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSD.map3 Lambda
-    (JSD.index 1 decodeID)
-    (JSD.index 2 (JSD.list JSD.string))
-    (JSD.index 3 de)
+  decodeVariant3 Lambda decodeID (JSD.list JSD.string) de
 
 decodeValue : JSD.Decoder Expr
 decodeValue =
-  JSD.map2 Value
-    (JSD.index 1 decodeID)
-    (JSD.index 2 JSD.string)
+  decodeVariant2 Value decodeID JSD.string
 
 decodeHole : JSD.Decoder Expr
 decodeHole =
-  JSD.map Hole
-    (JSD.index 1 decodeID)
+  decodeVariant1 Hole decodeID
 
 decodeThread : JSD.Decoder Expr
 decodeThread =
   let de = (JSD.lazy (\_ -> decodeExpr)) in
-  JSD.map2 Thread
-    (JSD.index 1 decodeID)
-    (JSD.index 2 (JSD.list de))
+  decodeVariant2 Thread decodeID (JSD.list de)
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
-  JSD.index 0 JSD.string
-  |> JSD.andThen (\str ->
-    case str of
-      "Let" -> decodeLet
-      "Hole" -> decodeHole
-      "Value" -> decodeValue
-      "If" -> decodeIf
-      "FnCall" -> decodeFnCall
-      "Lambda" -> decodeLambda
-      "Variable" -> decodeVariable
-      "Thread" -> decodeThread
-      _ -> JSD.fail <| "Expected Expr, got: " ++ str)
-
+  decodeVariants
+    [ ("Let", JSD.lazy (\_ -> decodeLet))
+    , ("Hole", JSD.lazy (\_ -> decodeHole))
+    , ("Value", JSD.lazy (\_ -> decodeValue))
+    , ("If", JSD.lazy (\_ -> decodeIf))
+    , ("FnCall", JSD.lazy (\_ -> decodeFnCall))
+    , ("Lambda", JSD.lazy (\_ -> decodeLambda))
+    , ("Variable", JSD.lazy (\_ -> decodeVariable))
+    , ("Thread", JSD.lazy (\_ -> decodeThread))
+    ]
 
 decodeAST : JSD.Decoder AST
 decodeAST = decodeExpr
@@ -307,16 +268,6 @@ decodeTLAResult =
   |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
   |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
-decodeHoleOr : JSD.Decoder a -> JSD.Decoder (HoleOr a)
-decodeHoleOr d =
-  JSD.index 0 JSD.string
-  |> JSD.andThen (\str ->
-    case str of
-      "Full" -> JSD.map Full (JSD.index 1 d)
-      "Empty" -> JSD.map Empty (JSD.index 1 decodeID)
-      _ -> JSD.fail "Neither full nor empty")
-
-
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
@@ -330,20 +281,36 @@ decodeHandlerSpec =
   |> JSDP.required "name" (decodeHoleOr JSD.string)
   |> JSDP.required "modifier" (decodeHoleOr JSD.string)
 
+decodeHandler : JSD.Decoder Handler
+decodeHandler =
+  let toHandler ast spec = {ast = ast, spec = spec } in
+  JSDP.decode toHandler
+  |> JSDP.required "ast" decodeAST
+  |> JSDP.required "spec" decodeHandlerSpec
+
+decodeDB : JSD.Decoder DB
+decodeDB =
+  let toDB name = {name = name} in
+  JSDP.decode toDB
+  |> JSDP.required "name" JSD.string
+
+
 decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
-  let toToplevel id x y ast hs =
+  let toToplevel id x y data =
         { id = TLID id
         , pos = { x=x, y=y }
-        , ast = ast
-        , handlerSpec = hs}
+        , data = data }
+      variant = decodeVariants
+                  [ ("Handler", decodeVariant1 TLHandler decodeHandler)
+                  , ("DB", decodeVariant1 TLDB decodeDB) ]
+
   in
   JSDP.decode toToplevel
   |> JSDP.required "id" JSD.int
   |> JSDP.requiredAt ["pos", "x"] JSD.int
   |> JSDP.requiredAt ["pos", "y"] JSD.int
-  |> JSDP.required "ast" decodeAST
-  |> JSDP.required "handler_spec" decodeHandlerSpec
+  |> JSDP.required "data" variant
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
