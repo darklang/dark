@@ -3,7 +3,7 @@ open Lwt
 
 module Clu = Cohttp_lwt_unix
 module S = Clu.Server
-module Request = Clu.Request
+module CRequest = Clu.Request
 module Header = Cohttp.Header
 module C = Canvas
 module RT = Runtime
@@ -53,8 +53,8 @@ let server =
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
-    let user_page_handler (host: string) (uri: Uri.t) (req: Request.t) (body: string) =
-      let verb = req |> Request.meth in
+    let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
+      let verb = req |> CRequest.meth in
       let c = C.load host [] in
       let is_get = Cohttp.Code.method_of_string "GET" = verb in
       let pages = Http.pages_matching_route ~uri:uri !c in
@@ -101,8 +101,8 @@ let server =
       req_body |> Cohttp_lwt_body.to_string >>=
       (fun req_body ->
          try
-           let uri = req |> Request.uri in
-           let verb = req |> Request.meth in
+           let uri = req |> CRequest.uri in
+           let verb = req |> CRequest.meth in
            (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
            let domain = Uri.host uri |> Option.value ~default:"" in
