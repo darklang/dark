@@ -6,6 +6,7 @@ module Toplevel exposing (..)
 import List.Extra as LE
 
 -- dark
+import DB
 import Types exposing (..)
 import Util exposing (deMaybe)
 import AST
@@ -30,6 +31,15 @@ isBindHole h id =
 isSpecHole : Handler -> ID -> Bool
 isSpecHole h id =
   h |> specHoles |> List.member id
+
+isDBRowNameHole : DB -> ID -> Bool
+isDBRowNameHole db id =
+  db |> DB.listRowNameHoles |> List.member id
+
+
+isDBRowTypeHole : DB -> ID -> Bool
+isDBRowTypeHole db id =
+  db |> DB.listRowTypeHoles |> List.member id
 
 specHoles : Handler -> List ID
 specHoles h =
@@ -58,7 +68,8 @@ allHoles tl =
   case tl.data of
     TLHandler h ->
       AST.listHoles h.ast ++ specHoles h
-    TLDB _ -> []
+    TLDB db ->
+      DB.listHoles db
 
 findNextHole : Toplevel -> ID -> ID
 findNextHole tl cur =

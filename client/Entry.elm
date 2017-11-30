@@ -117,8 +117,18 @@ submit m re cursor value =
     Filling tlid id ->
       let tl = TL.getTL m tlid in
       case tl.data of
-        TLDB _ ->
-          NoChange
+        TLDB db ->
+          if TL.isDBRowNameHole db id
+          then
+            RPC ([ SetDBRowName tl.id id value ]
+                 , FocusNext tl.id Nothing)
+          else if TL.isDBRowTypeHole db id
+          then
+            RPC ([ SetDBRowType tl.id id value ]
+                 , FocusNext tl.id Nothing)
+
+          else
+            NoChange
         TLHandler h ->
           if TL.isBindHole h id
           then
@@ -131,6 +141,8 @@ submit m re cursor value =
             let replacement = TL.replaceSpecHole id value h.spec in
             RPC ([ SetHandler tl.id tl.pos { h | spec = replacement }]
                  , FocusNext tl.id Nothing)
+
+
           else
             -- check if value is in model.varnames
             let (ID rid) = id

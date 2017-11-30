@@ -1,15 +1,28 @@
 module Analysis exposing (..)
 
+-- builtin
+import Dict
+
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
 
 getAnalysisResults : Model -> TLID -> TLAResult
 getAnalysisResults m id =
   m.analysis
   |> List.filter (\tlar -> tlar.id == id)
   |> List.head
-  |> deMaybe
+  -- only handlers have analysis results, but lots of stuff except this
+  -- data to exist. It may be better to not do that, but this is fine
+  -- for now.
+  |> Maybe.withDefault { id = id
+                       , astValue = { value = "null"
+                                    , tipe = TNull
+                                    , json = "null"
+                                    , exc = Nothing
+                                    }
+                       , liveValues = Dict.empty
+                       , availableVarnames = Dict.empty
+                       }
 
 getLiveValues : Model -> TLID -> LVDict
 getLiveValues m id = getAnalysisResults m id |> .liveValues
