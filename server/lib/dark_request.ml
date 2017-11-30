@@ -66,10 +66,11 @@ let to_dval self =
   self
 
 let sample =
+  let open_record = RT.DObj (RT.DvalMap.empty) in
   let parts =
-    [ RT.to_dobj [("body", RT.DNull)]
-    ; RT.to_dobj [("queryParams", RT.DNull)]
-    ; RT.to_dobj [("headers", RT.DNull)]
+    [ RT.to_dobj [("body", open_record)]
+    ; RT.to_dobj [("queryParams", open_record)]
+    ; RT.to_dobj [("headers", open_record)]
     ]
   in
   List.fold_left
