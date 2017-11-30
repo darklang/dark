@@ -66,7 +66,7 @@ let server =
       | [page] ->
         let route = Http.url_for_exn page in
         let input = DReq.from_request req body uri in
-        let st = Ast.Symtable.singleton "req" (DReq.to_dval input) in
+        let st = Ast.Symtable.singleton "request" (DReq.to_dval input) in
         let result =
           if is_get
           then

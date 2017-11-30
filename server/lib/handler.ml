@@ -20,5 +20,5 @@ let execute (eh: handler) : RT.dval =
 let execute_for_analysis (global: RT.dval) (eh: handler) :
     (Types.id * RT.dval * Ast.dval_store * Ast.sym_store) list =
   let traced_symbols = Ast.symbolic_execute eh.ast in
-  let (ast_value, traced_values) = Ast.execute_saving_intermediates eh.ast in
+  let (ast_value, traced_values) = Ast.execute_saving_intermediates global eh.ast in
   [(eh.tlid, ast_value, traced_values, traced_symbols)]
