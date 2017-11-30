@@ -254,6 +254,9 @@ let parse (str : string) : dval =
 let to_dobj (pairs: (string*dval) list) : dval =
   DObj (DvalMap.of_alist_exn pairs)
 
+let empty_dobj : dval =
+  DObj (DvalMap.empty)
+
 let query_to_dval (query: (string * string list) list) : dval =
   query
   |> List.map ~f:(fun (key,vals) ->

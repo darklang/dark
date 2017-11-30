@@ -53,50 +53,36 @@ let server =
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
-    let form_parser form =
-      form |> Uri.query_of_encoded |> RT.query_to_dval
-    in
-
-    let user_page_handler (host: string) (verb: Cohttp.Code.meth) (body: string) (uri: Uri.t) (ctype: string) =
+    let user_page_handler (host: string) (uri: Uri.t) (req: Request.t) (body: string) =
+      let verb = req |> Request.meth in
       let c = C.load host [] in
       let is_get = Cohttp.Code.method_of_string "GET" = verb in
-      let body_parser =
-        match ctype with
-        | "application/json" -> RT.parse
-        | "application/x-www-form-urlencoded" -> form_parser
-        | _ -> RT.parse in
       let pages = Http.pages_matching_route ~uri:uri !c in
       match pages with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
         let route = Http.url_for_exn page in
-        let body =
-          let body_dval =
-            if body = ""
-            then RT.DNull
-            else body_parser body in
-          let uri_dval = RT.query_to_dval (Uri.query uri) in
-          let input = RT.obj_merge body_dval uri_dval in
-          let st = Ast.Symtable.singleton "req" input in
-          let result =
-            if is_get
+        let input = Dark_request.from_request req body uri in
+        let st = Ast.Symtable.singleton "req" (Dark_request.to_dval input) in
+        let result =
+          if is_get
+          then
+            if Http.has_route_variables route
             then
-              if Http.has_route_variables route
-              then
-                failwith "TODO"
-              else
-                Ast.execute st page.ast
-            (* Posts have values, I guess we should be getting the result from it *)
-            else Ast.execute st page.ast in
-          RT.to_url_string result
+              failwith "TODO"
+            else
+              Ast.execute st page.ast
+              (* Posts have values, I guess we should be getting the result from it *)
+          else Ast.execute st page.ast
         in
+        let response = RT.to_url_string result in
 
         if is_get
-        then S.respond_string ~status:`OK ~body:body ()
+        then S.respond_string ~status:`OK ~body:response ()
         else let redir = RT.DStr "/" in (* todo, get redir string *)
           (match redir with
-          | DStr "" | DNull -> S.respond_string ~status:`OK ~body:body ()
+          | DStr "" | DNull -> S.respond_string ~status:`OK ~body:response ()
           | DStr s  -> S.respond_redirect (Uri.of_string s) ()
           | _       -> S.respond_string ~status:`Internal_server_error ~body:"500: Type error in `redir` of Page::POST" ())
       | _ ->
@@ -117,12 +103,6 @@ let server =
          try
            let uri = req |> Request.uri in
            let verb = req |> Request.meth in
-           let headers = req |> Request.headers in
-           let content_type =
-             match Header.get headers "content-type" with
-             | None -> "unknown"
-             | Some v -> v
-           in
            (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
            let domain = Uri.host uri |> Option.value ~default:"" in
@@ -154,11 +134,11 @@ let server =
            | "/admin/api/save_test" ->
              save_test_handler domain
            | p when (String.length p) < 8 ->
-             user_page_handler domain verb req_body uri content_type
+             user_page_handler domain uri req req_body
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
              static_handler uri
            | _ ->
-             user_page_handler domain verb req_body uri content_type
+             user_page_handler domain uri req req_body
          with
          | e ->
            let backtrace = Exn.backtrace () in
