@@ -64,3 +64,15 @@ let from_request req rbody uri =
 
 let to_dval self =
   self
+
+let sample =
+  let parts =
+    [ RT.to_dobj [("body", RT.DNull)]
+    ; RT.to_dobj [("queryParams", RT.DNull)]
+    ; RT.to_dobj [("headers", RT.DNull)]
+    ]
+  in
+  List.fold_left
+    ~init:RT.empty_dobj
+    ~f:(fun acc p -> RT.obj_merge acc p)
+    parts

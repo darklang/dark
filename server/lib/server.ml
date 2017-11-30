@@ -21,7 +21,8 @@ let server =
       try
         let ops = Api.to_ops body in
         c := !(C.load host ops);
-        let result = C.to_frontend_string !c in
+        let global = DReq.sample |> DReq.to_dval in
+        let result = C.to_frontend_string global !c in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
