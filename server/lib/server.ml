@@ -16,22 +16,22 @@ let server =
     let admin_rpc_handler body (host: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
-      let g = C.load host [] in
+      let c = C.load host [] in
       try
         let ops = Api.to_ops body in
-        g := !(C.load host ops);
-        let result = C.to_frontend_string !g in
+        c := !(C.load host ops);
+        let result = C.to_frontend_string !c in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
          * or other crashing bug *)
-        if save then C.save !g;
+        if save then C.save !c;
         result
       with
       | e ->
         let bt = Exn.backtrace () in
         let msg = Exn.to_string e in
-        print_endline (C.show_canvas !g);
+        print_endline (C.show_canvas !c);
         print_endline ("Exception: " ^ msg);
         print_endline bt;
         raise e
