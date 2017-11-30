@@ -7,6 +7,7 @@ module CRequest = Clu.Request
 module Header = Cohttp.Header
 module C = Canvas
 module RT = Runtime
+module DReq = Dark_request
 
 let server =
   let stop,stopper = Lwt.wait () in
@@ -63,8 +64,8 @@ let server =
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
         let route = Http.url_for_exn page in
-        let input = Dark_request.from_request req body uri in
-        let st = Ast.Symtable.singleton "req" (Dark_request.to_dval input) in
+        let input = DReq.from_request req body uri in
+        let st = Ast.Symtable.singleton "req" (DReq.to_dval input) in
         let result =
           if is_get
           then
