@@ -6,19 +6,16 @@ module RT = Runtime
 module TL = Toplevel
 
 type oplist = Op.op list [@@deriving eq, show, yojson]
-type dblist = Db.db list [@@deriving eq, show, yojson]
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : oplist
               ; toplevels: toplevellist
-              ; dbs: dblist
               } [@@deriving eq, show]
 
 let create (name : string) : canvas ref =
   ref { name = name
       ; ops = []
       ; toplevels = []
-      ; dbs = []
       }
 
 (* ------------------------- *)
