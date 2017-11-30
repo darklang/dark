@@ -97,12 +97,24 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
   in
   { c with toplevels = tls }
 
-let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
+let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) =
   match List.find ~f:(fun t -> t.tlid = tlid) c.toplevels with
   | Some tl ->
-    upsert_toplevel tl.tlid pos tl.data c
+    let newtl = f tl in
+    upsert_toplevel newtl.tlid newtl.pos newtl.data c
   | None ->
     Exception.client "No toplevel for this ID"
+
+let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
+  apply_to_toplevel ~f:(fun tl -> { tl with pos = pos }) tlid c
+
+let apply_to_db ~(f:(Db.db -> Db.db)) (tlid: tlid) (c:canvas) : canvas =
+  let tlf (tl: TL.toplevel) =
+    let data = match tl.data with
+               | TL.DB db -> TL.DB (f db)
+               | _ -> Exception.client "Provided ID is not for a DB"
+    in { tl with data = data }
+  in apply_to_toplevel tlid ~f:tlf c
 
 (* ------------------------- *)
 (* Build *)
@@ -121,11 +133,11 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
                        ; rows = []} in
       upsert_toplevel tlid pos (TL.DB db)
     | AddDBRow (tlid, rowid, typeid) ->
-      ident
+      apply_to_db ~f:(Db.add_db_row rowid typeid) tlid
     | SetDBRowName (tlid, id, name) ->
-      ident
+      apply_to_db ~f:(Db.set_row_name id name) tlid
     | SetDBRowType (tlid, id, tipe) ->
-      ident
+      apply_to_db ~f:(Db.set_db_row_type id tipe) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident

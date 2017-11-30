@@ -81,16 +81,16 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: (asts ++ entry)
     in allSvgs
 
-viewHoleOrText : Model -> ID -> HoleOr String -> Html.Html Msg
-viewHoleOrText m id h =
+viewHoleOrText : Model -> HoleOr String -> Html.Html Msg
+viewHoleOrText m h =
   case h of
     Empty hid ->
       case m.state of
-        Selecting _ _ _ ->
+        Selecting _ id _ ->
           if hid == id
           then selectedHoleHtml
           else unselectedHoleHtml
-        Entering _ _ _ ->
+        Entering _ (Filling _ id) _ ->
           if hid == id
           then identifierEntryHtml m
           else unselectedHoleHtml
@@ -136,13 +136,19 @@ viewTL m tl =
 
 viewDB : Model -> Toplevel -> DB -> List (Html.Html Msg)
 viewDB m tl db =
+  let namediv = Html.div
+                 [ Attrs.class "name"]
+                 [ Html.text db.name]
+      rowdivs = List.map (\(n, t) ->
+                           Html.div
+                             [ Attrs.class "row" ]
+                             [ viewHoleOrText m n, viewHoleOrText m t ])
+                         db.rows
+  in
   [
     Html.div
       [ Attrs.class "db"]
-      [ Html.div
-          [ Attrs.class "name"]
-          [ Html.text db.name]
-      ]
+      (namediv :: rowdivs)
   ]
 
 
@@ -174,13 +180,13 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "module"]
-            [ viewHoleOrText m id h.spec.module_]
+            [ viewHoleOrText m h.spec.module_]
           , Html.div
             [ Attrs.class "name"]
-            [ viewHoleOrText m id h.spec.name]
+            [ viewHoleOrText m h.spec.name]
           , Html.div
             [Attrs.class "modifier"]
-            [ viewHoleOrText m id h.spec.modifier]]
+            [ viewHoleOrText m h.spec.modifier]]
   in
       [header, ast]
 

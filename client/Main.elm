@@ -214,7 +214,14 @@ update_ msg m =
                     RPC ( [SetHandler tl.id tl.pos { h | ast = replacement}]
                         , FocusNext tl.id Nothing)
                   _ -> Deselect
-              Key.Enter  -> Enter False (Filling tlid hid) thread
+              Key.Enter ->
+                if event.metaKey
+                then
+                  let id1 = Entry.gid ()
+                      id2 = Entry.gid () in
+                  RPC ([ AddDBRow tlid id1 id2], FocusNext tlid Nothing)
+                else
+                  Enter False (Filling tlid hid) thread
               Key.Tab    ->
                 let tl = TL.getTL m tlid
                     nh = TL.findNextHole tl hid

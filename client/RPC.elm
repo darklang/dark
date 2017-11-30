@@ -237,9 +237,13 @@ decodeHandler =
 
 decodeDB : JSD.Decoder DB
 decodeDB =
-  let toDB name = {name = name, rows = []} in
+  let toDB name rows = {name = name, rows = rows} in
   JSDP.decode toDB
   |> JSDP.required "name" JSD.string
+  |> JSDP.required "rows" (JSD.list
+                            (decodePair
+                              (decodeHoleOr JSD.string)
+                              (decodeHoleOr JSD.string)))
 
 
 decodeToplevel : JSD.Decoder Toplevel

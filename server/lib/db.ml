@@ -1,15 +1,44 @@
 open Core
 
 open Runtime
+open Types
 
 module PG = Postgresql
 
 
-type db = { tlid: Types.id
+
+
+type db = { tlid: tlid
           ; name: string
-          ; rows: (string * string) list
+          ; rows: (string or_hole * string or_hole) list
           } [@@deriving eq, show, yojson]
 
+(* ------------------------- *)
+(* DB schema *)
+(* ------------------------- *)
+
+
+let add_db_row rowid typeid (db: db) =
+  { db with rows = db.rows @ [(Empty rowid, Empty typeid)]}
+
+let set_row_name id name db =
+  let set row =
+    match row with
+    | (Empty hid, tipe) when hid = id -> (Full name, tipe)
+    | _ -> row in
+  { db with rows = List.map ~f:set db.rows }
+
+let set_db_row_type id tipe db =
+  let set row =
+    match row with
+    | (name, Empty hid) when hid = id -> (name, Full tipe)
+    | _ -> row in
+  { db with rows = List.map ~f:set db.rows }
+
+
+(* ------------------------- *)
+(* actual DB stuff *)
+(* ------------------------- *)
 
 let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
