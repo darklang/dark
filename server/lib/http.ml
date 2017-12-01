@@ -2,9 +2,10 @@ open Core
 
 module C = Canvas
 module TL = Toplevel
+module RT = Runtime
 
 module RouteParamMap = String.Map
-type route_param_map = string RouteParamMap.t
+type route_param_map = RT.dval RouteParamMap.t
 
 let url_for (eh: Handler.handler) : string option =
   match eh.spec.module_, eh.spec.name with
@@ -15,7 +16,9 @@ let url_for (eh: Handler.handler) : string option =
 let url_for_exn (eh: Handler.handler) : string =
   match (url_for eh) with
   | Some s -> s
-  | None -> Exception.internal "Called url_for_exn on a toplevel without a `url` param"
+  | None ->
+    Exception.internal
+      "Called url_for_exn on a toplevel without a `url` param"
 
 let split_uri_path (path: string) : string list =
   let subs = String.split ~on:'/' path in
@@ -58,7 +61,8 @@ let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : route_param_map =
     let pvars = unbound_path_variables path in
     List.fold_left
       ~init:rpm
-      ~f:(fun rpm1 (r,p) -> RouteParamMap.add rpm1 ~key:r ~data:p)
+      ~f:(fun rpm1 (r,p) -> RouteParamMap.add rpm1 ~key:r ~data:(RT.DStr p))
       (List.zip_exn rvars pvars)
-  else Exception.internal "Attempted to parse path into route that does not match"
+  else
+    Exception.internal "path/route mismatch"
 
