@@ -146,6 +146,12 @@ type Expr = If ID Expr Expr Expr
 
 type alias AST = Expr
 
+type HoleType = BindHole Handler
+              | SpecHole Handler
+              | ExprHole Handler
+              | DBRowNameHole DB
+              | DBRowTypeHole DB
+
 type HoleOr a = Empty ID
               | Full a
 

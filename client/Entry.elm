@@ -117,58 +117,45 @@ submit m re cursor value =
             RPC ([SetHandler id pos handler], FocusNext id Nothing)
     Filling tlid id ->
       let tl = TL.getTL m tlid in
-      case tl.data of
-        TLDB db ->
-          if TL.isDBRowNameHole db id
-          then
-            RPC ([ SetDBRowName tl.id id value ]
-                 , FocusNext tl.id Nothing)
-          else if TL.isDBRowTypeHole db id
-          then
-            RPC ([ SetDBRowType tl.id id value ]
-                 , FocusNext tl.id Nothing)
-
-          else
-            NoChange
-        TLHandler h ->
-          if TL.isBindHole h id
-          then
-            let replacement = AST.replaceBindHole id value h.ast in
-            RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
-                , FocusNext tl.id Nothing)
-
-          else if TL.isSpecHole h id
-          then
-            let replacement = TL.replaceSpecHole id value h.spec in
-            RPC ([ SetHandler tl.id tl.pos { h | spec = replacement }]
-                 , FocusNext tl.id Nothing)
-
-
-          else
-            -- check if value is in model.varnames
-            let (ID rid) = id
-                availableVars =
-                  let avd = Analysis.getAvailableVarnames m tlid
-                  in Dict.get rid avd |> Maybe.withDefault []
-                holeReplacement =
-                  if List.member value availableVars
-                  then Just (Variable (gid ()) value)
-                  else parseAst value (TL.isThreadHole h id)
-            in
-            case holeReplacement of
-              Nothing -> NoChange
-              Just v ->
-                let
-                    replacement = AST.replaceHole id v h.ast
-                    holes = TL.allHoles tl
-                    predecessor =
-                      LE.elemIndex id holes
-                      |> Maybe.map (\i -> i - 1)
-                      |> Maybe.map (max 0)
-                      |> Maybe.andThen (\i -> LE.getAt i holes)
-                in
-                RPC ([SetHandler tl.id tl.pos { h | ast = replacement}]
-              , FocusNext tl.id predecessor)
+      case TL.holeType tl id of
+        DBRowTypeHole _ ->
+          RPC ([ SetDBRowType tlid id value ]
+              , FocusNext tlid Nothing)
+        DBRowNameHole _ ->
+          RPC ([ SetDBRowName tlid id value ]
+               , FocusNext tlid Nothing)
+        BindHole h ->
+          let replacement = AST.replaceBindHole id value h.ast in
+          RPC ([SetHandler tlid tl.pos { h | ast = replacement}]
+              , FocusNext tlid Nothing)
+        SpecHole h ->
+          let replacement = TL.replaceSpecHole id value h.spec in
+          RPC ([ SetHandler tlid tl.pos { h | spec = replacement }]
+               , FocusNext tlid Nothing)
+        ExprHole h ->
+          -- check if value is in model.varnames
+          let (ID rid) = id
+              availableVars =
+                let avd = Analysis.getAvailableVarnames m tlid
+                in Dict.get rid avd |> Maybe.withDefault []
+              holeReplacement =
+                if List.member value availableVars
+                then Just (Variable (gid ()) value)
+                else parseAst value (TL.isThreadHole h id)
+          in
+          case holeReplacement of
+            Nothing -> NoChange
+            Just v ->
+              let replacement = AST.replaceHole id v h.ast
+                  holes = TL.allHoles tl
+                  predecessor =
+                    LE.elemIndex id holes
+                    |> Maybe.map (\i -> i - 1)
+                    |> Maybe.map (max 0)
+                    |> Maybe.andThen (\i -> LE.getAt i holes)
+              in
+              RPC ([SetHandler tlid tl.pos { h | ast = replacement}]
+            , FocusNext tlid predecessor)
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of

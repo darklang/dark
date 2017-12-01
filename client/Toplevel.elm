@@ -40,10 +40,25 @@ isDBRowNameHole : DB -> ID -> Bool
 isDBRowNameHole db id =
   db |> DB.listRowNameHoles |> List.member id
 
-
 isDBRowTypeHole : DB -> ID -> Bool
 isDBRowTypeHole db id =
   db |> DB.listRowTypeHoles |> List.member id
+
+holeType : Toplevel -> ID -> HoleType
+holeType tl id =
+  case tl.data of
+    TLHandler h ->
+      if isBindHole h id
+      then BindHole h
+      else if isSpecHole h id
+      then SpecHole h
+      else ExprHole h -- threadholes included here
+    TLDB db ->
+      if isDBRowNameHole db id
+      then DBRowNameHole db
+      else DBRowTypeHole db
+
+
 
 specHoles : Handler -> List ID
 specHoles h =
