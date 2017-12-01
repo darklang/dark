@@ -294,6 +294,12 @@ replaceBindHole_ hid replacement expr =
     Thread id exprs ->
       Thread id (rbhList exprs)
 
+isHole : Expr -> Bool
+isHole e =
+  case e of
+    Hole _ -> True
+    _ -> False
+
 bindHoleID : VarBind -> Maybe ID
 bindHoleID vb =
   case vb of
@@ -392,6 +398,45 @@ listHoles expr =
 
     Thread _ exprs ->
       lhList exprs
+
+listThreadHoles : Expr -> List ID
+listThreadHoles expr =
+  let lthList : List Expr -> List ID
+      lthList exprs =
+        exprs
+        |> List.map listThreadHoles
+        |> List.concat
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ vars expr ->
+      vars
+      |> List.map Tuple.second
+      |> (++) [expr]
+      |> lthList
+
+    If _ cond ifbody elsebody ->
+      lthList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lthList exprs
+
+    Lambda _ vars expr ->
+      listThreadHoles expr
+
+    Hole id -> []
+
+    Thread _ exprs ->
+      let (holes, notHoles) = List.partition isHole exprs
+          holeids = List.map toID holes
+          subExprsHoleids = lthList notHoles
+      in
+          holeids ++ subExprsHoleids
 
 walk : AST -> Element
 walk = vExpr 0

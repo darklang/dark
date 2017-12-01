@@ -60,16 +60,17 @@ tlid unit = TLID (Util.random unit)
 gid : () -> ID -- Generate ID
 gid unit = ID (Util.random unit)
 
-createFunction : Model -> FnName -> Maybe Expr
-createFunction m name =
-  let holes count = List.map (\_ -> Hole (gid ())) (List.range 1 count)
+createFunction : Model -> FnName -> Bool ->Maybe Expr
+createFunction m name hasImplicitParam =
+  let holeModifier = if hasImplicitParam then -1 else 0
+      holes count = List.map (\_ -> Hole (gid ())) (List.range 1 count)
       fn = m.complete.functions
            |> List.filter (\fn -> fn.name == name)
            |> List.head
   in
     case fn of
       Just function ->
-        Just <| FnCall (gid ()) name (holes (List.length function.parameters))
+        Just <| FnCall (gid ()) name (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
@@ -82,7 +83,7 @@ submit m re cursor value =
       hid1 = gid ()
       hid2 = gid ()
       hid3 = gid ()
-      parseAst str =
+      parseAst str hasImplicitParam =
         let firstWord = String.split " " str in
         case firstWord of
           ["if"] ->
@@ -93,7 +94,7 @@ submit m re cursor value =
             Just (Lambda eid ["var"] (Hole hid1))
           _ ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
-            then createFunction m value
+            then createFunction m value hasImplicitParam
             else Just <| Value eid str
 
   in
@@ -109,7 +110,7 @@ submit m re cursor value =
                      |> String.trim in
           RPC ([CreateDB id pos dbName], FocusNext id Nothing)
       else
-        case parseAst value of
+        case parseAst value False of
           Nothing -> NoChange
           Just v ->
             let handler = { ast = v, spec = emptyHS } in
@@ -152,7 +153,7 @@ submit m re cursor value =
                 holeReplacement =
                   if List.member value availableVars
                   then Just (Variable (gid ()) value)
-                  else parseAst value
+                  else parseAst value (TL.isThreadHole h id)
             in
             case holeReplacement of
               Nothing -> NoChange

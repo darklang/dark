@@ -24,6 +24,10 @@ firstHole : Model -> TLID -> ID
 firstHole m id =
   getTL m id |> allHoles |> List.head |> Maybe.withDefault (ID 3)
 
+isThreadHole : Handler -> ID -> Bool
+isThreadHole h id =
+  h.ast |> AST.listThreadHoles |> List.member id
+
 isBindHole : Handler -> ID -> Bool
 isBindHole h id =
   h.ast |> AST.listBindHoles |> List.member id
