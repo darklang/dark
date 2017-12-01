@@ -45,7 +45,6 @@ type alias VPos = {vx: Int, vy: Int }
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
--- Placeholder for whatever the new "Node" is
 type alias LiveValue = { value : String
                        , tipe : Tipe
                        , json : String

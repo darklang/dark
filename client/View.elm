@@ -99,11 +99,11 @@ viewHoleOrText m h =
 
 selectedHoleHtml : Html.Html Msg
 selectedHoleHtml =
-  Html.div [Attrs.class "selectedHole"] [Html.text "＿＿＿＿＿＿"]
+  Html.div [Attrs.class "hole selected"] [Html.text "＿＿＿＿＿＿"]
 
 unselectedHoleHtml : Html.Html Msg
 unselectedHoleHtml =
-  Html.div [] [Html.text "＿＿＿＿＿＿"]
+  Html.div [Attrs.class "hole"] [Html.text "＿＿＿＿＿＿"]
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
@@ -137,12 +137,18 @@ viewTL m tl =
 viewDB : Model -> Toplevel -> DB -> List (Html.Html Msg)
 viewDB m tl db =
   let namediv = Html.div
-                 [ Attrs.class "name"]
+                 [ Attrs.class "dbname"]
                  [ Html.text db.name]
       rowdivs = List.map (\(n, t) ->
                            Html.div
                              [ Attrs.class "row" ]
-                             [ viewHoleOrText m n, viewHoleOrText m t ])
+                             [ Html.span
+                                 [ Attrs.class "name" ]
+                                 [ viewHoleOrText m n ]
+                             , Html.span
+                                 [ Attrs.class "type" ]
+                                 [ viewHoleOrText m t ]
+                             ])
                          db.rows
   in
   [

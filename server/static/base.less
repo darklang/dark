@@ -70,8 +70,7 @@ body {
     background-color: lighten(@black1, 5%);
   }
 
-  .selectedHole {
-    width: auto;
+  .selected.hole {
     background-color: @grey1;
     color: @grey1;
   }
@@ -83,7 +82,31 @@ body {
 //*************
 .db {
   margin: 10px;
-  font-weight: bold;
+  display: flex;
+  flex-direction: column;
+
+  .dbname {
+    background-image: url('/static/_db.png');
+    font-weight: bold;
+    background-position: left center;
+    background-repeat: no-repeat;
+    padding-left: 20px; /* Adjust according to image size to push text across. */
+    margin-bottom: 10px;
+  }
+
+  .row {
+    display: flex;
+    flex-direction: row;
+
+    .name, .type {
+      margin: 2px 5px;
+      flex: 1 0 0;
+      .hole {
+        width: 96px; // put it all on one line
+      }
+    }
+
+  }
 }
 
 
