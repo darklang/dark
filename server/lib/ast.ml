@@ -74,22 +74,9 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
        | DBlock blk -> blk [param]
        | _ -> DIncomplete)
     | FnCall (id, name, exprs) ->
-      (* find first hole, attempt to inject there *)
-      let nexprs =
-        let (i, first) =
-          (match (List.findi ~f:(fun i x -> is_hole x) exprs) with
-           | Some (idx, exp) -> (idx, exp)
-           | None -> Exception.internal "Tried to pipe w/o a hole on RHS")
-        in
-        let newf =
-          (match first with
-           | Hole id -> Value (id, (RT.dval_to_json_string param))
-           | _ -> Exception.internal "Can't happen")
-        in
-        (match (List.split_n exprs (i - 1)) with
-         | (before, oldfirst :: after) -> List.append before (newf :: after)
-         | (before, []) -> Exception.internal "i is in the list, therefore i-1 can't be off the end")
-      in
+      let newid = Util.create_id () in
+      let nexpr = Value (newid, (RT.dval_to_json_string param)) in
+      let nexprs = nexpr :: exprs in
       let new_func = FnCall (id, name, nexprs) in
       exe st new_func
     | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
