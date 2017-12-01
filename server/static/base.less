@@ -87,11 +87,15 @@ body {
 
   .dbname {
     background-image: url('/static/_db.png');
-    font-weight: bold;
     background-position: left center;
     background-repeat: no-repeat;
     padding-left: 20px; /* Adjust according to image size to push text across. */
     margin-bottom: 10px;
+    &::before {
+      content: "DB: ";
+      font-weight: bold;
+      font-size: 110%;
+    }
   }
 
   .row {
