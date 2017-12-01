@@ -46,6 +46,10 @@ let parsed_headers req =
   |> fun dm -> RT.DObj dm
   |> fun dv -> RT.to_dobj [("headers", dv)]
 
+let unparsed_body rb =
+  let dval = RT.DStr rb in
+  RT.to_dobj [("fullBody", dval)]
+
 (* ------------------------- *)
 (* Exported *)
 (* ------------------------- *)
@@ -55,6 +59,7 @@ let from_request req rbody uri =
     [ parsed_body req rbody
     ; parsed_query_string uri
     ; parsed_headers req
+    ; unparsed_body rbody
     ]
   in
   List.fold_left
@@ -71,6 +76,7 @@ let sample =
     [ RT.to_dobj [("body", open_record)]
     ; RT.to_dobj [("queryParams", open_record)]
     ; RT.to_dobj [("headers", open_record)]
+    ; RT.to_dobj [("fullBody", RT.DStr "")]
     ]
   in
   List.fold_left
