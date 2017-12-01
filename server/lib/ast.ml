@@ -67,9 +67,9 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
    * and application as a first-class concept sooner rather than later.
    *)
   let inject_param_and_execute (st: symtable) (param: RT.dval) (exp: expr) : RT.dval =
-    match expr with
+    match exp with
     | Lambda _ ->
-      let result = exe st expr in
+      let result = exe st exp in
       (match result with
        | DBlock blk -> blk [param]
        | _ -> DIncomplete)
@@ -165,7 +165,7 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
                 value :: results
               ) es
           in
-            List.hd_exn results
+          List.hd_exn results
         | _ -> DIncomplete))
     in
     trace expr value st; value
