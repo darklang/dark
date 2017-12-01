@@ -24,14 +24,6 @@ let (>>|) = Result.(>>|)
 
 
 let fns : Lib.shortfn list = [
-  (* { n = "Page::page" *)
-  (* ; o = [] *)
-  (* ; p = ["url"; "outputs"] *)
-  (* ; f = function *)
-  (*     | args -> expected "this to be implmented" args *)
-  (* } *)
-  (* ; *)
-
 
   (* ====================================== *)
   (* Dict  *)
@@ -1048,39 +1040,6 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DChar c] -> DChar (Char.uppercase c)
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
-  (* ====================================== *)
-  (* Page *)
-  (* ====================================== *)
-  { n = "Page::GET"
-  ; o = []
-  ; p = [par "url" TStr; par "val" TAny]
-  ; r = TNull
-  ; d = "Create a page at `url` that prints `value`"
-  ; f = InProcess
-        (function
-          | [DStr url; value] -> value
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
-  { n = "Page::POST"
-  ; o = []
-  ; p = [par "url" TStr; par "redir" TStr]
-  ; r = TAny
-  ; d = "Create a page at `url` that optionally redirects to `redir`"
-  ; f = InProcess
-        (function
-          | [DStr url; DStr redir] -> DIncomplete
           | args -> fail args)
   ; pr = None
   ; pu = true
