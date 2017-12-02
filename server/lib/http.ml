@@ -51,6 +51,14 @@ let has_route_variables (route: string) : bool =
 let unbound_path_variables (path: string) : string list =
   List.drop (split_uri_path path) 1
 
+let sample_bound_route_params ~(route: string) : route_param_map =
+  let rpm = RouteParamMap.empty in
+  let vars = route_variables route in
+  List.fold_left
+    ~init:rpm
+    ~f:(fun rpm1 v -> RouteParamMap.add rpm1 ~key:v ~data:(RT.DStr ""))
+    vars
+
 (* assumes route and path match *)
 let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : route_param_map =
   let path = Uri.path uri in
