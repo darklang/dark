@@ -92,6 +92,8 @@ submit m re cursor value =
               Just (Let eid [(Empty hid1, Hole hid2)] (Hole hid3))
           ["lambda"] ->
             Just (Lambda eid ["var"] (Hole hid1))
+          [""] ->
+            Just (Hole eid)
           _ ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
             then createFunction m value hasImplicitParam
