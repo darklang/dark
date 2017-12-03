@@ -92,7 +92,7 @@ viewHoleOrText m h =
           else unselectedHoleHtml
         Entering _ (Filling _ id) _ ->
           if hid == id
-          then identifierEntryHtml m
+          then normalEntryHtml m
           else unselectedHoleHtml
         _ -> unselectedHoleHtml
     Full s -> Html.text s
@@ -160,25 +160,22 @@ viewDB m tl db =
 
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
-  let (id, bindHoleHtml, exprHoleHtml) =
+  let (id, holeHtml) =
         case m.state of
           Selecting tlid id _ ->
             ( id
-            , selectedHoleHtml
             , selectedHoleHtml)
           Entering _ (Filling tlid id) _ ->
             ( id
-            , identifierEntryHtml m
             , normalEntryHtml m)
-          _ -> (ID 0, Html.div [] [], Html.div [] [])
+          _ -> (ID 0, Html.div [] [])
 
       lvs = Analysis.getLiveValues m tl.id
       ast = Html.div
               [ Attrs.class "ast"]
               [ ViewAST.toHtml
                 { holeID = id
-                , bindHoleHtml = bindHoleHtml
-                , exprHoleHtml = exprHoleHtml
+                , holeHtml = holeHtml
                 , liveValues = lvs }
                 h.ast]
       header =
@@ -196,21 +193,19 @@ viewHandler m tl h =
   in
       [header, ast]
 
-placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
-placeHtml m pos html =
-  let rcpos = Viewport.toViewport m pos in
-  Svg.foreignObject
-    [ SA.x (toString rcpos.vx)
-    , SA.y (toString rcpos.vy)
-    ]
-    [ html ]
-
 
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
-  if Autocomplete.isStringEntry m.complete
-  then viewStringEntry m
-  else viewNormalEntry m
+  let body =
+    if Autocomplete.isStringEntry m.complete
+    then stringEntryHtml m
+    else normalEntryHtml m
+  in case m.state of
+    Entering _ (Creating pos) _ ->
+      [placeHtml m pos body]
+    _ ->
+      []
+
 
 
 -- The view we see is different from the value representation in a few
@@ -235,8 +230,8 @@ transformFromStringEntry s =
   "\"" ++ s2 ++ "\""
   |> Debug.log "fromStringEntry"
 
-viewStringEntry : Model -> List (Svg.Svg Msg)
-viewStringEntry m =
+stringEntryHtml : Model -> Html.Html Msg
+stringEntryHtml m =
   let
       -- stick with the overlapping things for now, just ignore the back
       -- one
@@ -281,47 +276,7 @@ viewStringEntry m =
                 [ Attrs.class classes
                 , Attrs.width 100]
                 [ viewForm ]
-      html pos = placeHtml m pos wrapper
-  in
-    case m.state of
-      -- Entering _ (Filling) -> [html m.center]
-      Entering _ (Creating pos) _ -> [html pos]
-      _ -> []
-
-
-viewNormalEntry : Model -> List (Svg.Svg Msg)
-viewNormalEntry m =
-  case m.state of
-    Entering _ (Creating pos) _ ->
-      [placeHtml m pos (normalEntryHtml m)]
-    _ -> []
-
-
-identifierEntryHtml : Model -> Html.Html Msg
-identifierEntryHtml m =
-  let
-      inputBox =
-        Html.input [ Attrs.id Defaults.entryID
-                   , Events.onInput EntryInputMsg
-                   , Attrs.value m.complete.value
-                   , Attrs.spellcheck False
-                   , Attrs.autocomplete False
-                   ] []
-
-      input = Html.div
-              [ Attrs.id "identifier-container"
-              , Attrs.class "identifier-container"]
-              [ inputBox ]
-
-      viewForm = Html.form
-                 [ Events.onSubmit (EntrySubmitMsg) ]
-                 [ input ]
-
-      classes = "identifier-entry"
-  in Html.div
-      [ Attrs.class classes
-      , Attrs.width 100]
-      [ viewForm ]
+  in wrapper
 
 
 normalEntryHtml : Model -> Html.Html Msg
@@ -397,34 +352,23 @@ normalEntryHtml m =
                 [ Attrs.class "entry"
                 , Attrs.width 100]
                 [ paramInfo, viewForm ]
-  in
-      wrapper
+  in wrapper
 
 
 escapeCSSName : String -> String
 escapeCSSName s =
   Util.replace "[^0-9a-zA-Z_-]" "_" s
 
--- placeNode : Model -> Node -> Int -> List (Html.Attribute Msg) -> List String -> List (Html.Html Msg) -> List (Html.Html Msg) -> Html.Html Msg
--- placeNode m n width attrs classes header body =
---   let width_attr = Attrs.style [("width", (toString width) ++ "px")]
---       class = String.toLower (toString n.tipe)
---       classStr = String.join " "
---         (["node", class] ++ classes)
---       node = Html.div
---                 (width_attr :: (Attrs.class classStr) :: attrs)
---                 body
---       header_wrapper = Html.div [Attrs.class "header", width_attr ] header
---       events = [ Events.on "mousedown" (decodeClickEvent (NodeClickDown n))
---                , Events.onWithOptions
---                    "mouseup"
---                    { stopPropagation = True, preventDefault = False }
---                    (decodeClickEvent (NodeClickUp n.id))
---                ]
---       wrapper = Html.div events [ node, header_wrapper ]
---   in
---     placeHtml m (G.pos m n) wrapper
---
+
+placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
+placeHtml m pos html =
+  let rcpos = Viewport.toViewport m pos in
+  Svg.foreignObject
+    [ SA.x (toString rcpos.vx)
+    , SA.y (toString rcpos.vy)
+    ]
+    [ html ]
+
 svgLine : Model -> Pos -> Pos -> String -> String -> List (Svg.Attribute Msg) -> Svg.Svg Msg
 svgLine m p1a p2a sourcedebug targetdebug attrs =
   let p1v = Viewport.toViewport m p1a

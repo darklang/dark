@@ -36,6 +36,7 @@ init functions = { functions = functions
                  , completions = List.map ACFunction functions
                  , index = -1
                  , open = True
+                 , showFunctions = True
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
@@ -209,9 +210,11 @@ regenerate a =
       -- variables = case (a.tipe, a.nodes) of
       --                 (Just t, Just ns)  -> variablesForType ns t
       --                 _ -> []
-      -- -- functions
+
+      -- functions
+      functions = if a.showFunctions then a.functions else []
       options =
-        a.functions
+        functions
         |> List.filter
            (\{returnTipe} ->
               case a.tipe of
@@ -251,6 +254,10 @@ setVarnames : List VarName -> Autocomplete -> Autocomplete
 setVarnames vs a =
   { a | varnames = vs }
 
+showFunctions : Bool -> Autocomplete -> Autocomplete
+showFunctions b a =
+  { a | showFunctions = b }
+
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   (case mod of
@@ -263,9 +270,11 @@ update mod a =
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
      ACFilterByLiveValue lv -> forLiveValue lv a
-     ACSetAvailableVarnames vs -> setVarnames vs a)
+     ACSetAvailableVarnames vs -> setVarnames vs a
+     ACShowFunctions bool -> showFunctions bool a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
-    |> regenerate
+  )
+  |> regenerate
 
 
 

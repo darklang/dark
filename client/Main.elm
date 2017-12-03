@@ -155,12 +155,22 @@ updateMod origm mod (m, cmd) =
         { m | state = Selecting tlid hid thread } ! []
       Enter re entry thread ->
         let varnames =
-            case entry of
-              Creating _ -> []
-              Filling tlid (ID eid) ->
-                let avd = Analysis.getAvailableVarnames m tlid
-                in (Dict.get eid avd) |> (Maybe.withDefault [])
-            (complete, acCmd) = processAutocompleteMod m (ACSetAvailableVarnames varnames)
+              case entry of
+                Creating _ -> []
+                Filling tlid (ID eid) ->
+                  let avd = Analysis.getAvailableVarnames m tlid
+                  in (Dict.get eid avd) |> (Maybe.withDefault [])
+            showFunctions =
+              case entry of
+                Creating _ -> True
+                Filling tlid eid ->
+                  case TL.holeType (TL.getTL m tlid) eid of
+                    ExprHole _ -> True
+                    _ -> False
+            (complete, acCmd) =
+              processAutocompleteMods m [ ACSetAvailableVarnames varnames
+                                        , ACShowFunctions showFunctions
+                                        ]
         in
       ({ m | state = Entering re entry thread, complete = complete
       }) ! ([acCmd, Entry.focusEntry])
@@ -176,7 +186,7 @@ updateMod origm mod (m, cmd) =
         { m | state = Dragging tlid offset hasMoved state } ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
-        let (complete, cmd) = processAutocompleteMod m mod
+        let (complete, cmd) = processAutocompleteMods m [mod]
         in ({ m | complete = complete }
             , cmd)
       -- applied from left to right
@@ -184,9 +194,12 @@ updateMod origm mod (m, cmd) =
   in
     (newm, Cmd.batch [cmd, newcmd])
 
-processAutocompleteMod : Model -> AutocompleteMod -> (Autocomplete, Cmd Msg)
-processAutocompleteMod m mod =
-  let complete = Autocomplete.update mod m.complete
+processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
+processAutocompleteMods m mods =
+  let complete = List.foldl
+        (\mod complete -> Autocomplete.update mod complete)
+        m.complete
+        mods
   in (complete, Autocomplete.focusItem complete.index)
 
 update_ : Msg -> Model -> Modification

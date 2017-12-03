@@ -14,8 +14,7 @@ import Types exposing (..)
 import AST
 
 type alias HtmlVisitState = { holeID : ID
-                            , bindHoleHtml : Html.Html Msg
-                            , exprHoleHtml : Html.Html Msg
+                            , holeHtml : Html.Html Msg
                             , liveValues : LVDict }
 
 elemToHtml : HtmlVisitState -> Element -> Html.Html Msg
@@ -37,9 +36,7 @@ elemToHtml state elem =
           then
             Html.div
               ([Attrs.class <| "leaf " ++ class] ++ idAttrs ++ (hover id))
-              [if String.contains "letbind" class
-               then state.bindHoleHtml
-               else state.exprHoleHtml]
+              [ state.holeHtml ]
           else
             Html.div
               ([Attrs.class <| "leaf " ++ class] ++ idAttrs ++ (hover id))
