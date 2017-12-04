@@ -10,19 +10,29 @@ let split_uri_path (path: string) : string list =
   List.filter ~f:(fun x -> String.length x > 0) subs
 
 let path_matches_route ~(path: string) (route: string) : bool =
-  path = route
+  let split_path = split_uri_path path in
+  let split_route = split_uri_path route in
+  let same_length = List.length split_path = List.length split_route in
+    same_length &&
+    List.for_all2_exn
+      split_path
+      split_route
+      ~f:(fun p r -> p = r || String.is_prefix ~prefix:":" r)
+
+let route_variable_pairs (route: string) : (int * string) list =
+  route
+  |> split_uri_path
+  |> List.mapi ~f:(fun i x -> (i, x))
+  |> List.filter ~f:(fun (_, x) -> String.is_prefix ~prefix:":" x)
+  |> List.map ~f:(fun (i, x) -> (i, String.chop_prefix_exn ~prefix:":" x))
 
 let route_variables (route: string) : string list =
-  let suffix = List.drop (split_uri_path route) 1 in
-  suffix
-  |> List.filter ~f:(fun x -> String.is_prefix ~prefix:":" x)
-  |> List.map ~f:(fun x -> String.chop_prefix_exn ~prefix:":" x)
+  route
+  |> route_variable_pairs
+  |> List.map ~f:Tuple.T2.get2
 
 let has_route_variables (route: string) : bool =
   List.length (route_variables route) > 0
-
-let unbound_path_variables (path: string) : string list =
-  List.drop (split_uri_path path) 1
 
 let sample_bound_route_params ~(route: string) : route_param_map =
   let rpm = RouteParamMap.empty in
@@ -37,13 +47,18 @@ let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : route_param_map =
   let path = Uri.path uri in
   if path_matches_route ~path:path route
   then
+    let split_path = split_uri_path path in
+    let pairs =
+      route
+      |> route_variable_pairs
+      |> List.map
+           ~f:(fun (i, r) -> (r, List.nth_exn split_path i))
+    in
     let rpm = RouteParamMap.empty in
-    let rvars = route_variables route in
-    let pvars = unbound_path_variables path in
     List.fold_left
       ~init:rpm
       ~f:(fun rpm1 (r,p) -> RouteParamMap.add rpm1 ~key:r ~data:(RT.DStr p))
-      (List.zip_exn rvars pvars)
+      pairs
   else
     Exception.internal "path/route mismatch"
 

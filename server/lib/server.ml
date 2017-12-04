@@ -69,17 +69,7 @@ let server =
         let input = DReq.from_request req body uri in
         let bound = Http.bind_route_params_exn ~uri ~route in
         let env = Map.add ~key:"request" ~data:(DReq.to_dval input) bound in
-        let result =
-          if is_get
-          then
-            if Http.has_route_variables route
-            then
-              failwith "TODO"
-            else
-              Handler.execute env page
-              (* Posts have values, I guess we should be getting the result from it *)
-          else Handler.execute env page
-        in
+        let result = Handler.execute env page in
         let response = RT.to_url_string result in
 
         if is_get
