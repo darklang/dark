@@ -173,13 +173,12 @@ let execute = exec_
 
 type dval_store = RT.dval Int.Table.t
 
-let execute_saving_intermediates (global: RT.dval) (ast: expr) : (RT.dval * dval_store) =
+let execute_saving_intermediates (init: symtable) (ast: expr) : (RT.dval * dval_store) =
   let value_store = Int.Table.create () in
   let trace expr dval st =
     Hashtbl.set value_store ~key:(to_id expr) ~data:dval
   in
-  let init_st = Symtable.singleton "request" global in
-  (exec_ ~trace init_st ast, value_store)
+  (exec_ ~trace init ast, value_store)
 
 let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in
@@ -251,12 +250,18 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
 
 type sym_store = sym_set Int.Table.t
 
-let symbolic_execute (ast: expr) : sym_store =
+let symbolic_execute (init: symtable) (ast: expr) : sym_store =
   let sym_store = Int.Table.create () in
   let trace expr st =
     Hashtbl.set sym_store ~key:(to_id expr) ~data:st
   in
-  let init_set = SymSet.add (SymSet.empty) "request" in
+  let init_set =
+    List.fold_left
+      ~init:SymSet.empty
+      ~f:(fun acc s ->
+          SymSet.add acc s)
+      ("request" :: (Symtable.keys init))
+  in
   sym_exec ~trace init_set ast; sym_store
 
 let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =

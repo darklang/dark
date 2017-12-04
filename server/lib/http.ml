@@ -1,24 +1,9 @@
 open Core
 
-module C = Canvas
-module TL = Toplevel
 module RT = Runtime
 
 module RouteParamMap = String.Map
 type route_param_map = RT.dval RouteParamMap.t
-
-let url_for (eh: Handler.handler) : string option =
-  match eh.spec.module_, eh.spec.name with
-  | Full module_, Full name when String.lowercase module_ = "http" ->
-    Some name
-  | _ -> None
-
-let url_for_exn (eh: Handler.handler) : string =
-  match (url_for eh) with
-  | Some s -> s
-  | None ->
-    Exception.internal
-      "Called url_for_exn on a toplevel without a `url` param"
 
 let split_uri_path (path: string) : string list =
   let subs = String.split ~on:'/' path in
@@ -26,18 +11,6 @@ let split_uri_path (path: string) : string list =
 
 let path_matches_route ~(path: string) (route: string) : bool =
   path = route
-
-let matching_routes ~(uri: Uri.t) (c: C.canvas) : Handler.handler list =
-  let path = Uri.path uri in
-  c.toplevels
-  |> TL.handlers
-  |> List.filter
-    ~f:(fun tl -> url_for tl <> None)
-  |> List.filter
-    ~f:(fun tl -> path_matches_route ~path:path (url_for_exn tl))
-
-let pages_matching_route ~(uri: Uri.t) (c: C.canvas) : Handler.handler list =
-  matching_routes ~uri:uri c
 
 let route_variables (route: string) : string list =
   let suffix = List.drop (split_uri_path route) 1 in

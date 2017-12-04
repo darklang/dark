@@ -190,10 +190,11 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 
 
-let to_frontend (global: RT.dval) (c : canvas) : Yojson.Safe.json =
+let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
              |> TL.handlers
-             |> List.map ~f:(Handler.execute_for_analysis global)
+             |> List.map ~f:(Handler.make_executable environment)
+             |> List.map ~f:(Handler.execute_for_analysis)
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
                  `Assoc [ ("id", `Int id)
@@ -209,8 +210,8 @@ let to_frontend (global: RT.dval) (c : canvas) : Yojson.Safe.json =
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]
 
-let to_frontend_string (global: RT.dval) (c: canvas) : string =
-  c |> to_frontend global |> Yojson.Safe.pretty_to_string ~std:true
+let to_frontend_string (environment: Ast.symtable) (c: canvas) : string =
+  c |> to_frontend environment |> Yojson.Safe.pretty_to_string ~std:true
 
 let save_test (c: canvas) : string =
   let c = minimize c in
@@ -223,4 +224,16 @@ let save_test (c: canvas) : string =
   let filename = "appdata/test_" ^ name ^ ".dark" in
   save ~filename:(Some filename) c;
   filename
+
+let matching_routes ~(uri: Uri.t) (c: canvas) : Handler.handler list =
+  let path = Uri.path uri in
+  c.toplevels
+  |> TL.handlers
+  |> List.filter
+    ~f:(fun h -> Handler.url_for h <> None)
+  |> List.filter
+    ~f:(fun h -> Http.path_matches_route ~path:path (Handler.url_for_exn h))
+
+let pages_matching_route ~(uri: Uri.t) (c: canvas) : Handler.handler list =
+  matching_routes ~uri:uri c
 

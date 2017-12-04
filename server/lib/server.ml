@@ -22,7 +22,8 @@ let server =
         let ops = Api.to_ops body in
         c := !(C.load host ops);
         let global = DReq.sample |> DReq.to_dval in
-        let result = C.to_frontend_string global !c in
+        let env = Ast.Symtable.singleton "request" global in
+        let result = C.to_frontend_string env !c in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
@@ -59,14 +60,15 @@ let server =
       let verb = req |> CRequest.meth in
       let c = C.load host [] in
       let is_get = Cohttp.Code.method_of_string "GET" = verb in
-      let pages = Http.pages_matching_route ~uri:uri !c in
+      let pages = C.pages_matching_route ~uri:uri !c in
       match pages with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
-        let route = Http.url_for_exn page in
+        let route = Handler.url_for_exn page in
         let input = DReq.from_request req body uri in
-        let st = Ast.Symtable.singleton "request" (DReq.to_dval input) in
+        let env = Ast.Symtable.singleton "request" (DReq.to_dval input) in
+        let eh = Handler.make_executable env page in
         let result =
           if is_get
           then
@@ -74,9 +76,9 @@ let server =
             then
               failwith "TODO"
             else
-              Ast.execute st page.ast
+              Handler.execute eh
               (* Posts have values, I guess we should be getting the result from it *)
-          else Ast.execute st page.ast
+          else Handler.execute eh
         in
         let response = RT.to_url_string result in
 
