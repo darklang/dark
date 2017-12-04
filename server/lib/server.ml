@@ -67,7 +67,12 @@ let server =
       | [page] ->
         let route = Handler.url_for_exn page in
         let input = DReq.from_request req body uri in
-        let env = Ast.Symtable.singleton "request" (DReq.to_dval input) in
+        let bound = Http.bind_route_params_exn ~uri ~route in
+        let env = Ast.Symtable.add
+            ~key:"request"
+            ~data:(DReq.to_dval input)
+            bound
+        in
         let eh = Handler.make_executable env page in
         let result =
           if is_get

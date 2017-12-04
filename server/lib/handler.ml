@@ -36,11 +36,14 @@ let make_executable (init: Ast.symtable) (h: handler) : executable_handler =
   let state =
     match url_for h with
     | Some n ->
-      List.fold_left
-        ~init:init
-        ~f:(fun acc v ->
-            Ast.Symtable.add ~key:v ~data:RT.DNull acc)
-        (Http.route_variables n)
+      let default = List.fold_left
+          ~init:Ast.Symtable.empty
+          ~f:(fun acc v ->
+              Ast.Symtable.add ~key:v ~data:RT.DNull acc)
+          (Http.route_variables n)
+      in
+      (* Prefer passed over default variables *)
+      Util.merge_left init default
     | None -> init
   in
   { tlid = h.tlid; ast = h.ast; spec = h.spec; initial_state = state }
