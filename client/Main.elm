@@ -4,7 +4,6 @@ port module Main exposing (..)
 -- builtins
 import Maybe
 import Dict
-import List.Extra as LE
 
 -- lib
 import Json.Decode as JSD
@@ -237,7 +236,7 @@ update_ msg m =
                   Enter False (Filling tlid hid) thread
               Key.Tab    ->
                 let tl = TL.getTL m tlid
-                    nh = TL.findNextHole tl hid
+                    nh = TL.getNextHole tl (Just hid)
                 in
                     Select tlid nh thread
               _ -> NoChange
@@ -362,22 +361,21 @@ update_ msg m =
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    (ToplevelClickUp id event, _) ->
+    (ToplevelClickUp tlid event, _) ->
       if event.button == Defaults.leftButton
       then
         case m.state of
           Dragging tlid startVPos hasMoved origState ->
+            let xDiff = event.pos.vx-startVPos.vx
+                yDiff = event.pos.vy-startVPos.vy
+                m2 = TL.move tlid xDiff yDiff m
+                tl = TL.getTL m2 tlid
+            in
             if hasMoved
-            then
-              let xDiff = event.pos.vx-startVPos.vx
-                  yDiff = event.pos.vy-startVPos.vy
-                  m2    = TL.move tlid xDiff yDiff m
-                  tl    = TL.getTL m2 id
-              in
-                  Many
+            then Many
                   [ SetState origState
                   , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            else Select id (TL.firstHole m id) Nothing
+            else Select tlid (TL.firstHole tl) Nothing
           _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
@@ -399,19 +397,10 @@ update_ msg m =
           newState =
             case focus of
               FocusNext tlid prev ->
-                let thread = oldThread m.state in
-                case prev of
-                  Just pred ->
-                    let tl = TL.getTL m2 tlid
-                        holes = TL.allHoles tl
-                        next =
-                          LE.elemIndex pred holes
-                          |> Maybe.map ((+) 1)
-                          |> Maybe.andThen (\i -> LE.getAt i holes)
-                          |> Maybe.withDefault (TL.firstHole m2 tlid)
-                    in
-                    Select tlid next thread
-                  Nothing -> Select tlid (TL.firstHole m2 tlid) thread
+                let thread = oldThread m.state
+                    tl = TL.getTL m2 tlid
+                in
+                Select tlid (TL.firstHole tl) thread
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset

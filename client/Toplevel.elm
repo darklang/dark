@@ -20,10 +20,6 @@ replace : Model -> Toplevel -> Model
 replace m tl =
   update m tl.id (\_ -> tl)
 
-firstHole : Model -> TLID -> ID
-firstHole m id =
-  getTL m id |> allHoles |> List.head |> Maybe.withDefault (ID 3)
-
 isThreadHole : Handler -> ID -> Bool
 isThreadHole h id =
   h.ast |> AST.listThreadHoles |> List.member id
@@ -90,14 +86,30 @@ allHoles tl =
     TLDB db ->
       DB.listHoles db
 
-findNextHole : Toplevel -> ID -> ID
-findNextHole tl cur =
-  let holes = allHoles tl in
-  case (LE.dropWhile (\x -> x /= cur) holes) of
-     cur :: next :: _ -> next
-     [cur] -> holes |> List.head |> deMaybe
-     [] -> ID 237
+getNextHole : Toplevel -> Predecessor -> ID
+getNextHole tl pred =
+  case pred of
+    Just pred ->
+      let holes = allHoles tl in
+      holes
+      |> LE.elemIndex pred
+      |> Maybe.map ((+) 1)
+      |> Maybe.andThen (\i -> LE.getAt i holes)
+      |> Maybe.withDefault (firstHole tl)
+    Nothing ->
+      firstHole tl
 
+getPrevHole : Toplevel -> ID -> Predecessor
+getPrevHole tl next =
+  let holes = allHoles tl in
+  holes
+  |> LE.elemIndex next
+  |> Maybe.map ((-) 1)
+  |> Maybe.andThen (\i -> LE.getAt i holes)
+
+firstHole : Toplevel -> ID
+firstHole tl =
+  tl |> allHoles |> List.head |> Maybe.withDefault (ID 3)
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =

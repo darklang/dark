@@ -10,7 +10,7 @@ import Dict
 import Dom
 -- import Result.Extra as RE
 -- import Maybe.Extra as ME
-import List.Extra as LE
+-- import List.Extra as LE
 
 -- dark
 -- import Util
@@ -150,11 +150,7 @@ submit m re cursor value =
             Just v ->
               let replacement = AST.replaceHole id v h.ast
                   holes = TL.allHoles tl
-                  predecessor =
-                    LE.elemIndex id holes
-                    |> Maybe.map (\i -> i - 1)
-                    |> Maybe.map (max 0)
-                    |> Maybe.andThen (\i -> LE.getAt i holes)
+                  predecessor = TL.getPrevHole tl id
               in
               RPC ([SetHandler tlid tl.pos { h | ast = replacement}]
             , FocusNext tlid predecessor)
