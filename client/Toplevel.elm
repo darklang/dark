@@ -104,7 +104,7 @@ getPrevHole tl next =
   let holes = allHoles tl in
   holes
   |> LE.elemIndex next
-  |> Maybe.map ((-) 1)
+  |> Maybe.map (\i -> i - 1)
   |> Maybe.andThen (\i -> LE.getAt i holes)
 
 firstHole : Toplevel -> ID

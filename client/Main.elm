@@ -396,11 +396,11 @@ update_ msg m =
       let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
-              FocusNext tlid prev ->
+              FocusNext tlid pred ->
                 let thread = oldThread m.state
                     tl = TL.getTL m2 tlid
                 in
-                Select tlid (TL.firstHole tl) thread
+                Select tlid (TL.getNextHole tl pred) thread
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
