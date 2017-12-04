@@ -165,7 +165,10 @@ updateMod origm mod (m, cmd) =
                 Filling tlid eid ->
                   case TL.holeType (TL.getTL m tlid) eid of
                     ExprHole _ -> True
-                    _ -> False
+                    BindHole _ -> False
+                    SpecHole _ -> False
+                    DBRowNameHole _ -> False
+                    DBRowTypeHole _ -> False
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
                                         , ACShowFunctions showFunctions
