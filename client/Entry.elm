@@ -118,22 +118,22 @@ submit m re cursor value =
             let handler = { ast = v, spec = emptyHS } in
             RPC ([SetHandler id pos handler], FocusNext id Nothing)
     Filling tlid id ->
-      let tl = TL.getTL m tlid in
+      let tl = TL.getTL m tlid
+          predecessor = TL.getPrevHole tl id |> Debug.log "pred"
+          focus = FocusNext tlid predecessor
+          wrap op = RPC ([op], focus)
+      in
       case TL.holeType tl id of
         DBRowTypeHole _ ->
-          RPC ([ SetDBRowType tlid id value ]
-              , FocusNext tlid Nothing)
+          wrap <| SetDBRowType tlid id value
         DBRowNameHole _ ->
-          RPC ([ SetDBRowName tlid id value ]
-               , FocusNext tlid Nothing)
+          wrap <| SetDBRowName tlid id value
         BindHole h ->
           let replacement = AST.replaceBindHole id value h.ast in
-          RPC ([SetHandler tlid tl.pos { h | ast = replacement}]
-              , FocusNext tlid Nothing)
+          wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         SpecHole h ->
           let replacement = TL.replaceSpecHole id value h.spec in
-          RPC ([ SetHandler tlid tl.pos { h | spec = replacement }]
-               , FocusNext tlid Nothing)
+          wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         ExprHole h ->
           -- check if value is in model.varnames
           let (ID rid) = id
@@ -146,14 +146,11 @@ submit m re cursor value =
                 else parseAst value (TL.isThreadHole h id)
           in
           case holeReplacement of
-            Nothing -> NoChange
+            Nothing ->
+              NoChange
             Just v ->
-              let replacement = AST.replaceHole id v h.ast
-                  holes = TL.allHoles tl
-                  predecessor = TL.getPrevHole tl id
-              in
-              RPC ([SetHandler tlid tl.pos { h | ast = replacement}]
-            , FocusNext tlid predecessor)
+              let replacement = AST.replaceHole id v h.ast in
+              wrap <| SetHandler tlid tl.pos { h | ast = replacement }
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
