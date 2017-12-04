@@ -191,7 +191,7 @@ viewHandler m tl h =
             [Attrs.class "modifier"]
             [ viewHoleOrText m h.spec.modifier]]
   in
-      [header, ast]
+      [ast, header]
 
 
 viewEntry : Model -> List (Svg.Svg Msg)
