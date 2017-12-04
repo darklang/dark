@@ -193,8 +193,8 @@ let minimize (c : canvas) : canvas =
 let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
              |> TL.handlers
-             |> List.map ~f:(Handler.make_executable environment)
-             |> List.map ~f:(Handler.execute_for_analysis)
+             |> List.map
+               ~f:(Handler.execute_for_analysis environment)
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
                  `Assoc [ ("id", `Int id)
