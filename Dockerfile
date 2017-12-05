@@ -81,20 +81,20 @@ ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
 ENV FORCE_BUILD 1
 RUN opam update
 
-RUN opam install ppx_deriving.4.1
+RUN opam install ppx_deriving.4.2.1
 RUN opam install core.v0.9.1
 RUN opam install conf-libev lwt.3.1.0
-RUN opam install yojson.1.3.3
+RUN opam install yojson.1.4.0
 RUN opam install postgresql.4.0.1
-RUN opam install ppx_deriving_yojson.3.0
+RUN opam install ppx_deriving_yojson.3.1
+RUN opam install cohttp-lwt-unix.1.0.0
 RUN opam install tls.0.8.0
-RUN opam install cohttp-lwt-unix.0.99.0
-RUN opam install ocurl.0.7.10
+RUN opam install ocurl.0.8.0
 RUN opam install alcotest.0.8.1 # test
-RUN opam install merlin.3.0.2 # dev
-RUN opam install utop.2.0.1 # dev
+RUN opam install merlin.3.0.5 # dev
+RUN opam install utop.2.0.2 # dev
 RUN opam install ocp-indent.1.6.1 # dev
-RUN opam install batteries.2.7.0
+RUN opam install batteries.2.8.0
 RUN opam install landmarks.1.1
 
 # Environment
