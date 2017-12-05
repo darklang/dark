@@ -22,7 +22,7 @@ let fns : fnmap =
   in
   List.fold_left ~f:add_fn ~init:FnMap.empty
     (* (List.concat [Stdlib.fns; Libtwitter.fns; Libdb.fns]) *)
-    (List.concat [Stdlib.fns; Libdb.fns])
+    (List.concat [Stdlib.fns; Libdb.fns; Libhttp.fns])
 
 (* Give access to other modules *)
 let get_fn (name : string) : fn option =
