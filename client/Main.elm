@@ -268,7 +268,7 @@ update_ msg m =
                                       Nothing -> m2.complete.value
                           in
                               Many [ (SetState (Entering re cursor (Just tid)))
-                                   , (Entry.submit m2 re cursor name)]
+                                   , Entry.submit m2 re cursor (Just tid) name]
                         Creating _ -> NoChange
 
 
@@ -300,7 +300,7 @@ update_ msg m =
                   -- if Autocomplete.isLargeStringEntry m.complete
                   -- then AutocompleteMod (ACSetQuery m.complete.value)
                   -- else
-                    Entry.submit m re cursor name
+                    Entry.submit m re cursor thread name
 
                 Key.Escape ->
                   case cursor of

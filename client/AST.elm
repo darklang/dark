@@ -123,69 +123,58 @@ vExpr nest expr =
        |> List.map (\e -> Nested (Nothing, "threadmember") [vExpr 0 e])
        |> List.intersperse (Leaf (Nothing, "thread atom", "|>")))
 
-replaceHole : ID -> Expr -> AST -> AST
-replaceHole id replacement ast =
-  replaceHole_ id replacement ast
+replaceExpr : ID -> Expr -> AST -> AST
+replaceExpr id replacement ast =
+  replaceExpr_ id replacement ast
 
-replaceHole_ : ID -> Expr -> Expr -> Expr
-replaceHole_ hid replacement expr =
-  let rh = replaceHole_ hid replacement
-      rhList : List Expr -> List Expr
-      rhList exprs = List.map rh exprs
+replaceExpr_ : ID -> Expr -> Expr -> Expr
+replaceExpr_ id replacement expr =
+  let re = replaceExpr_ id replacement
+      reList : List Expr -> List Expr
+      reList exprs = List.map re exprs
   in
-  case expr of
-    Value id v ->
-      Value id v
+  if toID expr == id
+  then replacement
+  else
+    case expr of
 
-    Let id vars expr ->
-      let vs = List.map (\(vb, e) ->
-         case vb of
-           -- TODO: replace this with a different replaceBindHole
-           -- that gets called from the submit of a special entry box
-           Full s -> (Full s, rh e)
-           Empty id ->
-             if id == hid
-             then
-               case replacement of
-                 Value _ s -> (Full (SE.unquote s), e)
-                 _         -> (Empty id, e)
-             else (Empty id, rh e)
-             ) vars
-      in Let id vs (rh expr)
+      Let id vars expr ->
+        let vs = vars |> List.map (\(vb, e) ->
+           case vb of
+             Full s -> (Full s, re e)
+             Empty id -> (Empty id, re e))
+        in Let id vs (re expr)
 
-    If id cond ifbody elsebody ->
-      If id (rh cond) (rh ifbody) (rh elsebody)
+      If id cond ifbody elsebody ->
+        If id (re cond) (re ifbody) (re elsebody)
 
-    Variable id name ->
-      Variable id name
 
-    FnCall id name exprs ->
-      FnCall id name (rhList exprs)
+      FnCall id name exprs ->
+        FnCall id name (reList exprs)
 
-    Lambda id vars expr ->
-      Lambda id vars (rh expr)
+      Lambda id vars expr ->
+        Lambda id vars (re expr)
 
-    Hole id ->
-      if id == hid
-      then replacement
-      else expr
+      Thread id exprs ->
+        let countHoles =
+              List.foldr (\c acc ->
+                case c of
+                  Hole _ -> acc + 1
+                  _      -> acc) 0
+            preCount = countHoles exprs
+            reppedExprs = reList exprs
+            postCount = countHoles reppedExprs
+            nexprs =
+              -- if the hole filled was in the current thread, then add a hole
+              if preCount /= postCount
+              then reppedExprs ++ [Hole (ID (Util.random ()))]
+              else reppedExprs
+        in
+        Thread id nexprs
 
-    Thread id exprs ->
-      let countHoles =
-            List.foldr (\c acc ->
-              case c of
-                Hole _ -> acc + 1
-                _      -> acc) 0
-          preCount = countHoles exprs
-          reppedExprs = rhList exprs
-          postCount = countHoles reppedExprs
-          nexprs =
-            -- if the hole filled was in the current thread, then add a hole
-            if preCount /= postCount
-            then reppedExprs ++ [Hole (ID (Util.random ()))]
-            else reppedExprs
-      in
-      Thread id nexprs
+      Hole id -> expr
+      Value id v -> expr
+      Variable id name -> expr
 
 toID : Expr -> ID
 toID expr =

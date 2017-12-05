@@ -73,8 +73,8 @@ createFunction m name hasImplicitParam =
         Just <| FnCall (gid ()) name (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
-submit : Model -> Bool -> EntryCursor -> String -> Modification
-submit m re cursor value =
+submit : Model -> Bool -> EntryCursor -> Maybe ID -> String -> Modification
+submit m re cursor threadID value =
   let id = tlid ()
       eid = gid ()
       tid1 = gid ()
@@ -119,7 +119,7 @@ submit m re cursor value =
             RPC ([SetHandler id pos handler], FocusNext id Nothing)
     Filling tlid id ->
       let tl = TL.getTL m tlid
-          predecessor = TL.getPrevHole tl id |> Debug.log "pred"
+          predecessor = TL.getPrevHole tl id
           focus = FocusNext tlid predecessor
           wrap op = RPC ([op], focus)
       in
@@ -135,22 +135,42 @@ submit m re cursor value =
           let replacement = TL.replaceSpecHole id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         ExprHole h ->
-          -- check if value is in model.varnames
-          let (ID rid) = id
-              availableVars =
-                let avd = Analysis.getAvailableVarnames m tlid
-                in Dict.get rid avd |> Maybe.withDefault []
-              holeReplacement =
-                if List.member value availableVars
-                then Just (Variable (gid ()) value)
-                else parseAst value (TL.isThreadHole h id)
-          in
-          case holeReplacement of
-            Nothing ->
-              NoChange
-            Just v ->
-              let replacement = AST.replaceHole id v h.ast in
-              wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+          if String.startsWith "= " value
+          then
+            -- turn the current thread into a let-assignment to this
+            -- name, and close the thread
+            threadID
+            |> Maybe.andThen (\tid -> AST.subExpr tid h.ast)
+            |> Maybe.map (\threadExpr ->
+              case threadExpr of
+                Thread tid _ ->
+                  let bindName = value
+                                 |> String.dropLeft 2
+                                 |> String.trim
+                      newLet = Let (gid ())
+                                   [(Full bindName, AST.closeThread tid threadExpr)]
+                                   (Hole (gid ()))
+                      replacement = AST.replaceExpr tid newLet h.ast
+                  in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                _ -> NoChange)
+            |> Maybe.withDefault NoChange
+          else
+            -- check if value is in model.varnames
+            let (ID rid) = id
+                availableVars =
+                  let avd = Analysis.getAvailableVarnames m tlid
+                  in Dict.get rid avd |> Maybe.withDefault []
+                holeReplacement =
+                  if List.member value availableVars
+                  then Just (Variable (gid ()) value)
+                  else parseAst value (TL.isThreadHole h id)
+            in
+            case holeReplacement of
+              Nothing ->
+                NoChange
+              Just v ->
+                let replacement = AST.replaceExpr id v h.ast in
+                wrap <| SetHandler tlid tl.pos { h | ast = replacement }
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
