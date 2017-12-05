@@ -45,4 +45,34 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; pu = true
   }
+
+  ;
+
+  { n = "Http::fail"
+  ; o = []
+  ; p = [par "error" TStr]
+  ; r = TResp
+  ; d = "Respond with a 400 and an error message"
+  ; f = InProcess
+        (function
+          | [DStr msg] -> DResp (Response 400, DStr msg)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+
+  ;
+
+  { n = "Http::not_found"
+  ; o = []
+  ; p = []
+  ; r = TResp
+  ; d = "Respond with 404 Not Found"
+  ; f = InProcess
+        (function
+          | [] -> DResp (Response 404, DNull)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
 ]
