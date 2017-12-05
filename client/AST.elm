@@ -2,10 +2,11 @@ module AST exposing (..)
 
 -- builtin
 import List
-import Tuple
+-- import Tuple
 
 -- lib
 import String.Extra as SE
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -65,27 +66,20 @@ vExpr nest expr =
   case expr of
     Value id v ->
      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
-         valu  =
+         valu =
            -- TODO: remove
            if RT.isString v
            then "“" ++ (SE.unquote v) ++ "”"
            else v
      in Leaf (Just id, "atom value " ++ cssClass, valu)
 
-    Let id vars expr ->
+    Let id lhs rhs expr ->
       Nested (Just id, "letexpr")
         [ Leaf (Nothing, "let keyword atom", "let")
-        , Nested (Nothing, "letbindings")
-            (List.map
-              (\(l, r) ->
-                Nested (Nothing, "letbinding")
-                  [ vVarBind l
-                  , Leaf (Nothing, "letbind atom", "=")
-                  , vExpr nest r
-                  ]
-              )
-              vars
-             )
+        , Nested (Nothing, "letbinding")
+              [ vVarBind lhs
+              , Leaf (Nothing, "letbind atom", "=")
+              , vExpr nest rhs ]
         , Leaf (Nothing, "in keyword atom" , "in")
         , Nested (Nothing, "letbody") [vExpr nest expr]
         ]
@@ -138,16 +132,11 @@ replaceExpr_ id replacement expr =
   else
     case expr of
 
-      Let id vars expr ->
-        let vs = vars |> List.map (\(vb, e) ->
-           case vb of
-             Full s -> (Full s, re e)
-             Empty id -> (Empty id, re e))
-        in Let id vs (re expr)
+      Let id lhs rhs expr ->
+        Let id lhs (re rhs) expr
 
       If id cond ifbody elsebody ->
         If id (re cond) (re ifbody) (re elsebody)
-
 
       FnCall id name exprs ->
         FnCall id name (reList exprs)
@@ -180,7 +169,7 @@ toID : Expr -> ID
 toID expr =
   case expr of
     Value id _ -> id
-    Let id _ _ -> id
+    Let id _ _ _ -> id
     If id _ _ _ -> id
     Variable id _ -> id
     FnCall id _ _ -> id
@@ -201,9 +190,8 @@ closeThread_ threadid expr =
     Value id v ->
       Value id v
 
-    Let id vars expr ->
-      let vs = List.map (\(vb, e) -> (vb, ct e)) vars
-      in Let id vs (ct expr)
+    Let id lhs rhs expr ->
+      Let id lhs (ct rhs) (ct expr)
 
     If id cond ifbody elsebody ->
       If id (ct cond) (ct ifbody) (ct elsebody)
@@ -254,16 +242,15 @@ replaceBindHole_ hid replacement expr =
     Value id v ->
       Value id v
 
-    Let id vars expr ->
-      let vs = List.map (\(vb, e) ->
-         case vb of
-           Full s -> (Full s, rbh e)
+    Let id lhs rhs expr ->
+      let newLhs =
+         case lhs of
+           Full s -> Full s
            Empty id ->
              if id == hid
-             then (Full replacement, e)
-             else (Empty id, rbh e)
-             ) vars
-      in Let id vs (rbh expr)
+             then Full replacement
+             else lhs
+      in Let id newLhs (rbh rhs) (rbh expr)
 
     If id cond ifbody elsebody ->
       If id (rbh cond) (rbh ifbody) (rbh elsebody)
@@ -309,14 +296,9 @@ listBindHoles expr =
     Value _ v ->
       []
 
-    Let _ vars expr ->
-      let exprBindHoles = vars
-                        |> List.map Tuple.second
-                        |> (++) [expr]
-                        |> lbhList
-          bindHoles = vars
-                    |> List.map Tuple.first
-                    |> bhList
+    Let _ lhs rhs expr ->
+      let exprBindHoles = lbhList [rhs, expr]
+          bindHoles = ME.toList <| bindHoleID lhs
       in
           bindHoles ++ exprBindHoles
 
@@ -353,21 +335,14 @@ listHoles expr =
         exprs
         |> List.map listHoles
         |> List.concat
-      bhList : List VarBind -> List ID
-      bhList = List.filterMap bindHoleID
   in
   case expr of
     Value _ v ->
       []
 
-    Let _ vars expr ->
-      let exprHoles = vars
-                      |> List.map Tuple.second
-                      |> (++) [expr]
-                      |> lhList
-          bindHoles = vars
-                    |> List.map Tuple.first
-                    |> bhList
+    Let _ lhs rhs expr ->
+      let exprHoles = lhList [rhs, expr]
+          bindHoles = ME.toList (bindHoleID lhs)
       in
           bindHoles ++ exprHoles
 
@@ -400,11 +375,8 @@ listThreadHoles expr =
     Value _ v ->
       []
 
-    Let _ vars expr ->
-      vars
-      |> List.map Tuple.second
-      |> (++) [expr]
-      |> lthList
+    Let _ lhs rhs expr ->
+      lthList [rhs, expr]
 
     If _ cond ifbody elsebody ->
       lthList [cond, ifbody, elsebody]
@@ -440,10 +412,6 @@ type alias ThreadWrap = { expr: Expr, threadID: Maybe ID }
 wrapInThread_ : ID -> Expr -> ThreadWrap
 wrapInThread_ hid expr =
   let wt e = wrapInThread_ hid e
-      pluckId xs =
-        xs
-        |> List.filterMap .threadID
-        |> List.head
       wrap e =
         case e of
           Thread id _ -> { expr = e, threadID = Just id }
@@ -462,15 +430,14 @@ wrapInThread_ hid expr =
         Hole _ -> wrapOr expr noWrap
         Variable _ _ -> wrapOr expr noWrap
 
-        Let id vars bexpr ->
+        Let id lhs rhs body ->
           wrapOr expr (\_ ->
-            let vs = List.map (\(vb, e) -> (vb, wt e)) vars
-                newVars = List.map (\(vb, tw) -> (vb, tw.expr)) vs
-                vId = vs |> List.map Tuple.second |> pluckId
-                bw = wt bexpr
-                tid = filterMaybe [vId, bw.threadID]
+            let newRhs = wt rhs
+                newBody = wt body
+                tid = filterMaybe [newRhs.threadID, newBody.threadID]
             in
-                { expr = Let id newVars bw.expr, threadID = tid })
+                { expr = Let id lhs newRhs.expr newBody.expr
+                , threadID = tid})
 
         If id cond ifbody elsebody ->
           wrapOr expr (\_ ->
@@ -479,7 +446,8 @@ wrapInThread_ hid expr =
                 newElsebody = wt elsebody
                 tid = filterMaybe [newCond.threadID, newIfbody.threadID, newElsebody.threadID]
             in
-            { expr = If id newCond.expr newIfbody.expr newElsebody.expr, threadID = tid })
+            { expr = If id newCond.expr newIfbody.expr newElsebody.expr
+            , threadID = tid })
 
         FnCall id name exprs ->
           wrapOr expr (\_ ->
@@ -521,12 +489,8 @@ subExpr id expr =
         Value _ _ -> returnOrNothing expr
         Hole _ -> returnOrNothing expr
         Variable _ _ -> returnOrNothing expr
-        Let id vars bexpr ->
-          returnOr (\_ ->
-            let vs = vars |> List.map Tuple.second |> List.map se
-                be = se bexpr
-            in
-                filterMaybe (be :: vs)) expr
+        Let id lhs rhs body ->
+          returnOr (\_ -> filterMaybe [se body, se rhs]) expr
 
         If id cond ifbody elsebody ->
           returnOr (\_ ->

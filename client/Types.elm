@@ -139,7 +139,7 @@ type Expr = If ID Expr Expr Expr
           | FnCall ID FnName (List Expr)
           | Variable ID VarName
           -- let x1 = expr1; x2 = expr2 in expr3
-          | Let ID (List (VarBind, Expr)) Expr
+          | Let ID VarBind Expr Expr
           | Lambda ID (List VarName) Expr
           | Value ID String
           | Hole ID

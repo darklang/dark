@@ -107,13 +107,10 @@ encodeAST expr =
                   , JSE.string n
                   , JSE.list (List.map e exprs)]
 
-    Let id binds body ->
+    Let id lhs rhs body ->
       ev "Let" [ eid id
-               , (List.map (\(v, bexpr) ->
-                                 JSE.list [ encodeHoleOr v JSE.string
-                                          , e bexpr])
-                    binds)
-                  |> JSE.list
+               , encodeHoleOr lhs JSE.string
+               , e rhs
                , e body]
 
     Lambda id vars body ->
@@ -145,10 +142,9 @@ decodeExpr =
       dv4 = decodeVariant4
       dv3 = decodeVariant3
       dv2 = decodeVariant2
-      dv1 = decodeVariant1
-      vb = decodePair (decodeHoleOr JSD.string) de in
+      dv1 = decodeVariant1 in
   decodeVariants
-    [ ("Let", dv3 Let did (JSD.list vb) de)
+    [ ("Let", dv4 Let did (decodeHoleOr JSD.string) de de)
     , ("Hole", dv1 Hole did)
     , ("Value", dv2 Value did JSD.string)
     , ("If", dv4 If did de de de)

@@ -70,7 +70,11 @@ createFunction m name hasImplicitParam =
   in
     case fn of
       Just function ->
-        Just <| FnCall (gid ()) name (holes ((List.length function.parameters) + holeModifier))
+        Just <|
+          FnCall
+            (gid ())
+            name
+            (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
 submit : Model -> Bool -> EntryCursor -> Maybe ID -> String -> Modification
@@ -89,7 +93,7 @@ submit m re cursor threadID value =
           ["if"] ->
             Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
           ["let"] ->
-              Just (Let eid [(Empty hid1, Hole hid2)] (Hole hid3))
+            Just (Let eid (Empty hid1) (Hole hid2) (Hole hid3))
           ["lambda"] ->
             Just (Lambda eid ["var"] (Hole hid1))
           [""] ->
@@ -148,7 +152,8 @@ submit m re cursor threadID value =
                                  |> String.dropLeft 2
                                  |> String.trim
                       newLet = Let (gid ())
-                                   [(Full bindName, AST.closeThread tid threadExpr)]
+                                   (Full bindName)
+                                   (AST.closeThread tid threadExpr)
                                    (Hole (gid ()))
                       replacement = AST.replaceExpr tid newLet h.ast
                   in wrap <| SetHandler tlid tl.pos { h | ast = replacement }

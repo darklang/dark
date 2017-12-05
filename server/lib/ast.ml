@@ -17,7 +17,7 @@ type expr = If of id * expr * expr * expr
           | Thread of id * expr list
           | FnCall of id * fnname * expr list
           | Variable of id * varname
-          | Let of id * (varbinding * expr) list * expr
+          | Let of id * varbinding * expr * expr
           | Lambda of id * varname list * expr
           | Value of id * string
           | Hole of id
@@ -30,7 +30,7 @@ let to_tuple (expr: expr) : (id * expr) =
   | Hole (id) -> (id, expr)
   | Value (id, s) -> (id, expr)
   | Variable (id, name) -> (id, expr)
-  | Let (id, bindings, body) -> (id, expr)
+  | Let (id, lhs, rhs, body) -> (id, expr)
   | FnCall (id, me, exprs) -> (id, expr)
   | If (id, cond, ifbody, elsebody) -> (id, expr)
   | Lambda (id, vars, body) -> (id, expr)
@@ -88,15 +88,10 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
        | Hole id ->
          RT.DIncomplete
 
-       | Let (_, bindings, body) ->
-         let vars = List.filter_map ~f:(fun (vb, expr) ->
-             (match vb with
-              | Full s -> Some (s, expr)
-              | Empty _ -> None)) bindings
-         in
-         let bound = List.fold_left ~init:st
-             ~f:(fun st (name, expr) ->
-                 String.Map.add ~key:name ~data:(exe st expr) st) vars
+       | Let (_, lhs, rhs, body) ->
+         let bound = match lhs with
+              | Full name -> String.Map.add ~key:name ~data:(exe st rhs) st
+              | Empty _ -> st
          in exe bound body
 
        | Value (_, s) ->
@@ -216,14 +211,10 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
        | Value (_, s) -> ()
        | Variable (_, name) -> ()
 
-       | Let (_, bindings, body) ->
-         let vars = List.filter_map ~f:(fun (vb, expr) ->
-             (match vb with
-              | Full s -> Some (s, expr)
-              | Empty _ -> None)) bindings
-         in
-         let bound = List.fold_left ~init:st
-             ~f:(fun st (name, expr) -> sexe st expr; SymSet.add st name) vars
+       | Let (_, lhs, rhs, body) ->
+         let bound = match lhs with
+           | Full name -> sexe st rhs; SymSet.add st name
+           | Empty _ -> st
          in sexe bound body
 
        | FnCall (id, name, exprs) -> List.iter ~f:(sexe st) exprs
