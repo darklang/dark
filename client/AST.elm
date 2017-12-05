@@ -133,7 +133,7 @@ replaceExpr_ id replacement expr =
     case expr of
 
       Let id lhs rhs expr ->
-        Let id lhs (re rhs) expr
+        Let id lhs (re rhs) (re expr)
 
       If id cond ifbody elsebody ->
         If id (re cond) (re ifbody) (re elsebody)
