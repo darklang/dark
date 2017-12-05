@@ -57,9 +57,7 @@ let server =
     in
 
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
-      let verb = req |> CRequest.meth in
       let c = C.load host [] in
-      let is_get = Cohttp.Code.method_of_string "GET" = verb in
       let pages = C.pages_matching_route ~uri:uri !c in
       match pages with
       | [] ->
@@ -70,15 +68,23 @@ let server =
         let bound = Http.bind_route_params_exn ~uri ~route in
         let env = Map.add ~key:"request" ~data:(DReq.to_dval input) bound in
         let result = Handler.execute env page in
-        let response = RT.to_url_string result in
-
-        if is_get
-        then S.respond_string ~status:`OK ~body:response ()
-        else let redir = RT.DStr "/" in (* todo, get redir string *)
-          (match redir with
-          | DStr "" | DNull -> S.respond_string ~status:`OK ~body:response ()
-          | DStr s  -> S.respond_redirect (Uri.of_string s) ()
-          | _       -> S.respond_string ~status:`Internal_server_error ~body:"500: Type error in `redir` of Page::POST" ())
+        (match result with
+        | DResp (http, value) ->
+          let url_safe = RT.to_url_string value in
+          (match http with
+           | Redirect url ->
+             S.respond_redirect (Uri.of_string url) ()
+           | Response code ->
+             S.respond_string
+               ~status:(Cohttp.Code.status_of_code code)
+               ~body:url_safe
+               ())
+        | _ ->
+          let url_safe = RT.to_url_string result in
+          S.respond_string
+            ~status:`Bad_request
+            ~body:("400: Handler did not return a HTTP response, instead returned: " ^ url_safe)
+            ())
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
     in
