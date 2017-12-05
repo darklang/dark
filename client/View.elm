@@ -21,6 +21,7 @@ import Viewport
 import Analysis
 import Autocomplete
 import ViewAST
+import Toplevel as TL
 
 view : Model -> Html.Html Msg
 view m =
@@ -78,7 +79,8 @@ viewCanvas m =
         asts = List.map (viewTL m) m.toplevels
         yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
-        allSvgs = xaxis :: yaxis :: (asts ++ entry)
+        routing = viewRoutingTable m
+        allSvgs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in allSvgs
 
 viewHoleOrText : Model -> HoleOr String -> Html.Html Msg
@@ -205,7 +207,6 @@ viewEntry m =
       [placeHtml m pos body]
     _ ->
       []
-
 
 
 -- The view we see is different from the value representation in a few
@@ -353,6 +354,34 @@ normalEntryHtml m =
                 , Attrs.width 100]
                 [ paramInfo, viewForm ]
   in wrapper
+
+
+
+viewRoutingTable : Model -> Svg.Svg Msg
+viewRoutingTable m =
+  let missing = Html.div [] [Html.text "No HTTP handlers yet"]
+      handlers = TL.handlers m.toplevels
+      vhot hole =
+        case hole of
+          Full s -> Html.text s
+          Empty _ -> Html.span
+            [Attrs.style [("font-style", "italic")]]
+            [Html.text "<not entered>"]
+      handlerHtml h =
+        Html.div
+          [Attrs.class "handler"]
+          [ Html.div
+            [Attrs.class "name"]
+            [ vhot h.spec.name ]
+          , Html.div
+            [Attrs.class "verb"]
+            [ vhot h.spec.modifier ]
+          ]
+      html = Html.div
+        [Attrs.class "routing-table"]
+        (List.map handlerHtml handlers)
+
+  in placeHtml m {x=0, y=0} html
 
 
 escapeCSSName : String -> String

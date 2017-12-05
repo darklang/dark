@@ -129,3 +129,23 @@ moveTL xOffset yOffset tl =
   in
       { tl | pos = newPos }
 
+
+asHandler : Toplevel -> Maybe Handler
+asHandler tl =
+  case tl.data of
+    TLHandler h -> Just h
+    _ -> Nothing
+
+asDB : Toplevel -> Maybe DB
+asDB tl =
+  case tl.data of
+    TLDB h -> Just h
+    _ -> Nothing
+
+handlers : List Toplevel -> List Handler
+handlers tls =
+  List.filterMap asHandler tls
+
+dbs : List Toplevel -> List DB
+dbs tls =
+  List.filterMap asDB tls
