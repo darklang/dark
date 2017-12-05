@@ -80,11 +80,40 @@ body {
 // Routing table
 //*************
 .routing-table {
-  width: 300px;
+  border: 2px solid @blue;
+  padding: 8px;
+  width: max-content;
+
+  .header {
+    width: 300px;
+    color: @orange;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 2px @white3 solid;
+
+    .http {
+      margin-right: 5px;
+    }
+
+    .count {
+      font-weight: bold;
+
+    }
+  }
+
   .handler {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+
+    .name {
+      color: @white3;
+    }
+
+    .verb {
+      color: @grey2;
+    }
+
   }
 }
 

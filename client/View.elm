@@ -361,27 +361,31 @@ viewRoutingTable : Model -> Svg.Svg Msg
 viewRoutingTable m =
   let missing = Html.div [] [Html.text "No HTTP handlers yet"]
       handlers = TL.handlers m.toplevels
+      handlerCount = List.length handlers
+      span class subs = Html.span [Attrs.class class] subs
+      text class msg = span class [Html.text msg]
+      div class subs = Html.div [Attrs.class class] subs
       vhot hole =
         case hole of
           Full s -> Html.text s
-          Empty _ -> Html.span
-            [Attrs.style [("font-style", "italic")]]
-            [Html.text "<not entered>"]
+          Empty _ -> text "hole" "<not entered>"
       handlerHtml h =
-        Html.div
-          [Attrs.class "handler"]
-          [ Html.div
-            [Attrs.class "name"]
-            [ vhot h.spec.name ]
-          , Html.div
-            [Attrs.class "verb"]
-            [ vhot h.spec.modifier ]
-          ]
-      html = Html.div
-        [Attrs.class "routing-table"]
-        (List.map handlerHtml handlers)
+        div "handler" [ span "name" [vhot h.spec.name]
+                      , span "verb" [vhot h.spec.modifier]
+                      ]
+      header = div "header"
+                 [ text "http" "HTTP"
+                 , text "parens" "("
+                 , text "count" (toString handlerCount)
+                 , text "parens" ")"
+                 ]
+      routes = div "routes" (List.map handlerHtml handlers)
+      html = div "routing-table" [header, routes]
 
-  in placeHtml m {x=0, y=0} html
+  in placeHtml m {x=0, y=0}
+       (if handlers == []
+       then missing
+       else html)
 
 
 escapeCSSName : String -> String
