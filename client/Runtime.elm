@@ -44,6 +44,7 @@ tipe2str t =
     TNull -> "Nothing"
     TAny -> "Any"
     TIncomplete -> "<incomplete>"
+    TResp -> "Response"
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -59,6 +60,7 @@ str2tipe t =
   "Opaque" -> TOpaque
   "Nothing" -> TNull
   "Any" -> TAny
+  "Response" -> TResp
   "<incomplete>" -> TIncomplete
   "Error" -> TIncomplete -- temporary, maybe
   _ -> Debug.crash <| "invalid typename: " ++ t

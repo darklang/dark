@@ -34,6 +34,7 @@ type Tipe = TInt
           | TOpaque
           | TNull
           | TIncomplete
+          | TResp
 
 -- There are two coordinate systems. Pos is an absolute position in the
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur

@@ -12,6 +12,13 @@ class opaque (d: string) =
 let pp_opaque f (o:opaque) : string =
   "<opaque>"
 
+type dhttp = Redirect of string
+           | Response of int [@@deriving show, eq, yojson]
+
+let repr_of_dhttp (d: dhttp) : string =
+  match d with
+  | Redirect url -> "302 " ^ url
+  | Response c -> string_of_int c
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
@@ -29,7 +36,9 @@ and dval = DInt of int
             system *)
          | DNull
          | DObj of dval_map
+         | DResp of (dhttp * dval)
          | DIncomplete [@@deriving show]
+
 
 let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   let nl = if pp then "\n" ^ (String.make indent ' ') else " " in
@@ -46,6 +55,7 @@ let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   | DOpaque o -> "<opaque:" ^ o#get ^ ">"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
+  | DResp (h, hdv) -> (repr_of_dhttp h) ^ nl ^ (to_repr_ indent pp hdv)
   | DList l ->
       if List.is_empty l
       then "[]"
@@ -87,6 +97,7 @@ let rec to_url_string (dv : dval) : string =
   | DOpaque v -> "<opaque>"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
+  | DResp (_, hdv) -> to_url_string hdv
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_url_string l)) ^ " ]"
   | DObj o ->
@@ -120,6 +131,7 @@ type tipe = TInt
           | TAny
           | TBlock
           | TNull
+          | TResp
           | TIncomplete
           [@@deriving yojson, show]
 
@@ -136,6 +148,7 @@ let tipe2str t : string =
   | TBlock -> "Block"
   | TNull -> "Nothing"
   | TAny -> "Any"
+  | TResp -> "Response"
   | TIncomplete -> "<incomplete>"
 
 
@@ -150,6 +163,7 @@ let tipeOf (dv : dval) : tipe =
   | DBlock _ -> TBlock
   | DList _ -> TList
   | DObj _ -> TObj
+  | DResp _ -> TResp
   | DIncomplete -> TIncomplete
   | DOpaque _ -> TOpaque
 
@@ -223,6 +237,7 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   | DOpaque _ -> `String "<opaque>"
   | DIncomplete -> `String "<incomplete>"
   | DList l -> `List (List.map l dval_to_yojson)
+  | DResp (h, hdv) -> `List [dhttp_to_yojson h; dval_to_yojson hdv]
   | DObj o -> o
               |> DvalMap.to_alist
               |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
