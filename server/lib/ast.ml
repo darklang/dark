@@ -6,6 +6,7 @@ module RT = Runtime
 (* Types *)
 (* --------------------- *)
 type fnname = string [@@deriving eq, yojson, show]
+type fieldname = string [@@deriving eq, yojson, show]
 type varname = string [@@deriving eq, yojson, show]
 type id = Types.id [@@deriving eq, yojson, show]
 type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show]
@@ -21,6 +22,7 @@ type expr = If of id * expr * expr * expr
           | Lambda of id * varname list * expr
           | Value of id * string
           | Hole of id
+          | FieldAccess of id * expr * fieldname
           [@@deriving eq, yojson, show]
 
 type ast = expr [@@deriving eq, yojson, show]
@@ -35,6 +37,7 @@ let to_tuple (expr: expr) : (id * expr) =
   | If (id, cond, ifbody, elsebody) -> (id, expr)
   | Lambda (id, vars, body) -> (id, expr)
   | Thread (id, exprs) -> (id, expr)
+  | FieldAccess (id, obj, field) -> (id, expr)
 
 let to_id (expr: expr) : id =
   to_tuple expr |> Tuple.T2.get1
@@ -135,20 +138,21 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
              exe new_st body)
        | Thread (id, exprs) ->
          (* For each expr, execute it, and then thread the previous result thru *)
-        (match exprs with
-        | e :: es ->
-          let fst = exe st e in
-          let results =
-            List.fold_left
-            ~init:[fst]
-            ~f:(fun results nxt ->
-                let previous = List.hd_exn results in
-                let value = inject_param_and_execute st previous nxt in
-                value :: results
-              ) es
-          in
-          List.hd_exn results
-        | _ -> DIncomplete))
+         (match exprs with
+          | e :: es ->
+            let fst = exe st e in
+            let results =
+              List.fold_left
+                ~init:[fst]
+                ~f:(fun results nxt ->
+                    let previous = List.hd_exn results in
+                    let value = inject_param_and_execute st previous nxt in
+                    value :: results
+                  ) es
+            in
+            List.hd_exn results
+          | _ -> DIncomplete)
+       | FieldAccess (id, obj, field) -> DIncomplete)
     in
     trace expr value st; value
   with
@@ -229,7 +233,8 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
          sexe new_st body
 
        | Thread (id, exprs) ->
-         List.iter ~f:(fun expr -> sexe st expr) exprs)
+         List.iter ~f:(fun expr -> sexe st expr) exprs
+       | FieldAccess (id, obj, field) -> ())
     in
     trace expr st
   with

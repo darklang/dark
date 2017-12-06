@@ -117,6 +117,13 @@ vExpr nest expr =
        |> List.map (\e -> Nested (Nothing, "threadmember") [vExpr 0 e])
        |> List.intersperse (Leaf (Nothing, "thread atom", "|>")))
 
+    FieldAccess id obj field ->
+      Nested (Just id, "fieldaccessexpr")
+      [ Nested (Nothing, "fieldobject") [(vExpr 0 obj)]
+      , Leaf (Nothing, "fieldaccessop operator atom", ".")
+      , Leaf (Nothing, "fieldaccess", field)
+      ]
+
 replaceExpr : ID -> Expr -> AST -> AST
 replaceExpr id replacement ast =
   replaceExpr_ id replacement ast
@@ -161,6 +168,9 @@ replaceExpr_ id replacement expr =
         in
         Thread id nexprs
 
+      FieldAccess id obj field ->
+        FieldAccess id (re obj) field
+
       Hole id -> expr
       Value id v -> expr
       Variable id name -> expr
@@ -176,6 +186,7 @@ toID expr =
     Lambda id _ _ -> id
     Hole id -> id
     Thread id _ -> id
+    FieldAccess id _ _ -> id
 
 closeThread : ID -> AST -> AST
 closeThread threadid ast =
@@ -207,6 +218,11 @@ closeThread_ threadid expr =
 
     Hole id ->
       Hole id
+
+    FieldAccess id obj name ->
+      -- Probably don't want threading in a field access,
+      -- but we'll make this work anyway
+      FieldAccess id (ct obj) name
 
     Thread id exprs ->
       if id == threadid
@@ -270,6 +286,10 @@ replaceBindHole_ hid replacement expr =
     Thread id exprs ->
       Thread id (rbhList exprs)
 
+    FieldAccess id obj name ->
+      FieldAccess id (rbh obj) name
+
+
 isHole : Expr -> Bool
 isHole e =
   case e of
@@ -321,6 +341,10 @@ listBindHoles expr =
     Thread _ exprs ->
       lbhList exprs
 
+    FieldAccess _ obj _ ->
+      listBindHoles obj
+
+
 -- TODO: figure out how we can define this
 -- this in terms of listBindHoles and a listExprHoles
 --
@@ -363,6 +387,9 @@ listHoles expr =
     Thread _ exprs ->
       lhList exprs
 
+    FieldAccess _ obj _ ->
+      listHoles obj
+
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =
   let lthList : List Expr -> List ID
@@ -398,6 +425,9 @@ listThreadHoles expr =
           subExprsHoleids = lthList notHoles
       in
           holeids ++ subExprsHoleids
+
+    FieldAccess _ obj _ ->
+      listThreadHoles obj
 
 walk : AST -> Element
 walk = vExpr 0
@@ -470,6 +500,11 @@ wrapInThread_ hid expr =
             in
                 { expr = Thread id newExprs, threadID = tid })
 
+        FieldAccess id obj field ->
+          wrapOr expr (\_ ->
+            let nObj = wt obj in
+            { expr = FieldAccess id nObj.expr field, threadID = nObj.threadID })
+
 subtree : ID -> AST -> AST
 subtree id ast =
   deMaybe (subExpr id ast)
@@ -508,4 +543,7 @@ subExpr id expr =
 
         Thread id exprs ->
           returnOr (\_ -> exprs |> List.map se |> filterMaybe) expr
+
+        FieldAccess id obj field ->
+          returnOr (\_ -> se obj) expr
 

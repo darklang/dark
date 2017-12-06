@@ -123,6 +123,8 @@ encodeAST expr =
     Value id v -> ev "Value" [ eid id , JSE.string v]
     Hole id -> ev "Hole" [eid id]
     Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
+    FieldAccess id obj field ->
+      ev "FieldAccess" [eid id, e obj, JSE.string field]
 
 
 
@@ -152,6 +154,7 @@ decodeExpr =
     , ("Lambda", dv3 Lambda did (JSD.list JSD.string) de)
     , ("Variable", dv2 Variable did JSD.string)
     , ("Thread", dv2 Thread did (JSD.list de))
+    , ("FieldAccess", dv3 FieldAccess did de JSD.string)
     ]
 
 decodeAST : JSD.Decoder AST

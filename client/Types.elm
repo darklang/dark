@@ -133,6 +133,7 @@ type Element = Leaf (Maybe ID, Class, String)
 
 type alias VarName = String
 type alias FnName = String
+type alias FieldName = String
 
 type alias VarBind = HoleOr VarName
 
@@ -144,6 +145,7 @@ type Expr = If ID Expr Expr Expr
           | Value ID String
           | Hole ID
           | Thread ID (List Expr)
+          | FieldAccess ID Expr FieldName
 
 type alias AST = Expr
 
