@@ -12,6 +12,7 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 import VirtualDom
 import String.Extra as SE
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -355,23 +356,89 @@ normalEntryHtml m =
                 [ paramInfo, viewForm ]
   in wrapper
 
+type alias Collapsed = { name: Maybe String
+                       , prefix: List String
+                       , verbs: List String}
+
+collapseHandlers : List Handler -> List Collapsed
+collapseHandlers handlers =
+  let asCollapsed =
+        handlers
+        |> List.map (\h -> { name = case h.spec.name of
+                                      Full s -> Just s
+                                      Empty _ -> Nothing
+                           , prefix = []
+                           , verbs = case h.spec.modifier of
+                                       Full s -> [s]
+                                       Empty _ -> []
+                           })
+        |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
+  in
+    prefixify <|
+    List.foldr (\curr list ->
+      case list of
+        [] -> [curr]
+        prev :: rest ->
+          if prev.name == curr.name
+          then
+            let new = { prev | verbs = prev.verbs ++ curr.verbs }
+            in new :: rest
+          else
+            curr :: prev :: rest
+    ) [] asCollapsed
+
+
+prefixify : List Collapsed -> List Collapsed
+prefixify hs =
+  case hs of
+    [] -> hs
+    [_] -> hs
+    h :: rest ->
+      case h.name of
+        Nothing -> h :: prefixify rest
+        Just name ->
+          let len = String.length name
+              makePrefix : Collapsed -> Collapsed
+              makePrefix h2 =
+                case h2.name of
+                  Just name2 ->
+                    let newName = String.dropLeft len name2 in
+                    { h2 | name = Just newName
+                         , prefix = h.prefix ++ [name]
+                    }
+                  _ -> h2
+              isPrefixOf h2 =
+                case h2.name of
+                  Nothing -> False
+                  Just n2 -> String.startsWith name n2
+          in
+          -- this should short circuit immediately when not matching, as
+          -- first handler will make the fn succeed
+          case LE.splitWhen (\h2 -> not (isPrefixOf h2)) rest of
+            Nothing ->
+              -- never hits, so everything is prefixed
+              h :: (rest |> List.map makePrefix |> prefixify)
+            Just (matched, unmatched) ->
+              h :: (prefixify <| (List.map makePrefix matched) ++ unmatched)
+
 
 
 viewRoutingTable : Model -> Svg.Svg Msg
 viewRoutingTable m =
-  let missing = Html.div [] [Html.text "No HTTP handlers yet"]
-      handlers = TL.handlers m.toplevels
-      handlerCount = List.length handlers
-      span class subs = Html.span [Attrs.class class] subs
+  let span class subs = Html.span [Attrs.class class] subs
       text class msg = span class [Html.text msg]
       div class subs = Html.div [Attrs.class class] subs
-      vhot hole =
-        case hole of
-          Full s -> Html.text s
-          Empty _ -> text "hole" "<not entered>"
+
+      handlers = TL.handlers m.toplevels |> collapseHandlers
+      handlerCount = List.length handlers
+      missing = text "no-handlers" "No HTTP handlers yet"
+      def s = Maybe.withDefault "<not entered>" s
       handlerHtml h =
-        div "handler" [ span "name" [vhot h.spec.name]
-                      , span "verb" [vhot h.spec.modifier]
+        div "handler" [ div "name"
+                          (  List.map (text "p") h.prefix
+                          ++ [text "n" (def h.name)])
+                      , span "verbs"
+                          (List.map (text "verb") h.verbs)
                       ]
       header = div "header"
                  [ text "http" "HTTP"

@@ -108,10 +108,22 @@ body {
 
     .name {
       color: @white3;
+      .p {
+        color: transparent;
+        display: inline-block; // needed to set width
+        width: 0px;
+        margin-left: 13px;
+        padding-left: 13px;
+        border-left: 2px solid @red;
+
+      }
     }
 
-    .verb {
+    .verbs {
       color: @grey2;
+      :not(:first-child):before {
+        content: ","
+      }
     }
 
   }
