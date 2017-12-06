@@ -121,7 +121,7 @@ vExpr nest expr =
       Nested (Just id, "fieldaccessexpr")
       [ Nested (Nothing, "fieldobject") [(vExpr 0 obj)]
       , Leaf (Nothing, "fieldaccessop operator atom", ".")
-      , Leaf (Nothing, "fieldaccess", field)
+      , vVarBind field
       ]
 
 replaceExpr : ID -> Expr -> AST -> AST
@@ -341,8 +341,8 @@ listBindHoles expr =
     Thread _ exprs ->
       lbhList exprs
 
-    FieldAccess _ obj _ ->
-      listBindHoles obj
+    FieldAccess _ obj ident ->
+      listBindHoles obj ++ (ME.toList <| bindHoleID ident)
 
 
 -- TODO: figure out how we can define this
@@ -387,8 +387,8 @@ listHoles expr =
     Thread _ exprs ->
       lhList exprs
 
-    FieldAccess _ obj _ ->
-      listHoles obj
+    FieldAccess _ obj ident ->
+      listHoles obj ++ (ME.toList <| bindHoleID ident)
 
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =

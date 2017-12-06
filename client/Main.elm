@@ -316,12 +316,12 @@ update_ msg m =
                                 Just item -> Autocomplete.asName item
                                 Nothing -> m.complete.value
                     in
-                      Entry.submit m re cursor thread name
+                      -- TODO: unify with Entry.submit
+                      Entry.objectSubmit m re cursor thread name
                   else
                     AutocompleteMod <| ACSetQuery m.complete.value
 
                 key ->
-                  let _ = Debug.log "wha" key in
                   AutocompleteMod <| ACSetQuery m.complete.value
 
           Deselected ->

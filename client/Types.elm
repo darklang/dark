@@ -136,6 +136,7 @@ type alias FnName = String
 type alias FieldName = String
 
 type alias VarBind = HoleOr VarName
+type alias Field = HoleOr FieldName
 
 type Expr = If ID Expr Expr Expr
           | FnCall ID FnName (List Expr)
@@ -145,7 +146,7 @@ type Expr = If ID Expr Expr Expr
           | Value ID String
           | Hole ID
           | Thread ID (List Expr)
-          | FieldAccess ID Expr FieldName
+          | FieldAccess ID Expr Field
 
 type alias AST = Expr
 

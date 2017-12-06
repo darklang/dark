@@ -124,7 +124,7 @@ encodeAST expr =
     Hole id -> ev "Hole" [eid id]
     Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
     FieldAccess id obj field ->
-      ev "FieldAccess" [eid id, e obj, JSE.string field]
+      ev "FieldAccess" [eid id, e obj, encodeHoleOr field JSE.string ]
 
 
 
@@ -154,7 +154,7 @@ decodeExpr =
     , ("Lambda", dv3 Lambda did (JSD.list JSD.string) de)
     , ("Variable", dv2 Variable did JSD.string)
     , ("Thread", dv2 Thread did (JSD.list de))
-    , ("FieldAccess", dv3 FieldAccess did de JSD.string)
+    , ("FieldAccess", dv3 FieldAccess did de (decodeHoleOr JSD.string))
     ]
 
 decodeAST : JSD.Decoder AST

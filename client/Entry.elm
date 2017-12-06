@@ -60,6 +60,12 @@ tlid unit = TLID (Util.random unit)
 gid : () -> ID -- Generate ID
 gid unit = ID (Util.random unit)
 
+emptyHS : () -> HandlerSpec
+emptyHS _ = { name = Empty (gid ())
+            , module_ = Empty (gid ())
+            , modifier = Empty (gid ())
+            }
+
 createFunction : Model -> FnName -> Bool ->Maybe Expr
 createFunction m name hasImplicitParam =
   let holeModifier = if hasImplicitParam then -1 else 0
@@ -76,6 +82,27 @@ createFunction m name hasImplicitParam =
             name
             (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
+
+objectSubmit : Model -> Bool -> EntryCursor -> Maybe ID -> String -> Modification
+objectSubmit m re cursor threadID value =
+  let access = FieldAccess (gid ()) (Variable (gid ()) value) (Empty (gid ())) in
+  case cursor of
+    Creating pos ->
+      let handler = { ast = access, spec = emptyHS () }
+          id = tlid ()
+      in
+      RPC ([SetHandler id pos handler], FocusNext id Nothing)
+    Filling tlid id ->
+      let tl = TL.getTL m tlid
+          predecessor = TL.getPrevHole tl id
+          focus = FocusNext tlid predecessor
+          wrap op = RPC ([op], focus)
+      in
+          case TL.holeType tl id of
+            ExprHole h ->
+              let replacement = AST.replaceExpr id access h.ast in
+                  wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+            _ -> submit m re cursor threadID value
 
 submit : Model -> Bool -> EntryCursor -> Maybe ID -> String -> Modification
 submit m re cursor threadID value =
@@ -106,9 +133,6 @@ submit m re cursor threadID value =
   in
   case cursor of
     Creating pos ->
-      let emptyHS = { name = Empty (gid ())
-                    , module_ = Empty (gid ())
-                    , modifier = Empty (gid ())} in
       if String.startsWith "DB" value
       then
         let dbName = value
@@ -119,7 +143,7 @@ submit m re cursor threadID value =
         case parseAst value False of
           Nothing -> NoChange
           Just v ->
-            let handler = { ast = v, spec = emptyHS } in
+            let handler = { ast = v, spec = emptyHS () } in
             RPC ([SetHandler id pos handler], FocusNext id Nothing)
     Filling tlid id ->
       let tl = TL.getTL m tlid

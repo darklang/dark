@@ -14,6 +14,10 @@ type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show]
 type varbinding = varname or_hole
                 [@@deriving eq, yojson, show]
 
+type field = fieldname or_hole
+           [@@deriving eq, yojson, show]
+
+
 type expr = If of id * expr * expr * expr
           | Thread of id * expr list
           | FnCall of id * fnname * expr list
@@ -22,7 +26,7 @@ type expr = If of id * expr * expr * expr
           | Lambda of id * varname list * expr
           | Value of id * string
           | Hole of id
-          | FieldAccess of id * expr * fieldname
+          | FieldAccess of id * expr * field
           [@@deriving eq, yojson, show]
 
 type ast = expr [@@deriving eq, yojson, show]
