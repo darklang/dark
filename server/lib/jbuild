@@ -22,6 +22,7 @@
                 nocrypto
                 postgresql
                 ppx_derivers
+                ppx_deriving.std
                 ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
                 threads
