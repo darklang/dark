@@ -200,11 +200,11 @@ regenerate : Autocomplete -> Autocomplete
 regenerate a =
   let lcq = String.toLower a.value
       -- fields of objects
-      -- fields = case a.liveValue of
-      --            Just lv -> if lv.tipe == TObj
-      --                       then jsonFields lv.json
-      --                       else []
-      --            Nothing -> []
+      fields = case a.liveValue of
+                 Just lv -> if lv.tipe == TObj
+                            then jsonFields lv.json
+                            else []
+                 Nothing -> []
       --
       -- variables
       -- variables = case (a.tipe, a.nodes) of
@@ -226,7 +226,7 @@ regenerate a =
         --        Just {tipe} -> Nothing /= findParamByType fn tipe
         --        Nothing -> True)
         |> List.map ACFunction
-        -- |> List.append fields
+        |> List.append fields
         |> List.append (List.map ACVariable a.varnames)
         |> List.filter
            (\i -> i
