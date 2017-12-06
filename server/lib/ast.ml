@@ -156,7 +156,18 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
             in
             List.hd_exn results
           | _ -> DIncomplete)
-       | FieldAccess (id, obj, field) -> DIncomplete)
+       | FieldAccess (id, e, field) ->
+         let obj = exe st e in
+         (match obj with
+          | DObj o ->
+            (match field with
+             | Empty _ -> DIncomplete
+             | Full f ->
+               (match Map.find o f with
+                | Some v -> v
+                | None -> Exception.user ("Object has no field named: " ^ f)))
+          | _ -> Exception.user "type mismatch, expected object")
+      )
     in
     trace expr value st; value
   with
