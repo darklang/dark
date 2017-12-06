@@ -245,11 +245,9 @@ update_ msg m =
               _ -> NoChange
 
           Entering re cursor thread ->
-            if event.ctrlKey then
+            if event.shiftKey then
               case event.keyCode of
-                Key.P -> AutocompleteMod ACSelectUp
-                Key.N -> AutocompleteMod ACSelectDown
-                Key.T ->
+                Key.Enter ->
                   case thread of
                     Just _ -> NoChange
                     Nothing ->
@@ -270,8 +268,12 @@ update_ msg m =
                               Many [ (SetState (Entering re cursor (Just tid)))
                                    , Entry.submit m2 re cursor (Just tid) name]
                         Creating _ -> NoChange
-
-
+                _ -> NoChange
+            else
+            if event.ctrlKey then
+              case event.keyCode of
+                Key.P -> AutocompleteMod ACSelectUp
+                Key.N -> AutocompleteMod ACSelectDown
                 -- Key.Enter ->
                 --   if Autocomplete.isSmallStringEntry m.complete
                 --   then
