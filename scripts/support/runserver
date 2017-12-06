@@ -4,8 +4,8 @@ set -euo pipefail
 
 NATIVE=1
 
-BYTE_FILE="_build/bin/dark.byte"
-NATIVE_FILE="_build/bin/dark.native"
+BYTE_FILE="_build/default/bin/dark.byte"
+NATIVE_FILE="_build/default/bin/main.exe"
 if [ $NATIVE ]; then
   FILE=$NATIVE_FILE
 else
@@ -14,7 +14,7 @@ fi
 
 # Stop the server
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
-(ps aux | pgrep dark.native | xargs kill -9 > /dev/null 2>&1) || true
+(ps aux | pgrep main.exe | xargs kill -9 > /dev/null 2>&1) || true
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));

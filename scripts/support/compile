@@ -50,7 +50,7 @@ def elm_make():
     return run_frontend("cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
-  return subprocess.check_output(["server/darkfile_to_rpc.native", filename])
+  return subprocess.check_output(["server/_build/default/bin/darkfile_to_rpc.exe", filename])
 
 def stringify(json):
   return json.decode() \
@@ -95,15 +95,15 @@ def ocaml_build():
   # check for success
   global profile
   cd = "cd server &&"
-  build = " ocamlbuild -j 0 dark.native"
-  build_converter = " && ocamlbuild -j 0 darkfile_to_rpc.native"
+  build = " jbuilder build bin/main.exe "
+  build_converter = " && jbuilder build bin/darkfile_to_rpc.exe "
   if profile:
     return run_backend(cd + landmarks + build)
   else:
     return run_backend(cd + build + build_converter)
 
 def ocaml_test():
-  return run_backend("cd server && ocamlbuild test.native && unbuffer _build/test/test.native 2>&1")
+  return run_backend("cd server && jbuilder build test/test.exe && unbuffer _build/default/test/test.exe 2>&1")
 
 def reload_server():
   global profile
@@ -196,12 +196,9 @@ def ignore(filename):
             , "server/static/base.css"
             , "server/cache/"
             , "server/_build/"
+            , "server/dark.install"
+            , "server/_build/"
             , "server/appdata/"
-            , "server/dark.byte"
-            , "server/dark.native"
-            , "server/test.byte"
-            , "server/test.native"
-            , "server/darkfile_to_rpc.native"
             , "server/gmon.out"
             , "server/profile.json"
             , "server/ocamlbuild_output.txt"

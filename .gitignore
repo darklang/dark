@@ -16,3 +16,4 @@
 /client/tests/DarkTestData.elm
 .DS_Store
 /tags
+/server/*/.merlin

@@ -1,6 +1,8 @@
 open Core
 open Types
 
+open Dark
+
 module C = Canvas
 module RT = Runtime
 module TL = Toplevel

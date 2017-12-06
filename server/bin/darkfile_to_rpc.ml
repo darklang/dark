@@ -1,7 +1,8 @@
 open Core
 
-module C = Canvas
-module DReq = Dark_request
+module C = Dark.Canvas
+module DReq = Dark.Dark_request
+module Ast = Dark.Ast
 
 let _ =
   Printexc.record_backtrace true;
