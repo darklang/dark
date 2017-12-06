@@ -98,7 +98,7 @@ let server =
     (* in *)
     (*  *)
     let route_handler _ =
-      req_body |> Cohttp_lwt_body.to_string >>=
+      req_body |> Cohttp_lwt__Body.to_string >>=
       (fun req_body ->
          try
            let uri = req |> CRequest.uri in

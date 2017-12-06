@@ -9,7 +9,7 @@ let readfile ?(default="") f : string =
       let s = Bytes.create n in
       Caml.really_input ic s 0 n;
       Caml.close_in ic;
-      s
+      Caml.Bytes.to_string s
     with e ->
       Caml.close_in_noerr ic;
       raise e)
