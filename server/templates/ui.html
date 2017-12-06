@@ -12,18 +12,18 @@
                            href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" >
 
     <script type="text/javascript">
-    function stopTab(event) {
-      if (event.keyCode == 9) {
+    function stopKeys(event) {
+      if (event.keyCode == 9 // Tab
+         || event.keyCode == 190  // .
+      ) {
         event.preventDefault();
-      }
-      else {
       }
     }
     </script>
     <script type="text/javascript" src="/static/elm.js"> </script>
 
   </head>
-  <body onKeyDown="stopTab(event)" onKeyUp="stopTab(event)">
+  <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
    <script type="text/javascript">
      complete = ALLFUNCTIONS;
      try {

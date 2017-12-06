@@ -309,7 +309,19 @@ update_ msg m =
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
                     Filling tlid hid -> Many [ Deselect
                                              , AutocompleteMod ACReset]
+                Key.Unknown c ->
+                  if c == 190 -- this is `.`
+                  then
+                    let name = case Autocomplete.highlighted m.complete of
+                                Just item -> Autocomplete.asName item
+                                Nothing -> m.complete.value
+                    in
+                      Entry.submit m re cursor thread name
+                  else
+                    AutocompleteMod <| ACSetQuery m.complete.value
+
                 key ->
+                  let _ = Debug.log "wha" key in
                   AutocompleteMod <| ACSetQuery m.complete.value
 
           Deselected ->
