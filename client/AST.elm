@@ -287,7 +287,14 @@ replaceBindHole_ hid replacement expr =
       Thread id (rbhList exprs)
 
     FieldAccess id obj name ->
-      FieldAccess id (rbh obj) name
+      let newName =
+         case name of
+           Full s -> Full s
+           Empty id ->
+             if id == hid
+             then Full replacement
+             else name
+      in FieldAccess id (rbh obj) newName
 
 
 isHole : Expr -> Bool
