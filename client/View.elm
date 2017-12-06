@@ -433,10 +433,26 @@ viewRoutingTable m =
       handlerCount = List.length handlers
       missing = text "no-handlers" "No HTTP handlers yet"
       def s = Maybe.withDefault "<not entered>" s
+      link h =
+        if List.member "GET" h.verbs
+        then
+          case h.name of
+            Just n ->
+              let source = String.join "" (h.prefix ++ [n]) in
+              Html.a [ Attrs.class "external"
+                     , Attrs.href source
+                     , Attrs.target "_blank"
+                     ]
+                     [Html.i [Attrs.class "fa fa-external-link"] []]
+            Nothing ->
+              Html.div [] []
+        else
+          Html.div [] []
       handlerHtml h =
         div "handler" [ div "name"
                           (  List.map (text "p") h.prefix
                           ++ [text "n" (def h.name)])
+                      , link h
                       , span "verbs"
                           (List.map (text "verb") h.verbs)
                       ]
