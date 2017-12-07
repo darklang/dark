@@ -15,7 +15,7 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 ARGS=${@}
 ARGS=$(echo ${ARGS} | fix_dir_stdin)
 
-NAME=$(docker ps --latest --quiet)
+NAME=$(docker ps --last 1 --filter status=running --quiet)
 
 
 if [ -t 0 ] ;
