@@ -103,81 +103,87 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
     | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
   in
 
-  try
-    let value =
-      (match expr with
-       | Hole id ->
-         RT.DIncomplete
+  let value _ =
+    (match expr with
+     | Hole id ->
+       RT.DIncomplete
 
-       | Let (_, lhs, rhs, body) ->
-         let bound = match lhs with
-              | Full name -> String.Map.add ~key:name ~data:(exe st rhs) st
-              | Empty _ -> st
-         in exe bound body
+     | Let (_, lhs, rhs, body) ->
+       let bound = match lhs with
+            | Full name -> String.Map.add ~key:name ~data:(exe st rhs) st
+            | Empty _ -> st
+       in exe bound body
 
-       | Value (_, s) ->
-         RT.parse s
+     | Value (_, s) ->
+       RT.parse s
 
-       | Variable (_, name) ->
-         (match Symtable.find st name with
-          | None ->
-            (* TODO we can put this in a DError and have great error messages *)
-            RT.DIncomplete
-          | Some result -> result)
+     | Variable (_, name) ->
+       (match Symtable.find st name with
+        | None ->
+          (* TODO we can put this in a DError and have great error messages *)
+          RT.DIncomplete
+        | Some result -> result)
 
-       | FnCall (id, name, exprs) ->
-         let argvals = List.map ~f:(exe st) exprs in
-         call name argvals
+     | FnCall (id, name, exprs) ->
+       let argvals = List.map ~f:(exe st) exprs in
+       call name argvals
 
-       | If (id, cond, ifbody, elsebody) ->
-         (match (exe st cond) with
-          | DBool true -> exe st ifbody
-          | DBool false -> exe st elsebody
-          | _ -> RT.DIncomplete) (* TODO: better error *)
+     | If (id, cond, ifbody, elsebody) ->
+       (match (exe st cond) with
+        | DBool true -> exe st ifbody
+        | DBool false -> exe st elsebody
+        | _ -> RT.DIncomplete) (* TODO: better error *)
 
-       | Lambda (id, vars, body) ->
-         (* TODO: this will errror if the number of args and vars arent equal *)
-         DBlock (fun args ->
-             let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
-             let new_st = Util.merge_left bindings st in
-             exe new_st body)
-       | Thread (id, exprs) ->
-         (* For each expr, execute it, and then thread the previous result thru *)
-         (match exprs with
-          | e :: es ->
-            let fst = exe st e in
-            let results =
-              List.fold_left
-                ~init:[fst]
-                ~f:(fun results nxt ->
-                    let previous = List.hd_exn results in
-                    let value = inject_param_and_execute st previous nxt in
-                    value :: results
-                  ) es
-            in
-            List.hd_exn results
-          | _ -> DIncomplete)
-       | FieldAccess (id, e, field) ->
-         let obj = exe st e in
-         (match obj with
-          | DObj o ->
-            (match field with
-             | Empty _ -> DIncomplete
-             | Full f ->
-               (match Map.find o f with
-                | Some v -> v
-                | None -> Exception.user ("Object has no field named: " ^ f)))
-          | _ -> Exception.user "type mismatch, expected object")
-      )
-    in
-    trace expr value st; value
-  with
-  | e ->
-    let bt = Exn.backtrace () in
-    let msg = Exn.to_string e in
-    print_endline bt;
-    print_endline msg;
-    RT.DIncomplete
+     | Lambda (id, vars, body) ->
+       (* TODO: this will errror if the number of args and vars arent equal *)
+       DBlock (fun args ->
+           let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
+           let new_st = Util.merge_left bindings st in
+           exe new_st body)
+     | Thread (id, exprs) ->
+       (* For each expr, execute it, and then thread the previous result thru *)
+       (match exprs with
+        | e :: es ->
+          let fst = exe st e in
+          let results =
+            List.fold_left
+              ~init:[fst]
+              ~f:(fun results nxt ->
+                  let previous = List.hd_exn results in
+                  let value = inject_param_and_execute st previous nxt in
+                  value :: results
+                ) es
+          in
+          List.hd_exn results
+        | _ -> DIncomplete)
+     | FieldAccess (id, e, field) ->
+       let obj = exe st e in
+       (match obj with
+        | DObj o ->
+          (match field with
+           | Empty _ -> DIncomplete
+           | Full f ->
+             (match Map.find o f with
+              | Some v -> v
+              | None -> Exception.user ("Object has no field named: " ^ f)))
+        | _ -> Exception.user "type mismatch, expected object")
+    ) in
+  (* Only catch if we're tracing *)
+  let execed_value =
+    if phys_equal trace empty_trace (* only way to compare functions *)
+    then value ()
+    else
+      try
+        value ()
+      with
+      | e ->
+        let bt = Exn.backtrace () in
+        let msg = Exn.to_string e in
+        print_endline bt;
+        print_endline msg;
+        RT.DIncomplete
+  in
+  trace expr execed_value st; execed_value
 
 let execute = exec_
 
