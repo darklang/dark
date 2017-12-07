@@ -22,29 +22,55 @@ type db = { tlid: tlid
 let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
-let _run_sql (sql: string) : unit =
+let run_sql (sql: string) : unit =
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
+
+let with_postgres (table: opaque) fn =
+  try
+     let t = table#get in
+     fn t
+   with
+   | PG.Error e ->
+     Exception.internal ("DB error with: " ^ (PG.string_of_error e))
+
+let dval2sql (dv: dval) : string =
+  match dv with
+  | DInt i -> string_of_int i
+  | DBool true -> "true"
+  | DBool false -> "false"
+  | DStr s -> s
+  | DFloat f -> string_of_float f
+  | DChar c -> Char.to_string c
+  | DNull -> "null"
+  | _ -> Exception.client "Not obvious how to persist this in the DB"
+
+
+let insert (table: string) (vals: dval list) : unit =
+  vals
+  |> List.map ~f:dval2sql
+  |> String.concat ~sep:"\", \""
+  |> Printf.sprintf "INSERT into \"%s\" VALUES (NULL, \"%s\")" table
+  |> run_sql
+
 
 (* ------------------------- *)
 (* run all table and schema changes as migrations *)
 (* ------------------------- *)
-let run_sql (migration_id: id) (sql:string) : unit =
-  let id = string_of_int migration_id in
+let run_migration (migration_id: id) (sql:string) : unit =
   Log.pP "sql" sql;
-  let sql =
-    [ "DO"
-    ; "$do$"
-    ; "BEGIN"
-    ; "IF ((SELECT COUNT(*) FROM migrations WHERE id = " ^ id ^ ") = 0) "
-    ; "THEN " ^ sql ^ "; INSERT INTO migrations (id) VALUES (" ^ id ^ ");"
-    ; "END IF;"
-    ; "END"
-    ; "$do$;"
-    ; "COMMIT;"
-    ]
-  |> String.concat ~sep:"\n"
-  in
-  _run_sql sql
+  Printf.sprintf
+    "DO
+       $do$
+         BEGIN
+           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d) = 0) 
+           THEN
+             %s;
+             INSERT INTO migrations (id) VALUES (%d);
+           END IF;
+         END
+       $do$;
+     COMMIT;" migration_id sql migration_id
+  |> run_sql 
 
 (* -------------------------
 (* SQL for DB *)
@@ -53,7 +79,9 @@ let run_sql (migration_id: id) (sql:string) : unit =
  * ------------------------- *)
 
 let create_table_sql (table: string) =
-  "CREATE TABLE IF NOT EXISTS \"" ^ table ^ "\" (id INT)"
+  Printf.sprintf
+    "CREATE TABLE IF NOT EXISTS \"%s\" (id INTEGER PRIMARY KEY AUTOINCREMENT)"
+    table
 
 let sql_tipe_for (tipe: string) : string =
   match String.lowercase tipe with
@@ -66,8 +94,9 @@ let sql_tipe_for (tipe: string) : string =
 
 
 let add_row_sql (table: string) (name: string) (tipe: string) : string =
-  let sql_tipe = sql_tipe_for tipe in
-  "ALTER TABLE \"" ^ table ^ "\" ADD COLUMN " ^ name ^ " " ^ sql_tipe
+  Printf.sprintf
+    "ALTER TABLE \"%s\" ADD COLUMN %s %s"
+    table name (sql_tipe_for tipe)
 
 
 
@@ -76,14 +105,14 @@ let add_row_sql (table: string) (name: string) (tipe: string) : string =
 (* ------------------------- *)
 
 let create_new_db (tlid: tlid) (name: string) =
-  run_sql tlid (create_table_sql name)
+  run_migration tlid (create_table_sql name)
 
 (* we only add this when it is complete, and we use the ID to mark the
    migration table to know whether it's been done before. *)
 let maybe_add_to_actual_db (db: db) (id: id) (row: row) : row =
   (match row with
   | Full name, Full tipe ->
-    run_sql id (add_row_sql db.name name tipe)
+    run_migration id (add_row_sql db.name name tipe)
   | _ ->
     ());
   row
@@ -114,4 +143,4 @@ let set_db_row_type id tipe db =
 (* Some initialization *)
 (* ------------------------- *)
 let _ =
-  _run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT)"
+  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT)"

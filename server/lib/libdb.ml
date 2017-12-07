@@ -4,23 +4,26 @@ open Runtime
 
 
 let fns : Lib.shortfn list = [
-(*   { n = "DB::insert" *)
-(*   ; o = [] *)
-(*   ; p = [par "table" TOpaque; par "key" TStr; par "val" TAny] *)
-(*   ; r = TAny *)
-(*   ; d = "Insert `val` into `table` indexed by `key`" *)
-(*   ; f = InProcess *)
-(*         (function *)
-(*           | [o; key; DIncomplete] -> DIncomplete *)
-(*           | [DOpaque o; DStr key; value] -> *)
-(*             Db.with_postgres o (fun table -> Db.kv_upsert table key value); *)
-(*             DNull *)
-(*           | args -> fail args) *)
-(*   ; pr = None *)
-(*   ; pu = false *)
-(*   } *)
-(*   ; *)
-(*  *)
+
+  { n = "DB::insert"
+  ; o = []
+  ; p = [par "table" TOpaque; par "val" TObj]
+  ; r = TAny
+  ; d = "Insert `val` into `table`"
+  ; f = InProcess
+        (function
+          | [o; key; DIncomplete] -> DIncomplete
+          | [DOpaque o; DObj value] ->
+            Db.with_postgres o
+              (fun table ->
+                 Db.insert table (DvalMap.data value));
+            DNull
+          | args -> fail args)
+  ; pr = None
+  ; pu = false
+  }
+  ;
+
 (*  *)
 (*   { n = "DB::delete" *)
 (*   ; o = [] *)
