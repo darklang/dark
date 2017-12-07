@@ -143,4 +143,4 @@ let set_db_row_type id tipe db =
 (* Some initialization *)
 (* ------------------------- *)
 let _ =
-  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT)"
+  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT PRIMARY KEY)"
