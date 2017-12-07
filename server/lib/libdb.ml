@@ -12,7 +12,6 @@ let fns : Lib.shortfn list = [
   ; d = "Insert `val` into `table`"
   ; f = InProcess
         (function
-          | [o; key; DIncomplete] -> DIncomplete
           | [DOpaque o; DObj value] ->
             Db.with_postgres o
               (fun table ->
