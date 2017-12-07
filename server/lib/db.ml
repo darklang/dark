@@ -107,3 +107,11 @@ let set_db_row_type id tipe db =
   { db with rows = List.map ~f:set db.rows }
 
 
+
+
+
+(* ------------------------- *)
+(* Some initialization *)
+(* ------------------------- *)
+let _ =
+  _run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT)"
