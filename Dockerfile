@@ -126,6 +126,7 @@ RUN opam install landmarks.1.1
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 RUN opam install cstruct.3.2.0
 RUN opam install nocrypto.0.5.4
+RUN opam install re2.v0.9.1
 
 # Environment
 ENV TERM=xterm-256color

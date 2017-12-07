@@ -25,6 +25,7 @@
                 ppx_deriving.std
                 ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
+                re2
                 threads
                 yojson
                 ))

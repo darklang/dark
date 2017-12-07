@@ -579,7 +579,30 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-
+  { n = "slugify"
+  ; o = []
+  ; p = [par "string" TStr]
+  ; r = TStr
+  ; d = "Turns a string into a slug"
+  ; f = InProcess
+        (function
+          | [DStr s] ->
+            let re_compile = Re2.Regex.create_exn in
+            let re_replace = Re2.Regex.replace_exn in
+            let to_remove  = re_compile "[^\\w\\s$*_+~.()'\"!\\-:@]" in
+            let trim = re_compile "^\\s+|\\s+$" in
+            let spaces = re_compile "[-\\s]+" in
+            s
+            |> re_replace ~f:(fun _ -> "") to_remove
+            |> re_replace ~f:(fun _ -> "") trim
+            |> re_replace ~f:(fun _ -> "-") spaces
+            |> String.lowercase
+            |> fun x -> DStr x
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
 
   { n = "String::join"
