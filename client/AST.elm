@@ -606,9 +606,9 @@ parentOf_ id expr =
           Thread _ exprs ->
             List.map toID exprs
           FieldAccess _ obj field ->
-            [toID obj, deMaybe <| emptyHoleID field]
+            List.filterMap identity [Just <| toID obj, emptyHoleID field]
           Let _ lhs rhs body ->
-            [deMaybe <| emptyHoleID lhs, toID rhs, toID body]
+            List.filterMap identity [emptyHoleID lhs, Just <| toID rhs, Just <| toID body]
       returnOr fn e =
         if List.member id (childrenOf e)
         then Just e
