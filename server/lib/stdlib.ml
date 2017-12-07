@@ -61,6 +61,39 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  (* ====================================== *)
+  (* Objects *)
+  (* ====================================== *)
+
+  { n = "assoc"
+  ; o = []
+  ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DObj o; DStr k; v] ->
+            DObj (Map.add o ~key:k ~data:v)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+  { n = "dissoc"
+  ; o = []
+  ; p = [par "obj" TObj; par "key" TStr]
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DObj o; DStr k] ->
+            DObj (Map.remove o k)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
   (* ====================================== *)
   (* Int *)
