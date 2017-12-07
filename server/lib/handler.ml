@@ -26,14 +26,14 @@ let url_for_exn (h: handler) : string =
     Exception.internal
       "Called url_for_exn on a toplevel without a `url` param"
 
-let default_env (h: handler) : Ast.symtable =
-  let init = Ast.Symtable.empty in
+let default_env (h: handler) : RT.dval_map =
+  let init = RT.DvalMap.empty in
   match url_for h with
   | Some n ->
     List.fold_left
       ~init
       ~f:(fun acc v ->
-          Ast.Symtable.add ~key:v ~data:RT.DNull acc)
+          RT.DvalMap.add ~key:v ~data:RT.DNull acc)
       (Http.route_variables n)
   | None -> init
 

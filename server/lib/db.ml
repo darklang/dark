@@ -5,6 +5,8 @@ open Types
 
 module PG = Postgresql
 
+module RT = Runtime
+
 
 type row = string or_hole * string or_hole
            [@@deriving eq, show, yojson]
@@ -16,6 +18,17 @@ type db = { tlid: tlid
 
 
 (* ------------------------- *)
+(* frontend stuff *)
+(* ------------------------- *)
+let dbs_as_env (dbs: db list) : RT.dval_map =
+  dbs
+  |> List.map ~f:(fun db -> (db.name, RT.DOpaque (new RT.opaque db.name)))
+  |> RT.DvalMap.of_alist_exn
+
+let dbs_as_exe_env (dbs: db list) : RT.dval_map =
+  dbs_as_env dbs
+
+(* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)
 
@@ -23,6 +36,7 @@ let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
 let run_sql (sql: string) : unit =
+  Log.pP "sql" sql;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
 let with_postgres (table: opaque) fn =
@@ -77,7 +91,7 @@ let run_migration (migration_id: id) (sql:string) : unit =
     "DO
        $do$
          BEGIN
-           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d) = 0) 
+           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d) = 0)
            THEN
              %s;
              INSERT INTO migrations (id) VALUES (%d);
@@ -85,7 +99,7 @@ let run_migration (migration_id: id) (sql:string) : unit =
          END
        $do$;
      COMMIT;" migration_id sql migration_id
-  |> run_sql 
+  |> run_sql
 
 (* -------------------------
 (* SQL for DB *)

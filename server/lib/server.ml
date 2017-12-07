@@ -7,6 +7,7 @@ module CRequest = Clu.Request
 module Header = Cohttp.Header
 module C = Canvas
 module RT = Runtime
+module TL = Toplevel
 module DReq = Dark_request
 
 let server =
@@ -22,7 +23,8 @@ let server =
         let ops = Api.to_ops body in
         c := !(C.load host ops);
         let global = DReq.sample |> DReq.to_dval in
-        let env = Ast.Symtable.singleton "request" global in
+        let dbs_env = Db.dbs_as_env (TL.dbs !c.toplevels) in
+        let env = RT.DvalMap.add dbs_env "request" global in
         let result = C.to_frontend_string env !c in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
@@ -66,7 +68,9 @@ let server =
         let route = Handler.url_for_exn page in
         let input = DReq.from_request req body uri in
         let bound = Http.bind_route_params_exn ~uri ~route in
-        let env = Map.add ~key:"request" ~data:(DReq.to_dval input) bound in
+        let dbs_env = Db.dbs_as_exe_env (TL.dbs !c.toplevels) in
+        let env = Util.merge_left bound dbs_env in
+        let env = Map.add ~key:"request" ~data:(DReq.to_dval input) env in
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
