@@ -153,6 +153,7 @@ type alias AST = Expr
 type HoleType = BindHole Handler
               | SpecHole Handler
               | ExprHole Handler
+              | FieldHole Handler
               | DBRowNameHole DB
               | DBRowTypeHole DB
 
@@ -209,7 +210,7 @@ type AutocompleteMod = ACSetQuery String
                      | ACComplete String
                      | ACSelectDown
                      | ACSelectUp
-                     | ACFilterByLiveValue LiveValue
+                     | ACFilterByLiveValue (Maybe LiveValue)
                      | ACSetAvailableVarnames (List VarName)
                      | ACShowFunctions Bool
                      -- | ACFilterByParamType Tipe NodeList

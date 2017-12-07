@@ -32,6 +32,10 @@ isSpecHole : Handler -> ID -> Bool
 isSpecHole h id =
   h |> specHoles |> List.member id
 
+isFieldHole : Handler -> ID -> Bool
+isFieldHole h id =
+  h.ast |> AST.listFieldHoles |> List.member id
+
 isDBRowNameHole : DB -> ID -> Bool
 isDBRowNameHole db id =
   db |> DB.listRowNameHoles |> List.member id
@@ -48,6 +52,8 @@ holeType tl id =
       then BindHole h
       else if isSpecHole h id
       then SpecHole h
+      else if isFieldHole h id
+      then FieldHole h
       else ExprHole h -- threadholes included here
     TLDB db ->
       if isDBRowNameHole db id

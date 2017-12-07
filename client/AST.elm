@@ -287,6 +287,44 @@ replaceBindHole_ hid replacement expr =
       Thread id (rbhList exprs)
 
     FieldAccess id obj name ->
+      FieldAccess id (rbh obj) name
+
+replaceFieldHole : ID -> VarName -> AST -> AST
+replaceFieldHole hid replacement ast =
+  replaceFieldHole_ hid replacement ast
+
+replaceFieldHole_ : ID -> VarName -> Expr -> Expr
+replaceFieldHole_ hid replacement expr =
+  let rfh = replaceFieldHole_ hid replacement
+      rfhList : List Expr -> List Expr
+      rfhList exprs = List.map rfh exprs
+  in
+  case expr of
+    Value id v ->
+      Value id v
+
+    Let id lhs rhs expr ->
+      Let id lhs (rfh rhs) (rfh expr)
+
+    If id cond ifbody elsebody ->
+      If id (rfh cond) (rfh ifbody) (rfh elsebody)
+
+    Variable id name ->
+      Variable id name
+
+    FnCall id name exprs ->
+      FnCall id name (rfhList exprs)
+
+    Lambda id vars expr ->
+      Lambda id vars (rfh expr)
+
+    Hole id ->
+      Hole id
+
+    Thread id exprs ->
+      Thread id (rfhList exprs)
+
+    FieldAccess id obj name ->
       let newName =
          case name of
            Full s -> Full s
@@ -294,8 +332,7 @@ replaceBindHole_ hid replacement expr =
              if id == hid
              then Full replacement
              else name
-      in FieldAccess id (rbh obj) newName
-
+      in FieldAccess id (rfh obj) newName
 
 isHole : Expr -> Bool
 isHole e =
@@ -303,8 +340,8 @@ isHole e =
     Hole _ -> True
     _ -> False
 
-bindHoleID : VarBind -> Maybe ID
-bindHoleID vb =
+emptyHoleID : VarBind -> Maybe ID
+emptyHoleID vb =
   case vb of
     Empty hid -> Just hid
     Full _ -> Nothing
@@ -317,7 +354,7 @@ listBindHoles expr =
         |> List.map listBindHoles
         |> List.concat
       bhList : List VarBind -> List ID
-      bhList = List.filterMap bindHoleID
+      bhList = List.filterMap emptyHoleID
   in
   case expr of
     Value _ v ->
@@ -325,7 +362,7 @@ listBindHoles expr =
 
     Let _ lhs rhs expr ->
       let exprBindHoles = lbhList [rhs, expr]
-          bindHoles = ME.toList <| bindHoleID lhs
+          bindHoles = ME.toList <| emptyHoleID lhs
       in
           bindHoles ++ exprBindHoles
 
@@ -349,8 +386,44 @@ listBindHoles expr =
       lbhList exprs
 
     FieldAccess _ obj ident ->
-      listBindHoles obj ++ (ME.toList <| bindHoleID ident)
+      listBindHoles obj
 
+listFieldHoles : Expr -> List ID
+listFieldHoles expr =
+  let lfhList : List Expr -> List ID
+      lfhList exprs =
+        exprs
+        |> List.map listFieldHoles
+        |> List.concat
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ lhs rhs expr ->
+      lfhList [rhs, expr]
+
+    If _ cond ifbody elsebody ->
+      lfhList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lfhList exprs
+
+    Lambda _ vars expr ->
+      listFieldHoles expr
+
+    -- note this is empty, which is the difference between this and listHoles
+    Hole id ->
+      []
+
+    Thread _ exprs ->
+      lfhList exprs
+
+    FieldAccess _ obj ident ->
+      listFieldHoles obj ++ (ME.toList (emptyHoleID ident))
 
 -- TODO: figure out how we can define this
 -- this in terms of listBindHoles and a listExprHoles
@@ -373,7 +446,7 @@ listHoles expr =
 
     Let _ lhs rhs expr ->
       let exprHoles = lhList [rhs, expr]
-          bindHoles = ME.toList (bindHoleID lhs)
+          bindHoles = ME.toList (emptyHoleID lhs)
       in
           bindHoles ++ exprHoles
 
@@ -395,7 +468,7 @@ listHoles expr =
       lhList exprs
 
     FieldAccess _ obj ident ->
-      listHoles obj ++ (ME.toList <| bindHoleID ident)
+      listHoles obj ++ (ME.toList <| emptyHoleID ident)
 
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =

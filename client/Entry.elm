@@ -162,6 +162,9 @@ submit m re cursor threadID value =
         SpecHole h ->
           let replacement = TL.replaceSpecHole id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
+        FieldHole h ->
+          let replacement = AST.replaceFieldHole id value h.ast in
+          wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         ExprHole h ->
           if String.startsWith "= " value
           then

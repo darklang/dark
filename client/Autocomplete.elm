@@ -42,8 +42,8 @@ init functions = { functions = functions
                  , tipe = Nothing
                  }
 
-forLiveValue : LiveValue -> Autocomplete -> Autocomplete
-forLiveValue lv a = { a | liveValue = Just lv }
+forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
+forLiveValue lv a = { a | liveValue = lv }
 
 -- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
 -- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
@@ -122,7 +122,7 @@ asName : AutocompleteItem -> String
 asName aci =
   case aci of
     ACFunction {name} -> name
-    ACField name -> "." ++ name
+    ACField name -> name
     ACVariable name -> name
 
 asTypeString : AutocompleteItem -> String

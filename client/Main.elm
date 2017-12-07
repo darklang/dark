@@ -12,7 +12,7 @@ import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
--- import List.Extra as LE
+import List.Extra as LE
 
 -- dark
 import RPC exposing (rpc, saveTest)
@@ -165,13 +165,26 @@ updateMod origm mod (m, cmd) =
                 Filling tlid eid ->
                   case TL.holeType (TL.getTL m tlid) eid of
                     ExprHole _ -> True
+                    FieldHole _ -> False
                     BindHole _ -> False
                     SpecHole _ -> False
                     DBRowNameHole _ -> False
                     DBRowTypeHole _ -> False
+            lv =
+              case entry of
+                Creating _ -> Nothing
+                Filling tlid eid ->
+                  case TL.holeType (TL.getTL m tlid) eid of
+                    FieldHole h ->
+                      Analysis.getLiveValues m tlid
+                      |> Dict.values
+                      |> LE.find (\lv -> lv.tipe == TObj)
+                    _ -> Nothing
+
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
                                         , ACShowFunctions showFunctions
+                                        , ACFilterByLiveValue lv
                                         ]
         in
       ({ m | state = Entering re entry thread, complete = complete
