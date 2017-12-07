@@ -52,6 +52,21 @@ let insert (table: string) (vals: dval list) : unit =
   |> Printf.sprintf "INSERT into \"%s\" VALUES (NULL, \"%s\")" table
   |> run_sql
 
+let fetch_all (table: string) : dval =
+  Printf.sprintf
+    "SELECT * FROM \"%s\""
+    table
+  |> Log.pp "sql"
+  |> conn#exec
+  |> (fun res -> res#get_all_lst)
+  |> List.map ~f:(fun row ->
+      match row with
+      | [key; value] -> (key, value |> parse)
+      | l -> Exception.internal ("Expected key,value list, got: " ^
+                                 (String.concat ~sep:", " l)))
+  |> to_dobj
+
+
 
 (* ------------------------- *)
 (* run all table and schema changes as migrations *)

@@ -73,20 +73,20 @@ let fns : Lib.shortfn list = [
 (*   ; *)
 (*  *)
 (*  *)
-(*   { n = "DB::fetch_all" *)
-(*   ; o = [] *)
-(*   ; p = [par "table" TOpaque] *)
-(*   ; r = TList *)
-(*   ; d = "Fetch all the values in `table`" *)
-(*   ; f = InProcess *)
-(*         (function *)
-(*           | [DOpaque o] -> *)
-(*             Db.with_postgres o (fun table -> Db.kv_fetch_all table) *)
-(*           | args -> fail args) *)
-(*   ; pr = None *)
-(*   ; pu = true *)
-(*   } *)
-(*   ; *)
+  { n = "DB::fetch_all"
+  ; o = []
+  ; p = [par "table" TOpaque]
+  ; r = TList
+  ; d = "Fetch all the values in `table`"
+  ; f = InProcess
+        (function
+          | [DOpaque o] ->
+            Db.with_postgres o (fun table -> Db.fetch_all table)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
 
 ]
