@@ -579,7 +579,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { n = "slugify"
+  { n = "String::slugify"
   ; o = []
   ; p = [par "string" TStr]
   ; r = TStr
