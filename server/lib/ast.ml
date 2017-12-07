@@ -73,6 +73,24 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
    * useful work. We're going to need to make this a functional language with functions-as-values
    * and application as a first-class concept sooner rather than later.
    *)
+  let call (name: string) (argvals: RT.dval list) : RT.dval =
+    let fn = Libs.get_fn_exn name in
+    (* equalize length *)
+    let length_diff = List.length fn.parameters - List.length argvals in
+    let argvals =
+      if length_diff > 0
+      then argvals @ (List.init length_diff (fun _ -> RT.DNull))
+      else if length_diff = 0
+      then argvals
+      else Exception.user ("Too many args in fncall to " ^ name) in
+    let args =
+      fn.parameters
+      |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
+      |> RT.DvalMap.of_alist_exn in
+    RT.exe ~ind:0 fn args
+  in
+
+
   let inject_param_and_execute (st: symtable) (param: RT.dval) (exp: expr) : RT.dval =
     match exp with
     | Lambda _ ->
@@ -81,11 +99,7 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
        | DBlock blk -> blk [param]
        | _ -> DIncomplete)
     | FnCall (id, name, exprs) ->
-      let newid = Util.create_id () in
-      let nexpr = Value (newid, (RT.dval_to_json_string param)) in
-      let nexprs = nexpr :: exprs in
-      let new_func = FnCall (id, name, nexprs) in
-      exe st new_func
+      call name (param :: (List.map ~f:(exe st) exprs))
     | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
   in
 
@@ -112,21 +126,8 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
           | Some result -> result)
 
        | FnCall (id, name, exprs) ->
-         let fn = Libs.get_fn_exn name in
          let argvals = List.map ~f:(exe st) exprs in
-         (* equalize length *)
-         let length_diff = List.length fn.parameters - List.length argvals in
-         let argvals =
-           if length_diff > 0
-           then argvals @ (List.init length_diff (fun _ -> RT.DNull))
-           else if length_diff = 0
-           then argvals
-           else Exception.user ("Too many args in fncall to " ^ name) in
-         let args =
-           fn.parameters
-           |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
-           |> RT.DvalMap.of_alist_exn in
-         RT.exe ~ind:0 fn args
+         call name argvals
 
        | If (id, cond, ifbody, elsebody) ->
          (match (exe st cond) with
