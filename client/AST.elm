@@ -585,6 +585,63 @@ wrapInThread_ hid expr =
             let nObj = wt obj in
             { expr = FieldAccess id nObj.expr field, threadID = nObj.threadID })
 
+parentOf : ID -> AST -> AST
+parentOf id ast =
+  deMaybe <| parentOf_ id ast
+
+parentOf_ : ID -> Expr -> Maybe Expr
+parentOf_ id expr =
+  let po = parentOf_ id
+      childrenOf e =
+        case e of
+          Value _ _ -> []
+          Hole _ -> []
+          Variable _ _ -> []
+          If _ cond ifbody elsebody ->
+            [toID cond, toID ifbody, toID elsebody]
+          FnCall _ name exprs ->
+            List.map toID exprs
+          Lambda _ vars lexpr ->
+            [toID lexpr]
+          Thread _ exprs ->
+            List.map toID exprs
+          FieldAccess _ obj field ->
+            [toID obj, deMaybe <| emptyHoleID field]
+          Let _ lhs rhs body ->
+            [deMaybe <| emptyHoleID lhs, toID rhs, toID body]
+      returnOr fn e =
+        if List.member id (childrenOf e)
+        then Just e
+        else fn e
+      filterMaybe xs = xs |> List.filterMap identity |> List.head
+  in
+  case expr of
+    Value _ _ -> Nothing
+    Hole _ -> Nothing
+    Variable _ _ -> Nothing
+    Let id lhs rhs body ->
+      returnOr (\_ -> filterMaybe [po body, po rhs]) expr
+
+    If id cond ifbody elsebody ->
+      returnOr (\_ ->
+        let c  = po cond
+            ib = po ifbody
+            eb = po elsebody
+        in
+            filterMaybe [c, ib, eb]) expr
+
+    FnCall id name exprs ->
+      returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
+
+    Lambda id vars lexpr ->
+      returnOr (\_ -> po lexpr) expr
+
+    Thread id exprs ->
+      returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
+
+    FieldAccess id obj field ->
+      returnOr (\_ -> po obj) expr
+
 subtree : ID -> AST -> AST
 subtree id ast =
   deMaybe (subExpr id ast)

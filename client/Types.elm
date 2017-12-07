@@ -54,6 +54,9 @@ type alias Special = Int
 type TLID = TLID Int
 type ID = ID Int
 
+deID : ID -> Int
+deID (ID i) = i
+
 type EntryCursor = Creating Pos
                  | Filling TLID ID
 

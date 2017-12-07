@@ -12,7 +12,6 @@ import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
-import List.Extra as LE
 
 -- dark
 import RPC exposing (rpc, saveTest)
@@ -174,11 +173,20 @@ updateMod origm mod (m, cmd) =
               case entry of
                 Creating _ -> Nothing
                 Filling tlid eid ->
-                  case TL.holeType (TL.getTL m tlid) eid of
+                  let tl = TL.getTL m tlid in
+                  case TL.holeType tl eid of
                     FieldHole h ->
-                      Analysis.getLiveValues m tlid
-                      |> Dict.values
-                      |> LE.find (\lv -> lv.tipe == TObj)
+                      let handler = deMaybe <| TL.asHandler tl
+                          p = AST.parentOf eid handler.ast
+                          obj =
+                            case p of
+                              FieldAccess id obj _ ->
+                                Just <| AST.toID obj
+                              _ ->
+                                Nothing
+                      in
+                          Analysis.getLiveValues m tlid
+                          |> Dict.get (obj |> deMaybe |> deID)
                     _ -> Nothing
 
             (complete, acCmd) =
