@@ -128,6 +128,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       let db : Db.db = { tlid = tlid
                        ; name = name
                        ; rows = []} in
+      Db.create_new_db tlid name;
       upsert_toplevel tlid pos (TL.DB db)
     | AddDBRow (tlid, rowid, typeid) ->
       apply_to_db ~f:(Db.add_db_row rowid typeid) tlid

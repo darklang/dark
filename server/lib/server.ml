@@ -146,6 +146,7 @@ let server =
              | Exception.DarkException e ->
                  Exception.exception_data_to_yojson e |> Yojson.Safe.pretty_to_string
              | Yojson.Json_error msg -> "Not a value: " ^ msg
+             | Postgresql.Error e -> "Postgres error: " ^ Postgresql.string_of_error e
              | _ -> "Dark Internal Error: " ^ Exn.to_string e
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->

@@ -6,34 +6,13 @@ open Types
 module PG = Postgresql
 
 
-
+type row = string or_hole * string or_hole
+           [@@deriving eq, show, yojson]
 
 type db = { tlid: tlid
           ; name: string
-          ; rows: (string or_hole * string or_hole) list
+          ; rows: row list
           } [@@deriving eq, show, yojson]
-
-(* ------------------------- *)
-(* DB schema *)
-(* ------------------------- *)
-
-
-let add_db_row rowid typeid (db: db) =
-  { db with rows = db.rows @ [(Empty rowid, Empty typeid)]}
-
-let set_row_name id name db =
-  let set row =
-    match row with
-    | (Empty hid, tipe) when hid = id -> (Full name, tipe)
-    | _ -> row in
-  { db with rows = List.map ~f:set db.rows }
-
-let set_db_row_type id tipe db =
-  let set row =
-    match row with
-    | (name, Empty hid) when hid = id -> (name, Full tipe)
-    | _ -> row in
-  { db with rows = List.map ~f:set db.rows }
 
 
 (* ------------------------- *)
@@ -43,66 +22,88 @@ let set_db_row_type id tipe db =
 let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
-let create_table (name:string) (tipes : (string*string) list) : unit =
-  let schema =
-    tipes
-    |> List.map ~f:(fun (name,tipe) -> name ^ " " ^ tipe)
-    |> String.concat ~sep:", " in
-  let cmd = "CREATE TABLE IF NOT EXISTS \"" ^ name ^ "\" (" ^ schema ^ ")" in
-  ignore (conn#exec ~expect:[PG.Command_ok] cmd)
+let _run_sql (sql: string) : unit =
+  ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
-let kv_create name = create_table name [ "key", "VARCHAR PRIMARY KEY"
-                                       ; "val", "VARCHAR"]
+(* ------------------------- *)
+(* run all table and schema changes as migrations *)
+(* ------------------------- *)
+let run_sql (migration_id: id) (sql:string) : unit =
+  let id = string_of_int migration_id in
+  Log.pP "sql" sql;
+  let sql =
+    [ "DO"
+    ; "$do$"
+    ; "BEGIN"
+    ; "IF ((SELECT COUNT(*) FROM migrations WHERE id = " ^ id ^ ") = 0) "
+    ; "THEN " ^ sql ^ "; INSERT INTO migrations (id) VALUES (" ^ id ^ ");"
+    ; "END IF;"
+    ; "END"
+    ; "$do$;"
+    ; "COMMIT;"
+    ]
+  |> String.concat ~sep:"\n"
+  in
+  _run_sql sql
 
-let kv_upsert (table: string) (key: string) (value: dval) : unit =
-  let valstr = dval_to_json_string value in
-  let cmd = "INSERT INTO \"" ^ table ^ "\" VALUES ('" ^ key ^ "', '" ^ valstr
-            ^ "') ON CONFLICT (key) DO UPDATE SET val = '" ^ valstr ^ "'" in
-  ignore (conn#exec ~expect:[PG.Command_ok] cmd)
+(* -------------------------
+(* SQL for DB *)
+ * TODO: all of the SQL here is very very easily SQL injectable.
+ * This MUST be fixed before we go to production
+ * ------------------------- *)
 
-let kv_fetch (table: string) (key: string) : dval =
-  let cmd = "SELECT (val) FROM \"" ^ table ^ "\" WHERE key = '" ^ key ^ "' LIMIT 1" in
-  let res = conn#exec cmd in
-  if res#ntuples = 0 then DNull
-  else if res#ntuples = 1 then (res#get_tuple 0).(0) |> parse
-  else Exception.internal "more tuples than expected"
+let create_table_sql (table: string) =
+  "CREATE TABLE IF NOT EXISTS \"" ^ table ^ "\" (id INT)"
 
-let kv_fetch_all (table: string) : dval =
-  "SELECT * FROM \"" ^ table ^ "\""
-  |> conn#exec
-  |> (fun res -> res#get_all_lst)
-  |> List.map ~f:(fun row ->
-      match row with
-      | [key; value] -> (key, value |> parse)
-      | l -> Exception.internal ("Expected key,value list, got: " ^
-                                 (String.concat ~sep:", " l)))
-  |> to_dobj
-
-let kv_keys (table: string) : dval =
-  "SELECT (key) FROM \"" ^ table ^ "\""
-  |> conn#exec
-  |> (fun res -> res#get_all_lst)
-  |> List.map ~f:(fun row ->
-      match row with
-      | [key] -> DStr key
-      | l -> Exception.internal ("Expected key list, got: " ^
-                                 (String.concat ~sep:", " l)))
-  |> (fun l -> DList l)
-
-let kv_delete (table: string) (key: string) : dval =
-  "DELETE FROM \"" ^ table ^ "\"" ^ " WHERE key = '" ^ key ^ "'"
-  |> conn#exec
-  (* this returns an empty list, though postgres docs say should return the deletion count... *)
-  |> fun x -> DNull
+let sql_tipe_for (tipe: string) : string =
+  match String.lowercase tipe with
+  | "string" -> "text"
+  | "title" -> "text"
+  | "text" -> "text"
+  | "url" -> "text"
+  | "date" -> "timestamp with time zone"
+  | _ -> failwith ("No tipe for " ^ tipe)
 
 
-let with_postgres (table: opaque) fn =
-  try
-     let t = table#get in
-     let _ = kv_create t in
-     fn t
-   with
-   | PG.Error e ->
-     Exception.internal ("DB error with: " ^ (PG.string_of_error e))
+let add_row_sql (table: string) (name: string) (tipe: string) : string =
+  let sql_tipe = sql_tipe_for tipe in
+  "ALTER TABLE \"" ^ table ^ "\" ADD COLUMN " ^ name ^ " " ^ sql_tipe
+
+
+
+(* ------------------------- *)
+(* DB schema *)
+(* ------------------------- *)
+
+let create_new_db (tlid: tlid) (name: string) =
+  run_sql tlid (create_table_sql name)
+
+(* we only add this when it is complete, and we use the ID to mark the
+   migration table to know whether it's been done before. *)
+let maybe_add_to_actual_db (db: db) (id: id) (row: row) : row =
+  (match row with
+  | Full name, Full tipe ->
+    run_sql id (add_row_sql db.name name tipe)
+  | _ ->
+    ());
+  row
+
+
+let add_db_row rowid typeid (db: db) =
+  { db with rows = db.rows @ [(Empty rowid, Empty typeid)]}
+
+let set_row_name id name db =
+  let set row =
+    match row with
+    | (Empty hid, tipe) when hid = id -> maybe_add_to_actual_db db id (Full name, tipe)
+    | _ -> row in
+  { db with rows = List.map ~f:set db.rows }
+
+let set_db_row_type id tipe db =
+  let set row =
+    match row with
+    | (name, Empty hid) when hid = id -> maybe_add_to_actual_db db id (name, Full tipe)
+    | _ -> row in
+  { db with rows = List.map ~f:set db.rows }
 
 
