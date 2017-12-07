@@ -80,7 +80,7 @@ let run_migration (migration_id: id) (sql:string) : unit =
 
 let create_table_sql (table: string) =
   Printf.sprintf
-    "CREATE TABLE IF NOT EXISTS \"%s\" (id INTEGER PRIMARY KEY AUTOINCREMENT)"
+    "CREATE TABLE IF NOT EXISTS \"%s\" (id SERIAL PRIMARY KEY)"
     table
 
 let sql_tipe_for (tipe: string) : string =
