@@ -62,29 +62,6 @@ let fns : Lib.shortfn list = [
   ;
 
 
-
-
-  { n = "."
-  ; o = ["get_field"]
-  ; p = [par "value" TObj; par "fieldname" TStr]
-  ; r = TAny
-  ; d = ""
-  ; f = InProcess
-        (function
-          | [DObj value; DStr fieldname] ->
-            (match DvalMap.find value fieldname with
-             | None -> raise_error
-                         ("Value has no field named: " ^ fieldname)
-                         ~actual:(DObj value)
-
-             | Some v -> v)
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
   (* ====================================== *)
   (* Int *)
   (* ====================================== *)
