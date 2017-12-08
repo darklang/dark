@@ -11,7 +11,7 @@ getAnalysisResults m id =
   m.analysis
   |> List.filter (\tlar -> tlar.id == id)
   |> List.head
-  -- only handlers have analysis results, but lots of stuff except this
+  -- only handlers have analysis results, but lots of stuff expect this
   -- data to exist. It may be better to not do that, but this is fine
   -- for now.
   |> Maybe.withDefault { id = id
