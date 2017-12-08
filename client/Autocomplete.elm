@@ -220,11 +220,11 @@ regenerate a =
               case a.tipe of
                 Just t -> RT.isCompatible returnTipe t
                 Nothing -> True)
-        -- |> List.filter
-        --   (\fn ->
-        --      case a.liveValue of
-        --        Just {tipe} -> Nothing /= findParamByType fn tipe
-        --        Nothing -> True)
+        |> List.filter
+          (\fn ->
+             case a.liveValue of
+               Just {tipe} -> Nothing /= findParamByType fn tipe
+               Nothing -> True)
         |> List.map ACFunction
         |> List.append fields
         |> List.append (List.map ACVariable a.varnames)

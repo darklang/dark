@@ -12,6 +12,7 @@ import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
+import List.Extra as LE
 
 -- dark
 import RPC exposing (rpc, saveTest)
@@ -174,20 +175,37 @@ updateMod origm mod (m, cmd) =
                 Creating _ -> Nothing
                 Filling tlid eid ->
                   let tl = TL.getTL m tlid in
-                  case TL.holeType tl eid of
-                    FieldHole h ->
-                      let handler = deMaybe <| TL.asHandler tl
-                          p = AST.parentOf eid handler.ast
-                          obj =
+                  let obj =
+                    case TL.holeType tl eid of
+                      ExprHole h ->
+                        let handler = deMaybe <| TL.asHandler tl
+                            p = AST.parentOf_ eid handler.ast
+                        in
+                            case p of
+                              Just (Thread tid exprs) ->
+                                let ids  = List.map (AST.toID) exprs
+                                    selfi = LE.elemIndex eid ids
+                                    prev = Maybe.map (\x -> x - 1) selfi
+                                in
+                                    Maybe.andThen (\i -> LE.getAt i ids) prev
+                              _ ->
+                                Nothing
+
+                      FieldHole h ->
+                        let handler = deMaybe <| TL.asHandler tl
+                            p = AST.parentOf eid handler.ast
+                        in
                             case p of
                               FieldAccess id obj _ ->
                                 Just <| AST.toID obj
                               _ ->
                                 Nothing
-                      in
-                          Analysis.getLiveValues m tlid
-                          |> Dict.get (obj |> deMaybe |> deID)
-                    _ -> Nothing
+                      _ ->
+                        Nothing
+                  in
+                      Maybe.andThen (\o ->
+                        Analysis.getLiveValues m tlid
+                        |> Dict.get (o |> deID)) obj
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
