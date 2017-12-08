@@ -69,6 +69,12 @@ type State = Selecting TLID ID CurrentThread
            | Dragging TLID VPos HasMoved State
            | Deselected
 
+unwrapState : State -> State
+unwrapState s =
+  case s of
+    Dragging _ _ _ unwrap -> unwrap
+    _ -> s
+
 type alias RPCResult = (List Toplevel, List TLAResult)
 type Msg
     = GlobalClick MouseEvent

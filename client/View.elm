@@ -84,11 +84,12 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in allSvgs
 
+
 viewHoleOrText : Model -> HoleOr String -> Html.Html Msg
 viewHoleOrText m h =
   case h of
     Empty hid ->
-      case m.state of
+      case unwrapState m.state of
         Selecting _ id _ ->
           if hid == id
           then selectedHoleHtml
@@ -123,7 +124,7 @@ viewTL m tl =
                    (decodeClickEvent (ToplevelClickUp tl.id))
                ]
 
-      class = case m.state of
+      class = case unwrapState m.state of
           Selecting tlid _ _ ->
             if tlid == tl.id then "selected" else ""
           Entering _ (Filling tlid _) _ ->
@@ -164,7 +165,7 @@ viewDB m tl db =
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
   let (id, holeHtml) =
-        case m.state of
+        case unwrapState m.state of
           Selecting tlid id _ ->
             ( id
             , selectedHoleHtml)
