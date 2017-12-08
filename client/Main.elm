@@ -328,7 +328,7 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling tlid hid -> Many [ Deselect
+                    Filling tlid hid -> Many [ Select tlid hid (oldThread m.state)
                                              , AutocompleteMod ACReset]
                 Key.Unknown c ->
                   if c == 190 -- this is `.`
