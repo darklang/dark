@@ -95,6 +95,40 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "to_form"
+  ; o = []
+  ; p = [par "obj" TObj; par "submit" TStr]
+  ; r = TStr
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DObj o; DStr uri] ->
+            let fmt =
+              format_of_string
+                "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
+            in
+            let to_input (k, v) =
+              let label =
+                Printf.sprintf "<label for=\"%s\">%s:</label>" k k
+              in
+              let input =
+                Printf.sprintf "<input id=\"%s\" type=\"text\" name=\"%s\">" k k
+              in
+              label ^ "\n" ^ input
+            in
+            let inputs =
+              o
+              |> Map.to_alist
+              |> List.map ~f:to_input
+              |> String.concat ~sep:"\n"
+            in
+            DStr (Printf.sprintf fmt uri inputs)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
   (* ====================================== *)
   (* Int *)
   (* ====================================== *)
