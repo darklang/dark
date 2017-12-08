@@ -151,6 +151,9 @@ submit m re cursor threadID value =
           focus = FocusNext tlid predecessor
           wrap op = RPC ([op], focus)
       in
+      if String.length value < 1
+      then NoChange
+      else
       case TL.holeType tl id of
         DBRowTypeHole _ ->
           wrap <| SetDBRowType tlid id value
