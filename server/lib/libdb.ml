@@ -15,7 +15,7 @@ let fns : Lib.shortfn list = [
           | [DOpaque o; DObj value] ->
             Db.with_postgres o
               (fun table ->
-                 Db.insert table (DvalMap.data value));
+                 Db.insert table value);
             DNull
           | args -> fail args)
   ; pr = None

@@ -5,8 +5,6 @@ open Types
 
 module PG = Postgresql
 
-module RT = Runtime
-
 
 type row = string or_hole * string or_hole
            [@@deriving eq, show, yojson]
@@ -20,12 +18,12 @@ type db = { tlid: tlid
 (* ------------------------- *)
 (* frontend stuff *)
 (* ------------------------- *)
-let dbs_as_env (dbs: db list) : RT.dval_map =
+let dbs_as_env (dbs: db list) : dval_map =
   dbs
-  |> List.map ~f:(fun db -> (db.name, RT.DOpaque (new RT.opaque db.name)))
-  |> RT.DvalMap.of_alist_exn
+  |> List.map ~f:(fun db -> (db.name, DOpaque (new opaque db.name)))
+  |> DvalMap.of_alist_exn
 
-let dbs_as_exe_env (dbs: db list) : RT.dval_map =
+let dbs_as_exe_env (dbs: db list) : dval_map =
   dbs_as_env dbs
 
 (* ------------------------- *)
@@ -36,7 +34,7 @@ let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
 let run_sql (sql: string) : unit =
-  Log.pP "sql" sql;
+  Log.pP "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
 let with_postgres (table: opaque) fn =
@@ -52,19 +50,25 @@ let dval2sql (dv: dval) : string =
   | DInt i -> string_of_int i
   | DBool true -> "true"
   | DBool false -> "false"
-  | DStr s -> s
+  | DStr s -> "'" ^ s ^ "'"
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
   | DNull -> "null"
   | _ -> Exception.client "Not obvious how to persist this in the DB"
 
 
-let insert (table: string) (vals: dval list) : unit =
-  vals
-  |> List.map ~f:dval2sql
-  |> String.concat ~sep:"\", \""
-  |> Printf.sprintf "INSERT into \"%s\" VALUES (NULL, \"%s\")" table
-  |> run_sql
+let insert (table: string) (vals: dval_map) : unit =
+  let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals in
+  let names = vals
+              |> DvalMap.keys
+              |> String.concat ~sep:", "
+  in vals
+     |> DvalMap.data
+     |> List.map ~f:dval2sql
+     |> String.concat ~sep:", "
+     |> Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
+       table names
+     |> run_sql
 
 let fetch_all (table: string) : dval =
   Printf.sprintf
@@ -73,6 +77,7 @@ let fetch_all (table: string) : dval =
   |> Log.pp "sql"
   |> conn#exec
   |> (fun res -> res#get_all_lst)
+  |> Log.pp "all_lst"
   |> List.map ~f:(fun row ->
       match row with
       | [key; value] -> (key, value |> parse)
