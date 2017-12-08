@@ -438,7 +438,7 @@ update_ msg m =
                 let thread = oldThread m.state
                     tl = TL.getTL m2 tlid
                 in
-                Select tlid (TL.getNextHole tl pred) thread
+                Enter False (Filling tlid (TL.getNextHole tl pred)) thread
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
