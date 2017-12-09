@@ -1,5 +1,6 @@
 open Core
 
+open Types.RuntimeT
 module RT = Runtime
 
 type spec = { module_ : string Types.or_hole [@key "module"]
@@ -26,25 +27,25 @@ let url_for_exn (h: handler) : string =
     Exception.internal
       "Called url_for_exn on a toplevel without a `url` param"
 
-let default_env (h: handler) : RT.dval_map =
-  let init = RT.DvalMap.empty in
+let default_env (h: handler) : dval_map =
+  let init = DvalMap.empty in
   match url_for h with
   | Some n ->
     List.fold_left
       ~init
       ~f:(fun acc v ->
-          RT.DvalMap.add ~key:v ~data:RT.DNull acc)
+          DvalMap.add ~key:v ~data:DNull acc)
       (Http.route_variables n)
   | None -> init
 
 let with_defaults (h: handler) (env: Ast.symtable) : Ast.symtable =
   Util.merge_left env (default_env h)
 
-let execute (env: Ast.symtable) (h: handler) : RT.dval =
+let execute (env: Ast.symtable) (h: handler) : dval =
   Ast.execute (with_defaults h env) h.ast
 
 let execute_for_analysis (env: Ast.symtable) (h: handler) :
-    (Types.id * RT.dval * Ast.dval_store * Ast.sym_store) list =
+    (Types.id * dval * Ast.dval_store * Ast.sym_store) list =
   let traced_symbols = Ast.symbolic_execute (with_defaults h env) h.ast in
   let (ast_value, traced_values) = Ast.execute_saving_intermediates env h.ast in
   [(h.tlid, ast_value, traced_values, traced_symbols)]

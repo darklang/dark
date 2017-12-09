@@ -40,11 +40,11 @@ tipe2str t =
     TObj -> "Obj"
     TList -> "List"
     TBlock -> "Block"
-    TOpaque -> "Opaque"
     TNull -> "Nothing"
     TAny -> "Any"
     TIncomplete -> "<incomplete>"
     TResp -> "Response"
+    TDB -> "Datastore"
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -57,10 +57,10 @@ str2tipe t =
   "Obj" -> TObj
   "List" -> TList
   "Block" -> TBlock
-  "Opaque" -> TOpaque
   "Nothing" -> TNull
   "Any" -> TAny
   "Response" -> TResp
+  "Datastore" -> TDB
   "<incomplete>" -> TIncomplete
   "Error" -> TIncomplete -- temporary, maybe
   _ -> Debug.crash <| "invalid typename: " ++ t

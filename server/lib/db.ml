@@ -1,18 +1,12 @@
 open Core
 
-open Runtime
 open Types
+open Types.DbT
+open Types.RuntimeT
+
+module RT = Runtime
 
 module PG = Postgresql
-
-
-type row = string or_hole * string or_hole
-           [@@deriving eq, show, yojson]
-
-type db = { tlid: tlid
-          ; name: string
-          ; rows: row list
-          } [@@deriving eq, show, yojson]
 
 
 (* ------------------------- *)
@@ -20,7 +14,7 @@ type db = { tlid: tlid
 (* ------------------------- *)
 let dbs_as_env (dbs: db list) : dval_map =
   dbs
-  |> List.map ~f:(fun db -> (db.name, DOpaque (new opaque db.name)))
+  |> List.map ~f:(fun (db: db) -> (db.name, DDB db))
   |> DvalMap.of_alist_exn
 
 let dbs_as_exe_env (dbs: db list) : dval_map =
@@ -37,10 +31,9 @@ let run_sql (sql: string) : unit =
   Log.pP "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
-let with_postgres (table: opaque) fn =
+let with_postgres (table: db) fn =
   try
-     let t = table#get in
-     fn t
+     fn table
    with
    | PG.Error e ->
      Exception.internal ("DB error with: " ^ (PG.string_of_error e))
@@ -57,7 +50,7 @@ let dval2sql (dv: dval) : string =
   | _ -> Exception.client "Not obvious how to persist this in the DB"
 
 
-let insert (table: string) (vals: dval_map) : unit =
+let insert (table: db) (vals: dval_map) : unit =
   let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals in
   let names = vals
               |> DvalMap.keys
@@ -67,23 +60,40 @@ let insert (table: string) (vals: dval_map) : unit =
      |> List.map ~f:dval2sql
      |> String.concat ~sep:", "
      |> Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-       table names
+       table.name names
      |> run_sql
 
-let fetch_all (table: string) : dval =
+let sql_to_dval (tipe: string) (sql: string) : dval =
+  match tipe with
+  | "id" -> sql |> int_of_string |> DInt
+  | _ -> failwith ("TODO: " ^ tipe ^ " " ^ sql )
+
+let fetch_all (table: db) : dval =
+  let names = table.rows
+              |> List.map ~f:Tuple.T2.get1
+              |> List.filter_map ~f: hole_to_maybe
+              |> (@) ["id"]
+  (* TODO: this probably doesn't work. The order that we add the columns
+   * to the DB is the order in which they're completed, while the order
+   * with which we add rows to the DB definition is the order in which
+   * they're added. *)
+  in
+  let types = table.rows
+              |> List.map ~f:Tuple.T2.get2
+              |> List.filter_map ~f: hole_to_maybe
+              |> (@) ["id"]
+  in
   Printf.sprintf
     "SELECT * FROM \"%s\""
-    table
+    table.name
   |> Log.pp "sql"
   |> conn#exec
   |> (fun res -> res#get_all_lst)
   |> Log.pp "all_lst"
-  |> List.map ~f:(fun row ->
-      match row with
-      | [key; value] -> (key, value |> parse)
-      | l -> Exception.internal ("Expected key,value list, got: " ^
-                                 (String.concat ~sep:", " l)))
-  |> to_dobj
+  |> List.map ~f:(List.map2_exn ~f:sql_to_dval types)
+  |> List.map ~f:(List.zip_exn names)
+  |> List.map ~f:(RT.to_dobj)
+  |> DList
 
 
 

@@ -1,6 +1,6 @@
 open Core
 
-module RT = Runtime
+module RT = Types.RuntimeT
 
 module RouteParamMap = String.Map
 type route_param_map = RT.dval RouteParamMap.t

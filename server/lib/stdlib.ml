@@ -1,6 +1,8 @@
 open Core
-open Runtime
 open Lib
+
+open Types.RuntimeT
+module RT = Runtime
 
 let list_repeat = Util.list_repeat
 
@@ -398,14 +400,14 @@ let fns : Lib.shortfn list = [
         (function
           | [DList l] ->
             l
-            |> list_coerce ~f:to_int
+            |> list_coerce ~f:RT.to_int
             >>| List.fold_left ~f:(+) ~init:0
             >>| (fun x -> DInt x)
             |> Result.map_error ~f:(fun (result, example_value) ->
-                error
+                RT.error
                   ~actual:(DList result)
                   ~result:(DList result)
-                  ~long:("Int::sum requires all values to be integers, but " ^ (to_repr example_value) ^ " is a " ^ (tipename example_value))
+                  ~long:("Int::sum requires all values to be integers, but " ^ (RT.to_repr example_value) ^ " is a " ^ (RT.tipename example_value))
                   ~expected:"every list item to be an int "
                   "Sum expects you to pass a list of ints")
             |> Result.ok_exn
@@ -426,7 +428,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
         (function
-          | [a] -> DStr (to_repr a)
+          | [a] -> DStr (RT.to_repr a)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -441,7 +443,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (equal_dval a b)
+          | [a; b] -> DBool (RT.equal_dval a b)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -456,7 +458,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are not equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (not (equal_dval a b))
+          | [a; b] -> DBool (not (RT.equal_dval a b))
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -543,14 +545,14 @@ let fns : Lib.shortfn list = [
             s
             |> String.to_list
             |> List.map ~f:(fun c -> fn [(DChar c)])
-            |> list_coerce ~f:to_char
+            |> list_coerce ~f:RT.to_char
             >>| String.of_char_list
             >>| (fun x -> DStr x)
             |> Result.map_error ~f:(fun (result, example_value) ->
-                error
+                RT.error
                   ~actual:(DList result)
                   ~result:(DList result)
-                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr example_value) ^ " is a " ^ (tipename example_value))
+                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (RT.to_repr example_value) ^ " is a " ^ (RT.tipename example_value))
                   ~expected:"every value to be a char"
                   "Foreach expects you to return chars")
             |> Result.ok_exn
@@ -650,7 +652,7 @@ let fns : Lib.shortfn list = [
             let s = List.map ~f:(fun s ->
                 match s with
                 | DStr st -> st
-                | _  -> to_repr s) l
+                | _  -> RT.to_repr s) l
             in
             DStr (String.concat ~sep s)
           | args -> fail args)
@@ -670,7 +672,7 @@ let fns : Lib.shortfn list = [
           | [DList l] ->
               DStr (l |> List.map ~f:(function
                                       | DChar c -> c
-                                      | dv -> raise_error ~actual:dv "expected a char")
+                                      | dv -> RT.raise_error ~actual:dv "expected a char")
                       |> String.of_char_list)
           | args -> fail args)
   ; pr = None
@@ -805,7 +807,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns if the value is in the list"
   ; f = InProcess
         (function
-          | [DList l; i] -> DBool (List.mem ~equal:equal_dval l i)
+          | [DList l; i] -> DBool (List.mem ~equal:RT.equal_dval l i)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -1025,7 +1027,7 @@ let fns : Lib.shortfn list = [
                       |> Unix.timegm
                       |> int_of_float
                       )
-              with e -> raise (TypeError [DStr "Invalid date format"]))
+              with e -> raise (RT.TypeError [DStr "Invalid date format"]))
           | args -> fail args)
   ; pr = None
   ; pu = true

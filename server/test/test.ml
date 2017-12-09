@@ -1,13 +1,15 @@
 open Core
-open Types
-
 open Dark
+open Types
+open Types.RuntimeT
+
 
 module C = Canvas
 module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
+
 
 let handle_exception e =
   (* Builtin testing doesnt seem to print exceptions *)
@@ -185,8 +187,8 @@ let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   Mock.set_string "ts" ts;
   Mock.set_string "nonce" nonce;
-  let args = RT.DvalMap.of_alist_exn [ (k1, RT.DStr v1)
-                                     ; (k2, RT.DStr v2)] in
+  let args = DvalMap.of_alist_exn [ (k1, DStr v1)
+                                  ; (k2, DStr v2)] in
 
   let expected_header =
     "OAuth oauth_consumer_key=\"xvz1evFS4wEEPTGEFPHBog\", oauth_nonce=\"kYjzVBB8Y0ZFabxSWbWovY3uYSQ2pTgmZeNu2VS4cg\", oauth_signature=\"hCtSmYh%2BiHYCEqBWrE7C7hYmtUk%3D\", oauth_signature_method=\"HMAC-SHA1\", oauth_timestamp=\"1318622958\", oauth_token=\"370773112-GmHxMAgYyLbNEtIKZeRNFsMKPR9EyMZeS9weJAEb\", oauth_version=\"1.0\"" in

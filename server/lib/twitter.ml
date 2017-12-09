@@ -1,5 +1,6 @@
 open Core
 
+module RTT = Types.RuntimeT
 module RT = Runtime
 
 
@@ -7,9 +8,9 @@ module RT = Runtime
    permanently. *)
 (* If we ever call it again, we'll use the on-disk version first *)
 
-type dval = Runtime.dval
-type dval_map = Runtime.dval_map
-module DvalMap = Runtime.DvalMap
+type dval = RTT.dval
+type dval_map = RTT.dval_map
+module DvalMap = RTT.DvalMap
 
 let pct_encode_key = Uri.pct_encode ~component:`Userinfo
 let pct_encode = Uri.pct_encode ~component:`Userinfo
@@ -73,7 +74,7 @@ let oauth_params (secret: Secret.twitter_secret) url verb (args : dval_map) : (s
   let argparams = args
                   |> DvalMap.filter_map ~f:(fun v ->
                       match v with
-                      | RT.DNull -> None
+                      | DNull -> None
                       | v -> Some (RT.to_url_string v))
                   |> DvalMap.to_alist
   in
@@ -100,10 +101,10 @@ let rec dvalmap2query (args: dval_map) : string =
   |> DvalMap.fold
     ~init:[]
     ~f:(fun ~key ~data l ->
-        if data = Runtime.DIncomplete
+        if data = RTT.DIncomplete
         then RT.raise_error "Incorrect type" ~actual:data
-        else if data = Runtime.DNull then l
-        else (key ^ "=" ^ (Runtime.to_url_string data)) :: l)
+        else if data = RTT.DNull then l
+        else (key ^ "=" ^ (RT.to_url_string data)) :: l)
   |> String.concat ~sep:"&"
 
 let call (endpoint: string) (verb: Httpclient.verb) (args: dval_map) : dval =

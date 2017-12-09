@@ -1,5 +1,6 @@
 open Core
 
+open Types.RuntimeT
 module RT = Runtime
 
 (* --------------------- *)
@@ -54,12 +55,12 @@ let is_hole (expr: expr) =
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
-module Symtable = RT.DvalMap
-type symtable = RT.dval_map
+module Symtable = DvalMap
+type symtable = dval_map
 
 let empty_trace _ _ _ = ()
 
-let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: symtable) (expr: expr) : RT.dval =
+let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) (st: symtable) (expr: expr) : dval =
   let exe = exec_ ~trace in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
@@ -73,25 +74,25 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
    * useful work. We're going to need to make this a functional language with functions-as-values
    * and application as a first-class concept sooner rather than later.
    *)
-  let call (name: string) (argvals: RT.dval list) : RT.dval =
+  let call (name: string) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn name in
     (* equalize length *)
     let length_diff = List.length fn.parameters - List.length argvals in
     let argvals =
       if length_diff > 0
-      then argvals @ (List.init length_diff (fun _ -> RT.DNull))
+      then argvals @ (List.init length_diff (fun _ -> DNull))
       else if length_diff = 0
       then argvals
       else Exception.user ("Too many args in fncall to " ^ name) in
     let args =
       fn.parameters
       |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
-      |> RT.DvalMap.of_alist_exn in
+      |> DvalMap.of_alist_exn in
     RT.exe ~ind:0 fn args
   in
 
 
-  let inject_param_and_execute (st: symtable) (param: RT.dval) (exp: expr) : RT.dval =
+  let inject_param_and_execute (st: symtable) (param: dval) (exp: expr) : dval =
     match exp with
     | Lambda _ ->
       let result = exe st exp in
@@ -106,7 +107,7 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
   let value _ =
     (match expr with
      | Hole id ->
-       RT.DIncomplete
+       DIncomplete
 
      | Let (_, lhs, rhs, body) ->
        let bound = match lhs with
@@ -121,7 +122,7 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
        (match Symtable.find st name with
         | None ->
           (* TODO we can put this in a DError and have great error messages *)
-          RT.DIncomplete
+          DIncomplete
         | Some result -> result)
 
      | FnCall (id, name, exprs) ->
@@ -132,7 +133,7 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
        (match (exe st cond) with
         | DBool true -> exe st ifbody
         | DBool false -> exe st elsebody
-        | _ -> RT.DIncomplete) (* TODO: better error *)
+        | _ -> DIncomplete) (* TODO: better error *)
 
      | Lambda (id, vars, body) ->
        (* TODO: this will errror if the number of args and vars arent equal *)
@@ -181,7 +182,7 @@ let rec exec_ ?(trace: (expr -> RT.dval -> symtable -> unit)=empty_trace) (st: s
         let msg = Exn.to_string e in
         print_endline bt;
         print_endline msg;
-        RT.DIncomplete
+        DIncomplete
   in
   trace expr execed_value st; execed_value
 
@@ -192,9 +193,9 @@ let execute = exec_
 (* -------------------- *)
 
 
-type dval_store = RT.dval Int.Table.t
+type dval_store = dval Int.Table.t
 
-let execute_saving_intermediates (init: symtable) (ast: expr) : (RT.dval * dval_store) =
+let execute_saving_intermediates (init: symtable) (ast: expr) : (dval * dval_store) =
   let value_store = Int.Table.create () in
   let trace expr dval st =
     Hashtbl.set value_store ~key:(to_id expr) ~data:dval
@@ -214,7 +215,7 @@ type livevalue = { value: string
                  ; exc: Exception.exception_data option
                  } [@@deriving to_yojson, show]
 
-let dval_to_livevalue (dv: RT.dval) : livevalue =
+let dval_to_livevalue (dv: dval) : livevalue =
   { value = RT.to_repr dv
   ; tipe = RT.tipename dv
   ; json = dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string

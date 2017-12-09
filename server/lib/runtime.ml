@@ -1,19 +1,7 @@
 open Core
 open Types
+open Types.RuntimeT
 
-class opaque (d: string) =
-  object (self)
-    val mutable data : string = d
-    method get : string = data
-    method set d : unit = data <- d
-  end
-
-
-let pp_opaque f (o:opaque) : string =
-  "<opaque>"
-
-type dhttp = Redirect of string
-           | Response of int [@@deriving show, eq, yojson]
 
 let repr_of_dhttp (d: dhttp) : string =
   match d with
@@ -22,23 +10,6 @@ let repr_of_dhttp (d: dhttp) : string =
 (* ------------------------- *)
 (* Values *)
 (* ------------------------- *)
-module DvalMap = String.Map
-type dval_map = dval DvalMap.t [@opaque]
-and dval = DInt of int
-         | DStr of string
-         | DOpaque of opaque
-         | DChar of char
-         | DFloat of float
-         | DBool of bool
-         | DBlock of (dval list -> dval)
-         | DList of dval list
-         (* TODO: make null more like option. Maybe that's for the type
-            system *)
-         | DNull
-         | DObj of dval_map
-         | DResp of (dhttp * dval)
-         | DIncomplete [@@deriving show]
-
 
 let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   let nl = if pp then "\n" ^ (String.make indent ' ') else " " in
@@ -46,13 +17,13 @@ let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
   let indent = indent + 2 in
   match dv with
   | DInt i -> string_of_int i
+  | DDB db -> "<db>"
   | DBool true -> "true"
   | DBool false -> "false"
   | DStr s -> "\"" ^ s ^ "\""
   | DFloat f -> string_of_float f
   | DChar c -> "'" ^ (Char.to_string c) ^ "'"
   | DBlock _ -> "<block>"
-  | DOpaque o -> "<opaque:" ^ o#get ^ ">"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DResp (h, hdv) -> (repr_of_dhttp h) ^ nl ^ (to_repr_ indent pp hdv)
@@ -94,10 +65,10 @@ let rec to_url_string (dv : dval) : string =
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
   | DBlock _ -> "<block>"
-  | DOpaque v -> "<opaque>"
   | DIncomplete -> "<incomplete>"
   | DNull -> "null"
   | DResp (_, hdv) -> to_url_string hdv
+  | DDB db -> "<db>"
   | DList l ->
     "[ " ^ ( String.concat ~sep:", " (List.map ~f:to_url_string l)) ^ " ]"
   | DObj o ->
@@ -126,12 +97,12 @@ type tipe = TInt
           | TBool
           | TFloat
           | TObj
-          | TOpaque
           | TList
           | TAny
           | TBlock
           | TNull
           | TResp
+          | TDB
           | TIncomplete
           [@@deriving yojson, show]
 
@@ -142,13 +113,13 @@ let tipe2str t : string =
   | TChar -> "Char"
   | TBool -> "Bool"
   | TFloat -> "Float"
-  | TOpaque -> "Opaque"
   | TObj -> "Obj"
   | TList -> "List"
   | TBlock -> "Block"
   | TNull -> "Nothing"
   | TAny -> "Any"
   | TResp -> "Response"
+  | TDB -> "Datastore"
   | TIncomplete -> "<incomplete>"
 
 
@@ -164,8 +135,8 @@ let tipeOf (dv : dval) : tipe =
   | DList _ -> TList
   | DObj _ -> TObj
   | DResp _ -> TResp
+  | DDB _ -> TDB
   | DIncomplete -> TIncomplete
-  | DOpaque _ -> TOpaque
 
   let tipename (dv: dval) : string =
     dv |> tipeOf |> tipe2str
@@ -234,10 +205,10 @@ let rec dval_to_yojson (v : dval) : Yojson.Safe.json =
   | DNull -> `Null
   | DChar c -> `String (Char.to_string c)
   | DBlock _ -> `String "<block>"
-  | DOpaque _ -> `String "<opaque>"
   | DIncomplete -> `String "<incomplete>"
   | DList l -> `List (List.map l dval_to_yojson)
   | DResp (h, hdv) -> `List [dhttp_to_yojson h; dval_to_yojson hdv]
+  | DDB _ -> `String "<db>"
   | DObj o -> o
               |> DvalMap.to_alist
               |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))

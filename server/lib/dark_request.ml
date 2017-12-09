@@ -4,8 +4,10 @@ module RT = Runtime
 module Clu = Cohttp_lwt_unix
 module C = Cohttp
 
+open Types.RuntimeT
+
 (* Internal invariant, _must_ be a DObj *)
-type t = RT.dval
+type t = dval
 
 (* ------------------------- *)
 (* Internal *)
@@ -38,7 +40,7 @@ let parser_fn p =
 let parsed_body req reqbody =
   let bdval =
     if reqbody = ""
-    then RT.DNull
+    then DNull
     else reqbody |> parser_fn (body_parser_type req)
   in
   RT.to_dobj [("body", bdval)]
@@ -51,13 +53,13 @@ let parsed_headers req =
   req
   |> Clu.Request.headers
   |> C.Header.to_list
-  |> List.map ~f:(fun (k, v) -> (k, RT.DStr v))
-  |> RT.DvalMap.of_alist_exn
-  |> fun dm -> RT.DObj dm
+  |> List.map ~f:(fun (k, v) -> (k, DStr v))
+  |> DvalMap.of_alist_exn
+  |> fun dm -> DObj dm
   |> fun dv -> RT.to_dobj [("headers", dv)]
 
 let unparsed_body rb =
-  let dval = RT.DStr rb in
+  let dval = DStr rb in
   RT.to_dobj [("fullBody", dval)]
 
 let body_of_fmt ~fmt ~key req rbody =
@@ -65,7 +67,7 @@ let body_of_fmt ~fmt ~key req rbody =
     match (body_parser_type req, rbody) with
     | (fmt, content) when String.length content > 0 ->
       parser_fn fmt content
-    | _  -> RT.DNull
+    | _  -> DNull
   in
   RT.to_dobj [(key, dval)]
 
@@ -98,14 +100,14 @@ let to_dval self =
   self
 
 let sample =
-  let open_record = RT.DObj (RT.DvalMap.empty) in
+  let open_record = DObj (DvalMap.empty) in
   let parts =
     [ RT.to_dobj [("body", open_record)]
     ; RT.to_dobj [("jsonBody", open_record)]
     ; RT.to_dobj [("formBody", open_record)]
     ; RT.to_dobj [("queryParams", open_record)]
     ; RT.to_dobj [("headers", open_record)]
-    ; RT.to_dobj [("fullBody", RT.DStr "")]
+    ; RT.to_dobj [("fullBody", DStr "")]
     ]
   in
   List.fold_left

@@ -1,11 +1,13 @@
 open Core
-open Runtime
 
 open Lib
 
+open Types.RuntimeT
+open Runtime
+
 let schema = Swagger.parse "lib/twitter_api.json"
 
-let call_twitter path (args: Runtime.dval_map) : dval =
+let call_twitter path (args: dval_map) : dval =
   Twitter.get path args
 
 let sw_type2dark tipe =
