@@ -109,9 +109,8 @@ def ocaml_build():
     return run_backend(start, cd + build)
 
 def ocaml_build_converter():
-  subprocess.check_output([ "jbuilder"
-                          , "build"
-                          , "server/_build/default/bin/darkfile_to_rpc.bc" ])
+  start = time.time()
+  run_test(start, "cd server && jbuilder build bin/darkfile_to_rpc.bc")
 
 def ocaml_test():
   start = time.time()
