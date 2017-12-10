@@ -1027,7 +1027,7 @@ let fns : Lib.shortfn list = [
                       |> Unix.timegm
                       |> int_of_float
                       )
-              with e -> raise (RT.TypeError [DStr "Invalid date format"]))
+              with e -> raise (TypeError [DStr "Invalid date format"]))
           | args -> fail args)
   ; pr = None
   ; pu = true

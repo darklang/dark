@@ -19,7 +19,6 @@ let error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") 
 let raise_error ?(actual=DIncomplete) ?(result=DIncomplete) ?(info=[]) ?(expected="") ?(workarounds=[]) ?(long="") (short: string) =
  raise (error ~actual ~result ~info ~expected ~workarounds ~long short)
 
-exception TypeError of dval list
 
 
 
