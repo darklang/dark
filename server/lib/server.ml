@@ -75,20 +75,20 @@ let server =
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
-          let url_safe = Dval.to_url_string value in
+          let body = Dval.to_simple_repr "<" ">" value in
           (match http with
            | Redirect url ->
              S.respond_redirect (Uri.of_string url) ()
            | Response code ->
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
-               ~body:url_safe
+               ~body:body
                ())
         | _ ->
-          let url_safe = Dval.to_url_string result in
+          let body = Dval.to_simple_repr "<" ">" result in
           S.respond_string
             ~status:`Bad_request
-            ~body:("400: Handler did not return a HTTP response, instead returned: " ^ url_safe)
+            ~body:("400: Handler did not return a HTTP response, instead returned: " ^ body)
             ())
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()

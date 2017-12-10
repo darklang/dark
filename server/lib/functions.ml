@@ -62,7 +62,7 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
            let range = List.range 0 (List.length arglist) in
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
            let invalid = List.filter_map all
-                           ~f:(fun (i,p,a) -> if Dval.tipeOf a <> p.tipe
+                           ~f:(fun (i,p,a) -> if Dval.tipe_of a <> p.tipe
                                               && p.tipe <> TAny
                                then Some (i,p,a)
                                else None) in
