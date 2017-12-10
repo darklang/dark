@@ -5,7 +5,7 @@
     (name dark)
     (public_name dark)
     (modes (byte))
-    (flags (-warn-error (+8)))
+    (flags (-warn-error (+A)))
     (preprocess (pps (
                       landmarks.ppx
                       lwt.ppx

@@ -6,7 +6,7 @@
     (public_name test)
     (modules test)
     (modes (byte))
-    (flags (-warn-error (+8)))
+    (flags (-warn-error (+A)))
     (libraries (dark alcotest))
   )
 )
