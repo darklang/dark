@@ -12,8 +12,8 @@ let call_twitter path (args: dval_map) : dval =
 
 let sw_type2dark tipe =
   match tipe with
-  | "string" -> Dval.TStr
-  | "int" -> Dval.TInt
+  | "string" -> TStr
+  | "int" -> TInt
   | _ -> failwith ("todo: type: " ^ tipe)
 
 let twurl2name (url: string) : string =

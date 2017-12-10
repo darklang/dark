@@ -21,7 +21,7 @@ module ArgMap = String.Map
 type arg_map = argument ArgMap.t
 
 type param = { name: string
-             ; tipe: Dval.tipe
+             ; tipe: tipe
              ; block_args : string list
              ; optional : bool
              ; description : string
@@ -40,7 +40,7 @@ type ccfunc = InProcess of (dval list -> dval)
 type fn = { name : string
           ; other_names : string list
           ; parameters : param list
-          ; return_type : Dval.tipe
+          ; return_type : tipe
           ; description : string
           ; preview : (dval list -> int -> dval list) option
           ; func : ccfunc

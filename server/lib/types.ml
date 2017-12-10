@@ -37,20 +37,42 @@ module RuntimeT = struct
 
   module DvalMap = String.Map
   type dval_map = dval DvalMap.t [@opaque]
-  and dval = DInt of int
-           | DStr of string
-           | DChar of char
-           | DFloat of float
-           | DBool of bool
-           | DBlock of (dval list -> dval)
-           | DList of dval list
-           (* TODO: make null more like option. Maybe that's for the type
-              system *)
-           | DNull
-           | DObj of dval_map
-           | DResp of (dhttp * dval)
-           | DDB of DbT.db
-           | DIncomplete [@@deriving show]
+  and dval =
+    (* basic types  *)
+    | DInt of int
+    | DFloat of float
+    | DBool of bool
+    | DNull (* TODO: make null more like option *)
+    | DChar of char
+    | DStr of string
+    (* compound types *)
+    | DList of dval list
+    | DObj of dval_map
+    (* special types *)
+    | DIncomplete
+    | DBlock of (dval list -> dval)
+    (* user types: awaiting a better type system *)
+    | DResp of (dhttp * dval)
+    | DDB of DbT.db
+    [@@deriving show]
+
+  type tipe =
+    | TAny (* extra type meaning anything *)
+    | TInt
+    | TFloat
+    | TBool
+    | TNull
+    | TChar
+    | TStr
+    | TList
+    | TObj
+    | TIncomplete
+    | TBlock
+    | TResp
+    | TDB
+    [@@deriving eq, show, yojson]
+
+
 
   exception TypeError of dval list
 end

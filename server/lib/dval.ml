@@ -90,21 +90,6 @@ let rec equal_dval (a: dval) (b: dval) =
   | DObj o1, DObj o2 -> DvalMap.equal equal_dval o1 o2
   | _, _ -> false
 
-type tipe = TInt
-          | TStr
-          | TChar
-          | TBool
-          | TFloat
-          | TObj
-          | TList
-          | TAny
-          | TBlock
-          | TNull
-          | TResp
-          | TDB
-          | TIncomplete
-          [@@deriving eq, show, yojson]
-
 let tipe2str t : string =
   match t with
   | TInt -> "Int"
@@ -125,20 +110,20 @@ let tipe2str t : string =
 let tipeOf (dv : dval) : tipe =
   match dv with
   | DInt _ -> TInt
-  | DStr _ -> TStr
-  | DBool _ -> TBool
   | DFloat _ -> TFloat
-  | DChar _ -> TChar
+  | DBool _ -> TBool
   | DNull -> TNull
-  | DBlock _ -> TBlock
+  | DChar _ -> TChar
+  | DStr _ -> TStr
   | DList _ -> TList
   | DObj _ -> TObj
+  | DBlock _ -> TBlock
+  | DIncomplete -> TIncomplete
   | DResp _ -> TResp
   | DDB _ -> TDB
-  | DIncomplete -> TIncomplete
 
-  let tipename (dv: dval) : string =
-    dv |> tipeOf |> tipe2str
+let tipename (dv: dval) : string =
+  dv |> tipeOf |> tipe2str
 
 let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
   `String (t |> tipe2str)

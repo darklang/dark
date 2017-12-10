@@ -19,7 +19,7 @@ let func ?(d:string = "") ?(name:string="f") args : param =
 type shortfn = { n : string
                ; o : string list
                ; p : param list
-               ; r : Dval.tipe
+               ; r : tipe
                ; f : ccfunc
                ; d : string
                ; pr : (dval list -> int -> dval list) option
