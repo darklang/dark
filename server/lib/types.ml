@@ -14,18 +14,35 @@ let hole_to_maybe (h: 'a or_hole) : 'a option =
   | Empty _ -> None
   | Full a -> Some a
 
+type tipe_ =
+  | TAny (* extra type meaning anything *)
+  | TInt
+  | TFloat
+  | TBool
+  | TNull
+  | TChar
+  | TStr
+  | TList
+  | TObj
+  | TIncomplete
+  | TBlock
+  | TResp
+  | TDB
+  | TID
+  | TDate
+  | TTitle
+  | TUrl
+  [@@deriving eq, show, yojson]
 
 
 module DbT = struct
-  type row = string or_hole * string or_hole
-             [@@deriving eq, show, yojson]
-
+  type row = string or_hole * tipe_ or_hole
+            [@@deriving eq, show, yojson]
   type db = { tlid: tlid
             ; name: string
             ; rows: row list
             } [@@deriving eq, show, yojson]
 end
-
 
 
 module RuntimeT = struct
@@ -54,25 +71,15 @@ module RuntimeT = struct
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of DbT.db
+    | DID of int
+    | DDate of int
+    | DTitle of string
+    | DUrl of string
     [@@deriving show]
 
-  type tipe =
-    | TAny (* extra type meaning anything *)
-    | TInt
-    | TFloat
-    | TBool
-    | TNull
-    | TChar
-    | TStr
-    | TList
-    | TObj
-    | TIncomplete
-    | TBlock
-    | TResp
-    | TDB
-    [@@deriving eq, show, yojson]
-
-
+  type tipe = tipe_ [@@deriving eq, show, yojson]
 
   exception TypeError of dval list
 end
+
+

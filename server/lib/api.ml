@@ -38,13 +38,13 @@ let functions =
                       ; parameters =
                         List.map ~f:(fun p : param_ ->
                           { name = p.name
-                          ; tipe = Dval.tipe2str p.tipe
+                          ; tipe = Dval.tipe_to_string p.tipe
                           ; block_args = p.block_args
                           ; optional = p.optional
                           ; description = p.description })
                         v.parameters
                       ; description = v.description
-                      ; return_type = Dval.tipe2str v.return_type
+                      ; return_type = Dval.tipe_to_string v.return_type
                       })
   |> functionlist_to_yojson
   |> Yojson.Safe.pretty_to_string

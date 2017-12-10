@@ -31,7 +31,7 @@ let param_to_string (param: param) : string =
   param.name
   ^ (if param.optional then "?" else "")
   ^ " : "
-  ^ (Dval.tipe2str param.tipe)
+  ^ (Dval.tipe_to_string param.tipe)
 
 
 type ccfunc = InProcess of (dval list -> dval)
@@ -72,14 +72,14 @@ let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
 
            | (i,p,DIncomplete) :: _ ->
               Exception.user
-                ~expected:(Dval.tipe2str p.tipe)
+                ~expected:(Dval.tipe_to_string p.tipe)
                 ~actual:"missing"
                 (fn.name ^ " is missing an argument: " ^ p.name)
 
            | (i,p,a) :: _ ->
               RT.raise_error
                 ~actual:a
-                ~expected:(Dval.tipe2str p.tipe)
+                ~expected:(Dval.tipe_to_string p.tipe)
                 (fn.name ^ " was called with the wrong type to parameter: " ^ p.name))
 
   | API f ->

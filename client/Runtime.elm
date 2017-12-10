@@ -48,21 +48,21 @@ tipe2str t =
 
 str2tipe : String -> Tipe
 str2tipe t =
-  case t of
-  "Any" -> TAny
-  "Int" -> TInt
-  "Float" -> TFloat
-  "Bool" -> TBool
-  "Nothing" -> TNull
-  "Char" -> TChar
-  "Str" -> TStr
-  "List" -> TList
-  "Obj" -> TObj
-  "Block" -> TBlock
-  "Incomplete" -> TIncomplete
-  "Response" -> TResp
-  "Datastore" -> TDB
-  "Error" -> TIncomplete -- temporary, maybe
+  case String.toLower t of
+  "any" -> TAny
+  "int" -> TInt
+  "float" -> TFloat
+  "bool" -> TBool
+  "nothing" -> TNull
+  "char" -> TChar
+  "str" -> TStr
+  "list" -> TList
+  "obj" -> TObj
+  "block" -> TBlock
+  "incomplete" -> TIncomplete
+  "response" -> TResp
+  "datastore" -> TDB
+  "error" -> TIncomplete -- temporary, maybe
   _ -> Debug.crash <| "invalid typename: " ++ t
 
 

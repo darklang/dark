@@ -234,6 +234,10 @@ decodeHandler =
   |> JSDP.required "ast" decodeAST
   |> JSDP.required "spec" decodeHandlerSpec
 
+decodeTipe : JSD.Decoder String
+decodeTipe = JSD.index 0 JSD.string
+             |> JSD.map (String.dropLeft 1)
+
 decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB name rows = {name = name, rows = rows} in
@@ -242,7 +246,7 @@ decodeDB =
   |> JSDP.required "rows" (JSD.list
                             (decodePair
                               (decodeHoleOr JSD.string)
-                              (decodeHoleOr JSD.string)))
+                              (decodeHoleOr decodeTipe)))
 
 
 decodeToplevel : JSD.Decoder Toplevel

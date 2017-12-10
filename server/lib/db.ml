@@ -38,17 +38,6 @@ let with_postgres (table: db) fn =
    | PG.Error e ->
      Exception.internal ("DB error with: " ^ (PG.string_of_error e))
 
-let dval2sql (dv: dval) : string =
-  match dv with
-  | DInt i -> string_of_int i
-  | DBool true -> "true"
-  | DBool false -> "false"
-  | DStr s -> "'" ^ s ^ "'"
-  | DFloat f -> string_of_float f
-  | DChar c -> Char.to_string c
-  | DNull -> "null"
-  | _ -> Exception.client "Not obvious how to persist this in the DB"
-
 
 let insert (table: db) (vals: dval_map) : unit =
   let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals in
@@ -57,16 +46,12 @@ let insert (table: db) (vals: dval_map) : unit =
               |> String.concat ~sep:", "
   in vals
      |> DvalMap.data
-     |> List.map ~f:dval2sql
+     |> List.map ~f:Dval.dval_to_sql
      |> String.concat ~sep:", "
      |> Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
        table.name names
      |> run_sql
 
-let sql_to_dval (tipe: string) (sql: string) : dval =
-  match tipe with
-  | "id" -> sql |> int_of_string |> DInt
-  | _ -> failwith ("TODO: " ^ tipe ^ " " ^ sql )
 
 let fetch_all (table: db) : dval =
   let names = table.rows
@@ -81,7 +66,7 @@ let fetch_all (table: db) : dval =
   let types = table.rows
               |> List.map ~f:Tuple.T2.get2
               |> List.filter_map ~f: hole_to_maybe
-              |> (@) ["id"]
+              |> (@) [TID]
   in
   Printf.sprintf
     "SELECT * FROM \"%s\""
@@ -90,7 +75,7 @@ let fetch_all (table: db) : dval =
   |> conn#exec
   |> (fun res -> res#get_all_lst)
   |> Log.pp "all_lst"
-  |> List.map ~f:(List.map2_exn ~f:sql_to_dval types)
+  |> List.map ~f:(List.map2_exn ~f:Dval.sql_to_dval types)
   |> List.map ~f:(List.zip_exn names)
   |> List.map ~f:(Dval.to_dobj)
   |> DList
@@ -127,20 +112,10 @@ let create_table_sql (table: string) =
     "CREATE TABLE IF NOT EXISTS \"%s\" (id SERIAL PRIMARY KEY)"
     table
 
-let sql_tipe_for (tipe: string) : string =
-  match String.lowercase tipe with
-  | "string" -> "text"
-  | "title" -> "text"
-  | "text" -> "text"
-  | "url" -> "text"
-  | "date" -> "timestamp with time zone"
-  | _ -> failwith ("No tipe for " ^ tipe)
-
-
-let add_row_sql (table: string) (name: string) (tipe: string) : string =
+let add_row_sql (table: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
     "ALTER TABLE \"%s\" ADD COLUMN %s %s"
-    table name (sql_tipe_for tipe)
+    table name (Dval.sql_tipe_for tipe)
 
 
 

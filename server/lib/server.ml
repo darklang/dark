@@ -75,7 +75,7 @@ let server =
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
-          let body = Dval.to_simple_repr "<" ">" value in
+          let body = Dval.to_human_repr value in
           (match http with
            | Redirect url ->
              S.respond_redirect (Uri.of_string url) ()
@@ -85,7 +85,7 @@ let server =
                ~body:body
                ())
         | _ ->
-          let body = Dval.to_simple_repr "<" ">" result in
+          let body = Dval.to_human_repr result in
           S.respond_string
             ~status:`Bad_request
             ~body:("400: Handler did not return a HTTP response, instead returned: " ^ body)
