@@ -2,6 +2,7 @@ open Core
 
 open Types.RuntimeT
 module RT = Runtime
+module F = Functions
 
 (* --------------------- *)
 (* Types *)
@@ -86,9 +87,9 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) (st: symt
       else Exception.user ("Too many args in fncall to " ^ name) in
     let args =
       fn.parameters
-      |> List.map2_exn ~f:(fun dv (p: RT.param) -> (p.name, dv)) argvals
+      |> List.map2_exn ~f:(fun dv (p: F.param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn in
-    RT.exe ~ind:0 fn args
+    F.exe ~ind:0 fn args
   in
 
 
@@ -116,7 +117,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) (st: symt
        in exe bound body
 
      | Value (_, s) ->
-       RT.parse s
+       Dval.parse s
 
      | Variable (_, name) ->
        (match Symtable.find st name with
@@ -216,9 +217,9 @@ type livevalue = { value: string
                  } [@@deriving to_yojson, show]
 
 let dval_to_livevalue (dv: dval) : livevalue =
-  { value = RT.to_repr dv
-  ; tipe = RT.tipename dv
-  ; json = dv |> RT.dval_to_yojson |> Yojson.Safe.pretty_to_string
+  { value = Dval.to_repr dv
+  ; tipe = Dval.tipename dv
+  ; json = dv |> Dval.dval_to_yojson |> Yojson.Safe.pretty_to_string
   ; exc = None
   }
 

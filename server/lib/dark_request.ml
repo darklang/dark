@@ -18,7 +18,7 @@ type parser = Json
             | Unknown
 
 let form_parser f =
-  f |> Uri.query_of_encoded |> RT.query_to_dval
+  f |> Uri.query_of_encoded |> Dval.query_to_dval
 
 let body_parser_type req =
   let content_type =
@@ -33,9 +33,9 @@ let body_parser_type req =
 
 let parser_fn p =
   match p with
-  | Json -> RT.parse
+  | Json -> Dval.parse
   | Form -> form_parser
-  | Unknown -> RT.parse
+  | Unknown -> Dval.parse
 
 let parsed_body req reqbody =
   let bdval =
@@ -43,11 +43,11 @@ let parsed_body req reqbody =
     then DNull
     else reqbody |> parser_fn (body_parser_type req)
   in
-  RT.to_dobj [("body", bdval)]
+  Dval.to_dobj [("body", bdval)]
 
 let parsed_query_string uri =
-  let dval = RT.query_to_dval (Uri.query uri) in
-  RT.to_dobj [("queryParams", dval)]
+  let dval = Dval.query_to_dval (Uri.query uri) in
+  Dval.to_dobj [("queryParams", dval)]
 
 let parsed_headers req =
   req
@@ -56,11 +56,11 @@ let parsed_headers req =
   |> List.map ~f:(fun (k, v) -> (k, DStr v))
   |> DvalMap.of_alist_exn
   |> fun dm -> DObj dm
-  |> fun dv -> RT.to_dobj [("headers", dv)]
+  |> fun dv -> Dval.to_dobj [("headers", dv)]
 
 let unparsed_body rb =
   let dval = DStr rb in
-  RT.to_dobj [("fullBody", dval)]
+  Dval.to_dobj [("fullBody", dval)]
 
 let body_of_fmt ~fmt ~key req rbody =
   let dval =
@@ -69,7 +69,7 @@ let body_of_fmt ~fmt ~key req rbody =
       parser_fn fmt content
     | _  -> DNull
   in
-  RT.to_dobj [(key, dval)]
+  Dval.to_dobj [(key, dval)]
 
 let json_body =
   body_of_fmt ~fmt:Json ~key:"jsonBody"
@@ -92,8 +92,8 @@ let from_request req rbody uri =
     ]
   in
   List.fold_left
-    ~init:RT.empty_dobj
-    ~f:(fun acc p -> RT.obj_merge acc p)
+    ~init:Dval.empty_dobj
+    ~f:(fun acc p -> Dval.obj_merge acc p)
     parts
 
 let to_dval self =
@@ -102,15 +102,15 @@ let to_dval self =
 let sample =
   let open_record = DObj (DvalMap.empty) in
   let parts =
-    [ RT.to_dobj [("body", open_record)]
-    ; RT.to_dobj [("jsonBody", open_record)]
-    ; RT.to_dobj [("formBody", open_record)]
-    ; RT.to_dobj [("queryParams", open_record)]
-    ; RT.to_dobj [("headers", open_record)]
-    ; RT.to_dobj [("fullBody", DStr "")]
+    [ Dval.to_dobj [("body", open_record)]
+    ; Dval.to_dobj [("jsonBody", open_record)]
+    ; Dval.to_dobj [("formBody", open_record)]
+    ; Dval.to_dobj [("queryParams", open_record)]
+    ; Dval.to_dobj [("headers", open_record)]
+    ; Dval.to_dobj [("fullBody", DStr "")]
     ]
   in
   List.fold_left
-    ~init:RT.empty_dobj
-    ~f:(fun acc p -> RT.obj_merge acc p)
+    ~init:Dval.empty_dobj
+    ~f:(fun acc p -> Dval.obj_merge acc p)
     parts

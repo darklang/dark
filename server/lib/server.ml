@@ -75,7 +75,7 @@ let server =
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
-          let url_safe = RT.to_url_string value in
+          let url_safe = Dval.to_url_string value in
           (match http with
            | Redirect url ->
              S.respond_redirect (Uri.of_string url) ()
@@ -85,7 +85,7 @@ let server =
                ~body:url_safe
                ())
         | _ ->
-          let url_safe = RT.to_url_string result in
+          let url_safe = Dval.to_url_string result in
           S.respond_string
             ~status:`Bad_request
             ~body:("400: Handler did not return a HTTP response, instead returned: " ^ url_safe)

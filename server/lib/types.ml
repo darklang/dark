@@ -52,4 +52,5 @@ module RuntimeT = struct
            | DDB of DbT.db
            | DIncomplete [@@deriving show]
 
+  exception TypeError of dval list
 end

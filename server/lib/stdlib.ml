@@ -400,14 +400,14 @@ let fns : Lib.shortfn list = [
         (function
           | [DList l] ->
             l
-            |> list_coerce ~f:RT.to_int
+            |> list_coerce ~f:Dval.to_int
             >>| List.fold_left ~f:(+) ~init:0
             >>| (fun x -> DInt x)
             |> Result.map_error ~f:(fun (result, example_value) ->
                 RT.error
                   ~actual:(DList result)
                   ~result:(DList result)
-                  ~long:("Int::sum requires all values to be integers, but " ^ (RT.to_repr example_value) ^ " is a " ^ (RT.tipename example_value))
+                  ~long:("Int::sum requires all values to be integers, but " ^ (Dval.to_repr example_value) ^ " is a " ^ (Dval.tipename example_value))
                   ~expected:"every list item to be an int "
                   "Sum expects you to pass a list of ints")
             |> Result.ok_exn
@@ -428,7 +428,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
         (function
-          | [a] -> DStr (RT.to_repr a)
+          | [a] -> DStr (Dval.to_repr a)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -443,7 +443,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (RT.equal_dval a b)
+          | [a; b] -> DBool (Dval.equal_dval a b)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -458,7 +458,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are not equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (not (RT.equal_dval a b))
+          | [a; b] -> DBool (not (Dval.equal_dval a b))
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -545,14 +545,14 @@ let fns : Lib.shortfn list = [
             s
             |> String.to_list
             |> List.map ~f:(fun c -> fn [(DChar c)])
-            |> list_coerce ~f:RT.to_char
+            |> list_coerce ~f:Dval.to_char
             >>| String.of_char_list
             >>| (fun x -> DStr x)
             |> Result.map_error ~f:(fun (result, example_value) ->
                 RT.error
                   ~actual:(DList result)
                   ~result:(DList result)
-                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (RT.to_repr example_value) ^ " is a " ^ (RT.tipename example_value))
+                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (Dval.to_repr example_value) ^ " is a " ^ (Dval.tipename example_value))
                   ~expected:"every value to be a char"
                   "Foreach expects you to return chars")
             |> Result.ok_exn
@@ -652,7 +652,7 @@ let fns : Lib.shortfn list = [
             let s = List.map ~f:(fun s ->
                 match s with
                 | DStr st -> st
-                | _  -> RT.to_repr s) l
+                | _  -> Dval.to_repr s) l
             in
             DStr (String.concat ~sep s)
           | args -> fail args)
@@ -807,7 +807,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns if the value is in the list"
   ; f = InProcess
         (function
-          | [DList l; i] -> DBool (List.mem ~equal:RT.equal_dval l i)
+          | [DList l; i] -> DBool (List.mem ~equal:Dval.equal_dval l i)
           | args -> fail args)
   ; pr = None
   ; pu = true

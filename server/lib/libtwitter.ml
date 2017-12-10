@@ -3,7 +3,7 @@ open Core
 open Lib
 
 open Types.RuntimeT
-open Runtime
+open Functions
 
 let schema = Swagger.parse "lib/twitter_api.json"
 
@@ -12,8 +12,8 @@ let call_twitter path (args: dval_map) : dval =
 
 let sw_type2dark tipe =
   match tipe with
-  | "string" -> TStr
-  | "int" -> TInt
+  | "string" -> Dval.TStr
+  | "int" -> Dval.TInt
   | _ -> failwith ("todo: type: " ^ tipe)
 
 let twurl2name (url: string) : string =
@@ -45,7 +45,7 @@ let fns =
             { n = "Twitter::" ^ (twurl2name api.path)
             ; o = []
             ; r = TAny
-            ; f = Runtime.API (call_twitter api.path)
+            ; f = Functions.API (call_twitter api.path)
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             ; pr = None

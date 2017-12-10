@@ -92,7 +92,7 @@ let fetch_all (table: db) : dval =
   |> Log.pp "all_lst"
   |> List.map ~f:(List.map2_exn ~f:sql_to_dval types)
   |> List.map ~f:(List.zip_exn names)
-  |> List.map ~f:(RT.to_dobj)
+  |> List.map ~f:(Dval.to_dobj)
   |> DList
 
 
