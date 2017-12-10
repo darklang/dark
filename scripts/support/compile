@@ -55,7 +55,7 @@ def elm_make():
     return run_frontend(start, "cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
-  return subprocess.check_output(["server/_build/default/bin/darkfile_to_rpc.exe", filename])
+  return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
 
 def stringify(json):
   return json.decode() \
@@ -103,8 +103,8 @@ def ocaml_build():
   # check for success
   global profile
   cd = "cd server &&"
-  build = " jbuilder build bin/main.exe "
-  build_converter = " && jbuilder build bin/darkfile_to_rpc.exe "
+  build = " jbuilder build bin/main.bc "
+  build_converter = " && jbuilder build bin/darkfile_to_rpc.bc "
   if profile:
     return run_backend(start, cd + landmarks + build)
   else:
@@ -112,7 +112,7 @@ def ocaml_build():
 
 def ocaml_test():
   start = time.time()
-  return run_backend(start, "cd server && jbuilder build test/test.exe && unbuffer _build/default/test/test.exe 2>&1")
+  return run_backend(start, "cd server && jbuilder build test/test.bc && unbuffer ocamlrun _build/default/test/test.bc 2>&1")
 
 def reload_server():
   start = time.time()

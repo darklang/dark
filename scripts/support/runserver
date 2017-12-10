@@ -2,11 +2,12 @@
 
 set -euo pipefail
 
-NATIVE=1
+NATIVE=
+#NATIVE=1
 
-BYTE_FILE="_build/default/bin/dark.byte"
+BYTE_FILE="_build/default/bin/main.bc"
 NATIVE_FILE="_build/default/bin/main.exe"
-if [ $NATIVE ]; then
+if [[ $NATIVE ]]; then
   FILE=$NATIVE_FILE
 else
   FILE=$BYTE_FILE
@@ -19,14 +20,14 @@ fi
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
 do
-  if [ ! -f "${FILE}" ]; then
+  if [[ ! -f "${FILE}" ]]; then
     sleep 0.01
   fi
 done
 
-if [ -f "${FILE}" ]; then
+if [[ -f "${FILE}" ]]; then
     echo "Running server"
-    if [ $NATIVE ]; then
+    if [[ $NATIVE ]]; then
       "${FILE}" > ../logs/server.log 2>&1 &
     else
       ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
