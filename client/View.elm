@@ -342,19 +342,10 @@ normalEntryHtml m =
                  [ Events.onSubmit (EntrySubmitMsg) ]
                  [ input, autocomplete ]
 
-      paramInfo =
-        case m.state of
-          -- Entering _ (Filling _ (ParamHole _ param _)) ->
-          --   Html.div [] [ Html.text (param.name ++ " : " ++ RT.tipe2str param.tipe)
-          --               , Html.br [] []
-          --               , Html.text param.description
-          --               ]
-          _ -> Html.div [] []
-
       wrapper = Html.div
                 [ Attrs.class "entry"
                 , Attrs.width 100]
-                [ paramInfo, viewForm ]
+                [ viewForm ]
   in wrapper
 
 type alias Collapsed = { name: Maybe String
