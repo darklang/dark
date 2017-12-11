@@ -1,6 +1,7 @@
 open Core
 open Lib
 open Runtime
+open Types.RuntimeT
 
 
 let fns : Lib.shortfn list = [
@@ -95,6 +96,27 @@ let fns : Lib.shortfn list = [
         (function
           | [DDB db] ->
             Db.with_postgres (fun _ -> Db.fetch_all db)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+  { n = "DB::schema"
+  ; o = []
+  ; p = [par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the values in `table`"
+  ; f = InProcess
+        (function
+          | [DDB db] ->
+            db.cols
+            |> List.filter_map ~f:(fun c ->
+                match c with
+                | Full name, Full tipe ->
+                  Some (name, DStr (Dval.tipe_to_string tipe))
+                | _ -> None)
+            |> Dval.to_dobj
           | args -> fail args)
   ; pr = None
   ; pu = true
