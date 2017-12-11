@@ -155,10 +155,10 @@ submit m re cursor threadID value =
       then NoChange
       else
       case TL.holeType tl id of
-        DBRowTypeHole _ ->
-          wrap <| SetDBRowType tlid id value
-        DBRowNameHole _ ->
-          wrap <| SetDBRowName tlid id value
+        DBColTypeHole _ ->
+          wrap <| SetDBColType tlid id value
+        DBColNameHole _ ->
+          wrap <| SetDBColName tlid id value
         BindHole h ->
           let replacement = AST.replaceBindHole id value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }

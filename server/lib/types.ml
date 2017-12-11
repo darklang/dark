@@ -36,11 +36,11 @@ type tipe_ =
 
 
 module DbT = struct
-  type row = string or_hole * tipe_ or_hole
+  type col = string or_hole * tipe_ or_hole
             [@@deriving eq, show, yojson]
   type db = { tlid: tlid
             ; name: string
-            ; rows: row list
+            ; cols: col list
             } [@@deriving eq, show, yojson]
 end
 

@@ -107,9 +107,9 @@ type RPC
     = NoOp
     | SetHandler TLID Pos Handler
     | CreateDB TLID Pos DBName
-    | AddDBRow TLID ID ID
-    | SetDBRowName TLID ID DBRowName
-    | SetDBRowType TLID ID DBRowType
+    | AddDBCol TLID ID ID
+    | SetDBColName TLID ID DBColName
+    | SetDBColType TLID ID DBColType
     | DeleteTL TLID
     | MoveTL TLID Pos
     | DeleteAll
@@ -163,8 +163,8 @@ type HoleType = BindHole Handler
               | SpecHole Handler
               | ExprHole Handler
               | FieldHole Handler
-              | DBRowNameHole DB
-              | DBRowTypeHole DB
+              | DBColNameHole DB
+              | DBColTypeHole DB
 
 type HoleOr a = Empty ID
               | Full a
@@ -178,10 +178,10 @@ type alias Handler = { ast : AST
                      , spec : HandlerSpec }
 
 type alias DBName = String
-type alias DBRowName = String
-type alias DBRowType = String
+type alias DBColName = String
+type alias DBColType = String
 type alias DB = { name : DBName
-                , rows : List (HoleOr DBRowName, HoleOr DBRowType)}
+                , cols : List (HoleOr DBColName, HoleOr DBColType)}
 
 type TLData = TLHandler Handler
             | TLDB DB

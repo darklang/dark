@@ -168,8 +168,8 @@ updateMod origm mod (m, cmd) =
                     FieldHole _ -> False
                     BindHole _ -> False
                     SpecHole _ -> False
-                    DBRowNameHole _ -> False
-                    DBRowTypeHole _ -> False
+                    DBColNameHole _ -> False
+                    DBColTypeHole _ -> False
             lv =
               case entry of
                 Creating _ -> Nothing
@@ -273,7 +273,7 @@ update_ msg m =
                 then
                   let id1 = Entry.gid ()
                       id2 = Entry.gid () in
-                  RPC ([ AddDBRow tlid id1 id2], FocusNext tlid Nothing)
+                  RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
                 else
                   Enter False (Filling tlid hid) thread
               Key.Tab    ->

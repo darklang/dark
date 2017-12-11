@@ -143,9 +143,9 @@ viewDB m tl db =
   let namediv = Html.div
                  [ Attrs.class "dbname"]
                  [ Html.text db.name]
-      rowdivs = List.map (\(n, t) ->
+      coldivs = List.map (\(n, t) ->
                            Html.div
-                             [ Attrs.class "row" ]
+                             [ Attrs.class "col" ]
                              [ Html.span
                                  [ Attrs.class "name" ]
                                  [ viewHoleOrText m n ]
@@ -153,12 +153,12 @@ viewDB m tl db =
                                  [ Attrs.class "type" ]
                                  [ viewHoleOrText m t ]
                              ])
-                         db.rows
+                         db.cols
   in
   [
     Html.div
       [ Attrs.class "db"]
-      (namediv :: rowdivs)
+      (namediv :: coldivs)
   ]
 
 

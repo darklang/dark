@@ -9,27 +9,27 @@ import Types exposing (..)
 
 listHoles : DB -> List ID
 listHoles db =
-  LE.interweave (listRowNameHoles db) (listRowTypeHoles db)
+  LE.interweave (listColNameHoles db) (listColTypeHoles db)
 
-listRowNameHoles : DB -> List ID
-listRowNameHoles db =
-  let r2h row =
-        case row of
+listColNameHoles : DB -> List ID
+listColNameHoles db =
+  let r2h col =
+        case col of
           (Empty n, _) -> [n]
           _ -> []
   in
-  db.rows
+  db.cols
   |> List.map r2h
   |> List.concat
 
-listRowTypeHoles : DB -> List ID
-listRowTypeHoles db =
-  let r2h row =
-        case row of
+listColTypeHoles : DB -> List ID
+listColTypeHoles db =
+  let r2h col =
+        case col of
           (_, Empty t) -> [t]
           _ -> []
   in
-  db.rows
+  db.cols
   |> List.map r2h
   |> List.concat
 

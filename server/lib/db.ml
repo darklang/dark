@@ -54,16 +54,16 @@ let insert (table: db) (vals: dval_map) : unit =
 
 
 let fetch_all (table: db) : dval =
-  let names = table.rows
+  let names = table.cols
               |> List.map ~f:Tuple.T2.get1
               |> List.filter_map ~f: hole_to_maybe
               |> (@) ["id"]
   (* TODO: this probably doesn't work. The order that we add the columns
    * to the DB is the order in which they're completed, while the order
-   * with which we add rows to the DB definition is the order in which
+   * with which we add cols to the DB definition is the order in which
    * they're added. *)
   in
-  let types = table.rows
+  let types = table.cols
               |> List.map ~f:Tuple.T2.get2
               |> List.filter_map ~f: hole_to_maybe
               |> (@) [TID]
@@ -81,7 +81,7 @@ let fetch_all (table: db) : dval =
   |> DList
 
 
-let fetch_by db row value =
+let fetch_by db col value =
   DNull
 
 let delete db value =
@@ -123,7 +123,7 @@ let create_table_sql (table: string) =
     "CREATE TABLE IF NOT EXISTS \"%s\" (id SERIAL PRIMARY KEY)"
     table
 
-let add_row_sql (table: string) (name: string) (tipe: tipe) : string =
+let add_col_sql (table: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
     "ALTER TABLE \"%s\" ADD COLUMN %s %s"
     table name (Dval.sql_tipe_for tipe)
@@ -139,31 +139,31 @@ let create_new_db (tlid: tlid) (name: string) =
 
 (* we only add this when it is complete, and we use the ID to mark the
    migration table to know whether it's been done before. *)
-let maybe_add_to_actual_db (db: db) (id: id) (row: row) : row =
-  (match row with
+let maybe_add_to_actual_db (db: db) (id: id) (col: col) : col =
+  (match col with
   | Full name, Full tipe ->
-    run_migration id (add_row_sql db.name name tipe)
+    run_migration id (add_col_sql db.name name tipe)
   | _ ->
     ());
-  row
+  col
 
 
-let add_db_row rowid typeid (db: db) =
-  { db with rows = db.rows @ [(Empty rowid, Empty typeid)]}
+let add_db_col colid typeid (db: db) =
+  { db with cols = db.cols @ [(Empty colid, Empty typeid)]}
 
-let set_row_name id name db =
-  let set row =
-    match row with
+let set_col_name id name db =
+  let set col =
+    match col with
     | (Empty hid, tipe) when hid = id -> maybe_add_to_actual_db db id (Full name, tipe)
-    | _ -> row in
-  { db with rows = List.map ~f:set db.rows }
+    | _ -> col in
+  { db with cols = List.map ~f:set db.cols }
 
-let set_db_row_type id tipe db =
-  let set row =
-    match row with
+let set_db_col_type id tipe db =
+  let set col =
+    match col with
     | (name, Empty hid) when hid = id -> maybe_add_to_actual_db db id (name, Full tipe)
-    | _ -> row in
-  { db with rows = List.map ~f:set db.rows }
+    | _ -> col in
+  { db with cols = List.map ~f:set db.cols }
 
 
 

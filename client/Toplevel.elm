@@ -36,13 +36,13 @@ isFieldHole : Handler -> ID -> Bool
 isFieldHole h id =
   h.ast |> AST.listFieldHoles |> List.member id
 
-isDBRowNameHole : DB -> ID -> Bool
-isDBRowNameHole db id =
-  db |> DB.listRowNameHoles |> List.member id
+isDBColNameHole : DB -> ID -> Bool
+isDBColNameHole db id =
+  db |> DB.listColNameHoles |> List.member id
 
-isDBRowTypeHole : DB -> ID -> Bool
-isDBRowTypeHole db id =
-  db |> DB.listRowTypeHoles |> List.member id
+isDBColTypeHole : DB -> ID -> Bool
+isDBColTypeHole db id =
+  db |> DB.listColTypeHoles |> List.member id
 
 holeType : Toplevel -> ID -> HoleType
 holeType tl id =
@@ -56,9 +56,9 @@ holeType tl id =
       then FieldHole h
       else ExprHole h -- threadholes included here
     TLDB db ->
-      if isDBRowNameHole db id
-      then DBRowNameHole db
-      else DBRowTypeHole db
+      if isDBColNameHole db id
+      then DBColNameHole db
+      else DBColTypeHole db
 
 
 

@@ -79,14 +79,14 @@ encodeRPC m call =
       CreateDB id pos name ->
         ev "CreateDB" [encodeTLID id, encodePos pos, JSE.string name]
 
-      AddDBRow tlid rownameid rowtypeid ->
-        ev "AddDBRow" [encodeTLID tlid, encodeID rownameid, encodeID rowtypeid]
+      AddDBCol tlid colnameid coltypeid ->
+        ev "AddDBCol" [encodeTLID tlid, encodeID colnameid, encodeID coltypeid]
 
-      SetDBRowName tlid id name ->
-        ev "SetDBRowName" [encodeTLID tlid, encodeID id, JSE.string name]
+      SetDBColName tlid id name ->
+        ev "SetDBColName" [encodeTLID tlid, encodeID id, JSE.string name]
 
-      SetDBRowType tlid id tipe ->
-        ev "SetDBRowType" [encodeTLID tlid, encodeID id, JSE.string tipe]
+      SetDBColType tlid id tipe ->
+        ev "SetDBColType" [encodeTLID tlid, encodeID id, JSE.string tipe]
 
       NoOp -> ev "NoOp" []
       DeleteAll -> ev "DeleteAll" []
@@ -240,10 +240,10 @@ decodeTipe = JSD.index 0 JSD.string
 
 decodeDB : JSD.Decoder DB
 decodeDB =
-  let toDB name rows = {name = name, rows = rows} in
+  let toDB name cols = {name = name, cols = cols} in
   JSDP.decode toDB
   |> JSDP.required "name" JSD.string
-  |> JSDP.required "rows" (JSD.list
+  |> JSDP.required "cols" (JSD.list
                             (decodePair
                               (decodeHoleOr JSD.string)
                               (decodeHoleOr decodeTipe)))

@@ -11,9 +11,9 @@ type json = Yojson.Safe.json
 type op = NoOp
         | SetHandler of tlid * pos * Handler.handler
         | CreateDB of tlid * pos * string
-        | AddDBRow of tlid * id * id
-        | SetDBRowName of tlid * id * string
-        | SetDBRowType of tlid * id * string
+        | AddDBCol of tlid * id * id
+        | SetDBColName of tlid * id * string
+        | SetDBColType of tlid * id * string
         | DeleteTL of tlid
         | MoveTL of tlid * pos
         | Savepoint
