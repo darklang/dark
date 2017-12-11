@@ -269,13 +269,38 @@ update_ msg m =
                         , FocusNext tl.id Nothing)
                   _ -> Deselect
               Key.Enter ->
-                if event.shiftKey
+                if event.metaKey
                 then
                   let id1 = Entry.gid ()
                       id2 = Entry.gid () in
                   RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
                 else
                   Enter False (Filling tlid hid) thread
+              Key.Up ->
+                let tl = TL.getTL m tlid
+                    p = TL.getParentOf tl hid
+                in
+                    case p of
+                      Just pid -> Select tlid pid thread
+                      Nothing  -> Select tlid hid thread
+              Key.Down ->
+                let tl = TL.getTL m tlid
+                    c = TL.firstChild tl hid
+                in
+                    case c of
+                      Just cid -> Select tlid cid thread
+                      Nothing  -> Select tlid hid thread
+
+              Key.Right ->
+                let tl = TL.getTL m tlid
+                    ns = TL.getNextSibling tl hid
+                in
+                    Select tlid ns thread
+              Key.Left ->
+                let tl = TL.getTL m tlid
+                    ps = TL.getPrevSibling tl hid
+                in
+                    Select tlid ps thread
               Key.Tab    ->
                 let tl = TL.getTL m tlid
                     nh = TL.getNextHole tl (Just hid)

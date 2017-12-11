@@ -92,6 +92,35 @@ allHoles tl =
     TLDB db ->
       DB.listHoles db
 
+getNextSibling : Toplevel -> ID -> ID
+getNextSibling tl id =
+  case tl.data of
+    TLHandler h ->
+      let siblings = AST.siblings id h.ast in
+      siblings
+      |> LE.elemIndex id
+      |> Maybe.map ((+) 1)
+      |> Maybe.map (\i -> i % List.length siblings)
+      |> Maybe.andThen (\i -> LE.getAt i siblings)
+      |> Maybe.withDefault id
+    _ -> id
+
+getPrevSibling : Toplevel -> ID -> ID
+getPrevSibling tl id =
+  case tl.data of
+    TLHandler h ->
+      let siblings = AST.siblings id h.ast
+          -- 'safe' to deMaybe as there's always at least
+          -- one member in the array
+          last = deMaybe <| LE.last siblings
+      in
+      siblings
+      |> LE.elemIndex id
+      |> Maybe.map (\i -> i - 1)
+      |> Maybe.andThen (\i -> LE.getAt i siblings)
+      |> Maybe.withDefault last
+    _ -> id
+
 getNextHole : Toplevel -> Predecessor -> ID
 getNextHole tl pred =
   case pred of
@@ -155,3 +184,22 @@ handlers tls =
 dbs : List Toplevel -> List DB
 dbs tls =
   List.filterMap asDB tls
+
+getParentOf : Toplevel -> ID -> Maybe ID
+getParentOf tl id =
+  case tl.data of
+    TLHandler h ->
+      AST.parentOf_ id h.ast |> Maybe.map AST.toID
+    _ -> Nothing
+
+getChildrenOf : Toplevel -> ID -> List ID
+getChildrenOf tl id =
+  case tl.data of
+    TLHandler h ->
+      AST.childrenOf id h.ast
+    _ -> []
+
+firstChild : Toplevel -> ID -> Maybe ID
+firstChild tl id = getChildrenOf tl id
+                 |> List.head
+
