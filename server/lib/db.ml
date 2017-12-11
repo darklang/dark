@@ -58,19 +58,16 @@ let fetch_all (table: db) : dval =
               |> List.map ~f:Tuple.T2.get1
               |> List.filter_map ~f: hole_to_maybe
               |> (@) ["id"]
-  (* TODO: this probably doesn't work. The order that we add the columns
-   * to the DB is the order in which they're completed, while the order
-   * with which we add cols to the DB definition is the order in which
-   * they're added. *)
   in
   let types = table.cols
               |> List.map ~f:Tuple.T2.get2
               |> List.filter_map ~f: hole_to_maybe
               |> (@) [TID]
   in
+  let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
-    "SELECT * FROM \"%s\""
-    table.name
+    "SELECT (%s) FROM \"%s\""
+    colnames table.name
   |> Log.pp "sql"
   |> conn#exec
   |> (fun res -> res#get_all_lst)
