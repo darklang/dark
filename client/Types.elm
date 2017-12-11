@@ -165,6 +165,7 @@ type HoleType = BindHole Handler
               | FieldHole Handler
               | DBColNameHole DB
               | DBColTypeHole DB
+              | NotAHole
 
 type HoleOr a = Empty ID
               | Full a

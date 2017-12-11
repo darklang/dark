@@ -32,6 +32,14 @@ isSpecHole : Handler -> ID -> Bool
 isSpecHole h id =
   h |> specHoles |> List.member id
 
+isExprHole : Handler -> ID -> Bool
+isExprHole h id =
+  let bhs = AST.listBindHoles h.ast in
+  h.ast
+  |> AST.listHoles
+  |> List.filter (\hl -> not <| List.member hl bhs)
+  |> List.member id
+
 isFieldHole : Handler -> ID -> Bool
 isFieldHole h id =
   h.ast |> AST.listFieldHoles |> List.member id
@@ -54,13 +62,15 @@ holeType tl id =
       then SpecHole h
       else if isFieldHole h id
       then FieldHole h
-      else ExprHole h -- threadholes included here
+      else if isExprHole h id
+      then ExprHole h
+      else NotAHole
     TLDB db ->
       if isDBColNameHole db id
       then DBColNameHole db
-      else DBColTypeHole db
-
-
+      else if isDBColTypeHole db id
+      then DBColTypeHole db
+      else NotAHole
 
 specHoles : Handler -> List ID
 specHoles h =

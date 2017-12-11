@@ -206,6 +206,7 @@ submit m re cursor threadID value =
               Just v ->
                 let replacement = AST.replaceExpr id v h.ast in
                 wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+        NotAHole -> NoChange
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
