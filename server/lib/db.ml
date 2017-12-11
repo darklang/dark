@@ -31,12 +31,12 @@ let run_sql (sql: string) : unit =
   Log.pP "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
-let with_postgres (table: db) fn =
+let with_postgres fn =
   try
-     fn table
-   with
-   | PG.Error e ->
-     Exception.internal ("DB error with: " ^ (PG.string_of_error e))
+    fn ()
+  with
+  | PG.Error e ->
+    Exception.internal ("DB error with: " ^ (PG.string_of_error e))
 
 
 let insert (table: db) (vals: dval_map) : unit =
@@ -81,6 +81,17 @@ let fetch_all (table: db) : dval =
   |> DList
 
 
+let fetch_by db row value =
+  DNull
+
+let delete db value =
+  ()
+
+let update db value =
+  ()
+
+let keys db =
+  DList []
 
 (* ------------------------- *)
 (* run all table and schema changes as migrations *)

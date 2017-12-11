@@ -1,11 +1,15 @@
 open Types
 open Types.RuntimeT
 
-val with_postgres : DbT.db -> (DbT.db -> 'a) -> 'a
+val with_postgres : (unit -> 'b) -> 'b
 
 (* DB runtime functions *)
 val insert : DbT.db -> RuntimeT.dval_map -> unit
 val fetch_all : DbT.db -> RuntimeT.dval
+val fetch_by : DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
+val delete : DbT.db -> RuntimeT.dval -> unit
+val keys : DbT.db -> dval
+val update : DbT.db -> RuntimeT.dval -> unit
 
 (* DB schema modifications *)
 val create_new_db : tlid -> string -> unit
