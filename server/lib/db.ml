@@ -71,15 +71,34 @@ let fetch_all (table: db) : dval =
   |> Log.pp "sql"
   |> conn#exec
   |> (fun res -> res#get_all_lst)
-  |> Log.pp "all_lst"
   |> List.map ~f:(List.map2_exn ~f:Dval.sql_to_dval types)
   |> List.map ~f:(List.zip_exn names)
   |> List.map ~f:(Dval.to_dobj)
   |> DList
 
 
-let fetch_by db col value =
-  DNull
+let fetch_by table col value =
+  let names = table.cols
+              |> List.map ~f:Tuple.T2.get1
+              |> List.filter_map ~f: hole_to_maybe
+              |> (@) ["id"]
+  in
+  let types = table.cols
+              |> List.map ~f:Tuple.T2.get2
+              |> List.filter_map ~f: hole_to_maybe
+              |> (@) [TID]
+  in
+  let colnames = names |> String.concat ~sep:", " in
+  Printf.sprintf
+    "SELECT (%s) FROM \"%s\" WHERE %s = %s"
+    colnames table.name col (Dval.dval_to_sql value)
+  |> Log.pp "sql"
+  |> conn#exec
+  |> (fun res -> res#get_all_lst)
+  |> List.map ~f:(List.map2_exn ~f:Dval.sql_to_dval types)
+  |> List.map ~f:(List.zip_exn names)
+  |> List.map ~f:(Dval.to_dobj)
+  |> DList
 
 let delete db value =
   ()
