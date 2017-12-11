@@ -102,6 +102,10 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) (st: symt
        | _ -> DIncomplete)
     | FnCall (id, name, exprs) ->
       call name (param :: (List.map ~f:(exe st) exprs))
+    (* If there's a hole, just run the computation straight through, as
+     * if it wasn't there*)
+    | Hole _ ->
+      param
     | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
   in
 
