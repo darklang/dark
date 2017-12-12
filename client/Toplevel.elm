@@ -72,6 +72,12 @@ holeType tl id =
       then DBColTypeHole db
       else NotAHole
 
+isHole : Toplevel -> ID -> Bool
+isHole tl id =
+  case (holeType tl id) of
+    NotAHole -> False
+    _ -> True
+
 specHoles : Handler -> List ID
 specHoles h =
   let e2l a =
