@@ -31,6 +31,12 @@ let run_sql (sql: string) : unit =
   Log.pP "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
+let fetch_via_sql (sql: string) : string list list =
+  sql
+  |> Log.pp "sql"
+  |> conn#exec ~expect:PG.[Tuples_ok]
+  |> (fun res -> res#get_all_lst)
+
 let with_postgres fn =
   try
     fn ()
@@ -43,6 +49,14 @@ let key_names (vals: dval_map) : string =
   |> DvalMap.keys
   |> String.concat ~sep:", "
 
+let val_names (vals: dval_map) : string =
+  vals
+  |> DvalMap.data
+  |> List.map ~f:Dval.dval_to_sql
+  |> String.concat ~sep:", "
+
+(* Turn db rows into list of string/type pairs - removes elements with
+ * holes, as they won't have been put in the DB yet *)
 let cols_for (db: db) : (string * tipe) list =
   db.cols
   |> List.filter_map ~f:(fun c ->
@@ -53,14 +67,20 @@ let cols_for (db: db) : (string * tipe) list =
       None)
   |> fun l -> ("id", TID) :: l
 
+(* PG returns lists of strings. This converts them to types using the
+ * row info provided *)
+let to_obj (names : string list) (types: tipe list) (db_strings : string list)
+  : dval =
+  db_strings
+  |> List.map2_exn ~f:Dval.sql_to_dval types
+  |> List.zip_exn names
+  |> Dval.to_dobj
+
+
 let insert (db: db) (vals: dval_map) : unit =
   let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals
-  in vals
-     |> DvalMap.data
-     |> List.map ~f:Dval.dval_to_sql
-     |> String.concat ~sep:", "
-     |> Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-       db.name (key_names vals)
+  in Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
+       db.name (key_names vals) (val_names vals)
      |> run_sql
 
 
@@ -70,12 +90,8 @@ let fetch_all (db: db) : dval =
   Printf.sprintf
     "SELECT %s FROM \"%s\""
     colnames db.name
-  |> Log.pp "sql"
-  |> conn#exec ~expect:PG.[Tuples_ok]
-  |> (fun res -> res#get_all_lst)
-  |> List.map ~f:(List.map2_exn ~f:Dval.sql_to_dval types)
-  |> List.map ~f:(List.zip_exn names)
-  |> List.map ~f:(Dval.to_dobj)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj names types)
   |> DList
 
 
@@ -85,12 +101,8 @@ let fetch_by db (col: string) (dv: dval) : dval =
   Printf.sprintf
     "SELECT (%s) FROM \"%s\" WHERE %s = %s"
     colnames db.name col (Dval.dval_to_sql dv)
-  |> Log.pp "sql"
-  |> conn#exec
-  |> (fun res -> res#get_all_lst)
-  |> List.map ~f:(List.map2_exn ~f:Dval.sql_to_dval types)
-  |> List.map ~f:(List.zip_exn names)
-  |> List.map ~f:(Dval.to_dobj)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj names types)
   |> DList
 
 let delete db (vals: dval_map) =
@@ -105,10 +117,10 @@ let update db (vals: dval_map) =
            |> DvalMap.to_alist
            |> List.map ~f:(fun (k,v) ->
                k ^ " = " ^ Dval.dval_to_sql v)
-           |> String.concat ~sep:", "
-  in Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
-       db.name sets (Dval.dval_to_sql id)
-     |> run_sql
+           |> String.concat ~sep:", " in
+  Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
+    db.name sets (Dval.dval_to_sql id)
+  |> run_sql
 
 (* ------------------------- *)
 (* run all db and schema changes as migrations *)
