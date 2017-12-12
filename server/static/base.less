@@ -330,6 +330,11 @@ body {
     font-size: 80%;
   }
   form {
+    // makes the form takes up no space in the DOM, meaning we don't
+    // expand the top-level
+    position: absolute;
+    margin-top: -15px; // account for the space of both input boxes
+
     #search-container {
       position: relative;
       input {
