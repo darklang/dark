@@ -164,22 +164,19 @@ viewDB m tl db =
 
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
-  let (id, holeHtml) =
+  let (id, filling) =
         case unwrapState m.state of
-          Selecting tlid id _ ->
-            ( id
-            , selectedHoleHtml)
-          Entering _ (Filling tlid id) _ ->
-            ( id
-            , normalEntryHtml m)
-          _ -> (ID 0, Html.div [] [])
+          Selecting tlid id _ -> (id, False)
+          Entering _ (Filling tlid id) _ -> (id, True)
+          _ -> (ID 0, False)
 
       lvs = Analysis.getLiveValues m tl.id
       ast = Html.div
               [ Attrs.class "ast"]
               [ ViewAST.toHtml
-                { holeID = id
-                , holeHtml = holeHtml
+                { selectedID = id
+                , isFilling = filling
+                , fillingHtml = normalEntryHtml m
                 , liveValues = lvs }
                 h.ast]
       header =

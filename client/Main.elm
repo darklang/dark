@@ -270,7 +270,7 @@ update_ msg m =
                         , FocusNext tl.id Nothing)
                   _ -> Deselect
               Key.Enter ->
-                if event.metaKey
+                if event.shiftKey
                 then
                   let id1 = Entry.gid ()
                       id2 = Entry.gid () in

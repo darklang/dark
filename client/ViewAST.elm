@@ -13,9 +13,11 @@ import String.Extra as SE
 -- dark
 import Types exposing (..)
 import Runtime as RT
+import AST
 
-type alias HtmlVisitState = { holeID : ID
-                            , holeHtml : Html.Html Msg
+type alias HtmlVisitState = { selectedID : ID
+                            , isFilling: Bool
+                            , fillingHtml: Html.Html Msg
                             , liveValues : LVDict }
 
 elemToHtml : HtmlVisitState -> Element -> Html.Html Msg
@@ -32,20 +34,27 @@ elemToHtml state elem =
             case id of
               Just (ID i) -> [Attrs.id (toString i)]
               Nothing -> []
-
-      in if id == Just state.holeID
-          then
-            Html.div
-              ([Attrs.class <| "leaf " ++ class] ++ idAttrs ++ (hover id))
-              [ state.holeHtml ]
-          else
-            Html.div
-              ([Attrs.class <| "leaf " ++ class] ++ idAttrs ++ (hover id))
-              [Html.text content]
+          newClasses =
+            if id == Just state.selectedID && (not <| state.isFilling)
+            then Attrs.class <| "leaf selected " ++ class
+            else Attrs.class <| "leaf " ++ class
+          newContent =
+            if (id == Just state.selectedID) && state.isFilling
+            then state.fillingHtml
+            else Html.text content
+      in
+          Html.div
+          ([newClasses] ++ idAttrs ++ (hover id))
+          [newContent]
 
     Nested (id, class) elems ->
+      let newClasses =
+            if id == Just state.selectedID
+            then Attrs.class <| "nested selected " ++ class
+            else Attrs.class <| "nested " ++ class
+      in
       Html.div
-        ([Attrs.class <| "nested " ++ class] ++ hover id)
+        ([newClasses] ++ hover id)
         (List.map (elemToHtml state) elems)
 
 depthString : Int -> String
@@ -82,9 +91,6 @@ vInfix id name exprs nesting =
         ]
     _ -> vPrefix id ("(" ++ name ++ ")") exprs nesting
 
-isInfix : FnName -> Bool
-isInfix name =
-  List.member name ["<", "==", "%", "+", "-", "^"]
 
 vVarname : Maybe ID -> VarName -> Element
 vVarname mId v = Leaf (mId, "varname atom", v)
@@ -132,7 +138,7 @@ vExpr nest expr =
       vVarname (Just id) name
 
     FnCall id name exprs ->
-      if isInfix name
+      if AST.isInfix name
       then vInfix id name exprs nest
       else vPrefix id name exprs nest
 

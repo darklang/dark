@@ -10,6 +10,10 @@ import Maybe.Extra as ME
 import Types exposing (..)
 import Util exposing (deMaybe)
 
+isInfix : FnName -> Bool
+isInfix name =
+  List.member name ["<", "==", "%", "+", "-", "^"]
+
 replaceExpr : ID -> Expr -> AST -> AST
 replaceExpr id replacement ast =
   replaceExpr_ id replacement ast
