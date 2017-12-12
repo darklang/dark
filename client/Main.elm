@@ -370,11 +370,13 @@ update_ msg m =
                     Filling tlid hid -> Many [ Select tlid (Just hid) (oldThread m.state)
                                              , AutocompleteMod ACReset]
                 Key.Unknown c ->
-                  if c == 190 -- this is `.`
+                  if event.key == Just "."
                   then
                     let name = case Autocomplete.highlighted m.complete of
                                 Just item -> Autocomplete.asName item
-                                Nothing -> m.complete.value
+                                Nothing ->
+                                  m.complete.value
+                                  |> String.dropRight 1 -- ignore extra '.'
                     in
                       -- TODO: unify with Entry.submit
                       Entry.objectSubmit m re cursor thread name
