@@ -100,11 +100,22 @@ let fetch_by table col value =
   |> List.map ~f:(Dval.to_dobj)
   |> DList
 
-let delete db value =
-  ()
+let delete db (vals: dval_map) =
+  let id = DvalMap.find_exn vals "id" in
+  Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
+    db.name (Dval.dval_to_sql id)
+  |> run_sql
 
-let update db value =
-  ()
+let update db (vals: dval_map) =
+  let id = DvalMap.find_exn vals "id" in
+  let sets = vals
+           |> DvalMap.to_alist
+           |> List.map ~f:(fun (k,v) ->
+               k ^ " = " ^ Dval.dval_to_sql v)
+           |> String.concat ~sep:", "
+  in Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
+       db.name sets (Dval.dval_to_sql id)
+     |> run_sql
 
 let keys db =
   DList []

@@ -29,8 +29,8 @@ let fns : Lib.shortfn list = [
   ; d = "Delete `value` from `table`"
   ; f = InProcess
         (function
-          | [DDB db; DObj value ] ->
-            Db.with_postgres (fun _ -> Db.delete db (DObj value));
+          | [DDB db; DObj vals ] ->
+            Db.with_postgres (fun _ -> Db.delete db vals);
             DNull
           | args -> fail args)
   ; pr = None
@@ -45,8 +45,8 @@ let fns : Lib.shortfn list = [
   ; d = "Update `table` value which has the same ID as `value`"
   ; f = InProcess
         (function
-          | [DDB db; DObj value ] ->
-            Db.with_postgres (fun _ -> Db.update db (DObj value));
+          | [DDB db; DObj vals ] ->
+            Db.with_postgres (fun _ -> Db.update db vals);
             DNull
           | args -> fail args)
   ; pr = None
