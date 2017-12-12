@@ -38,36 +38,38 @@ let with_postgres fn =
   | PG.Error e ->
     Exception.internal ("DB error with: " ^ (PG.string_of_error e))
 
+let key_names (vals: dval_map) : string =
+  vals
+  |> DvalMap.keys
+  |> String.concat ~sep:", "
 
-let insert (table: db) (vals: dval_map) : unit =
-  let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals in
-  let names = vals
-              |> DvalMap.keys
-              |> String.concat ~sep:", "
+let cols_for (db: db) : (string * tipe) list =
+  db.cols
+  |> List.filter_map ~f:(fun c ->
+    match c with
+    | Full name, Full tipe ->
+      Some (name, tipe)
+    | _ ->
+      None)
+  |> fun l -> ("id", TID) :: l
+
+let insert (db: db) (vals: dval_map) : unit =
+  let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals
   in vals
      |> DvalMap.data
      |> List.map ~f:Dval.dval_to_sql
      |> String.concat ~sep:", "
      |> Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-       table.name names
+       db.name (key_names vals)
      |> run_sql
 
 
-let fetch_all (table: db) : dval =
-  let names = table.cols
-              |> List.map ~f:Tuple.T2.get1
-              |> List.filter_map ~f: hole_to_maybe
-              |> (@) ["id"]
-  in
-  let types = table.cols
-              |> List.map ~f:Tuple.T2.get2
-              |> List.filter_map ~f: hole_to_maybe
-              |> (@) [TID]
-  in
+let fetch_all (db: db) : dval =
+  let (names, types) = cols_for db |> List.unzip in
   let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
     "SELECT %s FROM \"%s\""
-    colnames table.name
+    colnames db.name
   |> Log.pp "sql"
   |> conn#exec ~expect:PG.[Tuples_ok]
   |> (fun res -> res#get_all_lst)
@@ -77,21 +79,12 @@ let fetch_all (table: db) : dval =
   |> DList
 
 
-let fetch_by table col value =
-  let names = table.cols
-              |> List.map ~f:Tuple.T2.get1
-              |> List.filter_map ~f: hole_to_maybe
-              |> (@) ["id"]
-  in
-  let types = table.cols
-              |> List.map ~f:Tuple.T2.get2
-              |> List.filter_map ~f: hole_to_maybe
-              |> (@) [TID]
-  in
+let fetch_by db (col: string) (dv: dval) : dval =
+  let (names, types) = cols_for db |> List.unzip in
   let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
     "SELECT (%s) FROM \"%s\" WHERE %s = %s"
-    colnames table.name col (Dval.dval_to_sql value)
+    colnames db.name col (Dval.dval_to_sql dv)
   |> Log.pp "sql"
   |> conn#exec
   |> (fun res -> res#get_all_lst)
@@ -117,11 +110,8 @@ let update db (vals: dval_map) =
        db.name sets (Dval.dval_to_sql id)
      |> run_sql
 
-let keys db =
-  DList []
-
 (* ------------------------- *)
-(* run all table and schema changes as migrations *)
+(* run all db and schema changes as migrations *)
 (* ------------------------- *)
 let run_migration (migration_id: id) (sql:string) : unit =
   Log.pP "sql" sql;
@@ -145,15 +135,15 @@ let run_migration (migration_id: id) (sql:string) : unit =
  * This MUST be fixed before we go to production
  * ------------------------- *)
 
-let create_table_sql (table: string) =
+let create_table_sql (table_name: string) =
   Printf.sprintf
     "CREATE TABLE IF NOT EXISTS \"%s\" (id SERIAL PRIMARY KEY)"
-    table
+    table_name
 
-let add_col_sql (table: string) (name: string) (tipe: tipe) : string =
+let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
     "ALTER TABLE \"%s\" ADD COLUMN %s %s"
-    table name (Dval.sql_tipe_for tipe)
+    table_name name (Dval.sql_tipe_for tipe)
 
 
 

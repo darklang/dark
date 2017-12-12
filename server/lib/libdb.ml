@@ -54,7 +54,6 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-
   { n = "DB::fetchBy"
   ; o = []
   ; p = [par "table" TDB; par "field" TStr; par "value" TAny]
@@ -69,23 +68,6 @@ let fns : Lib.shortfn list = [
   ; pu = true
   }
   ;
-
-
-  { n = "DB::keys"
-  ; o = []
-  ; p = [par "table" TDB]
-  ; r = TAny
-  ; d = "Fetch all the keys in `table`"
-  ; f = InProcess
-        (function
-          | [DDB db] ->
-            Db.with_postgres (fun _ -> Db.keys db)
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
 
   { n = "DB::fetchAll"
   ; o = []
@@ -102,6 +84,23 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "DB::keys"
+  ; o = []
+  ; p = [par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the keys in `table`"
+  ; f = InProcess
+        (function
+          | [DDB db] ->
+            Db.cols_for db
+            |> List.map ~f:(fun (k,v) -> DStr k)
+            |> DList
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
   { n = "DB::schema"
   ; o = []
   ; p = [par "table" TDB]
@@ -110,19 +109,14 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DDB db] ->
-            db.cols
-            |> List.filter_map ~f:(fun c ->
-                match c with
-                | Full name, Full tipe ->
-                  Some (name, DStr (Dval.tipe_to_string tipe))
-                | _ -> None)
+            Db.cols_for db
+            |> List.map ~f:(fun (k,v) -> (k, DStr (Dval.tipe_to_string v)))
             |> Dval.to_dobj
           | args -> fail args)
   ; pr = None
   ; pu = true
   }
   ;
-
 
 ]
 
