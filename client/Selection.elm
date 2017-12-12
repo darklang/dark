@@ -11,19 +11,19 @@ upLevel : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
 upLevel m tlid cur thread =
   let tl = TL.getTL m tlid
   in
-    cur
-    |> Maybe.andThen (TL.getParentOf tl)
-    |> Maybe.map (\p -> Select tlid (Just p) thread)
-    |> Maybe.withDefault (Select tlid cur thread)
+      cur
+      |> Maybe.andThen (TL.getParentOf tl)
+      |> Maybe.map (\p -> Select tlid (Just p) thread)
+      |> Maybe.withDefault (Select tlid cur thread)
 
 downLevel : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
 downLevel m tlid cur thread =
   let tl = TL.getTL m tlid
   in
-    cur
-    |> Maybe.andThen (TL.firstChild tl)
-    |> Maybe.map (\c -> Select tlid (Just c) thread)
-    |> Maybe.withDefault (Select tlid cur thread)
+      cur
+      |> Maybe.andThen (TL.firstChild tl)
+      |> Maybe.map (\c -> Select tlid (Just c) thread)
+      |> Maybe.withDefault (Select tlid cur thread)
 
 nextSibling : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
 nextSibling m tlid cur thread =
