@@ -197,8 +197,12 @@ submit m re cursor threadID value =
                   in Dict.get rid avd |> Maybe.withDefault []
                 holeReplacement =
                   if List.member value availableVars
-                  then Just (Variable (gid ()) value)
-                  else parseAst value (TL.isThreadHole h id)
+                  then
+                    Just (Variable (gid ()) value)
+                  else
+                    case threadID of
+                      Just _ -> parseAst value (TL.isThreadHole h id)
+                      Nothing -> parseAst value False
             in
             case holeReplacement of
               Nothing ->

@@ -331,7 +331,8 @@ update_ msg m =
                                       Nothing -> m2.complete.value
                           in
                               Many [ (SetState (Entering re cursor (Just tid)))
-                                   , Entry.submit m2 re cursor (Just tid) name]
+                                  -- don't threadify first member of thread
+                                   , Entry.submit m2 re cursor Nothing name]
                         Creating _ -> NoChange
                 _ -> NoChange
             else
