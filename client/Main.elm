@@ -350,7 +350,7 @@ update_ msg m =
               case event.keyCode of
                 Key.Up -> AutocompleteMod ACSelectUp
                 Key.Down -> Many [ AutocompleteMod (ACOpen True)
-                                , AutocompleteMod ACSelectDown]
+                                 , AutocompleteMod ACSelectDown]
                 Key.Right ->
                   let sp = Autocomplete.sharedPrefix m.complete in
                   if sp == "" then NoChange
