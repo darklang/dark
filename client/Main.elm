@@ -27,6 +27,7 @@ import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import AST
+import Selection
 import Toplevel as TL
 import Analysis
 import Util exposing (deMaybe)
@@ -281,42 +282,27 @@ update_ msg m =
                     Nothing ->
                       let root = TL.rootOf (TL.getTL m tlid) in
                       Select tlid root thread
-              Key.Up ->
-                let tl = TL.getTL m tlid
-                in
-                  hid
-                  |> Maybe.andThen (TL.getParentOf tl)
-                  |> Maybe.map (\p -> Select tlid (Just p) thread)
-                  |> Maybe.withDefault (Select tlid hid thread)
-
-              Key.Down ->
-                let tl = TL.getTL m tlid
-                in
-                  hid
-                  |> Maybe.andThen (TL.firstChild tl)
-                  |> Maybe.map (\c -> Select tlid (Just c) thread)
-                  |> Maybe.withDefault (Select tlid hid thread)
-
-              Key.Right ->
-                let tl = TL.getTL m tlid
-                in
-                    hid
-                    |> Maybe.map (TL.getNextSibling tl)
-                    |> Maybe.map (\s -> Select tlid (Just s) thread)
-                    |> Maybe.withDefault (Select tlid hid thread)
-              Key.Left ->
-                let tl = TL.getTL m tlid
-                in
-                    hid
-                    |> Maybe.map (TL.getPrevSibling tl)
-                    |> Maybe.map (\s -> Select tlid (Just s) thread)
-                    |> Maybe.withDefault (Select tlid hid thread)
-              Key.Tab    ->
-                let tl = TL.getTL m tlid
-                in
-                  TL.getNextHole tl hid
-                  |> Maybe.map (\h -> Select tlid (Just h) thread)
-                  |> Maybe.withDefault (Select tlid hid thread)
+              Key.Up -> Selection.upLevel m tlid hid thread
+              Key.Down -> Selection.downLevel m tlid hid thread
+              Key.Right -> Selection.nextSibling m tlid hid thread
+              Key.Left -> Selection.previousSibling m tlid hid thread
+              Key.Tab -> Selection.nextHole m tlid hid thread
+              Key.O ->
+                if event.ctrlKey
+                then Selection.upLevel m tlid hid thread
+                else NoChange
+              Key.I ->
+                if event.ctrlKey
+                then Selection.downLevel m tlid hid thread
+                else NoChange
+              Key.N ->
+                if event.ctrlKey
+                then Selection.nextSibling m tlid hid thread
+                else NoChange
+              Key.P ->
+                if event.ctrlKey
+                then Selection.previousSibling m tlid hid thread
+                else NoChange
               _ -> NoChange
 
           Entering re cursor thread ->
