@@ -334,15 +334,15 @@ update_ msg m =
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
-                -- Key.Enter ->
-                --   if Autocomplete.isSmallStringEntry m.complete
-                --   then
-                --     Many [ AutocompleteMod (ACAppendQuery "\n")
-                --          , MakeCmd Entry.focusEntry
-                --          ]
-                --   else if Autocomplete.isLargeStringEntry m.complete
-                --   then Entry.submit m re cursor m.complete.value
-                --   else NoChange
+                Key.Enter ->
+                  if Autocomplete.isLargeStringEntry m.complete
+                  then Entry.submit m re cursor thread m.complete.value
+                  else if Autocomplete.isSmallStringEntry m.complete
+                  then
+                    Many [ AutocompleteMod (ACAppendQuery "\n")
+                         , MakeCmd Entry.focusEntry
+                         ]
+                  else NoChange
                 _ -> NoChange
             else
               case event.keyCode of
@@ -355,14 +355,13 @@ update_ msg m =
                   else
                     AutocompleteMod <| ACSetQuery sp
                 Key.Enter ->
+                  if Autocomplete.isLargeStringEntry m.complete
+                  then AutocompleteMod (ACSetQuery m.complete.value)
+                  else
                   let name = case Autocomplete.highlighted m.complete of
                                Just item -> Autocomplete.asName item
                                Nothing -> m.complete.value
-                  in
-                  -- if Autocomplete.isLargeStringEntry m.complete
-                  -- then AutocompleteMod (ACSetQuery m.complete.value)
-                  -- else
-                    Entry.submit m re cursor thread name
+                  in Entry.submit m re cursor thread name
 
                 Key.Escape ->
                   case cursor of

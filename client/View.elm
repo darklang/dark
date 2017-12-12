@@ -96,7 +96,7 @@ viewHoleOrText m h =
           else unselectedHoleHtml
         Entering _ (Filling _ id) _ ->
           if hid == id
-          then normalEntryHtml m
+          then entryHtml m
           else unselectedHoleHtml
         _ -> unselectedHoleHtml
     Full s -> Html.text s
@@ -176,7 +176,7 @@ viewHandler m tl h =
               [ ViewAST.toHtml
                 { selectedID = id
                 , isFilling = filling
-                , fillingHtml = normalEntryHtml m
+                , fillingHtml = entryHtml m
                 , liveValues = lvs }
                 h.ast]
       header =
@@ -197,13 +197,9 @@ viewHandler m tl h =
 
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
-  let body =
-    if Autocomplete.isStringEntry m.complete
-    then stringEntryHtml m
-    else normalEntryHtml m
-  in case m.state of
+  case m.state of
     Entering _ (Creating pos) _ ->
-      [placeHtml m pos body]
+      [placeHtml m pos (entryHtml m)]
     _ ->
       []
 
@@ -261,8 +257,7 @@ stringEntryHtml m =
                     else largeInput
 
       input = Html.div
-              [ Attrs.id "string-container"
-              , Attrs.class "string-container"]
+              [ Attrs.class "string-container"]
               [ stringInput ]
 
       viewForm = Html.form
@@ -270,7 +265,7 @@ stringEntryHtml m =
                  [ input ]
 
       -- outer node wrapper
-      classes = "function node string-entry"
+      classes = "string-entry"
 
       wrapper = Html.div
                 [ Attrs.class classes
@@ -344,6 +339,12 @@ normalEntryHtml m =
                 , Attrs.width 100]
                 [ viewForm ]
   in wrapper
+
+entryHtml : Model -> Html.Html Msg
+entryHtml m =
+  if Autocomplete.isStringEntry m.complete
+  then stringEntryHtml m
+  else normalEntryHtml m
 
 type alias Collapsed = { name: Maybe String
                        , prefix: List String
