@@ -217,3 +217,11 @@ firstChild : Toplevel -> ID -> Maybe ID
 firstChild tl id = getChildrenOf tl id
                  |> List.head
 
+rootOf : Toplevel -> Maybe ID
+rootOf tl =
+  case tl.data of
+    TLHandler h ->
+      Just <| AST.toID h.ast
+    _ -> Nothing
+
+

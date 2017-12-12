@@ -278,7 +278,9 @@ update_ msg m =
                 else
                   case hid of
                     Just i -> Enter False (Filling tlid i) thread
-                    Nothing -> Select tlid hid thread
+                    Nothing ->
+                      let root = TL.rootOf (TL.getTL m tlid) in
+                      Select tlid root thread
               Key.Up ->
                 let tl = TL.getTL m tlid
                 in
