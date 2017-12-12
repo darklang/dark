@@ -306,33 +306,31 @@ update_ msg m =
               _ -> NoChange
 
           Entering re cursor thread ->
-            if event.shiftKey then
-              case event.keyCode of
-                Key.Enter ->
-                  case thread of
-                    Just _ -> NoChange
-                    Nothing ->
-                      case cursor of
-                        Filling tlid hid ->
-                          let tl = TL.getTL m tlid in
-                          case tl.data of
-                            TLDB _ -> NoChange
-                            TLHandler h ->
-                              let (nast, tid) = AST.wrapInThread hid h.ast
-                                  nh = { h | ast = nast }
-                                  m2 = TL.replace m { tl | data = TLHandler nh }
-                                  name =
-                                    case Autocomplete.highlighted m2.complete of
-                                      Just item -> Autocomplete.asName item
-                                      Nothing -> m2.complete.value
-                          in
-                              Many [ (SetState (Entering re cursor (Just tid)))
-                                  -- don't threadify first member of thread
-                                   , Entry.submit m2 re cursor Nothing name]
-                        Creating _ -> NoChange
-                _ -> NoChange
-            else
-            if event.ctrlKey then
+            if event.shiftKey && event.keyCode == Key.Enter
+            then
+              case thread of
+                Just _ -> NoChange
+                Nothing ->
+                  case cursor of
+                    Filling tlid hid ->
+                      let tl = TL.getTL m tlid in
+                      case tl.data of
+                        TLDB _ -> NoChange
+                        TLHandler h ->
+                          let (nast, tid) = AST.wrapInThread hid h.ast
+                              nh = { h | ast = nast }
+                              m2 = TL.replace m { tl | data = TLHandler nh }
+                              name =
+                                case Autocomplete.highlighted m2.complete of
+                                  Just item -> Autocomplete.asName item
+                                  Nothing -> m2.complete.value
+                      in
+                          Many [ (SetState (Entering re cursor (Just tid)))
+                              -- don't threadify first member of thread
+                               , Entry.submit m2 re cursor Nothing name]
+                    Creating _ -> NoChange
+            else if event.ctrlKey
+            then
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
