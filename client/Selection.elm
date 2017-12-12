@@ -23,7 +23,7 @@ downLevel m tlid cur thread =
       cur
       |> Maybe.andThen (TL.firstChild tl)
       |> Maybe.map (\c -> Select tlid (Just c) thread)
-      |> Maybe.withDefault (Select tlid cur thread)
+      |> Maybe.withDefault (Select tlid (TL.rootOf tl) thread)
 
 nextSibling : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
 nextSibling m tlid cur thread =
@@ -56,4 +56,12 @@ nextHole m tlid cur thread =
       |> TL.getNextHole tl
       |> Maybe.map (\h -> Select tlid (Just h) thread)
       |> Maybe.withDefault (Select tlid cur thread)
+
+enter : Model -> TLID -> ID -> CurrentThread -> Modification
+enter m tlid cur thread =
+  let tl = TL.getTL m tlid
+  in
+    case TL.holeType tl cur of
+      NotAHole -> NoChange
+      _ -> Enter False (Filling tlid cur) thread
 

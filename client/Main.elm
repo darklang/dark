@@ -278,10 +278,8 @@ update_ msg m =
                   RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
                 else
                   case hid of
-                    Just i -> Enter False (Filling tlid i) thread
-                    Nothing ->
-                      let root = TL.rootOf (TL.getTL m tlid) in
-                      Select tlid root thread
+                    Just i -> Selection.enter m tlid i thread
+                    Nothing -> Selection.downLevel m tlid hid thread
               Key.Up -> Selection.upLevel m tlid hid thread
               Key.Down -> Selection.downLevel m tlid hid thread
               Key.Right -> Selection.nextSibling m tlid hid thread
