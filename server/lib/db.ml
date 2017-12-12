@@ -66,10 +66,10 @@ let fetch_all (table: db) : dval =
   in
   let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
-    "SELECT (%s) FROM \"%s\""
+    "SELECT %s FROM \"%s\""
     colnames table.name
   |> Log.pp "sql"
-  |> conn#exec
+  |> conn#exec ~expect:PG.[Tuples_ok]
   |> (fun res -> res#get_all_lst)
   |> List.map ~f:(List.map2_exn ~f:Dval.sql_to_dval types)
   |> List.map ~f:(List.zip_exn names)
