@@ -137,7 +137,7 @@ getPrevSibling tl id =
       |> Maybe.withDefault last
     _ -> id
 
-getNextHole : Toplevel -> Predecessor -> ID
+getNextHole : Toplevel -> Predecessor -> Maybe ID
 getNextHole tl pred =
   case pred of
     Just pred ->
@@ -146,9 +146,7 @@ getNextHole tl pred =
       |> LE.elemIndex pred
       |> Maybe.map ((+) 1)
       |> Maybe.andThen (\i -> LE.getAt i holes)
-      |> Maybe.withDefault (firstHole tl)
-    Nothing ->
-      firstHole tl
+    Nothing -> Nothing
 
 getPrevHole : Toplevel -> ID -> Predecessor
 getPrevHole tl next =
@@ -158,9 +156,9 @@ getPrevHole tl next =
   |> Maybe.map (\i -> i - 1)
   |> Maybe.andThen (\i -> LE.getAt i holes)
 
-firstHole : Toplevel -> ID
+firstHole : Toplevel -> Maybe ID
 firstHole tl =
-  tl |> allHoles |> List.head |> Maybe.withDefault (ID 3)
+  tl |> allHoles |> List.head
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =

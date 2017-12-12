@@ -90,7 +90,7 @@ viewHoleOrText m h =
   case h of
     Empty hid ->
       case unwrapState m.state of
-        Selecting _ id _ ->
+        Selecting _ (Just id) _ ->
           if hid == id
           then selectedHoleHtml
           else unselectedHoleHtml
@@ -166,7 +166,7 @@ viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
   let (id, filling) =
         case unwrapState m.state of
-          Selecting tlid id _ -> (id, False)
+          Selecting tlid (Just id) _ -> (id, False)
           Entering _ (Filling tlid id) _ -> (id, True)
           _ -> (ID 0, False)
 

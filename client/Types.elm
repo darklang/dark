@@ -64,7 +64,7 @@ type alias IsReentering = Bool
 type alias HasMoved = Bool
 type alias ThreadID = ID
 type alias CurrentThread = Maybe ThreadID
-type State = Selecting TLID ID CurrentThread
+type State = Selecting TLID (Maybe ID) CurrentThread
            | Entering IsReentering EntryCursor CurrentThread
            | Dragging TLID VPos HasMoved State
            | Deselected
@@ -227,7 +227,7 @@ type AutocompleteMod = ACSetQuery String
 
 type Modification = Error String
                   | ClearError
-                  | Select TLID ID CurrentThread
+                  | Select TLID (Maybe ID) CurrentThread
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult)
                   | Enter IsReentering EntryCursor CurrentThread

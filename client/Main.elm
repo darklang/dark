@@ -276,37 +276,45 @@ update_ msg m =
                       id2 = Entry.gid () in
                   RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
                 else
-                  Enter False (Filling tlid hid) thread
+                  case hid of
+                    Just i -> Enter False (Filling tlid i) thread
+                    Nothing -> Select tlid hid thread
               Key.Up ->
                 let tl = TL.getTL m tlid
-                    p = TL.getParentOf tl hid
                 in
-                    case p of
-                      Just pid -> Select tlid pid thread
-                      Nothing  -> Select tlid hid thread
+                  hid
+                  |> Maybe.andThen (TL.getParentOf tl)
+                  |> Maybe.map (\p -> Select tlid (Just p) thread)
+                  |> Maybe.withDefault (Select tlid hid thread)
+
               Key.Down ->
                 let tl = TL.getTL m tlid
-                    c = TL.firstChild tl hid
                 in
-                    case c of
-                      Just cid -> Select tlid cid thread
-                      Nothing  -> Select tlid hid thread
+                  hid
+                  |> Maybe.andThen (TL.firstChild tl)
+                  |> Maybe.map (\c -> Select tlid (Just c) thread)
+                  |> Maybe.withDefault (Select tlid hid thread)
 
               Key.Right ->
                 let tl = TL.getTL m tlid
-                    ns = TL.getNextSibling tl hid
                 in
-                    Select tlid ns thread
+                    hid
+                    |> Maybe.map (TL.getNextSibling tl)
+                    |> Maybe.map (\s -> Select tlid (Just s) thread)
+                    |> Maybe.withDefault (Select tlid hid thread)
               Key.Left ->
                 let tl = TL.getTL m tlid
-                    ps = TL.getPrevSibling tl hid
                 in
-                    Select tlid ps thread
+                    hid
+                    |> Maybe.map (TL.getPrevSibling tl)
+                    |> Maybe.map (\s -> Select tlid (Just s) thread)
+                    |> Maybe.withDefault (Select tlid hid thread)
               Key.Tab    ->
                 let tl = TL.getTL m tlid
-                    nh = TL.getNextHole tl (Just hid)
                 in
-                    Select tlid nh thread
+                  TL.getNextHole tl hid
+                  |> Maybe.map (\h -> Select tlid (Just h) thread)
+                  |> Maybe.withDefault (Select tlid hid thread)
               _ -> NoChange
 
           Entering re cursor thread ->
@@ -373,7 +381,7 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling tlid hid -> Many [ Select tlid hid (oldThread m.state)
+                    Filling tlid hid -> Many [ Select tlid (Just hid) (oldThread m.state)
                                              , AutocompleteMod ACReset]
                 Key.Unknown c ->
                   if c == 190 -- this is `.`
@@ -482,8 +490,11 @@ update_ msg m =
               FocusNext tlid pred ->
                 let thread = oldThread m.state
                     tl = TL.getTL m2 tlid
+                    nh = TL.getNextHole tl pred
                 in
-                Enter False (Filling tlid (TL.getNextHole tl pred)) thread
+                    case nh of
+                      Just h -> Enter False (Filling tlid h) thread
+                      Nothing -> Select tlid Nothing thread
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
