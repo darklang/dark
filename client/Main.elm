@@ -471,15 +471,22 @@ update_ msg m =
     (RPCCallBack focus calls (Ok (toplevels, analysis)), _) ->
       let m2 = { m | toplevels = toplevels }
           newState =
+            let thread = oldThread m.state in
             case focus of
               FocusNext tlid pred ->
-                let thread = oldThread m.state
-                    tl = TL.getTL m2 tlid
+                let tl = TL.getTL m2 tlid
                     nh = TL.getNextHole tl pred
                 in
                     case nh of
                       Just h -> Enter False (Filling tlid h) thread
                       Nothing -> Select tlid Nothing thread
+              FocusExact tlid next ->
+                let tl = TL.getTL m2 tlid
+                    ht = TL.holeType tl next
+                in
+                case ht of
+                  NotAHole -> Select tlid (Just next) thread
+                  _ -> Enter False (Filling tlid next) thread
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset

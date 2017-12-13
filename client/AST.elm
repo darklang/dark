@@ -14,6 +14,23 @@ isInfix : FnName -> Bool
 isInfix name =
   List.member name ["<", "==", "%", "+", "-", "^"]
 
+isLeaf : ID -> AST -> Bool
+isLeaf id ast =
+  case subExpr id ast of
+    Nothing -> False
+    Just e ->
+      case e of
+        Value _ _ -> True
+        Hole _ -> True
+        Variable _ _ -> True
+        _ -> False
+
+
+deleteExpr : ID -> AST -> (ID, AST)
+deleteExpr id ast =
+  let replacement = Hole (ID <| Util.random ())
+  in (toID replacement, replaceExpr id replacement ast)
+
 replaceExpr : ID -> Expr -> AST -> AST
 replaceExpr id replacement ast =
   replaceExpr_ id replacement ast

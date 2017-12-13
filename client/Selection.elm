@@ -6,6 +6,7 @@ import Maybe
 -- dark
 import Types exposing (..)
 import Toplevel as TL
+import AST
 
 upLevel : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
 upLevel m tlid cur thread =
@@ -62,6 +63,16 @@ enter m tlid cur thread =
   let tl = TL.getTL m tlid
   in
     case TL.holeType tl cur of
-      NotAHole -> NoChange
+      NotAHole ->
+        case tl.data of
+          TLHandler h ->
+            if AST.isLeaf cur h.ast
+            then
+              let (id, replacement) = AST.deleteExpr cur h.ast
+              in
+              RPC ([SetHandler tlid tl.pos { h | ast = replacement }], FocusExact tlid id)
+            else
+              downLevel m tlid (Just cur) thread
+          _ -> NoChange
       _ -> Enter False (Filling tlid cur) thread
 

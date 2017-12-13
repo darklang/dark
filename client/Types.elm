@@ -99,7 +99,7 @@ type Msg
 type alias Predecessor = Maybe ID
 type Focus = FocusNothing -- deselect
            | Refocus TLID
-           | FocusExact TLID
+           | FocusExact TLID ID
            | FocusNext TLID Predecessor
            | FocusSame -- unchanged
 
