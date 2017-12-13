@@ -453,7 +453,7 @@ update_ msg m =
             then Many
                   [ SetState origState
                   , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            else Select tlid (TL.firstHole tl) Nothing
+            else Select tlid Nothing Nothing
           _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
