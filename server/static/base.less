@@ -65,9 +65,11 @@ body {
   display: flex;
   flex-direction: column;
   width: max-content;
+  padding: 4px;
 
   &.selected {
     background-color: lighten(@black1, 5%);
+    border: 0.4px darken(magenta, 25%) dotted;
   }
 
   .selected {
