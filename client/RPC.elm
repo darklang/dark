@@ -242,7 +242,7 @@ decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB name cols = {name = name, cols = cols} in
   JSDP.decode toDB
-  |> JSDP.required "name" JSD.string
+  |> JSDP.required "display_name" JSD.string
   |> JSDP.required "cols" (JSD.list
                             (decodePair
                               (decodeHoleOr JSD.string)

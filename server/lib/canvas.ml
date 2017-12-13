@@ -126,9 +126,10 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       upsert_toplevel tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
       let db : DbT.db = { tlid = tlid
-                        ; name = name
+                        ; display_name = name
+                        ; actual_name = !c.name ^ "_" ^ name
                         ; cols = []} in
-      Db.create_new_db tlid name;
+      Db.create_new_db tlid db;
       upsert_toplevel tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(Db.add_db_col colid typeid) tlid

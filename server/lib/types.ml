@@ -39,7 +39,8 @@ module DbT = struct
   type col = string or_hole * tipe_ or_hole
             [@@deriving eq, show, yojson]
   type db = { tlid: tlid
-            ; name: string
+            ; display_name: string
+            ; actual_name: string
             ; cols: col list
             } [@@deriving eq, show, yojson]
 end

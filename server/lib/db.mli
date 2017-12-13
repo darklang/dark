@@ -13,7 +13,7 @@ val delete : DbT.db -> RuntimeT.dval_map -> unit
 val update : DbT.db -> RuntimeT.dval_map -> unit
 
 (* DB schema modifications *)
-val create_new_db : tlid -> string -> unit
+val create_new_db : tlid -> DbT.db -> unit
 val add_db_col : id -> id -> DbT.db -> DbT.db
 val set_col_name : id -> string -> DbT.db -> DbT.db
 val set_db_col_type : id -> RuntimeT.tipe -> DbT.db -> DbT.db

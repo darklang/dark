@@ -121,7 +121,7 @@ let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   | DDate d -> wrap_int d
   | DTitle t -> wrap_string t
   | DUrl url -> wrap_string url
-  | DDB db -> wrap db.name
+  | DDB db -> wrap db.display_name
   | _ -> open_
          ^ (dv |> tipename)
          ^ close_
@@ -289,7 +289,7 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
   | DResp (h, hdv) ->
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
 
-  | DDB db -> wrap_user_str db.name
+  | DDB db -> wrap_user_str db.display_name
   | DID id -> wrap_user_int id
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title

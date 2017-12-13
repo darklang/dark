@@ -14,7 +14,7 @@ module PG = Postgresql
 (* ------------------------- *)
 let dbs_as_env (dbs: db list) : dval_map =
   dbs
-  |> List.map ~f:(fun (db: db) -> (db.name, DDB db))
+  |> List.map ~f:(fun (db: db) -> (db.display_name, DDB db))
   |> DvalMap.of_alist_exn
 
 let dbs_as_exe_env (dbs: db list) : dval_map =
@@ -80,7 +80,7 @@ let to_obj (names : string list) (types: tipe list) (db_strings : string list)
 let insert (db: db) (vals: dval_map) : unit =
   let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals
   in Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-       db.name (key_names vals) (val_names vals)
+       db.actual_name (key_names vals) (val_names vals)
      |> run_sql
 
 
@@ -89,7 +89,7 @@ let fetch_all (db: db) : dval =
   let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
     "SELECT %s FROM \"%s\""
-    colnames db.name
+    colnames db.actual_name
   |> fetch_via_sql
   |> List.map ~f:(to_obj names types)
   |> DList
@@ -100,7 +100,7 @@ let fetch_by db (col: string) (dv: dval) : dval =
   let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
     "SELECT (%s) FROM \"%s\" WHERE %s = %s"
-    colnames db.name col (Dval.dval_to_sql dv)
+    colnames db.actual_name col (Dval.dval_to_sql dv)
   |> fetch_via_sql
   |> List.map ~f:(to_obj names types)
   |> DList
@@ -108,7 +108,7 @@ let fetch_by db (col: string) (dv: dval) : dval =
 let delete db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
-    db.name (Dval.dval_to_sql id)
+    db.actual_name (Dval.dval_to_sql id)
   |> run_sql
 
 let update db (vals: dval_map) =
@@ -119,7 +119,7 @@ let update db (vals: dval_map) =
                k ^ " = " ^ Dval.dval_to_sql v)
            |> String.concat ~sep:", " in
   Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
-    db.name sets (Dval.dval_to_sql id)
+    db.actual_name sets (Dval.dval_to_sql id)
   |> run_sql
 
 (* ------------------------- *)
@@ -163,15 +163,15 @@ let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
 (* DB schema *)
 (* ------------------------- *)
 
-let create_new_db (tlid: tlid) (name: string) =
-  run_migration tlid (create_table_sql name)
+let create_new_db (tlid: tlid) (db: db) =
+  run_migration tlid (create_table_sql db.actual_name)
 
 (* we only add this when it is complete, and we use the ID to mark the
    migration table to know whether it's been done before. *)
 let maybe_add_to_actual_db (db: db) (id: id) (col: col) : col =
   (match col with
   | Full name, Full tipe ->
-    run_migration id (add_col_sql db.name name tipe)
+    run_migration id (add_col_sql db.actual_name name tipe)
   | _ ->
     ());
   col
