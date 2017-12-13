@@ -63,9 +63,8 @@ type EntryCursor = Creating Pos
 type alias IsReentering = Bool
 type alias HasMoved = Bool
 type alias ThreadID = ID
-type alias CurrentThread = Maybe ThreadID
-type State = Selecting TLID (Maybe ID) CurrentThread
-           | Entering IsReentering EntryCursor CurrentThread
+type State = Selecting TLID (Maybe ID)
+           | Entering IsReentering EntryCursor
            | Dragging TLID VPos HasMoved State
            | Deselected
 
@@ -227,10 +226,10 @@ type AutocompleteMod = ACSetQuery String
 
 type Modification = Error String
                   | ClearError
-                  | Select TLID (Maybe ID) CurrentThread
+                  | Select TLID (Maybe ID)
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult)
-                  | Enter IsReentering EntryCursor CurrentThread
+                  | Enter IsReentering EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
                   | NoChange

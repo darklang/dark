@@ -90,11 +90,11 @@ viewHoleOrText m h =
   case h of
     Empty hid ->
       case unwrapState m.state of
-        Selecting _ (Just id) _ ->
+        Selecting _ (Just id) ->
           if hid == id
           then selectedHoleHtml
           else unselectedHoleHtml
-        Entering _ (Filling _ id) _ ->
+        Entering _ (Filling _ id) ->
           if hid == id
           then entryHtml m
           else unselectedHoleHtml
@@ -125,9 +125,9 @@ viewTL m tl =
                ]
 
       class = case unwrapState m.state of
-          Selecting tlid _ _ ->
+          Selecting tlid _ ->
             if tlid == tl.id then "selected" else ""
-          Entering _ (Filling tlid _) _ ->
+          Entering _ (Filling tlid _) ->
             if tlid == tl.id then "selected" else ""
           _ -> ""
 
@@ -166,8 +166,8 @@ viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
   let (id, filling) =
         case unwrapState m.state of
-          Selecting tlid (Just id) _ -> (id, False)
-          Entering _ (Filling tlid id) _ -> (id, True)
+          Selecting tlid (Just id) -> (id, False)
+          Entering _ (Filling tlid id) -> (id, True)
           _ -> (ID 0, False)
 
       lvs = Analysis.getLiveValues m tl.id
@@ -198,7 +198,7 @@ viewHandler m tl h =
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   case m.state of
-    Entering _ (Creating pos) _ ->
+    Entering _ (Creating pos) ->
       [placeHtml m pos (entryHtml m)]
     _ ->
       []

@@ -34,7 +34,7 @@ updateValue target =
   Many [ AutocompleteMod <| ACSetQuery target ]
 
 createFindSpace : Model -> Modification
-createFindSpace m = Enter False (Creating (Viewport.toAbsolute m Defaults.initialPos)) Nothing
+createFindSpace m = Enter False (Creating (Viewport.toAbsolute m Defaults.initialPos))
 ---------------------
 -- Focus
 ---------------------
@@ -83,8 +83,8 @@ createFunction m name hasImplicitParam =
             (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
-objectSubmit : Model -> Bool -> EntryCursor -> Maybe ID -> String -> Modification
-objectSubmit m re cursor threadID value =
+objectSubmit : Model -> Bool -> EntryCursor -> String -> Modification
+objectSubmit m re cursor value =
   let access = FieldAccess (gid ()) (Variable (gid ()) value) (Empty (gid ())) in
   case cursor of
     Creating pos ->
@@ -102,11 +102,12 @@ objectSubmit m re cursor threadID value =
             ExprHole h ->
               let replacement = AST.replaceExpr id access h.ast in
                   wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-            _ -> submit m re cursor threadID value
+            _ -> submit m re cursor value
 
-submit : Model -> Bool -> EntryCursor -> Maybe ID -> String -> Modification
-submit m re cursor threadID value =
-  let id = tlid ()
+submit : Model -> Bool -> EntryCursor -> String -> Modification
+submit m re cursor value =
+  let threadID = Nothing -- TODOthread
+      id = tlid ()
       eid = gid ()
       tid1 = gid ()
       tid2 = gid ()

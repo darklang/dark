@@ -131,13 +131,6 @@ selectCenter old new =
   in
       { x = newX, y = newY }
 
-oldThread : State -> CurrentThread
-oldThread s =
-  case s of
-    Selecting _ _ t -> t
-    Entering  _ _ t -> t
-    _ -> Nothing
-
 updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
   -- if you ever have a node in here, you're doing it wrong. Use an ID.
@@ -151,9 +144,9 @@ updateMod origm mod (m, cmd) =
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
-      Select tlid hid thread ->
-        { m | state = Selecting tlid hid thread } ! []
-      Enter re entry thread ->
+      Select tlid hid ->
+        { m | state = Selecting tlid hid } ! []
+      Enter re entry ->
         let varnames =
               case entry of
                 Creating _ -> []
@@ -215,7 +208,7 @@ updateMod origm mod (m, cmd) =
                                         , ACFilterByLiveValue lv
                                         ]
         in
-      ({ m | state = Entering re entry thread, complete = complete
+      ({ m | state = Entering re entry, complete = complete
       }) ! ([acCmd, Entry.focusEntry])
 
       SetToplevels tls tlars ->
@@ -258,15 +251,15 @@ update_ msg m =
           _ -> NoChange
       else
         case state of
-          Selecting tlid hid thread ->
+          Selecting tlid hid ->
             case event.keyCode of
               Key.Backspace ->
                 case hid of
                   Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
-                  Just i -> Selection.delete m tlid i thread
+                  Just i -> Selection.delete m tlid i
               Key.Escape ->
                 let tl = TL.getTL m tlid in
-                case (thread, tl.data) of
+                case (Nothing, tl.data) of -- TODOthread
                   (Just tid, TLHandler h) ->
                     let replacement = AST.closeThread tid h.ast in
                     RPC ( [SetHandler tl.id tl.pos { h | ast = replacement}]
@@ -280,55 +273,51 @@ update_ msg m =
                   RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
                 else
                   case hid of
-                    Just i -> Selection.enter m tlid i thread
-                    Nothing -> Selection.downLevel m tlid hid thread
-              Key.Up -> Selection.upLevel m tlid hid thread
-              Key.Down -> Selection.downLevel m tlid hid thread
-              Key.Right -> Selection.nextSibling m tlid hid thread
-              Key.Left -> Selection.previousSibling m tlid hid thread
-              Key.Tab -> Selection.nextHole m tlid hid thread
+                    Just i -> Selection.enter m tlid i
+                    Nothing -> Selection.downLevel m tlid hid
+              Key.Up -> Selection.upLevel m tlid hid
+              Key.Down -> Selection.downLevel m tlid hid
+              Key.Right -> Selection.nextSibling m tlid hid
+              Key.Left -> Selection.previousSibling m tlid hid
+              Key.Tab -> Selection.nextHole m tlid hid
               Key.O ->
                 if event.ctrlKey
-                then Selection.upLevel m tlid hid thread
+                then Selection.upLevel m tlid hid
                 else NoChange
               Key.I ->
                 if event.ctrlKey
-                then Selection.downLevel m tlid hid thread
+                then Selection.downLevel m tlid hid
                 else NoChange
               Key.N ->
                 if event.ctrlKey
-                then Selection.nextSibling m tlid hid thread
+                then Selection.nextSibling m tlid hid
                 else NoChange
               Key.P ->
                 if event.ctrlKey
-                then Selection.previousSibling m tlid hid thread
+                then Selection.previousSibling m tlid hid
                 else NoChange
               _ -> NoChange
 
-          Entering re cursor thread ->
+          Entering re cursor ->
             if event.shiftKey && event.keyCode == Key.Enter
             then
-              case thread of
-                Just _ -> NoChange
-                Nothing ->
-                  case cursor of
-                    Filling tlid hid ->
-                      let tl = TL.getTL m tlid in
-                      case tl.data of
-                        TLDB _ -> NoChange
-                        TLHandler h ->
-                          let (nast, tid) = AST.wrapInThread hid h.ast
-                              nh = { h | ast = nast }
-                              m2 = TL.replace m { tl | data = TLHandler nh }
-                              name =
-                                case Autocomplete.highlighted m2.complete of
-                                  Just item -> Autocomplete.asName item
-                                  Nothing -> m2.complete.value
-                          in
-                          Many [ (SetState (Entering re cursor (Just tid)))
-                              -- don't threadify first member of thread
-                               , Entry.submit m2 re cursor Nothing name]
-                    Creating _ -> NoChange
+              case cursor of
+                Filling tlid hid ->
+                  let tl = TL.getTL m tlid in
+                  case tl.data of
+                    TLDB _ -> NoChange
+                    TLHandler h ->
+                      -- TODOthread
+                      let (nast, tid) = AST.wrapInThread hid h.ast
+                          nh = { h | ast = nast }
+                          m2 = TL.replace m { tl | data = TLHandler nh }
+                          name =
+                            case Autocomplete.highlighted m2.complete of
+                              Just item -> Autocomplete.asName item
+                              Nothing -> m2.complete.value
+                      in
+                      Many [ Entry.submit m2 re cursor name]
+                Creating _ -> NoChange
             else if event.ctrlKey
             then
               case event.keyCode of
@@ -336,7 +325,7 @@ update_ msg m =
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.Enter ->
                   if Autocomplete.isLargeStringEntry m.complete
-                  then Entry.submit m re cursor thread m.complete.value
+                  then Entry.submit m re cursor m.complete.value
                   else if Autocomplete.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
@@ -361,12 +350,12 @@ update_ msg m =
                   let name = case Autocomplete.highlighted m.complete of
                                Just item -> Autocomplete.asName item
                                Nothing -> m.complete.value
-                  in Entry.submit m re cursor thread name
+                  in Entry.submit m re cursor name
 
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling tlid hid -> Many [ Select tlid (Just hid) (oldThread m.state)
+                    Filling tlid hid -> Many [ Select tlid (Just hid)
                                              , AutocompleteMod ACReset]
                 Key.Unknown c ->
                   if event.key == Just "."
@@ -378,7 +367,7 @@ update_ msg m =
                                   |> String.dropRight 1 -- ignore extra '.'
                     in
                       -- TODO: unify with Entry.submit
-                      Entry.objectSubmit m re cursor thread name
+                      Entry.objectSubmit m re cursor name
                   else
                     AutocompleteMod <| ACSetQuery m.complete.value
 
@@ -421,7 +410,7 @@ update_ msg m =
     (GlobalClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
-                , Enter False (Creating (Viewport.toAbsolute m event.pos)) Nothing]
+                , Enter False (Creating (Viewport.toAbsolute m event.pos))]
       else NoChange
 
     (ToplevelClickDown tl event, _) ->
@@ -453,7 +442,7 @@ update_ msg m =
             then Many
                   [ SetState origState
                   , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            else Select tlid Nothing Nothing
+            else Select tlid Nothing
           _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
@@ -473,22 +462,21 @@ update_ msg m =
     (RPCCallBack focus calls (Ok (toplevels, analysis)), _) ->
       let m2 = { m | toplevels = toplevels }
           newState =
-            let thread = oldThread m.state in
             case focus of
               FocusNext tlid pred ->
                 let tl = TL.getTL m2 tlid
                     nh = TL.getNextHole tl pred
                 in
                     case nh of
-                      Just h -> Enter False (Filling tlid h) thread
-                      Nothing -> Select tlid Nothing thread
+                      Just h -> Enter False (Filling tlid h)
+                      Nothing -> Select tlid Nothing
               FocusExact tlid next ->
                 let tl = TL.getTL m2 tlid
                     ht = TL.holeType tl next
                 in
                 case ht of
-                  NotAHole -> Select tlid (Just next) thread
-                  _ -> Enter False (Filling tlid next) thread
+                  NotAHole -> Select tlid (Just next)
+                  _ -> Enter False (Filling tlid next)
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
