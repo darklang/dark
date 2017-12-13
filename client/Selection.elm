@@ -56,7 +56,7 @@ nextHole m tlid cur thread =
             _ -> Just c)
       |> TL.getNextHole tl
       |> Maybe.map (\h -> Select tlid (Just h) thread)
-      |> Maybe.withDefault (Select tlid cur thread)
+      |> Maybe.withDefault (Select tlid (TL.firstHole tl) thread)
 
 delete : Model -> TLID -> ID -> CurrentThread -> Modification
 delete m tlid cur thread =
