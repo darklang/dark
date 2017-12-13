@@ -146,7 +146,7 @@ getNextHole tl pred =
       |> LE.elemIndex pred
       |> Maybe.map ((+) 1)
       |> Maybe.andThen (\i -> LE.getAt i holes)
-    Nothing -> Nothing
+    Nothing -> firstHole tl
 
 getPrevHole : Toplevel -> ID -> Predecessor
 getPrevHole tl next =
