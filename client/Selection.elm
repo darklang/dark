@@ -15,7 +15,7 @@ upLevel m tlid cur thread =
       cur
       |> Maybe.andThen (TL.getParentOf tl)
       |> Maybe.map (\p -> Select tlid (Just p) thread)
-      |> Maybe.withDefault (Select tlid cur thread)
+      |> Maybe.withDefault (Select tlid Nothing thread)
 
 downLevel : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
 downLevel m tlid cur thread =
