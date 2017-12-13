@@ -171,7 +171,7 @@ updateMod origm mod (m, cmd) =
                     SpecHole _ -> False
                     DBColNameHole _ -> False
                     DBColTypeHole _ -> False
-                    NotAHole -> False
+                    NotAHole -> True
             lv =
               case entry of
                 Creating _ -> Nothing

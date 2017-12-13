@@ -150,6 +150,45 @@ submit m re cursor threadID value =
           predecessor = TL.getPrevHole tl id
           focus = FocusNext tlid predecessor
           wrap op = RPC ([op], focus)
+          replaceExpr m h tlid id value =
+            if String.startsWith "= " value
+            then
+              -- turn the current thread into a let-assignment to this
+              -- name, and close the thread
+              threadID
+              |> Maybe.andThen (\tid -> AST.subExpr tid h.ast)
+              |> Maybe.map (\threadExpr ->
+                case threadExpr of
+                  Thread tid _ ->
+                    let bindName = value
+                                 |> String.dropLeft 2
+                                 |> String.trim
+                        newLet = Let (gid ()) (Full bindName) (AST.closeThread tid threadExpr) (Hole (gid ()))
+                        replacement = AST.replaceExpr tid newLet h.ast
+                    in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                  _ -> NoChange)
+                  |> Maybe.withDefault NoChange
+            else
+              -- check if value is in model.varnames
+              let (ID rid) = id
+                  availableVars =
+                    let avd = Analysis.getAvailableVarnames m tlid
+                    in Dict.get rid avd |> Maybe.withDefault []
+                  holeReplacement =
+                    if List.member value availableVars
+                    then
+                      Just (Variable (gid ()) value)
+                    else
+                      case threadID of
+                        Just _ -> parseAst value (TL.isThreadHole h id)
+                        Nothing -> parseAst value False
+                    in
+                        case holeReplacement of
+                          Nothing ->
+                            NoChange
+                          Just v ->
+                            let replacement = AST.replaceExpr id v h.ast in
+                                wrap <| SetHandler tlid tl.pos { h | ast = replacement }
       in
       if String.length value < 1
       then NoChange
@@ -169,48 +208,12 @@ submit m re cursor threadID value =
           let replacement = AST.replaceFieldHole id value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         ExprHole h ->
-          if String.startsWith "= " value
-          then
-            -- turn the current thread into a let-assignment to this
-            -- name, and close the thread
-            threadID
-            |> Maybe.andThen (\tid -> AST.subExpr tid h.ast)
-            |> Maybe.map (\threadExpr ->
-              case threadExpr of
-                Thread tid _ ->
-                  let bindName = value
-                                 |> String.dropLeft 2
-                                 |> String.trim
-                      newLet = Let (gid ())
-                                   (Full bindName)
-                                   (AST.closeThread tid threadExpr)
-                                   (Hole (gid ()))
-                      replacement = AST.replaceExpr tid newLet h.ast
-                  in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-                _ -> NoChange)
-            |> Maybe.withDefault NoChange
-          else
-            -- check if value is in model.varnames
-            let (ID rid) = id
-                availableVars =
-                  let avd = Analysis.getAvailableVarnames m tlid
-                  in Dict.get rid avd |> Maybe.withDefault []
-                holeReplacement =
-                  if List.member value availableVars
-                  then
-                    Just (Variable (gid ()) value)
-                  else
-                    case threadID of
-                      Just _ -> parseAst value (TL.isThreadHole h id)
-                      Nothing -> parseAst value False
-            in
-            case holeReplacement of
-              Nothing ->
-                NoChange
-              Just v ->
-                let replacement = AST.replaceExpr id v h.ast in
-                wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-        NotAHole -> NoChange
+          replaceExpr m h tlid id value
+        NotAHole ->
+          case tl.data of
+            TLHandler h ->
+              replaceExpr m h tlid id value
+            _ -> NoChange
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of

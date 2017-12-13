@@ -613,6 +613,13 @@ siblings id ast =
 
             _ -> [id]
 
+toContent : AST -> String
+toContent a =
+  case a of
+    Value _ s -> s
+    Variable _ v -> v
+    _ -> ""
+
 subtree : ID -> AST -> AST
 subtree id ast =
   deMaybe (subExpr id ast)

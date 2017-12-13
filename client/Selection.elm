@@ -6,6 +6,7 @@ import Maybe
 -- dark
 import Types exposing (..)
 import Toplevel as TL
+-- TODO: remove, code smell
 import AST
 
 upLevel : Model -> TLID -> (Maybe ID) -> CurrentThread -> Modification
@@ -78,7 +79,10 @@ enter m tlid cur thread =
           TLHandler h ->
             if AST.isLeaf cur h.ast
             then
-              delete m tlid cur thread
+              let se = AST.subtree cur h.ast in
+              Many [ Enter False (Filling tlid cur) thread
+                   , AutocompleteMod (ACSetQuery (AST.toContent se))
+                   ]
             else
               downLevel m tlid (Just cur) thread
           _ -> NoChange
