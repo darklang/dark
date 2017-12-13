@@ -324,7 +324,7 @@ update_ msg m =
                                 case Autocomplete.highlighted m2.complete of
                                   Just item -> Autocomplete.asName item
                                   Nothing -> m2.complete.value
-                      in
+                          in
                           Many [ (SetState (Entering re cursor (Just tid)))
                               -- don't threadify first member of thread
                                , Entry.submit m2 re cursor Nothing name]
