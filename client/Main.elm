@@ -261,7 +261,9 @@ update_ msg m =
           Selecting tlid hid thread ->
             case event.keyCode of
               Key.Backspace ->
-                Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+                case hid of
+                  Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+                  Just i -> Selection.delete m tlid i thread
               Key.Escape ->
                 let tl = TL.getTL m tlid in
                 case (thread, tl.data) of
