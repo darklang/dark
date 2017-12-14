@@ -417,77 +417,40 @@ listThreadHoles expr =
       listThreadHoles obj
 
 -- takes an ID of an expr in the AST to wrap in a thread
-wrapInThread : ID -> AST -> (AST, ID)
-wrapInThread id ast =
-  let tw = wrapInThread_ id ast
-  in (tw.expr, deMaybe tw.threadID)
-
-type alias ThreadWrap = { expr: Expr, threadID: Maybe ID }
-wrapInThread_ : ID -> Expr -> ThreadWrap
-wrapInThread_ hid expr =
-  let wt e = wrapInThread_ hid e
+wrapInThread : ID -> Expr -> Expr
+wrapInThread id expr =
+  let wt e = wrapInThread id e
       wrap e =
         case e of
-          Thread id _ -> { expr = e, threadID = Just id }
-          _ ->
-            let tid = ID (Util.random())
-            in { expr = Thread tid [e], threadID = Just tid }
-      wrapOr e fn =
-        if (toID e) == hid
-        then wrap e
-        else fn e
-      noWrap e = { expr = e, threadID = Nothing }
-      filterMaybe xs = xs |> List.filterMap identity |> List.head
-  in
-      case expr of
-        Value _ _ -> wrapOr expr noWrap
-        Hole _ -> wrapOr expr noWrap
-        Variable _ _ -> wrapOr expr noWrap
+          Thread id _ -> e
+          _ -> Thread (ID (Util.random())) [e]
+      nested =
+        case expr of
+          Value _ _ -> expr
+          Hole _ -> expr
+          Variable _ _ -> expr
 
-        Let id lhs rhs body ->
-          wrapOr expr (\_ ->
-            let newRhs = wt rhs
-                newBody = wt body
-                tid = filterMaybe [newRhs.threadID, newBody.threadID]
-            in
-                { expr = Let id lhs newRhs.expr newBody.expr
-                , threadID = tid})
+          Let id lhs rhs body ->
+            Let id lhs (wt rhs) (wt body)
 
-        If id cond ifbody elsebody ->
-          wrapOr expr (\_ ->
-            let newCond     = wt cond
-                newIfbody   = wt ifbody
-                newElsebody = wt elsebody
-                tid = filterMaybe [newCond.threadID, newIfbody.threadID, newElsebody.threadID]
-            in
-            { expr = If id newCond.expr newIfbody.expr newElsebody.expr
-            , threadID = tid })
+          If id cond ifbody elsebody ->
+            If id (wt cond) (wt ifbody) (wt elsebody)
 
-        FnCall id name exprs ->
-          wrapOr expr (\_ ->
-            let nexprs = List.map wt exprs
-                newExprs = List.map .expr nexprs
-                tid = filterMaybe (List.map .threadID nexprs)
-            in
-                { expr = FnCall id name newExprs, threadID = tid })
+          FnCall id name exprs ->
+            FnCall id name (List.map wt exprs)
 
-        Lambda id vars lexpr ->
-          wrapOr expr (\_ ->
-            let newBody = wt lexpr in
-            { expr = Lambda id vars newBody.expr, threadID = newBody.threadID })
+          Lambda id vars lexpr ->
+            Lambda id vars (wt lexpr)
 
-        Thread id exprs ->
-          wrapOr expr (\_ ->
-            let nexprs = List.map wt exprs
-                newExprs = List.map .expr nexprs
-                tid = filterMaybe (List.map .threadID nexprs)
-            in
-                { expr = Thread id newExprs, threadID = tid })
+          Thread id exprs ->
+            Thread id (List.map wt exprs)
 
-        FieldAccess id obj field ->
-          wrapOr expr (\_ ->
-            let nObj = wt obj in
-            { expr = FieldAccess id nObj.expr field, threadID = nObj.threadID })
+          FieldAccess id obj field ->
+            FieldAccess id (wt obj) field
+  in if (toID expr) == id
+     then wrap expr
+     else nested
+
 
 children : Expr -> List ID
 children e =

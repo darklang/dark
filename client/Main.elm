@@ -308,7 +308,7 @@ update_ msg m =
                     TLDB _ -> NoChange
                     TLHandler h ->
                       -- TODOthread
-                      let (nast, tid) = AST.wrapInThread hid h.ast
+                      let nast = AST.wrapInThread hid h.ast
                           nh = { h | ast = nast }
                           m2 = TL.replace m { tl | data = TLHandler nh }
                           name =
