@@ -24,6 +24,8 @@ isLeaf id ast =
         Value _ _ -> True
         Hole _ -> True
         Variable _ _ -> True
+        FnCall _ _ params -> -- Constant, or piped-in function
+          (List.length params) == 0
         _ -> False
 
 
