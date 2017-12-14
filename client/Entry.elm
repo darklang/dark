@@ -165,7 +165,7 @@ submit m re cursor value =
                                      |> String.trim
                           newLet = Let (gid ())
                                        (Full bindName)
-                                       (AST.closeThread tid thread)
+                                       (AST.closeThread thread)
                                        (Hole (gid ()))
                           replacement = AST.replaceExpr tid newLet h.ast
                       in wrap <| SetHandler tlid tl.pos { h | ast = replacement }

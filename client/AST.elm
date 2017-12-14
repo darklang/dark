@@ -5,6 +5,7 @@ import List
 
 -- lib
 import Maybe.Extra as ME
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -95,18 +96,16 @@ toID expr =
     Thread id _ -> id
     FieldAccess id _ _ -> id
 
-closeThread : ID -> AST -> AST
-closeThread threadid ast =
-  closeThread_ threadid ast
-
-closeThread_ : ID -> Expr -> Expr
-closeThread_ threadid expr =
-  let ct = closeThread_ threadid
+closeThread : Expr -> Expr
+closeThread expr =
+  -- Close all threads
+  let ct = closeThread
       ctList = List.map ct
   in
   case expr of
-    Value id v ->
-      Value id v
+    Value _ _ -> expr
+    Hole _ -> expr
+    Variable _ _ -> expr
 
     Let id lhs rhs expr ->
       Let id lhs (ct rhs) (ct expr)
@@ -114,8 +113,6 @@ closeThread_ threadid expr =
     If id cond ifbody elsebody ->
       If id (ct cond) (ct ifbody) (ct elsebody)
 
-    Variable id name ->
-      Variable id name
 
     FnCall id name exprs ->
       FnCall id name (ctList exprs)
@@ -123,33 +120,28 @@ closeThread_ threadid expr =
     Lambda id vars expr ->
       Lambda id vars (ct expr)
 
-    Hole id ->
-      Hole id
-
     FieldAccess id obj name ->
       -- Probably don't want threading in a field access,
       -- but we'll make this work anyway
       FieldAccess id (ct obj) name
 
-    Thread id exprs ->
-      if id == threadid
-      then
-        let rexprs = List.reverse exprs
-            nexprs =
-              case rexprs of
-                last :: rest ->
-                  case last of
-                    Hole _ -> rest
-                    _ -> last :: rest
-                _ -> rexprs
-            rnexprs = List.reverse nexprs
-        in
-            case rnexprs of
-              [] -> Hole id
-              [x] -> x
-              xs -> Thread id xs
-      else
-        Thread id (ctList exprs)
+    Thread tid exprs ->
+      let newExprs = ctList exprs
+          init = LE.init newExprs |> Maybe.withDefault []
+          last = LE.last newExprs |> deMaybe
+      in
+        case (init, last) of
+          ([], _) ->
+            last
+          ([e], Hole _) ->
+            e
+          (init, Hole _) ->
+            -- recurse to clear multiple threads
+            closeThread (Thread tid init)
+          (init, _) ->
+            Thread tid newExprs
+
+
 
 replaceBindHole : ID -> VarName -> AST -> AST
 replaceBindHole hid replacement ast =

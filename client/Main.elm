@@ -258,13 +258,7 @@ update_ msg m =
                   Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
                   Just i -> Selection.delete m tlid i
               Key.Escape ->
-                let tl = TL.getTL m tlid in
-                case (Nothing, tl.data) of -- TODOthread
-                  (Just tid, TLHandler h) ->
-                    let replacement = AST.closeThread tid h.ast in
-                    RPC ( [SetHandler tl.id tl.pos { h | ast = replacement}]
-                        , FocusNext tl.id Nothing)
-                  _ -> Deselect
+                Deselect
               Key.Enter ->
                 if event.shiftKey
                 then
@@ -355,8 +349,22 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling tlid hid -> Many [ Select tlid (Just hid)
-                                             , AutocompleteMod ACReset]
+                    Filling tlid hid ->
+                      let tl = TL.getTL m tlid in
+                        case tl.data of
+                          TLHandler h ->
+                            let replacement = AST.closeThread h.ast in
+                            if replacement == h.ast
+                            then
+                              Many [ Select tlid (Just hid)
+                                   , AutocompleteMod ACReset]
+                            else
+                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                  , FocusNext tl.id Nothing)
+                          _ ->
+                            Many [ Select tlid (Just hid)
+                                 , AutocompleteMod ACReset]
+
                 Key.Unknown c ->
                   if event.key == Just "."
                   then
