@@ -1,5 +1,7 @@
 open Core
-open Runtime
+
+open Types.RuntimeT
+open Functions
 
 let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   { name = name
@@ -25,4 +27,4 @@ type shortfn = { n : string
                }
 
 let fail (args: dval list) : 'a =
-  raise (Runtime.TypeError args)
+  raise (TypeError args)

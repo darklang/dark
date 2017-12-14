@@ -8,8 +8,8 @@ import Task
 
 -- lib
 import List.Extra as LE
-import Maybe.Extra as ME
-import String.Extra as SE
+-- import Maybe.Extra as ME
+-- import String.Extra as SE
 
 -- dark
 import Util exposing (deMaybe, int2letter, letter2int)
@@ -32,21 +32,22 @@ empty = init []
 
 init : List Function -> Autocomplete
 init functions = { functions = functions
+                 , varnames = []
                  , completions = List.map ACFunction functions
                  , index = -1
                  , open = True
+                 , showFunctions = True
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
-                 , nodes = Nothing
                  }
 
-forLiveValue : LiveValue -> Autocomplete -> Autocomplete
-forLiveValue lv a = { a | liveValue = Just lv }
+forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
+forLiveValue lv a = { a | liveValue = lv }
 
-forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
-forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
-
+-- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
+-- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
+--
 reset : Autocomplete -> Autocomplete
 reset a = init a.functions
 
@@ -121,8 +122,8 @@ asName : AutocompleteItem -> String
 asName aci =
   case aci of
     ACFunction {name} -> name
-    ACField name -> "." ++ name
-    ACVariable (name, _) -> "$" ++ name
+    ACField name -> name
+    ACVariable name -> name
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -133,19 +134,7 @@ asTypeString item =
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
     ACField _ -> ""
-    ACVariable (_, n) -> n.arguments
-                      |> List.map (\(p, a) -> if p.tipe == TBlock
-                                               then Nothing
-                                               else
-                                                   case a of
-                                                   Const c -> if c == "null" then Just "null" else Just c
-                                                   NoArg -> Just "$"
-                                                   ElidedArg -> Just "$"
-                                                   Edge _ _ -> Just "$")
-                      |> List.filter ME.isJust
-                      |> List.map deMaybe
-                      |> String.join " "
-                      |> (\s -> "[" ++ n.name ++ " " ++ s ++ "] -> " ++ (n.liveValue.value |> SE.ellipsis 20))
+    ACVariable _ -> ""
 
 asString : AutocompleteItem -> String
 asString aci =
@@ -174,14 +163,14 @@ jsonFields json =
     |> Dict.keys
     |> List.map ACField
 
-variablesForType : NodeList -> Tipe -> List AutocompleteItem
-variablesForType ns t =
-    ns
-      |> List.indexedMap (,)
-      |> List.filter (\(_, n) -> RT.isCompatible t n.liveValue.tipe)
-      |> List.map (\(i, n) -> (int2letter i, n))
-      |> List.map ACVariable
-
+-- variablesForType : NodeList -> Tipe -> List AutocompleteItem
+-- variablesForType ns t =
+--     ns
+--       |> List.indexedMap (,)
+--       |> List.filter (\(_, n) -> RT.isCompatible t n.liveValue.tipe)
+--       |> List.map (\(i, n) -> (int2letter i, n))
+--       |> List.map ACVariable
+--
 -- Implementation:
 -- n The autocomplete list should include:
 --    y all imported functions
@@ -216,14 +205,16 @@ regenerate a =
                             then jsonFields lv.json
                             else []
                  Nothing -> []
-
+      --
       -- variables
-      variables = case (a.tipe, a.nodes) of
-                      (Just t, Just ns)  -> variablesForType ns t
-                      _ -> []
+      -- variables = case (a.tipe, a.nodes) of
+      --                 (Just t, Just ns)  -> variablesForType ns t
+      --                 _ -> []
+
       -- functions
+      functions = if a.showFunctions then a.functions else []
       options =
-        a.functions
+        functions
         |> List.filter
            (\{returnTipe} ->
               case a.tipe of
@@ -234,9 +225,9 @@ regenerate a =
              case a.liveValue of
                Just {tipe} -> Nothing /= findParamByType fn tipe
                Nothing -> True)
-        |> List.map (\s -> ACFunction s)
+        |> List.map ACFunction
         |> List.append fields
-        |> List.append variables
+        |> List.append (List.map ACVariable a.varnames)
         |> List.filter
            (\i -> i
                   |> (\i -> if 1 >= String.length lcq
@@ -259,6 +250,14 @@ regenerate a =
                    else a.index
      }
 
+setVarnames : List VarName -> Autocomplete -> Autocomplete
+setVarnames vs a =
+  { a | varnames = vs }
+
+showFunctions : Bool -> Autocomplete -> Autocomplete
+showFunctions b a =
+  { a | showFunctions = b }
+
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   (case mod of
@@ -271,8 +270,11 @@ update mod a =
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
      ACFilterByLiveValue lv -> forLiveValue lv a
-     ACFilterByParamType tipe nodes -> forParamType tipe nodes a)
-    |> regenerate
+     ACSetAvailableVarnames vs -> setVarnames vs a
+     ACShowFunctions bool -> showFunctions bool a
+     -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
+  )
+  |> regenerate
 
 
 

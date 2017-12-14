@@ -4,6 +4,7 @@ import sys
 import subprocess
 import glob
 import os.path as path
+import time
 
 # Make io unbuffered
 def flush(fn):
@@ -14,8 +15,10 @@ def flush(fn):
 sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
 
-def run(bash):
+def run(start, bash):
   proc = subprocess.run(bash, shell=True)
+  stop = time.time()
+  print(">> In " + str(stop-start) + "s")
   return proc.returncode == 0
 
 ###################
@@ -26,31 +29,33 @@ def pretty_print(msg, color):
   if not machine:
     print('\x1b[6;30;' + str(color) + 'm' + "\n$ " + msg + '\x1b[0m')
 
-def run_frontend(bash):
+def run_frontend(start, bash):
   pretty_print(bash, 44)
-  return run(bash)
+  return run(start, bash)
 
-def run_backend(bash):
+def run_backend(start, bash):
   pretty_print(bash, 42)
-  return run(bash)
+  return run(start, bash)
 
-def run_test(bash):
+def run_test(start, bash):
   pretty_print(bash, 45)
-  return run(bash)
+  return run(start, bash)
 
 def elm_package():
-  return run_frontend("cd client && elm-package install --yes")
+  start = time.time()
+  return run_frontend(start, "cd client && elm-package install --yes")
 
 def elm_make():
+  start = time.time()
   global machine
   if machine:
-    return run_frontend("cd client && elm-make --report=json Main.elm --output=/dev/null")
+    return run_frontend(start, "cd client && elm-make --report=json Main.elm --output=/dev/null")
   else:
     # unbuffer makes elm think it's talking a terminal
-    return run_frontend("cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
+    return run_frontend(start, "cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
-  return subprocess.check_output(["server/convert_to_graph.native", filename])
+  return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
 
 def stringify(json):
   return json.decode() \
@@ -83,37 +88,48 @@ tests =
 
 
 def elm_test():
+  start = time.time()
+  ocaml_build_converter()
   generate_elm_test_data()
-  return run_test("cd client && unbuffer elm-test")
+  return run_test(start, "cd client && unbuffer elm-test")
+
+def less_compile():
+  start = time.time()
+  return run_frontend(start, "lessc server/static/base.less server/static/base.css")
 
 landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profile.json'"
 def ocaml_build():
-  # better-errors doesn't preserve exit codes, so save the output and
-  # check for success
+  start = time.time()
   global profile
   cd = "cd server &&"
-  build = " ocamlbuild -j 0 dark.native"
-  build_converter = " && ocamlbuild -j 0 convert_to_graph.native"
+  build = " jbuilder build bin/main.bc "
   if profile:
-    return run_backend(cd + landmarks + build)
+    return run_backend(start, cd + landmarks + build)
   else:
-    return run_backend(cd + build + build_converter)
+    return run_backend(start, cd + build)
+
+def ocaml_build_converter():
+  start = time.time()
+  run_test(start, "cd server && jbuilder build bin/darkfile_to_rpc.bc")
 
 def ocaml_test():
-  return run_backend("cd server && ocamlbuild test.native && unbuffer _build/test/test.native 2>&1")
+  start = time.time()
+  return run_backend(start, "cd server && jbuilder build test/test.bc && unbuffer ocamlrun _build/default/test/test.bc 2>&1")
 
 def reload_server():
+  start = time.time()
   global profile
   cd = "cd server &&"
   runserver = "../scripts/support/runserver"
   if profile:
-    return run_backend(cd + landmarks + runserver)
+    return run_backend(start, cd + landmarks + runserver)
   else:
-    return run_backend(cd + runserver)
+    return run_backend(start, cd + runserver)
 
 def reload_browser():
+  start = time.time()
   # Sends a signal to another fswatch on your mac
-  return run_frontend("touch .browser-trigger")
+  return run_frontend(start, "touch .browser-trigger")
 
 class Should:
   def __init__(self):
@@ -122,6 +138,7 @@ class Should:
     self.elm_package = False
     self.elm_make = False
     self.elm_test = False
+    self.less_compile = False
     self.reload_browser = False
     self.reload_server = False
 
@@ -134,7 +151,9 @@ def execute(should):
   should.elm_make |= ep
   em = should.elm_make and elm_make()
 
-  should.reload_browser |= rs or em
+  lc = should.less_compile and less_compile()
+
+  should.reload_browser |= rs or em or lc
   rb = should.reload_browser and reload_browser()
 
   should.ocaml_test |= ob
@@ -155,13 +174,17 @@ def mark(should, f):
     should.elm_make = True
 
   # Ocaml
-  elif ("test/test.ml" in f):
+  elif "test/test.ml" in f:
     should.ocaml_test = True
 
   elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
     should.ocaml_build = True
 
-  elif (".css" in f) or (".html" in f):
+  # Web
+  elif ".less" in f:
+    should.less_compile = True
+
+  elif ".html" in f:
     should.reload_browser = True
 
   # Other
@@ -183,14 +206,12 @@ def ignore(filename):
             , "client/repl-temp"
             , "client/tests/DarkTestData.elm"
             , "server/static/elm.js"
+            , "server/static/base.css"
             , "server/cache/"
             , "server/_build/"
+            , "server/dark.install"
+            , "server/_build/"
             , "server/appdata/"
-            , "server/dark.byte"
-            , "server/dark.native"
-            , "server/test.byte"
-            , "server/test.native"
-            , "server/convert_to_graph.native"
             , "server/gmon.out"
             , "server/profile.json"
             , "server/ocamlbuild_output.txt"

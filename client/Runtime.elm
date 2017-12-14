@@ -32,35 +32,37 @@ isCompatible t1 t2 =
 tipe2str : Tipe -> String
 tipe2str t =
   case t of
-    TInt -> "Int"
-    TStr -> "Str"
-    TChar -> "Char"
-    TBool -> "Bool"
-    TFloat -> "Float"
-    TObj -> "Obj"
-    TList -> "List"
-    TBlock -> "Block"
-    TOpaque -> "Opaque"
-    TNull -> "Nothing"
     TAny -> "Any"
-    TIncomplete -> "<incomplete>"
+    TInt -> "Int"
+    TFloat -> "Float"
+    TBool -> "Bool"
+    TNull -> "Nothing"
+    TChar -> "Char"
+    TStr -> "Str"
+    TList -> "List"
+    TObj -> "Obj"
+    TBlock -> "Block"
+    TIncomplete -> "Incomplete"
+    TResp -> "Response"
+    TDB -> "Datastore"
 
 str2tipe : String -> Tipe
 str2tipe t =
-  case t of
-  "Int" -> TInt
-  "Str" -> TStr
-  "Char" -> TChar
-  "Bool" -> TBool
-  "Float" -> TFloat
-  "Obj" -> TObj
-  "List" -> TList
-  "Block" -> TBlock
-  "Opaque" -> TOpaque
-  "Nothing" -> TNull
-  "Any" -> TAny
-  "<incomplete>" -> TIncomplete
-  "Error" -> TIncomplete -- temporary, maybe
+  case String.toLower t of
+  "any" -> TAny
+  "int" -> TInt
+  "float" -> TFloat
+  "bool" -> TBool
+  "nothing" -> TNull
+  "char" -> TChar
+  "str" -> TStr
+  "list" -> TList
+  "obj" -> TObj
+  "block" -> TBlock
+  "incomplete" -> TIncomplete
+  "response" -> TResp
+  "datastore" -> TDB
+  "error" -> TIncomplete -- temporary, maybe
   _ -> Debug.crash <| "invalid typename: " ++ t
 
 

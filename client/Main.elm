@@ -15,21 +15,22 @@ import Mouse
 import List.Extra as LE
 
 -- dark
-import RPC exposing (rpc, phantomRpc, saveTest)
+import RPC exposing (rpc, saveTest)
 import Types exposing (..)
 import View
 import Defaults
-import Graph as G
 import Runtime as RT
 import Entry
-import RandomGraph
 import Autocomplete
-import Selection
 import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
-
+import AST
+import Selection
+import Toplevel as TL
+import Analysis
+import Util exposing (deMaybe)
 
 
 -----------------------
@@ -68,7 +69,10 @@ init {editorState, complete} location =
                   Just t  -> t
                   Nothing -> []
       m = Defaults.defaultModel editor
-      m2 = { m | complete = Autocomplete.init (List.map flag2function complete), tests = tests }
+      m2 = { m | complete = Autocomplete.init (List.map flag2function complete)
+               , tests = tests
+               , toplevels = []
+      }
   in
     (m2, rpc m FocusNothing [])
 
@@ -95,64 +99,20 @@ update msg m =
 -- TODO: put these into updatemod so it doesn't use out of date info
 ---------------------------------------------
 
--- Reenter an existing node to edit the existing inputs
-reenter : Model -> ID -> Int -> Modification
-reenter m id i =
-  -- TODO: Allow the input to be edited
-  let n = G.getNodeExn m id
-  in
-    case LE.getAt i n.arguments of
-      Nothing -> NoChange
-      Just (p, a) ->
-        let enter = Enter True <| Filling n.id (ParamHole n.id p i) in
-        case a of
-          Edge eid _ -> Many [ enter
-                          , AutocompleteMod (ACSetQuery <| "$" ++ G.toLetter m eid)]
-          NoArg -> enter
-          ElidedArg -> Debug.crash "ElidedArgs should already be expanded"
-          Const c -> Many [ enter
-                          , AutocompleteMod (ACSetQuery c)]
-
--- Enter this exact node. If there's no ParamHole use ResultHole
-enterExact : Model -> Node -> Modification
-enterExact m selected =
-  let hole = G.findHole selected in
-  Filling selected.id hole
-  |> cursor2mod m
-
--- Enter node and if there's no hole for it, Select instead
-reenterNode : Model -> Node -> Modification
-reenterNode m selected =
-  let hole = G.findHole selected in
-  if (hole == ResultHole selected.id)
-     && (G.outgoingNodes m selected |> List.isEmpty |> not)
-  then Select selected.id
-  else
-    Filling selected.id hole
-    |> cursor2mod m
-
--- Enter the next needed node, searching from here
-enterNext : Model -> Node -> Modification
-enterNext m n =
-  cursor2mod m <|
-    case G.findNextHole m n of
-      Nothing -> Filling n.id (ResultHole n.id)
-      Just hole -> Filling (Entry.idFromHole hole) hole
-
-cursor2mod : Model -> EntryCursor -> Modification
-cursor2mod m cursor =
-  let ns = G.orderedNodes m in
-  Many [ Enter False cursor
-       , case cursor of
-           Filling id (ResultHole _) ->
-             AutocompleteMod <| ACFilterByLiveValue ((G.getNodeExn m id).liveValue)
-           Filling _ (ParamHole _ p _) ->
-             Many [ AutocompleteMod <| ACFilterByParamType p.tipe ns
-                  , AutocompleteMod <| ACOpen False ]
-           Creating _ ->
-             NoChange
-       ]
-
+-- cursor2mod : Model -> EntryCursor -> Modification
+-- cursor2mod m cursor =
+--   let ns = G.orderedNodes m in
+--   Many [ Enter False cursor
+--        , case cursor of
+--            Filling id (ResultHole _) ->
+--              AutocompleteMod <| ACFilterByLiveValue ((G.getNodeExn m id).liveValue)
+--            Filling _ (ParamHole _ p _) ->
+--              Many [ AutocompleteMod <| ACFilterByParamType p.tipe ns
+--                   , AutocompleteMod <| ACOpen False ]
+--            Creating _ ->
+--              NoChange
+--        ]
+--
 selectCenter : Pos -> Pos -> Pos
 selectCenter old new =
   -- ignore the Util.windowSize y hack
@@ -179,68 +139,104 @@ updateMod origm mod (m, cmd) =
       Error e -> { m | error = Just e} ! []
       ClearError -> { m | error = Nothing} ! []
       RPC (calls, id) -> m ! [rpc m id calls]
-      Phantom ->
-        case m.state of
-          Entering re cursor ->
-            case Entry.submit m re cursor m.complete.value of
-              RPC (rpcs, _) -> m ! [phantomRpc m cursor rpcs]
-              _ -> m ! []
-          _ -> m ! []
       NoChange -> m ! []
       MakeCmd cmd -> m ! [cmd]
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
-      Select id ->
-        let n = G.getNodeExn m id in
-        G.recalculateView
-        ({ m | state = Selecting id
-            , center = if G.hasRelativePos n
-                       then m.center
-                       else G.pos m n |> selectCenter origm.center}) ! []
+      Select tlid hid ->
+        { m | state = Selecting tlid hid } ! []
       Enter re entry ->
-        G.recalculateView
-        ({ m | state = Entering re entry
-            , center =
-                case entry of
-                  Filling id _ ->
-                    let n = G.getNodeExn m id in
-                    if G.hasRelativePos n
-                    then m.center
-                    else selectCenter origm.center (G.pos m n)
-                  Creating p ->
-                    m.center -- dont move
-        })
-        ! [Entry.focusEntry]
+        let varnames =
+              case entry of
+                Creating _ -> []
+                Filling tlid (ID eid) ->
+                  let avd = Analysis.getAvailableVarnames m tlid
+                  in (Dict.get eid avd) |> (Maybe.withDefault [])
+            showFunctions =
+              case entry of
+                Creating _ -> True
+                Filling tlid eid ->
+                  case TL.holeType (TL.getTL m tlid) eid of
+                    ExprHole _ -> True
+                    FieldHole _ -> False
+                    BindHole _ -> False
+                    SpecHole _ -> False
+                    DBColNameHole _ -> False
+                    DBColTypeHole _ -> False
+                    NotAHole -> True
+            lv =
+              case entry of
+                Creating _ -> Nothing
+                Filling tlid eid ->
+                  let tl = TL.getTL m tlid in
+                  let obj =
+                    case TL.holeType tl eid of
+                      ExprHole h ->
+                        let handler = deMaybe <| TL.asHandler tl
+                            p = AST.parentOf_ eid handler.ast
+                        in
+                            case p of
+                              Just (Thread tid exprs) ->
+                                let ids  = List.map (AST.toID) exprs
+                                    selfi = LE.elemIndex eid ids
+                                    prev = Maybe.map (\x -> x - 1) selfi
+                                in
+                                    Maybe.andThen (\i -> LE.getAt i ids) prev
+                              _ ->
+                                Nothing
+
+                      FieldHole h ->
+                        let handler = deMaybe <| TL.asHandler tl
+                            p = AST.parentOf eid handler.ast
+                        in
+                            case p of
+                              FieldAccess id obj _ ->
+                                Just <| AST.toID obj
+                              _ ->
+                                Nothing
+                      _ ->
+                        Nothing
+                  in
+                      Maybe.andThen (\o ->
+                        Analysis.getLiveValues m tlid
+                        |> Dict.get (o |> deID)) obj
+
+            (complete, acCmd) =
+              processAutocompleteMods m [ ACSetAvailableVarnames varnames
+                                        , ACShowFunctions showFunctions
+                                        , ACFilterByLiveValue lv
+                                        ]
+        in
+      ({ m | state = Entering re entry, complete = complete
+      }) ! ([acCmd, Entry.focusEntry])
+
+      SetToplevels tls tlars ->
+        { m | toplevels = tls
+            , analysis = tlars
+        } ! []
+
       SetCenter c ->
         { m | center = c } ! []
-      SetPhantoms ps ->
-        { m | phantoms = ps } ! []
-      SetBackingNodes nodes ->
-        (G.recalculateView { m | backingNodes = nodes }) ! []
-      ToggleOpenNode id ->
-        (G.recalculateView <| G.toggleOpenNode m id) ! []
-      SetViewNodes nodes ->
-        -- viewNodes are pretty temporary. They get overwritten on state
-        -- changes, backing node changes, and probably other changes too.
-        { m | nodes = nodes } ! []
-      Drag id offset hasMoved state ->
-        { m | state = Dragging id offset hasMoved state } ! []
+      Drag tlid offset hasMoved state ->
+        { m | state = Dragging tlid offset hasMoved state } ! []
       Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
-        let complete = Autocomplete.update mod m.complete
-        in
-          ({ m | complete = Autocomplete.update mod m.complete
-           }, Autocomplete.focusItem complete.index)
-      ChangeCursor step -> case m.state of
-        Selecting id -> let calls = Entry.updatePreviewCursor m id step
-                        in m ! [rpc m FocusSame calls]
-        _ -> m ! []
+        let (complete, cmd) = processAutocompleteMods m [mod]
+        in ({ m | complete = complete }
+            , cmd)
       -- applied from left to right
       Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
 
+processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
+processAutocompleteMods m mods =
+  let complete = List.foldl
+        (\mod complete -> Autocomplete.update mod complete)
+        m.complete
+        mods
+  in (complete, Autocomplete.focusItem complete.index)
 
 update_ : Msg -> Model -> Modification
 update_ msg m =
@@ -255,77 +251,132 @@ update_ msg m =
           _ -> NoChange
       else
         case state of
-          Selecting id_ ->
-            -- quick error checking, in case the focus has gone bad
-            if not <| G.hasNode m id_ then Entry.createFindSpace m else let id = id_ in
+          Selecting tlid hid ->
             case event.keyCode of
-              Key.Backspace -> Selection.deleteSelected m id
-              Key.Up -> Selection.selectNextNode m id (\n o -> G.posy m n > G.posy m o)
-              Key.Down -> Selection.selectNextNode m id (\n o -> G.posy m n < G.posy m o)
-              Key.Left -> if event.altKey
+              Key.Backspace ->
+                case hid of
+                  Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+                  Just i -> Selection.delete m tlid i
+              Key.Escape ->
+                Deselect
+              Key.Enter ->
+                if event.shiftKey
                 then
-                  ChangeCursor -1
+                  let id1 = Entry.gid ()
+                      id2 = Entry.gid () in
+                  RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
                 else
-                  Selection.selectNextNode m id (\n o -> G.posx m n > G.posx m o)
-              Key.Right -> if event.altKey
-                then
-                  ChangeCursor 1
-                else
-                  Selection.selectNextNode m id (\n o -> G.posx m n < G.posx m o)
-              Key.Enter -> enterExact m (G.getNodeExn m id)
-              Key.One -> reenter m id 0
-              Key.Two -> reenter m id 1
-              Key.Three -> reenter m id 2
-              Key.Four -> reenter m id 3
-              Key.Five -> reenter m id 4
-              Key.Six -> reenter m id 5
-              Key.Seven -> reenter m id 6
-              Key.Eight -> reenter m id 7
-              Key.Nine -> reenter m id 8
-              Key.Zero -> reenter m id 9
-              Key.Escape -> Deselect
-              Key.Tab -> ToggleOpenNode id
-              code -> Selection.selectByLetter m code
+                  case hid of
+                    Just i -> Selection.enter m tlid i
+                    Nothing -> Selection.downLevel m tlid hid
+              Key.Up -> Selection.upLevel m tlid hid
+              Key.Down -> Selection.downLevel m tlid hid
+              Key.Right -> Selection.nextSibling m tlid hid
+              Key.Left -> Selection.previousSibling m tlid hid
+              Key.Tab -> Selection.nextHole m tlid hid
+              Key.O ->
+                if event.ctrlKey
+                then Selection.upLevel m tlid hid
+                else NoChange
+              Key.I ->
+                if event.ctrlKey
+                then Selection.downLevel m tlid hid
+                else NoChange
+              Key.N ->
+                if event.ctrlKey
+                then Selection.nextSibling m tlid hid
+                else NoChange
+              Key.P ->
+                if event.ctrlKey
+                then Selection.previousSibling m tlid hid
+                else NoChange
+              _ -> NoChange
 
           Entering re cursor ->
-            if event.ctrlKey then
+            if event.shiftKey && event.keyCode == Key.Enter
+            then
+              case cursor of
+                Filling tlid hid ->
+                  let tl = TL.getTL m tlid in
+                  case tl.data of
+                    TLDB _ -> NoChange
+                    TLHandler h ->
+                      let nast = AST.wrapInThread hid h.ast
+                          nh = { h | ast = nast }
+                          m2 = TL.replace m { tl | data = TLHandler nh }
+                          name =
+                            case Autocomplete.highlighted m2.complete of
+                              Just item -> Autocomplete.asName item
+                              Nothing -> m2.complete.value
+                      in Entry.submit m2 re cursor Entry.First name
+                Creating _ -> NoChange
+            else if event.ctrlKey
+            then
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.Enter ->
-                  if Autocomplete.isSmallStringEntry m.complete
+                  if Autocomplete.isLargeStringEntry m.complete
+                  then Entry.submit m re cursor Entry.NotFirst m.complete.value
+                  else if Autocomplete.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
                          , MakeCmd Entry.focusEntry
                          ]
-                  else if Autocomplete.isLargeStringEntry m.complete
-                  then Entry.submit m re cursor m.complete.value
                   else NoChange
                 _ -> NoChange
             else
               case event.keyCode of
                 Key.Up -> AutocompleteMod ACSelectUp
                 Key.Down -> Many [ AutocompleteMod (ACOpen True)
-                                , AutocompleteMod ACSelectDown]
+                                 , AutocompleteMod ACSelectDown]
                 Key.Right ->
                   let sp = Autocomplete.sharedPrefix m.complete in
                   if sp == "" then NoChange
                   else
                     AutocompleteMod <| ACSetQuery sp
                 Key.Enter ->
+                  if Autocomplete.isLargeStringEntry m.complete
+                  then AutocompleteMod (ACSetQuery m.complete.value)
+                  else
                   let name = case Autocomplete.highlighted m.complete of
                                Just item -> Autocomplete.asName item
                                Nothing -> m.complete.value
-                  in
-                  if Autocomplete.isLargeStringEntry m.complete
-                  then AutocompleteMod (ACSetQuery m.complete.value)
-                  else Entry.submit m re cursor name
+                  in Entry.submit m re cursor Entry.NotFirst name
 
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling id _ -> Many [ Select id
-                                         , AutocompleteMod ACReset]
+                    Filling tlid hid ->
+                      let tl = TL.getTL m tlid in
+                        case tl.data of
+                          TLHandler h ->
+                            let replacement = AST.closeThread h.ast in
+                            if replacement == h.ast
+                            then
+                              Many [ Select tlid (Just hid)
+                                   , AutocompleteMod ACReset]
+                            else
+                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                  , FocusNext tl.id Nothing)
+                          _ ->
+                            Many [ Select tlid (Just hid)
+                                 , AutocompleteMod ACReset]
+
+                Key.Unknown c ->
+                  if event.key == Just "."
+                  then
+                    let name = case Autocomplete.highlighted m.complete of
+                                Just item -> Autocomplete.asName item
+                                Nothing ->
+                                  m.complete.value
+                                  |> String.dropRight 1 -- ignore extra '.'
+                    in
+                      -- TODO: unify with Entry.submit
+                      Entry.objectSubmit m re cursor name
+                  else
+                    AutocompleteMod <| ACSetQuery m.complete.value
+
                 key ->
                   AutocompleteMod <| ACSetQuery m.complete.value
 
@@ -336,7 +387,7 @@ update_ msg m =
               Key.Down -> SetCenter <| Viewport.moveDown m.center
               Key.Left -> SetCenter <| Viewport.moveLeft m.center
               Key.Right -> SetCenter <| Viewport.moveRight m.center
-              _ -> Selection.selectByLetter m event.keyCode
+              _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange
 
@@ -365,41 +416,39 @@ update_ msg m =
     (GlobalClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
-                , Enter False <| Creating (Viewport.toAbsolute m event.pos)]
+                , Enter False (Creating (Viewport.toAbsolute m event.pos))]
       else NoChange
 
-    (NodeClickDown node event, _) ->
+    (ToplevelClickDown tl event, _) ->
       if event.button == Defaults.leftButton
-      then Drag node.id event.pos False m.state
+      then Drag tl.id event.pos False m.state
       else NoChange
 
-    (DragNodeMove id mousePos, _) ->
+    (DragToplevel id mousePos, _) ->
       case m.state of
-        Dragging id startVPos _ origState ->
+        Dragging tlid startVPos _ origState ->
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
-              (m2, _) = G.moveSubgraph m id xDiff yDiff in
-          Many [ SetViewNodes m2.nodes
-               -- update the drag so we offset correctly next time
-               , Drag id {vx=mousePos.x, vy=mousePos.y} True origState ]
+              m2 = TL.move tlid xDiff yDiff m in
+          Many [ SetToplevels m2.toplevels m2.analysis
+               , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    (NodeClickUp id event, _) ->
+    (ToplevelClickUp tlid event, _) ->
       if event.button == Defaults.leftButton
       then
         case m.state of
-          Dragging id startVPos hasMoved origState ->
+          Dragging tlid startVPos hasMoved origState ->
+            let xDiff = event.pos.vx-startVPos.vx
+                yDiff = event.pos.vy-startVPos.vy
+                m2 = TL.move tlid xDiff yDiff m
+                tl = TL.getTL m2 tlid
+            in
             if hasMoved
-            then
-              let xDiff = event.pos.vx-startVPos.vx
-                  yDiff = event.pos.vy-startVPos.vy
-                  (m2, root) = G.moveSubgraph m id xDiff yDiff in
-                Many
-                  [ -- final x/y update, tiny diff like in DragNodeMove
-                    SetViewNodes m2.nodes
-                  , SetState origState
-                  , RPC ([UpdateNodePosition root.id root.pos], FocusSame)]
-            else Select id
+            then Many
+                  [ SetState origState
+                  , RPC ([MoveTL tl.id tl.pos], FocusSame)]
+            else Select tlid Nothing
           _ -> Debug.crash "it can never not be dragging"
       else NoChange
 
@@ -413,32 +462,33 @@ update_ msg m =
     (SaveTestButton, _) ->
       MakeCmd saveTest
 
-    (AddRandom, _) ->
-      Many [ RandomGraph.makeRandomChange m, Deselect]
-
-    (RPCCallBack focus calls (Ok (nodes)), _) ->
-      let m2 = { m | backingNodes = nodes, nodes = nodes }
-          m3 = G.recalculateView m2
-          -- we should calculate this later, but we can't right now
+    -- (AddRandom, _) ->
+    --   Many [ RandomGraph.makeRandomChange m, Deselect]
+    --
+    (RPCCallBack focus calls (Ok (toplevels, analysis)), _) ->
+      let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
-              FocusNext id -> enterNext m3 (G.getNodeExn m3 id)
-              Refocus id -> reenterNode m3 (G.getNodeExn m3 id)
-              FocusExact id -> enterExact m3 (G.getNodeExn m3 id)
-              FocusSame ->
-                case m.state of
-                  Selecting id -> if G.getNode m3 id == Nothing then Deselect else NoChange
-                  _ -> NoChange
-              FocusNothing -> Deselect
-
-      in Many [ SetBackingNodes nodes
+              FocusNext tlid pred ->
+                let tl = TL.getTL m2 tlid
+                    nh = TL.getNextHole tl pred
+                in
+                    case nh of
+                      Just h -> Enter False (Filling tlid h)
+                      Nothing -> Select tlid Nothing
+              FocusExact tlid next ->
+                let tl = TL.getTL m2 tlid
+                    ht = TL.holeType tl next
+                in
+                case ht of
+                  NotAHole -> Select tlid (Just next)
+                  _ -> Enter False (Filling tlid next)
+              _  -> NoChange
+      in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
               , ClearError
               , newState
               ]
-
-    (PhantomCallBack _ _ (Ok (nodes)), _) ->
-      SetPhantoms nodes
 
     (SaveTestCallBack (Ok msg), _) ->
       Error <| "Success! " ++ msg
@@ -452,12 +502,6 @@ update_ msg m =
       Error <| "Error: " ++ error.body
 
     (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
-      Error <| "Network error: is the server running?"
-
-    (PhantomCallBack _ _ (Err (Http.BadStatus error)), _) ->
-      SetPhantoms Dict.empty
-
-    (PhantomCallBack _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
 
     (SaveTestCallBack (Err err), _) ->
@@ -485,7 +529,7 @@ subscriptions m =
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging id offset _ _ ->
-            [ Mouse.moves (DragNodeMove id)]
+            [ Mouse.moves (DragToplevel id)]
           _ -> []
   in Sub.batch
     (List.concat [keySubs, dragSubs])

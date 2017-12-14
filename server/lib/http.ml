@@ -1,69 +1,64 @@
 open Core
-module G = Graph
+
+module RT = Types.RuntimeT
 
 module RouteParamMap = String.Map
-type route_param_map = string RouteParamMap.t
-
-let routes (g: G.graph) : (string * G.node) list =
-  G.page_routes g
-
-let url_for (g: G.graph) (n: G.node) : string option =
-  let url = n#get_arg_value (G.gfns g) "url" in
-  match url with
-  | DStr s -> Some s
-  | _      -> None
-
-let url_for_exn (g: G.graph) (n: G.node) : string =
-  match (url_for g n) with
-  | Some s -> s
-  | None -> Exception.internal "Called url_for_exn on a node without a `url` param"
+type route_param_map = RT.dval RouteParamMap.t
 
 let split_uri_path (path: string) : string list =
-  let subs  = String.split ~on:'/' path in
+  let subs = String.split ~on:'/' path in
   List.filter ~f:(fun x -> String.length x > 0) subs
 
-let controller (path_or_route : string) : string option =
-  match (split_uri_path path_or_route) with
-  | [] -> None
-  | [a] -> Some a
-  | a :: _ -> Some a
-
 let path_matches_route ~(path: string) (route: string) : bool =
-  (path = route) || ((controller path) = (controller route))
+  let split_path = split_uri_path path in
+  let split_route = split_uri_path route in
+  let same_length = List.length split_path = List.length split_route in
+    same_length &&
+    List.for_all2_exn
+      split_path
+      split_route
+      ~f:(fun p r -> p = r || String.is_prefix ~prefix:":" r)
 
-let matching_routes ~(uri: Uri.t) (g: G.graph) : (string * G.node) list =
-  let path = Uri.path uri in
-  let rs   = routes g in
-  List.filter ~f:(fun (route, _) -> path_matches_route ~path:path route) rs
-
-let pages_matching_route ~(uri: Uri.t) (g: G.graph) : G.node list =
-  let rs = matching_routes ~uri:uri g in
-  List.map ~f:Tuple.T2.get2 rs
+let route_variable_pairs (route: string) : (int * string) list =
+  route
+  |> split_uri_path
+  |> List.mapi ~f:(fun i x -> (i, x))
+  |> List.filter ~f:(fun (_, x) -> String.is_prefix ~prefix:":" x)
+  |> List.map ~f:(fun (i, x) -> (i, String.chop_prefix_exn ~prefix:":" x))
 
 let route_variables (route: string) : string list =
-  let suffix = List.drop (split_uri_path route) 1 in
-  suffix
-  |> List.filter ~f:(fun x -> String.is_prefix ~prefix:":" x)
-  |> List.map ~f:(fun x -> String.chop_prefix_exn ~prefix:":" x)
+  route
+  |> route_variable_pairs
+  |> List.map ~f:Tuple.T2.get2
 
 let has_route_variables (route: string) : bool =
   List.length (route_variables route) > 0
 
-let unbound_path_variables (path: string) : string list =
-  List.drop (split_uri_path path) 1
+let sample_bound_route_params ~(route: string) : route_param_map =
+  let rpm = RouteParamMap.empty in
+  let vars = route_variables route in
+  List.fold_left
+    ~init:rpm
+    ~f:(fun rpm1 v -> Map.add rpm1 ~key:v ~data:(RT.DStr ""))
+    vars
 
 (* assumes route and path match *)
-let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : (string * route_param_map) =
+let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : route_param_map =
   let path = Uri.path uri in
   if path_matches_route ~path:path route
   then
+    let split_path = split_uri_path path in
+    let pairs =
+      route
+      |> route_variable_pairs
+      |> List.map
+           ~f:(fun (i, r) -> (r, List.nth_exn split_path i))
+    in
     let rpm = RouteParamMap.empty in
-    let rvars = route_variables route in
-    let pvars = unbound_path_variables path in
-    let controller = controller path in
-    let rpm' = List.fold_left ~init:rpm ~f:(fun rpm1 (r,p) -> RouteParamMap.add rpm1 ~key:r ~data:p) (List.zip_exn rvars pvars) in
-    match controller with
-    | None -> Exception.internal "Unable to parse controller from path"
-    | Some c -> (c, rpm')
-  else Exception.internal "Attempted to parse path into route that does not match"
+    List.fold_left
+      ~init:rpm
+      ~f:(fun rpm1 (r,p) -> Map.add rpm1 ~key:r ~data:(RT.DStr p))
+      pairs
+  else
+    Exception.internal "path/route mismatch"
 

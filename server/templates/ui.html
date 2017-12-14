@@ -6,20 +6,22 @@
     <title>Project Dark</title>
     <link rel="stylesheet" type="text/css" href="/static/reset-normalize.css" />
     <link rel="stylesheet" type="text/css" href="/static/base.css" />
-    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Fira+Mono" >
+    <link rel="stylesheet" type="text/css"
+    href="https://fonts.googleapis.com/css?family=Fira+Mono:400,700" >
+    <link rel="stylesheet" type="text/css"
+                           href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" >
+
     <script type="text/javascript">
-    function stopTab(event) {
-      if (event.keyCode == 9) {
+    function stopKeys(event) {
+      if (event.keyCode == 9) { // Tab
         event.preventDefault();
-      }
-      else {
       }
     }
     </script>
     <script type="text/javascript" src="/static/elm.js"> </script>
 
   </head>
-  <body onKeyDown="stopTab(event)" onKeyUp="stopTab(event)">
+  <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
    <script type="text/javascript">
      complete = ALLFUNCTIONS;
      try {

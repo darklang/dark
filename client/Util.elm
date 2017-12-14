@@ -33,6 +33,11 @@ deMaybeM msg x =
     Just y -> y
     Nothing -> Debug.crash msg
 
+toIntWithDefault : Int -> String -> Int
+toIntWithDefault d s =
+  s
+  |> String.toInt
+  |> Result.withDefault d
 
 deMaybe : Maybe a -> a
 deMaybe = deMaybeM "deMaybe - nothing there"

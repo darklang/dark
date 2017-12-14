@@ -10,12 +10,6 @@ import Mouse
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
 
-type alias Name = String
-type alias FieldName = Name
-type alias ParamName = Name
-type alias VariableName = Name
-type alias Cursor = Int
-
 type alias Exception =
   { short : String
   , long : String
@@ -28,15 +22,6 @@ type alias Exception =
   , info : Dict String String
   , workarounds : List String }
 
-type alias LiveValue = { value : String
-                       , tipe : Tipe
-                       , json : String
-                       , exc : Maybe Exception}
-
-type ID = ID Int
-deID : ID -> Int
-deID (ID x) = x
-
 type Tipe = TInt
           | TStr
           | TChar
@@ -46,9 +31,10 @@ type Tipe = TInt
           | TList
           | TAny
           | TBlock
-          | TOpaque
           | TNull
           | TIncomplete
+          | TResp
+          | TDB
 
 -- There are two coordinate systems. Pos is an absolute position in the
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
@@ -57,74 +43,51 @@ type Tipe = TInt
 type alias Pos = {x: Int, y: Int }
 type alias VPos = {vx: Int, vy: Int }
 
--- MPos is a Node's position. Only roots have a stored position
--- server-side, but we need to position the other nodes
-type DepPos = DPos Pos | DVPos VPos
-type MPos = Root Pos
-          | Free (Maybe VPos) -- relative to the viewport
-          | Dependent (Maybe DepPos)
-          | NoPos (Maybe Pos)
-
 type alias MouseEvent = {pos: VPos, button: Int}
 type alias IsLeftButton = Bool
 
-type NodeType = FunctionCall
-              | Datastore
-              | Value
-              | Page
-              | Arg
+type alias LiveValue = { value : String
+                       , tipe : Tipe
+                       , json : String
+                       , exc : Maybe Exception}
+type alias Special = Int
+type TLID = TLID Int
+type ID = ID Int
 
-type alias NodeDict = Dict Int Node
-type alias NodeList = List Node
-type alias Node = { name : Name
-                  , id : ID
-                  , pos : MPos
-                  , tipe : NodeType
-                  , liveValue : LiveValue
-                  , face: String
-                  , arguments : List (Parameter, Argument)
-                  -- for blocks
-                  , isBlockParent : Bool
-                  , deleteWith : List ID
-                  , cursor: Cursor
-                  }
-
-type alias Variable = (VariableName, Node)
-
-type EdgeType = BlockEdge ParamName
-              | FnEdge
-
-type Argument = Const String
-              | Edge ID EdgeType
-              | NoArg
-              | ElidedArg
-
-type Hole = ResultHole ID
-          | ParamHole ID Parameter Int
+deID : ID -> Int
+deID (ID i) = i
 
 type EntryCursor = Creating Pos
-                 | Filling ID Hole
+                 | Filling TLID ID
 
 type alias IsReentering = Bool
-type State = Selecting ID
+type alias HasMoved = Bool
+type alias ThreadID = ID
+type State = Selecting TLID (Maybe ID)
            | Entering IsReentering EntryCursor
-           | Dragging ID VPos HasMoved State
+           | Dragging TLID VPos HasMoved State
            | Deselected
 
+unwrapState : State -> State
+unwrapState s =
+  case s of
+    Dragging _ _ _ unwrap -> unwrap
+    _ -> s
+
+type alias RPCResult = (List Toplevel, List TLAResult)
 type Msg
     = GlobalClick MouseEvent
-    | NodeClickDown Node MouseEvent
+    | ToplevelClickDown Toplevel MouseEvent
     -- we have the actual node when NodeClickUp is created, but by the time we
     -- use it the proper node will be changed
-    | NodeClickUp ID MouseEvent
-    | DragNodeMove ID Mouse.Position
+    | ToplevelClickUp TLID MouseEvent
+    | DragToplevel TLID Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack Focus (List RPC) (Result Http.Error NodeDict)
-    | PhantomCallBack EntryCursor (List RPC) (Result Http.Error NodeDict)
+    | RPCCallBack Focus (List RPC) (Result Http.Error RPCResult)
     | SaveTestCallBack (Result Http.Error String)
     | LocationChange Navigation.Location
     | AddRandom
@@ -132,56 +95,120 @@ type Msg
     | SaveTestButton
     | Initialization
 
+type alias Predecessor = Maybe ID
 type Focus = FocusNothing -- deselect
-           | Refocus ID
-           | FocusExact ID
-           | FocusNext ID
+           | Refocus TLID
+           | FocusExact TLID ID
+           | FocusNext TLID Predecessor
            | FocusSame -- unchanged
 
 type RPC
     = NoOp
-    | AddDatastore ID Name MPos
-    | AddDatastoreField ID FieldName Tipe
-    | AddFunctionCall ID Name MPos
-    | AddBlock ID MPos (List ID) (List String)
-    | AddValue ID String MPos
-    | SetConstant Name (ID, ParamName)
-    | SetEdge ID (ID, ParamName)
-    | DeleteNode ID
-    | UpdateNodeCursor ID Cursor
-    | UpdateNodePosition ID MPos
+    | SetHandler TLID Pos Handler
+    | CreateDB TLID Pos DBName
+    | AddDBCol TLID ID ID
+    | SetDBColName TLID ID DBColName
+    | SetDBColType TLID ID DBColType
+    | DeleteTL TLID
+    | MoveTL TLID Pos
     | DeleteAll
     | Savepoint
     | Undo
     | Redo
 
 type alias Autocomplete = { functions : List Function
+                          , varnames : List VarName
                           , completions : List AutocompleteItem
                           , index : Int
                           , value : String
                           , open : Bool
+                          , showFunctions : Bool
                           , liveValue : Maybe LiveValue
                           , tipe : Maybe Tipe
-                          , nodes : Maybe NodeList
                           }
+
 type AutocompleteItem = ACFunction Function
-                      | ACField FieldName
-                      | ACVariable Variable
+                      | ACField String
+                      | ACVariable VarName
 
 type VariantTest = StubVariant
 
-type alias Model = { backingNodes : NodeDict -- the actual nodes
-                   , nodes : NodeDict -- the transformed view nodes
-                   , phantoms : NodeDict
-                   , center : Pos
+
+
+type alias Class = String
+type Element = Leaf (Maybe ID, Class, String)
+             | Nested (Maybe ID, Class) (List Element)
+
+type alias VarName = String
+type alias FnName = String
+type alias FieldName = String
+
+type alias VarBind = HoleOr VarName
+type alias Field = HoleOr FieldName
+
+type Expr = If ID Expr Expr Expr
+          | FnCall ID FnName (List Expr)
+          | Variable ID VarName
+          | Let ID VarBind Expr Expr
+          | Lambda ID (List VarName) Expr
+          | Value ID String
+          | Hole ID
+          | Thread ID (List Expr)
+          | FieldAccess ID Expr Field
+
+type alias AST = Expr
+
+type HoleType = BindHole Handler
+              | SpecHole Handler
+              | ExprHole Handler
+              | FieldHole Handler
+              | DBColNameHole DB
+              | DBColTypeHole DB
+              | NotAHole
+
+type HoleOr a = Empty ID
+              | Full a
+
+type alias HandlerSpec = { module_ : HoleOr String
+                         , name : HoleOr String
+                         , modifier : HoleOr String
+                         }
+
+type alias Handler = { ast : AST
+                     , spec : HandlerSpec }
+
+type alias DBName = String
+type alias DBColName = String
+type alias DBColType = String
+type alias DB = { name : DBName
+                , cols : List (HoleOr DBColName, HoleOr DBColType)}
+
+type TLData = TLHandler Handler
+            | TLDB DB
+
+type alias Toplevel = { id : TLID
+                      , pos : Pos
+                      , data : TLData
+                      }
+
+
+type alias LVDict = Dict Int LiveValue
+type alias AVDict = Dict Int (List VarName)
+type alias TLAResult = { id: TLID
+                       , astValue: LiveValue
+                       , liveValues : LVDict
+                       , availableVarnames : AVDict
+                       }
+
+type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
-                   , tests   : List VariantTest
+                   , tests : List VariantTest
                    , complete : Autocomplete
                    , state : State
-                   -- these values are serialized via Editor
-                   , openNodes : List ID
+                   , toplevels : List Toplevel
+                   , analysis : List TLAResult
                    }
 
 type AutocompleteMod = ACSetQuery String
@@ -192,52 +219,48 @@ type AutocompleteMod = ACSetQuery String
                      | ACComplete String
                      | ACSelectDown
                      | ACSelectUp
-                     | ACFilterByLiveValue LiveValue
-                     | ACFilterByParamType Tipe NodeList
+                     | ACFilterByLiveValue (Maybe LiveValue)
+                     | ACSetAvailableVarnames (List VarName)
+                     | ACShowFunctions Bool
+                     -- | ACFilterByParamType Tipe NodeList
 
-type alias HasMoved = Bool
 type Modification = Error String
                   | ClearError
-                  | Select ID
+                  | Select TLID (Maybe ID)
                   | Deselect
+                  | SetToplevels (List Toplevel) (List TLAResult)
                   | Enter IsReentering EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
-                  | SetBackingNodes NodeDict
-                  | SetViewNodes NodeDict
-                  | SetPhantoms NodeDict
-                  | ToggleOpenNode ID
                   | NoChange
                   | MakeCmd (Cmd Msg)
                   | AutocompleteMod AutocompleteMod
-                  | Phantom
                   | Many (List Modification)
-                  | ChangeCursor Int
-                  | Drag ID VPos HasMoved State
+                  | Drag TLID VPos HasMoved State
                   | SetState State
 
 -- name, type optional
-type alias Parameter = { name: Name
+type alias Parameter = { name: String
                        , tipe: Tipe
                        , block_args: List String
                        , optional: Bool
                        , description: String
                        }
 
-type alias Function = { name: Name
+type alias Function = { name: String
                       , parameters: List Parameter
                       , description: String
                       , returnTipe: Tipe
                       }
 
-type alias FlagParameter = { name: Name
+type alias FlagParameter = { name: String
                            , tipe: String
                            , block_args: List String
                            , optional: Bool
                            , description: String
                            }
 
-type alias FlagFunction = { name: Name
+type alias FlagFunction = { name: String
                           , parameters: List FlagParameter
                           , description: String
                           , return_type: String
@@ -251,6 +274,5 @@ type alias Flags =
   }
 
 -- Values that we serialize
-type alias Editor = { openNodes : List Int
-                    }
+type alias Editor = { }
 

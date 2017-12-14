@@ -1,7 +1,16 @@
 [
-  [ "Add_fn_call", 218084305, [ "Free" ], "-" ],
-  [ "Add_value", 134555973, [ "Free" ], "5" ],
-  [ "Add_value", 521695949, [ "Free" ], "3" ],
-  [ "Set_edge", 521695949, 218084305, "b" ],
-  [ "Set_edge", 134555973, 218084305, "a" ]
+  [
+    "SetHandler",
+    1,
+    { "x": 0, "y": 0 },
+    {
+      "tlid": 1,
+      "ast": [ "Value", 123, "5" ],
+      "spec": {
+        "module": [ "Empty", 465 ],
+        "name": [ "Empty", 9356 ],
+        "modifier": [ "Empty", 576 ]
+      }
+    }
+  ]
 ]

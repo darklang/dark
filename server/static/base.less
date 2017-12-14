@@ -1,0 +1,408 @@
+html {
+  height: 100%;
+}
+
+/* From "default dark" in https://chriskempson.github.io/base16/ */
+@black1: #181818;
+@black2: #282828;
+@grey1 : #383838;
+@grey2 : #585858;
+@grey3 : #b8b8b8;
+@white3: #d8d8d8;
+@white2: #e8e8e8;
+@white1: #f8f8f8;
+@red   : #ab4642;
+@orange: #dc9656;
+@yellow: #f7ca88;
+@green : #a1b56c;
+@cyan  : #86c1b9;
+@blue  : #7cafc2;
+@purple: #ba8baf;
+@brown : #a16946;
+
+@top-border: lighten(@black1, 5%) 2px dotted;
+
+body {
+  font-family: 'Fira Mono', monospace;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: @black2;
+  color: @grey3;
+}
+
+/********************
+ * Top level
+ ********************/
+
+#grid {
+  background: @black1;
+  position: relative;
+
+  -webkit-touch-callout: none; /* iOS Safari */
+    -webkit-user-select: none; /* Safari */
+     -khtml-user-select: none; /* Konqueror HTML */
+       -moz-user-select: none; /* Firefox */
+        -ms-user-select: none; /* Internet Explorer/Edge */
+            user-select: none; /* Non-prefixed version, currently
+                                  supported by Chrome and Opera */
+}
+
+#buttons {
+  position: absolute;
+  left: 0px;
+}
+
+.specialButton {
+  margin-right: 4px;
+}
+
+
+//*************
+// Toplevel
+//*************
+.toplevel {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  padding: 4px;
+
+  &.selected {
+    background-color: lighten(@black1, 5%);
+    border: 0.4px darken(magenta, 25%) dotted;
+  }
+
+  .selected {
+    border: 0.5px magenta solid;
+    padding: 0.5px;
+  }
+
+  .leaf.selected.hole {
+    background-color: @grey1;
+    color: @grey1;
+  }
+
+}
+
+//*************
+// Routing table
+//*************
+.routing-table {
+  border: 2px solid @blue;
+  padding: 8px;
+  width: max-content;
+
+  .header {
+    width: 300px;
+    color: @orange;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 2px @white3 solid;
+
+    .http {
+      margin-right: 5px;
+    }
+
+    .count {
+      font-weight: bold;
+
+    }
+  }
+
+  .handler {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+
+    .name {
+      color: @white3;
+      .p {
+        color: transparent;
+        display: inline-block; // needed to set width
+        width: 0px;
+        margin-left: 13px;
+        padding-left: 13px;
+        border-left: 2px solid @red;
+
+      }
+    }
+
+    .external {
+      color: @orange;
+    }
+
+    .verbs {
+      color: @grey2;
+      :not(:first-child):before {
+        content: ","
+      }
+    }
+
+  }
+}
+
+//*************
+// DB
+//*************
+.db {
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+
+  .dbname {
+    background-image: url('/static/_db.png');
+    background-position: left center;
+    background-repeat: no-repeat;
+    padding-left: 20px; /* Adjust according to image size to push text across. */
+    margin-bottom: 10px;
+    &::before {
+      content: "DB: ";
+      font-weight: bold;
+      font-size: 110%;
+    }
+  }
+
+  .col {
+    display: flex;
+    flex-direction: row;
+
+    .name, .type {
+      margin: 2px 5px;
+      flex: 1 0 0;
+      .hole {
+        width: 96px; // put it all on one line
+      }
+    }
+
+  }
+}
+
+
+//*************
+// Handler
+//*************
+
+// header
+.header {
+  .layout-inline;
+  // applied to children
+
+  & > div {
+    // center it
+    /* border-right: @top-border; */
+    /* margin-right: 2px; */
+    /* padding-right: 2px; */
+    /* &::last-child  { */
+    /*   border-right: none; */
+    /*   margin-right: 0px; */
+    /*   padding-right: 0px; */
+    /* } */
+    /*  */
+
+    color: @yellow;
+    font-size: 50%;
+    width: 80px;
+  }
+}
+
+
+
+//*************
+// AST macros
+//*************
+.indent {
+  margin-left: 16px;
+}
+
+.layout-block {
+  display: block;
+  & > .nested > .atom {
+    margin-left: 0px;
+  }
+  & > .nested > .atom.fieldaccessop {
+    margin-right: 0px;
+    margin-left: -4px;
+  }
+}
+
+.layout-inline {
+  display: inline-block;
+}
+
+.highlighted-indent {
+  margin-left: 8px;
+  padding-left: 8px;
+  border-left: 1px solid @orange;
+}
+
+//*************
+// AST
+//*************
+.ast {
+  font-size: 10pt;
+  font-family: 'Fira Code', monospace;
+  padding: 8px;
+  white-space: pre;
+  width: max-content;
+  border: @top-border;
+  .layout-block;
+
+  div {
+    .layout-inline;
+  }
+
+  .letexpr > .letbody {
+    .layout-block;
+  }
+
+  .lambdaexpr {
+    .layout-block;
+    .highlighted-indent;
+  }
+
+  .lambdabinding, .arrow {
+    color: @orange;
+  }
+
+  .value.tstr {
+    color: @purple;
+    font-style: italic;
+    letter-spacing: -0.75px;
+  }
+
+  .lambdabody {
+    .layout-block;
+  }
+
+  .ifbody {
+    .layout-block;
+    .indent;
+  }
+
+  .elsebody {
+    .layout-block;
+    .indent;
+  }
+
+  .atom {
+    margin-left: 4px;
+    margin-right: 4px;
+  }
+
+  .atom.fieldaccessop {
+    margin-left: -4px;
+    margin-right: -4px;
+  }
+
+  .moduleseparator {
+    color: @green;
+  }
+
+  .keyword {
+    color: @green;
+  }
+
+  .precedence-1 {
+    background-color: @black2;
+
+    .precedence-2 {
+      background-color: @grey1;
+    }
+  }
+}
+
+/********************
+ * Entry box
+ ********************/
+
+// TODO: figure out proper entry box positioning
+// -- this is a demo hack
+.header .entry form {
+  position: relative;
+  margin-top: 0px;
+}
+
+.db .entry form {
+  position: relative;
+  margin-top: 0px;
+}
+
+.entry {
+  // headers need to be relative to position them. We need to be above
+  // the headers, and position:relative allows us to do it.
+  position: relative;
+  cursor: default;
+  font-size: 14px;
+  background: @black2;
+  width: 96px; // keeps autocomplete appearing when Creating
+
+  .types {
+    float: right;
+    text-transform: lowercase;
+    font-family: monospace;
+    font-size: 80%;
+  }
+  form {
+    // makes the form takes up no space in the DOM, meaning we don't
+    // expand the top-level
+    position: absolute;
+    margin-top: -15px; // account for the space of both input boxes
+
+    #search-container {
+      position: relative;
+      input {
+        width: 96px;
+      }
+      #entryBox {
+        z-index: 20;
+        width: 96px;
+        position: relative;
+        color: black;
+        background: transparent;
+      }
+      #suggestionBox {
+        position: absolute;
+        top: 0;
+        left: 0;
+        color: @grey3;
+        background: @white1;
+      }
+    }
+  }
+  #autocomplete-holder {
+    overflow-y: hidden;
+    max-height: 100px;
+    font-size: 85%;
+    width: 300px;
+
+    .autocomplete-item {
+      background: @black2;
+      &.highlighted {
+        background: #1c3670;
+      }
+      &.greyed {
+        color: @grey2;
+      }
+    }
+  }
+}
+
+
+.string-entry {
+  position: relative;
+  width: 330px;
+  padding: 0.2em 0.4em;
+}
+
+.string-container::before {
+  content: "“";
+}
+
+.string-container::after{
+  content: "”";
+}
+
+
+
+
+

@@ -9,7 +9,7 @@ let readfile ?(default="") f : string =
       let s = Bytes.create n in
       Caml.really_input ic s 0 n;
       Caml.close_in ic;
-      s
+      Caml.Bytes.to_string s
     with e ->
       Caml.close_in_noerr ic;
       raise e)
@@ -52,4 +52,7 @@ let merge_left = Map.merge ~f:(fun ~key v ->
     | `Left v -> Some v
     | `Right v -> Some v
     | `Both (v1, v2) -> Some v1)
+
+let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
+  List.length (List.filter ~f l) > 0
 

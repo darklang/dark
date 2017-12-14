@@ -1,0 +1,23 @@
+(jbuild_version 1)
+
+(executable
+  (
+    (name main)
+    (public_name main)
+    (modules main)
+    (modes (byte))
+    (flags (-warn-error (+A)))
+    (libraries (dark))
+  )
+)
+
+(executable
+  (
+    (name darkfile_to_rpc)
+    (public_name darkfile_to_rpc)
+    (modules darkfile_to_rpc)
+    (modes (byte))
+    (flags (-warn-error (+A)))
+    (libraries (dark))
+  )
+)

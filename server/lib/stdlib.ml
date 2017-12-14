@@ -1,6 +1,8 @@
 open Core
-open Runtime
 open Lib
+
+open Types.RuntimeT
+module RT = Runtime
 
 let list_repeat = Util.list_repeat
 
@@ -24,14 +26,6 @@ let (>>|) = Result.(>>|)
 
 
 let fns : Lib.shortfn list = [
-  (* { n = "Page::page" *)
-  (* ; o = [] *)
-  (* ; p = ["url"; "outputs"] *)
-  (* ; f = function *)
-  (*     | args -> expected "this to be implmented" args *)
-  (* } *)
-  (* ; *)
-
 
   (* ====================================== *)
   (* Dict  *)
@@ -69,29 +63,73 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  (* ====================================== *)
+  (* Objects *)
+  (* ====================================== *)
 
-
-
-  { n = "."
-  ; o = ["get_field"]
-  ; p = [par "value" TObj; par "fieldname" TStr]
-  ; r = TAny
+  { n = "assoc"
+  ; o = []
+  ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
+  ; r = TObj
   ; d = ""
   ; f = InProcess
         (function
-          | [DObj value; DStr fieldname] ->
-            (match DvalMap.find value fieldname with
-             | None -> raise_error
-                         ("Value has no field named: " ^ fieldname)
-                         ~actual:(DObj value)
-
-             | Some v -> v)
+          | [DObj o; DStr k; v] ->
+            DObj (Map.add o ~key:k ~data:v)
           | args -> fail args)
   ; pr = None
   ; pu = true
   }
   ;
 
+  { n = "dissoc"
+  ; o = []
+  ; p = [par "obj" TObj; par "key" TStr]
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DObj o; DStr k] ->
+            DObj (Map.remove o k)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+  { n = "to_form"
+  ; o = []
+  ; p = [par "obj" TObj; par "submit" TStr]
+  ; r = TStr
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [DObj o; DStr uri] ->
+            let fmt =
+              format_of_string
+                "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
+            in
+            let to_input (k, v) =
+              let label =
+                Printf.sprintf "<label for=\"%s\">%s:</label>" k k
+              in
+              let input =
+                Printf.sprintf "<input id=\"%s\" type=\"text\" name=\"%s\">" k k
+              in
+              label ^ "\n" ^ input
+            in
+            let inputs =
+              o
+              |> Map.to_alist
+              |> List.map ~f:to_input
+              |> String.concat ~sep:"\n"
+            in
+            DStr (Printf.sprintf fmt uri inputs)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
   (* ====================================== *)
   (* Int *)
@@ -362,14 +400,14 @@ let fns : Lib.shortfn list = [
         (function
           | [DList l] ->
             l
-            |> list_coerce ~f:to_int
+            |> list_coerce ~f:Dval.to_int
             >>| List.fold_left ~f:(+) ~init:0
             >>| (fun x -> DInt x)
             |> Result.map_error ~f:(fun (result, example_value) ->
-                error
+                RT.error
                   ~actual:(DList result)
                   ~result:(DList result)
-                  ~long:("Int::sum requires all values to be integers, but " ^ (to_repr example_value) ^ " is a " ^ (tipename example_value))
+                  ~long:("Int::sum requires all values to be integers, but " ^ (Dval.to_repr example_value) ^ " is a " ^ (Dval.tipename example_value))
                   ~expected:"every list item to be an int "
                   "Sum expects you to pass a list of ints")
             |> Result.ok_exn
@@ -390,7 +428,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
         (function
-          | [a] -> DStr (to_repr a)
+          | [a] -> DStr (Dval.to_repr a)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -405,7 +443,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (equal_dval a b)
+          | [a; b] -> DBool (Dval.equal_dval a b)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -420,7 +458,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are not equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (not (equal_dval a b))
+          | [a; b] -> DBool (not (Dval.equal_dval a b))
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -503,18 +541,18 @@ let fns : Lib.shortfn list = [
   ; d = "Iterate over each character in the string, performing the operation in the block on each one"
   ; f = InProcess
         (function
-          | [DStr s; DBlock (id, fn)] ->
+          | [DStr s; DBlock fn] ->
             s
             |> String.to_list
             |> List.map ~f:(fun c -> fn [(DChar c)])
-            |> list_coerce ~f:to_char
+            |> list_coerce ~f:Dval.to_char
             >>| String.of_char_list
             >>| (fun x -> DStr x)
             |> Result.map_error ~f:(fun (result, example_value) ->
-                error
+                RT.error
                   ~actual:(DList result)
                   ~result:(DList result)
-                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (to_repr example_value) ^ " is a " ^ (tipename example_value))
+                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (Dval.to_repr example_value) ^ " is a " ^ (Dval.tipename example_value))
                   ~expected:"every value to be a char"
                   "Foreach expects you to return chars")
             |> Result.ok_exn
@@ -577,7 +615,30 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-
+  { n = "String::slugify"
+  ; o = []
+  ; p = [par "string" TStr]
+  ; r = TStr
+  ; d = "Turns a string into a slug"
+  ; f = InProcess
+        (function
+          | [DStr s] ->
+            let re_compile = Re2.Regex.create_exn in
+            let re_replace = Re2.Regex.replace_exn in
+            let to_remove  = re_compile "[^\\w\\s$*_+~.()'\"!\\-:@]" in
+            let trim = re_compile "^\\s+|\\s+$" in
+            let spaces = re_compile "[-\\s]+" in
+            s
+            |> re_replace ~f:(fun _ -> "") to_remove
+            |> re_replace ~f:(fun _ -> "") trim
+            |> re_replace ~f:(fun _ -> "-") spaces
+            |> String.lowercase
+            |> fun x -> DStr x
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
 
   { n = "String::join"
@@ -591,7 +652,7 @@ let fns : Lib.shortfn list = [
             let s = List.map ~f:(fun s ->
                 match s with
                 | DStr st -> st
-                | _  -> to_repr s) l
+                | _  -> Dval.to_repr s) l
             in
             DStr (String.concat ~sep s)
           | args -> fail args)
@@ -611,7 +672,7 @@ let fns : Lib.shortfn list = [
           | [DList l] ->
               DStr (l |> List.map ~f:(function
                                       | DChar c -> c
-                                      | dv -> raise_error ~actual:dv "expected a char")
+                                      | dv -> RT.raise_error ~actual:dv "expected a char")
                       |> String.of_char_list)
           | args -> fail args)
   ; pr = None
@@ -726,7 +787,7 @@ let fns : Lib.shortfn list = [
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
         (function
-          | [DList l; DBlock (id, fn)] ->
+          | [DList l; DBlock fn] ->
             (let f (dv: dval) : bool = DBool true = fn [dv]
             in
             match List.find ~f l with
@@ -746,7 +807,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns if the value is in the list"
   ; f = InProcess
         (function
-          | [DList l; i] -> DBool (List.mem ~equal:equal_dval l i)
+          | [DList l; i] -> DBool (List.mem ~equal:Dval.equal_dval l i)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -810,14 +871,14 @@ let fns : Lib.shortfn list = [
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
         (function
-          | [DList l; init; DBlock (_, fn)] ->
+          | [DList l; init; DBlock fn] ->
             let f (dv1: dval) (dv2: dval) : dval = fn [dv1; dv2] in
             List.fold ~f ~init l
           | args -> fail args)
   ; pr = Some
         (fun dv cursor ->
           match dv with
-          | [DList l; init; DBlock (_, fn)] ->
+          | [DList l; init; DBlock fn] ->
             let short_l = List.take l cursor in
             let f = fun (accum:dval) (elt:dval) -> fn([accum; elt]) in
             let end_accum = List.fold ~f ~init short_l in
@@ -876,7 +937,7 @@ let fns : Lib.shortfn list = [
   ; d = "Return only values in `l` which meet the function's criteria"
   ; f = InProcess
         (function
-          | [DList l; DBlock (id, fn)] ->
+          | [DList l; DBlock fn] ->
             let f (dv: dval) : bool =
             match fn [dv] with
             | DBool b -> b
@@ -898,7 +959,7 @@ let fns : Lib.shortfn list = [
   those calls"
   ; f = InProcess
         (function
-          | [DList l; DBlock (_, fn)] ->
+          | [DList l; DBlock fn] ->
             let f (dv: dval) : dval = fn [dv]
             in
             DList (List.map ~f l)
@@ -909,26 +970,45 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  (* ====================================== *)
+  (* Hacks for autocomplete*)
+  (* ====================================== *)
+
+
   { n = "if"
   ; o = []
-  ; p = [par "v" TAny; par "cond" TBool; func ~name:"ftrue" ["then"]; func ~name:"ffalse" ["else"]]
+  ; p = [par "cond" TBool]
   ; r = TAny
-  ; d = "If cond is true, calls the `then` function. Otherwise calls the `else`
-  function. Both functions get 'v' piped into them"
-  ; f = InProcess
-        (function
-          | [v; DBool cond; DBlock (_, fntrue); DBlock (_, fnfalse)] ->
-              if cond then fntrue [v] else fnfalse [v]
-          | args -> fail args)
-  (* we could do better here by getting a value for which this is true/false *)
-  ; pr = Some (fun dv cursor -> dv)
+  ; d = "If cond is true, executes the `then` expression. Otherwise runs the `else` expression."
+  ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it" )
+  ; pr = None
   ; pu = true
   }
   ;
 
 
+  { n = "lambda"
+  ; o = []
+  ; p = [par "vars" TList; par "body" TAny]
+  ; r = TAny
+  ; d = "Creates an anonymous function, useful for iterating through foreach"
+  ; f = InProcess (fun _ -> failwith "Lambda is a placeholer, we shouldn't be calling it" )
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
 
+  { n = "let"
+  ; o = []
+  ; p = [par "bindings" TList; par "body" TAny]
+  ; r = TAny
+  ; d = "Execute and bind the variables in binding, and then execute body, possibly using those expressions. Execution is strict."
+  ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it" )
+  ; pr = None
+  ; pu = true
+  }
+  ;
 
   (* ====================================== *)
   (* Date *)
@@ -1029,39 +1109,6 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DChar c] -> DChar (Char.uppercase c)
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
-  (* ====================================== *)
-  (* Page *)
-  (* ====================================== *)
-  { n = "Page::GET"
-  ; o = []
-  ; p = [par "url" TStr; par "val" TAny]
-  ; r = TNull
-  ; d = "Create a page at `url` that prints `value`"
-  ; f = InProcess
-        (function
-          | [DStr url; value] -> value
-          | args -> fail args)
-  ; pr = None
-  ; pu = true
-  }
-  ;
-
-
-  { n = "Page::POST"
-  ; o = []
-  ; p = [par "url" TStr; par "redir" TStr]
-  ; r = TAny
-  ; d = "Create a page at `url` that optionally redirects to `redir`"
-  ; f = InProcess
-        (function
-          | [DStr url; DStr redir] -> DIncomplete
           | args -> fail args)
   ; pr = None
   ; pu = true

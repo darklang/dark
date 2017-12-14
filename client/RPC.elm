@@ -1,173 +1,32 @@
 module RPC exposing (..)
 
 -- builtin
-import Dict exposing (Dict)
 import Http
 import Json.Encode as JSE
 import Json.Decode as JSD
+import Json.Decode.Pipeline as JSDP
+import Dict exposing (Dict)
+import Dict.Extra as DE
 
 -- lib
-import Json.Decode.Pipeline as JSDP
-import Dict.Extra as DE
 
 -- dark
 import Types exposing (..)
-import Defaults
 import Runtime as RT
-import Util exposing (deMaybe)
-
-type alias RPCNode = { argIDs : List Int
-                     , arguments : List ( Parameter, Argument )
-                     , blockID : Int
-                     , cursor : Int
-                     , fields : List ( FieldName, String )
-                     , id : Int
-                     , liveExc : Maybe Exception
-                     , liveJson : String
-                     , liveTipe : String
-                     , liveValue : String
-                     , name : Name
-                     , posType : String
-                     , posX : Maybe Int
-                     , posY : Maybe Int
-                     , tipe : String
-                     }
-type FullNodeType = FArg | FBlock | FFunctionCall | FDatastore | FValue | FPage
-type alias FullNode = { name : Name
-                      , id : ID
-                      , pos : MPos
-                      , tipe : FullNodeType
-                      , liveValue : LiveValue
-                      , cursor: Cursor
-                      -- for functions
-                      , arguments : List (Parameter, Argument)
-                      -- for blocks
-                      , isBlockParent : Bool
-                      , blockID : Maybe ID
-                      , argIDs : List ID
-                      , deleteWith : List ID
-                      }
-
-
-toFullNode : RPCNode -> FullNode
-toFullNode rn = { name = rn.name
-                , id = ID rn.id
-                , arguments = rn.arguments
-                , liveValue = { value = rn.liveValue
-                              , tipe = rn.liveTipe |> RT.str2tipe
-                              , json = rn.liveJson
-                              , exc = rn.liveExc
-                              }
-                , argIDs = List.map ID rn.argIDs
-                , blockID = if rn.blockID == Defaults.unsetInt then Nothing else Just <| ID rn.blockID
-                , tipe = case rn.tipe of
-                          "datastore" -> FDatastore
-                          "function" -> FFunctionCall
-                          "value" -> FValue
-                          "page" -> FPage
-                          "arg" -> FArg
-                          "block" -> FBlock
-                          _ -> Debug.crash "shouldnt happen"
-                , pos = case (rn.posType, rn.posX, rn.posY) of
-                          ("Root", Just x, Just y) -> Root {x=x, y=y}
-                          ("Dependent", Nothing, Nothing) -> Dependent Nothing
-                          ("Free", Nothing, Nothing) -> Free Nothing
-                          ("NoPos", Nothing, Nothing) -> NoPos Nothing
-                          _ -> Debug.crash "Bad Pos in RPC"
-                , cursor = rn.cursor
-                , deleteWith = []
-                , isBlockParent = False
-                }
-
-toNode : FullNode -> Node
-toNode fn = { name = fn.name
-            , id = fn.id
-            , arguments = fn.arguments
-            , liveValue = fn.liveValue
-            , tipe = case fn.tipe of
-                FBlock -> Debug.crash "Blocks should be gone"
-                FDatastore -> Datastore
-                FFunctionCall -> FunctionCall
-                FValue -> Value
-                FPage -> Page
-                FArg -> Arg
-            , pos = fn.pos
-            , cursor = fn.cursor
-            , face = ""
-            , isBlockParent = fn.isBlockParent
-            , deleteWith = fn.deleteWith
-            }
-
-
-replaceBlockNodes : Dict Int FullNode -> Dict Int FullNode
-replaceBlockNodes nodes =
-
-  let  -- find the single child of a block known to have exactly 1 child
-      findChildOf : ID -> ID
-      findChildOf id =
-        nodes
-        |> Dict.values
-        |> List.filter
-             (\n ->
-               List.any
-                 (\(p,a) ->
-                   case a of
-                     Edge eid FnEdge -> id == eid
-                     _ -> False)
-                 n.arguments)
-        |> Util.hdExn
-        |> .id
-
-      stdParent = { name = "parent"
-                  , tipe = TAny
-                  , block_args = []
-                  , optional = False
-                  , description = ""
-                  }
-
-      -- Args parents were the Block, now the fn they're an arg to
-      convertArg _ n =
-        let arguments =
-              if n.tipe == FArg
-              then [(stdParent, Edge (n.blockID |> deMaybe |> findChildOf) (BlockEdge n.name))]
-              else n.arguments
-        in { n | arguments = arguments }
-
-      -- Fns has block parents, remove them and keep track of that info
-      convertFn _ n =
-        let (blocks, others) =
-              List.partition (\(p,a) -> p.tipe == TBlock) n.arguments
-            blockIDs =
-              List.map (\(p,a) ->
-                case a of
-                  Edge id _ -> let block = Dict.get (deID id) nodes |> Util.deMaybe
-                               in block.id :: block.argIDs
-                  _ -> Debug.crash "should all be blocks")
-                blocks
-        in { n | arguments = others
-               , deleteWith = List.concat blockIDs
-               , isBlockParent = blocks |> List.isEmpty |> not
-           }
-
-  in nodes
-      |> Dict.map convertArg
-      |> Dict.map convertFn
-      |> Dict.filter (\_ n -> n.tipe /= FBlock)
-
-
-phantomRpc : Model -> EntryCursor -> List RPC -> Cmd Msg
-phantomRpc m cursor calls =
-  rpc_ m "/admin/api/phantom" (PhantomCallBack cursor) calls
+import Util
+import JSON exposing (..)
 
 rpc : Model -> Focus -> List RPC -> Cmd Msg
 rpc m focus calls =
   rpc_ m "/admin/api/rpc" (RPCCallBack focus) calls
 
-rpc_ : Model -> String -> (List RPC -> Result Http.Error NodeDict -> Msg) -> List RPC -> Cmd Msg
+rpc_ : Model -> String ->
+ (List RPC -> Result Http.Error RPCResult -> Msg) ->
+ List RPC -> Cmd Msg
 rpc_ m url callback calls =
   let payload = encodeRPCs m calls
       json = Http.jsonBody payload
-      request = Http.post url json decodeGraph
+      request = Http.post url json decodeRPC
   in Http.send (callback calls) request
 
 postString : String -> Http.Request String
@@ -189,8 +48,6 @@ saveTest =
   in Http.send SaveTestCallBack request
 
 
-
-
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   calls
@@ -201,142 +58,115 @@ encodeRPCs m calls =
   |> List.map (encodeRPC m)
   |> JSE.list
 
-
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let jsePos pos = case pos of
-                     Root {x,y} -> ("pos", JSE.list [ JSE.string "Root"
-                                                    , JSE.object [ ("x", JSE.int x)
-                                                                 , ("y", JSE.int y)]])
-                     Dependent _ -> ("pos", JSE.list [ JSE.string "Dependent" ])
-                     Free _ -> ("pos", JSE.list [ JSE.string "Free" ])
-                     NoPos _ -> ("pos", JSE.list [ JSE.string "NoPos" ])
-      jseId (ID id) = ("id", JSE.int id)
-      (cmd, args) =
+  let encodePos {x,y} =
+        JSE.object [ ("x", JSE.int x)
+                   , ("y", JSE.int y)]
+      ev = encodeVariant
+  in
     case call of
-      AddDatastore id name pos ->
-        ("add_datastore"
-        , JSE.object [ jseId id
-                     , jsePos pos
-                     , ("name", JSE.string name)
-                     ])
+      SetHandler id pos h ->
+        let hs = JSE.object
+                   [ ("name", encodeHoleOr h.spec.name JSE.string)
+                   , ("module", encodeHoleOr h.spec.module_ JSE.string)
+                   , ("modifier", encodeHoleOr h.spec.modifier JSE.string)]
+            handler = JSE.object [ ("tlid", encodeTLID id)
+                                 , ("spec", hs)
+                                 , ("ast", encodeAST h.ast) ] in
+        ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
-      AddDatastoreField id name tipe ->
-        ("add_datastore_field",
-           JSE.object [ jseId id
-                      , ("name", JSE.string name)
-                      , ("tipe", JSE.string (tipe |> RT.tipe2str))])
+      CreateDB id pos name ->
+        ev "CreateDB" [encodeTLID id, encodePos pos, JSE.string name]
 
-      AddFunctionCall id name pos ->
-        ("add_function_call",
-           JSE.object [ jseId id, jsePos pos, ("name", JSE.string name)])
+      AddDBCol tlid colnameid coltypeid ->
+        ev "AddDBCol" [encodeTLID tlid, encodeID colnameid, encodeID coltypeid]
 
-      AddBlock id pos args argnames ->
-        ("add_block", JSE.object [ jseId id
-                                , jsePos pos
-                                , ("args", JSE.list (List.map (JSE.int << deID) args))
-                                , ("argnames", JSE.list (List.map (JSE.string) argnames))])
+      SetDBColName tlid id name ->
+        ev "SetDBColName" [encodeTLID tlid, encodeID id, JSE.string name]
 
-      AddValue id str pos ->
-        ("add_value",
-           JSE.object [ jseId id, jsePos pos, ("value", JSE.string str)] )
+      SetDBColType tlid id tipe ->
+        ev "SetDBColType" [encodeTLID tlid, encodeID id, JSE.string tipe]
 
-      SetConstant value (ID target, param) ->
-        ("set_constant",
-           JSE.object [ ("value", JSE.string value)
-                      , ("target", JSE.int target)
-                      , ("param", JSE.string param)])
+      NoOp -> ev "NoOp" []
+      DeleteAll -> ev "DeleteAll" []
+      Savepoint -> ev "Savepoint" []
+      Undo -> ev "Undo" []
+      Redo -> ev "Redo" []
+      DeleteTL id -> ev "DeleteTL" [encodeTLID id]
+      MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
 
-      SetEdge (ID src) (ID target, param) ->
-        ("set_edge", JSE.object
-           [ ("source", JSE.int src)
-           , ("target", JSE.int target)
-           , ("param", JSE.string param)])
+encodeAST : Expr -> JSE.Value
+encodeAST expr =
+  let e = encodeAST
+      eid = encodeID
+      ev = encodeVariant in
+  case expr of
+    FnCall id n exprs ->
+      ev "FnCall" [ eid id
+                  , JSE.string n
+                  , JSE.list (List.map e exprs)]
 
-      UpdateNodeCursor id cursor ->
-        ("update_node_cursor",
-          JSE.object [ jseId id
-                     , ("cursor", JSE.int cursor)])
+    Let id lhs rhs body ->
+      ev "Let" [ eid id
+               , encodeHoleOr lhs JSE.string
+               , e rhs
+               , e body]
 
-      UpdateNodePosition id pos ->
-        ("update_node_position",
-          JSE.object [ jseId id
-                     , jsePos pos])
+    Lambda id vars body ->
+      ev "Lambda" [ eid id
+                  , List.map JSE.string vars |> JSE.list
+                  , e body]
 
-      DeleteNode id ->
-        ("delete_node", JSE.object [ jseId id ])
+    If id cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
+    Variable id v -> ev "Variable" [ eid id , JSE.string v]
+    Value id v -> ev "Value" [ eid id , JSE.string v]
+    Hole id -> ev "Hole" [eid id]
+    Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
+    FieldAccess id obj field ->
+      ev "FieldAccess" [eid id, e obj, encodeHoleOr field JSE.string ]
 
-      NoOp ->
-        ("noop", JSE.object [])
 
-      DeleteAll ->
-        ("delete_all", JSE.object [])
 
-      Savepoint ->
-        ("savepoint", JSE.object [])
+  -- about the lazy decodeExpr
+  -- TODO: check if elm 0.19 is saner than this
+  -- elm 0.18 gives "Cannot read property `tag` of undefined` which
+  -- leads to https://github.com/elm-lang/elm-compiler/issues/1562
+  -- and https://github.com/elm-lang/elm-compiler/issues/1591
+  -- which gets potentially fixed by
+  -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
 
-      Undo ->
-        ("undo", JSE.object [])
 
-      Redo ->
-        ("redo", JSE.object [])
-  in JSE.object [ (cmd, args) ]
+decodeExpr : JSD.Decoder Expr
+decodeExpr =
+  let de = (JSD.lazy (\_ -> decodeExpr))
+      did = decodeID
+      dv4 = decodeVariant4
+      dv3 = decodeVariant3
+      dv2 = decodeVariant2
+      dv1 = decodeVariant1 in
+  decodeVariants
+    [ ("Let", dv4 Let did (decodeHoleOr JSD.string) de de)
+    , ("Hole", dv1 Hole did)
+    , ("Value", dv2 Value did JSD.string)
+    , ("If", dv4 If did de de de)
+    , ("FnCall", dv3 FnCall did JSD.string (JSD.list de))
+    , ("Lambda", dv3 Lambda did (JSD.list JSD.string) de)
+    , ("Variable", dv2 Variable did JSD.string)
+    , ("Thread", dv2 Thread did (JSD.list de))
+    , ("FieldAccess", dv3 FieldAccess did de (decodeHoleOr JSD.string))
+    ]
 
-decodeRPCNode : JSD.Decoder RPCNode
-decodeRPCNode =
-  let toParameter: Name -> String -> List String -> Bool -> String -> Parameter
-      toParameter name tipe block_args optional description =
-        { name = name
-        , tipe = tipe |> RT.str2tipe
-        , block_args = block_args
-        , optional = optional
-        , description = description}
-      toArgument: List JSD.Value -> Argument
-      toArgument strs =
-        case strs of
-          [name, val] ->
-            case JSD.decodeValue JSD.string name of
-              Result.Ok "AConst" ->
-                case JSD.decodeValue JSD.string val of
-                  Result.Ok stringifiedVal ->
-                    if stringifiedVal == "<incomplete>"
-                    then NoArg
-                    else Const stringifiedVal
-                  Result.Err exc ->
-                    Const (toString exc)
-              Result.Ok "AEdge" ->
-                val
-                |> JSD.decodeValue JSD.int
-                |> Result.withDefault (-1)
-                |> ID
-                |> \id -> Edge id FnEdge
-              Result.Ok op ->
-                Debug.crash <| "Unexpected: " ++ op
-              Result.Err e ->
-                Debug.crash <| "Invalid: " ++ e
-          _ ->
-            Debug.crash "Bad argument in RPC"
-      toRPCNode : Name -> Int -> List (FieldName, String) ->
-               List (Parameter, Argument) -> String ->
-               String -> String -> Maybe Exception -> Int -> List Int ->
-               String -> String -> Maybe Int -> Maybe Int -> Int -> RPCNode
-      toRPCNode name id fields arguments liveValue liveTipe liveJson liveExc blockID argIDs tipe posType x y cursor =
-          { name      = name
-          , id        = id
-          , fields    = fields
-          , arguments = arguments
-          , liveValue = liveValue
-          , liveTipe  = liveTipe
-          , liveJson  = liveJson
-          , liveExc   = liveExc
-          , blockID   = blockID
-          , argIDs    = argIDs
-          , tipe      = tipe
-          , posType   = posType
-          , posX      = x
-          , posY      = y
-          , cursor    = cursor
-          }
+decodeAST : JSD.Decoder AST
+decodeAST = decodeExpr
+
+decodeLiveValue : JSD.Decoder LiveValue
+decodeLiveValue =
+  let toLiveValue value tipe json exc =
+      { value = value
+      , tipe = RT.str2tipe tipe
+      , json = json
+      , exc = exc}
       toExc : String -> String -> String -> String -> String ->
               String -> String -> String -> Dict String String ->
               List String -> Maybe Exception
@@ -351,31 +181,12 @@ decodeRPCNode =
              , expected=expected
              , info=info
              , workarounds=workarounds }
-
-
-  in JSDP.decode toRPCNode
-    |> JSDP.required "name" JSD.string
-    |> JSDP.required "id" JSD.int
-    |> JSDP.optional "fields" (JSD.list
-                                 (JSD.map2 (,)
-                                    (JSD.index 0 JSD.string)
-                                    (JSD.index 1 JSD.string))) []
-    |> JSDP.required "arguments"
-         (JSD.list
-           (JSD.map2 (,)
-            (JSD.index 0
-              (JSDP.decode toParameter
-                |> JSDP.required "name" JSD.string
-                |> JSDP.required "tipe" JSD.string
-                |> JSDP.required "block_args" (JSD.list JSD.string)
-                |> JSDP.required "optional" JSD.bool
-                |> JSDP.required "description" JSD.string))
-            (JSD.index 1
-              (JSD.map toArgument (JSD.list JSD.value)))))
-    |> JSDP.requiredAt ["live", "value"] JSD.string
-    |> JSDP.requiredAt ["live", "type"] JSD.string
-    |> JSDP.requiredAt ["live", "json"] JSD.string
-    |> JSDP.optionalAt ["live", "exc"]
+  in
+  JSDP.decode toLiveValue
+    |> JSDP.required "value" JSD.string
+    |> JSDP.required "type" JSD.string
+    |> JSDP.required "json" JSD.string
+    |> JSDP.optional "exc"
          (JSDP.decode toExc
             |> JSDP.required "short" JSD.string
             |> JSDP.required "long" JSD.string
@@ -388,23 +199,77 @@ decodeRPCNode =
             |> JSDP.required "info" (JSD.dict JSD.string)
             |> JSDP.required "workarounds" (JSD.list JSD.string))
             Nothing
-    |> JSDP.optional "block_id" JSD.int Defaults.unsetInt
-    |> JSDP.required "arg_ids" (JSD.list JSD.int)
-    |> JSDP.required "type" JSD.string
-    |> JSDP.required "pos" (JSD.index 0 JSD.string)
-    |> JSDP.required "pos" (JSD.maybe (JSD.index 1 (JSD.field "x" JSD.int)))
-    |> JSDP.required "pos" (JSD.maybe (JSD.index 1 (JSD.field "y" JSD.int)))
-    |> JSDP.required "cursor" JSD.int
+
+decodeTLAResult : JSD.Decoder TLAResult
+decodeTLAResult =
+  let toTLAResult tlid astValue liveValues availableVarnames =
+        { id = TLID tlid
+        , astValue = astValue
+        , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
+        , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
+        } in
+  JSDP.decode toTLAResult
+  |> JSDP.required "id" JSD.int
+  |> JSDP.required "ast_value" decodeLiveValue
+  |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
+  |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
 
 
-decodeGraph : JSD.Decoder NodeDict
-decodeGraph =
-  let toGraph : List RPCNode -> NodeDict
-      toGraph rpcNodes =
-        let nodes = List.map toFullNode rpcNodes
-            nodeDict = DE.fromListBy (.id >> deID) nodes
-            nodeDict2 = replaceBlockNodes nodeDict
-            nodeDict3 = Dict.map (\_ n -> toNode n) nodeDict2
-        in nodeDict3
-  in JSDP.decode toGraph
-    |> JSDP.required "nodes" (JSD.list decodeRPCNode)
+decodeHandlerSpec : JSD.Decoder HandlerSpec
+decodeHandlerSpec =
+  let toHS module_ name modifier =
+        { name = name
+        , module_ = module_
+        , modifier = modifier}
+  in
+  JSDP.decode toHS
+  |> JSDP.required "module" (decodeHoleOr JSD.string)
+  |> JSDP.required "name" (decodeHoleOr JSD.string)
+  |> JSDP.required "modifier" (decodeHoleOr JSD.string)
+
+decodeHandler : JSD.Decoder Handler
+decodeHandler =
+  let toHandler ast spec = {ast = ast, spec = spec } in
+  JSDP.decode toHandler
+  |> JSDP.required "ast" decodeAST
+  |> JSDP.required "spec" decodeHandlerSpec
+
+decodeTipe : JSD.Decoder String
+decodeTipe = JSD.index 0 JSD.string
+             |> JSD.map (String.dropLeft 1)
+
+decodeDB : JSD.Decoder DB
+decodeDB =
+  let toDB name cols = {name = name, cols = cols} in
+  JSDP.decode toDB
+  |> JSDP.required "display_name" JSD.string
+  |> JSDP.required "cols" (JSD.list
+                            (decodePair
+                              (decodeHoleOr JSD.string)
+                              (decodeHoleOr decodeTipe)))
+
+
+decodeToplevel : JSD.Decoder Toplevel
+decodeToplevel =
+  let toToplevel id x y data =
+        { id = id
+        , pos = { x=x, y=y }
+        , data = data }
+      variant = decodeVariants
+                  [ ("Handler", decodeVariant1 TLHandler decodeHandler)
+                  , ("DB", decodeVariant1 TLDB decodeDB) ]
+
+  in
+  JSDP.decode toToplevel
+  |> JSDP.required "tlid" decodeTLID
+  |> JSDP.requiredAt ["pos", "x"] JSD.int
+  |> JSDP.requiredAt ["pos", "y"] JSD.int
+  |> JSDP.required "data" variant
+
+decodeRPC : JSD.Decoder RPCResult
+decodeRPC =
+  JSDP.decode (,)
+  |> JSDP.required "toplevels" (JSD.list decodeToplevel)
+  |> JSDP.required "analyses" (JSD.list decodeTLAResult)
+
+

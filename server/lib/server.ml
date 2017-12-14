@@ -2,12 +2,14 @@ open Core
 open Lwt
 
 module Clu = Cohttp_lwt_unix
-module C = Cohttp
 module S = Clu.Server
-module Request = Clu.Request
-module Header = C.Header
-module G = Graph
+module CRequest = Clu.Request
+module Header = Cohttp.Header
+module C = Canvas
 module RT = Runtime
+module RTT = Types.RuntimeT
+module TL = Toplevel
+module DReq = Dark_request
 
 let server =
   let stop,stopper = Lwt.wait () in
@@ -17,22 +19,25 @@ let server =
     let admin_rpc_handler body (host: string) (save: bool) : string =
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
-      let g = G.load host [] in
+      let c = C.load host [] in
       try
         let ops = Api.to_ops body in
-        g := !(G.load host ops);
-        let result = Graph.to_frontend_string !g in
+        c := !(C.load host ops);
+        let global = DReq.sample |> DReq.to_dval in
+        let dbs_env = Db.dbs_as_env (TL.dbs !c.toplevels) in
+        let env = RTT.DvalMap.add dbs_env "request" global in
+        let result = C.to_frontend_string env !c in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
-        Log.pP ~stop:2000 ~f:ident ("response (" ^ total ^ "ms):") result;
+        Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
          * or other crashing bug *)
-        if save then G.save !g;
+        if save then C.save !c;
         result
       with
       | e ->
         let bt = Exn.backtrace () in
         let msg = Exn.to_string e in
-        print_endline (G.show_graph !g);
+        print_endline (C.show_canvas !c);
         print_endline ("Exception: " ^ msg);
         print_endline bt;
         raise e
@@ -49,65 +54,42 @@ let server =
     in
 
     let save_test_handler host =
-      let g = G.load host [] in
-      let filename = G.save_test !g in
+      let g = C.load host [] in
+      let filename = C.save_test !g in
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
-    let form_parser form =
-      form |> Uri.query_of_encoded |> RT.query_to_dval
-    in
-
-    let user_page_handler (host: string) (verb: C.Code.meth) (body: string) (uri: Uri.t) (ctype: string) =
-      let g = G.load host [] in
-      let gfns = G.gfns !g in
-      let is_get = C.Code.method_of_string "GET" = verb in
-      let body_parser =
-        match ctype with
-        | "application/json" -> RT.parse
-        | "application/x-www-form-urlencoded" -> form_parser
-        | _ -> RT.parse in
-      let pages = Http.pages_matching_route ~uri:uri !g in
+    let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
+      let c = C.load host [] in
+      let pages = C.pages_matching_route ~uri:uri !c in
       match pages with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
-        (* TODO: there's a bunch of intermingled concerns in here, which
-         * is probably a smell of of how hacky our Page/DB features are. *)
-        let route = Http.url_for_exn !g page in
-        let body =
-          let body_dval =
-            if body = ""
-            then RT.DNull
-            else body_parser body in
-          let uri_dval = RT.query_to_dval (Uri.query uri) in
-          let scope_dval = RT.obj_merge body_dval uri_dval in
-          let scope = RT.Scope.singleton page#id scope_dval in
-          let result =
-            if is_get
-            then
-              if Http.has_route_variables route
-              then
-                let (model, rpm) = Http.bind_route_params_exn ~uri:uri ~route:route in
-                let id =
-                  match Map.find rpm "id" with
-                  | Some s -> s
-                  | None -> Exception.internal "We only support :id url params rn" in
-                Libdb.kv_fetch model id
-              else
-                G.run_output !g page
-            (* Posts have values, I guess we should be getting the result from it *)
-            else (G.run_input !g scope page; DStr "") in
-          RT.to_url_string result
-        in
-
-        if is_get
-        then S.respond_string ~status:`OK ~body:body ()
-        else let redir = page#get_arg_value gfns "redir" in
-          (match redir with
-          | DStr "" | DNull -> S.respond_string ~status:`OK ~body:body ()
-          | DStr s  -> S.respond_redirect (Uri.of_string s) ()
-          | _       -> S.respond_string ~status:`Internal_server_error ~body:"500: Type error in `redir` of Page::POST" ())
+        let route = Handler.url_for_exn page in
+        let input = DReq.from_request req body uri in
+        let bound = Http.bind_route_params_exn ~uri ~route in
+        let dbs_env = Db.dbs_as_exe_env (TL.dbs !c.toplevels) in
+        let env = Util.merge_left bound dbs_env in
+        let env = Map.add ~key:"request" ~data:(DReq.to_dval input) env in
+        let result = Handler.execute env page in
+        (match result with
+        | DResp (http, value) ->
+          let body = Dval.to_human_repr value in
+          (match http with
+           | Redirect url ->
+             S.respond_redirect (Uri.of_string url) ()
+           | Response code ->
+             S.respond_string
+               ~status:(Cohttp.Code.status_of_code code)
+               ~body:body
+               ())
+        | _ ->
+          let body = Dval.to_human_repr result in
+          S.respond_string
+            ~status:`Bad_request
+            ~body:("400: Handler did not return a HTTP response, instead returned: " ^ body)
+            ())
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
     in
@@ -121,17 +103,11 @@ let server =
     (* in *)
     (*  *)
     let route_handler _ =
-      req_body |> Cohttp_lwt_body.to_string >>=
+      req_body |> Cohttp_lwt__Body.to_string >>=
       (fun req_body ->
          try
-           let uri = req |> Request.uri in
-           let verb = req |> Request.meth in
-           let headers = req |> Request.headers in
-           let content_type =
-             match Header.get headers "content-type" with
-             | None -> "unknown"
-             | Some v -> v
-           in
+           let uri = req |> CRequest.uri in
+           let verb = req |> CRequest.meth in
            (* let auth = req |> Request.headers |> Header.get_authorization in *)
 
            let domain = Uri.host uri |> Option.value ~default:"" in
@@ -140,7 +116,7 @@ let server =
            | a :: rest -> a
            | _ -> failwith @@ "Unsupported domain: " ^ domain in
 
-           Log.pP "req: " (domain, C.Code.string_of_method verb, uri);
+           Log.pP "req: " (domain, Cohttp.Code.string_of_method verb, uri);
 
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
@@ -163,11 +139,11 @@ let server =
            | "/admin/api/save_test" ->
              save_test_handler domain
            | p when (String.length p) < 8 ->
-             user_page_handler domain verb req_body uri content_type
+             user_page_handler domain uri req req_body
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->
              static_handler uri
            | _ ->
-             user_page_handler domain verb req_body uri content_type
+             user_page_handler domain uri req req_body
          with
          | e ->
            let backtrace = Exn.backtrace () in
@@ -175,6 +151,7 @@ let server =
              | Exception.DarkException e ->
                  Exception.exception_data_to_yojson e |> Yojson.Safe.pretty_to_string
              | Yojson.Json_error msg -> "Not a value: " ^ msg
+             | Postgresql.Error e -> "Postgres error: " ^ Postgresql.string_of_error e
              | _ -> "Dark Internal Error: " ^ Exn.to_string e
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->

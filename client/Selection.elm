@@ -1,80 +1,90 @@
 module Selection exposing (..)
 
 -- builtins
-import Char
-
--- lib
-import Keyboard.Key as Key
+import Maybe
 
 -- dark
 import Types exposing (..)
-import Graph as G
-import Node as N
-import Entry
+import Toplevel as TL
+-- TODO: remove, code smell
+import AST
 
-------------------
--- cursor stuff
-----------------
-
-isSelected : Model -> Node -> Bool
-isSelected m n =
-  case m.state of
-    Entering _ (Filling id _) -> n.id == id
-    Selecting id -> n.id == id
-    Dragging _ _ _ (Entering _ (Filling id _)) -> n.id == id
-    Dragging _ _ _ (Selecting id) -> n.id == id
-    _ -> False
-
-entryVisible : State -> Bool
-entryVisible state =
-  case state of
-    Entering _ _ -> True
-    _ -> False
-
-getCursorID : State -> Maybe ID
-getCursorID s =
-  case s of
-    Entering _ (Filling id _) -> Just id
-    Selecting id -> Just id
-    _ -> Nothing
-
-selectByLetter : Model -> Key.Key -> Modification
-selectByLetter m code =
-  code
-  |> Key.toChar
-  |> Maybe.map Char.toLower
-  |> Maybe.map String.fromChar
-  |> Maybe.andThen (G.fromLetter m)
-  |> Maybe.map (\n -> Select n.id)
-  |> Maybe.withDefault NoChange
-
-
-
-selectNextNode : Model -> ID -> (Node -> Node -> Bool) -> Modification
-selectNextNode m id cond =
-  -- if we're currently in a node, follow the direction. For now, pick
-  -- the nearest node to it, that it's connected to, that's roughly in
-  -- that direction.
-  let n = G.getNodeExn m id
+upLevel : Model -> TLID -> (Maybe ID) -> Modification
+upLevel m tlid cur =
+  let tl = TL.getTL m tlid
   in
-    n
-    |> G.connectedNodes m
-    -- that are above us
-    |> List.filter (\o -> cond n o)
-    -- the nearest to us
-    |> List.sortBy (\other -> G.distance m other n)
-    |> List.head
-    |> Maybe.map (\n -> Select n.id)
-    |> Maybe.withDefault NoChange
+      cur
+      |> Maybe.andThen (TL.getParentOf tl)
+      |> Maybe.map (\p -> Select tlid (Just p))
+      |> Maybe.withDefault (Select tlid Nothing)
 
-deleteSelected : Model -> ID -> Modification
-deleteSelected m id =
-  let prev = G.incomingNodes m (G.getNodeExn m id)
-      next = G.outgoingNodes m (G.getNodeExn m id) |> List.filter N.isNotArg in
-      -- FocusSame gets called later, after the RPC, so just doesn't change anything
-   Many [ RPC (Entry.withNodePositioning m [DeleteNode id], FocusSame)
-        , case List.head (List.append prev next) of
-            Just n -> Select n.id
-            Nothing -> Deselect
-        ]
+downLevel : Model -> TLID -> (Maybe ID) -> Modification
+downLevel m tlid cur =
+  let tl = TL.getTL m tlid
+  in
+      cur
+      |> Maybe.andThen (TL.firstChild tl)
+      |> Maybe.map (\c -> Select tlid (Just c))
+      |> Maybe.withDefault (Select tlid (TL.rootOf tl))
+
+nextSibling : Model -> TLID -> (Maybe ID) -> Modification
+nextSibling m tlid cur =
+  let tl = TL.getTL m tlid
+  in
+      cur
+      |> Maybe.map (TL.getNextSibling tl)
+      |> Maybe.map (\s -> Select tlid (Just s))
+      |> Maybe.withDefault (Select tlid cur)
+
+previousSibling : Model -> TLID -> (Maybe ID) -> Modification
+previousSibling m tlid cur =
+  let tl = TL.getTL m tlid
+  in
+      cur
+      |> Maybe.map (TL.getPrevSibling tl)
+      |> Maybe.map (\s -> Select tlid (Just s))
+      |> Maybe.withDefault (Select tlid cur)
+
+nextHole : Model -> TLID -> (Maybe ID) -> Modification
+nextHole m tlid cur =
+  let tl = TL.getTL m tlid
+  in
+      cur
+      |> Maybe.andThen
+        (\c ->
+          case TL.holeType tl c of
+            NotAHole -> Nothing
+            _ -> Just c)
+      |> TL.getNextHole tl
+      |> Maybe.map (\h -> Select tlid (Just h))
+      |> Maybe.withDefault (Select tlid (TL.firstHole tl))
+
+delete : Model -> TLID -> ID -> Modification
+delete m tlid cur =
+  let tl = TL.getTL m tlid in
+  case tl.data of
+    TLHandler h ->
+      let (id, replacement) = AST.deleteExpr cur h.ast
+      in
+      RPC ([SetHandler tlid tl.pos { h | ast = replacement }], FocusExact tlid id)
+    _ -> NoChange
+
+enter : Model -> TLID -> ID -> Modification
+enter m tlid cur =
+  let tl = TL.getTL m tlid
+  in
+    case TL.holeType tl cur of
+      NotAHole ->
+        case tl.data of
+          TLHandler h ->
+            if AST.isLeaf cur h.ast
+            then
+              let se = AST.subtree cur h.ast in
+              Many [ Enter False (Filling tlid cur)
+                   , AutocompleteMod (ACSetQuery (AST.toContent se))
+                   ]
+            else
+              downLevel m tlid (Just cur)
+          _ -> NoChange
+      _ -> Enter False (Filling tlid cur)
 

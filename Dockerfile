@@ -68,42 +68,10 @@ ENV LANGUAGE en_US:en
 RUN yarn add elm@0.18.0
 RUN yarn add elm-test@0.18.8 # test
 RUN yarn add elm-oracle@1.1.1 # dev
+RUN yarn add less@2.7.3 # dev
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
-# Ocaml
-RUN opam init --auto-setup
-RUN opam switch 4.04.2
-ENV PATH "/home/dark/.opam/4.04.2/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.04.2/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/4.04.2/man:"
-ENV PERL5LIB "/home/dark/.opam/4.04.2/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.04.2/lib/toplevel"
-ENV FORCE_BUILD 1
-RUN opam update
-
-RUN opam install ppx_deriving.4.1
-RUN opam install core.v0.9.1
-RUN opam install conf-libev lwt.3.1.0
-RUN opam install yojson.1.3.3
-RUN opam install postgresql.4.0.1
-RUN opam install ppx_deriving_yojson.3.0
-RUN opam install tls.0.8.0
-RUN opam install cohttp-lwt-unix.0.99.0
-RUN opam install ocurl.0.7.10
-RUN opam install alcotest.0.8.1 # test
-RUN opam install merlin.3.0.2 # dev
-RUN opam install utop.2.0.1 # dev
-RUN opam install ocp-indent.1.6.1 # dev
-RUN opam install batteries.2.7.0
-RUN opam install landmarks.1.1
-
-# Environment
-ENV TERM=xterm-256color
-
-## ADD NEW PACKAGES HERE
-# Doing otherwise will force a large recompile of the container for
-# everyone
-
+# Postgres
 USER root
 RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
@@ -123,9 +91,51 @@ RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 # Expose the PostgreSQL port
 #EXPOSE 5432
 
-user dark
-
 # Add VOLUMEs to allow backup of config, logs and databases
+user dark
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
+
+
+# Ocaml
+ENV OPAMJOBS 4
+RUN opam init --auto-setup
+RUN opam switch 4.06.0
+ENV PATH "/home/dark/.opam/4.06.0/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.0/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/4.06.0/man:"
+ENV PERL5LIB "/home/dark/.opam/4.06.0/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.0/lib/toplevel"
+ENV FORCE_BUILD 1
+RUN opam update
+
+#ENV OPAMDEBUG true
+RUN opam install ppx_deriving.4.2.1
+RUN opam install core.v0.9.2
+RUN opam install conf-libev lwt.3.1.0
+RUN opam install yojson.1.4.0
+RUN opam install postgresql.4.0.1
+RUN opam install ppx_deriving_yojson.3.1
+RUN opam install cohttp-lwt-unix.1.0.0
+RUN opam install ocurl.0.8.0
+RUN opam install alcotest.0.8.1 # test
+RUN opam install merlin.3.0.5 # dev
+RUN opam install utop.2.0.2 # dev
+RUN opam install ocp-indent.1.6.1 # dev
+RUN opam install batteries.2.8.0
+RUN opam install landmarks.1.1
+# RUN opam install tls.0.8.0 # breaks build, hence specific packages below
+RUN opam install cstruct.3.2.0
+RUN opam install nocrypto.0.5.4
+RUN opam install re2.v0.9.1
+
+# Environment
+ENV TERM=xterm-256color
+
+## ADD NEW PACKAGES HERE
+# Doing otherwise will force a large recompile of the container for
+# everyone
+
+######################
+# Quick hacks below this line, to avoid massive recompiles
 
 CMD ["app", "scripts", "builder"]
