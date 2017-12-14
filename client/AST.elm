@@ -506,6 +506,48 @@ childrenOf pid expr =
     FieldAccess id obj field ->
       returnOr (\_ -> co obj) expr
 
+ancestorsWhere : ID -> Expr -> (Expr -> Bool) -> List Expr
+ancestorsWhere id expr fn =
+  if toID expr == id
+  then []
+  else
+    let this = if fn expr then [expr] else []
+        r e = ancestorsWhere id e fn
+        rlist es = es |> List.map r |> List.concat
+        nested =
+          case expr of
+            Value _ _ -> []
+            Hole _ -> []
+            Variable _ _ -> []
+
+            Let id lhs rhs body ->
+              rlist [rhs, body]
+
+            If id cond ifbody elsebody ->
+              rlist [cond, ifbody, elsebody]
+
+            FnCall id name exprs ->
+              rlist exprs
+
+            Lambda id vars lexpr ->
+              r lexpr
+
+            Thread id exprs ->
+              rlist exprs
+
+            FieldAccess id obj field ->
+              r obj
+
+    in this ++ nested
+
+threadAncestors : ID -> Expr -> List Expr
+threadAncestors id expr =
+  ancestorsWhere id expr
+    (\e ->
+      case e of
+        Thread _ _ -> True
+        _ -> False)
+
 
 parentOf : ID -> AST -> AST
 parentOf id ast =

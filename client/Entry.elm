@@ -106,8 +106,7 @@ objectSubmit m re cursor value =
 
 submit : Model -> Bool -> EntryCursor -> String -> Modification
 submit m re cursor value =
-  let threadID = Nothing -- TODOthread
-      id = tlid ()
+  let id = tlid ()
       eid = gid ()
       tid1 = gid ()
       tid2 = gid ()
@@ -154,21 +153,23 @@ submit m re cursor value =
           replaceExpr m h tlid id value =
             if String.startsWith "= " value
             then
-              -- turn the current thread into a let-assignment to this
-              -- name, and close the thread
-              threadID
-              |> Maybe.andThen (\tid -> AST.subExpr tid h.ast)
-              |> Maybe.map (\threadExpr ->
-                case threadExpr of
-                  Thread tid _ ->
-                    let bindName = value
-                                 |> String.dropLeft 2
-                                 |> String.trim
-                        newLet = Let (gid ()) (Full bindName) (AST.closeThread tid threadExpr) (Hole (gid ()))
-                        replacement = AST.replaceExpr tid newLet h.ast
-                    in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-                  _ -> NoChange)
-                  |> Maybe.withDefault NoChange
+              case AST.threadAncestors id h.ast |> List.reverse of
+                [] -> NoChange
+                thread :: _ ->
+                  -- turn the current thread into a let-assignment to this
+                  -- name, and close the thread
+                  case thread of
+                    Thread tid _ ->
+                      let bindName = value
+                                     |> String.dropLeft 2
+                                     |> String.trim
+                          newLet = Let (gid ())
+                                       (Full bindName)
+                                       (AST.closeThread tid thread)
+                                       (Hole (gid ()))
+                          replacement = AST.replaceExpr tid newLet h.ast
+                      in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                    _ -> NoChange
             else
               -- check if value is in model.varnames
               let (ID rid) = id
@@ -180,16 +181,16 @@ submit m re cursor value =
                     then
                       Just (Variable (gid ()) value)
                     else
-                      case threadID of
-                        Just _ -> parseAst value (TL.isThreadHole h id)
-                        Nothing -> parseAst value False
-                    in
-                        case holeReplacement of
-                          Nothing ->
-                            NoChange
-                          Just v ->
-                            let replacement = AST.replaceExpr id v h.ast in
-                                wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                      -- TODO: we expect something to go wrong the first
+                      -- time, maybe we'll have too many holes
+                      parseAst value (TL.isThreadHole h id)
+              in
+              case holeReplacement of
+                Nothing ->
+                  NoChange
+                Just v ->
+                  let replacement = AST.replaceExpr id v h.ast in
+                  wrap <| SetHandler tlid tl.pos { h | ast = replacement }
       in
       if String.length value < 1
       then NoChange
