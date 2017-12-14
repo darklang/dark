@@ -79,9 +79,10 @@ let server =
           (match http with
            | Redirect url ->
              S.respond_redirect (Uri.of_string url) ()
-           | Response code ->
+           | Response (code, headers) ->
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
+               ~headers:(Cohttp.Header.of_list headers)
                ~body:body
                ())
         | _ ->

@@ -5,7 +5,7 @@ open Types.RuntimeT
 let repr_of_dhttp (d: dhttp) : string =
   match d with
   | Redirect url -> "302 " ^ url
-  | Response c -> string_of_int c
+  | Response (c, hs) -> (string_of_int c) ^ " (TODO: some headers)"
 
 
 (* ------------------------- *)

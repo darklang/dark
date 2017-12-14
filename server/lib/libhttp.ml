@@ -10,7 +10,7 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with HTTP status `code` and `response` body"
   ; f = InProcess
         (function
-          | [DInt code; dv] -> DResp (Response code, dv)
+          | [DInt code; dv] -> DResp (Response (code, []), dv)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -25,7 +25,22 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with HTTP status 200 and `response` body"
   ; f = InProcess
         (function
-          | [dv] -> DResp (Response 200, dv)
+          | [dv] -> DResp (Response (200, []), dv)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+
+  ;
+
+  { n = "Http::respond_with_html"
+  ; o = []
+  ; p = [par "response" TAny; par "code" TInt]
+  ; r = TResp
+  ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
+  ; f = InProcess
+        (function
+          | [dv; DInt code] -> DResp (Response (code, ["Content-Type", "text/html"]), dv)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -55,7 +70,7 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with a 400 and an error message"
   ; f = InProcess
         (function
-          | [DStr msg] -> DResp (Response 400, DStr msg)
+          | [DStr msg] -> DResp (Response (400, []), DStr msg)
           | args -> fail args)
   ; pr = None
   ; pu = true
@@ -70,7 +85,7 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with 404 Not Found"
   ; f = InProcess
         (function
-          | [] -> DResp (Response 404, DNull)
+          | [] -> DResp (Response (404, []), DNull)
           | args -> fail args)
   ; pr = None
   ; pu = true

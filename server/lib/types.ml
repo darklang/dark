@@ -51,7 +51,7 @@ module RuntimeT = struct
   (* Dvals*)
   (* ------------------------ *)
   type dhttp = Redirect of string
-             | Response of int [@@deriving show, eq, yojson]
+             | Response of int * (string * string) list [@@deriving show, eq, yojson]
 
   module DvalMap = String.Map
   type dval_map = dval DvalMap.t [@opaque]
