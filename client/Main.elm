@@ -301,7 +301,6 @@ update_ msg m =
                   case tl.data of
                     TLDB _ -> NoChange
                     TLHandler h ->
-                      -- TODOthread
                       let nast = AST.wrapInThread hid h.ast
                           nh = { h | ast = nast }
                           m2 = TL.replace m { tl | data = TLHandler nh }
@@ -309,8 +308,7 @@ update_ msg m =
                             case Autocomplete.highlighted m2.complete of
                               Just item -> Autocomplete.asName item
                               Nothing -> m2.complete.value
-                      in
-                      Many [ Entry.submit m2 re cursor name]
+                      in Entry.submit m2 re cursor Entry.First name
                 Creating _ -> NoChange
             else if event.ctrlKey
             then
@@ -319,7 +317,7 @@ update_ msg m =
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.Enter ->
                   if Autocomplete.isLargeStringEntry m.complete
-                  then Entry.submit m re cursor m.complete.value
+                  then Entry.submit m re cursor Entry.NotFirst m.complete.value
                   else if Autocomplete.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
@@ -344,7 +342,7 @@ update_ msg m =
                   let name = case Autocomplete.highlighted m.complete of
                                Just item -> Autocomplete.asName item
                                Nothing -> m.complete.value
-                  in Entry.submit m re cursor name
+                  in Entry.submit m re cursor Entry.NotFirst name
 
                 Key.Escape ->
                   case cursor of

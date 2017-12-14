@@ -102,10 +102,11 @@ objectSubmit m re cursor value =
             ExprHole h ->
               let replacement = AST.replaceExpr id access h.ast in
                   wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-            _ -> submit m re cursor value
+            _ -> submit m re cursor NotFirst value
 
-submit : Model -> Bool -> EntryCursor -> String -> Modification
-submit m re cursor value =
+type ThreadExprPosition = First | NotFirst
+submit : Model -> Bool -> EntryCursor -> ThreadExprPosition -> String -> Modification
+submit m re cursor pos value =
   let id = tlid ()
       eid = gid ()
       tid1 = gid ()
@@ -114,7 +115,7 @@ submit m re cursor value =
       hid1 = gid ()
       hid2 = gid ()
       hid3 = gid ()
-      parseAst str hasImplicitParam =
+      parseAst str =
         let firstWord = String.split " " str in
         case firstWord of
           ["if"] ->
@@ -127,7 +128,7 @@ submit m re cursor value =
             Just (Hole eid)
           _ ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
-            then createFunction m value hasImplicitParam
+            then createFunction m value (pos == NotFirst)
             else Just <| Value eid str
 
   in
@@ -140,7 +141,7 @@ submit m re cursor value =
                      |> String.trim in
           RPC ([CreateDB id pos dbName], FocusNext id Nothing)
       else
-        case parseAst value False of
+        case parseAst value of
           Nothing -> NoChange
           Just v ->
             let handler = { ast = v, spec = emptyHS () } in
@@ -183,7 +184,7 @@ submit m re cursor value =
                     else
                       -- TODO: we expect something to go wrong the first
                       -- time, maybe we'll have too many holes
-                      parseAst value (TL.isThreadHole h id)
+                      parseAst value
               in
               case holeReplacement of
                 Nothing ->
