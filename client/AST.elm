@@ -57,21 +57,7 @@ replaceExpr id replacement expr =
         Lambda id vars (re expr)
 
       Thread id exprs ->
-        let countHoles =
-              List.foldr (\c acc ->
-                case c of
-                  Hole _ -> acc + 1
-                  _      -> acc) 0
-            preCount = countHoles exprs
-            reppedExprs = reList exprs
-            postCount = countHoles reppedExprs
-            nexprs =
-              -- if the hole filled was in the current thread, then add a hole
-              if preCount /= postCount
-              then reppedExprs ++ [Hole (ID (Util.random ()))]
-              else reppedExprs
-        in
-        Thread id nexprs
+        Thread id (reList exprs)
 
       FieldAccess id obj field ->
         FieldAccess id (re obj) field
@@ -439,6 +425,47 @@ wrapInThread id expr =
             FieldAccess id (wt obj) field
   in if (toID expr) == id
      then wrap expr
+     else nested
+
+isThread : Expr -> Bool
+isThread t =
+  case t of
+    Thread _ _ -> True
+    _ -> False
+
+
+extendThread : ID -> Expr -> Expr
+extendThread id expr =
+  let et e = extendThread id e
+      extend e =
+        case e of
+          Thread id exprs -> Thread id (exprs ++ [Hole (gid ())])
+          _ -> e
+      nested =
+        case expr of
+          Value _ _ -> expr
+          Hole _ -> expr
+          Variable _ _ -> expr
+
+          Let id lhs rhs body ->
+            Let id lhs (et rhs) (et body)
+
+          If id cond ifbody elsebody ->
+            If id (et cond) (et ifbody) (et elsebody)
+
+          FnCall id name exprs ->
+            FnCall id name (List.map et exprs)
+
+          Lambda id vars lexpr ->
+            Lambda id vars (et lexpr)
+
+          Thread id exprs ->
+            Thread id (List.map et exprs)
+
+          FieldAccess id obj field ->
+            FieldAccess id (et obj) field
+  in if (toID expr) == id
+     then extend expr
      else nested
 
 

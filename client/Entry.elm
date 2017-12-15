@@ -183,16 +183,19 @@ submit m re cursor pos value =
                     then
                       Just (Variable (gid ()) value)
                     else
-                      -- TODO: we expect something to go wrong the first
-                      -- time, maybe we'll have too many holes
                       parseAst value (pos == NotFirst && TL.isThreadHole h id)
               in
               case holeReplacement of
                 Nothing ->
                   NoChange
                 Just v ->
-                  let replacement = AST.replaceExpr id v h.ast in
-                  wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                  let parent = AST.parentOf id h.ast
+                      extended =
+                        if AST.isThread parent
+                        then AST.extendThread (AST.toID parent) h.ast
+                        else h.ast
+                      replacement = AST.replaceExpr id v extended
+                  in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
       in
       if String.length value < 1
       then NoChange
