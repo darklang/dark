@@ -108,6 +108,17 @@ allHoles tl =
     TLDB db ->
       DB.listHoles db
 
+siblings : Toplevel -> ID -> List ID
+siblings tl id =
+  case tl.data of
+    TLHandler h ->
+      case getParentOf tl id of
+       Just p -> AST.siblings id h.ast
+       Nothing ->
+         let specs = [h.spec.module_, h.spec.name, h.spec.modifier] in
+         [id] ++ (List.filterMap emptyHoleID specs)
+    _ -> []
+
 getNextSibling : Toplevel -> ID -> ID
 getNextSibling tl id =
   case tl.data of

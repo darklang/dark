@@ -241,12 +241,6 @@ isHole e =
     Hole _ -> True
     _ -> False
 
-emptyHoleID : VarBind -> Maybe ID
-emptyHoleID vb =
-  case vb of
-    Empty hid -> Just hid
-    Full _ -> Nothing
-
 listBindHoles : Expr -> List ID
 listBindHoles expr =
   let lbhList : List Expr -> List ID

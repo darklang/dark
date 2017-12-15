@@ -169,6 +169,12 @@ type HoleType = BindHole Handler
 type HoleOr a = Empty ID
               | Full a
 
+emptyHoleID : HoleOr a -> Maybe ID
+emptyHoleID a =
+  case a of
+    Empty id -> Just id
+    Full _ -> Nothing
+
 type alias HandlerSpec = { module_ : HoleOr String
                          , name : HoleOr String
                          , modifier : HoleOr String
