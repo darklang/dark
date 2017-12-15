@@ -75,6 +75,13 @@ selectUp a = let max = List.length a.completions - 1 in
 highlighted : Autocomplete -> Maybe AutocompleteItem
 highlighted a = LE.getAt a.index a.completions
 
+getValue : Autocomplete -> String
+getValue a =
+  case highlighted a of
+    Just item -> asName item
+    Nothing -> a.value
+
+
 sharedPrefix2 : String -> String -> String
 sharedPrefix2 l r =
   case (String.uncons l, String.uncons r) of

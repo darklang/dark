@@ -325,16 +325,10 @@ update_ msg m =
                       let nast = AST.wrapInThread hid h.ast
                           nh = { h | ast = nast }
                           m2 = TL.replace m { tl | data = TLHandler nh }
-                          name =
-                            case Autocomplete.highlighted m2.complete of
-                              Just item -> Autocomplete.asName item
-                              Nothing -> m2.complete.value
+                          name = Autocomplete.getValue m2.complete
                       in Entry.submit m2 re cursor Entry.First name
                 Creating _ ->
-                  let name =
-                        case Autocomplete.highlighted m.complete of
-                          Just item -> Autocomplete.asName item
-                          Nothing -> m.complete.value
+                  let name = Autocomplete.getValue m.complete
                   in Entry.submit m re cursor Entry.First name
             else if event.ctrlKey
             then
@@ -365,10 +359,8 @@ update_ msg m =
                   if Autocomplete.isLargeStringEntry m.complete
                   then AutocompleteMod (ACSetQuery m.complete.value)
                   else
-                  let name = case Autocomplete.highlighted m.complete of
-                               Just item -> Autocomplete.asName item
-                               Nothing -> m.complete.value
-                  in Entry.submit m re cursor Entry.NotFirst name
+                    let name = Autocomplete.getValue m.complete
+                    in Entry.submit m re cursor Entry.NotFirst name
 
                 Key.Escape ->
                   case cursor of
@@ -393,10 +385,7 @@ update_ msg m =
                   if event.key == Just "."
                   && isFieldAccessDot m.state m.complete.value
                   then
-                    let name = case Autocomplete.highlighted m.complete of
-                        Just item -> Autocomplete.asName item
-                        Nothing ->
-                          m.complete.value
+                    let name = Autocomplete.getValue m.complete
                     in
                         -- TODO: unify with Entry.submit
                         Entry.objectSubmit m re cursor name
