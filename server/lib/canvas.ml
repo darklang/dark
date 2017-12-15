@@ -230,7 +230,7 @@ let save_test (c: canvas) : string =
   save ~filename:(Some filename) c;
   filename
 
-let matching_routes ~(uri: Uri.t) (c: canvas) : Handler.handler list =
+let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler list =
   let path = Uri.path uri in
   c.toplevels
   |> TL.handlers
@@ -238,7 +238,13 @@ let matching_routes ~(uri: Uri.t) (c: canvas) : Handler.handler list =
     ~f:(fun h -> Handler.url_for h <> None)
   |> List.filter
     ~f:(fun h -> Http.path_matches_route ~path:path (Handler.url_for_exn h))
+  |> List.filter
+    ~f:(fun h ->
+      (match Handler.modifier_for h with
+        | Some m -> m = verb
+        (* we specifically want to allow handlers without method specifiers for now *)
+        | None -> true))
 
-let pages_matching_route ~(uri: Uri.t) (c: canvas) : Handler.handler list =
-  matching_routes ~uri:uri c
+let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler list =
+  matching_routes ~uri ~verb c
 

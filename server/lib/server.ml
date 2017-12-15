@@ -61,7 +61,8 @@ let server =
 
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
       let c = C.load host [] in
-      let pages = C.pages_matching_route ~uri:uri !c in
+      let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
+      let pages = C.pages_matching_route ~uri ~verb !c in
       match pages with
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()

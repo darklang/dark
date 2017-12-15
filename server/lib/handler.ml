@@ -27,6 +27,19 @@ let url_for_exn (h: handler) : string =
     Exception.internal
       "Called url_for_exn on a toplevel without a `url` param"
 
+let modifier_for (h: handler) : string option =
+  match h.spec.module_, h.spec.modifier with
+  | Full module_, Full modifier when String.lowercase module_ = "http" ->
+    Some modifier
+  | _ -> None
+
+let modifier_for_exn (h: handler) : string =
+  match (modifier_for h) with
+  | Some s -> s
+  | None ->
+    Exception.internal
+      "Called modifier_for_exn on a toplevel without a `modifier` param"
+
 let default_env (h: handler) : dval_map =
   let init = DvalMap.empty in
   match url_for h with
