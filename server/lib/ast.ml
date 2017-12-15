@@ -116,7 +116,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) (st: symt
 
      | Let (_, lhs, rhs, body) ->
        let bound = match lhs with
-            | Full name -> String.Map.add ~key:name ~data:(exe st rhs) st
+            | Full (_, name) -> String.Map.add ~key:name ~data:(exe st rhs) st
             | Empty _ -> st
        in exe bound body
 
@@ -168,7 +168,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) (st: symt
         | DObj o ->
           (match field with
            | Empty _ -> DIncomplete
-           | Full f ->
+           | Full (_, f) ->
              (match Map.find o f with
               | Some v -> v
               | None -> Exception.user ("Object has no field named: " ^ f)))
@@ -245,7 +245,7 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
 
        | Let (_, lhs, rhs, body) ->
          let bound = match lhs with
-           | Full name -> sexe st rhs; SymSet.add st name
+           | Full (_, name) -> sexe st rhs; SymSet.add st name
            | Empty _ -> st
          in sexe bound body
 

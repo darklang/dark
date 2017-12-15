@@ -6,13 +6,8 @@ type tlid = int [@@deriving eq, show, yojson]
 type id = int [@@deriving eq, show, yojson]
 
 type 'a or_hole = Empty of id
-                | Full of 'a
+                | Full of id * 'a
                 [@@deriving eq, show, yojson]
-
-let hole_to_maybe (h: 'a or_hole) : 'a option =
-  match h with
-  | Empty _ -> None
-  | Full a -> Some a
 
 type tipe_ =
   | TAny (* extra type meaning anything *)

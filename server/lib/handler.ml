@@ -16,7 +16,7 @@ type handler = { tlid: Types.tlid
 
 let url_for (h: handler) : string option =
   match h.spec.module_, h.spec.name with
-  | Full module_, Full name when String.lowercase module_ = "http" ->
+  | Full (_, module_), Full (_, name) when String.lowercase module_ = "http" ->
     Some name
   | _ -> None
 
@@ -29,7 +29,7 @@ let url_for_exn (h: handler) : string =
 
 let modifier_for (h: handler) : string option =
   match h.spec.module_, h.spec.modifier with
-  | Full module_, Full modifier when String.lowercase module_ = "http" ->
+  | Full (_, module_), Full (_, modifier) when String.lowercase module_ = "http" ->
     Some modifier
   | _ -> None
 

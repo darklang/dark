@@ -169,7 +169,7 @@ submit m re cursor pos value =
                                      |> String.dropLeft 2
                                      |> String.trim
                           newLet = Let (gid ())
-                                       (Full bindName)
+                                       (Full (gid ()) bindName)
                                        (AST.closeThread thread)
                                        (Hole (gid ()))
                           replacement = AST.replaceExpr tid newLet h.ast

@@ -92,9 +92,12 @@ replaceSpecHole id value hs =
         case a of
           Empty hid ->
             if id == hid
-            then Full value
+            then Full hid value
             else a
-          _ -> a
+          Full hid s ->
+            if id == hid
+            then Full hid value
+            else a
   in { name = rh hs.name
      , module_ = rh hs.module_
      , modifier = rh hs.modifier
@@ -116,7 +119,7 @@ siblings tl id =
        Just p -> AST.siblings id h.ast
        Nothing ->
          let specs = [h.spec.module_, h.spec.name, h.spec.modifier] in
-         [id] ++ (List.filterMap emptyHoleID specs)
+         [id] ++ (List.map holeOrID specs)
     _ -> []
 
 getNextSibling : Toplevel -> ID -> ID

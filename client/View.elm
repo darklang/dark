@@ -99,7 +99,7 @@ viewHoleOrText m h =
           then entryHtml m
           else unselectedHoleHtml
         _ -> unselectedHoleHtml
-    Full s -> Html.text s
+    Full id s -> Html.text s -- TODO(ian): add selecting
 
 selectedHoleHtml : Html.Html Msg
 selectedHoleHtml =
@@ -355,11 +355,11 @@ collapseHandlers handlers =
   let asCollapsed =
         handlers
         |> List.map (\h -> { name = case h.spec.name of
-                                      Full s -> Just s
+                                      Full _ s -> Just s
                                       Empty _ -> Nothing
                            , prefix = []
                            , verbs = case h.spec.modifier of
-                                       Full s -> [s]
+                                       Full _ s -> [s]
                                        Empty _ -> []
                            })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)

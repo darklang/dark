@@ -101,14 +101,14 @@ decodeVariants decoders =
 encodeHoleOr : (HoleOr v) -> (v -> JSE.Value) -> JSE.Value
 encodeHoleOr v encoder =
   case v of
-    Full s ->
-      encodeVariant "Full" [encoder s]
+    Full (ID id) s ->
+      encodeVariant "Full" [JSE.int id, encoder s]
     Empty (ID id) ->
       encodeVariant "Empty" [JSE.int id]
 
 decodeHoleOr : JSD.Decoder a -> JSD.Decoder (HoleOr a)
 decodeHoleOr d =
-  decodeVariants [ ("Full", decodeVariant1 Full d)
+  decodeVariants [ ("Full", decodeVariant2 Full decodeID d)
                  , ("Empty", decodeVariant1 Empty decodeID)]
 
 ------------------------------------
