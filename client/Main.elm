@@ -279,9 +279,13 @@ update_ msg m =
               Key.Enter ->
                 if event.shiftKey
                 then
-                  let id1 = Entry.gid ()
-                      id2 = Entry.gid () in
-                  RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
+                  case TL.getTL m tlid |> .data of
+                    TLDB _ ->
+                      let id1 = Entry.gid ()
+                          id2 = Entry.gid () in
+                      RPC ([ AddDBCol tlid id1 id2], FocusNext tlid Nothing)
+                    TLHandler _ ->
+                      NoChange
                 else
                   case hid of
                     Just i -> Selection.enter m tlid i
