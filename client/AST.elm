@@ -13,7 +13,7 @@ import Util exposing (deMaybe)
 
 isInfix : FnName -> Bool
 isInfix name =
-  List.member name ["<", "==", "%", "+", "-", "^"]
+  List.member name ["<", "==", "%", "+", "-", "^", "!="]
 
 isLeaf : ID -> AST -> Bool
 isLeaf id ast =
