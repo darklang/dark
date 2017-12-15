@@ -37,7 +37,7 @@ let server =
       | e ->
         let bt = Exn.backtrace () in
         let msg = Exn.to_string e in
-        print_endline (C.show_canvas !c);
+        print_endline (C.show_toplevellist !c.toplevels);
         print_endline ("Exception: " ^ msg);
         print_endline bt;
         raise e
