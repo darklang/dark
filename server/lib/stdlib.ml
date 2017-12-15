@@ -640,6 +640,20 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "String::reverse"
+  ; o = []
+  ; p = [par "string" TStr]
+  ; r = TStr
+  ; d = "Reverses `string`"
+  ; f = InProcess
+        (function
+          | [DStr s] -> DStr (String.rev s)
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
 
   { n = "String::join"
   ; o = []
@@ -774,6 +788,20 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DList l] -> List.last_exn l
+          | args -> fail args)
+  ; pr = None
+  ; pu = true
+  }
+  ;
+
+  { n = "List::reverse"
+  ; o = []
+  ; p = [par "list" TList]
+  ; r = TList
+  ; d = "Reverses `list`"
+  ; f = InProcess
+        (function
+          | [DList l] -> DList (List.rev l)
           | args -> fail args)
   ; pr = None
   ; pu = true
