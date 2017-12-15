@@ -309,7 +309,12 @@ update_ msg m =
                               Just item -> Autocomplete.asName item
                               Nothing -> m2.complete.value
                       in Entry.submit m2 re cursor Entry.First name
-                Creating _ -> NoChange
+                Creating _ ->
+                  let name =
+                        case Autocomplete.highlighted m.complete of
+                          Just item -> Autocomplete.asName item
+                          Nothing -> m.complete.value
+                  in Entry.submit m re cursor Entry.First name
             else if event.ctrlKey
             then
               case event.keyCode of

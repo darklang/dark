@@ -133,19 +133,29 @@ submit m re cursor pos value =
 
   in
   case cursor of
-    Creating pos ->
+    Creating cpos ->
       if String.startsWith "DB" value
       then
         let dbName = value
                      |> String.dropLeft 2
                      |> String.trim in
-          RPC ([CreateDB id pos dbName], FocusNext id Nothing)
+          RPC ([CreateDB id cpos dbName], FocusNext id Nothing)
       else
-        case parseAst value False of
+        case parseAst value (pos == NotFirst) of
           Nothing -> NoChange
           Just v ->
-            let handler = { ast = v, spec = emptyHS () } in
-            RPC ([SetHandler id pos handler], FocusNext id Nothing)
+            let ast =
+              case pos of
+                NotFirst -> v
+                First ->
+                  let id = gid ()
+                      nh = Hole id
+                      wrapped = AST.wrapInThread id nh
+                  in
+                      AST.replaceExpr id v wrapped
+            in
+                let handler = { ast = ast, spec = emptyHS () } in
+                RPC ([SetHandler id cpos handler], FocusNext id Nothing)
     Filling tlid id ->
       let tl = TL.getTL m tlid
           predecessor = TL.getPrevHole tl id
