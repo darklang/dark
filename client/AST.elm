@@ -33,13 +33,9 @@ deleteExpr id ast =
   let replacement = Hole (ID <| Util.random ())
   in (toID replacement, replaceExpr id replacement ast)
 
-replaceExpr : ID -> Expr -> AST -> AST
-replaceExpr id replacement ast =
-  replaceExpr_ id replacement ast
-
-replaceExpr_ : ID -> Expr -> Expr -> Expr
-replaceExpr_ id replacement expr =
-  let re = replaceExpr_ id replacement
+replaceExpr : ID -> Expr -> Expr -> Expr
+replaceExpr id replacement expr =
+  let re = replaceExpr id replacement
       reList : List Expr -> List Expr
       reList exprs = List.map re exprs
   in
