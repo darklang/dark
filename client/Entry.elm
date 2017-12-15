@@ -26,15 +26,9 @@ import Runtime as RT
 import Analysis
 
 
----------------------
--- Nodes
----------------------
-updateValue : String -> Modification
-updateValue target =
-  Many [ AutocompleteMod <| ACSetQuery target ]
-
 createFindSpace : Model -> Modification
 createFindSpace m = Enter False (Creating (Viewport.toAbsolute m Defaults.initialPos))
+
 ---------------------
 -- Focus
 ---------------------

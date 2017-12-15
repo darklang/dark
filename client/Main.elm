@@ -28,6 +28,7 @@ import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import AST
 import Selection
+import Runtime
 import Toplevel as TL
 import Analysis
 import Util exposing (deMaybe)
@@ -238,6 +239,22 @@ processAutocompleteMods m mods =
         mods
   in (complete, Autocomplete.focusItem complete.index)
 
+-- Figure out from the string and the state whether this '.' means field
+-- access.
+isFieldAccessDot : State -> String -> Bool
+isFieldAccessDot state baseStr =
+  -- We know from the fact that this function is called that there has
+  -- been a '.' entered. However, it might not be in baseStr, so
+  -- canonicalize it first.
+  let str = Util.replace "\\.*$" "" baseStr in
+  case state of
+    Entering _ _ ->
+      if String.startsWith "\"" str
+      || Runtime.isInt str
+      then False
+      else True
+    _ -> False
+
 update_ : Msg -> Model -> Modification
 update_ msg m =
   case (msg, m.state) of
@@ -370,20 +387,19 @@ update_ msg m =
 
                 Key.Unknown c ->
                   if event.key == Just "."
+                  && isFieldAccessDot m.state m.complete.value
                   then
                     let name = case Autocomplete.highlighted m.complete of
-                                Just item -> Autocomplete.asName item
-                                Nothing ->
-                                  m.complete.value
-                                  |> String.dropRight 1 -- ignore extra '.'
+                        Just item -> Autocomplete.asName item
+                        Nothing ->
+                          m.complete.value
                     in
-                      -- TODO: unify with Entry.submit
-                      Entry.objectSubmit m re cursor name
-                  else
-                    AutocompleteMod <| ACSetQuery m.complete.value
+                        -- TODO: unify with Entry.submit
+                        Entry.objectSubmit m re cursor name
+                  else NoChange
 
                 key ->
-                  AutocompleteMod <| ACSetQuery m.complete.value
+                  NoChange
 
           Deselected ->
             case event.keyCode of
@@ -401,9 +417,17 @@ update_ msg m =
     -- entry node
     ------------------------
     (EntryInputMsg target, _) ->
-      Many [ Entry.updateValue target
-           , MakeCmd Entry.focusEntry
-           ]
+      -- don't process the autocomplete for '.', as nothing will match
+      -- and it will reset the order, losing our spot. The '.' will be
+      -- processed by
+      if String.endsWith "." target
+      && isFieldAccessDot m.state target
+      then
+        NoChange
+      else
+        Many [ AutocompleteMod <| ACSetQuery target
+             , MakeCmd Entry.focusEntry
+             ]
 
     (EntrySubmitMsg, _) ->
       NoChange -- just keep this here to prevent the page from loading
