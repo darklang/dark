@@ -10,6 +10,9 @@ import Mouse
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
 
+-- Dark
+import Util
+
 type alias Exception =
   { short : String
   , long : String
@@ -56,6 +59,10 @@ type ID = ID Int
 
 deID : ID -> Int
 deID (ID i) = i
+
+gid : () -> ID -- Generate ID
+gid unit = ID (Util.random unit)
+
 
 type EntryCursor = Creating Pos
                  | Filling TLID ID

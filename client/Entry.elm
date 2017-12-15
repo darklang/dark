@@ -51,9 +51,6 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 tlid : () -> TLID
 tlid unit = TLID (Util.random unit)
 
-gid : () -> ID -- Generate ID
-gid unit = ID (Util.random unit)
-
 emptyHS : () -> HandlerSpec
 emptyHS _ = { name = Empty (gid ())
             , module_ = Empty (gid ())
