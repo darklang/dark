@@ -216,7 +216,6 @@ type AutocompleteMod = ACSetQuery String
                      | ACOpen Bool
                      | ACReset
                      | ACClear
-                     | ACComplete String
                      | ACSelectDown
                      | ACSelectUp
                      | ACFilterByLiveValue (Maybe LiveValue)

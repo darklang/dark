@@ -58,13 +58,6 @@ clear a = let cleared = setQuery "" a in
 open : Bool -> Autocomplete -> Autocomplete
 open o a = { a | open = o }
 
-complete : String -> Autocomplete -> Autocomplete
-complete str a = { a | value = str
-                     , completions = []
-                     , index = -1
-                     , open = True
-                 }
-
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = List.length a.completions
                    max = Basics.max max_ 1
@@ -189,11 +182,10 @@ setQuery q a = { a | value = q } |> regenerate
 
 appendQuery : String -> Autocomplete -> Autocomplete
 appendQuery str a =
-  let q = if isStringEntry a |> Debug.log "isstring"
+  let q = if isStringEntry a
           then String.dropRight 1 a.value ++ str ++ "\""
           else a.value ++ str
-      _ = Debug.log "str" str
-  in setQuery (Debug.log "q" q) a
+  in setQuery q a
 
 
 regenerate : Autocomplete -> Autocomplete
@@ -266,7 +258,6 @@ update mod a =
      ACReset -> reset a
      ACOpen o -> open o a
      ACClear -> clear a
-     ACComplete str -> complete str a
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
      ACFilterByLiveValue lv -> forLiveValue lv a
