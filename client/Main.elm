@@ -21,7 +21,7 @@ import View
 import Defaults
 import Runtime as RT
 import Entry
-import Autocomplete
+import Autocomplete as AC
 import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
@@ -70,7 +70,7 @@ init {editorState, complete} location =
                   Just t  -> t
                   Nothing -> []
       m = Defaults.defaultModel editor
-      m2 = { m | complete = Autocomplete.init (List.map flag2function complete)
+      m2 = { m | complete = AC.init (List.map flag2function complete)
                , tests = tests
                , toplevels = []
       }
@@ -234,10 +234,10 @@ updateMod origm mod (m, cmd) =
 processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
 processAutocompleteMods m mods =
   let complete = List.foldl
-        (\mod complete -> Autocomplete.update mod complete)
+        (\mod complete -> AC.update mod complete)
         m.complete
         mods
-  in (complete, Autocomplete.focusItem complete.index)
+  in (complete, AC.focusItem complete.index)
 
 -- Figure out from the string and the state whether this '.' means field
 -- access.
@@ -325,10 +325,10 @@ update_ msg m =
                       let nast = AST.wrapInThread hid h.ast
                           nh = { h | ast = nast }
                           m2 = TL.replace m { tl | data = TLHandler nh }
-                          name = Autocomplete.getValue m2.complete
+                          name = AC.getValue m2.complete
                       in Entry.submit m2 re cursor Entry.First name
                 Creating _ ->
-                  let name = Autocomplete.getValue m.complete
+                  let name = AC.getValue m.complete
                   in Entry.submit m re cursor Entry.First name
             else if event.ctrlKey
             then
@@ -336,9 +336,9 @@ update_ msg m =
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.Enter ->
-                  if Autocomplete.isLargeStringEntry m.complete
+                  if AC.isLargeStringEntry m.complete
                   then Entry.submit m re cursor Entry.NotFirst m.complete.value
-                  else if Autocomplete.isSmallStringEntry m.complete
+                  else if AC.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
                          , MakeCmd Entry.focusEntry
@@ -351,15 +351,15 @@ update_ msg m =
                 Key.Down -> Many [ AutocompleteMod (ACOpen True)
                                  , AutocompleteMod ACSelectDown]
                 Key.Right ->
-                  let sp = Autocomplete.sharedPrefix m.complete in
+                  let sp = AC.sharedPrefix m.complete in
                   if sp == "" then NoChange
                   else
                     AutocompleteMod <| ACSetQuery sp
                 Key.Enter ->
-                  if Autocomplete.isLargeStringEntry m.complete
+                  if AC.isLargeStringEntry m.complete
                   then AutocompleteMod (ACSetQuery m.complete.value)
                   else
-                    let name = Autocomplete.getValue m.complete
+                    let name = AC.getValue m.complete
                     in Entry.submit m re cursor Entry.NotFirst name
 
                 Key.Escape ->
@@ -385,7 +385,7 @@ update_ msg m =
                   if event.key == Just "."
                   && isFieldAccessDot m.state m.complete.value
                   then
-                    let name = Autocomplete.getValue m.complete
+                    let name = AC.getValue m.complete
                     in
                         -- TODO: unify with Entry.submit
                         Entry.objectSubmit m re cursor name
