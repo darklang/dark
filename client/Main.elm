@@ -329,16 +329,13 @@ update_ msg m =
             else if event.shiftKey && event.keyCode == Key.Enter
             then
               case cursor of
-                Filling tlid hid ->
+                Filling tlid id ->
                   let tl = TL.getTL m tlid in
                   case tl.data of
                     TLDB _ -> NoChange
                     TLHandler h ->
-                      let nast = AST.wrapInThread hid h.ast
-                          nh = { h | ast = nast }
-                          m2 = TL.replace m { tl | data = TLHandler nh }
-                          name = AC.getValue m2.complete
-                      in Entry.submit m2 cursor Entry.StartThread name
+                      let name = AC.getValue m.complete
+                      in Entry.submit m cursor Entry.StartThread name
                 Creating _ ->
                   let name = AC.getValue m.complete
                   in Entry.submit m cursor Entry.StartThread name
