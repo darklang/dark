@@ -170,7 +170,7 @@ viewHandler m tl h =
           Entering _ (Filling tlid id) -> (id, True)
           _ -> (ID 0, False)
 
-      lvs = Analysis.getLiveValues m tl.id
+      lvs = Analysis.getLiveValuesDict m tl.id
       ast = Html.div
               [ Attrs.class "ast"]
               [ ViewAST.toHtml

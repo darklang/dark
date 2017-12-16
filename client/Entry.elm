@@ -3,7 +3,6 @@ module Entry exposing (..)
 -- builtins
 import Task
 -- import Result exposing (Result)
-import Dict
 -- import Set
 
 -- lib
@@ -98,16 +97,12 @@ objectSubmit m re cursor value =
 type ThreadExprPosition = First | NotFirst
 submit : Model -> Bool -> EntryCursor -> ThreadExprPosition -> String -> Modification
 submit m re cursor pos value =
-  let id = tlid ()
-      eid = gid ()
-      tid1 = gid ()
-      tid2 = gid ()
-      tid3 = gid ()
-      hid1 = gid ()
-      hid2 = gid ()
-      hid3 = gid ()
-      parseAst str hasImplicit =
-        let firstWord = String.split " " str in
+  let parseAst str hasImplicit =
+        let eid = gid ()
+            hid1 = gid ()
+            hid2 = gid ()
+            hid3 = gid ()
+            firstWord = String.split " " str in
         case firstWord of
           ["if"] ->
             Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
@@ -125,6 +120,7 @@ submit m re cursor pos value =
   in
   case cursor of
     Creating cpos ->
+      let id = tlid () in
       if String.startsWith "DB" value
       then
         let dbName = value
@@ -174,10 +170,7 @@ submit m re cursor pos value =
                     _ -> NoChange
             else
               -- check if value is in model.varnames
-              let (ID rid) = id
-                  availableVars =
-                    let avd = Analysis.getAvailableVarnames m tlid
-                    in Dict.get rid avd |> Maybe.withDefault []
+              let availableVars = Analysis.getAvailableVarnames m tlid id
                   holeReplacement =
                     if List.member value availableVars
                     then

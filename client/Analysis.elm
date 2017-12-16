@@ -24,8 +24,22 @@ getAnalysisResults m id =
                        , availableVarnames = Dict.empty
                        }
 
-getLiveValues : Model -> TLID -> LVDict
-getLiveValues m id = getAnalysisResults m id |> .liveValues
+getLiveValuesDict : Model -> TLID -> LVDict
+getLiveValuesDict m id = getAnalysisResults m id |> .liveValues
 
-getAvailableVarnames : Model -> TLID -> AVDict
-getAvailableVarnames m id = getAnalysisResults m id |> .availableVarnames
+getLiveValue : Model -> TLID -> ID -> Maybe LiveValue
+getLiveValue m tlid (ID id) =
+  tlid
+  |> getLiveValuesDict m
+  |> Dict.get id
+
+getAvailableVarnamesDict : Model -> TLID -> AVDict
+getAvailableVarnamesDict m id = getAnalysisResults m id |> .availableVarnames
+
+getAvailableVarnames : Model -> TLID -> ID -> List VarName
+getAvailableVarnames m tlid (ID id) =
+  tlid
+  |> getAvailableVarnamesDict m
+  |> Dict.get id
+  |> Maybe.withDefault []
+

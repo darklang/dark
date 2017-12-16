@@ -3,7 +3,6 @@ port module Main exposing (..)
 
 -- builtins
 import Maybe
-import Dict
 
 -- lib
 import Json.Decode as JSD
@@ -151,9 +150,8 @@ updateMod origm mod (m, cmd) =
         let varnames =
               case entry of
                 Creating _ -> []
-                Filling tlid (ID eid) ->
-                  let avd = Analysis.getAvailableVarnames m tlid
-                  in (Dict.get eid avd) |> (Maybe.withDefault [])
+                Filling tlid id ->
+                  Analysis.getAvailableVarnames m tlid id
             showFunctions =
               case entry of
                 Creating _ -> True
@@ -199,9 +197,9 @@ updateMod origm mod (m, cmd) =
                       _ ->
                         Nothing
                   in
-                      Maybe.andThen (\o ->
-                        Analysis.getLiveValues m tlid
-                        |> Dict.get (o |> deID)) obj
+                      Maybe.andThen
+                        (Analysis.getLiveValue m tlid)
+                        obj
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
