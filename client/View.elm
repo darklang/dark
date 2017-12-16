@@ -94,7 +94,7 @@ viewHoleOrText m h =
           if hid == id
           then selectedHoleHtml
           else unselectedHoleHtml
-        Entering _ (Filling _ id) ->
+        Entering (Filling _ id) ->
           if hid == id
           then entryHtml m
           else unselectedHoleHtml
@@ -127,7 +127,7 @@ viewTL m tl =
       class = case unwrapState m.state of
           Selecting tlid _ ->
             if tlid == tl.id then "selected" else ""
-          Entering _ (Filling tlid _) ->
+          Entering (Filling tlid _) ->
             if tlid == tl.id then "selected" else ""
           _ -> ""
 
@@ -167,7 +167,7 @@ viewHandler m tl h =
   let (id, filling) =
         case unwrapState m.state of
           Selecting tlid (Just id) -> (id, False)
-          Entering _ (Filling tlid id) -> (id, True)
+          Entering (Filling tlid id) -> (id, True)
           _ -> (ID 0, False)
 
       lvs = Analysis.getLiveValuesDict m tl.id
@@ -198,7 +198,7 @@ viewHandler m tl h =
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   case m.state of
-    Entering _ (Creating pos) ->
+    Entering (Creating pos) ->
       [placeHtml m pos (entryHtml m)]
     _ ->
       []
@@ -293,7 +293,7 @@ normalEntryHtml m =
            m.complete.completions)
 
       autocompletions = case (m.state, m.complete.index) of
-                          -- (Entering _ (Filling _ (ParamHole _ _ _)), -1) ->
+                          -- (Entering (Filling _ (ParamHole _ _ _)), -1) ->
                           --   [ Html.li
                           --     [ Attrs.class "autocomplete-item greyed" ]
                           --     [ Html.text "Press down to autocomplete…" ]

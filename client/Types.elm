@@ -67,11 +67,10 @@ gid unit = ID (Util.random unit)
 type EntryCursor = Creating Pos
                  | Filling TLID ID
 
-type alias IsReentering = Bool
 type alias HasMoved = Bool
 type alias ThreadID = ID
 type State = Selecting TLID (Maybe ID)
-           | Entering IsReentering EntryCursor
+           | Entering EntryCursor
            | Dragging TLID VPos HasMoved State
            | Deselected
 
@@ -241,7 +240,7 @@ type Modification = Error String
                   | Select TLID (Maybe ID)
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult)
-                  | Enter IsReentering EntryCursor
+                  | Enter EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
                   | NoChange

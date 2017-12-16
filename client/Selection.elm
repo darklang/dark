@@ -80,11 +80,11 @@ enter m tlid cur =
             if AST.isLeaf cur h.ast
             then
               let se = AST.subtree cur h.ast in
-              Many [ Enter False (Filling tlid cur)
+              Many [ Enter (Filling tlid cur)
                    , AutocompleteMod (ACSetQuery (AST.toContent se))
                    ]
             else
               downLevel m tlid (Just cur)
           _ -> NoChange
-      _ -> Enter False (Filling tlid cur)
+      _ -> Enter (Filling tlid cur)
 

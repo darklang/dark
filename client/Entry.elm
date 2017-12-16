@@ -26,7 +26,7 @@ import Analysis
 
 
 createFindSpace : Model -> Modification
-createFindSpace m = Enter False (Creating (Viewport.toAbsolute m Defaults.initialPos))
+createFindSpace m = Enter (Creating (Viewport.toAbsolute m Defaults.initialPos))
 
 ---------------------
 -- Focus
@@ -35,17 +35,6 @@ createFindSpace m = Enter False (Creating (Viewport.toAbsolute m Defaults.initia
 focusEntry : Cmd Msg
 focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
-
----------------------
--- Submitting the entry form to the server
----------------------
--- refocus : Bool -> Focus -> Focus
--- refocus re default =
---   case default of
---     FocusNext id -> if re then Refocus id else default
---     FocusExact id -> if re then Refocus id else default
---     f -> f
---
 
 tlid : () -> TLID
 tlid unit = TLID (Util.random unit)
@@ -73,8 +62,8 @@ createFunction m name hasImplicitParam =
             (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
-objectSubmit : Model -> Bool -> EntryCursor -> String -> Modification
-objectSubmit m re cursor value =
+objectSubmit : Model -> EntryCursor -> String -> Modification
+objectSubmit m cursor value =
   let access = FieldAccess (gid ()) (Variable (gid ()) value) (Empty (gid ())) in
   case cursor of
     Creating pos ->
@@ -92,11 +81,11 @@ objectSubmit m re cursor value =
             ExprHole h ->
               let replacement = AST.replaceExpr id access h.ast in
                   wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-            _ -> submit m re cursor NotFirst value
+            _ -> submit m cursor NotFirst value
 
 type ThreadExprPosition = First | NotFirst
-submit : Model -> Bool -> EntryCursor -> ThreadExprPosition -> String -> Modification
-submit m re cursor pos value =
+submit : Model -> EntryCursor -> ThreadExprPosition -> String -> Modification
+submit m cursor pos value =
   let parseAst str hasImplicit =
         let eid = gid ()
             hid1 = gid ()
@@ -214,5 +203,5 @@ submit m re cursor pos value =
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
-  --   Ok pt -> execute m re <| EntryParser.pt2ast m cursor pt
+  --   Ok pt -> execute m <| EntryParser.pt2ast m cursor pt
   --   Err error -> Error <| EntryParser.toErrorMessage <| EntryParser.addCursorToError error cursor

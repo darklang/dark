@@ -102,7 +102,7 @@ update msg m =
 -- cursor2mod : Model -> EntryCursor -> Modification
 -- cursor2mod m cursor =
 --   let ns = G.orderedNodes m in
---   Many [ Enter False cursor
+--   Many [ Enter cursor
 --        , case cursor of
 --            Filling id (ResultHole _) ->
 --              AutocompleteMod <| ACFilterByLiveValue ((G.getNodeExn m id).liveValue)
@@ -146,7 +146,7 @@ updateMod origm mod (m, cmd) =
         { m | state = state } ! []
       Select tlid hid ->
         { m | state = Selecting tlid hid } ! []
-      Enter re entry ->
+      Enter entry ->
         let varnames =
               case entry of
                 Creating _ -> []
@@ -207,7 +207,7 @@ updateMod origm mod (m, cmd) =
                                         , ACFilterByLiveValue lv
                                         ]
         in
-      ({ m | state = Entering re entry, complete = complete
+      ({ m | state = Entering entry, complete = complete
       }) ! ([acCmd, Entry.focusEntry])
 
       SetToplevels tls tlars ->
@@ -246,7 +246,7 @@ isFieldAccessDot state baseStr =
   -- canonicalize it first.
   let str = Util.replace "\\.*$" "" baseStr in
   case state of
-    Entering _ _ ->
+    Entering _ ->
       if String.startsWith "\"" str
       || Runtime.isInt str
       then False
@@ -310,7 +310,7 @@ update_ msg m =
                 else NoChange
               _ -> NoChange
 
-          Entering re cursor ->
+          Entering cursor ->
             if event.shiftKey && event.keyCode == Key.Enter
             then
               case cursor of
@@ -323,10 +323,10 @@ update_ msg m =
                           nh = { h | ast = nast }
                           m2 = TL.replace m { tl | data = TLHandler nh }
                           name = AC.getValue m2.complete
-                      in Entry.submit m2 re cursor Entry.First name
+                      in Entry.submit m2 cursor Entry.First name
                 Creating _ ->
                   let name = AC.getValue m.complete
-                  in Entry.submit m re cursor Entry.First name
+                  in Entry.submit m cursor Entry.First name
             else if event.ctrlKey
             then
               case event.keyCode of
@@ -334,7 +334,7 @@ update_ msg m =
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
-                  then Entry.submit m re cursor Entry.NotFirst m.complete.value
+                  then Entry.submit m cursor Entry.NotFirst m.complete.value
                   else if AC.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
@@ -357,7 +357,7 @@ update_ msg m =
                   then AutocompleteMod (ACSetQuery m.complete.value)
                   else
                     let name = AC.getValue m.complete
-                    in Entry.submit m re cursor Entry.NotFirst name
+                    in Entry.submit m cursor Entry.NotFirst name
 
                 Key.Escape ->
                   case cursor of
@@ -385,7 +385,7 @@ update_ msg m =
                     let name = AC.getValue m.complete
                     in
                         -- TODO: unify with Entry.submit
-                        Entry.objectSubmit m re cursor name
+                        Entry.objectSubmit m cursor name
                   else NoChange
 
                 key ->
@@ -435,7 +435,7 @@ update_ msg m =
     (GlobalClick event, _) ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
-                , Enter False (Creating (Viewport.toAbsolute m event.pos))]
+                , Enter (Creating (Viewport.toAbsolute m event.pos))]
       else NoChange
 
     (ToplevelClickDown tl event, _) ->
@@ -493,7 +493,7 @@ update_ msg m =
                     nh = TL.getNextHole tl pred
                 in
                     case nh of
-                      Just h -> Enter False (Filling tlid h)
+                      Just h -> Enter (Filling tlid h)
                       Nothing -> Select tlid Nothing
               FocusExact tlid next ->
                 let tl = TL.getTL m2 tlid
@@ -501,7 +501,7 @@ update_ msg m =
                 in
                 case ht of
                   NotAHole -> Select tlid (Just next)
-                  _ -> Enter False (Filling tlid next)
+                  _ -> Enter (Filling tlid next)
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
