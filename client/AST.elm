@@ -175,13 +175,9 @@ replaceBindHole_ hid replacement expr =
     FieldAccess id obj name ->
       FieldAccess id (rbh obj) name
 
-replaceFieldHole : ID -> VarName -> AST -> AST
-replaceFieldHole hid replacement ast =
-  replaceFieldHole_ hid replacement ast
-
-replaceFieldHole_ : ID -> VarName -> Expr -> Expr
-replaceFieldHole_ hid replacement expr =
-  let rfh = replaceFieldHole_ hid replacement
+replaceFieldHole : ID -> VarName -> Expr -> Expr
+replaceFieldHole hid replacement expr =
+  let rfh = replaceFieldHole hid replacement
       rfhList : List Expr -> List Expr
       rfhList exprs = List.map rfh exprs
   in
@@ -398,7 +394,7 @@ wrapInThread id expr =
   let wt e = wrapInThread id e
       wrap e =
         case e of
-          Thread id _ -> e
+          Thread _ _ -> e
           _ -> Thread (ID (Util.random())) [e]
       nested =
         case expr of
@@ -427,46 +423,39 @@ wrapInThread id expr =
      then wrap expr
      else nested
 
-isThread : Expr -> Bool
-isThread t =
-  case t of
-    Thread _ _ -> True
-    _ -> False
+-- extends thread at pos denoted by ID, if ID is in a thread
+maybeExtendThreadAt : ID -> Expr -> Expr
+maybeExtendThreadAt id expr =
+  let et e = maybeExtendThreadAt id e
+  in
+    case expr of
+      Value _ _ -> expr
+      Hole _ -> expr
+      Variable _ _ -> expr
 
+      Let id lhs rhs body ->
+        Let id lhs (et rhs) (et body)
 
-extendThread : ID -> Expr -> Expr
-extendThread id expr =
-  let et e = extendThread id e
-      extend e =
-        case e of
-          Thread id exprs -> Thread id (exprs ++ [Hole (gid ())])
-          _ -> e
-      nested =
-        case expr of
-          Value _ _ -> expr
-          Hole _ -> expr
-          Variable _ _ -> expr
+      If id cond ifbody elsebody ->
+        If id (et cond) (et ifbody) (et elsebody)
 
-          Let id lhs rhs body ->
-            Let id lhs (et rhs) (et body)
+      FnCall id name exprs ->
+        FnCall id name (List.map et exprs)
 
-          If id cond ifbody elsebody ->
-            If id (et cond) (et ifbody) (et elsebody)
+      Lambda id vars lexpr ->
+        Lambda id vars (et lexpr)
 
-          FnCall id name exprs ->
-            FnCall id name (List.map et exprs)
+      Thread tid exprs ->
+        let newExprs =
+              List.foldr (\e list ->
+                if (toID e) == id
+                then e :: Hole (gid ()) :: list
+                else e :: list)
+                [] exprs
+        in Thread tid (List.map et newExprs)
 
-          Lambda id vars lexpr ->
-            Lambda id vars (et lexpr)
-
-          Thread id exprs ->
-            Thread id (List.map et exprs)
-
-          FieldAccess id obj field ->
-            FieldAccess id (et obj) field
-  in if (toID expr) == id
-     then extend expr
-     else nested
+      FieldAccess id obj field ->
+        FieldAccess id (et obj) field
 
 
 children : Expr -> List ID

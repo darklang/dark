@@ -45,7 +45,7 @@ emptyHS _ = { name = Empty (gid ())
             , modifier = Empty (gid ())
             }
 
-createFunction : Model -> FnName -> Bool ->Maybe Expr
+createFunction : Model -> FnName -> Bool -> Maybe Expr
 createFunction m name hasImplicitParam =
   let holeModifier = if hasImplicitParam then -1 else 0
       holes count = List.map (\_ -> Hole (gid ())) (List.range 1 count)
@@ -62,10 +62,11 @@ createFunction m name hasImplicitParam =
             (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
-type ThreadExprPosition = First | NotFirst
-submit : Model -> EntryCursor -> ThreadExprPosition -> String -> Modification
-submit m cursor pos value =
-  let parseAst str hasImplicit =
+type ThreadAction = StartThread | ContinueThread
+submit : Model -> EntryCursor -> ThreadAction -> String -> Modification
+submit m cursor action value =
+  let
+      parseAst str hasImplicit =
         let eid = gid ()
             hid1 = gid ()
             hid2 = gid ()
@@ -87,9 +88,16 @@ submit m cursor pos value =
 
   in
   case cursor of
-    Creating cpos ->
+    Creating pos ->
       let id = tlid ()
           wrap op = RPC ([op], FocusNext id Nothing)
+          threadIt expr =
+            case action of
+              ContinueThread ->
+                expr
+              StartThread ->
+                let hid = gid ()
+                in Thread (gid ()) [expr, Hole hid]
       in
 
       -- DB creation
@@ -98,7 +106,7 @@ submit m cursor pos value =
         let dbName = value
                      |> String.dropLeft 2
                      |> String.trim
-        in wrap <| CreateDB id cpos dbName
+        in wrap <| CreateDB id pos dbName
 
       -- field access
       else if String.startsWith "." value
@@ -106,25 +114,18 @@ submit m cursor pos value =
         let access = FieldAccess (gid ())
                                  (Variable (gid ()) (String.dropLeft 1 value))
                                  (Empty (gid ()))
-            handler = { ast = access, spec = emptyHS () }
-        in wrap <| SetHandler id cpos handler
+            ast = threadIt access
+            handler = { ast = ast, spec = emptyHS () }
+        in wrap <| SetHandler id pos handler
 
       -- start new AST
       else
-        case parseAst value (pos == NotFirst) of
+        case parseAst value (action == ContinueThread) of
           Nothing -> NoChange
           Just v ->
-            let ast =
-              case pos of
-                NotFirst -> v
-                First ->
-                  let eid = gid ()
-                      nh = Hole eid
-                      wrapped = AST.wrapInThread eid nh
-                  in AST.replaceExpr eid v wrapped
-            in
-              let handler = { ast = ast, spec = emptyHS () } in
-              RPC ([SetHandler id cpos handler], FocusNext id Nothing)
+            let ast = threadIt v
+                handler = { ast = ast, spec = emptyHS () }
+            in RPC ([SetHandler id pos handler], FocusNext id Nothing)
 
     Filling tlid id ->
       let tl = TL.getTL m tlid
@@ -132,8 +133,7 @@ submit m cursor pos value =
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
           replaceExpr m h tlid id value =
-            let oldExpr = AST.subtree id h.ast
-                newExpr =
+            let newExpr =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
@@ -169,7 +169,7 @@ submit m cursor pos value =
                           else
                             parseAst
                               value
-                              (pos == NotFirst && TL.isThreadHole h id)
+                              (action == ContinueThread && TL.isThreadHole h id)
                     in
                     case holeReplacement of
                       Nothing ->
@@ -177,7 +177,14 @@ submit m cursor pos value =
                       Just v ->
                         v
 
-                replacement = AST.replaceExpr id newExpr h.ast
+                oldExpr = AST.subtree id h.ast
+                ast1 = case action |> Debug.log "action" of
+                  ContinueThread -> h.ast
+                  StartThread ->
+                    AST.wrapInThread id h.ast
+
+                ast2 = AST.maybeExtendThreadAt id ast1
+                replacement = AST.replaceExpr id newExpr ast2
             in
                 if oldExpr == newExpr
                 then NoChange

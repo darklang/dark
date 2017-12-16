@@ -311,7 +311,22 @@ update_ msg m =
               _ -> NoChange
 
           Entering cursor ->
-            if event.shiftKey && event.keyCode == Key.Enter
+            if event.ctrlKey
+            then
+              case event.keyCode of
+                Key.P -> AutocompleteMod ACSelectUp
+                Key.N -> AutocompleteMod ACSelectDown
+                Key.Enter ->
+                  if AC.isLargeStringEntry m.complete
+                  then Entry.submit m cursor Entry.ContinueThread m.complete.value
+                  else if AC.isSmallStringEntry m.complete
+                  then
+                    Many [ AutocompleteMod (ACAppendQuery "\n")
+                         , MakeCmd Entry.focusEntry
+                         ]
+                  else NoChange
+                _ -> NoChange
+            else if event.shiftKey && event.keyCode == Key.Enter
             then
               case cursor of
                 Filling tlid hid ->
@@ -323,41 +338,26 @@ update_ msg m =
                           nh = { h | ast = nast }
                           m2 = TL.replace m { tl | data = TLHandler nh }
                           name = AC.getValue m2.complete
-                      in Entry.submit m2 cursor Entry.First name
+                      in Entry.submit m2 cursor Entry.StartThread name
                 Creating _ ->
                   let name = AC.getValue m.complete
-                  in Entry.submit m cursor Entry.First name
-            else if event.ctrlKey
-            then
+                  in Entry.submit m cursor Entry.StartThread name
+           else
               case event.keyCode of
-                Key.P -> AutocompleteMod ACSelectUp
-                Key.N -> AutocompleteMod ACSelectDown
-                Key.Enter ->
-                  if AC.isLargeStringEntry m.complete
-                  then Entry.submit m cursor Entry.NotFirst m.complete.value
-                  else if AC.isSmallStringEntry m.complete
-                  then
-                    Many [ AutocompleteMod (ACAppendQuery "\n")
-                         , MakeCmd Entry.focusEntry
-                         ]
-                  else NoChange
-                _ -> NoChange
-            else
-              case event.keyCode of
-                Key.Up -> AutocompleteMod ACSelectUp
-                Key.Down -> Many [ AutocompleteMod (ACOpen True)
-                                 , AutocompleteMod ACSelectDown]
-                Key.Right ->
-                  let sp = AC.sharedPrefix m.complete in
-                  if sp == "" then NoChange
-                  else
-                    AutocompleteMod <| ACSetQuery sp
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
                   then AutocompleteMod (ACSetQuery m.complete.value)
                   else
                     let name = AC.getValue m.complete
-                    in Entry.submit m cursor Entry.NotFirst name
+                    in Entry.submit m cursor Entry.ContinueThread name
+
+                Key.Unknown c ->
+                  if event.key == Just "."
+                  && isFieldAccessDot m.state m.complete.value
+                  then
+                    let name = AC.getValue m.complete
+                    in Entry.submit m cursor Entry.ContinueThread ("." ++ name)
+                  else NoChange
 
                 Key.Escape ->
                   case cursor of
@@ -378,16 +378,18 @@ update_ msg m =
                             Many [ Select tlid (Just hid)
                                  , AutocompleteMod ACReset]
 
-                Key.Unknown c ->
-                  if event.key == Just "."
-                  && isFieldAccessDot m.state m.complete.value
-                  then
-                    let name = AC.getValue m.complete
-                    in Entry.submit m cursor Entry.NotFirst ("." ++ name)
-                  else NoChange
+                Key.Up -> AutocompleteMod ACSelectUp
+                Key.Down -> Many [ AutocompleteMod (ACOpen True)
+                                 , AutocompleteMod ACSelectDown]
+                Key.Right ->
+                  let sp = AC.sharedPrefix m.complete in
+                  if sp == "" then NoChange
+                  else
+                    AutocompleteMod <| ACSetQuery sp
 
                 key ->
                   NoChange
+
 
           Deselected ->
             case event.keyCode of
