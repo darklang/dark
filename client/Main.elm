@@ -383,9 +383,7 @@ update_ msg m =
                   && isFieldAccessDot m.state m.complete.value
                   then
                     let name = AC.getValue m.complete
-                    in
-                        -- TODO: unify with Entry.submit
-                        Entry.objectSubmit m cursor name
+                    in Entry.submit m cursor Entry.NotFirst ("." ++ name)
                   else NoChange
 
                 key ->

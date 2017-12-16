@@ -62,27 +62,6 @@ createFunction m name hasImplicitParam =
             (holes ((List.length function.parameters) + holeModifier))
       Nothing -> Nothing
 
-objectSubmit : Model -> EntryCursor -> String -> Modification
-objectSubmit m cursor value =
-  let access = FieldAccess (gid ()) (Variable (gid ()) value) (Empty (gid ())) in
-  case cursor of
-    Creating pos ->
-      let handler = { ast = access, spec = emptyHS () }
-          id = tlid ()
-      in
-      RPC ([SetHandler id pos handler], FocusNext id Nothing)
-    Filling tlid id ->
-      let tl = TL.getTL m tlid
-          predecessor = TL.getPrevHole tl id
-          focus = FocusNext tlid predecessor
-          wrap op = RPC ([op], focus)
-      in
-          case TL.holeType tl id of
-            ExprHole h ->
-              let replacement = AST.replaceExpr id access h.ast in
-                  wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-            _ -> submit m cursor NotFirst value
-
 type ThreadExprPosition = First | NotFirst
 submit : Model -> EntryCursor -> ThreadExprPosition -> String -> Modification
 submit m cursor pos value =
@@ -109,13 +88,28 @@ submit m cursor pos value =
   in
   case cursor of
     Creating cpos ->
-      let id = tlid () in
+      let id = tlid ()
+          wrap op = RPC ([op], FocusNext id Nothing)
+      in
+
+      -- DB creation
       if String.startsWith "DB" value
       then
         let dbName = value
                      |> String.dropLeft 2
-                     |> String.trim in
-          RPC ([CreateDB id cpos dbName], FocusNext id Nothing)
+                     |> String.trim
+        in wrap <| CreateDB id cpos dbName
+
+      -- field access
+      else if String.startsWith "." value
+      then
+        let access = FieldAccess (gid ())
+                                 (Variable (gid ()) (String.dropLeft 1 value))
+                                 (Empty (gid ()))
+            handler = { ast = access, spec = emptyHS () }
+        in wrap <| SetHandler id cpos handler
+
+      -- start new AST
       else
         case parseAst value (pos == NotFirst) of
           Nothing -> NoChange
@@ -124,57 +118,71 @@ submit m cursor pos value =
               case pos of
                 NotFirst -> v
                 First ->
-                  let id = gid ()
-                      nh = Hole id
-                      wrapped = AST.wrapInThread id nh
-                  in
-                      AST.replaceExpr id v wrapped
+                  let eid = gid ()
+                      nh = Hole eid
+                      wrapped = AST.wrapInThread eid nh
+                  in AST.replaceExpr eid v wrapped
             in
-                let handler = { ast = ast, spec = emptyHS () } in
-                RPC ([SetHandler id cpos handler], FocusNext id Nothing)
+              let handler = { ast = ast, spec = emptyHS () } in
+              RPC ([SetHandler id cpos handler], FocusNext id Nothing)
+
     Filling tlid id ->
       let tl = TL.getTL m tlid
           predecessor = TL.getPrevHole tl id
-          focus = FocusNext tlid predecessor
-          wrap op = RPC ([op], focus)
+          wrap op = RPC ([op], FocusNext tlid predecessor)
+
           replaceExpr m h tlid id value =
-            if String.startsWith "= " value
-            then
-              case AST.threadAncestors id h.ast |> List.reverse of
-                -- turn the current thread into a let-assignment to this
-                -- name, and close the thread
-                (Thread tid _ as thread) :: _ ->
-                  let bindName = value
-                                 |> String.dropLeft 2
-                                 |> String.trim
-                      newLet = Let (gid ())
-                                   (Full (gid ()) bindName)
-                                   (AST.closeThread thread)
-                                   (Hole (gid ()))
-                      replacement = AST.replaceExpr tid newLet h.ast
-                  in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-                _ -> NoChange
-            else
-              -- check if value is in model.varnames
-              let availableVars = Analysis.getAvailableVarnames m tlid id
-                  holeReplacement =
-                    if List.member value availableVars
-                    then
-                      Just (Variable (gid ()) value)
-                    else
-                      parseAst value (pos == NotFirst && TL.isThreadHole h id)
-              in
-              case holeReplacement of
-                Nothing ->
-                  NoChange
-                Just v ->
-                  let parent = AST.parentOf id h.ast
-                      extended =
-                        if AST.isThread parent
-                        then AST.extendThread (AST.toID parent) h.ast
-                        else h.ast
-                      replacement = AST.replaceExpr id v extended
-                  in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+            let oldExpr = AST.subtree id h.ast
+                newExpr =
+                  -- assign thread to variable
+                  if String.startsWith "= " value
+                  then
+                    case AST.threadAncestors id h.ast |> List.reverse of
+                      -- turn the current thread into a let-assignment to this
+                      -- name, and close the thread
+                      (Thread tid _ as thread) :: _ ->
+                        let bindName = value
+                                       |> String.dropLeft 2
+                                       |> String.trim
+                        in
+                          Let (gid ())
+                            (Full (gid ()) bindName)
+                            (AST.closeThread thread)
+                            (Hole (gid ()))
+                      _ -> oldExpr
+
+                  -- field access
+                  else if String.startsWith "." value
+                  then
+                    FieldAccess
+                      (gid ())
+                      (Variable (gid ()) (String.dropLeft 1 value))
+                      (Empty (gid ()))
+
+                  -- variables and parsed expressions
+                  else
+                    let availableVars = Analysis.getAvailableVarnames m tlid id
+                        holeReplacement =
+                          if List.member value availableVars
+                          then
+                            Just (Variable (gid ()) value)
+                          else
+                            parseAst
+                              value
+                              (pos == NotFirst && TL.isThreadHole h id)
+                    in
+                    case holeReplacement of
+                      Nothing ->
+                        oldExpr
+                      Just v ->
+                        v
+
+                replacement = AST.replaceExpr id newExpr h.ast
+            in
+                if oldExpr == newExpr
+                then NoChange
+                else wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+
       in
       if String.length value < 1
       then NoChange
