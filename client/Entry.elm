@@ -152,22 +152,19 @@ submit m re cursor pos value =
             if String.startsWith "= " value
             then
               case AST.threadAncestors id h.ast |> List.reverse of
-                [] -> NoChange
-                thread :: _ ->
-                  -- turn the current thread into a let-assignment to this
-                  -- name, and close the thread
-                  case thread of
-                    Thread tid _ ->
-                      let bindName = value
-                                     |> String.dropLeft 2
-                                     |> String.trim
-                          newLet = Let (gid ())
-                                       (Full (gid ()) bindName)
-                                       (AST.closeThread thread)
-                                       (Hole (gid ()))
-                          replacement = AST.replaceExpr tid newLet h.ast
-                      in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-                    _ -> NoChange
+                -- turn the current thread into a let-assignment to this
+                -- name, and close the thread
+                (Thread tid _ as thread) :: _ ->
+                  let bindName = value
+                                 |> String.dropLeft 2
+                                 |> String.trim
+                      newLet = Let (gid ())
+                                   (Full (gid ()) bindName)
+                                   (AST.closeThread thread)
+                                   (Hole (gid ()))
+                      replacement = AST.replaceExpr tid newLet h.ast
+                  in wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                _ -> NoChange
             else
               -- check if value is in model.varnames
               let availableVars = Analysis.getAvailableVarnames m tlid id
