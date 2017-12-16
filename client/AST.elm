@@ -395,7 +395,7 @@ wrapInThread id expr =
       wrap e =
         case e of
           Thread _ _ -> e
-          _ -> Thread (ID (Util.random())) [e]
+          _ -> Thread (gid ()) [e, Hole (gid ())]
       nested =
         case expr of
           Value _ _ -> expr
@@ -560,10 +560,10 @@ parentOf id ast =
   deMaybe <| parentOf_ id ast
 
 parentOf_ : ID -> Expr -> Maybe Expr
-parentOf_ id expr =
-  let po = parentOf_ id
+parentOf_ eid expr =
+  let po = parentOf_ eid
       returnOr fn e =
-        if List.member id (children e)
+        if List.member eid (children e)
         then Just e
         else fn e
       filterMaybe xs = xs |> List.filterMap identity |> List.head
@@ -593,7 +593,9 @@ parentOf_ id expr =
       returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
 
     FieldAccess id obj field ->
-      returnOr (\_ -> po obj) expr
+      if holeOrID field == eid
+      then Just expr
+      else returnOr (\_ -> po obj) expr
 
 -- includes self
 siblings : ID -> AST -> List ID

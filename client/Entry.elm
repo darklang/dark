@@ -178,7 +178,7 @@ submit m cursor action value =
                         v
 
                 oldExpr = AST.subtree id h.ast
-                ast1 = case action |> Debug.log "action" of
+                ast1 = case action of
                   ContinueThread -> h.ast
                   StartThread ->
                     AST.wrapInThread id h.ast
@@ -206,8 +206,14 @@ submit m cursor action value =
           let replacement = TL.replaceSpecHole id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         FieldHole h ->
-          let replacement = AST.replaceFieldHole id value h.ast in
-          wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+          let replacement = AST.replaceFieldHole id value h.ast
+              withNewParent = case action of
+                ContinueThread -> replacement
+                StartThread ->
+                  let parent = AST.parentOf id replacement in
+                  AST.wrapInThread (AST.toID parent) replacement
+          in
+          wrap <| SetHandler tlid tl.pos { h | ast = withNewParent }
         ExprHole h ->
           replaceExpr m h tlid id value
         NotAHole ->
