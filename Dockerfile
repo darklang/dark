@@ -42,6 +42,8 @@ RUN apt-get update && \
                        libpcre3-dev=2:8.39-3 \
                        && rm -rf /var/lib/apt/lists/*
 
+                       # todo apt-clean
+
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN echo 'deb https://deb.nodesource.com/node_8.x zesty main' > /etc/apt/sources.list.d/nodesource.list
 RUN echo 'deb-src https://deb.nodesource.com/node_8.x zesty main' >> /etc/apt/sources.list.d/nodesource.list
@@ -131,11 +133,25 @@ RUN opam install re2.v0.9.1
 # Environment
 ENV TERM=xterm-256color
 
-## ADD NEW PACKAGES HERE
-# Doing otherwise will force a large recompile of the container for
-# everyone
-
 ######################
 # Quick hacks below this line, to avoid massive recompiles
+
+# Install runtime dependencies
+RUN sudo apt-get update \
+ && sudo apt-get install -y --no-install-recommends \
+        ca-certificates \
+        bzip2 \
+        libfontconfig \
+ && sudo apt-get clean \
+ && sudo rm -rf /var/lib/apt/lists/*
+
+RUN set -x  \
+ && mkdir /tmp/phantomjs \
+ && curl -L https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 \
+        | tar -xj --strip-components=1 -C /tmp/phantomjs \
+ && sudo cp /tmp/phantomjs/bin/phantomjs /usr/local/bin \
+ && sudo chmod u+rx /usr/local/bin
+
+EXPOSE 8910
 
 CMD ["app", "scripts", "builder"]
