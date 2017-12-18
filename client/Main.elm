@@ -156,14 +156,18 @@ updateMod origm mod (m, cmd) =
               case entry of
                 Creating _ -> True
                 Filling tlid eid ->
-                  case TL.holeType (TL.getTL m tlid) eid of
+                  let tl = TL.getTL m tlid in
+                  case TL.holeType tl eid of
                     ExprHole _ -> True
                     FieldHole _ -> False
                     BindHole _ -> False
                     SpecHole _ -> False
                     DBColNameHole _ -> False
                     DBColTypeHole _ -> False
-                    NotAHole -> True
+                    NotAHole -> -- only show functions iff. we've re-entered an expression
+                      case tl.data of
+                        TLHandler h -> TL.isExpression h eid
+                        _ -> False
             lv =
               case entry of
                 Creating _ -> Nothing

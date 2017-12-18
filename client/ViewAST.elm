@@ -98,7 +98,7 @@ vVarname mId v = Leaf (mId, "varname atom", v)
 vVarBind : VarBind -> Element
 vVarBind v =
   case v of
-    Full _ s -> Leaf (Nothing, "varname atom", s)
+    Full id s -> Leaf (Just id, "varname atom", s)
     Empty id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
 vExpr : Int -> Expr -> Element

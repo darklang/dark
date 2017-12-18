@@ -78,6 +78,13 @@ isHole tl id =
     NotAHole -> False
     _ -> True
 
+isExpression : Handler -> ID -> Bool
+isExpression h id =
+  case AST.subExpr id h.ast of
+    Just _ -> True
+    _ -> False
+
+
 specHoles : Handler -> List ID
 specHoles h =
   let e2l a =
@@ -85,6 +92,32 @@ specHoles h =
           Empty hid -> [hid]
           _ -> []
   in e2l h.spec.module_ ++ e2l h.spec.name ++ e2l h.spec.modifier
+
+getSpec : Handler -> ID -> Maybe (HoleOr String)
+getSpec h id =
+  [h.spec.module_, h.spec.name, h.spec.modifier]
+  |> List.filter
+    (\spec ->
+      case spec of
+        Full fid _ -> fid == id
+        Empty eid -> eid == id)
+  |> List.head
+
+isSpec : Handler -> ID -> Bool
+isSpec h id =
+  (isSpecHole h id) || (isFilledSpec h id)
+
+isFilledSpec : Handler -> ID -> Bool
+isFilledSpec h id =
+  h |> filledSpecs |> List.member id
+
+filledSpecs : Handler -> List ID
+filledSpecs h =
+  let f2l a =
+        case a of
+          Full id _ -> [id]
+          _ -> []
+  in f2l h.spec.module_ ++ f2l h.spec.name ++ f2l h.spec.modifier
 
 replaceSpecHole : ID -> String -> HandlerSpec -> HandlerSpec
 replaceSpecHole id value hs =
@@ -119,19 +152,19 @@ siblings tl id =
        Just p -> AST.siblings id h.ast
        Nothing ->
          let specs = [h.spec.module_, h.spec.name, h.spec.modifier] in
-         [id] ++ (List.map holeOrID specs)
+         [AST.toID h.ast] ++ (List.map holeOrID specs)
     _ -> []
 
 getNextSibling : Toplevel -> ID -> ID
 getNextSibling tl id =
   case tl.data of
     TLHandler h ->
-      let siblings = AST.siblings id h.ast in
-      siblings
+      let sibs = siblings tl id in
+      sibs
       |> LE.elemIndex id
       |> Maybe.map ((+) 1)
-      |> Maybe.map (\i -> i % List.length siblings)
-      |> Maybe.andThen (\i -> LE.getAt i siblings)
+      |> Maybe.map (\i -> i % List.length sibs)
+      |> Maybe.andThen (\i -> LE.getAt i sibs)
       |> Maybe.withDefault id
     _ -> id
 
@@ -139,15 +172,15 @@ getPrevSibling : Toplevel -> ID -> ID
 getPrevSibling tl id =
   case tl.data of
     TLHandler h ->
-      let siblings = AST.siblings id h.ast
+      let sibs = siblings tl id
           -- 'safe' to deMaybe as there's always at least
           -- one member in the array
-          last = deMaybe <| LE.last siblings
+          last = deMaybe <| LE.last sibs
       in
-      siblings
+      sibs
       |> LE.elemIndex id
       |> Maybe.map (\i -> i - 1)
-      |> Maybe.andThen (\i -> LE.getAt i siblings)
+      |> Maybe.andThen (\i -> LE.getAt i sibs)
       |> Maybe.withDefault last
     _ -> id
 

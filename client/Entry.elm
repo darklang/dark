@@ -219,7 +219,12 @@ submit m cursor action value =
         NotAHole ->
           case tl.data of
             TLHandler h ->
-              replaceExpr m h tlid id value
+              if TL.isExpression h id
+              then
+                replaceExpr m h tlid id value
+              else
+                let replacement = TL.replaceSpecHole id value h.spec in
+                wrap <| SetHandler tlid tl.pos { h | spec = replacement }
             _ -> NoChange
 
   -- let pt = EntryParser.parseFully value

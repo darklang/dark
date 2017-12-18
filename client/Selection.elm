@@ -83,6 +83,19 @@ enter m tlid cur =
               Many [ Enter (Filling tlid cur)
                    , AutocompleteMod (ACSetQuery (AST.toContent se))
                    ]
+            else if (TL.isFilledSpec h cur)
+            then
+              let content =
+                  TL.getSpec h cur
+                  |> Maybe.andThen (\s ->
+                    case s of
+                      Full _ f -> Just f
+                      _ -> Nothing)
+                  |> Maybe.withDefault ""
+              in
+              Many [ Enter (Filling tlid cur)
+                   , AutocompleteMod (ACSetQuery (content))
+                   ]
             else
               downLevel m tlid (Just cur)
           _ -> NoChange

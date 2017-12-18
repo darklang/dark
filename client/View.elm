@@ -99,7 +99,17 @@ viewHoleOrText m h =
           then entryHtml m
           else unselectedHoleHtml
         _ -> unselectedHoleHtml
-    Full id s -> Html.text s -- TODO(ian): add selecting
+    Full hid s ->
+      case unwrapState m.state of
+        Selecting _ (Just id) ->
+          if hid == id
+          then selectedFullHtml s
+          else Html.text s
+        Entering (Filling _ id) ->
+          if hid == id
+          then entryHtml m
+          else Html.text s
+        _ -> Html.text s
 
 selectedHoleHtml : Html.Html Msg
 selectedHoleHtml =
@@ -108,6 +118,10 @@ selectedHoleHtml =
 unselectedHoleHtml : Html.Html Msg
 unselectedHoleHtml =
   Html.div [Attrs.class "hole"] [Html.text "＿＿＿＿＿＿"]
+
+selectedFullHtml : String -> Html.Html Msg
+selectedFullHtml s =
+  Html.div [Attrs.class "selected"] [Html.text s]
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =

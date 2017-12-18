@@ -5,6 +5,7 @@ import List
 
 -- lib
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -232,8 +233,6 @@ listBindHoles expr =
         exprs
         |> List.map listBindHoles
         |> List.concat
-      bhList : List VarBind -> List ID
-      bhList = List.map holeOrID
   in
   case expr of
     Value _ v ->
@@ -241,7 +240,10 @@ listBindHoles expr =
 
     Let _ lhs rhs expr ->
       let exprBindHoles = lbhList [rhs, expr]
-          bindHoles = [holeOrID lhs]
+          bindHoles =
+            case lhs of
+              Full id _ -> []
+              Empty id -> [id]
       in
           bindHoles ++ exprBindHoles
 
@@ -325,7 +327,10 @@ listHoles expr =
 
     Let _ lhs rhs expr ->
       let exprHoles = lhList [rhs, expr]
-          bindHoles = [holeOrID lhs]
+          bindHoles =
+            case lhs of
+              Full id _ -> []
+              Empty id -> [id]
       in
           bindHoles ++ exprHoles
 
@@ -632,6 +637,15 @@ toContent a =
     Value _ s -> s
     Variable _ v -> v
     _ -> ""
+
+
+inAST : ID -> AST -> Bool
+inAST id ast =
+  let holes = listHoles ast
+      expr  = subExpr id ast |> Maybe.map toID |> ME.toList
+  in
+  List.member id (holes ++ expr)
+
 
 subtree : ID -> AST -> AST
 subtree id ast =
