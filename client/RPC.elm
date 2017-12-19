@@ -18,7 +18,7 @@ import JSON exposing (..)
 
 rpc : Model -> Focus -> List RPC -> Cmd Msg
 rpc m focus calls =
-  rpc_ m "/admin/api/rpc" (RPCCallBack focus) calls
+  rpc_ m "/admin/api/rpc" (RPCCallBack focus NoChange) calls
 
 rpc_ : Model -> String ->
  (List RPC -> Result Http.Error RPCResult -> Msg) ->
@@ -46,6 +46,12 @@ saveTest =
   let url = "/admin/api/save_test"
       request = postString url
   in Http.send SaveTestCallBack request
+
+integrationRpc : Model -> String -> Cmd Msg
+integrationRpc m name =
+  rpc_ m "/admin/api/rpc" (RPCCallBack FocusNothing (TriggerIntegrationTest name)) []
+
+
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value

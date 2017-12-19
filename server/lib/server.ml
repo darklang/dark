@@ -136,8 +136,8 @@ let server =
              S.respond_string ~status:`OK ~body:"Disembowelment" ()
            | "/admin/ui" ->
              admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
-           | "/admin/test" ->
-             static_handler (Uri.of_string "/templates/test.html")
+           | "/admin/integration_test" ->
+             admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
            | "/admin/api/save_test" ->
              save_test_handler domain
            | p when (String.length p) < 8 ->

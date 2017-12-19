@@ -93,7 +93,7 @@ type Msg
     | GlobalKeyPress KeyboardEvent
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack Focus (List RPC) (Result Http.Error RPCResult)
+    | RPCCallBack Focus Modification (List RPC) (Result Http.Error RPCResult)
     | SaveTestCallBack (Result Http.Error String)
     | LocationChange Navigation.Location
     | AddRandom
@@ -226,7 +226,11 @@ type alias Model = { center : Pos
                    , state : State
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
+                   , integrationTestExpect : IntegrationExpectation
                    }
+
+-- avoid ever-expanding aliases
+type IntegrationExpectation = IntegrationExpectation (Model -> Bool)
 
 type AutocompleteMod = ACSetQuery String
                      | ACAppendQuery String
@@ -253,6 +257,7 @@ type Modification = Error String
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
                   | Drag TLID VPos HasMoved State
+                  | TriggerIntegrationTest String
                   | SetState State
 
 -- name, type optional

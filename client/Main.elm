@@ -14,7 +14,7 @@ import Mouse
 import List.Extra as LE
 
 -- dark
-import RPC exposing (rpc, saveTest)
+import RPC exposing (rpc, saveTest, integrationRpc)
 import Types exposing (..)
 import View
 import Defaults
@@ -31,6 +31,7 @@ import Runtime
 import Toplevel as TL
 import Analysis
 import Util exposing (deMaybe)
+import IntegrationTest
 
 
 -----------------------
@@ -38,11 +39,11 @@ import Util exposing (deMaybe)
 -----------------------
 main : Program Flags Model Msg
 main = Navigation.programWithFlags
-       LocationChange
-       { init = init
-       , view = View.view
-       , update = update
-       , subscriptions = subscriptions}
+         LocationChange
+         { init = init
+         , view = View.view
+         , update = update
+         , subscriptions = subscriptions}
 
 
 -----------------------
@@ -72,9 +73,14 @@ init {editorState, complete} location =
       m2 = { m | complete = AC.init (List.map flag2function complete)
                , tests = tests
                , toplevels = []
-      }
+           }
+      shouldRunIntegrationTest =
+        "/admin/integration_test" == location.pathname
+      integrationTestName = "test_empty_integration_test"
   in
-    (m2, rpc m FocusNothing [])
+    if shouldRunIntegrationTest
+    then m2 ! [integrationRpc m integrationTestName]
+    else m2 ! [rpc m FocusNothing []]
 
 
 -----------------------
@@ -140,6 +146,10 @@ updateMod origm mod (m, cmd) =
       ClearError -> { m | error = Nothing} ! []
       RPC (calls, id) -> m ! [rpc m id calls]
       NoChange -> m ! []
+      TriggerIntegrationTest name ->
+        let expect = IntegrationTest.trigger name in
+        { m | integrationTestExpect = expect } ! []
+
       MakeCmd cmd -> m ! [cmd]
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
@@ -485,7 +495,7 @@ update_ msg m =
     -- (AddRandom, _) ->
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
-    (RPCCallBack focus calls (Ok (toplevels, analysis)), _) ->
+    (RPCCallBack focus extraMod calls (Ok (toplevels, analysis)), _) ->
       let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
@@ -508,20 +518,20 @@ update_ msg m =
               , AutocompleteMod ACReset
               , ClearError
               , newState
+              , extraMod -- for testing, maybe more
               ]
 
     (SaveTestCallBack (Ok msg), _) ->
       Error <| "Success! " ++ msg
 
 
-
     ------------------------
     -- plumbing
     ------------------------
-    (RPCCallBack _ _ (Err (Http.BadStatus error)), _) ->
+    (RPCCallBack _ _ _ (Err (Http.BadStatus error)), _) ->
       Error <| "Error: " ++ error.body
 
-    (RPCCallBack _ _ (Err (Http.NetworkError)), _) ->
+    (RPCCallBack _ _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
 
     (SaveTestCallBack (Err err), _) ->
