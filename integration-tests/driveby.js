@@ -11,7 +11,7 @@ var screenshotAllSteps = false;
 var screenshotFailures = true;
 
 var started = new Date().getTime();
-var urls = ["http://test_empty_integration_test.localhost:8000/admin_integration_test"];
+var urls = ["http://test_empty_integration_test.localhost:8000/admin/integration_test"];
 var pages = [];
 var stubs = {};
 
@@ -52,7 +52,7 @@ function isLoaded(p) {
 
 // shamelessly stolen from: https://github.com/ariya/phantomjs/blob/master/examples/waitfor.js
 function waitFor(page, testFn, onReady) {
-  console.log("watinig");
+  console.log("waiting");
   console.log(testFn());
   var maxtimeOutMillis = 3000,
       start = new Date().getTime(),
