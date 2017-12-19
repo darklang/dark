@@ -28,6 +28,18 @@ function run() {
     console.log('CONSOLE: [' + msg + '] (from line #' + lineNum + ' in "' + sourceId + '")');
   };
 
+  p.onError = function(msg, trace) {
+    var msgStack = ['JS EXCEPTION: ' + msg];
+    if (trace && trace.length) {
+      msgStack.push('TRACE:');
+      trace.forEach(function(t) {
+        msgStack.push(' -> ' + (t.file || t.sourceURL) + ': ' + t.line + (t.function ? ' (in function ' + t.function +')' : ''));
+      });
+    }
+    console.error(msgStack.join('\n'));
+    phantom.exit(1);
+  };
+
   p.open(urls[0], function (status) {
     if (status !== 'success') { error("couldn't open url: " + status); }
     console.log("opened url");
