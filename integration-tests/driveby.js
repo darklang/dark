@@ -31,12 +31,9 @@ function run() {
   p.open(urls[0], function (status) {
     if (status !== 'success') { error("couldn't open url: " + status); }
     console.log("opened url");
-    console.log(p.content);
-    console.log("opened url");
 
     waitFor(p, isLoaded, function () {
       console.log("waitfor successfor");
-      console.log (p.content);
       p.close();
       console.log("Done " + (new Date().getTime() - started) + "ms.");
       phantom.exit();
@@ -49,11 +46,9 @@ function isLoaded(p) {
 }
 
 
-
 // shamelessly stolen from: https://github.com/ariya/phantomjs/blob/master/examples/waitfor.js
 function waitFor(page, testFn, onReady) {
   console.log("waiting");
-  console.log(testFn());
   var maxtimeOutMillis = 3000,
       start = new Date().getTime(),
       condition = false,
@@ -62,12 +57,14 @@ function waitFor(page, testFn, onReady) {
           condition = testFn(page);
         }
         else {
-          clearInterval(interval);
-          if (condition) {
+          if (!condition) {
+            phantom.exit(1);
+          } else {
             onReady();
+            clearInterval(interval);
           }
         }
-      }, 1);
+      }, 250);
 };
 
 // function respond(page, context, failures) {
@@ -126,7 +123,7 @@ function assertCondition(page, context, selector, expected, description, conditi
 function isUniqueInteractable(page, selector) {
   return page.evaluate(
     function(theSelector) {
-      console.log("checking selector " + selector);
+      console.log("checking selector " + theSelector);
       var e = document.querySelectorAll(theSelector)
       console.log("found " + e);
       // stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
