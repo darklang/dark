@@ -26,7 +26,8 @@ import Toplevel as TL
 
 view : Model -> Html.Html Msg
 view m =
-  let (w, h) = Util.windowSize ()
+  let _ = Debug.log "are we there" Nothing
+      (w, h) = Util.windowSize ()
       grid = Html.div
                [ Attrs.id "grid"
                , Events.on "mouseup" (decodeClickEvent GlobalClick)
