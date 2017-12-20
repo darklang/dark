@@ -97,6 +97,7 @@ type Msg
     | SaveTestCallBack (Result Http.Error String)
     | LocationChange Navigation.Location
     | AddRandom
+    | FinishIntegrationTest
     | ClearGraph
     | SaveTestButton
     | Initialization
@@ -226,11 +227,13 @@ type alias Model = { center : Pos
                    , state : State
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
-                   , integrationTestExpect : IntegrationExpectation
+                   , integrationTestState : IntegrationTestState
                    }
 
 -- avoid ever-expanding aliases
-type IntegrationExpectation = IntegrationExpectation (Model -> Bool)
+type IntegrationTestState = IntegrationTestExpectation (Model -> Bool)
+                          | IntegrationTestFinished Bool
+                          | NoIntegrationTest
 
 type AutocompleteMod = ACSetQuery String
                      | ACAppendQuery String
@@ -258,6 +261,7 @@ type Modification = Error String
                   | Many (List Modification)
                   | Drag TLID VPos HasMoved State
                   | TriggerIntegrationTest String
+                  | EndIntegrationTest
                   | SetState State
 
 -- name, type optional

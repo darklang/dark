@@ -148,7 +148,18 @@ updateMod origm mod (m, cmd) =
       NoChange -> m ! []
       TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
-        { m | integrationTestExpect = expect } ! []
+        { m | integrationTestState = expect } ! []
+      EndIntegrationTest ->
+        let expectationFn =
+            case m.integrationTestState of
+              IntegrationTestExpectation fn -> fn
+              IntegrationTestFinished _ ->
+                Debug.crash "Attempted to end integration test but one ran + was already finished"
+              NoIntegrationTest ->
+                Debug.crash "Attempted to end integration test but none was running"
+            result = expectationFn m
+        in
+        { m | integrationTestState = IntegrationTestFinished result } ! []
 
       MakeCmd cmd -> m ! [cmd]
       SetState state ->
@@ -491,6 +502,9 @@ update_ msg m =
 
     (SaveTestButton, _) ->
       MakeCmd saveTest
+
+    (FinishIntegrationTest, _) ->
+      EndIntegrationTest
 
     -- (AddRandom, _) ->
     --   Many [ RandomGraph.makeRandomChange m, Deselect]

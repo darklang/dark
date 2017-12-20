@@ -23,6 +23,10 @@ function error(msg) {
 // TODO: parallelize
 function run() {
   var p = webpage.create();
+  p.viewportSize = {
+    width: 1950,
+    height: 1350
+  };
 
   p.onConsoleMessage = function(msg, lineNum, sourceId) {
     console.log('CONSOLE: [' + msg + '] (from line #' + lineNum + ' in "' + sourceId + '")');
@@ -45,16 +49,64 @@ function run() {
     console.log("opened url");
 
     waitFor(p, isLoaded, function () {
-      console.log("waitfor successfor");
-      p.close();
-      console.log("Done " + (new Date().getTime() - started) + "ms.");
-      phantom.exit();
+      console.log("isLoaded");
+      enterChangesState(p);
     })
+
   });
 }
 
 function isLoaded(p) {
   return isUniqueInteractable (p, "#darkErrors");
+}
+
+function isThere(n) {
+  var i = 0;
+  return function(p) {
+    i++;
+    p.render("lol" + i + ".png");
+    isUniqueInteractable(p, n);
+  }
+}
+
+function enterChangesState(p) {
+  p.sendEvent('keypress', p.event.key.Enter);
+
+ var a = p.evaluate(function() {
+    return document.getElementById("finishIntegrationTest").getBoundingClientRect();
+  });
+
+  console.log(a.top);
+  console.log(a.bottom);
+  console.log(a.left);
+  console.log(a.right);
+
+  p.sendEvent("click", a.left + 5, a.top + 5);
+  waitFor(p, testFinished, endTest);
+}
+
+function testFinished(p) {
+  return p.evaluate(function() {
+    var signal = document.getElementById("integrationTestSignal");
+    return (signal !== null);
+  })
+}
+
+function endTest(p) {
+  var wasSuccessful = p.evaluate(function() {
+    var signal = document.getElementById("integrationTestSignal");
+    return (signal !== null) ? signal.classList.contains('success') : false;
+  });
+
+  p.render("testEnded.png");
+
+  if (wasSuccessful) {
+    console.log("Test successful")
+    phantom.exit(0);
+  } else {
+    console.log("Test failed")
+    phantom.exit(1);
+  }
 }
 
 
@@ -70,25 +122,15 @@ function waitFor(page, testFn, onReady) {
         }
         else {
           if (!condition) {
-            phantom.exit(1);
+            onReady(page)
           } else {
-            onReady();
+            onReady(page);
             clearInterval(interval);
           }
         }
       }, 250);
 };
 
-// function respond(page, context, failures) {
-//   var y = Date.now()
-//   var x = y.toString()
-// //  console.log(x)
-//   //TODO: just need a stayOpenOnFailure
-//   var screenshot = page != null && (screenshotAllSteps || (screenshotFailures && failures.length > 0) )
-//   if (screenshot) page.render(started + '/' + context.scriptId + '/' + context.stepId + '.png')
-// //  if (screenshot) console.log(page.plainText)
-// }
-//
 
 //TIP: http://stackoverflow.com/questions/15739263/phantomjs-click-an-element
 function click(page, context, selector) {
@@ -107,37 +149,12 @@ function enter(page, context, selector, value) {
   );
 }
 
-function assert(page, context, description, selector, condition, expected) {
-  if (condition == "textContains") { return assertCondition(page, context, selector, expected, description,
-    function(e, theExpected) { return e.length == 1 && e[0].textContent.indexOf(theExpected) >= 0; });
-  }
-  else if (condition == "textEquals") { return assertCondition(page, context, selector, expected, description,
-    function(e, theExpected) { return e.length == 1 && e[0].textContent == theExpected; });
-  }
-  else { respond(page, context, [ "sorry, I don't know how to assert condition: " + JSON.stringify(condition) ]); }
-}
-
-function assertCondition(page, context, selector, expected, description, conditionFunc) {
-  waitFor(page, context, function() { //condition
-      return page.evaluate(function(theSelector, theExpected, theDescription, theConditionFunc) {
-        return theConditionFunc(document.querySelectorAll(theSelector), theExpected);
-      }, selector, expected, description, conditionFunc); }
-    , function() { } //action
-    , function() { //failure
-        return page.evaluate(function(theSelector, theDescription) {
-          var e = document.querySelectorAll(theSelector);
-          if (e.length != 1) { return "expected 1 element for " + theSelector + " found " + e.length; }
-          else { return "expected " + theDescription + " for '" + e[0].textContent + "'"; }
-        }, selector, description); }
-  );
-}
-
 function isUniqueInteractable(page, selector) {
   return page.evaluate(
     function(theSelector) {
       console.log("checking selector " + theSelector);
       var e = document.querySelectorAll(theSelector)
-      console.log("found " + e);
+      console.log("found " + e.length);
       // stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
       return e.length == 1 && !!( e[0].offsetWidth || e[0].offsetHeight || e[0].getClientRects().length ); // aka visible
     }, selector);

@@ -26,8 +26,7 @@ import Toplevel as TL
 
 view : Model -> Html.Html Msg
 view m =
-  let _ = Debug.log "are we there" Nothing
-      (w, h) = Util.windowSize ()
+  let (w, h) = Util.windowSize ()
       grid = Html.div
                [ Attrs.id "grid"
                , Events.on "mouseup" (decodeClickEvent GlobalClick)
@@ -43,8 +42,28 @@ view m =
     grid
 
 viewButtons : Model -> Html.Html Msg
-viewButtons m = Html.div [Attrs.id "buttons"]
-    [ Html.a
+viewButtons m =
+  let integrationTestButton =
+    case m.integrationTestState of
+      IntegrationTestExpectation _ ->
+        [ Html.a
+          [ Events.onWithOptions
+              "mouseup"
+              { stopPropagation = True, preventDefault = False }
+              (decodeClickEvent (\_ -> FinishIntegrationTest))
+          , Attrs.src ""
+          , Attrs.id "finishIntegrationTest"
+          , Attrs.class "specialButton"]
+          [ Html.text "Finish integration tests" ]]
+      IntegrationTestFinished isSuccessful ->
+        [ Html.div [ Attrs.id "integrationTestSignal"
+                   , Attrs.class (if isSuccessful then "success" else "failure")]
+                   [ Html.text (if isSuccessful then "success" else "failure")]]
+      NoIntegrationTest -> []
+
+  in
+  Html.div [Attrs.id "buttons"]
+    ([ Html.a
       [ Events.onClick AddRandom
       , Attrs.src ""
       , Attrs.class "specialButton"]
@@ -65,7 +84,7 @@ viewButtons m = Html.div [Attrs.id "buttons"]
     , Html.span
       [ Attrs.class "specialButton"]
       [Html.text ("Active tests: " ++ toString m.tests)]
-    ]
+    ] ++ integrationTestButton)
 
 viewError : Maybe String -> Html.Html Msg
 viewError mMsg = case mMsg of

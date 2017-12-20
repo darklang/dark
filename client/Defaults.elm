@@ -30,7 +30,7 @@ defaultModel e = { error = Nothing
                  , tests = []
                  , toplevels = []
                  , analysis = []
-                 , integrationTestExpect = IntegrationExpectation (\_ -> True)
+                 , integrationTestState = NoIntegrationTest
 
 
                  -- editor

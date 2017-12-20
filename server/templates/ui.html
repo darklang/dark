@@ -16,26 +16,16 @@
       if (event.keyCode == 9) { // Tab
         event.preventDefault();
       }
+
     }
     </script>
-    <script type="text/javascript" src="/static/elm.js"> </script>
+    <script type="text/javascript" src="/static/hacked.js"> </script>
 
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
    <script type="text/javascript">
      complete = ALLFUNCTIONS;
-     try {
-       storage = localStorage.getItem('editorState');
-       editorState = JSON.parse(storage);
-       elmapp = Elm.Main.fullscreen({editorState: editorState, complete: complete});
-     }
-     catch (e) {
-       console.log("Elm threw when called with " + JSON.stringify(editorState));
-       elmapp = Elm.Main.fullscreen({editorState: null, complete: complete});
-     }
-     elmapp.ports.setStorage.subscribe(function (editorState) {
-       localStorage.setItem('editorState', JSON.stringify(editorState))
-     });
+     elmapp = Elm.Main.fullscreen({editorState: null, complete: complete});
     </script>
   </body>
 </html>
