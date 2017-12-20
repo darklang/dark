@@ -11,7 +11,7 @@ if (!phantom.injectJs(filename)) {
 };
 
 function screenshot(p, name) {
-  var name = testname + "_" + name + ".png";
+  var name = "integration-tests/screenshots/" + testname + "_" + name + ".png";
   console.log("Screenshotted: " + name);
   p.render(name);
 }
@@ -76,12 +76,11 @@ function finishTest(p) {
 }
 
 function endTest(p) {
+  screenshot(p, "ended");
   var wasSuccessful = p.evaluate(function() {
     var signal = document.getElementById("integrationTestSignal");
     return (signal !== null) ? signal.classList.contains('success') : false;
   });
-
-  p.render("testEnded.png");
 
   if (wasSuccessful) {
     console.log("Test successful")
@@ -104,7 +103,9 @@ function waitFor(page, selector, onReady) {
         }
         else {
           if (!condition) {
-            onReady(page)
+            console.log("Test failed, timeout waiting for: " + selector);
+            screenshot(page, "failed")
+            phantom.exit(1)
           } else {
             onReady(page);
             clearInterval(interval);

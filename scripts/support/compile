@@ -221,6 +221,7 @@ def ignore(filename):
             , "server/gmon.out"
             , "server/profile.json"
             , "server/ocamlbuild_output.txt"
+            , "integration-tests/"
   ]
   for i in ignores:
     if i in filename:

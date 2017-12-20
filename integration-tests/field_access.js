@@ -6,7 +6,7 @@ function testFn(p) {
   screenshot(p, "r");
   p.sendEvent('keypress', p.event.key.E);
   screenshot(p, "e");
-  
+
   p.sendEvent('keypress', p.event.key.Q);
   screenshot(p, "q");
   p.sendEvent('keypress', p.event.key.Dot);
