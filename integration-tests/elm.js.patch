@@ -1,0 +1,16 @@
+--- server/static/elm.js	2017-12-19 20:22:42.000000000 -0800
++++ server/static/hacked.js	2017-12-19 20:22:40.000000000 -0800
+@@ -5361,10 +5361,13 @@
+ 	return run(decoder, json);
+ }
+ 
+ function run(decoder, value)
+ {
++  if (value !== null && value !== undefined && value.repeat === undefined) {
++    value.repeat = false;
++  }
+ 	var result = runHelp(decoder, value);
+ 	return (result.tag === 'ok')
+ 		? _elm_lang$core$Result$Ok(result.value)
+ 		: _elm_lang$core$Result$Err(badToString(result));
+ }

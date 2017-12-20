@@ -52,7 +52,13 @@ def elm_make():
     return run_frontend(start, "cd client && elm-make --report=json Main.elm --output=/dev/null")
   else:
     # unbuffer makes elm think it's talking a terminal
-    return run_frontend(start, "cd client && unbuffer elm-make Main.elm --warn --debug --yes --output ../server/static/elm.js")
+    return run_frontend(start, \
+            "cd client" \
+            + " && unbuffer elm-make Main.elm" \
+            + " --warn --debug --yes --output" \
+            + " ../server/static/elm.js" \
+            + " && cd .." \
+            + " && patch -p0 < integration-tests/elm.js.patch")
 
 def convert_dark_file_to_graph(filename):
   return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
