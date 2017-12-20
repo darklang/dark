@@ -1,6 +1,4 @@
-function enterChangesState(p) {
+function testFn(p) {
   p.sendEvent('keypress', p.event.key.Enter);
   waitFor(p, "#entryBox", clickFinishTest)
 }
-
-

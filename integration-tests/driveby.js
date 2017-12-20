@@ -1,17 +1,22 @@
-// "use strict";
-
 var webpage = require('webpage');
 var system = require('system');
 
-const test = system.args[1];
-const filename = test + ".js"
-const url = "http://test_" + test + ".localhost:8000/admin/integration_test"
+var testname = system.args[1];
+var filename = testname + ".js"
+var url = "http://test_" + testname + ".localhost:8000/admin/integration_test"
+
+if (!phantom.injectJs(filename)) {
+  console.log("failed to open testfile:" + filename);
+  phantom.exit(1);
+};
 
 
 
 
 // This file based on driveby.js from alltonp/driveby
 function run() {
+  console.log("running test: " + testname);
+
   var p = webpage.create();
 
   // Use a big screen or everything overlaps.
@@ -21,7 +26,11 @@ function run() {
   };
 
   p.onConsoleMessage = function(msg, lineNum, sourceId) {
-    console.log('CONSOLE: ' + msg + ' (from line #' + lineNum + ' in "' + sourceId + '")');
+    if (lineNum && sourceId) {
+      console.log('CONSOLE: ' + msg + ' (from line #' + lineNum + ' in "' + sourceId + '")');
+    } else {
+      console.log('CONSOLE: ' + msg);
+    }
   };
 
   p.onError = function(msg, trace) {
@@ -36,17 +45,12 @@ function run() {
     phantom.exit(1);
   };
 
+  // test starts here
   p.open(url, function (status) {
     if (status !== 'success') { error("couldn't open url: " + status); }
-    console.log("opened url: " + url);
 
-    waitFor(p, "#darkErrors", enterChangesState);
+    waitFor(p, "#darkErrors", testFn);
   });
-}
-
-function enterChangesState(p) {
-  p.sendEvent('keypress', p.event.key.Enter);
-  waitFor(p, "#entryBox", clickFinishTest)
 }
 
 function clickFinishTest(p) {
@@ -78,7 +82,6 @@ function endTest(p) {
 
 // shamelessly stolen from: https://github.com/ariya/phantomjs/blob/master/examples/waitfor.js
 function waitFor(page, selector, onReady) {
-  console.log("waiting");
   var maxtimeOutMillis = 3000,
       start = new Date().getTime(),
       condition = false,
@@ -101,9 +104,9 @@ function waitFor(page, selector, onReady) {
 function isUniqueInteractable(page, selector) {
   return page.evaluate(
     function(theSelector) {
-      console.log("checking selector " + theSelector);
+      console.log("checking for " + theSelector);
       var e = document.querySelectorAll(theSelector)
-      console.log("found " + e.length);
+      console.log("found");
       // stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
       return e.length == 1 && !!( e[0].offsetWidth || e[0].offsetHeight || e[0].getClientRects().length ); // aka visible
     }, selector);
