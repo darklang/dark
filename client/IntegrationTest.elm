@@ -5,7 +5,7 @@ import Types exposing (..)
 trigger : String -> IntegrationTestState
 trigger name =
   case name of
-    "test_empty_integration_test" -> enterChangesState ()
+    "test_enter_changes_state" -> enterChangesState ()
     n -> Debug.crash ("I have no idea what this test is: " ++ n)
 
 

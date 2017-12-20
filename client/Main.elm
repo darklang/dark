@@ -76,7 +76,8 @@ init {editorState, complete} location =
            }
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
-      integrationTestName = "test_empty_integration_test"
+      integrationTestName = "test_enter_changes_state"
+      _ = Debug.log "l2" location
   in
     if shouldRunIntegrationTest
     then m2 ! [integrationRpc m integrationTestName]

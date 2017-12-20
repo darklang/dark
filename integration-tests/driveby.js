@@ -1,11 +1,16 @@
 // "use strict";
 
-// This file based on driveby.js from alltonp/driveby
 var webpage = require('webpage');
+var system = require('system');
 
-var url = "http://test_empty_integration_test.localhost:8000/admin/integration_test";
+const test = system.args[1];
+const filename = test + ".js"
+const url = "http://test_" + test + ".localhost:8000/admin/integration_test"
 
-// TODO: parallelize
+
+
+
+// This file based on driveby.js from alltonp/driveby
 function run() {
   var p = webpage.create();
 
@@ -33,7 +38,7 @@ function run() {
 
   p.open(url, function (status) {
     if (status !== 'success') { error("couldn't open url: " + status); }
-    console.log("opened url");
+    console.log("opened url: " + url);
 
     waitFor(p, "#darkErrors", enterChangesState);
   });
