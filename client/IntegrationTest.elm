@@ -4,16 +4,20 @@ import Types exposing (..)
 
 trigger : String -> IntegrationTestState
 trigger name =
+  IntegrationTestExpectation <|
   case name of
-    "test_enter_changes_state" -> enterChangesState ()
+    "test_enter_changes_state" -> enterChangesState
+    "test_field_access" -> fieldAccess
     n -> Debug.crash ("I have no idea what this test is: " ++ n)
 
 
-enterChangesState : () -> IntegrationTestState
-enterChangesState () =
-  IntegrationTestExpectation (\m ->
-    let _ = Debug.log "state: " m.state in
-    case m.state of
-      Entering (Creating _) -> True
-      _ -> False
-    )
+enterChangesState : Model -> Bool
+enterChangesState m =
+  case m.state of
+    Entering (Creating _) -> True
+    _ -> False
+
+
+fieldAccess : Model -> Bool
+fieldAccess m =
+  False

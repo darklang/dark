@@ -4,4 +4,5 @@ set -euo pipefail
 
 set -x
 
-phantomjs integration-tests/driveby.js "enter_changes_state"
+#phantomjs integration-tests/driveby.js "enter_changes_state"
+phantomjs integration-tests/driveby.js "field_access"

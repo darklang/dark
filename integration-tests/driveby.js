@@ -10,6 +10,12 @@ if (!phantom.injectJs(filename)) {
   phantom.exit(1);
 };
 
+function screenshot(p, name) {
+  var name = testname + "_" + name + ".png";
+  console.log("Screenshotted: " + name);
+  p.render(name);
+}
+
 
 
 
@@ -34,6 +40,7 @@ function run() {
   };
 
   p.onError = function(msg, trace) {
+    screenshot(p, "exception");
     var msgStack = ['JS EXCEPTION: ' + msg];
     if (trace && trace.length) {
       msgStack.push('TRACE:');
@@ -48,12 +55,18 @@ function run() {
   // test starts here
   p.open(url, function (status) {
     if (status !== 'success') { error("couldn't open url: " + status); }
-
-    waitFor(p, "#darkErrors", testFn);
+    waitFor(p, "#darkErrors", startTest);
   });
 }
 
-function clickFinishTest(p) {
+function startTest(p) {
+  screenshot(p, "start");
+  testFn(p);
+}
+
+
+function finishTest(p) {
+  screenshot(p, "finish");
   var a = p.evaluate(function() {
     return document.getElementById("finishIntegrationTest").getBoundingClientRect();
   });
@@ -106,9 +119,20 @@ function isUniqueInteractable(page, selector) {
     function(theSelector) {
       console.log("checking for " + theSelector);
       var e = document.querySelectorAll(theSelector)
-      console.log("found");
-      // stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
-      return e.length == 1 && !!( e[0].offsetWidth || e[0].offsetHeight || e[0].getClientRects().length ); // aka visible
+      if (e.length > 1) {
+        console.log("found (" + e.length + ")");
+      }
+      var isVisible = (e.length == 1
+                       && !!( e[0].offsetWidth
+                           || e[0].offsetHeight
+                           || e[0].getClientRects().length));
+      if (isVisible) {
+        console.log("found");
+        return true;
+      } else if (e.length == 1) {
+        console.log("found but not visible");
+      }
+      return false;
     }, selector);
 }
 
