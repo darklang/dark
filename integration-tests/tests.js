@@ -15,7 +15,13 @@ fixture `Integration Tests`
     await t
       .click("#finishIntegrationTest")
       .expect(signal.exists).ok()
-      .expect(signal.hasClass("success")).eql(true)
+      ;
+
+    if (await signal.hasClass("failure")) {
+      await t.expect("error message").eql(await signal.textContent);
+    }
+
+    await t.expect(signal.hasClass("success")).eql(true)
   })
 
 

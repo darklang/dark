@@ -55,10 +55,14 @@ viewButtons m =
           , Attrs.id "finishIntegrationTest"
           , Attrs.class "specialButton"]
           [ Html.text "Finish integration tests" ]]
-      IntegrationTestFinished isSuccessful ->
+      IntegrationTestFinished (Ok ()) ->
         [ Html.div [ Attrs.id "integrationTestSignal"
-                   , Attrs.class (if isSuccessful then "success" else "failure")]
-                   [ Html.text (if isSuccessful then "success" else "failure")]]
+                   , Attrs.class "specialButton success"]
+                   [ Html.text "success"]]
+      IntegrationTestFinished (Err msg) ->
+        [ Html.div [ Attrs.id "integrationTestSignal"
+                   , Attrs.class "specialButton failure" ]
+                   [ Html.text <| "failure: " ++ msg]]
       NoIntegrationTest -> []
 
   in

@@ -231,8 +231,9 @@ type alias Model = { center : Pos
                    }
 
 -- avoid ever-expanding aliases
-type IntegrationTestState = IntegrationTestExpectation (Model -> Bool)
-                          | IntegrationTestFinished Bool
+type alias TestResult = Result String ()
+type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
+                          | IntegrationTestFinished TestResult
                           | NoIntegrationTest
 
 type AutocompleteMod = ACSetQuery String

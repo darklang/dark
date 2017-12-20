@@ -1,5 +1,9 @@
 module IntegrationTest exposing (..)
 
+-- builtin
+import Result exposing (Result (..))
+
+-- dark
 import Types exposing (..)
 import Toplevel as TL
 import Util exposing (deMaybe)
@@ -10,17 +14,26 @@ trigger name =
   case name of
     "test_enter_changes_state" -> enterChangesState
     "test_field_access" -> fieldAccess
+    "test_field_access_closes" -> fieldAccessCloses
     n -> Debug.crash ("I have no idea what this test is: " ++ n)
 
+pass : TestResult
+pass = Ok ()
 
-enterChangesState : Model -> Bool
+fail : a -> TestResult
+fail v = Err (toString v)
+
+
+
+
+enterChangesState : Model -> TestResult
 enterChangesState m =
   case m.state of
-    Entering (Creating _) -> True
-    _ -> False
+    Entering (Creating _) -> pass
+    _ -> fail m.state
 
 
-fieldAccess : Model -> Bool
+fieldAccess : Model -> TestResult
 fieldAccess m =
   case m.toplevels
        |> List.head
