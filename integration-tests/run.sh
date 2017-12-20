@@ -7,4 +7,15 @@ set -x
 git checkout -- server/appdata/test_enter_changes_state.dark
 git checkout -- server/appdata/test_field_access.dark
 
-testcafe --screenshots integration-tests/screenshots/ "chrome:headless" integration-tests/enter_changes_state.js
+testcafe \
+  --selector-timeout 50 \
+  --assertion-timeout 50 \
+  --app-init-delay 0 \
+  --pageload-timeout 0 \
+  --speed 1 \
+  --screenshots-on-fails \
+  --screenshots integration-tests/screenshots/ \
+  "chrome:headless" \
+  integration-tests/tests.js
+
+# TODO: -c 5 (number of concurrent tests)

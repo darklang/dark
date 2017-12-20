@@ -1,19 +1,11 @@
-// function testFn(p) {
-//   p.sendEvent('keypress', p.event.key.Enter);
-//   waitFor(p, "#entryBox", finishTest)
-// }
-//
-
 import { Selector } from 'testcafe';
 
-fixture `Getting started`
+fixture `Integration Tests`
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     const url = "http://test_" + testname + ".localhost:8000/admin/integration_test";
     const pageLoaded = Selector('#darkErrors').exists;
     await t
-      .setTestSpeed(0.5)
-      .setPageLoadTimeout(0)
       .navigateTo(url)
       .expect(pageLoaded).ok()
       ;
@@ -23,12 +15,13 @@ fixture `Getting started`
     await t
       .click("#finishIntegrationTest")
       .expect(signal.exists).ok()
-      .takeScreenshot("a.png")
       .expect(signal.hasClass("success")).eql(true)
   })
 
 
-
+// ------------------------
+// Tests below here. Don't forget to update client/IntegrationTest.elm
+// ------------------------
 
 test('enter_changes_state', async t => {
   const entryBoxAvailable = Selector('#entryBox').exists;
@@ -37,3 +30,15 @@ test('enter_changes_state', async t => {
     .expect(entryBoxAvailable).ok()
    ;
 });
+
+test('field_access', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entryBox", "req.bo")
+    .pressKey("enter")
+    .expect(astAvailable).ok()
+    ;
+});
+
