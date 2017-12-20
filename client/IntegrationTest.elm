@@ -1,6 +1,8 @@
 module IntegrationTest exposing (..)
 
 import Types exposing (..)
+import Toplevel as TL
+import Util exposing (deMaybe)
 
 trigger : String -> IntegrationTestState
 trigger name =
@@ -20,4 +22,14 @@ enterChangesState m =
 
 fieldAccess : Model -> Bool
 fieldAccess m =
-  False
+  case m.toplevels
+       |> List.head
+       |> deMaybe
+       |> TL.asHandler
+       |> deMaybe
+       |> .ast
+       of
+    FieldAccess _ (Variable _ "request") (Full _ "body") ->
+      True
+    _ ->
+      False
