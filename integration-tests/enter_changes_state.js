@@ -7,23 +7,33 @@
 import { Selector } from 'testcafe';
 
 fixture `Getting started`
-  .page `http://test_enter_changes_state.localhost:8000/admin/integration_test`;
+  .beforeEach( async t => {
+    const testname = t.testRun.test.name;
+    const url = "http://test_" + testname + ".localhost:8000/admin/integration_test";
+    const pageLoaded = Selector('#darkErrors').exists;
+    await t
+      .setTestSpeed(0.5)
+      .setPageLoadTimeout(0)
+      .navigateTo(url)
+      .expect(pageLoaded).ok()
+      ;
+  })
+  .afterEach( async t => {
+    const signal = Selector('#integrationTestSignal');
+    await t
+      .click("#finishIntegrationTest")
+      .expect(signal.exists).ok()
+      .takeScreenshot("a.png")
+      .expect(signal.hasClass("success")).eql(true)
+  })
+
+
 
 
 test('enter_changes_state', async t => {
-  const pageLoaded = Selector('#darkErrors').exists;
   const entryBoxAvailable = Selector('#entryBox').exists;
-  const signal = Selector('#integrationTestSignal');
-
   await t
-    .setTestSpeed(0.5)
-    .setPageLoadTimeout(0)
-    .expect(pageLoaded).ok()
     .pressKey("enter")
     .expect(entryBoxAvailable).ok()
-    .click("#finishIntegrationTest")
-    .expect(signal.exists).ok()
-    .takeScreenshot("a.png")
-    .expect(signal.hasClass("success")).eql(true)
-    ;
+   ;
 });
