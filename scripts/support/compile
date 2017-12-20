@@ -56,9 +56,7 @@ def elm_make():
             "cd client" \
             + " && unbuffer elm-make Main.elm" \
             + " --warn --debug --yes --output" \
-            + " ../server/static/elm.js" \
-            + " && cd .." \
-            + " && patch -p0 < integration-tests/elm.js.patch")
+            + " ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
   return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
