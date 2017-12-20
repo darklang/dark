@@ -17,4 +17,4 @@
 .DS_Store
 /tags
 /server/*/.merlin
-/integration-tests/screenshots/*.png
+/integration-tests/screenshots/*
