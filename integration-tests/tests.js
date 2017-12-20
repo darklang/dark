@@ -59,3 +59,16 @@ test('field_access_closes', async t => {
     ;
 });
 
+
+test('pipeline_let_equals', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .typeText("#entryBox", "3")
+    .pressKey("shift+enter")
+    .typeText("#entryBox", "= value")
+    .pressKey("enter")
+    .expect(astAvailable).ok()
+    ;
+});
+

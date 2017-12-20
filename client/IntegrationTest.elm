@@ -15,6 +15,7 @@ trigger name =
     "test_enter_changes_state" -> enterChangesState
     "test_field_access" -> fieldAccess
     "test_field_access_closes" -> fieldAccessCloses
+    "test_pipeline_let_equals" -> pipelineLetEquals
     n -> Debug.crash ("I have no idea what this test is: " ++ n)
 
 pass : TestResult
@@ -51,3 +52,28 @@ fieldAccessCloses m =
   case m.state of
     Selecting _ _ -> pass
     _ -> fail m.state
+
+pipelineLetEquals : Model -> TestResult
+pipelineLetEquals m =
+  -- should be a simple let, not in a pipeline, entering 1 hole
+  let astR =
+        case m.toplevels
+             |> List.head
+             |> deMaybe
+             |> TL.asHandler
+             |> deMaybe
+             |> .ast
+             of
+          Let _ (Full _ "value") (Value _ "3") (Hole _) ->
+            pass
+          expr ->
+            fail expr
+      stateR =
+        case m.state of
+          Entering _ -> pass
+          _ -> fail m.state
+  in
+      Result.map2 (\() () -> ()) astR stateR
+
+
+
