@@ -29,7 +29,12 @@ fieldAccess m =
        |> deMaybe
        |> .ast
        of
-    FieldAccess _ (Variable _ "request") (Full _ "body") ->
-      True
-    _ ->
-      False
+    FieldAccess _ (Variable _ "request") (Full _ "body") -> pass
+    expr -> fail expr
+
+
+fieldAccessCloses : Model -> TestResult
+fieldAccessCloses m =
+  case m.state of
+    Selecting _ _ -> pass
+    _ -> fail m.state

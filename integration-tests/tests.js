@@ -42,3 +42,14 @@ test('field_access', async t => {
     ;
 });
 
+test('field_access_closes', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entryBox", "req.bo")
+    .pressKey("enter")
+    .expect(astAvailable).ok()
+    ;
+});
+
