@@ -48,48 +48,22 @@ function run() {
     if (status !== 'success') { error("couldn't open url: " + status); }
     console.log("opened url");
 
-    waitFor(p, isLoaded, function () {
-      console.log("isLoaded");
-      enterChangesState(p);
-    })
-
+    waitFor(p, "#darkErrors", enterChangesState);
   });
-}
-
-function isLoaded(p) {
-  return isUniqueInteractable (p, "#darkErrors");
-}
-
-function isThere(n) {
-  var i = 0;
-  return function(p) {
-    i++;
-    p.render("lol" + i + ".png");
-    isUniqueInteractable(p, n);
-  }
 }
 
 function enterChangesState(p) {
   p.sendEvent('keypress', p.event.key.Enter);
+  waitFor(p, "#entryBox", clickFinishTest)
+}
 
- var a = p.evaluate(function() {
+function clickFinishTest(p) {
+  var a = p.evaluate(function() {
     return document.getElementById("finishIntegrationTest").getBoundingClientRect();
   });
 
-  console.log(a.top);
-  console.log(a.bottom);
-  console.log(a.left);
-  console.log(a.right);
-
   p.sendEvent("click", a.left + 5, a.top + 5);
-  waitFor(p, testFinished, endTest);
-}
-
-function testFinished(p) {
-  return p.evaluate(function() {
-    var signal = document.getElementById("integrationTestSignal");
-    return (signal !== null);
-  })
+  waitFor(p, "#integrationTestSignal", endTest);
 }
 
 function endTest(p) {
@@ -111,14 +85,14 @@ function endTest(p) {
 
 
 // shamelessly stolen from: https://github.com/ariya/phantomjs/blob/master/examples/waitfor.js
-function waitFor(page, testFn, onReady) {
+function waitFor(page, selector, onReady) {
   console.log("waiting");
   var maxtimeOutMillis = 3000,
       start = new Date().getTime(),
       condition = false,
       interval = setInterval(function() {
         if ( (new Date().getTime() - start < maxtimeOutMillis) && !condition ) {
-          condition = testFn(page);
+          condition = isUniqueInteractable(page, selector);
         }
         else {
           if (!condition) {

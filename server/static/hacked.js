@@ -5367,15 +5367,9 @@ function run(decoder, value)
     value.repeat = false;
   }
 	var result = runHelp(decoder, value);
-	if (result.tag === 'ok'){
-		return _elm_lang$core$Result$Ok(result.value)
-  } else {
-    console.log("result.tag: " + result.tag);
-    console.log("result.type: " + result.type);
-    console.log("result.value: " + Object.keys(result.value));
-
-		return _elm_lang$core$Result$Err("foo");
-  }
+	return (result.tag === 'ok')
+		? _elm_lang$core$Result$Ok(result.value)
+		: _elm_lang$core$Result$Err(badToString(result));
 }
 
 function runHelp(decoder, value)
@@ -21282,8 +21276,9 @@ var _user$project$IntegrationTest$enterChangesState = function (_p0) {
 	var _p1 = _p0;
 	return _user$project$Types$IntegrationTestExpectation(
 		function (m) {
-			var _p2 = m.state;
-			if ((_p2.ctor === 'Entering') && (_p2._0.ctor === 'Creating')) {
+			var _p2 = A2(_elm_lang$core$Debug$log, 'state: ', m.state);
+			var _p3 = m.state;
+			if ((_p3.ctor === 'Entering') && (_p3._0.ctor === 'Creating')) {
 				return true;
 			} else {
 				return false;
@@ -21291,8 +21286,8 @@ var _user$project$IntegrationTest$enterChangesState = function (_p0) {
 		});
 };
 var _user$project$IntegrationTest$trigger = function (name) {
-	var _p3 = name;
-	if (_p3 === 'test_empty_integration_test') {
+	var _p4 = name;
+	if (_p4 === 'test_empty_integration_test') {
 		return _user$project$IntegrationTest$enterChangesState(
 			{ctor: '_Tuple0'});
 	} else {
@@ -21302,8 +21297,8 @@ var _user$project$IntegrationTest$trigger = function (name) {
 				start: {line: 7, column: 3},
 				end: {line: 9, column: 65}
 			},
-			_p3)(
-			A2(_elm_lang$core$Basics_ops['++'], 'I have no idea what this test is: ', _p3));
+			_p4)(
+			A2(_elm_lang$core$Basics_ops['++'], 'I have no idea what this test is: ', _p4));
 	}
 };
 

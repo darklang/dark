@@ -12,6 +12,7 @@ trigger name =
 enterChangesState : () -> IntegrationTestState
 enterChangesState () =
   IntegrationTestExpectation (\m ->
+    let _ = Debug.log "state: " m.state in
     case m.state of
       Entering (Creating _) -> True
       _ -> False
