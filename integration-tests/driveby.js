@@ -3,7 +3,7 @@
 // This file based on driveby.js from alltonp/driveby
 var webpage = require('webpage');
 
-var urls = ["http://test_empty_integration_test.localhost:8000/admin/integration_test"];
+var url = "http://test_empty_integration_test.localhost:8000/admin/integration_test";
 
 // TODO: parallelize
 function run() {
@@ -31,7 +31,7 @@ function run() {
     phantom.exit(1);
   };
 
-  p.open(urls[0], function (status) {
+  p.open(url, function (status) {
     if (status !== 'success') { error("couldn't open url: " + status); }
     console.log("opened url");
 
