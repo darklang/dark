@@ -31,6 +31,7 @@ fswatch -m fsevents_monitor \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
              -p 8000:8000 \
+             --security-opt seccomp=$HOME/chrome.json \
              -w /home/dark/app \
              dark \
              scripts/support/build-server "$@"

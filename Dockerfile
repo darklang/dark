@@ -136,21 +136,23 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks below this line, to avoid massive recompiles
 
-# Install runtime dependencies
-RUN sudo apt-get update \
- && sudo apt-get install -y --no-install-recommends \
-        ca-certificates \
-        bzip2 \
-        libfontconfig \
- && sudo apt-get clean \
- && sudo rm -rf /var/lib/apt/lists/*
+RUN yarn add testcafe
 
-RUN set -x  \
- && mkdir /tmp/phantomjs \
- && curl -L https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2 \
-        | tar -xj --strip-components=1 -C /tmp/phantomjs \
- && sudo cp /tmp/phantomjs/bin/phantomjs /usr/local/bin \
- && sudo chmod u+rx /usr/local/bin
+RUN sudo apt-get update && sudo apt-get install -y chromium-browser firefox
+USER root
+RUN apt-get update && apt-get install -y \
+	apt-transport-https \
+	ca-certificates \
+  gnupg \
+	--no-install-recommends \
+	&& curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
+	&& echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
+	&& apt-get update && apt-get install -y \
+	google-chrome-stable \
+	--no-install-recommends \
+	&& rm -rf /var/lib/apt/lists/*
+
+USER dark
 
 EXPOSE 8910
 
