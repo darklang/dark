@@ -1,35 +1,22 @@
 // "use strict";
 
 // This file based on driveby.js from alltonp/driveby
-var server = require('webserver');
-var fs = require('fs');
 var webpage = require('webpage');
 
-var numberOfBrowsers = 4;
-var nextPort = 9000;
-var screenshotAllSteps = false;
-var screenshotFailures = true;
-
-var started = new Date().getTime();
 var urls = ["http://test_empty_integration_test.localhost:8000/admin/integration_test"];
-var pages = [];
-var stubs = {};
-
-function error(msg) {
-  console.log(msg);
-  phantom.exit();
-}
 
 // TODO: parallelize
 function run() {
   var p = webpage.create();
+
+  // Use a big screen or everything overlaps.
   p.viewportSize = {
     width: 1950,
     height: 1350
   };
 
   p.onConsoleMessage = function(msg, lineNum, sourceId) {
-    console.log('CONSOLE: [' + msg + '] (from line #' + lineNum + ' in "' + sourceId + '")');
+    console.log('CONSOLE: ' + msg + ' (from line #' + lineNum + ' in "' + sourceId + '")');
   };
 
   p.onError = function(msg, trace) {
@@ -106,23 +93,6 @@ function waitFor(page, selector, onReady) {
 };
 
 
-//TIP: http://stackoverflow.com/questions/15739263/phantomjs-click-an-element
-function click(page, context, selector) {
-  waitFor(page, context, function() { return isUniqueInteractable(page, selector); }
-    , function() { page.evaluate(function(theSelector) { document.querySelector(theSelector).click(); }, selector); }
-    , function() { return describeFailure(page, selector); }
-  );
-}
-
-function enter(page, context, selector, value) {
-  waitFor(page, context, function() { return isUniqueInteractable(page, selector); }
-    , function() { //action
-        page.evaluate(function(theSelector, theValue) { document.querySelector(theSelector).focus(); }, selector, value);
-        page.sendEvent('keypress', value); }
-    , function() { return describeFailure(page, selector); }
-  );
-}
-
 function isUniqueInteractable(page, selector) {
   return page.evaluate(
     function(theSelector) {
@@ -132,12 +102,6 @@ function isUniqueInteractable(page, selector) {
       // stackoverflow.com/questions/19669786/check-if-element-is-visible-in-dom
       return e.length == 1 && !!( e[0].offsetWidth || e[0].offsetHeight || e[0].getClientRects().length ); // aka visible
     }, selector);
-}
-
-function describeFailure(page, selector) {
-  return page.evaluate(function(theSelector) {
-    return "expected 1 element for " + theSelector + " found " + document.querySelectorAll(theSelector).length;
-  }, selector);
 }
 
 run();
