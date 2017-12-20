@@ -767,12 +767,12 @@ let fns : Lib.shortfn list = [
 
   { n = "List::push"
   ; o = []
-  ; p = [par "val" TAny; par "list" TList]
+  ; p = [par "list" TList; par "val" TAny]
   ; r = TList
   ; d = ""
   ; f = InProcess
         (function
-          | [i; DList l] -> DList (i :: l)
+          | [DList l; i] -> DList (i :: l)
           | args -> fail args)
   ; pr = None
   ; pu = true

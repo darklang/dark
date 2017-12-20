@@ -8,12 +8,12 @@ let fns : Lib.shortfn list = [
 
   { n = "DB::insert"
   ; o = []
-  ; p = [par "table" TDB; par "val" TObj]
+  ; p = [par "val" TObj; par "table" TDB]
   ; r = TNull
   ; d = "Insert `val` into `table`"
   ; f = InProcess
         (function
-          | [DDB db; DObj value] ->
+          | [DObj value; DDB db] ->
             Db.with_postgres (fun _ -> Db.insert db value);
             DNull
           | args -> fail args)
@@ -24,12 +24,12 @@ let fns : Lib.shortfn list = [
 
   { n = "DB::delete"
   ; o = []
-  ; p = [par "table" TDB; par "value" TObj]
+  ; p = [par "value" TObj; par "table" TDB]
   ; r = TNull
   ; d = "Delete `value` from `table`"
   ; f = InProcess
         (function
-          | [DDB db; DObj vals ] ->
+          | [DObj vals; DDB db] ->
             Db.with_postgres (fun _ -> Db.delete db vals);
             DNull
           | args -> fail args)
@@ -40,12 +40,12 @@ let fns : Lib.shortfn list = [
 
   { n = "DB::update"
   ; o = []
-  ; p = [par "table" TDB; par "value" TObj]
+  ; p = [par "value" TObj; par "table" TDB]
   ; r = TNull
   ; d = "Update `table` value which has the same ID as `value`"
   ; f = InProcess
         (function
-          | [DDB db; DObj vals ] ->
+          | [DObj vals; DDB db]  ->
             Db.with_postgres (fun _ -> Db.update db vals);
             DNull
           | args -> fail args)
@@ -56,12 +56,12 @@ let fns : Lib.shortfn list = [
 
   { n = "DB::fetchBy"
   ; o = []
-  ; p = [par "table" TDB; par "field" TStr; par "value" TAny]
+  ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TAny
   ; d = "Fetch the value in `table` whose field `field` is `value`"
   ; f = InProcess
         (function
-          | [DDB db; DStr field; value] ->
+          | [value; DStr field; DDB db]  ->
             Db.with_postgres (fun _ -> Db.fetch_by db field value)
           | args -> fail args)
   ; pr = None

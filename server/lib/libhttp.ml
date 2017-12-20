@@ -5,12 +5,12 @@ open Lib
 let fns : Lib.shortfn list = [
   { n = "Http::respond"
   ; o = []
-  ; p = [par "code" TInt; par "response" TAny]
+  ; p = [par "response" TAny; par "code" TInt]
   ; r = TResp
   ; d = "Respond with HTTP status `code` and `response` body"
   ; f = InProcess
         (function
-          | [DInt code; dv] -> DResp (Response (code, []), dv)
+          | [dv; DInt code] -> DResp (Response (code, []), dv)
           | args -> fail args)
   ; pr = None
   ; pu = true
