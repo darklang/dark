@@ -24,6 +24,20 @@ pass = Ok ()
 fail : a -> TestResult
 fail v = Err (toString v)
 
+onlyTL : Model -> Toplevel
+onlyTL m =
+  m.toplevels
+  |> List.head
+  |> deMaybe
+
+onlyAST : Model -> AST
+onlyAST m =
+  m.toplevels
+  |> List.head
+  |> deMaybe
+  |> TL.asHandler
+  |> deMaybe
+  |> .ast
 
 
 
@@ -36,13 +50,7 @@ enterChangesState m =
 
 fieldAccess : Model -> TestResult
 fieldAccess m =
-  case m.toplevels
-       |> List.head
-       |> deMaybe
-       |> TL.asHandler
-       |> deMaybe
-       |> .ast
-       of
+  case onlyAST m of
     FieldAccess _ (Variable _ "request") (Filled _ "body") -> pass
     expr -> fail expr
 
@@ -51,9 +59,7 @@ fieldAccessCloses : Model -> TestResult
 fieldAccessCloses m =
   case m.state of
     Entering (Filling _ id) ->
-      let tl = m.toplevels
-               |> List.head
-               |> deMaybe in
+      let tl = onlyTL m in
       if TL.allBlanks tl == TL.specBlanks (tl |> TL.asHandler |> deMaybe)
       then pass
       else fail (TL.allBlanks tl)
@@ -64,17 +70,11 @@ pipelineLetEquals : Model -> TestResult
 pipelineLetEquals m =
   -- should be a simple let, not in a pipeline, entering 1 hole
   let astR =
-        case m.toplevels
-             |> List.head
-             |> deMaybe
-             |> TL.asHandler
-             |> deMaybe
-             |> .ast
-             of
+        case onlyAST m of
           Let _ (Filled _ "value") (Value _ "3") (Hole _) ->
             pass
-          expr ->
-            fail expr
+          e ->
+            fail e
       stateR =
         case m.state of
           Entering _ -> pass
