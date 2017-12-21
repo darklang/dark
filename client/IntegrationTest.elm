@@ -50,8 +50,15 @@ fieldAccess m =
 fieldAccessCloses : Model -> TestResult
 fieldAccessCloses m =
   case m.state of
-    Selecting _ _ -> pass
-    _ -> fail m.state
+    Entering (Filling _ id) ->
+      let tl = m.toplevels
+               |> List.head
+               |> deMaybe in
+      if TL.allHoles tl == TL.specHoles (tl |> TL.asHandler |> deMaybe)
+      then pass
+      else fail (TL.allHoles tl)
+    _ ->
+      fail m.state
 
 pipelineLetEquals : Model -> TestResult
 pipelineLetEquals m =
