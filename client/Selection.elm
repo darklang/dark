@@ -63,8 +63,7 @@ delete m tlid cur =
   let tl = TL.getTL m tlid in
   case tl.data of
     TLHandler h ->
-      let (p, replacement) = AST.deleteExpr (P.idOf cur) h.ast
-      in
+      let (p, replacement) = AST.deleteExpr (P.idOf cur) h.ast in
       RPC ( [SetHandler tlid tl.pos { h | ast = replacement }]
           , FocusExact tlid p)
     _ -> NoChange
