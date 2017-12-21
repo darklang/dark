@@ -303,8 +303,11 @@ listFieldHoles expr =
     Thread _ exprs ->
       lfhList exprs
 
-    FieldAccess _ obj ident ->
-      listFieldHoles obj ++ [holeOrID ident]
+    FieldAccess _ obj (Empty ident) ->
+      listFieldHoles obj ++ [ident]
+
+    FieldAccess _ obj (Full _ _) ->
+      listFieldHoles obj
 
 -- TODO: figure out how we can define this
 -- this in terms of listBindHoles and a listExprHoles
@@ -351,8 +354,11 @@ listHoles expr =
     Thread _ exprs ->
       lhList exprs
 
-    FieldAccess _ obj ident ->
-      listHoles obj ++ [holeOrID ident]
+    FieldAccess _ obj (Empty ident) ->
+      listFieldHoles obj ++ [ident]
+
+    FieldAccess _ obj (Full _ _) ->
+      listFieldHoles obj
 
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =
