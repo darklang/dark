@@ -199,20 +199,20 @@ submit m cursor action value =
       let id = P.idOf p
           maybeH = TL.asHandler tl
           db = TL.asDB tl in
-      case p of
-        PBlank DBColType _ ->
+      case P.typeOf p of
+        DBColType ->
           wrap <| SetDBColType tlid id value
-        PBlank DBColName _ ->
+        DBColName ->
           wrap <| SetDBColName tlid id value
-        PBlank VarBind _ ->
+        VarBind ->
           let h = deMaybe maybeH
               replacement = AST.replaceVarBindBlank id value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-        PBlank Spec _ ->
+        Spec ->
           let h = deMaybe maybeH
               replacement = TL.replaceSpecBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        PBlank Field _ ->
+        Field ->
           let h = deMaybe maybeH
               replacement = AST.replaceFieldBlank id value h.ast
               withNewParent = case action of
@@ -222,19 +222,11 @@ submit m cursor action value =
                   AST.wrapInThread (AST.toID parent) replacement
           in
           wrap <| SetHandler tlid tl.pos { h | ast = withNewParent }
-        PBlank Expr _ ->
+        Expr ->
           let h = deMaybe maybeH in
           replaceExpr m h tlid p value
-        PFilled _ id ->
-          case tl.data of
-            TLHandler h ->
-              if TL.isExpression h id
-              then
-                replaceExpr m h tlid p value
-              else
-                let replacement = TL.replaceSpecBlank id value h.spec in
-                wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-            _ -> NoChange
+
+
 
   -- let pt = EntryParser.parseFully value
   -- in case pt of
