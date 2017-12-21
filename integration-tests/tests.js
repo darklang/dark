@@ -18,7 +18,7 @@ fixture `Integration Tests`
       ;
 
     if (await signal.hasClass("failure")) {
-      await t.expect("error message").eql(await signal.textContent);
+      await t.expect("test state").eql(await signal.textContent);
     }
 
     await t.expect(signal.hasClass("success")).eql(true)
