@@ -55,7 +55,7 @@ nextBlank m tlid cur =
         PFilled _ _ -> Nothing
         PBlank _ _ -> Just c)
   |> TL.getNextBlank tl
-  |> ME.or (TL.firstBlank tl)
+  |> ME.orElse (TL.firstBlank tl)
   |> Select tlid
 
 delete : Model -> TLID -> Pointer -> Modification
