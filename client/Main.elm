@@ -140,7 +140,9 @@ selectCenter old new =
 
 updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
-  -- if you ever have a node in here, you're doing it wrong. Use an ID.
+  let _ = if m.integrationTestState /= NoIntegrationTest
+          then Debug.log "mod update" mod
+          else mod in
   let (newm, newcmd) =
     case mod of
       Error e -> { m | error = Just e} ! []
@@ -277,6 +279,9 @@ isFieldAccessDot state baseStr =
 
 update_ : Msg -> Model -> Modification
 update_ msg m =
+  let _ = if m.integrationTestState /= NoIntegrationTest
+          then Debug.log "msg update" msg
+          else msg in
   case (msg, m.state) of
 
     (GlobalKeyPress event, state) ->
