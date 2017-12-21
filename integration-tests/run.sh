@@ -2,9 +2,10 @@
 
 set -euo pipefail
 
-set -x
+# clean test files (reset repo files, delete others)
+git checkout -- $(git ls-files server/appdata/test_*.dark)
+rm $(git ls-files server/appdata/test_*.dark -o)
 
-git checkout -- server/appdata/test_*.dark
 
 testcafe \
   --selector-timeout 50 \
