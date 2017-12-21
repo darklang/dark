@@ -18,16 +18,15 @@ upLevel m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.andThen (TL.getParentOf tl)
-  |> Maybe.map (\p -> Select tlid (Just p))
-  |> Maybe.withDefault (Select tlid Nothing)
+  |> Select tlid
 
 downLevel : Model -> TLID -> (Maybe Pointer) -> Modification
 downLevel m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.andThen (TL.firstChild tl)
-  |> Maybe.map (\c -> Select tlid (Just c))
-  |> Maybe.withDefault (Select tlid (TL.rootOf tl))
+  |> ME.orElse (TL.rootOf tl)
+  |> Select tlid
 
 nextSibling : Model -> TLID -> (Maybe Pointer) -> Modification
 nextSibling m tlid cur =
