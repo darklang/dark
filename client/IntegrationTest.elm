@@ -17,7 +17,8 @@ trigger name =
     "test_field_access_closes" -> fieldAccessCloses
     "test_pipeline_let_equals" -> pipelineLetEquals
     "test_tabbing_works" -> tabbingWorks
-    n -> Debug.crash ("I have no idea what this test is: " ++ n)
+    "test_next_sibling_works" -> nextSiblingWorks
+    n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
 pass = Ok ()
@@ -88,4 +89,16 @@ tabbingWorks : Model -> TestResult
 tabbingWorks m =
   case onlyAST m of
     If _ (Hole _) (Value _ "5") (Hole _) -> pass
+    e -> fail e
+
+nextSiblingWorks : Model -> TestResult
+nextSiblingWorks m =
+  case onlyAST m of
+    Let _ (Blank _) (Hole id1)  (Hole _) ->
+      case m.state of
+        Selecting _ (Just (PBlank _ id2)) ->
+          if id1 == id2
+          then pass
+          else fail (id1, id2)
+        s -> fail m.state
     e -> fail e

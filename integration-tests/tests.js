@@ -89,3 +89,15 @@ test('tabbing_works', async t => {
     ;
 });
 
+test('next_sibling_works', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .click(".ast")
+    .pressKey("down")
+    .pressKey("down")
+    .pressKey("right")
+    ;
+  // TODO: this might be flaky. Maybe wait for a specific ID to be
+  // selected?
+});
+
