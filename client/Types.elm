@@ -222,10 +222,16 @@ type BlankOr a = Blank ID
                | Filled ID a
 
 blankOrID : BlankOr a -> ID
-blankOrID a =
-  case a of
+blankOrID b =
+  case b of
     Blank id -> id
     Filled id _ -> id
+
+blankToMaybe : BlankOr a -> Maybe a
+blankToMaybe b =
+  case b of
+    Blank _ -> Nothing
+    Filled _ v -> Just v
 
 -----------------------------
 -- Top-levels

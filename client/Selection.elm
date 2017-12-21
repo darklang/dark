@@ -86,10 +86,7 @@ enter m tlid cur =
           then
             let content =
                 TL.getSpec h cur
-                |> Maybe.andThen (\s ->
-                  case s of
-                    Filled _ f -> Just f
-                    _ -> Nothing)
+                |> Maybe.andThen blankToMaybe
                 |> Maybe.withDefault ""
             in
             Many [ Enter (Filling tlid cur)
