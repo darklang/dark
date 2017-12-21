@@ -42,7 +42,7 @@ test('field_access', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entryBox", "req.bo")
+    .typeText("#entryBox", "req.bo", { speed: 0.6 })
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
