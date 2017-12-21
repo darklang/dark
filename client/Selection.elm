@@ -33,15 +33,15 @@ nextSibling m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.map (TL.getNextSibling tl)
-  |> Maybe.map (\s -> Select tlid (Just s))
-  |> Maybe.withDefault (Select tlid cur)
+  |> ME.orElse cur
+  |> Select tlid
 
 previousSibling : Model -> TLID -> (Maybe Pointer) -> Modification
 previousSibling m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.map (TL.getPrevSibling tl)
-  |> ME.or cur
+  |> ME.orElse cur
   |> Select tlid
 
 nextBlank : Model -> TLID -> (Maybe Pointer) -> Modification

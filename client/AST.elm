@@ -471,26 +471,26 @@ maybeExtendThreadAt id expr =
         FieldAccess id (et obj) field
 
 
-children : Expr -> List ID
+children : Expr -> List Pointer
 children e =
   case e of
     Value _ _ -> []
     Hole _ -> []
     Variable _ _ -> []
     If _ cond ifbody elsebody ->
-      [toID cond, toID ifbody, toID elsebody]
+      [toP cond, toP ifbody, toP elsebody]
     FnCall _ name exprs ->
-      List.map toID exprs
+      List.map toP exprs
     Lambda _ vars lexpr ->
-      [toID lexpr]
+      [toP lexpr]
     Thread _ exprs ->
-      List.map toID exprs
+      List.map toP exprs
     FieldAccess _ obj field ->
-      [toID obj, blankOrID field]
+      [toP obj, P.blankTo Field field]
     Let _ lhs rhs body ->
-      [blankOrID lhs, toID rhs, toID body]
+      [P.blankTo VarBind lhs, toP rhs, toP body]
 
-childrenOf : ID -> Expr -> List ID
+childrenOf : ID -> Expr -> List Pointer
 childrenOf pid expr =
   let co = childrenOf pid
       returnOr fn e =
@@ -577,7 +577,7 @@ parentOf_ eid expr =
   let po = parentOf_ eid
       returnOr : (Expr -> Maybe Expr) -> Expr -> Maybe Expr
       returnOr fn e =
-        if List.member eid (children e)
+        if List.member eid (children e |> List.map P.idOf)
         then Just e
         else fn e
       filterMaybe xs = xs |> List.filterMap identity |> List.head

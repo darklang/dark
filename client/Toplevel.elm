@@ -89,7 +89,8 @@ siblings tl p =
   case tl.data of
     TLHandler h ->
       case getParentOf tl p of
-       Just p -> AST.siblings p h.ast
+       Just _ ->
+         AST.siblings p h.ast
        Nothing ->
          let specs = [h.spec.module_, h.spec.name, h.spec.modifier] in
          [AST.toP h.ast] ++ (List.map (P.blankTo Spec) specs)
@@ -200,7 +201,6 @@ getChildrenOf tl p =
     TLHandler h ->
       h.ast
       |> AST.childrenOf (P.idOf p)
-      |> List.map (PFilled Expr)
     _ -> []
 
 firstChild : Toplevel -> Pointer -> Maybe Pointer
