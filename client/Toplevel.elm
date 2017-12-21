@@ -205,7 +205,7 @@ getChildrenOf tl p =
 
 firstChild : Toplevel -> Pointer -> Maybe Pointer
 firstChild tl id = getChildrenOf tl id
-                 |> List.head
+                   |> List.head
 
 rootOf : Toplevel -> Maybe Pointer
 rootOf tl =
