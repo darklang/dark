@@ -350,6 +350,7 @@ let dval_to_sql (dv: dval) : string =
 let sql_to_dval (tipe: tipe) (sql: string) : dval =
   match tipe with
   | TID -> sql |> int_of_string |> DID
+  | TInt -> sql |> int_of_string |> DInt
   | TTitle -> sql |> DTitle
   | TUrl -> sql |> DUrl
   | TStr -> sql |> DStr
