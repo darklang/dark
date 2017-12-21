@@ -18,10 +18,11 @@ import Types exposing (..)
 -- import Autocomplete
 import Viewport
 -- import EntryParser exposing (AST(..), ACreating(..), AExpr(..), AFillParam(..), AFillResult(..), ARef(..))
-import Util
+import Util exposing (deMaybe)
 import AST
 import Toplevel as TL
 import Runtime as RT
+import Pointer as P
 import Analysis
 
 
@@ -40,9 +41,9 @@ tlid : () -> TLID
 tlid unit = TLID (Util.random unit)
 
 emptyHS : () -> HandlerSpec
-emptyHS _ = { name = Empty (gid ())
-            , module_ = Empty (gid ())
-            , modifier = Empty (gid ())
+emptyHS _ = { name = Blank (gid ())
+            , module_ = Blank (gid ())
+            , modifier = Blank (gid ())
             }
 
 createFunction : Model -> FnName -> Bool -> Maybe Expr
@@ -76,7 +77,7 @@ submit m cursor action value =
           ["if"] ->
             Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
           ["let"] ->
-            Just (Let eid (Empty hid1) (Hole hid2) (Hole hid3))
+            Just (Let eid (Blank hid1) (Hole hid2) (Hole hid3))
           ["lambda"] ->
             Just (Lambda eid ["var"] (Hole hid1))
           [""] ->
@@ -113,7 +114,7 @@ submit m cursor action value =
       then
         let access = FieldAccess (gid ())
                                  (Variable (gid ()) (String.dropLeft 1 value))
-                                 (Empty (gid ()))
+                                 (Blank (gid ()))
             ast = threadIt access
             handler = { ast = ast, spec = emptyHS () }
         in wrap <| SetHandler id pos handler
@@ -127,13 +128,14 @@ submit m cursor action value =
                 handler = { ast = ast, spec = emptyHS () }
             in RPC ([SetHandler id pos handler], FocusNext id Nothing)
 
-    Filling tlid id ->
+    Filling tlid p ->
       let tl = TL.getTL m tlid
-          predecessor = TL.getPrevHole tl id
+          predecessor = TL.getPrevBlank tl p
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
-          replaceExpr m h tlid id value =
-            let newExpr =
+          replaceExpr m h tlid p value =
+            let id = P.idOf p
+                newExpr =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
@@ -146,7 +148,7 @@ submit m cursor action value =
                                        |> String.trim
                         in
                           Let (gid ())
-                            (Full (gid ()) bindName)
+                            (Filled (gid ()) bindName)
                             (AST.closeThread thread)
                             (Hole (gid ()))
                       _ -> oldExpr
@@ -157,7 +159,7 @@ submit m cursor action value =
                     FieldAccess
                       (gid ())
                       (Variable (gid ()) (String.dropLeft 1 value))
-                      (Empty (gid ()))
+                      (Blank (gid ()))
 
                   -- variables and parsed expressions
                   else
@@ -169,7 +171,7 @@ submit m cursor action value =
                           else
                             parseAst
                               value
-                              (action == ContinueThread && TL.isThreadHole h id)
+                              (action == ContinueThread && TL.isThread h p)
                     in
                     case holeReplacement of
                       Nothing ->
@@ -194,19 +196,25 @@ submit m cursor action value =
       if String.length value < 1
       then NoChange
       else
-      case TL.holeType tl id of
-        DBColTypeHole _ ->
+      let id = P.idOf p
+          maybeH = TL.asHandler tl
+          db = TL.asDB tl in
+      case p of
+        PBlank DBColType _ ->
           wrap <| SetDBColType tlid id value
-        DBColNameHole _ ->
+        PBlank DBColName _ ->
           wrap <| SetDBColName tlid id value
-        BindHole h ->
-          let replacement = AST.replaceBindHole id value h.ast in
+        PBlank VarBind _ ->
+          let h = deMaybe maybeH
+              replacement = AST.replaceVarBindBlank id value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-        SpecHole h ->
-          let replacement = TL.replaceSpecHole id value h.spec in
+        PBlank Spec _ ->
+          let h = deMaybe maybeH
+              replacement = TL.replaceSpecBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        FieldHole h ->
-          let replacement = AST.replaceFieldHole id value h.ast
+        PBlank Field _ ->
+          let h = deMaybe maybeH
+              replacement = AST.replaceFieldBlank id value h.ast
               withNewParent = case action of
                 ContinueThread -> replacement
                 StartThread ->
@@ -214,16 +222,17 @@ submit m cursor action value =
                   AST.wrapInThread (AST.toID parent) replacement
           in
           wrap <| SetHandler tlid tl.pos { h | ast = withNewParent }
-        ExprHole h ->
-          replaceExpr m h tlid id value
-        NotAHole ->
+        PBlank Expr _ ->
+          let h = deMaybe maybeH in
+          replaceExpr m h tlid p value
+        PFilled _ id ->
           case tl.data of
             TLHandler h ->
               if TL.isExpression h id
               then
-                replaceExpr m h tlid id value
+                replaceExpr m h tlid p value
               else
-                let replacement = TL.replaceSpecHole id value h.spec in
+                let replacement = TL.replaceSpecBlank id value h.spec in
                 wrap <| SetHandler tlid tl.pos { h | spec = replacement }
             _ -> NoChange
 

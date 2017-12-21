@@ -43,7 +43,7 @@ fieldAccess m =
        |> deMaybe
        |> .ast
        of
-    FieldAccess _ (Variable _ "request") (Full _ "body") -> pass
+    FieldAccess _ (Variable _ "request") (Filled _ "body") -> pass
     expr -> fail expr
 
 
@@ -54,9 +54,9 @@ fieldAccessCloses m =
       let tl = m.toplevels
                |> List.head
                |> deMaybe in
-      if TL.allHoles tl == TL.specHoles (tl |> TL.asHandler |> deMaybe)
+      if TL.allBlanks tl == TL.specBlanks (tl |> TL.asHandler |> deMaybe)
       then pass
-      else fail (TL.allHoles tl)
+      else fail (TL.allBlanks tl)
     _ ->
       fail m.state
 
@@ -71,7 +71,7 @@ pipelineLetEquals m =
              |> deMaybe
              |> .ast
              of
-          Let _ (Full _ "value") (Value _ "3") (Hole _) ->
+          Let _ (Filled _ "value") (Value _ "3") (Hole _) ->
             pass
           expr ->
             fail expr

@@ -95,21 +95,22 @@ decodeVariants decoders =
 
 
 ------------------------------------
--- Holes
+-- Blanks
 ------------------------------------
 
-encodeHoleOr : (HoleOr v) -> (v -> JSE.Value) -> JSE.Value
-encodeHoleOr v encoder =
+-- TODO: extend the metaphor to the server
+encodeBlankOr : (BlankOr v) -> (v -> JSE.Value) -> JSE.Value
+encodeBlankOr v encoder =
   case v of
-    Full (ID id) s ->
+    Filled (ID id) s ->
       encodeVariant "Full" [JSE.int id, encoder s]
-    Empty (ID id) ->
+    Blank (ID id) ->
       encodeVariant "Empty" [JSE.int id]
 
-decodeHoleOr : JSD.Decoder a -> JSD.Decoder (HoleOr a)
-decodeHoleOr d =
-  decodeVariants [ ("Full", decodeVariant2 Full decodeID d)
-                 , ("Empty", decodeVariant1 Empty decodeID)]
+decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
+decodeBlankOr d =
+  decodeVariants [ ("Full", decodeVariant2 Filled decodeID d)
+                 , ("Empty", decodeVariant1 Blank decodeID)]
 
 ------------------------------------
 -- IDs

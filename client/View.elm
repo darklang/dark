@@ -23,6 +23,7 @@ import Analysis
 import Autocomplete
 import ViewAST
 import Toplevel as TL
+import Pointer as P
 
 view : Model -> Html.Html Msg
 view m =
@@ -109,42 +110,42 @@ viewCanvas m =
     in allSvgs
 
 
-viewHoleOrText : Model -> HoleOr String -> Html.Html Msg
-viewHoleOrText m h =
+viewBlankOrText : Model -> BlankOr String -> Html.Html Msg
+viewBlankOrText m h =
   case h of
-    Empty hid ->
+    Blank hid ->
       case unwrapState m.state of
-        Selecting _ (Just id) ->
-          if hid == id
-          then selectedHoleHtml
-          else unselectedHoleHtml
-        Entering (Filling _ id) ->
-          if hid == id
+        Selecting _ (Just p) ->
+          if hid == P.idOf p
+          then selectedBlankHtml
+          else unselectedBlankHtml
+        Entering (Filling _ p) ->
+          if hid == P.idOf p
           then entryHtml m
-          else unselectedHoleHtml
-        _ -> unselectedHoleHtml
-    Full hid s ->
+          else unselectedBlankHtml
+        _ -> unselectedBlankHtml
+    Filled hid s ->
       case unwrapState m.state of
-        Selecting _ (Just id) ->
-          if hid == id
-          then selectedFullHtml s
+        Selecting _ (Just p) ->
+          if hid == P.idOf p
+          then selectedFilledHtml s
           else Html.text s
-        Entering (Filling _ id) ->
-          if hid == id
+        Entering (Filling _ p) ->
+          if hid == P.idOf p
           then entryHtml m
           else Html.text s
         _ -> Html.text s
 
-selectedHoleHtml : Html.Html Msg
-selectedHoleHtml =
+selectedBlankHtml : Html.Html Msg
+selectedBlankHtml =
   Html.div [Attrs.class "hole selected"] [Html.text "＿＿＿＿＿＿"]
 
-unselectedHoleHtml : Html.Html Msg
-unselectedHoleHtml =
+unselectedBlankHtml : Html.Html Msg
+unselectedBlankHtml =
   Html.div [Attrs.class "hole"] [Html.text "＿＿＿＿＿＿"]
 
-selectedFullHtml : String -> Html.Html Msg
-selectedFullHtml s =
+selectedFilledHtml : String -> Html.Html Msg
+selectedFilledHtml s =
   Html.div [Attrs.class "selected"] [Html.text s]
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
@@ -186,10 +187,10 @@ viewDB m tl db =
                              [ Attrs.class "col" ]
                              [ Html.span
                                  [ Attrs.class "name" ]
-                                 [ viewHoleOrText m n ]
+                                 [ viewBlankOrText m n ]
                              , Html.span
                                  [ Attrs.class "type" ]
-                                 [ viewHoleOrText m t ]
+                                 [ viewBlankOrText m t ]
                              ])
                          db.cols
   in
@@ -204,8 +205,8 @@ viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
   let (id, filling) =
         case unwrapState m.state of
-          Selecting tlid (Just id) -> (id, False)
-          Entering (Filling tlid id) -> (id, True)
+          Selecting tlid (Just p) -> (P.idOf p, False)
+          Entering (Filling tlid p) -> (P.idOf p, True)
           _ -> (ID 0, False)
 
       lvs = Analysis.getLiveValuesDict m tl.id
@@ -222,13 +223,13 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "module"]
-            [ viewHoleOrText m h.spec.module_]
+            [ viewBlankOrText m h.spec.module_]
           , Html.div
             [ Attrs.class "name"]
-            [ viewHoleOrText m h.spec.name]
+            [ viewBlankOrText m h.spec.name]
           , Html.div
             [Attrs.class "modifier"]
-            [ viewHoleOrText m h.spec.modifier]]
+            [ viewBlankOrText m h.spec.modifier]]
   in
       [ast, header]
 
@@ -393,12 +394,12 @@ collapseHandlers handlers =
   let asCollapsed =
         handlers
         |> List.map (\h -> { name = case h.spec.name of
-                                      Full _ s -> Just s
-                                      Empty _ -> Nothing
+                                      Filled _ s -> Just s
+                                      Blank _ -> Nothing
                            , prefix = []
                            , verbs = case h.spec.modifier of
-                                       Full _ s -> [s]
-                                       Empty _ -> []
+                                       Filled _ s -> [s]
+                                       Blank _ -> []
                            })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   in

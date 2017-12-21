@@ -7,26 +7,26 @@ import List.Extra as LE
 import Types exposing (..)
 
 
-listHoles : DB -> List ID
-listHoles db =
-  LE.interweave (listColNameHoles db) (listColTypeHoles db)
+listBlanks : DB -> List Pointer
+listBlanks db =
+  LE.interweave (listColNameBlanks db) (listColTypeBlanks db)
 
-listColNameHoles : DB -> List ID
-listColNameHoles db =
+listColNameBlanks : DB -> List Pointer
+listColNameBlanks db =
   let r2h col =
         case col of
-          (Empty n, _) -> [n]
+          (Blank n, _) -> [PBlank DBColName n]
           _ -> []
   in
   db.cols
   |> List.map r2h
   |> List.concat
 
-listColTypeHoles : DB -> List ID
-listColTypeHoles db =
+listColTypeBlanks : DB -> List Pointer
+listColTypeBlanks db =
   let r2h col =
         case col of
-          (_, Empty t) -> [t]
+          (_, Blank t) -> [PBlank DBColType t]
           _ -> []
   in
   db.cols

@@ -64,12 +64,14 @@ gid : () -> ID -- Generate ID
 gid unit = ID (Util.random unit)
 
 
+-----------------------------
+-- State
+-----------------------------
 type EntryCursor = Creating Pos
-                 | Filling TLID ID
+                 | Filling TLID Pointer
 
 type alias HasMoved = Bool
-type alias ThreadID = ID
-type State = Selecting TLID (Maybe ID)
+type State = Selecting TLID (Maybe Pointer)
            | Entering EntryCursor
            | Dragging TLID VPos HasMoved State
            | Deselected
@@ -80,6 +82,10 @@ unwrapState s =
     Dragging _ _ _ unwrap -> unwrap
     _ -> s
 
+-----------------------------
+-- Msg
+-- main Elm Architecture bus type
+-----------------------------
 type alias RPCResult = (List Toplevel, List TLAResult)
 type Msg
     = GlobalClick MouseEvent
@@ -102,13 +108,17 @@ type Msg
     | SaveTestButton
     | Initialization
 
-type alias Predecessor = Maybe ID
+type alias Predecessor = Maybe Pointer
+type alias Successor = Maybe Pointer
 type Focus = FocusNothing -- deselect
            | Refocus TLID
-           | FocusExact TLID ID
+           | FocusExact TLID Pointer
            | FocusNext TLID Predecessor
            | FocusSame -- unchanged
 
+-----------------------------
+-- RPCs
+-----------------------------
 type RPC
     = NoOp
     | SetHandler TLID Pos Handler
@@ -123,6 +133,9 @@ type RPC
     | Undo
     | Redo
 
+-----------------------------
+-- Autocompletes
+-----------------------------
 type alias Autocomplete = { functions : List Function
                           , varnames : List VarName
                           , completions : List AutocompleteItem
@@ -138,9 +151,30 @@ type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
 
+type AutocompleteMod = ACSetQuery String
+                     | ACAppendQuery String
+                     | ACOpen Bool
+                     | ACReset
+                     | ACClear
+                     | ACSelectDown
+                     | ACSelectUp
+                     | ACFilterByLiveValue (Maybe LiveValue)
+                     | ACSetAvailableVarnames (List VarName)
+                     | ACShowFunctions Bool
+                     -- | ACFilterByParamType Tipe NodeList
+
+
+
+-----------------------------
+-- AB tests
+-----------------------------
 type VariantTest = StubVariant
 
 
+
+-----------------------------
+-- AST
+-----------------------------
 
 type alias Class = String
 type Element = Leaf (Maybe ID, Class, String)
@@ -150,8 +184,8 @@ type alias VarName = String
 type alias FnName = String
 type alias FieldName = String
 
-type alias VarBind = HoleOr VarName
-type alias Field = HoleOr FieldName
+type alias VarBind = BlankOr VarName
+type alias Field = BlankOr FieldName
 
 -- TODO(ian): VarBinds should potentially be an
 -- Expr as they're IDs that exist _inside_ the AST
@@ -170,26 +204,35 @@ type Expr = If ID Expr Expr Expr
 
 type alias AST = Expr
 
-type HoleType = BindHole Handler
-              | SpecHole Handler
-              | ExprHole Handler
-              | FieldHole Handler
-              | DBColNameHole DB
-              | DBColTypeHole DB
-              | NotAHole
+-----------------------------
+-- High-level ID wrappers
+-- so we're not using IDs in important APIs
+-----------------------------
+type PointerType = VarBind
+                 | Spec
+                 | Expr
+                 | Field
+                 | DBColName
+                 | DBColType
 
-type HoleOr a = Empty ID
-              | Full ID a
+type Pointer = PBlank PointerType ID
+             | PFilled PointerType ID
 
-holeOrID : HoleOr a -> ID
-holeOrID a =
+type BlankOr a = Blank ID
+               | Filled ID a
+
+blankOrID : BlankOr a -> ID
+blankOrID a =
   case a of
-    Empty id -> id
-    Full id _ -> id
+    Blank id -> id
+    Filled id _ -> id
 
-type alias HandlerSpec = { module_ : HoleOr String
-                         , name : HoleOr String
-                         , modifier : HoleOr String
+-----------------------------
+-- Top-levels
+-----------------------------
+type alias HandlerSpec = { module_ : BlankOr String
+                         , name : BlankOr String
+                         , modifier : BlankOr String
                          }
 
 type alias Handler = { ast : AST
@@ -199,7 +242,7 @@ type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
 type alias DB = { name : DBName
-                , cols : List (HoleOr DBColName, HoleOr DBColType)}
+                , cols : List (BlankOr DBColName, BlankOr DBColType)}
 
 type TLData = TLHandler Handler
             | TLDB DB
@@ -210,6 +253,9 @@ type alias Toplevel = { id : TLID
                       }
 
 
+-----------------------------
+-- Analysis
+-----------------------------
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
 type alias TLAResult = { id: TLID
@@ -218,6 +264,9 @@ type alias TLAResult = { id: TLID
                        , availableVarnames : AVDict
                        }
 
+-----------------------------
+-- Model
+-----------------------------
 type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
@@ -230,27 +279,26 @@ type alias Model = { center : Pos
                    , integrationTestState : IntegrationTestState
                    }
 
+-- Values that we serialize
+type alias Editor = { }
+
+-----------------------------
+-- Testing
+-----------------------------
+
 -- avoid ever-expanding aliases
 type alias TestResult = Result String ()
 type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
                           | IntegrationTestFinished TestResult
                           | NoIntegrationTest
 
-type AutocompleteMod = ACSetQuery String
-                     | ACAppendQuery String
-                     | ACOpen Bool
-                     | ACReset
-                     | ACClear
-                     | ACSelectDown
-                     | ACSelectUp
-                     | ACFilterByLiveValue (Maybe LiveValue)
-                     | ACSetAvailableVarnames (List VarName)
-                     | ACShowFunctions Bool
-                     -- | ACFilterByParamType Tipe NodeList
 
+-----------------------------
+-- Modifications
+-----------------------------
 type Modification = Error String
                   | ClearError
-                  | Select TLID (Maybe ID)
+                  | Select TLID (Maybe Pointer)
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult)
                   | Enter EntryCursor
@@ -264,6 +312,16 @@ type Modification = Error String
                   | TriggerIntegrationTest String
                   | EndIntegrationTest
                   | SetState State
+
+-----------------------------
+-- Flags / function types
+-----------------------------
+
+type alias Flags =
+  { editorState: Maybe Editor
+  , complete: List FlagFunction
+  }
+
 
 -- name, type optional
 type alias Parameter = { name: String
@@ -291,14 +349,4 @@ type alias FlagFunction = { name: String
                           , description: String
                           , return_type: String
                           }
-
-
-
-type alias Flags =
-  { editorState: Maybe Editor
-  , complete: List FlagFunction
-  }
-
--- Values that we serialize
-type alias Editor = { }
 

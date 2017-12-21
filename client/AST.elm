@@ -10,6 +10,7 @@ import Maybe.Extra as ME
 -- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
+import Pointer as P
 
 isInfix : FnName -> Bool
 isInfix name =
@@ -28,11 +29,17 @@ isLeaf id ast =
           (List.length params) == 0
         _ -> False
 
+toP : Expr -> Pointer
+toP e =
+  case e of
+    Hole id -> PBlank Expr id
+    _ -> PFilled Expr (toID e)
 
-deleteExpr : ID -> AST -> (ID, AST)
+
+deleteExpr : ID -> AST -> (Pointer, AST)
 deleteExpr id ast =
   let replacement = Hole (ID <| Util.random ())
-  in (toID replacement, replaceExpr id replacement ast)
+  in (PBlank Expr (toID replacement), replaceExpr id replacement ast)
 
 replaceExpr : ID -> Expr -> Expr -> Expr
 replaceExpr id replacement expr =
@@ -80,6 +87,273 @@ toID expr =
     Thread id _ -> id
     FieldAccess id _ _ -> id
 
+
+replaceVarBindBlank : ID -> VarName -> Expr -> Expr
+replaceVarBindBlank hid replacement expr =
+  let rbh = replaceVarBindBlank hid replacement
+      rbhList : List Expr -> List Expr
+      rbhList exprs = List.map rbh exprs
+  in
+  case expr of
+    Value id v ->
+      Value id v
+
+    Let id lhs rhs expr ->
+      let newLhs =
+            case lhs of
+              Filled id s ->
+                if id == hid
+                then Filled id replacement
+                else lhs
+              Blank id ->
+                if id == hid
+                then Filled id replacement
+                else lhs
+
+      in Let id newLhs (rbh rhs) (rbh expr)
+
+    If id cond ifbody elsebody ->
+      If id (rbh cond) (rbh ifbody) (rbh elsebody)
+
+    Variable id name ->
+      Variable id name
+
+    FnCall id name exprs ->
+      FnCall id name (rbhList exprs)
+
+    Lambda id vars expr ->
+      Lambda id vars (rbh expr)
+
+    Hole id ->
+      Hole id
+
+    Thread id exprs ->
+      Thread id (rbhList exprs)
+
+    FieldAccess id obj name ->
+      FieldAccess id (rbh obj) name
+
+replaceFieldBlank : ID -> VarName -> Expr -> Expr
+replaceFieldBlank hid replacement expr =
+  let rfh = replaceFieldBlank hid replacement
+      rfhList : List Expr -> List Expr
+      rfhList exprs = List.map rfh exprs
+  in
+  case expr of
+    Value id v ->
+      Value id v
+
+    Let id lhs rhs expr ->
+      Let id lhs (rfh rhs) (rfh expr)
+
+    If id cond ifbody elsebody ->
+      If id (rfh cond) (rfh ifbody) (rfh elsebody)
+
+    Variable id name ->
+      Variable id name
+
+    FnCall id name exprs ->
+      FnCall id name (rfhList exprs)
+
+    Lambda id vars expr ->
+      Lambda id vars (rfh expr)
+
+    Hole id ->
+      Hole id
+
+    Thread id exprs ->
+      Thread id (rfhList exprs)
+
+    FieldAccess id obj name ->
+      let newName =
+            case name of
+              Filled id s ->
+                if id == hid
+                then Filled id replacement
+                else name
+              Blank id ->
+                if id == hid
+                then Filled id replacement
+                else name
+      in FieldAccess id (rfh obj) newName
+
+isHole : Expr -> Bool
+isHole e =
+  case e of
+    Hole _ -> True
+    _ -> False
+
+listVarBindBlanks : Expr -> List Pointer
+listVarBindBlanks expr =
+  let lbhList : List Expr -> List Pointer
+      lbhList exprs =
+        exprs
+        |> List.map listVarBindBlanks
+        |> List.concat
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ lhs rhs expr ->
+      let exprVarBindBlanks = lbhList [rhs, expr]
+          bindHoles = [P.blankTo Expr lhs]
+      in
+          bindHoles ++ exprVarBindBlanks
+
+    If _ cond ifbody elsebody ->
+      lbhList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lbhList exprs
+
+    Lambda _ vars expr ->
+      listVarBindBlanks expr
+
+    -- note this is empty, which is the difference between this and listBlanks
+    Hole id ->
+      []
+
+    Thread _ exprs ->
+      lbhList exprs
+
+    FieldAccess _ obj ident ->
+      listVarBindBlanks obj
+
+listFieldBlanks : Expr -> List Pointer
+listFieldBlanks expr =
+  let lfhList : List Expr -> List Pointer
+      lfhList exprs =
+        exprs
+        |> List.map listFieldBlanks
+        |> List.concat
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ lhs rhs expr ->
+      lfhList [rhs, expr]
+
+    If _ cond ifbody elsebody ->
+      lfhList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lfhList exprs
+
+    Lambda _ vars expr ->
+      listFieldBlanks expr
+
+    -- note this is empty, which is the difference between this and listBlanks
+    Hole id ->
+      []
+
+    Thread _ exprs ->
+      lfhList exprs
+
+    FieldAccess _ obj (Blank ident) ->
+      listFieldBlanks obj ++ [PBlank Expr ident]
+
+    FieldAccess _ obj (Filled _ _) ->
+      listFieldBlanks obj
+
+-- TODO: figure out how we can define this
+-- this in terms of listVarBindBlanks and a listExprHoles
+--
+-- a naive concatenation would be a) another dupe'd walk
+-- plus b) lead to even more ordering issues
+--
+-- time for a proper visitor abstraction?
+listBlanks : Expr -> List Pointer
+listBlanks expr =
+  let lhList : List Expr -> List Pointer
+      lhList exprs =
+        exprs
+        |> List.map listBlanks
+        |> List.concat
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ lhs rhs expr ->
+      let exprHoles = lhList [rhs, expr]
+          bindHoles =
+            case lhs of
+              Filled id _ -> []
+              Blank id -> [PBlank VarBind id]
+      in
+          bindHoles ++ exprHoles
+
+    If _ cond ifbody elsebody ->
+      lhList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lhList exprs
+
+    Lambda _ vars expr ->
+      listBlanks expr
+
+    Hole id -> [PBlank Expr id]
+
+    Thread _ exprs ->
+      lhList exprs
+
+    FieldAccess _ obj (Blank ident) ->
+      listFieldBlanks obj ++ [PBlank Field ident]
+
+    FieldAccess _ obj (Filled _ _) ->
+      listFieldBlanks obj
+
+listThreadHoles : Expr -> List ID
+listThreadHoles expr =
+  let lthList : List Expr -> List ID
+      lthList exprs =
+        exprs
+        |> List.map listThreadHoles
+        |> List.concat
+  in
+  case expr of
+    Value _ v ->
+      []
+
+    Let _ lhs rhs expr ->
+      lthList [rhs, expr]
+
+    If _ cond ifbody elsebody ->
+      lthList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lthList exprs
+
+    Lambda _ vars expr ->
+      listThreadHoles expr
+
+    Hole id -> []
+
+    Thread _ exprs ->
+      let (holes, notHoles) = List.partition isHole exprs
+          holeids = List.map toID holes
+          subExprsHoleids = lthList notHoles
+      in
+          holeids ++ subExprsHoleids
+
+    FieldAccess _ obj _ ->
+      listThreadHoles obj
+
+
 closeThread : Expr -> Expr
 closeThread expr =
   -- Close all threads
@@ -126,278 +400,6 @@ closeThread expr =
             Thread tid newExprs
 
 
-
-replaceBindHole : ID -> VarName -> AST -> AST
-replaceBindHole hid replacement ast =
-  replaceBindHole_ hid replacement ast
-
-replaceBindHole_ : ID -> VarName -> Expr -> Expr
-replaceBindHole_ hid replacement expr =
-  let rbh = replaceBindHole_ hid replacement
-      rbhList : List Expr -> List Expr
-      rbhList exprs = List.map rbh exprs
-  in
-  case expr of
-    Value id v ->
-      Value id v
-
-    Let id lhs rhs expr ->
-      let newLhs =
-            case lhs of
-              Full id s ->
-                if id == hid
-                then Full id replacement
-                else lhs
-              Empty id ->
-                if id == hid
-                then Full id replacement
-                else lhs
-
-      in Let id newLhs (rbh rhs) (rbh expr)
-
-    If id cond ifbody elsebody ->
-      If id (rbh cond) (rbh ifbody) (rbh elsebody)
-
-    Variable id name ->
-      Variable id name
-
-    FnCall id name exprs ->
-      FnCall id name (rbhList exprs)
-
-    Lambda id vars expr ->
-      Lambda id vars (rbh expr)
-
-    Hole id ->
-      Hole id
-
-    Thread id exprs ->
-      Thread id (rbhList exprs)
-
-    FieldAccess id obj name ->
-      FieldAccess id (rbh obj) name
-
-replaceFieldHole : ID -> VarName -> Expr -> Expr
-replaceFieldHole hid replacement expr =
-  let rfh = replaceFieldHole hid replacement
-      rfhList : List Expr -> List Expr
-      rfhList exprs = List.map rfh exprs
-  in
-  case expr of
-    Value id v ->
-      Value id v
-
-    Let id lhs rhs expr ->
-      Let id lhs (rfh rhs) (rfh expr)
-
-    If id cond ifbody elsebody ->
-      If id (rfh cond) (rfh ifbody) (rfh elsebody)
-
-    Variable id name ->
-      Variable id name
-
-    FnCall id name exprs ->
-      FnCall id name (rfhList exprs)
-
-    Lambda id vars expr ->
-      Lambda id vars (rfh expr)
-
-    Hole id ->
-      Hole id
-
-    Thread id exprs ->
-      Thread id (rfhList exprs)
-
-    FieldAccess id obj name ->
-      let newName =
-            case name of
-              Full id s ->
-                if id == hid
-                then Full id replacement
-                else name
-              Empty id ->
-                if id == hid
-                then Full id replacement
-                else name
-      in FieldAccess id (rfh obj) newName
-
-isHole : Expr -> Bool
-isHole e =
-  case e of
-    Hole _ -> True
-    _ -> False
-
-listBindHoles : Expr -> List ID
-listBindHoles expr =
-  let lbhList : List Expr -> List ID
-      lbhList exprs =
-        exprs
-        |> List.map listBindHoles
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
-
-    Let _ lhs rhs expr ->
-      let exprBindHoles = lbhList [rhs, expr]
-          bindHoles =
-            case lhs of
-              Full id _ -> []
-              Empty id -> [id]
-      in
-          bindHoles ++ exprBindHoles
-
-    If _ cond ifbody elsebody ->
-      lbhList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lbhList exprs
-
-    Lambda _ vars expr ->
-      listBindHoles expr
-
-    -- note this is empty, which is the difference between this and listHoles
-    Hole id ->
-      []
-
-    Thread _ exprs ->
-      lbhList exprs
-
-    FieldAccess _ obj ident ->
-      listBindHoles obj
-
-listFieldHoles : Expr -> List ID
-listFieldHoles expr =
-  let lfhList : List Expr -> List ID
-      lfhList exprs =
-        exprs
-        |> List.map listFieldHoles
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
-
-    Let _ lhs rhs expr ->
-      lfhList [rhs, expr]
-
-    If _ cond ifbody elsebody ->
-      lfhList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lfhList exprs
-
-    Lambda _ vars expr ->
-      listFieldHoles expr
-
-    -- note this is empty, which is the difference between this and listHoles
-    Hole id ->
-      []
-
-    Thread _ exprs ->
-      lfhList exprs
-
-    FieldAccess _ obj (Empty ident) ->
-      listFieldHoles obj ++ [ident]
-
-    FieldAccess _ obj (Full _ _) ->
-      listFieldHoles obj
-
--- TODO: figure out how we can define this
--- this in terms of listBindHoles and a listExprHoles
---
--- a naive concatenation would be a) another dupe'd walk
--- plus b) lead to even more ordering issues
---
--- time for a proper visitor abstraction?
-listHoles : Expr -> List ID
-listHoles expr =
-  let lhList : List Expr -> List ID
-      lhList exprs =
-        exprs
-        |> List.map listHoles
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
-
-    Let _ lhs rhs expr ->
-      let exprHoles = lhList [rhs, expr]
-          bindHoles =
-            case lhs of
-              Full id _ -> []
-              Empty id -> [id]
-      in
-          bindHoles ++ exprHoles
-
-    If _ cond ifbody elsebody ->
-      lhList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lhList exprs
-
-    Lambda _ vars expr ->
-      listHoles expr
-
-    Hole id -> [id]
-
-    Thread _ exprs ->
-      lhList exprs
-
-    FieldAccess _ obj (Empty ident) ->
-      listFieldHoles obj ++ [ident]
-
-    FieldAccess _ obj (Full _ _) ->
-      listFieldHoles obj
-
-listThreadHoles : Expr -> List ID
-listThreadHoles expr =
-  let lthList : List Expr -> List ID
-      lthList exprs =
-        exprs
-        |> List.map listThreadHoles
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
-
-    Let _ lhs rhs expr ->
-      lthList [rhs, expr]
-
-    If _ cond ifbody elsebody ->
-      lthList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lthList exprs
-
-    Lambda _ vars expr ->
-      listThreadHoles expr
-
-    Hole id -> []
-
-    Thread _ exprs ->
-      let (holes, notHoles) = List.partition isHole exprs
-          holeids = List.map toID holes
-          subExprsHoleids = lthList notHoles
-      in
-          holeids ++ subExprsHoleids
-
-    FieldAccess _ obj _ ->
-      listThreadHoles obj
 
 -- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> Expr -> Expr
@@ -484,11 +486,11 @@ children e =
     Thread _ exprs ->
       List.map toID exprs
     FieldAccess _ obj field ->
-      [toID obj, holeOrID field]
+      [toID obj, blankOrID field]
     Let _ lhs rhs body ->
-      [holeOrID lhs, toID rhs, toID body]
+      [blankOrID lhs, toID rhs, toID body]
 
-childrenOf : ID -> AST -> List ID
+childrenOf : ID -> Expr -> List ID
 childrenOf pid expr =
   let co = childrenOf pid
       returnOr fn e =
@@ -573,6 +575,7 @@ parentOf id ast =
 parentOf_ : ID -> Expr -> Maybe Expr
 parentOf_ eid expr =
   let po = parentOf_ eid
+      returnOr : (Expr -> Maybe Expr) -> Expr -> Maybe Expr
       returnOr fn e =
         if List.member eid (children e)
         then Just e
@@ -604,38 +607,36 @@ parentOf_ eid expr =
       returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
 
     FieldAccess id obj field ->
-      if holeOrID field == eid
+      if blankOrID field == eid
       then Just expr
       else returnOr (\_ -> po obj) expr
 
 -- includes self
-siblings : ID -> AST -> List ID
-siblings id ast =
-  let parent = parentOf_ id ast
-  in
+siblings : Pointer -> AST -> List Pointer
+siblings p ast =
+  case parentOf_ (P.idOf p) ast of
+    Nothing -> [p]
+    Just parent ->
       case parent of
-        Nothing -> [id]
-        Just p ->
-          case p of
-            If _ cond ifbody elsebody ->
-              List.map toID [cond, ifbody, elsebody]
+        If _ cond ifbody elsebody ->
+          List.map toP [cond, ifbody, elsebody]
 
-            Let _ lhs rhs body ->
-              [holeOrID lhs, toID rhs, toID body]
+        Let _ lhs rhs body ->
+          [P.blankTo VarBind lhs, toP rhs, toP body]
 
-            FnCall _ name exprs ->
-              List.map toID exprs
+        FnCall _ name exprs ->
+          List.map toP exprs
 
-            Lambda _ vars lexpr ->
-              [toID lexpr]
+        Lambda _ vars lexpr ->
+          [toP lexpr]
 
-            Thread _ exprs ->
-              List.map toID exprs
+        Thread _ exprs ->
+          List.map toP exprs
 
-            FieldAccess _ obj field ->
-              [toID obj, holeOrID field]
+        FieldAccess _ obj field ->
+          [toP obj, P.blankTo Field field]
 
-            _ -> [id]
+        _ -> [p]
 
 toContent : AST -> String
 toContent a =
@@ -647,7 +648,7 @@ toContent a =
 
 inAST : ID -> AST -> Bool
 inAST id ast =
-  let holes = listHoles ast
+  let holes = listBlanks ast |> List.map P.idOf
       expr  = subExpr id ast |> Maybe.map toID |> ME.toList
   in
   List.member id (holes ++ expr)

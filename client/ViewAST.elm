@@ -98,8 +98,8 @@ vVarname mId v = Leaf (mId, "varname atom", v)
 vVarBind : VarBind -> Element
 vVarBind v =
   case v of
-    Full id s -> Leaf (Just id, "varname atom", s)
-    Empty id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
+    Filled id s -> Leaf (Just id, "varname atom", s)
+    Blank id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
 vExpr : Int -> Expr -> Element
 vExpr nest expr =

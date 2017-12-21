@@ -74,9 +74,9 @@ encodeRPC m call =
     case call of
       SetHandler id pos h ->
         let hs = JSE.object
-                   [ ("name", encodeHoleOr h.spec.name JSE.string)
-                   , ("module", encodeHoleOr h.spec.module_ JSE.string)
-                   , ("modifier", encodeHoleOr h.spec.modifier JSE.string)]
+                   [ ("name", encodeBlankOr h.spec.name JSE.string)
+                   , ("module", encodeBlankOr h.spec.module_ JSE.string)
+                   , ("modifier", encodeBlankOr h.spec.modifier JSE.string)]
             handler = JSE.object [ ("tlid", encodeTLID id)
                                  , ("spec", hs)
                                  , ("ast", encodeAST h.ast) ] in
@@ -115,7 +115,7 @@ encodeAST expr =
 
     Let id lhs rhs body ->
       ev "Let" [ eid id
-               , encodeHoleOr lhs JSE.string
+               , encodeBlankOr lhs JSE.string
                , e rhs
                , e body]
 
@@ -130,7 +130,7 @@ encodeAST expr =
     Hole id -> ev "Hole" [eid id]
     Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
     FieldAccess id obj field ->
-      ev "FieldAccess" [eid id, e obj, encodeHoleOr field JSE.string ]
+      ev "FieldAccess" [eid id, e obj, encodeBlankOr field JSE.string ]
 
 
 
@@ -152,7 +152,7 @@ decodeExpr =
       dv2 = decodeVariant2
       dv1 = decodeVariant1 in
   decodeVariants
-    [ ("Let", dv4 Let did (decodeHoleOr JSD.string) de de)
+    [ ("Let", dv4 Let did (decodeBlankOr JSD.string) de de)
     , ("Hole", dv1 Hole did)
     , ("Value", dv2 Value did JSD.string)
     , ("If", dv4 If did de de de)
@@ -160,7 +160,7 @@ decodeExpr =
     , ("Lambda", dv3 Lambda did (JSD.list JSD.string) de)
     , ("Variable", dv2 Variable did JSD.string)
     , ("Thread", dv2 Thread did (JSD.list de))
-    , ("FieldAccess", dv3 FieldAccess did de (decodeHoleOr JSD.string))
+    , ("FieldAccess", dv3 FieldAccess did de (decodeBlankOr JSD.string))
     ]
 
 decodeAST : JSD.Decoder AST
@@ -229,9 +229,9 @@ decodeHandlerSpec =
         , modifier = modifier}
   in
   JSDP.decode toHS
-  |> JSDP.required "module" (decodeHoleOr JSD.string)
-  |> JSDP.required "name" (decodeHoleOr JSD.string)
-  |> JSDP.required "modifier" (decodeHoleOr JSD.string)
+  |> JSDP.required "module" (decodeBlankOr JSD.string)
+  |> JSDP.required "name" (decodeBlankOr JSD.string)
+  |> JSDP.required "modifier" (decodeBlankOr JSD.string)
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
@@ -251,8 +251,8 @@ decodeDB =
   |> JSDP.required "display_name" JSD.string
   |> JSDP.required "cols" (JSD.list
                             (decodePair
-                              (decodeHoleOr JSD.string)
-                              (decodeHoleOr decodeTipe)))
+                              (decodeBlankOr JSD.string)
+                              (decodeBlankOr decodeTipe)))
 
 
 decodeToplevel : JSD.Decoder Toplevel

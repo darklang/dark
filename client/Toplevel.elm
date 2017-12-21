@@ -10,6 +10,7 @@ import DB
 import Types exposing (..)
 import Util exposing (deMaybe)
 import AST
+import Pointer as P
 
 getTL : Model -> TLID -> Toplevel
 getTL m id =
@@ -20,63 +21,9 @@ replace : Model -> Toplevel -> Model
 replace m tl =
   update m tl.id (\_ -> tl)
 
-isThreadHole : Handler -> ID -> Bool
-isThreadHole h id =
-  h.ast |> AST.listThreadHoles |> List.member id
-
-isBindHole : Handler -> ID -> Bool
-isBindHole h id =
-  h.ast |> AST.listBindHoles |> List.member id
-
-isSpecHole : Handler -> ID -> Bool
-isSpecHole h id =
-  h |> specHoles |> List.member id
-
-isExprHole : Handler -> ID -> Bool
-isExprHole h id =
-  let bhs = AST.listBindHoles h.ast in
-  h.ast
-  |> AST.listHoles
-  |> List.filter (\hl -> not <| List.member hl bhs)
-  |> List.member id
-
-isFieldHole : Handler -> ID -> Bool
-isFieldHole h id =
-  h.ast |> AST.listFieldHoles |> List.member id
-
-isDBColNameHole : DB -> ID -> Bool
-isDBColNameHole db id =
-  db |> DB.listColNameHoles |> List.member id
-
-isDBColTypeHole : DB -> ID -> Bool
-isDBColTypeHole db id =
-  db |> DB.listColTypeHoles |> List.member id
-
-holeType : Toplevel -> ID -> HoleType
-holeType tl id =
-  case tl.data of
-    TLHandler h ->
-      if isBindHole h id
-      then BindHole h
-      else if isSpecHole h id
-      then SpecHole h
-      else if isFieldHole h id
-      then FieldHole h
-      else if isExprHole h id
-      then ExprHole h
-      else NotAHole
-    TLDB db ->
-      if isDBColNameHole db id
-      then DBColNameHole db
-      else if isDBColTypeHole db id
-      then DBColTypeHole db
-      else NotAHole
-
-isHole : Toplevel -> ID -> Bool
-isHole tl id =
-  case (holeType tl id) of
-    NotAHole -> False
-    _ -> True
+isThread : Handler -> Pointer -> Bool
+isThread h p =
+  h.ast |> AST.listThreadHoles |> List.member (P.idOf p)
 
 isExpression : Handler -> ID -> Bool
 isExpression h id =
@@ -85,127 +32,120 @@ isExpression h id =
     _ -> False
 
 
-specHoles : Handler -> List ID
-specHoles h =
+specBlanks : Handler -> List Pointer
+specBlanks h =
   let e2l a =
         case a of
-          Empty hid -> [hid]
+          Blank hid -> [PBlank Spec hid]
           _ -> []
   in e2l h.spec.module_ ++ e2l h.spec.name ++ e2l h.spec.modifier
 
-getSpec : Handler -> ID -> Maybe (HoleOr String)
-getSpec h id =
+getSpec : Handler -> Pointer -> Maybe (BlankOr String)
+getSpec h p =
   [h.spec.module_, h.spec.name, h.spec.modifier]
   |> List.filter
     (\spec ->
       case spec of
-        Full fid _ -> fid == id
-        Empty eid -> eid == id)
+        -- TODO: opportunity to check pointer types
+        Filled fid _ -> fid == P.idOf p
+        Blank eid -> eid == P.idOf p)
   |> List.head
-
-isSpec : Handler -> ID -> Bool
-isSpec h id =
-  (isSpecHole h id) || (isFilledSpec h id)
-
-isFilledSpec : Handler -> ID -> Bool
-isFilledSpec h id =
-  h |> filledSpecs |> List.member id
 
 filledSpecs : Handler -> List ID
 filledSpecs h =
   let f2l a =
         case a of
-          Full id _ -> [id]
+          Filled id _ -> [id]
           _ -> []
   in f2l h.spec.module_ ++ f2l h.spec.name ++ f2l h.spec.modifier
 
-replaceSpecHole : ID -> String -> HandlerSpec -> HandlerSpec
-replaceSpecHole id value hs =
+replaceSpecBlank : ID -> String -> HandlerSpec -> HandlerSpec
+replaceSpecBlank id value hs =
   let rh a =
         case a of
-          Empty hid ->
+          Blank hid ->
             if id == hid
-            then Full hid value
+            then Filled hid value
             else a
-          Full hid s ->
+          Filled hid s ->
             if id == hid
-            then Full hid value
+            then Filled hid value
             else a
   in { name = rh hs.name
      , module_ = rh hs.module_
      , modifier = rh hs.modifier
      }
 
-allHoles : Toplevel -> List ID
-allHoles tl =
+allBlanks : Toplevel -> List Pointer
+allBlanks tl =
   case tl.data of
     TLHandler h ->
-      AST.listHoles h.ast ++ specHoles h
+      AST.listBlanks h.ast ++ specBlanks h
     TLDB db ->
-      DB.listHoles db
+      DB.listBlanks db
 
-siblings : Toplevel -> ID -> List ID
-siblings tl id =
+siblings : Toplevel -> Pointer -> List Pointer
+siblings tl p =
   case tl.data of
     TLHandler h ->
-      case getParentOf tl id of
-       Just p -> AST.siblings id h.ast
+      case getParentOf tl p of
+       Just p -> AST.siblings p h.ast
        Nothing ->
          let specs = [h.spec.module_, h.spec.name, h.spec.modifier] in
-         [AST.toID h.ast] ++ (List.map holeOrID specs)
+         [AST.toP h.ast] ++ (List.map (P.blankTo Spec) specs)
     _ -> []
 
-getNextSibling : Toplevel -> ID -> ID
-getNextSibling tl id =
+getNextSibling : Toplevel -> Pointer -> Pointer
+getNextSibling tl p =
   case tl.data of
     TLHandler h ->
-      let sibs = siblings tl id in
+      let sibs = siblings tl p in
       sibs
-      |> LE.elemIndex id
+      |> LE.elemIndex p
       |> Maybe.map ((+) 1)
       |> Maybe.map (\i -> i % List.length sibs)
       |> Maybe.andThen (\i -> LE.getAt i sibs)
-      |> Maybe.withDefault id
-    _ -> id
+      |> Maybe.withDefault p
+    _ -> p
 
-getPrevSibling : Toplevel -> ID -> ID
-getPrevSibling tl id =
+getPrevSibling : Toplevel -> Pointer -> Pointer
+getPrevSibling tl p =
   case tl.data of
     TLHandler h ->
-      let sibs = siblings tl id
+      let sibs = siblings tl p
           -- 'safe' to deMaybe as there's always at least
           -- one member in the array
           last = deMaybe <| LE.last sibs
       in
       sibs
-      |> LE.elemIndex id
+      |> LE.elemIndex p
       |> Maybe.map (\i -> i - 1)
       |> Maybe.andThen (\i -> LE.getAt i sibs)
       |> Maybe.withDefault last
-    _ -> id
+    _ -> p
 
-getNextHole : Toplevel -> Predecessor -> Maybe ID
-getNextHole tl pred =
+getNextBlank : Toplevel -> Predecessor -> Successor
+getNextBlank tl pred =
   case pred of
     Just pred ->
-      let holes = allHoles tl in
+      let holes = allBlanks tl in
       holes
       |> LE.elemIndex pred
       |> Maybe.map ((+) 1)
       |> Maybe.andThen (\i -> LE.getAt i holes)
-    Nothing -> firstHole tl
+    Nothing -> firstBlank tl
 
-getPrevHole : Toplevel -> ID -> Predecessor
-getPrevHole tl next =
-  let holes = allHoles tl in
+getPrevBlank : Toplevel -> Pointer -> Predecessor
+getPrevBlank tl next =
+  let holes = allBlanks tl in
   holes
   |> LE.elemIndex next
   |> Maybe.map (\i -> i - 1)
   |> Maybe.andThen (\i -> LE.getAt i holes)
 
-firstHole : Toplevel -> Maybe ID
-firstHole tl =
-  tl |> allHoles |> List.head
+firstBlank : Toplevel -> Successor
+firstBlank tl =
+  tl |> allBlanks |> List.head
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
@@ -246,29 +186,32 @@ dbs : List Toplevel -> List DB
 dbs tls =
   List.filterMap asDB tls
 
-getParentOf : Toplevel -> ID -> Maybe ID
-getParentOf tl id =
+getParentOf : Toplevel -> Pointer -> Maybe Pointer
+getParentOf tl p =
   case tl.data of
     TLHandler h ->
-      AST.parentOf_ id h.ast |> Maybe.map AST.toID
+      AST.parentOf_ (P.idOf p) h.ast
+      |> Maybe.map AST.toP
     _ -> Nothing
 
-getChildrenOf : Toplevel -> ID -> List ID
-getChildrenOf tl id =
+getChildrenOf : Toplevel -> Pointer -> List Pointer
+getChildrenOf tl p =
   case tl.data of
     TLHandler h ->
-      AST.childrenOf id h.ast
+      h.ast
+      |> AST.childrenOf (P.idOf p)
+      |> List.map (PFilled Expr)
     _ -> []
 
-firstChild : Toplevel -> ID -> Maybe ID
+firstChild : Toplevel -> Pointer -> Maybe Pointer
 firstChild tl id = getChildrenOf tl id
                  |> List.head
 
-rootOf : Toplevel -> Maybe ID
+rootOf : Toplevel -> Maybe Pointer
 rootOf tl =
   case tl.data of
     TLHandler h ->
-      Just <| AST.toID h.ast
+      Just <| AST.toP h.ast
     _ -> Nothing
 
 

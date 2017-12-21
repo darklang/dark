@@ -25,6 +25,7 @@ import Viewport
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
+import Pointer as P
 import AST
 import Selection
 import Runtime
@@ -165,66 +166,62 @@ updateMod origm mod (m, cmd) =
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
-      Select tlid hid ->
-        { m | state = Selecting tlid hid } ! []
+      Select tlid p ->
+        { m | state = Selecting tlid p } ! []
       Enter entry ->
         let varnames =
               case entry of
                 Creating _ -> []
-                Filling tlid id ->
-                  Analysis.getAvailableVarnames m tlid id
+                Filling tlid p ->
+                  Analysis.getAvailableVarnames m tlid (P.idOf p)
             showFunctions =
               case entry of
                 Creating _ -> True
-                Filling tlid eid ->
+                Filling tlid p ->
                   let tl = TL.getTL m tlid in
-                  case TL.holeType tl eid of
-                    ExprHole _ -> True
-                    FieldHole _ -> False
-                    BindHole _ -> False
-                    SpecHole _ -> False
-                    DBColNameHole _ -> False
-                    DBColTypeHole _ -> False
-                    NotAHole -> -- only show functions iff. we've re-entered an expression
-                      case tl.data of
-                        TLHandler h -> TL.isExpression h eid
-                        _ -> False
+                  case P.typeOf p of
+                    Expr -> True
+                    Field -> False
+                    VarBind -> False
+                    Spec -> False
+                    DBColName -> False
+                    DBColType -> False
             lv =
               case entry of
                 Creating _ -> Nothing
-                Filling tlid eid ->
+                Filling tlid p ->
                   let tl = TL.getTL m tlid in
                   let obj =
-                    case TL.holeType tl eid of
-                      ExprHole h ->
+                    case P.typeOf p of
+                      Expr ->
                         let handler = deMaybe <| TL.asHandler tl
-                            p = AST.parentOf_ eid handler.ast
+                            parent = AST.parentOf_ (P.idOf p) handler.ast
                         in
-                            case p of
+                            case parent of
                               Just (Thread tid exprs) ->
-                                let ids  = List.map (AST.toID) exprs
-                                    selfi = LE.elemIndex eid ids
+                                let ids  = List.map (AST.toP) exprs
+                                    selfi = LE.elemIndex p ids
                                     prev = Maybe.map (\x -> x - 1) selfi
                                 in
                                     Maybe.andThen (\i -> LE.getAt i ids) prev
                               _ ->
                                 Nothing
 
-                      FieldHole h ->
+                      Field ->
                         let handler = deMaybe <| TL.asHandler tl
-                            p = AST.parentOf eid handler.ast
+                            parent = AST.parentOf (P.idOf p) handler.ast
                         in
-                            case p of
+                            case parent of
                               FieldAccess id obj _ ->
-                                Just <| AST.toID obj
+                                Just <| AST.toP obj
                               _ ->
                                 Nothing
                       _ ->
                         Nothing
                   in
-                      Maybe.andThen
-                        (Analysis.getLiveValue m tlid)
-                        obj
+                      obj
+                      |> Maybe.map P.idOf
+                      |> Maybe.andThen (Analysis.getLiveValue m tlid)
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
@@ -291,10 +288,10 @@ update_ msg m =
           _ -> NoChange
       else
         case state of
-          Selecting tlid hid ->
+          Selecting tlid p ->
             case event.keyCode of
               Key.Backspace ->
-                case hid of
+                case p of
                   Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
                   Just i -> Selection.delete m tlid i
               Key.Escape ->
@@ -309,29 +306,29 @@ update_ msg m =
                     TLHandler _ ->
                       NoChange
                 else
-                  case hid of
+                  case p of
                     Just i -> Selection.enter m tlid i
-                    Nothing -> Selection.downLevel m tlid hid
-              Key.Up -> Selection.upLevel m tlid hid
-              Key.Down -> Selection.downLevel m tlid hid
-              Key.Right -> Selection.nextSibling m tlid hid
-              Key.Left -> Selection.previousSibling m tlid hid
-              Key.Tab -> Selection.nextHole m tlid hid
+                    Nothing -> Selection.downLevel m tlid p
+              Key.Up -> Selection.upLevel m tlid p
+              Key.Down -> Selection.downLevel m tlid p
+              Key.Right -> Selection.nextSibling m tlid p
+              Key.Left -> Selection.previousSibling m tlid p
+              Key.Tab -> Selection.nextBlank m tlid p
               Key.O ->
                 if event.ctrlKey
-                then Selection.upLevel m tlid hid
+                then Selection.upLevel m tlid p
                 else NoChange
               Key.I ->
                 if event.ctrlKey
-                then Selection.downLevel m tlid hid
+                then Selection.downLevel m tlid p
                 else NoChange
               Key.N ->
                 if event.ctrlKey
-                then Selection.nextSibling m tlid hid
+                then Selection.nextSibling m tlid p
                 else NoChange
               Key.P ->
                 if event.ctrlKey
-                then Selection.previousSibling m tlid hid
+                then Selection.previousSibling m tlid p
                 else NoChange
               _ -> NoChange
 
@@ -354,7 +351,7 @@ update_ msg m =
             else if event.shiftKey && event.keyCode == Key.Enter
             then
               case cursor of
-                Filling tlid id ->
+                Filling tlid p ->
                   let tl = TL.getTL m tlid in
                   case tl.data of
                     TLDB _ -> NoChange
@@ -384,20 +381,20 @@ update_ msg m =
                 Key.Escape ->
                   case cursor of
                     Creating _ -> Many [Deselect, AutocompleteMod ACReset]
-                    Filling tlid hid ->
+                    Filling tlid p ->
                       let tl = TL.getTL m tlid in
                         case tl.data of
                           TLHandler h ->
                             let replacement = AST.closeThread h.ast in
                             if replacement == h.ast
                             then
-                              Many [ Select tlid (Just hid)
+                              Many [ Select tlid (Just p)
                                    , AutocompleteMod ACReset]
                             else
                               RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
                                   , FocusNext tl.id Nothing)
                           _ ->
-                            Many [ Select tlid (Just hid)
+                            Many [ Select tlid (Just p)
                                  , AutocompleteMod ACReset]
 
                 Key.Up -> AutocompleteMod ACSelectUp
@@ -515,18 +512,14 @@ update_ msg m =
             case focus of
               FocusNext tlid pred ->
                 let tl = TL.getTL m2 tlid
-                    nh = TL.getNextHole tl pred
-                in
-                    case nh of
-                      Just h -> Enter (Filling tlid h)
-                      Nothing -> Select tlid Nothing
-              FocusExact tlid next ->
-                let tl = TL.getTL m2 tlid
-                    ht = TL.holeType tl next
-                in
-                case ht of
-                  NotAHole -> Select tlid (Just next)
-                  _ -> Enter (Filling tlid next)
+                    next = TL.getNextBlank tl pred in
+                case next of
+                  Just p -> Enter (Filling tlid p)
+                  Nothing -> Select tlid Nothing
+              FocusExact tlid p ->
+                case p of
+                  PFilled _ _ -> Select tlid (Just p)
+                  PBlank _ _ -> Enter (Filling tlid p)
               _  -> NoChange
       in Many [ SetToplevels toplevels analysis
               , AutocompleteMod ACReset
