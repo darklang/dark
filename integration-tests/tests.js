@@ -17,7 +17,15 @@ fixture `Integration Tests`
       .expect(signal.exists).ok()
       ;
 
+    const { log, error } = await t.getBrowserConsoleMessages();
+    await t.expect(error).eql([])
+
+
     if (await signal.hasClass("failure")) {
+      console.log("msg/mod logs for: " + t.testRun.test.name);
+      for (var l of log) {
+        console.log(l)
+      }
       await t.expect("test state").eql(await signal.textContent);
     }
 
