@@ -73,7 +73,7 @@ def process_watchers():
       files = set()
       for line in input:
         for f in line.split("\n"):
-          if f != "***BATCHEND***" and f != "":
+          if f != "":
             try:
               f, _ = f.strip().split(" ")
               files.add(f)
