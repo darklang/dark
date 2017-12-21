@@ -49,11 +49,7 @@ nextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
 nextBlank m tlid cur =
   let tl = TL.getTL m tlid in
   cur
-  |> Maybe.andThen
-    (\c ->
-      case c of
-        PFilled _ _ -> Nothing
-        PBlank _ _ -> Just c)
+  |> ME.filter P.isBlank
   |> TL.getNextBlank tl
   |> ME.orElse (TL.firstBlank tl)
   |> Select tlid

@@ -21,3 +21,15 @@ typeOf p =
   case p of
     PBlank t _ -> t
     PFilled t _ -> t
+
+isBlank : Pointer -> Bool
+isBlank p =
+  case p of
+    PBlank _ _ -> True
+    PFilled _ _ -> False
+
+isFilled : Pointer -> Bool
+isFilled p =
+  case p of
+    PBlank _ _ -> False
+    PFilled _ _ -> True
