@@ -16,6 +16,7 @@ trigger name =
     "test_field_access" -> fieldAccess
     "test_field_access_closes" -> fieldAccessCloses
     "test_pipeline_let_equals" -> pipelineLetEquals
+    "test_tabbing_works" -> tabbingWorks
     n -> Debug.crash ("I have no idea what this test is: " ++ n)
 
 pass : TestResult
@@ -83,4 +84,8 @@ pipelineLetEquals m =
       Result.map2 (\() () -> ()) astR stateR
 
 
-
+tabbingWorks : Model -> TestResult
+tabbingWorks m =
+  case onlyAST m of
+    If _ (Hole _) (Value _ "5") (Hole _) -> pass
+    e -> fail e

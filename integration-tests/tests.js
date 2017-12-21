@@ -72,3 +72,20 @@ test('pipeline_let_equals', async t => {
     ;
 });
 
+test('tabbing_works', async t => {
+  // Fill in "then" box in if stmt
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .typeText("#entryBox", "if")
+    .pressKey("down")
+    .pressKey("enter")
+    .pressKey("esc")
+    .pressKey("tab")
+    .pressKey("enter")
+    .typeText("#entryBox", "5")
+    .pressKey("enter")
+    .expect(astAvailable).ok()
+    ;
+});
+
