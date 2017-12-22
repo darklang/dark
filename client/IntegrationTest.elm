@@ -110,7 +110,7 @@ varbindsAreEditable m =
   case onlyAST m of
     Let _ (Filled id1 "var") (Hole _)  (Hole _) ->
       case m.state of
-        Entering (Filling _ (PBlank _ id2)) ->
+        Entering (Filling _ (PFilled _ id2)) ->
           if id1 == id2
           then pass
           else fail (id1, id2)
