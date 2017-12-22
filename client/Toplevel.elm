@@ -54,16 +54,9 @@ filledSpecs h =
 
 replaceSpecBlank : ID -> String -> HandlerSpec -> HandlerSpec
 replaceSpecBlank id value hs =
-  let rh a =
-        case a of
-          Blank hid ->
-            if id == hid
-            then Filled hid value
-            else a
-          Filled hid s ->
-            if id == hid
-            then Filled hid value
-            else a
+  let rh a = if blankOrID a == id
+             then Filled (blankOrID a) value
+             else a
   in { name = rh hs.name
      , module_ = rh hs.module_
      , modifier = rh hs.modifier
