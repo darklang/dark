@@ -18,6 +18,7 @@ trigger name =
     "test_pipeline_let_equals" -> pipelineLetEquals
     "test_tabbing_works" -> tabbingWorks
     "test_next_sibling_works" -> nextSiblingWorks
+    "test_varbinds_are_editable" -> varbindsAreEditable
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -97,6 +98,19 @@ nextSiblingWorks m =
     Let _ (Blank _) (Hole id1)  (Hole _) ->
       case m.state of
         Selecting _ (Just (PBlank _ id2)) ->
+          if id1 == id2
+          then pass
+          else fail (id1, id2)
+        s -> fail m.state
+    e -> fail e
+
+
+varbindsAreEditable : Model -> TestResult
+varbindsAreEditable m =
+  case onlyAST m of
+    Let _ (Filled id1 "var") (Hole _)  (Hole _) ->
+      case m.state of
+        Entering (Filling _ (PBlank _ id2)) ->
           if id1 == id2
           then pass
           else fail (id1, id2)

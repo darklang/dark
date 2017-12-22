@@ -109,3 +109,16 @@ test('next_sibling_works', async t => {
   // selected?
 });
 
+test('varbinds_are_editable', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .click(".ast")
+    .pressKey("down")
+    .pressKey("down")
+    .pressKey("enter")
+    ;
+  // TODO: this might be flaky. Maybe wait for a specific ID to be
+  // selected?
+});
+
+
