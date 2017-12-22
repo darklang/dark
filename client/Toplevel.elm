@@ -25,13 +25,6 @@ isThread : Handler -> Pointer -> Bool
 isThread h p =
   h.ast |> AST.listThreadHoles |> List.member (P.idOf p)
 
-isExpression : Handler -> ID -> Bool
-isExpression h id =
-  case AST.subExpr id h.ast of
-    Just _ -> True
-    _ -> False
-
-
 specBlanks : Handler -> List Pointer
 specBlanks h =
   let e2l a =
