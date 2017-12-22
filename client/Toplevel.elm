@@ -36,21 +36,9 @@ specBlanks h =
 getSpec : Handler -> Pointer -> Maybe (BlankOr String)
 getSpec h p =
   [h.spec.module_, h.spec.name, h.spec.modifier]
-  |> List.filter
-    (\spec ->
-      case spec of
+  |> List.filter (\spec -> blankOrID spec == P.idOf p)
         -- TODO: opportunity to check pointer types
-        Filled fid _ -> fid == P.idOf p
-        Blank eid -> eid == P.idOf p)
   |> List.head
-
-filledSpecs : Handler -> List ID
-filledSpecs h =
-  let f2l a =
-        case a of
-          Filled id _ -> [id]
-          _ -> []
-  in f2l h.spec.module_ ++ f2l h.spec.name ++ f2l h.spec.modifier
 
 replaceSpecBlank : ID -> String -> HandlerSpec -> HandlerSpec
 replaceSpecBlank id value hs =
@@ -70,6 +58,11 @@ allBlanks tl =
     TLDB db ->
       DB.listBlanks db
 
+specs : Handler -> Pointer -> List Pointer
+specs h p =
+  [h.spec.module_, h.spec.name, h.spec.modifier]
+  |> List.map (P.blankTo Spec)
+
 siblings : Toplevel -> Pointer -> List Pointer
 siblings tl p =
   case tl.data of
@@ -78,8 +71,7 @@ siblings tl p =
        Just _ ->
          AST.siblings p h.ast
        Nothing ->
-         let specs = [h.spec.module_, h.spec.name, h.spec.modifier] in
-         [AST.toP h.ast] ++ (List.map (P.blankTo Spec) specs)
+         specs h p ++ [AST.toP h.ast]
     _ -> []
 
 getNextSibling : Toplevel -> Pointer -> Pointer
