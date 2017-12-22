@@ -218,6 +218,13 @@ type PointerType = VarBind
 type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
 
+type PointerData = PVarBind VarBind
+                 | PSpec -- TODO
+                 | PExpr Expr
+                 | PField Field
+                 | PDBColName -- TODO
+                 | PDBColType -- TODO
+
 type BlankOr a = Blank ID
                | Filled ID a
 

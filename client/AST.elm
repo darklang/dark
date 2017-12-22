@@ -183,136 +183,11 @@ isHole e =
     Hole _ -> True
     _ -> False
 
-listVarBindBlanks : Expr -> List Pointer
-listVarBindBlanks expr =
-  let lbhList : List Expr -> List Pointer
-      lbhList exprs =
-        exprs
-        |> List.map listVarBindBlanks
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
-
-    Let _ lhs rhs expr ->
-      let exprVarBindBlanks = lbhList [rhs, expr]
-          bindHoles = [P.blankTo Expr lhs]
-      in
-          bindHoles ++ exprVarBindBlanks
-
-    If _ cond ifbody elsebody ->
-      lbhList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lbhList exprs
-
-    Lambda _ vars expr ->
-      listVarBindBlanks expr
-
-    -- note this is empty, which is the difference between this and listBlanks
-    Hole id ->
-      []
-
-    Thread _ exprs ->
-      lbhList exprs
-
-    FieldAccess _ obj ident ->
-      listVarBindBlanks obj
-
-listFieldBlanks : Expr -> List Pointer
-listFieldBlanks expr =
-  let lfhList : List Expr -> List Pointer
-      lfhList exprs =
-        exprs
-        |> List.map listFieldBlanks
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
-
-    Let _ lhs rhs expr ->
-      lfhList [rhs, expr]
-
-    If _ cond ifbody elsebody ->
-      lfhList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lfhList exprs
-
-    Lambda _ vars expr ->
-      listFieldBlanks expr
-
-    -- note this is empty, which is the difference between this and listBlanks
-    Hole id ->
-      []
-
-    Thread _ exprs ->
-      lfhList exprs
-
-    FieldAccess _ obj (Blank ident) ->
-      listFieldBlanks obj ++ [PBlank Expr ident]
-
-    FieldAccess _ obj (Filled _ _) ->
-      listFieldBlanks obj
-
--- TODO: figure out how we can define this
--- this in terms of listVarBindBlanks and a listExprHoles
---
--- a naive concatenation would be a) another dupe'd walk
--- plus b) lead to even more ordering issues
---
--- time for a proper visitor abstraction?
 listBlanks : Expr -> List Pointer
 listBlanks expr =
-  let lhList : List Expr -> List Pointer
-      lhList exprs =
-        exprs
-        |> List.map listBlanks
-        |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
+  listPointers expr
+  |> List.filter P.isBlank
 
-    Let _ lhs rhs expr ->
-      let exprHoles = lhList [rhs, expr]
-          bindHoles =
-            case lhs of
-              Filled id _ -> []
-              Blank id -> [PBlank VarBind id]
-      in
-          bindHoles ++ exprHoles
-
-    If _ cond ifbody elsebody ->
-      lhList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lhList exprs
-
-    Lambda _ vars expr ->
-      listBlanks expr
-
-    Hole id -> [PBlank Expr id]
-
-    Thread _ exprs ->
-      lhList exprs
-
-    FieldAccess _ obj (Blank ident) ->
-      listFieldBlanks obj ++ [PBlank Field ident]
-
-    FieldAccess _ obj (Filled _ _) ->
-      listFieldBlanks obj
 
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =
@@ -648,10 +523,50 @@ toContent a =
 
 inAST : ID -> AST -> Bool
 inAST id ast =
-  let holes = listBlanks ast |> List.map P.idOf
-      expr  = subExpr id ast |> Maybe.map toID |> ME.toList
+  ast
+  |> listPointers
+  |> List.map P.idOf
+  |> List.member id
+
+listData : AST -> List PointerData
+listData ast =
+  []
+
+
+listPointers : Expr -> List Pointer
+listPointers expr =
+  let lpList : List Expr -> List Pointer
+      lpList exprs =
+        exprs
+        |> List.map listPointers
+        |> List.concat
   in
-  List.member id (holes ++ expr)
+  [toP expr] ++
+  case expr of
+    Value _ v -> []
+    Let _ lhs rhs expr ->
+      [P.blankTo VarBind lhs] ++ lpList [rhs, expr]
+
+    If _ cond ifbody elsebody ->
+      lpList [cond, ifbody, elsebody]
+
+    Variable _ name ->
+      []
+
+    FnCall _ name exprs ->
+      lpList exprs
+
+    Lambda _ vars expr ->
+      listPointers expr
+
+    Hole id -> []
+
+    Thread _ exprs ->
+      lpList exprs
+
+    FieldAccess _ obj field ->
+      listPointers obj ++ [P.blankTo Field field]
+
 
 
 subtree : ID -> AST -> AST
