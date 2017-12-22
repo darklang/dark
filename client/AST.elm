@@ -16,63 +16,16 @@ isInfix : FnName -> Bool
 isInfix name =
   List.member name ["<", "==", "%", "+", "-", "^", "!="]
 
-isLeaf : ID -> AST -> Bool
-isLeaf id ast =
-  case subExpr id ast of
-    Nothing -> False
-    Just e ->
-      case e of
-        Value _ _ -> True
-        Hole _ -> True
-        Variable _ _ -> True
-        FnCall _ _ params -> -- Constant, or piped-in function
-          (List.length params) == 0
-        _ -> False
-
 toP : Expr -> Pointer
 toP e =
   case e of
     Hole id -> PBlank Expr id
     _ -> PFilled Expr (toID e)
 
+toPD : Expr -> PointerData
+toPD e =
+  PExpr (toID e) e
 
-deleteExpr : ID -> AST -> (Pointer, AST)
-deleteExpr id ast =
-  let replacement = Hole (ID <| Util.random ())
-  in (PBlank Expr (toID replacement), replaceExpr id replacement ast)
-
-replaceExpr : ID -> Expr -> Expr -> Expr
-replaceExpr id replacement expr =
-  let re = replaceExpr id replacement
-      reList : List Expr -> List Expr
-      reList exprs = List.map re exprs
-  in
-  if toID expr == id
-  then replacement
-  else
-    case expr of
-
-      Let id lhs rhs expr ->
-        Let id lhs (re rhs) (re expr)
-
-      If id cond ifbody elsebody ->
-        If id (re cond) (re ifbody) (re elsebody)
-
-      FnCall id name exprs ->
-        FnCall id name (reList exprs)
-
-      Lambda id vars expr ->
-        Lambda id vars (re expr)
-
-      Thread id exprs ->
-        Thread id (reList exprs)
-
-      FieldAccess id obj field ->
-        FieldAccess id (re obj) field
-
-      Hole id -> expr
-      Value id v -> expr
-      Variable id name -> expr
 
 toID : Expr -> ID
 toID expr =
@@ -88,106 +41,11 @@ toID expr =
     FieldAccess id _ _ -> id
 
 
-replaceVarBindBlank : ID -> VarName -> Expr -> Expr
-replaceVarBindBlank hid replacement expr =
-  let rbh = replaceVarBindBlank hid replacement
-      rbhList : List Expr -> List Expr
-      rbhList exprs = List.map rbh exprs
-  in
-  case expr of
-    Value id v ->
-      Value id v
-
-    Let id lhs rhs expr ->
-      let newLhs =
-            case lhs of
-              Filled id s ->
-                if id == hid
-                then Filled id replacement
-                else lhs
-              Blank id ->
-                if id == hid
-                then Filled id replacement
-                else lhs
-
-      in Let id newLhs (rbh rhs) (rbh expr)
-
-    If id cond ifbody elsebody ->
-      If id (rbh cond) (rbh ifbody) (rbh elsebody)
-
-    Variable id name ->
-      Variable id name
-
-    FnCall id name exprs ->
-      FnCall id name (rbhList exprs)
-
-    Lambda id vars expr ->
-      Lambda id vars (rbh expr)
-
-    Hole id ->
-      Hole id
-
-    Thread id exprs ->
-      Thread id (rbhList exprs)
-
-    FieldAccess id obj name ->
-      FieldAccess id (rbh obj) name
-
-replaceFieldBlank : ID -> VarName -> Expr -> Expr
-replaceFieldBlank hid replacement expr =
-  let rfh = replaceFieldBlank hid replacement
-      rfhList : List Expr -> List Expr
-      rfhList exprs = List.map rfh exprs
-  in
-  case expr of
-    Value id v ->
-      Value id v
-
-    Let id lhs rhs expr ->
-      Let id lhs (rfh rhs) (rfh expr)
-
-    If id cond ifbody elsebody ->
-      If id (rfh cond) (rfh ifbody) (rfh elsebody)
-
-    Variable id name ->
-      Variable id name
-
-    FnCall id name exprs ->
-      FnCall id name (rfhList exprs)
-
-    Lambda id vars expr ->
-      Lambda id vars (rfh expr)
-
-    Hole id ->
-      Hole id
-
-    Thread id exprs ->
-      Thread id (rfhList exprs)
-
-    FieldAccess id obj name ->
-      let newName =
-            case name of
-              Filled id s ->
-                if id == hid
-                then Filled id replacement
-                else name
-              Blank id ->
-                if id == hid
-                then Filled id replacement
-                else name
-      in FieldAccess id (rfh obj) newName
-
 isHole : Expr -> Bool
 isHole e =
   case e of
     Hole _ -> True
     _ -> False
-
-listBlanks : Expr -> List Pointer
-listBlanks expr =
-  listPointers expr
-  |> List.filter P.isBlank
-
 
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =
@@ -513,13 +371,9 @@ siblings p ast =
 
         _ -> [p]
 
-toContent : AST -> String
-toContent a =
-  case a of
-    Value _ s -> s
-    Variable _ v -> v
-    _ -> ""
-
+--------------------------------
+-- PointerList functions
+--------------------------------
 
 inAST : ID -> AST -> Bool
 inAST id ast =
@@ -528,15 +382,15 @@ inAST id ast =
   |> List.map P.idOf
   |> List.member id
 
-listData : AST -> List PointerData
-listData ast =
-  []
-
+listBlanks : Expr -> List Pointer
+listBlanks expr =
+  listPointers expr
+  |> List.filter P.isBlank
 
 listPointers : Expr -> List Pointer
 listPointers expr =
-  let lpList : List Expr -> List Pointer
-      lpList exprs =
+  let rl : List Expr -> List Pointer
+      rl exprs =
         exprs
         |> List.map listPointers
         |> List.concat
@@ -544,70 +398,181 @@ listPointers expr =
   [toP expr] ++
   case expr of
     Value _ v -> []
+    Variable _ name -> []
+    Hole id -> []
+
     Let _ lhs rhs expr ->
-      [P.blankTo VarBind lhs] ++ lpList [rhs, expr]
+      [P.blankTo VarBind lhs] ++ rl [rhs, expr]
 
     If _ cond ifbody elsebody ->
-      lpList [cond, ifbody, elsebody]
-
-    Variable _ name ->
-      []
+      rl [cond, ifbody, elsebody]
 
     FnCall _ name exprs ->
-      lpList exprs
+      rl exprs
 
     Lambda _ vars expr ->
       listPointers expr
 
-    Hole id -> []
-
     Thread _ exprs ->
-      lpList exprs
+      rl exprs
 
     FieldAccess _ obj field ->
       listPointers obj ++ [P.blankTo Field field]
 
 
+--------------------------------
+-- PointerData functions
+--------------------------------
 
-subtree : ID -> AST -> AST
-subtree id ast =
-  deMaybe (subExpr id ast)
-
-subExpr : ID -> Expr -> Maybe Expr
-subExpr id expr =
-  let se = subExpr id
-      returnOr fn e =
-        if (toID e) == id
-        then Just e
-        else fn e
-      nothing = (\_ -> Nothing)
-      returnOrNothing = returnOr (\_ -> Nothing)
-      filterMaybe xs = xs |> List.filterMap identity |> List.head
+listData : Expr -> List PointerData
+listData expr =
+  let e2ld e = PExpr (toID e) e
+      rl : List Expr -> List PointerData
+      rl exprs =
+        exprs
+        |> List.map e2ld
   in
+  [e2ld expr] ++
   case expr of
-        Value _ _ -> returnOrNothing expr
-        Hole _ -> returnOrNothing expr
-        Variable _ _ -> returnOrNothing expr
-        Let id lhs rhs body ->
-          returnOr (\_ -> filterMaybe [se body, se rhs]) expr
+    Value _ v -> []
+    Variable _ name -> []
+    Hole id -> []
 
-        If id cond ifbody elsebody ->
-          returnOr (\_ ->
-            let c  = se cond
-                ib = se ifbody
-                eb = se elsebody
-            in
-                filterMaybe [c, ib, eb]) expr
+    Let _ lhs rhs expr ->
+      [PVarBind (blankOrID lhs) lhs] ++ rl [rhs, expr]
 
-        FnCall id name exprs ->
-          returnOr (\_ -> exprs |> List.map se |> filterMaybe) expr
+    If _ cond ifbody elsebody ->
+      rl [cond, ifbody, elsebody]
 
-        Lambda id vars lexpr ->
-          returnOr (\_ -> se lexpr) expr
+    FnCall _ name exprs ->
+      rl exprs
 
-        Thread id exprs ->
-          returnOr (\_ -> exprs |> List.map se |> filterMaybe) expr
+    Lambda _ vars expr ->
+      listData expr
 
-        FieldAccess id obj field ->
-          returnOr (\_ -> se obj) expr
+    Thread _ exprs ->
+      rl exprs
+
+    FieldAccess _ obj field ->
+      listData obj ++ [PField (blankOrID field) field]
+
+
+
+subtree : ID -> AST -> PointerData
+subtree id ast =
+  deMaybe (subData id ast)
+
+subData : ID -> Expr -> Maybe PointerData
+subData id expr =
+  listData expr
+  |> List.filter (\d -> id == P.idOfD d)
+  |> List.head -- TODO might be multiple
+
+isLeaf : ID -> AST -> Bool
+isLeaf id ast =
+  case subData id ast of
+    Nothing -> False
+    Just pd ->
+      case pd of
+        PVarBind _ _ -> True
+        PField _ _ -> True
+        PExpr _ e ->
+          case e of
+            Value _ _ -> True
+            Hole _ -> True
+            Variable _ _ -> True
+            FnCall _ _ params -> -- Constant, or piped-in function
+              (List.length params) == 0
+            _ -> False
+        PSpec _ -> False
+        PDBColName _ -> False
+        PDBColType _ -> False
+
+toContent : PointerData -> String
+toContent pd =
+  case pd of
+    PVarBind _ v -> v |> blankToMaybe |> Maybe.withDefault ""
+    PField _ f -> f |> blankToMaybe |> Maybe.withDefault ""
+    PExpr _ e ->
+      case e of
+        Value _ s -> s
+        Variable _ v -> v
+        _ -> ""
+    PSpec _ -> ""
+    PDBColName _ -> ""
+    PDBColType _ -> ""
+
+
+replace : Pointer -> PointerData -> AST -> AST
+replace p replacement expr =
+  let re = replace p replacement
+      rl : List Expr -> List Expr
+      rl exprs = List.map re exprs
+      fail datatype =
+        Debug.crash ("cant replace a "
+                     ++ datatype
+                     ++ " with a "
+                     ++ toString replacement)
+
+  in
+  if toID expr == P.idOf p
+  then
+    case replacement of
+      PExpr _ e -> e
+      _ -> fail "expr"
+  else
+    case expr of
+      Let id lhs rhs expr ->
+        if blankOrID lhs == (P.idOf p)
+        then
+          case replacement of
+            PVarBind _ b ->
+              Let id b rhs expr
+            _ -> fail "varbind"
+        else
+          Let id lhs (re rhs) (re expr)
+
+      If id cond ifbody elsebody ->
+        If id (re cond) (re ifbody) (re elsebody)
+
+      FnCall id name exprs ->
+        FnCall id name (rl exprs)
+
+      Lambda id vars expr ->
+        Lambda id vars (re expr)
+
+      Thread id exprs ->
+        Thread id (rl exprs)
+
+      FieldAccess id obj field ->
+        if blankOrID field == (P.idOf p)
+        then
+          case replacement of
+            PField _ f ->
+              FieldAccess id obj f
+            _ -> fail "field"
+        else
+          FieldAccess id (re obj) field
+
+      Hole id -> expr
+      Value id v -> expr
+      Variable id name -> expr
+
+deleteExpr : Pointer -> AST -> (Pointer, AST)
+deleteExpr p ast =
+  let id = gid ()
+      replacement = PExpr id (Hole id)
+  in (PBlank Expr id, replace p replacement ast)
+
+replaceVarBind : Pointer -> VarName -> Expr -> Expr
+replaceVarBind p replacement expr =
+  let id = gid ()
+  in replace p (PVarBind id (Filled id replacement)) expr
+
+
+replaceField : Pointer -> FieldName -> Expr -> Expr
+replaceField p replacement expr =
+  let id = gid ()
+  in replace p (PField id (Filled id replacement)) expr
+
 

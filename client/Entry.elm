@@ -135,7 +135,8 @@ submit m cursor action value =
 
           replaceExpr m h tlid p value =
             let id = P.idOf p
-                newExpr =
+                old = AST.subtree id h.ast
+                new =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
@@ -147,19 +148,22 @@ submit m cursor action value =
                                        |> String.dropLeft 2
                                        |> String.trim
                         in
-                          Let (gid ())
-                            (Filled (gid ()) bindName)
-                            (AST.closeThread thread)
-                            (Hole (gid ()))
-                      _ -> oldExpr
+                          AST.toPD <|
+                            Let (gid ())
+                              (Filled (gid ()) bindName)
+                              (AST.closeThread thread)
+                              (Hole (gid ()))
+                      _ ->
+                        old
 
                   -- field access
                   else if String.startsWith "." value
                   then
-                    FieldAccess
-                      (gid ())
-                      (Variable (gid ()) (String.dropLeft 1 value))
-                      (Blank (gid ()))
+                    AST.toPD <|
+                      FieldAccess
+                        (gid ())
+                        (Variable (gid ()) (String.dropLeft 1 value))
+                        (Blank (gid ()))
 
                   -- variables and parsed expressions
                   else
@@ -175,20 +179,19 @@ submit m cursor action value =
                     in
                     case holeReplacement of
                       Nothing ->
-                        oldExpr
+                        old
                       Just v ->
-                        v
+                        AST.toPD v
 
-                oldExpr = AST.subtree id h.ast
                 ast1 = case action of
                   ContinueThread -> h.ast
                   StartThread ->
                     AST.wrapInThread id h.ast
 
                 ast2 = AST.maybeExtendThreadAt id ast1
-                replacement = AST.replaceExpr id newExpr ast2
+                replacement = AST.replace p new ast2
             in
-                if oldExpr == newExpr
+                if old == new
                 then NoChange
                 else wrap <| SetHandler tlid tl.pos { h | ast = replacement }
 
@@ -206,7 +209,7 @@ submit m cursor action value =
           wrap <| SetDBColName tlid id value
         VarBind ->
           let h = deMaybe maybeH
-              replacement = AST.replaceVarBindBlank id value h.ast in
+              replacement = AST.replaceVarBind p value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         Spec ->
           let h = deMaybe maybeH
@@ -214,7 +217,7 @@ submit m cursor action value =
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           let h = deMaybe maybeH
-              replacement = AST.replaceFieldBlank id value h.ast
+              replacement = AST.replaceField p value h.ast
               withNewParent = case action of
                 ContinueThread -> replacement
                 StartThread ->

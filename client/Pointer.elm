@@ -10,6 +10,17 @@ idOf p =
     PBlank _ id -> id
     PFilled _ id -> id
 
+idOfD : PointerData -> ID
+idOfD p =
+  case p of
+    PVarBind id _ -> id
+    PSpec id -> id
+    PExpr id _ -> id
+    PField id _ -> id
+    PDBColName id -> id
+    PDBColType id -> id
+
+
 blankTo : PointerType -> BlankOr a -> Pointer
 blankTo t b =
   case b of
