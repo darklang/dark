@@ -380,7 +380,7 @@ update_ msg m =
                   && isFieldAccessDot m.state m.complete.value
                   then
                     let name = AC.getValue m.complete
-                    in Entry.submit m cursor Entry.ContinueThread ("." ++ name)
+                    in Entry.submit m cursor Entry.ContinueThread (name ++ ".")
                   else NoChange
 
                 Key.Escape ->

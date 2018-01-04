@@ -160,13 +160,13 @@ submit m cursor action value =
                         (old_, old_)
 
                   -- field access
-                  else if String.startsWith "." value
+                  else if String.endsWith "." value
                   then
                     ( old_
                     , AST.toPD <|
                         FieldAccess
                           (gid ())
-                          (Variable (gid ()) (String.dropLeft 1 value))
+                          (Variable (gid ()) (String.dropRight 1 value))
                           (Blank (gid ())))
 
                   -- variables and parsed expressions
