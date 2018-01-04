@@ -47,14 +47,23 @@ type fn = { name : string
           ; previewExecutionSafe : bool
           }
 
-let exe ?(ind=0) (fn: fn) (args: dval_map) : dval =
+let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
+  let apply f arglist =
+    match ctx with
+    | Preview ->
+      if fn.previewExecutionSafe
+      then f arglist
+      else DIncomplete
+    | Real ->
+      f arglist
+  in
   match fn.func with
   | InProcess f ->
       let arglist = fn.parameters
                     |> List.map ~f:(fun (p: param) -> p.name)
                     |> List.map ~f:(DvalMap.find_exn args) in
       (try
-        f arglist
+        apply f arglist
        with
        | TypeError _ ->
            Log.pP ~name:"execution" ~ind "exception caught" args
