@@ -430,7 +430,8 @@ listData expr =
       rl : List Expr -> List PointerData
       rl exprs =
         exprs
-        |> List.map e2ld
+        |> List.map listData
+        |> List.concat
   in
   [e2ld expr] ++
   case expr of

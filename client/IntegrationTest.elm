@@ -17,6 +17,7 @@ trigger name =
     "test_field_access_closes" -> fieldAccessCloses
     "test_field_access_pipes" -> fieldAccessPipes
     "test_pipeline_let_equals" -> pipelineLetEquals
+    "test_pipe_within_let" -> pipeWithinLet
     "test_tabbing_works" -> tabbingWorks
     "test_next_sibling_works" -> nextSiblingWorks
     "test_varbinds_are_editable" -> varbindsAreEditable
@@ -77,8 +78,6 @@ fieldAccessPipes m =
     expr -> fail expr
 
 
-
-
 pipelineLetEquals : Model -> TestResult
 pipelineLetEquals m =
   -- should be a simple let, not in a pipeline, entering 1 hole
@@ -94,6 +93,20 @@ pipelineLetEquals m =
           _ -> fail m.state
   in
       Result.map2 (\() () -> ()) astR stateR
+
+pipeWithinLet : Model -> TestResult
+pipeWithinLet m =
+  case onlyAST m of
+    Let _
+      (Filled _ "value")
+      (Value _ "3")
+      (Thread _
+        [ Variable _ "value"
+        , FnCall _ "assoc" [Hole _, Hole _]]) ->
+      pass
+    e ->
+      fail e
+
 
 
 tabbingWorks : Model -> TestResult

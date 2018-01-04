@@ -67,6 +67,7 @@ test('field_access_closes', async t => {
     ;
 });
 
+// This has a race condition somewhere
 test('field_access_pipes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
@@ -78,7 +79,6 @@ test('field_access_pipes', async t => {
     ;
 });
 
-
 test('pipeline_let_equals', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
@@ -86,6 +86,22 @@ test('pipeline_let_equals', async t => {
     .typeText("#entryBox", "3")
     .pressKey("shift+enter")
     .typeText("#entryBox", "= value")
+    .pressKey("enter")
+    .expect(astAvailable).ok()
+    ;
+});
+
+test('pipe_within_let', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .typeText("#entryBox", "3")
+    .pressKey("shift+enter")
+    .typeText("#entryBox", "= value")
+    .pressKey("enter")
+    .typeText("#entryBox", "value")
+    .pressKey("shift+enter")
+    .typeText("#entryBox", "assoc")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
