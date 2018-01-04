@@ -13,7 +13,7 @@ let fns : Lib.shortfn list = [
           | [dv; DInt code] -> DResp (Response (code, []), dv)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
 
   ;
@@ -28,7 +28,7 @@ let fns : Lib.shortfn list = [
           | [dv] -> DResp (Response (200, []), dv)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
 
   ;
@@ -43,7 +43,7 @@ let fns : Lib.shortfn list = [
           | [dv; DInt code] -> DResp (Response (code, ["Content-Type", "text/html"]), dv)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
 
   ;
@@ -58,7 +58,7 @@ let fns : Lib.shortfn list = [
           | [DStr url] -> DResp (Redirect url, DNull)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
 
   ;
@@ -73,7 +73,7 @@ let fns : Lib.shortfn list = [
           | [DStr msg] -> DResp (Response (400, []), DStr msg)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
 
   ;
@@ -88,6 +88,6 @@ let fns : Lib.shortfn list = [
           | [] -> DResp (Response (404, []), DNull)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
 ]

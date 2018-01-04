@@ -23,7 +23,7 @@ type shortfn = { n : string
                ; f : ccfunc
                ; d : string
                ; pr : (dval list -> int -> dval list) option
-               ; pu : bool
+               ; ps : bool
                }
 
 let fail (args: dval list) : 'a =

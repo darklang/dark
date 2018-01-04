@@ -49,6 +49,6 @@ let fns =
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             ; pr = None
-            ; pu = true
+            ; ps = true
             }))
   |> List.filter_map ~f:ident

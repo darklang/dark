@@ -17,7 +17,7 @@ let fns : fnmap =
                       ; description = s.d
                       ; func = s.f
                       ; preview = s.pr
-                      ; pure = s.pu
+                      ; previewExecutionSafe = s.ps
                       } in
     List.fold_left ~f:(fun m1 n -> FnMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in

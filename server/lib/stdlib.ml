@@ -44,7 +44,7 @@ let fns : Lib.shortfn list = [
                         |> fun l -> DList l
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -59,7 +59,7 @@ let fns : Lib.shortfn list = [
           | [DObj o] -> DList (DvalMap.data o)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -78,7 +78,7 @@ let fns : Lib.shortfn list = [
             DObj (Map.add o ~key:k ~data:v)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -93,7 +93,7 @@ let fns : Lib.shortfn list = [
             DObj (Map.remove o k)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -127,7 +127,7 @@ let fns : Lib.shortfn list = [
             DStr (Printf.sprintf fmt uri inputs)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -144,7 +144,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DInt (a mod b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -159,7 +159,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DInt (a + b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -174,7 +174,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DInt (a - b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -189,7 +189,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DInt (a * b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -203,7 +203,7 @@ let fns : Lib.shortfn list = [
           | [DInt base; DInt exp] -> DInt (Int.pow base exp)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -218,7 +218,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DInt (a / b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -233,7 +233,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DBool (a > b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -248,7 +248,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DBool (a < b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -262,7 +262,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DBool (a <= b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -277,7 +277,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DBool (a >= b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -293,7 +293,7 @@ let fns : Lib.shortfn list = [
           | [DInt a; DInt b] -> DInt (a + 1 + (Random.int (b - a)))
           | args -> fail args)
   ; pr = None
-  ; pu = false
+  ; ps = true
   }
   ;
 
@@ -307,7 +307,7 @@ let fns : Lib.shortfn list = [
           | [DInt a] -> DFloat (float_of_int a |> sqrt)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -322,7 +322,7 @@ let fns : Lib.shortfn list = [
           | [DInt a] -> DFloat (float_of_int a)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -341,7 +341,7 @@ let fns : Lib.shortfn list = [
           | [DFloat a] -> DInt (Float.round_up a |> int_of_float)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -356,7 +356,7 @@ let fns : Lib.shortfn list = [
           | [DFloat a] -> DInt (Float.round_down a |> int_of_float)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -371,7 +371,7 @@ let fns : Lib.shortfn list = [
           | [DFloat a] -> DInt (Float.round a |> int_of_float)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -386,7 +386,7 @@ let fns : Lib.shortfn list = [
           | [DFloat a] -> DFloat (sqrt a)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -413,7 +413,7 @@ let fns : Lib.shortfn list = [
             |> Result.ok_exn
           | args -> fail args)
   ; pr = None
-  ; pu = false
+  ; ps = true
   }
   ;
 
@@ -431,7 +431,7 @@ let fns : Lib.shortfn list = [
           | [a] -> DStr (Dval.to_repr a)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -446,7 +446,7 @@ let fns : Lib.shortfn list = [
           | [a; b] -> DBool (Dval.equal_dval a b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -461,7 +461,7 @@ let fns : Lib.shortfn list = [
           | [a; b] -> DBool (not (Dval.equal_dval a b))
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -479,7 +479,7 @@ let fns : Lib.shortfn list = [
           | [DBool b] -> DBool (not b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -494,7 +494,7 @@ let fns : Lib.shortfn list = [
           | [DBool a; DBool b] -> DBool (a && b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -509,7 +509,7 @@ let fns : Lib.shortfn list = [
           | [DBool a; DBool b] -> DBool (a || b)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -524,7 +524,7 @@ let fns : Lib.shortfn list = [
           | [_; value] -> value
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -566,7 +566,7 @@ let fns : Lib.shortfn list = [
               let c: char = String.get s index in
                 [DChar c]
           | args -> [DIncomplete])
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -581,7 +581,7 @@ let fns : Lib.shortfn list = [
               DList (String.to_list s |> List.map ~f:(fun c -> DChar c))
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -596,7 +596,7 @@ let fns : Lib.shortfn list = [
           | [DStr s] -> DInt (String.length s)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -611,7 +611,7 @@ let fns : Lib.shortfn list = [
           | [DStr s1; DStr s2] -> DStr (s1 ^ s2)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -636,7 +636,7 @@ let fns : Lib.shortfn list = [
             |> fun x -> DStr x
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -650,7 +650,7 @@ let fns : Lib.shortfn list = [
           | [DStr s] -> DStr (String.rev s)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -671,7 +671,7 @@ let fns : Lib.shortfn list = [
             DStr (String.concat ~sep s)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -690,7 +690,7 @@ let fns : Lib.shortfn list = [
                       |> String.of_char_list)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -705,7 +705,7 @@ let fns : Lib.shortfn list = [
           | [DChar c] -> DStr (Char.to_string c)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -727,7 +727,7 @@ let fns : Lib.shortfn list = [
 
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -742,7 +742,7 @@ let fns : Lib.shortfn list = [
           | [] -> DList []
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -760,7 +760,7 @@ let fns : Lib.shortfn list = [
         (function
           | args -> DList (List.filter ~f:(fun x -> x <> DIncomplete && x <> DNull) args))
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -775,7 +775,7 @@ let fns : Lib.shortfn list = [
           | [DList l; i] -> DList (i :: l)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -790,7 +790,7 @@ let fns : Lib.shortfn list = [
           | [DList l] -> List.last_exn l
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -804,7 +804,7 @@ let fns : Lib.shortfn list = [
           | [DList l] -> DList (List.rev l)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -823,7 +823,7 @@ let fns : Lib.shortfn list = [
             | Some dv -> dv)
         | args -> fail args)
   ; pr = Some list_preview
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -838,7 +838,7 @@ let fns : Lib.shortfn list = [
           | [DList l; i] -> DBool (List.mem ~equal:Dval.equal_dval l i)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -853,7 +853,7 @@ let fns : Lib.shortfn list = [
           | [DInt t; dv] -> DList (List.init t ~f:(fun _ -> dv))
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -868,7 +868,7 @@ let fns : Lib.shortfn list = [
           | [DList l] -> DInt (List.length l)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -885,7 +885,7 @@ let fns : Lib.shortfn list = [
                                               |> List.map ~f:(fun i -> DInt i))
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -916,7 +916,7 @@ let fns : Lib.shortfn list = [
               | None -> DIncomplete)
             in [end_accum; next_elt]
           | args -> [DIncomplete])
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -937,7 +937,7 @@ let fns : Lib.shortfn list = [
               List.fold ~init:(DList []) ~f l
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -952,7 +952,7 @@ let fns : Lib.shortfn list = [
           | [DList l1; DList l2] -> DList (List.append l1 l2)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -974,7 +974,7 @@ let fns : Lib.shortfn list = [
             DList (List.filter ~f l)
           | args -> fail args)
   ; pr = Some list_preview
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -993,7 +993,7 @@ let fns : Lib.shortfn list = [
             DList (List.map ~f l)
           | args -> fail args)
   ; pr = Some list_preview
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1010,7 +1010,7 @@ let fns : Lib.shortfn list = [
   ; d = "If cond is true, executes the `then` expression. Otherwise runs the `else` expression."
   ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it" )
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1022,7 +1022,7 @@ let fns : Lib.shortfn list = [
   ; d = "Creates an anonymous function, useful for iterating through foreach"
   ; f = InProcess (fun _ -> failwith "Lambda is a placeholer, we shouldn't be calling it" )
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1034,7 +1034,7 @@ let fns : Lib.shortfn list = [
   ; d = "Execute and bind the variables in binding, and then execute body, possibly using those expressions. Execution is strict."
   ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it" )
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1058,7 +1058,7 @@ let fns : Lib.shortfn list = [
               with e -> raise (TypeError [DStr "Invalid date format"]))
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1076,7 +1076,7 @@ let fns : Lib.shortfn list = [
                     )
           | args -> fail args)
   ; pr = None
-  ; pu = false
+  ; ps = true
   }
   ;
 
@@ -1094,7 +1094,7 @@ let fns : Lib.shortfn list = [
           | [DChar c] -> DInt (Char.to_int c)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1109,7 +1109,7 @@ let fns : Lib.shortfn list = [
           | [DInt i] -> DChar (Char.of_int_exn i)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1124,7 +1124,7 @@ let fns : Lib.shortfn list = [
           | [DChar c] -> DChar (Char.lowercase c)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -1139,7 +1139,7 @@ let fns : Lib.shortfn list = [
           | [DChar c] -> DChar (Char.uppercase c)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 

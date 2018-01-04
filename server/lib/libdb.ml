@@ -18,7 +18,7 @@ let fns : Lib.shortfn list = [
             DNull
           | args -> fail args)
   ; pr = None
-  ; pu = false
+  ; ps = false
   }
   ;
 
@@ -34,7 +34,7 @@ let fns : Lib.shortfn list = [
             DNull
           | args -> fail args)
   ; pr = None
-  ; pu = false
+  ; ps = false
   }
   ;
 
@@ -50,7 +50,7 @@ let fns : Lib.shortfn list = [
             DNull
           | args -> fail args)
   ; pr = None
-  ; pu = false
+  ; ps = false
   }
   ;
 
@@ -65,7 +65,7 @@ let fns : Lib.shortfn list = [
             Db.with_postgres (fun _ -> Db.fetch_by db field value)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -80,7 +80,7 @@ let fns : Lib.shortfn list = [
             Db.with_postgres (fun _ -> Db.fetch_all db)
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -97,7 +97,7 @@ let fns : Lib.shortfn list = [
             |> DList
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
@@ -114,7 +114,7 @@ let fns : Lib.shortfn list = [
             |> Dval.to_dobj
           | args -> fail args)
   ; pr = None
-  ; pu = true
+  ; ps = true
   }
   ;
 
