@@ -49,7 +49,6 @@ test('field_access', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entryBox", "req.")
     .typeText("#entryBox", "bo")
     .pressKey("enter")
@@ -60,7 +59,6 @@ test('field_access', async t => {
 test('field_access_closes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
-    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entryBox", "req.")
     .typeText("#entryBox", "bo")
@@ -74,7 +72,6 @@ test('field_access_pipes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entryBox", "req.")
     .typeText("#entryBox", "bo")
     .pressKey("shift+enter")
@@ -85,7 +82,6 @@ test('field_access_pipes', async t => {
 test('field_access_nested', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
-    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entryBox", "req.")
     .typeText("#entryBox", "bo.")
