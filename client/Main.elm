@@ -173,7 +173,7 @@ updateMod origm mod (m, cmd) =
       Enter entry ->
         let varnames =
               case entry of
-                Creating _ -> []
+                Creating _ -> m.globals
                 Filling tlid p ->
                   Analysis.getAvailableVarnames m tlid (P.idOf p)
             showFunctions =
@@ -234,9 +234,10 @@ updateMod origm mod (m, cmd) =
       ({ m | state = Entering entry, complete = complete
       }) ! ([acCmd, Entry.focusEntry])
 
-      SetToplevels tls tlars ->
+      SetToplevels tls tlars globals ->
         { m | toplevels = tls
             , analysis = tlars
+            , globals = globals
         } ! []
 
       SetCenter c ->
@@ -473,7 +474,7 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move tlid xDiff yDiff m in
-          Many [ SetToplevels m2.toplevels m2.analysis
+          Many [ SetToplevels m2.toplevels m2.analysis m2.globals
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
@@ -511,7 +512,7 @@ update_ msg m =
     -- (AddRandom, _) ->
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
-    (RPCCallBack focus extraMod calls (Ok (toplevels, analysis)), _) ->
+    (RPCCallBack focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
       let m2 = { m | toplevels = toplevels }
           newState =
             case focus of
@@ -526,7 +527,7 @@ update_ msg m =
                   PFilled _ _ -> Select tlid (Just p)
                   PBlank _ _ -> Enter (Filling tlid p)
               _  -> NoChange
-      in Many [ SetToplevels toplevels analysis
+      in Many [ SetToplevels toplevels analysis globals
               , AutocompleteMod ACReset
               , ClearError
               , newState

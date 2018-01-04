@@ -30,6 +30,7 @@ defaultModel e = { error = Nothing
                  , tests = []
                  , toplevels = []
                  , analysis = []
+                 , globals = []
                  , integrationTestState = NoIntegrationTest
 
 

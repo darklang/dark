@@ -2,6 +2,7 @@ open Core
 open Util
 open Types
 
+module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
 
@@ -210,6 +211,9 @@ let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
                         ])
   in `Assoc
         [ ("analyses", `List vals)
+        ; ("global_varnames",
+           `List (RTT.DvalMap.keys environment
+                  |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))

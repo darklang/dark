@@ -274,8 +274,9 @@ decodeToplevel =
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,)
+  JSDP.decode (,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "global_varnames" (JSD.list JSD.string)
 
 

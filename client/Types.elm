@@ -86,7 +86,8 @@ unwrapState s =
 -- Msg
 -- main Elm Architecture bus type
 -----------------------------
-type alias RPCResult = (List Toplevel, List TLAResult)
+type alias GlobalVariable = String
+type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
     | ToplevelClickDown Toplevel MouseEvent
@@ -285,6 +286,7 @@ type alias Model = { center : Pos
                    , state : State
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
+                   , globals : List GlobalVariable
                    , integrationTestState : IntegrationTestState
                    }
 
@@ -309,7 +311,7 @@ type Modification = Error String
                   | ClearError
                   | Select TLID (Maybe Pointer)
                   | Deselect
-                  | SetToplevels (List Toplevel) (List TLAResult)
+                  | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable)
                   | Enter EntryCursor
                   | RPC (List RPC, Focus)
                   | SetCenter Pos
