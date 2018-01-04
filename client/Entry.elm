@@ -23,7 +23,6 @@ import AST
 import Toplevel as TL
 import Runtime as RT
 import Pointer as P
-import Analysis
 
 
 createFindSpace : Model -> Modification
@@ -119,6 +118,14 @@ submit m cursor action value =
             handler = { ast = ast, spec = emptyHS () }
         in wrap <| SetHandler id pos handler
 
+      -- varnames
+      else if List.member value m.complete.varnames
+      then
+        let var = Variable (gid ()) value
+            ast = threadIt var
+            handler = { ast = ast, spec = emptyHS () }
+        in wrap <| SetHandler id pos handler
+
       -- start new AST
       else
         case parseAst value (action == ContinueThread) of
@@ -135,9 +142,7 @@ submit m cursor action value =
 
           replaceExpr m h tlid p value =
             let id = P.idOf p
-                availableVars = Analysis.getAvailableVarnames m tlid id
-                old_ = AST.subtree id h.ast |> Debug.log "_old"
-                _ = Debug.log "value at entry" value
+                old_ = AST.subtree id h.ast
                 (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
@@ -163,7 +168,6 @@ submit m cursor action value =
                   -- field access
                   else if String.endsWith "." value
                   then
-                    let _ = Debug.log "value endswith dot" value in
                     ( old_
                     , AST.toPD <|
                         FieldAccess
@@ -171,10 +175,12 @@ submit m cursor action value =
                           (Variable (gid ()) (String.dropRight 1 value))
                           (Blank (gid ())))
 
-                  -- variables and parsed expressions
-                  else if List.member value availableVars
+                  -- variables
+                  else if List.member value m.complete.varnames
                   then
                     (old_, AST.toPD <| Variable (gid ()) value)
+
+                  -- parsed exprs
                   else
                     ( old_
                     , parseAst
