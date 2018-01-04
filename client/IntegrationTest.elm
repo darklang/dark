@@ -15,6 +15,7 @@ trigger name =
     "test_enter_changes_state" -> enterChangesState
     "test_field_access" -> fieldAccess
     "test_field_access_closes" -> fieldAccessCloses
+    "test_field_access_pipes" -> fieldAccessPipes
     "test_pipeline_let_equals" -> pipelineLetEquals
     "test_tabbing_works" -> tabbingWorks
     "test_next_sibling_works" -> nextSiblingWorks
@@ -68,6 +69,15 @@ fieldAccessCloses m =
       else fail (TL.allBlanks tl)
     _ ->
       fail m.state
+
+fieldAccessPipes : Model -> TestResult
+fieldAccessPipes m =
+  case onlyAST m of
+    Thread _ [FieldAccess _ (Variable _ "request") (Filled _ "body"), Hole _] -> pass
+    expr -> fail expr
+
+
+
 
 pipelineLetEquals : Model -> TestResult
 pipelineLetEquals m =

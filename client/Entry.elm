@@ -221,8 +221,10 @@ submit m cursor action value =
               withNewParent = case action of
                 ContinueThread -> replacement
                 StartThread ->
-                  let parent = AST.parentOf id replacement in
-                  AST.wrapInThread (AST.toID parent) replacement
+                  -- id is not in the replacement, so search for the
+                  -- parent in the old ast
+                  let parentID = AST.parentOf id h.ast |> AST.toID in
+                  AST.wrapInThread parentID replacement
           in
           wrap <| SetHandler tlid tl.pos { h | ast = withNewParent }
         Expr ->

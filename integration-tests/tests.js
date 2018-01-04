@@ -67,6 +67,17 @@ test('field_access_closes', async t => {
     ;
 });
 
+test('field_access_pipes', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entryBox", "req.bo")
+    .pressKey("shift+enter")
+    .expect(astAvailable).ok()
+    ;
+});
+
 
 test('pipeline_let_equals', async t => {
   const astAvailable = Selector('.ast').exists;
@@ -120,5 +131,4 @@ test('varbinds_are_editable', async t => {
   // TODO: this might be flaky. Maybe wait for a specific ID to be
   // selected?
 });
-
 
