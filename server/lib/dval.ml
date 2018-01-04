@@ -167,6 +167,7 @@ let to_repr ?(pp : bool = true) (dv : dval) : string =
 let to_human_repr (dv: dval) : string =
   match dv with
   | DStr str -> str
+  | DInt i ->  string_of_int i
   | _ -> to_repr dv
 
 

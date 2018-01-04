@@ -88,9 +88,12 @@ let server =
                ())
         | _ ->
           let body = Dval.to_human_repr result in
+          (* for demonstrations sake, let's return 200 Okay when
+           * no HTTP response object is returned *)
+          let code = 200 in
           S.respond_string
-            ~status:`Bad_request
-            ~body:("400: Handler did not return a HTTP response, instead returned: " ^ body)
+            ~status:(Cohttp.Code.status_of_code code)
+            ~body:body
             ())
       | _ ->
         S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
