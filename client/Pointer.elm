@@ -44,3 +44,15 @@ isFilled p =
   case p of
     PBlank _ _ -> False
     PFilled _ _ -> True
+
+pdToP : PointerData -> Pointer
+pdToP pd =
+  case pd of
+    PVarBind id _ -> PFilled VarBind id
+    PSpec id -> PFilled Spec id
+    PExpr id _ -> PFilled Expr id
+    PField id _ -> PFilled Field id
+    PDBColName id -> PFilled DBColName id
+    PDBColType id -> PFilled DBColType id
+
+

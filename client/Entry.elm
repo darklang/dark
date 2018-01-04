@@ -135,8 +135,9 @@ submit m cursor action value =
 
           replaceExpr m h tlid p value =
             let id = P.idOf p
-                old = AST.subtree id h.ast
-                new =
+                availableVars = Analysis.getAvailableVarnames m tlid id
+                old_ = AST.subtree id h.ast
+                (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
@@ -148,52 +149,51 @@ submit m cursor action value =
                                        |> String.dropLeft 2
                                        |> String.trim
                         in
-                          AST.toPD <|
-                            Let (gid ())
-                              (Filled (gid ()) bindName)
-                              (AST.closeThread thread)
-                              (Hole (gid ()))
+                          ( AST.toPD thread
+                          , AST.toPD <|
+                              Let (gid ())
+                                (Filled (gid ()) bindName)
+                                (AST.closeThread thread)
+                                (Hole (gid ())))
+
                       _ ->
-                        old
+                        (old_, old_)
 
                   -- field access
                   else if String.startsWith "." value
                   then
-                    AST.toPD <|
-                      FieldAccess
-                        (gid ())
-                        (Variable (gid ()) (String.dropLeft 1 value))
-                        (Blank (gid ()))
+                    ( old_
+                    , AST.toPD <|
+                        FieldAccess
+                          (gid ())
+                          (Variable (gid ()) (String.dropLeft 1 value))
+                          (Blank (gid ())))
 
                   -- variables and parsed expressions
+                  else if List.member value availableVars
+                  then
+                    (old_, AST.toPD <| Variable (gid ()) value)
                   else
-                    let availableVars = Analysis.getAvailableVarnames m tlid id
-                        holeReplacement =
-                          if List.member value availableVars
-                          then
-                            Just (Variable (gid ()) value)
-                          else
-                            parseAst
-                              value
-                              (action == ContinueThread && TL.isThread h p)
-                    in
-                    case holeReplacement of
-                      Nothing ->
-                        old
-                      Just v ->
-                        AST.toPD v
+                    ( old_
+                    , parseAst
+                        value
+                          (action == ContinueThread
+                          && TL.isThread h p)
+                      |> Maybe.map AST.toPD
+                      |> Maybe.withDefault old_)
+
 
                 ast1 = case action of
                   ContinueThread -> h.ast
                   StartThread ->
                     AST.wrapInThread id h.ast
 
-                ast2 = AST.maybeExtendThreadAt id ast1
-                replacement = AST.replace p new ast2
+                ast2 = AST.replace (P.pdToP old) new ast1
+                ast3 = AST.maybeExtendThreadAt id ast2
             in
                 if old == new
                 then NoChange
-                else wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                else wrap <| SetHandler tlid tl.pos { h | ast = ast3 }
 
       in
       if String.length value < 1
