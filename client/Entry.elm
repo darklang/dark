@@ -110,10 +110,10 @@ submit m cursor action value =
         in wrap <| CreateDB id pos dbName
 
       -- field access
-      else if String.startsWith "." value
+      else if String.endsWith "." value
       then
         let access = FieldAccess (gid ())
-                                 (Variable (gid ()) (String.dropLeft 1 value))
+                                 (Variable (gid ()) (String.dropRight 1 value))
                                  (Blank (gid ()))
             ast = threadIt access
             handler = { ast = ast, spec = emptyHS () }
@@ -136,7 +136,8 @@ submit m cursor action value =
           replaceExpr m h tlid p value =
             let id = P.idOf p
                 availableVars = Analysis.getAvailableVarnames m tlid id
-                old_ = AST.subtree id h.ast
+                old_ = AST.subtree id h.ast |> Debug.log "_old"
+                _ = Debug.log "value at entry" value
                 (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
@@ -162,6 +163,7 @@ submit m cursor action value =
                   -- field access
                   else if String.endsWith "." value
                   then
+                    let _ = Debug.log "value endswith dot" value in
                     ( old_
                     , AST.toPD <|
                         FieldAccess
@@ -217,16 +219,34 @@ submit m cursor action value =
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           let h = deMaybe maybeH
-              replacement = AST.replaceField p value h.ast
-              withNewParent = case action of
-                ContinueThread -> replacement
-                StartThread ->
-                  -- id is not in the replacement, so search for the
-                  -- parent in the old ast
-                  let parentID = AST.parentOf id h.ast |> AST.toID in
-                  AST.wrapInThread parentID replacement
+              parent = AST.parentOf id h.ast
+              newAst =
+                if String.endsWith "." value
+                then
+                  let fieldname = String.dropRight 1 value
+                  -- wrap the field access with another field access
+                  -- get the parent ID from the old AST, cause it has the
+                  -- hole. Then get the parent structure from the new I
+                      wrapped =
+                        case parent of
+                          FieldAccess id lhs rhs ->
+                            FieldAccess (gid ())
+                            (FieldAccess id lhs (Filled (gid()) fieldname))
+                            (Blank (gid()))
+                          _ -> Debug.crash "should be a field"
+                  in
+                      AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast
+                else
+                  let replacement = AST.replaceField p value h.ast in
+                  case action of
+                    ContinueThread -> replacement
+                    StartThread ->
+                      -- id is not in the replacement, so search for the
+                      -- parent in the old ast
+                      let parentID = AST.parentOf id h.ast |> AST.toID in
+                      AST.wrapInThread parentID replacement
           in
-          wrap <| SetHandler tlid tl.pos { h | ast = withNewParent }
+              wrap <| SetHandler tlid tl.pos { h | ast = newAst }
         Expr ->
           let h = deMaybe maybeH in
           replaceExpr m h tlid p value

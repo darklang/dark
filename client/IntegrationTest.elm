@@ -16,6 +16,7 @@ trigger name =
     "test_field_access" -> fieldAccess
     "test_field_access_closes" -> fieldAccessCloses
     "test_field_access_pipes" -> fieldAccessPipes
+    "test_field_access_nested" -> fieldAccessNested
     "test_pipeline_let_equals" -> pipelineLetEquals
     "test_pipe_within_let" -> pipeWithinLet
     "test_tabbing_works" -> tabbingWorks
@@ -75,6 +76,17 @@ fieldAccessPipes : Model -> TestResult
 fieldAccessPipes m =
   case onlyAST m of
     Thread _ [FieldAccess _ (Variable _ "request") (Filled _ "body"), Hole _] -> pass
+    expr -> fail expr
+
+fieldAccessNested : Model -> TestResult
+fieldAccessNested m =
+  case onlyAST m of
+    FieldAccess _
+      (FieldAccess _
+         (FieldAccess _ (Variable _ "request") (Filled _ "body"))
+         (Filled _ "field"))
+      (Filled _ "field2")
+      -> pass
     expr -> fail expr
 
 

@@ -50,7 +50,8 @@ test('field_access', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entryBox", "req.bo", { speed: 0.6 })
+    .typeText("#entryBox", "req.")
+    .typeText("#entryBox", "bo")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -61,7 +62,8 @@ test('field_access_closes', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entryBox", "req.bo")
+    .typeText("#entryBox", "req.")
+    .typeText("#entryBox", "bo")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -73,11 +75,27 @@ test('field_access_pipes', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entryBox", "req.bo")
+    .typeText("#entryBox", "req.")
+    .typeText("#entryBox", "bo")
     .pressKey("shift+enter")
     .expect(astAvailable).ok()
     ;
 });
+
+test('field_access_nested', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entryBox", "req.")
+    .typeText("#entryBox", "bo.")
+    .typeText("#entryBox", "field.")
+    .typeText("#entryBox", "field2")
+    .pressKey("enter")
+    .expect(astAvailable).ok()
+    ;
+});
+
 
 test('pipeline_let_equals', async t => {
   const astAvailable = Selector('.ast').exists;
