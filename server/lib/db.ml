@@ -78,8 +78,8 @@ let to_obj (names : string list) (types: tipe list) (db_strings : string list)
 
 
 let insert (db: db) (vals: dval_map) : unit =
-  let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals
-  in Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
+  let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals in
+  Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
        db.actual_name (key_names vals) (val_names vals)
      |> run_sql
 
