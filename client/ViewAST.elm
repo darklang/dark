@@ -20,6 +20,12 @@ type alias HtmlVisitState = { selectedID : ID
                             , fillingHtml: Html.Html Msg
                             , liveValues : LVDict }
 
+type alias Class = String
+type Element = Leaf (Maybe ID, Class, String)
+             | Nested (Maybe ID, Class) (List Element)
+
+
+
 elemToHtml : HtmlVisitState -> Element -> Html.Html Msg
 elemToHtml state elem =
   let hover id =
@@ -152,10 +158,10 @@ vExpr nest expr =
     Hole id -> Leaf (Just id, "hole atom", "＿＿＿＿＿＿")
 
     Thread id exprs ->
+      let pipe = Leaf (Nothing, "thread atom pipe", "|>") in
       Nested (Just id, "threadexpr")
       (exprs
-       |> List.map (\e -> Nested (Nothing, "threadmember") [vExpr 0 e])
-       |> List.intersperse (Leaf (Nothing, "thread atom", "|>")))
+       |> List.map (\e -> Nested (Nothing, "threadmember") [pipe, vExpr 0 e]))
 
     FieldAccess id obj field ->
       Nested (Just id, "fieldaccessexpr")

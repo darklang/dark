@@ -211,6 +211,7 @@ body {
 
 
 
+
 //*************
 // AST macros
 //*************
@@ -311,6 +312,22 @@ body {
 
     .precedence-2 {
       background-color: @grey1;
+    }
+  }
+
+  .threadexpr {
+    vertical-align: top;
+    .threadmember {
+      .layout-block;
+
+      &:first-child {
+        .thread.pipe {
+          display: none;
+        }
+      }
+      .thread.pipe {
+        vertical-align: top;
+      }
     }
   }
 }

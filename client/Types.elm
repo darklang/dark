@@ -176,10 +176,6 @@ type VariantTest = StubVariant
 -- AST
 -----------------------------
 
-type alias Class = String
-type Element = Leaf (Maybe ID, Class, String)
-             | Nested (Maybe ID, Class) (List Element)
-
 type alias VarName = String
 type alias FnName = String
 type alias FieldName = String
