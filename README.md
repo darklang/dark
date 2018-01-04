@@ -19,12 +19,4 @@
 - upload the profile.json to https://lexifi.github.io/landmarks/viewer.html
 - look in "Source Tree Time"
 
-- Note: the last round of profiling found the Memoize cache as being a
-  bottleneck.
-
-
-# Tidyups to do
-- use ppx_variants_conv
-- try ppx_sexp_conv to see if on-disk serialization is better
-- try orakuda
 
