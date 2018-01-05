@@ -191,7 +191,7 @@ submit m cursor action value =
                     AST.wrapInThread id h.ast
 
                 ast2 = AST.replace (P.pdToP old) new ast1
-                ast3 = AST.maybeExtendThreadAt id ast2
+                ast3 = AST.maybeExtendThreadAt (P.idOfD new) ast2
             in
                 if old == new
                 then NoChange
