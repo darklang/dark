@@ -68,7 +68,7 @@ module RuntimeT = struct
     | DResp of (dhttp * dval)
     | DDB of DbT.db
     | DID of int
-    | DDate of int
+    | DDate of Time.t
     | DTitle of string
     | DUrl of string
     [@@deriving show]

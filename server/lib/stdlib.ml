@@ -1041,27 +1041,28 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* Date *)
   (* ====================================== *)
-  { n = "Date::parse"
-  ; o = []
-  ; p = [par "s" TStr]
-  ; r = TInt
-  ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)"
-  ; f = InProcess
-        (function
-          | [DStr s] ->
-              (try
-                DInt (s
-                      |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y"
-                      |> Unix.timegm
-                      |> int_of_float
-                      )
-              with e -> raise (TypeError [DStr "Invalid date format"]))
-          | args -> fail args)
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
+  (* Different format than we use in postgres, this was useful for twitter *)
+  (* { n = "Date::parse" *)
+  (* ; o = [] *)
+  (* ; p = [par "s" TStr] *)
+  (* ; r = TInt *)
+  (* ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)" *)
+  (* ; f = InProcess *)
+  (*       (function *)
+  (*         | [DStr s] -> *)
+  (*             (try *)
+  (*               DInt (s *)
+  (*                     |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y" *)
+  (*                     |> Unix.timegm *)
+  (*                     |> int_of_float *)
+  (*                     ) *)
+  (*             with e -> raise (TypeError [DStr "Invalid date format"])) *)
+  (*         | args -> fail args) *)
+  (* ; pr = None *)
+  (* ; ps = true *)
+  (* } *)
+  (* ; *)
+  (*  *)
 
   { n = "Date::now"
   ; o = []
@@ -1070,10 +1071,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
   ; f = InProcess
         (function
-          | [] ->
-              DDate (Unix.time ()
-                    |> int_of_float
-                    )
+          | [] -> DDate (Time.now ())
           | args -> fail args)
   ; pr = None
   ; ps = true

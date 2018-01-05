@@ -105,6 +105,12 @@ let rec equal_dval (a: dval) (b: dval) =
 (* Representation *)
 (* ------------------------- *)
 
+let string_of_date (d: Time.t) : string =
+  Time.format d "%Y-%m-%d %H:%M:%S" Time.Zone.utc
+
+let date_of_string (str: string) : Time.t =
+  Time.parse str "%Y-%m-%d %H:%M:%S" Time.Zone.utc
+
 let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
   let wrap_int i = wrap (string_of_int i) in
@@ -118,7 +124,7 @@ let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   | DChar c -> Char.to_string c
   | DNull -> "null"
   | DID id -> wrap_int id
-  | DDate d -> wrap_int d
+  | DDate d -> d |> string_of_date |> wrap_string
   | DTitle t -> wrap_string t
   | DUrl url -> wrap_string url
   | DDB db -> wrap db.display_name
@@ -247,7 +253,8 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Bool b -> DBool b
   | `Float f -> DFloat f
   | `Null -> DNull
-  | `Assoc [("type", `String "date"); ("value", `Int v)] -> DDate v
+  | `Assoc [("type", `String "date"); ("value", `String v)] ->
+    DDate (date_of_string v)
   | `Assoc [("type", `String "id"); ("value", `Int v)] -> DID v
   | `Assoc [("type", `String "title"); ("value", `String v)] -> DTitle v
   | `Assoc [("type", `String "url"); ("value", `String v)] -> DUrl v
@@ -294,7 +301,7 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
   | DID id -> wrap_user_int id
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title
-  | DDate date -> wrap_user_int date
+  | DDate date -> wrap_user_type (`String (string_of_date date))
 
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string
@@ -346,9 +353,10 @@ let dval_to_sql (dv: dval) : string =
   | DStr s -> "'" ^ s ^ "'"
   | DFloat f -> string_of_float f
   | DNull -> "null"
-    (* TIMESTAMP WITH TIME ZONE '2004-10-19 10:23:54+02' *)
   | DDate d ->
-    "TIMESTAMP WITH TIME ZONE '2004-10-19 10:23:54+02'"
+    "TIMESTAMP WITH TIME ZONE '"
+    ^ Time.format d "%Y-%m-%d %H:%M:%S%z" Time.Zone.utc
+    ^ "'"
   | _ -> Exception.client "Not obvious how to persist this in the DB"
 
 let sql_to_dval (tipe: tipe) (sql: string) : dval =
@@ -360,8 +368,8 @@ let sql_to_dval (tipe: tipe) (sql: string) : dval =
   | TStr -> sql |> DStr
   | TDate ->
     DDate (if sql = ""
-           then 0
-           else int_of_string sql)
+           then Time.epoch
+           else Time.parse sql "%Y-%m-%d %H:%M:%S%z" Time.Zone.utc)
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (tipe_to_string tipe))
 
@@ -374,7 +382,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TBool -> failwith "todo sql type"
   | TNull -> failwith "todo sql type"
   | TChar -> failwith "todo sql type"
-  | TStr -> "text"
+  | TStr -> "TEXT"
   | TList -> failwith "todo sql type"
   | TObj -> failwith "todo sql type"
   | TIncomplete -> failwith "todo sql type"
@@ -382,9 +390,9 @@ let sql_tipe_for (tipe: tipe) : string =
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
   | TID -> failwith "todo sql type"
-  | TDate -> "timestamp with time zone"
-  | TTitle -> "text"
-  | TUrl -> "text"
+  | TDate -> "TIMESTAMP WITH TIME ZONE"
+  | TTitle -> "TEXT"
+  | TUrl -> "TEXT"
 
 
 
