@@ -45,6 +45,10 @@ tipe2str t =
     TIncomplete -> "Incomplete"
     TResp -> "Response"
     TDB -> "Datastore"
+    TID -> "ID"
+    TDate -> "Date"
+    TTitle -> "Title"
+    TUrl -> "Url"
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -62,6 +66,7 @@ str2tipe t =
   "incomplete" -> TIncomplete
   "response" -> TResp
   "datastore" -> TDB
+  "date" -> TDate
   "error" -> TIncomplete -- temporary, maybe
   _ -> Debug.crash <| "invalid typename: " ++ t
 
