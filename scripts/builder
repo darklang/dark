@@ -16,6 +16,12 @@ fi
 echo "watching for local changes"
 scripts/support/reload-browser > logs/browser.log 2>&1 &
 
+if [ ! -d ../conduit-frontend ]; then
+  echo "pulling the conduit frontend"
+  # cd ../conduit-frontend && git pull
+  pushd .. && git clone git@github.com:darklang/conduit-frontend && popd
+fi
+
 echo "Run the build"
 fswatch -m fsevents_monitor \
         --event-flag-separator=, \
