@@ -25,10 +25,12 @@ fswatch -m fsevents_monitor \
              --rm \
              -i \
              --mount type=bind,src="$PWD",dst=/home/dark/app \
+             --mount type=bind,src="$PWD/../conduit-frontend",dst=/home/dark/conduit-frontend \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
              -p 8000:8000 \
+             -p 8001:8001 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
              dark \

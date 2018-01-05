@@ -156,4 +156,7 @@ USER dark
 
 EXPOSE 8910
 
+# for conduit-frontend
+RUN yarn add elm-live
+
 CMD ["app", "scripts", "builder"]
