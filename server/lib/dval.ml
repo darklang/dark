@@ -355,7 +355,7 @@ let dval_to_sql (dv: dval) : string =
   | DNull -> "null"
   | DDate d ->
     "TIMESTAMP WITH TIME ZONE '"
-    ^ Time.format d "%Y-%m-%d %H:%M:%S%z" Time.Zone.utc
+    ^ string_of_date d
     ^ "'"
   | _ -> Exception.client "Not obvious how to persist this in the DB"
 
@@ -369,7 +369,8 @@ let sql_to_dval (tipe: tipe) (sql: string) : dval =
   | TDate ->
     DDate (if sql = ""
            then Time.epoch
-           else Time.parse sql "%Y-%m-%d %H:%M:%S%z" Time.Zone.utc)
+           else date_of_string sql)
+>>>>>>> Handle SQL storage of dates
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (tipe_to_string tipe))
 
