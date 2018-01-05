@@ -104,7 +104,7 @@ let fns : Lib.shortfn list = [
   { n = "DB::schema"
   ; o = []
   ; p = [par "table" TDB]
-  ; r = TList
+  ; r = TObj
   ; d = "Fetch all the values in `table`"
   ; f = InProcess
         (function

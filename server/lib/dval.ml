@@ -370,7 +370,6 @@ let sql_to_dval (tipe: tipe) (sql: string) : dval =
     DDate (if sql = ""
            then Time.epoch
            else date_of_string sql)
->>>>>>> Handle SQL storage of dates
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (tipe_to_string tipe))
 
