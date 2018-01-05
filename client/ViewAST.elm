@@ -126,7 +126,6 @@ vExpr nest expr =
               [ vVarBind lhs
               , Leaf (Nothing, "letbind atom", "=")
               , vExpr nest rhs ]
-        , Leaf (Nothing, "in keyword atom" , "in")
         , Nested (Nothing, "letbody") [vExpr nest expr]
         ]
 
