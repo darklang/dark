@@ -65,7 +65,7 @@ let fns : Lib.shortfn list = [
             Db.with_postgres (fun _ -> Db.fetch_by db field value)
           | args -> fail args)
   ; pr = None
-  ; ps = false
+  ; ps = true
   }
   ;
 
@@ -80,7 +80,7 @@ let fns : Lib.shortfn list = [
             Db.with_postgres (fun _ -> Db.fetch_all db)
           | args -> fail args)
   ; pr = None
-  ; ps = false
+  ; ps = true
   }
   ;
 
