@@ -57,7 +57,7 @@ let fns : Lib.shortfn list = [
   { n = "DB::fetchBy"
   ; o = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
-  ; r = TAny
+  ; r = TList
   ; d = "Fetch the value in `table` whose field `field` is `value`"
   ; f = InProcess
         (function
