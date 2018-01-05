@@ -172,7 +172,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
              (match Map.find o f with
               | Some v -> v
               | None -> Exception.user ("Object has no field named: " ^ f)))
-        | _ -> Exception.user "type mismatch, expected object")
+        | x -> Exception.user "type mismatch, expected object" ~expected:"object" ~actual:(Dval.to_repr x))
     ) in
   (* Only catch if we're tracing *)
   let execed_value =

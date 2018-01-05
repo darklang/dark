@@ -1066,12 +1066,12 @@ let fns : Lib.shortfn list = [
   { n = "Date::now"
   ; o = []
   ; p = []
-  ; r = TInt
+  ; r = TDate
   ; d = "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
   ; f = InProcess
         (function
           | [] ->
-              DInt (Unix.time ()
+              DDate (Unix.time ()
                     |> int_of_float
                     )
           | args -> fail args)
