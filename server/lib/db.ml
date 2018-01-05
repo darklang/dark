@@ -99,7 +99,7 @@ let fetch_by db (col: string) (dv: dval) : dval =
   let (names, types) = cols_for db |> List.unzip in
   let colnames = names |> String.concat ~sep:", " in
   Printf.sprintf
-    "SELECT (%s) FROM \"%s\" WHERE %s = %s"
+    "SELECT %s FROM \"%s\" WHERE %s = %s"
     colnames db.actual_name col (Dval.dval_to_sql dv)
   |> fetch_via_sql
   |> List.map ~f:(to_obj names types)
