@@ -117,19 +117,17 @@ closeThread expr =
       FieldAccess id (ct obj) name
 
     Thread tid exprs ->
-      let newExprs = ctList exprs
+      let filtered = List.filter (isHole >> not) exprs
+          newExprs = ctList filtered
           init = LE.init newExprs |> Maybe.withDefault []
           last = LE.last newExprs |> deMaybe
       in
-        case (init, last) of
-          ([], _) ->
-            last
-          ([e], Hole _) ->
+        case newExprs of
+          [] ->
+            Hole tid
+          [e] ->
             e
-          (init, Hole _) ->
-            -- recurse to clear multiple threads
-            closeThread (Thread tid init)
-          (init, _) ->
+          _ ->
             Thread tid newExprs
 
 
