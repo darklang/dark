@@ -81,6 +81,10 @@ submit m cursor action value =
             Just (Lambda eid ["var"] (Hole hid1))
           [""] ->
             Just (Hole eid)
+          ["[]"] ->
+            Just (Value eid "[]")
+          ["{}"] ->
+            Just (Value eid "{}")
           _ ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
             then createFunction m value hasImplicit
