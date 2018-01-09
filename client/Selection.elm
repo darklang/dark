@@ -25,7 +25,7 @@ downLevel m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.andThen (TL.firstChild tl)
-  |> ME.orElse (TL.rootOf tl)
+  |> ME.orElse cur
   |> Select tlid
 
 nextSibling : Model -> TLID -> (Maybe Pointer) -> Modification
