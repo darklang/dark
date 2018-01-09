@@ -67,6 +67,21 @@ let fns : Lib.shortfn list = [
   (* Objects *)
   (* ====================================== *)
 
+  { n = "Object::empty"
+  ; o = []
+  ; p = []
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | [] ->
+            DObj (DvalMap.empty)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   { n = "assoc"
   ; o = []
   ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
