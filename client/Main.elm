@@ -484,6 +484,9 @@ update_ msg m =
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
+    (SelectClick tlid p, _) ->
+      Select tlid (Just p)
+
     (ToplevelClickUp tlid event, _) ->
       if event.button == Defaults.leftButton
       then

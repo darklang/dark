@@ -99,6 +99,7 @@ type Msg
     -- use it the proper node will be changed
     | ToplevelClickUp TLID MouseEvent
     | DragToplevel TLID Mouse.Position
+    | SelectClick TLID Pointer
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent

@@ -110,20 +110,21 @@ viewCanvas m =
     in allSvgs
 
 
-viewBlankOrText : Model -> BlankOr String -> Html.Html Msg
-viewBlankOrText m h =
+viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Html.Html Msg
+viewBlankOrText m tl pt h =
+  let pointer = P.blankTo pt h in
   case h of
     Blank hid ->
       case unwrapState m.state of
         Selecting _ (Just p) ->
           if hid == P.idOf p
           then selectedBlankHtml
-          else unselectedBlankHtml
+          else unselectedBlankHtml tl.id pointer
         Entering (Filling _ p) ->
           if hid == P.idOf p
           then entryHtml m
-          else unselectedBlankHtml
-        _ -> unselectedBlankHtml
+          else unselectedBlankHtml tl.id pointer
+        _ -> unselectedBlankHtml tl.id pointer
     Filled hid s ->
       case unwrapState m.state of
         Selecting _ (Just p) ->
@@ -140,9 +141,10 @@ selectedBlankHtml : Html.Html Msg
 selectedBlankHtml =
   Html.div [Attrs.class "hole selected"] [Html.text "＿＿＿＿＿＿"]
 
-unselectedBlankHtml : Html.Html Msg
-unselectedBlankHtml =
-  Html.div [Attrs.class "hole"] [Html.text "＿＿＿＿＿＿"]
+unselectedBlankHtml : TLID -> Pointer -> Html.Html Msg
+unselectedBlankHtml tlid p =
+  Html.div [ Attrs.class "hole selectableTest"
+           , Events.onClick (SelectClick tlid p)] [Html.text "＿＿＿＿＿＿"]
 
 selectedFilledHtml : String -> Html.Html Msg
 selectedFilledHtml s =
@@ -187,10 +189,10 @@ viewDB m tl db =
                              [ Attrs.class "col" ]
                              [ Html.span
                                  [ Attrs.class "name" ]
-                                 [ viewBlankOrText m n ]
+                                 [ viewBlankOrText m tl DBColName n ]
                              , Html.span
                                  [ Attrs.class "type" ]
-                                 [ viewBlankOrText m t ]
+                                 [ viewBlankOrText m tl DBColType t ]
                              ])
                          db.cols
   in
@@ -223,13 +225,13 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "module"]
-            [ viewBlankOrText m h.spec.module_]
+            [ viewBlankOrText m tl Spec h.spec.module_]
           , Html.div
             [ Attrs.class "name"]
-            [ viewBlankOrText m h.spec.name]
+            [ viewBlankOrText m tl Spec h.spec.name]
           , Html.div
             [Attrs.class "modifier"]
-            [ viewBlankOrText m h.spec.modifier]]
+            [ viewBlankOrText m tl Spec h.spec.modifier]]
   in
       [ast, header]
 
