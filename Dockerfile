@@ -14,45 +14,64 @@ FROM ubuntu:17.04
 # - replace <HASH> with a recent hash from the docker build output.
 # - just use the package name, not the version.
 
+
+# Just enough to add keys and sources for npm and chrome
+RUN apt-get update && \
+    apt-get install \
+      -y \
+      --no-install-recommends \
+      curl=7.52.1-4ubuntu1.4 \
+      apt-transport-https=1.4 \
+      ca-certificates
+
+# Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
+RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
+RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+
+RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
+RUN echo "deb https://deb.nodesource.com/node_9.x zesty main" > /etc/apt/sources.list.d/nodesource.list
+RUN echo "deb-src https://deb.nodesource.com/node_9.x zesty main" >> /etc/apt/sources.list.d/nodesource.list
+
 # Deps:
 # - apt-transport-https for npm
 # - expect for unbuffer
-# - libpcre3-dev for better-errors
 # everything after "ocaml" for ocaml
 RUN apt-get update && \
-    apt-get install -y software-properties-common=0.96.24.13 \
-                       python3.6=3.6.1-1ubuntu0~17.04.0 \
-                       make=4.1-9.1 \
-                       m4=1.4.18-1 \
-                       rsync=3.1.2-1 \
-                       git=1:2.11.0-2ubuntu0.3 \
-                       curl=7.52.1-4ubuntu1.4 \
-                       wget=1.18-2ubuntu1 \
-                       sudo=1.8.19p1-1ubuntu1.1 \
-                       locales=2.24-9ubuntu2.2 \
-                       apt-transport-https=1.4 \
-                       expect=5.45-7 \
-                       ocaml=4.02.3-6ubuntu2 \
-                       opam=1.2.2-5build5 \
-                       libpq-dev=9.6.6-0ubuntu0.17.04 \
-                       libev-dev=1:4.22-1 \
-                       libgmp-dev=2:6.1.2+dfsg-1 \
-                       pkg-config=0.29.1-0ubuntu1 \
-                       libcurl4-gnutls-dev=7.52.1-4ubuntu1.4 \
-                       libpcre3-dev=2:8.39-3 \
-                       && rm -rf /var/lib/apt/lists/*
+    apt-get install \
+      --no-install-recommends \
+      -y \
+      software-properties-common=0.96.24.13 \
+      python3.6=3.6.1-1ubuntu0~17.04.0 \
+      make=4.1-9.1 \
+      m4=1.4.18-1 \
+      rsync=3.1.2-1 \
+      git=1:2.11.0-2ubuntu0.3 \
+      wget=1.18-2ubuntu1 \
+      sudo=1.8.19p1-1ubuntu1.1 \
+      locales=2.24-9ubuntu2.2 \
+      expect=5.45-7 \
+      tcl8.6 \
+      ocaml=4.02.3-6ubuntu2 \
+      opam=1.2.2-5build5 \
+      libev-dev=1:4.22-1 \
+      libgmp-dev=2:6.1.2+dfsg-1 \
+      pkg-config=0.29.1-0ubuntu1 \
+      libcurl4-gnutls-dev=7.52.1-4ubuntu1.4 \
+      python-software-properties=0.96.24.13 \
+      libpq-dev=10.1-1.pgdg17.04+1 \
+      postgresql-10=10.1-1.pgdg17.04+1 \
+      postgresql-client-10=10.1-1.pgdg17.04+1 \
+      chromium-browser \
+      firefox \
+      gnupg \
+      nodejs \
+      google-chrome-stable \
+      && rm -rf /var/lib/apt/lists/*
+      # todo apt-clean
 
-                       # todo apt-clean
-
-# Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
-RUN echo 'deb https://deb.nodesource.com/node_8.x zesty main' > /etc/apt/sources.list.d/nodesource.list
-RUN echo 'deb-src https://deb.nodesource.com/node_8.x zesty main' >> /etc/apt/sources.list.d/nodesource.list
-RUN curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
-RUN apt-get update
-RUN apt-get install -y nodejs # this changes a lot so let’s not pin it
-RUN npm install -g yarn
-
-# dont run as root
+# dont run as root (allow sudo)
 RUN adduser --disabled-password --gecos '' dark
 RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN chown -R dark:dark /home/dark
@@ -67,18 +86,20 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 
 # Elm
-RUN yarn add elm@0.18.0
-RUN yarn add elm-test@0.18.8 # test
-RUN yarn add elm-oracle@1.1.1 # dev
-RUN yarn add less@2.7.3 # dev
+USER root
+RUN npm install -g yarn
+USER dark
+# TODO: combine into single command if possible
+RUN yarn add \
+  elm@0.18.0 \
+  elm-test@0.18.12 \
+  elm-oracle@1.1.1 \
+  elm-live@2.7.5 \
+  less@2.7.3 \
+  testcafe@0.18.6
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
-# Postgres
-USER root
-RUN wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
-RUN apt-get update && apt-get install -y python-software-properties software-properties-common postgresql-10 postgresql-client-10 postgresql-contrib-10
-
+# postgres
 USER postgres
 RUN /etc/init.d/postgresql start && \
     psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
@@ -136,27 +157,10 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks below this line, to avoid massive recompiles
 
-RUN yarn add testcafe
-
-RUN sudo apt-get update && sudo apt-get install -y chromium-browser firefox
-USER root
-RUN apt-get update && apt-get install -y \
-	apt-transport-https \
-	ca-certificates \
-  gnupg \
-	--no-install-recommends \
-	&& curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add - \
-	&& echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list \
-	&& apt-get update && apt-get install -y \
-	google-chrome-stable \
-	--no-install-recommends \
-	&& rm -rf /var/lib/apt/lists/*
-
 USER dark
-
-EXPOSE 8910
-
-# for conduit-frontend
-RUN yarn add elm-live
+# No idea what caused this, but we get permission problems otherwise.
+RUN sudo chown postgres:postgres -R /etc/postgresql
+RUN sudo chown postgres:postgres -R /var/log/postgresql
+RUN sudo chown postgres:postgres -R /var/lib/postgresql
 
 CMD ["app", "scripts", "builder"]
