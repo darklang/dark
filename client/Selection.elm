@@ -5,6 +5,7 @@ import Maybe
 
 -- lib
 import Maybe.Extra as ME
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -12,6 +13,21 @@ import Toplevel as TL
 -- TODO: remove, code smell
 import AST
 import Pointer as P
+
+nextToplevel : Model -> (Maybe TLID) -> Modification
+nextToplevel m cur =
+  let tls = List.map .id m.toplevels
+      next =
+        cur
+        |> Maybe.andThen (\c -> LE.elemIndex c tls)
+        |> Maybe.map ((+) 1)
+        |> Maybe.map (\i -> i % List.length tls)
+        |> Maybe.andThen (\i -> LE.getAt i tls)
+        |> ME.orElse (m.toplevels |> (List.map .id) |> List.head)
+  in
+      case next of
+        Just nextId -> Select nextId Nothing
+        Nothing -> Deselect
 
 upLevel : Model -> TLID -> (Maybe Pointer) -> Modification
 upLevel m tlid cur =

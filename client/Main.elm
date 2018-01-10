@@ -319,7 +319,10 @@ update_ msg m =
               Key.Down -> Selection.downLevel m tlid p
               Key.Right -> Selection.nextSibling m tlid p
               Key.Left -> Selection.previousSibling m tlid p
-              Key.Tab -> Selection.nextBlank m tlid p
+              Key.Tab ->
+                case p of
+                  Just pp -> Selection.nextBlank m tlid p
+                  Nothing -> Selection.nextToplevel m (Just tlid)
               Key.O ->
                 if event.ctrlKey
                 then Selection.upLevel m tlid p
@@ -423,6 +426,7 @@ update_ msg m =
               Key.Down -> SetCenter <| Viewport.moveDown m.center
               Key.Left -> SetCenter <| Viewport.moveLeft m.center
               Key.Right -> SetCenter <| Viewport.moveRight m.center
+              Key.Tab -> Selection.nextToplevel m Nothing
               _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange
