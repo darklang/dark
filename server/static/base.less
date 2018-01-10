@@ -308,10 +308,21 @@ body {
   }
 
   .precedence-1 {
-    background-color: @black2;
-
+    background-color: lighten(@black1, 10%);
     .precedence-2 {
-      background-color: @grey1;
+      background-color: lighten(@black1, 15%);
+      .precedence-3{
+        background-color: lighten(@black1, 20%);
+        .precedence-4 {
+          background-color: lighten(@black1, 25%);
+          .precedence-5 {
+            background-color: lighten(@black1, 30%);
+            .precedence-6 {
+              background-color: lighten(@black1, 35%);
+            }
+          }
+        }
+      }
     }
   }
 
