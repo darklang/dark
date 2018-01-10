@@ -956,6 +956,21 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "List::is_empty"
+  ; o = []
+  ; p = [par "l" TList]
+  ; r = TBool
+  ; d = "Returns true iff. the list `l` is empty"
+  ; f = InProcess
+        (function
+          | [DList l] ->
+            DBool (List.is_empty l)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
 
   { n = "List::append"
   ; o = []
