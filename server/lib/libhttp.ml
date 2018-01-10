@@ -63,7 +63,7 @@ let fns : Lib.shortfn list = [
 
   ;
 
-  { n = "Http::fail"
+  { n = "Http::bad_request"
   ; o = []
   ; p = [par "error" TStr]
   ; r = TResp
@@ -90,4 +90,35 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = true
   }
+
+  ;
+
+  { n = "Http::unauthorized"
+  ; o = []
+  ; p = []
+  ; r = TResp
+  ; d = "Respond with 401 Unauthorized"
+  ; f = InProcess
+        (function
+          | [] -> DResp (Response (401, []), DNull)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+
+  ;
+
+  { n = "Http::forbidden"
+  ; o = []
+  ; p = []
+  ; r = TResp
+  ; d = "Respond with 403 Forbidden"
+  ; f = InProcess
+        (function
+          | [] -> DResp (Response (403, []), DNull)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+
 ]
