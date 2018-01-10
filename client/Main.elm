@@ -289,8 +289,8 @@ update_ msg m =
       if event.ctrlKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
       then
         case event.keyCode of
-          Key.Z -> RPC ([Undo], FocusNothing)
-          Key.Y -> RPC ([Redo], FocusNothing)
+          Key.Z -> RPC ([Undo], FocusSame)
+          Key.Y -> RPC ([Redo], FocusSame)
           _ -> NoChange
       else
         case state of
@@ -526,7 +526,27 @@ update_ msg m =
                 case p of
                   PFilled _ _ -> Select tlid (Just p)
                   PBlank _ _ -> Enter (Filling tlid p)
-              _  -> NoChange
+              FocusSame ->
+                case unwrapState m.state of
+                  Selecting tlid mp ->
+                    case mp of
+                      Just p ->
+                        let tl = TL.getTL m2 tlid in
+                        if TL.isValidPointer tl p then
+                          NoChange
+                        else
+                          Deselect
+                      Nothing ->
+                        Deselect
+                  Entering (Filling tlid p) ->
+                    let tl = TL.getTL m2 tlid in
+                    if TL.isValidPointer tl p then
+                      NoChange
+                    else
+                      Deselect
+                  _ -> NoChange
+              FocusNothing -> Deselect
+              _ -> NoChange
       in Many [ SetToplevels toplevels analysis globals
               , AutocompleteMod ACReset
               , ClearError

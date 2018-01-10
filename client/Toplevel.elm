@@ -58,8 +58,8 @@ allBlanks tl =
     TLDB db ->
       DB.listBlanks db
 
-specs : Handler -> Pointer -> List Pointer
-specs h p =
+specs : Handler -> List Pointer
+specs h =
   [h.spec.module_, h.spec.name, h.spec.modifier]
   |> List.map (P.blankTo Spec)
 
@@ -71,7 +71,7 @@ siblings tl p =
        Just _ ->
          AST.siblings p h.ast
        Nothing ->
-         specs h p ++ [AST.toP h.ast]
+         specs h ++ [AST.toP h.ast]
     _ -> []
 
 getNextSibling : Toplevel -> Pointer -> Pointer
@@ -192,4 +192,36 @@ rootOf tl =
       Just <| AST.toP h.ast
     _ -> Nothing
 
-
+isValidPointer : Toplevel -> Pointer -> Bool
+isValidPointer tl p =
+  case P.ownerOf p of
+    POToplevel ->
+      let handler = asHandler tl in
+      case handler of
+        Nothing ->
+          False
+        Just h ->
+          if List.member p (specs h) then
+            True
+          else
+            False
+    POAst ->
+      let handler = asHandler tl in
+      case handler of
+        Nothing ->
+          False
+        Just h ->
+          if List.member p (AST.listPointers (h.ast)) then
+            True
+          else
+            False
+    PODb ->
+      let db = asDB tl in
+      case db of
+        Nothing ->
+          False
+        Just d ->
+          if List.member p (DB.listPointers d) then
+            True
+          else
+            False

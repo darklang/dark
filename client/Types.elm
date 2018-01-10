@@ -229,6 +229,10 @@ type PointerData = PVarBind ID VarBind
 type BlankOr a = Blank ID
                | Filled ID a
 
+type PointerOwner = POToplevel
+                  | POAst
+                  | PODb
+
 blankOrID : BlankOr a -> ID
 blankOrID b =
   case b of

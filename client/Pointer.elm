@@ -55,4 +55,24 @@ pdToP pd =
     PDBColName id -> PFilled DBColName id
     PDBColType id -> PFilled DBColType id
 
+ownerOf : Pointer -> PointerOwner
+ownerOf p =
+  case (typeOf p) of
+    VarBind -> POAst
+    Spec -> POToplevel
+    Expr -> POAst
+    Field -> POAst
+    DBColName -> PODb
+    DBColType -> PODb
+
+pdOwnerOf : PointerData -> PointerOwner
+pdOwnerOf pd =
+  case pd of
+    PVarBind _ _ -> POAst
+    PSpec _ -> POToplevel
+    PExpr _  _ -> POAst
+    PField _ _ -> POAst
+    PDBColName _ -> PODb
+    PDBColType _ -> PODb
+
 
