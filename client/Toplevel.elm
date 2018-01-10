@@ -195,7 +195,7 @@ rootOf tl =
 isValidPointer : Toplevel -> Pointer -> Bool
 isValidPointer tl p =
   case P.ownerOf p of
-    POToplevel ->
+    POSpec ->
       let handler = asHandler tl in
       case handler of
         Nothing ->

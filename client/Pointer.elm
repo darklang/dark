@@ -59,7 +59,7 @@ ownerOf : Pointer -> PointerOwner
 ownerOf p =
   case (typeOf p) of
     VarBind -> POAst
-    Spec -> POToplevel
+    Spec -> POSpec
     Expr -> POAst
     Field -> POAst
     DBColName -> PODb
@@ -69,7 +69,7 @@ pdOwnerOf : PointerData -> PointerOwner
 pdOwnerOf pd =
   case pd of
     PVarBind _ _ -> POAst
-    PSpec _ -> POToplevel
+    PSpec _ -> POSpec
     PExpr _  _ -> POAst
     PField _ _ -> POAst
     PDBColName _ -> PODb

@@ -229,7 +229,7 @@ type PointerData = PVarBind ID VarBind
 type BlankOr a = Blank ID
                | Filled ID a
 
-type PointerOwner = POToplevel
+type PointerOwner = POSpec
                   | POAst
                   | PODb
 
