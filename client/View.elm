@@ -134,7 +134,7 @@ viewBlankOrText m tl pt h =
         Entering (Filling _ p) ->
           if hid == P.idOf p
           then entryHtml m
-          else Html.text s
+          else unselectedFilledHtml tl.id pointer s
         _ -> Html.text s
 
 selectedBlankHtml : Html.Html Msg
@@ -143,12 +143,18 @@ selectedBlankHtml =
 
 unselectedBlankHtml : TLID -> Pointer -> Html.Html Msg
 unselectedBlankHtml tlid p =
-  Html.div [ Attrs.class "hole selectableTest"
+  Html.div [ Attrs.class "hole"
            , Events.onClick (SelectClick tlid p)] [Html.text "＿＿＿＿＿＿"]
 
 selectedFilledHtml : String -> Html.Html Msg
 selectedFilledHtml s =
   Html.div [Attrs.class "selected"] [Html.text s]
+
+unselectedFilledHtml : TLID -> Pointer -> String -> Html.Html Msg
+unselectedFilledHtml tlid p text =
+  Html.div [ Events.onClick (SelectClick tlid p)] [Html.text text]
+
+
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
