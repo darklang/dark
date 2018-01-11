@@ -307,12 +307,18 @@ update_ msg m =
               Key.Enter ->
                 if event.shiftKey
                 then
-                  case TL.getTL m tlid |> .data of
+                  let tl = TL.getTL m tlid in
+                  case tl.data of
                     TLDB _ ->
                       RPC ([ AddDBCol tlid (gid ()) (gid ())]
                           , FocusNext tlid Nothing)
-                    TLHandler _ ->
-                      NoChange
+                    TLHandler h ->
+                      case p of
+                        Just p ->
+                          let replacement = AST.wrapInThread (P.idOf p) h.ast in
+                          RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                              , FocusNext tlid Nothing)
+                        Nothing -> NoChange
                 else
                   case p of
                     Just i -> Selection.enter m tlid i

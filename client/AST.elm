@@ -130,6 +130,57 @@ closeThread expr =
           _ ->
             Thread tid newExprs
 
+-- take an expression, and if
+-- * it is a thread, add a hole at the end
+-- * it is part of a thread, insert a hole just after the expr
+-- * if it is not part of a thread, wrap it in a thread
+addThreadHole : ID -> Expr -> Expr
+addThreadHole id expr =
+  -- any parent that isn't a thread
+  addThreadHole_ id (Hole (gid())) expr
+
+addThreadHole_ : ID -> Expr -> Expr -> Expr
+addThreadHole_ id parent expr =
+  let ath child = addThreadHole_ id expr child
+      athList = List.map ath
+  in
+  if toID expr == id
+  then
+    case expr of
+      Thread tid exprs ->
+        Thread tid (exprs ++ [Hole (gid ())])
+      _ ->
+        case parent of
+          Thread tid exprs ->
+            Thread tid (extendThreadChild id exprs)
+          _ ->
+            Thread (gid()) [expr, Hole (gid ())]
+  else
+    -- recurse, or thread condition
+    case expr of
+      Value _ _ -> expr
+      Hole _ -> expr
+      Variable _ _ -> expr
+
+      Let id lhs rhs expr ->
+        Let id lhs (ath rhs) (ath expr)
+
+      If id cond ifbody elsebody ->
+        If id (ath cond) (ath ifbody) (ath elsebody)
+
+
+      FnCall id name exprs ->
+        FnCall id name (athList exprs)
+
+      Lambda id vars expr ->
+        Lambda id vars (ath expr)
+
+      FieldAccess id obj name ->
+        FieldAccess id (ath obj) name
+
+      Thread tid exprs ->
+        Thread tid (athList exprs)
+
 
 
 -- takes an ID of an expr in the AST to wrap in a thread
@@ -167,6 +218,16 @@ wrapInThread id expr =
      then wrap expr
      else nested
 
+-- Find the child with the id `at` in the threadExpr, and add a hole after it.
+extendThreadChild : ID -> List Expr -> List Expr
+extendThreadChild at threadExprs =
+  List.foldr (\e list ->
+    if (toID e) == at
+    then e :: Hole (gid ()) :: list
+    else e :: list)
+    [] threadExprs
+
+
 -- extends thread at pos denoted by ID, if ID is in a thread
 maybeExtendThreadAt : ID -> Expr -> Expr
 maybeExtendThreadAt id expr =
@@ -190,12 +251,7 @@ maybeExtendThreadAt id expr =
         Lambda id vars (et lexpr)
 
       Thread tid exprs ->
-        let newExprs =
-              List.foldr (\e list ->
-                if (toID e) == id
-                then e :: Hole (gid ()) :: list
-                else e :: list)
-                [] exprs
+        let newExprs = extendThreadChild id exprs
         in Thread tid (List.map et newExprs)
 
       FieldAccess id obj field ->
