@@ -93,7 +93,7 @@ vInfix id name exprs nesting =
       Nested (Just id, "fncall infix " ++ (depthString nesting))
         [ Nested (Nothing, "lhs") [vExpr (nesting + 1) first]
         , Nested (Nothing, "op " ++ name) [vFn name]
-        , Nested (Nothing, "rhs") [vExpr nesting second]
+        , Nested (Nothing, "rhs") [vExpr (nesting + 1) second]
         ]
     _ -> vPrefix id ("(" ++ name ++ ")") exprs nesting
 
