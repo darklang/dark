@@ -218,6 +218,7 @@ viewHandler m tl h =
                 { selectedID = id
                 , isFilling = filling
                 , fillingHtml = entryHtml m
+                , viewBlankOr = viewBlankOrText m tl
                 , liveValues = lvs }
                 h.ast]
       header =
