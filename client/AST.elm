@@ -336,7 +336,8 @@ ancestorsWhere id expr fn =
               rlist exprs
 
             Lambda id vars lexpr ->
-              r lexpr
+              -- don't recurse into the body of a lambda
+              []
 
             Thread id exprs ->
               rlist exprs
