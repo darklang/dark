@@ -130,12 +130,12 @@ viewBlankOrText m tl pt h =
         Selecting _ (Just p) ->
           if hid == P.idOf p
           then selectedFilledHtml s
-          else Html.text s
+          else unselectedFilledHtml tl.id pointer s
         Entering (Filling _ p) ->
           if hid == P.idOf p
           then entryHtml m
           else unselectedFilledHtml tl.id pointer s
-        _ -> Html.text s
+        _ -> unselectedFilledHtml tl.id pointer s
 
 selectedBlankHtml : Html.Html Msg
 selectedBlankHtml =
