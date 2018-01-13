@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
 # Use to build image from clean start
-if [ ! -n "${NEVER_REBUILD_DOCKER+set}" ]; then
+if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
   docker build -t dark .
   docker build --no-cache -t dark .

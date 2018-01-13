@@ -1,6 +1,7 @@
 # How to build and run
 
 - Install Docker for Mac
+- Run `brew install bash`
 - Run `brew install fswatch`
 - Run `scripts/builder --compile --watch`
 - Wait til the terminal says "Starting" - this means the build server is ready
