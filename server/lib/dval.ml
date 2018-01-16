@@ -30,6 +30,7 @@ let tipe_to_string t : string =
   | TDate -> "Date"
   | TTitle -> "Title"
   | TUrl -> "Url"
+  | TForeignKey s -> s
 
 let tipe_of_string str : tipe =
   match String.lowercase str with
@@ -393,6 +394,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
   | TUrl -> "TEXT"
+  | TForeignKey s -> failwith "todo sql type"
 
 
 
