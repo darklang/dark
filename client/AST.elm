@@ -617,8 +617,13 @@ replace p replacement expr =
 deleteExpr : Pointer -> AST -> (Pointer, AST)
 deleteExpr p ast =
   let id = gid ()
-      replacement = PExpr id (Hole id)
-  in (PBlank Expr id, replace p replacement ast)
+      replacement =
+        case P.typeOf p of
+          VarBind -> PVarBind id (Blank id)
+          Expr -> PExpr id (Hole id)
+          Field -> PField id (Blank id)
+          tipe  -> Debug.crash <| (toString tipe) ++ " is not allowed in an AST"
+  in (PBlank (P.typeOf p) id, replace p replacement ast)
 
 replaceVarBind : Pointer -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
