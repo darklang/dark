@@ -49,6 +49,7 @@ tipe2str t =
     TDate -> "Date"
     TTitle -> "Title"
     TUrl -> "Url"
+    TForeignKey s -> s
 
 str2tipe : String -> Tipe
 str2tipe t =

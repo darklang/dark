@@ -42,6 +42,7 @@ type Tipe = TInt
           | TDate
           | TTitle
           | TUrl
+          | TForeignKey String
 
 -- There are two coordinate systems. Pos is an absolute position in the
 -- canvas. Nodes and Edges have Pos'. VPos is the viewport: clicks occur
