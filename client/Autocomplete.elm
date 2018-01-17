@@ -33,13 +33,17 @@ empty = init []
 init : List Function -> Autocomplete
 init functions = { functions = functions
                  , varnames = []
-                 , completions = List.map ACFunction functions
+                 , completions = [List.map ACFunction functions]
                  , index = -1
                  , showFunctions = True
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
                  }
+
+numCompletions : Autocomplete -> Int
+numCompletions a =
+  a.completions |> List.concat |> List.length
 
 forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
 forLiveValue lv a = { a | liveValue = lv }
@@ -55,21 +59,21 @@ clear a = let cleared = setQuery "" a in
           { cleared | index = -1 }
 
 selectDown : Autocomplete -> Autocomplete
-selectDown a = let max_ = List.length a.completions
+selectDown a = let max_ = numCompletions a
                    max = Basics.max max_ 1
                    new = (a.index + 1) % max
                in
                  { a | index = new }
 
 selectUp : Autocomplete -> Autocomplete
-selectUp a = let max = List.length a.completions - 1 in
+selectUp a = let max = numCompletions a - 1 in
              { a | index = if a.index <= 0
                            then max
                            else a.index - 1
              }
 
 highlighted : Autocomplete -> Maybe AutocompleteItem
-highlighted a = LE.getAt a.index a.completions
+highlighted a = LE.getAt a.index (List.concat a.completions)
 
 getValue : Autocomplete -> String
 getValue a =
@@ -95,7 +99,11 @@ sharedPrefixList strs =
 
 -- Find the shared prefix of all the possible suggestions (eg "List::")
 sharedPrefix : Autocomplete -> String
-sharedPrefix a = sharedPrefixList (List.map asName a.completions)
+sharedPrefix a =
+  a.completions
+  |> List.concat
+  |> List.map asName
+  |> sharedPrefixList
 
 -- returns (indent, suggestion, search), where:
 --  - indent is the string that occurs before the match
@@ -234,13 +242,16 @@ regenerate a =
                       |> Util.replace "⟶" "->"
                       |> fn)
 
-      completions = filterBy (String.contains lcq) completeList
+      completions = [filterBy (String.contains lcq) completeList]
+      totalLength l = l
+                      |> List.concat
+                      |> List.length
 
 
   in { a | completions = completions
-         , index = if List.length completions == 0
+         , index = if totalLength completions == 0
                    then -1
-                   else if List.length completions < List.length a.completions
+                   else if totalLength completions < numCompletions a
                    then 0
                    else a.index
      }

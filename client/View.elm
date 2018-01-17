@@ -338,7 +338,7 @@ normalEntryHtml m =
               in Html.li
                 [ Attrs.class class ]
                 [name, types])
-           m.complete.completions)
+           (List.concat m.complete.completions))
 
       autocompletions = case (m.state, m.complete.index) of
                           -- (Entering (Filling _ (ParamHole _ _ _)), -1) ->

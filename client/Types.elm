@@ -144,7 +144,7 @@ type RPC
 -----------------------------
 type alias Autocomplete = { functions : List Function
                           , varnames : List VarName
-                          , completions : List AutocompleteItem
+                          , completions : List (List AutocompleteItem)
                           , index : Int
                           , value : String
                           , showFunctions : Bool
