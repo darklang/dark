@@ -34,15 +34,15 @@ onlyTL : Model -> Toplevel
 onlyTL m =
   m.toplevels
   |> List.head
-  |> deMaybe
+  |> deMaybe "test"
 
 onlyAST : Model -> AST
 onlyAST m =
   m.toplevels
   |> List.head
-  |> deMaybe
+  |> deMaybe "test"
   |> TL.asHandler
-  |> deMaybe
+  |> deMaybe "test"
   |> .ast
 
 
@@ -66,7 +66,7 @@ fieldAccessCloses m =
   case m.state of
     Entering (Filling _ id) ->
       let tl = onlyTL m in
-      if TL.allBlanks tl == TL.specBlanks (tl |> TL.asHandler |> deMaybe)
+      if TL.allBlanks tl == TL.specBlanks (tl |> TL.asHandler |> deMaybe "test")
       then pass
       else fail (TL.allBlanks tl)
     _ ->

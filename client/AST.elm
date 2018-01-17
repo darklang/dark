@@ -120,7 +120,7 @@ closeThread expr =
       let filtered = List.filter (isHole >> not) exprs
           newExprs = ctList filtered
           init = LE.init newExprs |> Maybe.withDefault []
-          last = LE.last newExprs |> deMaybe
+          last = LE.last newExprs |> deMaybe "last in thread"
       in
         case newExprs of
           [] ->
@@ -358,7 +358,7 @@ threadAncestors id expr =
 
 parentOf : ID -> AST -> AST
 parentOf id ast =
-  deMaybe <| parentOf_ id ast
+  deMaybe "parentOf" <| parentOf_ id ast
 
 parentOf_ : ID -> Expr -> Maybe Expr
 parentOf_ eid expr =
@@ -516,7 +516,7 @@ listData expr =
 
 subtree : ID -> AST -> PointerData
 subtree id ast =
-  deMaybe (subData id ast)
+  deMaybe "subtree" (subData id ast)
 
 subData : ID -> Expr -> Maybe PointerData
 subData id expr =

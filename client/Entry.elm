@@ -220,15 +220,15 @@ submit m cursor action value =
         DBColName ->
           wrap <| SetDBColName tlid id value
         VarBind ->
-          let h = deMaybe maybeH
+          let h = deMaybe "maybeH - varbind" maybeH
               replacement = AST.replaceVarBind p value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         Spec ->
-          let h = deMaybe maybeH
+          let h = deMaybe "maybeH - spec" maybeH
               replacement = TL.replaceSpecBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
-          let h = deMaybe maybeH
+          let h = deMaybe "maybeH - field" maybeH
               parent = AST.parentOf id h.ast
               newAst =
                 if String.endsWith "." value
@@ -258,7 +258,7 @@ submit m cursor action value =
           in
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
         Expr ->
-          let h = deMaybe maybeH in
+          let h = deMaybe "maybeH - expr" maybeH in
           replaceExpr m h tlid p value
 
 

@@ -15,7 +15,7 @@ import Pointer as P
 getTL : Model -> TLID -> Toplevel
 getTL m id =
   LE.find (\tl -> tl.id == id) m.toplevels
-  |> deMaybe
+  |> deMaybe "getTL"
 
 replace : Model -> Toplevel -> Model
 replace m tl =
@@ -94,7 +94,7 @@ getPrevSibling tl p =
       let sibs = siblings tl p
           -- 'safe' to deMaybe as there's always at least
           -- one member in the array
-          last = deMaybe <| LE.last sibs
+          last = deMaybe "sibling" <| LE.last sibs
       in
       sibs
       |> LE.elemIndex p

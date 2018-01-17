@@ -196,7 +196,7 @@ updateMod origm mod (m, cmd) =
                   let obj =
                     case P.typeOf p of
                       Expr ->
-                        let handler = deMaybe <| TL.asHandler tl
+                        let handler = deMaybe "handler - expr" <| TL.asHandler tl
                             parent = AST.parentOf_ (P.idOf p) handler.ast
                         in
                             case parent of
@@ -210,7 +210,7 @@ updateMod origm mod (m, cmd) =
                                 Nothing
 
                       Field ->
-                        let handler = deMaybe <| TL.asHandler tl
+                        let handler = deMaybe "handler - field" <| TL.asHandler tl
                             parent = AST.parentOf (P.idOf p) handler.ast
                         in
                             case parent of

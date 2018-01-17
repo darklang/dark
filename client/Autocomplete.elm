@@ -158,7 +158,7 @@ jsonFields json =
   json
     |> JSD.decodeString (JSD.dict JSD.value)
     |> Result.toMaybe
-    |> deMaybe
+    |> deMaybe "json decode result"
     |> Dict.keys
     |> List.map ACField
 

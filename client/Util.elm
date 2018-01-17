@@ -27,20 +27,17 @@ htmlSize : String -> (Float, Float)
 htmlSize str = let size = Native.Size.size str
                in (size.width, size.height)
 
-deMaybeM : String -> Maybe a -> a
-deMaybeM msg x =
+deMaybe : String -> Maybe a -> a
+deMaybe msg x =
   case x of
     Just y -> y
-    Nothing -> Debug.crash msg
+    Nothing -> Debug.crash <| "deMaybe: got an error, expected a " ++ msg
 
 toIntWithDefault : Int -> String -> Int
 toIntWithDefault d s =
   s
   |> String.toInt
   |> Result.withDefault d
-
-deMaybe : Maybe a -> a
-deMaybe = deMaybeM "deMaybe - nothing there"
 
 rematch : String -> String -> Bool
 rematch re s = Regex.contains (Regex.regex re) s
@@ -102,6 +99,3 @@ uniqueCombinations xs = xs
                       |> zip xs
                       |> List.concatMap (\(x, ys) -> List.map (\y -> (x, y)) ys)
                       |> List.filter (\(x, y) -> x /= y)
-
-hdExn : List a -> a
-hdExn l =  l |> List.head |> deMaybe
