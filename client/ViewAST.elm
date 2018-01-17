@@ -23,7 +23,7 @@ type alias HtmlVisitState = { selectedID : ID
 
 type alias Class = String
 type Element = Text Class String
-             | Selectable Class (BlankOr String)
+             | Selectable Class (BlankOr String) PointerType
              | Nested (Maybe ID) Class (List Element)
 
 
@@ -42,14 +42,14 @@ elemToHtml state elem =
         [Attrs.class <| "leaf " ++ class]
         [Html.text str]
 
-    Selectable class blankOr ->
+    Selectable class blankOr pointerType ->
       let id = blankOrID blankOr
           idAttr = Attrs.id (id |> deID |> toString)
           classes = Attrs.class <| "leaf " ++ class
       in
         Html.div
         ( idAttr :: classes :: hover (Just id) )
-        [state.viewBlankOr Expr blankOr]
+        [state.viewBlankOr pointerType blankOr ]
 
     Nested id class elems ->
       let newClasses =
@@ -98,11 +98,11 @@ vInfix id name exprs nesting =
 
 vVarname : ID -> VarName -> Element
 vVarname id v =
-  Selectable "varname atom" (Filled id v)
+  Selectable "varname atom" (Filled id v) Expr
 
 vVarBind : VarBind -> Element
 vVarBind v =
-  Selectable "varname atom" v
+  Selectable "varname atom" v VarBind
 
 vExpr : Int -> Expr -> Element
 vExpr nest expr =
@@ -114,7 +114,7 @@ vExpr nest expr =
            if RT.isString v
            then "“" ++ (SE.unquote v) ++ "”"
            else v
-     in Selectable ("atom value " ++ cssClass) (Filled id valu)
+     in Selectable ("atom value " ++ cssClass) (Filled id valu) Expr
 
     Let id lhs rhs expr ->
       Nested (Just id) "letexpr"
@@ -151,7 +151,7 @@ vExpr nest expr =
         , Nested Nothing "lambdabody" [vExpr 0 expr]
         ]
 
-    Hole id -> Selectable "hole atom" (Blank id)
+    Hole id -> Selectable "hole atom" (Blank id) Expr
 
     Thread id exprs ->
       let pipe = Text "thread atom pipe" "|>" in
