@@ -415,8 +415,7 @@ update_ msg m =
                                  , AutocompleteMod ACReset]
 
                 Key.Up -> AutocompleteMod ACSelectUp
-                Key.Down -> Many [ AutocompleteMod (ACOpen True)
-                                 , AutocompleteMod ACSelectDown]
+                Key.Down -> AutocompleteMod ACSelectDown
                 Key.Right ->
                   let sp = AC.sharedPrefix m.complete in
                   if sp == "" then NoChange

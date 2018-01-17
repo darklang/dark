@@ -35,7 +35,6 @@ init functions = { functions = functions
                  , varnames = []
                  , completions = List.map ACFunction functions
                  , index = -1
-                 , open = True
                  , showFunctions = True
                  , value = ""
                  , liveValue = Nothing
@@ -54,9 +53,6 @@ reset a = init a.functions
 clear : Autocomplete -> Autocomplete
 clear a = let cleared = setQuery "" a in
           { cleared | index = -1 }
-
-open : Bool -> Autocomplete -> Autocomplete
-open o a = { a | open = o }
 
 selectDown : Autocomplete -> Autocomplete
 selectDown a = let max_ = List.length a.completions
@@ -262,7 +258,6 @@ update mod a =
      ACSetQuery str -> setQuery str a
      ACAppendQuery str -> appendQuery str a
      ACReset -> reset a
-     ACOpen o -> open o a
      ACClear -> clear a
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a

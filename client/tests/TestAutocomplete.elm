@@ -164,13 +164,6 @@ all =
       |> .completions
       |> List.length
       |> (/=) 0
-      -- But not when we tell it not to
-      , \_ -> (init completes)
-      |> open False
-      |> setQuery ""
-      |> .completions
-      |> List.length
-      |> (==) 0
       ]
     ]
 

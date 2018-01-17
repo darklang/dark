@@ -147,7 +147,6 @@ type alias Autocomplete = { functions : List Function
                           , completions : List AutocompleteItem
                           , index : Int
                           , value : String
-                          , open : Bool
                           , showFunctions : Bool
                           , liveValue : Maybe LiveValue
                           , tipe : Maybe Tipe
@@ -159,7 +158,6 @@ type AutocompleteItem = ACFunction Function
 
 type AutocompleteMod = ACSetQuery String
                      | ACAppendQuery String
-                     | ACOpen Bool
                      | ACReset
                      | ACClear
                      | ACSelectDown
