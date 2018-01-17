@@ -187,11 +187,6 @@ type alias FieldName = String
 type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
 
--- TODO(ian): VarBinds should potentially be an
--- Expr as they're IDs that exist _inside_ the AST
--- but can't be touched/talked to because functions dealing
--- with the AST -- work on the ID<->Expr mapping
--- like `subExpr : ID -> Expr -> Expr`
 type Expr = If ID Expr Expr Expr
           | FnCall ID FnName (List Expr)
           | Variable ID VarName
