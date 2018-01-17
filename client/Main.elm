@@ -221,11 +221,13 @@ updateMod origm mod (m, cmd) =
                       _ ->
                         Nothing
                   in
-                      obj
-                      |> Maybe.map P.idOf
-                      |> Maybe.andThen (Analysis.getLiveValue m tlid)
-                      -- don't filter on incomplete values
-                      |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete then Nothing else Just lv)
+                  obj
+                  |> Maybe.map P.idOf
+                  |> Maybe.andThen (Analysis.getLiveValue m tlid)
+                  -- don't filter on incomplete values
+                  |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
+                                           then Nothing
+                                           else Just lv)
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
