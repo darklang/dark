@@ -69,9 +69,7 @@ str2tipe t =
   "datastore" -> TDB
   "date" -> TDate
   "error" -> TIncomplete -- temporary, maybe
-  _ -> Debug.crash <| "invalid typename: " ++ t
-
-
+  other -> TForeignKey other
 
 tipeOf : String -> Tipe
 tipeOf s =

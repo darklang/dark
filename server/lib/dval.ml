@@ -53,8 +53,7 @@ let tipe_of_string str : tipe =
   | "date" -> TDate
   | "title" -> TTitle
   | "url" -> TUrl
-  | _ -> Exception.client ("Invalid type name: " ^ str)
-
+  | other -> TForeignKey other
 
 
 let tipe_of (dv : dval) : tipe =
@@ -390,14 +389,8 @@ let sql_tipe_for (tipe: tipe) : string =
   | TBlock -> failwith "todo sql type"
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
-  | TID -> failwith "todo sql type"
+  | TID | TForeignKey _ -> "INT"
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
   | TUrl -> "TEXT"
-  | TForeignKey s -> failwith "todo sql type"
-
-
-
-
-
 

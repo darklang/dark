@@ -241,8 +241,18 @@ decodeHandler =
   |> JSDP.required "spec" decodeHandlerSpec
 
 decodeTipe : JSD.Decoder String
-decodeTipe = JSD.index 0 JSD.string
-             |> JSD.map (String.dropLeft 1)
+decodeTipe =
+  let toTipeString l =
+        case l of
+          const :: arg :: [] ->
+            JSD.succeed arg
+          const :: [] ->
+            JSD.succeed const
+          _ ->
+            JSD.fail "error in tipeString"
+  in
+  JSD.list JSD.string
+  |> JSD.andThen toTipeString
 
 decodeDB : JSD.Decoder DB
 decodeDB =
