@@ -50,6 +50,20 @@ replaceSpecBlank id value hs =
      , modifier = rh hs.modifier
      }
 
+deleteSpecBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
+deleteSpecBlank p hs =
+  let newID = gid ()
+      rh a = if blankOrID a == (P.idOf p)
+             then Blank newID
+             else a
+  in (PBlank Spec newID
+      , { name = rh hs.name
+        , module_ = rh hs.module_
+        , modifier = rh hs.modifier
+        })
+
+
+
 allBlanks : Toplevel -> List Pointer
 allBlanks tl =
   case tl.data of

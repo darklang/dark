@@ -13,6 +13,7 @@ import Toplevel as TL
 -- TODO: remove, code smell
 import AST
 import Pointer as P
+import Util exposing (deMaybe)
 
 nextToplevel : Model -> (Maybe TLID) -> Modification
 nextToplevel m cur =
@@ -72,13 +73,32 @@ nextBlank m tlid cur =
 
 delete : Model -> TLID -> Pointer -> Modification
 delete m tlid cur =
-  let tl = TL.getTL m tlid in
-  case tl.data of
-    TLHandler h ->
-      let (p, replacement) = AST.deleteExpr cur h.ast in
-      RPC ( [SetHandler tlid tl.pos { h | ast = replacement }]
-          , FocusExact tlid p)
-    _ -> NoChange
+  let tl = TL.getTL m tlid
+      wrap p op = RPC ([op], FocusExact tlid p)
+      maybeH = \_ -> TL.asHandler tl |> deMaybe "delete maybe"
+      id = P.idOf cur
+  in
+  case P.typeOf cur of
+    DBColType ->
+      wrap cur <| SetDBColType tlid id ""
+    DBColName ->
+      wrap cur <| SetDBColName tlid id ""
+    VarBind ->
+      let h = maybeH ()
+          (p, replacement) = AST.deleteExpr cur h.ast
+      in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
+    Spec ->
+      let h = maybeH ()
+          (p, replacement) = TL.deleteSpecBlank cur h.spec
+      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+    Field ->
+      let h = maybeH ()
+          (p, replacement) = AST.deleteExpr cur h.ast
+      in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
+    Expr ->
+      let h = maybeH ()
+          (p, replacement) = AST.deleteExpr cur h.ast
+      in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
 
 enter : Model -> TLID -> Pointer -> Modification
 enter m tlid cur =
