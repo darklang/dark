@@ -207,7 +207,7 @@ regenerate a =
 
       -- functions
       functions = if a.showFunctions then a.functions else []
-      options =
+      completeList =
         functions
         |> List.filter
            (\{returnTipe} ->
@@ -222,19 +222,20 @@ regenerate a =
         |> List.map ACFunction
         |> List.append fields
         |> List.append (List.map ACVariable a.varnames)
-        |> List.filter
-           (\i -> i
-                  |> (\i -> if 1 >= String.length lcq
-                            then asName i
-                            else asString i)
-                  |> String.toLower
-                  |> Util.replace "⟶" "->"
-                  |> String.contains lcq)
 
-      completions =
-        if not a.open
-        then []
-        else options
+      filterBy fn list =
+        list
+          |> List.filter
+               (\i -> i
+                      |> (\i -> if 1 >= String.length lcq
+                                then asName i
+                                else asString i)
+                      |> String.toLower
+                      |> Util.replace "⟶" "->"
+                      |> fn)
+
+      completions = filterBy (String.contains lcq) completeList
+
 
   in { a | completions = completions
          , index = if List.length completions == 0
