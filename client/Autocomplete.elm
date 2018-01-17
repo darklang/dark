@@ -231,27 +231,43 @@ regenerate a =
         |> List.append fields
         |> List.append (List.map ACVariable a.varnames)
 
-      filterBy fn list =
-        list
-          |> List.filter
-               (\i -> i
-                      |> (\i -> if 1 >= String.length lcq
-                                then asName i
-                                else asString i)
-                      |> String.toLower
-                      |> Util.replace "⟶" "->"
-                      |> fn)
+      stringify i = (if 1 >= String.length lcq
+                     then asName i
+                     else asString i)
+                    |> Util.replace "⟶" "->"
 
-      completions = [filterBy (String.contains lcq) completeList]
-      totalLength l = l
-                      |> List.concat
-                      |> List.length
+
+      -- split into different lists
+      candidates1 = List.filter (stringify
+                                 >> String.toLower
+                                 >> String.contains lcq
+                                 ) completeList
+
+      (startsWith, candidates2) =
+        List.partition (stringify
+                        >> String.startsWith a.value
+                       ) candidates1
+
+      (startsWithCI, candidates3) =
+        List.partition (stringify
+                        >> String.toLower
+                        >> String.startsWith lcq
+                        ) candidates2
+
+      (substring, substringCI ) =
+        List.partition (stringify
+                        >> String.contains a.value
+                        ) candidates3
+
+      completions = [ startsWith, startsWithCI, substring, substringCI ]
+
+      totalLength = completions |> List.concat |> List.length
 
 
   in { a | completions = completions
-         , index = if totalLength completions == 0
+         , index = if totalLength == 0
                    then -1
-                   else if totalLength completions < numCompletions a
+                   else if totalLength < numCompletions a
                    then 0
                    else a.index
      }

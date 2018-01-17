@@ -45,6 +45,10 @@ all =
           , ("Int::add", TInt)
           , ("Dict::keys", TObj)
           , ("List::head", TList)
+          , ("withlower", TObj)
+          , ("withLower", TObj)
+          , ("SomeModule::withLower", TObj)
+          , ("SomeOtherModule::withlower", TObj)
           ] in
   describe "autocomplete"
     [ d "containsOrdered"
@@ -139,7 +143,7 @@ all =
       |> selectUp
       |> selectUp
       |> .index
-      |> (==) 5
+      |> (==) 9
 
       -- Reduced results goes back to start of list
       , \_ -> (init completes)
@@ -184,6 +188,19 @@ all =
       |> List.concat
       |> List.length
       |> (/=) 0
+
+      -- ordering: startsWith, then case match, then case insensitive match
+      , \_ -> (init completes)
+      |> setQuery "withL"
+      |> .completions
+      |> List.map (List.map asName)
+      |> (==) [ ["withLower"]
+              , ["withlower"]
+              , ["SomeModule::withLower"]
+              , ["SomeOtherModule::withlower"]
+              ]
+
       ]
     ]
+
 
