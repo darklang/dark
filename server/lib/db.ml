@@ -5,12 +5,14 @@ open Types.DbT
 open Types.RuntimeT
 
 module RT = Runtime
-module TL = Toplevel
 
 module PG = Postgresql
 
 let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
+
+let cur_dbs : DbT.db list ref =
+  ref []
 
 (* ------------------------- *)
 (* SQL *)
@@ -61,9 +63,8 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   | TForeignKey table ->
     (* fetch here for now *)
     let id = sql |> int_of_string |> DID in
-    let cur_dbs = !TL.cur_dbs in
     let db =
-      (match List.find ~f:(fun d -> d.actual_name = table) cur_dbs with
+      (match List.find ~f:(fun d -> d.actual_name = table) !cur_dbs with
        | Some d -> d
        | None -> failwith ("table not found: " ^ table))
     in
