@@ -10,17 +10,6 @@ idOf p =
     PBlank _ id -> id
     PFilled _ id -> id
 
-idOfD : PointerData -> ID
-idOfD p =
-  case p of
-    PVarBind id _ -> id
-    PSpec id -> id
-    PExpr id _ -> id
-    PField id _ -> id
-    PDBColName id -> id
-    PDBColType id -> id
-
-
 blankTo : PointerType -> BlankOr a -> Pointer
 blankTo t b =
   case b of
@@ -45,16 +34,43 @@ isFilled p =
     PBlank _ _ -> False
     PFilled _ _ -> True
 
+------------------------
+-- PointerData
+------------------------
 pdToP : PointerData -> Pointer
 pdToP pd =
   case pd of
     PVarBind id _ -> PFilled VarBind id
-    PSpec id -> PFilled Spec id
+    PSpec id _ -> PFilled Spec id
     PExpr id _ -> PFilled Expr id
     PField id _ -> PFilled Field id
-    PDBColName id -> PFilled DBColName id
-    PDBColType id -> PFilled DBColType id
+    PDBColName id _ -> PFilled DBColName id
+    PDBColType id _ -> PFilled DBColType id
 
+
+blankOfD : PointerData -> (Maybe String, Maybe Expr)
+blankOfD pd =
+  Debug.crash "TODO"
+  -- case pd of
+  --   PVarBind _ val -> val
+  --   PSpec _ val -> val
+  --   PExpr _ (Hole id) -> Blank id
+  --   PExpr id expr -> Filled id "TODO"
+  --   PField _ val -> val
+  --   PDBColName _ val -> val
+  --   PDBColType _ val -> val
+  --
+
+
+idOfD : PointerData -> ID
+idOfD = pdToP >> idOf
+
+typeOfD : PointerData -> PointerType
+typeOfD = pdToP >> typeOf
+
+------------------------
+-- PointerOwner
+------------------------
 ownerOf : Pointer -> PointerOwner
 ownerOf p =
   case (typeOf p) of
@@ -69,10 +85,10 @@ pdOwnerOf : PointerData -> PointerOwner
 pdOwnerOf pd =
   case pd of
     PVarBind _ _ -> POAst
-    PSpec _ -> POSpec
+    PSpec _ _ -> POSpec
     PExpr _  _ -> POAst
     PField _ _ -> POAst
-    PDBColName _ -> PODb
-    PDBColType _ -> PODb
+    PDBColName _ _ -> PODb
+    PDBColType _ _ -> PODb
 
 

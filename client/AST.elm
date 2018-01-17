@@ -540,9 +540,9 @@ isLeaf id ast =
             FnCall _ _ params -> -- Constant, or piped-in function
               (List.length params) == 0
             _ -> False
-        PSpec _ -> False
-        PDBColName _ -> False
-        PDBColType _ -> False
+        PSpec _ _ -> False
+        PDBColName _ _ -> False
+        PDBColType _ _ -> False
 
 toContent : PointerData -> String
 toContent pd =
@@ -554,9 +554,9 @@ toContent pd =
         Value _ s -> s
         Variable _ v -> v
         _ -> ""
-    PSpec _ -> ""
-    PDBColName _ -> ""
-    PDBColType _ -> ""
+    PSpec _ _ -> ""
+    PDBColName _ _ -> ""
+    PDBColType _ _ -> ""
 
 
 replace : Pointer -> PointerData -> AST -> AST

@@ -214,11 +214,11 @@ type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
 
 type PointerData = PVarBind ID VarBind
-                 | PSpec ID -- TODO
+                 | PSpec ID (BlankOr String)
                  | PExpr ID Expr
                  | PField ID Field
-                 | PDBColName ID -- TODO
-                 | PDBColType ID -- TODO
+                 | PDBColName ID (BlankOr String)
+                 | PDBColType ID (BlankOr String)
 
 type BlankOr a = Blank ID
                | Filled ID a
