@@ -29,3 +29,6 @@ let handlers (tls: toplevel_list) : Handler.handler list =
 
 let dbs (tls: toplevel_list) : DbT.db list =
   List.filter_map ~f:as_db tls
+
+let cur_dbs : DbT.db list ref =
+  ref []

@@ -5,8 +5,108 @@ open Types.DbT
 open Types.RuntimeT
 
 module RT = Runtime
+module TL = Toplevel
 
 module PG = Postgresql
+
+let conn =
+  new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
+
+(* ------------------------- *)
+(* SQL *)
+(* ------------------------- *)
+let dval_to_sql (dv: dval) : string =
+  match dv with
+  | DInt i | DID i -> string_of_int i
+  | DBool b -> if b then "true" else "false"
+  | DChar c -> Char.to_string c
+  | DStr s -> "'" ^ s ^ "'"
+  | DFloat f -> string_of_float f
+  | DNull -> "null"
+  | DDate d ->
+    "TIMESTAMP WITH TIME ZONE '"
+    ^ Dval.string_of_date d
+    ^ "'"
+  | _ -> Exception.client "Not obvious how to persist this in the DB"
+
+(* Turn db rows into list of string/type pairs - removes elements with
+ * holes, as they won't have been put in the DB yet *)
+let cols_for (db: db) : (string * tipe) list =
+  db.cols
+  |> List.filter_map ~f:(fun c ->
+    match c with
+    | Full (_, name), Full (_, tipe) ->
+      Some (name, tipe)
+    | _ ->
+      None)
+  |> fun l -> ("id", TID) :: l
+
+let fetch_via_sql (sql: string) : string list list =
+  sql
+  |> Log.pp "sql"
+  |> conn#exec ~expect:PG.[Tuples_ok]
+  |> (fun res -> res#get_all_lst)
+
+let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
+  match tipe with
+  | TID -> sql |> int_of_string |> DID
+  | TInt -> sql |> int_of_string |> DInt
+  | TTitle -> sql |> DTitle
+  | TUrl -> sql |> DUrl
+  | TStr -> sql |> DStr
+  | TDate ->
+    DDate (if sql = ""
+           then Time.epoch
+           else Dval.date_of_string sql)
+  | TForeignKey table ->
+    (* fetch here for now *)
+    let id = sql |> int_of_string |> DID in
+    let cur_dbs = !TL.cur_dbs in
+    let db =
+      (match List.find ~f:(fun d -> d.actual_name = table) cur_dbs with
+       | Some d -> d
+       | None -> failwith ("table not found: " ^ table))
+    in
+    fetch_by db "id" id
+  | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
+                   (Dval.tipe_to_string tipe))
+and
+fetch_by db (col: string) (dv: dval) : dval =
+  let (names, types) = cols_for db |> List.unzip in
+  let colnames = names |> String.concat ~sep:", " in
+  Printf.sprintf
+    "SELECT %s FROM \"%s\" WHERE %s = %s"
+    colnames db.actual_name col (dval_to_sql dv)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj names types)
+  |> DList
+and
+to_obj (names : string list) (types: tipe list) (db_strings : string list)
+  : dval =
+  db_strings
+  |> List.map2_exn ~f:sql_to_dval types
+  |> List.zip_exn names
+  |> Dval.to_dobj
+
+let sql_tipe_for (tipe: tipe) : string =
+  match tipe with
+  | TAny -> failwith "todo sql type"
+  | TInt -> "INT"
+  | TFloat -> failwith "todo sql type"
+  | TBool -> failwith "todo sql type"
+  | TNull -> failwith "todo sql type"
+  | TChar -> failwith "todo sql type"
+  | TStr -> "TEXT"
+  | TList -> failwith "todo sql type"
+  | TObj -> failwith "todo sql type"
+  | TIncomplete -> failwith "todo sql type"
+  | TBlock -> failwith "todo sql type"
+  | TResp -> failwith "todo sql type"
+  | TDB -> failwith "todo sql type"
+  | TID | TForeignKey _ -> "INT"
+  | TDate -> "TIMESTAMP WITH TIME ZONE"
+  | TTitle -> "TEXT"
+  | TUrl -> "TEXT"
 
 
 (* ------------------------- *)
@@ -24,18 +124,11 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 (* actual DB stuff *)
 (* ------------------------- *)
 
-let conn =
-  new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
 let run_sql (sql: string) : unit =
   Log.pP "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
-let fetch_via_sql (sql: string) : string list list =
-  sql
-  |> Log.pp "sql"
-  |> conn#exec ~expect:PG.[Tuples_ok]
-  |> (fun res -> res#get_all_lst)
 
 let with_postgres fn =
   try
@@ -52,29 +145,12 @@ let key_names (vals: dval_map) : string =
 let val_names (vals: dval_map) : string =
   vals
   |> DvalMap.data
-  |> List.map ~f:Dval.dval_to_sql
+  |> List.map ~f:dval_to_sql
   |> String.concat ~sep:", "
 
-(* Turn db rows into list of string/type pairs - removes elements with
- * holes, as they won't have been put in the DB yet *)
-let cols_for (db: db) : (string * tipe) list =
-  db.cols
-  |> List.filter_map ~f:(fun c ->
-    match c with
-    | Full (_, name), Full (_, tipe) ->
-      Some (name, tipe)
-    | _ ->
-      None)
-  |> fun l -> ("id", TID) :: l
 
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-let to_obj (names : string list) (types: tipe list) (db_strings : string list)
-  : dval =
-  db_strings
-  |> List.map2_exn ~f:Dval.sql_to_dval types
-  |> List.zip_exn names
-  |> Dval.to_dobj
 
 
 let insert (db: db) (vals: dval_map) : unit =
@@ -95,20 +171,11 @@ let fetch_all (db: db) : dval =
   |> DList
 
 
-let fetch_by db (col: string) (dv: dval) : dval =
-  let (names, types) = cols_for db |> List.unzip in
-  let colnames = names |> String.concat ~sep:", " in
-  Printf.sprintf
-    "SELECT %s FROM \"%s\" WHERE %s = %s"
-    colnames db.actual_name col (Dval.dval_to_sql dv)
-  |> fetch_via_sql
-  |> List.map ~f:(to_obj names types)
-  |> DList
 
 let delete db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
-    db.actual_name (Dval.dval_to_sql id)
+    db.actual_name (dval_to_sql id)
   |> run_sql
 
 let update db (vals: dval_map) =
@@ -116,10 +183,10 @@ let update db (vals: dval_map) =
   let sets = vals
            |> DvalMap.to_alist
            |> List.map ~f:(fun (k,v) ->
-               k ^ " = " ^ Dval.dval_to_sql v)
+               k ^ " = " ^ dval_to_sql v)
            |> String.concat ~sep:", " in
   Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
-    db.actual_name sets (Dval.dval_to_sql id)
+    db.actual_name sets (dval_to_sql id)
   |> run_sql
 
 (* ------------------------- *)
@@ -155,7 +222,7 @@ let create_table_sql (table_name: string) =
 let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
     "ALTER TABLE \"%s\" ADD COLUMN %s %s"
-    table_name name (Dval.sql_tipe_for tipe)
+    table_name name (sql_tipe_for tipe)
 
 
 
