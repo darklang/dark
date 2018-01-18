@@ -8,6 +8,7 @@ module RT = Runtime
 
 module PG = Postgresql
 
+(* globals *)
 let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
@@ -15,7 +16,7 @@ let cur_dbs : DbT.db list ref =
   ref []
 
 (* ------------------------- *)
-(* SQL *)
+(* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
 let dval_to_sql (dv: dval) : string =
   match dv with
@@ -49,6 +50,9 @@ let fetch_via_sql (sql: string) : string list list =
   |> conn#exec ~expect:PG.[Tuples_ok]
   |> (fun res -> res#get_all_lst)
 
+(*
+ * Dear god, OCaml this is the worst
+ * *)
 let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   match tipe with
   | TID -> sql |> int_of_string |> DID
