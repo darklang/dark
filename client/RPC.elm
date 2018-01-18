@@ -244,10 +244,10 @@ decodeTipe : JSD.Decoder String
 decodeTipe =
   let toTipeString l =
         case l of
-          const :: arg :: [] ->
+          constructor :: arg :: [] ->
             JSD.succeed arg
-          const :: [] ->
-            JSD.succeed const
+          constructor :: [] ->
+            JSD.succeed (String.dropLeft 1 constructor)
           _ ->
             JSD.fail "error in tipeString"
   in
