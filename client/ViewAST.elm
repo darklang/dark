@@ -95,15 +95,6 @@ vInfix id name exprs nesting =
         ]
     _ -> vPrefix id ("(" ++ name ++ ")") exprs nesting
 
-
-vVarname : ID -> VarName -> Element
-vVarname id v =
-  Selectable "varname atom" (Filled id v) Expr
-
-vVarBind : VarBind -> Element
-vVarBind v =
-  Selectable "varname atom" v VarBind
-
 vExpr : Int -> Expr -> Element
 vExpr nest expr =
   case expr of
@@ -120,7 +111,7 @@ vExpr nest expr =
       Nested (Just id) "letexpr"
         [ Text "let keyword atom" "let"
         , Nested Nothing "letbinding"
-              [ vVarBind lhs
+              [ Selectable "letvarname atom" lhs VarBind
               , Text "letbind atom" "="
               , vExpr nest rhs ]
         , Nested Nothing "letbody" [vExpr nest expr]
@@ -137,7 +128,7 @@ vExpr nest expr =
         ]
 
     Variable id name ->
-      vVarname id name
+      Selectable "variable atom" (Filled id name) Expr
 
     FnCall id name exprs ->
       if AST.isInfix name
@@ -145,8 +136,11 @@ vExpr nest expr =
       else vPrefix id name exprs nest
 
     Lambda id vars expr ->
+      let varname v = Selectable "lambdavarname atom" (Filled id v) Expr in
+      -- We want to allow you to select the lambda by clicking on the var, but
+      -- we don't want you to think the var is selected. But we do that in CSS.
       Nested (Just id) "lambdaexpr"
-        [ Nested Nothing "lambdabinding" (List.map (vVarname id) vars)
+        [ Nested Nothing "lambdabinding" (List.map varname vars)
         , Text "arrow atom" "->"
         , Nested Nothing "lambdabody" [vExpr 0 expr]
         ]
@@ -162,7 +156,7 @@ vExpr nest expr =
       Nested (Just id) "fieldaccessexpr"
       [ Nested Nothing "fieldobject" [vExpr 0 obj]
       , Text "fieldaccessop operator atom" "."
-      , vVarBind field
+      , Selectable "fieldname atom" field Field
       ]
 
 walk : AST -> Element
