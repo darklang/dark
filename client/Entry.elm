@@ -132,7 +132,7 @@ submit m cursor action value =
 
       -- start new AST
       else
-        case parseAst value (action == ContinueThread) of
+        case parseAst value False of
           Nothing -> NoChange
           Just v ->
             let ast = threadIt v
