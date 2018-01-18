@@ -380,7 +380,7 @@ update_ msg m =
                 Creating _ ->
                   let name = AC.getValue m.complete
                   in Entry.submit m cursor Entry.StartThread name
-           else
+            else
               case event.keyCode of
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
