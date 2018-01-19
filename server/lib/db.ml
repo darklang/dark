@@ -16,7 +16,7 @@ let cur_dbs : DbT.db list ref =
   ref []
 
 let find_db table_name : DbT.db =
-  match List.find ~f:(fun d -> d.actual_name = table_name) !cur_dbs with
+  match List.find ~f:(fun d -> d.display_name = String.capitalize table_name) !cur_dbs with
    | Some d -> d
    | None -> failwith ("table not found: " ^ table_name)
 
@@ -73,7 +73,9 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
     (* fetch here for now *)
     let id = sql |> int_of_string |> DID in
     let db = find_db table in
-    fetch_by db "id" id
+    (match (fetch_by db "id" id) with
+    | DList l -> List.hd_exn l
+    | _ -> failwith "should never happen, fetch_by returns a DList")
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
 and
