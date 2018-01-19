@@ -15,6 +15,11 @@ let conn =
 let cur_dbs : DbT.db list ref =
   ref []
 
+let find_db table_name : DbT.db =
+  match List.find ~f:(fun d -> d.actual_name = table_name) !cur_dbs with
+   | Some d -> d
+   | None -> failwith ("table not found: " ^ table_name)
+
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
@@ -67,11 +72,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   | TForeignKey table ->
     (* fetch here for now *)
     let id = sql |> int_of_string |> DID in
-    let db =
-      (match List.find ~f:(fun d -> d.actual_name = table) !cur_dbs with
-       | Some d -> d
-       | None -> failwith ("table not found: " ^ table))
-    in
+    let db = find_db table in
     fetch_by db "id" id
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
@@ -86,6 +87,8 @@ fetch_by db (col: string) (dv: dval) : dval =
   |> List.map ~f:(to_obj names types)
   |> DList
 and
+(* PG returns lists of strings. This converts them to types using the
+ * row info provided *)
 to_obj (names : string list) (types: tipe list) (db_strings : string list)
   : dval =
   db_strings
@@ -154,16 +157,39 @@ let val_names (vals: dval_map) : string =
   |> String.concat ~sep:", "
 
 
-(* PG returns lists of strings. This converts them to types using the
- * row info provided *)
-
-
-let insert (db: db) (vals: dval_map) : unit =
-  let vals = DvalMap.add ~key:"id" ~data:(DInt (Util.create_id ())) vals in
-  Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-       db.actual_name (key_names vals) (val_names vals)
-     |> run_sql
-
+let rec insert (db: db) (vals: dval_map) : int =
+  let id = Util.create_id () in
+  let vals = DvalMap.add ~key:"id" ~data:(DInt id) vals in
+  (* split out complex objects *)
+  let objs, normal =
+    Map.partition_map
+      ~f:(fun v -> if Dval.is_obj v then `Fst v else `Snd v) vals
+  in
+  let cols = cols_for db in
+  (* insert complex objects into their own table, return the inserted ids *)
+  let obj_id_map =
+    Map.mapi
+      ~f:(fun ~key:k ~data:v ->
+          (* find table via coltype *)
+          let table_name =
+            let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = k) in
+            match ctype with
+            | TForeignKey t -> t
+            | _ -> failwith ("Expected TForeignKey, got: " ^ (show_tipe_ ctype))
+          in
+          let db_obj = find_db table_name in
+          match v with
+          | DObj m -> insert db_obj m |> DInt
+          | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr v))
+        ) objs
+  in
+  (* merge the maps *)
+  let merged = Util.merge_left normal obj_id_map in
+  let _ = Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
+      db.actual_name (key_names merged) (val_names merged)
+          |> run_sql
+  in
+    id
 
 let fetch_all (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in

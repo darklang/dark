@@ -237,6 +237,10 @@ let obj_merge (l: dval) (r: dval) : dval =
 let empty_dobj : dval =
   DObj (DvalMap.empty)
 
+let is_obj (dv : dval) : bool =
+  match dv with
+  | DObj _ -> true
+  | _ -> false
 
 
 (* ------------------------- *)

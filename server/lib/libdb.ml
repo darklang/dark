@@ -14,7 +14,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DObj value; DDB db] ->
-            Db.with_postgres (fun _ -> Db.insert db value);
+            let _ = Db.with_postgres (fun _ -> Db.insert db value) in
             DNull
           | args -> fail args)
   ; pr = None
