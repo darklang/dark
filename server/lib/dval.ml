@@ -30,7 +30,7 @@ let tipe_to_string t : string =
   | TDate -> "Date"
   | TTitle -> "Title"
   | TUrl -> "Url"
-  | TForeignKey s -> s
+  | TBelongsTo s -> s
 
 let tipe_of_string str : tipe =
   match String.lowercase str with
@@ -53,7 +53,7 @@ let tipe_of_string str : tipe =
   | "date" -> TDate
   | "title" -> TTitle
   | "url" -> TUrl
-  | other -> TForeignKey other
+  | other -> TBelongsTo other
 
 
 let tipe_of (dv : dval) : tipe =

@@ -69,7 +69,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
     DDate (if sql = ""
            then Time.epoch
            else Dval.date_of_string sql)
-  | TForeignKey table ->
+  | TBelongsTo table ->
     (* fetch here for now *)
     let id = sql |> int_of_string |> DID in
     let db = find_db table in
@@ -113,7 +113,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TBlock -> failwith "todo sql type"
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
-  | TID | TForeignKey _ -> "INT"
+  | TID | TBelongsTo _ -> "INT"
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
   | TUrl -> "TEXT"
@@ -176,8 +176,8 @@ let rec insert (db: db) (vals: dval_map) : int =
           let table_name =
             let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = k) in
             match ctype with
-            | TForeignKey t -> t
-            | _ -> failwith ("Expected TForeignKey, got: " ^ (show_tipe_ ctype))
+            | TBelongsTo t -> t
+            | _ -> failwith ("Expected TBelongsTo, got: " ^ (show_tipe_ ctype))
           in
           let db_obj = find_db table_name in
           match v with

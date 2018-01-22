@@ -27,7 +27,7 @@ type tipe_ =
   | TDate
   | TTitle
   | TUrl
-  | TForeignKey of string
+  | TBelongsTo of string
   [@@deriving eq, show, yojson]
 
 

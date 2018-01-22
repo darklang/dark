@@ -49,7 +49,7 @@ tipe2str t =
     TDate -> "Date"
     TTitle -> "Title"
     TUrl -> "Url"
-    TForeignKey s -> s
+    TBelongsTo s -> s
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -69,7 +69,7 @@ str2tipe t =
   "datastore" -> TDB
   "date" -> TDate
   "error" -> TIncomplete -- temporary, maybe
-  other -> TForeignKey other
+  other -> TBelongsTo other
 
 tipeOf : String -> Tipe
 tipeOf s =
