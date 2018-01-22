@@ -27,7 +27,9 @@ type tipe_ =
   | TDate
   | TTitle
   | TUrl
+  (* Storage related hackery *)
   | TBelongsTo of string
+  | THasMany of string
   [@@deriving eq, show, yojson]
 
 

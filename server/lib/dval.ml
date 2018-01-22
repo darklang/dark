@@ -31,6 +31,7 @@ let tipe_to_string t : string =
   | TTitle -> "Title"
   | TUrl -> "Url"
   | TBelongsTo s -> s
+  | THasMany s -> "[" ^ s ^ "]"
 
 let tipe_of_string str : tipe =
   match String.lowercase str with
@@ -53,8 +54,10 @@ let tipe_of_string str : tipe =
   | "date" -> TDate
   | "title" -> TTitle
   | "url" -> TUrl
-  | other -> TBelongsTo other
-
+  | other ->
+    if String.contains other '['
+    then THasMany other
+    else TBelongsTo other
 
 let tipe_of (dv : dval) : tipe =
   match dv with

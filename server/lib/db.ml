@@ -114,6 +114,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
   | TID | TBelongsTo _ -> "INT"
+  | THasMany _ -> "integer ARRAY"
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
   | TUrl -> "TEXT"

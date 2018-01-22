@@ -50,6 +50,7 @@ tipe2str t =
     TTitle -> "Title"
     TUrl -> "Url"
     TBelongsTo s -> s
+    THasMany s -> "[" ++ s ++ "]"
 
 str2tipe : String -> Tipe
 str2tipe t =
@@ -69,7 +70,10 @@ str2tipe t =
   "datastore" -> TDB
   "date" -> TDate
   "error" -> TIncomplete -- temporary, maybe
-  other -> TBelongsTo other
+  other ->
+    if String.contains "[" other
+    then THasMany other
+    else TBelongsTo other
 
 tipeOf : String -> Tipe
 tipeOf s =
