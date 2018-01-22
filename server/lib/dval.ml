@@ -55,9 +55,14 @@ let tipe_of_string str : tipe =
   | "title" -> TTitle
   | "url" -> TUrl
   | other ->
-    if String.contains other '['
-    then THasMany other
-    else TBelongsTo other
+    if String.is_prefix other "["  && String.is_suffix other "]"
+    then
+      other
+      |> fun s -> String.drop_prefix s 1
+      |> fun s -> String.drop_suffix s 1
+      |> THasMany
+    else
+      TBelongsTo other
 
 let tipe_of (dv : dval) : tipe =
   match dv with

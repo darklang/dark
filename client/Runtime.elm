@@ -71,9 +71,14 @@ str2tipe t =
   "date" -> TDate
   "error" -> TIncomplete -- temporary, maybe
   other ->
-    if String.contains "[" other
-    then THasMany other
-    else TBelongsTo other
+    if String.startsWith "[" other && String.endsWith "]" other
+    then
+      other
+      |> String.dropLeft 1
+      |> String.dropRight 1
+      |> THasMany
+    else
+      TBelongsTo other
 
 tipeOf : String -> Tipe
 tipeOf s =
