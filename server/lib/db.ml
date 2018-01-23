@@ -76,6 +76,9 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
     (match (fetch_by db "id" id) with
     | DList l -> List.hd_exn l
     | _ -> failwith "should never happen, fetch_by returns a DList")
+  | THasMany table ->
+    (* TODO(ian): figure out what the postgres library gives us back *)
+    failwith sql
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
 and
@@ -159,7 +162,7 @@ let val_names (vals: dval_map) : string =
   |> List.map ~f:dval_to_sql
   |> String.concat ~sep:", "
 
-
+(* TODO(ian): amend this for has_many *)
 let rec insert (db: db) (vals: dval_map) : int =
   let id = Util.create_id () in
   let vals = DvalMap.add ~key:"id" ~data:(DInt id) vals in
@@ -170,22 +173,7 @@ let rec insert (db: db) (vals: dval_map) : int =
   in
   let cols = cols_for db in
   (* insert complex objects into their own table, return the inserted ids *)
-  let obj_id_map =
-    Map.mapi
-      ~f:(fun ~key:k ~data:v ->
-          (* find table via coltype *)
-          let table_name =
-            let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = k) in
-            match ctype with
-            | TBelongsTo t -> t
-            | _ -> failwith ("Expected TBelongsTo, got: " ^ (show_tipe_ ctype))
-          in
-          let db_obj = find_db table_name in
-          match v with
-          | DObj m -> insert db_obj m |> DInt
-          | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr v))
-        ) objs
-  in
+  let obj_id_map = Map.mapi ~f:(upsert_dependent_object cols) objs in
   (* merge the maps *)
   let merged = Util.merge_left normal obj_id_map in
   let _ = Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
@@ -193,6 +181,41 @@ let rec insert (db: db) (vals: dval_map) : int =
           |> run_sql
   in
     id
+and update db (vals: dval_map) =
+  let id = DvalMap.find_exn vals "id" in
+  (* split out complex objects *)
+  let objs, normal =
+    Map.partition_map
+      ~f:(fun v -> if Dval.is_obj v then `Fst v else `Snd v) vals
+  in
+  let cols = cols_for db in
+  (* update complex objects *)
+  let obj_id_map = Map.mapi ~f:(upsert_dependent_object cols) objs in
+  let merged = Util.merge_left normal obj_id_map in
+  let sets = merged
+           |> DvalMap.to_alist
+           |> List.map ~f:(fun (k,v) ->
+               k ^ " = " ^ dval_to_sql v)
+           |> String.concat ~sep:", " in
+  Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
+    db.actual_name sets (dval_to_sql id)
+  |> run_sql
+and upsert_dependent_object cols ~key:relation ~data:obj : dval =
+  (* find table via coltype *)
+  let table_name =
+    let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = relation) in
+    match ctype with
+    | TBelongsTo t -> t
+    | _ -> failwith ("Expected TBelongsTo, got: " ^ (show_tipe_ ctype))
+  in
+  let db_obj = find_db table_name in
+  match obj with
+  | DObj m ->
+    (match DvalMap.find m "id" with
+     | Some existing -> update db_obj m; existing
+     | None -> insert db_obj m |> DInt)
+  | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
+
 
 let fetch_all (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
@@ -204,23 +227,10 @@ let fetch_all (db: db) : dval =
   |> List.map ~f:(to_obj names types)
   |> DList
 
-
-
 let delete db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
     db.actual_name (dval_to_sql id)
-  |> run_sql
-
-let update db (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" in
-  let sets = vals
-           |> DvalMap.to_alist
-           |> List.map ~f:(fun (k,v) ->
-               k ^ " = " ^ dval_to_sql v)
-           |> String.concat ~sep:", " in
-  Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
-    db.actual_name sets (dval_to_sql id)
   |> run_sql
 
 (* ------------------------- *)
