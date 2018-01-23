@@ -162,6 +162,13 @@ let val_names (vals: dval_map) : string =
   |> List.map ~f:dval_to_sql
   |> String.concat ~sep:", "
 
+let is_relation (valu: dval) : bool =
+  match valu with
+  | DObj _ -> true
+  | DList l ->
+    List.for_all ~f:Dval.is_obj l
+  | _ -> false
+
 (* TODO(ian): amend this for has_many *)
 let rec insert (db: db) (vals: dval_map) : int =
   let id = Util.create_id () in
@@ -169,7 +176,7 @@ let rec insert (db: db) (vals: dval_map) : int =
   (* split out complex objects *)
   let objs, normal =
     Map.partition_map
-      ~f:(fun v -> if Dval.is_obj v then `Fst v else `Snd v) vals
+      ~f:(fun v -> if is_relation v then `Fst v else `Snd v) vals
   in
   let cols = cols_for db in
   (* insert complex objects into their own table, return the inserted ids *)
@@ -186,7 +193,7 @@ and update db (vals: dval_map) =
   (* split out complex objects *)
   let objs, normal =
     Map.partition_map
-      ~f:(fun v -> if Dval.is_obj v then `Fst v else `Snd v) vals
+      ~f:(fun v -> if is_relation v then `Fst v else `Snd v) vals
   in
   let cols = cols_for db in
   (* update complex objects *)
