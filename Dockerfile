@@ -1,7 +1,7 @@
 # This is an image used to compile and test Dark. Later, we will use this to
 # create another dockerfile to deploy.
 
-FROM ubuntu:17.04
+FROM ubuntu:17.10
 
 ## apt-get
 
@@ -20,8 +20,8 @@ RUN apt-get update && \
     apt-get install \
       -y \
       --no-install-recommends \
-      curl=7.52.1-4ubuntu1.4 \
-      apt-transport-https=1.4 \
+      curl=7.55.1-1ubuntu2.2 \
+      apt-transport-https=1.5 \
       ca-certificates
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
@@ -42,24 +42,24 @@ RUN apt-get update && \
     apt-get install \
       --no-install-recommends \
       -y \
-      software-properties-common=0.96.24.13 \
-      python3.6=3.6.1-1ubuntu0~17.04.0 \
+      software-properties-common=0.96.24.17 \
+      python3.6=3.6.3-1ubuntu1 \
       make=4.1-9.1 \
       m4=1.4.18-1 \
-      rsync=3.1.2-1 \
-      git=1:2.11.0-2ubuntu0.3 \
-      wget=1.18-2ubuntu1 \
-      sudo=1.8.19p1-1ubuntu1.1 \
-      locales=2.24-9ubuntu2.2 \
-      expect=5.45-7 \
+      rsync=3.1.2-2ubuntu0.2 \
+      git=1:2.14.1-1ubuntu4 \
+      wget=1.19.1-3ubuntu1.1 \
+      sudo=1.8.20p2-1ubuntu1 \
+      locales=2.26-0ubuntu2.1 \
+      expect=5.45-8 \
       tcl8.6 \
-      ocaml=4.02.3-6ubuntu2 \
-      opam=1.2.2-5build5 \
+      ocaml=4.04.0-2ubuntu4 \
+      opam=1.2.2-6 \
       libev-dev=1:4.22-1 \
       libgmp-dev=2:6.1.2+dfsg-1 \
-      pkg-config=0.29.1-0ubuntu1 \
-      libcurl4-gnutls-dev=7.52.1-4ubuntu1.4 \
-      python-software-properties=0.96.24.13 \
+      pkg-config=0.29.1-0ubuntu2 \
+      libcurl4-gnutls-dev=7.55.1-1ubuntu2.2 \
+      python-software-properties=0.96.24.17 \
       libpq-dev=10.1-1.pgdg17.04+1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
       postgresql-client-10=10.1-1.pgdg17.04+1 \

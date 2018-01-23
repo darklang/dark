@@ -59,7 +59,8 @@ def elm_make():
             + " ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
-  return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
+    pass
+  # return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
 
 def stringify(json):
   return json.decode() \
@@ -94,7 +95,7 @@ tests =
 def elm_test():
   start = time.time()
   ocaml_build_converter()
-  generate_elm_test_data()
+  # generate_elm_test_data()
   return run_test(start, "cd client && unbuffer elm-test")
 
 def less_compile():
@@ -114,11 +115,11 @@ def ocaml_build():
 
 def ocaml_build_converter():
   start = time.time()
-  run_test(start, "cd server && jbuilder build bin/darkfile_to_rpc.bc")
+  # run_test(start, "cd server && jbuilder build bin/darkfile_to_rpc.bc")
 
 def ocaml_test():
   start = time.time()
-  return run_backend(start, "cd server && jbuilder build test/test.bc && unbuffer ocamlrun _build/default/test/test.bc 2>&1")
+  # return run_backend(start, "cd server && jbuilder build test/test.bc && unbuffer ocamlrun _build/default/test/test.bc 2>&1")
 
 def reload_server():
   start = time.time()
