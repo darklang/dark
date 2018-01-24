@@ -26,11 +26,11 @@ let find_db table_name : DbT.db =
 let rec dval_to_sql (dv: dval) : string =
   match dv with
   | DInt i | DID i -> string_of_int i
-  | DBool b -> if b then "true" else "false"
+  | DBool b -> if b then "TRUE" else "FALSE"
   | DChar c -> Char.to_string c
   | DStr s -> "'" ^ s ^ "'"
   | DFloat f -> string_of_float f
-  | DNull -> "null"
+  | DNull -> "NULL"
   | DDate d ->
     "TIMESTAMP WITH TIME ZONE '"
     ^ Dval.string_of_date d
@@ -128,7 +128,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TAny -> failwith "todo sql type"
   | TInt -> "INT"
   | TFloat -> failwith "todo sql type"
-  | TBool -> failwith "todo sql type"
+  | TBool -> "BOOLEAN"
   | TNull -> failwith "todo sql type"
   | TChar -> failwith "todo sql type"
   | TStr -> "TEXT"
