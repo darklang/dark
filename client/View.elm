@@ -469,7 +469,6 @@ viewRoutingTable m =
 
       handlers = TL.handlers m.toplevels |> collapseHandlers
       handlerCount = List.length handlers
-      missing = text "no-handlers" "No HTTP handlers yet"
       def s = Maybe.withDefault "<not entered>" s
       link h =
         if List.member "GET" h.verbs
@@ -503,10 +502,7 @@ viewRoutingTable m =
       routes = div "routes" (List.map handlerHtml handlers)
       html = div "routing-table" [header, routes]
 
-  in placeHtml m {x=0, y=0}
-       (if handlers == []
-       then missing
-       else html)
+  in placeHtml m {x=0, y=0} html
 
 
 escapeCSSName : String -> String
