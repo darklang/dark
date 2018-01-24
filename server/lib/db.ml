@@ -216,8 +216,8 @@ and upsert_dependent_object cols ~key:relation ~data:obj : dval =
   let table_name =
     let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = relation) in
     match ctype with
-    | TBelongsTo t -> t
-    | _ -> failwith ("Expected TBelongsTo, got: " ^ (show_tipe_ ctype))
+    | TBelongsTo t | THasMany t -> t
+    | _ -> failwith ("Expected TBelongsTo/THasMany, got: " ^ (show_tipe_ ctype))
   in
   let db_obj = find_db table_name in
   match obj with
@@ -225,6 +225,8 @@ and upsert_dependent_object cols ~key:relation ~data:obj : dval =
     (match DvalMap.find m "id" with
      | Some existing -> update db_obj m; existing
      | None -> insert db_obj m |> DInt)
+  | DList l ->
+    List.map ~f:(fun x -> upsert_dependent_object cols ~key:relation ~data:x) l |> DList
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
 
 
