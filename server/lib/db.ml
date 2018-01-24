@@ -23,7 +23,7 @@ let find_db table_name : DbT.db =
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
-let dval_to_sql (dv: dval) : string =
+let rec dval_to_sql (dv: dval) : string =
   match dv with
   | DInt i | DID i -> string_of_int i
   | DBool b -> if b then "true" else "false"
@@ -35,6 +35,10 @@ let dval_to_sql (dv: dval) : string =
     "TIMESTAMP WITH TIME ZONE '"
     ^ Dval.string_of_date d
     ^ "'"
+  | DList l ->
+    "{ "
+    ^ (String.concat ~sep:", " (List.map ~f:dval_to_sql l))
+    ^ " }"
   | _ -> Exception.client "Not obvious how to persist this in the DB"
 
 (* Turn db rows into list of string/type pairs - removes elements with
