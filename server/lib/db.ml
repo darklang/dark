@@ -82,7 +82,25 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
     | _ -> failwith "should never happen, fetch_by returns a DList")
   | THasMany table ->
     (* we get the string "{ foo, bar, baz }" back *)
-    failwith sql
+    let no_braces =
+      sql
+      |> fun s -> String.drop_prefix s 1
+      |> fun s -> String.drop_suffix s 1
+    in
+    let ids =
+      no_braces
+      |> fun s -> String.split s ~on:','
+      |> List.map ~f:(fun s -> s |> String.strip |> int_of_string |> DID)
+    in
+    let db = find_db table in
+    (* TODO(ian): fix the N+1 here *)
+    List.map
+      ~f:(fun i ->
+          (match (fetch_by db "id" i) with
+           | DList l -> List.hd_exn l
+           | _ -> failwith "should never happen, fetch_by returns a DList")
+        ) ids
+    |> DList
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
 and
