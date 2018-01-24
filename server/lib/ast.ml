@@ -116,7 +116,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
 
      | Let (_, lhs, rhs, body) ->
        let bound = match lhs with
-            | Full (_, name) -> String.Map.add ~key:name ~data:(exe st rhs) st
+            | Full (_, name) -> String.Map.set ~key:name ~data:(exe st rhs) st
             | Empty _ -> st
        in exe bound body
 
@@ -183,9 +183,9 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
         value ()
       with
       | e ->
-        let bt = Exn.backtrace () in
+        let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
-        print_endline bt;
+        print_endline (Backtrace.to_string bt);
         print_endline msg;
         DIncomplete
   in
@@ -268,9 +268,9 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
     trace expr st
   with
   | e ->
-    let bt = Exn.backtrace () in
+    let bt = Backtrace.Exn.most_recent () in
     let msg = Exn.to_string e in
-    print_endline bt;
+    print_endline (Backtrace.to_string bt);
     print_endline msg;
 
 type sym_store = sym_set Int.Table.t

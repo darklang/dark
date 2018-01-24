@@ -39,7 +39,7 @@ let sample_bound_route_params ~(route: string) : route_param_map =
   let vars = route_variables route in
   List.fold_left
     ~init:rpm
-    ~f:(fun rpm1 v -> Map.add rpm1 ~key:v ~data:(RT.DStr ""))
+    ~f:(fun rpm1 v -> Map.set rpm1 ~key:v ~data:(RT.DStr ""))
     vars
 
 (* assumes route and path match *)
@@ -57,7 +57,7 @@ let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : route_param_map =
     let rpm = RouteParamMap.empty in
     List.fold_left
       ~init:rpm
-      ~f:(fun rpm1 (r,p) -> Map.add rpm1 ~key:r ~data:(RT.DStr p))
+      ~f:(fun rpm1 (r,p) -> Map.set rpm1 ~key:r ~data:(RT.DStr p))
       pairs
   else
     Exception.internal "path/route mismatch"

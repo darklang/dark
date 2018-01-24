@@ -172,7 +172,7 @@ let is_relation (valu: dval) : bool =
 (* TODO(ian): amend this for has_many *)
 let rec insert (db: db) (vals: dval_map) : int =
   let id = Util.create_id () in
-  let vals = DvalMap.add ~key:"id" ~data:(DInt id) vals in
+  let vals = DvalMap.set ~key:"id" ~data:(DInt id) vals in
   (* split out complex objects *)
   let objs, normal =
     Map.partition_map

@@ -13,10 +13,10 @@ module AT = Alcotest
 
 let handle_exception e =
   (* Builtin testing doesnt seem to print exceptions *)
-  let bt = Exn.backtrace () in
+  let bt = Backtrace.Exn.most_recent () in
   let msg = Exn.to_string e in
   print_endline ("Exception: " ^ msg);
-  print_endline bt;
+  print_endline (Backtrace.to_string bt);
   raise e (* still need to raise so the test doesn't pass *)
 
 (* ----------------------- *)

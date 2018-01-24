@@ -90,7 +90,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DObj o; DStr k; v] ->
-            DObj (Map.add o ~key:k ~data:v)
+            DObj (Map.set o ~key:k ~data:v)
           | args -> fail args)
   ; pr = None
   ; ps = true

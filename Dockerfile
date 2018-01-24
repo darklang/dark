@@ -133,7 +133,7 @@ RUN opam update
 
 #ENV OPAMDEBUG true
 RUN opam install ppx_deriving.4.2.1
-RUN opam install core.v0.9.2
+RUN opam install core.v0.10.0
 RUN opam install conf-libev lwt.3.1.0
 RUN opam install yojson.1.4.0
 RUN opam install postgresql.4.0.1
@@ -149,7 +149,7 @@ RUN opam install landmarks.1.1
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 RUN opam install cstruct.3.2.0
 RUN opam install nocrypto.0.5.4
-RUN opam install re2.v0.9.1
+RUN opam install re2.v0.10.0
 
 # Environment
 ENV TERM=xterm-256color

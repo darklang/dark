@@ -6,7 +6,6 @@ set -euo pipefail
 if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
   docker build -t dark .
-  docker build --no-cache -t dark .
 
   echo "Removing running containers"
   c=$(docker ps -q)

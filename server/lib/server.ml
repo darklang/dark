@@ -27,7 +27,7 @@ let server =
         let dbs = TL.dbs !c.toplevels in
         let dbs_env = Db.dbs_as_env dbs in
         Db.cur_dbs := dbs;
-        let env = RTT.DvalMap.add dbs_env "request" global in
+        let env = RTT.DvalMap.set dbs_env "request" global in
         let result = C.to_frontend_string env !c in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
@@ -37,11 +37,11 @@ let server =
         result
       with
       | e ->
-        let bt = Exn.backtrace () in
+        let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
         print_endline (C.show_toplevellist !c.toplevels);
         print_endline ("Exception: " ^ msg);
-        print_endline bt;
+        print_endline (Backtrace.to_string bt);
         raise e
     in
 
@@ -76,7 +76,7 @@ let server =
         let dbs_env = Db.dbs_as_exe_env (dbs) in
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
-        let env = Map.add ~key:"request" ~data:(DReq.to_dval input) env in
+        let env = Map.set ~key:"request" ~data:(DReq.to_dval input) env in
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
@@ -155,7 +155,7 @@ let server =
              user_page_handler domain uri req req_body
          with
          | e ->
-           let backtrace = Exn.backtrace () in
+           let bt = Backtrace.Exn.most_recent () in
            let body = match e with
              | Exception.DarkException e ->
                  Exception.exception_data_to_yojson e |> Yojson.Safe.pretty_to_string
@@ -164,7 +164,7 @@ let server =
              | _ -> "Dark Internal Error: " ^ Exn.to_string e
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->
-           Lwt_io.printl backtrace >>= fun () ->
+           Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
            S.respond_string ~status:`Internal_server_error ~body ())
     in
     ()

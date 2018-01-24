@@ -274,7 +274,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   (* response is a weird format, dunno why *)
   | `Assoc alist -> DObj (List.fold_left
                         alist
-                        ~f:(fun m (k,v) -> DvalMap.add m k (dval_of_yojson_ v))
+                        ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
                         ~init:DvalMap.empty)
   | `List l -> DList (List.map ~f:dval_of_yojson_ l)
   | j -> DStr ( "<todo, incomplete conversion: "

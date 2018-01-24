@@ -177,6 +177,7 @@ let save ?(filename=None) (c : canvas) : unit =
   |> oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
+  |> Bytes.of_string
   |> Util.writefile filename
 
 let minimize (c : canvas) : canvas =

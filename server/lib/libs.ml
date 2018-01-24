@@ -19,7 +19,7 @@ let fns : fnmap =
                       ; preview = s.pr
                       ; previewExecutionSafe = s.ps
                       } in
-    List.fold_left ~f:(fun m1 n -> FnMap.add m1 ~key:n ~data:def) ~init:m (s.n::s.o)
+    List.fold_left ~f:(fun m1 n -> FnMap.set m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in
   List.fold_left ~f:add_fn ~init:FnMap.empty
     (* (List.concat [Stdlib.fns; Libtwitter.fns; Libdb.fns]) *)

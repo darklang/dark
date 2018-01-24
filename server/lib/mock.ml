@@ -9,7 +9,7 @@ let clear =
   strs := StringMap.empty
 
 let set_string name value : unit =
-  strs := StringMap.add ~key:name ~data:value !strs
+  strs := StringMap.set ~key:name ~data:value !strs
 
 let get_string name default : string =
   match StringMap.find !strs name with
