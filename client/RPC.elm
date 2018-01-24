@@ -7,6 +7,7 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict exposing (Dict)
 import Dict.Extra as DE
+import String.Extra as SE
 
 -- lib
 
@@ -245,7 +246,10 @@ decodeTipe =
   let toTipeString l =
         case l of
           constructor :: arg :: [] ->
-            JSD.succeed arg
+            case constructor of
+              "THasMany" -> JSD.succeed ("[" ++ (SE.toTitleCase arg) ++ "]")
+              "TBelongsTo" -> JSD.succeed (SE.toTitleCase arg)
+              _ -> JSD.succeed (constructor ++ arg)
           constructor :: [] ->
             JSD.succeed (String.dropLeft 1 constructor)
           _ ->
