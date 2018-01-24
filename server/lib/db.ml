@@ -36,9 +36,9 @@ let rec dval_to_sql (dv: dval) : string =
     ^ Dval.string_of_date d
     ^ "'"
   | DList l ->
-    "{ "
+    "'{ "
     ^ (String.concat ~sep:", " (List.map ~f:dval_to_sql l))
-    ^ " }"
+    ^ " }'"
   | _ -> Exception.client "Not obvious how to persist this in the DB"
 
 (* Turn db rows into list of string/type pairs - removes elements with
@@ -81,7 +81,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
     | DList l -> List.hd_exn l
     | _ -> failwith "should never happen, fetch_by returns a DList")
   | THasMany table ->
-    (* TODO(ian): figure out what the postgres library gives us back *)
+    (* we get the string "{ foo, bar, baz }" back *)
     failwith sql
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
