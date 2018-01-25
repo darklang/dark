@@ -173,13 +173,13 @@ vExpr nest expr =
 
     Thread id exprs ->
       let pipe = Text ["thread", "atom", "pipe"] "|>" in
-      Nested [HoverInfo id] ["threadexpr"]
+      Nested [HighlightAs id, HoverInfo id] ["threadexpr"]
         (List.map (\e ->
           let id = AST.toID e
           in Nested [HoverInfo id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr 0 e]) exprs)
 
     FieldAccess id obj field ->
-      Nested [HoverInfo id, ClickSelect Field id, HighlightAs id] ["fieldaccessexpr"]
+      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["fieldaccessexpr"]
       [ Nested [] ["fieldobject"] [vExpr 0 obj]
       , Text ["fieldaccessop", "operator", "atom"] "."
       , Selectable ["fieldname", "atom"] field Field
