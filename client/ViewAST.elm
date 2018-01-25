@@ -131,9 +131,10 @@ vExpr nest expr =
      in Selectable ["atom", "value", cssClass] (Filled id valu) Expr
 
     Let id lhs rhs expr ->
-      Nested [HoverInfo id] ["letexpr"]
+      let rhsID = AST.toID rhs in
+      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["letexpr"]
         [ Text ["let", "keyword", "atom"] "let"
-        , Nested [] ["letbinding"]
+        , Nested [HoverInfo rhsID, ClickSelect Expr rhsID] ["letbinding"]
               [ Selectable ["letvarname", "atom"] lhs VarBind
               , Text ["letbind", "atom"] "="
               , vExpr nest rhs ]
@@ -142,7 +143,7 @@ vExpr nest expr =
 
 
     If id cond ifbody elsebody ->
-      Nested [HoverInfo id] ["ifexpr"]
+      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["ifexpr"]
         [ Text ["if", "keyword", "atom"] "if"
         , Nested [] ["cond"] [vExpr (nest + 1) cond]
         , Nested [] ["ifbody"] [vExpr 0 ifbody]
@@ -173,10 +174,12 @@ vExpr nest expr =
     Thread id exprs ->
       let pipe = Text ["thread", "atom", "pipe"] "|>" in
       Nested [HoverInfo id] ["threadexpr"]
-        (List.map (\e -> Nested [] ["threadmember"] [pipe, vExpr 0 e]) exprs)
+        (List.map (\e ->
+          let id = AST.toID e
+          in Nested [HoverInfo id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr 0 e]) exprs)
 
     FieldAccess id obj field ->
-      Nested [HoverInfo id] ["fieldaccessexpr"]
+      Nested [HoverInfo id, ClickSelect Field id, HighlightAs id] ["fieldaccessexpr"]
       [ Nested [] ["fieldobject"] [vExpr 0 obj]
       , Text ["fieldaccessop", "operator", "atom"] "."
       , Selectable ["fieldname", "atom"] field Field
