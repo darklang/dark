@@ -124,9 +124,16 @@ viewBlankOrText m tl pt b hover =
                      then DivSelected
                      else DivUnselected
                    _ -> DivUnselected
-      text = case b of
-               Blank _ -> Html.text holeText
-               Filled _ text -> Html.text text
+      thisText = case b of
+                   Blank _ -> Html.text holeText
+                   Filled _ text -> Html.text text
+
+      text = case unwrapState m.state of
+               Entering (Filling tlid p) ->
+                 if pointer == p
+                 then entryHtml m
+                 else thisText
+               _ -> thisText
       classes = case b of
                Blank _ -> ["hole"]
                Filled _ _ -> []
