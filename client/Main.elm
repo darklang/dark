@@ -317,7 +317,7 @@ update_ msg m =
                     TLHandler h ->
                       case p of
                         Just p ->
-                          let replacement = AST.wrapInThread (P.idOf p) h.ast in
+                          let replacement = AST.addThreadHole (P.idOf p) h.ast in
                           RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
                               , FocusNext tlid Nothing)
                         Nothing -> NoChange

@@ -136,27 +136,15 @@ closeThread expr =
 -- * if it is not part of a thread, wrap it in a thread
 addThreadHole : ID -> Expr -> Expr
 addThreadHole id expr =
-  -- any parent that isn't a thread
-  addThreadHole_ id (Hole (gid())) expr
-
-addThreadHole_ : ID -> Expr -> Expr -> Expr
-addThreadHole_ id parent expr =
-  let ath child = addThreadHole_ id expr child
-      athList = List.map ath
-  in
-  if toID expr == id
+  let ath child = addThreadHole id child in
+  if id == toID expr
   then
     case expr of
       Thread tid exprs ->
         Thread tid (exprs ++ [Hole (gid ())])
       _ ->
-        case parent of
-          Thread tid exprs ->
-            Thread tid (extendThreadChild id exprs)
-          _ ->
-            Thread (gid()) [expr, Hole (gid ())]
+        Thread (gid ()) [expr, Hole (gid ())]
   else
-    -- recurse, or thread condition
     case expr of
       Value _ _ -> expr
       Hole _ -> expr
@@ -168,9 +156,8 @@ addThreadHole_ id parent expr =
       If id cond ifbody elsebody ->
         If id (ath cond) (ath ifbody) (ath elsebody)
 
-
       FnCall id name exprs ->
-        FnCall id name (athList exprs)
+        FnCall id name (List.map ath exprs)
 
       Lambda id vars expr ->
         Lambda id vars (ath expr)
@@ -179,7 +166,10 @@ addThreadHole_ id parent expr =
         FieldAccess id (ath obj) name
 
       Thread tid exprs ->
-        Thread tid (athList exprs)
+        let replaced = extendThreadChild id exprs in
+        if replaced == exprs
+        then Thread tid (List.map ath exprs)
+        else Thread tid replaced
 
 
 
