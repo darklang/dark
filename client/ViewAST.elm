@@ -160,10 +160,10 @@ vExpr nest expr =
       else vPrefix id name exprs nest
 
     Lambda id vars expr ->
-      let varname v = Selectable ["lambdavarname", "atom"] (Filled id v) Expr in
+      let varname v = Text ["lambdavarname", "atom"] v in
       -- We want to allow you to select the lambda by clicking on the var, but
       -- we don't want you to think the var is selected. But we do that in CSS.
-      Nested [HoverInfo id] ["lambdaexpr"]
+      Nested [ClickSelect Expr id, HighlightAs id, HoverInfo id] ["lambdaexpr"]
         [ Nested [] ["lambdabinding"] (List.map varname vars)
         , Text ["arrow", "atom"] "->"
         , Nested [] ["lambdabody"] [vExpr 0 expr]
