@@ -492,9 +492,9 @@ viewRoutingTable m =
         else
           Html.div [] []
       handlerHtml h =
-        div "handler" [ div "name"
-                          (  List.map (text "p") h.prefix
-                          ++ [text "n" (def h.name)])
+        div "handler" [ div "url"
+                          (  List.map (text "prefix") h.prefix
+                          ++ [text "name" (def h.name)])
                       , link h
                       , span "verbs"
                           (List.map (text "verb") h.verbs)
