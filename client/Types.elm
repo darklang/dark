@@ -101,7 +101,7 @@ type Msg
     -- use it the proper node will be changed
     | ToplevelClickUp TLID MouseEvent
     | DragToplevel TLID Mouse.Position
-    | SelectClick TLID Pointer
+    | SelectClick TLID Pointer MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -176,6 +176,12 @@ type AutocompleteMod = ACSetQuery String
 -----------------------------
 type VariantTest = StubVariant
 
+-----------------------------
+-- View
+-----------------------------
+type DivSelected = DivSelected | DivUnselected
+type alias Class = String
+type alias Clickable = Maybe (TLID, Pointer)
 
 
 -----------------------------

@@ -13,6 +13,7 @@ import Html.Events as Events
 import VirtualDom
 import String.Extra as SE
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -110,51 +111,48 @@ viewCanvas m =
     in allSvgs
 
 
-viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Html.Html Msg
-viewBlankOrText m tl pt h =
-  let pointer = P.blankTo pt h in
-  case h of
-    Blank hid ->
-      case unwrapState m.state of
-        Selecting _ (Just p) ->
-          if hid == P.idOf p
-          then selectedBlankHtml
-          else unselectedBlankHtml tl.id pointer
-        Entering (Filling _ p) ->
-          if hid == P.idOf p
-          then entryHtml m
-          else unselectedBlankHtml tl.id pointer
-        _ -> unselectedBlankHtml tl.id pointer
-    Filled hid s ->
-      case unwrapState m.state of
-        Selecting _ (Just p) ->
-          if hid == P.idOf p
-          then selectedFilledHtml s
-          else unselectedFilledHtml tl.id pointer s
-        Entering (Filling _ p) ->
-          if hid == P.idOf p
-          then entryHtml m
-          else unselectedFilledHtml tl.id pointer s
-        _ -> unselectedFilledHtml tl.id pointer s
+holeText : String
+holeText = "＿＿＿＿＿＿"
 
-selectedBlankHtml : Html.Html Msg
-selectedBlankHtml =
-  Html.div [Attrs.class "hole selected"] [Html.text "＿＿＿＿＿＿"]
+type alias Hover = Maybe String
+viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover -> Html.Html Msg
+viewBlankOrText m tl pt b hover =
+  let pointer = P.blankTo pt b
+      selected = case unwrapState m.state of
+                   Selecting _ (Just p) ->
+                     if P.idOf p == blankOrID b
+                     then DivSelected
+                     else DivUnselected
+                   _ -> DivUnselected
+      text = case b of
+               Blank _ -> Html.text holeText
+               Filled _ text -> Html.text text
+      classes = case b of
+               Blank _ -> ["hole"]
+               Filled _ _ -> []
+      onClick = if selected == DivSelected
+                then Nothing
+                else Just (tl.id, pointer)
+  in html4blank selected classes onClick hover [text]
 
-unselectedBlankHtml : TLID -> Pointer -> Html.Html Msg
-unselectedBlankHtml tlid p =
-  Html.div [ Attrs.class "hole"
-           , Events.onClick (SelectClick tlid p)] [Html.text "＿＿＿＿＿＿"]
-
-selectedFilledHtml : String -> Html.Html Msg
-selectedFilledHtml s =
-  Html.div [Attrs.class "selected"] [Html.text s]
-
-unselectedFilledHtml : TLID -> Pointer -> String -> Html.Html Msg
-unselectedFilledHtml tlid p text =
-  Html.div [ Events.onClick (SelectClick tlid p)] [Html.text text]
-
-
+html4blank : DivSelected -> List Class -> Clickable -> Hover -> List (Html.Html Msg) -> Html.Html Msg
+html4blank selected classes clickable hover content =
+  let allClasses = classes ++ (if selected == DivSelected
+                               then ["selected"]
+                               else [])
+      events = case clickable of
+                 Nothing -> []
+                 Just (tlid, pointer) ->
+                   [Events.onWithOptions "click"
+                     { stopPropagation = True
+                     , preventDefault = False
+                     }
+                     (decodeClickEvent (SelectClick tlid pointer))]
+      title = Maybe.map (\t -> Attrs.title t) hover |> ME.toList
+  in
+  Html.div
+    (events ++ title ++ [Attrs.class (String.join " " allClasses)])
+    content
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
@@ -195,10 +193,10 @@ viewDB m tl db =
                              [ Attrs.class "col" ]
                              [ Html.span
                                  [ Attrs.class "name" ]
-                                 [ viewBlankOrText m tl DBColName n ]
+                                 [ viewBlankOrText m tl DBColName n Nothing ]
                              , Html.span
                                  [ Attrs.class "type" ]
-                                 [ viewBlankOrText m tl DBColType t ]
+                                 [ viewBlankOrText m tl DBColType t Nothing ]
                              ])
                          db.cols
   in
@@ -222,9 +220,9 @@ viewHandler m tl h =
               [ Attrs.class "ast"]
               [ ViewAST.toHtml
                 { selectedID = id
-                , isFilling = filling
-                , fillingHtml = entryHtml m
+                , tlid = tl.id
                 , viewBlankOr = viewBlankOrText m tl
+                , html4blank = html4blank
                 , liveValues = lvs }
                 h.ast]
       header =
@@ -232,13 +230,14 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "module"]
-            [ viewBlankOrText m tl Spec h.spec.module_]
+            [ viewBlankOrText m tl Spec h.spec.module_ Nothing ]
           , Html.div
             [ Attrs.class "name"]
-            [ viewBlankOrText m tl Spec h.spec.name]
+            [ viewBlankOrText m tl Spec h.spec.name Nothing ]
           , Html.div
             [Attrs.class "modifier"]
-            [ viewBlankOrText m tl Spec h.spec.modifier]]
+            [ viewBlankOrText m tl Spec h.spec.modifier Nothing ]
+          ]
   in
       [ast, header]
 
