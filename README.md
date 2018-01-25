@@ -9,6 +9,12 @@
    - the usename is dark, password is eapnsdc (mnemonic: ellen and pauls new startup dot com)
 - Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
 
+# Running conduit
+
+- Run `./scripts/run-conduit-frontend.sh`
+- Go to `http://localhost:8001`
+- This will use http://conduit.localhost:8000 as its server, so use http://conduiit.localhost:8000/admin/ui to create the UI.
+
 # How to profile
 - make compilation and run use OCAML_LANDMARKS="auto,format=json,output=profile.json,allocation", in scripts/support/compile (enable the `profile` global)
 - rm server/_build
