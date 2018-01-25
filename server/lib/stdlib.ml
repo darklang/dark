@@ -670,6 +670,25 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { n = "String::split"
+  ; o = []
+  ; p = [par "s" TStr; par "separator" TStr]
+  ; r = TList
+  ; d = "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
+  ; f = InProcess
+        (function
+          | [DStr s; DStr sep] ->
+            let split = (Str.split (Str.regexp_string sep) s)
+            in split
+               |> List.map ~f:(fun str -> DStr str)
+               |> DList
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
   { n = "String::join"
   ; o = []
   ; p = [par "l" TList; par "separator" TStr]
