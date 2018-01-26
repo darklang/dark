@@ -305,7 +305,14 @@ update_ msg m =
                   Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
                   Just i -> Selection.delete m tlid i
               Key.Escape ->
-                Deselect
+                case p of
+                  -- if we're selecting an expression,
+                  -- go 'up' to selecting the toplevel only
+                  Just p ->
+                    Select tlid Nothing
+                  -- if we're selecting a toplevel only, deselect.
+                  Nothing ->
+                    Deselect
               Key.Enter ->
                 if event.shiftKey
                 then
