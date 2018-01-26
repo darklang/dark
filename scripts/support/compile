@@ -119,7 +119,7 @@ def ocaml_build_converter():
 
 def ocaml_test():
   start = time.time()
-  return run_backend(start, "cd server && jbuilder build test/test.bc && ocamlrun _build/default/test/test.bc 2>&1")
+  return run_backend(start, "cd server && jbuilder build test/test.bc && unbuffer ocamlrun _build/default/test/test.bc 2>&1")
 
 def reload_server():
   start = time.time()
