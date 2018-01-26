@@ -136,9 +136,9 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
 
      | If (id, cond, ifbody, elsebody) ->
        (match (exe st cond) with
-        | DBool true -> exe st ifbody
-        | DBool false -> exe st elsebody
-        | _ -> DIncomplete) (* TODO: better error *)
+        (* only false and 'null' are falsey *)
+        | DBool false | DNull -> exe st elsebody
+        | _ -> exe st ifbody)
 
      | Lambda (id, vars, body) ->
        (* TODO: this will errror if the number of args and vars arent equal *)
