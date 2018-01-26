@@ -185,6 +185,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
       | e ->
         let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
+        print_endline "Exception in AST execution";
         print_endline (Backtrace.to_string bt);
         print_endline msg;
         DIncomplete
