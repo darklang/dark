@@ -191,7 +191,6 @@ let is_relation (valu: dval) : bool =
     List.for_all ~f:Dval.is_obj l
   | _ -> false
 
-(* TODO(ian): amend this for has_many *)
 let rec insert (db: db) (vals: dval_map) : int =
   let id = Util.create_id () in
   let vals = DvalMap.set ~key:"id" ~data:(DInt id) vals in
