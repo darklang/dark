@@ -109,6 +109,11 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
     | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
   in
 
+  let ignoreError e =
+    match e with
+    | DError _ -> DIncomplete
+    | _ -> e in
+
   let value _ =
     (match expr with
      | Hole id ->
@@ -127,7 +132,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
        (match Symtable.find st name with
         | None ->
           Exception.user ("There is no variables named: " ^ name)
-        | Some result -> result)
+        | Some result -> ignoreError result)
 
      | FnCall (id, name, exprs) ->
        let argvals = List.map ~f:(exe st) exprs in
@@ -137,6 +142,8 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
        (match (exe st cond) with
         (* only false and 'null' are falsey *)
         | DBool false | DNull -> exe st elsebody
+        | DIncomplete -> DIncomplete
+        | DError _ -> DIncomplete
         | _ -> exe st ifbody)
 
      | Lambda (id, vars, body) ->
@@ -160,7 +167,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
                 ) es
           in
           List.hd_exn results
-        | _ -> DIncomplete)
+        | [] -> DIncomplete)
      | FieldAccess (id, e, field) ->
        let obj = exe st e in
        (match obj with
@@ -171,6 +178,8 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
              (match Map.find o f with
               | Some v -> v
               | None -> Exception.user ("Object has no field named: " ^ f)))
+        | DIncomplete -> DIncomplete
+        | DError _ -> DIncomplete
         | x -> Exception.user "type mismatch, expected object" ~expected:"object" ~actual:(Dval.to_repr x))
     ) in
   (* Only catch if we're tracing *)
