@@ -254,6 +254,18 @@ body {
     }
   }
 
+  .value-error {
+    @highlight: rgba(255, 0, 0, 0.4);
+    background-image:
+      linear-gradient(45deg, transparent 65%, @highlight 80%, transparent 90%),
+      linear-gradient(135deg, transparent 5%, @highlight 15%, transparent 25%),
+      linear-gradient(135deg, transparent 45%, @highlight 55%, transparent 65%),
+      linear-gradient(45deg, transparent 25%, @highlight 35%, transparent 50%);
+    background-repeat: repeat-x;
+    background-size: 8px 2px;
+    background-position:0 95%;
+  }
+
   .letexpr > .letbody {
     .layout-block;
   }

@@ -13,7 +13,7 @@ import Html.Events as Events
 import VirtualDom
 import String.Extra as SE
 import List.Extra as LE
-import Maybe.Extra as ME
+-- import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -114,7 +114,7 @@ viewCanvas m =
 holeText : String
 holeText = "＿＿＿＿＿＿"
 
-type alias Hover = Maybe String
+type alias Hover = Maybe (Result String String)
 viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover -> Html.Html Msg
 viewBlankOrText m tl pt b hover =
   let pointer = P.blankTo pt b
@@ -144,10 +144,7 @@ viewBlankOrText m tl pt b hover =
 
 html4blank : DivSelected -> List Class -> Clickable -> Hover -> List (Html.Html Msg) -> Html.Html Msg
 html4blank selected classes clickable hover content =
-  let allClasses = classes ++ (if selected == DivSelected
-                               then ["selected"]
-                               else [])
-      events = case clickable of
+  let events = case clickable of
                  Nothing -> []
                  Just (tlid, pointer) ->
                    [Events.onWithOptions "click"
@@ -155,7 +152,18 @@ html4blank selected classes clickable hover content =
                      , preventDefault = False
                      }
                      (decodeClickEvent (SelectClick tlid pointer))]
-      title = Maybe.map (\t -> Attrs.title t) hover |> ME.toList
+      (valClass, title) =
+        case hover of
+          Nothing -> ([], [])
+          Just (Ok msg) -> ([], [Attrs.title msg])
+          Just (Err err) -> (["value-error"], [Attrs.title err])
+
+      allClasses = classes
+                ++ valClass
+                ++ (if selected == DivSelected
+                    then ["selected"]
+                    else [])
+
   in
   Html.div
     (events ++ title ++ [Attrs.class (String.join " " allClasses)])

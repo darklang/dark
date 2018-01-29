@@ -14,17 +14,22 @@ import List.Extra as LE
 import Types exposing (..)
 import Runtime as RT
 import AST
+import Runtime
 
-type alias HtmlVisitState = { selectedID : ID
-                            , tlid : TLID
-                            , viewBlankOr: PointerType -> BlankOr String -> Maybe String -> Html.Html Msg
-                            , html4blank: DivSelected -> List Class -> Clickable -> Maybe String -> List (Html.Html Msg) -> Html.Html Msg
-                            , liveValues : LVDict }
+type alias HtmlVisitState =
+  { selectedID : ID
+  , tlid : TLID
+  , viewBlankOr: PointerType -> BlankOr String ->
+                 Maybe (Result String String) -> Html.Html Msg
+  , html4blank: DivSelected -> List Class -> Clickable ->
+                Maybe (Result String String) -> List (Html.Html Msg) ->
+                Html.Html Msg
+  , liveValues : LVDict }
 
 type alias Class = String
 type Assoc = ClickSelect PointerType ID
            | HighlightAs ID
-           | HoverInfo ID
+           | DisplayValue ID
 type Element = Text (List Class) String
              | Selectable (List Class) (BlankOr String) PointerType
              | Nested (List Assoc) (List Class) (List Element)
@@ -34,10 +39,13 @@ type Element = Text (List Class) String
 
 elemToHtml : HtmlVisitState -> Element -> Html.Html Msg
 elemToHtml state elem =
-  let hover id =
+  let displayVal id =
       id
       |> Maybe.andThen (\(ID id) -> Dict.get id state.liveValues)
       |> Maybe.map .value
+      |> Maybe.map (\v -> if Runtime.isError v
+                          then Err (Runtime.extractErrorMessage v)
+                          else Ok v)
       asClass classNames = classNames |> String.join " " |> Attrs.class
   in
   case elem of
@@ -53,7 +61,7 @@ elemToHtml state elem =
       in
         Html.div
         ( idAttr :: classes :: [])
-        [state.viewBlankOr pointerType blankOr (hover (Just id))]
+        [state.viewBlankOr pointerType blankOr (displayVal (Just id))]
 
     Nested assocs classNames elems ->
       let selected =
@@ -70,8 +78,8 @@ elemToHtml state elem =
           hovering =
             assocs
             |> List.filterMap (\a -> case a of
-                                       HoverInfo id ->
-                                         hover (Just id)
+                                       DisplayValue id ->
+                                         displayVal (Just id)
                                        _ -> Nothing)
             |> List.head
 
@@ -102,7 +110,7 @@ vFn id name =
 
 vPrefix : ID -> FnName -> List Expr -> Int -> Element
 vPrefix id name exprs nest =
-  Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["fncall", "prefix", depthString nest]
+  Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fncall", "prefix", depthString nest]
     ((Nested [] ["op", name] [vFn id name])
     :: (List.map (vExpr (nest + 1)) exprs))
 
@@ -111,7 +119,7 @@ vInfix : ID -> FnName -> List Expr -> Int -> Element
 vInfix id name exprs nesting =
   case exprs of
     [first, second] ->
-      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["fncall", "infix", depthString nesting]
+      Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fncall", "infix", depthString nesting]
         [ Nested [] ["lhs"] [vExpr (nesting + 1) first]
         , Nested [] ["op", name] [vFn id name]
         , Nested [] ["rhs"] [vExpr (nesting + 1) second]
@@ -132,9 +140,9 @@ vExpr nest expr =
 
     Let id lhs rhs expr ->
       let rhsID = AST.toID rhs in
-      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["letexpr"]
+      Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["letexpr"]
         [ Text ["let", "keyword", "atom"] "let"
-        , Nested [HoverInfo rhsID, ClickSelect Expr rhsID] ["letbinding"]
+        , Nested [DisplayValue rhsID, ClickSelect Expr rhsID] ["letbinding"]
               [ Selectable ["letvarname", "atom"] lhs VarBind
               , Text ["letbind", "atom"] "="
               , vExpr nest rhs ]
@@ -143,7 +151,7 @@ vExpr nest expr =
 
 
     If id cond ifbody elsebody ->
-      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["ifexpr"]
+      Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["ifexpr"]
         [ Text ["if", "keyword", "atom"] "if"
         , Nested [] ["cond"] [vExpr (nest + 1) cond]
         , Nested [] ["ifbody"] [vExpr 0 ifbody]
@@ -163,7 +171,7 @@ vExpr nest expr =
       let varname v = Text ["lambdavarname", "atom"] v in
       -- We want to allow you to select the lambda by clicking on the var, but
       -- we don't want you to think the var is selected. But we do that in CSS.
-      Nested [ClickSelect Expr id, HighlightAs id, HoverInfo id] ["lambdaexpr"]
+      Nested [ClickSelect Expr id, HighlightAs id, DisplayValue id] ["lambdaexpr"]
         [ Nested [] ["lambdabinding"] (List.map varname vars)
         , Text ["arrow", "atom"] "->"
         , Nested [] ["lambdabody"] [vExpr 0 expr]
@@ -173,13 +181,13 @@ vExpr nest expr =
 
     Thread id exprs ->
       let pipe = Text ["thread", "atom", "pipe"] "|>" in
-      Nested [HighlightAs id, HoverInfo id] ["threadexpr"]
+      Nested [HighlightAs id, DisplayValue id] ["threadexpr"]
         (List.map (\e ->
           let id = AST.toID e
-          in Nested [HoverInfo id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr 0 e]) exprs)
+          in Nested [DisplayValue id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr 0 e]) exprs)
 
     FieldAccess id obj field ->
-      Nested [HoverInfo id, ClickSelect Expr id, HighlightAs id] ["fieldaccessexpr"]
+      Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fieldaccessexpr"]
       [ Nested [] ["fieldobject"] [vExpr 0 obj]
       , Text ["fieldaccessop", "operator", "atom"] "."
       , Selectable ["fieldname", "atom"] field Field

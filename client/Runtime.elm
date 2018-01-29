@@ -91,6 +91,18 @@ str2tipe t =
     else
       TBelongsTo other
 
+unwrapValue : String -> String
+unwrapValue v =
+  if String.startsWith "<" v && String.endsWith ">" v
+  then
+    v
+    |> String.dropRight 1
+    |> String.split ":"
+    |> List.tail
+    |> deMaybe "unwrapValue"
+    |> String.join ":"
+  else v
+
 tipeOf : String -> Tipe
 tipeOf s =
   if isInt s then TInt
@@ -98,6 +110,21 @@ tipeOf s =
   else if isString s then TStr
   else if isChar s then TChar
   else if isBool s then TBool
+  else if isError s then TError
   else
     TIncomplete
+
+
+extractErrorMessage : String -> String
+extractErrorMessage str =
+  if isError str
+  then str
+       |> unwrapValue
+       |> Debug.log "unwrapped"
+       |> JSD.decodeString JSON.decodeException
+       |> Result.toMaybe
+       |> Maybe.map toString
+       |> Maybe.withDefault ("Error decoding error: " ++ toString str)
+  else str
+
 
