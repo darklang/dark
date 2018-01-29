@@ -126,8 +126,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
      | Variable (_, name) ->
        (match Symtable.find st name with
         | None ->
-          (* TODO we can put this in a DError and have great error messages *)
-          DIncomplete
+          Exception.user ("There is no variables named: " ^ name)
         | Some result -> result)
 
      | FnCall (id, name, exprs) ->
