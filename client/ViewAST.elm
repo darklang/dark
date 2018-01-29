@@ -142,10 +142,12 @@ vExpr nest expr =
       let rhsID = AST.toID rhs in
       Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["letexpr"]
         [ Text ["let", "keyword", "atom"] "let"
-        , Nested [DisplayValue rhsID, ClickSelect Expr rhsID] ["letbinding"]
+        , Nested [] ["letbinding"]
               [ Selectable ["letvarname", "atom"] lhs VarBind
               , Text ["letbind", "atom"] "="
-              , vExpr nest rhs ]
+              , Nested [DisplayValue rhsID, ClickSelect Expr rhsID] []
+                       [vExpr nest rhs]
+              ]
         , Nested [] ["letbody"] [vExpr nest expr]
         ]
 
