@@ -5,7 +5,7 @@ import List
 
 -- lib
 import List.Extra as LE
--- import Maybe.Extra as ME
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -306,40 +306,36 @@ childrenOf pid expr =
     FieldAccess id obj field ->
       returnOr (\_ -> co obj) expr
 
-ancestorsWhere : ID -> Expr -> (Expr -> Bool) -> List Expr
-ancestorsWhere id expr fn =
-  if toID expr == id
-  then []
-  else
-    let this = if fn expr then [expr] else []
-        r e = ancestorsWhere id e fn
-        rlist es = es |> List.map r |> List.concat
-        nested =
+ancestors : ID -> Expr -> List Expr
+ancestors id expr =
+  let rec_ancestors : ID -> List Expr -> Expr -> List Expr
+      rec_ancestors id walk expr =
+        if toID expr == id
+        then walk
+        else
           case expr of
             Value _ _ -> []
             Hole _ -> []
             Variable _ _ -> []
-
             Let id lhs rhs body ->
-              rlist [rhs, body]
-
+              (List.map (rec_ancestors id (expr :: walk)) [rhs, body]) |> List.concat
             If id cond ifbody elsebody ->
-              rlist [cond, ifbody, elsebody]
-
+              (List.map (rec_ancestors id (expr :: walk)) [cond, ifbody, elsebody]) |> List.concat
             FnCall id name exprs ->
-              rlist exprs
-
+              (List.map (rec_ancestors id (expr :: walk)) exprs) |> List.concat
             Lambda id vars lexpr ->
-              -- don't recurse into the body of a lambda
-              []
-
+              rec_ancestors id (expr :: walk) lexpr
             Thread id exprs ->
-              rlist exprs
-
+              (List.map (rec_ancestors id (expr :: walk)) exprs) |> List.concat
             FieldAccess id obj field ->
-              r obj
+              rec_ancestors id (expr :: walk) obj
+  in
+      (rec_ancestors id [] expr) |> List.reverse
 
-    in this ++ nested
+
+ancestorsWhere : ID -> Expr -> (Expr -> Bool) -> List Expr
+ancestorsWhere id expr fn =
+  List.filter fn (ancestors id expr)
 
 threadAncestors : ID -> Expr -> List Expr
 threadAncestors id expr =
