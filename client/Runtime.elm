@@ -120,7 +120,6 @@ extractErrorMessage str =
   if isError str
   then str
        |> unwrapValue
-       |> Debug.log "unwrapped"
        |> JSD.decodeString JSON.decodeException
        |> Result.toMaybe
        |> Maybe.map toString

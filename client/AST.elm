@@ -5,7 +5,6 @@ import List
 
 -- lib
 import List.Extra as LE
-import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -309,28 +308,28 @@ childrenOf pid expr =
 ancestors : ID -> Expr -> List Expr
 ancestors id expr =
   let rec_ancestors : ID -> List Expr -> Expr -> List Expr
-      rec_ancestors id walk expr =
-        if toID expr == id
+      rec_ancestors tofind walk exp =
+        if toID exp == tofind
         then walk
         else
-          case expr of
+          case exp of
             Value _ _ -> []
             Hole _ -> []
             Variable _ _ -> []
-            Let id lhs rhs body ->
-              (List.map (rec_ancestors id (expr :: walk)) [rhs, body]) |> List.concat
-            If id cond ifbody elsebody ->
-              (List.map (rec_ancestors id (expr :: walk)) [cond, ifbody, elsebody]) |> List.concat
-            FnCall id name exprs ->
-              (List.map (rec_ancestors id (expr :: walk)) exprs) |> List.concat
-            Lambda id vars lexpr ->
-              rec_ancestors id (expr :: walk) lexpr
-            Thread id exprs ->
-              (List.map (rec_ancestors id (expr :: walk)) exprs) |> List.concat
-            FieldAccess id obj field ->
-              rec_ancestors id (expr :: walk) obj
+            Let i lhs rhs body ->
+              (List.map (rec_ancestors id (exp :: walk)) [rhs, body]) |> List.concat
+            If i cond ifbody elsebody ->
+              (List.map (rec_ancestors id (exp :: walk)) [cond, ifbody, elsebody]) |> List.concat
+            FnCall i name exprs ->
+              (List.map (rec_ancestors id (exp :: walk)) exprs) |> List.concat
+            Lambda i vars lexpr ->
+              rec_ancestors id (exp :: walk) lexpr
+            Thread i exprs ->
+              (List.map (rec_ancestors id (exp :: walk)) exprs) |> List.concat
+            FieldAccess i obj field ->
+              rec_ancestors id (exp :: walk) obj
   in
-      (rec_ancestors id [] expr) |> List.reverse
+      rec_ancestors id [] expr
 
 
 ancestorsWhere : ID -> Expr -> (Expr -> Bool) -> List Expr
