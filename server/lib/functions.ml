@@ -73,6 +73,8 @@ let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
            let invalid = List.filter_map all
                            ~f:(fun (i,p,a) -> if Dval.tipe_of a <> p.tipe
                                               && p.tipe <> TAny
+                                              || p.tipe = TIncomplete
+                                              || p.tipe = TError
                                then Some (i,p,a)
                                else None) in
            (* let invalid_count = List.length invalid in *)
@@ -80,10 +82,10 @@ let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
            | [] -> Exception.internal "There was an type error in the arguments, but we had an error and can't find it"
 
            | (i,p,DIncomplete) :: _ ->
-              Exception.user
-                ~expected:(Dval.tipe_to_string p.tipe)
-                ~actual:"missing"
-                (fn.name ^ " is missing an argument: " ^ p.name)
+             DIncomplete
+
+           | (i,p,DError _) :: _ ->
+             DIncomplete
 
            | (i,p,a) :: _ ->
               RT.raise_error
