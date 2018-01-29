@@ -63,7 +63,14 @@ let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
                     |> List.map ~f:(fun (p: param) -> p.name)
                     |> List.map ~f:(DvalMap.find_exn args) in
       (try
-        apply f arglist
+         if List.exists ~f:(fun x ->
+                              match x with
+                              | DIncomplete -> true
+                              | DError _ -> true
+                              | _ -> false)
+             arglist
+         then DIncomplete
+         else apply f arglist
        with
        | TypeError _ ->
            Log.pP ~name:"execution" ~ind "exception caught" args
@@ -71,21 +78,13 @@ let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
            let range = List.range 0 (List.length arglist) in
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
            let invalid = List.filter_map all
-                           ~f:(fun (i,p,a) -> if Dval.tipe_of a <> p.tipe
-                                              && p.tipe <> TAny
-                                              || p.tipe = TIncomplete
-                                              || p.tipe = TError
+                           ~f:(fun (i,p,a) -> if (Dval.tipe_of a <> p.tipe
+                                                  && p.tipe <> TAny)
                                then Some (i,p,a)
                                else None) in
            (* let invalid_count = List.length invalid in *)
            match invalid with
            | [] -> Exception.internal "There was an type error in the arguments, but we had an error and can't find it"
-
-           | (i,p,DIncomplete) :: _ ->
-             DIncomplete
-
-           | (i,p,DError _) :: _ ->
-             DIncomplete
 
            | (i,p,a) :: _ ->
               RT.raise_error
