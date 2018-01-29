@@ -39,7 +39,7 @@ let rec dval_to_sql (dv: dval) : string =
     "'{ "
     ^ (String.concat ~sep:", " (List.map ~f:dval_to_sql l))
     ^ " }'"
-  | _ -> Exception.client "Not obvious how to persist this in the DB"
+  | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
 
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
