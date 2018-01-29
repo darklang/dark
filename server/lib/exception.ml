@@ -15,9 +15,9 @@ type exception_data = { short : string
                       ; result_tipe : string
                       ; info : exception_info
                       ; workarounds : string list
-                      } [@@deriving yojson, show]
+                      } [@@deriving yojson, show][@@deriving_inline sexp][@@@deriving.end]
 
-exception DarkException of exception_data
+exception DarkException of exception_data [@@deriving_inline sexp][@@@deriving.end]
 
 
 let raise_ (tipe:string) ?(actual="") ?(expected="") ?(result="") ?(info=[]) ?(workarounds=[]) ?(long="")

@@ -1,12 +1,15 @@
 module Runtime exposing (..)
 
 -- stldib
+import Json.Decode as JSD
 
 -- libs
 
 -- dark
 import Types exposing (..)
 import Util exposing (..)
+import JSON
+
 
 
 isInt : String -> Bool
@@ -23,6 +26,13 @@ isBool s = String.toLower s == "true" || String.toLower s == "false"
 
 isChar : String -> Bool
 isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s "\'"
+
+isError : String -> Bool
+isError s =
+  String.startsWith "<error:" s
+  && String.endsWith ">" s
+
+
 
 isCompatible : Tipe -> Tipe -> Bool
 isCompatible t1 t2 =
@@ -43,6 +53,7 @@ tipe2str t =
     TObj -> "Obj"
     TBlock -> "Block"
     TIncomplete -> "Incomplete"
+    TError -> "Error"
     TResp -> "Response"
     TDB -> "Datastore"
     TID -> "ID"
@@ -69,7 +80,7 @@ str2tipe t =
   "response" -> TResp
   "datastore" -> TDB
   "date" -> TDate
-  "error" -> TIncomplete -- temporary, maybe
+  "error" -> TError
   other ->
     if String.startsWith "[" other && String.endsWith "]" other
     then

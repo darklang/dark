@@ -33,9 +33,10 @@ type Tipe = TInt
           | TObj
           | TList
           | TAny
-          | TBlock
           | TNull
+          | TBlock
           | TIncomplete
+          | TError
           | TResp
           | TDB
           | TID

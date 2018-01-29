@@ -24,6 +24,7 @@ let tipe_to_string t : string =
   | TObj -> "Obj"
   | TBlock -> "Block"
   | TIncomplete -> "Incomplete"
+  | TError -> "Error"
   | TResp -> "Response"
   | TDB -> "Datastore"
   | TID -> "ID"
@@ -48,6 +49,7 @@ let tipe_of_string str : tipe =
   | "obj" -> TObj
   | "block" -> TBlock
   | "incomplete" -> TIncomplete
+  | "error" -> TError
   | "response" -> TResp
   | "datastore" -> TDB
   | "id" -> TID
@@ -75,6 +77,7 @@ let tipe_of (dv : dval) : tipe =
   | DList _ -> TList
   | DObj _ -> TObj
   | DBlock _ -> TBlock
+  | DError _ -> TError
   | DIncomplete -> TIncomplete
   | DResp _ -> TResp
   | DDB _ -> TDB
@@ -136,6 +139,7 @@ let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   | DTitle t -> wrap_string t
   | DUrl url -> wrap_string url
   | DDB db -> wrap db.display_name
+  | DError msg -> wrap msg
   | _ -> open_
          ^ (dv |> tipename)
          ^ close_
@@ -147,7 +151,7 @@ let to_repr ?(pp : bool = true) (dv : dval) : string =
     let indent = indent + 2 in
     match dv with
     | DInt _ | DFloat _ | DBool _ | DNull
-    | DBlock _ | DIncomplete
+    | DBlock _ | DIncomplete | DError _
     | DID _ | DDate _ | DTitle _ | DUrl _
       ->
       to_simple_repr "<" ">" dv
@@ -198,7 +202,7 @@ let rec to_url_string (dv : dval) : string =
   match dv with
   | DInt _ | DFloat _ | DBool _ | DNull
   | DChar _ | DStr _
-  | DBlock _ | DIncomplete
+  | DBlock _ | DIncomplete | DError _
   | DDB _
   | DID _ | DDate _ | DTitle _ | DUrl _
     ->
@@ -305,6 +309,8 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
 
   | DBlock _ | DIncomplete ->
     `String ("<" ^ (tipename dv) ^ ">")
+
+  | DError msg -> wrap_user_str msg
 
   | DResp (h, hdv) ->
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])

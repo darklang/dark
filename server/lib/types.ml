@@ -20,6 +20,7 @@ type tipe_ =
   | TList
   | TObj
   | TIncomplete
+  | TError
   | TBlock
   | TResp
   | TDB
@@ -66,6 +67,7 @@ module RuntimeT = struct
     | DObj of dval_map
     (* special types *)
     | DIncomplete
+    | DError of string
     | DBlock of (dval list -> dval)
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)

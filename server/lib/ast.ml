@@ -182,10 +182,15 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
       try
         value ()
       with
+      | Exception.DarkException e ->
+        let json = e
+                   |> Exception.exception_data_to_yojson
+                   |> Yojson.Safe.pretty_to_string in
+        print_endline json;
+        DError json
       | e ->
         let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
-        print_endline "Exception in AST execution";
         print_endline (Backtrace.to_string bt);
         print_endline msg;
         DIncomplete

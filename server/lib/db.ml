@@ -135,6 +135,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TList -> failwith "todo sql type"
   | TObj -> failwith "todo sql type"
   | TIncomplete -> failwith "todo sql type"
+  | TError -> failwith "todo sql type"
   | TBlock -> failwith "todo sql type"
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
