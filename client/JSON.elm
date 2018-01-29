@@ -3,7 +3,8 @@ module JSON exposing (..)
 -- builtin
 import Json.Encode as JSE
 import Json.Decode as JSD
-import Dict
+import Json.Decode.Pipeline as JSDP
+import Dict exposing (Dict)
 
 -- lib
 
@@ -136,4 +137,32 @@ decodePair d1 d2 =
     (JSD.index 1 d2)
 
 
+decodeException : JSD.Decoder Exception
+decodeException =
+  let toExc : String -> String -> String -> String -> String ->
+              String -> String -> String -> Dict String String ->
+              List String -> Exception
+      toExc short long tipe actual actualType result resultType expected info workarounds =
+        { short=short
+        , long=long
+        , tipe=tipe
+        , actual=actual
+        , actualType=actualType
+        , result=result
+        , resultType=resultType
+        , expected=expected
+        , info=info
+        , workarounds=workarounds }
+  in
+  JSDP.decode toExc
+    |> JSDP.required "short" JSD.string
+    |> JSDP.required "long" JSD.string
+    |> JSDP.required "tipe" JSD.string
+    |> JSDP.required "actual" JSD.string
+    |> JSDP.required "actual_tipe" JSD.string
+    |> JSDP.required "result" JSD.string
+    |> JSDP.required "result_tipe" JSD.string
+    |> JSDP.required "expected" JSD.string
+    |> JSDP.required "info" (JSD.dict JSD.string)
+    |> JSDP.required "workarounds" (JSD.list JSD.string)
 
