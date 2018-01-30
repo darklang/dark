@@ -17,29 +17,37 @@ let server =
   let callback _ req req_body =
 
     let admin_rpc_handler body (host: string) (save: bool) : string =
+      let _ = Log.tS "req start" in
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
-      let c = C.load host [] in
       try
+        let _ = Log.tS "before ops" in
         let ops = Api.to_ops body in
-        c := !(C.load host ops);
+        let c = C.load host ops in
+        let _ = Log.tS "after ops" in
         let global = DReq.sample |> DReq.to_dval in
+        let _ = Log.tS "db before" in
         let dbs = TL.dbs !c.toplevels in
         let dbs_env = Db.dbs_as_env dbs in
+        let _ = Log.tS "db after" in
         Db.cur_dbs := dbs;
         let env = RTT.DvalMap.set dbs_env "request" global in
+        let _ = Log.tS "frontend before" in
         let result = C.to_frontend_string env !c in
+        let _ = Log.tS "frontend after" in
+        let _ = Log.tS "req near end" in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
         Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
         (* work out the result before we save it, incase it has a stackoverflow
          * or other crashing bug *)
+        let _ = Log.tS "before save " in
         if save then C.save !c;
+        let _ = Log.tS "after save" in
         result
       with
       | e ->
         let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
-        print_endline (C.show_toplevellist !c.toplevels);
         print_endline ("Exception: " ^ msg);
         print_endline (Backtrace.to_string bt);
         raise e
