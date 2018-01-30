@@ -7,17 +7,17 @@ module F = Functions
 (* --------------------- *)
 (* Types *)
 (* --------------------- *)
-type fnname = string [@@deriving eq, yojson, show]
-type fieldname = string [@@deriving eq, yojson, show]
-type varname = string [@@deriving eq, yojson, show]
-type id = Types.id [@@deriving eq, yojson, show]
-type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show]
+type fnname = string [@@deriving eq, yojson, show, sexp]
+type fieldname = string [@@deriving eq, yojson, show, sexp]
+type varname = string [@@deriving eq, yojson, show, sexp]
+type id = Types.id [@@deriving eq, yojson, show, sexp]
+type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show, sexp]
 
 type varbinding = varname or_hole
-                [@@deriving eq, yojson, show]
+                [@@deriving eq, yojson, show, sexp]
 
 type field = fieldname or_hole
-           [@@deriving eq, yojson, show]
+           [@@deriving eq, yojson, show, sexp]
 
 
 type expr = If of id * expr * expr * expr
@@ -29,9 +29,9 @@ type expr = If of id * expr * expr * expr
           | Value of id * string
           | Hole of id
           | FieldAccess of id * expr * field
-          [@@deriving eq, yojson, show]
+          [@@deriving eq, yojson, show, sexp]
 
-type ast = expr [@@deriving eq, yojson, show]
+type ast = expr [@@deriving eq, yojson, show, sexp]
 
 let to_tuple (expr: expr) : (id * expr) =
   match expr with

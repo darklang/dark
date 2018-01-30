@@ -6,7 +6,7 @@ module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
 
-type oplist = Op.op list [@@deriving eq, show, yojson]
+type oplist = Op.op list [@@deriving eq, show, yojson, sexp]
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : oplist
@@ -186,15 +186,15 @@ let save ?(filename=None) (c : canvas) : unit =
   let filename = Option.value filename ~default:(filename_for c.name) in
   c.ops
   |> Log.ts "save 1"
-  |> oplist_to_yojson
+  |> sexp_of_oplist
   |> Log.ts "save 2"
-  |> Yojson.Safe.to_string
+  |> Sexp.to_string
   |> Log.ts "save 3"
   |> (fun s -> s ^ "\n")
   |> Log.ts "save 4"
   |> Bytes.of_string
   |> Log.ts "save 5"
-  |> Util.writefile filename
+  |> Util.writefile (filename ^ ".sexp")
   |> Log.ts "save 6"
 
 let minimize (c : canvas) : canvas =

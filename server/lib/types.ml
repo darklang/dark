@@ -1,13 +1,13 @@
 open Core
 
-type pos = { x:int; y:int }[@@deriving eq, show, yojson]
+type pos = { x:int; y:int }[@@deriving eq, show, yojson, sexp]
 
-type tlid = int [@@deriving eq, show, yojson]
-type id = int [@@deriving eq, show, yojson]
+type tlid = int [@@deriving eq, show, yojson, sexp]
+type id = int [@@deriving eq, show, yojson, sexp]
 
 type 'a or_hole = Empty of id
                 | Full of id * 'a
-                [@@deriving eq, show, yojson]
+                [@@deriving eq, show, yojson, sexp]
 
 type tipe_ =
   | TAny (* extra type meaning anything *)
