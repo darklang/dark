@@ -88,7 +88,7 @@ let server =
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
-          let body = Dval.to_human_repr value in
+          let body = Dval.dval_to_json_string value in
           (match http with
            | Redirect url ->
              S.respond_redirect (Uri.of_string url) ()
@@ -99,7 +99,7 @@ let server =
                ~body:body
                ())
         | _ ->
-          let body = Dval.to_human_repr result in
+          let body = Dval.dval_to_json_string result in
           (* for demonstrations sake, let's return 200 Okay when
            * no HTTP response object is returned *)
           let code = 200 in
