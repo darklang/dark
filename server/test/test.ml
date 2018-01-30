@@ -124,7 +124,7 @@ let handle_exception e =
 
 let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
   let c = C.create name in
-  C.add_ops c ops;
+  C.add_ops c [] ops;
   c
 
 let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)

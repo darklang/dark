@@ -310,29 +310,34 @@ let create_new_db (tlid: tlid) (db: db) =
 
 (* we only add this when it is complete, and we use the ID to mark the
    migration table to know whether it's been done before. *)
-let maybe_add_to_actual_db (db: db) (id: id) (col: col) : col =
-  (match col with
-  | Full (_, name), Full (_, tipe) ->
-    run_migration id (add_col_sql db.actual_name name tipe)
-  | _ ->
-    ());
+let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col =
+  if do_db_ops
+  then
+    (match col with
+    | Full (_, name), Full (_, tipe) ->
+      run_migration id (add_col_sql db.actual_name name tipe)
+    | _ ->
+      ())
+  else ();
   col
 
 
 let add_db_col colid typeid (db: db) =
   { db with cols = db.cols @ [(Empty colid, Empty typeid)]}
 
-let set_col_name id name db =
+let set_col_name id name (do_db_ops: bool) db =
   let set col =
     match col with
-    | (Empty hid, tipe) when hid = id -> maybe_add_to_actual_db db id (Full (hid, name), tipe)
+    | (Empty hid, tipe) when hid = id ->
+        maybe_add_to_actual_db db id (Full (hid, name), tipe) do_db_ops
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
-let set_db_col_type id tipe db =
+let set_db_col_type id tipe (do_db_ops: bool) db =
   let set col =
     match col with
-    | (name, Empty hid) when hid = id -> maybe_add_to_actual_db db id (name, Full (hid, tipe))
+    | (name, Empty hid) when hid = id ->
+        maybe_add_to_actual_db db id (name, Full (hid, tipe)) do_db_ops
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 

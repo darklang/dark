@@ -23,7 +23,7 @@ let create (name : string) : canvas ref =
 (* Undo *)
 (* ------------------------- *)
 
-let preprocess (ops: Op.op list) : Op.op list =
+let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
   (* - The client can add undopoints when it chooses. *)
   (* - When we get an undo, we go back to the previous undopoint. *)
   (* - When we get a redo, we ignore the undo immediately preceding it. If there *)
@@ -44,25 +44,25 @@ let preprocess (ops: Op.op list) : Op.op list =
     match (op :: ops) with
     | [] -> []
     | [op] -> [op]
-    | Op.Undo :: Op.Redo :: rest -> rest
-    | Op.Redo :: Op.Redo :: rest -> Op.Redo :: Op.Redo :: rest
-    | _ :: Op.Redo :: rest -> (* Step 2: error on solo redos *)
+    | (Op.Undo, _) :: (Op.Redo, _) :: rest -> rest
+    | (Op.Redo, a) :: (Op.Redo, b) :: rest -> (Op.Redo, a) :: (Op.Redo, b) :: rest
+    | _ :: (Op.Redo, _) :: rest -> (* Step 2: error on solo redos *)
         Exception.internal "Found a redo with no previous undo"
     | ops -> ops)
   (* Step 3: remove undos and all the ops up to the savepoint. *)
   (* Go from the front and build the list up. If we hit an undo, drop back until *)
   (* the last favepoint. *)
-  |> List.fold_left ~init:[] ~f:(fun ops (op: Op.op) ->
-       if op = Op.Undo
+  |> List.fold_left ~init:[] ~f:(fun ops op ->
+       if Tuple.T2.get1 op = Op.Undo
        then
          ops
-         |> List.drop_while ~f:(fun o -> o <> Op.Savepoint)
+         |> List.drop_while ~f:(fun (o, _) -> o <> Op.Savepoint)
          |> (fun ops -> List.drop ops 1)   (* also drop the savepoint *)
        else
          op :: ops)
   |> List.rev (* previous step leaves the list reversed *)
   (* Bonus: remove noops *)
-  |> List.filter ~f:((<>) Op.NoOp)
+  |> List.filter ~f:(fun (op, _) -> op <> Op.NoOp)
 
 
 let undo_count (c: canvas) : int =
@@ -73,8 +73,9 @@ let undo_count (c: canvas) : int =
 
 let is_undoable (c: canvas) : bool =
   c.ops
-    |> preprocess
-    |> List.exists ~f:((=) Op.Savepoint)
+  |> List.map ~f:(fun op -> (op, false))
+  |> preprocess
+  |> List.exists ~f:((=) (Op.Savepoint, false))
 
 let is_redoable (c: canvas) : bool =
   c.ops |> List.last |> (=) (Some Op.Undo)
@@ -118,7 +119,7 @@ let apply_to_db ~(f:(DbT.db -> DbT.db)) (tlid: tlid) (c:canvas) : canvas =
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (op : Op.op) (c : canvas ref) : unit =
+let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
   c :=
     !c |>
     match op with
@@ -133,14 +134,16 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
                         ; actual_name = (!c.name ^ "_" ^ name)
                                         |> String.lowercase
                         ; cols = []} in
-      Db.create_new_db tlid db;
+      if do_db_ops
+      then Db.create_new_db tlid db
+      else ();
       upsert_toplevel tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(Db.add_db_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
-      apply_to_db ~f:(Db.set_col_name id name) tlid
+      apply_to_db ~f:(Db.set_col_name id name do_db_ops) tlid
     | SetDBColType (tlid, id, tipe) ->
-      apply_to_db ~f:(Db.set_db_col_type id (Dval.tipe_of_string tipe)) tlid
+      apply_to_db ~f:(Db.set_db_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident
@@ -148,10 +151,12 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
 
 
-let add_ops (c: canvas ref) (ops: Op.op list) : unit =
-  let reduced_ops = preprocess ops in
-  List.iter ~f:(fun op -> apply_op op c) reduced_ops;
-  c := { !c with ops = ops }
+let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
+  let oldpairs = List.map ~f:(fun o -> (o, false)) oldops in
+  let newpairs = List.map ~f:(fun o -> (o, true)) newops in
+  let reduced_ops = preprocess (oldpairs @ newpairs) in
+  List.iter ~f:(fun (op, do_db_ops) -> apply_op op do_db_ops c) reduced_ops;
+  c := { !c with ops = oldops @ newops }
 
 
 (* ------------------------- *)
@@ -159,31 +164,45 @@ let add_ops (c: canvas ref) (ops: Op.op list) : unit =
 (* ------------------------- *)
 let filename_for name = "appdata/" ^ name ^ ".dark"
 
-let load ?(filename=None) (name: string) (ops: Op.op list) : canvas ref =
+let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
   let c = create name in
   let filename = Option.value filename ~default:(filename_for name) in
-  filename
-  |> Util.readfile ~default:"[]"
-  |> Yojson.Safe.from_string
-  |> oplist_of_yojson
-  |> Result.ok_or_failwith
-  |> (fun os -> os @ ops)
-  |> add_ops c;
+  let oldops =
+    filename
+    |> Log.ts "load 1"
+    |> Util.readfile ~default:"[]"
+    |> Log.ts "load 2"
+    |> Yojson.Safe.from_string
+    |> Log.ts "load 3"
+    |> oplist_of_yojson
+    |> Log.ts "load 4"
+    |> Result.ok_or_failwith
+    |> Log.ts "load 5" in
+  add_ops c oldops newops;
+  Log.tS "load 6";
   c
 
 let save ?(filename=None) (c : canvas) : unit =
   let filename = Option.value filename ~default:(filename_for c.name) in
   c.ops
+  |> Log.ts "save 1"
   |> oplist_to_yojson
-  |> Yojson.Safe.pretty_to_string
+  |> Log.ts "save 2"
+  |> Yojson.Safe.to_string
+  |> Log.ts "save 3"
   |> (fun s -> s ^ "\n")
+  |> Log.ts "save 4"
   |> Bytes.of_string
+  |> Log.ts "save 5"
   |> Util.writefile filename
+  |> Log.ts "save 6"
 
 let minimize (c : canvas) : canvas =
   let ops =
     c.ops
+    |> List.map ~f:(fun op -> (op, false))
     |> preprocess
+    |> List.map ~f:Tuple.T2.get1
     |> List.fold_left ~init:[]
         ~f:(fun ops op -> if op = Op.DeleteAll
                           then []
@@ -196,6 +215,11 @@ let minimize (c : canvas) : canvas =
 (* To Frontend JSON *)
 (* ------------------------- *)
 
+
+type recalc = RecalcAll
+            | RecalcList of tlid list
+
+(* let analysis_cache = Int.Table.create () *)
 
 let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels

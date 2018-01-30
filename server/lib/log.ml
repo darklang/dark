@@ -39,16 +39,16 @@ let pp ?(f=Batteries.dump)
   pP ~f ~name ~start ~stop ~show ~ind msg x;
   x
 
-let tS (msg : string) (x : 'a) : unit =
+let tS (msg : string) : unit =
   let time = Float.mod_float (1000.0 *. Unix.gettimeofday ()) 10000.0 in
   let ts = string_of_float time in
   let red = "\x1b[6;31m" in
   let reset = "\x1b[0m" in
-  red ^ "ts: " ^ msg ^ " (" ^ ts ^ "): " ^ reset ^ (Batteries.dump x)
+  red ^ "ts: " ^ msg ^ " (" ^ ts ^ "): " ^ reset
   |> print_endline
 
 let ts (msg : string) (x : 'a) : 'a =
-  tS msg x;
+  tS msg;
   x
 
 
