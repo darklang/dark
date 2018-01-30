@@ -7,17 +7,17 @@ module F = Functions
 (* --------------------- *)
 (* Types *)
 (* --------------------- *)
-type fnname = string [@@deriving eq, yojson, show, sexp]
-type fieldname = string [@@deriving eq, yojson, show, sexp]
-type varname = string [@@deriving eq, yojson, show, sexp]
-type id = Types.id [@@deriving eq, yojson, show, sexp]
-type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show, sexp]
+type fnname = string [@@deriving eq, yojson, show, sexp, bin_io]
+type fieldname = string [@@deriving eq, yojson, show, sexp, bin_io]
+type varname = string [@@deriving eq, yojson, show, sexp, bin_io]
+type id = Types.id [@@deriving eq, yojson, show, sexp, bin_io]
+type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show, sexp, bin_io]
 
 type varbinding = varname or_hole
-                [@@deriving eq, yojson, show, sexp]
+                [@@deriving eq, yojson, show, sexp, bin_io]
 
 type field = fieldname or_hole
-           [@@deriving eq, yojson, show, sexp]
+           [@@deriving eq, yojson, show, sexp, bin_io]
 
 
 type expr = If of id * expr * expr * expr
@@ -29,9 +29,9 @@ type expr = If of id * expr * expr * expr
           | Value of id * string
           | Hole of id
           | FieldAccess of id * expr * field
-          [@@deriving eq, yojson, show, sexp]
+          [@@deriving eq, yojson, show, sexp, bin_io]
 
-type ast = expr [@@deriving eq, yojson, show, sexp]
+type ast = expr [@@deriving eq, yojson, show, sexp, bin_io]
 
 let to_tuple (expr: expr) : (id * expr) =
   match expr with

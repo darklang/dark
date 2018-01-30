@@ -6,7 +6,7 @@ module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
 
-type oplist = Op.op list [@@deriving eq, show, yojson, sexp]
+type oplist = Op.op list [@@deriving eq, show, yojson, sexp, bin_io]
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : oplist
@@ -177,7 +177,9 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
     |> oplist_of_sexp
     |> Log.ts "load 4"
     (* |> Result.ok_or_failwith *)
-    |> Log.ts "load 5" in
+    |> Log.ts "load 5"
+    (* Core_extended.Bin_io_utils.load filename bin_read_oplist *)
+    |> Log.ts "load 3" in
   add_ops c oldops newops;
   Log.tS "load 6";
   c
@@ -185,17 +187,7 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
 let save ?(filename=None) (c : canvas) : unit =
   let filename = Option.value filename ~default:(filename_for c.name) in
   c.ops
-  |> Log.ts "save 1"
-  |> sexp_of_oplist
-  |> Log.ts "save 2"
-  |> Sexp.to_string
-  |> Log.ts "save 3"
-  |> (fun s -> s ^ "\n")
-  |> Log.ts "save 4"
-  |> Bytes.of_string
-  |> Log.ts "save 5"
-  |> Util.writefile filename
-  |> Log.ts "save 6"
+  |> Core_extended.Bin_io_utils.save filename bin_writer_oplist
 
 let minimize (c : canvas) : canvas =
   let ops =

@@ -9,6 +9,7 @@
     (preprocess (pps (
                       landmarks.ppx
                       lwt.ppx
+                      ppx_bin_prot
                       ppx_deriving.std
                       ppx_deriving_yojson
                       ppx_fields_conv
@@ -19,10 +20,12 @@
                 batteries
                 cohttp.lwt
                 core
+                core_extended
                 cstruct
                 curl
                 nocrypto
                 postgresql
+                ppx_bin_prot
                 ppx_derivers
                 ppx_deriving.std
                 ppx_deriving_yojson

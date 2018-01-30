@@ -150,6 +150,7 @@ RUN opam install landmarks.1.1
 RUN opam install cstruct.3.2.0
 RUN opam install nocrypto.0.5.4
 RUN opam install re2.v0.10.0
+RUN opam install core_extended.v0.10.0
 
 # Environment
 ENV TERM=xterm-256color

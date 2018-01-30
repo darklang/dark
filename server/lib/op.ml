@@ -20,7 +20,7 @@ type op = NoOp
         | DeleteAll
         | Undo
         | Redo
-[@@deriving eq, yojson, show, sexp]
+[@@deriving eq, yojson, show, sexp, bin_io]
 
-type oplist = op list [@@deriving eq, yojson, show, sexp]
+type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
