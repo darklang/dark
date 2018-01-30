@@ -9,13 +9,13 @@ let fns : Lib.shortfn list = [
   { n = "DB::insert"
   ; o = []
   ; p = [par "val" TObj; par "table" TDB]
-  ; r = TNull
+  ; r = TObj
   ; d = "Insert `val` into `table`"
   ; f = InProcess
         (function
           | [DObj value; DDB db] ->
-            let _ = Db.with_postgres (fun _ -> Db.insert db value) in
-            DNull
+            let id = Db.with_postgres (fun _ -> Db.insert db value) in
+            DObj (Map.set value "id" (DID id))
           | args -> fail args)
   ; pr = None
   ; ps = false
