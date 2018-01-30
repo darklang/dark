@@ -167,21 +167,8 @@ let filename_for name = "appdata/" ^ name ^ ".dark"
 let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
   let c = create name in
   let filename = Option.value filename ~default:(filename_for name) in
-  let oldops =
-    filename
-    |> Log.ts "load 1"
-    |> Util.readfile ~default:"()"
-    |> Log.ts "load 2"
-    |> Sexp.of_string
-    |> Log.ts "load 3"
-    |> oplist_of_sexp
-    |> Log.ts "load 4"
-    (* |> Result.ok_or_failwith *)
-    |> Log.ts "load 5"
-    (* Core_extended.Bin_io_utils.load filename bin_read_oplist *)
-    |> Log.ts "load 3" in
+  let oldops = Core_extended.Bin_io_utils.load filename bin_read_oplist in
   add_ops c oldops newops;
-  Log.tS "load 6";
   c
 
 let save ?(filename=None) (c : canvas) : unit =
