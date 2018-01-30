@@ -69,6 +69,24 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "DB::fetchOneBy"
+  ; o = []
+  ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
+  ; r = TAny
+  ; d = "Fetch exactly one value in `table` whose field `field` is `value`"
+  ; f = InProcess
+        (function
+          | [value; DStr field; DDB db]  ->
+            let result = Db.with_postgres (fun _ -> Db.fetch_by db field value) in
+            (match result with
+             | DList (x :: xs) -> x
+             | _ -> raise_error ~actual:result "expected at least one entry in DB")
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   { n = "DB::fetchAll"
   ; o = []
   ; p = [par "table" TDB]
