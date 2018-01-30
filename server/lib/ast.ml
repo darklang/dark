@@ -177,7 +177,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
            | Full (_, f) ->
              (match Map.find o f with
               | Some v -> v
-              | None -> Exception.user ("Object has no field named: " ^ f)))
+              | None -> DNull))
         | DIncomplete -> DIncomplete
         | DError _ -> DIncomplete
         | x -> Exception.user "type mismatch, expected object" ~expected:"object" ~actual:(Dval.to_repr x))
