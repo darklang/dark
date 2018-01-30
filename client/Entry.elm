@@ -85,6 +85,8 @@ submit m cursor action value =
             Just (Value eid "[]")
           ["{}"] ->
             Just (Value eid "{}")
+          ["null"] ->
+            Just (Value eid "null")
           _ ->
             if RT.tipeOf str == TIncomplete || AST.isInfix str
             then createFunction m value hasImplicit

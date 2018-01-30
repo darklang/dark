@@ -80,7 +80,8 @@ let fns : Lib.shortfn list = [
             let result = Db.with_postgres (fun _ -> Db.fetch_by db field value) in
             (match result with
              | DList (x :: xs) -> x
-             | _ -> raise_error ~actual:result "expected at least one entry in DB")
+               (* TODO(ian): Maybe/Option *)
+             | _ -> DNull)
           | args -> fail args)
   ; pr = None
   ; ps = true

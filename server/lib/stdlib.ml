@@ -543,8 +543,22 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-
-
+  { n = "Bool::isNull"
+  ; o = []
+  ; p = [par "check" TAny;]
+  ; r = TBool
+  ; d = "Ignores the first param and returns the 2nd."
+  ; f = InProcess
+        (function
+          | [value] ->
+            (match value with
+             | DNull -> DBool true
+             | _ -> DBool false)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
   (* ====================================== *)
   (* String *)
