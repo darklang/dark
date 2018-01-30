@@ -1,16 +1,1 @@
-[
-  [
-    "SetHandler",
-    1,
-    { "x": 0, "y": 0 },
-    {
-      "tlid": 1,
-      "ast": [ "Value", 123, "5" ],
-      "spec": {
-        "module": [ "Empty", 465 ],
-        "name": [ "Empty", 9356 ],
-        "modifier": [ "Empty", 576 ]
-      }
-    }
-  ]
-]
+((SetHandler 1((x 0)(y 0))((tlid 1)(ast(Value 123 5))(spec((module_(Empty 465))(name(Empty 9356))(modifier(Empty 576)))))))

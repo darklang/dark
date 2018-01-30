@@ -170,13 +170,13 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
   let oldops =
     filename
     |> Log.ts "load 1"
-    |> Util.readfile ~default:"[]"
+    |> Util.readfile ~default:"()"
     |> Log.ts "load 2"
-    |> Yojson.Safe.from_string
+    |> Sexp.of_string
     |> Log.ts "load 3"
-    |> oplist_of_yojson
+    |> oplist_of_sexp
     |> Log.ts "load 4"
-    |> Result.ok_or_failwith
+    (* |> Result.ok_or_failwith *)
     |> Log.ts "load 5" in
   add_ops c oldops newops;
   Log.tS "load 6";
@@ -194,7 +194,7 @@ let save ?(filename=None) (c : canvas) : unit =
   |> Log.ts "save 4"
   |> Bytes.of_string
   |> Log.ts "save 5"
-  |> Util.writefile (filename ^ ".sexp")
+  |> Util.writefile filename
   |> Log.ts "save 6"
 
 let minimize (c : canvas) : canvas =
