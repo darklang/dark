@@ -74,12 +74,20 @@ let server =
       (*       Access-Control-Request-Method: POST  *)
       (* Access-Control-Request-Headers: X-PINGOTHER, Content-Type *)
       (* This is just enough to fix conduit. Here's what we should do: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS *)
-      let headers = [("Access-Control-Allow-Method", "*"); ("Access-Control-Allow-Origin", "*"); ("Access-Control-Allow-Headers", "*")] in
+      let req_headers = Cohttp.Header.get (CRequest.headers req) "access-control-request-headers" in
+      let allow_headers =
+        match req_headers with
+        | Some h -> h
+        | None -> "*"
+      in
+      let headers = [("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS"); ("Access-Control-Allow-Origin", "*"); ("Access-Control-Allow-Headers", allow_headers)] in
       S.respond_string ~status:`OK
                        ~body:""
                        ~headers:(Cohttp.Header.of_list headers)
                        ()
     in
+
+    let cors = ("Access-Control-Allow-Origin", "*") in
 
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
       let c = C.load host [] in
@@ -89,7 +97,7 @@ let server =
       | [] when String.Caseless.equal verb "OPTIONS" ->
         options_handler !c req
       | [] ->
-        S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
+        S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
       | [page] ->
         let route = Handler.url_for_exn page in
         let input = DReq.from_request req body uri in
@@ -99,7 +107,6 @@ let server =
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
         let env = Map.set ~key:"request" ~data:(DReq.to_dval input) env in
-        let cors = ("Access-Control-Allow-Origin", "*") in
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
@@ -124,7 +131,7 @@ let server =
             ~body:body
             ())
       | _ ->
-        S.respond_string ~status:`Internal_server_error ~body:"500: More than one page matches" ()
+        S.respond_string ~status:`Internal_server_error ~headers:(Cohttp.Header.of_list [cors]) ~body:"500: More than one page matches" ()
     in
 
     (* let auth_handler handler *)
@@ -186,7 +193,7 @@ let server =
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->
            Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
-           S.respond_string ~status:`Internal_server_error ~body ())
+           S.respond_string ~status:`Internal_server_error ~headers:(Cohttp.Header.of_list [cors]) ~body ())
     in
     ()
     |> route_handler
