@@ -180,7 +180,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
               | None -> DNull))
         | DIncomplete -> DIncomplete
         | DError _ -> DIncomplete
-        | x -> Exception.user "type mismatch, expected object" ~expected:"object" ~actual:(Dval.to_repr x))
+        | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
     ) in
   (* Only catch if we're tracing *)
   let execed_value =
