@@ -16,7 +16,7 @@ let server =
 
   let callback _ req req_body =
 
-    let admin_rpc_handler body (host: string) (save: bool) : string =
+    let admin_rpc_handler body (host: string) : string =
       let _ = Log.tS "req start" in
       let time = Unix.gettimeofday () in
       let body = Log.pp "request body" body ~f:ident in
@@ -41,7 +41,7 @@ let server =
         (* work out the result before we save it, incase it has a stackoverflow
          * or other crashing bug *)
         let _ = Log.tS "before save " in
-        if save then C.save !c;
+        C.save !c;
         let _ = Log.tS "after save" in
         result
       with
@@ -138,7 +138,7 @@ let server =
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
              S.respond_string ~status:`OK
-                              ~body:(admin_rpc_handler req_body domain true) ()
+                              ~body:(admin_rpc_handler req_body domain) ()
            | "/sitemap.xml" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->
