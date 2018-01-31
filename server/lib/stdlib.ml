@@ -614,6 +614,23 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "String::toInt"
+  ; o = []
+  ; p = [par "s" TStr]
+  ; r = TInt
+  ; d = "Returns the int value of the string"
+  ; f = InProcess
+        (function
+          | [DStr s] ->
+              DInt (int_of_string s)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+
 
   { n = "String::length"
   ; o = []
@@ -1040,6 +1057,38 @@ let fns : Lib.shortfn list = [
   ; ps = true
   }
   ;
+
+  { n = "List::drop"
+  ; o = []
+  ; p = [par "l" TList; par "count" TInt]
+  ; r = TList
+  ; d = "Drops the first `count` items from the list"
+  ; f = InProcess
+        (function
+          | [DList l; DInt c] ->
+            DList (List.drop l c)
+          | args -> fail args)
+  ; pr = Some list_preview
+  ; ps = true
+  }
+  ;
+
+  { n = "List::take"
+  ; o = []
+  ; p = [par "l" TList; par "count" TInt]
+  ; r = TList
+  ; d = "Drops all but the first `count` items from the list"
+  ; f = InProcess
+        (function
+          | [DList l; DInt c] ->
+            DList (List.take l c)
+          | args -> fail args)
+  ; pr = Some list_preview
+  ; ps = true
+  }
+  ;
+
+
 
 
   { n = "List::foreach"
