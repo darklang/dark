@@ -247,7 +247,7 @@ let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler 
   |> List.filter
     ~f:(fun h ->
       (match Handler.modifier_for h with
-        | Some m -> m = verb
+        | Some m -> String.Caseless.equal m verb
         (* we specifically want to allow handlers without method specifiers for now *)
         | None -> true))
 
