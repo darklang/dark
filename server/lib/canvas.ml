@@ -167,7 +167,12 @@ let filename_for name = "appdata/" ^ name ^ ".dark"
 let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
   let c = create name in
   let filename = Option.value filename ~default:(filename_for name) in
-  let oldops = Core_extended.Bin_io_utils.load filename bin_read_oplist in
+  let oldops =
+    try
+      Core_extended.Bin_io_utils.load filename bin_read_oplist
+    with e ->
+      []
+  in
   add_ops c oldops newops;
   c
 
