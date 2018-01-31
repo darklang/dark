@@ -47,7 +47,7 @@ let fns : Lib.shortfn list = [
         (function
           | [DObj vals; DDB db]  ->
             Db.with_postgres (fun _ -> Db.update db vals);
-            DNull
+            DObj vals
           | args -> fail args)
   ; pr = None
   ; ps = false
