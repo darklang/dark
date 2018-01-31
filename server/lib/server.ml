@@ -69,11 +69,25 @@ let server =
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
+    let options_handler (c: C.canvas) (req: CRequest.t) =
+      (*       allow (from the route matching) *)
+      (*       Access-Control-Request-Method: POST  *)
+      (* Access-Control-Request-Headers: X-PINGOTHER, Content-Type *)
+      (* This is just enough to fix conduit. Here's what we should do: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS *)
+      let headers = [("Access-Control-Allow-Method", "*"); ("Access-Control-Allow-Origin", "*"); ("Access-Control-Allow-Headers", "*")] in
+      S.respond_string ~status:`OK
+                       ~body:""
+                       ~headers:(Cohttp.Header.of_list headers)
+                       ()
+    in
+
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
       let c = C.load host [] in
       let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
       let pages = C.pages_matching_route ~uri ~verb !c in
       match pages with
+      | [] when String.Caseless.equal verb "OPTIONS" ->
+        options_handler !c req
       | [] ->
         S.respond_string ~status:`Not_found ~body:"404: No page matches" ()
       | [page] ->
@@ -85,6 +99,7 @@ let server =
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
         let env = Map.set ~key:"request" ~data:(DReq.to_dval input) env in
+        let cors = ("Access-Control-Allow-Origin", "*") in
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
@@ -95,7 +110,7 @@ let server =
            | Response (code, headers) ->
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
-               ~headers:(Cohttp.Header.of_list headers)
+               ~headers:(Cohttp.Header.of_list (List.cons cors headers))
                ~body:body
                ())
         | _ ->
@@ -105,6 +120,7 @@ let server =
           let code = 200 in
           S.respond_string
             ~status:(Cohttp.Code.status_of_code code)
+            ~headers:(Cohttp.Header.of_list [cors])
             ~body:body
             ())
       | _ ->
