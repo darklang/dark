@@ -139,9 +139,6 @@ let server =
            | "/admin/api/rpc" ->
              S.respond_string ~status:`OK
                               ~body:(admin_rpc_handler req_body domain true) ()
-           | "/admin/api/phantom" ->
-             S.respond_string ~status:`OK
-                              ~body:(admin_rpc_handler req_body domain false) ()
            | "/sitemap.xml" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->

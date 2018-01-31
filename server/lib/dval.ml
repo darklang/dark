@@ -116,11 +116,20 @@ let rec equal_dval (a: dval) (b: dval) =
 (* Representation *)
 (* ------------------------- *)
 
-let string_of_date (d: Time.t) : string =
+let isostring_of_date (d: Time.t) : string =
+  (* for conduit tests. May do something different later *)
+  Time.format d "%FT%TZ" Time.Zone.utc
+
+let date_of_isostring (str: string) : Time.t =
+  Time.parse str "%FT%TZ" Time.Zone.utc
+
+let sqlstring_of_date (d: Time.t) : string =
   Time.format d "%Y-%m-%d %H:%M:%S" Time.Zone.utc
 
-let date_of_string (str: string) : Time.t =
+let date_of_sqlstring (str: string) : Time.t =
   Time.parse str "%Y-%m-%d %H:%M:%S" Time.Zone.utc
+
+
 
 let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
@@ -135,7 +144,7 @@ let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   | DChar c -> Char.to_string c
   | DNull -> "null"
   | DID id -> wrap_int id
-  | DDate d -> d |> string_of_date |> wrap_string
+  | DDate d -> d |> isostring_of_date |> wrap_string
   | DTitle t -> wrap_string t
   | DUrl url -> wrap_string url
   | DDB db -> wrap db.display_name
@@ -270,7 +279,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Float f -> DFloat f
   | `Null -> DNull
   | `Assoc [("type", `String "date"); ("value", `String v)] ->
-    DDate (date_of_string v)
+    DDate (date_of_isostring v)
   | `Assoc [("type", `String "id"); ("value", `Int v)] -> DID v
   | `Assoc [("type", `String "title"); ("value", `String v)] -> DTitle v
   | `Assoc [("type", `String "url"); ("value", `String v)] -> DUrl v
@@ -292,7 +301,6 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value = `Assoc [ ("type", tipe)
                                     ; ("value", value)] in
-  let wrap_user_int value = wrap_user_type (`Int value) in
   let wrap_user_str value = wrap_user_type (`String value) in
   match dv with
   | DInt i -> `Int i
@@ -316,10 +324,10 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
 
   | DDB db -> wrap_user_str db.display_name
-  | DID id -> wrap_user_int id
-  | DUrl url -> wrap_user_str url
-  | DTitle title -> wrap_user_str title
-  | DDate date -> wrap_user_type (`String (string_of_date date))
+  | DID id -> `Int id
+  | DUrl url -> `String url
+  | DTitle title -> `String title
+  | DDate date -> `String (isostring_of_date date)
 
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string

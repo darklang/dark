@@ -33,7 +33,7 @@ let rec dval_to_sql (dv: dval) : string =
   | DNull -> "NULL"
   | DDate d ->
     "TIMESTAMP WITH TIME ZONE '"
-    ^ Dval.string_of_date d
+    ^ Dval.sqlstring_of_date d
     ^ "'"
   | DList l ->
     "'{ "
@@ -72,7 +72,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   | TDate ->
     DDate (if sql = ""
            then Time.epoch
-           else Dval.date_of_string sql)
+           else Dval.date_of_sqlstring sql)
   | TBelongsTo table ->
     (* fetch here for now *)
     let id = sql |> int_of_string |> DID in
