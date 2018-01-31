@@ -236,7 +236,7 @@ let to_frontend_string (environment: Ast.symtable) (c: canvas) : string =
 (* Routing *)
 (* ------------------------- *)
 
-let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler list =
+let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   let path = Uri.path uri in
   c.toplevels
   |> TL.handlers
@@ -250,7 +250,8 @@ let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler 
         | Some m -> String.Caseless.equal m verb
         (* we specifically want to allow handlers without method specifiers for now *)
         | None -> true))
+  |> List.map
+    ~f:(fun h -> (Http.has_route_variables (Handler.url_for_exn h), h))
 
-let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler list =
+let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   matching_routes ~uri ~verb c
-

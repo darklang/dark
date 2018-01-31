@@ -93,6 +93,13 @@ let server =
       let c = C.load host [] in
       let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
       let pages = C.pages_matching_route ~uri ~verb !c in
+      let pages =
+        if List.length pages > 1
+        then List.filter ~f:(fun (has_vars, _) -> not has_vars) pages
+        else pages in
+      let pages = List.map ~f:Tuple.T2.get2 pages in
+
+
       match pages with
       | [] when String.Caseless.equal verb "OPTIONS" ->
         options_handler !c req
