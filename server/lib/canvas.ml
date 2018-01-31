@@ -189,16 +189,22 @@ let minimize (c : canvas) : canvas =
     |> List.filter ~f:((<>) Op.Savepoint)
   in { c with ops = ops }
 
+let save_test (c: canvas) : string =
+  let c = minimize c in
+  let filename = "appdata/test_" ^ c.name ^ ".dark" in
+  let name = if Sys.file_exists filename = `Yes
+             then c.name ^ "_"
+                  ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
+             else c.name in
+  let c = {c with name = name } in
+  let filename = "appdata/test_" ^ name ^ ".dark" in
+  save ~filename:(Some filename) c;
+  filename
+
 
 (* ------------------------- *)
 (* To Frontend JSON *)
 (* ------------------------- *)
-
-
-type recalc = RecalcAll
-            | RecalcList of tlid list
-
-(* let analysis_cache = Int.Table.create () *)
 
 let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
@@ -226,17 +232,9 @@ let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
 let to_frontend_string (environment: Ast.symtable) (c: canvas) : string =
   c |> to_frontend environment |> Yojson.Safe.pretty_to_string ~std:true
 
-let save_test (c: canvas) : string =
-  let c = minimize c in
-  let filename = "appdata/test_" ^ c.name ^ ".dark" in
-  let name = if Sys.file_exists filename = `Yes
-             then c.name ^ "_"
-                  ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
-             else c.name in
-  let c = {c with name = name } in
-  let filename = "appdata/test_" ^ name ^ ".dark" in
-  save ~filename:(Some filename) c;
-  filename
+(* ------------------------- *)
+(* Routing *)
+(* ------------------------- *)
 
 let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : Handler.handler list =
   let path = Uri.path uri in
