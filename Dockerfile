@@ -14,14 +14,13 @@ FROM ubuntu:17.10
 # - replace <HASH> with a recent hash from the docker build output.
 # - just use the package name, not the version.
 
-
 # Just enough to add keys and sources for npm and chrome
 RUN apt-get update && \
     apt-get install \
       -y \
       --no-install-recommends \
-      curl=7.55.1-1ubuntu2.2 \
-      apt-transport-https=1.5 \
+      curl \
+      apt-transport-https \
       ca-certificates
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
@@ -58,7 +57,7 @@ RUN apt-get update && \
       libev-dev=1:4.22-1 \
       libgmp-dev=2:6.1.2+dfsg-1 \
       pkg-config=0.29.1-0ubuntu2 \
-      libcurl4-gnutls-dev=7.55.1-1ubuntu2.2 \
+      libcurl4-gnutls-dev=7.55.1-1ubuntu2.3 \
       python-software-properties=0.96.24.17 \
       libpq-dev=10.1-1.pgdg17.04+1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
