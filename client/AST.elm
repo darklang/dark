@@ -557,18 +557,12 @@ replace p replacement expr =
   let re = replace p replacement
       rl : List Expr -> List Expr
       rl exprs = List.map re exprs
-      fail datatype =
-        Debug.crash ("cant replace a "
-                     ++ datatype
-                     ++ " with a "
-                     ++ toString replacement)
-
   in
   if toID expr == P.idOf p
   then
     case replacement of
       PExpr _ e -> e
-      _ -> fail "expr"
+      _ -> expr
   else
     case expr of
       Let id lhs rhs expr ->
@@ -577,7 +571,7 @@ replace p replacement expr =
           case replacement of
             PVarBind _ b ->
               Let id b rhs expr
-            _ -> fail "varbind"
+            _ -> expr
         else
           Let id lhs (re rhs) (re expr)
 
@@ -599,7 +593,7 @@ replace p replacement expr =
           case replacement of
             PField _ f ->
               FieldAccess id obj f
-            _ -> fail "field"
+            _ -> expr
         else
           FieldAccess id (re obj) field
 
@@ -628,5 +622,48 @@ replaceField : Pointer -> FieldName -> Expr -> Expr
 replaceField p replacement expr =
   let id = gid ()
   in replace p (PField id (Filled id replacement)) expr
+
+
+clone : AST -> (ID, AST)
+clone expr =
+  let nid = gid ()
+      c e =
+        let (_, ast) = clone e
+        in
+            ast
+      cl es =
+        List.map c es
+      cBlankOr bo =
+        let nbid = gid ()
+        in
+            case bo of
+              Blank _ -> Blank nbid
+              Filled _ a -> Filled nbid a
+  in
+    case expr of
+      Let _ lhs rhs expr ->
+        (nid, Let nid (cBlankOr lhs) (c rhs) (c expr))
+
+      If _ cond ifbody elsebody ->
+        (nid, If nid  (c cond) (c ifbody) (c elsebody))
+
+      FnCall _ name exprs ->
+        (nid, FnCall nid name (cl exprs))
+
+      Lambda _ vars expr ->
+        (nid, Lambda nid vars (c expr))
+
+      Thread _ exprs ->
+        (nid, Thread nid (cl exprs))
+
+      FieldAccess _ obj field ->
+        (nid, FieldAccess nid (c obj) (cBlankOr field))
+
+      Hole _ ->
+        (nid, Hole nid)
+      Value _ v ->
+        (nid, Value nid v)
+      Variable _ name ->
+        (nid, Variable nid name)
 
 

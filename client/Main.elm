@@ -17,6 +17,7 @@ import List.Extra as LE
 import RPC exposing (rpc, saveTest, integrationRpc)
 import Types exposing (..)
 import View
+import Clipboard
 import Defaults
 import Runtime as RT
 import Entry
@@ -246,6 +247,8 @@ updateMod origm mod (m, cmd) =
 
       SetCenter c ->
         { m | center = c } ! []
+      CopyToClipboard clipboard ->
+        { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
         { m | state = Dragging tlid offset hasMoved state } ! []
       Deselect -> { m | state = Deselected } ! []
@@ -355,6 +358,27 @@ update_ msg m =
               Key.P ->
                 if event.ctrlKey
                 then Selection.previousSibling m tlid p
+                else NoChange
+              Key.C ->
+                if event.ctrlKey
+                then
+                  case p of
+                    Nothing -> NoChange
+                    Just i -> Clipboard.copy m tlid i
+                else NoChange
+              Key.V ->
+                if event.ctrlKey
+                then
+                  case p of
+                    Nothing -> NoChange
+                    Just i -> Clipboard.paste m tlid i
+                else NoChange
+              Key.X ->
+                if event.ctrlKey
+                then
+                  case p of
+                    Nothing -> NoChange
+                    Just i -> Clipboard.cut m tlid i
                 else NoChange
               _ -> NoChange
 

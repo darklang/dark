@@ -32,8 +32,7 @@ defaultModel e = { error = Nothing
                  , analysis = []
                  , globals = []
                  , integrationTestState = NoIntegrationTest
-
-
+                 , clipboard = Nothing
                  -- editor
                  -- these load before the graph does, causing
                  -- exceptions. We'll need to only run these after the

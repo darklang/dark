@@ -239,3 +239,30 @@ isValidPointer tl p =
             True
           else
             False
+
+clonePointerData : PointerData -> PointerData
+clonePointerData pd =
+  let replaceBlankOr nid bo =
+      case bo of
+        Blank _ -> Blank nid
+        Filled _ a -> Filled nid a
+  in
+      case pd of
+        PVarBind id vb ->
+          let nid = gid ()
+          in
+              PVarBind nid (replaceBlankOr nid vb)
+        PSpec id sp ->
+          let nid = gid ()
+          in
+              PSpec nid (replaceBlankOr nid sp)
+        PExpr id expr ->
+          let (nid, ast) = AST.clone expr
+          in
+              PExpr nid ast
+        PField id f ->
+          let nid = gid ()
+          in
+              PField nid (replaceBlankOr nid f)
+        PDBColName id cn -> pd
+        PDBColType id ct -> pd

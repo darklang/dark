@@ -288,6 +288,8 @@ type alias TLAResult = { id: TLID
 -----------------------------
 -- Model
 -----------------------------
+
+type alias Clipboard = Maybe PointerData
 type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
@@ -299,6 +301,7 @@ type alias Model = { center : Pos
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , integrationTestState : IntegrationTestState
+                   , clipboard : Clipboard
                    }
 
 -- Values that we serialize
@@ -334,6 +337,7 @@ type Modification = Error String
                   | TriggerIntegrationTest String
                   | EndIntegrationTest
                   | SetState State
+                  | CopyToClipboard Clipboard
 
 -----------------------------
 -- Flags / function types
