@@ -233,11 +233,18 @@ let save_test (c: canvas) : string =
 (* To Frontend JSON *)
 (* ------------------------- *)
 
-let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
+let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
   let vals = c.toplevels
              |> TL.handlers
              |> List.map
-               ~f:(Handler.execute_for_analysis environment)
+               ~f:(fun h ->
+                   let env =
+                     match RTT.EnvMap.find environments h.tlid with
+                     | Some e -> e
+                     | None -> RTT.EnvMap.find_exn environments 0
+                   in
+                   Handler.execute_for_analysis env h
+                 )
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
                  `Assoc [ ("id", `Int id)
@@ -249,15 +256,15 @@ let to_frontend (environment: Ast.symtable) (c : canvas) : Yojson.Safe.json =
   in `Assoc
         [ ("analyses", `List vals)
         ; ("global_varnames",
-           `List (RTT.DvalMap.keys environment
+           `List (RTT.DvalMap.keys (RTT.EnvMap.find_exn environments 0)
                   |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]
 
-let to_frontend_string (environment: Ast.symtable) (c: canvas) : string =
-  c |> to_frontend environment |> Yojson.Safe.pretty_to_string ~std:true
+let to_frontend_string (environments: RTT.env_map) (c: canvas) : string =
+  c |> to_frontend environments |> Yojson.Safe.pretty_to_string ~std:true
 
 (* ------------------------- *)
 (* Routing *)

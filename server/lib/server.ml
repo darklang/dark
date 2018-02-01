@@ -32,8 +32,19 @@ let server =
         let _ = Log.tS "db after" in
         Db.cur_dbs := dbs;
         let env = RTT.DvalMap.set dbs_env "request" global in
+        let envs =
+          let env_map acc (tl : TL.toplevel) =
+            RTT.EnvMap.set acc tl.tlid env
+          in
+          let tls_map =
+            List.fold_left ~init:RTT.EnvMap.empty ~f:env_map !c.toplevels
+          in
+          (* TODO(ian): using 0 as a default, come up with better idea
+           * later *)
+          RTT.EnvMap.set tls_map 0 env
+        in
         let _ = Log.tS "frontend before" in
-        let result = C.to_frontend_string env !c in
+        let result = C.to_frontend_string envs !c in
         let _ = Log.tS "frontend after" in
         let _ = Log.tS "req near end" in
         let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
