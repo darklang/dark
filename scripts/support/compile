@@ -217,6 +217,7 @@ def ignore(filename):
             , "server/dark.install"
             , "server/_build/"
             , "server/appdata/"
+            , "server/requests/"
             , "server/gmon.out"
             , "server/profile.json"
             , "server/ocamlbuild_output.txt"
