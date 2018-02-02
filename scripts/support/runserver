@@ -2,8 +2,8 @@
 
 set -euo pipefail
 
-NATIVE=
-#NATIVE=1
+#NATIVE=
+NATIVE=1
 
 BYTE_FILE="_build/default/bin/main.bc"
 NATIVE_FILE="_build/default/bin/main.exe"

@@ -164,22 +164,44 @@ let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
 (* ------------------------- *)
 let filename_for name = "appdata/" ^ name ^ ".dark"
 
-let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
-  let c = create name in
+let read_ops_binary (filename: string) : oplist =
+  try
+    Core_extended.Bin_io_utils.load filename bin_read_oplist
+  with e ->
+    []
+
+let write_ops_binary (filename: string) (ops: oplist) : unit =
+  Core_extended.Bin_io_utils.save filename bin_writer_oplist ops
+
+let load_binary ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
   let filename = Option.value filename ~default:(filename_for name) in
-  let oldops =
-    try
-      Core_extended.Bin_io_utils.load filename bin_read_oplist
-    with e ->
-      []
-  in
+  let c = create name in
+  let oldops = read_ops_binary filename in
   add_ops c oldops newops;
   c
 
-let save ?(filename=None) (c : canvas) : unit =
+let save_binary ?(filename=None) (c : canvas) : unit =
   let filename = Option.value filename ~default:(filename_for c.name) in
-  c.ops
-  |> Core_extended.Bin_io_utils.save filename bin_writer_oplist
+  write_ops_binary filename c.ops
+
+let load = load_binary
+let save = save_binary
+
+let read_ops_json (filename:string) : oplist =
+  filename
+  |> Util.readfile ~default:"[]"
+  |> Yojson.Safe.from_string
+  |> oplist_of_yojson
+  |> Result.ok_or_failwith
+
+let write_ops_json (filename: string) (ops: oplist) : unit =
+  ops
+  |> oplist_to_yojson
+  |> Yojson.Safe.pretty_to_string
+  |> (fun s -> s ^ "\n")
+  |> Bytes.of_string
+  |> Util.writefile filename
+
 
 let minimize (c : canvas) : canvas =
   let ops =

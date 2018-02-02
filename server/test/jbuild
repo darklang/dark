@@ -5,7 +5,7 @@
     (name test)
     (public_name test)
     (modules test)
-    (modes (byte))
+    (modes (native))
     (flags (-warn-error (+A)))
     (libraries (dark alcotest))
   )
