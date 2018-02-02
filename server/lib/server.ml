@@ -11,10 +11,19 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module DReq = Dark_request
 
+type stored_request = string * CRequest.t [@@deriving sexp]
+
 let server =
   let stop,stopper = Lwt.wait () in
 
   let callback _ req req_body =
+    let load_request (host: string) (h: Handler.handler) : stored_request =
+      let filename =
+        "requests/" ^ host ^ "_" ^ (string_of_int h.tlid) ^ ".request.sexp"
+      in
+      let s = Sexplib.Sexp.load_sexp filename in
+      stored_request_of_sexp s
+    in
 
     let admin_rpc_handler body (host: string) : string =
       let _ = Log.tS "req start" in
@@ -33,11 +42,21 @@ let server =
         Db.cur_dbs := dbs;
         let env = RTT.DvalMap.set dbs_env "request" global in
         let envs =
-          let env_map acc (tl : TL.toplevel) =
-            RTT.EnvMap.set acc tl.tlid env
+          let env_map acc (h : Handler.handler) =
+            let h_env =
+              try
+                let (body, c_req) = load_request host h in
+                let d_req = DReq.from_request c_req body Uri.empty in
+                DReq.to_dval d_req
+              with
+              | _ ->
+                global
+             in
+             let new_env = RTT.DvalMap.set dbs_env "request" h_env in
+             RTT.EnvMap.set acc h.tlid new_env
           in
           let tls_map =
-            List.fold_left ~init:RTT.EnvMap.empty ~f:env_map !c.toplevels
+            List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.handlers !c.toplevels)
           in
           (* TODO(ian): using 0 as a default, come up with better idea
            * later *)
@@ -100,6 +119,14 @@ let server =
 
     let cors = ("Access-Control-Allow-Origin", "*") in
 
+    let serialize_request (host: string) (body: string) (h: Handler.handler) (req: CRequest.t) : unit =
+      let filename =
+        "requests/" ^ host ^ "_" ^ (string_of_int h.tlid) ^ ".request.sexp"
+      in
+      let s = sexp_of_stored_request (body, req) in
+      Sexplib.Sexp.save_hum filename s
+    in
+
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
       let c = C.load host [] in
       let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
@@ -118,6 +145,7 @@ let server =
         S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
       | [page] ->
         let route = Handler.url_for_exn page in
+        serialize_request host body page req;
         let input = DReq.from_request req body uri in
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
