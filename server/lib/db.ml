@@ -12,6 +12,9 @@ module PG = Postgresql
 let conn =
   new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
 
+let escape s =
+  conn#escape_string s
+
 let cur_dbs : DbT.db list ref =
   ref []
 
@@ -28,7 +31,7 @@ let rec dval_to_sql (dv: dval) : string =
   | DInt i | DID i -> string_of_int i
   | DBool b -> if b then "TRUE" else "FALSE"
   | DChar c -> Char.to_string c
-  | DStr s -> "'" ^ s ^ "'"
+  | DStr s -> "'" ^ (escape s) ^ "'"
   | DFloat f -> string_of_float f
   | DNull -> "NULL"
   | DDate d ->
@@ -109,10 +112,10 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
 and
 fetch_by db (col: string) (dv: dval) : dval =
   let (names, types) = cols_for db |> List.unzip in
-  let colnames = names |> String.concat ~sep:", " in
+  let colnames = names |> List.map ~f:escape |> String.concat ~sep:", " in
   Printf.sprintf
     "SELECT %s FROM \"%s\" WHERE %s = %s"
-    colnames db.actual_name col (dval_to_sql dv)
+    colnames (escape db.actual_name) (escape col) (dval_to_sql dv)
   |> fetch_via_sql
   |> List.map ~f:(to_obj names types)
   |> DList
@@ -180,6 +183,7 @@ let with_postgres fn =
 let key_names (vals: dval_map) : string =
   vals
   |> DvalMap.keys
+  |> List.map ~f:escape
   |> String.concat ~sep:", "
 
 let val_names (vals: dval_map) : string =
@@ -209,7 +213,7 @@ let rec insert (db: db) (vals: dval_map) : int =
   (* merge the maps *)
   let merged = Util.merge_left normal obj_id_map in
   let _ = Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-      db.actual_name (key_names merged) (val_names merged)
+      (escape db.actual_name) (key_names merged) (val_names merged)
           |> run_sql
   in
     id
@@ -227,10 +231,10 @@ and update db (vals: dval_map) =
   let sets = merged
            |> DvalMap.to_alist
            |> List.map ~f:(fun (k,v) ->
-               k ^ " = " ^ dval_to_sql v)
+               (escape k) ^ " = " ^ dval_to_sql v)
            |> String.concat ~sep:", " in
   Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
-    db.actual_name sets (dval_to_sql id)
+    (escape db.actual_name) sets (dval_to_sql id)
   |> run_sql
 and upsert_dependent_object cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
@@ -253,10 +257,10 @@ and upsert_dependent_object cols ~key:relation ~data:obj : dval =
 
 let fetch_all (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
-  let colnames = names |> String.concat ~sep:", " in
+  let colnames = names |> List.map ~f:escape |> String.concat ~sep:", " in
   Printf.sprintf
     "SELECT %s FROM \"%s\""
-    colnames db.actual_name
+    colnames (escape db.actual_name)
   |> fetch_via_sql
   |> List.map ~f:(to_obj names types)
   |> DList
@@ -264,7 +268,7 @@ let fetch_all (db: db) : dval =
 let delete db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
-    db.actual_name (dval_to_sql id)
+    (escape db.actual_name) (dval_to_sql id)
   |> run_sql
 
 (* ------------------------- *)
@@ -295,12 +299,12 @@ let run_migration (migration_id: id) (sql:string) : unit =
 let create_table_sql (table_name: string) =
   Printf.sprintf
     "CREATE TABLE IF NOT EXISTS \"%s\" (id SERIAL PRIMARY KEY)"
-    table_name
+    (escape table_name)
 
 let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
     "ALTER TABLE \"%s\" ADD COLUMN %s %s"
-    table_name name (sql_tipe_for tipe)
+    (escape table_name) (escape name) (sql_tipe_for tipe)
 
 
 
