@@ -39,11 +39,11 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 tlid : () -> TLID
 tlid unit = TLID (Util.random unit)
 
-emptyHS : () -> HandlerSpec
-emptyHS _ = { name = Blank (gid ())
-            , module_ = Blank (gid ())
-            , modifier = Blank (gid ())
-            }
+newHandlerSpec : () -> HandlerSpec
+newHandlerSpec _ = { name = Blank (gid ())
+                   , module_ = Filled (gid ()) "HTTP"
+                   , modifier = Blank (gid ())
+                   }
 
 createFunction : Model -> FnName -> Bool -> Maybe Expr
 createFunction m name hasImplicitParam =
@@ -121,7 +121,7 @@ submit m cursor action value =
                                  (Variable (gid ()) (String.dropRight 1 value))
                                  (Blank (gid ()))
             ast = threadIt access
-            handler = { ast = ast, spec = emptyHS () }
+            handler = { ast = ast, spec = newHandlerSpec () }
         in wrap <| SetHandler id pos handler
 
       -- varnames
@@ -129,7 +129,7 @@ submit m cursor action value =
       then
         let var = Variable (gid ()) value
             ast = threadIt var
-            handler = { ast = ast, spec = emptyHS () }
+            handler = { ast = ast, spec = newHandlerSpec () }
         in wrap <| SetHandler id pos handler
 
       -- start new AST
@@ -138,7 +138,7 @@ submit m cursor action value =
           Nothing -> NoChange
           Just v ->
             let ast = threadIt v
-                handler = { ast = ast, spec = emptyHS () }
+                handler = { ast = ast, spec = newHandlerSpec () }
             in RPC ([SetHandler id pos handler], FocusNext id Nothing)
 
     Filling tlid p ->
