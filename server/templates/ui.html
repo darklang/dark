@@ -23,7 +23,7 @@
 
     <script type="text/javascript">
       function stopKeys(event) {
-        if (event.keyCode == 9) { // Tab
+        if (event.keyCode == 9 || event.keyCode == 32) { // Tab + Space
           event.preventDefault();
         }
 

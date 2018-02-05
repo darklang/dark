@@ -18,3 +18,4 @@
 /tags
 /server/*/.merlin
 /integration-tests/screenshots/*
+/server/requests/*.sexp

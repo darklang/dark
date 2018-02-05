@@ -413,6 +413,15 @@ update_ msg m =
                   in Entry.submit m cursor Entry.StartThread name
             else
               case event.keyCode of
+                Key.Spacebar ->
+                  if AC.isStringEntry m.complete
+                  then
+                    -- do the default since we prevented it in ui.html
+                    AutocompleteMod <| ACAppendQuery " "
+                  else
+                    let name = AC.getValue m.complete
+                    in Entry.submit m cursor Entry.ContinueThread name
+
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
                   then AutocompleteMod (ACSetQuery m.complete.value)
