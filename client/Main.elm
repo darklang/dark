@@ -377,21 +377,27 @@ update_ msg m =
                 then
                   case p of
                     Nothing -> NoChange
-                    Just i -> Clipboard.copy m tlid i
+                    Just i ->
+                      let tl = TL.getTL m tlid in
+                      Clipboard.copy m tl i
                 else NoChange
               Key.V ->
                 if event.ctrlKey
                 then
                   case p of
                     Nothing -> NoChange
-                    Just i -> Clipboard.paste m tlid i
+                    Just i ->
+                      let tl = TL.getTL m tlid in
+                      Clipboard.paste m tl i
                 else NoChange
               Key.X ->
                 if event.ctrlKey
                 then
                   case p of
                     Nothing -> NoChange
-                    Just i -> Clipboard.cut m tlid i
+                    Just i ->
+                      let tl = TL.getTL m tlid in
+                      Clipboard.cut m tl i
                 else NoChange
               _ -> NoChange
 
@@ -401,6 +407,12 @@ update_ msg m =
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
+                Key.V ->
+                  case cursor of
+                    Creating _ -> NoChange
+                    Filling tlid p ->
+                      let tl = TL.getTL m tlid in
+                      Clipboard.paste m tl p
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
                   then Entry.submit m cursor Entry.ContinueThread m.complete.value
