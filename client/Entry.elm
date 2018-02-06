@@ -214,27 +214,40 @@ submit m cursor action value =
       else
       let id = P.idOf p
           maybeH = TL.asHandler tl
-          db = TL.asDB tl in
+          db = TL.asDB tl
+          validate pattern name success =
+            if Util.rematch pattern value
+            then success
+            else Error (name ++ " must match /" ++ pattern ++ "/")
+      in
       case P.typeOf p of
         DBColType ->
-          if (Util.rematch "[a-zA-Z0-9]+" value)
-          then wrap <| SetDBColType tlid id value
-          else NoChange
+          validate "[A-Z]\\w+" "DB type"
+            <| wrap <| SetDBColType tlid id value
         DBColName ->
-          wrap <| SetDBColName tlid id value
+          validate "\\w+" "DB name"
+            <| wrap <| SetDBColName tlid id value
         VarBind ->
-          let h = deMaybe "maybeH - varbind" maybeH
-              replacement = AST.replaceVarBind p value h.ast in
-          wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+          validate "[a-zA-Z][a-zA-Z0-9]+" "variable name"
+            <|
+            let h = deMaybe "maybeH - varbind" maybeH
+                replacement = AST.replaceVarBind p value h.ast in
+            wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         HTTPRoute ->
+          validate "/([-a-zA-Z0-9@:%_+.~#?&/=]*)" "http route"
+            <|
           let h = deMaybe "maybeH - httproute" maybeH
               replacement = TL.replaceHTTPRouteBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         HTTPVerb ->
+          validate "[A-Z]+" "HTTP Verb"
+            <|
           let h = deMaybe "maybeH - httpverb" maybeH
               replacement = TL.replaceHTTPVerbBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
+          validate "[a-z][a-zA-Z0-9]+" "fieldname"
+            <|
           let h = deMaybe "maybeH - field" maybeH
               parent = AST.parentOf id h.ast
               newAst =
