@@ -8,14 +8,17 @@ import Pointer
 import AST
 import Entry
 
-copy : Model -> Toplevel -> Pointer -> Modification
-copy m tl p =
-  let pid = Pointer.idOf p
-  in
-    case Toplevel.asHandler tl of
-      Nothing -> NoChange
-      Just h ->
-        CopyToClipboard (AST.subData pid h.ast)
+copy : Model -> Toplevel -> (Maybe Pointer) -> Modification
+copy m tl mp =
+  case Toplevel.asHandler tl of
+    Nothing -> NoChange
+    Just h ->
+      case mp of
+        Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
+        Just p ->
+          let pid = Pointer.idOf p
+          in
+              CopyToClipboard (AST.subData pid h.ast)
 
 cut : Model -> Toplevel -> Pointer -> Modification
 cut m tl p =
