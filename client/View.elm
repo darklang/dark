@@ -248,10 +248,34 @@ viewHandler m tl h =
                 , html4blank = html4blank
                 , liveValues = lvs }
                 h.ast]
+
+      externalLink =
+        let verb =
+              case h.spec.modifier of
+                Filled _ s -> s
+                _ -> ""
+            name =
+              case h.spec.name of
+                Filled _ s -> Just s
+                _ -> Nothing
+        in
+        if verb == "GET"
+        then
+          case name of
+            Just n ->
+              [Html.a [ Attrs.class "external"
+                      , Attrs.href n
+                      , Attrs.target "_blank"
+                      ]
+                      [Html.i [Attrs.class "fa fa-external-link"] []]]
+            Nothing ->
+              []
+        else
+          []
       header =
         Html.div
           [Attrs.class "header"]
-          [ Html.div
+          (externalLink ++ [ Html.div
             [ Attrs.class "module"]
             [ Html.text "HTTP" ]
           , Html.div
@@ -260,7 +284,8 @@ viewHandler m tl h =
           , Html.div
             [Attrs.class "modifier"]
             [ viewBlankOrText m tl HTTPVerb h.spec.modifier Nothing ]
-          ]
+          ])
+
   in
       [ast, header]
 
