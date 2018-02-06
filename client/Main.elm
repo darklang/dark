@@ -382,10 +382,13 @@ update_ msg m =
               Key.V ->
                 if event.ctrlKey
                 then
+                  let tl = TL.getTL m tlid in
                   case p of
-                    Nothing -> NoChange
+                    Nothing ->
+                      case TL.rootOf tl of
+                        Just i -> Clipboard.paste m tl i
+                        Nothing -> NoChange
                     Just i ->
-                      let tl = TL.getTL m tlid in
                       Clipboard.paste m tl i
                 else NoChange
               Key.X ->
