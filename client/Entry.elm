@@ -217,7 +217,9 @@ submit m cursor action value =
           db = TL.asDB tl in
       case P.typeOf p of
         DBColType ->
-          wrap <| SetDBColType tlid id value
+          if (Util.rematch "[a-zA-Z0-9]+" value)
+          then wrap <| SetDBColType tlid id value
+          else NoChange
         DBColName ->
           wrap <| SetDBColName tlid id value
         VarBind ->

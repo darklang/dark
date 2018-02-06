@@ -127,11 +127,19 @@ viewBlankOrText m tl pt b hover =
       thisText = case b of
                    Blank _ -> Html.text holeText
                    Filled _ text -> Html.text text
-
+      placeholder =
+        case pt of
+          VarBind -> "varname"
+          HTTPRoute -> "route"
+          HTTPVerb -> "verb"
+          Expr -> ""
+          Field -> "fieldname"
+          DBColName -> "db field name"
+          DBColType -> "db type"
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
                  if pointer == p
-                 then entryHtml m
+                 then entryHtml placeholder m
                  else thisText
                _ -> thisText
       classes = case b of
@@ -261,7 +269,7 @@ viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   case m.state of
     Entering (Creating pos) ->
-      [placeHtml m pos (entryHtml m)]
+      [placeHtml m pos (entryHtml "" m)]
     _ ->
       []
 
@@ -336,8 +344,8 @@ stringEntryHtml m =
   in wrapper
 
 
-normalEntryHtml : Model -> Html.Html Msg
-normalEntryHtml m =
+normalEntryHtml : String -> Model -> Html.Html Msg
+normalEntryHtml placeholder m =
   let autocompleteList =
         (List.indexedMap
            (\i item ->
@@ -371,6 +379,7 @@ normalEntryHtml m =
                                , Events.onInput EntryInputMsg
                                , Attrs.style [("text-indent", w)]
                                , Attrs.value search
+                               , Attrs.placeholder placeholder
                                , Attrs.spellcheck False
                                , Attrs.autocomplete False
                                ] []
@@ -393,11 +402,11 @@ normalEntryHtml m =
                 [ viewForm ]
   in wrapper
 
-entryHtml : Model -> Html.Html Msg
-entryHtml m =
+entryHtml : String -> Model -> Html.Html Msg
+entryHtml placeholder m =
   if Autocomplete.isStringEntry m.complete
   then stringEntryHtml m
-  else normalEntryHtml m
+  else normalEntryHtml placeholder m
 
 type alias Collapsed = { name: Maybe String
                        , prefix: List String
