@@ -139,12 +139,37 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
        call name argvals
 
      | If (id, cond, ifbody, elsebody) ->
-       (match (exe st cond) with
-        (* only false and 'null' are falsey *)
-        | DBool false | DNull -> exe st elsebody
-        | DIncomplete -> DIncomplete
-        | DError _ -> DIncomplete
-        | _ -> exe st ifbody)
+       (match ctx with
+        | Preview ->
+          (* In the case of a preview trace execution, we want the 'if' expression as
+           * a whole to evaluate to its correct value -- but we also want preview values
+           * for _all_ sides of the if *)
+          (match (exe st cond) with
+           | DBool false | DNull ->
+             (* execute the positive side just for the side-effect *)
+             let _ = exe st ifbody in
+             exe st elsebody
+           | DIncomplete ->
+             let _ = exe st ifbody in
+             let _ = exe st elsebody in
+             DIncomplete
+           | DError _ ->
+             let _ = exe st ifbody in
+             let _ = exe st elsebody in
+             DIncomplete
+           | _ ->
+             (* execute the negative side just for the side-effect *)
+             let _ = exe st elsebody in
+             exe st ifbody)
+        | Real ->
+          (* In the case of a 'real' evaluation, we shouldn't do unneccessary work and
+           * as such should follow the proper evaluation semantics *)
+          (match (exe st cond) with
+           (* only false and 'null' are falsey *)
+           | DBool false | DNull -> exe st elsebody
+           | DIncomplete -> DIncomplete
+           | DError _ -> DIncomplete
+           | _ -> exe st ifbody))
 
      | Lambda (id, vars, body) ->
        (* TODO: this will errror if the number of args and vars arent equal *)
