@@ -354,18 +354,9 @@ normalEntryHtml m =
                 [name, types])
            (List.concat m.complete.completions))
 
-      autocompletions = case (m.state, m.complete.index) of
-                          -- (Entering (Filling _ (ParamHole _ _ _)), -1) ->
-                          --   [ Html.li
-                          --     [ Attrs.class "autocomplete-item greyed" ]
-                          --     [ Html.text "Press down to autocomplete…" ]
-                          --   ]
-                          _ -> autocompleteList
-
-
       autocomplete = Html.ul
                      [ Attrs.id "autocomplete-holder" ]
-                     autocompletions
+                     autocompleteList
 
 
       -- two overlapping input boxes, one to provide suggestions, one
