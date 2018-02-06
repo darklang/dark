@@ -409,7 +409,7 @@ update_ msg m =
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.V ->
                   case cursor of
-                    Creating _ -> NoChange
+                    Creating pos -> Clipboard.newFromClipboard m pos
                     Filling tlid p ->
                       let tl = TL.getTL m tlid in
                       Clipboard.paste m tl p
