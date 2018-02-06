@@ -33,6 +33,7 @@ empty = init []
 init : List Function -> Autocomplete
 init functions = { functions = functions
                  , varnames = []
+                 , extras = []
                  , completions = [List.map ACFunction functions]
                  , index = -1
                  , showFunctions = True
@@ -127,6 +128,7 @@ asName aci =
     ACFunction {name} -> name
     ACField name -> name
     ACVariable name -> name
+    ACExtra name -> name
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -136,8 +138,9 @@ asTypeString item =
                     |> List.map RT.tipe2str
                     |> String.join ", "
                     |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
-    ACField _ -> ""
-    ACVariable _ -> ""
+    ACField _ -> "field"
+    ACVariable _ -> "variable"
+    ACExtra _ -> ""
 
 asString : AutocompleteItem -> String
 asString aci =
@@ -214,9 +217,9 @@ regenerate a =
       --                 _ -> []
 
       -- functions
-      functions = if a.showFunctions then a.functions else []
-      completeList =
-        functions
+      funcList = if a.showFunctions then a.functions else []
+      functions =
+        funcList
         |> List.filter
            (\{returnTipe} ->
               case a.tipe of
@@ -228,8 +231,12 @@ regenerate a =
                Just {tipe} -> Nothing /= findParamByType fn tipe
                Nothing -> True)
         |> List.map ACFunction
-        |> List.append fields
-        |> List.append (List.map ACVariable a.varnames)
+
+      completeList =
+        List.map ACExtra a.extras
+        ++ functions
+        ++ fields
+        ++ List.map ACVariable a.varnames
 
       stringify i = (if 1 >= String.length lcq
                      then asName i
@@ -280,6 +287,10 @@ showFunctions : Bool -> Autocomplete -> Autocomplete
 showFunctions b a =
   { a | showFunctions = b }
 
+setExtras : List String -> Autocomplete -> Autocomplete
+setExtras es a =
+  { a | extras = es }
+
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
   (case mod of
@@ -292,6 +303,7 @@ update mod a =
      ACFilterByLiveValue lv -> forLiveValue lv a
      ACSetAvailableVarnames vs -> setVarnames vs a
      ACShowFunctions bool -> showFunctions bool a
+     ACSetExtras extras -> setExtras extras a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
   )
   |> regenerate

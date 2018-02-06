@@ -219,10 +219,33 @@ updateMod origm mod (m, cmd) =
                   |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
                                            then Nothing
                                            else Just lv)
+            extras =
+              case entry of
+                Creating _ -> []
+                Filling tlid p ->
+                  case P.typeOf p of
+                    HTTPVerb ->
+                      [ "GET"
+                      , "POST"
+                      , "PUT"
+                      , "DELETE"
+                      , "PATCH"
+                      ]
+                    DBColType ->
+                      [ "String"
+                      , "Int"
+                      , "Boolean"
+                      , "Float"
+                      , "Title"
+                      , "Url"
+                      , "Date"
+                      ]
+                    _ -> []
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
                                         , ACShowFunctions showFunctions
+                                        , ACSetExtras extras
                                         , ACFilterByLiveValue lv
                                         ]
         in
