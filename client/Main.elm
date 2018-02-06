@@ -186,7 +186,8 @@ updateMod origm mod (m, cmd) =
                     Expr -> True
                     Field -> False
                     VarBind -> False
-                    Spec -> False
+                    HTTPRoute -> False
+                    HTTPVerb -> False
                     DBColName -> False
                     DBColType -> False
             lv =

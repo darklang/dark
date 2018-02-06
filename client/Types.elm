@@ -213,7 +213,8 @@ type alias AST = Expr
 -- so we're not using IDs in important APIs
 -----------------------------
 type PointerType = VarBind
-                 | Spec
+                 | HTTPRoute
+                 | HTTPVerb
                  | Expr
                  | Field
                  | DBColName
@@ -223,7 +224,8 @@ type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
 
 type PointerData = PVarBind ID VarBind
-                 | PSpec ID (BlankOr String)
+                 | PHTTPRoute ID (BlankOr String)
+                 | PHTTPVerb ID (BlankOr String)
                  | PExpr ID Expr
                  | PField ID Field
                  | PDBColName ID (BlankOr String)
@@ -251,8 +253,7 @@ blankToMaybe b =
 -----------------------------
 -- Top-levels
 -----------------------------
-type alias HandlerSpec = { module_ : BlankOr String
-                         , name : BlankOr String
+type alias HandlerSpec = { name : BlankOr String
                          , modifier : BlankOr String
                          }
 

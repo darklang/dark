@@ -245,13 +245,13 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "module"]
-            [ viewBlankOrText m tl Spec h.spec.module_ Nothing ]
+            [ Html.text "HTTP" ]
           , Html.div
             [ Attrs.class "name"]
-            [ viewBlankOrText m tl Spec h.spec.name Nothing ]
+            [ viewBlankOrText m tl HTTPRoute h.spec.name Nothing ]
           , Html.div
             [Attrs.class "modifier"]
-            [ viewBlankOrText m tl Spec h.spec.modifier Nothing ]
+            [ viewBlankOrText m tl HTTPVerb h.spec.modifier Nothing ]
           ]
   in
       [ast, header]

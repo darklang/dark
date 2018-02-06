@@ -87,9 +87,13 @@ delete m tlid cur =
       let h = maybeH ()
           (p, replacement) = AST.deleteExpr cur h.ast
       in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
-    Spec ->
+    HTTPVerb ->
       let h = maybeH ()
-          (p, replacement) = TL.deleteSpecBlank cur h.spec
+          (p, replacement) = TL.deleteHTTPVerbBlank cur h.spec
+      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+    HTTPRoute ->
+      let h = maybeH ()
+          (p, replacement) = TL.deleteHTTPRouteBlank cur h.spec
       in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
     Field ->
       let h = maybeH ()
@@ -114,7 +118,7 @@ enter m tlid cur =
             Many [ Enter (Filling tlid cur)
                  , AutocompleteMod (ACSetQuery (AST.toContent se))
                  ]
-          else if tipe == Spec
+          else if tipe == HTTPVerb || tipe == HTTPRoute
           then
             let content =
                 TL.getSpec h cur

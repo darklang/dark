@@ -533,7 +533,8 @@ isLeaf id ast =
             FnCall _ _ params -> -- Constant, or piped-in function
               (List.length params) == 0
             _ -> False
-        PSpec _ _ -> False
+        PHTTPVerb _ _ -> False
+        PHTTPRoute _ _ -> False
         PDBColName _ _ -> False
         PDBColType _ _ -> False
 
@@ -547,7 +548,8 @@ toContent pd =
         Value _ s -> s
         Variable _ v -> v
         _ -> ""
-    PSpec _ _ -> ""
+    PHTTPVerb _ _ -> ""
+    PHTTPRoute _ _ -> ""
     PDBColName _ _ -> ""
     PDBColType _ _ -> ""
 

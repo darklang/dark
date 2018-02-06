@@ -41,7 +41,8 @@ pdToP : PointerData -> Pointer
 pdToP pd =
   case pd of
     PVarBind id _ -> PFilled VarBind id
-    PSpec id _ -> PFilled Spec id
+    PHTTPVerb id _ -> PFilled HTTPVerb id
+    PHTTPRoute id _ -> PFilled HTTPRoute id
     PExpr id _ -> PFilled Expr id
     PField id _ -> PFilled Field id
     PDBColName id _ -> PFilled DBColName id
@@ -75,7 +76,8 @@ ownerOf : Pointer -> PointerOwner
 ownerOf p =
   case (typeOf p) of
     VarBind -> POAst
-    Spec -> POSpec
+    HTTPRoute -> POSpec
+    HTTPVerb -> POSpec
     Expr -> POAst
     Field -> POAst
     DBColName -> PODb
@@ -85,7 +87,8 @@ pdOwnerOf : PointerData -> PointerOwner
 pdOwnerOf pd =
   case pd of
     PVarBind _ _ -> POAst
-    PSpec _ _ -> POSpec
+    PHTTPRoute _ _ -> POSpec
+    PHTTPVerb _ _ -> POSpec
     PExpr _  _ -> POAst
     PField _ _ -> POAst
     PDBColName _ _ -> PODb

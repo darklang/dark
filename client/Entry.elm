@@ -41,7 +41,6 @@ tlid unit = TLID (Util.random unit)
 
 newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { name = Blank (gid ())
-                   , module_ = Filled (gid ()) "HTTP"
                    , modifier = Blank (gid ())
                    }
 
@@ -225,9 +224,13 @@ submit m cursor action value =
           let h = deMaybe "maybeH - varbind" maybeH
               replacement = AST.replaceVarBind p value h.ast in
           wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-        Spec ->
-          let h = deMaybe "maybeH - spec" maybeH
-              replacement = TL.replaceSpecBlank id value h.spec in
+        HTTPRoute ->
+          let h = deMaybe "maybeH - httproute" maybeH
+              replacement = TL.replaceHTTPRouteBlank id value h.spec in
+          wrap <| SetHandler tlid tl.pos { h | spec = replacement }
+        HTTPVerb ->
+          let h = deMaybe "maybeH - httpverb" maybeH
+              replacement = TL.replaceHTTPVerbBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           let h = deMaybe "maybeH - field" maybeH

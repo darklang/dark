@@ -27,41 +27,50 @@ isThread h p =
 
 specBlanks : Handler -> List Pointer
 specBlanks h =
-  let e2l a =
+  let e2l a tipe =
         case a of
-          Blank hid -> [PBlank Spec hid]
+          Blank hid -> [PBlank tipe hid]
           _ -> []
-  in e2l h.spec.module_ ++ e2l h.spec.name ++ e2l h.spec.modifier
+  in e2l h.spec.name HTTPRoute ++ e2l h.spec.modifier HTTPVerb
 
 getSpec : Handler -> Pointer -> Maybe (BlankOr String)
 getSpec h p =
-  [h.spec.module_, h.spec.name, h.spec.modifier]
+  [h.spec.name, h.spec.modifier]
   |> List.filter (\spec -> blankOrID spec == P.idOf p)
         -- TODO: opportunity to check pointer types
   |> List.head
 
-replaceSpecBlank : ID -> String -> HandlerSpec -> HandlerSpec
-replaceSpecBlank id value hs =
-  let rh a = if blankOrID a == id
-             then Filled (blankOrID a) value
-             else a
-  in { name = rh hs.name
-     , module_ = rh hs.module_
-     , modifier = rh hs.modifier
-     }
+replaceHTTPVerbBlank : ID -> String -> HandlerSpec -> HandlerSpec
+replaceHTTPVerbBlank id value hs =
+  { hs | modifier = if blankOrID hs.modifier == id
+                    then Filled (blankOrID hs.modifier) value
+                    else hs.modifier
+  }
+replaceHTTPRouteBlank : ID -> String -> HandlerSpec -> HandlerSpec
+replaceHTTPRouteBlank id value hs =
+  { hs | name = if blankOrID hs.name == id
+                then Filled (blankOrID hs.name) value
+                else hs.name
+  }
 
-deleteSpecBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
-deleteSpecBlank p hs =
+
+deleteHTTPRouteBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
+deleteHTTPRouteBlank p hs =
   let newID = gid ()
-      rh a = if blankOrID a == (P.idOf p)
-             then Blank newID
-             else a
-  in (PBlank Spec newID
-      , { name = rh hs.name
-        , module_ = rh hs.module_
-        , modifier = rh hs.modifier
+  in (PBlank HTTPRoute newID
+      , { hs | name = if blankOrID hs.name == (P.idOf p)
+                      then Blank newID
+                      else hs.name
         })
 
+deleteHTTPVerbBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
+deleteHTTPVerbBlank p hs =
+  let newID = gid ()
+  in (PBlank HTTPVerb newID
+      , { hs | name = if blankOrID hs.name == (P.idOf p)
+                      then Blank newID
+                      else hs.name
+        })
 
 
 allBlanks : Toplevel -> List Pointer
@@ -74,8 +83,8 @@ allBlanks tl =
 
 specs : Handler -> List Pointer
 specs h =
-  [h.spec.module_, h.spec.name, h.spec.modifier]
-  |> List.map (P.blankTo Spec)
+  [ P.blankTo HTTPRoute h.spec.name
+  , P.blankTo HTTPVerb h.spec.modifier]
 
 siblings : Toplevel -> Pointer -> List Pointer
 siblings tl p =
@@ -250,19 +259,18 @@ clonePointerData pd =
       case pd of
         PVarBind id vb ->
           let nid = gid ()
-          in
-              PVarBind nid (replaceBlankOr nid vb)
-        PSpec id sp ->
+          in PVarBind nid (replaceBlankOr nid vb)
+        PHTTPVerb id sp ->
           let nid = gid ()
-          in
-              PSpec nid (replaceBlankOr nid sp)
+          in PHTTPVerb nid (replaceBlankOr nid sp)
+        PHTTPRoute id sp ->
+          let nid = gid ()
+          in PHTTPRoute nid (replaceBlankOr nid sp)
         PExpr id expr ->
           let (nid, ast) = AST.clone expr
-          in
-              PExpr nid ast
+          in PExpr nid ast
         PField id f ->
           let nid = gid ()
-          in
-              PField nid (replaceBlankOr nid f)
+          in PField nid (replaceBlankOr nid f)
         PDBColName id cn -> pd
         PDBColType id ct -> pd
