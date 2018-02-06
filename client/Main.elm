@@ -180,16 +180,7 @@ updateMod origm mod (m, cmd) =
             showFunctions =
               case entry of
                 Creating _ -> True
-                Filling tlid p ->
-                  let tl = TL.getTL m tlid in
-                  case P.typeOf p of
-                    Expr -> True
-                    Field -> False
-                    VarBind -> False
-                    HTTPRoute -> False
-                    HTTPVerb -> False
-                    DBColName -> False
-                    DBColType -> False
+                Filling tlid p -> P.typeOf p == Expr
             lv =
               case entry of
                 Creating _ -> Nothing
@@ -199,27 +190,25 @@ updateMod origm mod (m, cmd) =
                     case P.typeOf p of
                       Expr ->
                         let handler = deMaybe "handler - expr" <| TL.asHandler tl
-                            parent = AST.parentOf_ (P.idOf p) handler.ast
-                        in
-                            case parent of
-                              Just (Thread tid exprs) ->
-                                let ids  = List.map (AST.toP) exprs
-                                    selfi = LE.elemIndex p ids
-                                    prev = Maybe.map (\x -> x - 1) selfi
-                                in
-                                    Maybe.andThen (\i -> LE.getAt i ids) prev
-                              _ ->
-                                Nothing
+                            parent = AST.parentOf_ (P.idOf p) handler.ast in
+                        case parent of
+                          Just (Thread _ exprs) ->
+                            let ids = List.map AST.toP exprs in
+                            ids
+                            |> LE.elemIndex p
+                            |> Maybe.map (\x -> x - 1)
+                            |> Maybe.andThen (\i -> LE.getAt i ids)
+                          _ ->
+                            Nothing
 
                       Field ->
                         let handler = deMaybe "handler - field" <| TL.asHandler tl
-                            parent = AST.parentOf (P.idOf p) handler.ast
-                        in
-                            case parent of
-                              FieldAccess id obj _ ->
-                                Just <| AST.toP obj
-                              _ ->
-                                Nothing
+                            parent = AST.parentOf (P.idOf p) handler.ast in
+                        case parent of
+                          FieldAccess id obj _ ->
+                            Just <| AST.toP obj
+                          _ ->
+                            Nothing
                       _ ->
                         Nothing
                   in
