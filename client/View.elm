@@ -136,10 +136,11 @@ viewBlankOrText m tl pt b hover =
           Field -> "fieldname"
           DBColName -> "db field name"
           DBColType -> "db type"
+      allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
                  if pointer == p
-                 then entryHtml placeholder m
+                 then entryHtml allowStringEntry placeholder m
                  else thisText
                _ -> thisText
       classes = case b of
@@ -294,7 +295,7 @@ viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   case m.state of
     Entering (Creating pos) ->
-      [placeHtml m pos (entryHtml "" m)]
+      [placeHtml m pos (entryHtml True "" m)]
     _ ->
       []
 
@@ -427,9 +428,9 @@ normalEntryHtml placeholder m =
                 [ viewForm ]
   in wrapper
 
-entryHtml : String -> Model -> Html.Html Msg
-entryHtml placeholder m =
-  if Autocomplete.isStringEntry m.complete
+entryHtml : Bool -> String -> Model -> Html.Html Msg
+entryHtml allowStringEntry placeholder m =
+  if allowStringEntry && Autocomplete.isStringEntry m.complete
   then stringEntryHtml m
   else normalEntryHtml placeholder m
 
