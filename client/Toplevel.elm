@@ -67,9 +67,9 @@ deleteHTTPVerbBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
 deleteHTTPVerbBlank p hs =
   let newID = gid ()
   in (PBlank HTTPVerb newID
-      , { hs | name = if blankOrID hs.name == (P.idOf p)
-                      then Blank newID
-                      else hs.name
+      , { hs | modifier = if blankOrID hs.modifier == (P.idOf p)
+                          then Blank newID
+                          else hs.modifier
         })
 
 
