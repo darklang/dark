@@ -21,7 +21,7 @@ import Runtime as RT
 height : Int -> Int
 height i = if i < 5
            then 0
-           else 16 * (i - 5)
+           else 14 * (i - 5)
 
 focusItem : Int -> Cmd Msg
 focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
