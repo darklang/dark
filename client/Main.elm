@@ -545,9 +545,10 @@ update_ msg m =
     ------------------------
 
     -- The interaction between the different mouse states is a little
-    -- tricky. RecordClick needs to be a global handler, and so it would
-    -- typicaly fire at the same time as NodeClick (which is set on a
-    -- Node). We use stopPropagating the prevent them from interacting.
+    -- tricky. We use stopPropagating a lot of ensure the interactions
+    -- work, but also combine multiple interactions into single
+    -- handlers to make it easier to choose between the desired
+    -- interactions (esp ToplevelClickUp)
 
     (GlobalClick event, _) ->
       if event.button == Defaults.leftButton
@@ -555,6 +556,17 @@ update_ msg m =
                 , Enter (Creating (Viewport.toAbsolute m event.pos))]
       else NoChange
 
+
+    (AutocompleteClick value, state) ->
+      case unwrapState m.state of
+        Entering cursor ->
+          Entry.submit m cursor Entry.ContinueThread value
+        _ -> NoChange
+
+
+    ------------------------
+    -- dragging
+    ------------------------
     (ToplevelClickDown tl event, _) ->
       if event.button == Defaults.leftButton
       then Drag tl.id event.pos False m.state
@@ -570,10 +582,7 @@ update_ msg m =
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    (SelectClick tlid p _, _) ->
-      Select tlid (Just p)
-
-    (ToplevelClickUp tlid event, _) ->
+    (ToplevelClickUp tlid mPointer event, _) ->
       if event.button == Defaults.leftButton
       then
         case m.state of
@@ -587,8 +596,11 @@ update_ msg m =
             then Many
                   [ SetState origState
                   , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            else Select tlid Nothing
-          _ -> Debug.crash "it can never not be dragging"
+            -- this is where we select toplevels
+            else Select tlid mPointer
+          _ ->
+            -- if we stopPropagative the TopleveClickDown
+            NoChange
       else NoChange
 
 
@@ -632,7 +644,7 @@ update_ msg m =
                         else
                           Deselect
                       Nothing ->
-                        Deselect
+                        NoChange
                   Entering (Filling tlid p) ->
                     let tl = TL.getTL m2 tlid in
                     if TL.isValidPointer tl p then

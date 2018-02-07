@@ -33,7 +33,10 @@ view m =
   let (w, h) = Util.windowSize ()
       grid = Html.div
                [ Attrs.id "grid"
-               , Events.on "mouseup" (decodeClickEvent GlobalClick)
+               , Events.onWithOptions
+                   "mouseup"
+                   { stopPropagation = False, preventDefault = True}
+                   (decodeClickEvent GlobalClick)
                ]
                [ viewError m.error
                , Svg.svg
@@ -180,11 +183,14 @@ html4blank selected classes clickable hover content =
   let events = case clickable of
                  Nothing -> []
                  Just (tlid, pointer) ->
-                   [Events.onWithOptions "click"
+                   -- click so that dragging still works
+                   [Events.onWithOptions "mouseup"
+                     -- only the leafiest node should be selected, so
+                     -- don't let this propagate to ancestors
                      { stopPropagation = True
                      , preventDefault = False
                      }
-                     (decodeClickEvent (SelectClick tlid pointer))]
+                     (decodeClickEvent (ToplevelClickUp tlid (Just pointer)))]
       (valClass, title) =
         case hover of
           Nothing -> ([], [])
@@ -210,11 +216,14 @@ viewTL m tl =
             viewHandler m tl h
           TLDB db ->
             viewDB m tl db
-      events = [ Events.on "mousedown" (decodeClickEvent (ToplevelClickDown tl))
+      events = [ Events.onWithOptions
+                   "mousedown"
+                   { stopPropagation = True, preventDefault = False }
+                   (decodeClickEvent (ToplevelClickDown tl))
                , Events.onWithOptions
                    "mouseup"
                    { stopPropagation = True, preventDefault = False }
-                   (decodeClickEvent (ToplevelClickUp tl.id))
+                   (decodeClickEvent (ToplevelClickUp tl.id Nothing))
                ]
 
       class = case unwrapState m.state of
@@ -401,15 +410,19 @@ normalEntryHtml placeholder m =
            (\i item ->
               let highlighted = m.complete.index == i
                   hlClass = if highlighted then " highlighted" else ""
-                  class = "autocomplete-item" ++ hlClass
-                  str = Autocomplete.asName item
-                  name = Html.span [] [Html.text str]
-                  types = Html.span
+                  name = Autocomplete.asName item
+              in Html.li
+                [ Attrs.class <| "autocomplete-item" ++ hlClass
+                , Events.onWithOptions
+                    "mouseup"
+                    { stopPropagation = True, preventDefault = False }
+                    (decodeClickEvent (\_ -> AutocompleteClick name))
+                ]
+                [ Html.text name
+                , Html.span
                     [Attrs.class "types"]
                     [Html.text <| Autocomplete.asTypeString item ]
-              in Html.li
-                [ Attrs.class class ]
-                [name, types])
+                ])
            (List.concat m.complete.completions))
 
       autocomplete = Html.ul

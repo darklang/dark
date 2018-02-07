@@ -98,14 +98,14 @@ type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
     | ToplevelClickDown Toplevel MouseEvent
-    -- we have the actual node when NodeClickUp is created, but by the time we
-    -- use it the proper node will be changed
-    | ToplevelClickUp TLID MouseEvent
+    -- we have the actual node when ToplevelClickUp is created,
+    -- but by the time we use it the proper node will be changed
+    | ToplevelClickUp TLID (Maybe Pointer) MouseEvent
     | DragToplevel TLID Mouse.Position
-    | SelectClick TLID Pointer MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
+    | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallBack Focus Modification (List RPC) (Result Http.Error RPCResult)
