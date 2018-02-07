@@ -30,7 +30,7 @@ cut m tl p =
         let newClipboard = AST.subData pid h.ast
             (_, newAst) = AST.deleteExpr p h.ast
         in
-            Many [ CopyToClipboard (AST.subData pid h.ast)
+            Many [ CopyToClipboard newClipboard
                 , RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
                         , FocusNext tl.id Nothing )
                 ]
