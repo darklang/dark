@@ -143,12 +143,36 @@ updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
   let _ = if m.integrationTestState /= NoIntegrationTest
           then Debug.log "mod update" mod
-          else mod in
+          else mod
+      closeThreads focus =
+        -- close open threads
+        case unwrapState m.state of
+          Selecting _ _ ->
+            Nothing
+          Entering cursor ->
+            case cursor of
+              Creating _ ->
+                Nothing
+              Filling tlid p ->
+                let tl = TL.getTL m tlid in
+                case tl.data of
+                  TLHandler h ->
+                    let replacement = AST.closeThread h.ast in
+                    if replacement == h.ast
+                    then Nothing
+                    else
+                      let tl = TL.getTL m tlid
+                          newH = { h | ast = replacement }
+                          calls = [ SetHandler tl.id tl.pos newH]
+                      in Just <| rpc m focus calls
+                  _ -> Nothing
+          _ -> Nothing
+  in
   let (newm, newcmd) =
     case mod of
       Error e -> { m | error = Just e} ! []
       ClearError -> { m | error = Nothing} ! []
-      RPC (calls, id) -> m ! [rpc m id calls]
+      RPC (calls, focus) -> m ! [rpc m focus calls]
       NoChange -> m ! []
       TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
@@ -169,8 +193,18 @@ updateMod origm mod (m, cmd) =
       SetState state ->
         -- DOES NOT RECALCULATE VIEW
         { m | state = state } ! []
+
       Select tlid p ->
-        { m | state = Selecting tlid p } ! []
+        let focus = case p of
+                      Just p -> FocusExact tlid p
+                      Nothing -> Refocus tlid in
+        case closeThreads focus of
+          Nothing ->
+            { m | state = Selecting tlid p } ! []
+          Just rpcCall ->
+            m ! [rpcCall]
+
+
       Enter entry ->
         let varnames =
               case entry of
@@ -633,6 +667,8 @@ update_ msg m =
                 case p of
                   PFilled _ _ -> Select tlid (Just p)
                   PBlank _ _ -> Enter (Filling tlid p)
+              Refocus tlid ->
+                Select tlid Nothing
               FocusSame ->
                 case unwrapState m.state of
                   Selecting tlid mp ->
@@ -653,7 +689,6 @@ update_ msg m =
                       Deselect
                   _ -> NoChange
               FocusNothing -> Deselect
-              _ -> NoChange
       in Many [ SetToplevels toplevels analysis globals
               , AutocompleteMod ACReset
               , ClearError
