@@ -97,7 +97,7 @@ viewError mMsg = case mMsg of
     Just msg ->
       Html.div [Attrs.id "darkErrors"] [Html.text msg]
     Nothing ->
-      Html.div [Attrs.id "darkErrors"] [Html.text "Dark"]
+      Html.text "Dark"
 
 viewCanvas : Model -> List (Svg.Svg Msg)
 viewCanvas m =
