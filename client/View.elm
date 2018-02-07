@@ -397,8 +397,7 @@ stringEntryHtml m =
       classes = "string-entry"
 
       wrapper = Html.div
-                [ Attrs.class classes
-                , Attrs.width 100]
+                [ Attrs.class classes ]
                 [ viewForm ]
   in wrapper
 
@@ -435,9 +434,16 @@ normalEntryHtml placeholder m =
       (indent, suggestion, search) =
         Autocomplete.compareSuggestionWithActual m.complete m.complete.value
 
-      indentHtml = "<span style=\"font-family:sans-serif; font-size:14px;\">" ++ indent ++ "</span>"
-      (width, _) = Util.htmlSize indentHtml
-      w = toString width ++ "px"
+      -- indentHtml = "<span style=\"font-family:sans-serif; font-size:14px;\">" ++ indent ++ "</span>"
+      -- (width, _) = Util.htmlSize indentHtml
+      -- w = toString width ++ "px"
+      width str extra = str
+                      |> String.length
+                      |> (+) extra
+                      |> toString
+                      |> \s -> s ++ "ch"
+      w = width indent 0
+      searchWidth = Attrs.style [("width", width search 1)]
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
                                , Attrs.style [("text-indent", w)]
@@ -445,14 +451,18 @@ normalEntryHtml placeholder m =
                                , Attrs.placeholder placeholder
                                , Attrs.spellcheck False
                                , Attrs.autocomplete False
+                               , searchWidth
                                ] []
       suggestionInput = Html.input [ Attrs.id "suggestionBox"
                                    , Attrs.disabled True
                                    , Attrs.value suggestion
+                                   , searchWidth
                                    ] []
 
       input = Html.div
-              [Attrs.id "search-container"]
+              [ Attrs.id "search-container"
+              , searchWidth
+              ]
               [searchInput, suggestionInput]
 
       viewForm = Html.form
@@ -461,7 +471,7 @@ normalEntryHtml placeholder m =
 
       wrapper = Html.div
                 [ Attrs.class "entry"
-                , Attrs.width 100]
+                , searchWidth ]
                 [ viewForm ]
   in wrapper
 
