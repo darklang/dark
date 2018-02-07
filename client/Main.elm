@@ -316,9 +316,15 @@ update_ msg m =
         case state of
           Selecting tlid p ->
             case event.keyCode of
+              Key.Delete ->
+                case p of
+                  Nothing ->
+                    Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+                  Just i -> Selection.delete m tlid i
               Key.Backspace ->
                 case p of
-                  Nothing -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+                  Nothing ->
+                    Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
                   Just i -> Selection.delete m tlid i
               Key.Escape ->
                 case p of
