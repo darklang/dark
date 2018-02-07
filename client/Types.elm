@@ -89,6 +89,22 @@ unwrapState s =
     Dragging _ _ _ unwrap -> unwrap
     _ -> s
 
+tlidOf : State -> Maybe TLID
+tlidOf s =
+  case unwrapState s of
+    Selecting tlid _ ->
+      Just tlid
+    Entering cursor ->
+      case cursor of
+        Creating _ ->
+          Nothing
+        Filling tlid _ ->
+          Just tlid
+    Deselected -> Nothing
+    _ -> Debug.crash "can't have dragging"
+
+
+
 -----------------------------
 -- Msg
 -- main Elm Architecture bus type

@@ -103,70 +103,33 @@ update msg m =
             , lastMod = mods}
      , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
----------------------------------------------
--- TODO: put these into updatemod so it doesn't use out of date info
----------------------------------------------
-
--- cursor2mod : Model -> EntryCursor -> Modification
--- cursor2mod m cursor =
---   let ns = G.orderedNodes m in
---   Many [ Enter cursor
---        , case cursor of
---            Filling id (ResultHole _) ->
---              AutocompleteMod <| ACFilterByLiveValue ((G.getNodeExn m id).liveValue)
---            Filling _ (ParamHole _ p _) ->
---              Many [ AutocompleteMod <| ACFilterByParamType p.tipe ns
---                   , AutocompleteMod <| ACOpen False ]
---            Creating _ ->
---              NoChange
---        ]
---
-selectCenter : Pos -> Pos -> Pos
-selectCenter old new =
-  -- ignore the Util.windowSize y hack
-  let (xSize, ySize) = Util.windowSize ()
-      xThreshold     = xSize // 10
-      yThreshold     = ySize // 10
-      fakeCenter     = Defaults.initialPos
-      newY           = if (new.y > (old.y + (ySize - fakeCenter.vy) - yThreshold))
-                       || (new.y < (old.y - fakeCenter.vy + yThreshold))
-                       then new.y
-                       else old.y
-      newX           = if (new.x > (old.x + (xSize - fakeCenter.vx) - xThreshold))
-                       || (new.x < (old.x - fakeCenter.vx + xThreshold))
-                       then new.x
-                       else old.x
-  in
-      { x = newX, y = newY }
-
 updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod origm mod (m, cmd) =
   let _ = if m.integrationTestState /= NoIntegrationTest
           then Debug.log "mod update" mod
           else mod
-      closeThreads focus =
-        -- close open threads
-        case unwrapState m.state of
-          Selecting _ _ ->
-            Nothing
-          Entering cursor ->
-            case cursor of
-              Creating _ ->
-                Nothing
-              Filling tlid p ->
-                let tl = TL.getTL m tlid in
-                case tl.data of
-                  TLHandler h ->
-                    let replacement = AST.closeThread h.ast in
-                    if replacement == h.ast
-                    then Nothing
-                    else
-                      let tl = TL.getTL m tlid
-                          newH = { h | ast = replacement }
-                          calls = [ SetHandler tl.id tl.pos newH]
-                      in Just <| rpc m focus calls
-                  _ -> Nothing
-          _ -> Nothing
+      closeThreads newM =
+        -- close open threads in the previous TL
+        m.state
+        |> tlidOf
+        |> Maybe.map (\tlid ->
+            let tl = TL.getTL m tlid in
+            case tl.data of
+              TLHandler h ->
+                let replacement = AST.closeThread h.ast in
+                if replacement == h.ast
+                then []
+                else
+                  let tl = TL.getTL m tlid
+                      newH = { h | ast = replacement }
+                      calls = [ SetHandler tl.id tl.pos newH]
+                  -- call RPC on the new model
+                  in [rpc newM FocusSame calls]
+              _ -> [])
+        |> Maybe.withDefault []
+        |> \rpc -> if tlidOf newM.state == tlidOf m.state
+                   then []
+                   else rpc
   in
   let (newm, newcmd) =
     case mod of
@@ -195,15 +158,12 @@ updateMod origm mod (m, cmd) =
         { m | state = state } ! []
 
       Select tlid p ->
-        let focus = case p of
-                      Just p -> FocusExact tlid p
-                      Nothing -> Refocus tlid in
-        case closeThreads focus of
-          Nothing ->
-            { m | state = Selecting tlid p } ! []
-          Just rpcCall ->
-            m ! [rpcCall]
+        let newM = { m | state = Selecting tlid p } in
+        newM ! closeThreads newM
 
+      Deselect ->
+        let newM = { m | state = Deselected }
+        in newM ! (closeThreads newM)
 
       Enter entry ->
         let varnames =
@@ -282,9 +242,10 @@ updateMod origm mod (m, cmd) =
                                         , ACSetExtras extras
                                         , ACFilterByLiveValue lv
                                         ]
+            newM = { m | state = Entering entry, complete = complete }
         in
-      ({ m | state = Entering entry, complete = complete
-      }) ! ([acCmd, Entry.focusEntry])
+        newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry])
+
 
       SetToplevels tls tlars globals ->
         { m | toplevels = tls
@@ -298,7 +259,6 @@ updateMod origm mod (m, cmd) =
         { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
         { m | state = Dragging tlid offset hasMoved state } ! []
-      Deselect -> { m | state = Deselected } ! []
       AutocompleteMod mod ->
         let (complete, cmd) = processAutocompleteMods m [mod]
         in ({ m | complete = complete }
