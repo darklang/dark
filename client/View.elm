@@ -317,7 +317,7 @@ viewHandler m tl h =
 
 viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
-  case m.state of
+  case unwrapState m.state of
     Entering (Creating pos) ->
       [placeHtml m pos (entryHtml True "" m)]
     _ ->
