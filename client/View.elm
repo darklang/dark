@@ -118,10 +118,10 @@ viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover ->
 viewBlankOrText m tl pt b hover =
   let pointer = P.blankTo pt b
       id = P.idOf pointer
-      tipe = tl
-             |> TL.asHandler
-             |> Maybe.map .ast
-             |> Maybe.andThen
+      param = tl
+              |> TL.asHandler
+              |> Maybe.map .ast
+              |> Maybe.andThen
                   (\e ->
                     case AST.parentOf_ id e of
                       Just (FnCall _ name exprs) ->
@@ -130,14 +130,14 @@ viewBlankOrText m tl pt b hover =
                               |> Maybe.withDefault -1 in
                         case Autocomplete.findFunction m.complete name of
                           Just {parameters} ->
-                            parameters
-                            |> LE.getAt index
-                            |> Maybe.map .tipe
+                            LE.getAt index parameters
                           Nothing -> Nothing
                       _ -> Nothing)
-              |> Maybe.map RT.tipe2str
-              |> Maybe.withDefault ""
-
+      paramPlaceholder =
+        Maybe.map
+          (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
+          param
+        |> Maybe.withDefault ""
 
       selected = case unwrapState m.state of
                    Selecting _ (Just p) ->
@@ -150,7 +150,7 @@ viewBlankOrText m tl pt b hover =
           VarBind -> "varname"
           HTTPRoute -> "route"
           HTTPVerb -> "verb"
-          Expr -> tipe
+          Expr -> paramPlaceholder
           Field -> "fieldname"
           DBColName -> "db field name"
           DBColType -> "db type"
