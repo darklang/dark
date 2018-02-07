@@ -124,9 +124,6 @@ viewBlankOrText m tl pt b hover =
                      then DivSelected
                      else DivUnselected
                    _ -> DivUnselected
-      thisText = case b of
-                   Blank _ -> Html.text holeText
-                   Filled _ text -> Html.text text
       placeholder =
         case pt of
           VarBind -> "varname"
@@ -136,6 +133,12 @@ viewBlankOrText m tl pt b hover =
           Field -> "fieldname"
           DBColName -> "db field name"
           DBColType -> "db type"
+      thisText = case b of
+                   Blank _ ->
+                     Html.div
+                       [Attrs.class "blank"]
+                       [Html.text placeholder]
+                   Filled _ text -> Html.text text
       allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->

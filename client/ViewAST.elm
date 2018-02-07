@@ -179,7 +179,7 @@ vExpr nest expr =
         , Nested [] ["lambdabody"] [vExpr 0 expr]
         ]
 
-    Hole id -> Selectable ["hole", "atom"] (Blank id) Expr
+    Hole id -> Selectable ["atom"] (Blank id) Expr
 
     Thread id exprs ->
       let pipe = Text ["thread", "atom", "pipe"] "|>" in

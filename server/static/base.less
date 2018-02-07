@@ -77,17 +77,20 @@ body {
 
   &.selected {
     background-color: lighten(@black1, 5%);
-    border: 0.4px darken(magenta, 25%) dotted;
+    outline: 0.4px darken(magenta, 25%) dotted;
   }
 
   .selected {
-    border: 0.5px magenta solid;
-    padding: 0.5px;
+    outline: 0.5px magenta solid;
   }
 
-  .leaf.selected.hole {
-    background-color: @grey1;
+  .blank {
     color: @grey1;
+    font-style: italic;
+    font-size: 8pt;
+    min-width: 60px;
+    height: 15px;
+    border-bottom: 1px dashed @grey2;
   }
 
 }
