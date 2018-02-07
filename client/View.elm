@@ -25,6 +25,8 @@ import Autocomplete
 import ViewAST
 import Toplevel as TL
 import Pointer as P
+import AST
+import Runtime as RT
 
 view : Model -> Html.Html Msg
 view m =
@@ -111,13 +113,32 @@ viewCanvas m =
     in allSvgs
 
 
-holeText : String
-holeText = "＿＿＿＿＿＿"
-
 type alias Hover = Maybe (Result String String)
 viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover -> Html.Html Msg
 viewBlankOrText m tl pt b hover =
   let pointer = P.blankTo pt b
+      id = P.idOf pointer
+      tipe = tl
+             |> TL.asHandler
+             |> Maybe.map .ast
+             |> Maybe.andThen
+                  (\e ->
+                    case AST.parentOf_ id e of
+                      Just (FnCall _ name exprs) ->
+                        let index =
+                              LE.findIndex (\e -> AST.toID e == id) exprs
+                              |> Maybe.withDefault -1 in
+                        case Autocomplete.findFunction m.complete name of
+                          Just {parameters} ->
+                            parameters
+                            |> LE.getAt index
+                            |> Maybe.map .tipe
+                          Nothing -> Nothing
+                      _ -> Nothing)
+              |> Maybe.map RT.tipe2str
+              |> Maybe.withDefault ""
+
+
       selected = case unwrapState m.state of
                    Selecting _ (Just p) ->
                      if P.idOf p == blankOrID b
@@ -129,7 +150,7 @@ viewBlankOrText m tl pt b hover =
           VarBind -> "varname"
           HTTPRoute -> "route"
           HTTPVerb -> "verb"
-          Expr -> ""
+          Expr -> tipe
           Field -> "fieldname"
           DBColName -> "db field name"
           DBColType -> "db type"
