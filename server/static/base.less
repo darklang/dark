@@ -50,7 +50,9 @@ body {
 }
 
 body #grid * {
-  font-family: 'Fira Code', monospace;
+  &:not(.fa) { // skip fontawesome
+    font-family: 'Fira Code', monospace;
+  }
 }
 
 #buttons {
