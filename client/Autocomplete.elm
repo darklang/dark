@@ -19,9 +19,9 @@ import Runtime as RT
 -- show the prev 5
 -- obvi this should use getClientBoundingBox, but that's tough in Elm
 height : Int -> Int
-height i = if i < 5
+height i = if i < 4
            then 0
-           else 14 * (i - 5)
+           else 17 * (i - 4)
 
 focusItem : Int -> Cmd Msg
 focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)

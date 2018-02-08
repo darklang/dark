@@ -434,25 +434,20 @@ normalEntryHtml placeholder m =
       (indent, suggestion, search) =
         Autocomplete.compareSuggestionWithActual m.complete m.complete.value
 
-      -- indentHtml = "<span style=\"font-family:sans-serif; font-size:14px;\">" ++ indent ++ "</span>"
-      -- (width, _) = Util.htmlSize indentHtml
-      -- w = toString width ++ "px"
-      toCh num = num
-                 |> toString
-                 |> \s -> s ++ "ch"
-      indentWidth = indent
-                    |> String.length
-                    |> toCh
+      ch num = num
+               |> toString
+               |> \s -> s ++ "ch"
+      indentWidth = String.length indent
       searchWidth = search ++ indent
                     |> String.length
                     |> (\l -> if l == 0
                               then max (String.length placeholder) 6
                               else l)
-                    |> toCh
+                    |> ch
       searchWidthStyle = Attrs.style [("width", searchWidth)]
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
-                               , Attrs.style [("text-indent", indentWidth)]
+                               , Attrs.style [("text-indent", ch indentWidth)]
                                , Attrs.value search
                                , Attrs.placeholder placeholder
                                , Attrs.spellcheck False
