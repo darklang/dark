@@ -443,7 +443,7 @@ normalEntryHtml placeholder m =
       indentWidth = indent
                     |> String.length
                     |> toCh
-      searchWidth = search
+      searchWidth = search ++ indent
                     |> String.length
                     |> (\l -> if l == 0
                               then max (String.length placeholder) 6
