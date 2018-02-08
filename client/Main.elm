@@ -283,13 +283,14 @@ isFieldAccessDot state baseStr =
   -- We know from the fact that this function is called that there has
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
-  let str = Util.replace "\\.*$" "" baseStr in
+  let str = Util.replace "\\.*$" "" baseStr 
+      intOrString = String.startsWith "\"" str || Runtime.isInt str
+  in
   case state of
-    Entering _ ->
-      if String.startsWith "\"" str
-      || Runtime.isInt str
-      then False
-      else True
+    Entering (Creating _) -> not intOrString
+    Entering (Filling tlid p) ->
+      P.typeOf p == Expr
+      && not intOrString
     _ -> False
 
 update_ : Msg -> Model -> Modification
