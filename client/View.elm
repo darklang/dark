@@ -226,15 +226,14 @@ viewTL m tl =
                    (decodeClickEvent (ToplevelClickUp tl.id Nothing))
                ]
 
-      class = case unwrapState m.state of
-          Selecting tlid _ ->
-            if tlid == tl.id then "selected" else ""
-          Entering (Filling tlid _) ->
-            if tlid == tl.id then "selected" else ""
-          _ -> ""
+      selected= if Just tl.id == tlidOf m.state
+                then "selected"
+                else ""
+      class = [selected, toString (deTLID tl.id), "toplevel"]
+              |> String.join " "
 
       html = Html.div
-        (Attrs.class ("toplevel " ++ class) :: events)
+        (Attrs.class class :: events)
         body
 
   in
@@ -328,7 +327,8 @@ viewEntry : Model -> List (Svg.Svg Msg)
 viewEntry m =
   case unwrapState m.state of
     Entering (Creating pos) ->
-      [placeHtml m pos (entryHtml True "" m)]
+      let html = Html.div [Attrs.class "omnibox"] [entryHtml True "" m]
+      in [placeHtml m pos html]
     _ ->
       []
 

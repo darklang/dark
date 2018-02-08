@@ -67,6 +67,9 @@ type ID = ID Int
 deID : ID -> Int
 deID (ID i) = i
 
+deTLID : TLID -> Int
+deTLID (TLID i) = i
+
 gid : () -> ID -- Generate ID
 gid unit = ID (Util.random unit)
 
