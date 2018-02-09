@@ -5,9 +5,9 @@ type pos = { x:int; y:int }[@@deriving eq, show, yojson, sexp, bin_io]
 type tlid = int [@@deriving eq, show, yojson, sexp, bin_io]
 type id = int [@@deriving eq, show, yojson, sexp, bin_io]
 
-type 'a or_hole = Empty of id
-                | Full of id * 'a
-                [@@deriving eq, show, yojson, sexp, bin_io]
+type 'a or_blank = Blank of id
+                 | Filled of id * 'a
+                 [@@deriving eq, show, yojson, sexp, bin_io]
 
 type tipe_ =
   | TAny (* extra type meaning anything *)
@@ -35,7 +35,7 @@ type tipe_ =
 
 
 module DbT = struct
-  type col = string or_hole * tipe_ or_hole
+  type col = string or_blank * tipe_ or_blank
             [@@deriving eq, show, yojson]
   type db = { tlid: tlid
             ; display_name: string

@@ -3,9 +3,9 @@ open Core
 open Types.RuntimeT
 module RT = Runtime
 
-type spec = { module_ : string Types.or_hole [@key "module"]
-            ; name : string Types.or_hole
-            ; modifier : string Types.or_hole
+type spec = { module_ : string Types.or_blank [@key "module"]
+            ; name : string Types.or_blank
+            ; modifier : string Types.or_blank
             } [@@deriving eq, show, yojson, sexp, bin_io]
 
 
@@ -16,7 +16,7 @@ type handler = { tlid: Types.tlid
 
 let url_for (h: handler) : string option =
   match h.spec.module_, h.spec.name with
-  | Full (_, module_), Full (_, name) when String.lowercase module_ = "http" ->
+  | Filled (_, module_), Filled (_, name) when String.lowercase module_ = "http" ->
     Some name
   | _ -> None
 
@@ -29,7 +29,7 @@ let url_for_exn (h: handler) : string =
 
 let modifier_for (h: handler) : string option =
   match h.spec.module_, h.spec.modifier with
-  | Full (_, module_), Full (_, modifier) when String.lowercase module_ = "http" ->
+  | Filled (_, module_), Filled (_, modifier) when String.lowercase module_ = "http" ->
     Some modifier
   | _ -> None
 

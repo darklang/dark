@@ -50,7 +50,7 @@ let cols_for (db: db) : (string * tipe) list =
   db.cols
   |> List.filter_map ~f:(fun c ->
     match c with
-    | Full (_, name), Full (_, tipe) ->
+    | Filled (_, name), Filled (_, tipe) ->
       Some (name, tipe)
     | _ ->
       None)
@@ -321,7 +321,7 @@ let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col 
   if do_db_ops
   then
     (match col with
-    | Full (_, name), Full (_, tipe) ->
+    | Filled (_, name), Filled (_, tipe) ->
       run_migration id (add_col_sql db.actual_name name tipe)
     | _ ->
       ())
@@ -330,21 +330,21 @@ let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col 
 
 
 let add_db_col colid typeid (db: db) =
-  { db with cols = db.cols @ [(Empty colid, Empty typeid)]}
+  { db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
 let set_col_name id name (do_db_ops: bool) db =
   let set col =
     match col with
-    | (Empty hid, tipe) when hid = id ->
-        maybe_add_to_actual_db db id (Full (hid, name), tipe) do_db_ops
+    | (Blank hid, tipe) when hid = id ->
+        maybe_add_to_actual_db db id (Filled (hid, name), tipe) do_db_ops
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
 let set_db_col_type id tipe (do_db_ops: bool) db =
   let set col =
     match col with
-    | (name, Empty hid) when hid = id ->
-        maybe_add_to_actual_db db id (name, Full (hid, tipe)) do_db_ops
+    | (name, Blank hid) when hid = id ->
+        maybe_add_to_actual_db db id (name, Filled (hid, tipe)) do_db_ops
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 

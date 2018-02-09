@@ -11,12 +11,12 @@ type fnname = string [@@deriving eq, yojson, show, sexp, bin_io]
 type fieldname = string [@@deriving eq, yojson, show, sexp, bin_io]
 type varname = string [@@deriving eq, yojson, show, sexp, bin_io]
 type id = Types.id [@@deriving eq, yojson, show, sexp, bin_io]
-type 'a or_hole = 'a Types.or_hole [@@deriving eq, yojson, show, sexp, bin_io]
+type 'a or_blank = 'a Types.or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
-type varbinding = varname or_hole
+type varbinding = varname or_blank
                 [@@deriving eq, yojson, show, sexp, bin_io]
 
-type field = fieldname or_hole
+type field = fieldname or_blank
            [@@deriving eq, yojson, show, sexp, bin_io]
 
 
@@ -121,8 +121,8 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
 
      | Let (_, lhs, rhs, body) ->
        let bound = match lhs with
-            | Full (_, name) -> String.Map.set ~key:name ~data:(exe st rhs) st
-            | Empty _ -> st
+            | Filled (_, name) -> String.Map.set ~key:name ~data:(exe st rhs) st
+            | Blank _ -> st
        in exe bound body
 
      | Value (_, s) ->
@@ -198,8 +198,8 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
        (match obj with
         | DObj o ->
           (match field with
-           | Empty _ -> DIncomplete
-           | Full (_, f) ->
+           | Blank _ -> DIncomplete
+           | Filled (_, f) ->
              (match Map.find o f with
               | Some v -> v
               | None -> DNull))
@@ -285,8 +285,8 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
 
        | Let (_, lhs, rhs, body) ->
          let bound = match lhs with
-           | Full (_, name) -> sexe st rhs; SymSet.add st name
-           | Empty _ -> st
+           | Filled (_, name) -> sexe st rhs; SymSet.add st name
+           | Blank _ -> st
          in sexe bound body
 
        | FnCall (id, name, exprs) -> List.iter ~f:(sexe st) exprs
