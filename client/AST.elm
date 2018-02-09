@@ -11,14 +11,6 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Pointer as P
 
-isInfix : FnName -> Bool
-isInfix name =
-  List.member name [ "<", ">", "<=", ">="
-                   , "==", "!="
-                   , "%", "+", "-", "*"
-                   , "^"
-                   , "&&", "||"
-                   , "++"]
 
 toP : Expr -> Pointer
 toP e =

@@ -279,7 +279,8 @@ viewHandler m tl h =
                 , tlid = tl.id
                 , viewBlankOr = viewBlankOrText m tl
                 , html4blank = html4blank
-                , liveValues = lvs }
+                , liveValues = lvs
+                , functions = m.complete.functions}
                 h.ast]
 
       externalLink =

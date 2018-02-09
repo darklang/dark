@@ -37,6 +37,7 @@ all =
                                     }]
                     , returnTipe = TBool
                     , description = ""
+                    , infix = True
                     })
           [ ("Twit::somefunc", TObj)
           , ("Twit::someOtherFunc", TObj)

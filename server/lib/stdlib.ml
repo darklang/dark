@@ -166,7 +166,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -182,7 +182,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -198,7 +198,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -214,7 +214,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -229,7 +229,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -245,7 +245,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -261,7 +261,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -277,7 +277,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -292,7 +292,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -308,7 +308,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -325,7 +325,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -487,7 +487,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -503,7 +503,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -538,7 +538,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -554,25 +554,10 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
-
-  { n = "_"
-  ; o = []
-  ; p = [par "ignore" TAny; par "value" TAny]
-  ; r = TAny
-  ; d = "Ignores the first param and returns the 2nd."
-  ; f = InProcess
-        (function
-          | [_; value] -> value
-          | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; i = false
-  }
-  ;
 
   { n = "Bool::isNull"
   ; o = []
@@ -694,7 +679,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
+  ; i = true
   }
   ;
 
@@ -850,25 +835,6 @@ let fns : Lib.shortfn list = [
         (function
           | [] -> DList []
           | args -> fail args)
-  ; pr = None
-  ; ps = true
-  ; i = false
-  }
-  ;
-
-  { n = "List::new"
-  ; o = []
-  ; p = [ par ~opt:true "i1" TAny
-        ; par ~opt:true "i2" TAny
-        ; par ~opt:true "i3" TAny
-        ; par ~opt:true "i4" TAny
-        ; par ~opt:true "i5" TAny
-        ; par ~opt:true "i6" TAny]
-  ; r = TList
-  ; d = "Return a new list with the arguments provided"
-  ; f = InProcess
-        (function
-          | args -> DList (List.filter ~f:(fun x -> x <> DIncomplete && x <> DNull) args))
   ; pr = None
   ; ps = true
   ; i = false

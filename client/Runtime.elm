@@ -27,6 +27,9 @@ isBool s = String.toLower s == "true" || String.toLower s == "false"
 isChar : String -> Bool
 isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s "\'"
 
+isNull : String -> Bool
+isNull s = String.toLower s == "null"
+
 isError : String -> Bool
 isError s =
   String.startsWith "<error:" s
@@ -113,6 +116,19 @@ tipeOf s =
   else if isError s then TError
   else
     TIncomplete
+
+isLiteral : String -> Bool
+isLiteral s =
+  (  isInt s
+  || isFloat s
+  || isString s
+  || isChar s
+  || isBool s
+  || isNull s
+  )
+  -- allowed by toInt
+  && s /= "+"
+  && s /= "-"
 
 
 extractErrorMessage : String -> String

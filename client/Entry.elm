@@ -87,7 +87,7 @@ submit m cursor action value =
           ["null"] ->
             Just (Value eid "null")
           _ ->
-            if RT.tipeOf str == TIncomplete || AST.isInfix str
+            if not (RT.isLiteral str)
             then createFunction m value hasImplicit
             else Just <| Value eid str
 

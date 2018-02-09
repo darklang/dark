@@ -15,6 +15,7 @@ import Types exposing (..)
 import Runtime as RT
 import AST
 import Runtime
+import Util exposing (deMaybe)
 
 type alias HtmlVisitState =
   { selectedID : ID
@@ -24,7 +25,8 @@ type alias HtmlVisitState =
   , html4blank: DivSelected -> List Class -> Clickable ->
                 Maybe (Result String String) -> List (Html.Html Msg) ->
                 Html.Html Msg
-  , liveValues : LVDict }
+  , liveValues : LVDict
+  , functions : List Function}
 
 type alias Class = String
 type Assoc = ClickSelect PointerType ID
@@ -97,8 +99,8 @@ depthString n = "precedence-" ++ (toString n)
 
 -- v is short for Visit
 
-vFn : ID -> FnName -> Element
-vFn id name =
+vFn : HtmlVisitState -> ID -> FnName -> Element
+vFn state id name =
   case String.split "::" name of
     [mod, n] ->
       Nested [] ["namegroup", "atom"]
@@ -108,26 +110,26 @@ vFn id name =
       ]
     _ -> Text ["fnname", "atom"] name
 
-vPrefix : ID -> FnName -> List Expr -> Int -> Element
-vPrefix id name exprs nest =
+vPrefix : HtmlVisitState -> ID -> FnName -> List Expr -> Int -> Element
+vPrefix state id name exprs nest =
   Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fncall", "prefix", depthString nest]
-    ((Nested [] ["op", name] [vFn id name])
-    :: (List.map (vExpr (nest + 1)) exprs))
+    ((Nested [] ["op", name] [vFn state id name])
+    :: (List.map (vExpr state (nest + 1)) exprs))
 
 
-vInfix : ID -> FnName -> List Expr -> Int -> Element
-vInfix id name exprs nesting =
+vInfix : HtmlVisitState -> ID -> FnName -> List Expr -> Int -> Element
+vInfix state id name exprs nesting =
   case exprs of
     [first, second] ->
       Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fncall", "infix", depthString nesting]
-        [ Nested [] ["lhs"] [vExpr (nesting + 1) first]
-        , Nested [] ["op", name] [vFn id name]
-        , Nested [] ["rhs"] [vExpr (nesting + 1) second]
+        [ Nested [] ["lhs"] [vExpr state (nesting + 1) first]
+        , Nested [] ["op", name] [vFn state id name]
+        , Nested [] ["rhs"] [vExpr state (nesting + 1) second]
         ]
-    _ -> vPrefix id ("(" ++ name ++ ")") exprs nesting
+    _ -> vPrefix state id ("(" ++ name ++ ")") exprs nesting
 
-vExpr : Int -> Expr -> Element
-vExpr nest expr =
+vExpr : HtmlVisitState -> Int -> Expr -> Element
+vExpr state nest expr =
   case expr of
     Value id v ->
      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
@@ -146,28 +148,31 @@ vExpr nest expr =
               [ Selectable ["letvarname", "atom"] lhs VarBind
               , Text ["letbind", "atom"] "="
               , Nested [DisplayValue rhsID, ClickSelect Expr rhsID] []
-                       [vExpr nest rhs]
+                       [vExpr state nest rhs]
               ]
-        , Nested [] ["letbody"] [vExpr nest expr]
+        , Nested [] ["letbody"] [vExpr state nest expr]
         ]
 
 
     If id cond ifbody elsebody ->
       Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["ifexpr"]
         [ Text ["if", "keyword", "atom"] "if"
-        , Nested [] ["cond"] [vExpr (nest + 1) cond]
-        , Nested [] ["ifbody"] [vExpr 0 ifbody]
+        , Nested [] ["cond"] [vExpr state (nest + 1) cond]
+        , Nested [] ["ifbody"] [vExpr state 0 ifbody]
         , Text ["else", "keyword", "atom"] "else"
-        , Nested [] ["elsebody"] [vExpr 0 elsebody]
+        , Nested [] ["elsebody"] [vExpr state 0 elsebody]
         ]
 
     Variable id name ->
       Selectable ["variable", "atom"] (Filled id name) Expr
 
     FnCall id name exprs ->
-      if AST.isInfix name
-      then vInfix id name exprs nest
-      else vPrefix id name exprs nest
+      if state.functions
+         |> LE.find (\f -> f.name == name)
+         |> deMaybe "vExpr fncall"
+         |> .infix
+      then vInfix state id name exprs nest
+      else vPrefix state id name exprs nest
 
     Lambda id vars expr ->
       let varname v = Text ["lambdavarname", "atom"] v in
@@ -176,7 +181,7 @@ vExpr nest expr =
       Nested [ClickSelect Expr id, HighlightAs id, DisplayValue id] ["lambdaexpr"]
         [ Nested [] ["lambdabinding"] (List.map varname vars)
         , Text ["arrow", "atom"] "->"
-        , Nested [] ["lambdabody"] [vExpr 0 expr]
+        , Nested [] ["lambdabody"] [vExpr state 0 expr]
         ]
 
     Hole id -> Selectable ["atom"] (Blank id) Expr
@@ -186,21 +191,21 @@ vExpr nest expr =
       Nested [HighlightAs id, DisplayValue id] ["threadexpr"]
         (List.map (\e ->
           let id = AST.toID e
-          in Nested [DisplayValue id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr 0 e]) exprs)
+          in Nested [DisplayValue id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr state 0 e]) exprs)
 
     FieldAccess id obj field ->
       Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fieldaccessexpr"]
-      [ Nested [] ["fieldobject"] [vExpr 0 obj]
+      [ Nested [] ["fieldobject"] [vExpr state 0 obj]
       , Text ["fieldaccessop", "operator", "atom"] "."
       , Selectable ["fieldname", "atom"] field Field
       ]
 
-walk : AST -> Element
-walk = vExpr 0
+walk : HtmlVisitState -> AST -> Element
+walk state = vExpr state 0
 
 toHtml : HtmlVisitState -> Expr -> Html.Html Msg
 toHtml visitState expr =
   expr
-  |> walk
+  |> walk visitState
   |> elemToHtml visitState
 
