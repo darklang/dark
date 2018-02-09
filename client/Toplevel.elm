@@ -77,7 +77,7 @@ allBlanks : Toplevel -> List Pointer
 allBlanks tl =
   case tl.data of
     TLHandler h ->
-      AST.listBlanks h.ast ++ specBlanks h
+      specBlanks h ++ AST.listBlanks h.ast
     TLDB db ->
       DB.listBlanks db
 

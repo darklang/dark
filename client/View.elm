@@ -309,19 +309,20 @@ viewHandler m tl h =
       header =
         Html.div
           [Attrs.class "header"]
-          (externalLink ++ [ Html.div
-            [ Attrs.class "module"]
-            [ Html.text "HTTP" ]
-          , Html.div
+          [ Html.div
             [ Attrs.class "name"]
             [ viewBlankOrText m tl HTTPRoute h.spec.name Nothing ]
           , Html.div
-            [Attrs.class "modifier"]
-            [ viewBlankOrText m tl HTTPVerb h.spec.modifier Nothing ]
-          ])
-
-  in
-      [ast, header]
+            [ Attrs.class "modifier" ]
+            ( externalLink ++
+              [ Html.div
+                [ Attrs.class "module" ]
+                [ Html.text "HTTP"]
+              , viewBlankOrText m tl HTTPVerb h.spec.modifier Nothing
+              ]
+            )
+          ]
+  in [header, ast]
 
 
 viewEntry : Model -> List (Svg.Svg Msg)

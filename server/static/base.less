@@ -112,6 +112,7 @@ body #grid * {
   width: max-content;
 
   .header {
+
     width: 300px;
     color: @orange;
     padding-bottom: 8px;
@@ -196,9 +197,11 @@ body #grid * {
 //*************
 
 // header
-.header {
-  .layout-inline;
-  // applied to children
+.toplevel .header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  flex-wrap: wrap;
 
   & > div {
     // center it
@@ -212,9 +215,25 @@ body #grid * {
     /* } */
     /*  */
 
-    color: @yellow;
+    color: @orange;
     font-size: 50%;
-    width: 80px;
+  }
+
+  .name {
+    padding-left: 10px;
+    padding-right: 1ch;
+  }
+
+  .module {
+    padding-left: 1ch;
+    width: 4ch; // width of "HTTP"
+    padding-right: 1ch;
+  }
+
+  .modifier {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
@@ -222,9 +241,10 @@ body #grid * {
     outline: none;
   }
   .external {
+    font-size: 200%;
+    padding-right: 1ch;
     color: @orange;
-    float: right;
-    margin-right: 15%;
+    vertical-align: center;
   }
 }
 
