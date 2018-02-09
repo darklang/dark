@@ -13,7 +13,11 @@ import JSON
 
 
 isInt : String -> Bool
-isInt s = String.toInt s |> Util.resultIsOk
+isInt s = (String.toInt s |> Util.resultIsOk)
+          -- https://github.com/elm-lang/core/issues/919
+          && s /= "+"
+          && s /= "-"
+          && s /= "0x"
 
 isFloat : String -> Bool
 isFloat s = String.toFloat s |> Util.resultIsOk
@@ -119,16 +123,12 @@ tipeOf s =
 
 isLiteral : String -> Bool
 isLiteral s =
-  (  isInt s
+     isInt s
   || isFloat s
   || isString s
   || isChar s
   || isBool s
   || isNull s
-  )
-  -- allowed by toInt
-  && s /= "+"
-  && s /= "-"
 
 
 extractErrorMessage : String -> String
