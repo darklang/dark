@@ -45,6 +45,7 @@ type fn = { name : string
           ; preview : (dval list -> int -> dval list) option
           ; func : ccfunc
           ; previewExecutionSafe : bool
+          ; infix : bool
           }
 
 let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =

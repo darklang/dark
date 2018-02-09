@@ -27,7 +27,9 @@ type param_ = { name: string
 type function_ = { name: string
                  ; parameters : param_ list
                  ; description : string
-                 ; return_type : string} [@@deriving yojson]
+                 ; return_type : string
+                 ; infix : bool
+                 } [@@deriving yojson]
 type functionlist = function_ list [@@deriving yojson]
 
 let functions =
@@ -45,6 +47,7 @@ let functions =
                         v.parameters
                       ; description = v.description
                       ; return_type = Dval.tipe_to_string v.return_type
+                      ; infix = v.infix
                       })
   |> functionlist_to_yojson
   |> Yojson.Safe.pretty_to_string

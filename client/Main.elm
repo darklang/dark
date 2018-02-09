@@ -61,6 +61,7 @@ flag2function fn =
                                  , block_args = p.block_args
                                  , optional = p.optional
                                  , description = p.description}) fn.parameters
+  , infix = fn.infix
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )

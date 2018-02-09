@@ -384,6 +384,7 @@ type alias Function = { name: String
                       , parameters: List Parameter
                       , description: String
                       , returnTipe: Tipe
+                      , infix: Bool
                       }
 
 type alias FlagParameter = { name: String
@@ -397,5 +398,6 @@ type alias FlagFunction = { name: String
                           , parameters: List FlagParameter
                           , description: String
                           , return_type: String
+                          , infix: Bool
                           }
 

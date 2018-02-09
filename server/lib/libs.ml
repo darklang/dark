@@ -18,6 +18,7 @@ let fns : fnmap =
                       ; func = s.f
                       ; preview = s.pr
                       ; previewExecutionSafe = s.ps
+                      ; infix = s.i
                       } in
     List.fold_left ~f:(fun m1 n -> FnMap.set m1 ~key:n ~data:def) ~init:m (s.n::s.o)
   in

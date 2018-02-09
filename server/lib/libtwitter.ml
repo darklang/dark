@@ -50,5 +50,6 @@ let fns =
             ; d = Option.value ~default:"" get.summary
             ; pr = None
             ; ps = true
+            ; i = false
             }))
   |> List.filter_map ~f:ident
