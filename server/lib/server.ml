@@ -25,23 +25,29 @@ let server =
       stored_request_of_sexp s
     in
 
-    let admin_rpc_handler body (host: string) : string =
-      let _ = Log.tS "req start" in
-      let time = Unix.gettimeofday () in
-      let body = Log.pp "request body" body ~f:ident in
+    let admin_rpc_handler body (host: string) : ((string * float * string) list * string) =
+      let time name desc fn =
+        let start = Unix.gettimeofday () in
+        let result = fn () in
+        let finish = Unix.gettimeofday () in
+        ((name, (finish -. start) *. 1000.0, desc), result)
+      in
+
       try
-        let _ = Log.tS "before ops" in
-        let ops = Api.to_ops body in
-        let c = C.load host ops in
-        let _ = Log.tS "after ops" in
-        let global = DReq.sample |> DReq.to_dval in
-        let _ = Log.tS "db before" in
-        let dbs = TL.dbs !c.toplevels in
-        let dbs_env = Db.dbs_as_env dbs in
-        let _ = Log.tS "db after" in
-        Db.cur_dbs := dbs;
-        let env = RTT.DvalMap.set dbs_env "request" global in
-        let envs =
+        let (t1, ops) = time "1-read-api-ops" "1. read ops from api" (fun _ ->
+          Api.to_ops body
+        ) in
+
+        let (t2, c) = time "2-load-saved-ops" "2. read saved ops from disk" (fun _ ->
+          C.load host ops
+        ) in
+
+        let (t3, envs) = time "3-create-envs" "3. create the environment" (fun _ ->
+          let dbs = TL.dbs !c.toplevels in
+          let dbs_env = Db.dbs_as_env dbs in
+          Db.cur_dbs := dbs;
+          let global = DReq.sample |> DReq.to_dval in
+          let env = RTT.DvalMap.set dbs_env "request" global in
           let env_map acc (h : Handler.handler) =
             let h_env =
               try
@@ -61,19 +67,20 @@ let server =
           (* TODO(ian): using 0 as a default, come up with better idea
            * later *)
           RTT.EnvMap.set tls_map 0 env
-        in
-        let _ = Log.tS "frontend before" in
-        let result = C.to_frontend_string envs !c in
-        let _ = Log.tS "frontend after" in
-        let _ = Log.tS "req near end" in
-        let total = string_of_float (1000.0 *. (Unix.gettimeofday () -. time)) in
-        Log.pP ~stop:10000 ~f:ident ("response (" ^ total ^ "ms):") result;
-        (* work out the result before we save it, incase it has a stackoverflow
-         * or other crashing bug *)
-        let _ = Log.tS "before save " in
-        C.save !c;
-        let _ = Log.tS "after save" in
-        result
+        ) in
+
+
+        let (t4, result) = time "4-to-frontend" "4. serialize canvas to frontend" (fun _ ->
+          C.to_frontend_string envs !c
+        ) in
+
+        let (t5, _) = time "5-save-to-disk" "5. serialize ops to disk" (fun _ ->
+          (* work out the result before we save it, incase it has a
+           stackoverflow or other crashing bug *)
+          C.save !c;
+        ) in
+
+      ([t1; t2; t3; t4; t5], result)
       with
       | e ->
         let bt = Backtrace.Exn.most_recent () in
@@ -206,8 +213,25 @@ let server =
 
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
-             S.respond_string ~status:`OK
-                              ~body:(admin_rpc_handler req_body domain) ()
+             let (timing_headers, body) =
+               admin_rpc_handler req_body domain in
+             let header =
+               ("Server-timing"
+               , timing_headers
+                 |> List.map ~f:(fun (name, time, desc) ->
+                      (* chrome 64 *)
+                      name
+                      ^ "=" ^ (time |> Float.to_string_hum ~decimals:3)
+                      ^ "; \"" ^ desc ^ "\"")
+
+                      (* chrome 65 *)
+                      (* name *)
+                      (* ^ ";desc=\"" ^ desc ^ "\"" *)
+                      (* ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3) *)
+                 
+                 |> String.concat ~sep:",") in
+             let headers = Cohttp.Header.of_list [header] in
+             S.respond_string ~status:`OK ~body:body ~headers:headers ()
            | "/sitemap.xml" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->
