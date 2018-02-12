@@ -572,7 +572,6 @@ update_ msg m =
     -- interactions (esp ToplevelClickUp)
 
     (GlobalClick event, _) ->
-      let _ = Debug.log "e" event in
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
                 , Enter (Creating (Viewport.toAbsolute m event.pos))]

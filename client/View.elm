@@ -588,7 +588,7 @@ viewRoutingTable m =
           (\(verb, pos) ->
             Html.a
             [ Events.onWithOptions
-              "click"
+              "mouseup"
               { stopPropagation = True, preventDefault = False }
               (decodeClickEvent (\_ -> (NavigateTo (Viewport.urlForPos pos))))
             , Attrs.src ""
