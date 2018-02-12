@@ -315,7 +315,8 @@ isFieldAccessDot state baseStr =
   case state of
     Entering (Creating _) -> not intOrString
     Entering (Filling tlid p) ->
-      P.typeOf p == Expr
+      (P.typeOf p == Expr
+       || P.typeOf p == Field)
       && not intOrString
     _ -> False
 
