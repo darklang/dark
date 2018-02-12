@@ -36,9 +36,6 @@ focusEntry : Cmd Msg
 focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
 
-tlid : () -> TLID
-tlid unit = TLID (Util.random unit)
-
 newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { name = Blank (gid ())
                    , modifier = Blank (gid ())
@@ -94,8 +91,8 @@ submit m cursor action value =
   in
   case cursor of
     Creating pos ->
-      let id = tlid ()
-          wrap op = RPC ([op], FocusNext id Nothing)
+      let tlid = gtlid ()
+          wrap op = RPC ([op], FocusFirstAST tlid)
           threadIt expr =
             case action of
               ContinueThread ->
@@ -111,7 +108,7 @@ submit m cursor action value =
         let dbName = value
                      |> String.dropLeft 2
                      |> String.trim
-        in wrap <| CreateDB id pos dbName
+        in wrap <| CreateDB tlid pos dbName
 
       -- field access
       else if String.endsWith "." value
@@ -121,7 +118,7 @@ submit m cursor action value =
                                  (Blank (gid ()))
             ast = threadIt access
             handler = { ast = ast, spec = newHandlerSpec () }
-        in wrap <| SetHandler id pos handler
+        in wrap <| SetHandler tlid pos handler
 
       -- varnames
       else if List.member value m.complete.varnames
@@ -129,7 +126,7 @@ submit m cursor action value =
         let var = Variable (gid ()) value
             ast = threadIt var
             handler = { ast = ast, spec = newHandlerSpec () }
-        in wrap <| SetHandler id pos handler
+        in wrap <| SetHandler tlid pos handler
 
       -- start new AST
       else
@@ -138,7 +135,7 @@ submit m cursor action value =
           Just v ->
             let ast = threadIt v
                 handler = { ast = ast, spec = newHandlerSpec () }
-            in RPC ([SetHandler id pos handler], FocusNext id Nothing)
+            in RPC ([SetHandler tlid pos handler], FocusNext tlid Nothing)
 
     Filling tlid p ->
       let tl = TL.getTL m tlid

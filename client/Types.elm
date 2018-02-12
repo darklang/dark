@@ -73,6 +73,8 @@ deTLID (TLID i) = i
 gid : () -> ID -- Generate ID
 gid unit = ID (Util.random unit)
 
+gtlid : () -> TLID -- Generate ID
+gtlid unit = TLID (Util.random unit)
 
 -----------------------------
 -- State
@@ -143,6 +145,7 @@ type Focus = FocusNothing -- deselect
            | Refocus TLID
            | FocusExact TLID Pointer
            | FocusNext TLID Predecessor
+           | FocusFirstAST TLID
            | FocusSame -- unchanged
 
 -----------------------------

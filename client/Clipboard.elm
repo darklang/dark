@@ -56,7 +56,7 @@ peek m =
 
 newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
-  let nid = Entry.tlid ()
+  let nid = gtlid ()
       ast =
         case peek m of
           Nothing -> Hole (gid ())

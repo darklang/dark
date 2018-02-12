@@ -137,6 +137,15 @@ getNextBlank tl pred =
       |> Maybe.andThen (\i -> LE.getAt i holes)
     Nothing -> firstBlank tl
 
+getFirstASTBlank : Toplevel -> Successor
+getFirstASTBlank tl =
+  tl
+  |> asHandler
+  |> Maybe.map .ast
+  |> Maybe.map AST.listBlanks
+  |> Maybe.andThen List.head
+
+
 getPrevBlank : Toplevel -> Pointer -> Predecessor
 getPrevBlank tl next =
   let holes = allBlanks tl in
