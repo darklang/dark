@@ -135,6 +135,7 @@ type Msg
     | ClearGraph
     | SaveTestButton
     | Initialization
+    | NavigateTo String
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer

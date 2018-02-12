@@ -3,6 +3,7 @@ module View exposing (view)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Navigation
 
 -- lib
 import Svg
@@ -486,20 +487,25 @@ entryHtml allowStringEntry placeholder m =
 
 type alias Collapsed = { name: Maybe String
                        , prefix: List String
-                       , verbs: List String}
+                       , verbs: List (String, Pos)}
 
-collapseHandlers : List Handler -> List Collapsed
-collapseHandlers handlers =
+collapseHandlers : List Toplevel -> List Collapsed
+collapseHandlers tls =
   let asCollapsed =
-        handlers
-        |> List.map (\h -> { name = case h.spec.name of
+        tls
+        |> List.filterMap
+            (\tl ->
+              case TL.asHandler tl of
+                Just h -> Just (tl.pos, h)
+                Nothing -> Nothing)
+        |> List.map (\(pos, h) -> { name = case h.spec.name of
                                       Filled _ s -> Just s
                                       Blank _ -> Nothing
-                           , prefix = []
-                           , verbs = case h.spec.modifier of
-                                       Filled _ s -> [s]
-                                       Blank _ -> []
-                           })
+                                  , prefix = []
+                                  , verbs = case h.spec.modifier of
+                                             Filled _ s -> [(s, pos)]
+                                             Blank _ -> []
+                                  })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   in
     prefixify <|
@@ -557,11 +563,11 @@ viewRoutingTable m =
       text class msg = span class [Html.text msg]
       div class subs = Html.div [Attrs.class class] subs
 
-      handlers = TL.handlers m.toplevels |> collapseHandlers
+      handlers = m.toplevels |> collapseHandlers
       handlerCount = List.length handlers
       def s = Maybe.withDefault "<not entered>" s
       link h =
-        if List.member "GET" h.verbs
+        if List.member "GET" (List.map Tuple.first h.verbs)
         then
           case h.name of
             Just n ->
@@ -575,13 +581,27 @@ viewRoutingTable m =
               Html.div [] []
         else
           Html.div [] []
+
+      internalLinks h =
+        h.verbs
+        |> List.map
+          (\(verb, pos) ->
+            Html.a
+            [ Events.onWithOptions
+              "click"
+              { stopPropagation = True, preventDefault = False }
+              (decodeClickEvent (\_ -> (NavigateTo (Viewport.urlForPos pos))))
+            , Attrs.src ""
+            , Attrs.class "verb-link as-pointer"
+            ]
+            [ Html.text verb ])
+        |> List.intersperse (Html.text ",")
       handlerHtml h =
         div "handler" [ div "url"
                           (  List.map (text "prefix") h.prefix
                           ++ [text "name" (def h.name)])
                       , link h
-                      , span "verbs"
-                          (List.map (text "verb") h.verbs)
+                      , span "verbs" (internalLinks h)
                       ]
       header = div "header"
                  [ text "http" "HTTP"

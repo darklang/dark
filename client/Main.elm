@@ -51,6 +51,26 @@ main = Navigation.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
+parseLocation : Navigation.Location -> Maybe Pos
+parseLocation loc =
+      let removeHash = String.dropLeft 1 loc.hash -- remove "#"
+      in
+          case String.split "&" removeHash of -- split on delimiter
+            [xpart, ypart] ->
+              let trimmedx = String.dropLeft 1 xpart -- remove 'X'
+                  trimmedy = String.dropLeft 1 ypart -- remove 'Y'
+              in
+                  case String.toInt trimmedx of
+                    Err _ -> Nothing
+                    Ok x ->
+                      case String.toInt trimmedy of
+                        Err _ -> Nothing
+                        Ok y ->
+                          let newPosition = { x = x, y = y }
+                          in
+                              Just newPosition
+            _ -> Nothing
+
 flag2function : FlagFunction -> Function
 flag2function fn =
   { name = fn.name
@@ -73,9 +93,14 @@ init {editorState, complete} location =
                   Just t  -> t
                   Nothing -> []
       m = Defaults.defaultModel editor
+      center =
+        case parseLocation location of
+          Nothing -> m.center
+          Just c -> c
       m2 = { m | complete = AC.init (List.map flag2function complete)
                , tests = tests
                , toplevels = []
+               , center = center
            }
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
@@ -284,7 +309,7 @@ isFieldAccessDot state baseStr =
   -- We know from the fact that this function is called that there has
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
-  let str = Util.replace "\\.*$" "" baseStr 
+  let str = Util.replace "\\.*$" "" baseStr
       intOrString = String.startsWith "\"" str || Runtime.isInt str
   in
   case state of
@@ -506,10 +531,10 @@ update_ msg m =
           Deselected ->
             case event.keyCode of
               Key.Enter -> Entry.createFindSpace m
-              Key.Up -> SetCenter <| Viewport.moveUp m.center
-              Key.Down -> SetCenter <| Viewport.moveDown m.center
-              Key.Left -> SetCenter <| Viewport.moveLeft m.center
-              Key.Right -> SetCenter <| Viewport.moveRight m.center
+              Key.Up -> Viewport.moveUp m.center
+              Key.Down -> Viewport.moveDown m.center
+              Key.Left -> Viewport.moveLeft m.center
+              Key.Right -> Viewport.moveRight m.center
               Key.Tab -> Selection.nextToplevel m Nothing
               _ -> NoChange
 
@@ -547,6 +572,7 @@ update_ msg m =
     -- interactions (esp ToplevelClickUp)
 
     (GlobalClick event, _) ->
+      let _ = Debug.log "e" event in
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
                 , Enter (Creating (Viewport.toAbsolute m event.pos))]
@@ -615,6 +641,10 @@ update_ msg m =
     -- (AddRandom, _) ->
     --   Many [ RandomGraph.makeRandomChange m, Deselect]
     --
+
+    (NavigateTo url, _) ->
+      MakeCmd (Navigation.newUrl url)
+
     (RPCCallBack focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
       let m2 = { m | toplevels = toplevels }
           newState =
@@ -679,6 +709,11 @@ update_ msg m =
 
     (FocusAutocompleteItem _, _) ->
       NoChange
+
+    (LocationChange loc, _) ->
+      case (parseLocation loc) of
+        Nothing -> NoChange
+        Just c -> SetCenter c
 
     t -> Error <| "Dark Client Error: nothing for " ++ (toString t)
 

@@ -72,6 +72,17 @@ body #grid * {
   color: red;
 }
 
+.as-pointer {
+  cursor: pointer;
+}
+
+
+.verb-link {
+  &:hover {
+    color: @orange;
+    text-decoration: underline;
+  }
+}
 
 //*************
 // Toplevel
@@ -147,9 +158,6 @@ body #grid * {
 
     .verbs {
       color: @grey2;
-      :not(:first-child):before {
-        content: ","
-      }
     }
 
   }
