@@ -3,7 +3,6 @@ module View exposing (view)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
-import Navigation
 
 -- lib
 import Svg
