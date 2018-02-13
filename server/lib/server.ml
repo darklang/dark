@@ -52,7 +52,7 @@ let server =
             let h_env =
               try
                 let (body, c_req) = load_request host h in
-                let d_req = DReq.from_request c_req body Uri.empty in
+                let d_req = DReq.from_request c_req body in
                 DReq.to_dval d_req
               with
               | _ ->
@@ -153,7 +153,7 @@ let server =
       | [page] ->
         let route = Handler.url_for_exn page in
         serialize_request host body page req;
-        let input = DReq.from_request req body uri in
+        let input = DReq.from_request req body in
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
         let dbs_env = Db.dbs_as_exe_env (dbs) in

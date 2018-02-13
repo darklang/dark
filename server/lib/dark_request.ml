@@ -3,6 +3,7 @@ open Core
 module RT = Runtime
 module Clu = Cohttp_lwt_unix
 module C = Cohttp
+module CRequest = Clu.Request
 
 open Types.RuntimeT
 
@@ -81,12 +82,12 @@ let form_body =
 (* Exported *)
 (* ------------------------- *)
 
-let from_request req rbody uri =
+let from_request req rbody =
   let parts =
     [ parsed_body req rbody
     ; json_body req rbody
     ; form_body req rbody
-    ; parsed_query_string uri
+    ; parsed_query_string (CRequest.uri req)
     ; parsed_headers req
     ; unparsed_body rbody
     ]
