@@ -163,11 +163,17 @@ let server =
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
-          let body = Dval.dval_to_json_string value in
           (match http with
            | Redirect url ->
              S.respond_redirect (Uri.of_string url) ()
            | Response (code, headers) ->
+             let body =
+               if List.exists headers ~f:(fun (name, value) ->
+                  String.lowercase name = "content-type"
+                  && String.lowercase value = "text/html")
+               then Dval.to_simple_repr "<" ">" value
+               else Dval.dval_to_json_string value
+             in
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
                ~headers:(Cohttp.Header.of_list (List.cons cors headers))
