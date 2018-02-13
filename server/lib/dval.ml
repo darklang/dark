@@ -344,13 +344,35 @@ let dvallist_to_string (l:dval list) : string =
 (* Parsing *)
 (* ------------------------- *)
 let parse (str : string) : dval =
-  (* TODO: Doesn't handle characters. Replace with a custom parser,
+  (* str is a raw string that the user entered. It is not valid json,
+   * or anything like it. We use the json parser to get values from int
+   * and float literals, etc, but this is a total hack *)
+  let len = String.length str in
+  (* TODO: Doesn't handle nested characters. Replace with a custom parser,
      using the one in RealWorldOcaml, or just ripped out of Yojson *)
-  if String.length str > 0 && String.get str 0 = '\''
+  if len > 0 && String.get str 0 = '\''
   then DChar (String.get str 1)
+  else if len > 1
+    && String.get str 0 = '"'
+    && String.get str (len - 1) = '"'
+    (* It might have \n characters in it (as well as probably other
+     * codes like \r or some shit that we haven't taken into account),
+     * which are not valid json. So we convert them manually to
+     * appropriate char sequences. *)
+  then str
+       |> String.sub ~pos:1 ~len:(len - 2)
+       |> Util.string_replace "\\n" "\\\\n"
+       |> Util.string_replace "\n" "\\n"
+       |> fun s -> "\"" ^ s ^ "\""
+       |> Yojson.Safe.from_string
+       |> dval_of_yojson_
   else
     try
-      str |> Yojson.Safe.from_string |> dval_of_yojson_
+      (* TODO: doesn't handle nested sequences at all unless they're
+       * valid json *)
+      str
+      |> Yojson.Safe.from_string
+      |> dval_of_yojson_
     with Yojson.Json_error e ->
       Exception.user ~actual:str ("Not a valid value: '" ^ str ^ "'")
 
