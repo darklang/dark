@@ -364,6 +364,7 @@ let parse (str : string) : dval =
        |> Util.string_replace "\\n" "\\\\n"
        |> Util.string_replace "\n" "\\n"
        |> fun s -> "\"" ^ s ^ "\""
+       (* Note that yojson is extremely generous in what it accepts ಠ_ಠ *)
        |> Yojson.Safe.from_string
        |> dval_of_yojson_
   else
