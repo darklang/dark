@@ -115,8 +115,6 @@ closeThread expr =
     Thread tid exprs ->
       let filtered = List.filter (isHole >> not) exprs
           newExprs = ctList filtered
-          init = LE.init newExprs |> Maybe.withDefault []
-          last = LE.last newExprs |> deMaybe "last in thread"
       in
         case newExprs of
           [] ->
