@@ -27,6 +27,7 @@ def initial_compile():
             "client/Main.elm",
             "server/main/dark.ml",
             "server/static/base.less"])
+  print("--------------------------\n-- Finished initial compile \n-----------------------\n")
 
 def start_postgres():
   print("--------------------------\n-- Starting postgres\n-----------------------\n\n\n\n")
@@ -94,16 +95,17 @@ def main():
     elif f == "--watch":
       watch = True
 
-  if compile and watch:
+  if compile:
     background_task(initial_compile)
-    start_postgres()
-    process_watchers()
-  else:
-    if compile:
-      background_task(initial_compile)
+    background_task(start_postgres)
 
-    if watch:
-      process_watchers()
+  if watch:
+    process_watchers()
+
+  if compile and not watch:
+    # pause to allow the server stay up
+    import signal
+    signal.pause()
 
 
 main()
