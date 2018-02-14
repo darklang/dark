@@ -2,13 +2,14 @@
 open Core
 module C = Curl
 
-type verb = GET | POST [@@deriving show]
+type verb = GET | POST | PUT [@@deriving show]
 type headers = string list [@@deriving show]
 
 let filename_for (url: string) (verb: verb) (body: string) : string =
   let verbs = match verb with
     | GET -> "GET"
-    | POST -> "POST" in
+    | POST -> "POST"
+    | PUT -> "PUT" in
   url
   |> String.tr ~target:'/' ~replacement:'_'
   |> String.tr ~target:':' ~replacement:'_'
@@ -45,32 +46,78 @@ let qp2string (params : (string * string) list) : string =
   |> String.concat ~sep:"&"
 
 
-let http_call (url: string) (query_params : (string * string) list) (verb: verb) (headers: (string * string) list) (body: string) : string =
+let http_call (url: string) (query_params : (string * string) list)
+    (verb: verb) (headers: (string * string) list) (body: string)
+  : (string * (string * string) list) =
+
   let params = query_params |> qp2string in
-  let url = url ^ "?" ^ params in
+  let url = if params = ""
+            then url
+            else url ^ "?" ^ params in
   let headers = headers
                 |> List.map ~f:(fun (k,v) -> k ^ ": " ^ v) in
+
   let errorbuf = ref "" in
   let responsebuf = Buffer.create 16384 in
 
-  let requestfn int : string =
-    body in
+  (* uploads *)
+  let bodybuffer = ref body in
+  let putfn (count: int) : string =
+    let len = String.length !bodybuffer in
+    let this_body = !bodybuffer in
+    if count < len
+    then (bodybuffer := ""; this_body)
+    else
+      let result = String.sub ~pos:0 ~len:count this_body in
+      let save = String.sub ~pos:count ~len:(len-count) this_body in
+      bodybuffer := save;
+      result
+    in
 
   let responsefn str : int =
     Buffer.add_string responsebuf str;
     String.length str in
 
+  (* headers *)
+  let result_headers = ref [] in
+  let headerfn (h: string) : int =
+      let split = String.lsplit2 ~on:':' h in
+      match split with
+      | Some (l, r) ->
+          (result_headers := List.cons (l,r) !result_headers;
+          String.length h)
+      | None ->
+          (result_headers := List.cons (h,"") !result_headers;
+          String.length h)
+  in
+
+
   let (code, error, body) = try
       let c = C.init () in
       C.set_url c url;
-      (* C.set_verbose c true; *)
+      C.set_verbose c true;
+      (* C.set_header c true; *)
       C.set_errorbuffer c errorbuf;
       C.set_followlocation c true;
       C.set_failonerror c false;
       C.set_writefunction c responsefn;
-      C.set_readfunction c requestfn;
       C.set_httpheader c headers;
-      (* C.set_header c true; *)
+      C.set_headerfunction c headerfn;
+
+      if verb = PUT
+      then
+        (C.set_readfunction c putfn;
+        C.set_upload c true)
+      else
+        if verb = POST
+        then
+          ( C.set_post c true;
+          C.set_postfields c body;
+          C.set_postfieldsize c (String.length body) )
+        else
+          ()
+      ;
+
 
       C.perform c;
 
@@ -89,7 +136,9 @@ let http_call (url: string) (query_params : (string * string) list) (verb: verb)
     Exception.api ~info ("Bad response code (" ^ (string_of_int code) ^ ") in
 call to " ^ url);
 
-  body
+
+
+  (body, !result_headers)
 
 let call (url: string) (verb: verb) (headers: (string * string) list) (body: string) : string =
   print_endline ("HTTP "
@@ -99,7 +148,7 @@ let call (url: string) (verb: verb) (headers: (string * string) list) (body: str
                  ^ "): "
                  ^ url);
   match cached_call url verb body with
-  | None -> let result = http_call url [] verb headers body in
+  | None -> let (result, headers) = http_call url [] verb headers body in
     save_call url verb body result;
     result
   | Some result -> result

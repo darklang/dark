@@ -120,6 +120,7 @@ let call (endpoint: string) (verb: Httpclient.verb) (args: dval_map) : dval =
       let body = "" in
       let header = (authorization_header url "POST" args) in
         Httpclient.call url verb [header] body
+    | _ -> Exception.internal "not implemented yet"
   in
   result |> Yojson.Safe.from_string |> Dval.dval_of_yojson_
 

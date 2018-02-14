@@ -18,9 +18,6 @@ type parser = Json
             | Form
             | Unknown
 
-let form_parser f =
-  f |> Uri.query_of_encoded |> Dval.query_to_dval
-
 let body_parser_type req =
   let content_type =
     match C.Header.get (Clu.Request.headers req) "content-type" with
@@ -28,6 +25,7 @@ let body_parser_type req =
     | Some v -> v
   in
   match content_type with
+  (* TODO: might just be a substring *)
   | "application/json" -> Json
   | "application/x-www-form-urlencoded" -> Form
   | _ -> Unknown
@@ -35,7 +33,7 @@ let body_parser_type req =
 let parser_fn p =
   match p with
   | Json -> Dval.parse
-  | Form -> form_parser
+  | Form -> Dval.from_form_encoding
   | Unknown -> Dval.parse
 
 let parsed_body req reqbody =
