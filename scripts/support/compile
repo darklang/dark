@@ -55,44 +55,8 @@ def elm_make():
           + " --warn --debug --yes --output" \
           + " ../server/static/elm.js")
 
-def convert_dark_file_to_graph(filename):
-    pass
-  # return subprocess.check_output(["ocamlrun", "server/_build/default/bin/darkfile_to_rpc.bc", filename])
-
-def stringify(json):
-  return json.decode() \
-             .replace("\\", "\\\\") \
-             .replace("\"", "\\\"") \
-             .replace("\n", "\\n") \
-             .replace("\r", "\\r")
-
-def generate_elm_test_data():
-  graphs = []
-  names = []
-  for d in glob.glob("server/appdata/test_*.dark"):
-    name = path.basename(path.splitext(d)[0]).replace("test_", "")
-    names.append(name)
-    graphs.append(stringify(convert_dark_file_to_graph(d)))
-  filename = "client/tests/DarkTestData.elm"
-  testnames = "\n  , ".join(names)
-  tests = [n + " : (String, String)\n" + n + " = (\"" + n + "\", \"" + g + "\")\n" for (n,g) in zip(names,graphs)]
-  output = """module DarkTestData exposing (..)
-
-tests : List (String, String)
-tests =
-  [ """ + testnames + """
-  ]
-
-""" + "\n\n".join(tests)
-
-  with open(filename, "w") as file:
-    file.write(output)
-
-
 def elm_test():
   start = time.time()
-  ocaml_build_converter()
-  # generate_elm_test_data()
   return run_test(start, "cd client && unbuffer elm-test")
 
 def less_compile():
@@ -109,10 +73,6 @@ def ocaml_build():
     return run_backend(start, cd + landmarks + build)
   else:
     return run_backend(start, cd + build)
-
-def ocaml_build_converter():
-  start = time.time()
-  # run_test(start, "cd server && jbuilder build bin/darkfile_to_rpc.bc")
 
 def ocaml_test():
   start = time.time()
