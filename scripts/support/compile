@@ -6,6 +6,8 @@ import glob
 import os.path as path
 import time
 
+run_tests = False
+
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
@@ -36,8 +38,9 @@ def run_backend(start, bash):
   return run(start, bash)
 
 def run_test(start, bash):
-  pretty_print(bash, 45)
-  return run(start, bash)
+  if run_tests:
+    pretty_print(bash, 45)
+    return run(start, bash)
 
 def elm_package():
   start = time.time()
@@ -113,7 +116,7 @@ def ocaml_build_converter():
 
 def ocaml_test():
   start = time.time()
-  return run_backend(start, "cd server && jbuilder build test/test.exe && unbuffer _build/default/test/test.exe 2>&1")
+  return run_test(start, "cd server && jbuilder build test/test.exe && unbuffer _build/default/test/test.exe 2>&1")
 
 def reload_server():
   start = time.time()
@@ -233,7 +236,10 @@ profile = False # Run ocaml stuff under the landmarks profiler
 files = []
 def main():
   for f in sys.argv[1:]:
-    if not ignore(f):
+    if f == "--test":
+      global run_tests
+      run_tests = True
+    elif not ignore(f):
       files.append(f)
 
   if len(files) > 0:

@@ -5,6 +5,8 @@ import sys
 import threading
 import time
 
+run_tests = False
+
 # Make io unbuffered
 def flush(fn):
   def newfn(x):
@@ -14,23 +16,39 @@ def flush(fn):
 sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
 
+
 def run(bash):
   proc = subprocess.run(bash, shell=True)
   return proc.returncode == 0
 
+
 def compile(files):
-  run("scripts/support/compile " + " ".join(files))
+  global run_tests
+  if run_tests:
+    test = "--test "
+  else:
+    test = ""
+  run("scripts/support/compile " + test + " ".join(files))
+
 
 def initial_compile():
-  compile([ "client/elm-package.json",
-            "client/Tests/elm-package.json",
-            "client/Main.elm",
-            "server/main/dark.ml",
-            "server/static/base.less"])
-  print("--------------------------\n-- Finished initial compile \n-----------------------\n")
+  files = [ "client/elm-package.json"
+          , "client/Main.elm"
+          , "server/main/dark.ml"
+          , "server/static/base.less"
+          , "client/Tests/elm-package.json"
+          , "server/test/test.ml" ]
+  compile(files)
+
+  print("--------------------------")
+  print("-- Finished initial compile")
+  print("--------------------------")
+
 
 def start_postgres():
-  print("--------------------------\n-- Starting postgres\n-----------------------\n\n\n\n")
+  print("--------------------------")
+  print("-- Starting postgres")
+  print("--------------------------")
   run('sudo su postgres -c "/etc/init.d/postgresql start"')
 
 # It is extremely challenging to get a non-blocking read on stdin.
@@ -94,6 +112,9 @@ def main():
       compile = True
     elif f == "--watch":
       watch = True
+    elif f == "--test":
+      global run_tests
+      run_tests = True
 
   if compile:
     background_task(initial_compile)

@@ -3,11 +3,10 @@
 - Install Docker for Mac
 - Run `brew install bash`
 - Run `brew install fswatch`
-- Run `scripts/builder --compile --watch`
-- Wait til the terminal says "Starting" - this means the build server is ready
+- Run `scripts/builder --compile --watch --test`
+- Wait til the terminal says "Finished initial compile" - this means the build server is ready
 - Open your browser to http://localhost:8000/admin/ui
-   - the usename is dark, password is eapnsdc (mnemonic: ellen and pauls new startup dot com)
-- Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
+- Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
 
 # Setting up your editor
 
