@@ -230,17 +230,30 @@ let rec to_url_string (dv : dval) : string =
 
 
 (* ------------------------- *)
-(* Clonversion Functions *)
+(* Conversion Functions *)
 (* ------------------------- *)
-let to_char dv =
+let to_char dv : char option =
   match dv with
   | DChar c -> Some c
   | _ -> None
 
-let to_int dv =
+let to_int dv : int option =
   match dv with
   | DInt i -> Some i
   | _ -> None
+
+let to_string_exn dv : string =
+  match dv with
+  | DStr s -> s
+  | _ -> Exception.user "expecting str" ~actual:(to_repr dv)
+
+let to_string_pairs dv : (string * string) list =
+  match dv with
+  | DObj obj ->
+      obj
+      |> DvalMap.to_alist
+      |> List.map ~f:(fun (k,v) -> (k, to_string_exn v))
+  | _ -> Exception.user "expecting str" ~actual:(to_repr dv)
 
 let to_dobj (pairs: (string*dval) list) : dval =
   DObj (DvalMap.of_alist_exn pairs)

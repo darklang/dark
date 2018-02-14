@@ -92,8 +92,8 @@ let oauth_header secret url verb (args: dval_map) : string =
   |> String.concat ~sep:", "
   |> (^) "OAuth "
 
-let authorization_header url verb (args: dval_map) =
-  "Authorization:" ^ (oauth_header Secret.twitter url verb args)
+let authorization_header url verb (args: dval_map) : (string * string) =
+  ("Authorization", oauth_header Secret.twitter url verb args)
 
 
 let rec dvalmap2query (args: dval_map) : string =
@@ -115,11 +115,11 @@ let call (endpoint: string) (verb: Httpclient.verb) (args: dval_map) : dval =
     | GET ->
       let query = dvalmap2query args in
       let header = (authorization_header url "GET" args) in
-      Httpclient.call (url ^ "?" ^ query) verb [header] ""
+        Httpclient.call (url ^ "?" ^ query) verb [header] ""
     | POST ->
       let body = "" in
       let header = (authorization_header url "POST" args) in
-      Httpclient.call url verb [header] body
+        Httpclient.call url verb [header] body
   in
   result |> Yojson.Safe.from_string |> Dval.dval_of_yojson_
 

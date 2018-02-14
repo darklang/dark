@@ -36,7 +36,20 @@ let cached_call (url: string) (verb: verb) (body: string) : string option =
 
 let _ = C.global_init C.CURLINIT_GLOBALALL
 
-let http_call (url: string) (verb: verb) (headers: string list) (body: string) : string =
+let qp2string (params : (string * string) list) : string =
+  params
+  |> List.fold
+    ~init:[]
+    ~f:(fun l (key,data) ->
+        (key ^ "=" ^ (Uri.pct_encode ~component:`Userinfo data)) :: l)
+  |> String.concat ~sep:"&"
+
+
+let http_call (url: string) (query_params : (string * string) list) (verb: verb) (headers: (string * string) list) (body: string) : string =
+  let params = query_params |> qp2string in
+  let url = url ^ "?" ^ params in
+  let headers = headers
+                |> List.map ~f:(fun (k,v) -> k ^ ": " ^ v) in
   let errorbuf = ref "" in
   let responsebuf = Buffer.create 16384 in
 
@@ -47,7 +60,7 @@ let http_call (url: string) (verb: verb) (headers: string list) (body: string) :
     Buffer.add_string responsebuf str;
     String.length str in
 
-  let (code, error, response) = try
+  let (code, error, body) = try
       let c = C.init () in
       C.set_url c url;
       (* C.set_verbose c true; *)
@@ -71,14 +84,14 @@ let http_call (url: string) (verb: verb) (headers: string list) (body: string) :
   let info = [ "url", url
             ; "code", string_of_int code
             ; "error", error
-            ; "response", response] in
+            ; "response", body] in
   if code <> 200 then
     Exception.api ~info ("Bad response code (" ^ (string_of_int code) ^ ") in
 call to " ^ url);
 
-  response
+  body
 
-let call (url: string) (verb: verb) (headers: string list) (body: string) : string =
+let call (url: string) (verb: verb) (headers: (string * string) list) (body: string) : string =
   print_endline ("HTTP "
                  ^ (show_verb verb)
                  ^ " ("
@@ -86,7 +99,7 @@ let call (url: string) (verb: verb) (headers: string list) (body: string) : stri
                  ^ "): "
                  ^ url);
   match cached_call url verb body with
-  | None -> let result = http_call url verb headers body in
+  | None -> let result = http_call url [] verb headers body in
     save_call url verb body result;
     result
   | Some result -> result
