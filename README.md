@@ -9,6 +9,26 @@
    - the usename is dark, password is eapnsdc (mnemonic: ellen and pauls new startup dot com)
 - Edit code normally - on each save, the app will be rebuilt and the browser will reload as necessary
 
+# Setting up your editor
+
+Ideally, you'd be able to use elm-make and merlin inside the container.
+We have this kinda working, but not fully. You can use ocamlmerlin in
+the container, but it needs some vim/emacs scripts locally, which
+require the whole toolchain to get installed unless you want to hack it.
+
+To get elm to work (in vim at least), you need elm-make locally.
+
+- Install merlin:
+  - `brew install opam`
+  - `opam init`
+    - copy snippet to your bashrc/shell config
+  - `opam install merlin`
+  - `opam install ocp-indent`
+
+- Install elm tools:
+  - `brew install elm`
+
+
 # Running conduit
 
 - Run `./scripts/run-conduit-frontend.sh`
