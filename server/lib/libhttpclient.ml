@@ -16,7 +16,19 @@ let call verb =
     | [DStr uri; body; query; headers] ->
         let query = Dval.to_string_pairs query in
         let headers = Dval.to_string_pairs headers in
-        let body = Dval.to_repr body in 
+
+        let has_form_header = List.exists headers
+              ~f:(fun (k,v) -> String.lowercase k = "content-type"
+
+                               && String.lowercase v = "application/x-www-form-urlencoded") in
+
+        let body =
+          match body with
+          | DObj obj ->
+              if has_form_header
+              then Dval.to_form_encoding body
+              else Dval.dval_to_json_string body
+          | _ -> Dval.to_repr body in
         DStr (Httpclient.http_call uri query verb headers body)
     | args -> fail args)
 

@@ -258,6 +258,13 @@ let to_string_pairs dv : (string * string) list =
 let to_dobj (pairs: (string*dval) list) : dval =
   DObj (DvalMap.of_alist_exn pairs)
 
+let to_form_encoding (dv: dval) : string =
+  dv
+  |> to_string_pairs
+  (* TODO: forms are allowed take string lists as the value, not just strings *)
+  |> List.map ~f:(fun (k,v) -> (k, [v]))
+  |> Uri.encoded_of_query
+
 (* ------------------------- *)
 (* Obj Functions *)
 (* ------------------------- *)
