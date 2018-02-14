@@ -347,7 +347,6 @@ transformToStringEntry s_ =
   |> String.dropLeft 1
   |> String.dropRight 1
   |> Util.replace "\\\\\"" "\""
-  |> Debug.log "toStringEntry"
 
 transformFromStringEntry : String -> String
 transformFromStringEntry s =
@@ -355,7 +354,6 @@ transformFromStringEntry s =
            |> Util.replace "\"" "\\\""
   in
   "\"" ++ s2 ++ "\""
-  |> Debug.log "fromStringEntry"
 
 stringEntryHtml : Model -> Html.Html Msg
 stringEntryHtml m =
