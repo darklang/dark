@@ -172,7 +172,8 @@ let server =
                   String.lowercase name = "content-type"
                   && String.lowercase value = "text/html")
                then Dval.to_simple_repr "<" ">" value
-               else Dval.dval_to_json_string value
+               (* TODO: only pretty print for a webbrowser *)
+               else Dval.dval_to_pretty_json_string value
              in
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
@@ -180,7 +181,7 @@ let server =
                ~body:body
                ())
         | _ ->
-          let body = Dval.dval_to_json_string result in
+          let body = Dval.dval_to_pretty_json_string result in
           (* for demonstrations sake, let's return 200 Okay when
            * no HTTP response object is returned *)
           let code = 200 in

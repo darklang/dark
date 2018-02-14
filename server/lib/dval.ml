@@ -345,6 +345,9 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string
 
+let dval_to_pretty_json_string (v: dval) : string =
+  v |> dval_to_yojson |> Yojson.Safe.pretty_to_string
+
 let dvalmap_to_string (m:dval_map) : string =
   DObj m |> dval_to_yojson |> Yojson.Safe.to_string
 
