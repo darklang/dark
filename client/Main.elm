@@ -375,30 +375,36 @@ update_ msg m =
                 else
                   case p of
                     Just i -> Selection.enter m tlid i
-                    Nothing -> Selection.downLevel m tlid p
-              Key.Up -> Selection.upLevel m tlid p
-              Key.Down -> Selection.downLevel m tlid p
-              Key.Right -> Selection.nextSibling m tlid p
-              Key.Left -> Selection.previousSibling m tlid p
+                    Nothing -> Selection.selectDownLevel m tlid p
+              Key.Up -> Selection.selectUpLevel m tlid p
+              Key.Down -> Selection.selectDownLevel m tlid p
+              Key.Right -> Selection.selectNextSibling m tlid p
+              Key.Left -> Selection.selectPreviousSibling m tlid p
               Key.Tab ->
                 case p of
-                  Just pp -> Selection.nextBlank m tlid p
-                  Nothing -> Selection.nextToplevel m (Just tlid)
+                  Just pp ->
+                    if event.shiftKey
+                    then Selection.selectPrevBlank m tlid p
+                    else Selection.selectNextBlank m tlid p
+                  Nothing ->
+                    if event.shiftKey
+                    then Selection.selectPrevToplevel m (Just tlid)
+                    else Selection.selectNextToplevel m (Just tlid)
               Key.O ->
                 if event.ctrlKey
-                then Selection.upLevel m tlid p
+                then Selection.selectUpLevel m tlid p
                 else NoChange
               Key.I ->
                 if event.ctrlKey
-                then Selection.downLevel m tlid p
+                then Selection.selectDownLevel m tlid p
                 else NoChange
               Key.N ->
                 if event.ctrlKey
-                then Selection.nextSibling m tlid p
+                then Selection.selectNextSibling m tlid p
                 else NoChange
               Key.P ->
                 if event.ctrlKey
-                then Selection.previousSibling m tlid p
+                then Selection.selectPreviousSibling m tlid p
                 else NoChange
               Key.C ->
                 if event.ctrlKey
@@ -490,6 +496,17 @@ update_ msg m =
                     let name = AC.getValue m.complete
                     in Entry.submit m cursor Entry.ContinueThread name
 
+                Key.Tab ->
+                  case cursor of
+                    Filling tlid p ->
+                      if event.shiftKey
+                      then
+                        Selection.enterPrevBlank m tlid (Just p)
+                      else
+                        Selection.enterNextBlank m tlid (Just p)
+                    Creating _ ->
+                      NoChange
+
                 Key.Unknown c ->
                   if event.key == Just "."
                   && isFieldAccessDot m.state m.complete.value
@@ -536,7 +553,7 @@ update_ msg m =
               Key.Down -> Viewport.moveDown m.center
               Key.Left -> Viewport.moveLeft m.center
               Key.Right -> Viewport.moveRight m.center
-              Key.Tab -> Selection.nextToplevel m Nothing
+              Key.Tab -> Selection.selectNextToplevel m Nothing
               _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange

@@ -158,6 +158,10 @@ firstBlank : Toplevel -> Successor
 firstBlank tl =
   tl |> allBlanks |> List.head
 
+lastBlank : Toplevel -> Successor
+lastBlank tl =
+  tl |> allBlanks |> LE.last
+
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
   let mapped = List.map (\t ->

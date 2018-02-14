@@ -15,13 +15,13 @@ import AST
 import Pointer as P
 import Util exposing (deMaybe)
 
-nextToplevel : Model -> (Maybe TLID) -> Modification
-nextToplevel m cur =
+selectNextToplevel : Model -> (Maybe TLID) -> Modification
+selectNextToplevel m cur =
   let tls = List.map .id m.toplevels
       next =
         cur
         |> Maybe.andThen (\c -> LE.elemIndex c tls)
-        |> Maybe.map ((+) 1)
+        |> Maybe.map (\x -> x + 1)
         |> Maybe.map (\i -> i % List.length tls)
         |> Maybe.andThen (\i -> LE.getAt i tls)
         |> ME.orElse (m.toplevels |> (List.map .id) |> List.head)
@@ -30,15 +30,32 @@ nextToplevel m cur =
         Just nextId -> Select nextId Nothing
         Nothing -> Deselect
 
-upLevel : Model -> TLID -> (Maybe Pointer) -> Modification
-upLevel m tlid cur =
+selectPrevToplevel : Model -> (Maybe TLID) -> Modification
+selectPrevToplevel m cur =
+  let tls = List.map .id m.toplevels
+      next =
+        cur
+        |> Maybe.andThen (\c -> LE.elemIndex c tls)
+        |> Maybe.map (\x -> x - 1)
+        |> Maybe.map (\i -> i % List.length tls)
+        |> Maybe.andThen (\i -> LE.getAt i tls)
+        |> ME.orElse (m.toplevels |> (List.map .id) |> LE.last)
+  in
+      case next of
+        Just nextId -> Select nextId Nothing
+        Nothing -> Deselect
+
+
+
+selectUpLevel : Model -> TLID -> (Maybe Pointer) -> Modification
+selectUpLevel m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.andThen (TL.getParentOf tl)
   |> Select tlid
 
-downLevel : Model -> TLID -> (Maybe Pointer) -> Modification
-downLevel m tlid cur =
+selectDownLevel : Model -> TLID -> (Maybe Pointer) -> Modification
+selectDownLevel m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> ME.orElse (TL.rootOf tl)
@@ -46,30 +63,65 @@ downLevel m tlid cur =
   |> ME.orElse cur
   |> Select tlid
 
-nextSibling : Model -> TLID -> (Maybe Pointer) -> Modification
-nextSibling m tlid cur =
+selectNextSibling : Model -> TLID -> (Maybe Pointer) -> Modification
+selectNextSibling m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.map (TL.getNextSibling tl)
   |> ME.orElse cur
   |> Select tlid
 
-previousSibling : Model -> TLID -> (Maybe Pointer) -> Modification
-previousSibling m tlid cur =
+selectPreviousSibling : Model -> TLID -> (Maybe Pointer) -> Modification
+selectPreviousSibling m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> Maybe.map (TL.getPrevSibling tl)
   |> ME.orElse cur
   |> Select tlid
 
-nextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
-nextBlank m tlid cur =
+getPrevBlank : Model -> TLID -> (Maybe Pointer) -> Maybe Pointer
+getPrevBlank m tlid cur =
+  let tl = TL.getTL m tlid in
+  cur
+  |> ME.filter P.isBlank
+  |> Maybe.andThen (TL.getPrevBlank tl)
+  |> ME.orElse (TL.lastBlank tl)
+
+getNextBlank : Model -> TLID -> (Maybe Pointer) -> Maybe Pointer
+getNextBlank m tlid cur =
   let tl = TL.getTL m tlid in
   cur
   |> ME.filter P.isBlank
   |> TL.getNextBlank tl
   |> ME.orElse (TL.firstBlank tl)
+
+selectNextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
+selectNextBlank m tlid cur =
+  cur
+  |> getNextBlank m tlid
   |> Select tlid
+
+enterNextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
+enterNextBlank m tlid cur =
+  cur
+  |> getNextBlank m tlid
+  |> Maybe.map (\p -> Enter (Filling tlid p))
+  |> Maybe.withDefault NoChange
+
+selectPrevBlank : Model -> TLID -> (Maybe Pointer) -> Modification
+selectPrevBlank m tlid cur =
+  cur
+  |> getPrevBlank m tlid
+  |> Select tlid
+
+enterPrevBlank : Model -> TLID -> (Maybe Pointer) -> Modification
+enterPrevBlank m tlid cur =
+  cur
+  |> getPrevBlank m tlid
+  |> Maybe.map (\p -> Enter (Filling tlid p))
+  |> Maybe.withDefault NoChange
+
+
 
 delete : Model -> TLID -> Pointer -> Modification
 delete m tlid cur =
@@ -129,7 +181,7 @@ enter m tlid cur =
                  , AutocompleteMod (ACSetQuery (content))
                  ]
           else
-            downLevel m tlid (Just cur)
+            selectDownLevel m tlid (Just cur)
         _ -> NoChange
     _ -> Enter (Filling tlid cur)
 
