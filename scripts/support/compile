@@ -25,9 +25,7 @@ def run(start, bash):
 # Build logic
 ###################
 def pretty_print(msg, color):
-  global machine
-  if not machine:
-    print('\x1b[6;30;' + str(color) + 'm' + "\n$ " + msg + '\x1b[0m')
+  print('\x1b[6;30;' + str(color) + 'm' + "\n$ " + msg + '\x1b[0m')
 
 def run_frontend(start, bash):
   pretty_print(bash, 44)
@@ -47,16 +45,12 @@ def elm_package():
 
 def elm_make():
   start = time.time()
-  global machine
-  if machine:
-    return run_frontend(start, "cd client && elm-make --report=json Main.elm --output=/dev/null")
-  else:
-    # unbuffer makes elm think it's talking a terminal
-    return run_frontend(start, \
-            "cd client" \
-            + " && unbuffer elm-make Main.elm" \
-            + " --warn --debug --yes --output" \
-            + " ../server/static/elm.js")
+  # unbuffer makes elm think it's talking a terminal
+  return run_frontend(start, \
+          "cd client" \
+          + " && unbuffer elm-make Main.elm" \
+          + " --warn --debug --yes --output" \
+          + " ../server/static/elm.js")
 
 def convert_dark_file_to_graph(filename):
     pass
@@ -235,15 +229,11 @@ def ignore(filename):
   return False
 
 
-machine = False # Don't print pretty things, use different formatting
 profile = False # Run ocaml stuff under the landmarks profiler
 files = []
 def main():
-  global machine
   for f in sys.argv[1:]:
-    if f == "--machine":
-      machine = True
-    elif not ignore(f):
+    if not ignore(f):
       files.append(f)
 
   if len(files) > 0:
