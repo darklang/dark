@@ -226,9 +226,9 @@ viewTL m tl =
                    (decodeClickEvent (ToplevelClickUp tl.id Nothing))
                ]
 
-      selected= if Just tl.id == tlidOf m.state
-                then "selected"
-                else ""
+      selected = if Just tl.id == tlidOf m.state
+                 then "selected"
+                 else ""
       class = [selected, toString (deTLID tl.id), "toplevel"]
               |> String.join " "
 
