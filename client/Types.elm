@@ -118,6 +118,7 @@ type alias GlobalVariable = String
 type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
+    | NothingClick MouseEvent
     | ToplevelClickDown Toplevel MouseEvent
     -- we have the actual node when ToplevelClickUp is created,
     -- but by the time we use it the proper node will be changed

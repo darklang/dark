@@ -730,6 +730,9 @@ update_ msg m =
     (FocusEntry _, _) ->
       NoChange
 
+    (NothingClick _, _) ->
+      NoChange
+
     (FocusAutocompleteItem _, _) ->
       NoChange
 

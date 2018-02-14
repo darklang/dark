@@ -376,6 +376,19 @@ stringEntryHtml m =
                       , Events.onInput (EntryInputMsg << transformFromStringEntry)
                       , Attrs.value value
                       , Attrs.spellcheck False
+                      -- Stop other events firing
+                      , Events.onWithOptions
+                          "mouseup"
+                          { stopPropagation = True, preventDefault = False}
+                          (decodeClickEvent NothingClick)
+                      , Events.onWithOptions
+                          "mouseclick"
+                          { stopPropagation = True, preventDefault = False}
+                          (decodeClickEvent NothingClick)
+                      , Events.onWithOptions
+                          "mousedown"
+                          { stopPropagation = True, preventDefault = False}
+                          (decodeClickEvent NothingClick)
                       , Attrs.cols 50
                       , Attrs.rows (5 + SE.countOccurrences "\n" value)
                       , Attrs.autocomplete False
