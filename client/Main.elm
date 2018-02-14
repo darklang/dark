@@ -642,15 +642,21 @@ update_ msg m =
     -- entry node
     ------------------------
     (EntryInputMsg target, _) ->
+      -- There are functions to convert strings to and from quoted
+      -- strings, but they don't get to run until later, so hack
+      -- around the problem here.
+      let query = if target == "\""
+                  then "\"\""
+                  else target in
       -- don't process the autocomplete for '.', as nothing will match
       -- and it will reset the order, losing our spot. The '.' will be
       -- processed by
-      if String.endsWith "." target
-      && isFieldAccessDot m.state target
+      if String.endsWith "." query
+      && isFieldAccessDot m.state query
       then
         NoChange
       else
-        Many [ AutocompleteMod <| ACSetQuery target
+        Many [ AutocompleteMod <| ACSetQuery query
              , MakeCmd Entry.focusEntry
              ]
 
