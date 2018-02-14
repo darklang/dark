@@ -355,6 +355,13 @@ transformFromStringEntry s =
   in
   "\"" ++ s2 ++ "\""
 
+nothingMouseEvent : String -> Html.Attribute Msg
+nothingMouseEvent name =
+  Events.onWithOptions
+    name
+    { stopPropagation = True, preventDefault = False}
+    (decodeClickEvent NothingClick)
+
 stringEntryHtml : Model -> Html.Html Msg
 stringEntryHtml m =
   let
@@ -365,6 +372,9 @@ stringEntryHtml m =
       smallInput =
         Html.input [ Attrs.id Defaults.entryID
                    , Events.onInput (EntryInputMsg << transformFromStringEntry)
+                   , nothingMouseEvent "mouseup"
+                   , nothingMouseEvent "mouseclick"
+                   , nothingMouseEvent "mousedown"
                    , Attrs.value value
                    , Attrs.spellcheck False
                    , Attrs.autocomplete False
@@ -377,18 +387,9 @@ stringEntryHtml m =
                       , Attrs.value value
                       , Attrs.spellcheck False
                       -- Stop other events firing
-                      , Events.onWithOptions
-                          "mouseup"
-                          { stopPropagation = True, preventDefault = False}
-                          (decodeClickEvent NothingClick)
-                      , Events.onWithOptions
-                          "mouseclick"
-                          { stopPropagation = True, preventDefault = False}
-                          (decodeClickEvent NothingClick)
-                      , Events.onWithOptions
-                          "mousedown"
-                          { stopPropagation = True, preventDefault = False}
-                          (decodeClickEvent NothingClick)
+                      , nothingMouseEvent "mouseup"
+                      , nothingMouseEvent "mouseclick"
+                      , nothingMouseEvent "mousedown"
                       , Attrs.cols 50
                       , Attrs.rows (5 + SE.countOccurrences "\n" value)
                       , Attrs.autocomplete False
