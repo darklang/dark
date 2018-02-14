@@ -120,17 +120,68 @@ port setStorage : Editor -> Cmd a
 -- updates
 -----------------------
 
+replaceToplevel : Model -> Toplevel -> Model
+replaceToplevel m tl =
+  let newToplevels = m
+                     |> .toplevels
+                     |> List.filter (\this_tl -> this_tl.id /= tl.id)
+                     |> List.append [tl]
+  in { m | toplevels = newToplevels }
+
+processFocus : Model -> Focus -> Modification
+processFocus m focus =
+  case focus of
+    FocusNext tlid pred ->
+      let tl = TL.getTL m tlid
+          next = TL.getNextBlank tl pred in
+      case next of
+        Just p -> Enter (Filling tlid p)
+        Nothing -> Select tlid Nothing
+    FocusExact tlid p ->
+      case p of
+        PFilled _ _ -> Select tlid (Just p)
+        PBlank _ _ -> Enter (Filling tlid p)
+    Refocus tlid ->
+      Select tlid Nothing
+    FocusFirstAST tlid ->
+      let tl = TL.getTL m tlid
+          next = TL.getFirstASTBlank tl in
+      case next of
+        Just p -> Enter (Filling tlid p)
+        Nothing -> Select tlid Nothing
+    FocusSame ->
+      case unwrapState m.state of
+        Selecting tlid mp ->
+          case mp of
+            Just p ->
+              let tl = TL.getTL m tlid in
+              if TL.isValidPointer tl p then
+                NoChange
+              else
+                Deselect
+            Nothing ->
+              NoChange
+        Entering (Filling tlid p) ->
+          let tl = TL.getTL m tlid in
+          if TL.isValidPointer tl p then
+            NoChange
+          else
+            Deselect
+        _ -> NoChange
+    FocusNothing -> Deselect
+
+
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg m =
   let mods = update_ msg m
-      (newm, newc) = updateMod m mods (m, Cmd.none)
+      (newm, newc) = updateMod mods (m, Cmd.none)
   in
     ({ newm | lastMsg = msg
             , lastMod = mods}
      , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
 
-updateMod : Model -> Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
-updateMod origm mod (m, cmd) =
+updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
+updateMod mod (m, cmd) =
   let _ = if m.integrationTestState /= NoIntegrationTest
           then Debug.log "mod update" mod
           else mod
@@ -161,7 +212,35 @@ updateMod origm mod (m, cmd) =
     case mod of
       Error e -> { m | error = Just e} ! []
       ClearError -> { m | error = Nothing} ! []
-      RPC (calls, focus) -> m ! [rpc m focus calls]
+
+      RPC (calls, focus) ->
+        -- immediately update the model based on SetHandler and focus, if
+        -- possible
+        let hasNonHandlers =
+              List.any (\c -> case c of
+                                SetHandler _ _ _ ->
+                                  False
+                                _ -> True) calls
+
+        in if hasNonHandlers
+           then
+             m ! [rpc m focus calls]
+           else
+             let localM =
+                   List.foldl (\call m ->
+                     case call of
+                       SetHandler tlid pos h ->
+                         replaceToplevel m
+                           {id = tlid, pos = pos, data = TLHandler h }
+                       _ -> m) m calls
+
+                 (withFocus, wfCmd) =
+                   updateMod (Many [ AutocompleteMod ACReset
+                                   , processFocus localM focus
+                                   ])
+                             (localM, Cmd.none)
+              in withFocus ! [wfCmd, rpc m focus calls]
+
       NoChange -> m ! []
       TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
@@ -290,7 +369,7 @@ updateMod origm mod (m, cmd) =
         in ({ m | complete = complete }
             , cmd)
       -- applied from left to right
-      Many mods -> List.foldl (updateMod origm) (m, Cmd.none) mods
+      Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
 
@@ -655,55 +734,17 @@ update_ msg m =
     (FinishIntegrationTest, _) ->
       EndIntegrationTest
 
-    -- (AddRandom, _) ->
-    --   Many [ RandomGraph.makeRandomChange m, Deselect]
-    --
-
+    -----------------
+    -- URL stuff
+    -----------------
     (NavigateTo url, _) ->
       MakeCmd (Navigation.newUrl url)
 
     (RPCCallBack focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
       let m2 = { m | toplevels = toplevels }
-          newState =
-            case focus of
-              FocusNext tlid pred ->
-                let tl = TL.getTL m2 tlid
-                    next = TL.getNextBlank tl pred in
-                case next of
-                  Just p -> Enter (Filling tlid p)
-                  Nothing -> Select tlid Nothing
-              FocusExact tlid p ->
-                case p of
-                  PFilled _ _ -> Select tlid (Just p)
-                  PBlank _ _ -> Enter (Filling tlid p)
-              Refocus tlid ->
-                Select tlid Nothing
-              FocusFirstAST tlid ->
-                let tl = TL.getTL m2 tlid
-                    next = TL.getFirstASTBlank tl in
-                case next of
-                  Just p -> Enter (Filling tlid p)
-                  Nothing -> Select tlid Nothing
-              FocusSame ->
-                case unwrapState m.state of
-                  Selecting tlid mp ->
-                    case mp of
-                      Just p ->
-                        let tl = TL.getTL m2 tlid in
-                        if TL.isValidPointer tl p then
-                          NoChange
-                        else
-                          Deselect
-                      Nothing ->
-                        NoChange
-                  Entering (Filling tlid p) ->
-                    let tl = TL.getTL m2 tlid in
-                    if TL.isValidPointer tl p then
-                      NoChange
-                    else
-                      Deselect
-                  _ -> NoChange
-              FocusNothing -> Deselect
+          newState = processFocus m2 focus
+      -- TODO: can make this much faster by only receiving things that have
+      -- been updated
       in Many [ SetToplevels toplevels analysis globals
               , AutocompleteMod ACReset
               , ClearError
