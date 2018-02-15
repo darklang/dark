@@ -629,10 +629,34 @@ update_ msg m =
           Deselected ->
             case event.keyCode of
               Key.Enter -> Entry.createFindSpace m
+
+              Key.A ->
+                if event.ctrlKey
+                then Viewport.pageLeft m.center
+                else NoChange
+              Key.E ->
+                if event.ctrlKey
+                then Viewport.pageRight m.center
+                else NoChange
+              Key.F ->
+                if event.ctrlKey
+                then Viewport.pageDown m.center
+                else NoChange
+              Key.B ->
+                if event.ctrlKey
+                then Viewport.pageUp m.center
+                else NoChange
+
+              Key.PageUp -> Viewport.pageUp m.center
+              Key.PageDown -> Viewport.pageDown m.center
+
               Key.Up -> Viewport.moveUp m.center
               Key.Down -> Viewport.moveDown m.center
               Key.Left -> Viewport.moveLeft m.center
               Key.Right -> Viewport.moveRight m.center
+
+              Key.Zero -> Viewport.moveTo { x=0, y=0 }
+
               Key.Tab -> Selection.selectNextToplevel m Nothing
               _ -> NoChange
 

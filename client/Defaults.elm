@@ -11,8 +11,15 @@ leftButton = 0
 -- UI
 initialPos : VPos
 initialPos = {vx=475, vy=325}
+
 moveSize : Int
 moveSize = 50
+
+pageHeight : Int
+pageHeight = 400
+
+pageWidth : Int
+pageWidth = 500
 
 defaultEditor : Editor
 defaultEditor = { }
