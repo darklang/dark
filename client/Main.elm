@@ -553,20 +553,21 @@ update_ msg m =
             else
               case event.keyCode of
                 Key.Spacebar ->
-                  if AC.isStringEntry m.complete
+
+                  -- if we're trying to create a database via our magic
+                  -- incantation, then we should be able to do that without
+                  -- submitting
+                  if String.startsWith "DB" m.complete.value
+                  || m.complete.value == "="
+                  || AC.isStringEntry m.complete
                   then
-                    -- do the default since we prevented it in ui.html
+                    -- TODO: appending isnt right when we're editing, we want
+                    -- to put this wherever the cursor is. We need to allow the
+                    -- inputbox to do it's thing.
                     AutocompleteMod <| ACAppendQuery " "
                   else
-                    -- if we're trying to create a database via our magic
-                    -- incantation, then we should be able to do that without
-                    -- submitting
-                    if String.startsWith "DB" m.complete.value
-                    then
-                      AutocompleteMod <| ACAppendQuery " "
-                    else
-                      let name = AC.getValue m.complete
-                      in Entry.submit m cursor Entry.ContinueThread name
+                    let name = AC.getValue m.complete
+                    in Entry.submit m cursor Entry.ContinueThread name
 
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
