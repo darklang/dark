@@ -225,7 +225,7 @@ submit m cursor action value =
           validate "\\w+" "DB name"
             <| wrap <| SetDBColName tlid id value
         VarBind ->
-          validate "[a-zA-Z][a-zA-Z0-9]+" "variable name"
+          validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
             let h = deMaybe "maybeH - varbind" maybeH
                 replacement = AST.replaceVarBind p value h.ast in
