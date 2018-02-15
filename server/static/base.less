@@ -24,6 +24,15 @@ html {
 @top-border: lighten(@black1, 5%) 2px dotted;
 @blank-underline: 1px dashed @grey2;
 
+::-webkit-scrollbar {
+  -webkit-appearance: none;
+  width: 7px;
+}
+::-webkit-scrollbar-thumb {
+  border-radius: 7px;
+  background-color: @grey1;
+}
+
 body {
   margin: 0;
   padding: 0;
@@ -456,8 +465,9 @@ body #grid * {
     }
   }
   #autocomplete-holder {
-    overflow-y: hidden;
-    max-height: 100px;
+
+    overflow-y: scroll;
+    max-height: 90px;
     font-size: 85%;
     width: 300px;
 
