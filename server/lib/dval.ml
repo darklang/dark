@@ -377,12 +377,8 @@ let parse (str : string) : dval =
      * appropriate char sequences. *)
   then str
        |> String.sub ~pos:1 ~len:(len - 2)
-       |> Util.string_replace "\\n" "\\\\n"
-       |> Util.string_replace "\n" "\\n"
-       |> fun s -> "\"" ^ s ^ "\""
-       (* Note that yojson is extremely generous in what it accepts ಠ_ಠ *)
-       |> Yojson.Safe.from_string
-       |> dval_of_yojson_
+       |> Util.string_replace "\\\"" "\""
+       |> fun s -> DStr s
   else
     try
       (* TODO: doesn't handle nested sequences at all unless they're

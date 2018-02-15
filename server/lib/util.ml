@@ -33,7 +33,7 @@ let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
 let string_replace (search: string) (replace: string) (str: string) : string =
-  String.Search_pattern.replace_first (String.Search_pattern.create search) ~in_:str ~with_:replace
+  String.Search_pattern.replace_all (String.Search_pattern.create search) ~in_:str ~with_:replace
 
 let random_string length =
     let gen() = match Random.int(26+26+10) with
