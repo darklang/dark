@@ -109,8 +109,8 @@ viewCanvas m =
     let
         entry = viewEntry m
         asts = List.map (viewTL m) m.toplevels
-        yaxis = svgLine m {x=0, y=2000} {x=0,y=-2000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
-        xaxis = svgLine m {x=2000, y=0} {x=-2000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
+        yaxis = svgLine m {x=0, y=6000} {x=0,y=-6000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
+        xaxis = svgLine m {x=6000, y=0} {x=-6000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
         routing = viewRoutingTable m
         allSvgs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in allSvgs
