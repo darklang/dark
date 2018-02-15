@@ -149,7 +149,7 @@ submit m cursor action value =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
-                    case AST.threadAncestors id h.ast |> List.reverse of
+                    case AST.threadAncestors id h.ast of
                       -- turn the current thread into a let-assignment to this
                       -- name, and close the thread
                       (Thread tid _ as thread) :: _ ->
