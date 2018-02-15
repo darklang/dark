@@ -325,7 +325,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
+  ; i = false
   }
   ;
 
