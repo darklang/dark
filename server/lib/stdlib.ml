@@ -148,8 +148,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* Int *)
   (* ====================================== *)
-  { pns = ["%"]
-  ; ins = ["Int::mod"]
+  { pns = ["Int::mod"]
+  ; ins = ["%"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = ""
@@ -163,8 +163,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["+"]
-  ; ins = ["Int::add"]
+  { pns = ["Int::add"]
+  ; ins = ["+"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Adds two integers together"
@@ -178,8 +178,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["-"]
-  ; ins = ["Int::subtract"]
+  { pns = ["Int::subtract"]
+  ; ins = ["-"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Subtracts two integers"
@@ -193,8 +193,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["*"]
-  ; ins = ["Int::multiply"]
+  { pns = ["Int::multiply"]
+  ; ins = ["*"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Multiples two integers"
@@ -207,8 +207,8 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["^"]
-  ; ins = ["Int::power"]
+  { pns = ["Int::power"]
+  ; ins = ["^"]
   ; p = [par "base" TInt ; par "exponent" TInt]
   ; r = TInt
   ; d = "Raise `base` to the power of `exponent`"
@@ -222,8 +222,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["/"]
-  ; ins = ["Int::divide"]
+  { pns = ["Int::divide"]
+  ; ins = ["/"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Divides two integers"
@@ -237,8 +237,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = [">"]
-  ; ins = ["Int::greaterThan"]
+  { pns = ["Int::greaterThan"]
+  ; ins = [">"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than b"
@@ -252,8 +252,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["<"]
-  ; ins = ["Int::lessThan"]
+  { pns = ["Int::lessThan"]
+  ; ins = ["<"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than b"
@@ -266,8 +266,8 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["<="]
-  ; ins = ["Int::lessThanOrEqualTo"]
+  { pns = ["Int::lessThanOrEqualTo"]
+  ; ins = ["<="]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than or equal to b"
@@ -281,8 +281,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = [">="]
-  ; ins = ["Int::greaterThanOrEqualTo"]
+  { pns = ["Int::greaterThanOrEqualTo"]
+  ; ins = [">="]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than or equal to b"
@@ -345,8 +345,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
 
 
-  { pns = ["Float::ceiling"]
-  ; ins = ["Float::round_up"]
+  { pns = ["Float::ceiling"; "Float::round_up"]
+  ; ins = []
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round above to an integer value"
@@ -360,8 +360,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["Float::floor"]
-  ; ins = ["Float::round_down"]
+  { pns = ["Float::floor"; "Float::round_down"]
+  ; ins = []
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round down to an integer value"
@@ -450,8 +450,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["=="]
-  ; ins = ["equals"]
+  { pns = ["equals"]
+  ; ins = ["=="]
   ; p = [par "a" TAny; par "b" TAny]
   ; r = TBool
   ; d = "Returns true if the two value are equal"
@@ -465,8 +465,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["!="]
-  ; ins = ["notEquals"]
+  { pns = ["notEquals"]
+  ; ins = ["!="]
   ; p = [par "a" TAny; par "b" TAny]
   ; r = TBool
   ; d = "Returns true if the two value are not equal"
@@ -498,8 +498,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["&&"]
-  ; ins = ["Bool::and"]
+  { pns = ["Bool::and"]
+  ; ins = ["&&"]
   ; p = [par "a" TBool ; par "b" TBool]
   ; r = TBool
   ; d = "Returns true if both a and b are true"
@@ -513,8 +513,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["||"]
-  ; ins = ["Bool::or"]
+  { pns = ["Bool::or"]
+  ; ins = ["||"]
   ; p = [par "a" TBool ; par "b" TBool]
   ; r = TBool
   ; d = "Returns true if either a is true or b is true"
@@ -647,8 +647,8 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["++"]
-  ; ins = ["String::append"]
+  { pns = ["String::append"]
+  ; ins = ["++"]
   ; p = [par "s1" TStr; par "s2" TStr]
   ; r = TStr
   ; d = "Concatenates the two strings and returns the joined string"
