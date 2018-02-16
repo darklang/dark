@@ -368,6 +368,11 @@ stringEntryHtml m =
       -- stick with the overlapping things for now, just ignore the back
       -- one
       value = transformToStringEntry m.complete.value
+      length = value
+               |> String.length
+               |> max 4
+               |> (+) 2
+
 
       smallInput =
         Html.input [ Attrs.id Defaults.entryID
@@ -376,6 +381,7 @@ stringEntryHtml m =
                    , nothingMouseEvent "mouseclick"
                    , nothingMouseEvent "mousedown"
                    , Attrs.value value
+                   , widthInCh length
                    , Attrs.spellcheck False
                    , Attrs.autocomplete False
                    ] []
@@ -394,26 +400,43 @@ stringEntryHtml m =
                       , Attrs.rows (5 + SE.countOccurrences "\n" value)
                       , Attrs.autocomplete False
                       ] []
+    in
+    if Autocomplete.isSmallStringEntry m.complete
+    then
+      Html.div
+      [ Attrs.class "string-entry small-string-entry"
+      , widthInCh (length + 3)
+      ]
+      [
+        Html.form
+        [ Events.onSubmit (EntrySubmitMsg)
+        , Attrs.class "string-container"
+        ]
+        [ smallInput ]
+      ]
+    else
+       Html.div
+      [ Attrs.class "string-entry big-string-entry" ]
+      [
+        Html.form
+        [ Events.onSubmit (EntrySubmitMsg)
+        , Attrs.class "string-container"
+        ]
+        [ largeInput ]
+      ]
 
-      stringInput = if Autocomplete.isSmallStringEntry m.complete
-                    then smallInput
-                    else largeInput
+inCh : Int -> String
+inCh w =
+  w
+  |> toString
+  |> \s -> s ++ "ch"
 
-      input = Html.div
-              [ Attrs.class "string-container"]
-              [ stringInput ]
+widthInCh : Int -> Html.Attribute Msg
+widthInCh w =
+  w
+  |> inCh
+  |> \w -> Attrs.style [("width", w)]
 
-      viewForm = Html.form
-                 [ Events.onSubmit (EntrySubmitMsg) ]
-                 [ input ]
-
-      -- outer node wrapper
-      classes = "string-entry"
-
-      wrapper = Html.div
-                [ Attrs.class classes ]
-                [ viewForm ]
-  in wrapper
 
 
 normalEntryHtml : String -> Model -> Html.Html Msg
@@ -448,35 +471,30 @@ normalEntryHtml placeholder m =
       (indent, suggestion, search) =
         Autocomplete.compareSuggestionWithActual m.complete m.complete.value
 
-      ch num = num
-               |> toString
-               |> \s -> s ++ "ch"
       indentWidth = String.length indent
       searchWidth = search ++ indent
                     |> String.length
                     |> (\l -> if l == 0
                               then max (String.length placeholder) 6
                               else l)
-                    |> ch
-      searchWidthStyle = Attrs.style [("width", searchWidth)]
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
-                               , Attrs.style [("text-indent", ch indentWidth)]
+                               , Attrs.style [("text-indent", inCh indentWidth)]
                                , Attrs.value search
                                , Attrs.placeholder placeholder
                                , Attrs.spellcheck False
                                , Attrs.autocomplete False
-                               , searchWidthStyle
+                               , widthInCh searchWidth
                                ] []
       suggestionInput = Html.input [ Attrs.id "suggestionBox"
                                    , Attrs.disabled True
                                    , Attrs.value suggestion
-                                   , searchWidthStyle
+                                   , widthInCh searchWidth
                                    ] []
 
       input = Html.div
               [ Attrs.id "search-container"
-              , searchWidthStyle
+              , widthInCh searchWidth
               ]
               [searchInput, suggestionInput]
 
@@ -486,7 +504,8 @@ normalEntryHtml placeholder m =
 
       wrapper = Html.div
                 [ Attrs.class "entry"
-                , searchWidthStyle ]
+                , widthInCh searchWidth
+                ]
                 [ viewForm ]
   in wrapper
 
@@ -624,11 +643,6 @@ viewRoutingTable m =
       html = div "routing-table" [header, routes]
 
   in placeHtml m {x=0, y=0} html
-
-
-escapeCSSName : String -> String
-escapeCSSName s =
-  Util.replace "[^0-9a-zA-Z_-]" "_" s
 
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg

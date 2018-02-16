@@ -4,7 +4,7 @@ import Types exposing (..)
 import Autocomplete
 
 entryID : String
-entryID = "entryBox"
+entryID = "entry-box"
 leftButton : Int
 leftButton = 0
 

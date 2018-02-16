@@ -38,10 +38,10 @@ fixture `Integration Tests`
 // ------------------------
 
 test('enter_changes_state', async t => {
-  const entryBoxAvailable = Selector('#entryBox').exists;
+  const entry-boxAvailable = Selector('#entry-box').exists;
   await t
     .pressKey("enter")
-    .expect(entryBoxAvailable).ok()
+    .expect(entry-boxAvailable).ok()
    ;
 });
 
@@ -49,8 +49,8 @@ test('field_access', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "req.")
-    .typeText("#entryBox", "bo")
+    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "bo")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -60,8 +60,8 @@ test('field_access_closes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "req.")
-    .typeText("#entryBox", "bo")
+    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "bo")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -72,8 +72,8 @@ test('field_access_pipes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "req.")
-    .typeText("#entryBox", "bo")
+    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "bo")
     .pressKey("shift+enter")
     .expect(astAvailable).ok()
     ;
@@ -83,10 +83,10 @@ test('field_access_nested', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "req.")
-    .typeText("#entryBox", "bo.")
-    .typeText("#entryBox", "field.")
-    .typeText("#entryBox", "field2")
+    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "bo.")
+    .typeText("#entry-box", "field.")
+    .typeText("#entry-box", "field2")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -97,9 +97,9 @@ test('pipeline_let_equals', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "3")
+    .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entryBox", "= value")
+    .typeText("#entry-box", "= value")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -109,13 +109,13 @@ test('pipe_within_let', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "3")
+    .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entryBox", "= value")
+    .typeText("#entry-box", "= value")
     .pressKey("enter")
-    .typeText("#entryBox", "value")
+    .typeText("#entry-box", "value")
     .pressKey("shift+enter")
-    .typeText("#entryBox", "assoc")
+    .typeText("#entry-box", "assoc")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;
@@ -126,13 +126,13 @@ test('tabbing_works', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entryBox", "if")
+    .typeText("#entry-box", "if")
     .pressKey("down")
     .pressKey("enter")
     .pressKey("esc")
     .pressKey("tab")
     .pressKey("enter")
-    .typeText("#entryBox", "5")
+    .typeText("#entry-box", "5")
     .pressKey("enter")
     .expect(astAvailable).ok()
     ;

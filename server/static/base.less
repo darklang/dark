@@ -449,7 +449,7 @@ body #grid * {
 
     #search-container {
       position: relative;
-      #entryBox {
+      #entry-box {
         z-index: 20;
         position: relative;
         color: @grey3;
@@ -486,16 +486,23 @@ body #grid * {
 
 .string-entry {
   position: relative;
-  width: 330px;
-  padding: 0.2em 0.4em;
+  background: @black2;
+  #entry-box {
+    margin-left: 5px;
+  }
+}
+
+.omnibox {
 }
 
 .string-container::before {
   content: "“";
+  font-style: italic;
 }
 
 .string-container::after{
   content: "”";
+  font-style: italic;
 }
 
 
