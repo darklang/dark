@@ -9,7 +9,7 @@ module C = Canvas
 module RT = Runtime
 module RTT = Types.RuntimeT
 module TL = Toplevel
-module DReq = Dark_request
+module PReq = Parsed_request
 
 let server =
   let stop,stopper = Lwt.wait () in
@@ -36,7 +36,7 @@ let server =
           let dbs = TL.dbs !c.toplevels in
           let dbs_env = Db.dbs_as_env dbs in
           Db.cur_dbs := dbs;
-          let global = DReq.sample |> DReq.to_dval in
+          let global = PReq.sample |> PReq.to_dval in
           let env = RTT.DvalMap.set dbs_env "request" global in
           let env_map acc (h : Handler.handler) =
             let h_env =
@@ -46,8 +46,8 @@ let server =
                   let cursor = (List.length reqs) - 1 (* just get the last for now *) in
                   List.nth_exn reqs cursor
                 in
-                let d_req = DReq.from_request c_req body in
-                DReq.to_dval d_req
+                let d_req = PReq.from_request c_req body in
+                PReq.to_dval d_req
               with
               | _ ->
                 global
@@ -139,13 +139,13 @@ let server =
       | [page] ->
         let route = Handler.url_for_exn page in
         Stored_request.store host body page.tlid req;
-        let input = DReq.from_request req body in
+        let input = PReq.from_request req body in
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
         let dbs_env = Db.dbs_as_exe_env (dbs) in
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
-        let env = Map.set ~key:"request" ~data:(DReq.to_dval input) env in
+        let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
         let result = Handler.execute env page in
         (match result with
         | DResp (http, value) ->
