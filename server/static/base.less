@@ -275,6 +275,12 @@ body #grid * {
   margin-left: 16px;
 }
 
+.string-style {
+    color: @purple;
+    font-style: italic;
+    letter-spacing: -0.75px;
+}
+
 .layout-block {
   display: block;
   & > .nested > .atom {
@@ -341,9 +347,7 @@ body #grid * {
   }
 
   .value.tstr {
-    color: @purple;
-    font-style: italic;
-    letter-spacing: -0.75px;
+    .string-style;
   }
 
   .lambdabody {
@@ -483,26 +487,33 @@ body #grid * {
   }
 }
 
-
-.string-entry {
-  position: relative;
-  background: @black2;
-  #entry-box {
-    margin-left: 5px;
+.omnibox {
+  // honestly couldnt tell you where this magic number comes from
+  margin-top: -9px;
+  .string-entry {
+    margin-top: -21px;
   }
 }
 
-.omnibox {
+
+.string-entry {
+  position: relative;
+  background: @selected-background;
+  #entry-box {
+    .string-style;
+    background: transparent;
+    border-bottom: @blank-underline;
+  }
 }
 
 .string-container::before {
   content: "“";
-  font-style: italic;
+  .string-style;
 }
 
 .string-container::after{
   content: "”";
-  font-style: italic;
+  .string-style;
 }
 
 
