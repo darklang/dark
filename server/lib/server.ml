@@ -11,20 +11,10 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module DReq = Dark_request
 
-type stored_request = string * CRequest.t [@@deriving sexp]
-
 let server =
   let stop,stopper = Lwt.wait () in
 
   let callback _ req req_body =
-    let load_request (host: string) (h: Handler.handler) : stored_request =
-      let filename =
-        "requests/" ^ host ^ "_" ^ (string_of_int h.tlid) ^ ".request.sexp"
-      in
-      let s = Sexplib.Sexp.load_sexp filename in
-      stored_request_of_sexp s
-    in
-
     let admin_rpc_handler body (host: string) : ((string * float * string) list * string) =
       let time name desc fn =
         let start = Unix.gettimeofday () in
@@ -51,7 +41,7 @@ let server =
           let env_map acc (h : Handler.handler) =
             let h_env =
               try
-                let (body, c_req) = load_request host h in
+                let (body, c_req) = Stored_request.load host h in
                 let d_req = DReq.from_request c_req body in
                 DReq.to_dval d_req
               with
@@ -126,14 +116,6 @@ let server =
 
     let cors = ("Access-Control-Allow-Origin", "*") in
 
-    let serialize_request (host: string) (body: string) (h: Handler.handler) (req: CRequest.t) : unit =
-      let filename =
-        "requests/" ^ host ^ "_" ^ (string_of_int h.tlid) ^ ".request.sexp"
-      in
-      let s = sexp_of_stored_request (body, req) in
-      Sexplib.Sexp.save_hum filename s
-    in
-
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
       let c = C.load host [] in
       let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
@@ -152,7 +134,7 @@ let server =
         S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
       | [page] ->
         let route = Handler.url_for_exn page in
-        serialize_request host body page req;
+        Stored_request.store host body page req;
         let input = DReq.from_request req body in
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
