@@ -116,8 +116,7 @@ body #grid * {
     font-style: italic;
     font-size: 8pt;
     min-width: 8ch;
-    height: 15px;
-    border-bottom: @blank-underline;
+    .blank-style;
     text-indent: 4px;
   }
 
@@ -279,6 +278,11 @@ body #grid * {
     color: @purple;
     font-style: italic;
     letter-spacing: -0.75px;
+}
+
+.blank-style {
+  height: 15px;
+  border-bottom: @blank-underline;
 }
 
 .layout-block {
@@ -500,9 +504,9 @@ body #grid * {
   position: relative;
   background: @selected-background;
   #entry-box {
+    .blank-style;
     .string-style;
     background: transparent;
-    border-bottom: @blank-underline;
   }
 }
 
