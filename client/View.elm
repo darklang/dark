@@ -370,8 +370,8 @@ stringEntryHtml m =
       value = transformToStringEntry m.complete.value
       length = value
                |> String.length
-               |> max 4
-               |> (+) 2
+               |> max 3
+               |> (+) 1
 
 
       smallInput =
@@ -477,6 +477,7 @@ normalEntryHtml placeholder m =
                     |> (\l -> if l == 0
                               then max (String.length placeholder) 6
                               else l)
+                    |> (+) 1
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
                                , Attrs.style [("text-indent", inCh indentWidth)]
