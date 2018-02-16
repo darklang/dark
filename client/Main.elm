@@ -170,6 +170,9 @@ processFocus m focus =
             Deselect
         _ -> NoChange
     FocusNothing -> Deselect
+    -- used instead of focussame when we've already done the focus
+    FocusNoChange -> NoChange
+
 
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -240,7 +243,7 @@ updateMod mod (m, cmd) =
                                    , processFocus localM focus
                                    ])
                              (localM, Cmd.none)
-              in withFocus ! [wfCmd, rpc m focus calls]
+              in withFocus ! [wfCmd, rpc withFocus FocusNoChange calls]
 
       NoChange -> m ! []
       TriggerIntegrationTest name ->
@@ -773,16 +776,22 @@ update_ msg m =
       MakeCmd (Navigation.newUrl url)
 
     (RPCCallBack focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
-      let m2 = { m | toplevels = toplevels }
-          newState = processFocus m2 focus
-      -- TODO: can make this much faster by only receiving things that have
-      -- been updated
-      in Many [ SetToplevels toplevels analysis globals
-              , AutocompleteMod ACReset
-              , ClearError
-              , newState
-              , extraMod -- for testing, maybe more
-              ]
+      if focus == FocusNoChange
+      then
+        Many [ SetToplevels m.toplevels analysis globals
+             , extraMod -- for testing, maybe more
+             ]
+      else
+        let m2 = { m | toplevels = toplevels }
+            newState = processFocus m2 focus
+        -- TODO: can make this much faster by only receiving things that have
+        -- been updated
+        in Many [ SetToplevels toplevels analysis globals
+                , AutocompleteMod ACReset
+                , ClearError
+                , newState
+                , extraMod -- for testing, maybe more
+                ]
 
     (SaveTestCallBack (Ok msg), _) ->
       Error <| "Success! " ++ msg

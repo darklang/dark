@@ -149,6 +149,7 @@ type Focus = FocusNothing -- deselect
            | FocusNext TLID Predecessor
            | FocusFirstAST TLID
            | FocusSame -- unchanged
+           | FocusNoChange -- unchanged
 
 -----------------------------
 -- RPCs
