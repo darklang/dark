@@ -48,27 +48,25 @@ let call verb =
 
 
 let fns : Lib.shortfn list = [
-  { n = "HttpClient::post"
-  ; o = []
+  { pns = ["HttpClient::post"]
+  ; ins = []
   ; p = params
   ; r = TObj
   ; d = "Make blocking HTTP POST call to `uri`"
   ; f = call Httpclient.POST
   ; pr = None
   ; ps = false
-  ; i = false
   }
   ;
 
-  { n = "HttpClient::get"
-  ; o = []
+  { pns = ["HttpClient::get"]
+  ; ins = []
   ; p = params
   ; r = TObj
   ; d = "Make blocking HTTP GET call to `uri`"
   ; f = call Httpclient.GET
   ; pr = None
   ; ps = false
-  ; i = false
   }
 
 ]

@@ -89,7 +89,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
       fn.parameters
       |> List.map2_exn ~f:(fun dv (p: F.param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn in
-    F.exe ~ind:0 ~ctx fn args
+    F.exe ~ind:0 ~ctx name fn args
   in
 
 

@@ -47,7 +47,7 @@ let functions =
                         v.parameters
                       ; description = v.description
                       ; return_type = Dval.tipe_to_string v.return_type
-                      ; infix = v.infix
+                      ; infix = List.mem ~equal:(=) v.infix_names k
                       })
   |> functionlist_to_yojson
   |> Yojson.Safe.pretty_to_string

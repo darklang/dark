@@ -42,14 +42,13 @@ let fns =
             op.httpMethod = "GET")
         |> List.hd
         |> Option.map ~f:(fun (get:Swagger.operation) ->
-            { n = "Twitter::" ^ (twurl2name api.path)
-            ; o = []
+            { pns = ["Twitter::" ^ (twurl2name api.path)]
+            ; ins = []
             ; r = TAny
             ; f = Functions.API (call_twitter api.path)
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             ; pr = None
             ; ps = true
-            ; i = false
             }))
   |> List.filter_map ~f:ident

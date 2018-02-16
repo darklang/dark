@@ -16,15 +16,14 @@ let func ?(d:string = "") ?(name:string="f") args : param =
 
 
 (* Shorthand *)
-type shortfn = { n : string
-               ; o : string list
+type shortfn = { pns : string list
+               ; ins : string list
                ; p : param list
                ; r : tipe
                ; f : ccfunc
                ; d : string
                ; pr : (dval list -> int -> dval list) option
                ; ps : bool
-               ; i : bool
                }
 
 let fail (args: dval list) : 'a =

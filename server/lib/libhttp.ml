@@ -3,8 +3,8 @@ open Runtime
 open Lib
 
 let fns : Lib.shortfn list = [
-  { n = "Http::respond"
-  ; o = []
+  { pns = ["Http::respond"]
+  ; ins = []
   ; p = [par "response" TAny; par "code" TInt]
   ; r = TResp
   ; d = "Respond with HTTP status `code` and `response` body"
@@ -14,13 +14,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::success"
-  ; o = []
+  { pns = ["Http::success"]
+  ; ins = []
   ; p = [par "response" TAny]
   ; r = TResp
   ; d = "Respond with HTTP status 200 and `response` body"
@@ -30,13 +29,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::respond_with_html"
-  ; o = []
+  { pns = ["Http::respond_with_html"]
+  ; ins = []
   ; p = [par "response" TAny; par "code" TInt]
   ; r = TResp
   ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
@@ -46,13 +44,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::redirect_to"
-  ; o = []
+  { pns = ["Http::redirect_to"]
+  ; ins = []
   ; p = [par "url" TStr]
   ; r = TResp
   ; d = "Redirect to url"
@@ -62,13 +59,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::bad_request"
-  ; o = []
+  { pns = ["Http::bad_request"]
+  ; ins = []
   ; p = [par "error" TStr]
   ; r = TResp
   ; d = "Respond with a 400 and an error message"
@@ -78,13 +74,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::not_found"
-  ; o = []
+  { pns = ["Http::not_found"]
+  ; ins = []
   ; p = []
   ; r = TResp
   ; d = "Respond with 404 Not Found"
@@ -94,13 +89,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::unauthorized"
-  ; o = []
+  { pns = ["Http::unauthorized"]
+  ; ins = []
   ; p = []
   ; r = TResp
   ; d = "Respond with 401 Unauthorized"
@@ -110,13 +104,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
   ;
 
-  { n = "Http::forbidden"
-  ; o = []
+  { pns = ["Http::forbidden"]
+  ; ins = []
   ; p = []
   ; r = TResp
   ; d = "Respond with 403 Forbidden"
@@ -126,7 +119,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
 
 ]

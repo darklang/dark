@@ -6,8 +6,8 @@ open Types.RuntimeT
 
 let fns : Lib.shortfn list = [
 
-  { n = "DB::insert"
-  ; o = []
+  { pns = ["DB::insert"]
+  ; ins = []
   ; p = [par "val" TObj; par "table" TDB]
   ; r = TObj
   ; d = "Insert `val` into `table`"
@@ -19,12 +19,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
-  ; i = false
   }
   ;
 
-  { n = "DB::delete"
-  ; o = []
+  { pns = ["DB::delete"]
+  ; ins = []
   ; p = [par "value" TObj; par "table" TDB]
   ; r = TNull
   ; d = "Delete `value` from `table`"
@@ -36,12 +35,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
-  ; i = false
   }
   ;
 
-  { n = "DB::update"
-  ; o = []
+  { pns = ["DB::update"]
+  ; ins = []
   ; p = [par "value" TObj; par "table" TDB]
   ; r = TNull
   ; d = "Update `table` value which has the same ID as `value`"
@@ -53,12 +51,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = false
-  ; i = false
   }
   ;
 
-  { n = "DB::fetchBy"
-  ; o = []
+  { pns = ["DB::fetchBy"]
+  ; ins = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TList
   ; d = "Fetch the value in `table` whose field `field` is `value`"
@@ -69,12 +66,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "DB::fetchOneBy"
-  ; o = []
+  { pns = ["DB::fetchOneBy"]
+  ; ins = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TAny
   ; d = "Fetch exactly one value in `table` whose field `field` is `value`"
@@ -89,12 +85,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "DB::fetchAll"
-  ; o = []
+  { pns = ["DB::fetchAll"]
+  ; ins = []
   ; p = [par "table" TDB]
   ; r = TList
   ; d = "Fetch all the values in `table`"
@@ -105,12 +100,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "DB::keys"
-  ; o = []
+  { pns = ["DB::keys"]
+  ; ins = []
   ; p = [par "table" TDB]
   ; r = TList
   ; d = "Fetch all the keys in `table`"
@@ -123,12 +117,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "DB::schema"
-  ; o = []
+  { pns = ["DB::schema"]
+  ; ins = []
   ; p = [par "table" TDB]
   ; r = TObj
   ; d = "Fetch all the values in `table`"
@@ -141,7 +134,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 

@@ -37,18 +37,17 @@ let param_to_string (param: param) : string =
 type ccfunc = InProcess of (dval list -> dval)
             | API of (dval_map -> dval)
 
-type fn = { name : string
-          ; other_names : string list
+type fn = { prefix_names : string list
+          ; infix_names : string list
           ; parameters : param list
           ; return_type : tipe
           ; description : string
           ; preview : (dval list -> int -> dval list) option
           ; func : ccfunc
           ; previewExecutionSafe : bool
-          ; infix : bool
           }
 
-let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
+let exe ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) : dval =
   let apply f arglist =
     match ctx with
     | Preview ->
@@ -91,14 +90,14 @@ let exe ?(ind=0) ~(ctx: context) (fn: fn) (args: dval_map) : dval =
               RT.raise_error
                 ~actual:a
                 ~expected:(Dval.tipe_to_string p.tipe)
-                (fn.name ^ " was called with the wrong type to parameter: " ^ p.name))
+                (fnname ^ " was called with the wrong type to parameter: " ^ p.name))
 
   | API f ->
       try
         f args
       with
       | TypeError args ->
-          RT.raise_error (fn.name ^ " is missing a parameter")
+          RT.raise_error (fnname ^ " is missing a parameter")
             ~expected:(fn.parameters
                        |> List.map ~f:param_to_string
                        |> String.concat ~sep:", ")

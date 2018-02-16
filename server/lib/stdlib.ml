@@ -31,8 +31,8 @@ let fns : Lib.shortfn list = [
   (* Dict  *)
   (* ====================================== *)
 
-  { n = "Dict::keys"
-  ; o = []
+  { pns = ["Dict::keys"]
+  ; ins = []
   ; p = [par "dict" TObj]
   ; r = TList
   ; d = ""
@@ -45,13 +45,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-
-  { n = "Dict::values"
-  ; o = []
+  { pns = ["Dict::values"]
+  ; ins = []
   ; p = [par "dict" TObj]
   ; r = TList
   ; d = ""
@@ -61,7 +59,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -69,8 +66,8 @@ let fns : Lib.shortfn list = [
   (* Objects *)
   (* ====================================== *)
 
-  { n = "Object::empty"
-  ; o = []
+  { pns = ["Object::empty"]
+  ; ins = []
   ; p = []
   ; r = TObj
   ; d = ""
@@ -81,12 +78,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "assoc"
-  ; o = []
+  { pns = ["assoc"]
+  ; ins = []
   ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
   ; r = TObj
   ; d = ""
@@ -97,12 +93,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "dissoc"
-  ; o = []
+  { pns = ["dissoc"]
+  ; ins = []
   ; p = [par "obj" TObj; par "key" TStr]
   ; r = TObj
   ; d = ""
@@ -113,12 +108,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "to_form"
-  ; o = []
+  { pns = ["to_form"]
+  ; ins = []
   ; p = [par "obj" TObj; par "submit" TStr]
   ; r = TStr
   ; d = ""
@@ -148,15 +142,14 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
   (* ====================================== *)
   (* Int *)
   (* ====================================== *)
-  { n = "%"
-  ; o = ["Int::mod"]
+  { pns = ["%"]
+  ; ins = ["Int::mod"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = ""
@@ -166,13 +159,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "+"
-  ; o = ["Int::add"]
+  { pns = ["+"]
+  ; ins = ["Int::add"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Adds two integers together"
@@ -182,13 +174,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "-"
-  ; o = ["Int::subtract"]
+  { pns = ["-"]
+  ; ins = ["Int::subtract"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Subtracts two integers"
@@ -198,13 +189,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "*"
-  ; o = ["Int::multiply"]
+  { pns = ["*"]
+  ; ins = ["Int::multiply"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Multiples two integers"
@@ -214,12 +204,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
-  { n = "^"
-  ; o = ["Int::power"]
+  { pns = ["^"]
+  ; ins = ["Int::power"]
   ; p = [par "base" TInt ; par "exponent" TInt]
   ; r = TInt
   ; d = "Raise `base` to the power of `exponent`"
@@ -229,13 +218,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "/"
-  ; o = ["Int::divide"]
+  { pns = ["/"]
+  ; ins = ["Int::divide"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Divides two integers"
@@ -245,13 +233,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = ">"
-  ; o = ["Int::greaterThan"]
+  { pns = [">"]
+  ; ins = ["Int::greaterThan"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than b"
@@ -261,13 +248,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "<"
-  ; o = ["Int::lessThan"]
+  { pns = ["<"]
+  ; ins = ["Int::lessThan"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than b"
@@ -277,12 +263,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
-  { n = "<="
-  ; o = ["Int::lessThanOrEqualTo"]
+  { pns = ["<="]
+  ; ins = ["Int::lessThanOrEqualTo"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is less than or equal to b"
@@ -292,13 +277,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = ">="
-  ; o = ["Int::greaterThanOrEqualTo"]
+  { pns = [">="]
+  ; ins = ["Int::greaterThanOrEqualTo"]
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TBool
   ; d = "Returns true if a is greater than or equal to b"
@@ -308,13 +292,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "Int::random"
-  ; o = []
+  { pns = ["Int::random"]
+  ; ins = []
   ; p = [par "a" TInt ; par "b" TInt]
   ; r = TInt
   ; d = "Returns a random integer between a and b (inclusive)"
@@ -325,12 +308,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "Int::sqrt"
-  ; o = []
+  { pns = ["Int::sqrt"]
+  ; ins = []
   ; p = [par "a" TInt]
   ; r = TFloat
   ; d = "Get the square root of an Int"
@@ -340,13 +322,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Int::toFloat"
-  ; o = []
+  { pns = ["Int::toFloat"]
+  ; ins = []
   ; p = [par "a" TInt]
   ; r = TFloat
   ; d = "Converts an Int to a Float"
@@ -356,7 +337,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -365,8 +345,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
 
 
-  { n = "Float::ceiling"
-  ; o = ["Float::round_up"]
+  { pns = ["Float::ceiling"]
+  ; ins = ["Float::round_up"]
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round above to an integer value"
@@ -376,13 +356,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Float::floor"
-  ; o = ["Float::round_down"]
+  { pns = ["Float::floor"]
+  ; ins = ["Float::round_down"]
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round down to an integer value"
@@ -392,13 +371,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Float::round"
-  ; o = []
+  { pns = ["Float::round"]
+  ; ins = []
   ; p = [par "a" TFloat]
   ; r = TInt
   ; d = "Round to nearest integer value"
@@ -408,13 +386,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Float::sqrt"
-  ; o = []
+  { pns = ["Float::sqrt"]
+  ; ins = []
   ; p = [par "a" TFloat]
   ; r = TFloat
   ; d = "Get the square root of a float"
@@ -424,13 +401,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Int::sum"
-  ; o = []
+  { pns = ["Int::sum"]
+  ; ins = []
   ; p = [par "a" TList]
   ; r = TInt
   ; d = "Returns the sum of all the ints in the list"
@@ -452,7 +428,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -460,8 +435,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* Any *)
   (* ====================================== *)
-  { n = "toString"
-  ; o = []
+  { pns = ["toString"]
+  ; ins = []
   ; p = [par "v" TAny]
   ; r = TStr
   ; d = "Returns a string representation of `v`"
@@ -471,13 +446,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "=="
-  ; o = ["equals"]
+  { pns = ["=="]
+  ; ins = ["equals"]
   ; p = [par "a" TAny; par "b" TAny]
   ; r = TBool
   ; d = "Returns true if the two value are equal"
@@ -487,13 +461,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "!="
-  ; o = ["notEquals"]
+  { pns = ["!="]
+  ; ins = ["notEquals"]
   ; p = [par "a" TAny; par "b" TAny]
   ; r = TBool
   ; d = "Returns true if the two value are not equal"
@@ -503,7 +476,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
@@ -511,8 +483,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* Bool *)
   (* ====================================== *)
-  { n = "Bool::not"
-  ; o = []
+  { pns = ["Bool::not"]
+  ; ins = []
   ; p = [par "b" TBool]
   ; r = TBool
   ; d = ""
@@ -522,13 +494,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "&&"
-  ; o = ["Bool::and"]
+  { pns = ["&&"]
+  ; ins = ["Bool::and"]
   ; p = [par "a" TBool ; par "b" TBool]
   ; r = TBool
   ; d = "Returns true if both a and b are true"
@@ -538,13 +509,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "||"
-  ; o = ["Bool::or"]
+  { pns = ["||"]
+  ; ins = ["Bool::or"]
   ; p = [par "a" TBool ; par "b" TBool]
   ; r = TBool
   ; d = "Returns true if either a is true or b is true"
@@ -554,13 +524,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
 
-  { n = "Bool::isNull"
-  ; o = []
+  { pns = ["Bool::isNull"]
+  ; ins = []
   ; p = [par "check" TAny;]
   ; r = TBool
   ; d = "Ignores the first param and returns the 2nd."
@@ -573,15 +542,14 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
   (* ====================================== *)
   (* String *)
   (* ====================================== *)
-  { n = "String::foreach"
-  ; o = []
+  { pns = ["String::foreach"]
+  ; ins = []
   ; p = [par "s" TStr; func ["char"]]
   ; r = TStr
   ; d = "Iterate over each character in the string, performing the operation in the block on each one"
@@ -613,12 +581,11 @@ let fns : Lib.shortfn list = [
                 [DChar c]
           | args -> [DIncomplete])
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "String::toList"
-  ; o = []
+  { pns = ["String::toList"]
+  ; ins = []
   ; p = [par "s" TStr]
   ; r = TList
   ; d = "Returns the list of characters in the string"
@@ -629,12 +596,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "String::replaceAll"
-  ; o = []
+  { pns = ["String::replaceAll"]
+  ; ins = []
   ; p = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
   ; r = TList
   ; d = "Replace all instances on `searchFor` in `s` with `replaceWith`"
@@ -645,12 +611,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "String::toInt"
-  ; o = []
+  { pns = ["String::toInt"]
+  ; ins = []
   ; p = [par "s" TStr]
   ; r = TInt
   ; d = "Returns the int value of the string"
@@ -661,15 +626,14 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
 
 
-  { n = "String::length"
-  ; o = []
+  { pns = ["String::length"]
+  ; ins = []
   ; p = [par "s" TStr]
   ; r = TInt
   ; d = "Returns the length of the string"
@@ -679,13 +643,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "++"
-  ; o = ["String::append"]
+  { pns = ["++"]
+  ; ins = ["String::append"]
   ; p = [par "s1" TStr; par "s2" TStr]
   ; r = TStr
   ; d = "Concatenates the two strings and returns the joined string"
@@ -695,12 +658,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = true
   }
   ;
 
-  { n = "String::slugify"
-  ; o = []
+  { pns = ["String::slugify"]
+  ; ins = []
   ; p = [par "string" TStr]
   ; r = TStr
   ; d = "Turns a string into a slug"
@@ -721,12 +683,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "String::reverse"
-  ; o = []
+  { pns = ["String::reverse"]
+  ; ins = []
   ; p = [par "string" TStr]
   ; r = TStr
   ; d = "Reverses `string`"
@@ -736,13 +697,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "String::split"
-  ; o = []
+  { pns = ["String::split"]
+  ; ins = []
   ; p = [par "s" TStr; par "separator" TStr]
   ; r = TList
   ; d = "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
@@ -756,13 +716,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "String::join"
-  ; o = []
+  { pns = ["String::join"]
+  ; ins = []
   ; p = [par "l" TList; par "separator" TStr]
   ; r = TStr
   ; d = "Combines a list of strings with the provided separator"
@@ -778,13 +737,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "String::fromList"
-  ; o = []
+  { pns = ["String::fromList"]
+  ; ins = []
   ; p = [par "l" TList]
   ; r = TStr
   ; d = "Returns the list of characters as a string"
@@ -798,13 +756,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "String::fromChar"
-  ; o = []
+  { pns = ["String::fromChar"]
+  ; ins = []
   ; p = [par "c" TChar]
   ; r = TChar
   ; d = "Converts a char to a string"
@@ -814,7 +771,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -822,8 +778,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* List *)
   (* ====================================== *)
-  { n = "List::head"
-  ; o = []
+  { pns = ["List::head"]
+  ; ins = []
   ; p = [par "list" TList]
   ; r = TAny
   ; d = ""
@@ -837,13 +793,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::empty"
-  ; o = []
+  { pns = ["List::empty"]
+  ; ins = []
   ; p = []
   ; r = TList
   ; d = ""
@@ -853,13 +808,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::push"
-  ; o = []
+  { pns = ["List::push"]
+  ; ins = []
   ; p = [par "list" TList; par "val" TAny]
   ; r = TList
   ; d = ""
@@ -869,13 +823,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::last"
-  ; o = []
+  { pns = ["List::last"]
+  ; ins = []
   ; p = [par "list" TList]
   ; r = TAny
   ; d = ""
@@ -885,12 +838,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "List::reverse"
-  ; o = []
+  { pns = ["List::reverse"]
+  ; ins = []
   ; p = [par "list" TList]
   ; r = TList
   ; d = "Reverses `list`"
@@ -900,12 +852,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "List::find_first"
-  ; o = []
+  { pns = ["List::find_first"]
+  ; ins = []
   ; p = [par "l" TList; func ["val"]]
   ; r = TList
   ; d = "Find the first element of the list, for which `f` returns true"
@@ -920,13 +871,12 @@ let fns : Lib.shortfn list = [
         | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::contains"
-  ; o = []
+  { pns = ["List::contains"]
+  ; ins = []
   ; p = [par "l" TList; par "val" TAny]
   ; r = TBool
   ; d = "Returns if the value is in the list"
@@ -936,13 +886,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::repeat"
-  ; o = []
+  { pns = ["List::repeat"]
+  ; ins = []
   ; p = [par "times" TInt; par "val" TAny]
   ; r = TList
   ; d = "Returns a list containing `val` repeated `count` times"
@@ -952,13 +901,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::length"
-  ; o = []
+  { pns = ["List::length"]
+  ; ins = []
   ; p = [par "l" TList]
   ; r = TInt
   ; d = "Returns the length of the list"
@@ -968,13 +916,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::range"
-  ; o = []
+  { pns = ["List::range"]
+  ; ins = []
   ; p = [ par "start" TInt ~d:"First number in the range, will be included"
         ; par "stop" TInt ~d:"Last number in the range, is included"]
   ; r = TList
@@ -986,15 +933,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-
-
-  { n = "List::fold"
-  ; o = []
+  { pns = ["List::fold"]
+  ; ins = []
   ; p = [par "l" TList; par "init" TAny; func ["accum"; "curr"]]
   ; r = TAny
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
@@ -1018,13 +962,12 @@ let fns : Lib.shortfn list = [
             in [end_accum; next_elt]
           | args -> [DIncomplete])
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::flatten"
-  ; o = []
+  { pns = ["List::flatten"]
+  ; ins = []
   ; p = [par "l" TList]
   ; r = TList
   ; d = "Returns a single list containing the elements of all the lists in `l`"
@@ -1040,12 +983,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "List::is_empty"
-  ; o = []
+  { pns = ["List::is_empty"]
+  ; ins = []
   ; p = [par "l" TList]
   ; r = TBool
   ; d = "Returns true iff. the list `l` is empty"
@@ -1056,13 +998,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "List::append"
-  ; o = []
+  { pns = ["List::append"]
+  ; ins = []
   ; p = [par "l1" TList; par "l2" TList]
   ; r = TList
   ; d = "Returns the combined list of `l1` and `l2`"
@@ -1072,14 +1013,13 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
 
-  { n = "List::filter"
-  ; o = []
+  { pns = ["List::filter"]
+  ; ins = []
   ; p = [par "l" TList; func ["val"]]
   ; r = TList
   ; d = "Return only values in `l` which meet the function's criteria"
@@ -1095,12 +1035,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "List::drop"
-  ; o = []
+  { pns = ["List::drop"]
+  ; ins = []
   ; p = [par "l" TList; par "count" TInt]
   ; r = TList
   ; d = "Drops the first `count` items from the list"
@@ -1111,12 +1050,11 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
-  ; i = false
   }
   ;
 
-  { n = "List::take"
-  ; o = []
+  { pns = ["List::take"]
+  ; ins = []
   ; p = [par "l" TList; par "count" TInt]
   ; r = TList
   ; d = "Drops all but the first `count` items from the list"
@@ -1127,15 +1065,14 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
-  ; i = false
   }
   ;
 
 
 
 
-  { n = "List::foreach"
-  ; o = []
+  { pns = ["List::foreach"]
+  ; ins = []
   ; p = [par "l" TList; func ["val"]]
   ; r = TList
   ; d = "Call `f` on every item in the list, returning a list of the results of
@@ -1149,7 +1086,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = Some list_preview
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -1159,80 +1095,74 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
 
 
-  { n = "if"
-  ; o = []
+  { pns = ["if"]
+  ; ins = []
   ; p = [par "cond" TBool]
   ; r = TAny
   ; d = "If cond is true, executes the `then` expression. Otherwise runs the `else` expression."
   ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it" )
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "lambda"
-  ; o = []
+  { pns = ["lambda"]
+  ; ins = []
   ; p = [par "vars" TList; par "body" TAny]
   ; r = TAny
   ; d = "Creates an anonymous function, useful for iterating through foreach"
   ; f = InProcess (fun _ -> failwith "Lambda is a placeholer, we shouldn't be calling it" )
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "let"
-  ; o = []
+  { pns = ["let"]
+  ; ins = []
   ; p = [par "bindings" TList; par "body" TAny]
   ; r = TAny
   ; d = "Execute and bind the variables in binding, and then execute body, possibly using those expressions. Execution is strict."
   ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it" )
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "true"
-  ; o = []
+  { pns = ["true"]
+  ; ins = []
   ; p = []
   ; r = TBool
   ; d = "The true value"
   ; f = InProcess (fun _ -> failwith "True is a placeholer, we shouldn't be calling it" )
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "false"
-  ; o = []
+  { pns = ["false"]
+  ; ins = []
   ; p = []
   ; r = TBool
   ; d = "The false value"
   ; f = InProcess (fun _ -> failwith "False is a placeholer, we shouldn't be calling it" )
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "null"
-  ; o = []
+  { pns = ["null"]
+  ; ins = []
   ; p = []
   ; r = TAny
   ; d = "The null value"
   ; f = InProcess (fun _ -> failwith "Null is a placeholer, we shouldn't be calling it" )
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -1241,8 +1171,8 @@ let fns : Lib.shortfn list = [
   (* Date *)
   (* ====================================== *)
   (* Different format than we use in postgres, this was useful for twitter *)
-  (* { n = "Date::parse" *)
-  (* ; o = [] *)
+  (* pns n = ["Date::parse"] *)
+  (* ins o = [] *)
   (* ; p = [par "s" TStr] *)
   (* ; r = TInt *)
   (* ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)" *)
@@ -1259,13 +1189,12 @@ let fns : Lib.shortfn list = [
   (*         | args -> fail args) *)
   (* ; pr = None *)
   (* ; ps = true *)
-  (* ; i = false *)
   (* } *)
   (* ; *)
   (*  *)
 
-  { n = "Date::now"
-  ; o = []
+  { pns = ["Date::now"]
+  ; ins = []
   ; p = []
   ; r = TDate
   ; d = "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
@@ -1275,7 +1204,6 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
@@ -1283,8 +1211,8 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* Char *)
   (* ====================================== *)
-  { n = "Char::toASCIICode"
-  ; o = []
+  { pns = ["Char::toASCIICode"]
+  ; ins = []
   ; p = [par "c" TChar]
   ; r = TInt
   ; d = "Return `c`'s ASCII code"
@@ -1294,13 +1222,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Char::toASCIIChar"
-  ; o = []
+  { pns = ["Char::toASCIIChar"]
+  ; ins = []
   ; p = [par "i" TInt]
   ; r = TChar
   ; d = ""
@@ -1310,13 +1237,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Char::toLowercase"
-  ; o = []
+  { pns = ["Char::toLowercase"]
+  ; ins = []
   ; p = [par "c" TChar]
   ; r = TChar
   ; d = "Return the lowercase value of `c`"
@@ -1326,13 +1252,12 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
 
 
-  { n = "Char::toUppercase"
-  ; o = []
+  { pns = ["Char::toUppercase"]
+  ; ins = []
   ; p = [par "c" TChar]
   ; r = TChar
   ; d = "Return the uppercase value of `c`"
@@ -1342,9 +1267,7 @@ let fns : Lib.shortfn list = [
           | args -> fail args)
   ; pr = None
   ; ps = true
-  ; i = false
   }
   ;
-
 
 ]
