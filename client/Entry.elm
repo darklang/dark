@@ -243,7 +243,7 @@ submit m cursor action value =
               replacement = TL.replaceHTTPVerbBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
-          validate "[a-z][a-zA-Z0-9]+" "fieldname"
+          validate ".+" "fieldname"
             <|
           let h = deMaybe "maybeH - field" maybeH
               parent = AST.parentOf id h.ast
