@@ -81,6 +81,18 @@ allBlanks tl =
     TLDB db ->
       DB.listBlanks db
 
+allPointers : Toplevel -> List Pointer
+allPointers tl =
+  case tl.data of
+    TLHandler h ->
+      -- TODO: specPointers
+      specBlanks h ++ AST.listPointers h.ast
+    TLDB db ->
+      -- TODO: db pointers
+      DB.listBlanks db
+
+
+
 specs : Handler -> List Pointer
 specs h =
   [ P.blankTo HTTPRoute h.spec.name
@@ -130,11 +142,12 @@ getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
   case pred of
     Just pred ->
-      let holes = allBlanks tl in
-      holes
-      |> LE.elemIndex pred
-      |> Maybe.map ((+) 1)
-      |> Maybe.andThen (\i -> LE.getAt i holes)
+      let ps = allPointers tl |> Debug.log "ps"
+          index = LE.elemIndex pred ps |> Maybe.withDefault (-1) |> Debug.log "index"
+          remaining = List.drop (index+1) ps |> Debug.log "remaining"
+          blanks = List.filter P.isBlank remaining |> Debug.log "blanks"
+      in
+      List.head blanks
     Nothing -> firstBlank tl
 
 getFirstASTBlank : Toplevel -> Successor

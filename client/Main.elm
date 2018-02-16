@@ -450,7 +450,7 @@ update_ msg m =
                         Just p ->
                           let replacement = AST.addThreadHole (P.idOf p) h.ast in
                           RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
-                              , FocusNext tlid Nothing)
+                              , FocusNext tlid (Just p))
                         Nothing -> NoChange
                 else
                   case p of
