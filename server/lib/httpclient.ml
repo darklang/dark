@@ -37,23 +37,19 @@ let cached_call (url: string) (verb: verb) (body: string) : string option =
 
 let _ = C.global_init C.CURLINIT_GLOBALALL
 
-let qp2string (params : (string * string) list) : string =
-  params
-  |> List.fold
-    ~init:[]
-    ~f:(fun l (key,data) ->
-        (key ^ "=" ^ (Uri.pct_encode ~component:`Userinfo data)) :: l)
-  |> String.concat ~sep:"&"
 
-
-let http_call (url: string) (query_params : (string * string) list)
+let http_call (url: string) (query_params : (string * string list) list)
     (verb: verb) (headers: (string * string) list) (body: string)
   : (string * (string * string) list) =
 
-  let params = query_params |> qp2string in
-  let url = if params = ""
-            then url
-            else url ^ "?" ^ params in
+  let query_params = url
+                     |> Uri.of_string
+                     |> Uri.query
+                     |> List.append query_params in
+  let url = url
+            |> Uri.of_string
+            |> Uri.with_uri ~query:(Some query_params)
+            |> Uri.to_string in
   let headers = headers
                 |> List.map ~f:(fun (k,v) -> k ^ ": " ^ v) in
 

@@ -29,7 +29,7 @@ let call verb =
   InProcess
   (function
     | [DStr uri; body; query_; headers_] ->
-        let query = Dval.to_string_pairs query_ in
+        let query = Dval.dval_to_query query_ in
         let headers = Dval.to_string_pairs headers_ in
         let body =
           match body with

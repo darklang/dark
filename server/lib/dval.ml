@@ -401,6 +401,18 @@ let query_to_dval (query: (string * string list) list) : dval =
   |> DvalMap.of_alist_exn
   |> fun x -> DObj x
 
+let dval_to_query (dv: dval) : ((string * string list) list) =
+  match dv with
+  | DObj kvs ->
+      kvs
+      |> DvalMap.to_alist
+      |> List.map ~f:(fun (k,value) ->
+                       match value with
+                       | DNull -> (k,[])
+                       | DList l -> (k, List.map ~f:(to_simple_repr "" "") l)
+                       | _ -> (k, [to_simple_repr "" "" value]))
+  | _ -> Exception.user "attempting to use non-object as query param"
+
 
 let to_form_encoding (dv: dval) : string =
   dv
