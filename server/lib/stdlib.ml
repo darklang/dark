@@ -633,6 +633,22 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { n = "String::replaceAll"
+  ; o = []
+  ; p = [par "s" TStr; par "searchFor" TStr; par "replaceWith" TStr]
+  ; r = TList
+  ; d = "Replace all instances on `searchFor` in `s` with `replaceWith`"
+  ; f = InProcess
+        (function
+          | [DStr s; DStr searchFor; DStr replaceWith] ->
+              DStr (Util.string_replace searchFor replaceWith s)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  ; i = false
+  }
+  ;
+
   { n = "String::toInt"
   ; o = []
   ; p = [par "s" TStr]
