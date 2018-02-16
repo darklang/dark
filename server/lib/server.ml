@@ -41,7 +41,7 @@ let server =
           let env_map acc (h : Handler.handler) =
             let h_env =
               try
-                let (body, c_req) = Stored_request.load host h in
+                let (body, c_req) = Stored_request.load host h.tlid in
                 let d_req = DReq.from_request c_req body in
                 DReq.to_dval d_req
               with
@@ -134,7 +134,7 @@ let server =
         S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
       | [page] ->
         let route = Handler.url_for_exn page in
-        Stored_request.store host body page req;
+        Stored_request.store host body page.tlid req;
         let input = DReq.from_request req body in
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
