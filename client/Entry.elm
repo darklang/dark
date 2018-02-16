@@ -17,7 +17,6 @@ import Defaults
 import Types exposing (..)
 -- import Autocomplete
 import Viewport
--- import EntryParser exposing (AST(..), ACreating(..), AExpr(..), AFillParam(..), AFillResult(..), ARef(..))
 import Util exposing (deMaybe)
 import AST
 import Toplevel as TL
