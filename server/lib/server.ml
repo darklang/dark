@@ -41,7 +41,11 @@ let server =
           let env_map acc (h : Handler.handler) =
             let h_env =
               try
-                let (body, c_req) = Stored_request.load host h.tlid in
+                let (body, c_req) =
+                  let reqs = Stored_request.load_all host h.tlid in
+                  let cursor = (List.length reqs) - 1 (* just get the last for now *) in
+                  List.nth_exn reqs cursor
+                in
                 let d_req = DReq.from_request c_req body in
                 DReq.to_dval d_req
               with
