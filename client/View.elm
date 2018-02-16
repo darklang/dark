@@ -132,7 +132,11 @@ viewBlankOrText m tl pt b hover =
                     parent
                     |> Maybe.map
                          (\p -> case AST.parentOf_ (AST.toID p) ast of
-                                  Just (Thread _ _) -> True
+                                  Just (Thread _ ts) ->
+                                    ts
+                                    |> List.head
+                                    |> Maybe.map ((/=) p)
+                                    |> Maybe.withDefault True
                                   _ -> False)
                     |> Maybe.withDefault False
               in
