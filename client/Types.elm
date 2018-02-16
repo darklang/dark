@@ -139,6 +139,7 @@ type Msg
     | SaveTestButton
     | Initialization
     | NavigateTo String
+    | WindowResize Int Int
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer

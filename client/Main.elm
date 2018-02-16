@@ -12,6 +12,7 @@ import Keyboard.Key as Key
 import Navigation
 import Mouse
 import List.Extra as LE
+import Window
 
 -- dark
 import RPC exposing (rpc, saveTest, integrationRpc)
@@ -799,6 +800,11 @@ update_ msg m =
     (SaveTestCallBack (Err err), _) ->
       Error <| "Error: " ++ (toString err)
 
+    (WindowResize x y, _) ->
+      -- just receiving the subscription will cause a redraw, which uses
+      -- the native sizing function.
+      NoChange
+
     (FocusEntry _, _) ->
       NoChange
 
@@ -824,6 +830,8 @@ subscriptions m =
   let keySubs =
         [onWindow "keydown"
            (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
+      resizes = [Window.resizes (\{height,width} ->
+                                    WindowResize height width)]
       dragSubs =
         case m.state of
           -- we use IDs here because the node will change
@@ -832,6 +840,6 @@ subscriptions m =
             [ Mouse.moves (DragToplevel id)]
           _ -> []
   in Sub.batch
-    (List.concat [keySubs, dragSubs])
+    (List.concat [keySubs, dragSubs, resizes])
 
 
