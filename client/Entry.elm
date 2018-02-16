@@ -134,7 +134,7 @@ submit m cursor action value =
           Just v ->
             let ast = threadIt v
                 handler = { ast = ast, spec = newHandlerSpec () }
-            in RPC ([SetHandler tlid pos handler], FocusNext tlid Nothing)
+            in wrap <| SetHandler tlid pos handler
 
     Filling tlid p ->
       let tl = TL.getTL m tlid
