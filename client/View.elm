@@ -121,21 +121,36 @@ viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover ->
 viewBlankOrText m tl pt b hover =
   let pointer = P.blankTo pt b
       id = P.idOf pointer
-      param = tl
-              |> TL.asHandler
-              |> Maybe.map .ast
-              |> Maybe.andThen
-                  (\e ->
-                    case AST.parentOf_ id e of
-                      Just (FnCall _ name exprs) ->
-                        let index =
-                              LE.findIndex (\e -> AST.toID e == id) exprs
-                              |> Maybe.withDefault -1 in
-                        case Autocomplete.findFunction m.complete name of
-                          Just {parameters} ->
-                            LE.getAt index parameters
-                          Nothing -> Nothing
-                      _ -> Nothing)
+      param =
+        tl
+        |> TL.asHandler
+        |> Maybe.map .ast
+        |> Maybe.andThen
+            (\ast ->
+              let parent = AST.parentOf_ id ast
+                  grandparentIsThread =
+                    parent
+                    |> Maybe.map
+                         (\p -> case AST.parentOf_ (AST.toID p) ast of
+                                  Just (Thread _ _) -> True
+                                  _ -> False)
+                    |> Maybe.withDefault False
+              in
+              case parent of
+                Just (FnCall _ name args) ->
+                  let index =
+                        args
+                        |> LE.findIndex (\a -> AST.toID a == id)
+                        |> Maybe.withDefault -1000
+                        |> \i -> if grandparentIsThread
+                                 then i + 1
+                                 else i
+                  in
+                  case Autocomplete.findFunction m.complete name of
+                    Just {parameters} ->
+                      LE.getAt index parameters
+                    Nothing -> Nothing
+                _ -> Nothing)
       paramPlaceholder =
         Maybe.map
           (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
