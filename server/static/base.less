@@ -409,10 +409,15 @@ body #grid * {
     .threadmember {
       .layout-block;
 
-      &:first-child {
-        .thread.pipe {
-          display: none;
-        }
+      &:first-child > .thread.pipe {
+        display: none;
+      }
+
+      .thread.pipe {
+        margin-top: 1px;
+        margin-right: 0px;
+        font-size: 70%;
+        color: @blue;
       }
     }
   }
