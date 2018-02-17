@@ -300,3 +300,6 @@ clonePointerData pd =
           in PField nid (replaceBlankOr nid f)
         PDBColName id cn -> pd
         PDBColType id ct -> pd
+        PDarkType id dt -> Debug.crash "TODO clonePointerdata"
+        PDarkTypeField id dt -> Debug.crash "TODO clonePointerdata"
+

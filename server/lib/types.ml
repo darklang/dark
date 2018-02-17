@@ -45,6 +45,15 @@ module DbT = struct
 end
 
 
+module StaticT = struct
+  type dark_type = Empty
+                 | Obj of ((string or_blank * dark_type or_blank) list)
+                 | String
+                 | Int
+                 | Any
+                 [@@deriving eq, show, yojson, sexp, bin_io]
+end
+
 module RuntimeT = struct
   (* ------------------------ *)
   (* Dvals*)

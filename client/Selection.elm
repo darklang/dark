@@ -10,7 +10,7 @@ import List.Extra as LE
 -- dark
 import Types exposing (..)
 import Toplevel as TL
--- TODO: remove, code smell
+import SpecTypes
 import AST
 import Pointer as P
 import Util exposing (deMaybe)
@@ -155,6 +155,14 @@ delete m tlid cur =
       let h = maybeH ()
           (p, replacement) = AST.deleteExpr cur h.ast
       in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
+    DarkType ->
+      let h = maybeH ()
+          (p, replacement) = SpecTypes.delete id h.spec
+      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+    DarkTypeField ->
+      let h = maybeH ()
+          (p, replacement) = SpecTypes.delete id h.spec
+      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
 
 enter : Model -> TLID -> Pointer -> Modification
 enter m tlid cur =

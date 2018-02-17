@@ -1,11 +1,18 @@
 open Core
 
 open Types.RuntimeT
+open Types.StaticT
 module RT = Runtime
+
+type spec_types = { input : dark_type Types.or_blank
+                  ; output : dark_type Types.or_blank
+                  } [@@deriving eq, show, yojson, sexp, bin_io]
+
 
 type spec = { module_ : string Types.or_blank [@key "module"]
             ; name : string Types.or_blank
             ; modifier : string Types.or_blank
+            ; types : spec_types
             } [@@deriving eq, show, yojson, sexp, bin_io]
 
 

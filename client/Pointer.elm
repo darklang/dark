@@ -47,6 +47,8 @@ pdToP pd =
     PField id _ -> PFilled Field id
     PDBColName id _ -> PFilled DBColName id
     PDBColType id _ -> PFilled DBColType id
+    PDarkType id _ -> PFilled DarkType id
+    PDarkTypeField id _ -> PFilled DarkTypeField id
 
 
 blankOfD : PointerData -> (Maybe String, Maybe Expr)
@@ -82,6 +84,8 @@ ownerOf p =
     Field -> POAst
     DBColName -> PODb
     DBColType -> PODb
+    DarkTypeField -> POSpec
+    DarkType -> POSpec
 
 pdOwnerOf : PointerData -> PointerOwner
 pdOwnerOf pd =
@@ -93,5 +97,7 @@ pdOwnerOf pd =
     PField _ _ -> POAst
     PDBColName _ _ -> PODb
     PDBColType _ _ -> PODb
+    PDarkTypeField _ _ -> POSpec
+    PDarkType _ _ -> POSpec
 
 

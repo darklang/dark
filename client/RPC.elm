@@ -74,9 +74,11 @@ encodeRPC m call =
     case call of
       SetHandler id pos h ->
         let hs = JSE.object
-                   [ ("name", encodeBlankOr h.spec.name JSE.string)
-                   , ("module", encodeBlankOr (Filled (ID 23) "HTTP") JSE.string)
-                   , ("modifier", encodeBlankOr h.spec.modifier JSE.string)]
+                   [ ("name", encodeBlankOr JSE.string h.spec.name)
+                   , ("module", encodeBlankOr JSE.string (Filled (ID 23) "HTTP"))
+                   , ("modifier", encodeBlankOr JSE.string h.spec.modifier)
+                   , ("types", encodeSpecTypes h.spec.types)
+                   ]
             handler = JSE.object [ ("tlid", encodeTLID id)
                                  , ("spec", hs)
                                  , ("ast", encodeAST h.ast) ] in
@@ -115,7 +117,7 @@ encodeAST expr =
 
     Let id lhs rhs body ->
       ev "Let" [ eid id
-               , encodeBlankOr lhs JSE.string
+               , encodeBlankOr JSE.string lhs
                , e rhs
                , e body]
 
@@ -130,7 +132,7 @@ encodeAST expr =
     Hole id -> ev "Hole" [eid id]
     Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
     FieldAccess id obj field ->
-      ev "FieldAccess" [eid id, e obj, encodeBlankOr field JSE.string ]
+      ev "FieldAccess" [eid id, e obj, encodeBlankOr JSE.string field]
 
 
 
@@ -141,6 +143,49 @@ encodeAST expr =
   -- and https://github.com/elm-lang/elm-compiler/issues/1591
   -- which gets potentially fixed by
   -- https://github.com/elm-lang/elm-compiler/commit/e2a51574d3c4f1142139611cb359d0e68bb9541a
+
+encodeSpecTypes : SpecTypes -> JSE.Value
+encodeSpecTypes st =
+  JSE.object
+    [ ("input", encodeBlankOr encodeDarkType st.input)
+    , ("output", encodeBlankOr encodeDarkType st.output)
+    ]
+
+
+encodeDarkType : DarkType -> JSE.Value
+encodeDarkType t =
+  let ev = encodeVariant in
+  case t of
+    DTEmpty -> ev "Empty" []
+    DTAny -> ev "Any" []
+    DTString -> ev "String" []
+    DTInt -> ev "Int" []
+    DTObj ts ->
+      ev "Obj"
+        (List.map
+          (encodePair
+            (encodeBlankOr JSE.string)
+            (encodeBlankOr encodeDarkType))
+          ts)
+
+decodeDarkType : JSD.Decoder DarkType
+decodeDarkType =
+  let dv4 = decodeVariant4
+      dv3 = decodeVariant3
+      dv2 = decodeVariant2
+      dv1 = decodeVariant1
+      dv0 = decodeVariant0 in
+  decodeVariants
+    [ ("Empty", dv0 DTEmpty)
+    , ("Any", dv0 DTAny)
+    , ("String", dv0 DTString)
+    , ("Int", dv0 DTInt)
+    , ("Obj", dv1 DTObj
+               (JSD.list
+                 (decodePair
+                   (decodeBlankOr JSD.string)
+                   (decodeBlankOr (JSD.lazy (\_ -> decodeDarkType))))))
+    ]
 
 
 decodeExpr : JSD.Decoder Expr
@@ -180,7 +225,6 @@ decodeLiveValue =
     |> JSDP.required "json" JSD.string
     |> JSDP.optional "exc" (JSD.maybe JSON.decodeException) Nothing
 
-
 decodeTLAResult : JSD.Decoder TLAResult
 decodeTLAResult =
   let toTLAResult tlid astValue liveValues availableVarnames =
@@ -198,14 +242,20 @@ decodeTLAResult =
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
-  let toHS _ name modifier =
+  let toHS _ name modifier input output =
         { name = name
-        , modifier = modifier}
+        , modifier = modifier
+        , types = { input = input
+                  , output = output
+                  }
+        }
   in
   JSDP.decode toHS
   |> JSDP.required "module" (decodeBlankOr JSD.string)
   |> JSDP.required "name" (decodeBlankOr JSD.string)
   |> JSDP.required "modifier" (decodeBlankOr JSD.string)
+  |> JSDP.requiredAt ["types", "input"] (decodeBlankOr decodeDarkType)
+  |> JSDP.requiredAt ["types", "output"] (decodeBlankOr decodeDarkType)
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =

@@ -38,6 +38,9 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { name = Blank (gid ())
                    , modifier = Blank (gid ())
+                   , types = { input = Blank (gid ())
+                             , output = Blank (gid ())
+                             }
                    }
 
 createFunction : Model -> FnName -> Bool -> Maybe Expr
@@ -276,6 +279,10 @@ submit m cursor action value =
         Expr ->
           let h = deMaybe "maybeH - expr" maybeH in
           replaceExpr m h tlid p value
+        DarkType ->
+          Debug.crash "TODO entry darktype"
+        DarkTypeField ->
+          Debug.crash "TODO entry darkfield"
 
 
 

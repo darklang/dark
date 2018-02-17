@@ -115,10 +115,13 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in allSvgs
 
+viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover -> Html.Html Msg
+viewBlankOrText = viewBlankOr Html.text
+
 
 type alias Hover = Maybe (Result String String)
-viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover -> Html.Html Msg
-viewBlankOrText m tl pt b hover =
+viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> Hover -> Html.Html Msg
+viewBlankOr htmlFn m tl pt b hover =
   let pointer = P.blankTo pt b
       id = P.idOf pointer
       param =
@@ -176,12 +179,14 @@ viewBlankOrText m tl pt b hover =
           Field -> "fieldname"
           DBColName -> "db field name"
           DBColType -> "db type"
+          DarkType -> "type"
+          DarkTypeField -> "fieldname"
       thisText = case b of
                    Blank _ ->
                      Html.div
                        [Attrs.class "blank"]
                        [Html.text placeholder]
-                   Filled _ text -> Html.text text
+                   Filled _ fill -> fill |> htmlFn
       allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
@@ -281,6 +286,26 @@ viewDB m tl db =
       (namediv :: coldivs)
   ]
 
+viewBlankOrDarkType : Model -> Toplevel -> BlankOr DarkType -> Html.Html Msg
+viewBlankOrDarkType m tl b =
+  viewBlankOr (viewDarkType m tl) m tl DarkType b Nothing
+
+viewDarkType : Model -> Toplevel -> DarkType -> Html.Html Msg
+viewDarkType m tl d =
+  case d of
+    DTEmpty -> Html.text "Empty"
+    DTString -> Html.text "String"
+    DTAny -> Html.text "Any"
+    DTInt -> Html.text "Int"
+    DTObj ts -> Html.div
+                 [Attrs.class "TypeObject"]
+                 (ts
+                  |> List.map (\(n,dt) ->
+                                 [ viewBlankOrText m tl DarkTypeField n Nothing
+                                 , viewBlankOrDarkType m tl dt])
+                  |> List.concat)
+
+
 
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
@@ -325,6 +350,10 @@ viewHandler m tl h =
               []
         else
           []
+
+      input = viewBlankOrDarkType m tl h.spec.types.input
+      output = viewBlankOrDarkType m tl h.spec.types.output
+
       header =
         Html.div
           [Attrs.class "header"]
@@ -341,7 +370,7 @@ viewHandler m tl h =
               ]
             )
           ]
-  in [header, ast]
+  in [header, input, ast, output]
 
 
 viewEntry : Model -> List (Svg.Svg Msg)

@@ -528,6 +528,8 @@ isLeaf id ast =
         PHTTPRoute _ _ -> False
         PDBColName _ _ -> False
         PDBColType _ _ -> False
+        PDarkType _ _ -> False
+        PDarkTypeField _ _ -> False
 
 toContent : PointerData -> String
 toContent pd =
@@ -543,6 +545,8 @@ toContent pd =
     PHTTPRoute _ _ -> ""
     PDBColName _ _ -> ""
     PDBColType _ _ -> ""
+    PDarkType _ _ -> ""
+    PDarkTypeField _ _ -> ""
 
 
 replace : Pointer -> PointerData -> AST -> AST

@@ -78,6 +78,12 @@ decodeVariant1 const d1 =
   JSD.map const
     (JSD.index 1 d1)
 
+decodeVariant0 : a ->
+                 JSD.Decoder a
+decodeVariant0 const =
+  JSD.succeed const
+
+
 decodeVariants : List (String, JSD.Decoder a) -> JSD.Decoder a
 decodeVariants decoders =
   let map : Dict.Dict String (JSD.Decoder a)
@@ -100,8 +106,8 @@ decodeVariants decoders =
 ------------------------------------
 
 -- TODO: extend the metaphor to the server
-encodeBlankOr : (BlankOr v) -> (v -> JSE.Value) -> JSE.Value
-encodeBlankOr v encoder =
+encodeBlankOr : (v -> JSE.Value) -> (BlankOr v) -> JSE.Value
+encodeBlankOr encoder v =
   case v of
     Filled (ID id) s ->
       encodeVariant "Filled" [JSE.int id, encoder s]
@@ -135,6 +141,10 @@ decodePair d1 d2 =
   JSD.map2 (,)
     (JSD.index 0 d1)
     (JSD.index 1 d2)
+
+encodePair : (a -> JSE.Value) -> (b -> JSE.Value) -> (a, b) -> JSE.Value
+encodePair encA encB (a, b) =
+  JSE.list [encA a, encB b]
 
 
 decodeException : JSD.Decoder Exception

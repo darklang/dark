@@ -248,6 +248,8 @@ type PointerType = VarBind
                  | Field
                  | DBColName
                  | DBColType
+                 | DarkType
+                 | DarkTypeField
 
 type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
@@ -259,6 +261,8 @@ type PointerData = PVarBind ID VarBind
                  | PField ID Field
                  | PDBColName ID (BlankOr String)
                  | PDBColType ID (BlankOr String)
+                 | PDarkType ID (BlankOr DarkType)
+                 | PDarkTypeField ID (BlankOr String)
 
 type BlankOr a = Blank ID
                | Filled ID a
@@ -282,9 +286,22 @@ blankToMaybe b =
 -----------------------------
 -- Top-levels
 -----------------------------
+type DarkType = DTEmpty -- empty body
+              | DTAny
+              | DTString
+              | DTInt
+              | DTObj (List (BlankOr String, BlankOr DarkType))
+
+type alias SpecTypes = { input : BlankOr DarkType
+                       , output : BlankOr DarkType
+                       }
+
 type alias HandlerSpec = { name : BlankOr String
                          , modifier : BlankOr String
+                         , types : SpecTypes
                          }
+
+
 
 type alias Handler = { ast : AST
                      , spec : HandlerSpec }
