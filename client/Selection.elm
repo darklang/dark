@@ -126,43 +126,46 @@ enterPrevBlank m tlid cur =
 delete : Model -> TLID -> Pointer -> Modification
 delete m tlid cur =
   let tl = TL.getTL m tlid
-      wrap p op = RPC ([op], FocusExact tlid p)
+      newID = gid ()
+      newP = PBlank (P.typeOf cur) newID
+      wrapH newH = RPC ([SetHandler tlid tl.pos newH], FocusExact tlid newP)
+      wrapDB op = RPC ([op], FocusExact tlid cur)
       maybeH = \_ -> TL.asHandler tl |> deMaybe "delete maybe"
       id = P.idOf cur
   in
   case P.typeOf cur of
     DBColType ->
-      wrap cur <| SetDBColType tlid id ""
+      wrapDB <| SetDBColType tlid id ""
     DBColName ->
-      wrap cur <| SetDBColName tlid id ""
+      wrapDB <| SetDBColName tlid id ""
     VarBind ->
       let h = maybeH ()
-          (p, replacement) = AST.deleteExpr cur h.ast
-      in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
+          replacement = AST.deleteExpr cur h.ast newID
+      in wrapH { h | ast = replacement }
     HTTPVerb ->
       let h = maybeH ()
-          (p, replacement) = TL.deleteHTTPVerbBlank cur h.spec
-      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+          replacement = TL.deleteHTTPVerbBlank cur h.spec newID
+      in wrapH { h | spec = replacement }
     HTTPRoute ->
       let h = maybeH ()
-          (p, replacement) = TL.deleteHTTPRouteBlank cur h.spec
-      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+          replacement = TL.deleteHTTPRouteBlank cur h.spec newID
+      in wrapH { h | spec = replacement }
     Field ->
       let h = maybeH ()
-          (p, replacement) = AST.deleteExpr cur h.ast
-      in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
+          replacement = AST.deleteExpr cur h.ast newID
+      in wrapH { h | ast = replacement }
     Expr ->
       let h = maybeH ()
-          (p, replacement) = AST.deleteExpr cur h.ast
-      in wrap p <| SetHandler tlid tl.pos { h | ast = replacement }
+          replacement = AST.deleteExpr cur h.ast newID
+      in wrapH { h | ast = replacement }
     DarkType ->
       let h = maybeH ()
-          (p, replacement) = SpecTypes.delete id h.spec
-      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+          replacement = SpecTypes.delete id h.spec newID
+      in wrapH { h | spec = replacement }
     DarkTypeField ->
       let h = maybeH ()
-          (p, replacement) = SpecTypes.delete id h.spec
-      in wrap p <| SetHandler tlid tl.pos { h | spec = replacement }
+          replacement = SpecTypes.delete id h.spec newID
+      in wrapH { h | spec = replacement }
 
 enter : Model -> TLID -> Pointer -> Modification
 enter m tlid cur =

@@ -7,11 +7,11 @@ module SpecTypes exposing (..)
 -- dark
 import Types exposing (..)
 
-delete : ID -> HandlerSpec -> (Pointer, HandlerSpec)
-delete id h =
+delete : ID -> HandlerSpec -> ID -> HandlerSpec
+delete id h newID =
   Debug.crash "todo delete"
 
-deleteInType : ID -> DarkType -> Maybe (Pointer, DarkType)
-deleteInType id dt =
+deleteInType : ID -> DarkType -> ID -> DarkType
+deleteInType id dt newID =
   Debug.crash "todo delete in type"
 

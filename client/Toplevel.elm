@@ -54,23 +54,19 @@ replaceHTTPRouteBlank id value hs =
   }
 
 
-deleteHTTPRouteBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
-deleteHTTPRouteBlank p hs =
-  let newID = gid ()
-  in (PBlank HTTPRoute newID
-      , { hs | name = if blankOrID hs.name == (P.idOf p)
-                      then Blank newID
-                      else hs.name
-        })
+deleteHTTPRouteBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
+deleteHTTPRouteBlank p hs newID =
+  { hs | name = if blankOrID hs.name == (P.idOf p)
+                then Blank newID
+                else hs.name
+  }
 
-deleteHTTPVerbBlank : Pointer -> HandlerSpec -> (Pointer, HandlerSpec)
-deleteHTTPVerbBlank p hs =
-  let newID = gid ()
-  in (PBlank HTTPVerb newID
-      , { hs | modifier = if blankOrID hs.modifier == (P.idOf p)
-                          then Blank newID
-                          else hs.modifier
-        })
+deleteHTTPVerbBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
+deleteHTTPVerbBlank p hs newID =
+  { hs | modifier = if blankOrID hs.modifier == (P.idOf p)
+                    then Blank newID
+                    else hs.modifier
+  }
 
 
 allBlanks : Toplevel -> List Pointer

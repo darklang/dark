@@ -598,16 +598,15 @@ replace p replacement expr =
       Value id v -> expr
       Variable id name -> expr
 
-deleteExpr : Pointer -> AST -> (Pointer, AST)
-deleteExpr p ast =
-  let id = gid ()
-      replacement =
+deleteExpr : Pointer -> AST -> ID -> AST
+deleteExpr p ast id =
+  let replacement =
         case P.typeOf p of
           VarBind -> PVarBind id (Blank id)
           Expr -> PExpr id (Hole id)
           Field -> PField id (Blank id)
           tipe  -> Debug.crash <| (toString tipe) ++ " is not allowed in an AST"
-  in (PBlank (P.typeOf p) id, replace p replacement ast)
+  in replace p replacement ast
 
 replaceVarBind : Pointer -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
