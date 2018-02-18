@@ -343,6 +343,13 @@ updateMod mod (m, cmd) =
                       , "Url"
                       , "Date"
                       ]
+                    DarkType ->
+                      [ "Any"
+                      , "Empty"
+                      , "String"
+                      , "Int"
+                      , "{"
+                      ]
                     _ -> []
 
             (complete, acCmd) =
