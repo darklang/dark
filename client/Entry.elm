@@ -36,10 +36,10 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
 
 newHandlerSpec : () -> HandlerSpec
-newHandlerSpec _ = { name = Blank (gid ())
-                   , modifier = Blank (gid ())
-                   , types = { input = Blank (gid ())
-                             , output = Blank (gid ())
+newHandlerSpec _ = { name = newBlank ()
+                   , modifier = newBlank ()
+                   , types = { input = newBlank ()
+                             , output = newBlank ()
                              }
                    }
 
@@ -100,8 +100,10 @@ submit m cursor action value =
               ContinueThread ->
                 expr
               StartThread ->
-                let hid = gid ()
-                in Thread (gid ()) [expr, Hole hid]
+                Thread (gid ()) [expr, Hole (gid ())]
+          wrapExpr expr =
+            wrap <| SetHandler tlid pos { ast = threadIt expr
+                                        , spec = newHandlerSpec () }
       in
 
       -- DB creation
@@ -115,29 +117,19 @@ submit m cursor action value =
       -- field access
       else if String.endsWith "." value
       then
-        let access = FieldAccess (gid ())
-                                 (Variable (gid ()) (String.dropRight 1 value))
-                                 (Blank (gid ()))
-            ast = threadIt access
-            handler = { ast = ast, spec = newHandlerSpec () }
-        in wrap <| SetHandler tlid pos handler
+        wrapExpr <| FieldAccess (gid ())
+                      (Variable (gid ()) (String.dropRight 1 value))
+                      (newBlank ())
 
       -- varnames
       else if List.member value m.complete.varnames
-      then
-        let var = Variable (gid ()) value
-            ast = threadIt var
-            handler = { ast = ast, spec = newHandlerSpec () }
-        in wrap <| SetHandler tlid pos handler
+      then wrapExpr <| Variable (gid ()) value
 
       -- start new AST
       else
         case parseAst value False of
           Nothing -> NoChange
-          Just v ->
-            let ast = threadIt v
-                handler = { ast = ast, spec = newHandlerSpec () }
-            in wrap <| SetHandler tlid pos handler
+          Just v -> wrapExpr v
 
     Filling tlid p ->
       let tl = TL.getTL m tlid
@@ -162,7 +154,7 @@ submit m cursor action value =
                           ( AST.toPD thread
                           , AST.toPD <|
                               Let (gid ())
-                                (Filled (gid ()) bindName)
+                                (newFilled bindName)
                                 (AST.closeThread thread)
                                 (Hole (gid ())))
 
@@ -177,7 +169,7 @@ submit m cursor action value =
                         FieldAccess
                           (gid ())
                           (Variable (gid ()) (String.dropRight 1 value))
-                          (Blank (gid ())))
+                          (newBlank ()))
 
                   -- variables
                   else if List.member value m.complete.varnames
@@ -260,8 +252,8 @@ submit m cursor action value =
                         case parent of
                           FieldAccess id lhs rhs ->
                             FieldAccess (gid ())
-                            (FieldAccess id lhs (Filled (gid()) fieldname))
-                            (Blank (gid()))
+                            (FieldAccess id lhs (newFilled fieldname))
+                            (newBlank ())
                           _ -> Debug.crash "should be a field"
                   in
                       AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast

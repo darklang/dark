@@ -283,6 +283,14 @@ blankToMaybe b =
     Blank _ -> Nothing
     Filled _ v -> Just v
 
+newBlank : () -> BlankOr a
+newBlank () =
+  Blank (gid ())
+
+newFilled : a -> BlankOr a
+newFilled a =
+  Filled (gid ()) a
+
 -----------------------------
 -- Top-levels
 -----------------------------
