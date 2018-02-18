@@ -138,11 +138,10 @@ getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
   case pred of
     Just pred ->
-      let ps = allPointers tl |> Debug.log "ps"
-          index = LE.elemIndex pred ps |> Maybe.withDefault (-1) |> Debug.log "index"
-          remaining = List.drop (index+1) ps |> Debug.log "remaining"
-          blanks = List.filter P.isBlank remaining |> Debug.log "blanks"
-      in
+      let ps = allPointers tl
+          index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
+          remaining = List.drop (index+1) ps
+          blanks = List.filter P.isBlank remaining in
       List.head blanks
     Nothing -> firstBlank tl
 
