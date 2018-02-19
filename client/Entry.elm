@@ -22,6 +22,7 @@ import AST
 import Toplevel as TL
 import Runtime as RT
 import Pointer as P
+import SpecTypes
 
 
 createFindSpace : Model -> Modification
@@ -272,7 +273,19 @@ submit m cursor action value =
           let h = deMaybe "maybeH - expr" maybeH in
           replaceExpr m h tlid p value
         DarkType ->
-          Debug.crash "TODO entry darktype"
+          validate "(String|Int|Any|Empty|{)" "type"
+            <|
+          let specType =
+                case value of
+                  "String" -> DTString
+                  "Any" -> DTAny
+                  "Int" -> DTInt
+                  "Empty" -> DTEmpty
+                  "{" -> DTObj [(newBlank (), newBlank ())]
+                  _ -> Debug.crash "disallowed value"
+              h = deMaybe "maybeH - httpverb" maybeH
+              replacement = SpecTypes.replace id specType h.spec in
+          wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         DarkTypeField ->
           Debug.crash "TODO entry darkfield"
 
