@@ -13,6 +13,7 @@
                       ppx_deriving.std
                       ppx_deriving_yojson
                       ppx_fields_conv
+                      ppx_type_conv
                       ppx_sexp_conv
                       ppx_pipebang
                       )))
@@ -30,6 +31,8 @@
                 ppx_deriving.std
                 ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
+                ppx_type_conv
+                ppx_sexp_conv
                 re2
                 threads
                 yojson
