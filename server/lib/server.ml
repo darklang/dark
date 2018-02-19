@@ -43,8 +43,7 @@ let server =
               try
                 let (body, c_req) =
                   let reqs = Stored_request.load_all host h.tlid in
-                  let cursor = (List.length reqs) - 1 (* just get the last for now *) in
-                  List.nth_exn reqs cursor
+                  List.last_exn reqs
                 in
                 let d_req = PReq.from_request c_req body in
                 PReq.to_dval d_req
