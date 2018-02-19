@@ -625,16 +625,14 @@ clone expr =
   let nid = gid ()
       c e =
         let (_, ast) = clone e
-        in
-            ast
+        in ast
       cl es =
         List.map c es
       cBlankOr bo =
-        let nbid = gid ()
-        in
-            case bo of
-              Blank _ -> Blank nbid
-              Filled _ a -> Filled nbid a
+        let nbid = gid () in
+        case bo of
+          Blank _ -> Blank nbid
+          Filled _ a -> Filled nbid a
   in
     case expr of
       Let _ lhs rhs expr ->
