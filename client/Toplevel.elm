@@ -11,6 +11,7 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import AST
 import Pointer as P
+import SpecTypes
 
 getTL : Model -> TLID -> Toplevel
 getTL m id =
@@ -25,13 +26,11 @@ isThread : Handler -> Pointer -> Bool
 isThread h p =
   h.ast |> AST.listThreadHoles |> List.member (P.idOf p)
 
-specBlanks : Handler -> List Pointer
-specBlanks h =
-  let e2l a tipe =
-        case a of
-          Blank hid -> [PBlank tipe hid]
-          _ -> []
-  in e2l h.spec.name HTTPRoute ++ e2l h.spec.modifier HTTPVerb
+specHeaderPointers : Handler -> List Pointer
+specHeaderPointers h =
+  [ P.blankTo HTTPRoute h.spec.name
+  , P.blankTo HTTPVerb h.spec.modifier
+  ]
 
 getSpec : Handler -> Pointer -> Maybe (BlankOr String)
 getSpec h p =
@@ -71,26 +70,34 @@ deleteHTTPVerbBlank p hs newID =
 
 allBlanks : Toplevel -> List Pointer
 allBlanks tl =
-  case tl.data of
-    TLHandler h ->
-      specBlanks h ++ AST.listBlanks h.ast
-    TLDB db ->
-      DB.listBlanks db
+  tl
+  |> allPointers
+  |> List.filter P.isBlank
+
+blanksWhere : (Pointer -> Bool) -> Toplevel -> List Pointer
+blanksWhere fn tl =
+  tl
+  |> allBlanks
+  |> List.filter fn
+
+specHeaderBlanks : Toplevel -> List Pointer
+specHeaderBlanks = blanksWhere (P.ownerOf >> ((==) POSpecHeader))
+
 
 allPointers : Toplevel -> List Pointer
 allPointers tl =
   case tl.data of
     TLHandler h ->
-      -- TODO: specPointers
-      specBlanks h ++ AST.listPointers h.ast
+      specHeaderPointers h
+      ++ AST.listPointers h.ast
+      ++ SpecTypes.listPointers h.spec.types
     TLDB db ->
-      -- TODO: db pointers
-      DB.listBlanks db
+      DB.listPointers db
 
 
 
-specs : Handler -> List Pointer
-specs h =
+specHeaders : Handler -> List Pointer
+specHeaders h =
   [ P.blankTo HTTPRoute h.spec.name
   , P.blankTo HTTPVerb h.spec.modifier]
 
@@ -102,7 +109,10 @@ siblings tl p =
        Just _ ->
          AST.siblings p h.ast
        Nothing ->
-         specs h ++ [AST.toP h.ast]
+         specHeaders h
+         ++ SpecTypes.listInputPointers h.spec.types
+         ++ [AST.toP h.ast]
+         ++ SpecTypes.listOutputPointers h.spec.types
     _ -> []
 
 getNextSibling : Toplevel -> Pointer -> Pointer
@@ -148,10 +158,8 @@ getNextBlank tl pred =
 getFirstASTBlank : Toplevel -> Successor
 getFirstASTBlank tl =
   tl
-  |> asHandler
-  |> Maybe.map .ast
-  |> Maybe.map AST.listBlanks
-  |> Maybe.andThen List.head
+  |> blanksWhere (\p -> P.ownerOf p == POAst)
+  |> List.head
 
 
 getPrevBlank : Toplevel -> Pointer -> Predecessor
@@ -239,36 +247,31 @@ rootOf tl =
 isValidPointer : Toplevel -> Pointer -> Bool
 isValidPointer tl p =
   case P.ownerOf p of
-    POSpec ->
+    POSpecHeader ->
       let handler = asHandler tl in
       case handler of
-        Nothing ->
-          False
+        Nothing -> False
         Just h ->
-          if List.member p (specs h) then
-            True
-          else
-            False
+          List.member p (specHeaders h)
     POAst ->
       let handler = asHandler tl in
       case handler of
-        Nothing ->
-          False
+        Nothing -> False
         Just h ->
-          if List.member p (AST.listPointers (h.ast)) then
-            True
-          else
-            False
+          List.member p (AST.listPointers h.ast)
     PODb ->
       let db = asDB tl in
       case db of
-        Nothing ->
-          False
+        Nothing -> False
         Just d ->
-          if List.member p (DB.listPointers d) then
-            True
-          else
-            False
+          List.member p (DB.listPointers d)
+    POSpecType ->
+      let handler = asHandler tl in
+      case handler of
+        Nothing -> False
+        Just h ->
+          List.member p (SpecTypes.listPointers h.spec.types)
+
 
 clonePointerData : PointerData -> PointerData
 clonePointerData pd =

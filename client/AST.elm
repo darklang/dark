@@ -421,11 +421,6 @@ inAST id ast =
   |> List.map P.idOf
   |> List.member id
 
-listBlanks : Expr -> List Pointer
-listBlanks expr =
-  listPointers expr
-  |> List.filter P.isBlank
-
 listPointers : Expr -> List Pointer
 listPointers expr =
   let rl : List Expr -> List Pointer

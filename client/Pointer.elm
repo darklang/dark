@@ -78,26 +78,18 @@ ownerOf : Pointer -> PointerOwner
 ownerOf p =
   case (typeOf p) of
     VarBind -> POAst
-    HTTPRoute -> POSpec
-    HTTPVerb -> POSpec
+    HTTPRoute -> POSpecHeader
+    HTTPVerb -> POSpecHeader
     Expr -> POAst
     Field -> POAst
     DBColName -> PODb
     DBColType -> PODb
-    DarkTypeField -> POSpec
-    DarkType -> POSpec
+    DarkTypeField -> POSpecType
+    DarkType -> POSpecType
 
 pdOwnerOf : PointerData -> PointerOwner
 pdOwnerOf pd =
-  case pd of
-    PVarBind _ _ -> POAst
-    PHTTPRoute _ _ -> POSpec
-    PHTTPVerb _ _ -> POSpec
-    PExpr _  _ -> POAst
-    PField _ _ -> POAst
-    PDBColName _ _ -> PODb
-    PDBColType _ _ -> PODb
-    PDarkTypeField _ _ -> POSpec
-    PDarkType _ _ -> POSpec
-
+  pd
+  |> pdToP
+  |> ownerOf
 

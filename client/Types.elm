@@ -267,9 +267,10 @@ type PointerData = PVarBind ID VarBind
 type BlankOr a = Blank ID
                | Filled ID a
 
-type PointerOwner = POSpec
+type PointerOwner = POSpecHeader
                   | POAst
                   | PODb
+                  | POSpecType
 
 blankOrID : BlankOr a -> ID
 blankOrID b =

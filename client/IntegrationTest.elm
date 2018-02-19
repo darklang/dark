@@ -7,6 +7,7 @@ import Result exposing (Result (..))
 import Types exposing (..)
 import Toplevel as TL
 import Util exposing (deMaybe)
+import Pointer as P
 
 trigger : String -> IntegrationTestState
 trigger name =
@@ -66,7 +67,7 @@ fieldAccessCloses m =
   case m.state of
     Entering (Filling _ id) ->
       let tl = onlyTL m in
-      if TL.allBlanks tl == TL.specBlanks (tl |> TL.asHandler |> deMaybe "test")
+      if TL.blanksWhere (\p -> P.ownerOf p == POAst) tl == []
       then pass
       else fail (TL.allBlanks tl)
     _ ->

@@ -284,7 +284,7 @@ submit m cursor action value =
                   "{" -> DTObj [(newBlank (), newBlank ())]
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
-              replacement = SpecTypes.replace id specType h.spec in
+              replacement = SpecTypes.replace id (newFilled specType) h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         DarkTypeField ->
           Debug.crash "TODO entry darkfield"
