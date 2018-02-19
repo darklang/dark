@@ -301,17 +301,24 @@ viewDarkType m tl d =
       let nested =
             ts
             |> List.map (\(n,dt) ->
-                 [ viewBlankOrText m tl DarkTypeField n Nothing
-                 , Html.text ":"
-                 , viewBlankOrDarkType m tl dt])
-            |> List.intersperse [Html.text ","]
+                 [ Html.span
+                     [Attrs.class "fieldname"]
+                     [viewBlankOrText m tl DarkTypeField n Nothing]
+                 , Html.span [Attrs.class "colon"] [Html.text ":"]
+                 , Html.span
+                     [Attrs.class "fieldvalue"]
+                     [viewBlankOrDarkType m tl dt]
+                 ])
+            |> List.intersperse
+                 [Html.span [Attrs.class "separator"] [Html.text ","]]
             |> List.concat
-          open = Html.text "{"
-          close = Html.text "}"
+          open = Html.span [Attrs.class "open"] [Html.text "{"]
+          close = Html.span [Attrs.class "close"] [Html.text "}"]
       in
       Html.div
-        [Attrs.class "TypeObject"]
+        [Attrs.class "type-object"]
         ([open] ++ nested ++ [close])
+
 
 
 
@@ -360,8 +367,16 @@ viewHandler m tl h =
         else
           []
 
-      input = viewBlankOrDarkType m tl h.spec.types.input
-      output = viewBlankOrDarkType m tl h.spec.types.output
+      input =
+        Html.div
+          [Attrs.class "spec-type input-type"]
+          [ Html.span [Attrs.class "header"] [Html.text "Input:"]
+          , viewBlankOrDarkType m tl h.spec.types.input]
+      output =
+        Html.div
+          [Attrs.class "spec-type output-type"]
+          [ Html.span [Attrs.class "header"] [Html.text "Output:"]
+          , viewBlankOrDarkType m tl h.spec.types.output]
 
       header =
         Html.div

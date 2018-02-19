@@ -112,12 +112,9 @@ body #grid * {
   }
 
   .blank {
-    color: @grey1;
-    font-style: italic;
-    font-size: 8pt;
     min-width: 8ch;
-    .blank-style;
-    text-indent: 4px;
+    .blank-box-style;
+    .blank-text-style;
   }
 
 }
@@ -280,9 +277,15 @@ body #grid * {
     letter-spacing: -0.75px;
 }
 
-.blank-style {
+.blank-box-style {
   height: 15px;
   border-bottom: @blank-underline;
+}
+.blank-text-style {
+  color: @grey1;
+  font-style: italic;
+  font-size: 8pt;
+  text-indent: 4px;
 }
 
 .layout-block {
@@ -505,11 +508,14 @@ body #grid * {
 }
 
 
+// ---------------------------
+// Strings
+// ---------------------------
 .string-entry {
   position: relative;
   background: @selected-background;
   #entry-box {
-    .blank-style;
+    .blank-box-style;
     .string-style;
     background: transparent;
   }
@@ -526,3 +532,23 @@ body #grid * {
 }
 
 
+// ---------------------------
+// Types
+// ---------------------------
+.spec-type {
+  .blank-text-style;
+
+  & > :not(.header)  {
+    margin-left: 2ch;
+  }
+  .type-object {
+    .layout-block;
+    span {
+      .layout-inline;
+    }
+    margin-left: 2ch;
+    .colon {
+      padding-right: 0.5ch;
+    }
+  }
+}
