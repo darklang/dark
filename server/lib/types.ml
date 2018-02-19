@@ -45,12 +45,12 @@ module DbT = struct
 end
 
 
-module StaticT = struct
+module SpecTypes = struct
   type dark_type = Empty
-                 | Obj of ((string or_blank * dark_type or_blank) list)
+                 | Any
                  | String
                  | Int
-                 | Any
+                 | Obj of (string or_blank * dark_type or_blank) list
                  [@@deriving eq, show, yojson, sexp, bin_io]
 end
 

@@ -1,7 +1,7 @@
 open Core
 
 open Types.RuntimeT
-open Types.StaticT
+open Types.SpecTypes
 module RT = Runtime
 
 type spec_types = { input : dark_type Types.or_blank
