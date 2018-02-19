@@ -47,7 +47,7 @@ let ls (host: string) (id: int) : string list =
     |> List.sort
       ~cmp:(fun x y ->
           Pervasives.compare (parse_seq_idx_exn x) (parse_seq_idx_exn y))
-    |> List.map
+    |> List.rev_map
       ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
   with
   | _ -> []

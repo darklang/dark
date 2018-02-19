@@ -43,7 +43,7 @@ let server =
               try
                 let (body, c_req) =
                   let reqs = Stored_request.load_all host h.tlid in
-                  List.last_exn reqs
+                  List.hd_exn reqs
                 in
                 let d_req = PReq.from_request c_req body in
                 PReq.to_dval d_req
