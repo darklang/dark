@@ -297,13 +297,22 @@ viewDarkType m tl d =
     DTString -> Html.text "String"
     DTAny -> Html.text "Any"
     DTInt -> Html.text "Int"
-    DTObj ts -> Html.div
-                 [Attrs.class "TypeObject"]
-                 (ts
-                  |> List.map (\(n,dt) ->
-                                 [ viewBlankOrText m tl DarkTypeField n Nothing
-                                 , viewBlankOrDarkType m tl dt])
-                  |> List.concat)
+    DTObj ts ->
+      let nested =
+            ts
+            |> List.map (\(n,dt) ->
+                 [ viewBlankOrText m tl DarkTypeField n Nothing
+                 , Html.text ":"
+                 , viewBlankOrDarkType m tl dt])
+            |> List.intersperse [Html.text ","]
+            |> List.concat
+          open = Html.text "{"
+          close = Html.text "}"
+      in
+      Html.div
+        [Attrs.class "TypeObject"]
+        ([open] ++ nested ++ [close])
+
 
 
 
