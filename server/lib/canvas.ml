@@ -238,12 +238,13 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
              |> TL.handlers
              |> List.map
                ~f:(fun h ->
-                   let env =
+                   let envs =
                      match RTT.EnvMap.find environments h.tlid with
                      | Some e -> e
                      | None -> RTT.EnvMap.find_exn environments 0
                    in
-                   Handler.execute_for_analysis env h
+                   (* TODO(ian) *)
+                   Handler.execute_for_analysis (List.hd_exn envs) h
                  )
              |> List.concat
              |> List.map ~f:(fun (id, v, ds, syms) ->
@@ -256,7 +257,8 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
   in `Assoc
         [ ("analyses", `List vals)
         ; ("global_varnames",
-           `List (RTT.DvalMap.keys (RTT.EnvMap.find_exn environments 0)
+           (* TODO(ian) *)
+           `List (RTT.DvalMap.keys (RTT.EnvMap.find_exn environments 0 |> List.hd_exn)
                   |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
         ; ("redoable", `Bool (is_redoable c))

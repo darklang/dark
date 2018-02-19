@@ -39,27 +39,24 @@ let server =
           let global = PReq.sample |> PReq.to_dval in
           let env = RTT.DvalMap.set dbs_env "request" global in
           let env_map acc (h : Handler.handler) =
-            let h_env =
+            let h_envs =
               try
-                let (body, c_req) =
-                  let reqs = Stored_request.load_all host h.tlid in
-                  List.hd_exn reqs
-                in
-                let d_req = PReq.from_request c_req body in
-                PReq.to_dval d_req
+                Stored_request.load_all host h.tlid
+                |> List.map ~f:(fun (b, cr) -> PReq.from_request cr b)
+                |> List.map ~f:PReq.to_dval
               with
               | _ ->
-                global
+                [global]
              in
-             let new_env = RTT.DvalMap.set dbs_env "request" h_env in
-             RTT.EnvMap.set acc h.tlid new_env
+             let new_envs = List.map ~f:(fun e -> RTT.DvalMap.set dbs_env "request" e) h_envs in
+             RTT.EnvMap.set acc h.tlid new_envs
           in
           let tls_map =
             List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.handlers !c.toplevels)
           in
           (* TODO(ian): using 0 as a default, come up with better idea
            * later *)
-          RTT.EnvMap.set tls_map 0 env
+          RTT.EnvMap.set tls_map 0 [env]
         ) in
 
 

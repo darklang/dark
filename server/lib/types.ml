@@ -90,7 +90,7 @@ module RuntimeT = struct
   type tipe = tipe_ [@@deriving eq, show, yojson]
 
   module EnvMap = Int.Map
-  type env_map = dval_map EnvMap.t [@opaque]
+  type env_map = (dval_map list) EnvMap.t [@opaque]
 
   (* this is _why_ we're executing the AST, to allow us to not
    * emit certain side-effects (eg. DB writes) when showing previews *)
