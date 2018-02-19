@@ -414,19 +414,12 @@ siblings p ast =
 -- PointerList functions
 --------------------------------
 
-inAST : ID -> AST -> Bool
-inAST id ast =
-  ast
-  |> listPointers
-  |> List.map P.idOf
-  |> List.member id
-
-listPointers : Expr -> List Pointer
-listPointers expr =
+allPointers : Expr -> List Pointer
+allPointers expr =
   let rl : List Expr -> List Pointer
       rl exprs =
         exprs
-        |> List.map listPointers
+        |> List.map allPointers
         |> List.concat
   in
   [toP expr] ++
@@ -445,13 +438,13 @@ listPointers expr =
       rl exprs
 
     Lambda _ vars expr ->
-      listPointers expr
+      allPointers expr
 
     Thread _ exprs ->
       rl exprs
 
     FieldAccess _ obj field ->
-      listPointers obj ++ [P.blankTo Field field]
+      allPointers obj ++ [P.blankTo Field field]
 
 
 --------------------------------

@@ -33,30 +33,59 @@ replaceInType origID newDt dt =
       _ -> dt
 
 
-listInputPointers : SpecTypes -> List Pointer
-listInputPointers st =
-  listPointersInType st.input
-
-listOutputPointers : SpecTypes -> List Pointer
-listOutputPointers st =
-  listPointersInType st.input
-
-listPointers : SpecTypes -> List Pointer
-listPointers st =
-  listInputPointers st
-  ++ listOutputPointers st
-
-listPointersInType : BlankOr DarkType -> List Pointer
-listPointersInType t =
+allPointers : BlankOr DarkType -> List Pointer
+allPointers t =
   let nested =
         case t of
           Filled _ (DTObj ts) ->
             ts
-            |> List.map (\(n, dt) -> [ P.blankTo DarkTypeField n
-                                     , P.blankTo DarkType dt])
+            |> List.map (\(n, dt) -> [ P.blankTo DarkTypeField n]
+                                     ++ allPointers dt)
             |> List.concat
           _ -> []
   in
   [P.blankTo DarkType t]
   ++ nested
+
+-- recurse until we find ID, then return the children
+childrenOf : ID -> BlankOr DarkType -> List Pointer
+childrenOf id t =
+  if blankOrID t == id
+  then
+    case t of
+      Filled _ (DTObj ts) ->
+        ts
+        |> List.map (\(n, dt) ->
+                       [ P.blankTo DarkTypeField n
+                       , P.blankTo DarkType dt])
+        |> List.concat
+      _ -> []
+  else
+    case t of
+      Filled _ (DTObj ts) ->
+        ts
+        |> List.map (\(n, dt) -> childrenOf id dt)
+        |> List.concat
+      _ -> []
+
+
+
+-- recurse until we find ID, then return the children
+siblings : Pointer -> BlankOr DarkType -> List Pointer
+siblings p t =
+  case t of
+    Filled _ (DTObj ts) ->
+      let result = ts
+                   |> List.map (\(n, dt) ->
+                                  [ P.blankTo DarkTypeField n
+                                  , P.blankTo DarkType dt])
+                   |> List.concat in
+      if List.member p result
+      then result
+      else
+        ts
+        |> List.map (\(_, dt) -> siblings p dt)
+        |> List.concat
+
+    _ -> []
 

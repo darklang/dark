@@ -7,8 +7,8 @@ module DB exposing (..)
 import Types exposing (..)
 import Pointer as P
 
-listPointers : DB -> List Pointer
-listPointers db =
+allPointers : DB -> List Pointer
+allPointers db =
   let colToList col =
         case col of
           (lhs, rhs) -> [P.blankTo DBColName lhs, P.blankTo DBColType rhs]
@@ -17,4 +17,6 @@ listPointers db =
       |> List.map colToList
       |> List.concat
 
+siblings : Pointer -> DB -> List Pointer
+siblings p db = allPointers db
 
