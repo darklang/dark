@@ -162,11 +162,12 @@ encodeDarkType t =
     DTInt -> ev "Int" []
     DTObj ts ->
       ev "Obj"
-        (List.map
-          (encodePair
-            (encodeBlankOr JSE.string)
-            (encodeBlankOr encodeDarkType))
-          ts)
+        [(JSE.list
+          (List.map
+            (encodePair
+              (encodeBlankOr JSE.string)
+              (encodeBlankOr encodeDarkType))
+            ts))]
 
 decodeDarkType : JSD.Decoder DarkType
 decodeDarkType =
