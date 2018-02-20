@@ -46,15 +46,13 @@ let ls (host: string) (id: int) : string list =
   |> List.sort
     ~cmp:(fun x y ->
         Pervasives.compare (parse_seq_idx_exn x) (parse_seq_idx_exn y))
-  |> List.map
-    ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
 
 let next_seq (files: string list) : int =
   files
   |> List.filter_map ~f:parse_seq_idx
   |> List.fold_left
-       ~f:(fun acc x -> max acc x) ~init:0
-  |> fun x -> x + 1
+       ~f:(fun acc x -> max acc x) ~init:1
+  |> (+) 1
 
 let next_filename (host: string) (id: int) : string =
   let next_number =
@@ -79,6 +77,8 @@ let store (host: string) (body: string) (id: int) (req: CRequest.t) : unit =
 
 let load_all (host: string) (id: int) : t list =
   ls host id
+  |> List.map
+    ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
   |> List.map
        ~f:(fun f -> f |> Sexplib.Sexp.load_sexp |> t_of_sexp)
 
