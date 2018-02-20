@@ -23,6 +23,7 @@ import Toplevel as TL
 import Runtime as RT
 import Pointer as P
 import SpecTypes
+import SpecHeaders
 
 
 createFindSpace : Model -> Modification
@@ -183,7 +184,7 @@ submit m cursor action value =
                     , parseAst
                         value
                           (action == ContinueThread
-                          && TL.isThread h p)
+                          && AST.isThread h.ast p)
                       |> Maybe.map AST.toPD
                       |> Maybe.withDefault old_)
 
@@ -229,13 +230,13 @@ submit m cursor action value =
           validate "/([-a-zA-Z0-9@:%_+.~#?&/=]*)" "http route"
             <|
           let h = deMaybe "maybeH - httproute" maybeH
-              replacement = TL.replaceHTTPRouteBlank id value h.spec in
+              replacement = SpecHeaders.replaceHTTPRouteBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         HTTPVerb ->
           validate "[A-Z]+" "HTTP Verb"
             <|
           let h = deMaybe "maybeH - httpverb" maybeH
-              replacement = TL.replaceHTTPVerbBlank id value h.spec in
+              replacement = SpecHeaders.replaceHTTPVerbBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           validate ".+" "fieldname"

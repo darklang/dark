@@ -241,6 +241,11 @@ maybeExtendThreadAt id expr =
       FieldAccess id obj field ->
         FieldAccess id (et obj) field
 
+isThread : AST -> Pointer -> Bool
+isThread ast p =
+  ast |> listThreadHoles |> List.member (P.idOf p)
+
+
 
 children : Expr -> List Pointer
 children e =

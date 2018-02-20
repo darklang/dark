@@ -11,6 +11,7 @@ import List.Extra as LE
 import Types exposing (..)
 import Toplevel as TL
 import SpecTypes
+import SpecHeaders
 import AST
 import Pointer as P
 import Util exposing (deMaybe)
@@ -144,11 +145,11 @@ delete m tlid cur =
       in wrapH { h | ast = replacement }
     HTTPVerb ->
       let h = maybeH ()
-          replacement = TL.deleteHTTPVerbBlank cur h.spec newID
+          replacement = SpecHeaders.deleteHTTPVerbBlank cur h.spec newID
       in wrapH { h | spec = replacement }
     HTTPRoute ->
       let h = maybeH ()
-          replacement = TL.deleteHTTPRouteBlank cur h.spec newID
+          replacement = SpecHeaders.deleteHTTPRouteBlank cur h.spec newID
       in wrapH { h | spec = replacement }
     Field ->
       let h = maybeH ()
@@ -184,7 +185,7 @@ enter m tlid cur =
           else if tipe == HTTPVerb || tipe == HTTPRoute
           then
             let content =
-                TL.getSpec h cur
+                SpecHeaders.find h cur
                 |> Maybe.andThen blankToMaybe
                 |> Maybe.withDefault ""
             in

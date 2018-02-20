@@ -12,8 +12,12 @@ import Util exposing (deMaybe)
 import AST
 import Pointer as P
 import SpecTypes
+import SpecHeaders
 import DB
 
+-------------------------
+-- Toplevel manipulation
+-------------------------
 getTL : Model -> TLID -> Toplevel
 getTL m id =
   LE.find (\tl -> tl.id == id) m.toplevels
@@ -22,154 +26,6 @@ getTL m id =
 replace : Model -> Toplevel -> Model
 replace m tl =
   update m tl.id (\_ -> tl)
-
-isThread : Handler -> Pointer -> Bool
-isThread h p =
-  h.ast |> AST.listThreadHoles |> List.member (P.idOf p)
-
-getSpec : Handler -> Pointer -> Maybe (BlankOr String)
-getSpec h p =
-  [h.spec.name, h.spec.modifier]
-  |> List.filter (\spec -> blankOrID spec == P.idOf p)
-        -- TODO: opportunity to check pointer types
-  |> List.head
-
-replaceHTTPVerbBlank : ID -> String -> HandlerSpec -> HandlerSpec
-replaceHTTPVerbBlank id value hs =
-  { hs | modifier = if blankOrID hs.modifier == id
-                    then Filled (blankOrID hs.modifier) value
-                    else hs.modifier
-  }
-replaceHTTPRouteBlank : ID -> String -> HandlerSpec -> HandlerSpec
-replaceHTTPRouteBlank id value hs =
-  { hs | name = if blankOrID hs.name == id
-                then Filled (blankOrID hs.name) value
-                else hs.name
-  }
-
-
-deleteHTTPRouteBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
-deleteHTTPRouteBlank p hs newID =
-  { hs | name = if blankOrID hs.name == (P.idOf p)
-                then Blank newID
-                else hs.name
-  }
-
-deleteHTTPVerbBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
-deleteHTTPVerbBlank p hs newID =
-  { hs | modifier = if blankOrID hs.modifier == (P.idOf p)
-                    then Blank newID
-                    else hs.modifier
-  }
-
-
-allBlanks : Toplevel -> List Pointer
-allBlanks tl =
-  tl
-  |> allPointers
-  |> List.filter P.isBlank
-
-blanksWhere : (Pointer -> Bool) -> Toplevel -> List Pointer
-blanksWhere fn tl =
-  tl
-  |> allBlanks
-  |> List.filter fn
-
-specHeaderBlanks : Toplevel -> List Pointer
-specHeaderBlanks = blanksWhere (\p -> P.ownerOf p == POSpecHeader)
-
-
-allPointers : Toplevel -> List Pointer
-allPointers tl =
-  case tl.data of
-    TLHandler h ->
-      specHeaders h
-      ++ SpecTypes.allPointers h.spec.types.input
-      ++ AST.allPointers h.ast
-      ++ SpecTypes.allPointers h.spec.types.output
-    TLDB db ->
-      DB.allPointers db
-
-
-specHeaders : Handler -> List Pointer
-specHeaders h =
-  [ P.blankTo HTTPRoute h.spec.name
-  , P.blankTo HTTPVerb h.spec.modifier]
-
-siblings : Toplevel -> Pointer -> List Pointer
-siblings tl p =
-  case tl.data of
-    TLHandler h ->
-      let toplevels =
-            specHeaders h
-            ++ [ P.blankTo DarkType h.spec.types.input
-               , AST.toP h.ast
-               , P.blankTo DarkType h.spec.types.output] in
-
-      if List.member p toplevels
-      then toplevels
-      else
-         AST.siblings p h.ast
-         ++ SpecTypes.siblings p h.spec.types.input
-         ++ SpecTypes.siblings p h.spec.types.output
-    TLDB db -> DB.siblings p db
-
-getNextSibling : Toplevel -> Pointer -> Pointer
-getNextSibling tl p =
-  let sibs = siblings tl p in
-  sibs
-  |> LE.elemIndex p
-  |> Maybe.map ((+) 1)
-  |> Maybe.map (\i -> i % List.length sibs)
-  |> Maybe.andThen (\i -> LE.getAt i sibs)
-  |> Maybe.withDefault p
-
-getPrevSibling : Toplevel -> Pointer -> Pointer
-getPrevSibling tl p =
-  let sibs = siblings tl p
-      -- 'safe' to deMaybe as there's always at least
-      -- one member in the array
-      last = deMaybe "sibling" <| LE.last sibs
-  in
-  sibs
-  |> LE.elemIndex p
-  |> Maybe.map (\i -> i - 1)
-  |> Maybe.andThen (\i -> LE.getAt i sibs)
-  |> Maybe.withDefault last
-
-getNextBlank : Toplevel -> Predecessor -> Successor
-getNextBlank tl pred =
-  case pred of
-    Just pred ->
-      let ps = allPointers tl
-          index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
-          remaining = List.drop (index+1) ps
-          blanks = List.filter P.isBlank remaining in
-      List.head blanks
-    Nothing -> firstBlank tl
-
-getFirstASTBlank : Toplevel -> Successor
-getFirstASTBlank tl =
-  tl
-  |> blanksWhere (\p -> P.ownerOf p == POAst)
-  |> List.head
-
-
-getPrevBlank : Toplevel -> Pointer -> Predecessor
-getPrevBlank tl next =
-  let holes = allBlanks tl in
-  holes
-  |> LE.elemIndex next
-  |> Maybe.map (\i -> i - 1)
-  |> Maybe.andThen (\i -> LE.getAt i holes)
-
-firstBlank : Toplevel -> Successor
-firstBlank tl =
-  tl |> allBlanks |> List.head
-
-lastBlank : Toplevel -> Successor
-lastBlank tl =
-  tl |> allBlanks |> LE.last
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
@@ -209,6 +65,150 @@ dbs : List Toplevel -> List DB
 dbs tls =
   List.filterMap asDB tls
 
+
+-------------------------
+-- Generic
+-------------------------
+allPointers : Toplevel -> List Pointer
+allPointers tl =
+  case tl.data of
+    TLHandler h ->
+      SpecHeaders.allPointers h.spec
+      ++ SpecTypes.allPointers h.spec.types.input
+      ++ AST.allPointers h.ast
+      ++ SpecTypes.allPointers h.spec.types.output
+    TLDB db ->
+      DB.allPointers db
+
+isValidPointer : Toplevel -> Pointer -> Bool
+isValidPointer tl p =
+  List.member p (allPointers tl)
+
+clonePointerData : PointerData -> PointerData
+clonePointerData pd =
+  let replaceBlankOr nid bo =
+      case bo of
+        Blank _ -> Blank nid
+        Filled _ a -> Filled nid a
+  in
+  case pd of
+    PVarBind id vb ->
+      let nid = gid ()
+      in PVarBind nid (replaceBlankOr nid vb)
+    PHTTPVerb id sp ->
+      let nid = gid ()
+      in PHTTPVerb nid (replaceBlankOr nid sp)
+    PHTTPRoute id sp ->
+      let nid = gid ()
+      in PHTTPRoute nid (replaceBlankOr nid sp)
+    PExpr id expr ->
+      let (nid, ast) = AST.clone expr
+      in PExpr nid ast
+    PField id f ->
+      let nid = gid ()
+      in PField nid (replaceBlankOr nid f)
+    PDBColName id cn -> pd
+    PDBColType id ct -> pd
+    PDarkType id dt -> Debug.crash "TODO clonePointerdata"
+    PDarkTypeField id dt -> Debug.crash "TODO clonePointerdata"
+
+-------------------------
+-- Blanks
+-------------------------
+allBlanks : Toplevel -> List Pointer
+allBlanks tl =
+  tl
+  |> allPointers
+  |> List.filter P.isBlank
+
+blanksWhere : (Pointer -> Bool) -> Toplevel -> List Pointer
+blanksWhere fn tl =
+  tl
+  |> allBlanks
+  |> List.filter fn
+
+getNextBlank : Toplevel -> Predecessor -> Successor
+getNextBlank tl pred =
+  case pred of
+    Just pred ->
+      let ps = allPointers tl
+          index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
+          remaining = List.drop (index+1) ps
+          blanks = List.filter P.isBlank remaining in
+      List.head blanks
+    Nothing -> firstBlank tl
+
+getPrevBlank : Toplevel -> Pointer -> Predecessor
+getPrevBlank tl next =
+  let holes = allBlanks tl in
+  holes
+  |> LE.elemIndex next
+  |> Maybe.map (\i -> i - 1)
+  |> Maybe.andThen (\i -> LE.getAt i holes)
+
+firstBlank : Toplevel -> Successor
+firstBlank tl =
+  tl |> allBlanks |> List.head
+
+lastBlank : Toplevel -> Successor
+lastBlank tl =
+  tl |> allBlanks |> LE.last
+
+getFirstASTBlank : Toplevel -> Successor
+getFirstASTBlank tl =
+  tl
+  |> blanksWhere (\p -> P.ownerOf p == POAst)
+  |> List.head
+
+
+-------------------------
+-- Siblings
+-------------------------
+siblings : Toplevel -> Pointer -> List Pointer
+siblings tl p =
+  case tl.data of
+    TLHandler h ->
+      let toplevels =
+            SpecHeaders.allPointers h.spec
+            ++ [ P.blankTo DarkType h.spec.types.input
+               , AST.toP h.ast
+               , P.blankTo DarkType h.spec.types.output] in
+
+      if List.member p toplevels
+      then toplevels
+      else
+         AST.siblings p h.ast
+         ++ SpecTypes.siblings p h.spec.types.input
+         ++ SpecTypes.siblings p h.spec.types.output
+    TLDB db -> DB.siblings p db
+
+getNextSibling : Toplevel -> Pointer -> Pointer
+getNextSibling tl p =
+  let sibs = siblings tl p in
+  sibs
+  |> LE.elemIndex p
+  |> Maybe.map ((+) 1)
+  |> Maybe.map (\i -> i % List.length sibs)
+  |> Maybe.andThen (\i -> LE.getAt i sibs)
+  |> Maybe.withDefault p
+
+getPrevSibling : Toplevel -> Pointer -> Pointer
+getPrevSibling tl p =
+  let sibs = siblings tl p
+      -- 'safe' to deMaybe as there's always at least
+      -- one member in the array
+      last = deMaybe "sibling" <| LE.last sibs
+  in
+  sibs
+  |> LE.elemIndex p
+  |> Maybe.map (\i -> i - 1)
+  |> Maybe.andThen (\i -> LE.getAt i sibs)
+  |> Maybe.withDefault last
+
+
+-------------------------
+-- Up/Down the tree
+-------------------------
 getParentOf : Toplevel -> Pointer -> Maybe Pointer
 getParentOf tl p =
   -- TODO SpecTypePointerRefactor
@@ -244,35 +244,4 @@ rootOf tl =
       Just <| AST.toP h.ast
     _ -> Nothing
 
-isValidPointer : Toplevel -> Pointer -> Bool
-isValidPointer tl p =
-  List.member p (allPointers tl)
-
-clonePointerData : PointerData -> PointerData
-clonePointerData pd =
-  let replaceBlankOr nid bo =
-      case bo of
-        Blank _ -> Blank nid
-        Filled _ a -> Filled nid a
-  in
-  case pd of
-    PVarBind id vb ->
-      let nid = gid ()
-      in PVarBind nid (replaceBlankOr nid vb)
-    PHTTPVerb id sp ->
-      let nid = gid ()
-      in PHTTPVerb nid (replaceBlankOr nid sp)
-    PHTTPRoute id sp ->
-      let nid = gid ()
-      in PHTTPRoute nid (replaceBlankOr nid sp)
-    PExpr id expr ->
-      let (nid, ast) = AST.clone expr
-      in PExpr nid ast
-    PField id f ->
-      let nid = gid ()
-      in PField nid (replaceBlankOr nid f)
-    PDBColName id cn -> pd
-    PDBColType id ct -> pd
-    PDarkType id dt -> Debug.crash "TODO clonePointerdata"
-    PDarkTypeField id dt -> Debug.crash "TODO clonePointerdata"
 
