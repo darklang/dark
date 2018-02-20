@@ -13,8 +13,23 @@ import Toplevel as TL
 import SpecTypes
 import SpecHeaders
 import AST
+import Analysis
 import Pointer as P
 import Util exposing (deMaybe)
+
+moveCursorBackInTime : Model -> TLID -> Modification
+moveCursorBackInTime m selected =
+  let maxCursor = List.length (Analysis.getAnalysisResults m selected)
+  in
+    selected
+    |> TL.getTL m
+    |> (\tl -> SetCursor tl.id (min (tl.cursor + 1) maxCursor))
+
+moveCursorForwardInTime : Model -> TLID -> Modification
+moveCursorForwardInTime m selected =
+  selected
+  |> TL.getTL m
+  |> (\tl -> SetCursor tl.id (max (tl.cursor - 1) 0))
 
 selectNextToplevel : Model -> (Maybe TLID) -> Modification
 selectNextToplevel m cur =

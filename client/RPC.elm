@@ -271,7 +271,7 @@ decodeHandlerSpec =
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
-  let toHandler ast spec = {ast = ast, spec = spec, cursor = 0 } in
+  let toHandler ast spec = {ast = ast, spec = spec } in
   JSDP.decode toHandler
   |> JSDP.required "ast" decodeAST
   |> JSDP.required "spec" decodeHandlerSpec
@@ -308,6 +308,7 @@ decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
   let toToplevel id x y data =
         { id = id
+        , cursor = 0
         , pos = { x=x, y=y }
         , data = data }
       variant = decodeVariants

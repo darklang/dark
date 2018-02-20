@@ -106,7 +106,6 @@ submit m cursor action value =
           wrapExpr expr =
             wrap <| SetHandler tlid pos { ast = threadIt expr
                                         , spec = newHandlerSpec ()
-                                        , cursor = 0
                                         }
       in
 

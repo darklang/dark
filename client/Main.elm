@@ -235,7 +235,7 @@ updateMod mod (m, cmd) =
                      case call of
                        SetHandler tlid pos h ->
                          replaceToplevel m
-                           {id = tlid, pos = pos, data = TLHandler h }
+                           {id = tlid, pos = pos, data = TLHandler h, cursor = 0 }
                        _ -> m) m calls
 
                  (withFocus, wfCmd) =
@@ -371,6 +371,10 @@ updateMod mod (m, cmd) =
 
       SetCenter c ->
         { m | center = c } ! []
+      SetCursor tlid cur ->
+        let newM = TL.update m tlid (\tl -> { tl | cursor = cur })
+        in
+            newM ! []
       CopyToClipboard clipboard ->
         { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
@@ -468,8 +472,14 @@ update_ msg m =
                     Nothing -> Selection.selectDownLevel m tlid p
               Key.Up -> Selection.selectUpLevel m tlid p
               Key.Down -> Selection.selectDownLevel m tlid p
-              Key.Right -> Selection.selectNextSibling m tlid p
-              Key.Left -> Selection.selectPreviousSibling m tlid p
+              Key.Right ->
+                if event.altKey
+                then Selection.moveCursorForwardInTime m tlid
+                else Selection.selectNextSibling m tlid p
+              Key.Left ->
+                if event.altKey
+                then Selection.moveCursorBackInTime m tlid
+                else Selection.selectPreviousSibling m tlid p
               Key.Tab ->
                 case p of
                   Just pp ->

@@ -253,7 +253,7 @@ viewTL m tl =
       selected = if Just tl.id == tlidOf m.state
                  then "selected"
                  else ""
-      class = [selected, toString (deTLID tl.id), "toplevel"]
+      class = [selected, toString (deTLID tl.id), "toplevel", "cursor-" ++ (toString tl.cursor)]
               |> String.join " "
 
       html = Html.div

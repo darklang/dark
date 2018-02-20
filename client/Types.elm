@@ -314,7 +314,6 @@ type alias HandlerSpec = { name : BlankOr String
 
 type alias Handler = { ast : AST
                      , spec : HandlerSpec
-                     , cursor: Int
                      }
 
 type alias DBName = String
@@ -327,6 +326,7 @@ type TLData = TLHandler Handler
             | TLDB DB
 
 type alias Toplevel = { id : TLID
+                      , cursor: Int
                       , pos : Pos
                       , data : TLData
                       }
@@ -398,6 +398,7 @@ type Modification = Error String
                   | EndIntegrationTest
                   | SetState State
                   | CopyToClipboard Clipboard
+                  | SetCursor TLID Int
 
 -----------------------------
 -- Flags / function types
