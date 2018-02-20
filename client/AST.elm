@@ -12,6 +12,9 @@ import Util exposing (deMaybe)
 import Pointer as P
 
 
+-------------------------
+-- Generic
+-------------------------
 toP : Expr -> Pointer
 toP e =
   case e of
@@ -43,6 +46,9 @@ isHole e =
     Hole _ -> True
     _ -> False
 
+-------------------------
+-- Thread stuff
+-------------------------
 listThreadHoles : Expr -> List ID
 listThreadHoles expr =
   let lthList : List Expr -> List ID
@@ -246,7 +252,9 @@ isThread ast p =
   ast |> listThreadHoles |> List.member (P.idOf p)
 
 
-
+-------------------------
+-- Children
+-------------------------
 children : Expr -> List Pointer
 children e =
   case e of
@@ -301,6 +309,9 @@ childrenOf pid expr =
     FieldAccess id obj field ->
       returnOr (\_ -> co obj) expr
 
+-------------------------
+-- Ancestors
+-------------------------
 ancestors : ID -> Expr -> List Expr
 ancestors id expr =
   let rec_ancestors : ID -> List Expr -> Expr -> List Expr
@@ -345,6 +356,9 @@ threadAncestors id expr =
         _ -> False)
 
 
+-------------------------
+-- Parents
+-------------------------
 parentOf : ID -> AST -> AST
 parentOf id ast =
   deMaybe "parentOf" <| parentOf_ id ast
@@ -416,7 +430,7 @@ siblings p ast =
         _ -> [p]
 
 --------------------------------
--- PointerList functions
+-- Pointers
 --------------------------------
 
 allPointers : Expr -> List Pointer
@@ -453,7 +467,7 @@ allPointers expr =
 
 
 --------------------------------
--- PointerData functions
+-- PointersData
 --------------------------------
 
 listData : Expr -> List PointerData
