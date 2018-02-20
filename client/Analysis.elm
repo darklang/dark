@@ -2,8 +2,10 @@ module Analysis exposing (..)
 
 -- builtin
 import Dict
+import List.Extra as LE
 
 -- dark
+import Toplevel as TL
 import Types exposing (..)
 
 getAnalysisResults : Model -> TLID -> List AResult
@@ -26,9 +28,11 @@ getAnalysisResults m id =
 
 getLiveValuesDict : Model -> TLID -> LVDict
 getLiveValuesDict m id =
+  let cursor = TL.getTL m id |> .cursor
+  in
   getAnalysisResults m id
   |> List.reverse
-  |> List.head
+  |> LE.getAt cursor
   |> Maybe.map .liveValues
   |> Maybe.withDefault (Dict.empty)
 
@@ -40,9 +44,11 @@ getLiveValue m tlid (ID id) =
 
 getAvailableVarnamesDict : Model -> TLID -> AVDict
 getAvailableVarnamesDict m id =
+  let cursor = TL.getTL m id |> .cursor
+  in
   getAnalysisResults m id
   |> List.reverse
-  |> List.head
+  |> LE.getAt cursor
   |> Maybe.map .availableVarnames
   |> Maybe.withDefault (Dict.empty)
 
