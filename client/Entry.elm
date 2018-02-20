@@ -289,9 +289,3 @@ submit m cursor action value =
         DarkTypeField ->
           Debug.crash "TODO entry darkfield"
 
-
-
-  -- let pt = EntryParser.parseFully value
-  -- in case pt of
-  --   Ok pt -> execute m <| EntryParser.pt2ast m cursor pt
-  --   Err error -> Error <| EntryParser.toErrorMessage <| EntryParser.addCursorToError error cursor
