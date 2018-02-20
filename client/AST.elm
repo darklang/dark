@@ -515,29 +515,6 @@ subData id expr =
   |> List.filter (\d -> id == P.idOfD d)
   |> List.head -- TODO might be multiple
 
-isLeaf : ID -> AST -> Bool
-isLeaf id ast =
-  case subData id ast of
-    Nothing -> False
-    Just pd ->
-      case pd of
-        PVarBind _ _ -> True
-        PField _ _ -> True
-        PExpr _ e ->
-          case e of
-            Value _ _ -> True
-            Hole _ -> True
-            Variable _ _ -> True
-            FnCall _ _ params -> -- Constant, or piped-in function
-              (List.length params) == 0
-            _ -> False
-        PHTTPVerb _ _ -> False
-        PHTTPRoute _ _ -> False
-        PDBColName _ _ -> False
-        PDBColType _ _ -> False
-        PDarkType _ _ -> False
-        PDarkTypeField _ _ -> False
-
 toContent : PointerData -> String
 toContent pd =
   case pd of

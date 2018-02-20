@@ -187,28 +187,32 @@ enter : Model -> TLID -> Pointer -> Modification
 enter m tlid cur =
   let tl = TL.getTL m tlid in
   case cur of
+    PBlank _ _ -> Enter (Filling tlid cur)
     PFilled tipe _ ->
-      let id = P.idOf cur in
-      case tl.data of
-        TLHandler h ->
-          if AST.isLeaf id h.ast
-          then
-            let se = AST.subtree id h.ast in
-            Many [ Enter (Filling tlid cur)
-                 , AutocompleteMod (ACSetQuery (AST.toContent se))
-                 ]
-          else if tipe == HTTPVerb || tipe == HTTPRoute
-          then
-            let content =
-                SpecHeaders.find h cur
-                |> Maybe.andThen blankToMaybe
-                |> Maybe.withDefault ""
-            in
-            Many [ Enter (Filling tlid cur)
-                 , AutocompleteMod (ACSetQuery (content))
-                 ]
-          else
-            selectDownLevel m tlid (Just cur)
-        _ -> NoChange
-    _ -> Enter (Filling tlid cur)
+      let id = P.idOf cur
+          h () = (tl |> TL.asHandler |> deMaybe "selection enter")
+      in
+      if TL.getChildrenOf tl cur /= []
+      then selectDownLevel m tlid (Just cur)
+      else
+        let text =
+          case P.ownerOf cur of
+            POAst ->
+              (h ()).ast
+              |> AST.subtree id
+              |> AST.toContent
+              |> Just
+            POSpecHeader ->
+              SpecHeaders.find (h ()) cur
+              |> Maybe.andThen blankToMaybe
+              |> Maybe.withDefault ""
+              |> Just
+            _ -> Nothing
+        in
+          case text of
+            Just content ->
+              Many [ Enter (Filling tlid cur)
+                   , AutocompleteMod (ACSetQuery content)
+                   ]
+            Nothing -> NoChange
 
