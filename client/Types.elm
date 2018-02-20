@@ -313,7 +313,9 @@ type alias HandlerSpec = { name : BlankOr String
 
 
 type alias Handler = { ast : AST
-                     , spec : HandlerSpec }
+                     , spec : HandlerSpec
+                     , cursor: Int
+                     }
 
 type alias DBName = String
 type alias DBColName = String
@@ -335,10 +337,12 @@ type alias Toplevel = { id : TLID
 -----------------------------
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
+type alias AResult = { astValue: LiveValue
+                     , liveValues : LVDict
+                     , availableVarnames : AVDict
+                     }
 type alias TLAResult = { id: TLID
-                       , astValue: LiveValue
-                       , liveValues : LVDict
-                       , availableVarnames : AVDict
+                       , results: List AResult
                        }
 
 -----------------------------

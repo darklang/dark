@@ -15,7 +15,6 @@ type spec = { module_ : string Types.or_blank [@key "module"]
             ; types : spec_types
             } [@@deriving eq, show, yojson, sexp, bin_io]
 
-
 type handler = { tlid: Types.tlid
                ; ast: Ast.ast
                ; spec : spec
@@ -61,11 +60,11 @@ let default_env (h: handler) : dval_map =
 let with_defaults (h: handler) (env: Ast.symtable) : Ast.symtable =
   Util.merge_left env (default_env h)
 
-let execute (env: Ast.symtable) (h: handler) : dval =
+let execute (h: handler) (env: Ast.symtable) : dval =
   Ast.execute (with_defaults h env) h.ast
 
-let execute_for_analysis (env: Ast.symtable) (h: handler) :
-    (Types.id * dval * Ast.dval_store * Ast.sym_store) list =
+let execute_for_analysis (h: handler) (env: Ast.symtable) :
+    (dval * Ast.dval_store * Ast.sym_store) =
   let traced_symbols = Ast.symbolic_execute (with_defaults h env) h.ast in
   let (ast_value, traced_values) = Ast.execute_saving_intermediates env h.ast in
-  [(h.tlid, ast_value, traced_values, traced_symbols)]
+  (ast_value, traced_values, traced_symbols)

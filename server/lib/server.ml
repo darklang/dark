@@ -61,6 +61,7 @@ let server =
 
 
         let (t4, result) = time "4-to-frontend" "4. serialize canvas to frontend" (fun _ ->
+          let _ = Log.pp "envs" envs in
           C.to_frontend_string envs !c
         ) in
 
@@ -142,7 +143,7 @@ let server =
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
         let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
-        let result = Handler.execute env page in
+        let result = Handler.execute page env in
         (match result with
         | DResp (http, value) ->
           (match http with

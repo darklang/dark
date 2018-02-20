@@ -65,7 +65,7 @@ newFromClipboard m pos =
               PExpr _ exp -> exp
               _ -> Hole (gid ())
       spec = Entry.newHandlerSpec ()
-      handler = { ast = ast, spec = spec }
+      handler = { ast = ast, spec = spec, cursor = 0 }
   in
       RPC ([SetHandler nid pos handler], FocusNext nid Nothing)
 

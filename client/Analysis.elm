@@ -6,7 +6,7 @@ import Dict
 -- dark
 import Types exposing (..)
 
-getAnalysisResults : Model -> TLID -> TLAResult
+getAnalysisResults : Model -> TLID -> List AResult
 getAnalysisResults m id =
   m.analysis
   |> List.filter (\tlar -> tlar.id == id)
@@ -14,18 +14,23 @@ getAnalysisResults m id =
   -- only handlers have analysis results, but lots of stuff expect this
   -- data to exist. It may be better to not do that, but this is fine
   -- for now.
-  |> Maybe.withDefault { id = id
-                       , astValue = { value = "null"
-                                    , tipe = TNull
-                                    , json = "null"
-                                    , exc = Nothing
-                                    }
-                       , liveValues = Dict.empty
-                       , availableVarnames = Dict.empty
-                       }
+  |> Maybe.map .results
+  |> Maybe.withDefault [{ astValue = { value = "null"
+                                     , tipe = TNull
+                                     , json = "null"
+                                     , exc = Nothing
+                                     }
+                        , liveValues = Dict.empty
+                        , availableVarnames = Dict.empty
+                        }]
 
 getLiveValuesDict : Model -> TLID -> LVDict
-getLiveValuesDict m id = getAnalysisResults m id |> .liveValues
+getLiveValuesDict m id =
+  getAnalysisResults m id
+  |> List.reverse
+  |> List.head
+  |> Maybe.map .liveValues
+  |> Maybe.withDefault (Dict.empty)
 
 getLiveValue : Model -> TLID -> ID -> Maybe LiveValue
 getLiveValue m tlid (ID id) =
@@ -34,7 +39,12 @@ getLiveValue m tlid (ID id) =
   |> Dict.get id
 
 getAvailableVarnamesDict : Model -> TLID -> AVDict
-getAvailableVarnamesDict m id = getAnalysisResults m id |> .availableVarnames
+getAvailableVarnamesDict m id =
+  getAnalysisResults m id
+  |> List.reverse
+  |> List.head
+  |> Maybe.map .availableVarnames
+  |> Maybe.withDefault (Dict.empty)
 
 getAvailableVarnames : Model -> TLID -> ID -> List VarName
 getAvailableVarnames m tlid (ID id) =

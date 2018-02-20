@@ -41,16 +41,13 @@ let parse_seq_idx_exn (name: string) : int =
   | None -> failwith ("parse_seq_idx_exn failed to parse number from: " ^ name)
 
 let ls (host: string) (id: int) : string list =
-  try
-    Sys.ls_dir (dir_name host id)
-    |> List.filter ~f:is_request
-    |> List.sort
-      ~cmp:(fun x y ->
-          Pervasives.compare (parse_seq_idx_exn x) (parse_seq_idx_exn y))
-    |> List.rev_map
-      ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
-  with
-  | _ -> []
+  Sys.ls_dir (dir_name host id)
+  |> List.filter ~f:is_request
+  |> List.sort
+    ~cmp:(fun x y ->
+        Pervasives.compare (parse_seq_idx_exn x) (parse_seq_idx_exn y))
+  |> List.map
+    ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
 
 let next_seq (files: string list) : int =
   files
@@ -61,8 +58,11 @@ let next_seq (files: string list) : int =
 
 let next_filename (host: string) (id: int) : string =
   let next_number =
-    ls host id
-    |> next_seq
+    try
+      ls host id
+      |> next_seq
+    with
+    | _ -> 1
   in
   let dir = dir_name host id in
   dir ^ "/" ^ (string_of_int next_number) ^ file_ext

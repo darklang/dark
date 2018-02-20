@@ -234,26 +234,34 @@ let save_test (c: canvas) : string =
 (* ------------------------- *)
 
 let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
+  let available_reqs id =
+    match RTT.EnvMap.find environments id with
+    | Some e -> e
+    | None -> RTT.EnvMap.find_exn environments 0
+  in
   let vals = c.toplevels
              |> TL.handlers
              |> List.map
                ~f:(fun h ->
-                   let envs =
-                     match RTT.EnvMap.find environments h.tlid with
-                     | Some e -> e
-                     | None -> RTT.EnvMap.find_exn environments 0
+                   let envs = available_reqs h.tlid in
+                   let values =
+                     List.map
+                       ~f:(Handler.execute_for_analysis h)
+                       envs
                    in
-                   (* TODO(ian) *)
-                   Handler.execute_for_analysis (List.hd_exn envs) h
+                   (h.tlid, values)
                  )
-             |> List.concat
-             |> List.map ~f:(fun (id, v, ds, syms) ->
-                 `Assoc [ ("id", `Int id)
-                        ; ("ast_value", v |> Ast.dval_to_livevalue
-                                          |> Ast.livevalue_to_yojson)
-                        ; ("live_values", Ast.dval_store_to_yojson ds)
-                        ; ("available_varnames", Ast.sym_store_to_yojson syms)
-                        ])
+             |> List.map ~f:(fun (id, results) ->
+                 let to_result (v, ds, syms) =
+                   `Assoc [ ("ast_value", v |> Ast.dval_to_livevalue
+                                            |> Ast.livevalue_to_yojson)
+                          ; ("live_values", Ast.dval_store_to_yojson ds)
+                          ; ("available_varnames", Ast.sym_store_to_yojson syms)
+                          ]
+                  in
+                  `Assoc [ ("id", `Int id)
+                         ; ("results", `List (List.map ~f:to_result results))
+                         ])
   in `Assoc
         [ ("analyses", `List vals)
         ; ("global_varnames",

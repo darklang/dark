@@ -226,19 +226,30 @@ decodeLiveValue =
     |> JSDP.required "json" JSD.string
     |> JSDP.optional "exc" (JSD.maybe JSON.decodeException) Nothing
 
-decodeTLAResult : JSD.Decoder TLAResult
-decodeTLAResult =
-  let toTLAResult tlid astValue liveValues availableVarnames =
-        { id = TLID tlid
-        , astValue = astValue
+decodeAResult : JSD.Decoder AResult
+decodeAResult =
+  let toAResult astValue liveValues availableVarnames =
+        { astValue = astValue
         , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
         , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
-        } in
-  JSDP.decode toTLAResult
-  |> JSDP.required "id" JSD.int
-  |> JSDP.required "ast_value" decodeLiveValue
-  |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
-  |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
+        }
+  in
+      JSDP.decode toAResult
+      |> JSDP.required "ast_value" decodeLiveValue
+      |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
+      |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
+
+
+decodeTLAResult : JSD.Decoder TLAResult
+decodeTLAResult =
+  let toTLAResult tlid results =
+        { id = TLID tlid
+        , results = results
+        }
+  in
+      JSDP.decode toTLAResult
+      |> JSDP.required "id" JSD.int
+      |> JSDP.required "results" (JSD.list decodeAResult)
 
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
@@ -260,7 +271,7 @@ decodeHandlerSpec =
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
-  let toHandler ast spec = {ast = ast, spec = spec } in
+  let toHandler ast spec = {ast = ast, spec = spec, cursor = 0 } in
   JSDP.decode toHandler
   |> JSDP.required "ast" decodeAST
   |> JSDP.required "spec" decodeHandlerSpec

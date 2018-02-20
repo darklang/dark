@@ -105,7 +105,9 @@ submit m cursor action value =
                 Thread (gid ()) [expr, Hole (gid ())]
           wrapExpr expr =
             wrap <| SetHandler tlid pos { ast = threadIt expr
-                                        , spec = newHandlerSpec () }
+                                        , spec = newHandlerSpec ()
+                                        , cursor = 0
+                                        }
       in
 
       -- DB creation
