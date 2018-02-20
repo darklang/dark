@@ -61,7 +61,6 @@ let server =
 
 
         let (t4, result) = time "4-to-frontend" "4. serialize canvas to frontend" (fun _ ->
-          let _ = Log.pp "envs" envs in
           C.to_frontend_string envs !c
         ) in
 
