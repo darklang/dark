@@ -8,28 +8,43 @@ module SpecTypes exposing (..)
 import Pointer as P
 import Types exposing (..)
 
-delete : ID -> HandlerSpec -> ID -> HandlerSpec
-delete id spec newID =
-  replace id (Blank id) spec
+delete : Pointer -> HandlerSpec -> ID -> HandlerSpec
+delete p spec newID =
+  replace p (P.emptyD (P.typeOf p) newID) spec
 
-replace : ID -> BlankOr DarkType -> HandlerSpec -> HandlerSpec
-replace id dt spec =
+replace : Pointer -> PointerData -> HandlerSpec -> HandlerSpec
+replace p dt spec =
   { spec | types =
-    { input = replaceInType id dt spec.types.input
-    , output = replaceInType id dt spec.types.output
+    { input = replaceInType p dt spec.types.input
+    , output = replaceInType p dt spec.types.output
     }
   }
 
-replaceInType : ID -> BlankOr DarkType -> BlankOr DarkType -> BlankOr DarkType
-replaceInType origID newDt dt =
-  if blankOrID dt == origID
-  then newDt
+replaceInType : Pointer -> PointerData -> BlankOr DarkType -> BlankOr DarkType
+replaceInType p replacement dt =
+  if blankOrID dt == (P.idOf p)
+  then
+    case replacement of
+      PDarkType _ t -> t
+      _ -> dt
   else
     case dt of
       Filled id (DTObj ts) ->
-        Filled id (DTObj (List.map (\(n, t) ->
-                           (n, replaceInType origID newDt t))
-                           ts))
+        let newTs =
+              ts
+              |> List.map (\(n, t) ->
+                   let newN = case replacement of
+                                PDarkTypeField _ name ->
+                                  if P.idOf p == blankOrID n
+                                  then name
+                                  else n
+                                _ -> n
+                       newT = case replacement of
+                                PDarkType _ tipe ->
+                                  replaceInType p replacement t
+                                _ -> t
+                   in (newN, newT))
+        in Filled id (DTObj newTs)
       _ -> dt
 
 
@@ -88,4 +103,5 @@ siblings p t =
         |> List.concat
 
     _ -> []
+
 

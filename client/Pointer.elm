@@ -51,18 +51,18 @@ pdToP pd =
     PDarkTypeField id _ -> PFilled DarkTypeField id
 
 
-blankOfD : PointerData -> (Maybe String, Maybe Expr)
-blankOfD pd =
-  Debug.crash "TODO"
-  -- case pd of
-  --   PVarBind _ val -> val
-  --   PSpec _ val -> val
-  --   PExpr _ (Hole id) -> Blank id
-  --   PExpr id expr -> Filled id "TODO"
-  --   PField _ val -> val
-  --   PDBColName _ val -> val
-  --   PDBColType _ val -> val
-  --
+emptyD : PointerType -> ID -> PointerData
+emptyD pt id =
+  case pt of
+    VarBind -> PVarBind id (Blank id)
+    HTTPVerb -> PHTTPVerb id (Blank id)
+    HTTPRoute -> PHTTPRoute id (Blank id)
+    Expr -> PExpr id (Hole id)
+    Field -> PField id (Blank id)
+    DBColName -> PDBColName id (Blank id)
+    DBColType -> PDBColType id (Blank id)
+    DarkType -> PDarkType id (Blank id)
+    DarkTypeField -> PDarkTypeField id (Blank id)
 
 
 idOfD : PointerData -> ID

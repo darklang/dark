@@ -176,11 +176,11 @@ delete m tlid cur =
       in wrapH { h | ast = replacement }
     DarkType ->
       let h = maybeH ()
-          replacement = SpecTypes.delete id h.spec newID
+          replacement = SpecTypes.delete cur h.spec newID
       in wrapH { h | spec = replacement }
     DarkTypeField ->
       let h = maybeH ()
-          replacement = SpecTypes.delete id h.spec newID
+          replacement = SpecTypes.delete cur h.spec newID
       in wrapH { h | spec = replacement }
 
 enter : Model -> TLID -> Pointer -> Modification
