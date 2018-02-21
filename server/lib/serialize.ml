@@ -23,8 +23,9 @@ let load_binary (filename: string) : Op.oplist =
   else
     []
 
-(* TODO *)
-let load_old_binary = load_binary
+let load_old_binary =
+  (* load_binary *)
+  Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary
 
 let save_binary (filename: string) (ops: Op.oplist) : unit =
   Core_extended.Bin_io_utils.save filename Op.bin_writer_oplist ops
