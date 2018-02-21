@@ -10,8 +10,8 @@ let write_shape_data () =
   in
   Util.writefile ("serialization/" ^ digest) shape_string
 
-let filename_for name = "appdata/" ^ name ^ ".dark"
-let digest_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
+let no_digest_filename_for name = "appdata/" ^ name ^ ".dark"
+let filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
 
 let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
@@ -22,6 +22,9 @@ let load_binary (filename: string) : Op.oplist =
     Core_extended.Bin_io_utils.load filename Op.bin_read_oplist
   else
     []
+
+(* TODO *)
+let load_old_binary = load_binary
 
 let save_binary (filename: string) (ops: Op.oplist) : unit =
   Core_extended.Bin_io_utils.save filename Op.bin_writer_oplist ops

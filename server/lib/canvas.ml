@@ -175,9 +175,19 @@ let minimize (c : canvas) : canvas =
 (* Serialization *)
 (* ------------------------- *)
 let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
-  let filename = Option.value filename ~default:(Serialize.filename_for name) in
   let c = create name in
-  let oldops = Serialize.load_binary filename in
+  let oldops =
+    match filename with
+    | Some file -> Serialize.load_binary file
+    | None ->
+        let filename = Serialize.filename_for name in
+        if Sys.file_exists filename = `Yes
+        (* TODO: choose a serializer based on the filename *)
+        then Serialize.load_binary filename
+        else
+          let filename = Serialize.no_digest_filename_for name
+          (* you can change this to convert files manually *)
+          in Serialize.load_old_binary filename in
   add_ops c oldops newops;
   c
 
