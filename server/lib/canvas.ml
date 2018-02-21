@@ -6,12 +6,12 @@ module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
 
-type oplist = Op.op list [@@deriving eq, show, yojson, sexp, bin_io]
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
-              ; ops : oplist
+              ; ops : Op.oplist
               ; toplevels: toplevellist
               } [@@deriving eq, show]
+
 
 let create (name : string) : canvas ref =
   ref { name = name
@@ -158,51 +158,6 @@ let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   List.iter ~f:(fun (op, do_db_ops) -> apply_op op do_db_ops c) reduced_ops;
   c := { !c with ops = oldops @ newops }
 
-
-(* ------------------------- *)
-(* Serialization *)
-(* ------------------------- *)
-let filename_for name = "appdata/" ^ name ^ ".dark"
-
-let read_ops_binary (filename: string) : oplist =
-  try
-    Core_extended.Bin_io_utils.load filename bin_read_oplist
-  with e ->
-    []
-
-let write_ops_binary (filename: string) (ops: oplist) : unit =
-  Core_extended.Bin_io_utils.save filename bin_writer_oplist ops
-
-let load_binary ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
-  let filename = Option.value filename ~default:(filename_for name) in
-  let c = create name in
-  let oldops = read_ops_binary filename in
-  add_ops c oldops newops;
-  c
-
-let save_binary ?(filename=None) (c : canvas) : unit =
-  let filename = Option.value filename ~default:(filename_for c.name) in
-  write_ops_binary filename c.ops
-
-let load = load_binary
-let save = save_binary
-
-let read_ops_json (filename:string) : oplist =
-  filename
-  |> Util.readfile ~default:"[]"
-  |> Yojson.Safe.from_string
-  |> oplist_of_yojson
-  |> Result.ok_or_failwith
-
-let write_ops_json (filename: string) (ops: oplist) : unit =
-  ops
-  |> oplist_to_yojson
-  |> Yojson.Safe.pretty_to_string
-  |> (fun s -> s ^ "\n")
-  |> Bytes.of_string
-  |> Util.writefile filename
-
-
 let minimize (c : canvas) : canvas =
   let ops =
     c.ops
@@ -215,6 +170,22 @@ let minimize (c : canvas) : canvas =
                           else (ops @ [op]))
     |> List.filter ~f:((<>) Op.Savepoint)
   in { c with ops = ops }
+
+(* ------------------------- *)
+(* Serialization *)
+(* ------------------------- *)
+let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
+  let filename = Option.value filename ~default:(Serialize.filename_for name) in
+  let c = create name in
+  let oldops = Serialize.load_binary filename in
+  add_ops c oldops newops;
+  c
+
+let save ?(filename=None) (c : canvas) : unit =
+  let filename = Option.value filename ~default:(Serialize.filename_for c.name) in
+  Serialize.save_binary filename c.ops
+
+
 
 let save_test (c: canvas) : string =
   let c = minimize c in

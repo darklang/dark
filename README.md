@@ -27,6 +27,14 @@ To get elm to work (in vim at least), you need elm-make locally.
 - Install elm tools:
   - `brew install elm`
 
+# Versioning Dark files
+
+Dark files are versioned by the hash of the "shape" of their structure.
+If you change the structure of an Op (including the nested structure),
+then you need to write conversion functions.
+
+(Not quite true yet, work in progress)
+
 # Debugging ppx stuff
 
 PPX is an ocaml preprocessor we use. The ppx libraries are all pretty

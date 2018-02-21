@@ -19,7 +19,7 @@ let filename_for (url: string) (verb: verb) (body: string) : string =
 
 let save_call (url: string) (verb: verb) (body: string) (value : string) : unit =
   let filename = filename_for url verb body in
-  Util.writefile filename (Bytes.of_string value)
+  Util.writefile filename value
 
 let cached_call (url: string) (verb: verb) (body: string) : string option =
   if body <> "" then

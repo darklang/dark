@@ -1,13 +1,11 @@
 open Core
 
-module C = Dark.Canvas
-
 let _ =
   Printexc.record_backtrace true;
   Exn.initialize_module ();
   let in_file = Sys.argv.(1) in
   let out_file = Sys.argv.(2) in
   in_file
-  |> C.read_ops_json
-  |> C.write_ops_binary out_file
+  |> Dark.Serialize.load_json
+  |> Dark.Serialize.save_binary out_file
 

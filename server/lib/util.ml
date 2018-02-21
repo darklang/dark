@@ -21,10 +21,10 @@ let readfile_lwt ?(default="") f : string Lwt.t =
   | "" -> default
   | s -> s
 
-let writefile f str : unit =
+let writefile (f: string) (str: string) : unit =
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   let file = Unix.openfile f ~mode:flags ~perm:0o640 in
-  let _ = Unix.write file ~buf:str in
+  let _ = Unix.write file ~buf:(Bytes.of_string str) in
   Unix.close file
 
 

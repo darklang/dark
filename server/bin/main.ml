@@ -10,4 +10,7 @@ let () =
   let () = Lwt.async_exception_hook := ignore in
   (* init the Random module, will be seeded from /dev/urandom on Linux *)
   let () = Random.self_init () in
+
+  Dark.Serialize.write_shape_data ();
+
   Dark.Server.run ()
