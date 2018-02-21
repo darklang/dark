@@ -19,3 +19,4 @@
 /server/*/.merlin
 /integration-tests/screenshots/*
 /server/requests/*
+/server/backup_appdata/*

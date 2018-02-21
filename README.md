@@ -33,7 +33,13 @@ Dark files are versioned by the hash of the "shape" of their structure.
 If you change the structure of an Op (including the nested structure),
 then you need to write conversion functions.
 
-(Not quite true yet, work in progress)
+# Backing up darkfiles
+
+Copy scripts/backup_darkfiles.plist (possibly modified based on where
+you store your dark checkout) into
+~/Library/LaunchAgents/com.darklang.backup_darkfiles.plist.
+
+Then run `launchctl load ~/Library/LaunchAgents/com.darklang.backup_darkfiles.plist`.
 
 # Debugging ppx stuff
 
