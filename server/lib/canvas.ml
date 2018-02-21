@@ -187,7 +187,10 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
         else
           let filename = Serialize.no_digest_filename_for name
           (* you can change this to convert files manually *)
-          in Serialize.load_old_binary filename in
+          in if Sys.file_exists filename = `Yes
+             then Serialize.load_old_binary filename
+             else []
+  in
   add_ops c oldops newops;
   c
 
