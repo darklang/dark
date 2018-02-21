@@ -4,6 +4,7 @@ module Toplevel exposing (..)
 
 -- lib
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import DB
@@ -135,16 +136,21 @@ getNextBlank tl pred =
           index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
           remaining = List.drop (index+1) ps
           blanks = List.filter P.isBlank remaining in
-      List.head blanks
+      blanks
+      |> List.head
+      |> ME.orElse (firstBlank tl)
     Nothing -> firstBlank tl
 
 getPrevBlank : Toplevel -> Pointer -> Predecessor
 getPrevBlank tl next =
-  let holes = allBlanks tl in
-  holes
-  |> LE.elemIndex next
-  |> Maybe.map (\i -> i - 1)
-  |> Maybe.andThen (\i -> LE.getAt i holes)
+  let ps = allPointers tl
+      index = LE.elemIndex next ps |> Maybe.withDefault (List.length ps)
+      remaining = List.take index ps
+      blanks = List.filter P.isBlank remaining in
+  blanks
+  |> LE.last
+  |> ME.orElse (lastBlank tl)
+
 
 firstBlank : Toplevel -> Successor
 firstBlank tl =
