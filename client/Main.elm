@@ -805,6 +805,7 @@ update_ msg m =
       then
         Many [ SetToplevels toplevels analysis globals
              , extraMod -- for testing, maybe more
+             , MakeCmd Entry.focusEntry
              ]
       else
         let m2 = { m | toplevels = toplevels }
