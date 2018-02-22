@@ -68,6 +68,37 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = false
   }
+  ;
+
+  { pns = ["HttpClient::form_content_type"]
+  ; ins = []
+  ; p = []
+  ; r = TStr
+  ; d = ""
+  ; f = InProcess
+        (function
+        | [] -> DStr "application/x-www-form-urlencoded"
+        | args -> fail args)
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+
+  { pns = ["HttpClient::json_content_type"]
+  ; ins = []
+  ; p = []
+  ; r = TStr
+  ; d = ""
+  ; f = InProcess
+        (function
+        | [] -> DStr "application/json"
+        | args -> fail args)
+  ; pr = None
+  ; ps = false
+  }
+
+
 
 ]
 
