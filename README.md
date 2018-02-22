@@ -27,6 +27,18 @@ To get elm to work (in vim at least), you need elm-make locally.
 - Install elm tools:
   - `brew install elm`
 
+# Debugging elm
+
+By default, debugging in the client is disabled. This is because it is
+impossibly slow. However, it's a great debugger, so there's a simple way
+to enable it:
+
+- `scripts/start_client_debug`
+
+Stop debugging with
+
+- `scripts/stop_client_debug`
+
 # Versioning Dark files
 
 Dark files are versioned by the hash of the "shape" of their structure.

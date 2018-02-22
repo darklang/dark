@@ -3,8 +3,8 @@
 import sys
 import subprocess
 import glob
-import os.path as path
 import time
+from pathlib import Path
 
 run_tests = False
 
@@ -47,12 +47,16 @@ def elm_package():
   return run_frontend(start, "cd client && elm-package install --yes")
 
 def elm_make():
+  debug = ""
+  if Path("client/DEBUG").is_file():
+    debug = " --debug "
   start = time.time()
   # unbuffer makes elm think it's talking a terminal
   return run_frontend(start, \
           "cd client" \
           + " && unbuffer elm-make Main.elm" \
-          + " --warn --debug --yes --output" \
+          + debug \
+          + " --warn --yes --output" \
           + " ../server/static/elm.js")
 
 def elm_test():
@@ -132,7 +136,7 @@ def mark(should, f):
     should.elm_test = True
   elif "server/testdata/" in f:
     should.elm_test = True
-  elif ".elm" in f or ".js" in f:
+  elif ".elm" in f or ".js" in f or "client/DEBUG" in f:
     should.elm_make = True
 
   # Ocaml
