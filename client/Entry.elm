@@ -136,7 +136,7 @@ submit m cursor action value =
 
     Filling tlid p ->
       let tl = TL.getTL m tlid
-          predecessor = TL.getPrevBlank tl p
+          predecessor = TL.getPrevBlank tl (Just p)
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
           replaceExpr m h tlid p value =

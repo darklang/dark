@@ -132,24 +132,27 @@ getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
   case pred of
     Just pred ->
-      let ps = allPointers tl
-          index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
-          remaining = List.drop (index+1) ps
-          blanks = List.filter P.isBlank remaining in
+      let ps = allPointers tl |> Debug.log "ps"
+          index = LE.elemIndex pred ps |> Maybe.withDefault (-1) |> Debug.log "index"
+          remaining = List.drop (index+1) ps |> Debug.log "remaining"
+          blanks = List.filter P.isBlank remaining |> Debug.log "blanks" in
       blanks
       |> List.head
       |> ME.orElse (firstBlank tl)
-    Nothing -> firstBlank tl
+    Nothing -> firstBlank tl |> Debug.log "first"
 
-getPrevBlank : Toplevel -> Pointer -> Predecessor
+getPrevBlank : Toplevel -> Successor -> Predecessor
 getPrevBlank tl next =
-  let ps = allPointers tl
-      index = LE.elemIndex next ps |> Maybe.withDefault (List.length ps)
-      remaining = List.take index ps
-      blanks = List.filter P.isBlank remaining in
-  blanks
-  |> LE.last
-  |> ME.orElse (lastBlank tl)
+  case next of
+    Just next ->
+      let ps = allPointers tl |> Debug.log "prevAllPs"
+          index = LE.elemIndex next ps |> Maybe.withDefault (List.length ps) |> Debug.log "prevIndex"
+          remaining = List.take index ps  |> Debug.log "prevRemaining"
+          blanks = List.filter P.isBlank remaining |> Debug.log "blanks" in
+      blanks
+      |> LE.last
+      |> ME.orElse (lastBlank tl)
+    Nothing -> lastBlank tl |> Debug.log "last"
 
 
 firstBlank : Toplevel -> Successor

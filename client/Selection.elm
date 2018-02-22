@@ -95,45 +95,33 @@ selectPreviousSibling m tlid cur =
   |> ME.orElse cur
   |> Select tlid
 
-getPrevBlank : Model -> TLID -> (Maybe Pointer) -> Maybe Pointer
-getPrevBlank m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> ME.filter P.isBlank
-  |> Maybe.andThen (TL.getPrevBlank tl)
-  |> ME.orElse (TL.lastBlank tl)
-
-getNextBlank : Model -> TLID -> (Maybe Pointer) -> Maybe Pointer
-getNextBlank m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> ME.filter P.isBlank
-  |> TL.getNextBlank tl
-  |> ME.orElse (TL.firstBlank tl)
-
 selectNextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
 selectNextBlank m tlid cur =
+  let tl = TL.getTL m tlid in
   cur
-  |> getNextBlank m tlid
+  |> TL.getNextBlank tl
   |> Select tlid
 
 enterNextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
 enterNextBlank m tlid cur =
+  let tl = TL.getTL m tlid in
   cur
-  |> getNextBlank m tlid
+  |> TL.getNextBlank tl
   |> Maybe.map (\p -> Enter (Filling tlid p))
   |> Maybe.withDefault NoChange
 
 selectPrevBlank : Model -> TLID -> (Maybe Pointer) -> Modification
 selectPrevBlank m tlid cur =
+  let tl = TL.getTL m tlid in
   cur
-  |> getPrevBlank m tlid
+  |> TL.getPrevBlank tl
   |> Select tlid
 
 enterPrevBlank : Model -> TLID -> (Maybe Pointer) -> Modification
 enterPrevBlank m tlid cur =
+  let tl = TL.getTL m tlid in
   cur
-  |> getPrevBlank m tlid
+  |> TL.getPrevBlank tl
   |> Maybe.map (\p -> Enter (Filling tlid p))
   |> Maybe.withDefault NoChange
 
