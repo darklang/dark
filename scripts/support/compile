@@ -175,6 +175,7 @@ def ignore(filename):
             , "server/_build/"
             , "server/appdata/"
             , "server/requests/"
+            , "server/serialization/"
             , "server/gmon.out"
             , "server/profile.json"
             , "server/ocamlbuild_output.txt"
