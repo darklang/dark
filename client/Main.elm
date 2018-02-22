@@ -232,7 +232,9 @@ updateMod mod (m, cmd) =
         -- changing ID on every tick (until something happens like
         -- deselecting). Haven't figured it out, so just disable to fix
         -- for now.
-        in if True
+        -- Update: turns out the situation without this is unbearable,
+        -- and the breakage is worth it.
+        in if hasNonHandlers
            then
              m ! [rpc m focus calls]
            else
