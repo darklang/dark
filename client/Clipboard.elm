@@ -3,36 +3,35 @@ module Clipboard exposing (..)
 
 -- Dark
 import Types exposing (..)
-import Toplevel
-import Pointer
+import Toplevel as TL
+import Pointer as P
 import AST
 import Entry
 
 copy : Model -> Toplevel -> (Maybe Pointer) -> Modification
 copy m tl mp =
-  case Toplevel.asHandler tl of
+  case TL.asHandler tl of
     Nothing -> NoChange
     Just h ->
       case mp of
         Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
         Just p ->
-          let pid = Pointer.idOf p
-          in
-              CopyToClipboard (AST.subData pid h.ast)
+          let pid = P.idOf p
+          in CopyToClipboard (AST.subData pid h.ast)
 
 cut : Model -> Toplevel -> Pointer -> Modification
 cut m tl p =
-  let pid = Pointer.idOf p
+  let pid = P.idOf p
+      pred = TL.getPrevBlank tl (Just p)
   in
-    case Toplevel.asHandler tl of
+    case TL.asHandler tl of
       Nothing -> NoChange
       Just h ->
         let newClipboard = AST.subData pid h.ast
             newAst = AST.deleteExpr p h.ast (gid ())
-        in
-            Many [ CopyToClipboard newClipboard
+        in Many [ CopyToClipboard newClipboard
                 , RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
-                        , FocusNext tl.id Nothing )
+                        , FocusNext tl.id pred)
                 ]
 
 paste : Model -> Toplevel -> Pointer -> Modification
@@ -40,19 +39,17 @@ paste m tl p =
   case m.clipboard of
     Nothing -> NoChange
     Just pd ->
-      let cloned = Toplevel.clonePointerData pd
-      in
-          case Toplevel.asHandler tl of
-            Nothing -> NoChange
-            Just h ->
-              let newAst = AST.replace p cloned h.ast
-              in
-                  RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
-                      , FocusNext tl.id Nothing)
+      let cloned = TL.clonePointerData pd
+      in case TL.asHandler tl of
+           Nothing -> NoChange
+           Just h ->
+             let newAst = AST.replace p cloned h.ast
+             in RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
+                    , FocusNext tl.id (Just (P.pdToP cloned)))
 
 peek : Model -> Clipboard
 peek m =
-  Maybe.map Toplevel.clonePointerData m.clipboard
+  Maybe.map TL.clonePointerData m.clipboard
 
 newFromClipboard : Model -> Pos -> Modification
 newFromClipboard m pos =
