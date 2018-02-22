@@ -226,7 +226,13 @@ updateMod mod (m, cmd) =
                                   False
                                 _ -> True) calls
 
-        in if hasNonHandlers
+        -- Set to true to disable for now. There is a bug where
+        -- autocomplete results no longer work. It's related to the ID
+        -- of the toplevel (and also the lower-level exprs/blanks/etc)
+        -- changing ID on every tick (until something happens like
+        -- deselecting). Haven't figured it out, so just disable to fix
+        -- for now.
+        in if True
            then
              m ! [rpc m focus calls]
            else
@@ -795,7 +801,7 @@ update_ msg m =
     (RPCCallBack focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
       if focus == FocusNoChange
       then
-        Many [ SetToplevels m.toplevels analysis globals
+        Many [ SetToplevels toplevels analysis globals
              , extraMod -- for testing, maybe more
              ]
       else
