@@ -390,17 +390,47 @@ body #grid * {
   }
 
   .precedence-1 {
-    background-color: lighten(@black1, 10%);
+    &,
+    & .entry form #search-container #suggestionBox,
+    & .string-entry
+    {
+      background-color: lighten(@black1, 10%);
+    }
     .precedence-2 {
-      background-color: lighten(@black1, 15%);
+      &,
+      & .entry form #search-container #suggestionBox,
+      & .string-entry
+      {
+        background-color: lighten(@black1, 15%);
+      }
       .precedence-3{
-        background-color: lighten(@black1, 20%);
+        &,
+        & .entry form #search-container #suggestionBox,
+        & .string-entry
+        {
+          background-color: lighten(@black1, 20%);
+        }
         .precedence-4 {
-          background-color: lighten(@black1, 25%);
+          &,
+          & .entry form #search-container #suggestionBox,
+          & .string-entry
+          {
+            background-color: lighten(@black1, 25%);
+          }
           .precedence-5 {
-            background-color: lighten(@black1, 30%);
+            &,
+            & .entry form #search-container #suggestionBox,
+            & .string-entry
+            {
+              background-color: lighten(@black1, 30%);
+            }
             .precedence-6 {
-              background-color: lighten(@black1, 35%);
+              &,
+              & .entry form #search-container #suggestionBox,
+              & .string-entry
+              {
+                background-color: lighten(@black1, 35%);
+              }
             }
           }
         }
