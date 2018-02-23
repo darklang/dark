@@ -63,7 +63,6 @@ jobs:
       - run:
           name: Run server
           background: true
-          working_directory: dark
           command: |
             scripts/builder --watch
 
