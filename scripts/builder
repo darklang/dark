@@ -26,7 +26,6 @@ fi
 
 # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
 if [ -v CI ]; then
-  docker container rm -f vols
   docker create \
     -v /home/dark/conduit-frontend \
     -v /home/dark/app  \
