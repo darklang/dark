@@ -2,10 +2,12 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6
+      - image: docker:stable-git
 
     steps:
       - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
 
       # fswatch
       - run:
