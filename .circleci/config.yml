@@ -15,14 +15,29 @@ jobs:
 
 
       # fswatch
+      - restore_cache:
+          key: fswatch
+
+      - run:
+          name: Build fswatch
+          command: |
+            if [ ! -d fswatch-1.10.0 ]; then
+              wget -q https://github.com/emcrisostomo/fswatch/releases/download/1.10.0/fswatch-1.10.0.tar.gz
+              tar -zxvf fswatch-1.10.0.tar.gz
+              cd fswatch-1.10.0
+              ./configure
+              make
+            fi
+
+      - save_cache:
+          key: fswatch
+          paths:
+            - fswatch-1.10.0
+
       - run:
           name: Install fswatch
           command: |
-            wget -q https://github.com/emcrisostomo/fswatch/releases/download/1.10.0/fswatch-1.10.0.tar.gz
-            tar -zxvf fswatch-1.10.0.tar.gz
             cd fswatch-1.10.0
-            ./configure
-            make
             make install
 
 
