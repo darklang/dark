@@ -26,15 +26,14 @@ fi
 
 # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
 if [ -v CI ]; then
-  set -x
-  OTHERIMAGE=configs-"${CIRCLE_BUILD_NUM}"
+  docker container rm -f vols
   docker create \
     -v /home/dark/conduit-frontend \
     -v /home/dark/app  \
-    --name $OTHERIMAGE \
+    --name vols \
     alpine:3.4 \
     /bin/true
-  docker cp . $OTHERIMAGE:/app
+  docker cp . vols:/home/dark/app
   MOUNT="--volumes-from $OTHERIMAGE"
 else
   MOUNT="--mount type=bind,src=$PWD,dst=/home/dark/app \
