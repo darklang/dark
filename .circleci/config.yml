@@ -54,9 +54,6 @@ jobs:
       - run:
           name: Compile && test
           command: |
-            echo $PWD
-            ls
-            ls ../
             scripts/builder --compile --test
 
 
