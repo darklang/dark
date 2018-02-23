@@ -17,14 +17,26 @@ fi
 echo "watching for local changes"
 scripts/support/reload-browser > logs/browser.log 2>&1 &
 
-if [ -v CI ]; then
-  # Just don't break
-  mkdir ../conduit-frontend
-else
+if [ ! -v CI ]; then
   if [ ! -d ../conduit-frontend ]; then
     echo "pulling the conduit frontend"
     pushd .. && git clone git@github.com:darklang/conduit-frontend && popd
   fi
+fi
+
+# https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
+if [ -v CI ]; then
+  docker create \
+    -v /home/dark/conduit-frontend \
+    -v /home/dark/app  \
+    --name configs \
+    alpine:3.4 \
+    /bin/true
+  docker cp . configs:/app
+  MOUNT="--volumes-from configs"
+else
+  MOUNT="--mount type=bind,src=$PWD,dst=/home/dark/app \
+        --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
 fi
 
 echo "Run the build"
@@ -34,8 +46,7 @@ fswatch --event-flag-separator=, \
     | docker run \
              --rm \
              -i \
-             --mount type=bind,src="$PWD",dst=/home/dark/app \
-             --mount type=bind,src="$PWD/../conduit-frontend",dst=/home/dark/conduit-frontend \
+             $MOUNT \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
