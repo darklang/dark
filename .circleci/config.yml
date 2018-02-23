@@ -51,7 +51,14 @@ jobs:
       #       tar -xz -C /tmp -f /tmp/docker-$VER.tgz
       #       mv -f /tmp/docker/* /usr/bin
 
-      - run: scripts/builder --compile --test
+      - run:
+          name: Compile && test
+          command: |
+            echo $PWD
+            ls
+            ls ../
+            scripts/builder --compile --test
+
 
       - run:
           name: Run server
