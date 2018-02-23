@@ -26,6 +26,7 @@ let fns : fnmap =
                  ; Libdb.fns
                  ; Libhttp.fns
                  ; Libhttpclient.fns
+                 ; Libevent.fns
                  (* ; Libtwitter.fns *)
                  ])
 

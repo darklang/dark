@@ -112,7 +112,12 @@ vFn state id name =
 
 vPrefix : HtmlVisitState -> ID -> FnName -> List Expr -> Int -> Element
 vPrefix state id name exprs nest =
-  Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fncall", "prefix", depthString nest]
+  let specialClasses =
+        case (String.toLower name) of
+          "emit" -> ["keyword"]
+          _ -> []
+  in
+  Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] (["fncall", "prefix", depthString nest] ++ specialClasses)
     ((Nested [] ["op", name] [vFn state id name])
     :: (List.map (vExpr state (nest + 1)) exprs))
 
