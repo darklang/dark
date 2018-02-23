@@ -132,7 +132,9 @@ let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
 let empty_handler_spec : Handler.spec
   = { name = Blank 9356
     ; module_ = Blank 465
-    ; modifier = Blank 576}
+    ; modifier = Blank 576
+    ; types = { input = Blank 98
+              ; output = Blank 67}}
 
 let t_load_save _ =
   let n1 = Op.SetHandler ( 1
