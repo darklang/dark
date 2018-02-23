@@ -45,5 +45,5 @@ jobs:
           command: |
             scripts/builder --watch
 
-      - run: integration_tests/run.sh
+      - run: scripts/run-in-docker integration_tests/run.sh
 
