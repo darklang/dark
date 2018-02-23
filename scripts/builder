@@ -17,7 +17,10 @@ fi
 echo "watching for local changes"
 scripts/support/reload-browser > logs/browser.log 2>&1 &
 
-if [ ! -v CI ]; then
+if [ -v CI ]; then
+  # Just don't break
+  mkdir ../conduit-frontend
+else
   if [ ! -d ../conduit-frontend ]; then
     echo "pulling the conduit frontend"
     pushd .. && git clone git@github.com:darklang/conduit-frontend && popd
@@ -25,8 +28,7 @@ if [ ! -v CI ]; then
 fi
 
 echo "Run the build"
-fswatch -m fsevents_monitor \
-        --event-flag-separator=, \
+fswatch --event-flag-separator=, \
         -r * \
         -x \
     | docker run \
