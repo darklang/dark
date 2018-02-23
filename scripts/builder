@@ -36,7 +36,8 @@ if [ -v CI ]; then
     /bin/true
   docker cp . vols:/home/dark/app
   # set the ownership of all this
-  docker run -i --volumes-from vols dark sudo chown -R dark .
+  docker run -i --volumes-from vols dark \
+    sudo chown -R dark /home/dark/app
   MOUNT="--volumes-from vols"
 else
   MOUNT="--mount type=bind,src=$PWD,dst=/home/dark/app \
