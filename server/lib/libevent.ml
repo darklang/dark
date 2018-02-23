@@ -6,7 +6,6 @@ module RT = Runtime
 
 
 let fns : Lib.shortfn list = [
-
   { pns = ["emit"]
   ; ins = []
   ; p = [par "Space" TStr; par "Name" TStr; par "Data" TAny]
@@ -15,7 +14,8 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DStr space; DStr name; data] ->
-            DIncomplete
+            Event_queue.enqueue space name data;
+            DNull
           | args -> fail args)
   ; pr = None
   ; ps = true
