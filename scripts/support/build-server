@@ -123,11 +123,6 @@ def main():
   if watch:
     process_watchers()
 
-  if compile and not watch:
-    # pause to allow the server stay up
-    import signal
-    signal.pause()
-
 
 main()
 
