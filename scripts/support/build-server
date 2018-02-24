@@ -123,6 +123,10 @@ def main():
   if watch:
     process_watchers()
 
+  for t in threading.enumerate():
+    if t != threading.main_thread():
+      t.join()
+
 
 main()
 
