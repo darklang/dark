@@ -16,7 +16,7 @@ jobs:
 
       # fswatch
       - restore_cache:
-          key: fswatch
+          key: v1-fswatch
 
       - run:
           name: Build fswatch
@@ -30,7 +30,7 @@ jobs:
             fi
 
       - save_cache:
-          key: fswatch
+          key: v1-fswatch
           paths:
             - fswatch-1.10.0
 
@@ -40,8 +40,9 @@ jobs:
             cd fswatch-1.10.0
             make install
 
+      # main build
       - restore_cache:
-          key: build
+          key: v1-build # our tools are good so we don't need to checksum
 
       - run:
           name: Compile && test
@@ -56,7 +57,7 @@ jobs:
             docker cp vols:/home/dark/app/server/_build server/_build
 
       - save_cache:
-          key: build
+          key: v1-build
           when: always
           paths:
             - client/elm-stuff
