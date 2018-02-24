@@ -40,10 +40,20 @@ jobs:
             cd fswatch-1.10.0
             make install
 
+      - restore_cache:
+          key: build
+
       - run:
           name: Compile && test
           command: |
             scripts/builder --compile --test
+
+      - run:
+          name: Copy out data
+          command: |
+            docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
+            docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
+            docker cp vols:/home/dark/app/server/_build server/_build
 
       - save_cache:
           key: build
