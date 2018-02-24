@@ -24,6 +24,10 @@ if [ ! -v CI ]; then
   fi
 fi
 
+# --------------
+# Mounts
+# --------------
+
 # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
 if [ -v CI ]; then
   set -x
@@ -44,11 +48,27 @@ else
         --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
 fi
 
+# --------------
+# FSWatch
+# --------------
+# Avoid hanging when --watch is not called
+FSWATCH="true"
+for i in "$@"
+do
+  case $i in
+    --watch)
+    FSWATCH="fswatch --event-flag-separator=, -r * -x "
+    ;;
+  esac
+done
+
+
+# --------------
+# Run the build
+# --------------
+
 echo "Run the build"
-fswatch --event-flag-separator=, \
-        -r * \
-        -x \
-    | docker run \
+$FSWATCH | docker run \
              --rm \
              -i \
              $MOUNT \
@@ -60,4 +80,6 @@ fswatch --event-flag-separator=, \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
              -w /home/dark/app \
              dark \
-             scripts/support/build-server "$@"
+             scripts/support/build-server "${@}"
+
+echo "exiting builder"

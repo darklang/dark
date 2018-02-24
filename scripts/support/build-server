@@ -4,6 +4,7 @@ import subprocess
 import sys
 import threading
 import time
+import os
 
 run_tests = False
 
@@ -100,8 +101,10 @@ def process_watchers():
               print("exception splitting: " + f)
       compile(files)
 
-def background_task(fn):
-  threading.Thread(target=fn).start()
+def background_task(fn, name):
+  t = threading.Thread(target=fn)
+  t.name = name
+  t.start()
 
 def main():
   watch = False
@@ -117,16 +120,21 @@ def main():
       run_tests = True
 
   if compile:
-    background_task(initial_compile)
-    background_task(start_postgres)
+    background_task(initial_compile, "initial_compile")
+    background_task(start_postgres, "start_postgres")
 
   if watch:
     process_watchers()
 
+  Finish the compilation background task, dont wait for postgres cause
+  it hangs for some reason
   for t in threading.enumerate():
-    if t != threading.main_thread():
+    if t.name == "initial_compile":
       t.join()
+
+  # Shutdown immediately
+  print("exiting build-server")
+  #  os._exit(0)
 
 
 main()
-
