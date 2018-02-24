@@ -126,8 +126,8 @@ def main():
   if watch:
     process_watchers()
 
-  Finish the compilation background task, dont wait for postgres cause
-  it hangs for some reason
+  #  Finish the compilation background task, dont wait for postgres cause
+  #  it hangs for some reason
   for t in threading.enumerate():
     if t.name == "initial_compile":
       t.join()
