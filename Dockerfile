@@ -163,4 +163,11 @@ RUN sudo chown postgres:postgres -R /etc/postgresql
 RUN sudo chown postgres:postgres -R /var/log/postgresql
 RUN sudo chown postgres:postgres -R /var/lib/postgresql
 
+# Speed up elm
+RUN git clone https://github.com/obmarg/libsysconfcpus.git;
+RUN cd libsysconfcpus \
+       && ./configure \
+       && make \
+       && sudo make install
+
 CMD ["app", "scripts", "builder"]

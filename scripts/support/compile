@@ -54,14 +54,14 @@ def elm_make():
   # unbuffer makes elm think it's talking a terminal
   return run_frontend(start, \
           "cd client" \
-          + " && unbuffer elm-make Main.elm" \
+          + " && unbuffer sysconfcpus -n 1 elm-make Main.elm" \
           + debug \
           + " --warn --yes --output" \
           + " ../server/static/elm.js")
 
 def elm_test():
   start = time.time()
-  return run_test(start, "cd client && unbuffer elm-test")
+  return run_test(start, "cd client && unbuffer sysconfcpus -n 1 elm-test")
 
 def less_compile():
   start = time.time()
