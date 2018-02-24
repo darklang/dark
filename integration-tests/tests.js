@@ -38,10 +38,10 @@ fixture `Integration Tests`
 // ------------------------
 
 test('enter_changes_state', async t => {
-  const entry-boxAvailable = Selector('#entry-box').exists;
+  const entryBoxAvailable = Selector('#entry-box').exists;
   await t
     .pressKey("enter")
-    .expect(entry-boxAvailable).ok()
+    .expect(entryBoxAvailable).ok()
    ;
 });
 
