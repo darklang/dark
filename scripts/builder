@@ -30,7 +30,6 @@ fi
 
 # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
 if [ -v CI ]; then
-  set -x
   # create some volumes to hold the dirs we would otherwise bind
   docker create \
     -v /home/dark/conduit-frontend \
@@ -82,4 +81,3 @@ $FSWATCH | docker run \
              dark \
              scripts/support/build-server "${@}"
 
-echo "exiting builder"
