@@ -6,6 +6,7 @@ import Char
 
 -- lib
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Native.Window
@@ -95,3 +96,30 @@ uniqueCombinations xs = xs
                       |> zip xs
                       |> List.concatMap (\(x, ys) -> List.map (\y -> (x, y)) ys)
                       |> List.filter (\(x, y) -> x /= y)
+
+listPrevious : a -> List a -> Maybe a
+listPrevious a l =
+  l
+  |> LE.elemIndex a
+  |> Maybe.map (\x -> x - 1)
+  |> Maybe.andThen (\i -> LE.getAt i l)
+
+listNext : a -> List a -> Maybe a
+listNext a l =
+  l
+  |> LE.elemIndex a
+  |> Maybe.map (\x -> x + 1)
+  |> Maybe.andThen (\i -> LE.getAt i l)
+
+listPreviousWrap : a -> List a -> Maybe a
+listPreviousWrap a l =
+  l
+  |> listPrevious a
+  |> ME.orElse (LE.last l)
+
+listNextWrap : a -> List a -> Maybe a
+listNextWrap a l =
+  l
+  |> listNext a
+  |> ME.orElse (List.head l)
+

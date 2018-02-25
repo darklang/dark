@@ -36,11 +36,7 @@ selectNextToplevel m cur =
   let tls = List.map .id m.toplevels
       next =
         cur
-        |> Maybe.andThen (\c -> LE.elemIndex c tls)
-        |> Maybe.map (\x -> x + 1)
-        |> Maybe.map (\i -> i % List.length tls)
-        |> Maybe.andThen (\i -> LE.getAt i tls)
-        |> ME.orElse (m.toplevels |> (List.map .id) |> List.head)
+        |> Maybe.andThen (\cur -> Util.listNextWrap cur tls)
   in
       case next of
         Just nextId -> Select nextId Nothing
@@ -51,11 +47,7 @@ selectPrevToplevel m cur =
   let tls = List.map .id m.toplevels
       next =
         cur
-        |> Maybe.andThen (\c -> LE.elemIndex c tls)
-        |> Maybe.map (\x -> x - 1)
-        |> Maybe.map (\i -> i % List.length tls)
-        |> Maybe.andThen (\i -> LE.getAt i tls)
-        |> ME.orElse (m.toplevels |> (List.map .id) |> LE.last)
+        |> Maybe.andThen (\cur -> Util.listPreviousWrap cur tls)
   in
       case next of
         Just nextId -> Select nextId Nothing

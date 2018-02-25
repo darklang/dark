@@ -304,11 +304,9 @@ updateMod mod (m, cmd) =
                             parent = AST.parentOf_ (P.idOf p) handler.ast in
                         case parent of
                           Just (Thread _ exprs) ->
-                            let ids = List.map AST.toP exprs in
-                            ids
-                            |> LE.elemIndex p
-                            |> Maybe.map (\x -> x - 1)
-                            |> Maybe.andThen (\i -> LE.getAt i ids)
+                            exprs
+                            |> List.map AST.toP
+                            |> Util.listPrevious p
                           _ ->
                             Nothing
 

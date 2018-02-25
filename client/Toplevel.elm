@@ -193,26 +193,17 @@ siblings tl p =
 
 getNextSibling : Toplevel -> Pointer -> Pointer
 getNextSibling tl p =
-  let sibs = siblings tl p in
-  sibs
-  |> LE.elemIndex p
-  |> Maybe.map ((+) 1)
-  |> Maybe.map (\i -> i % List.length sibs)
-  |> Maybe.andThen (\i -> LE.getAt i sibs)
-  |> Maybe.withDefault p
+  siblings tl p
+  |> Util.listNext p
+  -- 'safe' to deMaybe as there's always at least one member in the array
+  |> deMaybe "nextSibling"
 
 getPrevSibling : Toplevel -> Pointer -> Pointer
 getPrevSibling tl p =
-  let sibs = siblings tl p
-      -- 'safe' to deMaybe as there's always at least
-      -- one member in the array
-      last = deMaybe "sibling" <| LE.last sibs
-  in
-  sibs
-  |> LE.elemIndex p
-  |> Maybe.map (\i -> i - 1)
-  |> Maybe.andThen (\i -> LE.getAt i sibs)
-  |> Maybe.withDefault last
+  siblings tl p
+  |> Util.listPreviousWrap p
+  -- 'safe' to deMaybe as there's always at least one member in the array
+  |> deMaybe "prevSibling"
 
 
 -------------------------
