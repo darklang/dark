@@ -43,7 +43,12 @@ Stop debugging with
 
 Dark files are versioned by the hash of the "shape" of their structure.
 If you change the structure of an Op (including the nested structure),
-then you need to write conversion functions.
+then the binary version will no longer load.
+
+By default, the server will also save a json version. You can manually
+edit this to the new version. Check out server/canvas.ml to see how it
+all works.
+
 
 # Backing up darkfiles
 

@@ -12,7 +12,7 @@ let write_shape_data () =
 
 let no_digest_filename_for name = "appdata/" ^ name ^ ".dark"
 let current_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
-let json_filename_for name = "appdata/" ^ name ^ "_json.dark"
+let json_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".json"
 
 let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
