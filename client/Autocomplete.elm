@@ -15,6 +15,7 @@ import List.Extra as LE
 import Util exposing (deMaybe, int2letter, letter2int)
 import Types exposing (..)
 import Runtime as RT
+import Pointer as P
 
 ----------------------------
 -- Focus
@@ -108,13 +109,13 @@ empty = init []
 init : List Function -> Autocomplete
 init functions = { functions = functions
                  , varnames = []
-                 , extras = []
                  , completions = [List.map ACFunction functions]
                  , index = -1
                  , showFunctions = True
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
+                 , target = Nothing
                  }
 
 forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
@@ -190,9 +191,9 @@ showFunctions : Bool -> Autocomplete -> Autocomplete
 showFunctions b a =
   { a | showFunctions = b }
 
-setExtras : List String -> Autocomplete -> Autocomplete
-setExtras es a =
-  { a | extras = es }
+setTarget : Maybe (TLID, Pointer) -> Autocomplete -> Autocomplete
+setTarget t a =
+  { a | target = t }
 
 update : AutocompleteMod -> Autocomplete -> Autocomplete
 update mod a =
@@ -206,7 +207,7 @@ update mod a =
      ACFilterByLiveValue lv -> forLiveValue lv a
      ACSetAvailableVarnames vs -> setVarnames vs a
      ACShowFunctions bool -> showFunctions bool a
-     ACSetExtras extras -> setExtras extras a
+     ACSetTarget target -> setTarget target a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
   )
   |> regenerate
@@ -249,8 +250,38 @@ regenerate a =
                Nothing -> True)
         |> List.map ACFunction
 
+      extras =
+        case a.target of
+          Just (_, p) ->
+            case P.typeOf p of
+              HTTPVerb ->
+                [ "GET"
+                , "POST"
+                , "PUT"
+                , "DELETE"
+                , "PATCH"
+                ]
+              DBColType ->
+                [ "String"
+                , "Int"
+                , "Boolean"
+                , "Float"
+                , "Title"
+                , "Url"
+                , "Date"
+                ]
+              DarkType ->
+                [ "Any"
+                , "Empty"
+                , "String"
+                , "Int"
+                , "{"
+                ]
+              _ -> []
+          _ -> []
+
       completeList =
-        List.map ACExtra a.extras
+        List.map ACExtra extras
         ++ functions
         ++ fields
         ++ List.map ACVariable a.varnames

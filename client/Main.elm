@@ -299,40 +299,15 @@ updateMod mod (m, cmd) =
                   |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
                                            then Nothing
                                            else Just lv)
-            extras =
+            target =
               case entry of
-                Creating _ -> []
-                Filling tlid p ->
-                  case P.typeOf p of
-                    HTTPVerb ->
-                      [ "GET"
-                      , "POST"
-                      , "PUT"
-                      , "DELETE"
-                      , "PATCH"
-                      ]
-                    DBColType ->
-                      [ "String"
-                      , "Int"
-                      , "Boolean"
-                      , "Float"
-                      , "Title"
-                      , "Url"
-                      , "Date"
-                      ]
-                    DarkType ->
-                      [ "Any"
-                      , "Empty"
-                      , "String"
-                      , "Int"
-                      , "{"
-                      ]
-                    _ -> []
+                Creating _ -> Nothing
+                Filling tlid p -> Just (tlid, p)
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
+                                        , ACSetTarget target
                                         , ACShowFunctions showFunctions
-                                        , ACSetExtras extras
                                         , ACFilterByLiveValue lv
                                         ]
             newM = { m | state = Entering entry, complete = complete }

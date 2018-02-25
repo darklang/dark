@@ -173,12 +173,12 @@ type RPC
 -----------------------------
 type alias Autocomplete = { functions : List Function
                           , varnames : List VarName
-                          , extras : List String
                           , completions : List (List AutocompleteItem)
                           , index : Int
                           , value : String
                           , showFunctions : Bool
                           , liveValue : Maybe LiveValue
+                          , target : Maybe (TLID, Pointer)
                           , tipe : Maybe Tipe
                           }
 
@@ -196,7 +196,7 @@ type AutocompleteMod = ACSetQuery String
                      | ACFilterByLiveValue (Maybe LiveValue)
                      | ACSetAvailableVarnames (List VarName)
                      | ACShowFunctions Bool
-                     | ACSetExtras (List String)
+                     | ACSetTarget (Maybe (TLID, Pointer))
                      -- | ACFilterByParamType Tipe NodeList
 
 
