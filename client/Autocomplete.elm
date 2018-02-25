@@ -16,6 +16,10 @@ import Util exposing (deMaybe, int2letter, letter2int)
 import Types exposing (..)
 import Runtime as RT
 
+----------------------------
+-- Focus
+----------------------------
+
 -- show the prev 5
 -- obvi this should use getClientBoundingBox, but that's tough in Elm
 height : Int -> Int
@@ -27,54 +31,25 @@ focusItem : Int -> Cmd Msg
 focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
             |> Task.attempt FocusAutocompleteItem
 
-empty : Autocomplete
-empty = init []
 
-init : List Function -> Autocomplete
-init functions = { functions = functions
-                 , varnames = []
-                 , extras = []
-                 , completions = [List.map ACFunction functions]
-                 , index = -1
-                 , showFunctions = True
-                 , value = ""
-                 , liveValue = Nothing
-                 , tipe = Nothing
-                 }
+----------------------------
+-- External: utils
+----------------------------
 
-numCompletions : Autocomplete -> Int
-numCompletions a =
-  a.completions |> List.concat |> List.length
+findFunction : Autocomplete -> String -> Maybe Function
+findFunction a name =
+  LE.find (\f -> f.name == name) a.functions
 
-forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
-forLiveValue lv a = { a | liveValue = lv }
+isStringEntry : Autocomplete -> Bool
+isStringEntry a = String.startsWith "\"" a.value
 
--- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
--- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
---
-reset : Autocomplete -> Autocomplete
-reset a = init a.functions
+isSmallStringEntry : Autocomplete -> Bool
+isSmallStringEntry a =
+  isStringEntry a && not (isLargeStringEntry a)
 
-clear : Autocomplete -> Autocomplete
-clear a = let cleared = setQuery "" a in
-          { cleared | index = -1 }
-
-selectDown : Autocomplete -> Autocomplete
-selectDown a = let max_ = numCompletions a
-                   max = Basics.max max_ 1
-                   new = (a.index + 1) % max
-               in
-                 { a | index = new }
-
-selectUp : Autocomplete -> Autocomplete
-selectUp a = let max = numCompletions a - 1 in
-             { a | index = if a.index <= 0
-                           then max
-                           else a.index - 1
-             }
-
-highlighted : Autocomplete -> Maybe AutocompleteItem
-highlighted a = LE.getAt a.index (List.concat a.completions)
+isLargeStringEntry : Autocomplete -> Bool
+isLargeStringEntry a =
+  isStringEntry a && String.contains "\n" a.value
 
 getValue : Autocomplete -> String
 getValue a =
@@ -122,52 +97,56 @@ compareSuggestionWithActual a actual =
         in
            (prefix, prefix ++ actual ++ suffix, actual)
 
-asName : AutocompleteItem -> String
-asName aci =
-  case aci of
-    ACFunction {name} -> name
-    ACField name -> name
-    ACVariable name -> name
-    ACExtra name -> name
 
-asTypeString : AutocompleteItem -> String
-asTypeString item =
-  case item of
-    ACFunction f -> f.parameters
-                    |> List.map .tipe
-                    |> List.map RT.tipe2str
-                    |> String.join ", "
-                    |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
-    ACField _ -> "field"
-    ACVariable _ -> "variable"
-    ACExtra _ -> ""
+----------------------------
+-- Autocomplete state
+----------------------------
 
-asString : AutocompleteItem -> String
-asString aci =
-  asName aci ++ asTypeString aci
+empty : Autocomplete
+empty = init []
 
-containsOrdered : String -> String -> Bool
-containsOrdered needle haystack =
-  case String.uncons needle of
-    Just (c, newneedle) ->
-      let char = String.fromChar c in
-      String.contains char haystack
-        && containsOrdered newneedle (haystack
-                                        |> String.split char
-                                        |> List.drop 1
-                                        |> String.join char)
-    Nothing -> True
+init : List Function -> Autocomplete
+init functions = { functions = functions
+                 , varnames = []
+                 , extras = []
+                 , completions = [List.map ACFunction functions]
+                 , index = -1
+                 , showFunctions = True
+                 , value = ""
+                 , liveValue = Nothing
+                 , tipe = Nothing
+                 }
 
--- parse the json, take the list of keys, add a . to the front of it
--- TODO: this needs refactoring
-jsonFields : String -> List AutocompleteItem
-jsonFields json =
-  json
-    |> JSD.decodeString (JSD.dict JSD.value)
-    |> Result.toMaybe
-    |> deMaybe "json decode result"
-    |> Dict.keys
-    |> List.map ACField
+forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
+forLiveValue lv a = { a | liveValue = lv }
+
+-- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
+-- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
+--
+reset : Autocomplete -> Autocomplete
+reset a = init a.functions
+
+clear : Autocomplete -> Autocomplete
+clear a = let cleared = setQuery "" a in
+          { cleared | index = -1 }
+
+numCompletions : Autocomplete -> Int
+numCompletions a =
+  a.completions |> List.concat |> List.length
+
+selectDown : Autocomplete -> Autocomplete
+selectDown a = let max_ = numCompletions a
+                   max = Basics.max max_ 1
+                   new = (a.index + 1) % max
+               in
+                 { a | index = new }
+
+selectUp : Autocomplete -> Autocomplete
+selectUp a = let max = numCompletions a - 1 in
+             { a | index = if a.index <= 0
+                           then max
+                           else a.index - 1
+             }
 
 -- variablesForType : NodeList -> Tipe -> List AutocompleteItem
 -- variablesForType ns t =
@@ -200,6 +179,44 @@ appendQuery str a =
           else a.value ++ str
   in setQuery q a
 
+highlighted : Autocomplete -> Maybe AutocompleteItem
+highlighted a = LE.getAt a.index (List.concat a.completions)
+
+setVarnames : List VarName -> Autocomplete -> Autocomplete
+setVarnames vs a =
+  { a | varnames = vs }
+
+showFunctions : Bool -> Autocomplete -> Autocomplete
+showFunctions b a =
+  { a | showFunctions = b }
+
+setExtras : List String -> Autocomplete -> Autocomplete
+setExtras es a =
+  { a | extras = es }
+
+update : AutocompleteMod -> Autocomplete -> Autocomplete
+update mod a =
+  (case mod of
+     ACSetQuery str -> setQuery str a
+     ACAppendQuery str -> appendQuery str a
+     ACReset -> reset a
+     ACClear -> clear a
+     ACSelectDown -> selectDown a
+     ACSelectUp -> selectUp a
+     ACFilterByLiveValue lv -> forLiveValue lv a
+     ACSetAvailableVarnames vs -> setVarnames vs a
+     ACShowFunctions bool -> showFunctions bool a
+     ACSetExtras extras -> setExtras extras a
+     -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
+  )
+  |> regenerate
+
+
+
+
+------------------------------------
+-- Create the list
+------------------------------------
 
 regenerate : Autocomplete -> Autocomplete
 regenerate a =
@@ -279,35 +296,42 @@ regenerate a =
                    else a.index
      }
 
-setVarnames : List VarName -> Autocomplete -> Autocomplete
-setVarnames vs a =
-  { a | varnames = vs }
 
-showFunctions : Bool -> Autocomplete -> Autocomplete
-showFunctions b a =
-  { a | showFunctions = b }
 
-setExtras : List String -> Autocomplete -> Autocomplete
-setExtras es a =
-  { a | extras = es }
+asName : AutocompleteItem -> String
+asName aci =
+  case aci of
+    ACFunction {name} -> name
+    ACField name -> name
+    ACVariable name -> name
+    ACExtra name -> name
 
-update : AutocompleteMod -> Autocomplete -> Autocomplete
-update mod a =
-  (case mod of
-     ACSetQuery str -> setQuery str a
-     ACAppendQuery str -> appendQuery str a
-     ACReset -> reset a
-     ACClear -> clear a
-     ACSelectDown -> selectDown a
-     ACSelectUp -> selectUp a
-     ACFilterByLiveValue lv -> forLiveValue lv a
-     ACSetAvailableVarnames vs -> setVarnames vs a
-     ACShowFunctions bool -> showFunctions bool a
-     ACSetExtras extras -> setExtras extras a
-     -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
-  )
-  |> regenerate
+asTypeString : AutocompleteItem -> String
+asTypeString item =
+  case item of
+    ACFunction f -> f.parameters
+                    |> List.map .tipe
+                    |> List.map RT.tipe2str
+                    |> String.join ", "
+                    |> (\s -> "(" ++ s ++ ") ->  " ++ (RT.tipe2str f.returnTipe))
+    ACField _ -> "field"
+    ACVariable _ -> "variable"
+    ACExtra _ -> ""
 
+asString : AutocompleteItem -> String
+asString aci =
+  asName aci ++ asTypeString aci
+
+-- parse the json, take the list of keys, add a . to the front of it
+-- TODO: this needs refactoring
+jsonFields : String -> List AutocompleteItem
+jsonFields json =
+  json
+    |> JSD.decodeString (JSD.dict JSD.value)
+    |> Result.toMaybe
+    |> deMaybe "json decode result"
+    |> Dict.keys
+    |> List.map ACField
 
 
 findParamByType : Function -> Tipe -> Maybe Parameter
@@ -315,21 +339,4 @@ findParamByType {parameters} tipe =
   parameters
   |> LE.find (\p -> RT.isCompatible p.tipe tipe)
 
-findFirstParam : Function -> Maybe Parameter -> Maybe Parameter
-findFirstParam {parameters} except =
-  LE.find (\p -> Just p /= except) parameters
 
-findFunction : Autocomplete -> String -> Maybe Function
-findFunction a name =
-  LE.find (\f -> f.name == name) a.functions
-
-isStringEntry : Autocomplete -> Bool
-isStringEntry a = String.startsWith "\"" a.value
-
-isSmallStringEntry : Autocomplete -> Bool
-isSmallStringEntry a =
-  isStringEntry a && not (isLargeStringEntry a)
-
-isLargeStringEntry : Autocomplete -> Bool
-isLargeStringEntry a =
-  isStringEntry a && String.contains "\n" a.value

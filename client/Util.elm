@@ -80,14 +80,28 @@ combineResult results =
       (Ok [])
       results
 
-containsOrdered : List a -> List a -> Bool
-containsOrdered needle haystack =
+listContainsOrdered : List a -> List a -> Bool
+listContainsOrdered needle haystack =
   case (needle, haystack) of
     ([], _) -> True
     (_, []) -> False
     (n :: ns, h :: hs) -> if n == h
-                          then containsOrdered ns hs
-                          else containsOrdered (n :: ns) hs
+                          then listContainsOrdered ns hs
+                          else listContainsOrdered (n :: ns) hs
+
+stringContainsOrdered : String -> String -> Bool
+stringContainsOrdered needle haystack =
+  case String.uncons needle of
+    Just (c, newneedle) ->
+      let char = String.fromChar c in
+      String.contains char haystack
+        && stringContainsOrdered newneedle (haystack
+                                            |> String.split char
+                                            |> List.drop 1
+                                            |> String.join char)
+    Nothing -> True
+
+
 
 -- Given [1,2,3,4], this will return [(1,2), (1,3), (1,4), (2,3), (2,4), (3,4)]
 uniqueCombinations : List a -> List (a, a)
