@@ -52,13 +52,7 @@ all =
           , ("SomeOtherModule::withlower", TObj)
           ] in
   describe "autocomplete"
-    [ d "containsOrdered"
-        [ \_ -> containsOrdered "abc" "aaaaabbbbbcccc"
-        , \_ -> containsOrdered "abc" "xxxaaxcxbbxaxc"
-        , \_ -> containsOrdered "Twitt" "Twitter::users/lookup"
-        , \_ -> not (containsOrdered "abc" "xxxaaxcxbbxxxx")
-       ]
-    , d "sharedPrefix"
+    [ d "sharedPrefix"
       [ \_ -> sharedPrefixList ["aaaab", "aab", "aaxb"] == "aa"
       , \_ -> sharedPrefixList ["abcdd", "abcdde"] == "abcdd"
       , \_ -> sharedPrefixList ["abcdd", "bcddee"] == ""
