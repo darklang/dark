@@ -280,10 +280,6 @@ updateMod mod (m, cmd) =
                 Creating _ -> m.globals
                 Filling tlid p ->
                   Analysis.getAvailableVarnames m tlid (P.idOf p)
-            showFunctions =
-              case entry of
-                Creating _ -> True
-                Filling tlid p -> P.typeOf p == Expr
             lv =
               case entry of
                 Creating _ -> Nothing
@@ -307,7 +303,6 @@ updateMod mod (m, cmd) =
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetAvailableVarnames varnames
                                         , ACSetTarget target
-                                        , ACShowFunctions showFunctions
                                         , ACFilterByLiveValue lv
                                         ]
             newM = { m | state = Entering entry, complete = complete }

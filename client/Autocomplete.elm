@@ -111,7 +111,6 @@ init functions = { functions = functions
                  , varnames = []
                  , completions = [List.map ACFunction functions]
                  , index = -1
-                 , showFunctions = True
                  , value = ""
                  , liveValue = Nothing
                  , tipe = Nothing
@@ -187,10 +186,6 @@ setVarnames : List VarName -> Autocomplete -> Autocomplete
 setVarnames vs a =
   { a | varnames = vs }
 
-showFunctions : Bool -> Autocomplete -> Autocomplete
-showFunctions b a =
-  { a | showFunctions = b }
-
 setTarget : Maybe (TLID, Pointer) -> Autocomplete -> Autocomplete
 setTarget t a =
   { a | target = t }
@@ -206,7 +201,6 @@ update mod a =
      ACSelectUp -> selectUp a
      ACFilterByLiveValue lv -> forLiveValue lv a
      ACSetAvailableVarnames vs -> setVarnames vs a
-     ACShowFunctions bool -> showFunctions bool a
      ACSetTarget target -> setTarget target a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
   )
@@ -233,9 +227,13 @@ regenerate a =
       -- variables = case (a.tipe, a.nodes) of
       --                 (Just t, Just ns)  -> variablesForType ns t
       --                 _ -> []
+      showFunctions =
+        case a.target of
+          Just (_, p) -> P.typeOf p == Expr
+          _ -> False
 
       -- functions
-      funcList = if a.showFunctions then a.functions else []
+      funcList = if showFunctions then a.functions else []
       functions =
         funcList
         |> List.filter
