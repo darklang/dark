@@ -14,7 +14,7 @@ testcafe \
   --assertion-timeout 50 \
   --app-init-delay 0 \
   --pageload-timeout 0 \
-  --speed 1 \
+  --speed 0.4 \
   --screenshots-on-fails \
   --screenshots integration-tests/screenshots/ \
   --test-grep "$PATTERN" \
