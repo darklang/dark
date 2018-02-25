@@ -4,16 +4,19 @@ fixture `Integration Tests`
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     const url = "http://test_" + testname + ".localhost:8000/admin/integration_test";
-    const pageLoaded = Selector('#darkErrors').exists;
+    const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
+      .takeScreenshot()
       .expect(pageLoaded).ok()
       ;
   })
   .afterEach( async t => {
     const signal = Selector('#integrationTestSignal');
     await t
+      .takeScreenshot()
       .click("#finishIntegrationTest")
+      .takeScreenshot()
       .expect(signal.exists).ok()
       ;
 
