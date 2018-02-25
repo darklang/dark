@@ -11,7 +11,7 @@ import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
-import List.Extra as LE
+-- import List.Extra as LE
 import Window
 
 -- dark
