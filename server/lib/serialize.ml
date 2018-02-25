@@ -11,7 +11,8 @@ let write_shape_data () =
   Util.writefile ("serialization/" ^ digest) shape_string
 
 let no_digest_filename_for name = "appdata/" ^ name ^ ".dark"
-let filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
+let current_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
+let json_filename_for name = "appdata/" ^ name ^ "_json.dark"
 
 let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
@@ -23,17 +24,13 @@ let load_binary (filename: string) : Op.oplist =
   else
     []
 
-let load_old_binary =
-  (* load_binary *)
-  Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary
-
 let save_binary (filename: string) (ops: Op.oplist) : unit =
   Core_extended.Bin_io_utils.save filename Op.bin_writer_oplist ops
 
 
 let load_json (filename:string) : Op.oplist =
   filename
-  |> Util.readfile ~default:"[]"
+  |> Util.readfile
   |> Yojson.Safe.from_string
   |> Op.oplist_of_yojson
   |> Result.ok_or_failwith
@@ -44,5 +41,11 @@ let save_json (filename: string) (ops: Op.oplist) : unit =
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> Util.writefile filename
+
+
+let load_custom =
+  (* load_binary *)
+  load_json
+  (* Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary *)
 
 

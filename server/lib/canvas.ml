@@ -180,23 +180,40 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
     match filename with
     | Some file -> Serialize.load_binary file
     | None ->
-        let filename = Serialize.filename_for name in
-        if Sys.file_exists filename = `Yes
-        (* TODO: choose a serializer based on the filename *)
-        then Serialize.load_binary filename
-        else
-          let filename = Serialize.no_digest_filename_for name
+        let current = Serialize.current_filename_for name in
+        let undigested = Serialize.no_digest_filename_for name in
+        let json = Serialize.json_filename_for name in
+
+        if Sys.file_exists current = `Yes
+        then Serialize.load_binary current
+
+        else if Sys.file_exists json = `Yes
+        then Serialize.load_json json
+
+        else if Sys.file_exists undigested = `Yes
           (* you can change this to convert files manually *)
-          in if Sys.file_exists filename = `Yes
-             then Serialize.load_old_binary filename
-             else []
+        then Serialize.load_custom undigested
+
+        (* no file for it *)
+        else []
   in
   add_ops c oldops newops;
   c
 
 let save ?(filename=None) (c : canvas) : unit =
-  let filename = Option.value filename ~default:(Serialize.filename_for c.name) in
-  Serialize.save_binary filename c.ops
+  match filename with
+  | None ->
+      let filename = Serialize.current_filename_for c.name in
+      let json = Serialize.json_filename_for c.name in
+      Serialize.save_binary filename c.ops;
+      let _ = Spawn.spawn
+                ~prog:"./_build/default/bin/darkfile_bin_to_json.exe"
+                ~argv:[""; filename; json]
+                ()
+              |> Log.pp "exit code" in
+      ()
+  | Some file ->
+      Serialize.save_binary file c.ops
 
 
 

@@ -1,20 +1,17 @@
 open Core
 open Lwt.Infix
 
-let readfile ?(default="") f : string =
-  try
-    let ic = Caml.open_in f in
-    (try
-      let n = Caml.in_channel_length ic in
-      let s = Bytes.create n in
-      Caml.really_input ic s 0 n;
-      Caml.close_in ic;
-      Caml.Bytes.to_string s
-    with e ->
-      Caml.close_in_noerr ic;
-      raise e)
+let readfile f : string =
+  let ic = Caml.open_in f in
+  (try
+    let n = Caml.in_channel_length ic in
+    let s = Bytes.create n in
+    Caml.really_input ic s 0 n;
+    Caml.close_in ic;
+    Caml.Bytes.to_string s
   with e ->
-    default
+    Caml.close_in_noerr ic;
+    raise e)
 
 let readfile_lwt ?(default="") f : string Lwt.t =
   Lwt_io.with_file ~mode:Lwt_io.input f (Lwt_io.read ?count:None) >|= function
