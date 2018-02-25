@@ -121,14 +121,6 @@ port setStorage : Editor -> Cmd a
 -- updates
 -----------------------
 
-replaceToplevel : Model -> Toplevel -> Model
-replaceToplevel m tl =
-  let newToplevels = m
-                     |> .toplevels
-                     |> List.filter (\this_tl -> this_tl.id /= tl.id)
-                     |> List.append [tl]
-  in { m | toplevels = newToplevels }
-
 processFocus : Model -> Focus -> Modification
 processFocus m focus =
   case focus of
@@ -242,7 +234,7 @@ updateMod mod (m, cmd) =
                    List.foldl (\call m ->
                      case call of
                        SetHandler tlid pos h ->
-                         replaceToplevel m
+                         TL.replace m
                            {id = tlid, pos = pos, data = TLHandler h, cursor = 0 }
                        _ -> m) m calls
 

@@ -30,10 +30,10 @@ replace m tl =
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
-  let mapped = List.map (\t ->
-        if t.id /= tlid
-        then t
-        else f t) m.toplevels
+  let mapped = m.toplevels
+               |> List.map (\t -> if t.id /= tlid
+                                  then t
+                                  else f t)
   in
   { m | toplevels = mapped }
 
