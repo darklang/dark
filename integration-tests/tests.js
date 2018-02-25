@@ -127,7 +127,6 @@ test('tabbing_works', async t => {
   await t
     .pressKey("enter")
     .typeText("#entry-box", "if")
-    .pressKey("down")
     .pressKey("enter")
     .pressKey("esc")
     .pressKey("tab")
