@@ -429,6 +429,32 @@ siblings p ast =
 
         _ -> [p]
 
+getValueParent : Pointer -> Expr -> Maybe Pointer
+getValueParent p expr =
+  let id = P.idOf p
+      parent = parentOf_ id expr
+  in
+  case P.typeOf p of
+    Expr ->
+      case parent of
+        Just (Thread _ exprs) ->
+          exprs
+          |> List.map toP
+          |> Util.listPrevious p
+        _ ->
+          Nothing
+
+    Field ->
+      case parent of
+        Just (FieldAccess id obj _) ->
+          Just <| toP obj
+        _ ->
+          Nothing
+    _ ->
+      Nothing
+
+
+
 --------------------------------
 -- Pointers
 --------------------------------

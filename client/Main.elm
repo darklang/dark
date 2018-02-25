@@ -297,31 +297,10 @@ updateMod mod (m, cmd) =
                 Creating _ -> Nothing
                 Filling tlid p ->
                   let tl = TL.getTL m tlid in
-                  let obj =
-                    case P.typeOf p of
-                      Expr ->
-                        let handler = deMaybe "handler - expr" <| TL.asHandler tl
-                            parent = AST.parentOf_ (P.idOf p) handler.ast in
-                        case parent of
-                          Just (Thread _ exprs) ->
-                            exprs
-                            |> List.map AST.toP
-                            |> Util.listPrevious p
-                          _ ->
-                            Nothing
-
-                      Field ->
-                        let handler = deMaybe "handler - field" <| TL.asHandler tl
-                            parent = AST.parentOf (P.idOf p) handler.ast in
-                        case parent of
-                          FieldAccess id obj _ ->
-                            Just <| AST.toP obj
-                          _ ->
-                            Nothing
-                      _ ->
-                        Nothing
-                  in
-                  obj
+                  tl
+                  |> TL.asHandler
+                  |> Maybe.map .ast
+                  |> Maybe.andThen (AST.getValueParent p)
                   |> Maybe.map P.idOf
                   |> Maybe.andThen (Analysis.getLiveValue m tlid)
                   -- don't filter on incomplete values
