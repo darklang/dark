@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import os
+import signal
 
 run_tests = False
 
@@ -107,14 +108,28 @@ def background_task(fn, name):
   t.start()
 
 def main():
+  # Recompile on file changes til infinity. This is our primary dev
+  # mode. this is also used in scripts/builder.
+  # See also run_tests (--test) which runs the tests too.
   watch = False
+
+  # Compile it once - you usually want this to have full built code.
+  # See also run_tests (--test) which runs the tests too.
   compile = False
+
+  # Run the Dark webserver and keep the container open to serve it.
+  # Useful for demoing without draining your battery. Will not recompile
+  # like --watch does.
+  serve = False
 
   for f in sys.argv[1:]:
     if f == "--compile":
       compile = True
     elif f == "--watch":
       watch = True
+    elif f == "--serve":
+      serve = True
+      compile = True
     elif f == "--test":
       global run_tests
       run_tests = True
@@ -125,5 +140,8 @@ def main():
 
   if watch:
     process_watchers()
+  elif serve:
+    # pause to allow the server stay up
+    signal.pause()
 
 main()

@@ -8,6 +8,10 @@
 - Open your browser to http://localhost:8000/admin/ui
 - Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
 
+## Just serve it, not constantly recompiling
+
+- Run `scripts/builder --compile --serve`
+
 # Setting up your editor
 
 Ideally, you'd be able to use elm-make and merlin inside the container.
