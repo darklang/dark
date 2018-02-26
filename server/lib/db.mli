@@ -2,6 +2,7 @@ open Types
 
 val with_postgres : (unit -> 'b) -> 'b
 val cur_dbs : DbT.db list ref
+val run_sql : string -> unit
 
 (* DB struct functions *)
 val cols_for : DbT.db -> (string * RuntimeT.tipe) list

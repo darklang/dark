@@ -348,12 +348,8 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
-
-
-
-
 (* ------------------------- *)
 (* Some initialization *)
 (* ------------------------- *)
 let _ =
-  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT PRIMARY KEY)"
+  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT PRIMARY KEY)";

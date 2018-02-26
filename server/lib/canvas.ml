@@ -19,6 +19,10 @@ let create (name : string) : canvas ref =
       ; toplevels = []
       }
 
+(* forgive me simon peyton-jones *)
+let cur_canvas : (canvas ref) option ref =
+  ref None
+
 (* ------------------------- *)
 (* Undo *)
 (* ------------------------- *)

@@ -33,6 +33,7 @@ let server =
         ) in
 
         let (t3, envs) = time "3-create-envs" "3. create the environment" (fun _ ->
+          Event_queue.set_scope !c.name;
           let dbs = TL.dbs !c.toplevels in
           let dbs_env = Db.dbs_as_env dbs in
           Db.cur_dbs := dbs;
@@ -70,9 +71,11 @@ let server =
           C.save !c;
         ) in
 
+      Event_queue.unset_scope ();
       ([t1; t2; t3; t4; t5], result)
       with
       | e ->
+        Event_queue.unset_scope ();
         let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
         print_endline ("Exception: " ^ msg);
@@ -118,6 +121,7 @@ let server =
 
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
       let c = C.load host [] in
+      Event_queue.set_scope !c.name;
       let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
       let pages = C.pages_matching_route ~uri ~verb !c in
       let pages =
@@ -147,6 +151,7 @@ let server =
         | DResp (http, value) ->
           (match http with
            | Redirect url ->
+             Event_queue.unset_scope ();
              S.respond_redirect (Uri.of_string url) ()
            | Response (code, headers) ->
              let body =
@@ -157,12 +162,14 @@ let server =
                (* TODO: only pretty print for a webbrowser *)
                else Dval.dval_to_pretty_json_string value
              in
+             Event_queue.unset_scope ();
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
                ~headers:(Cohttp.Header.of_list (List.cons cors headers))
                ~body:body
                ())
         | _ ->
+          Event_queue.unset_scope ();
           let body = Dval.dval_to_pretty_json_string result in
           (* for demonstrations sake, let's return 200 Okay when
            * no HTTP response object is returned *)
@@ -173,6 +180,7 @@ let server =
             ~body:body
             ())
       | _ ->
+        Event_queue.unset_scope ();
         S.respond_string ~status:`Internal_server_error ~headers:(Cohttp.Header.of_list [cors]) ~body:"500: More than one page matches" ()
     in
 
