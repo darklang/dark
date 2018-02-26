@@ -27,6 +27,20 @@ To get elm to work (in vim at least), you need elm-make locally.
 - Install elm tools:
   - `brew install elm`
 
+# (Not) Rebuilding the container
+
+If you pull a commit with a Dockerfile update, and then restart your
+`scripts/builder` script -- it will rebuild as much of the container as possible.
+
+If you don't want to rebuild the container, use `NEVER_REBUILD_DOCKER=1 scripts/builder ...`
+to make the the build script use the last built one.
+
+In another shell you can now kick off a `scripts/builder --compile` to rebuild the container
+in parallel with your currently working one.
+
+You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker invocations, including say ocamlmerlin, use the old+running container as opposed to attempting to use the container
+that has an in progress build.
+
 # Debugging elm
 
 By default, debugging in the client is disabled. This is because it is

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -15,8 +15,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 ARGS=${@}
 ARGS=$(echo ${ARGS} | fix_dir_stdin)
 
-NAME=$(docker ps --last 1 --filter status=running --quiet)
-
+if [[ -v CURRENTLY_REBUILDING_DOCKER ]];
+then
+  NAME=$(docker ps --last 2 --filter status=running --quiet | tail -n 1)
+else
+  NAME=$(docker ps --last 1 --filter status=running --quiet)
+fi
 
 if [ -t 0 ] ;
 then
