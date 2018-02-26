@@ -14,13 +14,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | [DStr space; DStr name; data] ->
-            let _ = Log.pp "test" (space, name, data) in
-            let scope =
-              (match !Event_queue.current_scope with
-              | Some sc -> sc
-              | None -> Exception.internal "Missing Event_queue.current_scope! Time to ditch global mutable state!")
-            in
-            Event_queue.enqueue scope space name data;
+            Event_queue.enqueue space name data;
             DNull
           | args -> fail args)
   ; pr = None

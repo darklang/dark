@@ -20,10 +20,26 @@ let unset_scope () : unit =
 (* Public API *)
 (* ------------------------- *)
 
-let enqueue (scope: string) (space: string) (name: string) (data: dval) : unit =
-  ()
+let enqueue (space: string) (name: string) (data: dval) : unit =
+  let scope =
+    (match !current_scope with
+     | Some sc -> sc
+     | None -> Exception.internal "Missing Event_queue.current_scope! Time to ditch global mutable state!")
+  in
+  let serialized_data = Dval.dval_to_json_string data in
+  let column_names =
+    ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"]
+    |> String.concat ~sep:", "
+  in
+  let column_values =
+    let wrap s = "'" ^ s ^ "'" in
+    ["'new'"; "NULL"; wrap scope; wrap space; wrap name; wrap serialized_data]
+    |> String.concat ~sep:", "
+  in
+  (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
+  |> Db.run_sql
 
-let dequeue (scope: string) (space: string) (name: string) : dval =
+let dequeue (space: string) (name: string) : dval =
   DIncomplete
 
 (* ------------------------- *)
@@ -39,12 +55,16 @@ BEGIN
     END IF;
 END$$;" in
   let ensure_queue_table_exists =
-    "CREATE TABLE IF NOT EXISTS \"events\" (id SERIAL PRIMARY KEY, status queue_status, canvas TEXT NOT NULL, space TEXT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL)"
+    "CREATE TABLE IF NOT EXISTS \"events\" (id SERIAL PRIMARY KEY, status queue_status, dequeued_by INT, canvas TEXT NOT NULL, space TEXT NOT NULL, name TEXT NOT NULL, value TEXT NOT NULL)"
   in
   let ensure_dequeue_index_exists =
     "CREATE INDEX IF NOT EXISTS \"idx_dequeue\" ON \"events\" (space, name, canvas, status, id)"
   in
+  let ensure_cleanup_index_exists =
+    "CREATE INDEX IF NOT EXISTS \"idx_cleanup\" ON \"events\" (dequeued_by)"
+  in
   Db.run_sql ensure_queue_status_type_exists;
   Db.run_sql ensure_queue_table_exists;
-  Db.run_sql ensure_dequeue_index_exists
+  Db.run_sql ensure_dequeue_index_exists;
+  Db.run_sql ensure_cleanup_index_exists
 
