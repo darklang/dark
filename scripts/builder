@@ -2,7 +2,9 @@
 
 set -euo pipefail
 
-# Use to build image from clean start
+# --------------
+# Build image from clean start
+# --------------
 if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   echo "Building docker image"
   docker build -t dark .
@@ -14,9 +16,14 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   fi
 fi
 
+# --------------
+# --------------
 echo "watching for local changes"
 scripts/support/reload-browser > logs/browser.log 2>&1 &
 
+# --------------
+# Conduit
+# --------------
 if [ ! -v CI ]; then
   if [ ! -d ../conduit-frontend ]; then
     echo "pulling the conduit frontend"
@@ -27,30 +34,19 @@ fi
 # --------------
 # Mounts
 # --------------
-
-# https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
 if [ -v CI ]; then
-  # create some volumes to hold the dirs we would otherwise bind
-  docker create \
-    -v /home/dark/conduit-frontend \
-    -v /home/dark/app  \
-    --name vols \
-    alpine:3.4 \
-    /bin/true
-  docker cp . vols:/home/dark/app
-  # set the ownership of all this
-  docker run -i --volumes-from vols dark \
-    sudo chown -R dark /home/dark/app
+  # see "copy in data" in .circleci/config.yml
   MOUNT="--volumes-from vols"
 else
   MOUNT="--mount type=bind,src=$PWD,dst=/home/dark/app \
-        --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
+         --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
 fi
 
 # --------------
-# FSWatch
+# fswatch
 # --------------
-# Avoid hanging when --watch is not called
+# Avoid hanging when --watch is not called. This runs the `true` command
+# instead of fswatch.
 FSWATCH="true"
 for i in "$@"
 do
@@ -63,9 +59,7 @@ done
 
 
 # --------------
-# Run the build
 # --------------
-
 echo "Run the build"
 $FSWATCH | docker run \
              --rm \
