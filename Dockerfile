@@ -170,4 +170,11 @@ RUN cd libsysconfcpus \
        && make \
        && sudo make install
 
+# dns for integration tests
+USER root
+RUN apt-get update && apt-get install -y dnsmasq
+RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
+
+user dark
+
 CMD ["app", "scripts", "builder"]
