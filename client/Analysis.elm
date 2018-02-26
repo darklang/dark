@@ -7,6 +7,18 @@ import List.Extra as LE
 -- dark
 import Toplevel as TL
 import Types exposing (..)
+import Pointer as P
+
+varnamesFor : Model -> Maybe (TLID, Pointer) -> List VarName
+varnamesFor m target =
+  case target of
+    Nothing -> m.globals
+    Just (tlid, p) ->
+      getAvailableVarnames
+        m
+        tlid
+        (P.idOf p)
+
 
 getAnalysisResults : Model -> TLID -> List AResult
 getAnalysisResults m id =

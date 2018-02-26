@@ -15,7 +15,7 @@ import Dom
 -- import Util
 import Defaults
 import Types exposing (..)
--- import Autocomplete
+import Analysis
 import Viewport
 import Util exposing (deMaybe)
 import AST
@@ -125,7 +125,7 @@ submit m cursor action value =
                       (newBlank ())
 
       -- varnames
-      else if List.member value m.complete.varnames
+      else if List.member value (Analysis.varnamesFor m Nothing)
       then wrapExpr <| Variable (gid ()) value
 
       -- start new AST
@@ -139,9 +139,11 @@ submit m cursor action value =
           predecessor = TL.getPrevBlank tl (Just p)
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
+          replaceExpr : Model -> Handler -> TLID -> Pointer -> String -> Modification
           replaceExpr m h tlid p value =
             let id = P.idOf p
                 old_ = AST.subtree id h.ast
+                target = Just (tlid, p)
                 (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
@@ -175,7 +177,7 @@ submit m cursor action value =
                           (newBlank ()))
 
                   -- variables
-                  else if List.member value m.complete.varnames
+                  else if List.member value (Analysis.varnamesFor m target)
                   then
                     (old_, AST.toPD <| Variable (gid ()) value)
 

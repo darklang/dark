@@ -234,7 +234,7 @@ updateMod mod (m, cmd) =
                    List.foldl (\call m ->
                      case call of
                        SetHandler tlid pos h ->
-                         TL.replace m
+                         TL.upsert m
                            {id = tlid, pos = pos, data = TLHandler h, cursor = 0 }
                        _ -> m) m calls
 
@@ -275,12 +275,7 @@ updateMod mod (m, cmd) =
         in newM ! (closeThreads newM)
 
       Enter entry ->
-        let varnames =
-              case entry of
-                Creating _ -> m.globals
-                Filling tlid p ->
-                  Analysis.getAvailableVarnames m tlid (P.idOf p)
-            lv =
+        let lv = -- TODO: move this into Autocomplete
               case entry of
                 Creating _ -> Nothing
                 Filling tlid p ->
@@ -301,8 +296,7 @@ updateMod mod (m, cmd) =
                 Filling tlid p -> Just (tlid, p)
 
             (complete, acCmd) =
-              processAutocompleteMods m [ ACSetAvailableVarnames varnames
-                                        , ACSetTarget target
+              processAutocompleteMods m [ ACSetTarget target
                                         , ACFilterByLiveValue lv
                                         ]
             newM = { m | state = Entering entry, complete = complete }
@@ -311,10 +305,14 @@ updateMod mod (m, cmd) =
 
 
       SetToplevels tls tlars globals ->
+        let (complete, acCmd) =
+              processAutocompleteMods m [ ACRegenerate ]
+        in
         { m | toplevels = tls
             , analysis = tlars
             , globals = globals
-        } ! []
+            , complete = complete
+        } ! [acCmd]
 
       SetCenter c ->
         { m | center = c } ! []
@@ -338,7 +336,7 @@ updateMod mod (m, cmd) =
 processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
 processAutocompleteMods m mods =
   let complete = List.foldl
-        (\mod complete -> AC.update mod complete)
+        (\mod complete -> AC.update m mod complete)
         m.complete
         mods
   in (complete, AC.focusItem complete.index)

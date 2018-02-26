@@ -16,6 +16,7 @@ import Util exposing (deMaybe, int2letter, letter2int)
 import Types exposing (..)
 import Runtime as RT
 import Pointer as P
+import Analysis
 
 ----------------------------
 -- Focus
@@ -108,7 +109,6 @@ empty = init []
 
 init : List Function -> Autocomplete
 init functions = { functions = functions
-                 , varnames = []
                  , completions = [List.map ACFunction functions]
                  , index = -1
                  , value = ""
@@ -170,7 +170,8 @@ selectUp a = let max = numCompletions a - 1 in
 -- y Press right to fill as much as is definitive
 
 setQuery : String -> Autocomplete -> Autocomplete
-setQuery q a = { a | value = q } |> regenerate
+setQuery q a = refilter q (LE.getAt 0 a.completions
+                           |> Maybe.withDefault []) a
 
 appendQuery : String -> Autocomplete -> Autocomplete
 appendQuery str a =
@@ -182,16 +183,12 @@ appendQuery str a =
 highlighted : Autocomplete -> Maybe AutocompleteItem
 highlighted a = LE.getAt a.index (List.concat a.completions)
 
-setVarnames : List VarName -> Autocomplete -> Autocomplete
-setVarnames vs a =
-  { a | varnames = vs }
-
 setTarget : Maybe (TLID, Pointer) -> Autocomplete -> Autocomplete
 setTarget t a =
   { a | target = t }
 
-update : AutocompleteMod -> Autocomplete -> Autocomplete
-update mod a =
+update : Model -> AutocompleteMod -> Autocomplete -> Autocomplete
+update m mod a =
   (case mod of
      ACSetQuery str -> setQuery str a
      ACAppendQuery str -> appendQuery str a
@@ -200,11 +197,14 @@ update mod a =
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
      ACFilterByLiveValue lv -> forLiveValue lv a
-     ACSetAvailableVarnames vs -> setVarnames vs a
      ACSetTarget target -> setTarget target a
+     ACRegenerate -> a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
   )
-  |> regenerate
+  -- For now, we need to regenerate on any change. In the future, we
+  -- should keep all non-ac state out of here (livevalue and target),
+  -- and have a regenerate function that regenerates then and only then.
+  |> regenerate m
 
 
 
@@ -213,11 +213,64 @@ update mod a =
 -- Create the list
 ------------------------------------
 
-regenerate : Autocomplete -> Autocomplete
-regenerate a =
-  let lcq = String.toLower a.value
-      -- fields of objects
-      fields = case a.liveValue of
+regenerate : Model -> Autocomplete -> Autocomplete
+regenerate m a =
+  let completions = generateFromModel m a
+  in refilter a.value completions a
+
+refilter : String -> List AutocompleteItem -> Autocomplete -> Autocomplete
+refilter query initial a =
+  let completions = filter initial query
+      totalLength = completions |> List.concat |> List.length
+  in { a | completions = completions
+         , value = query
+         , index = if totalLength == 0
+                   then -1
+                   else if totalLength < numCompletions a
+                   then 0
+                   else a.index
+     }
+
+filter : List AutocompleteItem -> String -> List (List AutocompleteItem)
+filter list query =
+  let lcq = query |> String.toLower
+
+      stringify i = (if 1 >= String.length lcq
+                     then asName i
+                     else asString i)
+                    |> Util.replace "⟶" "->"
+
+
+      -- split into different lists
+      candidates1 = List.filter (stringify
+                                 >> String.toLower
+                                 >> String.contains lcq
+                                 ) list
+
+      (startsWith, candidates2) =
+        List.partition (stringify
+                        >> String.startsWith query
+                       ) candidates1
+
+      (startsWithCI, candidates3) =
+        List.partition (stringify
+                        >> String.toLower
+                        >> String.startsWith lcq
+                        ) candidates2
+
+      (substring, substringCI ) =
+        List.partition (stringify
+                        >> String.contains query
+                        ) candidates3
+
+  in
+  [ startsWith, startsWithCI, substring, substringCI ]
+
+
+
+generateFromModel : Model -> Autocomplete -> List AutocompleteItem
+generateFromModel m a =
+  let fields = case a.liveValue of
                  Just lv -> if lv.tipe == TObj
                             then jsonFields lv.json
                             else []
@@ -230,7 +283,7 @@ regenerate a =
       showFunctions =
         case a.target of
           Just (_, p) -> P.typeOf p == Expr
-          _ -> False
+          Nothing -> True
 
       -- functions
       funcList = if showFunctions then a.functions else []
@@ -278,52 +331,12 @@ regenerate a =
               _ -> []
           _ -> []
 
-      completeList =
-        List.map ACExtra extras
-        ++ functions
-        ++ fields
-        ++ List.map ACVariable a.varnames
-
-      stringify i = (if 1 >= String.length lcq
-                     then asName i
-                     else asString i)
-                    |> Util.replace "⟶" "->"
-
-
-      -- split into different lists
-      candidates1 = List.filter (stringify
-                                 >> String.toLower
-                                 >> String.contains lcq
-                                 ) completeList
-
-      (startsWith, candidates2) =
-        List.partition (stringify
-                        >> String.startsWith a.value
-                       ) candidates1
-
-      (startsWithCI, candidates3) =
-        List.partition (stringify
-                        >> String.toLower
-                        >> String.startsWith lcq
-                        ) candidates2
-
-      (substring, substringCI ) =
-        List.partition (stringify
-                        >> String.contains a.value
-                        ) candidates3
-
-      completions = [ startsWith, startsWithCI, substring, substringCI ]
-
-      totalLength = completions |> List.concat |> List.length
-
-
-  in { a | completions = completions
-         , index = if totalLength == 0
-                   then -1
-                   else if totalLength < numCompletions a
-                   then 0
-                   else a.index
-     }
+      varnames = Analysis.varnamesFor m a.target
+    in
+    List.map ACExtra extras
+    ++ functions
+    ++ fields
+    ++ List.map ACVariable varnames
 
 
 

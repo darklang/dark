@@ -24,9 +24,13 @@ getTL m id =
   LE.find (\tl -> tl.id == id) m.toplevels
   |> deMaybe "getTL"
 
-replace : Model -> Toplevel -> Model
-replace m tl =
-  update m tl.id (\_ -> tl)
+upsert : Model -> Toplevel -> Model
+upsert m tl =
+  let updated = update m tl.id (\_ -> tl) in
+  if m.toplevels == updated.toplevels
+  then { m | toplevels = m.toplevels ++ [tl] }
+  else updated
+
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
