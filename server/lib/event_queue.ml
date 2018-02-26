@@ -10,37 +10,85 @@ open Types.RuntimeT
 let current_scope : string option ref =
   ref None
 
-let set_scope (scope: string) : unit =
-  current_scope := Some scope
+let scope_setter : int option ref =
+  ref None
 
-let unset_scope () : unit =
-  current_scope := None
+let current_scope_exn () : string =
+  match !current_scope with
+  | Some sc -> sc
+  | None ->
+    Exception.internal
+      "Missing Event_queue.current_scope! Time to ditch global mutable state!"
+
+let scope_setter_exn () : int =
+  match !scope_setter with
+  | Some ss -> ss
+  | None ->
+    Exception.internal
+      "Missing Event_queue.scope_setter, internal invariant broken. Can't even blame global mutable state this time you dingus"
+
+let unlock_jobs ~status : unit =
+  let new_status_of_jobs =
+    match status with
+    | `OK -> "'done'"
+    | `Err -> "'error'"
+  in
+  Printf.sprintf
+    "UPDATE \"events\" SET status = %s WHERE dequeued_by = %s"
+    new_status_of_jobs
+    (string_of_int (scope_setter_exn ()))
+  |> Db.run_sql
+
+let set_scope (scope: string) : unit =
+  let setter = Util.create_id () in
+  current_scope := Some scope;
+  scope_setter  := Some setter
+
+let unset_scope ~status : unit =
+  unlock_jobs ~status;
+  current_scope := None;
+  scope_setter  := None
 
 (* ------------------------- *)
 (* Public API *)
 (* ------------------------- *)
 
+let wrap s = "'" ^ s ^ "'"
+
 let enqueue (space: string) (name: string) (data: dval) : unit =
-  let scope =
-    (match !current_scope with
-     | Some sc -> sc
-     | None -> Exception.internal "Missing Event_queue.current_scope! Time to ditch global mutable state!")
-  in
   let serialized_data = Dval.dval_to_json_string data in
   let column_names =
     ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"]
     |> String.concat ~sep:", "
   in
   let column_values =
-    let wrap s = "'" ^ s ^ "'" in
-    ["'new'"; "NULL"; wrap scope; wrap space; wrap name; wrap serialized_data]
+    ["'new'"; "NULL"; wrap (current_scope_exn ()); wrap space; wrap name; wrap serialized_data]
     |> String.concat ~sep:", "
   in
   (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
   |> Db.run_sql
 
+(* This should soon enough do something like:
+ * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
+ * but multiple queries will do fine for now
+ *)
 let dequeue (space: string) (name: string) : dval =
-  DIncomplete
+  let fetched =
+    Printf.sprintf "SELECT id, value from \"events\" WHERE space = %s AND name = %s AND canvas = %s ORDER BY id DESC LIMIT 1"
+      (wrap space)
+      (wrap name)
+      (wrap (current_scope_exn ()))
+    |> Db.fetch_via_sql
+    |> List.hd
+  in
+  match fetched with
+  | None -> DNull
+  | Some [id; value] ->
+    Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
+                  (string_of_int (scope_setter_exn ()))
+                  id);
+    Dval.parse value
+  | Some s -> Exception.internal ("Fetched seemingly impossible shape from Postgres" ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
 (* ------------------------- *)
 (* Some initialization *)
