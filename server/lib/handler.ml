@@ -20,6 +20,11 @@ type handler = { tlid: Types.tlid
                ; spec : spec
                } [@@deriving eq, show, yojson, sexp, bin_io]
 
+let is_http (h: handler) : bool =
+  match h.spec.module_ with
+  | Filled (_, m) -> String.Caseless.equal "http" m
+  | _ -> false
+
 let url_for (h: handler) : string option =
   match h.spec.module_, h.spec.name with
   | Filled (_, module_), Filled (_, name) when String.lowercase module_ = "http" ->

@@ -53,7 +53,7 @@ let server =
              RTT.EnvMap.set acc h.tlid new_envs
           in
           let tls_map =
-            List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.handlers !c.toplevels)
+            List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.http_handlers !c.toplevels)
           in
           (* TODO(ian): using 0 as a default, come up with better idea
            * later *)

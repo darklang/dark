@@ -24,8 +24,10 @@ let as_db (tl: toplevel) : DbT.db option =
   | DB db -> Some db
   | _ -> None
 
-let handlers (tls: toplevel_list) : Handler.handler list =
-  List.filter_map ~f:as_handler tls
+let http_handlers (tls: toplevel_list) : Handler.handler list =
+  tls
+  |> List.filter_map ~f:as_handler
+  |> List.filter ~f:Handler.is_http
 
 let dbs (tls: toplevel_list) : DbT.db list =
   List.filter_map ~f:as_db tls

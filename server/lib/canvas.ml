@@ -245,7 +245,7 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
     | None -> RTT.EnvMap.find_exn environments 0
   in
   let vals = c.toplevels
-             |> TL.handlers
+             |> TL.http_handlers
              |> List.map
                ~f:(fun h ->
                    let envs = available_reqs h.tlid in
@@ -288,7 +288,7 @@ let to_frontend_string (environments: RTT.env_map) (c: canvas) : string =
 let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   let path = Uri.path uri in
   c.toplevels
-  |> TL.handlers
+  |> TL.http_handlers
   |> List.filter
     ~f:(fun h -> Handler.url_for h <> None)
   |> List.filter
