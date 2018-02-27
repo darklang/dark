@@ -39,6 +39,23 @@ jobs:
             - v1-build-{{ checksum "today - 6 days" }}
             - v1-build-{{ checksum "today - 7 days" }}
 
+      - run:
+          name: Clear cache on Saturday
+          # Since we don't checksum the cache on its contents, it may
+          # continue to grow. As a result, let's clear the cache on
+          # Saturdays. We store the day the cache was built in the
+          # cache. If today is saturday, but the cache was built on
+          # friday, then it's the first build on a saturday. In this
+          # case, clear the cache before we build.
+          command: |
+            if [[ `date +"%A"` == "Saturday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
+              rm -Rf client/elm-stuff
+              rm -Rf client/tests/elm-stuff
+              rm -Rf server/_build
+            fi
+            mkdir -p server/_build
+            date +"%A" > server/_build/CACHE_DAY
+
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
           name: Copy in app directory
@@ -58,15 +75,10 @@ jobs:
 
       - run:
           name: Copy out caches
-          # Clear caches on Sundays to keep their size down
           command: |
-            if [[ `date +"%A"` == "Sunday" ]]; then
-              rm -Rf client/elm-stuff client/tests/elm-stuff server/_build
-            else
-              docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
-              docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
-              docker cp vols:/home/dark/app/server/_build server/_build
-            fi
+            docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
+            docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
+            docker cp vols:/home/dark/app/server/_build server/_build
 
       - save_cache:
           when: always
