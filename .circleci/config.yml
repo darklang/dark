@@ -8,10 +8,15 @@ jobs:
       - checkout
       - setup_remote_docker:
           docker_layer_caching: true
+
       - run:
-          name: Install dependencies
+          name: Install outer container utilities
+          # coreutils for gnu date
+          # build-base for fswatch
+          # bash for scripts
+          # curl to wait for the server to start
           command: |
-            apk add --update build-base bash curl
+            apk add --update build-base bash curl coreutils
 
 
       # fswatch
