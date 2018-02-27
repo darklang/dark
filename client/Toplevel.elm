@@ -70,6 +70,19 @@ dbs : List Toplevel -> List DB
 dbs tls =
   List.filterMap asDB tls
 
+isHTTPHandler : Toplevel -> Bool
+isHTTPHandler tl =
+  case asHandler tl of
+    Nothing -> False
+    Just h ->
+      case h.spec.module_ of
+        Blank _ -> False
+        Filled _ s ->
+          if String.toLower s == "http"
+          then
+            True
+          else
+            False
 
 -------------------------
 -- Generic

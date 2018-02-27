@@ -170,11 +170,22 @@ viewBlankOr htmlFn m tl pt b hover =
                      then DivSelected
                      else DivUnselected
                    _ -> DivUnselected
+      isHTTP = TL.isHTTPHandler tl
       placeholder =
         case pt of
           VarBind -> "varname"
-          EventName -> "event name"
-          EventModifier -> "event modifier"
+          EventName ->
+            if isHTTP
+            then
+              "route"
+            else
+              "event name"
+          EventModifier ->
+            if isHTTP
+            then
+              "verb"
+            else
+              "event modifier"
           EventSpace -> "event space"
           Expr -> paramPlaceholder
           Field -> "fieldname"
