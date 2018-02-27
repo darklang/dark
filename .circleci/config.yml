@@ -14,9 +14,8 @@ jobs:
           # coreutils for gnu date
           # build-base for fswatch
           # bash for scripts
-          # curl to wait for the server to start
           command: |
-            apk add --update build-base bash curl coreutils
+            apk add --update build-base bash coreutils
 
 
       # fswatch
@@ -116,7 +115,7 @@ jobs:
           name: Wait for server
           background: true
           command: |
-            until $(curl --output /dev/null --silent --head --fail http://localhost:8000); do
+            until $(./scripts/run-in-docker curl --fail --silent --output /dev/null http://localhost:8000/admin/ui); do
               printf '.'
               sleep 1
             done
