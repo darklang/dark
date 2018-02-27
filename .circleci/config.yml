@@ -115,7 +115,7 @@ jobs:
           name: Wait for server
           background: true
           command: |
-            until $(./scripts/run-in-docker curl --fail --silent --output /dev/null http://localhost:8000/admin/ui); do
+            while [[ "$(docker ps --last 1 --filter status=running --quiet)" == "" ]]; do
               printf '.'
               sleep 1
             done
