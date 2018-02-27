@@ -175,6 +175,7 @@ viewBlankOr htmlFn m tl pt b hover =
           VarBind -> "varname"
           HTTPRoute -> "route"
           HTTPVerb -> "verb"
+          HTTPSpace -> "module"
           Expr -> paramPlaceholder
           Field -> "fieldname"
           DBColName -> "db field name"
@@ -389,7 +390,7 @@ viewHandler m tl h =
             ( externalLink ++
               [ Html.div
                 [ Attrs.class "module" ]
-                [ Html.text "HTTP"]
+                [ viewBlankOrText m tl HTTPSpace h.spec.module_ Nothing ]
               , viewBlankOrText m tl HTTPVerb h.spec.modifier Nothing
               ]
             )

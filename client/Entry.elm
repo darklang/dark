@@ -38,7 +38,8 @@ focusEntry = Dom.focus Defaults.entryID |> Task.attempt FocusEntry
 
 
 newHandlerSpec : () -> HandlerSpec
-newHandlerSpec _ = { name = newBlank ()
+newHandlerSpec _ = { module_ = newBlank ()
+                   , name = newBlank ()
                    , modifier = newBlank ()
                    , types = { input = newBlank ()
                              , output = newBlank ()
@@ -240,6 +241,12 @@ submit m cursor action value =
             <|
           let h = deMaybe "maybeH - httpverb" maybeH
               replacement = SpecHeaders.replaceHTTPVerbBlank id value h.spec in
+          wrap <| SetHandler tlid tl.pos { h | spec = replacement }
+        HTTPSpace ->
+          validate "[A-Z]+" "HTTP Space"
+            <|
+          let h = deMaybe "maybeH - httpspace" maybeH
+              replacement = SpecHeaders.replaceHTTPSpaceBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           validate ".+" "fieldname"

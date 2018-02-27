@@ -28,6 +28,13 @@ replaceHTTPRouteBlank id value hs =
                 else hs.name
   }
 
+replaceHTTPSpaceBlank : ID -> String -> HandlerSpec -> HandlerSpec
+replaceHTTPSpaceBlank id value hs =
+  { hs | module_ = if blankOrID hs.module_ == id
+                    then Filled (blankOrID hs.module_) value
+                    else hs.module_
+  }
+
 
 deleteHTTPRouteBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
 deleteHTTPRouteBlank p hs newID =
@@ -41,6 +48,13 @@ deleteHTTPVerbBlank p hs newID =
   { hs | modifier = if blankOrID hs.modifier == (P.idOf p)
                     then Blank newID
                     else hs.modifier
+  }
+
+deleteHTTPSpaceBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
+deleteHTTPSpaceBlank p hs newID =
+  { hs | module_ = if blankOrID hs.module_ == (P.idOf p)
+                    then Blank newID
+                    else hs.module_
   }
 
 allPointers : HandlerSpec -> List Pointer

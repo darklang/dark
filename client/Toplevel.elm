@@ -106,6 +106,9 @@ clonePointerData pd =
     PHTTPRoute id sp ->
       let nid = gid ()
       in PHTTPRoute nid (replaceBlankOr nid sp)
+    PHTTPSpace id sp ->
+      let nid = gid ()
+      in PHTTPSpace nid (replaceBlankOr nid sp)
     PExpr id expr ->
       let (nid, ast) = AST.clone expr
       in PExpr nid ast

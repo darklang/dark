@@ -43,6 +43,7 @@ pdToP pd =
     PVarBind id _ -> PFilled VarBind id
     PHTTPVerb id _ -> PFilled HTTPVerb id
     PHTTPRoute id _ -> PFilled HTTPRoute id
+    PHTTPSpace id _ -> PFilled HTTPSpace id
     PExpr id _ -> PFilled Expr id
     PField id _ -> PFilled Field id
     PDBColName id _ -> PFilled DBColName id
@@ -57,6 +58,7 @@ emptyD pt id =
     VarBind -> PVarBind id (Blank id)
     HTTPVerb -> PHTTPVerb id (Blank id)
     HTTPRoute -> PHTTPRoute id (Blank id)
+    HTTPSpace -> PHTTPSpace id (Blank id)
     Expr -> PExpr id (Hole id)
     Field -> PField id (Blank id)
     DBColName -> PDBColName id (Blank id)
@@ -80,6 +82,7 @@ ownerOf p =
     VarBind -> POAst
     HTTPRoute -> POSpecHeader
     HTTPVerb -> POSpecHeader
+    HTTPSpace -> POSpecHeader
     Expr -> POAst
     Field -> POAst
     DBColName -> PODb

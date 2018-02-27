@@ -146,6 +146,10 @@ delete m tlid cur =
       let h = maybeH ()
           replacement = SpecHeaders.deleteHTTPRouteBlank cur h.spec newID
       in wrapH { h | spec = replacement }
+    HTTPSpace ->
+      let h = maybeH ()
+          replacement = SpecHeaders.deleteHTTPSpaceBlank cur h.spec newID
+      in wrapH { h | spec = replacement }
     Field ->
       let h = maybeH ()
           replacement = AST.deleteExpr cur h.ast newID

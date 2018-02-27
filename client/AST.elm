@@ -553,6 +553,7 @@ toContent pd =
         _ -> ""
     PHTTPVerb _ _ -> ""
     PHTTPRoute _ _ -> ""
+    PHTTPSpace _ _ -> ""
     PDBColName _ _ -> ""
     PDBColType _ _ -> ""
     PDarkType _ _ -> ""

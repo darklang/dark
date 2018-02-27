@@ -241,6 +241,7 @@ type alias AST = Expr
 type PointerType = VarBind
                  | HTTPRoute
                  | HTTPVerb
+                 | HTTPSpace
                  | Expr
                  | Field
                  | DBColName
@@ -254,6 +255,7 @@ type Pointer = PBlank PointerType ID
 type PointerData = PVarBind ID VarBind
                  | PHTTPRoute ID (BlankOr String)
                  | PHTTPVerb ID (BlankOr String)
+                 | PHTTPSpace ID (BlankOr String)
                  | PExpr ID Expr
                  | PField ID Field
                  | PDBColName ID (BlankOr String)
@@ -302,7 +304,8 @@ type alias SpecTypes = { input : BlankOr DarkType
                        , output : BlankOr DarkType
                        }
 
-type alias HandlerSpec = { name : BlankOr String
+type alias HandlerSpec = { module_ : BlankOr String
+                         , name : BlankOr String
                          , modifier : BlankOr String
                          , types : SpecTypes
                          }

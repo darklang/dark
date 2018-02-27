@@ -75,7 +75,7 @@ encodeRPC m call =
       SetHandler id pos h ->
         let hs = JSE.object
                    [ ("name", encodeBlankOr JSE.string h.spec.name)
-                   , ("module", encodeBlankOr JSE.string (Filled (ID 23) "HTTP"))
+                   , ("module", encodeBlankOr JSE.string h.spec.module_)
                    , ("modifier", encodeBlankOr JSE.string h.spec.modifier)
                    , ("types", encodeSpecTypes h.spec.types)
                    ]
@@ -254,8 +254,9 @@ decodeTLAResult =
 
 decodeHandlerSpec : JSD.Decoder HandlerSpec
 decodeHandlerSpec =
-  let toHS _ name modifier input output =
-        { name = name
+  let toHS module_ name modifier input output =
+        { module_ = module_
+        , name = name
         , modifier = modifier
         , types = { input = input
                   , output = output
