@@ -52,10 +52,15 @@ jobs:
 
       - run:
           name: Copy out caches
+          # Clear caches on Sundays to keep their size down
           command: |
-            docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
-            docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
-            docker cp vols:/home/dark/app/server/_build server/_build
+            if [[ `date +"%A"` == "Sunday" ]]; then
+              rm -Rf client/elm-stuff client/tests/elm-stuff server/_build
+            else
+              docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
+              docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
+              docker cp vols:/home/dark/app/server/_build server/_build
+            fi
 
       - save_cache:
           when: always
