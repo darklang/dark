@@ -53,7 +53,7 @@ jobs:
       - run:
           name: Copy out artifacts
           command: |
-            docker cp dark:/home/dark/app/logs logs1
+            docker cp vols:/home/dark/app/logs test-logs
 
 
       - run:
@@ -106,14 +106,14 @@ jobs:
       - run:
           name: Copy out artifacts
           command: |
-            docker cp dark:/home/dark/app/integration-tests/screenshots integration-tests/screenshots
-            docker cp dark:/home/dark/app/logs logs2
+            docker cp vols:/home/dark/app/integration-tests/screenshots integration-tests/screenshots
+            docker cp vols:/home/dark/app/logs integration-tests/logs
 
       - store_artifacts:
           path: integration-tests/screenshots
 
       - store_artifacts:
-          path: logs1
+          path: integration-tests/logs
 
       - store_artifacts:
-          path: logs2
+          path: unit-test-logs
