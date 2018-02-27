@@ -54,10 +54,8 @@ jobs:
             docker run -i --volumes-from vols dark sudo chown -R dark /home/dark/app
 
 
-      - run:
-          name: Compile && test
-          command: |
-            scripts/builder --compile --test
+      - run: scripts/builder --compile --test
+
 
       - run:
           name: Copy out data
@@ -78,7 +76,10 @@ jobs:
           name: Run server
           background: true
           command: |
-            scripts/builder --watch
+            scripts/builder --serve
+
+
+      - run: sleep 10
 
       - run: scripts/run-in-docker integration_tests/run.sh
 
