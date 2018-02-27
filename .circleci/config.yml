@@ -12,37 +12,10 @@ jobs:
       - run:
           name: Install outer container utilities
           # coreutils for gnu date
-          # build-base for fswatch
           # bash for scripts
           command: |
-            apk add --update build-base bash coreutils
+            apk add --update bash coreutils
 
-
-      # fswatch
-      - restore_cache:
-          key: v1-fswatch
-
-      - run:
-          name: Build fswatch
-          command: |
-            if [ ! -d fswatch-1.10.0 ]; then
-              wget -q https://github.com/emcrisostomo/fswatch/releases/download/1.10.0/fswatch-1.10.0.tar.gz
-              tar -zxvf fswatch-1.10.0.tar.gz
-              cd fswatch-1.10.0
-              ./configure
-              make
-            fi
-
-      - save_cache:
-          key: v1-fswatch
-          paths:
-            - fswatch-1.10.0
-
-      - run:
-          name: Install fswatch
-          command: |
-            cd fswatch-1.10.0
-            make install
 
 
       # Setup for daily/weekly caches
