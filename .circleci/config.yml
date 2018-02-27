@@ -101,7 +101,7 @@ jobs:
       - run:
           name: Prep integration tests
           command: |
-            echo "nameserver 127.0.0.1" | scripts/run-in-docker cat /etc/resolv.conf > resolv.conf
+            echo "nameserver 127.0.0.1" | scripts/run-in-docker cat - /etc/resolv.conf > resolv.conf
             cat resolv.conf | scripts/run-in-docker sudo tee -a /etc/resolv.conf
             scripts/run-in-docker sudo /etc/init.d/postgresql start
             scripts/run-in-docker sudo /etc/init.d/dnsmasq start
