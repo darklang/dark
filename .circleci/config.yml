@@ -40,9 +40,20 @@ jobs:
             cd fswatch-1.10.0
             make install
 
+      # Setup for daily/weekly caches
+      - run: date +"%F" > today-timestamp
+      - run: date +"%F" -d yesterday > today-timestamp
+      - run: date +"%V-%Y" > thisweek-timestamp
+      - run: date +"%V-%Y" -d last-week  > lastweek-timestamp
+
       # main build
       - restore_cache:
-          key: v1-build # our tools are good so we don't need to checksum
+          keys:
+            - v1-build-{{ checksum "today-timestamp" }}
+            - v1-build-{{ checksum "yesterday-timestamp" }}
+            - v1-build-{{ checksum "thisweek-timestamp" }}
+            - v1-build-{{ checksum "lastweek-timestamp" }}
+            - v1-build
 
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
@@ -64,13 +75,30 @@ jobs:
             docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
             docker cp vols:/home/dark/app/server/_build server/_build
 
-      - save_cache:
+      - Save_cache: &save_build_cache
           key: v1-build
           when: always
           paths:
             - client/elm-stuff
             - client/tests/elm-stuff
             - server/_build
+      - save_cache:
+          <<: *save_build_cache
+          key: v1-build
+      - save_cache:
+          <<: *save_build_cache
+          key: v1-build-{{ checksum "today-timestamp" }}
+      - save_cache:
+          <<: *save_build_cache
+          key: v1-build-{{ checksum "yesterday-timestamp" }}
+      - save_cache:
+          <<: *save_build_cache
+          key: v1-build-{{ checksum "thisweek-timestamp" }}
+      - save_cache:
+          <<: *save_build_cache
+          key: v1-build-{{ checksum "lastweek-timestamp" }}
+
+
 
       - run:
           name: Run server
