@@ -96,6 +96,8 @@ jobs:
           command: |
             scripts/builder --serve
 
+      - run: scripts/wait-for-server
+
       - run:
           name: Prep integration tests
           command: |
@@ -104,14 +106,6 @@ jobs:
             scripts/run-in-docker sudo /etc/init.d/postgresql start
             scripts/run-in-docker sudo /etc/init.d/dnsmasq start
             sleep 10
-
-      - run:
-          name: Wait for server
-          command: |
-            while [[ "$(docker ps --last 1 --filter status=running --quiet)" == "" ]]; do
-              printf '.'
-              sleep 1
-            done
 
       - run: scripts/run-in-docker integration-tests/run.sh
 

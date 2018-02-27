@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+while [[ "$(docker ps --last 1 --filter status=running --quiet)" == "" ]]; do
+  printf '.'
+  sleep 1
+done
