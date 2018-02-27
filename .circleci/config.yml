@@ -118,3 +118,15 @@ jobs:
 
       - run: scripts/run-in-docker integration-tests/run.sh
 
+      - run:
+          name: Copy out artifacts
+          command: |
+            docker cp dark:/home/dark/app/integration-tests/screenshots integration-tests/screenshots
+            docker cp dark:/home/dark/app/logs logs
+
+      - store_artifacts:
+          path: integration-tests/screenshots
+
+      - store_artifacts:
+          path: logs
+
