@@ -66,6 +66,7 @@ $FSWATCH | docker run \
              -i \
              $MOUNTS \
              --privileged \
+             --dns 127.0.0.1 \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
