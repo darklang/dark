@@ -101,6 +101,7 @@ body #grid * {
   flex-direction: column;
   width: max-content;
   padding: 4px;
+  border: @top-border;
 
   &.selected {
     background-color: @selected-background;
@@ -313,10 +314,13 @@ body #grid * {
 //*************
 .ast {
   font-size: 10pt;
-  padding: 8px;
+  padding-right: 8px;
+  padding-left: 8px;
+  padding-top: 24px;
+  padding-bottom: 24px;
   white-space: pre;
   width: max-content;
-  border: @top-border;
+  // border: @top-border;
   .layout-block;
 
   div {
@@ -567,6 +571,7 @@ body #grid * {
 // ---------------------------
 .spec-type {
   .blank-text-style;
+  padding: 8px;
 
   & > :not(.header)  {
     margin-left: 2ch;
