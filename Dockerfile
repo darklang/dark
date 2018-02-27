@@ -88,7 +88,6 @@ ENV LANGUAGE en_US:en
 USER root
 RUN npm install -g yarn
 USER dark
-# TODO: combine into single command if possible
 RUN yarn add \
   elm@0.18.0 \
   elm-test@0.18.12 \
