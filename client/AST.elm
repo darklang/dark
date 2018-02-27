@@ -551,9 +551,9 @@ toContent pd =
         Value _ s -> s
         Variable _ v -> v
         _ -> ""
-    PHTTPVerb _ _ -> ""
-    PHTTPRoute _ _ -> ""
-    PHTTPSpace _ _ -> ""
+    PEventModifier _ _ -> ""
+    PEventName _ _ -> ""
+    PEventSpace _ _ -> ""
     PDBColName _ _ -> ""
     PDBColType _ _ -> ""
     PDarkType _ _ -> ""

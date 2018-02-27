@@ -173,9 +173,9 @@ viewBlankOr htmlFn m tl pt b hover =
       placeholder =
         case pt of
           VarBind -> "varname"
-          HTTPRoute -> "route"
-          HTTPVerb -> "verb"
-          HTTPSpace -> "module"
+          EventName -> "event name"
+          EventModifier -> "event modifier"
+          EventSpace -> "event space"
           Expr -> paramPlaceholder
           Field -> "fieldname"
           DBColName -> "db field name"
@@ -384,14 +384,14 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "name"]
-            [ viewBlankOrText m tl HTTPRoute h.spec.name Nothing ]
+            [ viewBlankOrText m tl EventName h.spec.name Nothing ]
           , Html.div
             [ Attrs.class "modifier" ]
             ( externalLink ++
               [ Html.div
                 [ Attrs.class "module" ]
-                [ viewBlankOrText m tl HTTPSpace h.spec.module_ Nothing ]
-              , viewBlankOrText m tl HTTPVerb h.spec.modifier Nothing
+                [ viewBlankOrText m tl EventSpace h.spec.module_ Nothing ]
+              , viewBlankOrText m tl EventModifier h.spec.modifier Nothing
               ]
             )
           ]

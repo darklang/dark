@@ -230,23 +230,23 @@ submit m cursor action value =
             let h = deMaybe "maybeH - varbind" maybeH
                 replacement = AST.replaceVarBind p value h.ast in
             wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-        HTTPRoute ->
-          validate "/([-a-zA-Z0-9@:%_+.~#?&/=]*)" "http route"
+        EventName ->
+          validate "/([-a-zA-Z0-9@:%_+.~#?&/=]*)" "event name"
             <|
-          let h = deMaybe "maybeH - httproute" maybeH
-              replacement = SpecHeaders.replaceHTTPRouteBlank id value h.spec in
+          let h = deMaybe "maybeH - eventname" maybeH
+              replacement = SpecHeaders.replaceEventNameBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        HTTPVerb ->
-          validate "[A-Z]+" "HTTP Verb"
+        EventModifier ->
+          validate "[A-Z]+" "event modifier"
             <|
-          let h = deMaybe "maybeH - httpverb" maybeH
-              replacement = SpecHeaders.replaceHTTPVerbBlank id value h.spec in
+          let h = deMaybe "maybeH - eventmodifier" maybeH
+              replacement = SpecHeaders.replaceEventModifierBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        HTTPSpace ->
-          validate "[A-Z]+" "HTTP Space"
+        EventSpace ->
+          validate "[A-Z]+" "event space"
             <|
-          let h = deMaybe "maybeH - httpspace" maybeH
-              replacement = SpecHeaders.replaceHTTPSpaceBlank id value h.spec in
+          let h = deMaybe "maybeH - eventspace" maybeH
+              replacement = SpecHeaders.replaceEventSpaceBlank id value h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           validate ".+" "fieldname"

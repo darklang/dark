@@ -17,6 +17,7 @@ import Types exposing (..)
 import Runtime as RT
 import Pointer as P
 import Analysis
+import Toplevel as TL
 
 ----------------------------
 -- Focus
@@ -303,15 +304,33 @@ generateFromModel m a =
 
       extras =
         case a.target of
-          Just (_, p) ->
+          Just (tlid, p) ->
             case P.typeOf p of
-              HTTPVerb ->
-                [ "GET"
-                , "POST"
-                , "PUT"
-                , "DELETE"
-                , "PATCH"
-                ]
+              -- autocomplete HTTP verbs if the handler is in the HTTP
+              -- event space
+              EventModifier ->
+                let handler = tlid
+                              |> TL.getTL m
+                              |> TL.asHandler
+                in
+                    case handler of
+                      Nothing -> []
+                      Just h ->
+                        case h.spec.module_ of
+                          Blank _ -> []
+                          Filled _ s ->
+                            if String.toLower s == "http"
+                            then
+                              [ "GET"
+                              , "POST"
+                              , "PUT"
+                              , "DELETE"
+                              , "PATCH"
+                              ]
+                            else
+                              []
+              EventSpace ->
+                ["HTTP"]
               DBColType ->
                 [ "String"
                 , "Int"

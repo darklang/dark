@@ -100,15 +100,15 @@ clonePointerData pd =
     PVarBind id vb ->
       let nid = gid ()
       in PVarBind nid (replaceBlankOr nid vb)
-    PHTTPVerb id sp ->
+    PEventModifier id sp ->
       let nid = gid ()
-      in PHTTPVerb nid (replaceBlankOr nid sp)
-    PHTTPRoute id sp ->
+      in PEventModifier nid (replaceBlankOr nid sp)
+    PEventName id sp ->
       let nid = gid ()
-      in PHTTPRoute nid (replaceBlankOr nid sp)
-    PHTTPSpace id sp ->
+      in PEventName nid (replaceBlankOr nid sp)
+    PEventSpace id sp ->
       let nid = gid ()
-      in PHTTPSpace nid (replaceBlankOr nid sp)
+      in PEventSpace nid (replaceBlankOr nid sp)
     PExpr id expr ->
       let (nid, ast) = AST.clone expr
       in PExpr nid ast

@@ -239,9 +239,9 @@ type alias AST = Expr
 -- so we're not using IDs in important APIs
 -----------------------------
 type PointerType = VarBind
-                 | HTTPRoute
-                 | HTTPVerb
-                 | HTTPSpace
+                 | EventName
+                 | EventSpace
+                 | EventModifier
                  | Expr
                  | Field
                  | DBColName
@@ -253,9 +253,9 @@ type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
 
 type PointerData = PVarBind ID VarBind
-                 | PHTTPRoute ID (BlankOr String)
-                 | PHTTPVerb ID (BlankOr String)
-                 | PHTTPSpace ID (BlankOr String)
+                 | PEventName ID (BlankOr String)
+                 | PEventModifier ID (BlankOr String)
+                 | PEventSpace ID (BlankOr String)
                  | PExpr ID Expr
                  | PField ID Field
                  | PDBColName ID (BlankOr String)

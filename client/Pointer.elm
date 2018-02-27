@@ -41,9 +41,9 @@ pdToP : PointerData -> Pointer
 pdToP pd =
   case pd of
     PVarBind id _ -> PFilled VarBind id
-    PHTTPVerb id _ -> PFilled HTTPVerb id
-    PHTTPRoute id _ -> PFilled HTTPRoute id
-    PHTTPSpace id _ -> PFilled HTTPSpace id
+    PEventModifier id _ -> PFilled EventModifier id
+    PEventName id _ -> PFilled EventName id
+    PEventSpace id _ -> PFilled EventSpace id
     PExpr id _ -> PFilled Expr id
     PField id _ -> PFilled Field id
     PDBColName id _ -> PFilled DBColName id
@@ -56,9 +56,9 @@ emptyD : PointerType -> ID -> PointerData
 emptyD pt id =
   case pt of
     VarBind -> PVarBind id (Blank id)
-    HTTPVerb -> PHTTPVerb id (Blank id)
-    HTTPRoute -> PHTTPRoute id (Blank id)
-    HTTPSpace -> PHTTPSpace id (Blank id)
+    EventModifier -> PEventModifier id (Blank id)
+    EventName -> PEventName id (Blank id)
+    EventSpace -> PEventSpace id (Blank id)
     Expr -> PExpr id (Hole id)
     Field -> PField id (Blank id)
     DBColName -> PDBColName id (Blank id)
@@ -80,9 +80,9 @@ ownerOf : Pointer -> PointerOwner
 ownerOf p =
   case (typeOf p) of
     VarBind -> POAst
-    HTTPRoute -> POSpecHeader
-    HTTPVerb -> POSpecHeader
-    HTTPSpace -> POSpecHeader
+    EventName -> POSpecHeader
+    EventModifier -> POSpecHeader
+    EventSpace -> POSpecHeader
     Expr -> POAst
     Field -> POAst
     DBColName -> PODb

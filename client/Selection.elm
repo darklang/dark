@@ -138,17 +138,17 @@ delete m tlid cur =
       let h = maybeH ()
           replacement = AST.deleteExpr cur h.ast newID
       in wrapH { h | ast = replacement }
-    HTTPVerb ->
+    EventModifier ->
       let h = maybeH ()
-          replacement = SpecHeaders.deleteHTTPVerbBlank cur h.spec newID
+          replacement = SpecHeaders.deleteEventModifierBlank cur h.spec newID
       in wrapH { h | spec = replacement }
-    HTTPRoute ->
+    EventName ->
       let h = maybeH ()
-          replacement = SpecHeaders.deleteHTTPRouteBlank cur h.spec newID
+          replacement = SpecHeaders.deleteEventNameBlank cur h.spec newID
       in wrapH { h | spec = replacement }
-    HTTPSpace ->
+    EventSpace ->
       let h = maybeH ()
-          replacement = SpecHeaders.deleteHTTPSpaceBlank cur h.spec newID
+          replacement = SpecHeaders.deleteEventSpaceBlank cur h.spec newID
       in wrapH { h | spec = replacement }
     Field ->
       let h = maybeH ()
