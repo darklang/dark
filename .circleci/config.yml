@@ -44,6 +44,7 @@ jobs:
             cd fswatch-1.10.0
             make install
 
+
       # Setup for daily/weekly caches
       - run: date +"%F" > today-timestamp
       - run: date +"%F" -d yesterday > yesterday-timestamp
@@ -68,9 +69,7 @@ jobs:
             # set the ownership of all this
             docker run -i --volumes-from vols dark sudo chown -R dark /home/dark/app
 
-
       - run: scripts/builder --compile --test
-
 
       - run:
           name: Copy out data
@@ -103,17 +102,14 @@ jobs:
           key: v1-build-{{ checksum "lastweek-timestamp" }}
 
 
-
       - run:
           name: Run server
           background: true
           command: |
             scripts/builder --serve
 
-
       - run:
           name: Wait for server
-          background: true
           command: |
             while [[ "$(docker ps --last 1 --filter status=running --quiet)" == "" ]]; do
               printf '.'
