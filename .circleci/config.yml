@@ -47,7 +47,7 @@ jobs:
 
       # Setup for daily/weekly caches
       - run: date +"%F" > today-timestamp
-      - run: date +"%F" -d yesterday > today-timestamp
+      - run: date +"%F" -d yesterday > yesterday-timestamp
       - run: date +"%V-%Y" > thisweek-timestamp
       - run: date +"%V-%Y" -d last-week  > lastweek-timestamp
 
