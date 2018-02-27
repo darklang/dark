@@ -245,7 +245,7 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
     | None -> RTT.EnvMap.find_exn environments 0
   in
   let vals = c.toplevels
-             |> TL.http_handlers
+             |> TL.handlers
              |> List.map
                ~f:(fun h ->
                    let envs = available_reqs h.tlid in

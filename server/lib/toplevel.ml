@@ -29,6 +29,9 @@ let http_handlers (tls: toplevel_list) : Handler.handler list =
   |> List.filter_map ~f:as_handler
   |> List.filter ~f:Handler.is_http
 
+let handlers (tls: toplevel_list) : Handler.handler list =
+  List.filter_map ~f:as_handler tls
+
 let dbs (tls: toplevel_list) : DbT.db list =
   List.filter_map ~f:as_db tls
 
