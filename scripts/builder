@@ -49,16 +49,16 @@ if [ -v CI ]; then
   # hard code these for now, til we figure out how to get DNS wildcards
   # into docker-in-docker. (dnsmasq doesn't work because it doesn't have
   # the right CAP)
-  HOSTS="test_enter_changes_state.localhost:127.0.0.1 \
-         test_field_access.localhost:127.0.0.1 \
-         test_field_access_closes.localhost:127.0.0.1 \
-         test_field_access_nested.localhost:127.0.0.1 \
-         test_field_access_pipes.localhost:127.0.0.1 \
-         test_next_sibling_works.localhost:127.0.0.1 \
-         test_pipeline_let_equals.localhost:127.0.0.1 \
-         test_pipe_within_let.localhost:127.0.0.1 \
-         test_tabbing_works.localhost:127.0.0.1 \
-         test_varbinds_are_editable.localhost:127.0.0.1 \
+  HOSTS="--add-host test_enter_changes_state.localhost:127.0.0.1 \
+         --add-host test_field_access.localhost:127.0.0.1 \
+         --add-host test_field_access_closes.localhost:127.0.0.1 \
+         --add-host test_field_access_nested.localhost:127.0.0.1 \
+         --add-host test_field_access_pipes.localhost:127.0.0.1 \
+         --add-host test_next_sibling_works.localhost:127.0.0.1 \
+         --add-host test_pipeline_let_equals.localhost:127.0.0.1 \
+         --add-host test_pipe_within_let.localhost:127.0.0.1 \
+         --add-host test_tabbing_works.localhost:127.0.0.1 \
+         --add-host test_varbinds_are_editable.localhost:127.0.0.1 \
         "
 else
   HOSTS=""
