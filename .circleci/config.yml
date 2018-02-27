@@ -79,7 +79,14 @@ jobs:
             scripts/builder --serve
 
 
-      - run: sleep 10
+      - run:
+          name: Wait for server
+          background: true
+          command: |
+            until $(curl --output /dev/null --silent --head --fail http://localhost:8000); do
+              printf '.'
+              sleep 1
+            done
 
       - run: scripts/run-in-docker integration_tests/run.sh
 
