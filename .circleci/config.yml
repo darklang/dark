@@ -51,6 +51,12 @@ jobs:
       - run: scripts/builder --compile --test
 
       - run:
+          name: Copy out artifacts
+          command: |
+            docker cp dark:/home/dark/app/logs logs1
+
+
+      - run:
           name: Copy out caches
           # Clear caches on Sundays to keep their size down
           command: |
@@ -79,6 +85,15 @@ jobs:
             scripts/builder --serve
 
       - run:
+          name: Prep integration tests
+          command: |
+            echo "nameserver 127.0.0.1" | cat /etc/resolv.conf > resolv.conf
+            sudo cp resolv.conf /etc/resolv.conf
+            sudo /etc/init.d/postgresql start
+            sudo /etc/init.d/dnsmasq start
+            sleep 10
+
+      - run:
           name: Wait for server
           command: |
             while [[ "$(docker ps --last 1 --filter status=running --quiet)" == "" ]]; do
@@ -92,11 +107,13 @@ jobs:
           name: Copy out artifacts
           command: |
             docker cp dark:/home/dark/app/integration-tests/screenshots integration-tests/screenshots
-            docker cp dark:/home/dark/app/logs logs
+            docker cp dark:/home/dark/app/logs logs2
 
       - store_artifacts:
           path: integration-tests/screenshots
 
       - store_artifacts:
-          path: logs
+          path: logs1
 
+      - store_artifacts:
+          path: logs2
