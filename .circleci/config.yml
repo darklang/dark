@@ -62,9 +62,9 @@ jobs:
 
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
-          name: Copy in data
+          name: Copy in app directory
           command: |
-            docker create -v /home/dark/conduit-frontend -v /home/dark/app --name vols alpine:3.4 /bin/true
+            docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
             # set the ownership of all this
             docker run -i --volumes-from vols dark sudo chown -R dark /home/dark/app
@@ -72,7 +72,7 @@ jobs:
       - run: scripts/builder --compile --test
 
       - run:
-          name: Copy out data
+          name: Copy out caches
           command: |
             docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
             docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
