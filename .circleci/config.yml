@@ -116,5 +116,5 @@ jobs:
               sleep 1
             done
 
-      - run: scripts/run-in-docker integration_tests/run.sh
+      - run: scripts/run-in-docker integration-tests/run.sh
 
