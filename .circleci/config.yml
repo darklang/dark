@@ -69,12 +69,13 @@ jobs:
 
       - run:
           name: Copy out artifacts
+          when: always
           command: |
             docker cp vols:/home/dark/app/logs test-logs
 
-
       - run:
           name: Copy out caches
+          when: always
           command: |
             docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
             docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
@@ -111,6 +112,7 @@ jobs:
 
       - run:
           name: Copy out artifacts
+          when: always
           command: |
             docker cp vols:/home/dark/app/integration-tests/screenshots integration-tests/screenshots
             docker cp vols:/home/dark/app/logs integration-tests/logs
