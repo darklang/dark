@@ -17,21 +17,27 @@ jobs:
             apk add --update bash coreutils
 
 
-
       # Setup for daily/weekly caches
       - run: date +"%F" > today-timestamp
-      - run: date +"%F" -d yesterday > yesterday-timestamp
-      - run: date +"%V-%Y" > thisweek-timestamp
-      - run: date +"%V-%Y" -d last-week  > lastweek-timestamp
+      - run: date +"%F" -d "today - 1 days" > minus1-timestamp
+      - run: date +"%F" -d "today - 2 days" > minus2-timestamp
+      - run: date +"%F" -d "today - 3 days" > minus3-timestamp
+      - run: date +"%F" -d "today - 4 days" > minus4-timestamp
+      - run: date +"%F" -d "today - 5 days" > minus5-timestamp
+      - run: date +"%F" -d "today - 6 days" > minus6-timestamp
+      - run: date +"%F" -d "today - 7 days" > minus7-timestamp
 
       # main build
       - restore_cache:
           keys:
             - v1-build-{{ checksum "today-timestamp" }}
-            - v1-build-{{ checksum "yesterday-timestamp" }}
-            - v1-build-{{ checksum "thisweek-timestamp" }}
-            - v1-build-{{ checksum "lastweek-timestamp" }}
-            - v1-build
+            - v1-build-{{ checksum "today - 1 days" }}
+            - v1-build-{{ checksum "today - 2 days" }}
+            - v1-build-{{ checksum "today - 3 days" }}
+            - v1-build-{{ checksum "today - 4 days" }}
+            - v1-build-{{ checksum "today - 5 days" }}
+            - v1-build-{{ checksum "today - 6 days" }}
+            - v1-build-{{ checksum "today - 7 days" }}
 
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
@@ -51,28 +57,14 @@ jobs:
             docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
             docker cp vols:/home/dark/app/server/_build server/_build
 
-      - Save_cache: &save_build_cache
-          key: v1-build
+      - save_cache:
           when: always
           paths:
             - client/elm-stuff
             - client/tests/elm-stuff
             - server/_build
-      - save_cache:
-          <<: *save_build_cache
-          key: v1-build
-      - save_cache:
-          <<: *save_build_cache
           key: v1-build-{{ checksum "today-timestamp" }}
-      - save_cache:
-          <<: *save_build_cache
-          key: v1-build-{{ checksum "yesterday-timestamp" }}
-      - save_cache:
-          <<: *save_build_cache
-          key: v1-build-{{ checksum "thisweek-timestamp" }}
-      - save_cache:
-          <<: *save_build_cache
-          key: v1-build-{{ checksum "lastweek-timestamp" }}
+
 
 
       - run:
