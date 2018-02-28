@@ -302,7 +302,9 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
 
        | Thread (id, exprs) ->
          List.iter ~f:(fun expr -> sexe st expr) exprs
-       | FieldAccess (id, obj, field) -> ())
+
+       | FieldAccess (id, obj, field) ->
+         sexe st obj)
     in
     trace expr st
   with
