@@ -53,6 +53,12 @@ def start_postgres():
   print("--------------------------")
   run('sudo su postgres -c "/etc/init.d/postgresql start"')
 
+def start_cron():
+  print("--------------------------")
+  print("-- Starting cron")
+  print("--------------------------")
+  run('sudo /etc/init.d/cron start')
+
 # It is extremely challenging to get a non-blocking read on stdin.
 # Essentially, we want to read everything from stdin and then compile.
 # And if there isn't anything on stdin, sleep for a bit. The best way
@@ -137,6 +143,7 @@ def main():
   if compile:
     background_task(initial_compile, "initial_compile")
     background_task(start_postgres, "start_postgres")
+    background_task(start_cron, "start_cron")
 
   if watch:
     process_watchers()

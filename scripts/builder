@@ -69,6 +69,7 @@ $FSWATCH | docker run \
              --dns 127.0.0.1 \
              --dns 8.8.8.8 \
              --dns 8.8.4.4 \
+             -e CI \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
