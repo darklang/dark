@@ -158,10 +158,19 @@ test('varbinds_are_editable', async t => {
   await t
     .click(".ast")
     .pressKey("down")
+    .pressKey("enter")
+    ;
+});
+
+test('editing_request_edits_request', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "req.")
+    .pressKey("esc")
+    .pressKey("up")
     .pressKey("down")
     .pressKey("enter")
     ;
-  // TODO: this might be flaky. Maybe wait for a specific ID to be
-  // selected?
 });
 

@@ -23,6 +23,7 @@ trigger name =
     "test_tabbing_works" -> tabbingWorks
     "test_next_sibling_works" -> nextSiblingWorks
     "test_varbinds_are_editable" -> varbindsAreEditable
+    "test_editing_request_edits_request" -> editingRequestEditsRequest
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -151,4 +152,17 @@ varbindsAreEditable m =
           then pass
           else fail (id1, id2)
         s -> fail m.state
+    e -> fail e
+
+
+editingRequestEditsRequest : Model -> TestResult
+editingRequestEditsRequest m =
+  case onlyAST m of
+    FieldAccess _ (Variable id1 "request") (Blank _) ->
+      case m.complete.completions of
+        [_, _, cs, _] ->
+          case cs of
+            [ACVariable "request", _] -> pass
+            _ -> fail cs
+        cs -> fail cs
     e -> fail e
