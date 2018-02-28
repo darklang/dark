@@ -72,9 +72,9 @@ let enqueue (space: string) (name: string) (data: dval) : unit =
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue (space: string) (name: string) : dval =
+let dequeue (space: string) (name: string) : dval option =
   let fetched =
-    Printf.sprintf "SELECT id, value from \"events\" WHERE space = %s AND name = %s AND canvas = %s ORDER BY id DESC LIMIT 1"
+    Printf.sprintf "SELECT id, value from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' ORDER BY id DESC LIMIT 1"
       (wrap space)
       (wrap name)
       (wrap (current_scope_exn ()))
@@ -82,12 +82,12 @@ let dequeue (space: string) (name: string) : dval =
     |> List.hd
   in
   match fetched with
-  | None -> DNull
+  | None -> None
   | Some [id; value] ->
     Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
                   (string_of_int (scope_setter_exn ()))
                   id);
-    Dval.parse value
+    Some (Dval.parse value)
   | Some s -> Exception.internal ("Fetched seemingly impossible shape from Postgres" ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
 (* ------------------------- *)

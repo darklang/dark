@@ -129,20 +129,23 @@ let server =
                (* iterate all queues *)
                let queues = TL.bg_handlers !c.toplevels in
                let results =
-                 List.map queues
+                 List.filter_map queues
                    ~f:(fun q ->
                        let space = Handler.module_for_exn q in
                        let name = Handler.event_name_for_exn q in
-                       let event = Event_queue.dequeue space name in
-                       Stored_event.store endpoint q.tlid event;
-                       let dbs = TL.dbs !c.toplevels in
-                       let dbs_env = Db.dbs_as_exe_env (dbs) in
-                       Db.cur_dbs := dbs;
-                       let env = Map.set ~key:"event" ~data:event dbs_env in
-                       let result = Handler.execute q env in
-                       result
+                       (match Event_queue.dequeue space name with
+                        | None -> None
+                        | Some event ->
+                          Stored_event.store endpoint q.tlid event;
+                          let dbs = TL.dbs !c.toplevels in
+                          let dbs_env = Db.dbs_as_exe_env (dbs) in
+                          Db.cur_dbs := dbs;
+                          let env = Map.set ~key:"event" ~data:event dbs_env in
+                          let result = Handler.execute q env in
+                          Some result)
                      )
                in
+               Event_queue.unset_scope ~status:`OK;
                match results with
                | [] -> RTT.DIncomplete
                | l -> RTT.DList l
