@@ -37,17 +37,30 @@ let server =
           let dbs = TL.dbs !c.toplevels in
           let dbs_env = Db.dbs_as_env dbs in
           Db.cur_dbs := dbs;
-          let global = PReq.sample |> PReq.to_dval in
-          let env = RTT.DvalMap.set dbs_env "request" global in
+          let sample_request = PReq.sample |> PReq.to_dval in
+          let sample_event = RTT.DObj (RTT.DvalMap.empty) in
+          let default_env =
+            dbs_env
+            |> RTT.DvalMap.set ~key:"request" ~data:sample_request
+            |> RTT.DvalMap.set ~key:"event" ~data:sample_event
+          in
           let env_map acc (h : Handler.handler) =
             let h_envs =
               try
                 Stored_event.load_all host h.tlid
               with
               | _ ->
-                [global]
+                if Handler.is_http h
+                then [sample_request]
+                else [sample_event]
              in
-             let new_envs = List.map ~f:(fun e -> RTT.DvalMap.set dbs_env "request" e) h_envs in
+             let new_envs =
+               List.map h_envs
+                 ~f:(fun e ->
+                     if Handler.is_http h
+                     then RTT.DvalMap.set dbs_env "request" e
+                     else RTT.DvalMap.set dbs_env "event" e)
+             in
              RTT.EnvMap.set acc h.tlid new_envs
           in
           let tls_map =
@@ -55,7 +68,7 @@ let server =
           in
           (* TODO(ian): using 0 as a default, come up with better idea
            * later *)
-          RTT.EnvMap.set tls_map 0 [env]
+          RTT.EnvMap.set tls_map 0 [default_env]
         ) in
 
 
@@ -121,6 +134,7 @@ let server =
                        let space = Handler.module_for_exn q in
                        let name = Handler.event_name_for_exn q in
                        let event = Event_queue.dequeue space name in
+                       Stored_event.store endpoint q.tlid event;
                        let dbs = TL.dbs !c.toplevels in
                        let dbs_env = Db.dbs_as_exe_env (dbs) in
                        Db.cur_dbs := dbs;

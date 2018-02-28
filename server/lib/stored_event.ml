@@ -63,6 +63,8 @@ let next_filename (host: string) (id: int) : string =
 (* Exported *)
 (* ------------------------- *)
 
+(* TODO(ian): tag the event so if a handler changes from http -> async
+ * that namespace them etc. *)
 let store (host: string) (id: int) (event: RTT.dval) : unit =
   mkdir host id;
   let filename = next_filename host id in
