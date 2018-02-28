@@ -160,9 +160,9 @@ editingRequestEditsRequest m =
   case onlyAST m of
     FieldAccess _ (Variable id1 "request") (Blank _) ->
       case m.complete.completions of
-        [_, _, cs, _] ->
+        [cs, _, _, _] ->
           case cs of
-            [ACVariable "request", _] -> pass
+            [ACVariable "request"] -> pass
             _ -> fail cs
-        cs -> fail cs
+        allcs -> fail allcs
     e -> fail e
