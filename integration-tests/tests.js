@@ -120,6 +120,7 @@ test('pipe_within_let', async t => {
     .pressKey("shift+enter")
     .typeText("#entry-box", "assoc")
     .pressKey("enter")
+    .pressKey("esc")
     .expect(astAvailable).ok()
     ;
 });
