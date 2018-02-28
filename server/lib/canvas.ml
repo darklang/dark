@@ -223,15 +223,14 @@ let save ?(filename=None) (c : canvas) : unit =
 
 let save_test (c: canvas) : string =
   let c = minimize c in
-  let filename = "appdata/test_" ^ c.name ^ ".dark" in
-  let name = if Sys.file_exists filename = `Yes
-             then c.name ^ "_"
+  let name = "test_" ^ c.name in
+  let name = if Sys.file_exists (Serialize.current_filename_for name) = `Yes
+             then name ^ "_"
                   ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
-             else c.name in
+             else name in
   let c = {c with name = name } in
-  let filename = "appdata/test_" ^ name ^ ".dark" in
-  save ~filename:(Some filename) c;
-  filename
+  save c;
+  Serialize.json_filename_for c.name
 
 
 (* ------------------------- *)
