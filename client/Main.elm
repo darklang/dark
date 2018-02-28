@@ -316,7 +316,10 @@ updateMod mod (m, cmd) =
 
 processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
 processAutocompleteMods m mods =
-  let complete = List.foldl
+  let _ = if m.integrationTestState /= NoIntegrationTest
+          then Debug.log "autcompletemod update" mods
+          else mods
+      complete = List.foldl
         (\mod complete -> AC.update m mod complete)
         m.complete
         mods
