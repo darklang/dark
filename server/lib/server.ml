@@ -42,7 +42,7 @@ let server =
           let env_map acc (h : Handler.handler) =
             let h_envs =
               try
-                Stored_request.load_all host h.tlid
+                Stored_event.load_all host h.tlid
               with
               | _ ->
                 [global]
@@ -191,7 +191,7 @@ let server =
       | [page] ->
         let route = Handler.event_name_for_exn page in
         let input = PReq.from_request req body in
-        Stored_request.store host page.tlid (PReq.to_dval input);
+        Stored_event.store host page.tlid (PReq.to_dval input);
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
         let dbs_env = Db.dbs_as_exe_env (dbs) in
