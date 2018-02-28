@@ -21,8 +21,14 @@ import DB
 -------------------------
 getTL : Model -> TLID -> Toplevel
 getTL m id =
-  LE.find (\tl -> tl.id == id) m.toplevels
+  get m id
   |> deMaybe "getTL"
+
+get : Model -> TLID -> Maybe Toplevel
+get m id =
+  LE.find (\tl -> tl.id == id) m.toplevels
+
+
 
 upsert : Model -> Toplevel -> Model
 upsert m tl =

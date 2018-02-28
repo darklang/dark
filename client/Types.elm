@@ -175,7 +175,6 @@ type alias Autocomplete = { functions : List Function
                           , completions : List (List AutocompleteItem)
                           , index : Int
                           , value : String
-                          , liveValue : Maybe LiveValue
                           , target : Maybe (TLID, Pointer)
                           , tipe : Maybe Tipe
                           }
@@ -191,7 +190,6 @@ type AutocompleteMod = ACSetQuery String
                      | ACClear
                      | ACSelectDown
                      | ACSelectUp
-                     | ACFilterByLiveValue (Maybe LiveValue)
                      | ACSetTarget (Maybe (TLID, Pointer))
                      | ACRegenerate
                      -- | ACFilterByParamType Tipe NodeList

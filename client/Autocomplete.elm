@@ -18,6 +18,7 @@ import Runtime as RT
 import Pointer as P
 import Analysis
 import Toplevel as TL
+import AST
 
 ----------------------------
 -- Focus
@@ -113,13 +114,9 @@ init functions = { functions = functions
                  , completions = [List.map ACFunction functions]
                  , index = -1
                  , value = ""
-                 , liveValue = Nothing
                  , tipe = Nothing
                  , target = Nothing
                  }
-
-forLiveValue : Maybe LiveValue -> Autocomplete -> Autocomplete
-forLiveValue lv a = { a | liveValue = lv }
 
 -- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
 -- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
@@ -197,7 +194,6 @@ update m mod a =
      ACClear -> clear a
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
-     ACFilterByLiveValue lv -> forLiveValue lv a
      ACSetTarget target -> setTarget target a
      ACRegenerate -> a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
@@ -271,11 +267,27 @@ filter list query =
 
 generateFromModel : Model -> Autocomplete -> List AutocompleteItem
 generateFromModel m a =
-  let fields = case a.liveValue of
+  let lv =
+        case a.target of
+          Nothing -> Nothing
+          Just (tlid, p) ->
+            TL.get m tlid
+            |> Maybe.andThen TL.asHandler
+            |> Maybe.map .ast
+            |> Maybe.andThen (AST.getValueParent p)
+            |> Maybe.map P.idOf
+            |> Maybe.andThen (Analysis.getLiveValue m tlid)
+            -- don't filter on incomplete values
+            |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
+                                     then Nothing
+                                     else Just lv)
+      fields = case lv of
                  Just lv -> if lv.tipe == TObj
                             then jsonFields lv.json
                             else []
                  Nothing -> []
+
+
       --
       -- variables
       -- variables = case (a.tipe, a.nodes) of
@@ -297,10 +309,11 @@ generateFromModel m a =
                 Nothing -> True)
         |> List.filter
           (\fn ->
-             case a.liveValue of
+             case lv of
                Just {tipe} -> Nothing /= findParamByType fn tipe
                Nothing -> True)
         |> List.map ACFunction
+
 
       extras =
         case a.target of

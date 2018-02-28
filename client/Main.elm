@@ -32,7 +32,6 @@ import AST
 import Selection
 import Runtime
 import Toplevel as TL
-import Analysis
 import Util exposing (deMaybe)
 import IntegrationTest
 
@@ -275,44 +274,26 @@ updateMod mod (m, cmd) =
         in newM ! (closeThreads newM)
 
       Enter entry ->
-        let lv = -- TODO: move this into Autocomplete
-              case entry of
-                Creating _ -> Nothing
-                Filling tlid p ->
-                  let tl = TL.getTL m tlid in
-                  tl
-                  |> TL.asHandler
-                  |> Maybe.map .ast
-                  |> Maybe.andThen (AST.getValueParent p)
-                  |> Maybe.map P.idOf
-                  |> Maybe.andThen (Analysis.getLiveValue m tlid)
-                  -- don't filter on incomplete values
-                  |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
-                                           then Nothing
-                                           else Just lv)
-            target =
+        let target =
               case entry of
                 Creating _ -> Nothing
                 Filling tlid p -> Just (tlid, p)
 
             (complete, acCmd) =
-              processAutocompleteMods m [ ACSetTarget target
-                                        , ACFilterByLiveValue lv
-                                        ]
+              processAutocompleteMods m [ ACSetTarget target ]
             newM = { m | state = Entering entry, complete = complete }
         in
         newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry])
 
 
       SetToplevels tls tlars globals ->
-        let (complete, acCmd) =
-              processAutocompleteMods m [ ACRegenerate ]
+        let m2 = { m | toplevels = tls
+                     , analysis = tlars
+                     , globals = globals }
+            (complete, acCmd) =
+              processAutocompleteMods m2 [ ACRegenerate ]
         in
-        { m | toplevels = tls
-            , analysis = tlars
-            , globals = globals
-            , complete = complete
-        } ! [acCmd]
+        { m2 | complete = complete } ! [acCmd]
 
       SetCenter c ->
         { m | center = c } ! []
