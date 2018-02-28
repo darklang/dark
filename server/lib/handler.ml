@@ -28,7 +28,7 @@ let is_complete (h: handler) : bool =
 let is_http (h: handler) : bool =
   match h.spec.module_ with
   | Filled (_, m) -> String.Caseless.equal "http" m
-  | _ -> false
+  | _ -> true
 
 let module_for (h: handler) : string option =
   match h.spec.module_ with

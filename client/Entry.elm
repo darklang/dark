@@ -231,13 +231,27 @@ submit m cursor action value =
                 replacement = AST.replaceVarBind p value h.ast in
             wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         EventName ->
-          validate "/([-a-zA-Z0-9@:%_+.~#?&/=]*)" "event name"
-            <|
-          let h = deMaybe "maybeH - eventname" maybeH
-              replacement = SpecHeaders.replaceEventNameBlank id value h.spec in
-          wrap <| SetHandler tlid tl.pos { h | spec = replacement }
+          let eventNameValidation =
+                if TL.isHTTPHandler tl
+                then
+                  "/([-a-zA-Z0-9@:%_+.~#?&/=]*)"
+                else
+                  "[a-zA-Z_][a-zA-Z0-9_]*"
+          in
+              validate eventNameValidation "event name"
+              <|
+              let h = deMaybe "maybeH - eventname" maybeH
+                  replacement = SpecHeaders.replaceEventNameBlank id value h.spec in
+              wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         EventModifier ->
-          validate "[A-Z]+" "event modifier"
+          let eventModifierValidation =
+                if TL.isHTTPHandler tl
+                then
+                  "[A-Z]+"
+                else
+                  "[a-zA-Z_][a-zA-Z0-9_]*"
+          in
+          validate eventModifierValidation "event modifier"
             <|
           let h = deMaybe "maybeH - eventmodifier" maybeH
               replacement = SpecHeaders.replaceEventModifierBlank id value h.spec in

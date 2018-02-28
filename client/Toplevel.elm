@@ -82,7 +82,7 @@ isHTTPHandler tl =
     Nothing -> False
     Just h ->
       case h.spec.module_ of
-        Blank _ -> False
+        Blank _ -> True
         Filled _ s ->
           if String.toLower s == "http"
           then
