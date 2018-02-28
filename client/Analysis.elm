@@ -21,9 +21,9 @@ varnamesFor m target =
 
 
 getAnalysisResults : Model -> TLID -> List AResult
-getAnalysisResults m id =
+getAnalysisResults m tlid =
   m.analysis
-  |> List.filter (\tlar -> tlar.id == id)
+  |> List.filter (\tlar -> tlar.id == tlid)
   |> List.head
   -- only handlers have analysis results, but lots of stuff expect this
   -- data to exist. It may be better to not do that, but this is fine
@@ -38,13 +38,19 @@ getAnalysisResults m id =
                         , availableVarnames = Dict.empty
                         }]
 
+cursor : Model -> TLID -> Int
+cursor m tlid =
+  -- We briefly do analysis on a toplevel which does not have an
+  -- analysis available, so be careful here.
+  TL.get m tlid
+  |> Maybe.map .cursor
+  |> Maybe.withDefault 0
+
 getLiveValuesDict : Model -> TLID -> LVDict
-getLiveValuesDict m id =
-  let cursor = TL.getTL m id |> .cursor
-  in
-  getAnalysisResults m id
+getLiveValuesDict m tlid =
+  getAnalysisResults m tlid
   |> List.reverse
-  |> LE.getAt cursor
+  |> LE.getAt (cursor m tlid)
   |> Maybe.map .liveValues
   |> Maybe.withDefault (Dict.empty)
 
@@ -55,12 +61,10 @@ getLiveValue m tlid (ID id) =
   |> Dict.get id
 
 getAvailableVarnamesDict : Model -> TLID -> AVDict
-getAvailableVarnamesDict m id =
-  let cursor = TL.getTL m id |> .cursor
-  in
-  getAnalysisResults m id
+getAvailableVarnamesDict m tlid =
+  getAnalysisResults m tlid
   |> List.reverse
-  |> LE.getAt cursor
+  |> LE.getAt (cursor m tlid)
   |> Maybe.map .availableVarnames
   |> Maybe.withDefault (Dict.empty)
 
