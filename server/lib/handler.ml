@@ -20,27 +20,44 @@ type handler = { tlid: Types.tlid
                ; spec : spec
                } [@@deriving eq, show, yojson, sexp, bin_io]
 
+let is_complete (h: handler) : bool =
+  match (h.spec.module_, h.spec.name, h.spec.modifier) with
+  | (Filled (_, _), Filled (_, _), Filled (_, _)) -> true
+  | _ -> false
+
 let is_http (h: handler) : bool =
   match h.spec.module_ with
   | Filled (_, m) -> String.Caseless.equal "http" m
   | _ -> false
 
-let url_for (h: handler) : string option =
-  match h.spec.module_, h.spec.name with
-  | Filled (_, module_), Filled (_, name) when String.lowercase module_ = "http" ->
-    Some name
+let module_for (h: handler) : string option =
+  match h.spec.module_ with
+  | Filled (_, m) -> Some m
   | _ -> None
 
-let url_for_exn (h: handler) : string =
-  match (url_for h) with
+let module_for_exn (h: handler) : string =
+  match (module_for h) with
   | Some s -> s
   | None ->
     Exception.internal
-      "Called url_for_exn on a toplevel without a `url` param"
+      "Called module_for_exn on a toplevel without a `module` param"
+
+let event_name_for (h: handler) : string option =
+  match h.spec.name with
+  | Filled (_, name) ->
+    Some name
+  | _ -> None
+
+let event_name_for_exn (h: handler) : string =
+  match (event_name_for h) with
+  | Some s -> s
+  | None ->
+    Exception.internal
+      "Called event_name_for_exn on a toplevel without a `event_name` param"
 
 let modifier_for (h: handler) : string option =
-  match h.spec.module_, h.spec.modifier with
-  | Filled (_, module_), Filled (_, modifier) when String.lowercase module_ = "http" ->
+  match h.spec.modifier with
+  | Filled (_, modifier) ->
     Some modifier
   | _ -> None
 
@@ -53,7 +70,7 @@ let modifier_for_exn (h: handler) : string =
 
 let default_env (h: handler) : dval_map =
   let init = DvalMap.empty in
-  match url_for h with
+  match event_name_for h with
   | Some n ->
     List.fold_left
       ~init

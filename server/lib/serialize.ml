@@ -14,6 +14,15 @@ let no_digest_filename_for name = "appdata/" ^ name ^ ".dark"
 let current_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
 let json_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".json"
 
+let current_filenames () : string list =
+  Sys.ls_dir "appdata"
+  |> List.filter
+       ~f:(fun f ->
+        String.is_substring ~substring:".dark" f
+          && String.is_substring ~substring:digest f
+          && (not (String.is_substring ~substring:"test_" f))
+      )
+
 let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
    * used a default value of []. Which means we wiped out our old Dark

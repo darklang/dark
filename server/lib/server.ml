@@ -99,6 +99,60 @@ let server =
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
+    let trigger_queue_workers_handler () =
+      (* iterate all darkfiles *)
+      let current_file_ext = "_" ^ Serialize.digest ^ ".dark" in
+      let current_endpoints = Serialize.current_filenames ()
+                            |> List.map
+                                 ~f:(fun f ->
+                                  String.chop_suffix_exn
+                                    ~suffix:current_file_ext
+                                    f)
+      in
+      let results =
+        List.map current_endpoints
+        ~f:(fun endpoint ->
+             let c = C.load endpoint [] in
+             Event_queue.set_scope !c.name;
+             try
+               (* iterate all queues *)
+               let queues = TL.bg_handlers !c.toplevels in
+               let results =
+                 List.map queues
+                   ~f:(fun q ->
+                       let space = Handler.module_for_exn q in
+                       let name = Handler.event_name_for_exn q in
+                       let event = Event_queue.dequeue space name in
+                       let dbs = TL.dbs !c.toplevels in
+                       let dbs_env = Db.dbs_as_exe_env (dbs) in
+                       Db.cur_dbs := dbs;
+                       let env = Map.set ~key:"event" ~data:event dbs_env in
+                       let result = Handler.execute q env in
+                       result
+                     )
+               in
+               match results with
+               | [] -> RTT.DIncomplete
+               | l -> RTT.DList l
+             with
+             | e ->
+               Event_queue.unset_scope ~status:`Err;
+               RTT.DError (Exn.to_string e)
+        )
+      in
+      let stringified_results =
+        results
+        |> List.filter
+          ~f:(fun r ->
+              match r with
+              | RTT.DIncomplete -> false
+              | _ -> true)
+        |> List.map
+          ~f:(Dval.dval_to_json_string)
+      in
+      S.respond_string ~status:`OK ~body:(String.concat ~sep:", " stringified_results) ()
+    in
+
     let options_handler (c: C.canvas) (req: CRequest.t) =
       (*       allow (from the route matching) *)
       (*       Access-Control-Request-Method: POST  *)
@@ -137,7 +191,7 @@ let server =
       | [] ->
         S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
       | [page] ->
-        let route = Handler.url_for_exn page in
+        let route = Handler.event_name_for_exn page in
         Stored_request.store host body page.tlid req;
         let input = PReq.from_request req body in
         let bound = Http.bind_route_params_exn ~uri ~route in
@@ -242,6 +296,8 @@ let server =
              admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
            | "/admin/api/save_test" ->
              save_test_handler domain
+           | "/admin/api/trigger_workers" ->
+             trigger_queue_workers_handler ()
            | p when (String.length p) < 8 ->
              user_page_handler domain uri req req_body
            | p when (String.equal (String.sub p ~pos:0 ~len:8) "/static/") ->

@@ -289,9 +289,9 @@ let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.
   c.toplevels
   |> TL.http_handlers
   |> List.filter
-    ~f:(fun h -> Handler.url_for h <> None)
+    ~f:(fun h -> Handler.event_name_for h <> None)
   |> List.filter
-    ~f:(fun h -> Http.path_matches_route ~path:path (Handler.url_for_exn h))
+    ~f:(fun h -> Http.path_matches_route ~path:path (Handler.event_name_for_exn h))
   |> List.filter
     ~f:(fun h ->
       (match Handler.modifier_for h with
@@ -299,7 +299,7 @@ let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.
         (* we specifically want to allow handlers without method specifiers for now *)
         | None -> true))
   |> List.map
-    ~f:(fun h -> (Http.has_route_variables (Handler.url_for_exn h), h))
+    ~f:(fun h -> (Http.has_route_variables (Handler.event_name_for_exn h), h))
 
 let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   matching_routes ~uri ~verb c
