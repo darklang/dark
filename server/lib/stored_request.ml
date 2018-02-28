@@ -1,19 +1,13 @@
 open Core
 
-module Clu = Cohttp_lwt_unix
-module CRequest = Clu.Request
-
-(* We export this definition in the mli so dependencies
- * can depend on our structure also.
- * For whatever reason we also need to re-define it here. *)
-type t = string * CRequest.t [@@deriving sexp]
+module RTT = Types.RuntimeT
 
 (* ------------------------- *)
 (* Internal *)
 (* ------------------------- *)
 
-let group_dir = "requests"
-let file_ext  = ".request.sexp"
+let group_dir = "events"
+let file_ext  = ".events.json"
 
 let dir_name (host: string) (id: int) : string =
   group_dir ^ "/" ^ host ^ "-" ^ (string_of_int id)
@@ -69,16 +63,16 @@ let next_filename (host: string) (id: int) : string =
 (* Exported *)
 (* ------------------------- *)
 
-let store (host: string) (body: string) (id: int) (req: CRequest.t) : unit =
+let store (host: string) (id: int) (event: RTT.dval) : unit =
   mkdir host id;
   let filename = next_filename host id in
-  let s = sexp_of_t (body, req) in
-  Sexplib.Sexp.save_hum filename s
+  let s = Dval.dval_to_yojson event in
+  Yojson.Safe.to_file filename s
 
-let load_all (host: string) (id: int) : t list =
+let load_all (host: string) (id: int) : RTT.dval list =
   ls host id
   |> List.map
     ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
   |> List.map
-       ~f:(fun f -> f |> Sexplib.Sexp.load_sexp |> t_of_sexp)
+       ~f:(fun f -> f |> Yojson.Safe.from_file |> Dval.dval_of_yojson_)
 

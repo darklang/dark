@@ -43,8 +43,6 @@ let server =
             let h_envs =
               try
                 Stored_request.load_all host h.tlid
-                |> List.map ~f:(fun (b, cr) -> PReq.from_request cr b)
-                |> List.map ~f:PReq.to_dval
               with
               | _ ->
                 [global]
@@ -192,8 +190,8 @@ let server =
         S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
       | [page] ->
         let route = Handler.event_name_for_exn page in
-        Stored_request.store host body page.tlid req;
         let input = PReq.from_request req body in
+        Stored_request.store host page.tlid (PReq.to_dval input);
         let bound = Http.bind_route_params_exn ~uri ~route in
         let dbs = TL.dbs !c.toplevels in
         let dbs_env = Db.dbs_as_exe_env (dbs) in

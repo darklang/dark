@@ -15,6 +15,7 @@
 /server/ocamlbuild_output.txt
 /server/profile.json
 /server/requests/*
+/server/events/*
 /server/static/base.css
 /server/static/elm.js
 /tags
