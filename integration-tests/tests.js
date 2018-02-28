@@ -146,7 +146,6 @@ test('next_sibling_works', async t => {
   await t
     .click(".ast")
     .pressKey("down")
-    .pressKey("down")
     .pressKey("right")
     ;
   // TODO: this might be flaky. Maybe wait for a specific ID to be
