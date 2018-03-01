@@ -178,7 +178,7 @@ def ignore(filename):
             , "server/dark.install"
             , "server/_build/"
             , "server/appdata/"
-            , "server/requests/"
+            , "server/events/"
             , "server/serialization/"
             , "server/gmon.out"
             , "server/profile.json"
