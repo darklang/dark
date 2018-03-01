@@ -2,6 +2,7 @@ open Core
 open Dark
 open Types
 open Types.RuntimeT
+open Ast
 
 
 module C = Canvas
@@ -11,6 +12,9 @@ module Map = Map.Poly
 module AT = Alcotest
 
 let fid = Util.create_id
+let h () = Ast.Hole (fid ())
+let v str = Ast.Value (fid (), str)
+let b () = Types.Blank (fid ())
 
 let handle_exception e =
   (* Builtin testing doesnt seem to print exceptions *)
@@ -26,7 +30,7 @@ let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
   C.add_ops c [] ops;
   c
 
-let execute_ops (ops : Op.op list) =
+let execute_ops (ops : Op.op list) : dval =
   let c = ops2c "test" ops in
   let ast = !c.toplevels
             |> TL.handlers
@@ -39,7 +43,6 @@ let check_dval = AT.check (AT.testable pp_dval (=))
 let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
 
 let handler ast =
-  let b () = Types.Blank (fid ()) in
   Op.SetHandler ( 7
                 , {x=5;y=6}
                 , { tlid = 7
@@ -56,8 +59,6 @@ let handler ast =
 (* ----------------------- *)
 
 let t_undo_fns () =
-  let h () = Ast.Hole (fid ()) in
-  let v str = Ast.Value (fid (), str) in
   let n1 = Op.Savepoint in
   let n2 = handler (FnCall (fid (), "-", [h (); h ()])) in
   let n3 = handler (FnCall (fid (), "-", [v "3"; h ()])) in
@@ -144,29 +145,24 @@ let t_undo_fns () =
 (*   check_dval "t_undo_8" (DInt 91) r8 *)
 
 
+let t_int_add_works () =
+  (* Couldn't call Int::add *)
+  let add = FnCall (fid (), "+", [v "5"; v "3"]) in
+  let r = execute_ops [handler add] in
+  check_dval "int_add" (DInt 8) r
 
-(* let t_int_add_works () = *)
-(*   (* Couldn't call Int::add *) *)
-(*   let add = Op.Add_fn_call (fid (), Free, "Int::add") in *)
-(*   let v1 = Op.Add_value (fid (), Free, "5") in *)
-(*   let v2 = Op.Add_value (fid (), Free, "3") in *)
-(*   let e1 = Op.Set_edge (Op.id_of v2, Op.id_of add, "b") in *)
-(*   let e2 = Op.Set_edge (Op.id_of v1, Op.id_of add, "a") in *)
-(*   let r = execute_ops [add; v1; v2; e2; e1] add in *)
-(*   check_dval "int_add" (DInt 8) r *)
-
-(* let t_lambda_with_foreach () = *)
-(*   let v = Op.Add_value (fid (), Free, "\"some string\"") in *)
-(*   let fe = Op.Add_fn_call (fid (), Free, "String::foreach") in *)
-(*   let upper = Op.Add_fn_call (fid (), Free, "Char::toUppercase") in *)
-(*   let block_id = fid () in *)
-(*   let block_arg = fid () in *)
-(*   let block = Op.Add_block (block_id, Free, [block_arg], ["item"]) in *)
-(*   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in *)
-(*   let e2 = Op.Set_edge (Op.id_of block, Op.id_of fe, "f") in *)
-(*   let e3 = Op.Set_edge (block_arg, Op.id_of upper, "c") in *)
-(*   let r = execute_ops [v; fe; upper; block; e1; e2; e3] fe in *)
-(*   check_dval "lambda_wit_foreach"  r (DStr "SOME STRING") *)
+let t_lambda_with_foreach () =
+  let ast = FnCall ( fid ()
+                   , "String::foreach"
+                   , [ Value (fid (), "\"some string\"")
+                     ; Lambda (fid ()
+                              , ["var"]
+                              , FnCall (fid ()
+                                       , "Char::toUppercase"
+                                       , [Variable (fid (), "var")]))])
+  in
+  let r = execute_ops [handler ast] in
+  check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
 
 
 
@@ -240,7 +236,8 @@ let suite =
     (* This test is broken, see comment in Api.json2op *)
   (* ; "undos", `Slow, t_undo *)
   ; "undo_fns", `Slow, t_undo_fns
-(* let t_int_add_works () = *)
+  ; "int_add_works", `Slow, t_int_add_works
+  ; "lambda_with_foreach", `Slow, t_lambda_with_foreach
   ]
 
 let () =
