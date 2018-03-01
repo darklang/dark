@@ -89,60 +89,45 @@ let t_undo_fns () =
   AT.check AT.bool "neither_undo" false (C.is_undoable neither);
   AT.check AT.bool "neither_redo" false (C.is_redoable neither)
 
-(* let t_undo () = *)
-(*   let n1 = Op.Add_fn_call (fid (), Free, "-") in *)
-(*   let u1 = Op.Savepoint in *)
-(*   let n2 = Op.Add_value (fid (), Free, "5") in *)
-(*   let e1 = Op.Set_edge (Op.id_of n2, Op.id_of n1, "a") in *)
-(*   let u2 = Op.Savepoint in *)
-(*   let n3 = Op.Add_value (fid (), Free, "3") in *)
-(*   let e2 = Op.Set_edge (Op.id_of n3, Op.id_of n1, "b") in *)
-(*   let ops1 = [n1; u1; n2; e1; u2; n3; e2] in *)
+let t_undo () =
+  let ha ast = handler ast in
+  let sp = Op.Savepoint in
+  let u = Op.Undo in
+  let r = Op.Redo in
+  let o1 = Value (fid (), "1") in
+  let o2 = Value (fid (), "2") in
+  let o3 = Value (fid (), "3") in
+  let o4 = Value (fid (), "4") in
+  let o5 = Value (fid (), "5") in
+  let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
 
-(*   let u3 = Op.Savepoint in *)
-(*   let n4 = Op.Add_value (fid (), Free, "6") in *)
-(*   let e3 = Op.Set_edge (Op.id_of n4, Op.id_of n1, "b") in *)
-(*   let u4 = Op.Savepoint in *)
-(*   let n5 = Op.Add_value (fid (), Free, "-86") in *)
-(*   let e4 = Op.Set_edge (Op.id_of n5, Op.id_of n1, "b") in *)
-(*   let ops2 = [u3; n4; e3; u4; n5; e4] in *)
+  (* Check assumptions *)
+  execute_ops ops
+  |> check_dval "t_undo_1" (DInt 5);
 
-(*   let u5 = Op.Undo in *)
-(*   let u6 = Op.Undo in *)
-(*   let u7 = Op.Redo in *)
-(*   let u8 = Op.Redo in *)
-(*   let u9 = Op.Undo in *)
-(*   let u10 = Op.Redo in *)
+  (* First undo *)
+  execute_ops (List.concat [ops; [u]])
+  |> check_dval "t_undo_3" (DInt 4);
 
-(*   (* Check assumptions *) *)
-(*   let r = execute_ops ops1 n1 in *)
-(*   check_dval "t_undo_1" (DInt 2) r; *)
-(*   let r2 = execute_ops (List.append ops1 ops2) n1 in *)
-(*   check_dval "t_undo_2" (DInt 91) r2; *)
+  (* Second undo *)
+  execute_ops (List.concat [ops; [u;u]])
+  |> check_dval "t_undo_4" (DInt 3);
 
-(*   (* First undo *) *)
-(*   let r3 = execute_ops (List.concat [ops1; ops2; [u5]]) n1 in *)
-(*   check_dval "t_undo_3" (DInt (-1)) r3; *)
+  (* First redo *)
+  execute_ops (List.concat [ops; [u;u;r]])
+  |> check_dval "t_undo_5" (DInt 4);
 
-(*   (* Second undo *) *)
-(*   let r4 = execute_ops (List.concat [ops1; ops2; [u5;u6]]) n1 in *)
-(*   check_dval "t_undo_4" (DInt 2) r4; *)
+  (* Second redo *)
+  execute_ops (List.concat [ops; [u;u;r;r]])
+  |> check_dval "t_undo_6" (DInt 5);
 
-(*   (* First redo *) *)
-(*   let r5 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7]]) n1 in *)
-(*   check_dval "t_undo_5" (DInt (-1)) r5; *)
+  (* Another undo *)
+  execute_ops (List.concat [ops; [u;u;r;r;u]])
+  |> check_dval "t_undo_7" (DInt 4);
 
-(*   (* Second redo *) *)
-(*   let r6 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8]]) n1 in *)
-(*   check_dval "t_undo_6" (DInt 91) r6; *)
-
-(*   (* Another undo *) *)
-(*   let r7 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8;u9]]) n1 in *)
-(*   check_dval "t_undo_7" (DInt (-1)) r7; *)
-
-(*   (* Another redo *) *)
-(*   let r8 = execute_ops (List.concat [ops1; ops2; [u5;u6;u7;u8;u9;u10]]) n1 in *)
-(*   check_dval "t_undo_8" (DInt 91) r8 *)
+  (* Another redo *)
+  execute_ops (List.concat [ops; [u;u;r;r;u;r]])
+  |> check_dval "t_undo_8" (DInt 5)
 
 
 let t_int_add_works () =
@@ -150,6 +135,7 @@ let t_int_add_works () =
   let add = FnCall (fid (), "+", [v "5"; v "3"]) in
   let r = execute_ops [handler add] in
   check_dval "int_add" (DInt 8) r
+
 
 let t_lambda_with_foreach () =
   let ast = FnCall ( fid ()
@@ -163,7 +149,6 @@ let t_lambda_with_foreach () =
   in
   let r = execute_ops [handler ast] in
   check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
-
 
 
 let t_load_save _ =
@@ -228,13 +213,13 @@ let t_hmac_signing _ =
       args in
   AT.check AT.string "hmac_signing_2" expected_header actual
 
+
 let suite =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
   [ "roundtrip through saving and loading", `Slow, t_load_save
   ; "hmac signing works", `Slow, t_hmac_signing
-    (* This test is broken, see comment in Api.json2op *)
-  (* ; "undos", `Slow, t_undo *)
+  ; "undo", `Slow, t_undo
   ; "undo_fns", `Slow, t_undo_fns
   ; "int_add_works", `Slow, t_int_add_works
   ; "lambda_with_foreach", `Slow, t_lambda_with_foreach
