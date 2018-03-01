@@ -3,5 +3,11 @@
 set -euo pipefail
 
 if [ ! -v CI ]; then
-  curl -X POST http://localhost:8000/admin/api/trigger_workers
+  DATE="[$(date +'%Y-%m-%d %H:%M:%S')]"
+  OUTPUT=$(curl -s -X POST http://localhost:8000/admin/api/trigger_workers)
+  if [[ -z "${OUTPUT// }" ]]; then
+    echo "$DATE No events to process"
+  else
+    echo "$DATE $OUTPUT"
+  fi
 fi
