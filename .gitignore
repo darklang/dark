@@ -3,6 +3,7 @@
 /client/elm-stuff
 /client/tests/elm-stuff
 /integration-tests/screenshots/*
+/integration-tests/report.json
 /logs/
 /server/*/.merlin
 /server/_build
