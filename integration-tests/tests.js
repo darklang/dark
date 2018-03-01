@@ -173,3 +173,12 @@ test('editing_request_edits_request', async t => {
     ;
 });
 
+test('autocomplete_highlights_on_partial_match', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "nt::add")
+    .pressKey("enter")
+    ;
+});
+

@@ -24,6 +24,8 @@ trigger name =
     "test_next_sibling_works" -> nextSiblingWorks
     "test_varbinds_are_editable" -> varbindsAreEditable
     "test_editing_request_edits_request" -> editingRequestEditsRequest
+    "test_autocomplete_highlights_on_partial_match" ->
+      autocompleteHighlightsOnPartialMatch
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -165,4 +167,10 @@ editingRequestEditsRequest m =
             [ACVariable "request"] -> pass
             _ -> fail cs
         allcs -> fail allcs
+    e -> fail e
+
+autocompleteHighlightsOnPartialMatch : Model -> TestResult
+autocompleteHighlightsOnPartialMatch m =
+  case onlyAST m of
+    FnCall _ "Int::add" _ -> pass
     e -> fail e

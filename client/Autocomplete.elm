@@ -168,8 +168,7 @@ selectUp a = let max = numCompletions a - 1 in
 -- y Press right to fill as much as is definitive
 
 setQuery : String -> Autocomplete -> Autocomplete
-setQuery q a = refilter q (LE.getAt 0 a.completions
-                           |> Maybe.withDefault []) a
+setQuery q a = refilter q (List.concat a.completions) a
 
 appendQuery : String -> Autocomplete -> Autocomplete
 appendQuery str a =
