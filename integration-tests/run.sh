@@ -17,8 +17,8 @@ testcafe \
   --speed 0.4 \
   --screenshots-on-fails \
   --screenshots integration-tests/screenshots/ \
+  --concurrency 4 \
+  --report spec,json:integration-tests/report.json \
   --test-grep "$PATTERN" \
   "chrome:headless" \
   integration-tests/tests.js
-
-# TODO: -c 5 (number of concurrent tests)
