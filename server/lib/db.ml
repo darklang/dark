@@ -9,8 +9,20 @@ module RT = Runtime
 module PG = Postgresql
 
 (* globals *)
-let conn =
-  new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
+let rec rec_con depth =
+  try
+    new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
+  with
+  | e ->
+      if depth < 10
+      then
+        (Unix.sleep 1;
+         rec_con (depth+1))
+      else
+        raise e
+
+
+let conn = rec_con 0
 
 let escape s =
   conn#escape_string s
