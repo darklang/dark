@@ -151,18 +151,6 @@ let t_lambda_with_foreach () =
   check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
 
 
-let t_load_save _ =
-  let n1 = handler (Ast.Value (123, "5")) in
-  let name = "test_load_save" in
-  let c = ops2c name [n1] in
-  let _ = C.save !c in
-  let c1 = C.load name [] in
-  let _ = C.save !c in
-  let c2 = C.load name [] in
-  check_canvas "canvas_load_save_1" !c !c1;
-  check_canvas "canvas_load_save_2" !c !c2
-
-
 let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
   let ts = "1318622958" in
@@ -217,8 +205,7 @@ let t_hmac_signing _ =
 let suite =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
-  [ "roundtrip through saving and loading", `Slow, t_load_save
-  ; "hmac signing works", `Slow, t_hmac_signing
+  [ "hmac signing works", `Slow, t_hmac_signing
   ; "undo", `Slow, t_undo
   ; "undo_fns", `Slow, t_undo_fns
   ; "int_add_works", `Slow, t_int_add_works

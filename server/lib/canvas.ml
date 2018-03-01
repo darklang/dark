@@ -207,8 +207,13 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
 let save ?(filename=None) (c : canvas) : unit =
   match filename with
   | None ->
-      let filename = Serialize.current_filename_for c.name in
-      let json = Serialize.json_filename_for c.name in
+      let name =
+        if String.is_prefix ~prefix:"test_" c.name
+        then "completed_tests/" ^ c.name
+        else c.name
+      in
+      let filename = Serialize.current_filename_for name in
+      let json = Serialize.json_filename_for name in
       Serialize.save_binary filename c.ops;
       let _ = Spawn.spawn
                 ~prog:"./_build/default/bin/darkfile_bin_to_json.exe"

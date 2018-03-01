@@ -11,6 +11,7 @@
 /server/appdata/*.json
 !/server/appdata/test_*.dark
 !/server/appdata/test_*.json
+/server/appdata/completed_tests/*
 /server/backup_appdata/*
 /server/cache
 /server/ocamlbuild_output.txt

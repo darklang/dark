@@ -2,10 +2,6 @@
 
 set -euo pipefail
 
-# clean test files (reset repo files, delete others)
-git checkout -- $(git ls-files server/appdata/test_*.dark)
-rm -f $(git ls-files server/appdata/test_*.dark -o)
-
 PATTERN=${@}
 PATTERN=${PATTERN:-".*"} # default to .*
 
