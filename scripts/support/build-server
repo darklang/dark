@@ -51,13 +51,21 @@ def start_postgres():
   print("--------------------------")
   print("-- Starting postgres")
   print("--------------------------")
-  run('sudo su postgres -c "/etc/init.d/postgresql start"')
+  run('sudo service postgresql start')
 
 def start_cron():
   print("--------------------------")
   print("-- Starting cron")
   print("--------------------------")
-  run('sudo /etc/init.d/cron start')
+  run('sudo service cron start')
+
+def start_dnsmasq():
+  print("--------------------------")
+  print("-- Starting cron")
+  print("--------------------------")
+  run('sudo service dnsmasq start')
+
+
 
 # It is extremely challenging to get a non-blocking read on stdin.
 # Essentially, we want to read everything from stdin and then compile.
@@ -141,9 +149,10 @@ def main():
       run_tests = True
 
   if compile:
-    background_task(initial_compile, "initial_compile")
-    background_task(start_postgres, "start_postgres")
+    background_task(start_dnsmasq, "start_dnsmasq")
     background_task(start_cron, "start_cron")
+    background_task(start_postgres, "start_postgres")
+    background_task(initial_compile, "initial_compile")
 
   if watch:
     process_watchers()

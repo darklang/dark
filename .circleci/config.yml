@@ -98,14 +98,6 @@ jobs:
             scripts/builder --serve
 
       - run: scripts/wait-for-server
-
-      - run:
-          name: Prep integration tests
-          command: |
-            scripts/run-in-docker sudo /etc/init.d/postgresql start
-            scripts/run-in-docker sudo /etc/init.d/dnsmasq start
-            sleep 5
-
       - run: scripts/run-in-docker integration-tests/run.sh
 
       - run:
