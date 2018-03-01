@@ -26,14 +26,23 @@ let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
   C.add_ops c [] ops;
   c
 
+let execute_ops (ops : Op.op list) =
+  let c = ops2c "test" ops in
+  let ast = !c.toplevels
+            |> TL.handlers
+            |> List.hd_exn
+            |> fun h -> h.ast in
+  Ast.execute DvalMap.empty ast
+
+
+let check_dval = AT.check (AT.testable pp_dval (=))
 let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
 
 let handler ast =
-  let id = fid () in
   let b () = Types.Blank (fid ()) in
-  Op.SetHandler ( id
+  Op.SetHandler ( 7
                 , {x=5;y=6}
-                , { tlid = id
+                , { tlid = 7
                   ; ast = ast
                   ; spec = { module_ = b ()
                            ; name = b ()
@@ -146,6 +155,21 @@ let t_undo_fns () =
 (*   let r = execute_ops [add; v1; v2; e2; e1] add in *)
 (*   check_dval "int_add" (DInt 8) r *)
 
+(* let t_lambda_with_foreach () = *)
+(*   let v = Op.Add_value (fid (), Free, "\"some string\"") in *)
+(*   let fe = Op.Add_fn_call (fid (), Free, "String::foreach") in *)
+(*   let upper = Op.Add_fn_call (fid (), Free, "Char::toUppercase") in *)
+(*   let block_id = fid () in *)
+(*   let block_arg = fid () in *)
+(*   let block = Op.Add_block (block_id, Free, [block_arg], ["item"]) in *)
+(*   let e1 = Op.Set_edge (Op.id_of v, Op.id_of fe, "s") in *)
+(*   let e2 = Op.Set_edge (Op.id_of block, Op.id_of fe, "f") in *)
+(*   let e3 = Op.Set_edge (block_arg, Op.id_of upper, "c") in *)
+(*   let r = execute_ops [v; fe; upper; block; e1; e2; e3] fe in *)
+(*   check_dval "lambda_wit_foreach"  r (DStr "SOME STRING") *)
+
+
+
 let t_load_save _ =
   let n1 = handler (Ast.Value (123, "5")) in
   let name = "test_load_save" in
@@ -216,6 +240,7 @@ let suite =
     (* This test is broken, see comment in Api.json2op *)
   (* ; "undos", `Slow, t_undo *)
   ; "undo_fns", `Slow, t_undo_fns
+(* let t_int_add_works () = *)
   ]
 
 let () =
