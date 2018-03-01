@@ -727,7 +727,7 @@ viewRoutingTable m =
       routes = div "routes" (List.map handlerHtml handlers)
       html = div "routing-table" [header, routes]
 
-  in placeHtml m {x=0, y=0} html
+  in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
 
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
