@@ -189,7 +189,6 @@ type AutocompleteItem = ACFunction Function
 type AutocompleteMod = ACSetQuery String
                      | ACAppendQuery String
                      | ACReset
-                     | ACClear
                      | ACSelectDown
                      | ACSelectUp
                      | ACSetTarget (Maybe (TLID, Pointer))

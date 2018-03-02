@@ -111,7 +111,7 @@ empty = init []
 
 init : List Function -> Autocomplete
 init functions = { functions = functions
-                 , completions = [List.map ACFunction functions]
+                 , completions = [[],[],[],[]]
                  , index = -1
                  , value = ""
                  , tipe = Nothing
@@ -121,12 +121,8 @@ init functions = { functions = functions
 -- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
 -- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
 --
-reset : Autocomplete -> Autocomplete
-reset a = init a.functions
-
-clear : Autocomplete -> Autocomplete
-clear a = let cleared = setQuery "" a in
-          { cleared | index = -1 }
+reset : Model -> Autocomplete -> Autocomplete
+reset m a = init a.functions |> regenerate m
 
 numCompletions : Autocomplete -> Int
 numCompletions a =
@@ -180,28 +176,23 @@ appendQuery str a =
 highlighted : Autocomplete -> Maybe AutocompleteItem
 highlighted a = LE.getAt a.index (List.concat a.completions)
 
-setTarget : Maybe (TLID, Pointer) -> Autocomplete -> Autocomplete
-setTarget t a =
+setTarget : Model -> Maybe (TLID, Pointer) -> Autocomplete -> Autocomplete
+setTarget m t a =
   { a | target = t }
+  |> regenerate m
 
 update : Model -> AutocompleteMod -> Autocomplete -> Autocomplete
 update m mod a =
   (case mod of
      ACSetQuery str -> setQuery str a
      ACAppendQuery str -> appendQuery str a
-     ACReset -> reset a
-     ACClear -> clear a
+     ACReset -> reset m a
      ACSelectDown -> selectDown a
      ACSelectUp -> selectUp a
-     ACSetTarget target -> setTarget target a
-     ACRegenerate -> a
+     ACSetTarget target -> setTarget m target a
+     ACRegenerate -> regenerate m a
      -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
   )
-  -- For now, we need to regenerate on any change. In the future, we
-  -- should keep all non-ac state out of here (livevalue and target),
-  -- and have a regenerate function that regenerates then and only then.
-  |> regenerate m
-
 
 
 
@@ -215,17 +206,33 @@ regenerate m a =
   in refilter a.value completions a
 
 refilter : String -> List AutocompleteItem -> Autocomplete -> Autocomplete
-refilter query initial a =
-  let completions = filter initial query
-      totalLength = completions |> List.concat |> List.length
-  in { a | completions = completions
-         , value = query
-         , index = if totalLength == 0
-                   then -1
-                   else if totalLength < numCompletions a
-                   then 0
-                   else a.index
-     }
+refilter query initial old  =
+  let newCompletions = filter initial query
+      newCount = newCompletions |> List.concat |> List.length
+
+      oldHighlight = highlighted old
+      oldHighlightNewPos =
+        oldHighlight
+        |> Maybe.andThen (\oh ->
+             LE.elemIndex oh (List.concat newCompletions))
+
+      index = if newCount == 0
+              -- if nothing matches, highlight nothing
+              then -1
+              -- if there's nothing to match, highlight nothing
+              else if query == ""
+              then -1
+              else
+                case oldHighlightNewPos of
+                  -- If an entry is highlighted, and you press another
+                  -- valid key for that entry, keep it highlighted
+                  Just i -> i
+                  -- If an entry vanishes, highlight 0
+                  Nothing -> 0
+
+  in { old | index = index
+           ,  completions = newCompletions
+           , value = query }
 
 filter : List AutocompleteItem -> String -> List (List AutocompleteItem)
 filter list query =

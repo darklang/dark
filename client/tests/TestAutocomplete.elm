@@ -8,10 +8,12 @@ import Expect exposing (Expectation)
 -- import Set
 
 -- libs
+import List.Extra as LE
 
 -- dark
 import Autocomplete exposing (..)
 import Types exposing (..)
+import Defaults
 
 
 d : String -> List (() -> Bool) -> Test
@@ -50,7 +52,10 @@ all =
           , ("withLower", TObj)
           , ("SomeModule::withLower", TObj)
           , ("SomeOtherModule::withlower", TObj)
-          ] in
+          ]
+      m = Defaults.defaultModel Defaults.defaultEditor
+      create () = init completes |> regenerate m
+  in
   describe "autocomplete"
     [ d "sharedPrefix"
       [ \_ -> sharedPrefixList ["aaaab", "aab", "aaxb"] == "aa"
@@ -58,16 +63,37 @@ all =
       , \_ -> sharedPrefixList ["abcdd", "bcddee"] == ""
       ]
     , d "query" -- numbered from 0
-      -- Lowercase search still finds uppercase results
-      [ \_ -> (init completes)
+      -- Empty autocomplete doesn't highlight
+      [ \_ -> (create ())
+      |> .index
+      |> (==) -1
+
+      -- Press a letter from the selected entry keeps the entry selected
+      , \_ -> create ()
+      |> selectDown
+      |> selectDown
+      |> setQuery "T"
+      |> highlighted
+      |> Maybe.map asName
+      |> (==) (Just "Twit::someOtherFunc")
+
+      -- Returning to empty unselects
+      , \_ -> create ()
       |> setQuery "lis"
+      |> setQuery ""
+      |> highlighted
+      |> (==) Nothing
+
+      -- Lowercase search still finds uppercase results
+      , \_ -> create ()
+      |> update m (ACSetQuery "lis")
       |> .completions
       |> List.concat
       |> List.map asName
       |> (==) ["List::head"]
 
       -- Search finds multiple prefixes
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "twit::"
       |> .completions
       |> List.concat
@@ -75,7 +101,7 @@ all =
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
 
       -- Search finds only prefixed
-      , \_ ->(init completes)
+      , \_ -> create ()
       |> setQuery "twit::y"
       |> .completions
       |> List.concat
@@ -83,7 +109,7 @@ all =
       |> (==) ["Twit::yetAnother"]
 
       -- Search anywhere
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "Another"
       |> .completions
       |> List.concat
@@ -91,7 +117,7 @@ all =
       |> (==) ["Twit::yetAnother"]
 
       -- Show results when the only option is the setQuery
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "List::head"
       |> .completions
       |> List.concat
@@ -100,7 +126,7 @@ all =
       |> (==) 1
 
       -- Scrolling down a bit works
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
@@ -108,7 +134,7 @@ all =
       |> (==) 2
 
       -- Scrolling loops one way
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
@@ -117,7 +143,7 @@ all =
       |> (==) 0
 
       -- Scrolling loops the other way
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "Twit"
       |> selectDown
       |> selectUp
@@ -126,31 +152,22 @@ all =
       |> (==) 2
 
       -- Scrolling loops the other way without going forward first
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "Twit"
       |> selectUp
       |> selectUp
       |> .index
       |> (==) 1
 
-      -- Scrolling backward words if we haven't searched yet
-      , \_ -> (init completes)
+      -- Scrolling backward works if we haven't searched yet
+      , \_ -> create ()
       |> selectUp
       |> selectUp
       |> .index
       |> (==) 9
 
-      -- Reduced results goes back to start of list
-      , \_ -> (init completes)
-      |> setQuery "Twit"
-      |> selectDown
-      |> selectDown
-      |> setQuery "Twit::y"
-      |> .index
-      |> (==) 0
-
-      -- Don't show cursor when the list is empty
-      , \_ -> (init completes)
+      -- Don't highlight when the list is empty
+      , \_ -> create ()
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
@@ -159,7 +176,7 @@ all =
       |> (==) -1
 
       -- Filter by method signature for typed values
-      -- , \_ -> (init completes)
+      -- , \_ -> create ()
       -- |> forLiveValue {value="[]", tipe=TList,json="[]", exc=Nothing}
       -- |> setQuery ""
       -- |> .completions
@@ -168,7 +185,7 @@ all =
       -- |> (==) (Set.fromList ["List::head"])
 
       -- Show allowed fields for objects
-      -- , \_ -> (init completes)
+      -- , \_ -> create ()
       -- |> forLiveValue {value="5", tipe=TInt, json="5", exc=Nothing}
       -- |> setQuery ""
       -- |> .completions
@@ -177,7 +194,7 @@ all =
       -- |> (==) (Set.fromList ["Int::add", "+"])
 
       -- By default the list shows results
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery ""
       |> .completions
       |> List.concat
@@ -185,7 +202,7 @@ all =
       |> (/=) 0
 
       -- ordering: startsWith, then case match, then case insensitive match
-      , \_ -> (init completes)
+      , \_ -> create ()
       |> setQuery "withL"
       |> .completions
       |> List.map (List.map asName)
