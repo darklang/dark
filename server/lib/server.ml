@@ -110,6 +110,24 @@ let server =
       S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
     in
 
+    let options_handler (c: C.canvas) (req: CRequest.t) =
+      (*       allow (from the route matching) *)
+      (*       Access-Control-Request-Method: POST  *)
+      (* Access-Control-Request-Headers: X-PINGOTHER, Content-Type *)
+      (* This is just enough to fix conduit. Here's what we should do: https://developer.mozilla.org/en-US/docs/Web/HTTP/Methods/OPTIONS *)
+      let req_headers = Cohttp.Header.get (CRequest.headers req) "access-control-request-headers" in
+      let allow_headers =
+        match req_headers with
+        | Some h -> h
+        | None -> "*"
+      in
+      let headers = [("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS"); ("Access-Control-Allow-Origin", "*"); ("Access-Control-Allow-Headers", allow_headers)] in
+      S.respond_string ~status:`OK
+                       ~body:""
+                       ~headers:(Cohttp.Header.of_list headers)
+                       ()
+    in
+
     let cors = ("Access-Control-Allow-Origin", "*") in
 
     let user_page_handler (host: string) (uri: Uri.t) (req: CRequest.t) (body: string) =
