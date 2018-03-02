@@ -112,6 +112,7 @@ empty = init []
 init : List Function -> Autocomplete
 init functions = { functions = functions
                  , completions = [[],[],[],[]]
+                 , allCompletions = []
                  , index = -1
                  , value = ""
                  , tipe = Nothing
@@ -164,7 +165,7 @@ selectUp a = let max = numCompletions a - 1 in
 -- y Press right to fill as much as is definitive
 
 setQuery : String -> Autocomplete -> Autocomplete
-setQuery q a = refilter q (List.concat a.completions) a
+setQuery q a = refilter q a
 
 appendQuery : String -> Autocomplete -> Autocomplete
 appendQuery str a =
@@ -202,12 +203,12 @@ update m mod a =
 
 regenerate : Model -> Autocomplete -> Autocomplete
 regenerate m a =
-  let completions = generateFromModel m a
-  in refilter a.value completions a
+  { a | allCompletions = generateFromModel m a }
+  |> refilter a.value
 
-refilter : String -> List AutocompleteItem -> Autocomplete -> Autocomplete
-refilter query initial old  =
-  let newCompletions = filter initial query
+refilter : String -> Autocomplete -> Autocomplete
+refilter query old  =
+  let newCompletions = filter old.allCompletions query
       newCount = newCompletions |> List.concat |> List.length
 
       oldHighlight = highlighted old
@@ -231,7 +232,7 @@ refilter query initial old  =
                   Nothing -> 0
 
   in { old | index = index
-           ,  completions = newCompletions
+           , completions = newCompletions
            , value = query }
 
 filter : List AutocompleteItem -> String -> List (List AutocompleteItem)

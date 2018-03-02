@@ -175,6 +175,7 @@ type RPC
 -----------------------------
 type alias Autocomplete = { functions : List Function
                           , completions : List (List AutocompleteItem)
+                          , allCompletions : List AutocompleteItem
                           , index : Int
                           , value : String
                           , target : Maybe (TLID, Pointer)

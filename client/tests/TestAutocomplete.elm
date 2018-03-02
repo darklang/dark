@@ -84,6 +84,15 @@ all =
       |> highlighted
       |> (==) Nothing
 
+      , \_ -> create ()
+      |> setQuery "Twit::somefunc"
+      |> setQuery "Twit::some"
+      |> selectDown
+      |> highlighted
+      |> Maybe.map asName
+      |> Debug.log "actual"
+      |> (==) (Just "Twit::someOtherFunc")
+
       -- Lowercase search still finds uppercase results
       , \_ -> create ()
       |> update m (ACSetQuery "lis")
