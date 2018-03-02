@@ -11,7 +11,9 @@ module PG = Postgresql
 (* globals *)
 let rec rec_con depth =
   try
-    new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()
+    let c = new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()  in
+    c#set_notice_processor (Log.pP "DBNOTICE");
+    c
   with
   | e ->
       if depth < 10
@@ -364,4 +366,5 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
 (* Some initialization *)
 (* ------------------------- *)
 let _ =
+  Init.init ();
   run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT PRIMARY KEY)";

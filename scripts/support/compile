@@ -72,7 +72,7 @@ def ocaml_build():
   start = time.time()
   global profile
   cd = "cd server &&"
-  build = " jbuilder build bin/main.exe bin/darkfile_bin_to_json.exe bin/darkfile_json_to_bin.exe -j 8"
+  build = " jbuilder build bin/main.exe bin/darkfile_bin_to_json.exe bin/darkfile_json_to_bin.exe bin/trigger_queue_workers.exe -j 8"
   if profile:
     return run_backend(start, cd + landmarks + build)
   else:

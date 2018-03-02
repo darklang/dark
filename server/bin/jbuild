@@ -43,3 +43,14 @@
     (libraries (dark))
   )
 )
+
+(executable
+  (
+    (name trigger_queue_workers)
+    (public_name trigger_queue_workers)
+    (modules trigger_queue_workers)
+    (modes (native))
+    (flags (-warn-error (+A)))
+    (libraries (dark))
+  )
+)

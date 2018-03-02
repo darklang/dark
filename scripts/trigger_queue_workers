@@ -3,8 +3,10 @@
 set -euo pipefail
 
 if [ ! -v CI ]; then
+  cd "/home/dark/app"
+  export DARK_LOGLEVEL="OFF"
   DATE="[$(date +'%Y-%m-%d %H:%M:%S')]"
-  OUTPUT=$(curl -s -X POST http://localhost:8000/admin/api/trigger_workers)
+  OUTPUT=$(/home/dark/app/server/_build/default/bin/trigger_queue_workers.exe)
   if [[ -z "${OUTPUT// }" ]]; then
     echo "$DATE No events to process"
   else

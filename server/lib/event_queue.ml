@@ -94,6 +94,7 @@ let dequeue (space: string) (name: string) : dval option =
 (* Some initialization *)
 (* ------------------------- *)
 let _ =
+  Init.init ();
   let ensure_queue_status_type_exists =
     (* there's no CREATE TYPE IF NOT EXISTS :/ *)
     "DO $$

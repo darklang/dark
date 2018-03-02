@@ -11,6 +11,6 @@ let () =
   (* init the Random module, will be seeded from /dev/urandom on Linux *)
   let () = Random.self_init () in
 
+  Dark.Init.init ();
   Dark.Serialize.write_shape_data ();
-
   Dark.Server.run ()
