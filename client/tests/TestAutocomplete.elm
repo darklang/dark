@@ -90,7 +90,6 @@ all =
       |> selectDown
       |> highlighted
       |> Maybe.map asName
-      |> Debug.log "actual"
       |> (==) (Just "Twit::someOtherFunc")
 
       -- Lowercase search still finds uppercase results
