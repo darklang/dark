@@ -41,8 +41,8 @@ newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { module_ = newBlank ()
                    , name = newBlank ()
                    , modifier = newBlank ()
-                   , types = { input = newBlank ()
-                             , output = newBlank ()
+                   , types = { input = Filled (gid ()) DTAny
+                             , output = Filled (gid ()) DTAny
                              }
                    }
 
