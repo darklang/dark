@@ -142,7 +142,6 @@ test('tabbing_works', async t => {
 });
 
 test('next_sibling_works', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .click(".ast")
     .pressKey("down")
@@ -153,7 +152,6 @@ test('next_sibling_works', async t => {
 });
 
 test('varbinds_are_editable', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .click(".ast")
     .pressKey("down")
@@ -162,7 +160,6 @@ test('varbinds_are_editable', async t => {
 });
 
 test('editing_request_edits_request', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
     .typeText("#entry-box", "req.")
@@ -174,7 +171,6 @@ test('editing_request_edits_request', async t => {
 });
 
 test('autocomplete_highlights_on_partial_match', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
     .typeText("#entry-box", "nt::add")
@@ -183,7 +179,6 @@ test('autocomplete_highlights_on_partial_match', async t => {
 });
 
 test('no_request_global_in_non_http_space', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
     .pressKey("enter")
