@@ -182,3 +182,18 @@ test('autocomplete_highlights_on_partial_match', async t => {
     ;
 });
 
+test('no_request_global_in_non_http_space', async t => {
+  const astAvailable = Selector('.ast').exists;
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .click(".module")
+    .pressKey("enter")
+    .typeText("#entry-box", "NOT_HTTP_SPACE")
+    .pressKey("enter")
+    .click(".ast")
+    .pressKey("enter")
+    .typeText("#entry-box", "req")
+    .pressKey("enter")
+});
+

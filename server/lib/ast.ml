@@ -326,7 +326,7 @@ let symbolic_execute (init: symtable) (ast: expr) : sym_store =
       ~init:SymSet.empty
       ~f:(fun acc s ->
           SymSet.add acc s)
-      ("request" :: (Symtable.keys init))
+      (Symtable.keys init)
   in
   sym_exec ~trace init_set ast; sym_store
 

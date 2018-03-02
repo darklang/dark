@@ -26,6 +26,8 @@ trigger name =
     "test_editing_request_edits_request" -> editingRequestEditsRequest
     "test_autocomplete_highlights_on_partial_match" ->
       autocompleteHighlightsOnPartialMatch
+    "test_no_request_global_in_non_http_space" ->
+      noRequestGlobalInNonHttpSpace
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -173,4 +175,13 @@ autocompleteHighlightsOnPartialMatch : Model -> TestResult
 autocompleteHighlightsOnPartialMatch m =
   case onlyAST m of
     FnCall _ "Int::add" _ -> pass
+    e -> fail e
+
+
+noRequestGlobalInNonHttpSpace : Model -> TestResult
+noRequestGlobalInNonHttpSpace m =
+  case onlyAST m of
+    -- this might change but this is the answer for now.
+    FnCall _ "Http::bad_request" _ -> pass
+    -- Hole _ -> pass
     e -> fail e
