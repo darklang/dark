@@ -124,6 +124,8 @@ type Msg
     -- but by the time we use it the proper node will be changed
     | ToplevelClickUp TLID (Maybe Pointer) MouseEvent
     | DragToplevel TLID Mouse.Position
+    | MouseEnter Pointer MouseEvent
+    | MouseLeave MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -205,6 +207,7 @@ type VariantTest = StubVariant
 -- View
 -----------------------------
 type DivSelected = DivSelected | DivUnselected
+type MouseOverDiv = MouseOverDiv | MouseNotOverDiv
 type alias Class = String
 type alias Clickable = Maybe (TLID, Pointer)
 
@@ -355,6 +358,7 @@ type alias Model = { center : Pos
                    , tests : List VariantTest
                    , complete : Autocomplete
                    , state : State
+                   , hovering : Maybe Pointer
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
@@ -382,6 +386,8 @@ type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
 type Modification = Error String
                   | ClearError
                   | Select TLID (Maybe Pointer)
+                  | SetHover Pointer
+                  | ClearHover
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable)
                   | Enter EntryCursor

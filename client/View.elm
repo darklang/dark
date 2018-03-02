@@ -115,13 +115,13 @@ viewCanvas m =
         allSvgs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in allSvgs
 
-viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Hover -> Html.Html Msg
+viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> HoverData -> Html.Html Msg
 viewBlankOrText = viewBlankOr Html.text
 
 
-type alias Hover = Maybe (Result String String)
-viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> Hover -> Html.Html Msg
-viewBlankOr htmlFn m tl pt b hover =
+type alias HoverData = Maybe (Result String String)
+viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> HoverData -> Html.Html Msg
+viewBlankOr htmlFn m tl pt b hoverdata =
   let pointer = P.blankTo pt b
       id = P.idOf pointer
       param =
@@ -212,10 +212,17 @@ viewBlankOr htmlFn m tl pt b hover =
       onClick = if selected == DivSelected
                 then Nothing
                 else Just (tl.id, pointer)
-  in html4blank selected classes onClick hover [text]
+      mouseOvered =
+        case m.hovering of
+          Nothing -> MouseNotOverDiv
+          Just i ->
+            if (P.idOf i) == (P.idOf pointer)
+            then MouseOverDiv
+            else MouseNotOverDiv
+  in html4blank selected mouseOvered classes onClick hoverdata [text]
 
-html4blank : DivSelected -> List Class -> Clickable -> Hover -> List (Html.Html Msg) -> Html.Html Msg
-html4blank selected classes clickable hover content =
+html4blank : DivSelected -> MouseOverDiv -> List Class -> Clickable -> HoverData -> List (Html.Html Msg) -> Html.Html Msg
+html4blank selected mouseover classes clickable hoverdata content =
   let events = case clickable of
                  Nothing -> []
                  Just (tlid, pointer) ->
@@ -226,9 +233,20 @@ html4blank selected classes clickable hover content =
                      { stopPropagation = True
                      , preventDefault = False
                      }
-                     (decodeClickEvent (ToplevelClickUp tlid (Just pointer)))]
+                     (decodeClickEvent (ToplevelClickUp tlid (Just pointer)))
+                   ,Events.onWithOptions "mouseenter"
+                     { stopPropagation = True
+                     , preventDefault = False
+                     }
+                     (decodeClickEvent (MouseEnter pointer))
+                   ,Events.onWithOptions "mouseleave"
+                     { stopPropagation = True
+                     , preventDefault = False
+                     }
+                     (decodeClickEvent (MouseLeave))
+                   ]
       (valClass, title) =
-        case hover of
+        case hoverdata of
           Nothing -> ([], [])
           Just (Ok msg) -> ([], [Attrs.title msg])
           Just (Err err) -> (["value-error"], [Attrs.title err])
@@ -237,6 +255,9 @@ html4blank selected classes clickable hover content =
                 ++ valClass
                 ++ (if selected == DivSelected
                     then ["selected"]
+                    else [])
+                ++ (if mouseover == MouseOverDiv
+                    then ["mouseovered"]
                     else [])
 
   in
@@ -343,12 +364,18 @@ viewHandler m tl h =
           Entering (Filling tlid p) -> (P.idOf p, True)
           _ -> (ID 0, False)
 
+      hovering =
+        case m.hovering of
+          Just p -> P.idOf p
+          Nothing -> ID 0
+
       lvs = Analysis.getLiveValuesDict m tl.id
       ast = Html.div
               [ Attrs.class "ast"]
               [ ViewAST.toHtml
                 { selectedID = id
                 , tlid = tl.id
+                , hoveredID = hovering
                 , viewBlankOr = viewBlankOrText m tl
                 , html4blank = html4blank
                 , liveValues = lvs

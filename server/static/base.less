@@ -108,6 +108,18 @@ body #grid * {
     outline: 0.4px darken(magenta, 25%) dotted;
   }
 
+  .mouseovered {
+    background-color: @grey1;
+
+    .blank {
+      color: @grey3;
+    }
+  }
+
+  .header > .mouseovered, .spec-type > .mouseovered {
+    color: @grey3;
+  }
+
   .selected {
     outline: 0.5px magenta solid;
   }

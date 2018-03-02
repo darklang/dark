@@ -34,6 +34,7 @@ defaultModel e = { error = Nothing
                  , center = {x=initialPos.vx, y=initialPos.vy}
                  , complete = Autocomplete.empty
                  , state = Deselected
+                 , hovering = Nothing
                  , tests = []
                  , toplevels = []
                  , analysis = []

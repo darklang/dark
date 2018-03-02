@@ -19,10 +19,11 @@ import Util exposing (deMaybe)
 
 type alias HtmlVisitState =
   { selectedID : ID
+  , hoveredID : ID
   , tlid : TLID
   , viewBlankOr: PointerType -> BlankOr String ->
                  Maybe (Result String String) -> Html.Html Msg
-  , html4blank: DivSelected -> List Class -> Clickable ->
+  , html4blank: DivSelected -> MouseOverDiv -> List Class -> Clickable ->
                 Maybe (Result String String) -> List (Html.Html Msg) ->
                 Html.Html Msg
   , liveValues : LVDict
@@ -84,10 +85,15 @@ elemToHtml state elem =
                                          displayVal (Just id)
                                        _ -> Nothing)
             |> List.head
+          mouseOvered =
+            if LE.find (\a -> a == HighlightAs state.hoveredID) assocs == Nothing
+            then MouseNotOverDiv
+            else MouseOverDiv
 
       in
       state.html4blank
         selected
+        mouseOvered
         ("nested" :: classNames)
         click
         hovering
