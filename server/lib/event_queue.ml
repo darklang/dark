@@ -3,6 +3,8 @@ open Core
 open Types
 open Types.RuntimeT
 
+type t = { id: int; value: dval }
+
 (* --------------------------- *)
 (* Awful Global State (public) *)
 (* --------------------------- *)
@@ -27,15 +29,15 @@ let scope_setter_exn () : int =
     Exception.internal
       "Missing Event_queue.scope_setter, internal invariant broken. Can't even blame global mutable state this time you dingus"
 
+let status_to_enum status : string =
+  match status with
+  | `OK -> "'done;"
+  | `Err -> "'error'"
+
 let unlock_jobs ~status : unit =
-  let new_status_of_jobs =
-    match status with
-    | `OK -> "'done'"
-    | `Err -> "'error'"
-  in
   Printf.sprintf
-    "UPDATE \"events\" SET status = %s WHERE dequeued_by = %s"
-    new_status_of_jobs
+    "UPDATE \"events\" SET status = %s WHERE dequeued_by = %s AND status = 'locked'"
+    (status_to_enum status)
     (string_of_int (scope_setter_exn ()))
   |> Db.run_sql
 
@@ -72,7 +74,7 @@ let enqueue (space: string) (name: string) (data: dval) : unit =
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue (space: string) (name: string) : dval option =
+let dequeue (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf "SELECT id, value from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' ORDER BY id DESC LIMIT 1"
       (wrap space)
@@ -87,8 +89,15 @@ let dequeue (space: string) (name: string) : dval option =
     Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
                   (string_of_int (scope_setter_exn ()))
                   id);
-    Some (Dval.parse value)
+    Some { id = int_of_string id; value = Dval.parse value }
   | Some s -> Exception.internal ("Fetched seemingly impossible shape from Postgres" ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
+
+let put_back (item: t) ~status : unit =
+  Printf.sprintf
+    "UPDATE \"events\" SET status = %s WHERE id = %s"
+    (status_to_enum status)
+    (string_of_int item.id)
+  |> Db.run_sql
 
 (* ------------------------- *)
 (* Some initialization *)
