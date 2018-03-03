@@ -30,12 +30,13 @@ let dequeue_and_evaluate_all () : string =
                     (match Event_queue.dequeue space name with
                      | None -> None
                      | Some event ->
-                       Stored_event.store endpoint q.tlid event;
+                       Stored_event.store endpoint q.tlid (event.value);
                        let dbs = TL.dbs !c.toplevels in
                        let dbs_env = Db.dbs_as_exe_env (dbs) in
                        Db.cur_dbs := dbs;
-                       let env = Map.set ~key:"event" ~data:event dbs_env in
+                       let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
                        let result = Handler.execute q env in
+                       Event_queue.put_back event ~status:`OK;
                        Some result)
                   )
             in
