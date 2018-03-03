@@ -31,13 +31,13 @@ jobs:
       - restore_cache:
           keys:
             - v1-build-{{ checksum "today-timestamp" }}
-            - v1-build-{{ checksum "today - 1 days" }}
-            - v1-build-{{ checksum "today - 2 days" }}
-            - v1-build-{{ checksum "today - 3 days" }}
-            - v1-build-{{ checksum "today - 4 days" }}
-            - v1-build-{{ checksum "today - 5 days" }}
-            - v1-build-{{ checksum "today - 6 days" }}
-            - v1-build-{{ checksum "today - 7 days" }}
+            - v1-build-{{ checksum "minus1-timestamp" }}
+            - v1-build-{{ checksum "minus2-timestamp" }}
+            - v1-build-{{ checksum "minus3-timestamp" }}
+            - v1-build-{{ checksum "minus4-timestamp" }}
+            - v1-build-{{ checksum "minus5-timestamp" }}
+            - v1-build-{{ checksum "minus6-timestamp" }}
+            - v1-build-{{ checksum "minus7-timestamp" }}
 
       - run:
           name: Clear cache on Saturday
