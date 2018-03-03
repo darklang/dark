@@ -26,4 +26,9 @@ let init () =
         Log.level := `All
       | Some _ -> ()
     in
-    has_inited := true
+    Printexc.record_backtrace true;
+    Exn.initialize_module ();
+    (* init the Random module, will be seeded from /dev/urandom on Linux *)
+    Random.self_init ();
+    has_inited := true;
+
