@@ -2,15 +2,17 @@
 
 set -euo pipefail
 
+DIR=gcp-builder-dir # used unprotected, dont put a space in the name
+
 # this should eventually run from within the dev container, but that
 # doesn't seem easy. So this should run from your mac (or the outer
 # container on CI).
 #
-cp -f server/_build/default/bin/*.exe gcp-builder-dir/
-cp -Rf server/static gcp-builder-dir/
-cp -Rf scripts/trigger_queue_workers gcp-builder-dir/
+cp -f server/_build/default/bin/*.exe $DIR/
+cp -Rf server/static $DIR/
+cp -Rf scripts/trigger_queue_workers $DIR/
 
-docker build -t dark-gcp:latest -f Dockerfile.gcp gcp-builder-dir
+docker build -t dark-gcp:latest -f $DIR/Dockerfile $DIR
 
 
 
