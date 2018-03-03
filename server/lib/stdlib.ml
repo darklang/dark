@@ -1208,6 +1208,53 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { pns = ["Date::add"]
+  ; ins = []
+  ; p = [par "d" TDate; par "seconds" TInt]
+  ; r = TDate
+  ; d = "Returns a new Date `seconds` seconds after `d`"
+  ; f = InProcess
+        (function
+          | [DDate d; DInt s] -> DDate (Time.add d (Time.Span.of_int_sec s))
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+  { pns = ["Date::sub"]
+  ; ins = []
+  ; p = [par "d" TDate; par "seconds" TInt]
+  ; r = TDate
+  ; d = "Returns a new Date `seconds` seconds before `d`"
+  ; f = InProcess
+        (function
+          | [DDate d; DInt s] -> DDate (Time.add d (Time.Span.of_int_sec s))
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Date::less_than"]
+  ; ins = ["Date::<"]
+  ; p = [par "d1" TDate; par "d2" TDate]
+  ; r = TBool
+  ; d = "Returns whetheer `d1` < ` d2`"
+  ; f = InProcess
+        (function
+          | [DDate d1; DDate d2] ->
+            DBool (Time.(<) d1 d2)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+
+
   (* ====================================== *)
   (* Char *)
   (* ====================================== *)
