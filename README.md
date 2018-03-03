@@ -12,6 +12,18 @@
 
 - Run `scripts/builder --compile --serve`
 
+# Deploy it to prod
+
+You'll need to install the gcloud sdk via https://cloud.google.com/sdk/downloads
+
+Build the production container (assumes that the build has succeeded):
+
+- `./scripts/gcp-build-container`
+
+Then deploy the build container:
+
+- `./script/gcp-deploy`
+
 # Setting up your editor
 
 Ideally, you'd be able to use elm-make and merlin inside the container.
