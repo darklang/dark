@@ -1,0 +1,5 @@
+#/usr/bin/env bash
+
+set -euo pipefail
+
+gcloud docker -- push gcr.io/balmy-ground-195100/dark-prod
