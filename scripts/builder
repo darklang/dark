@@ -19,7 +19,7 @@ fi
 # --------------
 # --------------
 echo "watching for local changes"
-scripts/support/reload-browser > logs/browser.log 2>&1 &
+scripts/support/reload-browser > rundir/logs/browser.log 2>&1 &
 
 # --------------
 # Conduit

@@ -1,10 +1,7 @@
 .git
 client/elm-stuff
 client/tests/elm-stuff
+gcp-builder-dir/
 integration-tests/screenshots
-pythonserver
 server/_build
-server/appdata
-server/backup_appdata
-server/cache
-server/events
+rundir/
