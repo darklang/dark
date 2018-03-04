@@ -41,7 +41,14 @@ let serialization_dir: string =
   server_dir ^ "serialization/"
 
 let templates_dir : string =
-  server_dir ^ "templates/"
+  Sys.getenv "DARK_CONFIG_TEMPLATES_DIR"
+  |> Option.value ~default:(server_dir ^ "templates")
+  |> fun x -> x ^ "/"
 
 let completed_test_dir : string =
   run_dir ^ "completed_tests/"
+
+let webroot_dir : string =
+  Sys.getenv "DARK_CONFIG_WEBROOT_DIR"
+  |> Option.value ~default:server_dir
+  |> fun x -> x ^ "/"

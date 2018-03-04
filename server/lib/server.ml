@@ -100,7 +100,7 @@ let server =
     in
 
     let static_handler uri =
-      let fname = S.resolve_file ~docroot:(Config.server_dir) ~uri in
+      let fname = S.resolve_file ~docroot:(Config.webroot_dir) ~uri in
       S.respond_file ~fname ()
     in
 
