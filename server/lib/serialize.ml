@@ -4,11 +4,15 @@ let digest = Op.bin_shape_oplist
              |> Bin_prot.Shape.eval_to_digest_string
 
 let write_shape_data () =
-  let shape_string = Op.bin_shape_oplist
-                   |> Bin_prot.Shape.eval
-                   |> Bin_prot.Shape.Canonical.to_string_hum
-  in
-  Util.writefile (Config.serialization_dir ^ digest) shape_string
+  if Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
+  then
+    let shape_string = Op.bin_shape_oplist
+                     |> Bin_prot.Shape.eval
+                     |> Bin_prot.Shape.Canonical.to_string_hum
+    in
+    Util.writefile (Config.serialization_dir ^ digest) shape_string
+  else
+    ()
 
 let with_dir direction (name: string) : string =
   if String.is_prefix ~prefix:"test_" name
