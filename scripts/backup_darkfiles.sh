@@ -3,8 +3,10 @@
 set -euo pipefail
 
 DATE=`date '+%Y_%m_%d-%H_%M_%S'`
-DEST="server/backup_appdata/${DATE}"
+DEST="runtime/backup_appdata/${DATE}"
 
-cp -R server/appdata "${DEST}"
+mkdir -p $DEST
+
+cp -R runtime/appdata "${DEST}"
 
 echo "Copied into $DEST"

@@ -1,4 +1,4 @@
-do shell script "echo \"\" > logs/chrome-reload.log"
+do shell script "echo \"\" > rundir/logs/chrome-reload.log"
 
 
 tell application "Google Chrome"
@@ -16,5 +16,5 @@ end tell
 
 
 to logit(log_string)
-  do shell script "echo \"" & (log_string) & "\" >> logs/chrome-reload.log"
+  do shell script "echo \"" & (log_string) & "\" >> rundir/logs/chrome-reload.log"
 end logit
