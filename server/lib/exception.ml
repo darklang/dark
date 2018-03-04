@@ -17,22 +17,24 @@ type exception_data = { short : string
                       ; workarounds : string list
                       } [@@deriving yojson, show][@@deriving_inline sexp][@@@deriving.end]
 
-exception DarkException of exception_data [@@deriving_inline sexp][@@@deriving.end]
+exception DarkException of exception_data [@@deriving show][@@deriving_inline sexp][@@@deriving.end]
 
 
-let raise_ (tipe:string) ?(actual="") ?(expected="") ?(result="") ?(info=[]) ?(workarounds=[]) ?(long="")
-(short: string) =
-  raise (DarkException { short = short
-                       ; long = long
-                       ; tipe = tipe
-                       ; actual = actual
-                       ; actual_tipe = "<nothing>"
-                       ; expected = expected
-                       ; result = result
-                       ; result_tipe = result
-                       ; info = info
-                       ; workarounds = workarounds
-                       })
+let raise_ (tipe:string) ?(actual="") ?(expected="") ?(result="") ?(info=[]) ?(workarounds=[]) ?(long="") (short: string) =
+  let e = { short = short
+          ; long = long
+          ; tipe = tipe
+          ; actual = actual
+          ; actual_tipe = "<nothing>"
+          ; expected = expected
+          ; result = result
+          ; result_tipe = result
+          ; info = info
+          ; workarounds = workarounds
+          }
+  in
+  Log.erroR "exception" e;
+  raise (DarkException e)
 
 let internal = raise_ "Dark (server)"
 let client = raise_ "Dark (editor)"
