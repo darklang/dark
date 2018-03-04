@@ -85,12 +85,11 @@ def ocaml_test():
 def reload_server():
   start = time.time()
   global profile
-  cd = "cd server &&"
-  runserver = "../scripts/support/runserver"
+  runserver = "scripts/support/runserver"
   if profile:
-    return run_backend(start, cd + landmarks + runserver)
+    return run_backend(start, landmarks + runserver)
   else:
-    return run_backend(start, cd + runserver)
+    return run_backend(start, runserver)
 
 def reload_browser():
   start = time.time()
@@ -164,27 +163,22 @@ def mark(should, f):
 def ignore(filename):
   # substring
   ignores = [ ".git"
-            , "scripts/"
-            , "logs/"
             , ".merlin"
             , "client/elm-stuff"
-            , "client/tests/elm-stuff"
             , "client/repl-temp"
-            , "client/tests/DarkTestData.elm"
-            , "server/static/elm.js"
-            , "server/static/base.css"
-            , "server/cache/"
-            , "server/gcp-builder-dir/"
+            , "client/tests/elm-stuff"
+            , "gcp-builder-dir/"
+            , "integration-tests/"
+            , "rundir/"
+            , "scripts/"
             , "server/_build/"
             , "server/dark.install"
-            , "server/_build/"
-            , "server/appdata/"
-            , "server/events/"
-            , "server/serialization/"
             , "server/gmon.out"
-            , "server/profile.json"
             , "server/ocamlbuild_output.txt"
-            , "integration-tests/"
+            , "server/profile.json"
+            , "server/serialization/"
+            , "server/static/base.css"
+            , "server/static/elm.js"
   ]
   for i in ignores:
     if i in filename:

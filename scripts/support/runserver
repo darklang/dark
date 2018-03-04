@@ -5,13 +5,16 @@ set -euo pipefail
 #NATIVE=
 NATIVE=1
 
-BYTE_FILE="_build/default/bin/main.bc"
-NATIVE_FILE="_build/default/bin/main.exe"
+BYTE_FILE="server/_build/default/bin/main.bc"
+NATIVE_FILE="server/_build/default/bin/main.exe"
 if [[ $NATIVE ]]; then
   FILE=$NATIVE_FILE
 else
   FILE=$BYTE_FILE
 fi
+
+LOGS="${DARK_CONFIG_VAR_RUN_DIR}/logs"
+mkdir -p $LOGS
 
 # Stop the server
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
@@ -28,9 +31,9 @@ done
 if [[ -f "${FILE}" ]]; then
     echo "Running server"
     if [[ $NATIVE ]]; then
-      "${FILE}" > ../logs/server.log 2>&1 &
+      "${FILE}" > "$LOGS/server.log" 2>&1 &
     else
-      ocamlrun "${FILE}" > ../logs/server.log 2>&1 &
+      ocamlrun "${FILE}" > "$LOGS/server.log" 2>&1 &
     fi
 else
   echo "${FILE} doesn't exist"
