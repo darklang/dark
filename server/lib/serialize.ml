@@ -10,9 +10,26 @@ let write_shape_data () =
   in
   Util.writefile (Config.serialization_dir ^ digest) shape_string
 
-let no_digest_filename_for name = Config.appdata_dir ^ name ^ ".dark"
-let current_filename_for name = Config.appdata_dir ^ name ^ "_" ^ digest ^ ".dark"
-let json_filename_for name = Config.appdata_dir ^ name ^ "_" ^ digest ^ ".json"
+let with_dir direction (name: string) : string =
+  if String.is_prefix ~prefix:"test_" name
+  then if direction = `Loading
+       then Config.testdata_dir ^ name
+       else Config.completed_test_dir ^ name
+  else Config.appdata_dir ^ name
+
+let no_digest_load_filename name =
+  with_dir `Loading (name ^ ".dark")
+let current_load_filename name =
+  with_dir `Loading (name ^ "_" ^ digest ^ ".dark")
+let json_load_filename name =
+  with_dir `Loading  (name ^ "_" ^ digest ^ ".json")
+
+let no_digest_save_filename name =
+  with_dir `Saving (name ^ ".dark")
+let current_save_filename name =
+  with_dir `Saving (name ^ "_" ^ digest ^ ".dark")
+let json_save_filename name =
+  with_dir `Saving  (name ^ "_" ^ digest ^ ".json")
 
 let current_filenames () : string list =
   Sys.ls_dir Config.appdata_dir
