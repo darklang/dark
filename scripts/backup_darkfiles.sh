@@ -3,7 +3,7 @@
 set -euo pipefail
 
 DATE=`date '+%Y_%m_%d-%H_%M_%S'`
-DEST="runtime/backup_appdata/${DATE}"
+DEST="persistdir/backup_appdata/${DATE}"
 
 mkdir -p $DEST
 
