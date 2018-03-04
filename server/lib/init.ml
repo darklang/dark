@@ -8,7 +8,7 @@ let init () =
   then ()
   else
     let _ =
-      match Sys.getenv "DARK_LOGLEVEL" with
+      match Sys.getenv "DARK_CONFIG_LOGLEVEL" with
       | None -> ()
       | Some s when String.Caseless.equal s "OFF" ->
         Log.level := `Off
