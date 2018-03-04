@@ -52,3 +52,8 @@ let webroot_dir : string =
   Sys.getenv "DARK_CONFIG_WEBROOT_DIR"
   |> Option.value ~default:server_dir
   |> fun x -> x ^ "/"
+
+let bin_root_dir : string =
+  Sys.getenv "DARK_CONFIG_BIN_ROOT_DIR"
+  |> Option.value ~default:(server_dir ^ "_build/default/bin")
+  |> fun x -> x ^ "/"
