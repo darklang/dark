@@ -15,7 +15,7 @@ let filename_for (url: string) (verb: verb) (body: string) : string =
   |> String.tr ~target:':' ~replacement:'_'
   |> String.tr ~target:'-' ~replacement:'_'
   |> String.tr ~target:'?' ~replacement:'_'
-  |> (^) ("cache/" ^ verbs ^ "_")
+  |> (^) (Config.cache_dir ^ verbs ^ "_")
 
 let save_call (url: string) (verb: verb) (body: string) (value : string) : unit =
   let filename = filename_for url verb body in

@@ -216,7 +216,7 @@ let save ?(filename=None) (c : canvas) : unit =
       let json = Serialize.json_filename_for name in
       Serialize.save_binary filename c.ops;
       let _ = Spawn.spawn
-                ~prog:"./_build/default/bin/darkfile_bin_to_json.exe"
+                ~prog:(Config.server_dir ^ "_build/default/bin/darkfile_bin_to_json.exe")
                 ~argv:[""; filename; json]
                 ()
               |> Log.pp "exit code" in
