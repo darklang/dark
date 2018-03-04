@@ -192,3 +192,14 @@ test('no_request_global_in_non_http_space', async t => {
     .pressKey("enter")
 });
 
+test('hover_values_for_varnames', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "let")
+    .pressKey("enter")
+    .typeText("#entry-box", "myvar")
+    .pressKey("enter")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+});
+

@@ -48,6 +48,11 @@ let to_tuple (expr: expr) : (id * expr) =
 let to_id (expr: expr) : id =
   to_tuple expr |> Tuple.T2.get1
 
+let blank_to_id (blank: 'a or_blank) : id =
+  match blank with
+  | Filled (id, _) -> id
+  | Blank (id) -> id
+
 let is_hole (expr: expr) =
   match expr with
   | Hole _ -> true
@@ -61,8 +66,10 @@ type symtable = dval_map
 
 let empty_trace _ _ _ = ()
 
-let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: context) (st: symtable) (expr: expr) : dval =
-  let exe = exec_ ~trace ~ctx in
+let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
+              ?(trace_blank: (string or_blank -> dval -> symtable -> unit)=empty_trace)
+              ~(ctx: context) (st: symtable) (expr: expr) : dval =
+  let exe = exec_ ~trace ~trace_blank ~ctx in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
    * -- it's definitely not a good thing to be doing, for a variety of reasons.
@@ -121,7 +128,10 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace) ~(ctx: co
 
      | Let (_, lhs, rhs, body) ->
        let bound = match lhs with
-            | Filled (_, name) -> String.Map.set ~key:name ~data:(exe st rhs) st
+            | Filled (_, name) ->
+              let data = exe st rhs in
+              trace_blank lhs data st;
+              String.Map.set ~key:name ~data:data st
             | Blank _ -> st
        in exe bound body
 
@@ -245,7 +255,10 @@ let execute_saving_intermediates (init: symtable) (ast: expr) : (dval * dval_sto
   let trace expr dval st =
     Hashtbl.set value_store ~key:(to_id expr) ~data:dval
   in
-  (exec_ ~trace ~ctx:Preview init ast, value_store)
+  let trace_blank blank dval st =
+    Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
+  in
+  (exec_ ~trace ~trace_blank ~ctx:Preview init ast, value_store)
 
 let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in

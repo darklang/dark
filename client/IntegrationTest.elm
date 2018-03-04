@@ -28,6 +28,8 @@ trigger name =
       autocompleteHighlightsOnPartialMatch
     "test_no_request_global_in_non_http_space" ->
       noRequestGlobalInNonHttpSpace
+    "test_hover_values_for_varnames" ->
+      hoverValuesForVarnames
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -185,3 +187,14 @@ noRequestGlobalInNonHttpSpace m =
     FnCall _ "Http::bad_request" _ -> pass
     -- Hole _ -> pass
     e -> fail e
+
+hoverValuesForVarnames : Model -> TestResult
+hoverValuesForVarnames m =
+  let tlid = m.toplevels
+           |> List.head
+           |> deMaybe "test"
+           |> .id
+  in pass
+
+
+
