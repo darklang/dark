@@ -170,6 +170,7 @@ def ignore(filename):
             , "integration-tests/"
             , "rundir/"
             , "persistdir/"
+            , "saved_apps/"
             , "scripts/"
             , "server/_build/"
             , "server/dark.install"
