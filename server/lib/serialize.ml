@@ -4,11 +4,16 @@ let digest = Op.bin_shape_oplist
              |> Bin_prot.Shape.eval_to_digest_string
 
 let write_shape_data () =
-  let shape_string = Op.bin_shape_oplist
-                   |> Bin_prot.Shape.eval
-                   |> Bin_prot.Shape.Canonical.to_string_hum
-  in
-  Util.writefile ("serialization/" ^ digest) shape_string
+  if Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
+  then
+    let shape_string = Op.bin_shape_oplist
+                     |> Bin_prot.Shape.eval
+                     |> Bin_prot.Shape.Canonical.to_string_hum
+    in
+    Util.writefile ("serialization/" ^ digest) shape_string
+  else
+    ()
+
 
 let no_digest_filename_for name = "appdata/" ^ name ^ ".dark"
 let current_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
