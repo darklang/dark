@@ -71,16 +71,15 @@ landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profil
 def ocaml_build():
   start = time.time()
   global profile
-  cd = "cd server &&"
-  build = " jbuilder build bin/main.exe bin/darkfile_bin_to_json.exe bin/darkfile_json_to_bin.exe bin/trigger_queue_workers.exe -j 8"
+  build = "unbuffer jbuilder build --root server bin/main.exe bin/darkfile_bin_to_json.exe bin/darkfile_json_to_bin.exe bin/trigger_queue_workers.exe -j 8"
   if profile:
-    return run_backend(start, cd + landmarks + build)
+    return run_backend(start, landmarks + build)
   else:
-    return run_backend(start, cd + build)
+    return run_backend(start, build)
 
 def ocaml_test():
   start = time.time()
-  return run_test(start, "cd server && jbuilder build test/test.exe && unbuffer _build/default/test/test.exe 2>&1")
+  return run_test(start, "unbuffer jbuilder build --root server test/test.exe && unbuffer server/_build/default/test/test.exe 2>&1")
 
 def reload_server():
   start = time.time()
