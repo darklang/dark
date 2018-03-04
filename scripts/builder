@@ -19,6 +19,7 @@ fi
 # --------------
 # --------------
 echo "watching for local changes"
+mkdir -p rundir/logs
 scripts/support/reload-browser > rundir/logs/browser.log 2>&1 &
 
 # --------------
@@ -62,6 +63,7 @@ if [ -v CI ]; then
 else
   ENV_FILE="config/local_dev"
 fi
+echo "Using env: $ENV_FILE"
 
 
 # --------------
