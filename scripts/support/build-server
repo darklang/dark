@@ -75,7 +75,6 @@ def init_dirs():
   run("mkdir -p " + persistdir)
   run("mkdir -p " + persistdir + "/appdata")
   run("mkdir -p " + persistdir + "/events")
-  run("mkdir -p " + persistdir + "/requests")
 
 
 
