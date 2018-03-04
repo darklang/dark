@@ -4,23 +4,18 @@ let digest = Op.bin_shape_oplist
              |> Bin_prot.Shape.eval_to_digest_string
 
 let write_shape_data () =
-  if Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
-  then
-    let shape_string = Op.bin_shape_oplist
-                     |> Bin_prot.Shape.eval
-                     |> Bin_prot.Shape.Canonical.to_string_hum
-    in
-    Util.writefile ("serialization/" ^ digest) shape_string
-  else
-    ()
+  let shape_string = Op.bin_shape_oplist
+                   |> Bin_prot.Shape.eval
+                   |> Bin_prot.Shape.Canonical.to_string_hum
+  in
+  Util.writefile (Config.serialization_dir ^ digest) shape_string
 
-
-let no_digest_filename_for name = "appdata/" ^ name ^ ".dark"
-let current_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".dark"
-let json_filename_for name = "appdata/" ^ name ^ "_" ^ digest ^ ".json"
+let no_digest_filename_for name = Config.appdata_dir ^ name ^ ".dark"
+let current_filename_for name = Config.appdata_dir ^ name ^ "_" ^ digest ^ ".dark"
+let json_filename_for name = Config.appdata_dir ^ name ^ "_" ^ digest ^ ".json"
 
 let current_filenames () : string list =
-  Sys.ls_dir "appdata"
+  Sys.ls_dir Config.appdata_dir
   |> List.filter
        ~f:(fun f ->
         String.is_substring ~substring:".dark" f
