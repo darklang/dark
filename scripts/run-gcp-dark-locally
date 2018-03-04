@@ -12,7 +12,7 @@ echo "Starting new container"
 docker run \
   --rm \
   -it \
-  --env-file config/gcp-local \
+  --env-file config/local_gcp \
   -v pgconf:/etc/postgresql \
   -v pglogs:/var/log/postgresql \
   -v pgdata:/var/lib/postgresql \
