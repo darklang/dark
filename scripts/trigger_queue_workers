@@ -4,7 +4,7 @@ set -euo pipefail
 
 if [ ! -v DARK_CONFIG_TRIGGER_QUEUE_WORKERS ]; then
   cd "/home/dark/app"
-  export DARK_LOGLEVEL="OFF"
+  export DARK_CONFIG_LOGLEVEL="OFF"
   DATE="[$(date +'%Y-%m-%d %H:%M:%S')]"
   OUTPUT=$(/home/dark/app/server/_build/default/bin/trigger_queue_workers.exe)
   if [[ -z "${OUTPUT// }" ]]; then
