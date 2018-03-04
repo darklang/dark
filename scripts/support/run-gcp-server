@@ -2,6 +2,11 @@
 
 set -euo pipefail
 
+mkdir -p $DARK_CONFIG_RUN_DIR
+mkdir -p $DARK_CONFIG_RUN_DIR/logs
+mkdir -p $DARK_CONFIG_PERSIST_DIR
+mkdir -p $DARK_CONFIG_PERSIST_DIR/appdata
+
 sudo service postgresql start
 sudo service cron start
 
