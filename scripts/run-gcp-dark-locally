@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Killing running containers"
+c=$(docker ps --filter "ancestor=dark-gcp:latest" -q)
+if [[ ! -z "${c}" ]]; then
+  docker kill "${c}";
+fi
+
+echo "Starting new container"
+docker run \
+  --rm \
+  -it \
+  -v pgconf:/etc/postgresql \
+  -v pglogs:/var/log/postgresql \
+  -v pgdata:/var/lib/postgresql \
+  dark-gcp:latest
+
+

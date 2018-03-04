@@ -8,6 +8,7 @@ DIR=gcp-builder-dir # used unprotected, dont put a space in the name
 # doesn't seem easy. So this should run from your mac (or the outer
 # container on CI).
 #
+cp -f scripts/support/run-gcp-server $DIR/
 cp -f server/_build/default/bin/*.exe $DIR/
 cp -Rf server/static $DIR/
 cp -Rf scripts/trigger_queue_workers $DIR/

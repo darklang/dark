@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Waiting for postgres"
+until service postgresql status; do
+  printf '.'
+  sleep 1
+done
+
+
+echo "Waiting for cron"
+until service cron status; do
+  printf '.'
+  sleep 1
+done
+
+echo "Starting server"
+./main.exe
