@@ -20,6 +20,7 @@ RUN apt-get update \
       libpq-dev=10.1-1.pgdg17.04+1 \
       cron \
       libev-dev=1:4.22-1 \
+      postgresql-10=10.1-1.pgdg17.04+1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -35,10 +36,24 @@ RUN chown -R dark:dark /home/dark
 # cron for queue workers
 RUN (crontab -l 2>/dev/null; echo "*/1 * * * * /home/dark/trigger_queue_workers >> /home/dark/cron.log 2>&1") | crontab -
 
+# Postgres
+USER postgres
+RUN /etc/init.d/postgresql start && \
+    psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
+    createdb -O dark proddb
+
+# Adjust PostgreSQL configuration so that remote connections to the
+# database are possible.
+#RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
+
+RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
+
+
+
 # Set up app
 USER dark
 WORKDIR /home/dark
 
 COPY . /home/dark
 
-CMD "./main.exe"
+CMD "./run-gcp-server"
