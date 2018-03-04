@@ -14,6 +14,10 @@
 
 # Deploy it to prod
 
+The google docs for what we use (a docker container in a google compute
+engine instance) is at
+https://cloud.google.com/compute/docs/containers/deploying-containers.
+
 You'll need to install the gcloud sdk via https://cloud.google.com/sdk/downloads
 
 Build the production container (assumes that the build has succeeded):
@@ -23,6 +27,10 @@ Build the production container (assumes that the build has succeeded):
 Then deploy the build container:
 
 - `./script/gcp-deploy`
+
+Connect to the container via SSH:
+
+- `gcloud beta compute ssh instance-1 --container instance-1`
 
 # Setting up your editor
 
