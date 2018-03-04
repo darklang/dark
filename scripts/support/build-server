@@ -65,14 +65,17 @@ def start_dnsmasq():
   print("--------------------------")
   run('sudo service dnsmasq start')
 
-def init_rundir():
-  dir = os.environ.get("DARK_CONFIG_VAR_RUN_DIR")
-  run("mkdir -p " + dir)
-  run("mkdir -p " + dir + "/logs")
-  run("mkdir -p " + dir + "/appdata")
-  run("mkdir -p " + dir + "/cache")
-  run("mkdir -p " + dir + "/events")
-  run("mkdir -p " + dir + "/requests")
+def init_dirs():
+  rundir = os.environ.get("DARK_CONFIG_VAR_RUN_DIR")
+  run("mkdir -p " + rundir)
+  run("mkdir -p " + rundir + "/logs")
+  run("mkdir -p " + rundir + "/cache")
+  run("mkdir -p " + rundir + "/completed_tests")
+  persistdir = os.environ.get("DARK_CONFIG_VAR_RUN_DIR")
+  run("mkdir -p " + persistdir)
+  run("mkdir -p " + persistdir + "/appdata")
+  run("mkdir -p " + persistdir + "/events")
+  run("mkdir -p " + persistdir + "/requests")
 
 
 
@@ -160,7 +163,7 @@ def main():
       run_tests = True
 
   if compile:
-    init_rundir()
+    init_dirs()
     background_task(start_dnsmasq, "start_dnsmasq")
     background_task(start_cron, "start_cron")
     background_task(start_postgres, "start_postgres")
