@@ -17,9 +17,9 @@ testcafe \
   --pageload-timeout 0 \
   --speed $SPEED \
   --screenshots-on-fails \
-  --screenshots $DARK_CONFIG_VAR_RUN_DIR/screenshots/ \
+  --screenshots $DARK_CONFIG_RUN_DIR/screenshots/ \
   --concurrency 4 \
-  --reporter spec,json:$DARK_CONFIG_VAR_RUN_DIR/integration_tests.json \
+  --reporter spec,json:$DARK_CONFIG_RUN_DIR/integration_tests.json \
   --test-grep "$PATTERN" \
   "chrome:headless" \
   integration-tests/tests.js

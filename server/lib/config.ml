@@ -1,9 +1,9 @@
 open Core
 
 let run_dir : string =
-  let dir = Sys.getenv_exn "DARK_CONFIG_VAR_RUN_DIR" in
+  let dir = Sys.getenv_exn "DARK_CONFIG_RUN_DIR" in
   if not (Filename.is_absolute dir)
-  then Exception.internal "FAIL: DARK_CONFIG_VAR_RUN_DIR is not absolute"
+  then Exception.internal "FAIL: DARK_CONFIG_RUN_DIR is not absolute"
   else dir ^ "/"
 
 let persist_dir : string =
