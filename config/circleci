@@ -2,6 +2,7 @@
 # DARK_CONFIG_TRIGGER_QUEUE_WORKERS=
 DARK_CONFIG_RUN_DIR=/home/dark/app/rundir
 DARK_CONFIG_PERSIST_DIR=/home/dark/app/persistdir
+DARK_CONFIG_PERSIST_DIR=/home/dark/app
 DARK_CONFIG_LOGLEVEL=debug
 
 
