@@ -101,7 +101,7 @@ let debug ?(f=Batteries.dump)
           ?(name:string="")
           (msg : string)
           (x : 'a)
-          : unit =
+          : 'a =
   if should_log `Debug
   then pp ~f ~name ~start ~stop ~show ~ind msg x
   else x
@@ -127,7 +127,7 @@ let info ?(f=Batteries.dump)
           ?(name:string="")
           (msg : string)
           (x : 'a)
-          : unit =
+          : 'a =
   if should_log `Info
   then pp ~f ~name ~start ~stop ~show ~ind msg x
   else x
@@ -153,7 +153,7 @@ let warn ?(f=Batteries.dump)
           ?(name:string="")
           (msg : string)
           (x : 'a)
-          : unit =
+          : 'a =
   if should_log `Warn
   then pp ~f ~name ~start ~stop ~show ~ind msg x
   else x
@@ -179,7 +179,7 @@ let error ?(f=Batteries.dump)
           ?(name:string="")
           (msg : string)
           (x : 'a)
-          : unit =
+          : 'a =
   if should_log `Error
   then pp ~f ~name ~start ~stop ~show ~ind msg x
   else x
@@ -205,7 +205,7 @@ let fatal ?(f=Batteries.dump)
           ?(name:string="")
           (msg : string)
           (x : 'a)
-          : unit =
+          : 'a =
   if should_log `Fatal
   then pp ~f ~name ~start ~stop ~show ~ind msg x
   else x
