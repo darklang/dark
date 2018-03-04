@@ -39,6 +39,7 @@ let should_log (user_level : level) : bool =
      | `Fatal -> false
      | `Error -> false
      | `Warn -> false
+     | `Info -> false
      | _ -> true)
   | `All -> true
 
@@ -52,7 +53,7 @@ let pP ?(f=Batteries.dump)
        (msg : string)
        (x : 'a)
        : unit =
-  if show && (not (quiet name)) && (should_log `Off)
+  if show && (not (quiet name))
   then
     let red = "\x1b[6;31m" in
     let black = "\x1b[6;30m" in
