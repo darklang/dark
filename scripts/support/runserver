@@ -13,7 +13,7 @@ else
   FILE=$BYTE_FILE
 fi
 
-LOGS="${DARK_CONFIG_VAR_RUN_DIR}/logs"
+LOGS="${DARK_CONFIG_RUN_DIR}/logs"
 mkdir -p $LOGS
 
 # Stop the server

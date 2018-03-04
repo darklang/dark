@@ -66,12 +66,12 @@ def start_dnsmasq():
   run('sudo service dnsmasq start')
 
 def init_dirs():
-  rundir = os.environ.get("DARK_CONFIG_VAR_RUN_DIR")
+  rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
   run("mkdir -p " + rundir)
   run("mkdir -p " + rundir + "/logs")
   run("mkdir -p " + rundir + "/cache")
   run("mkdir -p " + rundir + "/completed_tests")
-  persistdir = os.environ.get("DARK_CONFIG_VAR_RUN_DIR")
+  persistdir = os.environ.get("DARK_CONFIG_PERSIST_DIR")
   run("mkdir -p " + persistdir)
   run("mkdir -p " + persistdir + "/appdata")
   run("mkdir -p " + persistdir + "/events")
