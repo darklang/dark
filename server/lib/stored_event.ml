@@ -6,11 +6,10 @@ module RTT = Types.RuntimeT
 (* Internal *)
 (* ------------------------- *)
 
-let group_dir = "events"
 let file_ext  = ".events.json"
 
 let dir_name (host: string) (id: int) : string =
-  group_dir ^ "/" ^ host ^ "-" ^ (string_of_int id)
+  Config.events_dir ^ host ^ "-" ^ (string_of_int id)
 
 let mkdir (host: string) (id: int) : unit =
   Unix.mkdir_p (dir_name host id)

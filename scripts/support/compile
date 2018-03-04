@@ -134,8 +134,6 @@ def mark(should, f):
     should.elm_package = True
   elif "Tests.elm" in f:
     should.elm_test = True
-  elif "server/testdata/" in f:
-    should.elm_test = True
   elif ".elm" in f or ".js" in f or "client/DEBUG" in f:
     should.elm_make = True
 
@@ -171,6 +169,7 @@ def ignore(filename):
             , "gcp-builder-dir/"
             , "integration-tests/"
             , "rundir/"
+            , "persistdir/"
             , "scripts/"
             , "server/_build/"
             , "server/dark.install"

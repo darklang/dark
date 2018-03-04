@@ -95,12 +95,12 @@ let server =
     in
 
     let admin_ui_handler () =
-      let template = Util.readfile_lwt "templates/ui.html" in
+      let template = Util.readfile_lwt (Config.templates_dir ^ "ui.html") in
       template >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
     in
 
     let static_handler uri =
-      let fname = S.resolve_file ~docroot:"." ~uri in
+      let fname = S.resolve_file ~docroot:(Config.server_dir) ~uri in
       S.respond_file ~fname ()
     in
 
