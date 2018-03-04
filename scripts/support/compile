@@ -4,6 +4,7 @@ import sys
 import subprocess
 import glob
 import time
+import os
 from pathlib import Path
 
 run_tests = False
@@ -79,7 +80,8 @@ def ocaml_build():
 
 def ocaml_test():
   start = time.time()
-  return run_test(start, "unbuffer jbuilder build --root server test/test.exe && unbuffer server/_build/default/test/test.exe 2>&1")
+  rundir = os.environ.get("DARK_CONFIG_VAR_RUN_DIR")
+  return run_test(start, "unbuffer jbuilder build --root server test/test.exe && cd " + rundir + " && unbuffer ../server/_build/default/test/test.exe 2>&1")
 
 def reload_server():
   start = time.time()
