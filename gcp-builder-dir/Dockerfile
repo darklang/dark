@@ -19,6 +19,7 @@ RUN apt-get update \
       locales=2.26-0ubuntu2.1 \
       libpq-dev=10.1-1.pgdg17.04+1 \
       cron \
+      libev-dev=1:4.22-1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -40,4 +41,4 @@ WORKDIR /home/dark
 
 COPY . /home/dark
 
-CMD "main.exe"
+CMD "./main.exe"
