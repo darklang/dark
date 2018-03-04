@@ -57,6 +57,12 @@ do
   esac
 done
 
+if [ -v CI ]; then
+  ENV_FILE="config/circleci"
+else
+  ENV_FILE="config/local_dev"
+fi
+
 
 # --------------
 # --------------
@@ -69,7 +75,7 @@ $FSWATCH | docker run \
              --dns 127.0.0.1 \
              --dns 8.8.8.8 \
              --dns 8.8.4.4 \
-             -e CI \
+             --env-file $ENV_FILE \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \

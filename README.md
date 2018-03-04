@@ -32,6 +32,12 @@ Connect to the container via SSH:
 
 - `gcloud beta compute ssh instance-1 --container instance-1`
 
+# Config files
+
+Config files are in config/. Simple rule: anything that runs inside the
+container must use a DARK_CONFIG value set in config/, and cannot use
+any other env var.
+
 # Setting up your editor
 
 Ideally, you'd be able to use elm-make and merlin inside the container.

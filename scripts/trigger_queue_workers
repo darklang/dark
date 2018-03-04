@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-if [ ! -v CI ]; then
+if [ ! -v DARK_CONFIG_TRIGGER_QUEUE_WORKERS ]; then
   cd "/home/dark/app"
   export DARK_LOGLEVEL="OFF"
   DATE="[$(date +'%Y-%m-%d %H:%M:%S')]"
