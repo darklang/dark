@@ -25,6 +25,9 @@ let server_dir : string =
 let appdata_dir : string =
   persist_dir ^ "appdata/"
 
+let testdata_dir : string =
+  server_dir ^ "test_appdata/"
+
 let events_dir : string =
   persist_dir ^ "events/"
 
@@ -39,3 +42,6 @@ let serialization_dir: string =
 
 let templates_dir : string =
   server_dir ^ "templates/"
+
+let completed_test_dir : string =
+  run_dir ^ "completed_tests/"
