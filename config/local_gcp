@@ -6,6 +6,7 @@ DARK_CONFIG_ROOT_DIR=/home/dark/
 DARK_CONFIG_LOGLEVEL=debug
 DARK_CONFIG_TEMPLATES_DIR=/home/dark/templates
 DARK_CONFIG_WEBROOT_DIR=/home/dark/webroot
+DARK_CONFIG_BIN_ROOT_DIR=/home/dark/bin/
 
 
 

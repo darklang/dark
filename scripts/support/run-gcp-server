@@ -23,4 +23,4 @@ until sudo service cron status; do
 done
 
 echo "Starting server"
-./main.exe
+./bin/main.exe

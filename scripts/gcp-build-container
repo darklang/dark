@@ -9,15 +9,15 @@ DIR=gcp-builder-dir # used unprotected, dont put a space in the name
 # container on CI).
 
 cp -f scripts/support/run-gcp-server $DIR/
-cp -f server/_build/default/bin/*.exe $DIR/
 cp -Rf server/templates $DIR/
 cp -Rf scripts/trigger_queue_workers $DIR/
+
+mkdir -p $DIR/bin
+cp -f server/_build/default/bin/*.exe $DIR/bin/
 
 mkdir -p $DIR/webroot
 cp -Rf server/static $DIR/webroot/
 
 docker build -t dark-gcp:latest -f $DIR/Dockerfile $DIR
-
-
 
 
