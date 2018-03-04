@@ -2,4 +2,9 @@
 
 set -euo pipefail
 
-gcloud docker -- push gcr.io/balmy-ground-195100/dark-prod
+IMAGE=gcr.io/balmy-ground-195100/dark-prod
+
+docker tag dark-gcp:latest $IMAGE
+gcloud docker -- push $IMAGE
+
+gcloud beta compute instances update-container instance-1 --container-image $IMAGE
