@@ -21,6 +21,7 @@ RUN apt-get update \
       cron \
       libev-dev=1:4.22-1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
+      sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -32,6 +33,7 @@ ENV LANGUAGE en_US:en
 RUN adduser --disabled-password --gecos '' dark
 RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN chown -R dark:dark /home/dark
+RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # cron for queue workers
 RUN (crontab -l 2>/dev/null; echo "*/1 * * * * /home/dark/trigger_queue_workers >> /home/dark/cron.log 2>&1") | crontab -
