@@ -10,9 +10,9 @@ if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
   docker build -t dark .
 
   echo "Removing running containers"
-  c=$(docker ps -q)
+  c=$(docker ps --filter "ancestor=dark" -q)
   if [[ ! -z "${c}" ]]; then
-    docker rm -f "${c}";
+    docker kill -f "${c}";
   fi
 fi
 
