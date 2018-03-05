@@ -1,6 +1,6 @@
 open Types
 
-type t = { id: int; value: RuntimeT.dval }
+type t = { id: int; value: RuntimeT.dval; retries: int }
 
 (* ------------------------- *)
 (* Awful Global State *)

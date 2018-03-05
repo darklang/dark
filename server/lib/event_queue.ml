@@ -3,7 +3,10 @@ open Core
 open Types
 open Types.RuntimeT
 
-type t = { id: int; value: dval }
+type t = { id: int;
+           value: dval;
+           retries: int;
+         }
 
 (* --------------------------- *)
 (* Awful Global State (public) *)
@@ -31,7 +34,7 @@ let scope_setter_exn () : int =
 
 let status_to_enum status : string =
   match status with
-  | `OK -> "'done;"
+  | `OK -> "'done'"
   | `Err -> "'error'"
 
 let unlock_jobs ~status : unit =
@@ -76,7 +79,7 @@ let enqueue (space: string) (name: string) (data: dval) : unit =
  *)
 let dequeue (space: string) (name: string) : t option =
   let fetched =
-    Printf.sprintf "SELECT id, value from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' ORDER BY id DESC LIMIT 1"
+    Printf.sprintf "SELECT id, value, retries from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' ORDER BY id DESC, retries ASC LIMIT 1"
       (wrap space)
       (wrap name)
       (wrap (current_scope_exn ()))
@@ -85,19 +88,29 @@ let dequeue (space: string) (name: string) : t option =
   in
   match fetched with
   | None -> None
-  | Some [id; value] ->
+  | Some [id; value; retries] ->
     Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
                   (string_of_int (scope_setter_exn ()))
                   id);
-    Some { id = int_of_string id; value = Dval.parse value }
+    Some { id = int_of_string id; value = Dval.parse value; retries = int_of_string retries }
   | Some s -> Exception.internal ("Fetched seemingly impossible shape from Postgres" ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
 let put_back (item: t) ~status : unit =
-  Printf.sprintf
-    "UPDATE \"events\" SET status = %s WHERE id = %s"
-    (status_to_enum status)
-    (string_of_int item.id)
-  |> Db.run_sql
+  let id = string_of_int item.id in
+  let sql =
+    match status with
+    | `OK ->
+      Printf.sprintf "UPDATE \"events\" SET status = 'done' WHERE id = %s" id
+    | `Err ->
+      if item.retries < 2
+      then
+        Printf.sprintf "UPDATE \"events\" SET status = 'new', retries = %s WHERE id = %s"
+        (string_of_int (item.retries + 1))
+        id
+      else
+        Printf.sprintf "UPDATE \"events\" SET status = 'error' WHERE id = %s" id
+  in
+  Db.run_sql sql
 
 (* ------------------------- *)
 (* Some initialization *)
@@ -121,8 +134,12 @@ END$$;" in
   let ensure_cleanup_index_exists =
     "CREATE INDEX IF NOT EXISTS \"idx_cleanup\" ON \"events\" (dequeued_by)"
   in
+  let ensure_retries_column_exists =
+    "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS retries INTEGER DEFAULT 0 NOT NULL"
+  in
   Db.run_sql ensure_queue_status_type_exists;
   Db.run_sql ensure_queue_table_exists;
   Db.run_sql ensure_dequeue_index_exists;
-  Db.run_sql ensure_cleanup_index_exists
+  Db.run_sql ensure_cleanup_index_exists;
+  Db.run_sql ensure_retries_column_exists
 
