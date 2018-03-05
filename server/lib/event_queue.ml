@@ -64,11 +64,11 @@ let wrap s = "'" ^ s ^ "'"
 let enqueue (space: string) (name: string) (data: dval) : unit =
   let serialized_data = Dval.dval_to_json_string data in
   let column_names =
-    ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"]
+    ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"; "delay_until"]
     |> String.concat ~sep:", "
   in
   let column_values =
-    ["'new'"; "NULL"; wrap (current_scope_exn ()); wrap space; wrap name; wrap serialized_data]
+    ["'new'"; "NULL"; wrap (current_scope_exn ()); wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"]
     |> String.concat ~sep:", "
   in
   (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
@@ -80,7 +80,8 @@ let enqueue (space: string) (name: string) (data: dval) : unit =
  *)
 let dequeue (space: string) (name: string) : t option =
   let fetched =
-    Printf.sprintf "SELECT id, value, retries from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' ORDER BY id DESC, retries ASC LIMIT 1"
+    Printf.sprintf
+      "SELECT id, value, retries from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
       (wrap space)
       (wrap name)
       (wrap (current_scope_exn ()))
@@ -105,14 +106,13 @@ let put_back (item: t) ~status : unit =
     | `Err ->
       if item.retries < 2
       then
-        Printf.sprintf "UPDATE \"events\" SET status = 'new', retries = %s WHERE id = %s"
+        Printf.sprintf "UPDATE \"events\" SET status = 'new', retries = %s, delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes' WHERE id = %s"
         (string_of_int (item.retries + 1))
         id
       else
         Printf.sprintf "UPDATE \"events\" SET status = 'error' WHERE id = %s" id
     | `Incomplete ->
-      Printf.sprintf "UPDATE \"events\" SET status = 'new' WHERE id = %s"
-        id
+      Printf.sprintf "UPDATE \"events\" SET status = 'new', delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes' WHERE id = %s" id
   in
   Db.run_sql sql
 
@@ -144,9 +144,13 @@ END$$;" in
   let ensure_retries_column_exists =
     "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS retries INTEGER DEFAULT 0 NOT NULL"
   in
+  let ensure_delay_column_exists =
+    "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS delay_until TIMESTAMP"
+  in
   Db.run_sql ensure_queue_status_type_exists;
   Db.run_sql ensure_queue_table_exists;
   Db.run_sql ensure_dequeue_index_exists;
   Db.run_sql ensure_cleanup_index_exists;
-  Db.run_sql ensure_retries_column_exists
+  Db.run_sql ensure_retries_column_exists;
+  Db.run_sql ensure_delay_column_exists;
 
