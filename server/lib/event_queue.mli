@@ -14,4 +14,5 @@ val unset_scope : status:[`OK | `Err] -> unit
  * unsafe for actual use. should be fine for development though *)
 val enqueue : string -> string -> RuntimeT.dval -> unit
 val dequeue : string -> string -> t option
-val put_back : t -> status:[`OK | `Err] -> unit
+val put_back : t -> status:[`OK | `Err | `Incomplete] -> unit
+val finish : t -> unit

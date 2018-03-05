@@ -36,8 +36,16 @@ let dequeue_and_evaluate_all () : string =
                        Db.cur_dbs := dbs;
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
                        let result = Handler.execute q env in
-                       Event_queue.put_back event ~status:`OK;
-                       Some result)
+                       (match result with
+                        | RTT.DIncomplete ->
+                          Event_queue.put_back event ~status:`Incomplete;
+                          None
+                        | RTT.DError _ ->
+                          Event_queue.put_back event ~status:`Err;
+                          None
+                        | _ ->
+                          Event_queue.finish event;
+                          Some result))
                   )
             in
             Event_queue.unset_scope ~status:`OK;
