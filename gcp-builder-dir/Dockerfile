@@ -22,6 +22,7 @@ RUN apt-get update \
       libev-dev=1:4.22-1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
       sudo \
+      openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
@@ -49,7 +50,6 @@ RUN /etc/init.d/postgresql start && \
 #RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
 
 RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
-
 
 
 # Set up app

@@ -9,12 +9,18 @@ gcloud docker -- push $IMAGE
 
 gcloud beta compute instances update-container instance-1 \
   --container-image $IMAGE \
-  --container-restart-policy=always \
-  --no-container-privileged \
-  --no-container-stdin \
-  --no-container-tty
+  --container-env-file config/prod_gcp \
+  --container-mount-host-path mount-path=/home/dark/gcp_persistdir,host-path=/tmp/persistdir,mode=rw \
+  --container-mount-host-path mount-path=/home/dark/gcp_rundir,host-path=/tmp/rundir,mode=rw \
 
-# TODO: persistent storage for postgres and appdata and events and
-# requests
-# --container-mount-host-path mount-path=/logs,host-path=/tmp,mode=rw
+# Only needs to be done once, but isn't connected yet
+# gcloud compute firewall-rules create allow-http \
+#   --allow tcp:80 --target-tags dark-prod
+
+  # --container-restart-policy=always \
+  # --no-container-privileged \
+  # --no-container-stdin \
+  # --no-container-tty
+
+# TODO: persistent storage for postgres and appdata and events
 

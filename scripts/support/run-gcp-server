@@ -9,6 +9,7 @@ mkdir -p $DARK_CONFIG_PERSIST_DIR/appdata
 
 sudo service postgresql start
 sudo service cron start
+sudo service ssh start
 
 echo "Waiting for postgres"
 until sudo service postgresql status; do
@@ -21,6 +22,13 @@ until sudo service cron status; do
   printf '.'
   sleep 1
 done
+
+echo "Waiting for ssh"
+until sudo service ssh status; do
+  printf '.'
+  sleep 1
+done
+
 
 echo "Starting server"
 ./bin/main.exe
