@@ -38,14 +38,12 @@ let dequeue_and_evaluate_all () : string =
                        let result = Handler.execute q env in
                        (match result with
                         | RTT.DIncomplete ->
-                          Event_queue.put_back event ~status:`Incomplete;
-                          None
+                          Event_queue.put_back event ~status:`Incomplete
                         | RTT.DError _ ->
-                          Event_queue.put_back event ~status:`Err;
-                          None
+                          Event_queue.put_back event ~status:`Err
                         | _ ->
-                          Event_queue.finish event;
-                          Some result))
+                          Event_queue.finish event);
+                       Some result)
                   )
             in
             Event_queue.unset_scope ~status:`OK;
