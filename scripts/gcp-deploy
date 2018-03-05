@@ -7,7 +7,7 @@ IMAGE=gcr.io/balmy-ground-195100/dark-prod
 docker tag dark-gcp:latest $IMAGE
 gcloud docker -- push $IMAGE
 
-gcloud beta compute instances update-container instance-1 \
+gcloud beta compute instances update-container instance-2 \
   --container-image $IMAGE \
   --container-env-file config/prod_gcp \
   --container-mount-host-path mount-path=/home/dark/gcp_persistdir,host-path=/tmp/persistdir,mode=rw \
