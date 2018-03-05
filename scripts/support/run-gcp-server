@@ -2,10 +2,13 @@
 
 set -euo pipefail
 
-mkdir -p $DARK_CONFIG_RUN_DIR
-mkdir -p $DARK_CONFIG_RUN_DIR/logs
-mkdir -p $DARK_CONFIG_PERSIST_DIR
-mkdir -p $DARK_CONFIG_PERSIST_DIR/appdata
+sudo chown dark $DARK_CONFIG_RUN_DIR
+sudo chown dark $DARK_CONFIG_PERSIST_DIR
+
+mkdir -p "${DARK_CONFIG_RUN_DIR}"
+mkdir -p "${DARK_CONFIG_RUN_DIR}/logs"
+mkdir -p "${DARK_CONFIG_PERSIST_DIR}"
+mkdir -p "${DARK_CONFIG_PERSIST_DIR}/appdata"
 
 sudo service postgresql start
 sudo service cron start
@@ -28,7 +31,6 @@ until sudo service ssh status; do
   printf '.'
   sleep 1
 done
-
 
 echo "Starting server"
 ./bin/main.exe
