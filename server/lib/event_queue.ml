@@ -36,6 +36,7 @@ let status_to_enum status : string =
   match status with
   | `OK -> "'done'"
   | `Err -> "'error'"
+  | `Incomplete -> "'error'"
 
 let unlock_jobs ~status : unit =
   Printf.sprintf
@@ -109,8 +110,14 @@ let put_back (item: t) ~status : unit =
         id
       else
         Printf.sprintf "UPDATE \"events\" SET status = 'error' WHERE id = %s" id
+    | `Incomplete ->
+      Printf.sprintf "UPDATE \"events\" SET status = 'new' WHERE id = %s"
+        id
   in
   Db.run_sql sql
+
+let finish (item: t) : unit =
+  put_back item ~status:`OK
 
 (* ------------------------- *)
 (* Some initialization *)
