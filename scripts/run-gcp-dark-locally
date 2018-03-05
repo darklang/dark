@@ -14,9 +14,9 @@ docker run \
   -it \
   -p 9000:80 \
   --env-file config/local_gcp \
-  -v pgconf:/etc/postgresql \
-  -v pglogs:/var/log/postgresql \
-  -v pgdata:/var/lib/postgresql \
+  -v gcp_pgconf:/etc/postgresql \
+  -v gcp_pglogs:/var/log/postgresql \
+  -v gcp_pgdata:/var/lib/postgresql \
   dark-gcp:latest
 
 
