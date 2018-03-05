@@ -16,6 +16,7 @@ let rec rec_con depth =
     c
   with
   | e ->
+      Log.pP "Couldn't connect to postgres, attempt " depth;
       if depth < 10
       then
         (Unix.sleep 1;
