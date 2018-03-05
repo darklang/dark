@@ -57,3 +57,8 @@ let bin_root_dir : string =
   Sys.getenv "DARK_CONFIG_BIN_ROOT_DIR"
   |> Option.value ~default:(server_dir ^ "_build/default/bin")
   |> fun x -> x ^ "/"
+
+let port : int =
+  Sys.getenv "DARK_CONFIG_HTTP_PORT"
+  |> Option.value ~default:"8000"
+  |> int_of_string

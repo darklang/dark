@@ -277,6 +277,6 @@ let server =
     |> route_handler
     (* |> auth_handler *)
   in
-  S.create ~stop ~mode:(`TCP (`Port 8000)) (S.make ~callback ())
+  S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback ())
 
 let run () = ignore (Lwt_main.run server)
