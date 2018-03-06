@@ -15,29 +15,38 @@ FROM ubuntu:17.10
 # - just use the package name, not the version.
 
 # Just enough to add keys and sources for npm and chrome
-RUN apt-get update && \
+
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
     apt-get install \
       -y \
       --no-install-recommends \
       curl \
       apt-transport-https \
-      ca-certificates
+      ca-certificates \
+      lsb-core
 
 # Latest NPM (taken from  https://deb.nodesource.com/setup_8.x )
 RUN curl -sSL https://dl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
+RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 
 RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
 RUN echo "deb https://deb.nodesource.com/node_9.x zesty main" > /etc/apt/sources.list.d/nodesource.list
 RUN echo "deb-src https://deb.nodesource.com/node_9.x zesty main" >> /etc/apt/sources.list.d/nodesource.list
+RUN export CLOUD_SDK_REPO="cloud-sdk-$(lsb_release -c -s)" && \
+    echo "deb http://packages.cloud.google.com/apt $CLOUD_SDK_REPO main" | tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
 
 # Deps:
 # - apt-transport-https for npm
 # - expect for unbuffer
 # everything after "ocaml" for ocaml
-RUN apt-get update && \
+RUN DEBIAN_FRONTEND=noninteractive \
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive \
     apt-get install \
       --no-install-recommends \
       -y \
@@ -67,6 +76,11 @@ RUN apt-get update && \
       gnupg \
       nodejs \
       google-chrome-stable \
+      dnsmasq \
+      cron \
+      google-cloud-sdk \
+      jq \
+      aspcud \
       && rm -rf /var/lib/apt/lists/*
       # todo apt-clean
 
@@ -97,7 +111,15 @@ RUN yarn add \
   testcafe@0.18.6
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
-# postgres
+# Speed up elm compiles
+RUN git clone https://github.com/obmarg/libsysconfcpus.git;
+RUN cd libsysconfcpus \
+       && ./configure \
+       && make \
+       && sudo make install
+
+
+# Postgres
 USER postgres
 RUN /etc/init.d/postgresql start && \
     psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
@@ -109,15 +131,22 @@ RUN /etc/init.d/postgresql start && \
 
 RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 
-# Expose the PostgreSQL port
-#EXPOSE 5432
-
-# Add VOLUMEs to allow backup of config, logs and databases
 user dark
+# Add VOLUMEs to allow backup of config, logs and databases
 VOLUME  ["/etc/postgresql", "/var/log/postgresql", "/var/lib/postgresql"]
 
+# No idea what caused this, but we get permission problems otherwise.
+RUN sudo chown postgres:postgres -R /etc/postgresql
+RUN sudo chown postgres:postgres -R /var/log/postgresql
+RUN sudo chown postgres:postgres -R /var/lib/postgresql
+
+
+# dns for integration tests
+USER root
+RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
 
 # Ocaml
+USER dark
 ENV OPAMJOBS 4
 RUN opam init --auto-setup
 RUN opam switch 4.06.0
@@ -156,28 +185,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks below this line, to avoid massive recompiles
 
-USER dark
-# No idea what caused this, but we get permission problems otherwise.
-RUN sudo chown postgres:postgres -R /etc/postgresql
-RUN sudo chown postgres:postgres -R /var/log/postgresql
-RUN sudo chown postgres:postgres -R /var/lib/postgresql
-
-# Speed up elm
-RUN git clone https://github.com/obmarg/libsysconfcpus.git;
-RUN cd libsysconfcpus \
-       && ./configure \
-       && make \
-       && sudo make install
-
-# dns for integration tests
-USER root
-RUN apt-get update && apt-get install -y dnsmasq
-RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
-
-# cron for queue workers
-USER root
-RUN apt-get update && apt-get install -y cron
 
 user dark
-
 CMD ["app", "scripts", "builder"]
