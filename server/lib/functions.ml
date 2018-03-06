@@ -73,7 +73,7 @@ let exe ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) : dv
          else apply f arglist
        with
        | TypeError _ ->
-           Log.pP ~name:"execution" ~ind "exception caught" args
+           Log.erroR ~name:"execution" ~ind "exception caught" args
              ~f:Dval.dvalmap_to_string;
            let range = List.range 0 (List.length arglist) in
            let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
