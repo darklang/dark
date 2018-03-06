@@ -2,23 +2,16 @@
 
 set -euo pipefail
 
-echo "--------------------------"
-echo "--  Starting dnsmaqs"
-echo "--------------------------"
-sudo service dnsmasq start
+for name in ${@}; do
+  if [[ $name == cron ]]; then
+    TAB='*/1 * * * *'
+    echo "$TAB $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1" | sudo crontab -
+  fi
 
-echo "--------------------------"
-echo "--  Starting postgres"
-echo "--------------------------"
-sudo service postgresql start
+  echo "--------------------------"
+  echo "--  Starting $name"
+  echo "--------------------------"
+  sudo service "$name" start
+done
 
-echo "--------------------------"
-echo "--  Starting cron"
-echo "--------------------------"
-(sudo crontab -l || true)
-
-TAB='*/1 * * * *'
-echo "$TAB $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1" | sudo crontab -
-
-sudo service cron start
 

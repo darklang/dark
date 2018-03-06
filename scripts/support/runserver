@@ -18,7 +18,7 @@ fi
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep main.exe | xargs kill -9 > /dev/null 2>&1) || true
 
-./scripts/support/wait-for-background-services
+./scripts/support/wait-for-background-services dnsmasq cron postgresql
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
