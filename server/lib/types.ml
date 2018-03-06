@@ -81,7 +81,7 @@ module RuntimeT = struct
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of DbT.db
-    | DID of int
+    | DID of Uuid.t
     | DDate of Time.t
     | DTitle of string
     | DUrl of string
