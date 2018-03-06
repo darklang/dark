@@ -61,7 +61,7 @@ done
 if [ -v CI ]; then
   ENV_FILE="config/circleci"
 else
-  ENV_FILE="config/local_dev"
+  ENV_FILE="config/dev"
 fi
 echo "Using env: $ENV_FILE"
 

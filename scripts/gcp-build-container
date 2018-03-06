@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-DIR=gcp-builder-dir # used unprotected, dont put a space in the name
+DIR=gcp-builddir # used unprotected, dont put a space in the name
 
 # this should eventually run from within the dev container, but that
 # doesn't seem easy. So this should run from your mac (or the outer

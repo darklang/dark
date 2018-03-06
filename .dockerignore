@@ -1,7 +1,10 @@
 .git
 client/elm-stuff
 client/tests/elm-stuff
-gcp-builder-dir/
 integration-tests/screenshots
 server/_build
-rundir/
+rundir
+persistdir
+gcp-rundir
+gcp-persistdir
+gcp-builddir
