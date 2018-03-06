@@ -1,3 +1,4 @@
+open Core
 open Types
 
 val with_postgres : (unit -> 'b) -> 'b
@@ -10,7 +11,7 @@ val fetch_via_sql : string -> string list list
 val cols_for : DbT.db -> (string * RuntimeT.tipe) list
 
 (* DB runtime functions *)
-val insert : DbT.db -> RuntimeT.dval_map -> int
+val insert : DbT.db -> RuntimeT.dval_map -> Uuid.t
 val fetch_all : DbT.db -> RuntimeT.dval
 val fetch_by : DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
 val delete : DbT.db -> RuntimeT.dval_map -> unit

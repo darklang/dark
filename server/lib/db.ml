@@ -43,7 +43,8 @@ let find_db table_name : DbT.db =
 (* ------------------------- *)
 let rec dval_to_sql (dv: dval) : string =
   match dv with
-  | DInt i | DID i -> string_of_int i
+  | DInt i -> string_of_int i
+  | DID i -> "'" ^ Uuid.to_string i ^ "'::uuid" (* needs a cast *)
   | DBool b -> if b then "TRUE" else "FALSE"
   | DChar c -> Char.to_string c
   | DStr s -> "'" ^ (escape s) ^ "'"
@@ -82,7 +83,7 @@ let fetch_via_sql (sql: string) : string list list =
  * *)
 let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   match tipe with
-  | TID -> sql |> int_of_string |> DID
+  | TID -> sql |> Uuid.of_string |> DID
   | TInt -> sql |> int_of_string |> DInt
   | TTitle -> sql |> DTitle
   | TUrl -> sql |> DUrl
@@ -93,7 +94,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
            else Dval.date_of_sqlstring sql)
   | TBelongsTo table ->
     (* fetch here for now *)
-    let id = sql |> int_of_string |> DID in
+    let id = sql |> Uuid.of_string |> DID in
     let db = find_db table in
     (match (fetch_by db "id" id) with
     | DList l -> List.hd_exn l
@@ -111,7 +112,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
       then []
       else
         split
-        |> List.map ~f:(fun s -> s |> String.strip |> int_of_string |> DID)
+        |> List.map ~f:(fun s -> s |> String.strip |> Uuid.of_string |> DID)
     in
     let db = find_db table in
     (* TODO(ian): fix the N+1 here *)
@@ -160,7 +161,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TBlock -> failwith "todo sql type"
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
-  | TID | TBelongsTo _ -> "INT"
+  | TID | TBelongsTo _ -> "UUID"
   | THasMany _ -> "integer ARRAY"
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
@@ -214,9 +215,9 @@ let is_relation (valu: dval) : bool =
     List.for_all ~f:Dval.is_obj l
   | _ -> false
 
-let rec insert (db: db) (vals: dval_map) : int =
-  let id = Util.create_id () in
-  let vals = DvalMap.set ~key:"id" ~data:(DInt id) vals in
+let rec insert (db: db) (vals: dval_map) : Uuid.t =
+  let id = Uuid.create () in
+  let vals = DvalMap.set ~key:"id" ~data:(DID id) vals in
   (* split out complex objects *)
   let objs, normal =
     Map.partition_map
@@ -264,7 +265,7 @@ and upsert_dependent_object cols ~key:relation ~data:obj : dval =
   | DObj m ->
     (match DvalMap.find m "id" with
      | Some existing -> update db_obj m; existing
-     | None -> insert db_obj m |> DInt)
+     | None -> insert db_obj m |> DID)
   | DList l ->
     List.map ~f:(fun x -> upsert_dependent_object cols ~key:relation ~data:x) l |> DList
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
@@ -313,7 +314,7 @@ let run_migration (migration_id: id) (sql:string) : unit =
 
 let create_table_sql (table_name: string) =
   Printf.sprintf
-    "CREATE TABLE IF NOT EXISTS \"%s\" (id SERIAL PRIMARY KEY)"
+    "CREATE TABLE IF NOT EXISTS \"%s\" (id UUID PRIMARY KEY)"
     (escape table_name)
 
 let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =

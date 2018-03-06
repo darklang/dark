@@ -133,7 +133,6 @@ let date_of_sqlstring (str: string) : Time.t =
 
 let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
-  let wrap_int i = wrap (string_of_int i) in
   let wrap_string str = wrap ("\"" ^ str ^ "\"") in
   match dv with
   | DInt i -> string_of_int i
@@ -143,7 +142,7 @@ let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
   | DNull -> "null"
-  | DID id -> wrap_int id
+  | DID id -> wrap (Uuid.to_string id)
   | DDate d -> d |> isostring_of_date |> wrap_string
   | DTitle t -> wrap_string t
   | DUrl url -> wrap_string url
@@ -293,7 +292,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Null -> DNull
   | `Assoc [("type", `String "date"); ("value", `String v)] ->
     DDate (date_of_isostring v)
-  | `Assoc [("type", `String "id"); ("value", `Int v)] -> DID v
+  | `Assoc [("type", `String "id"); ("value", `String v)] -> DID (Uuid.of_string v)
   | `Assoc [("type", `String "title"); ("value", `String v)] -> DTitle v
   | `Assoc [("type", `String "url"); ("value", `String v)] -> DUrl v
   (* DB doesnt make sense *)
@@ -337,7 +336,7 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
 
   | DDB db -> wrap_user_str db.display_name
-  | DID id -> `Int id
+  | DID id -> `String (Uuid.to_string id)
   | DUrl url -> `String url
   | DTitle title -> `String title
   | DDate date -> `String (isostring_of_date date)
