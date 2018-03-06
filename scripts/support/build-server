@@ -18,6 +18,11 @@ def flush(fn):
 sys.stdout.write = flush(sys.stdout.write)
 sys.stdout.writelines = flush(sys.stdout.writelines)
 
+def run_or_fail(bash):
+  if not run(bash):
+    print("Failed during call: " + bash)
+    sys.exit(-1)
+
 
 def run(bash):
   proc = subprocess.run(bash, shell=True)
@@ -48,10 +53,10 @@ def initial_compile():
 
 def start_background_services():
   # We wait for them in runserver
-  run("scripts/support/start-background-services")
+  run_or_fail("scripts/support/start-background-services")
 
 def create_app_dirs():
-  run("scripts/support/create-app-directories")
+  run_or_fail("scripts/support/create-app-directories")
 
 
 # It is extremely challenging to get a non-blocking read on stdin.
@@ -135,10 +140,10 @@ def main():
       global run_tests
       run_tests = True
 
-  run("scripts/support/write-config-file")
+  run_or_fail("scripts/support/write-config-file")
   if compile:
-    background_task(start_background_services, "start background services")
-    background_task(create_app_dirs, "create_app_dirs")
+    start_background_services()
+    create_app_dirs()
     background_task(initial_compile, "initial_compile")
 
   if watch:
