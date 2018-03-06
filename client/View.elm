@@ -213,7 +213,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                 then Nothing
                 else Just (tl.id, pointer)
       mouseOvered =
-        case m.hovering of
+        case m.hovering |> List.head of
           Nothing -> MouseNotOverDiv
           Just i ->
             if (P.idOf i) == (P.idOf pointer)
@@ -243,7 +243,7 @@ html4blank selected mouseover classes clickable hoverdata content =
                      { stopPropagation = True
                      , preventDefault = False
                      }
-                     (decodeClickEvent (MouseLeave))
+                     (decodeClickEvent (MouseLeave pointer))
                    ]
       (valClass, title) =
         case hoverdata of
@@ -365,7 +365,7 @@ viewHandler m tl h =
           _ -> (ID 0, False)
 
       hovering =
-        case m.hovering of
+        case m.hovering |> List.head of
           Just p -> P.idOf p
           Nothing -> ID 0
 

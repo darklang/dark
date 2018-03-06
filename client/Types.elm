@@ -125,7 +125,7 @@ type Msg
     | ToplevelClickUp TLID (Maybe Pointer) MouseEvent
     | DragToplevel TLID Mouse.Position
     | MouseEnter Pointer MouseEvent
-    | MouseLeave MouseEvent
+    | MouseLeave Pointer MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -358,7 +358,7 @@ type alias Model = { center : Pos
                    , tests : List VariantTest
                    , complete : Autocomplete
                    , state : State
-                   , hovering : Maybe Pointer
+                   , hovering : List Pointer
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
@@ -387,7 +387,7 @@ type Modification = Error String
                   | ClearError
                   | Select TLID (Maybe Pointer)
                   | SetHover Pointer
-                  | ClearHover
+                  | ClearHover Pointer
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable)
                   | Enter EntryCursor
