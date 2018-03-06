@@ -22,7 +22,6 @@ RUN apt-get update \
       libev-dev=1:4.22-1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
       sudo \
-      openssh-server \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
