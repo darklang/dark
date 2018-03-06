@@ -53,7 +53,7 @@ let pP ?(f=Batteries.dump)
        (msg : string)
        (x : 'a)
        : unit =
-  if show && (not (quiet name))
+  if show && (not (quiet name)) && (not (!level = `Off))
   then
     let red = "\x1b[6;31m" in
     let black = "\x1b[6;30m" in
