@@ -39,7 +39,10 @@ NEWIP=$($GCLOUD compute instances describe $INSTANCE \
   --format=json | jq --raw-output .networkInterfaces[0].accessConfigs[0].natIP)
 
 
-$GCLOUD dns record-sets transaction abort $ZONE
+if [[ -e transaction.yaml ]]; then
+  $GCLOUD dns record-sets transaction abort $ZONE
+fi
+
 $GCLOUD dns record-sets transaction start $ZONE
 
 $GCLOUD dns record-sets transaction remove ${FULL_DNS_SETTINGS} $OLDIP
@@ -47,3 +50,4 @@ $GCLOUD dns record-sets transaction add ${FULL_DNS_SETTINGS} $NEWIP
 
 $GCLOUD dns record-sets transaction execute $ZONE
 
+rm -f transaction.yaml
