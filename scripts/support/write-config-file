@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+env | grep DARK_CONFIG > /home/dark/.dark-config
+

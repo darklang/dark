@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "Waiting for postgres"
+until sudo service postgresql status; do
+  printf '.'
+  sleep 1
+done
+
+echo "Waiting for cron"
+until sudo service cron status; do
+  printf '.'
+  sleep 1
+done
+
+echo "Waiting for dnsmasq"
+until sudo service dnsmasq status; do
+  printf '.'
+  sleep 1
+done
+
+
