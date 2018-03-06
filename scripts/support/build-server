@@ -53,7 +53,7 @@ def initial_compile():
 
 def start_background_services():
   # We wait for them in runserver
-  run_or_fail("scripts/support/start-background-services")
+  run_or_fail("scripts/support/start-background-services dnsmasq cron postgresql")
 
 def create_app_dirs():
   run_or_fail("scripts/support/create-app-directories")

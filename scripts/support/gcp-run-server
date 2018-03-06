@@ -5,10 +5,10 @@ set -euo pipefail
 sudo chown dark $DARK_CONFIG_RUN_DIR
 sudo chown dark $DARK_CONFIG_PERSIST_DIR
 
-./write-config-file
-./create-app-directories
-./start-background-services
-./wait-for-background-services
+./scripts/support/write-config-file
+./scripts/support/create-app-directories
+./scripts/support/start-background-services cron postgresql
+./scripts/support/wait-for-background-services cron postgresql
 
 echo "Starting server"
 sudo --preserve-env ./bin/main.exe

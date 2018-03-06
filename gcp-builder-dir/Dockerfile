@@ -21,6 +21,7 @@ RUN apt-get update \
       cron \
       libev-dev=1:4.22-1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
+      postgresql-client-10=10.1-1.pgdg17.04+1 \
       sudo \
     && rm -rf /var/lib/apt/lists/*
 
@@ -35,18 +36,11 @@ RUN echo "dark:dark" | chpasswd && adduser dark sudo
 RUN chown -R dark:dark /home/dark
 RUN echo '%sudo ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
-# cron for queue workers
-RUN (crontab -l 2>/dev/null; echo "*/1 * * * * /home/dark/trigger_queue_workers >> /home/dark/cron.log 2>&1") | crontab -
-
 # Postgres
 USER postgres
 RUN /etc/init.d/postgresql start && \
     psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
     createdb -O dark proddb
-
-# Adjust PostgreSQL configuration so that remote connections to the
-# database are possible.
-#RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
 
 RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 
@@ -54,7 +48,12 @@ RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 # Set up app
 USER dark
 WORKDIR /home/dark
+# RUN sudo chown postgres:postgres -R /etc/postgresql
+# RUN sudo chown postgres:postgres -R /var/log/postgresql
+# RUN sudo chown postgres:postgres -R /var/lib/postgresql
+
+
 
 COPY . /home/dark
 
-CMD "./run-gcp-server"
+CMD "./gcp-run-server"
