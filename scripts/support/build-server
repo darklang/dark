@@ -46,38 +46,12 @@ def initial_compile():
   print("-- Finished initial compile")
   print("--------------------------")
 
+def start_background_services():
+  # We wait for them in runserver
+  run("scripts/support/start-background-services")
 
-def start_postgres():
-  print("--------------------------")
-  print("-- Starting postgres")
-  print("--------------------------")
-  run('sudo service postgresql start')
-
-def start_cron():
-  print("--------------------------")
-  print("-- Starting cron")
-  print("--------------------------")
-  run('sudo service cron start')
-
-def start_dnsmasq():
-  print("--------------------------")
-  print("-- Starting cron")
-  print("--------------------------")
-  run('sudo service dnsmasq start')
-
-def init_dirs():
-  rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
-  run("mkdir -p " + rundir)
-  run("mkdir -p " + rundir + "/logs")
-  run("mkdir -p " + rundir + "/cache")
-  run("mkdir -p " + rundir + "/completed_tests")
-  persistdir = os.environ.get("DARK_CONFIG_PERSIST_DIR")
-  run("mkdir -p " + persistdir)
-  run("mkdir -p " + persistdir + "/appdata")
-  run("mkdir -p " + persistdir + "/events")
-
-
-
+def create_app_dirs():
+  run("scripts/support/create-app-directories")
 
 
 # It is extremely challenging to get a non-blocking read on stdin.
@@ -161,11 +135,10 @@ def main():
       global run_tests
       run_tests = True
 
+  run("scripts/support/write-config-file")
   if compile:
-    init_dirs()
-    background_task(start_dnsmasq, "start_dnsmasq")
-    background_task(start_cron, "start_cron")
-    background_task(start_postgres, "start_postgres")
+    background_task(start_background_services, "start background services")
+    background_task(create_app_dirs, "create_app_dirs")
     background_task(initial_compile, "initial_compile")
 
   if watch:

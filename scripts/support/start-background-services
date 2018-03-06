@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+echo "--------------------------"
+echo "--  Starting dnsmaqs"
+echo "--------------------------"
+sudo service dnsmasq start
+
+echo "--------------------------"
+echo "--  Starting postgres"
+echo "--------------------------"
+sudo service postgresql start
+
+echo "--------------------------"
+echo "--  Starting cron"
+echo "--------------------------"
+sudo service cron start
+

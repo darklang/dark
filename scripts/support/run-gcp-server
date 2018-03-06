@@ -2,36 +2,13 @@
 
 set -euo pipefail
 
-mkdir -p "${DARK_CONFIG_RUN_DIR}"
-mkdir -p "${DARK_CONFIG_PERSIST_DIR}"
-
 sudo chown dark $DARK_CONFIG_RUN_DIR
 sudo chown dark $DARK_CONFIG_PERSIST_DIR
 
-mkdir -p "${DARK_CONFIG_RUN_DIR}/logs"
-mkdir -p "${DARK_CONFIG_PERSIST_DIR}/appdata"
-
-sudo service postgresql start
-sudo service cron start
-sudo service ssh start
-
-echo "Waiting for postgres"
-until sudo service postgresql status; do
-  printf '.'
-  sleep 1
-done
-
-echo "Waiting for cron"
-until sudo service cron status; do
-  printf '.'
-  sleep 1
-done
-
-echo "Waiting for ssh"
-until sudo service ssh status; do
-  printf '.'
-  sleep 1
-done
+./write-config-file
+./create-app-directories
+./start-background-services
+./wait-for-background-services
 
 echo "Starting server"
 sudo --preserve-env ./bin/main.exe

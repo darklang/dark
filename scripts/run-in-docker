@@ -17,15 +17,15 @@ ARGS=$(echo ${ARGS} | fix_dir_stdin)
 
 if [[ -v CURRENTLY_REBUILDING_DOCKER ]];
 then
-  NAME=$(docker ps --last 2 --filter status=running --quiet | tail -n 1)
+  NAME=$(docker ps --last 2 --filter "ancestor=dark" --filter status=running --quiet | tail -n 1)
 else
-  NAME=$(docker ps --last 1 --filter status=running --quiet)
+  NAME=$(docker ps --last 1 --filter "ancestor=dark" --filter status=running --quiet)
 fi
 
 if [ -t 0 ] ;
 then
-  docker exec -it "${NAME}" ${ARGS} ;
+  docker exec -it ${NAME} bash -c "source /home/dark/.dark-config && ${ARGS}";
 else
   # Replace any in-container filenames with host filesnames (stdout + stderr)
-  { cat <&0 | fix_dir_stdin | docker exec -i "${NAME}" ${ARGS} 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
+  { cat <&0 | fix_dir_stdin | docker exec -i ${NAME} bash -c "source /home/dark/.dark-config && ${ARGS}" 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
 fi

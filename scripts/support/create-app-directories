@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+RUNDIR="${DARK_CONFIG_RUN_DIR}"
+PERSISTDIR="${DARK_CONFIG_PERSIST_DIR}"
+
+mkdir -p "$RUNDIR"
+mkdir -p "$PERSISTDIR"
+
+mkdir -p "$RUNDIR/logs"
+mkdir -p "$RUNDIR/cache"
+mkdir -p "$RUNDIR/completed_tests"
+mkdir -p "$PERSISTDIR/appdata"
+mkdir -p "$PERSISTDIR/events"
+
+
+

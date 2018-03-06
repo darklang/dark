@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
@@ -13,12 +13,12 @@ else
   FILE=$BYTE_FILE
 fi
 
-LOGS="${DARK_CONFIG_RUN_DIR}/logs"
-mkdir -p $LOGS
 
 # Stop the server
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep main.exe | xargs kill -9 > /dev/null 2>&1) || true
+
+./scripts/support/wait-for-background-services
 
 # if it hasn't been compiled yet, wait for it
 for ((i=1;i<=1000;i++));
@@ -29,12 +29,13 @@ do
 done
 
 if [[ -f "${FILE}" ]]; then
-    echo "Running server"
-    if [[ $NATIVE ]]; then
-      "${FILE}" > "$LOGS/server.log" 2>&1 &
-    else
-      ocamlrun "${FILE}" > "$LOGS/server.log" 2>&1 &
-    fi
+  LOGS="${DARK_CONFIG_RUN_DIR}/logs"
+  echo "Running server"
+  if [[ $NATIVE ]]; then
+    "${FILE}" > "$LOGS/server.log" 2>&1 &
+  else
+    ocamlrun "${FILE}" > "$LOGS/server.log" 2>&1 &
+  fi
 else
   echo "${FILE} doesn't exist"
   exit -1
