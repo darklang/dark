@@ -298,9 +298,11 @@ updateMod mod (m, cmd) =
       SetCenter c ->
         { m | center = c } ! []
       SetHover p ->
-        { m | hovering = Just p } ! []
-      ClearHover ->
-        { m | hovering = Nothing } ! []
+        let nhovering = (p :: m.hovering) in
+        { m | hovering = nhovering } ! []
+      ClearHover p ->
+        let nhovering = List.filter (\m -> m /= p) m.hovering in
+        { m | hovering = nhovering } ! []
       SetCursor tlid cur ->
         let newM = TL.update m tlid (\tl -> { tl | cursor = cur })
         in
@@ -709,8 +711,8 @@ update_ msg m =
     (MouseEnter id _, _) ->
       SetHover id
 
-    (MouseLeave _, _) ->
-      ClearHover
+    (MouseLeave p _, _) ->
+      ClearHover p
 
     -----------------
     -- Buttons
