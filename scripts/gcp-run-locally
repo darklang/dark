@@ -8,20 +8,20 @@ if [[ ! -z "${c}" ]]; then
   docker kill "${c}";
 fi
 
-mkdir -p gcp_rundir
-mkdir -p gcp_persistdir
+mkdir -p gcp-rundir
+mkdir -p gcp-persistdir
 
 echo "Starting new container"
 docker run \
   --rm \
   -it \
   -p 9000:80 \
-  --env-file config/local_gcp \
-  --mount type=bind,src=$PWD/gcp_rundir,dst=/home/dark/gcp_rundir \
-  --mount type=bind,src=$PWD/gcp_persistdir,dst=/home/dark/gcp_persistdir \
-  -v gcp_pgconf:/etc/postgresql \
-  -v gcp_pglogs:/var/log/postgresql \
-  -v gcp_pgdata:/var/lib/postgresql \
+  --env-file config/gcp-local \
+  --mount type=bind,src=$PWD/gcp-rundir,dst=/home/dark/gcp-rundir \
+  --mount type=bind,src=$PWD/gcp-persistdir,dst=/home/dark/gcp-persistdir \
+  -v gcp-pgconf:/etc/postgresql \
+  -v gcp-pglogs:/var/log/postgresql \
+  -v gcp-pgdata:/var/lib/postgresql \
   dark-gcp:latest \
   ${@}
 

@@ -26,9 +26,9 @@ $GCLOUD docker -- push $IMAGE
 
 $GCLOUD beta compute instances update-container $INSTANCE \
   --container-image $IMAGE \
-  --container-env-file config/prod_gcp \
-  --container-mount-host-path mount-path=/home/dark/gcp_persistdir,host-path=/tmp/persistdir,mode=rw \
-  --container-mount-host-path mount-path=/home/dark/gcp_rundir,host-path=/tmp/rundir,mode=rw
+  --container-env-file config/gcp-prod \
+  --container-mount-host-path mount-path=/home/dark/gcp-persistdir,host-path=/tmp/persistdir,mode=rw \
+  --container-mount-host-path mount-path=/home/dark/gcp-rundir,host-path=/tmp/rundir,mode=rw
 
 #########################
 # Set DNS
