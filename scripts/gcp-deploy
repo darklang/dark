@@ -2,25 +2,48 @@
 
 set -euo pipefail
 
-IMAGE=gcr.io/balmy-ground-195100/dark-prod
+PROJECT="balmy-ground-195100"
+IMAGE="gcr.io/$PROJECT/dark-prod"
+ZONE="--zone=dark-single-instance"
+DNS_SETTINGS="--name=darksingleinstance.com. --type=A $ZONE"
+FULL_DNS_SETTINGS="$DNS_SETTINGS --ttl=300"
+INSTANCE=instance-2
+
+#GCLOUD="scripts/run-in-docker gcloud --project=$PROJECT "
+GCLOUD="gcloud --project=$PROJECT "
+
+#########################
+# Deploy Docker image
+#########################
 
 docker tag dark-gcp:latest $IMAGE
-gcloud docker -- push $IMAGE
+$GCLOUD docker -- push $IMAGE
 
-gcloud beta compute instances update-container instance-2 \
+
+#########################
+# Restart instance and containers
+#########################
+
+$GCLOUD beta compute instances update-container $INSTANCE \
   --container-image $IMAGE \
   --container-env-file config/prod_gcp \
   --container-mount-host-path mount-path=/home/dark/gcp_persistdir,host-path=/tmp/persistdir,mode=rw \
-  --container-mount-host-path mount-path=/home/dark/gcp_rundir,host-path=/tmp/rundir,mode=rw \
+  --container-mount-host-path mount-path=/home/dark/gcp_rundir,host-path=/tmp/rundir,mode=rw
 
-# Only needs to be done once, but isn't connected yet
-# gcloud compute firewall-rules create allow-http \
-#   --allow tcp:80 --target-tags dark-prod
+#########################
+# Set DNS
+#########################
+OLDIP=$($GCLOUD dns record-sets list $DNS_SETTINGS \
+  --format=json | jq --raw-output .[0].rrdatas[0])
+NEWIP=$($GCLOUD compute instances describe $INSTANCE \
+  --format=json | jq --raw-output .networkInterfaces[0].accessConfigs[0].natIP)
 
-  # --container-restart-policy=always \
-  # --no-container-privileged \
-  # --no-container-stdin \
-  # --no-container-tty
 
-# TODO: persistent storage for postgres and appdata and events
+$GCLOUD dns record-sets transaction abort $ZONE
+$GCLOUD dns record-sets transaction start $ZONE
+
+$GCLOUD dns record-sets transaction remove ${FULL_DNS_SETTINGS} $OLDIP
+$GCLOUD dns record-sets transaction add ${FULL_DNS_SETTINGS} $NEWIP
+
+$GCLOUD dns record-sets transaction execute $ZONE
 
