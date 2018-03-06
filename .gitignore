@@ -2,7 +2,7 @@
 /.browser-trigger
 /client/elm-stuff
 /client/tests/elm-stuff
-/gcp-builder-dir
+/gcp-builddir
 !/gcp-builder-dir/Dockerfile
 /integration-tests/screenshots/*
 /integration-tests/report.json
