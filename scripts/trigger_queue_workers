@@ -6,7 +6,7 @@ set -euo pipefail
 source /home/dark/.dark-config
 
 if [ -v DARK_CONFIG_TRIGGER_QUEUE_WORKERS ]; then
-  export DARK_CONFIG_LOGLEVEL="OFF"
+  export DARK_CONFIG_LOGLEVEL="FATAL"
   DATE="[$(date +'%Y-%m-%d %H:%M:%S')]"
   OUTPUT=$($DARK_CONFIG_BIN_ROOT_DIR/trigger_queue_workers.exe)
   if [[ -z "${OUTPUT// }" ]]; then

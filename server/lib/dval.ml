@@ -203,8 +203,8 @@ let to_human_repr (dv: dval) : string =
 let to_error_repr (dv : dval) : string =
   (to_repr dv) ^ " (" ^ (tipename dv) ^ ")"
 
-let pp = Log.pp ~f:to_repr
-let pP = Log.pP ~f:to_repr
+let pp = Log.debug ~f:to_repr
+let pP = Log.debuG ~f:to_repr
 
 
 let rec to_url_string (dv : dval) : string =

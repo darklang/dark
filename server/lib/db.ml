@@ -12,11 +12,11 @@ module PG = Postgresql
 let rec rec_con depth =
   try
     let c = new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()  in
-    c#set_notice_processor (Log.pP "DBNOTICE");
+    c#set_notice_processor (Log.infO "postgres");
     c
   with
   | e ->
-      Log.pP "Couldn't connect to postgres, attempt " depth;
+      Log.infO "Couldn't connect to postgres, attempt " depth;
       if depth < 10
       then
         (Unix.sleep 1;
@@ -73,7 +73,7 @@ let cols_for (db: db) : (string * tipe) list =
 
 let fetch_via_sql (sql: string) : string list list =
   sql
-  |> Log.pp "sql"
+  |> Log.info "sql"
   |> conn#exec ~expect:PG.[Tuples_ok]
   |> (fun res -> res#get_all_lst)
 
@@ -184,7 +184,7 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 
 
 let run_sql (sql: string) : unit =
-  Log.pP "sql" sql ~stop:10000;
+  Log.infO "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
 
@@ -290,7 +290,7 @@ let delete db (vals: dval_map) =
 (* run all db and schema changes as migrations *)
 (* ------------------------- *)
 let run_migration (migration_id: id) (sql:string) : unit =
-  Log.pP "sql" sql;
+  Log.infO "sql" sql;
   Printf.sprintf
     "DO
        $do$

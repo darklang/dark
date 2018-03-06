@@ -217,7 +217,7 @@ let server =
            | a :: rest -> a
            | _ -> failwith @@ "Unsupported domain: " ^ domain in
 
-           Log.pP "req: " (domain, Cohttp.Code.string_of_method verb, uri);
+           Log.infO "request" (domain, Cohttp.Code.string_of_method verb, ("http:" ^Uri.to_string uri));
 
            match (Uri.path uri) with
            | "/admin/api/rpc" ->
