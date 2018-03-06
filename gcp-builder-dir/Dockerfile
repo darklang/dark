@@ -21,7 +21,6 @@ RUN apt-get update \
       cron \
       libev-dev=1:4.22-1 \
       postgresql-10=10.1-1.pgdg17.04+1 \
-      postgresql-client-10=10.1-1.pgdg17.04+1 \
       sudo \
     && rm -rf /var/lib/apt/lists/*
 
@@ -44,14 +43,14 @@ RUN /etc/init.d/postgresql start && \
 
 RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 
+USER root
+RUN chown postgres:postgres -R /etc/postgresql
+RUN chown postgres:postgres -R /var/log/postgresql
+RUN chown postgres:postgres -R /var/lib/postgresql
 
 # Set up app
 USER dark
 WORKDIR /home/dark
-# RUN sudo chown postgres:postgres -R /etc/postgresql
-# RUN sudo chown postgres:postgres -R /var/log/postgresql
-# RUN sudo chown postgres:postgres -R /var/lib/postgresql
-
 
 
 COPY . /home/dark
