@@ -15,5 +15,10 @@ sudo service postgresql start
 echo "--------------------------"
 echo "--  Starting cron"
 echo "--------------------------"
+(sudo crontab -l || true)
+
+TAB='*/1 * * * *'
+echo "$TAB $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1" | sudo crontab -
+
 sudo service cron start
 

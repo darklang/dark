@@ -2,11 +2,13 @@
 
 set -euo pipefail
 
-if [ ! -v DARK_CONFIG_TRIGGER_QUEUE_WORKERS ]; then
-  cd "/home/dark/app"
+# Set up env vars
+source /home/dark/.dark-config
+
+if [ -v DARK_CONFIG_TRIGGER_QUEUE_WORKERS ]; then
   export DARK_CONFIG_LOGLEVEL="OFF"
   DATE="[$(date +'%Y-%m-%d %H:%M:%S')]"
-  OUTPUT=$(/home/dark/app/server/_build/default/bin/trigger_queue_workers.exe)
+  OUTPUT=$($DARK_CONFIG_BIN_ROOT_DIR/trigger_queue_workers.exe)
   if [[ -z "${OUTPUT// }" ]]; then
     echo "$DATE No events to process"
   else

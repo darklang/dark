@@ -177,7 +177,6 @@ RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
 # cron for queue workers
 USER root
 RUN apt-get update && apt-get install -y cron
-RUN (crontab -l 2>/dev/null; echo "*/1 * * * * /home/dark/app/scripts/trigger_queue_workers >> /home/dark/app/logs/cron.log 2>&1") | crontab -
 
 user dark
 

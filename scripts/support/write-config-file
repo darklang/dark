@@ -2,5 +2,5 @@
 
 set -euo pipefail
 
-env | grep DARK_CONFIG > /home/dark/.dark-config
+env | grep DARK_CONFIG | sed 's/^/export /' > /home/dark/.dark-config
 
