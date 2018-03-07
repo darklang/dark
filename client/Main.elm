@@ -13,6 +13,7 @@ import Navigation
 import Mouse
 -- import List.Extra as LE
 import Window
+import Time exposing (Time, second)
 
 -- dark
 import RPC exposing (rpc, saveTest, integrationRpc)
@@ -786,6 +787,11 @@ update_ msg m =
         Nothing -> NoChange
         Just c -> SetCenter c
 
+    (ClockTick action time, _) ->
+      case action of
+        RefreshAnalyses ->
+          RPC ([Sync], FocusNoChange)
+
     t -> Error <| "Dark Client Error: nothing for " ++ (toString t)
 
 
@@ -806,7 +812,9 @@ subscriptions m =
           Dragging id offset _ _ ->
             [ Mouse.moves (DragToplevel id)]
           _ -> []
+      timers =
+        [ Time.every second (ClockTick RefreshAnalyses) ]
   in Sub.batch
-    (List.concat [keySubs, dragSubs, resizes])
+    (List.concat [keySubs, dragSubs, resizes, timers])
 
 

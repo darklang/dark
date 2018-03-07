@@ -103,6 +103,7 @@ encodeRPC m call =
       Redo -> ev "Redo" []
       DeleteTL id -> ev "DeleteTL" [encodeTLID id]
       MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
+      Sync -> ev "Sync" []
 
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
