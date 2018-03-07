@@ -15,7 +15,7 @@ echo "Starting new container"
 docker run \
   --rm \
   -it \
-  -p 9000:80 \
+  -p 8000:80 \
   --env-file config/gcp-local \
   --mount type=bind,src=$PWD/gcp-rundir,dst=/home/dark/gcp-rundir \
   --mount type=bind,src=$PWD/gcp-persistdir,dst=/home/dark/gcp-persistdir \
