@@ -103,20 +103,12 @@ jobs:
           name: Run the dev container to build the new container
           command: scripts/builder --serve
 
+      # TODO: do integration tests on the built container
+      - run: scripts/run-in-docker integration-tests/run.sh
+
       - run:
           name: Build the production container
           command: scripts/run-in-docker scripts/gcp-build-container
-
-      - run:
-          name: Kill the dev container
-          command: docker ps --filter "ancestor=dark" -q | xargs docker kill
-
-      - run:
-          name: Run production container
-          command: scripts/gcp-run-locally
-          background: true
-
-      - run: scripts/run-in-docker integration-tests/run.sh
 
       - run:
           name: Copy out artifacts
@@ -125,6 +117,15 @@ jobs:
             docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
             docker cp vols:/home/dark/app/rundir artifacts/rundir2
 
+      - run:
+          name: Kill the dev container
+          command: docker ps --filter "ancestor=dark" -q | xargs docker kill
+
       - store_artifacts:
           path: artifacts
+
+      - run:
+          name: Deploy production container
+          command: scripts/run-in-docker scripts/gcp-deploy
+
 
