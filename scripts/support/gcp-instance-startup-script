@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+sudo mkdir -p /mnt/disks/dark-disk
+sudo mount -o defaults /dev/sdb /mnt/disks/dark-disk
+sudo chmod a+w /mnt/disks/dark-disk
+sudo mkdir -p /mnt/disks/dark-disk/persistdir
+sudo mkdir -p /mnt/disks/dark-disk/rundir
+
+
