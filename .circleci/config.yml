@@ -102,6 +102,7 @@ jobs:
       - run:
           name: Run the dev container to build the new container
           command: scripts/builder --serve
+          background: true
 
       # TODO: do integration tests on the built container
       - run: scripts/run-in-docker integration-tests/run.sh
