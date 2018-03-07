@@ -77,6 +77,12 @@ jobs:
             docker cp vols:/home/dark/app/rundir artifacts/rundir1/
 
       - run:
+          name: Copy out production assets
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/server/_build server/
+
+      - run:
           name: Copy out caches
           when: always
           command: |
