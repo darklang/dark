@@ -215,7 +215,7 @@ let save ?(filename=None) (c : canvas) : unit =
                 ~prog:(Config.bin_root_dir ^ "darkfile_bin_to_json.exe")
                 ~argv:[""; filename; json]
                 ()
-              |> Log.debug "dark2json pid" in
+      in
       ()
   | Some file ->
       Serialize.save_binary file c.ops

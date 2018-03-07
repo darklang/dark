@@ -18,6 +18,9 @@ let current_scope : string option ref =
 let scope_setter : int option ref =
   ref None
 
+let has_dequeued : bool ref =
+  ref false
+
 let current_scope_exn () : string =
   match !current_scope with
   | Some sc -> sc
@@ -51,7 +54,11 @@ let set_scope (scope: string) : unit =
   scope_setter  := Some setter
 
 let unset_scope ~status : unit =
-  unlock_jobs ~status;
+  let _ =
+    if !has_dequeued
+    then unlock_jobs ~status
+    else ()
+  in
   current_scope := None;
   scope_setter  := None
 
@@ -79,6 +86,7 @@ let enqueue (space: string) (name: string) (data: dval) : unit =
  * but multiple queries will do fine for now
  *)
 let dequeue (space: string) (name: string) : t option =
+  has_dequeued := true;
   let fetched =
     Printf.sprintf
       "SELECT id, value, retries from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
@@ -122,8 +130,8 @@ let finish (item: t) : unit =
 (* ------------------------- *)
 (* Some initialization *)
 (* ------------------------- *)
-let _ =
-  Init.init ();
+
+let init () : unit =
   let ensure_queue_status_type_exists =
     (* there's no CREATE TYPE IF NOT EXISTS :/ *)
     "DO $$

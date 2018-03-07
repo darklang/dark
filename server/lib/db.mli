@@ -1,8 +1,10 @@
 open Core
 open Types
 
+val init : unit -> unit
 val with_postgres : (unit -> 'b) -> 'b
 val cur_dbs : DbT.db list ref
+
 (* Low-level API *)
 val run_sql : string -> unit
 val fetch_via_sql : string -> string list list
