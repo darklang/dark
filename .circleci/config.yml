@@ -74,6 +74,7 @@ jobs:
           when: always
           command: |
             docker cp vols:/home/dark/app/persistdir artifacts/persistdir1
+            docker cp vols:/home/dark/app/rundir artifacts/rundir1/
 
       - run:
           name: Copy out caches
@@ -93,13 +94,11 @@ jobs:
 
 
 
+      - run: scripts/gcp-build-container
       - run:
-          name: Run server
+          command: scripts/gcp-run-locally
           background: true
-          command: |
-            scripts/builder --serve
 
-      - run: scripts/wait-for-server
       - run: scripts/run-in-docker integration-tests/run.sh
 
       - run:
@@ -107,7 +106,7 @@ jobs:
           when: always
           command: |
             docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
-            docker cp vols:/home/dark/app/rundir artifacts/rundir
+            docker cp vols:/home/dark/app/rundir artifacts/rundir2
 
       - store_artifacts:
           path: artifacts
