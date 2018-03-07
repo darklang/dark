@@ -30,5 +30,8 @@ let init () =
     Exn.initialize_module ();
     (* init the Random module, will be seeded from /dev/urandom on Linux *)
     Random.self_init ();
+    Db.init ();
+    Event_queue.init ();
+    Log.infO "SYSTEM" "Initialization Complete";
     has_inited := true;
 

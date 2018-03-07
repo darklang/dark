@@ -6,6 +6,8 @@ type t = { id: int; value: RuntimeT.dval; retries: int }
 (* Awful Global State *)
 (* ------------------------- *)
 
+val init : unit -> unit
+
 val current_scope : string option ref
 val set_scope : string -> unit
 val unset_scope : status:[`OK | `Err] -> unit

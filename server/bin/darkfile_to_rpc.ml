@@ -5,8 +5,7 @@ module PReq = Dark.Parsed_request
 module Ast = Dark.Ast
 
 let _ =
-  Printexc.record_backtrace true;
-  Exn.initialize_module ();
+  Dark.Init.init ();
   let filename = Sys.argv.(1) in
   let c = C.load ~filename:(Some filename) "testcanvas" [] in
   let global = PReq.sample |> PReq.to_dval in
