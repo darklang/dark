@@ -185,6 +185,16 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks below this line, to avoid massive recompiles
 
+USER root
+RUN curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+RUN sudo add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"
+RUN apt-get update && apt-get install -y docker-ce
+
+
+
 
 user dark
 CMD ["app", "scripts", "builder"]

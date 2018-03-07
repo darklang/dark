@@ -58,6 +58,8 @@ def start_background_services():
 def create_app_dirs():
   run_or_fail("scripts/support/create-app-directories")
 
+def setup_docker():
+  run_or_fail("scripts/support/allow-docker-access")
 
 # It is extremely challenging to get a non-blocking read on stdin.
 # Essentially, we want to read everything from stdin and then compile.
@@ -141,6 +143,7 @@ def main():
       run_tests = True
 
   run_or_fail("scripts/support/write-config-file")
+  run_or_fail("scripts/support/allow-docker-access")
   if compile:
     start_background_services()
     create_app_dirs()

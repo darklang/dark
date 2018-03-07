@@ -1,12 +1,12 @@
-#/usr/bin/env bash
+#!/usr/bin/env bash
 
 set -euo pipefail
 
-DIR=gcp-builddir # used unprotected, dont put a space in the name
+set -x
 
-# this should eventually run from within the dev container, but that
-# doesn't seem easy. So this should run from your mac (or the outer
-# container on CI).
+DIR=$(mktemp -d --suffix _gcp-builddir)
+
+cp scripts/support/gcp-Dockerfile $DIR/
 
 cp -f scripts/support/gcp-run-server $DIR/
 cp -Rf server/templates $DIR/
@@ -18,6 +18,6 @@ cp -f server/_build/default/bin/*.exe $DIR/bin/
 mkdir -p $DIR/webroot
 cp -Rf server/static $DIR/webroot/
 
-docker build -t dark-gcp:latest -f $DIR/Dockerfile $DIR
+docker build -t dark-gcp:latest $DIR
 
 

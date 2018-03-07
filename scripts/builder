@@ -81,6 +81,7 @@ $FSWATCH | docker run \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
+             -v /var/run/docker.sock:/var/run/docker.sock \
              -p 8000:8000 \
              -p 8001:8001 \
              --security-opt seccomp=scripts/support/chrome-seccomp.json \
