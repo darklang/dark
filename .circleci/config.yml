@@ -99,9 +99,20 @@ jobs:
           key: v1-build-{{ checksum "today-timestamp" }}
 
 
-
-      - run: scripts/gcp-build-container
       - run:
+          name: Run the dev container to build the new container
+          command: scripts/builder --serve
+
+      - run:
+          name: Build the production container
+          command: scripts/run-in-docker scripts/gcp-build-container
+
+      - run:
+          name: Kill the dev container
+          command: docker ps --filter "ancestor=dark" -q | xargs docker kill
+
+      - run:
+          name: Run production container
           command: scripts/gcp-run-locally
           background: true
 

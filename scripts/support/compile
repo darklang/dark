@@ -171,7 +171,6 @@ def ignore(filename):
             , "persistdir/"
             , "gcp_rundir/"
             , "gcp_persistdir/"
-            , "gcp-builddir/"
             , "saved-apps/"
             , "scripts/"
             , "transaction.yaml"
