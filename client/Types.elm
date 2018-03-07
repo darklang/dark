@@ -6,6 +6,7 @@ import Http
 import Dom
 import Navigation
 import Mouse
+import Time exposing (Time)
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -114,6 +115,8 @@ tlidOf s =
 -- Msg
 -- main Elm Architecture bus type
 -----------------------------
+type Action = RefreshAnalyses
+
 type alias GlobalVariable = String
 type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable)
 type Msg
@@ -142,6 +145,7 @@ type Msg
     | Initialization
     | NavigateTo String
     | WindowResize Int Int
+    | ClockTick Action Time
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer
@@ -169,6 +173,7 @@ type RPC
     | Savepoint
     | Undo
     | Redo
+    | Sync
 
 -----------------------------
 -- Autocompletes

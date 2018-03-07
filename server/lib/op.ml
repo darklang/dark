@@ -20,6 +20,7 @@ type op = NoOp
         | DeleteAll
         | Undo
         | Redo
+        | Sync
 [@@deriving eq, yojson, show, sexp, bin_io]
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
