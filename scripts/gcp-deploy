@@ -8,6 +8,7 @@ DNS_SETTINGS="--name=darksingleinstance.com. --type=A $ZONE"
 FULL_DNS_SETTINGS="$DNS_SETTINGS --ttl=300"
 INSTANCE=instance-2
 
+# TODO: move into dev container
 #GCLOUD="scripts/run-in-docker gcloud --project=$PROJECT "
 GCLOUD="gcloud --project=$PROJECT "
 
