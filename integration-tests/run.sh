@@ -41,7 +41,8 @@ sudo service dnsmasq --full-restart
 # https://devexpress.github.io/testcafe/documentation/test-api/actions/action-options.html#basic-action-options
 SPEED=1
 
-rm -Rf "${DARK_CONFIG_PERSIST_DIR}/completed_tests"
+echo "Clearing old test files"
+rm -Rf "${DARK_CONFIG_RUN_DIR}/completed_tests/*"
 
 TEST_HOST="integration-tests:$PORT" \
   testcafe \
