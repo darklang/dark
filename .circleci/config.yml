@@ -67,6 +67,8 @@ jobs:
 
       - run: scripts/builder --compile --test
 
+      - run: scripts/run-in-docker integration-tests/run.sh
+
       - run: mkdir artifacts
 
       - run:
@@ -77,18 +79,15 @@ jobs:
             docker cp vols:/home/dark/app/rundir artifacts/rundir1/
 
       - run:
-          name: Copy out production assets
+          name: Copy out caches / assets
           when: always
           command: |
-            docker cp vols:/home/dark/app/server/_build server/
-
-      - run:
-          name: Copy out caches
-          when: always
-          command: |
+            mv client/elm-stuff client/tests/elm-stuff_old
+            mv client/tests/elm-stuff client/tests/elm-stuff_old
+            mv server/_build server/_build_old
             docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
             docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
-            docker cp vols:/home/dark/app/server/_build server/_build
+            docker cp vols:/home/dark/app/server/_build server/
 
       - save_cache:
           when: always
@@ -100,16 +99,24 @@ jobs:
 
 
       - run:
-          name: Run the dev container to build the new container
+          name: Run the dev container to deploy with
           command: scripts/builder --serve
           background: true
 
-      # TODO: do integration tests on the built container
-      - run: scripts/run-in-docker integration-tests/run.sh
+      - run:
+          name: Build the GCP container
+          command: scripts/run-in-docker scripts/gcp-build-container
 
       - run:
-          name: Build the production container
-          command: scripts/run-in-docker scripts/gcp-build-container
+          name: Run the GCP container
+          command: scripts/run-in-docker scripts/gcp-run-container
+          background: true
+
+      - run: scripts/run-in-docker integration-tests/run.sh --gcp
+
+      - run:
+          name: Deploy production container
+          command: scripts/run-in-docker scripts/gcp-deploy
 
       - run:
           name: Copy out artifacts
@@ -118,15 +125,7 @@ jobs:
             docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
             docker cp vols:/home/dark/app/rundir artifacts/rundir2
 
-      - run:
-          name: Kill the dev container
-          command: docker ps --filter "ancestor=dark" -q | xargs docker kill
-
       - store_artifacts:
           path: artifacts
-
-      - run:
-          name: Deploy production container
-          command: scripts/run-in-docker scripts/gcp-deploy
 
 
