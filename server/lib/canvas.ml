@@ -154,8 +154,8 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident
     | Sync -> ident
-    | _ ->
-      Exception.internal ("applying unimplemented op: " ^ Op.show_op op)
+    | DeleteAll | Undo | Redo ->
+      Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
 
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =

@@ -32,6 +32,7 @@ let init () =
     Random.self_init ();
     Db.init ();
     Event_queue.init ();
+    Httpclient.init ();
     Log.infO "SYSTEM" "Initialization Complete";
     has_inited := true;
 
