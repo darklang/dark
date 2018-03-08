@@ -16,9 +16,15 @@ let write_shape_data () =
 
 let with_dir direction (name: string) : string =
   if String.is_prefix ~prefix:"test_" name
-  then if direction = `Loading
-       then Config.testdata_dir ^ name
-       else Config.completed_test_dir ^ name
+  then
+    let completed = Config.completed_test_dir ^ name in
+    let stored = Config.testdata_dir ^ name in
+    if direction = `Loading
+    then
+      if Sys.file_exists completed = `Yes
+      then completed
+      else stored
+    else completed
   else Config.appdata_dir ^ name
 
 let no_digest_load_filename name =

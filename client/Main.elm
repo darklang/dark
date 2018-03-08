@@ -12,6 +12,7 @@ import Keyboard.Key as Key
 import Navigation
 import Mouse
 -- import List.Extra as LE
+import String.Extra as SE
 import Window
 import Time exposing (Time, second)
 
@@ -105,7 +106,14 @@ init {editorState, complete} location =
            }
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
-      integrationTestName = String.dropRight 18 location.hostname
+      integrationTestName =
+        location.hostname
+        |> SE.replace ".localhost" ""
+        |> SE.replace ".integration-tests" ""
+        |> SE.replace ".dark-dev" ""
+        |> SE.replace ".dark-local-gcp" ""
+        |> SE.replace ":8000" ""
+        |> SE.replace ":9000" ""
   in
     if shouldRunIntegrationTest
     then m2 ! [integrationRpc m integrationTestName]
