@@ -14,23 +14,47 @@
 
 # Deploy it to prod
 
-The google docs for what we use (a docker container in a google compute
-engine instance) is at
+The GCP docs for what we use (a docker container in a Google Compute
+Engine instance) is at
 https://cloud.google.com/compute/docs/containers/deploying-containers.
-
-You'll need to install the gcloud sdk via https://cloud.google.com/sdk/downloads
 
 Build the production container (assumes that the build has succeeded):
 
-- `./scripts/gcp-build-container`
+- `./scripts/run-in-docker ./scripts/gcp-build-container`
 
-Then deploy the build container:
+Run it locally (well, inside the dev container):
 
-- `./script/gcp-deploy`
+- `./scripts/run-in-docker ./scripts/gcp-run-locally`
 
-Connect to the container via SSH:
+Run integration tests on it:
 
-- `gcloud beta compute ssh instance-1 --container instance-1`
+- `./scripts/run-in-docker ./integration-tests/run.sh --gcp`
+
+Then deploy it:
+
+- `./scripts/run-in-docker ./script/gcp-deploy`
+
+To connect to the host via SSH (you can use regular docker commands from there):
+
+- `gcloud beta compute ssh instance-2`
+
+
+# Testing
+
+To run unit tests:
+
+- `scripts/builder --compile --test`
+
+Integration tests (on the dev environment):
+
+- `./scripts/run-in-docker ./integration-tests/run.sh`
+
+Integration tests (on the gcp environment):
+
+- `./scripts/run-in-docker ./integration-tests/run.sh --gcp`
+
+Read me about integration testing in integration-tests/README.
+
 
 # Config files
 

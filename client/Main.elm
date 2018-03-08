@@ -105,7 +105,7 @@ init {editorState, complete} location =
            }
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
-      integrationTestName = String.dropRight 10 location.hostname
+      integrationTestName = String.dropRight 18 location.hostname
   in
     if shouldRunIntegrationTest
     then m2 ! [integrationRpc m integrationTestName]

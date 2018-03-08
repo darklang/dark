@@ -193,6 +193,7 @@ RUN sudo add-apt-repository \
    stable"
 RUN apt-get update && apt-get install -y docker-ce
 
+RUN apt-get install -y vim dnsutils
 
 
 

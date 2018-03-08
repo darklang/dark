@@ -1,5 +1,8 @@
 # How the integration tests work
 
+Note: the testcafe error "Failed to find a DNS-record for the resource"
+actually mean "Can't connect to the server".
+
 ##### (Updated Dec 20, 2017)
 
 ## Files
