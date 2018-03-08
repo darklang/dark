@@ -797,8 +797,14 @@ update_ msg m =
         RefreshAnalyses ->
           RPC ([Sync], FocusNoChange)
 
-    t -> Error <| "Dark Client Error: nothing for " ++ (toString t)
+    (RPCCallBack _ _ _ _, _) as t->
+      Error <| "Dark Client Error: nothing for " ++ (toString t)
 
+    (Initialization, _) as t->
+      NoChange
+
+    (AddRandom, _) as t->
+      NoChange
 
 -----------------------
 -- SUBSCRIPTIONS
