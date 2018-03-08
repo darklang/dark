@@ -9,7 +9,7 @@ for i in "$@"
 do
   case "${i}" in
     --gcp)
-    GCP=y
+    GCP=y; shift
     ;;
     --pattern=*)
     PATTERN=${1/--pattern=/''}
