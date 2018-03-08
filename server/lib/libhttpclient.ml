@@ -5,7 +5,6 @@ open Types.RuntimeT
 
 open Functions
 
-
 let params = [ par "uri" TStr
              ; par "body" TAny
              ; par "query" TObj
@@ -65,6 +64,17 @@ let fns : Lib.shortfn list = [
   ; r = TObj
   ; d = "Make blocking HTTP GET call to `uri`"
   ; f = call Httpclient.GET
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+  { pns = ["HttpClient::put"]
+  ; ins = []
+  ; p = params
+  ; r = TObj
+  ; d = "Make blocking HTTP PUT call to `uri`"
+  ; f = call Httpclient.PUT
   ; pr = None
   ; ps = false
   }
