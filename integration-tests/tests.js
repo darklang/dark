@@ -3,7 +3,8 @@ import { Selector } from 'testcafe';
 fixture `Integration Tests`
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
-    const url = "http://test_" + testname + ".localhost:8000/admin/integration_test";
+    const host = process.env.TEST_HOST
+    const url = "http://test_" + testname + "." + host + "/admin/integration_test";
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
