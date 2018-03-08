@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
+./scripts/support/assert-in-container $0
 
-set -x
 
 DIR=$(mktemp -d --suffix _gcp-builddir)
 
-cp scripts/support/gcp-Dockerfile $DIR/
+cp scripts/support/gcp-Dockerfile $DIR/Dockerfile
 
 cp -f scripts/support/gcp-run-server $DIR/
 cp -Rf server/templates $DIR/
