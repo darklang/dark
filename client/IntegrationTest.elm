@@ -46,6 +46,9 @@ onlyTL m =
 
 onlyAST : Model -> AST
 onlyAST m =
+  let _ = if List.length m.toplevels /= 1
+          then Debug.crash "too many toplevels"
+          else "nothing to see here" in
   m.toplevels
   |> List.head
   |> deMaybe "test"
