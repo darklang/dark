@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
+./scripts/support/assert-in-container $0
 
-echo "Killing running containers"
 c=$(docker ps --filter "ancestor=dark-gcp:latest" -q)
 if [[ ! -z "${c}" ]]; then
+  echo "Killing running containers"
   docker kill "${c}";
 fi
 
 mkdir -p gcp-rundir
 mkdir -p gcp-persistdir
 
+./scripts/support/create-dark-dev-network
+
 echo "Starting new container"
 docker run \
   --rm \
   -it \
-  -p 8000:80 \
+  -p 9000:80 \
+  --network dark-dev-net \
+  --name dark-local-gcp \
   --env-file config/gcp-local \
-  --mount type=bind,src=$PWD/gcp-rundir,dst=/home/dark/gcp-rundir \
-  --mount type=bind,src=$PWD/gcp-persistdir,dst=/home/dark/gcp-persistdir \
+  --mount type=bind,src=${HOST_PWD}/gcp-rundir,dst=/home/dark/gcp-rundir \
+  --mount type=bind,src=${HOST_PWD}/gcp-persistdir,dst=/home/dark/gcp-persistdir \
   -v gcp-pgconf:/etc/postgresql \
   -v gcp-pglogs:/var/log/postgresql \
   -v gcp-pgdata:/var/lib/postgresql \
