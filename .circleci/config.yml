@@ -56,9 +56,23 @@ jobs:
             mkdir -p server/_build
             date +"%A" > server/_build/CACHE_DAY
 
+      - run:
+          name: Copy cache in
+          command: |
+            rm -Rf app/client/elm-stuff
+            rm -Rf app/client/tests/elm-stuff
+            rm -Rf app/server/_build
+            # Cache might not be available
+            if [[ -e client ]]; then
+              cp -R client/elm-stuff app/client/
+              cp -R client/tests/elm-stuff app/client/tests/
+              cp -R server/_build app/server/
+            fi
+
+
       # https://circleci.com/docs/2.0/building-docker-images/#mounting-folders
       - run:
-          name: Copy in app directory
+          name: Copy app directory into dev container
           command: |
             docker create -v /home/dark/app --name vols alpine:3.4 /bin/true
             docker cp . vols:/home/dark/app
@@ -68,27 +82,13 @@ jobs:
       - run: scripts/builder --compile --test
 
       - run:
-          command: scripts/builder --serve
+          command: NEVER_REBUILD_DOCKER=1 scripts/builder --serve
           background: true
 
-      - run: scripts/run-in-docker integration-tests/run.sh
-
-      - run: mkdir artifacts
-
       - run:
-          name: Copy out artifacts
+          name: Copy out caches
           when: always
           command: |
-            docker cp vols:/home/dark/app/persistdir artifacts/persistdir1
-            docker cp vols:/home/dark/app/rundir artifacts/rundir1/
-
-      - run:
-          name: Copy out caches / assets
-          when: always
-          command: |
-            mv client/elm-stuff client/tests/elm-stuff_old
-            mv client/tests/elm-stuff client/tests/elm-stuff_old
-            mv server/_build server/_build_old
             docker cp vols:/home/dark/app/client/elm-stuff client/elm-stuff
             docker cp vols:/home/dark/app/client/tests/elm-stuff client/tests/elm-stuff
             docker cp vols:/home/dark/app/server/_build server/
@@ -100,6 +100,20 @@ jobs:
             - client/tests/elm-stuff
             - server/_build
           key: v1-build-{{ checksum "today-timestamp" }}
+
+
+      # TODO: actually wait until the container is waiting rather than
+      # relying on caches taking their time
+      - run: scripts/run-in-docker integration-tests/run.sh
+
+      - run: mkdir artifacts
+
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/persistdir artifacts/persistdir1
+            docker cp vols:/home/dark/app/rundir artifacts/rundir1/
 
 
       - run: scripts/run-in-docker scripts/gcp-build-container
