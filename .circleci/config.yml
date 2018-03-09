@@ -88,6 +88,11 @@ jobs:
             - server/_build
           key: v1-build-{{ checksum "today-timestamp" }}
 
+      - run:
+          name: Turn off cron for consistency
+          command: |
+            ./scripts/run-in-docker sudo service cron stop
+
 
       # TODO: actually wait until the container is waiting rather than
       # relying on caches taking their time
