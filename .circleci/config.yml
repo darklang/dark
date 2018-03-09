@@ -67,6 +67,10 @@ jobs:
 
       - run: scripts/builder --compile --test
 
+      - run:
+          command: scripts/builder --serve
+          background: true
+
       - run: scripts/run-in-docker integration-tests/run.sh
 
       - run: mkdir artifacts
@@ -98,25 +102,13 @@ jobs:
           key: v1-build-{{ checksum "today-timestamp" }}
 
 
+      - run: scripts/run-in-docker scripts/gcp-build-container
       - run:
-          name: Run the dev container to deploy with
-          command: scripts/builder --serve
-          background: true
-
-      - run:
-          name: Build the GCP container
-          command: scripts/run-in-docker scripts/gcp-build-container
-
-      - run:
-          name: Run the GCP container
           command: scripts/run-in-docker scripts/gcp-run-container
           background: true
 
       - run: scripts/run-in-docker integration-tests/run.sh --gcp
-
-      - run:
-          name: Deploy production container
-          command: scripts/run-in-docker scripts/gcp-deploy
+      - run: scripts/run-in-docker scripts/gcp-deploy
 
       - run:
           name: Copy out artifacts
