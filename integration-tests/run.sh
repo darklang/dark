@@ -42,7 +42,9 @@ sudo service dnsmasq --full-restart
 SPEED=1
 
 echo "Clearing old test files"
-rm -Rf "${DARK_CONFIG_RUN_DIR}/completed_tests/*"
+rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
+rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
+rm -f ${DARK_CONFIG_RUN_DIR}/integration.json
 
 TEST_HOST="integration-tests:$PORT" \
   testcafe \
@@ -52,9 +54,9 @@ TEST_HOST="integration-tests:$PORT" \
     --pageload-timeout 0 \
     --speed $SPEED \
     --screenshots-on-fails \
-    --screenshots $DARK_CONFIG_RUN_DIR/screenshots/ \
+    --screenshots ${DARK_CONFIG_RUN_DIR}/screenshots/ \
     --concurrency 4 \
-    --reporter spec,json:$DARK_CONFIG_RUN_DIR/integration_tests.json \
+    --reporter spec,json:${DARK_CONFIG_RUN_DIR}/integration_tests.json \
     --test-grep "$PATTERN" \
     "chrome:headless" \
     integration-tests/tests.js
