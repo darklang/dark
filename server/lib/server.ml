@@ -79,7 +79,7 @@ let server =
         let (t5, _) = time "5-save-to-disk" "5. serialize ops to disk" (fun _ ->
           (* work out the result before we save it, incase it has a
            stackoverflow or other crashing bug *)
-          if C.causes_change ops
+          if Op.causes_any_changes ops
           then C.save !c
           else ()
         ) in
