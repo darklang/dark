@@ -110,12 +110,13 @@ jobs:
       - run: scripts/run-in-docker integration-tests/run.sh --gcp
       - run: scripts/run-in-docker scripts/gcp-deploy
 
-      - run:
-          name: Copy out artifacts
-          when: always
-          command: |
-            docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
-            docker cp vols:/home/dark/app/rundir artifacts/rundir2
+      # TODO: figure this out when the container actually runs
+      # - run:
+      #     name: Copy out artifacts
+      #     when: always
+      #     command: |
+      #       docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
+      #       docker cp vols:/home/dark/app/rundir artifacts/rundir2
 
       - store_artifacts:
           path: artifacts
