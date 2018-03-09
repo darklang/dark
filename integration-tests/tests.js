@@ -42,6 +42,7 @@ fixture `Integration Tests`
 
 // If you're typing using .typeText, and the text is more than 3
 // characters, using { speed: 0.4 } to get testCafe to slow down a bit.
+const slow = { speed: 0.4 };
 
 // Testcafe automatically waits for the next thing you've specified. So
 // if you .typeText("#entry-box", ...), it will wait for the entryBox.
@@ -130,8 +131,8 @@ test('field_access_nested', async t => {
     .expect(acAvailable("body")).ok()
     .typeText("#entry-box", ".")
 
-    .typeText("#entry-box", "field.")
-    .typeText("#entry-box", "field2")
+    .typeText("#entry-box", "field.", slow)
+    .typeText("#entry-box", "field2", slow)
     .pressKey("enter")
     ;
 });
@@ -142,7 +143,7 @@ test('pipeline_let_equals', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "= value", { speed: 0.4 })
+    .typeText("#entry-box", "= value", slow)
     .pressKey("enter")
     ;
 });
@@ -152,11 +153,11 @@ test('pipe_within_let', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "= value", { speed: 0.4 })
+    .typeText("#entry-box", "= value", slow)
     .pressKey("enter")
-    .typeText("#entry-box", "value", { speed: 0.4 })
+    .typeText("#entry-box", "value", slow)
     .pressKey("shift+enter")
-    .typeText("#entry-box", "assoc", { speed: 0.4 })
+    .typeText("#entry-box", "assoc", slow)
     .pressKey("enter")
     .pressKey("esc")
     ;
@@ -226,7 +227,7 @@ test('no_request_global_in_non_http_space', async t => {
     .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acAvailable("request")).ok()
+    .expect(acAvailable("req")).ok() // actually hits Http::bad_request
     .pressKey("enter")
 });
 
@@ -235,7 +236,7 @@ test('hover_values_for_varnames', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
-    .typeText("#entry-box", "myvar", { speed: 0.4 })
+    .typeText("#entry-box", "myvar", slow)
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
