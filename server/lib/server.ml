@@ -79,7 +79,9 @@ let server =
         let (t5, _) = time "5-save-to-disk" "5. serialize ops to disk" (fun _ ->
           (* work out the result before we save it, incase it has a
            stackoverflow or other crashing bug *)
-          C.save !c;
+          if C.causes_change ops
+          then C.save !c
+          else ()
         ) in
 
       Event_queue.unset_scope ~status:`OK;

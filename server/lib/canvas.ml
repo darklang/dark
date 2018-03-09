@@ -67,6 +67,8 @@ let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
   |> List.rev (* previous step leaves the list reversed *)
   (* Bonus: remove noops *)
   |> List.filter ~f:(fun (op, _) -> op <> Op.NoOp)
+  |> List.filter ~f:(fun (op, _) -> op <> Op.Sync)
+  |> List.filter ~f:(fun (op, _) -> op <> Op.Savepoint)
 
 
 let undo_count (c: canvas) : int =
@@ -174,7 +176,20 @@ let minimize (c : canvas) : canvas =
                           then []
                           else (ops @ [op]))
     |> List.filter ~f:((<>) Op.Savepoint)
+    |> List.filter ~f:((<>) Op.Sync)
+    |> List.filter ~f:((<>) Op.NoOp)
   in { c with ops = ops }
+
+let causes_change (ops: Op.op list) : bool =
+  let no_change =
+    ops
+    |> List.for_all ~f:(fun op ->
+        match op with
+        | Op.Sync -> true
+        | Op.NoOp -> true
+        | Op.Savepoint -> true
+        | _ -> false) in
+  not no_change
 
 (* ------------------------- *)
 (* Serialization *)
