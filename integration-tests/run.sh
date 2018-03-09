@@ -40,6 +40,9 @@ sudo service dnsmasq --full-restart
 # can change this on an individual action:
 # https://devexpress.github.io/testcafe/documentation/test-api/actions/action-options.html#basic-action-options
 SPEED=1
+if [[ -v CI ]]; then
+  SPEED=0.4
+fi
 
 echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
