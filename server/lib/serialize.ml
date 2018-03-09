@@ -14,32 +14,23 @@ let write_shape_data () =
   else
     ()
 
-let with_dir direction (name: string) : string =
+let savedir (name: string): string =
   if String.is_prefix ~prefix:"test_" name
+  then Config.completed_test_dir
+  else Config.appdata_dir
+
+let full dir name digest suffix =
+  if digest = ""
   then
-    let completed = Config.completed_test_dir ^ name in
-    let stored = Config.testdata_dir ^ name in
-    if direction = `Loading
-    then
-      if Sys.file_exists completed = `Yes
-      then completed
-      else stored
-    else completed
-  else Config.appdata_dir ^ name
+    dir ^ "/" ^ name ^ "." ^ suffix
+  else
+    dir ^ "/" ^ name ^ "_" ^ digest ^ "." ^ suffix
 
-let no_digest_load_filename name =
-  with_dir `Loading (name ^ ".dark")
-let current_load_filename name =
-  with_dir `Loading (name ^ "_" ^ digest ^ ".dark")
-let json_load_filename name =
-  with_dir `Loading  (name ^ "_" ^ digest ^ ".json")
-
-let no_digest_save_filename name =
-  with_dir `Saving (name ^ ".dark")
-let current_save_filename name =
-  with_dir `Saving (name ^ "_" ^ digest ^ ".dark")
+let dark_save_filename name =
+  full (savedir name) name digest "dark"
 let json_save_filename name =
-  with_dir `Saving  (name ^ "_" ^ digest ^ ".json")
+  full (savedir name) name digest "json"
+
 
 let current_filenames () : string list =
   Sys.ls_dir Config.appdata_dir
@@ -49,6 +40,8 @@ let current_filenames () : string list =
           && String.is_substring ~substring:digest f
           && (not (String.is_substring ~substring:"test_" f))
       )
+
+
 
 let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
@@ -79,9 +72,36 @@ let save_json (filename: string) (ops: Op.oplist) : unit =
   |> Util.writefile filename
 
 
-let load_custom =
-  (* load_binary *)
-  load_json
-  (* Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary *)
+let search_and_load (name: string) : Op.oplist =
+  if String.is_prefix ~prefix:"test_" name
+  then
+    let f = full Config.completed_test_dir name digest "dark" in
+    if Sys.file_exists f = `Yes
+    then load_binary f
+    else
+      let f = full Config.testdata_dir name "" "json" in
+      if Sys.file_exists f = `Yes
+      then load_json f
+      else []
+  else
+    let f = full Config.appdata_dir name digest "dark" in
+    if Sys.file_exists f = `Yes
+    then load_binary f
+    else
+
+    let f = full Config.appdata_dir name digest "json" in
+    if Sys.file_exists f = `Yes
+    then load_json f
+    else
+
+    let f = full Config.appdata_dir name "d2074bb17e2b1a88a49546687a5e8c2edigest" "dark" in
+    if Sys.file_exists f = `Yes
+    then Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary f
+    else
+
+    let f = full Config.appdata_dir name "" "" in
+    if Sys.file_exists f = `Yes
+    then load_json f
+    else []
 
 

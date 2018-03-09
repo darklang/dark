@@ -184,23 +184,7 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
   let oldops =
     match filename with
     | Some file -> Serialize.load_binary file
-    | None ->
-        let current = Serialize.current_load_filename name in
-        let undigested = Serialize.no_digest_load_filename name in
-        let json = Serialize.json_load_filename name in
-
-        if Sys.file_exists current = `Yes
-        then Serialize.load_binary current
-
-        else if Sys.file_exists json = `Yes
-        then Serialize.load_json json
-
-        else if Sys.file_exists undigested = `Yes
-          (* you can change this to convert files manually *)
-        then Serialize.load_custom undigested
-
-        (* no file for it *)
-        else []
+    | None -> Serialize.search_and_load name
   in
   add_ops c oldops newops;
   c
@@ -208,7 +192,7 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
 let save ?(filename=None) (c : canvas) : unit =
   match filename with
   | None ->
-      let filename = Serialize.current_save_filename c.name in
+      let filename = Serialize.dark_save_filename c.name in
       let json = Serialize.json_save_filename c.name in
       Serialize.save_binary filename c.ops;
       let _ = Spawn.spawn
@@ -225,13 +209,13 @@ let save ?(filename=None) (c : canvas) : unit =
 let save_test (c: canvas) : string =
   let c = minimize c in
   let name = "test_" ^ c.name in
-  let name = if Sys.file_exists (Serialize.json_load_filename name) = `Yes
+  let name = if Sys.file_exists (Serialize.json_save_filename name) = `Yes
              then name ^ "_"
                   ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else name in
   let c = {c with name = name } in
   save c;
-  Serialize.json_load_filename c.name
+  Serialize.json_save_filename c.name
 
 
 (* ------------------------- *)
