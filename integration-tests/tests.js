@@ -59,11 +59,8 @@ function entryBoxAvailable() {
 // Allow us wait for a certain autocomplete entry to be selected
 function acAvailable(content) {
   return Selector('.autocomplete-item.highlighted')
-                 .withText(content).exists;
+                 .withExactText(content);
 }
-
-
-
 
 
 // ------------------------

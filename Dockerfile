@@ -195,7 +195,8 @@ RUN apt-get update && apt-get install -y docker-ce
 
 RUN apt-get install -y vim dnsutils
 
-
+USER dark
+RUN yarn add testcafe@0.19.0
 
 user dark
 CMD ["app", "scripts", "builder"]
