@@ -108,12 +108,27 @@ jobs:
 
 
       - run: scripts/run-in-docker scripts/gcp-build-container
+
+      - run:
+          name: Get GCP deploy key
+          command: |
+            echo $GCLOUD_SERVICE_KEY \
+              | base64 --decode --ignore-garbage \
+                > /home/dark/app/gcloud-service-key.json
+            scripts/run-in-docker gcloud auth activate-service-account \
+              --key-file \
+                /home/dark/.config/gcloud/gcloud-service-key.json
+
+      - run: scripts/run-in-docker scripts/gcp-deploy
+
+      # For now, we do integration tests after the deploy. If they work
+      # above, then it works. This needs more work but I'm stopping here
+      # for now.
       - run:
           command: scripts/run-in-docker scripts/gcp-run-locally
           background: true
 
       - run: scripts/run-in-docker integration-tests/run.sh --gcp
-      - run: scripts/run-in-docker scripts/gcp-deploy
 
       # TODO: figure this out when the container actually runs
       # - run:
