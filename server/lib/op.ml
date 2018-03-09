@@ -25,3 +25,13 @@ type op = NoOp
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
+let has_effect (op: op) : bool  =
+  match op with
+  | Sync -> false
+  | NoOp -> false
+  | Savepoint -> false
+  | _ -> true
+
+let causes_any_changes (ops: oplist) : bool =
+  List.exists ~f:has_effect ops
+
