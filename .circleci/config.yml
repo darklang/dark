@@ -59,6 +59,21 @@ jobs:
       - run:
           name: Copy cache in
           command: |
+            echo "pwd"
+            pwd
+            echo "app"
+            ls app
+            echo "ls"
+            ls
+            echo "client"
+            ls client
+            echo "app/client"
+            ls app/client
+            echo "client/tests"
+            ls client/tests
+            echo "app/client/tests"
+            ls app/client/tests
+
             rm -Rf app/client/elm-stuff
             rm -Rf app/client/tests/elm-stuff
             rm -Rf app/server/_build
