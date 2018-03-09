@@ -39,8 +39,13 @@ if [ -v CI ]; then
   # see "copy in data" in .circleci/config.yml
   MOUNTS="--volumes-from vols"
 else
-  MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app \
-          --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
+  MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
+  if [[ -e "../conduit-frontend" ]]; then
+    MOUNTS="$MOUNTS --mount type=bind,src=$PWD/../conduit-frontend,dst=/home/dark/conduit-frontend"
+  fi
+  if [[ -e "$HOME/.config/gcloud" ]]; then
+    MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.config/gcloud,dst=/home/dark/.config/gcloud"
+  fi
 fi
 
 # --------------
