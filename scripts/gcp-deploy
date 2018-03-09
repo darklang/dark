@@ -1,16 +1,15 @@
 #/usr/bin/env bash
-
 set -euo pipefail
+./scripts/support/assert-in-container $0 $@
 
 PROJECT="balmy-ground-195100"
 ZONE="--zone=dark-single-instance"
 DNS_SETTINGS="--name=darksingleinstance.com. --type=A $ZONE"
 FULL_DNS_SETTINGS="$DNS_SETTINGS --ttl=300"
-INSTANCE=instance-2
+INSTANCE="instance-2"
 
-# TODO: move into dev container
-#GCLOUD="scripts/run-in-docker gcloud --project=$PROJECT "
 GCLOUD="gcloud --project=$PROJECT "
+
 
 #########################
 # Deploy Docker image
@@ -18,6 +17,7 @@ GCLOUD="gcloud --project=$PROJECT "
 IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
 IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
 
+echo "Deploying container to GCP"
 docker tag dark-gcp:latest $IMAGE
 $GCLOUD docker -- push $IMAGE
 
@@ -29,6 +29,7 @@ $GCLOUD docker -- push $IMAGE
 INFO=$($GCLOUD beta compute instances describe $INSTANCE --format=json)
 
 # This updates automatically
+echo "Setting GCP instance metadata"
 $GCLOUD compute instances add-metadata $INSTANCE \
   --metadata-from-file startup-script=scripts/support/gcp-instance-startup-script
 
@@ -37,6 +38,7 @@ $GCLOUD compute instances add-metadata $INSTANCE \
 OLDIMAGE=$(echo $INFO | jq -r '.metadata.items | map(select(.key == "gce-container-declaration")) | .[0].value' | grep image | sed -E "s/[[:space:]]+image: //")
 
 if [[ "$OLDIMAGE" != "$IMAGE" ]]; then
+  echo "New image - updating container"
   $GCLOUD beta compute instances update-container $INSTANCE \
     --container-image $IMAGE \
     --container-env-file config/gcp-prod \
@@ -55,7 +57,9 @@ NEWIP=$(echo $INFO \
   | jq --raw-output .networkInterfaces[0].accessConfigs[0].natIP)
 
 
+echo "Setting DNS"
 if [[ -e transaction.yaml ]]; then
+  echo "Deleting old DNS"
   $GCLOUD dns record-sets transaction abort $ZONE
 fi
 
