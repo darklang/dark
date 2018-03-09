@@ -105,7 +105,7 @@ jobs:
 
       - run: scripts/run-in-docker scripts/gcp-build-container
       - run:
-          command: scripts/run-in-docker scripts/gcp-run-container
+          command: scripts/run-in-docker scripts/gcp-run-locally
           background: true
 
       - run: scripts/run-in-docker integration-tests/run.sh --gcp
