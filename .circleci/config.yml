@@ -98,12 +98,11 @@ jobs:
       # relying on caches taking their time
       - run: scripts/run-in-docker integration-tests/run.sh
 
-      - run: mkdir artifacts
-
       - run:
           name: Copy out artifacts
           when: always
           command: |
+            mkdir -p artifacts
             docker cp vols:/home/dark/app/persistdir artifacts/persistdir1
             docker cp vols:/home/dark/app/rundir artifacts/rundir1/
 
