@@ -153,21 +153,19 @@ processFocus m focus =
     FocusSame ->
       case unwrapState m.state of
         Selecting tlid mp ->
-          case mp of
-            Just p ->
-              let tl = TL.getTL m tlid in
-              if TL.isValidPointer tl p then
-                NoChange
-              else
-                Deselect
-            Nothing ->
-              NoChange
+          case (TL.get m tlid, mp) of
+            (Just tl, Just p) ->
+                if TL.isValidPointer tl p
+                then NoChange
+                else Deselect
+            _ -> Deselect
         Entering (Filling tlid p) ->
-          let tl = TL.getTL m tlid in
-          if TL.isValidPointer tl p then
-            NoChange
-          else
-            Deselect
+          case TL.get m tlid of
+            Just tl ->
+              if TL.isValidPointer tl p
+              then NoChange
+              else Deselect
+            _ -> Deselect
         _ -> NoChange
     FocusNothing -> Deselect
     -- used instead of focussame when we've already done the focus
@@ -193,16 +191,15 @@ updateMod mod (m, cmd) =
         -- close open threads in the previous TL
         m.state
         |> tlidOf
-        |> Maybe.map (\tlid ->
-            let tl = TL.getTL m tlid in
+        |> Maybe.andThen (TL.get m)
+        |> Maybe.map (\tl ->
             case tl.data of
               TLHandler h ->
                 let replacement = AST.closeThread h.ast in
                 if replacement == h.ast
                 then []
                 else
-                  let tl = TL.getTL m tlid
-                      newH = { h | ast = replacement }
+                  let newH = { h | ast = replacement }
                       calls = [ SetHandler tl.id tl.pos newH]
                   -- call RPC on the new model
                   in [rpc newM FocusSame calls]
