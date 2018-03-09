@@ -90,16 +90,30 @@ test('field_access', async t => {
     ;
 });
 
+
 test('field_access_closes', async t => {
+
+  // this occasionally fails in CI so keep some debug info to catch it
+  // next time
+
   await t
     .pressKey("enter")
+      .takeScreenshot("1 enter")
     .typeText("#entry-box", "req")
+      .takeScreenshot("2 req")
     .expect(acAvailable("request")).ok()
+      .takeScreenshot(" 3 request")
     .typeText("#entry-box", ".")
+      .takeScreenshot("4 dot")
 
-    .typeText("#entry-box", "bo")
+    .typeText("#entry-box", "b")
+      .takeScreenshot("5 b")
+    .typeText("#entry-box", "o")
+      .takeScreenshot("6 o")
     .expect(acAvailable("body")).ok()
+      .takeScreenshot("7 wait bo")
     .pressKey("enter")
+      .takeScreenshot("8 enter")
     ;
 });
 
