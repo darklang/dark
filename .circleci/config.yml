@@ -63,9 +63,13 @@ jobs:
             rm -Rf app/client/tests/elm-stuff
             rm -Rf app/server/_build
             # Cache might not be available
-            if [[ -e client ]]; then
+            if [[ -e client/elm-stuff ]]; then
               cp -R client/elm-stuff app/client/
+            fi
+            if [[ -e client/tests/elm-stuff ]]; then
               cp -R client/tests/elm-stuff app/client/tests/
+            fi
+            if [[ -e server/_build ]]; then
               cp -R server/_build app/server/
             fi
 
