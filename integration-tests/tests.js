@@ -36,38 +36,69 @@ fixture `Integration Tests`
     await t.expect(signal.hasClass("success")).eql(true)
   })
 
+//********************************
+// Avoiding test race conditions
+//********************************
+
+// If you're typing using .typeText, and the text is more than 3
+// characters, using { speed: 0.4 } to get testCafe to slow down a bit.
+
+// Testcafe automatically waits for the next thing you've specified. So
+// if you .typeText("#entry-box", ...), it will wait for the entryBox.
+// But we sometimes need to explicitly wait if TestCafe can't tell what
+// we're waiting on.
+
+function astAvailable() {
+  return Selector('.ast').exists;
+}
+function entryBoxAvailable() {
+  return Selector('#entry-box').exists;
+}
+
+// Allow us wait for a certain autocomplete entry to be selected
+function acAvailable(content) {
+  return Selector('.autocomplete-item.highlighted')
+                 .withText(content).exists;
+}
+
+
+
+
 
 // ------------------------
 // Tests below here. Don't forget to update client/IntegrationTest.elm
 // ------------------------
 
 test('enter_changes_state', async t => {
-  const entryBoxAvailable = Selector('#entry-box').exists;
   await t
     .pressKey("enter")
-    .expect(entryBoxAvailable).ok()
+    .expect(entryBoxAvailable()).ok()
    ;
 });
 
 test('field_access', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "req")
+    .expect(acAvailable("request")).ok()
+    .typeText("#entry-box", ".")
+
     .typeText("#entry-box", "bo")
+    .expect(acAvailable("body")).ok()
     .pressKey("enter")
-    .expect(astAvailable).ok()
     ;
 });
 
 test('field_access_closes', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "req")
+    .expect(acAvailable("request")).ok()
+    .typeText("#entry-box", ".")
+
     .typeText("#entry-box", "bo")
+    .expect(acAvailable("body")).ok()
     .pressKey("enter")
-    .expect(astAvailable).ok()
     ;
 });
 
@@ -76,59 +107,63 @@ test('field_access_pipes', async t => {
   const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req.")
+
+    .typeText("#entry-box", "req")
+    .expect(acAvailable("request")).ok()
+    .typeText("#entry-box", ".")
+
     .typeText("#entry-box", "bo")
+    .expect(acAvailable("body")).ok()
     .pressKey("shift+enter")
-    .expect(astAvailable).ok()
     ;
 });
 
 test('field_access_nested', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req.")
-    .typeText("#entry-box", "bo.")
+
+    .typeText("#entry-box", "req")
+    .expect(acAvailable("request")).ok()
+    .typeText("#entry-box", ".")
+
+    .typeText("#entry-box", "bo")
+    .expect(acAvailable("body")).ok()
+    .typeText("#entry-box", ".")
+
     .typeText("#entry-box", "field.")
     .typeText("#entry-box", "field2")
     .pressKey("enter")
-    .expect(astAvailable).ok()
     ;
 });
 
 
 test('pipeline_let_equals', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "= value")
+    .typeText("#entry-box", "= value", { speed: 0.4 })
     .pressKey("enter")
-    .expect(astAvailable).ok()
     ;
 });
 
 test('pipe_within_let', async t => {
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "= value")
+    .typeText("#entry-box", "= value", { speed: 0.4 })
     .pressKey("enter")
-    .typeText("#entry-box", "value")
+    .typeText("#entry-box", "value", { speed: 0.4 })
     .pressKey("shift+enter")
-    .typeText("#entry-box", "assoc")
+    .typeText("#entry-box", "assoc", { speed: 0.4 })
     .pressKey("enter")
     .pressKey("esc")
-    .expect(astAvailable).ok()
     ;
 });
 
 test('tabbing_works', async t => {
   // Fill in "then" box in if stmt
-  const astAvailable = Selector('.ast').exists;
   await t
     .pressKey("enter")
     .typeText("#entry-box", "if")
@@ -138,7 +173,6 @@ test('tabbing_works', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
-    .expect(astAvailable).ok()
     ;
 });
 
@@ -148,8 +182,6 @@ test('next_sibling_works', async t => {
     .pressKey("down")
     .pressKey("right")
     ;
-  // TODO: this might be flaky. Maybe wait for a specific ID to be
-  // selected?
 });
 
 test('varbinds_are_editable', async t => {
@@ -163,7 +195,10 @@ test('varbinds_are_editable', async t => {
 test('editing_request_edits_request', async t => {
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req.")
+    .typeText("#entry-box", "req")
+    .expect(acAvailable("request")).ok()
+    .typeText("#entry-box", ".")
+
     .pressKey("esc")
     .pressKey("up")
     .pressKey("down")
@@ -175,6 +210,7 @@ test('autocomplete_highlights_on_partial_match', async t => {
   await t
     .pressKey("enter")
     .typeText("#entry-box", "nt::add")
+    .expect(acAvailable("Int::add")).ok()
     .pressKey("enter")
     ;
 });
@@ -190,6 +226,7 @@ test('no_request_global_in_non_http_space', async t => {
     .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "req")
+    .expect(acAvailable("request")).ok()
     .pressKey("enter")
 });
 
@@ -198,7 +235,7 @@ test('hover_values_for_varnames', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
-    .typeText("#entry-box", "myvar")
+    .typeText("#entry-box", "myvar", { speed: 0.4 })
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
