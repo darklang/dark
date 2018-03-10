@@ -8,8 +8,7 @@ type json = Yojson.Safe.json
 (* ------------------------- *)
 (* Ops *)
 (* ------------------------- *)
-type op = NoOp
-        | SetHandler of tlid * pos * Handler.handler
+type op = SetHandler of tlid * pos * Handler.handler
         | CreateDB of tlid * pos * string
         | AddDBCol of tlid * id * id
         | SetDBColName of tlid * id * string
@@ -28,7 +27,6 @@ type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 let has_effect (op: op) : bool  =
   match op with
   | Sync -> false
-  | NoOp -> false
   | Savepoint -> false
   | _ -> true
 

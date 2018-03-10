@@ -73,7 +73,7 @@ let convert (ops : oplist) : Op.oplist =
         | DeleteAll -> Op.DeleteAll
         | Undo -> Op.Undo
         | Redo -> Op.Redo
-        | NoOp -> Op.NoOp)
+        | NoOp -> Op.Savepoint)
 
 let load_binary filename : Op.oplist =
   bin_read_oplist

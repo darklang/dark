@@ -164,8 +164,7 @@ type Focus = FocusNothing -- deselect
 -- RPCs
 -----------------------------
 type RPC
-    = NoOp
-    | SetHandler TLID Pos Handler
+    = SetHandler TLID Pos Handler
     | CreateDB TLID Pos DBName
     | AddDBCol TLID ID ID
     | SetDBColName TLID ID DBColName

@@ -126,7 +126,6 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
   c :=
     !c |>
     match op with
-    | NoOp -> ident
     | SetHandler (tlid, pos, handler) ->
       upsert_toplevel tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->

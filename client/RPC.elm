@@ -57,7 +57,6 @@ integrationRpc m name =
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   calls
-  |> List.filter ((/=) NoOp)
   |> (\cs -> if cs == [Undo] || cs == [Redo] || cs == [] || cs == [Sync]
              then cs
              else Savepoint :: cs)
@@ -96,7 +95,6 @@ encodeRPC m call =
       SetDBColType tlid id tipe ->
         ev "SetDBColType" [encodeTLID tlid, encodeID id, JSE.string tipe]
 
-      NoOp -> ev "NoOp" []
       DeleteAll -> ev "DeleteAll" []
       Savepoint -> ev "Savepoint" []
       Undo -> ev "Undo" []
