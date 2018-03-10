@@ -7,6 +7,7 @@ import Dom
 import Navigation
 import Mouse
 import Time exposing (Time)
+import PageVisibility
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -146,6 +147,8 @@ type Msg
     | NavigateTo String
     | WindowResize Int Int
     | ClockTick Action Time
+    | PageVisibilityChange PageVisibility.Visibility
+    | PageFocusChange PageVisibility.Visibility
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer
@@ -368,6 +371,7 @@ type alias Model = { center : Pos
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , integrationTestState : IntegrationTestState
+                   , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
                    }
 
@@ -408,6 +412,7 @@ type Modification = Error String
                   | SetState State
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
+                  | SetVisibility PageVisibility.Visibility
 
 -----------------------------
 -- Flags / function types
