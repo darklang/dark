@@ -11,10 +11,12 @@ import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
+import PageVisibility
 -- import List.Extra as LE
 import String.Extra as SE
+import Time
+import Task
 import Window
-import Time exposing (Time, second)
 
 -- dark
 import RPC exposing (rpc, saveTest, integrationRpc)
@@ -95,6 +97,9 @@ init {editorState, complete} location =
                   Just t  -> t
                   Nothing -> []
       m = Defaults.defaultModel editor
+
+      visibilityTask =
+        Task.perform PageVisibilityChange PageVisibility.visibility
       center =
         case parseLocation location of
           Nothing -> m.center
@@ -116,8 +121,8 @@ init {editorState, complete} location =
         |> SE.replace ":9000" ""
   in
     if shouldRunIntegrationTest
-    then m2 ! [integrationRpc m integrationTestName]
-    else m2 ! [rpc m FocusNothing []]
+    then m2 ! [integrationRpc m integrationTestName, visibilityTask]
+    else m2 ! [rpc m FocusNothing [], visibilityTask]
 
 
 -----------------------
@@ -317,6 +322,8 @@ updateMod mod (m, cmd) =
         { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
         { m | state = Dragging tlid offset hasMoved state } ! []
+      SetVisibility vis ->
+        { m | visibility = vis } ! []
       AutocompleteMod mod ->
         let (complete, cmd) = processAutocompleteMods m [mod]
         in ({ m | complete = complete }
@@ -797,14 +804,20 @@ update_ msg m =
         RefreshAnalyses ->
           RPC ([Sync], FocusNoChange)
 
-    (RPCCallBack _ _ _ _, _) as t->
+    (RPCCallBack _ _ _ _, _) as t ->
       Error <| "Dark Client Error: nothing for " ++ (toString t)
 
-    (Initialization, _) as t->
+    (Initialization, _) ->
       NoChange
 
-    (AddRandom, _) as t->
+    (AddRandom, _) ->
       NoChange
+
+    (PageVisibilityChange vis, _) ->
+      SetVisibility vis
+
+    (PageFocusChange vis, _) ->
+      SetVisibility vis
 
 -----------------------
 -- SUBSCRIPTIONS
@@ -824,8 +837,16 @@ subscriptions m =
             [ Mouse.moves (DragToplevel id)]
           _ -> []
       timers =
-        [ Time.every second (ClockTick RefreshAnalyses) ]
+        case m.visibility of
+          PageVisibility.Hidden -> []
+          PageVisibility.Visible ->
+            [ Time.every Time.second (ClockTick RefreshAnalyses) ]
+
+      visibility =
+        [ PageVisibility.visibilityChanges PageVisibilityChange
+        , onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))
+        , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
   in Sub.batch
-    (List.concat [keySubs, dragSubs, resizes, timers])
+    (List.concat [keySubs, dragSubs, resizes, timers, visibility])
 
 
