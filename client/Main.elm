@@ -57,23 +57,18 @@ main = Navigation.programWithFlags
 -----------------------
 parseLocation : Navigation.Location -> Maybe Pos
 parseLocation loc =
-      let removeHash = String.dropLeft 1 loc.hash -- remove "#"
+  let removeHash = String.dropLeft 1 loc.hash in -- remove "#"
+  case String.split "&" removeHash of -- split on delimiter
+    [xpart, ypart] ->
+      let trimmedx = String.dropLeft 1 xpart -- remove 'x'
+          trimmedy = String.dropLeft 1 ypart -- remove 'y'
       in
-          case String.split "&" removeHash of -- split on delimiter
-            [xpart, ypart] ->
-              let trimmedx = String.dropLeft 1 xpart -- remove 'x'
-                  trimmedy = String.dropLeft 1 ypart -- remove 'y'
-              in
-                  case String.toInt trimmedx of
-                    Err _ -> Nothing
-                    Ok x ->
-                      case String.toInt trimmedy of
-                        Err _ -> Nothing
-                        Ok y ->
-                          let newPosition = { x = x, y = y }
-                          in
-                              Just newPosition
-            _ -> Nothing
+      case (String.toInt trimmedx, String.toInt trimmedy) of
+        (Ok x, Ok y) ->
+          let newPosition = { x = x, y = y } in
+          Just newPosition
+        _ -> Nothing
+    _ -> Nothing
 
 flag2function : FlagFunction -> Function
 flag2function fn =
