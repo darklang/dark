@@ -10,7 +10,6 @@
 /server/_build
 /server/ocamlbuild_output.txt
 /server/profile.json
-/server/serialization
 /server/static/base.css
 /server/static/elm.js
 /tags
