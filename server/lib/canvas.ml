@@ -178,30 +178,22 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
-let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
+let load (name: string) (newops: Op.op list) : canvas ref =
   let c = create name in
-  let oldops =
-    match filename with
-    | Some file -> Serialize.load_binary file
-    | None -> Serialize.search_and_load name
-  in
+  let oldops = Serialize.search_and_load name in
   add_ops c oldops newops;
   c
 
-let save ?(filename=None) (c : canvas) : unit =
-  match filename with
-  | None ->
-      let filename = Serialize.dark_save_filename c.name in
-      let json = Serialize.json_save_filename c.name in
-      Serialize.save_binary filename c.ops;
-      let _ = Spawn.spawn
-                ~prog:(Config.bin_root_dir ^ "darkfile_bin_to_json.exe")
-                ~argv:[""; filename; json]
-                ()
-      in
-      ()
-  | Some file ->
-      Serialize.save_binary file c.ops
+let save (c : canvas) : unit =
+  let filename = Serialize.dark_save_filename c.name in
+  let json = Serialize.json_save_filename c.name in
+  Serialize.save_binary filename c.ops;
+  let _ = Spawn.spawn
+            ~prog:(Config.bin_root_dir ^ "darkfile_bin_to_json.exe")
+            ~argv:[""; filename; json]
+            ()
+  in
+  ()
 
 
 
