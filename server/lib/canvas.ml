@@ -178,6 +178,7 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
+
 let load (name: string) (newops: Op.op list) : canvas ref =
   let c = create name in
   let oldops = Serialize.search_and_load name in
@@ -185,28 +186,27 @@ let load (name: string) (newops: Op.op list) : canvas ref =
   c
 
 let save (c : canvas) : unit =
-  let filename = Serialize.binary_save_filename c.name in
-  let json = Serialize.json_save_filename c.name in
-  Serialize.save_binary filename c.ops;
-  let _ = Spawn.spawn
-            ~prog:(Config.bin_root_dir ^ "darkfile_bin_to_json.exe")
-            ~argv:[""; filename; json]
-            ()
-  in
-  ()
+  let bin = Serialize.binary_save_filename c.name in
+  let json = Serialize.json_unversioned_filename c.name in
+  Serialize.save_binary bin c.ops;
+  ignore
+    (Spawn.spawn
+       ~prog:(Config.bin_root_dir ^ "darkfile_bin_to_json.exe")
+       ~argv:[""; bin; json]
+       ())
 
 
 
 let save_test (c: canvas) : string =
   let c = minimize c in
   let name = "test_" ^ c.name in
-  let name = if Sys.file_exists (Serialize.json_save_filename name) = `Yes
+  let name = if Sys.file_exists (Serialize.json_unversioned_filename name) = `Yes
              then name ^ "_"
                   ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else name in
   let c = {c with name = name } in
   save c;
-  Serialize.json_save_filename c.name
+  Serialize.json_unversioned_filename c.name
 
 
 (* ------------------------- *)
