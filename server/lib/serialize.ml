@@ -90,14 +90,10 @@ let search_and_load (name: string) : Op.oplist =
     then load_json f
     else
 
-    let f = full Config.appdata_dir name "d2074bb17e2b1a88a49546687a5e8c2edigest" "dark" in
-    if Sys.file_exists f = `Yes
-    then Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary f
-    else
-
     let f = full Config.appdata_dir name "" "" in
     if Sys.file_exists f = `Yes
     then load_json f
+
     else []
 
 
