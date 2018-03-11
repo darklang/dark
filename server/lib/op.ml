@@ -19,14 +19,12 @@ type op = SetHandler of tlid * pos * Handler.handler
         | DeleteAll
         | Undo
         | Redo
-        | Sync
 [@@deriving eq, yojson, show, sexp, bin_io]
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
 let has_effect (op: op) : bool  =
   match op with
-  | Sync -> false
   | Savepoint -> false
   | _ -> true
 

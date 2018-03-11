@@ -149,7 +149,6 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident
-    | Sync -> ident
     | DeleteAll | Undo | Redo ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
