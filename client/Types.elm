@@ -120,6 +120,7 @@ type Action = RefreshAnalyses
 
 type alias GlobalVariable = String
 type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable)
+type alias GetAnalysisRPCResult = (List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
@@ -136,8 +137,9 @@ type Msg
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallBack Focus Modification (List RPC) (Result Http.Error RPCResult)
-    | SaveTestCallBack (Result Http.Error String)
+    | RPCCallback Focus Modification (List RPC) (Result Http.Error RPCResult)
+    | SaveTestRPCCallback (Result Http.Error String)
+    | GetAnalysisRPCCallback (Result Http.Error GetAnalysisRPCResult)
     | LocationChange Navigation.Location
     | AddRandom
     | FinishIntegrationTest
@@ -175,7 +177,6 @@ type RPC
     | Savepoint
     | Undo
     | Redo
-    | Sync
 
 -----------------------------
 -- Autocompletes
@@ -400,6 +401,7 @@ type Modification = Error String
                   | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable)
                   | Enter EntryCursor
                   | RPC (List RPC, Focus)
+                  | GetAnalysisRPC
                   | SetCenter Pos
                   | NoChange
                   | MakeCmd (Cmd Msg)

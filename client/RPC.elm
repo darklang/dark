@@ -16,10 +16,6 @@ import Runtime as RT
 import Util
 import JSON exposing (..)
 
-rpc : Model -> Focus -> List RPC -> Cmd Msg
-rpc m focus calls =
-  rpc_ m "/admin/api/rpc" (RPCCallBack focus NoChange) calls
-
 rpc_ : Model -> String ->
  (List RPC -> Result Http.Error RPCResult -> Msg) ->
  List RPC -> Cmd Msg
@@ -41,15 +37,25 @@ postString url =
     , withCredentials = False
     }
 
-saveTest : Cmd Msg
-saveTest =
+rpc : Model -> Focus -> List RPC -> Cmd Msg
+rpc m focus calls =
+  rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) calls
+
+getAnalysisRPC : Cmd Msg
+getAnalysisRPC =
+  let url = "/admin/api/get_analysis"
+      request = Http.post url  Http.emptyBody decodeGetAnalysisRPC
+  in Http.send GetAnalysisRPCCallback request
+
+saveTestRPC : Cmd Msg
+saveTestRPC =
   let url = "/admin/api/save_test"
       request = postString url
-  in Http.send SaveTestCallBack request
+  in Http.send SaveTestRPCCallback request
 
-integrationRpc : Model -> String -> Cmd Msg
-integrationRpc m name =
-  rpc_ m "/admin/api/rpc" (RPCCallBack FocusNothing (TriggerIntegrationTest name)) []
+integrationRPC : Model -> String -> Cmd Msg
+integrationRPC m name =
+  rpc_ m "/admin/api/rpc" (RPCCallback FocusNothing (TriggerIntegrationTest name)) []
 
 
 
@@ -57,7 +63,9 @@ integrationRpc m name =
 encodeRPCs : Model -> List RPC -> JSE.Value
 encodeRPCs m calls =
   calls
-  |> (\cs -> if cs == [Undo] || cs == [Redo] || cs == [] || cs == [Sync]
+  |> (\cs -> if cs == [Undo]
+             || cs == [Redo]
+             || cs == []
              then cs
              else Savepoint :: cs)
   |> List.map (encodeRPC m)
@@ -101,7 +109,6 @@ encodeRPC m call =
       Redo -> ev "Redo" []
       DeleteTL id -> ev "DeleteTL" [encodeTLID id]
       MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
-      Sync -> ev "Sync" []
 
 encodeAST : Expr -> JSE.Value
 encodeAST expr =
@@ -326,6 +333,12 @@ decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
   JSDP.decode (,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
+  |> JSDP.required "analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "global_varnames" (JSD.list JSD.string)
+
+decodeGetAnalysisRPC : JSD.Decoder GetAnalysisRPCResult
+decodeGetAnalysisRPC =
+  JSDP.decode (,)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
 

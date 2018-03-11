@@ -19,7 +19,7 @@ import Task
 import Window
 
 -- dark
-import RPC exposing (rpc, saveTest, integrationRpc)
+import RPC
 import Types exposing (..)
 import View
 import Clipboard
@@ -121,8 +121,8 @@ init {editorState, complete} location =
         |> SE.replace ":9000" ""
   in
     if shouldRunIntegrationTest
-    then m2 ! [integrationRpc m integrationTestName, visibilityTask]
-    else m2 ! [rpc m FocusNothing [], visibilityTask]
+    then m2 ! [RPC.integrationRPC m integrationTestName, visibilityTask]
+    else m2 ! [RPC.rpc m FocusNothing [], visibilityTask]
 
 
 -----------------------
@@ -207,7 +207,7 @@ updateMod mod (m, cmd) =
                   let newH = { h | ast = replacement }
                       calls = [ SetHandler tl.id tl.pos newH]
                   -- call RPC on the new model
-                  in [rpc newM FocusSame calls]
+                  in [RPC.rpc newM FocusSame calls]
               _ -> [])
         |> Maybe.withDefault []
         |> \rpc -> if tlidOf newM.state == tlidOf m.state
@@ -238,7 +238,7 @@ updateMod mod (m, cmd) =
         -- and the breakage is worth it.
         in if hasNonHandlers
            then
-             m ! [rpc m focus calls]
+             m ! [RPC.rpc m focus calls]
            else
              let localM =
                    List.foldl (\call m ->
@@ -253,7 +253,10 @@ updateMod mod (m, cmd) =
                                    , processFocus localM focus
                                    ])
                              (localM, Cmd.none)
-              in withFocus ! [wfCmd, rpc withFocus FocusNoChange calls]
+              in withFocus ! [wfCmd, RPC.rpc withFocus FocusNoChange calls]
+
+      GetAnalysisRPC ->
+        m ! [RPC.getAnalysisRPC]
 
       NoChange -> m ! []
       TriggerIntegrationTest name ->
@@ -734,7 +737,7 @@ update_ msg m =
       Many [ RPC ([DeleteAll], FocusNothing), Deselect]
 
     (SaveTestButton, _) ->
-      MakeCmd saveTest
+      MakeCmd RPC.saveTestRPC
 
     (FinishIntegrationTest, _) ->
       EndIntegrationTest
@@ -745,7 +748,7 @@ update_ msg m =
     (NavigateTo url, _) ->
       MakeCmd (Navigation.newUrl url)
 
-    (RPCCallBack focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
+    (RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
       if focus == FocusNoChange
       then
         Many [ SetToplevels toplevels analysis globals
@@ -764,21 +767,32 @@ update_ msg m =
                 , extraMod -- for testing, maybe more
                 ]
 
-    (SaveTestCallBack (Ok msg), _) ->
+    (SaveTestRPCCallback (Ok msg), _) ->
       Error <| "Success! " ++ msg
 
+    (GetAnalysisRPCCallback (Ok (analysis, globals)), _) ->
+      SetToplevels m.toplevels analysis globals
 
     ------------------------
     -- plumbing
     ------------------------
-    (RPCCallBack _ _ _ (Err (Http.BadStatus error)), _) ->
+    (RPCCallback _ _ _ (Err (Http.BadStatus error)), _) ->
       Error <| "Error: " ++ error.body
 
-    (RPCCallBack _ _ _ (Err (Http.NetworkError)), _) ->
+    (RPCCallback _ _ _ (Err (Http.NetworkError)), _) ->
       Error <| "Network error: is the server running?"
 
-    (SaveTestCallBack (Err err), _) ->
+    (RPCCallback _ _ _ _, _) as t ->
+      Error <| "Dark Client Error: unknown error: " ++ (toString t)
+
+    (SaveTestRPCCallback (Err err), _) ->
       Error <| "Error: " ++ (toString err)
+
+    (GetAnalysisRPCCallback (Err (Http.NetworkError)), _) ->
+      NoChange
+
+    (GetAnalysisRPCCallback (Err err), _) as t ->
+      Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
 
     (WindowResize x y, _) ->
       -- just receiving the subscription will cause a redraw, which uses
@@ -802,10 +816,7 @@ update_ msg m =
     (ClockTick action time, _) ->
       case action of
         RefreshAnalyses ->
-          RPC ([Sync], FocusNoChange)
-
-    (RPCCallBack _ _ _ _, _) as t ->
-      Error <| "Dark Client Error: nothing for " ++ (toString t)
+          GetAnalysisRPC
 
     (Initialization, _) ->
       NoChange

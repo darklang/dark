@@ -222,6 +222,26 @@ let server =
            Log.infO "request" (domain, Cohttp.Code.string_of_method verb, ("http:" ^Uri.to_string uri));
 
            match (Uri.path uri) with
+           | "/admin/api/get_analysis" ->
+             let (timing_headers, body) =
+               admin_rpc_handler "[]" domain in
+             let header =
+               ("Server-timing"
+               , timing_headers
+                 |> List.map ~f:(fun (name, time, desc) ->
+                      (* chrome 64 *)
+                      name
+                      ^ "=" ^ (time |> Float.to_string_hum ~decimals:3)
+                      ^ "; \"" ^ desc ^ "\"")
+
+                      (* chrome 65 *)
+                      (* name *)
+                      (* ^ ";desc=\"" ^ desc ^ "\"" *)
+                      (* ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3) *)
+
+                 |> String.concat ~sep:",") in
+             let headers = Cohttp.Header.of_list [header] in
+             S.respond_string ~status:`OK ~body:body ~headers:headers ()
            | "/admin/api/rpc" ->
              let (timing_headers, body) =
                admin_rpc_handler req_body domain in
