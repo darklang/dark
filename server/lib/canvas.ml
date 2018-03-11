@@ -5,6 +5,7 @@ open Types
 module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
+module PReq = Parsed_request
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
@@ -286,3 +287,47 @@ let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.
 
 let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   matching_routes ~uri ~verb c
+
+(* ------------------------- *)
+(* Events *)
+(* ------------------------- *)
+
+let create_environments (c: canvas) (host: string) : RTT.env_map =
+  let dbs = TL.dbs c.toplevels in
+  let dbs_env = Db.dbs_as_env dbs in
+  Db.cur_dbs := dbs;
+  let sample_request = PReq.sample |> PReq.to_dval in
+  let sample_event = RTT.DObj (RTT.DvalMap.empty) in
+  let default_env =
+    dbs_env
+    |> RTT.DvalMap.set ~key:"request" ~data:sample_request
+    |> RTT.DvalMap.set ~key:"event" ~data:sample_event
+  in
+  let env_map acc (h : Handler.handler) =
+    let h_envs =
+      try
+        Stored_event.load_all host h.tlid
+      with
+      | _ ->
+        if Handler.is_http h
+        then [sample_request]
+        else [sample_event]
+    in
+    let new_envs =
+      List.map h_envs
+        ~f:(fun e ->
+            if Handler.is_http h
+            then RTT.DvalMap.set dbs_env "request" e
+            else RTT.DvalMap.set dbs_env "event" e)
+    in
+    RTT.EnvMap.set acc h.tlid new_envs
+  in
+  let tls_map =
+    List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.handlers c.toplevels)
+  in
+  (* TODO(ian): using 0 as a default, come up with better idea
+   * later *)
+  RTT.EnvMap.set tls_map 0 [default_env]
+
+
+
