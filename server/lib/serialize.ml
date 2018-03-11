@@ -14,11 +14,6 @@ let write_shape_data () =
   else
     ()
 
-let savedir (name: string): string =
-  if String.is_prefix ~prefix:"test_" name
-  then Config.completed_test_dir
-  else Config.appdata_dir
-
 let full dir name digest suffix =
   if digest = ""
   then
@@ -26,11 +21,11 @@ let full dir name digest suffix =
   else
     dir ^ "/" ^ name ^ "_" ^ digest ^ "." ^ suffix
 
-let binary_save_filename name =
-  full (savedir name) name digest "dark"
-let json_save_filename name =
-  full (savedir name) name "" "json"
-
+let binary_save_filename name = full Config.appdata_dir name digest "dark"
+let json_save_filename name = full Config.appdata_dir name digest "json"
+let json_unversioned_filename name = full Config.appdata_dir name "" "json"
+let completed_test_filename name = full Config.completed_test_dir name digest "dark"
+let testdata_filename name = full Config.testdata_dir name "" "dark"
 
 let current_filenames () : string list =
   Sys.ls_dir Config.appdata_dir
@@ -71,11 +66,11 @@ let save_json (filename: string) (ops: Op.oplist) : unit =
 let search_and_load (name: string) : Op.oplist =
   if String.is_prefix ~prefix:"test_" name
   then
-    let f = full Config.completed_test_dir name digest "dark" in
+    let f = completed_test_filename name in
     if Sys.file_exists f = `Yes
     then load_binary f
     else
-      let f = full Config.testdata_dir name "" "json" in
+      let f = testdata_filename name in
       if Sys.file_exists f = `Yes
       then load_json f
       else []
@@ -93,11 +88,11 @@ let search_and_load (name: string) : Op.oplist =
           else (raise e))
 
     else
+      let f = json_save_filename name in
+      if Sys.file_exists f = `Yes
+      then load_json f
 
-    let f = json_save_filename name in
-    if Sys.file_exists f = `Yes
-    then load_json f
-
-    else []
+      (* No savefile - generate empty canvas *)
+      else []
 
 
