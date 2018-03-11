@@ -26,10 +26,10 @@ let full dir name digest suffix =
   else
     dir ^ "/" ^ name ^ "_" ^ digest ^ "." ^ suffix
 
-let dark_save_filename name =
+let binary_save_filename name =
   full (savedir name) name digest "dark"
 let json_save_filename name =
-  full (savedir name) name digest "json"
+  full (savedir name) name "" "json"
 
 
 let current_filenames () : string list =
@@ -47,11 +47,7 @@ let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
    * used a default value of []. Which means we wiped out our old Dark
    * code on deserialization errors *facepalm*. So be careful here *)
-  if Sys.file_exists filename = `Yes
-  then
-    Core_extended.Bin_io_utils.load filename Op.bin_read_oplist
-  else
-    []
+  Core_extended.Bin_io_utils.load filename Op.bin_read_oplist
 
 let save_binary (filename: string) (ops: Op.oplist) : unit =
   Core_extended.Bin_io_utils.save filename Op.bin_writer_oplist ops
@@ -84,24 +80,24 @@ let search_and_load (name: string) : Op.oplist =
       then load_json f
       else []
   else
-    let f = full Config.appdata_dir name digest "dark" in
+    let f = binary_save_filename name in
     if Sys.file_exists f = `Yes
-    then load_binary f
+    then
+      (try
+        load_binary f
+      with
+      | e ->
+          let f = json_save_filename name in
+          if Sys.file_exists f = `Yes
+          then load_json f
+          else (raise e))
+
     else
 
-    let f = full Config.appdata_dir name digest "json" in
+    let f = json_save_filename name in
     if Sys.file_exists f = `Yes
     then load_json f
-    else
 
-    let f = full Config.appdata_dir name "d2074bb17e2b1a88a49546687a5e8c2edigest" "dark" in
-    if Sys.file_exists f = `Yes
-    then Deserialize_d2074bb17e2b1a88a49546687a5e8c2e.load_binary f
-    else
-
-    let f = full Config.appdata_dir name "" "" in
-    if Sys.file_exists f = `Yes
-    then load_json f
     else []
 
 

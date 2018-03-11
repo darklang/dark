@@ -191,7 +191,7 @@ let load ?(filename=None) (name: string) (newops: Op.op list) : canvas ref =
 let save ?(filename=None) (c : canvas) : unit =
   match filename with
   | None ->
-      let filename = Serialize.dark_save_filename c.name in
+      let filename = Serialize.binary_save_filename c.name in
       let json = Serialize.json_save_filename c.name in
       Serialize.save_binary filename c.ops;
       let _ = Spawn.spawn
