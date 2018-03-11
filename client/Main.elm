@@ -297,7 +297,7 @@ updateMod mod (m, cmd) =
               processAutocompleteMods m [ ACSetTarget target ]
             newM = { m | state = Entering entry, complete = complete }
         in
-        newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry])
+        newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry m])
 
 
       SetToplevels tls tlars globals ->
@@ -505,7 +505,7 @@ update_ msg m =
                   else if AC.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
-                         , MakeCmd Entry.focusEntry
+                         , MakeCmd (Entry.focusEntry m)
                          ]
                   else NoChange
                 _ -> NoChange
@@ -654,7 +654,7 @@ update_ msg m =
         NoChange
       else
         Many [ AutocompleteMod <| ACSetQuery query
-             , MakeCmd Entry.focusEntry
+             , MakeCmd (Entry.focusEntry m)
              ]
 
     (EntrySubmitMsg, _) ->
@@ -753,7 +753,7 @@ update_ msg m =
       then
         Many [ SetToplevels toplevels analysis globals
              , extraMod -- for testing, maybe more
-             , MakeCmd Entry.focusEntry
+             , MakeCmd (Entry.focusEntry m)
              ]
       else
         let m2 = { m | toplevels = toplevels }
