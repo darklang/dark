@@ -14,8 +14,11 @@ let write_shape_data () =
   else
     ()
 
+let is_test (name: string) : bool =
+  String.is_prefix ~prefix:"test_" name
+
 let savedir (name: string): string =
-  if String.is_prefix ~prefix:"test_" name
+  if is_test name
   then Config.completed_test_dir
   else Config.appdata_dir
 
@@ -26,10 +29,8 @@ let full dir name digest suffix =
   else
     dir ^ "/" ^ name ^ "_" ^ digest ^ "." ^ suffix
 
-let binary_save_filename name =
-  full (savedir name) name digest "dark"
-let json_save_filename name =
-  full (savedir name) name digest "json"
+let binary_save_filename name = full (savedir name) name digest "dark"
+let json_unversioned_filename name = full (savedir name) name "" "json"
 
 
 let current_filenames () : string list =
@@ -69,8 +70,12 @@ let save_json (filename: string) (ops: Op.oplist) : unit =
 
 
 let search_and_load (name: string) : Op.oplist =
-  if String.is_prefix ~prefix:"test_" name
+  (* testfiles load and save from different directories *)
+  if is_test name
   then
+    (* we allow loading from the completed_test_dir so that subsequent
+     * steps in the test use the altered file. The test harness cleans
+     * them first *)
     let f = full Config.completed_test_dir name digest "dark" in
     if Sys.file_exists f = `Yes
     then load_binary f
@@ -80,20 +85,24 @@ let search_and_load (name: string) : Op.oplist =
       then load_json f
       else []
   else
-    let f = full Config.appdata_dir name digest "dark" in
-    if Sys.file_exists f = `Yes
-    then load_binary f
+    let bin = binary_save_filename name in
+    let json = json_unversioned_filename name in
+
+    (* binary file first, falling back to json if it won't load *)
+    if Sys.file_exists bin = `Yes
+    then
+      (try
+        load_binary bin
+      with
+      | e ->
+          if Sys.file_exists json = `Yes
+          then load_json json
+          else raise e)
+
     else
+      if Sys.file_exists json  = `Yes
+      then load_json json
 
-    let f = full Config.appdata_dir name digest "json" in
-    if Sys.file_exists f = `Yes
-    then load_json f
-    else
-
-    let f = full Config.appdata_dir name "" "" in
-    if Sys.file_exists f = `Yes
-    then load_json f
-
-    else []
+      else []
 
 
