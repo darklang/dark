@@ -58,7 +58,7 @@ moveTo p =
 
 urlForPos : Pos -> String
 urlForPos pos =
-  let x = "X" ++ (toString pos.x)
-      y = "Y" ++ (toString pos.y)
+  let x = "x" ++ (toString pos.x)
+      y = "y" ++ (toString pos.y)
   in
       "/admin/ui#" ++ x ++ "&" ++ y
