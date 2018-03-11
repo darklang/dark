@@ -11,81 +11,64 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 
+type timing_header = string * float * string
+
+let server_timing (times: timing_header list) =
+  times
+  |> List.map ~f:(fun (name, time, desc) ->
+      (* chrome 64 *)
+      name
+      ^ "=" ^ (time |> Float.to_string_hum ~decimals:3)
+      ^ "; \"" ^ desc ^ "\"")
+
+  (* chrome 65 *)
+  (* name *)
+  (* ^ ";desc=\"" ^ desc ^ "\"" *)
+  (* ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3) *)
+
+  |> String.concat ~sep:","
+  |> fun x -> [("Server-timing", x)]
+  |> Cohttp.Header.of_list
+
+let time (name: string) (fn: (_ -> 'a)) :
+  (timing_header * 'a) =
+  let start = Unix.gettimeofday () in
+  let result = fn () in
+  let finish = Unix.gettimeofday () in
+  ((name, (finish -. start) *. 1000.0, name), result)
+
+
 let server =
   let stop,stopper = Lwt.wait () in
 
   let callback _ req req_body =
-    let admin_rpc_handler body (host: string) : ((string * float * string) list * string) =
-      let time name desc fn =
-        let start = Unix.gettimeofday () in
-        let result = fn () in
-        let finish = Unix.gettimeofday () in
-        ((name, (finish -. start) *. 1000.0, desc), result)
-      in
-
+    let admin_rpc_handler body (host: string) : (Cohttp.Header.t * string) =
       try
-        let (t1, ops) = time "1-read-api-ops" "1. read ops from api" (fun _ ->
-          Api.to_ops body
-        ) in
+        let (t1, ops) = time "1-read-api-ops"
+          (fun _ -> Api.to_ops body) in
 
-        let (t2, c) = time "2-load-saved-ops" "2. read saved ops from disk" (fun _ ->
-          C.load host ops
-        ) in
+        let (t2, c) = time "2-load-saved-ops"
+          (fun _ -> C.load host ops) in
 
-        let (t3, envs) = time "3-create-envs" "3. create the environment" (fun _ ->
-          Event_queue.set_scope !c.name;
-          let dbs = TL.dbs !c.toplevels in
-          let dbs_env = Db.dbs_as_env dbs in
-          Db.cur_dbs := dbs;
-          let sample_request = PReq.sample |> PReq.to_dval in
-          let sample_event = RTT.DObj (RTT.DvalMap.empty) in
-          let default_env =
-            dbs_env
-            |> RTT.DvalMap.set ~key:"request" ~data:sample_request
-            |> RTT.DvalMap.set ~key:"event" ~data:sample_event
-          in
-          let env_map acc (h : Handler.handler) =
-            let h_envs =
-              try
-                Stored_event.load_all host h.tlid
-              with
-              | _ ->
-                if Handler.is_http h
-                then [sample_request]
-                else [sample_event]
-             in
-             let new_envs =
-               List.map h_envs
-                 ~f:(fun e ->
-                     if Handler.is_http h
-                     then RTT.DvalMap.set dbs_env "request" e
-                     else RTT.DvalMap.set dbs_env "event" e)
-             in
-             RTT.EnvMap.set acc h.tlid new_envs
-          in
-          let tls_map =
-            List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.handlers !c.toplevels)
-          in
-          (* TODO(ian): using 0 as a default, come up with better idea
-           * later *)
-          RTT.EnvMap.set tls_map 0 [default_env]
-        ) in
+        let (t3, envs) = time "3-create-envs"
+          (fun _ ->
+            Event_queue.set_scope !c.name;
+            C.create_environments !c host) in
 
+        let (t4, result) = time "4-to-frontend"
+          (fun _ -> C.to_frontend_string envs !c) in
 
-        let (t4, result) = time "4-to-frontend" "4. serialize canvas to frontend" (fun _ ->
-          C.to_frontend_string envs !c
-        ) in
-
-        let (t5, _) = time "5-save-to-disk" "5. serialize ops to disk" (fun _ ->
-          (* work out the result before we save it, incase it has a
-           stackoverflow or other crashing bug *)
-          if Op.causes_any_changes ops
-          then C.save !c
-          else ()
-        ) in
+        let (t5, _) = time "5-save-to-disk"
+          (fun _ ->
+            (* work out the result before we save it, incase it has a
+             stackoverflow or other crashing bug *)
+            if Op.causes_any_changes ops
+            then C.save !c
+            else ()
+          ) in
 
       Event_queue.unset_scope ~status:`OK;
-      ([t1; t2; t3; t4; t5], result)
+      (server_timing [t1; t2; t3; t4; t5], result)
       with
       | e ->
         Event_queue.unset_scope ~status:`Err;
@@ -223,45 +206,15 @@ let server =
 
            match (Uri.path uri) with
            | "/admin/api/get_analysis" ->
-             let (timing_headers, body) =
-               admin_rpc_handler "[]" domain in
-             let header =
-               ("Server-timing"
-               , timing_headers
-                 |> List.map ~f:(fun (name, time, desc) ->
-                      (* chrome 64 *)
-                      name
-                      ^ "=" ^ (time |> Float.to_string_hum ~decimals:3)
-                      ^ "; \"" ^ desc ^ "\"")
-
-                      (* chrome 65 *)
-                      (* name *)
-                      (* ^ ";desc=\"" ^ desc ^ "\"" *)
-                      (* ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3) *)
-
-                 |> String.concat ~sep:",") in
-             let headers = Cohttp.Header.of_list [header] in
-             S.respond_string ~status:`OK ~body:body ~headers:headers ()
+             (* Reuse the RPC handler because it basically does the same
+              * thing. It shouldn't save because there are no ops sent.
+              * It also sends too much data back, but we just ignore it
+              * in the client. *)
+             let (headers, body) = admin_rpc_handler "[]" domain in
+             S.respond_string ~status:`OK ~body ~headers ()
            | "/admin/api/rpc" ->
-             let (timing_headers, body) =
-               admin_rpc_handler req_body domain in
-             let header =
-               ("Server-timing"
-               , timing_headers
-                 |> List.map ~f:(fun (name, time, desc) ->
-                      (* chrome 64 *)
-                      name
-                      ^ "=" ^ (time |> Float.to_string_hum ~decimals:3)
-                      ^ "; \"" ^ desc ^ "\"")
-
-                      (* chrome 65 *)
-                      (* name *)
-                      (* ^ ";desc=\"" ^ desc ^ "\"" *)
-                      (* ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3) *)
-
-                 |> String.concat ~sep:",") in
-             let headers = Cohttp.Header.of_list [header] in
-             S.respond_string ~status:`OK ~body:body ~headers:headers ()
+             let (headers, body) = admin_rpc_handler req_body domain in
+             S.respond_string ~status:`OK ~body ~headers ()
            | "/sitemap.xml" ->
              S.respond_string ~status:`OK ~body:"" ()
            | "/favicon.ico" ->
