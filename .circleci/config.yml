@@ -40,15 +40,14 @@ jobs:
             - v1-build-{{ checksum "minus7-timestamp" }}
 
       - run:
-          name: Clear cache on Saturday
+          name: Clear cache
           # Since we don't checksum the cache on its contents, it may
-          # continue to grow. As a result, let's clear the cache on
-          # Saturdays. We store the day the cache was built in the
-          # cache. If today is saturday, but the cache was built on
-          # friday, then it's the first build on a saturday. In this
-          # case, clear the cache before we build.
+          # continue to grow. As a result, let's clear the cache weekly.
+          # We store the day the cache was built in the cache. If the
+          # cache was built on friday, and today is not Friday, then
+          # it's the first build after last week, and clear it.
           command: |
-            if [[ `date +"%A"` == "Saturday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
+            if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
               rm -Rf client/elm-stuff
               rm -Rf client/tests/elm-stuff
               rm -Rf server/_build
