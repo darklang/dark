@@ -26,7 +26,7 @@ let full dir name digest suffix =
   else
     dir ^ "/" ^ name ^ "_" ^ digest ^ "." ^ suffix
 
-let dark_save_filename name =
+let binary_save_filename name =
   full (savedir name) name digest "dark"
 let json_save_filename name =
   full (savedir name) name digest "json"
