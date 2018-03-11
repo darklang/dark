@@ -53,13 +53,10 @@ def initial_compile():
 
 def start_background_services():
   # We wait for them in runserver
-  run_or_fail("scripts/support/start-background-services dnsmasq cron postgresql")
+  run_or_fail("scripts/support/start-background-services cron dnsmasq postgresql backup")
 
 def create_app_dirs():
   run_or_fail("scripts/support/create-app-directories")
-
-def setup_docker():
-  run_or_fail("scripts/support/allow-docker-access")
 
 # It is extremely challenging to get a non-blocking read on stdin.
 # Essentially, we want to read everything from stdin and then compile.
@@ -145,8 +142,9 @@ def main():
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   if compile:
-    start_background_services()
     create_app_dirs()
+    #  background_task(start_background_services, "start background services")
+    start_background_services()
     background_task(initial_compile, "initial_compile")
 
   if watch:
