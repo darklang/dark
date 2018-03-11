@@ -61,8 +61,8 @@ parseLocation loc =
       in
           case String.split "&" removeHash of -- split on delimiter
             [xpart, ypart] ->
-              let trimmedx = String.dropLeft 1 xpart -- remove 'X'
-                  trimmedy = String.dropLeft 1 ypart -- remove 'Y'
+              let trimmedx = String.dropLeft 1 xpart -- remove 'x'
+                  trimmedy = String.dropLeft 1 ypart -- remove 'y'
               in
                   case String.toInt trimmedx of
                     Err _ -> Nothing
