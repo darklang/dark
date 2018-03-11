@@ -120,14 +120,8 @@ all works.
 
 # Backing up darkfiles
 
-Copy scripts/backup_darkfiles.plist (possibly modified based on where
-you store your dark checkout) into
-~/Library/LaunchAgents/com.darklang.backup_darkfiles.plist.
-
-Then run `launchctl load ~/Library/LaunchAgents/com.darklang.backup_darkfiles.plist`.
-
-TODO: the launchctl stuff doesn't work, so let's move it to a cronjob
-instead.
+Darkfiles are backed up daily, so long as the build container is running
+at 4pm. They are backed up to persistdir/backup_appdata.
 
 # Debugging ppx stuff
 

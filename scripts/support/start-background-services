@@ -2,16 +2,27 @@
 
 set -euo pipefail
 
+echo "" | crontab -
+
 for name in ${@}; do
-  if [[ $name == cron ]]; then
-    TAB='*/1 * * * *'
-    echo "$TAB $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1" | sudo crontab -
+  if [[ $name == backup ]]; then
+    TAB='0 0 * * *'
+    line="$TAB $DARK_CONFIG_SCRIPTS_DIR/backup_darkfiles.sh >> $DARK_CONFIG_RUN_DIR/logs/backup_cron.log 2>&1"
+    (crontab -l; echo "$line") | crontab -
+
+  else
+    if [[ $name == cron ]]; then
+      TAB='*/1 * * * *'
+      line="$TAB $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1"
+      (crontab -l; echo "$line") | crontab -
+    fi
+
+    echo "--------------------------"
+    echo "--  Starting $name"
+    echo "--------------------------"
+    sudo service "$name" start
   fi
 
-  echo "--------------------------"
-  echo "--  Starting $name"
-  echo "--------------------------"
-  sudo service "$name" start
 done
 
 
