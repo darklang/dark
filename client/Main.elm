@@ -297,7 +297,7 @@ updateMod mod (m, cmd) =
               processAutocompleteMods m [ ACSetTarget target ]
             newM = { m | state = Entering entry, complete = complete }
         in
-        newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry m])
+        newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
 
 
       SetToplevels tls tlars globals ->
