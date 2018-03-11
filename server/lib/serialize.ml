@@ -47,11 +47,7 @@ let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
    * used a default value of []. Which means we wiped out our old Dark
    * code on deserialization errors *facepalm*. So be careful here *)
-  if Sys.file_exists filename = `Yes
-  then
-    Core_extended.Bin_io_utils.load filename Op.bin_read_oplist
-  else
-    []
+  Core_extended.Bin_io_utils.load filename Op.bin_read_oplist
 
 let save_binary (filename: string) (ops: Op.oplist) : unit =
   Core_extended.Bin_io_utils.save filename Op.bin_writer_oplist ops
