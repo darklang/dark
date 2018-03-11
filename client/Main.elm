@@ -345,7 +345,10 @@ processAutocompleteMods m mods =
         (\mod complete -> AC.update m mod complete)
         m.complete
         mods
-  in (complete, AC.focusItem complete.index)
+      focus = case unwrapState m.state of
+                Entering _ -> AC.focusItem complete.index
+                _ -> Cmd.none
+  in (complete, focus)
 
 -- Figure out from the string and the state whether this '.' means field
 -- access.
