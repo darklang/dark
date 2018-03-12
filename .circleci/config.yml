@@ -40,7 +40,7 @@ jobs:
             - v1-build-{{ checksum "minus7-timestamp" }}
 
       - run:
-          name: Clear cache
+          name: Maybe clear caches
           # Since we don't checksum the cache on its contents, it may
           # continue to grow. As a result, let's clear the cache weekly.
           # We store the day the cache was built in the cache. If the
@@ -48,9 +48,12 @@ jobs:
           # it's the first build after last week, and clear it.
           command: |
             if [[ `date +"%A"` != "Friday" && `cat server/_build/CACHE_DAY` == "Friday" ]]; then
+              echo "Clearing caches"
               rm -Rf client/elm-stuff
               rm -Rf client/tests/elm-stuff
               rm -Rf server/_build
+            else
+              echo "Not clearing caches"
             fi
             mkdir -p server/_build
             date +"%A" > server/_build/CACHE_DAY
