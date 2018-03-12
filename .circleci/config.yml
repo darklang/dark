@@ -114,10 +114,10 @@ jobs:
             echo $GCLOUD_SERVICE_KEY \
               | base64 --decode --ignore-garbage > gcloud-service-key.json
             docker cp gcloud-service-key.json \
-              vols:/home/dark/gcloud-service-key.json
+              dark-dev:/home/dark/app/gcloud-service-key.json
 
             scripts/run-in-docker gcloud auth activate-service-account \
-              --key-file /home/dark/gcloud-service-key.json
+              --key-file /home/dark/app/gcloud-service-key.json
 
       - run: scripts/run-in-docker scripts/gcp-deploy
 
