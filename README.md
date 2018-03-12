@@ -30,9 +30,26 @@ Run integration tests on it:
 
 - `./scripts/run-in-docker ./integration-tests/run.sh --gcp`
 
-Then deploy it:
+To deploy, you'll need `gcloud` installed:
+
+- `curl -s https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-192.0.0-darwin-x86_64.tar.gz | tar xz && ./google-cloud-sdk/install.sh`.
+
+then authenticate with gcloud:
+
+- `gcloud auth login`
+
+(Note: you might need to restart your shell for gcloud to appear in your $PATH, or run `exec $SHELL`)
+
+You should restart your development container at this point, as it pulls in your currently authenticated
+user at start time.
+
+and then run:
 
 - `./scripts/run-in-docker ./script/gcp-deploy`
+
+If you still have authentication problems (eg. `denied: Unable to access the repository, please check that you have permission to access it.` from a GCR push),
+and you've confirmed that you've logged into gcloud and restarted your container, then check that you've accepted the invite to the Google Developer Project
+in your email. If you have and it's still not working, or you don't have an invitation, then ping Paul or Ian.
 
 To connect to the host via SSH (you can use regular docker commands from there):
 
