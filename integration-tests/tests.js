@@ -57,7 +57,7 @@ function entryBoxAvailable() {
 }
 
 // Allow us wait for a certain autocomplete entry to be selected
-function acAvailable(content) {
+function acHighlighted(content) {
   return Selector('.autocomplete-item.highlighted')
                  .withExactText(content);
 }
@@ -78,11 +78,11 @@ test('field_access', async t => {
   await t
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acAvailable("request")).ok()
+    .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
-    .expect(acAvailable("body")).ok()
+    .expect(acHighlighted("body")).ok()
     .pressKey("enter")
     ;
 });
@@ -98,7 +98,7 @@ test('field_access_closes', async t => {
       .takeScreenshot("1 enter")
     .typeText("#entry-box", "req")
       .takeScreenshot("2 req")
-    .expect(acAvailable("request")).ok()
+    .expect(acHighlighted("request")).ok()
       .takeScreenshot(" 3 request")
     .typeText("#entry-box", ".")
       .takeScreenshot("4 dot")
@@ -107,7 +107,7 @@ test('field_access_closes', async t => {
       .takeScreenshot("5 b")
     .typeText("#entry-box", "o")
       .takeScreenshot("6 o")
-    .expect(acAvailable("body")).ok()
+    .expect(acHighlighted("body")).ok()
       .takeScreenshot("7 wait bo")
     .pressKey("enter")
       .takeScreenshot("8 enter")
@@ -121,11 +121,11 @@ test('field_access_pipes', async t => {
     .pressKey("enter")
 
     .typeText("#entry-box", "req")
-    .expect(acAvailable("request")).ok()
+    .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
-    .expect(acAvailable("body")).ok()
+    .expect(acHighlighted("body")).ok()
     .pressKey("shift+enter")
     ;
 });
@@ -135,11 +135,11 @@ test('field_access_nested', async t => {
     .pressKey("enter")
 
     .typeText("#entry-box", "req")
-    .expect(acAvailable("request")).ok()
+    .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "bo")
-    .expect(acAvailable("body")).ok()
+    .expect(acHighlighted("body")).ok()
     .typeText("#entry-box", ".")
 
     .typeText("#entry-box", "field.", slow)
@@ -208,7 +208,7 @@ test('editing_request_edits_request', async t => {
   await t
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acAvailable("request")).ok()
+    .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
     .pressKey("esc")
@@ -222,7 +222,7 @@ test('autocomplete_highlights_on_partial_match', async t => {
   await t
     .pressKey("enter")
     .typeText("#entry-box", "nt::add")
-    .expect(acAvailable("Int::add")).ok()
+    .expect(acHighlighted("Int::add")).ok()
     .pressKey("enter")
     ;
 });
@@ -238,7 +238,7 @@ test('no_request_global_in_non_http_space', async t => {
     .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acAvailable("req")).ok() // actually hits Http::bad_request
+    .expect(acHighlighted("req")).ok() // actually hits Http::bad_request
     .pressKey("enter")
 });
 
@@ -258,7 +258,7 @@ test('pressing_up_doesnt_return_to_start', async t => {
   await t
     .pressKey("enter")
     .typeText("#entry-box", "Char::")
-    .expect(acAvailable("Char::toASCIIChar")).ok()
+    .expect(acHighlighted("Char::toASCIIChar")).ok()
     .pressKey("down")
     .pressKey("up")
     .typeText("#entry-box", "toASCII")
