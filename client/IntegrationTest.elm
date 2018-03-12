@@ -30,6 +30,8 @@ trigger name =
       noRequestGlobalInNonHttpSpace
     "test_hover_values_for_varnames" ->
       hoverValuesForVarnames
+    "test_pressing_up_doesnt_return_to_start" ->
+      pressingUpDoesntReturnToStart
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -46,8 +48,11 @@ onlyTL m =
 
 onlyAST : Model -> AST
 onlyAST m =
-  let _ = if List.length m.toplevels /= 1
-          then Debug.crash "too many toplevels"
+  let len = List.length m.toplevels
+      _ = if len == 0
+          then Debug.crash ("no toplevels")
+          else if len > 1
+          then Debug.crash ("too many toplevels: " ++ (toString m.toplevels))
           else "nothing to see here" in
   m.toplevels
   |> List.head
@@ -200,4 +205,8 @@ hoverValuesForVarnames m =
   in pass
 
 
-
+pressingUpDoesntReturnToStart : Model -> TestResult
+pressingUpDoesntReturnToStart m =
+  case onlyAST m of
+    FnCall _ "Char::toASCIIChar" _ -> pass
+    e -> fail e
