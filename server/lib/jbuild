@@ -24,6 +24,7 @@
                 core_extended
                 cstruct
                 curl
+                lwt
                 nocrypto
                 postgresql
                 ppx_bin_prot
@@ -34,6 +35,9 @@
                 ppx_type_conv
                 ppx_sexp_conv
                 re2
+                session
+                session-postgresql-lwt
+                session-cohttp-lwt
                 threads
                 yojson
                 ))

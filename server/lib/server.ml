@@ -11,6 +11,29 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 
+module SessionS = struct
+  module Backend = Session_postgresql_lwt
+  include Session
+  include Session_cohttp_lwt.Make(Backend)
+end
+
+(* open Result *)
+
+(* let cookie_key = "__session" *)
+
+(* let callback conn { Request.headers; uri } body = *)
+(*   Session.of_header backend cookie_key headers *)
+(*   >>= function *)
+(*     | Ok (Some session) when authorized session -> *)
+(*       Server.respond ~status:`OK () *)
+(*     | _ -> *)
+(*       if Uri.path = "/authenticate" then *)
+(*         let session = Session.generate backend "<user_id>" in *)
+(*         let headers = Header.of_list (Session.to_cookie_hdrs cookie_key session) in *)
+(*         Server.respond ~headers ~status:`OK () *)
+(*       else *)
+(*         Server.respond ~status:`Unauthorized () *)
+
 type timing_header = string * float * string
 
 let server_timing (times: timing_header list) =
