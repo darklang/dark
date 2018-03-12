@@ -253,3 +253,15 @@ test('hover_values_for_varnames', async t => {
     .pressKey("enter")
 });
 
+
+test('pressing_up_doesnt_return_to_start', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "Char::")
+    .expect(acAvailable("Char::toASCIIChar")).ok()
+    .pressKey("down")
+    .pressKey("up")
+    .typeText("#entry-box", "toASCII")
+    .pressKey("enter")
+});
+
