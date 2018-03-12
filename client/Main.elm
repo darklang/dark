@@ -334,7 +334,7 @@ updateMod mod (m, cmd) =
 processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
 processAutocompleteMods m mods =
   let _ = if m.integrationTestState /= NoIntegrationTest
-          then Debug.log "autcompletemod update" mods
+          then Debug.log "autocompletemod update" mods
           else mods
       complete = List.foldl
         (\mod complete -> AC.update m mod complete)
@@ -343,6 +343,13 @@ processAutocompleteMods m mods =
       focus = case unwrapState m.state of
                 Entering _ -> AC.focusItem complete.index
                 _ -> Cmd.none
+      _ = if m.integrationTestState /= NoIntegrationTest
+          then
+            let i = complete.index
+                val = AC.getValue complete
+            in Debug.log "autocompletemod result: "
+                (toString complete.index ++ " => " ++ val)
+          else ""
   in (complete, focus)
 
 -- Figure out from the string and the state whether this '.' means field
