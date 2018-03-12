@@ -8,10 +8,15 @@ module RT = Runtime
 
 module PG = Postgresql
 
+let host = "localhost"
+let dbname = "proddb"
+let user = "dark"
+let password = "eapnsdc"
+
 (* globals *)
 let rec rec_con depth =
   try
-    let c = new PG.connection ~host:"localhost" ~dbname:"proddb" ~user:"dark" ~password:"eapnsdc" ()  in
+    let c = new PG.connection ~host ~dbname ~user ~password ()  in
     c#set_notice_processor (Log.infO "postgres");
     c
   with
