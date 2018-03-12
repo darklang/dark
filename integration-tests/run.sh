@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
-./scripts/support/assert-in-container $0
+./scripts/support/assert-in-container $0 $@
 
 PATTERN=".*"
 GCP=
@@ -13,6 +13,10 @@ do
     ;;
     --pattern=*)
     PATTERN=${1/--pattern=/''}
+    ;;
+    *)
+    echo "Unexpected argument: $i"
+    exit -1
     ;;
   esac
 done
