@@ -198,5 +198,13 @@ RUN apt-get install -y vim dnsutils
 USER dark
 RUN yarn add testcafe@0.19.0
 
+RUN opam install session.0.4.0
+RUN opam install session-cohttp.0.4.0
+RUN opam install session-cohttp-lwt.0.4.0
+RUN opam install session-postgresql.0.4.0
+RUN opam install session-postgresql-lwt.0.4.0
+RUN opam update
+RUN opam install lwt.3.3.0
+
 user dark
 CMD ["app", "scripts", "builder"]
