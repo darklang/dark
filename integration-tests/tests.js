@@ -95,22 +95,22 @@ test('field_access_closes', async t => {
 
   await t
     .pressKey("enter")
-      .takeScreenshot("1 enter")
+      .takeScreenshot("1_enter")
     .typeText("#entry-box", "req")
-      .takeScreenshot("2 req")
+      .takeScreenshot("2_req")
     .expect(acHighlighted("request")).ok()
-      .takeScreenshot(" 3 request")
+      .takeScreenshot("3_request")
     .typeText("#entry-box", ".")
-      .takeScreenshot("4 dot")
+      .takeScreenshot("4_dot")
 
     .typeText("#entry-box", "b")
-      .takeScreenshot("5 b")
+      .takeScreenshot("5_b")
     .typeText("#entry-box", "o")
-      .takeScreenshot("6 o")
+      .takeScreenshot("6_o")
     .expect(acHighlighted("body")).ok()
-      .takeScreenshot("7 wait bo")
+      .takeScreenshot("7_wait_bo")
     .pressKey("enter")
-      .takeScreenshot("8 enter")
+      .takeScreenshot("8_enter")
     ;
 });
 
