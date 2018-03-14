@@ -7,6 +7,7 @@ module SpecTypes exposing (..)
 -- dark
 import Pointer as P
 import Types exposing (..)
+import Blank
 
 delete : Pointer -> HandlerSpec -> ID -> HandlerSpec
 delete p spec newID =
@@ -22,7 +23,7 @@ replace p dt spec =
 
 replaceInType : Pointer -> PointerData -> BlankOr DarkType -> BlankOr DarkType
 replaceInType p replacement dt =
-  if blankOrID dt == (P.idOf p)
+  if Blank.toID dt == (P.idOf p)
   then
     case replacement of
       PDarkType _ t -> t
@@ -35,7 +36,7 @@ replaceInType p replacement dt =
               |> List.map (\(n, t) ->
                    let newN = case replacement of
                                 PDarkTypeField _ name ->
-                                  if P.idOf p == blankOrID n
+                                  if P.idOf p == Blank.toID n
                                   then name
                                   else n
                                 _ -> n
@@ -65,7 +66,7 @@ allPointers t =
 -- recurse until we find ID, then return the children
 childrenOf : ID -> BlankOr DarkType -> List Pointer
 childrenOf id t =
-  if blankOrID t == id
+  if Blank.toID t == id
   then
     case t of
       Filled _ (DTObj ts) ->

@@ -16,6 +16,7 @@ import AST
 import Analysis
 import Pointer as P
 import Util exposing (deMaybe)
+import Blank
 
 moveCursorBackInTime : Model -> TLID -> Modification
 moveCursorBackInTime m selected =
@@ -188,7 +189,7 @@ enter m tlid cur =
               |> Just
             POSpecHeader ->
               SpecHeaders.find (h ()) cur
-              |> Maybe.andThen blankToMaybe
+              |> Maybe.andThen Blank.toMaybe
               |> Maybe.withDefault ""
               |> Just
             _ -> Nothing

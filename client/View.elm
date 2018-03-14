@@ -27,6 +27,7 @@ import Toplevel as TL
 import Pointer as P
 import AST
 import Runtime as RT
+import Blank
 
 view : Model -> Html.Html Msg
 view m =
@@ -166,7 +167,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
 
       selected = case unwrapState m.state of
                    Selecting _ (Just p) ->
-                     if P.idOf p == blankOrID b
+                     if P.idOf p == Blank.toID b
                      then DivSelected
                      else DivUnselected
                    _ -> DivUnselected

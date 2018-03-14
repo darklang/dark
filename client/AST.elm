@@ -10,6 +10,7 @@ import List
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Pointer as P
+import Blank
 
 
 -------------------------
@@ -398,7 +399,7 @@ parentOf_ eid expr =
       returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
 
     FieldAccess id obj field ->
-      if blankOrID field == eid
+      if Blank.toID field == eid
       then Just expr
       else returnOr (\_ -> po obj) expr
 
@@ -512,7 +513,7 @@ listData expr =
     Hole id -> []
 
     Let _ lhs rhs expr ->
-      [PVarBind (blankOrID lhs) lhs] ++ rl [rhs, expr]
+      [PVarBind (Blank.toID lhs) lhs] ++ rl [rhs, expr]
 
     If _ cond ifbody elsebody ->
       rl [cond, ifbody, elsebody]
@@ -527,7 +528,7 @@ listData expr =
       rl exprs
 
     FieldAccess _ obj field ->
-      listData obj ++ [PField (blankOrID field) field]
+      listData obj ++ [PField (Blank.toID field) field]
 
 
 
@@ -544,8 +545,8 @@ subData id expr =
 toContent : PointerData -> String
 toContent pd =
   case pd of
-    PVarBind _ v -> v |> blankToMaybe |> Maybe.withDefault ""
-    PField _ f -> f |> blankToMaybe |> Maybe.withDefault ""
+    PVarBind _ v -> v |> Blank.toMaybe |> Maybe.withDefault ""
+    PField _ f -> f |> Blank.toMaybe |> Maybe.withDefault ""
     PExpr _ e ->
       case e of
         Value _ s -> s
@@ -574,7 +575,7 @@ replace p replacement expr =
   else
     case expr of
       Let id lhs rhs expr ->
-        if blankOrID lhs == (P.idOf p)
+        if Blank.toID lhs == (P.idOf p)
         then
           case replacement of
             PVarBind _ b ->
@@ -596,7 +597,7 @@ replace p replacement expr =
         Thread id (rl exprs)
 
       FieldAccess id obj field ->
-        if blankOrID field == (P.idOf p)
+        if Blank.toID field == (P.idOf p)
         then
           case replacement of
             PField _ f ->
