@@ -42,6 +42,8 @@ def run_test(start, bash):
   if run_tests:
     pretty_print(bash, 45)
     return run(start, bash)
+  else:
+    return True
 
 def elm_package():
   start = time.time()
@@ -126,6 +128,9 @@ def execute(should):
   ot = should.ocaml_test and ocaml_test()
   should.elm_test |= em
   et = should.elm_test and elm_test()
+  return ob and rs and ep and em and lc and rb and ot and et
+
+
 
 
 def mark(should, f):
@@ -212,6 +217,9 @@ def main():
     for f in files:
       mark(should, f)
 
-    execute(should)
+    if execute(should):
+      sys.exit(0)
+    else:
+      sys.exit(1)
 
 main()

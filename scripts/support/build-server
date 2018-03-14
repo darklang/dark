@@ -35,7 +35,7 @@ def compile(files):
     test = "--test "
   else:
     test = ""
-  run("scripts/support/compile " + test + " ".join(files))
+  return run("scripts/support/compile " + test + " ".join(files))
 
 
 def initial_compile():
@@ -45,11 +45,12 @@ def initial_compile():
           , "server/static/base.less"
           , "client/Tests/elm-package.json"
           , "server/test/test.ml" ]
-  compile(files)
+  exit = compile(files)
 
   print("--------------------------")
   print("-- Finished initial compile")
   print("--------------------------")
+  return exit
 
 def start_background_services():
   # We wait for them in runserver
@@ -145,7 +146,13 @@ def main():
     create_app_dirs()
     #  background_task(start_background_services, "start background services")
     start_background_services()
-    background_task(initial_compile, "initial_compile")
+    if watch or serve:
+      background_task(initial_compile, "initial_compile")
+    else:
+      if initial_compile():
+        sys.exit(0)
+      else:
+        sys.exit(1)
 
   if watch:
     process_watchers()
