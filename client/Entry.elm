@@ -24,6 +24,7 @@ import Runtime as RT
 import Pointer as P
 import SpecTypes
 import SpecHeaders
+import Blank
 
 
 createFindSpace : Model -> Modification
@@ -43,9 +44,9 @@ focusEntry m =
 
 
 newHandlerSpec : () -> HandlerSpec
-newHandlerSpec _ = { module_ = newBlank ()
-                   , name = newBlank ()
-                   , modifier = newBlank ()
+newHandlerSpec _ = { module_ = Blank.new ()
+                   , name = Blank.new ()
+                   , modifier = Blank.new ()
                    , types = { input = Filled (gid ()) DTAny
                              , output = Filled (gid ()) DTAny
                              }
@@ -128,7 +129,7 @@ submit m cursor action value =
       then
         wrapExpr <| FieldAccess (gid ())
                       (Variable (gid ()) (String.dropRight 1 value))
-                      (newBlank ())
+                      (Blank.new ())
 
       -- varnames
       else if List.member value (Analysis.varnamesFor m Nothing)
@@ -165,7 +166,7 @@ submit m cursor action value =
                           ( AST.toPD thread
                           , AST.toPD <|
                               Let (gid ())
-                                (newFilled bindName)
+                                (Blank.newFilled bindName)
                                 (AST.closeThread thread)
                                 (Hole (gid ())))
 
@@ -180,7 +181,7 @@ submit m cursor action value =
                         FieldAccess
                           (gid ())
                           (Variable (gid ()) (String.dropRight 1 value))
-                          (newBlank ()))
+                          (Blank.new ()))
 
                   -- variables
                   else if List.member value (Analysis.varnamesFor m target)
@@ -283,8 +284,8 @@ submit m cursor action value =
                         case parent of
                           FieldAccess id lhs rhs ->
                             FieldAccess (gid ())
-                            (FieldAccess id lhs (newFilled fieldname))
-                            (newBlank ())
+                            (FieldAccess id lhs (Blank.newFilled fieldname))
+                            (Blank.new ())
                           _ -> Debug.crash "should be a field"
                   in
                       AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast
@@ -311,7 +312,7 @@ submit m cursor action value =
                   "Any" -> DTAny
                   "Int" -> DTInt
                   "Empty" -> DTEmpty
-                  "{" -> DTObj [(newBlank (), newBlank ())]
+                  "{" -> DTObj [(Blank.new (), Blank.new ())]
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
               newID = gid ()

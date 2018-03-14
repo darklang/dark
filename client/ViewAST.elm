@@ -16,6 +16,7 @@ import Runtime as RT
 import AST
 import Runtime
 import Util exposing (deMaybe)
+import Blank
 
 type alias HtmlVisitState =
   { selectedID : ID
@@ -58,7 +59,7 @@ elemToHtml state elem =
         [Html.text str]
 
     Selectable classNames blankOr pointerType ->
-      let id = blankOrID blankOr
+      let id = Blank.toID blankOr
           idAttr = Attrs.id (id |> deID |> toString)
           classes = asClass ("leaf" :: classNames)
       in

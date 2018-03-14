@@ -280,26 +280,6 @@ type PointerOwner = POSpecHeader
                   | PODb
                   | POSpecType
 
-blankOrID : BlankOr a -> ID
-blankOrID b =
-  case b of
-    Blank id -> id
-    Filled id _ -> id
-
-blankToMaybe : BlankOr a -> Maybe a
-blankToMaybe b =
-  case b of
-    Blank _ -> Nothing
-    Filled _ v -> Just v
-
-newBlank : () -> BlankOr a
-newBlank () =
-  Blank (gid ())
-
-newFilled : a -> BlankOr a
-newFilled a =
-  Filled (gid ()) a
-
 -----------------------------
 -- Top-levels
 -----------------------------
