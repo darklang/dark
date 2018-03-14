@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# This script is specifically to trick vim's ALE elm mode to run in the
+# container.
+
+# ALE calls this with a tempdir, then uses it to check later, so get it
+# right.
+tempdir=
+while [[ $1 ]]; do
+  if [[ $1 == *".elm"* ]]; then
+    tempdir=$(dirname $1)
+  fi
+  shift
+done
+
+# run it and get all the outputs
+cd client && unbuffer elm-make --yes --warn --output=/dev/null --report=json Main.elm | sed -e "s!\.\/\.!$tempdir!g"

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# This script is specifically to trick vim's ALE elm mode to run in the
+# container.
+
+# Find the right directory to run this from (not vim/elm specific)
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+docker exec dark-dev "scripts/elm-make-vim-internal" ${@} <&0
