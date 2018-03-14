@@ -220,7 +220,7 @@ siblings tl p =
 getNextSibling : Toplevel -> Pointer -> Pointer
 getNextSibling tl p =
   siblings tl p
-  |> Util.listNext p
+  |> Util.listNextWrap p
   -- 'safe' to deMaybe as there's always at least one member in the array
   |> deMaybe "nextSibling"
 
