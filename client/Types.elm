@@ -241,8 +241,6 @@ type Expr = If ID Expr Expr Expr
           | Thread ID (List Expr)
           | FieldAccess ID Expr Field
 
-type alias AST = Expr
-
 -----------------------------
 -- High-level ID wrappers
 -- so we're not using IDs in important APIs
@@ -299,9 +297,7 @@ type alias HandlerSpec = { module_ : BlankOr String
                          , types : SpecTypes
                          }
 
-
-
-type alias Handler = { ast : AST
+type alias Handler = { ast : Expr
                      , spec : HandlerSpec
                      }
 
