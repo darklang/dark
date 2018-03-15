@@ -2,7 +2,7 @@
 open Core
 module C = Curl
 
-type verb = GET | POST | PUT [@@deriving show]
+type verb = GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS [@@deriving show]
 type headers = string list [@@deriving show]
 
 let filename_for (url: string) (verb: verb) (body: string) : string =
@@ -11,6 +11,10 @@ let filename_for (url: string) (verb: verb) (body: string) : string =
     | GET -> "GET"
     | POST -> "POST"
     | PUT -> "PUT"
+    | PATCH -> "PATCH"
+    | DELETE -> "DELETE"
+    | HEAD -> "HEAD"
+    | OPTIONS -> "OPTIONS"
   in
   url
   |> String.tr ~target:'/' ~replacement:'_'
@@ -102,11 +106,24 @@ let http_call (url: string) (query_params : (string * string list) list)
       (match verb with
        | PUT ->
          C.set_readfunction c putfn;
-         C.set_upload c true
+         C.set_upload c true;
+         C.set_put c true
        | POST ->
          C.set_post c true;
          C.set_postfields c body;
          C.set_postfieldsize c (String.length body)
+       | PATCH ->
+         C.set_readfunction c putfn;
+         C.set_upload c true;
+         C.set_customrequest c "PATCH"
+       | DELETE ->
+         C.set_followlocation c false;
+         C.set_customrequest c "DELETE"
+       | OPTIONS ->
+         C.set_customrequest c "OPTIONS"
+       | HEAD ->
+         C.set_nobody c true;
+         C.set_customrequest c "HEAD"
        | GET -> ());
 
       (* Actually do the request *)
@@ -117,7 +134,7 @@ let http_call (url: string) (query_params : (string * string list) list)
       in
       C.cleanup c;
       response
-    with
+   with
     | Curl.CurlException (_, code, s) ->
       (code, s, Buffer.contents responsebuf)
   in
