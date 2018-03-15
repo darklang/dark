@@ -1,6 +1,7 @@
 open Core
 open Types
 
+val conn : Postgresql.connection
 val init : unit -> unit
 val with_postgres : (unit -> 'b) -> 'b
 val cur_dbs : DbT.db list ref
