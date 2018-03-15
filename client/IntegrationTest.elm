@@ -8,6 +8,7 @@ import Types exposing (..)
 import Toplevel as TL
 import Util exposing (deMaybe)
 import Pointer as P
+import Blank
 
 trigger : String -> IntegrationTestState
 trigger name =
@@ -44,9 +45,9 @@ onlyTL : Model -> Toplevel
 onlyTL m =
   m.toplevels
   |> List.head
-  |> deMaybe "test"
+  |> deMaybe "test1"
 
-onlyAST : Model -> Expr
+onlyAST : Model -> NExpr
 onlyAST m =
   let len = List.length m.toplevels
       _ = if len == 0
@@ -56,11 +57,12 @@ onlyAST m =
           else "nothing to see here" in
   m.toplevels
   |> List.head
-  |> deMaybe "test"
+  |> deMaybe "test2"
   |> TL.asHandler
-  |> deMaybe "test"
+  |> deMaybe "test3"
   |> .ast
-  |> n2o
+  |> Blank.asFilled
+  |> deMaybe "test4"
 
 
 
@@ -74,7 +76,7 @@ enterChangesState m =
 fieldAccess : Model -> TestResult
 fieldAccess m =
   case onlyAST m of
-    FieldAccess _ (Variable _ "request") (Filled _ "body") -> pass
+    NFieldAccess (Filled _ (NVariable "request")) (Filled _ "body") -> pass
     expr -> fail expr
 
 
@@ -92,16 +94,16 @@ fieldAccessCloses m =
 fieldAccessPipes : Model -> TestResult
 fieldAccessPipes m =
   case onlyAST m of
-    Thread _ [FieldAccess _ (Variable _ "request") (Filled _ "body"), Hole _] -> pass
+    NThread [Filled _ (NFieldAccess (Filled _ (NVariable "request")) (Filled _ "body")), Blank _] -> pass
     expr -> fail expr
 
 fieldAccessNested : Model -> TestResult
 fieldAccessNested m =
   case onlyAST m of
-    FieldAccess _
-      (FieldAccess _
-         (FieldAccess _ (Variable _ "request") (Filled _ "body"))
-         (Filled _ "field"))
+    NFieldAccess
+      (Filled _ (NFieldAccess
+         (Filled _ (NFieldAccess (Filled _ (NVariable "request")) (Filled _ "body")))
+         (Filled _ "field")))
       (Filled _ "field2")
       -> pass
     expr -> fail expr
@@ -112,7 +114,7 @@ pipelineLetEquals m =
   -- should be a simple let, not in a pipeline, entering 1 hole
   let astR =
         case onlyAST m of
-          Let _ (Filled _ "value") (Value _ "3") (Hole _) ->
+          NLet (Filled _ "value") (Filled _ (NValue "3")) (Blank _) ->
             pass
           e ->
             fail e
@@ -126,12 +128,12 @@ pipelineLetEquals m =
 pipeWithinLet : Model -> TestResult
 pipeWithinLet m =
   case onlyAST m of
-    Let _
+    NLet
       (Filled _ "value")
-      (Value _ "3")
-      (Thread _
-        [ Variable _ "value"
-        , FnCall _ "assoc" [Hole _, Hole _]]) ->
+      (Filled _ (NValue "3"))
+      (Filled _ (NThread
+        [ Filled _ (NVariable "value")
+        , Filled _ (NFnCall "assoc" [Blank _, Blank _])])) ->
       pass
     e ->
       fail e
@@ -141,13 +143,13 @@ pipeWithinLet m =
 tabbingWorks : Model -> TestResult
 tabbingWorks m =
   case onlyAST m of
-    If _ (Hole _) (Value _ "5") (Hole _) -> pass
+    NIf (Blank _) (Filled _ (NValue "5")) (Blank _) -> pass
     e -> fail e
 
 nextSiblingWorks : Model -> TestResult
 nextSiblingWorks m =
   case onlyAST m of
-    Let _ (Blank _) (Hole id1)  (Hole _) ->
+    NLet (Blank _) (Blank id1)  (Blank _) ->
       case m.state of
         Selecting _ (Just (PBlank _ id2)) ->
           if id1 == id2
@@ -160,7 +162,7 @@ nextSiblingWorks m =
 varbindsAreEditable : Model -> TestResult
 varbindsAreEditable m =
   case onlyAST m of
-    Let _ (Filled id1 "var") (Hole _)  (Hole _) ->
+    NLet (Filled id1 "var") (Blank _)  (Blank _) ->
       case m.state of
         Entering (Filling _ (PFilled _ id2)) ->
           if id1 == id2
@@ -173,7 +175,7 @@ varbindsAreEditable m =
 editingRequestEditsRequest : Model -> TestResult
 editingRequestEditsRequest m =
   case onlyAST m of
-    FieldAccess _ (Variable id1 "request") (Blank _) ->
+    NFieldAccess (Filled id1 (NVariable "request")) (Blank _) ->
       case m.complete.completions of
         [cs, _, _, _] ->
           case cs of
@@ -185,7 +187,7 @@ editingRequestEditsRequest m =
 autocompleteHighlightsOnPartialMatch : Model -> TestResult
 autocompleteHighlightsOnPartialMatch m =
   case onlyAST m of
-    FnCall _ "Int::add" _ -> pass
+    NFnCall "Int::add" _ -> pass
     e -> fail e
 
 
@@ -193,8 +195,8 @@ noRequestGlobalInNonHttpSpace : Model -> TestResult
 noRequestGlobalInNonHttpSpace m =
   case onlyAST m of
     -- this might change but this is the answer for now.
-    FnCall _ "Http::bad_request" _ -> pass
-    -- Hole _ -> pass
+    NFnCall "Http::bad_request" _ -> pass
+    -- Blank _ -> pass
     e -> fail e
 
 hoverValuesForVarnames : Model -> TestResult
@@ -209,5 +211,5 @@ hoverValuesForVarnames m =
 pressingUpDoesntReturnToStart : Model -> TestResult
 pressingUpDoesntReturnToStart m =
   case onlyAST m of
-    FnCall _ "Char::toASCIIChar" _ -> pass
+    NFnCall "Char::toASCIIChar" _ -> pass
     e -> fail e
