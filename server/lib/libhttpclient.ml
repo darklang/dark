@@ -38,11 +38,21 @@ let call verb =
               else Dval.dval_to_json_string body
           | _ -> Dval.to_repr body in
         let (result, headers) = Httpclient.http_call uri query verb headers body in
-        if has_form_header headers
-        then Dval.from_form_encoding result
-        else if has_json_header headers
-        then Dval.parse result
-        else DStr result
+        let parsed_result =
+          if has_form_header headers
+          then Dval.from_form_encoding result
+          else if has_json_header headers
+          then Dval.parse result
+          else DStr result
+        in
+        let parsed_headers =
+          headers
+          |> List.map ~f:(fun (k, v) -> (String.strip k, DStr (String.strip v)))
+          |> List.filter ~f:(fun (k, _) -> String.length k > 0)
+          |> DvalMap.of_alist_fold ~init:(DStr "") ~f:(fun old neww -> neww)
+          |> fun dm -> DObj dm
+        in
+        Dval.to_dobj [("body", parsed_result); ("headers", parsed_headers)]
     | args -> fail args)
 
 
@@ -69,12 +79,45 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["HttpClient::put"]
+  { pns = ["HttpClient::delete"]
   ; ins = []
   ; p = params
   ; r = TObj
-  ; d = "Make blocking HTTP PUT call to `uri`"
-  ; f = call Httpclient.PUT
+  ; d = "Make blocking HTTP DELETE call to `uri`"
+  ; f = call Httpclient.DELETE
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+  { pns = ["HttpClient::options"]
+  ; ins = []
+  ; p = params
+  ; r = TObj
+  ; d = "Make blocking HTTP OPTIONS call to `uri`"
+  ; f = call Httpclient.OPTIONS
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+  { pns = ["HttpClient::head"]
+  ; ins = []
+  ; p = params
+  ; r = TObj
+  ; d = "Make blocking HTTP HEAD call to `uri`"
+  ; f = call Httpclient.HEAD
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+  { pns = ["HttpClient::patch"]
+  ; ins = []
+  ; p = params
+  ; r = TObj
+  ; d = "Make blocking HTTP PATCH call to `uri`"
+  ; f = call Httpclient.PATCH
   ; pr = None
   ; ps = false
   }
@@ -107,8 +150,5 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = false
   }
-
-
-
 ]
 
