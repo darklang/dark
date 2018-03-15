@@ -24,6 +24,7 @@ import Types exposing (..)
 import View
 import Clipboard
 import Defaults
+import Editor
 import Runtime as RT
 import Entry
 import Autocomplete as AC
@@ -180,7 +181,7 @@ update msg m =
   in
     ({ newm | lastMsg = msg
             , lastMod = mods}
-     , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
+     , Cmd.batch [newc, m |> Editor.model2editor |> setStorage])
 
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
