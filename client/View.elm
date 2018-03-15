@@ -129,14 +129,13 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         tl
         |> TL.asHandler
         |> Maybe.map .ast
-        |> Maybe.map n2o
         |> Maybe.andThen
             (\ast ->
-              let parent = AST.parentOf_ id ast
+              let parent = AST.parentOf_ id (n2o ast)
                   grandparentIsThread =
                     parent
                     |> Maybe.map
-                         (\p -> case AST.parentOf_ (AST.toID p) ast of
+                         (\p -> case AST.parentOf_ (AST.toID p) (n2o ast) of
                                   Just (Thread _ ts) ->
                                     ts
                                     |> List.head
