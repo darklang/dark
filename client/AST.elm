@@ -497,6 +497,7 @@ allPointers expr =
 -- PointersData
 --------------------------------
 
+
 listData : Expr -> List PointerData
 listData expr =
   let e2ld e = PExpr (toID e) e
@@ -632,14 +633,11 @@ replaceField p replacement expr =
   in replace p (PField id (Filled id replacement)) expr
 
 
-clone : Expr -> (ID, Expr)
+clone : Expr -> Expr
 clone expr =
   let nid = gid ()
-      c e =
-        let (_, ast) = clone e
-        in ast
-      cl es =
-        List.map c es
+      c e = clone e
+      cl es = List.map c es
       cBlankOr bo =
         let nbid = gid () in
         case bo of
@@ -648,28 +646,28 @@ clone expr =
   in
     case expr of
       Let _ lhs rhs expr ->
-        (nid, Let nid (cBlankOr lhs) (c rhs) (c expr))
+        Let nid (cBlankOr lhs) (c rhs) (c expr)
 
       If _ cond ifbody elsebody ->
-        (nid, If nid  (c cond) (c ifbody) (c elsebody))
+        If nid  (c cond) (c ifbody) (c elsebody)
 
       FnCall _ name exprs ->
-        (nid, FnCall nid name (cl exprs))
+        FnCall nid name (cl exprs)
 
       Lambda _ vars expr ->
-        (nid, Lambda nid vars (c expr))
+        Lambda nid vars (c expr)
 
       Thread _ exprs ->
-        (nid, Thread nid (cl exprs))
+        Thread nid (cl exprs)
 
       FieldAccess _ obj field ->
-        (nid, FieldAccess nid (c obj) (cBlankOr field))
+        FieldAccess nid (c obj) (cBlankOr field)
 
       Hole _ ->
-        (nid, Hole nid)
+        Hole nid
       Value _ v ->
-        (nid, Value nid v)
+        Value nid v
       Variable _ name ->
-        (nid, Variable nid name)
+        Variable nid name
 
 
