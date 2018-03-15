@@ -385,28 +385,14 @@ viewHandler m tl h =
                 (n2o h.ast)]
 
       externalLink =
-        let verb =
-              case h.spec.modifier of
-                F _ s -> s
-                _ -> ""
-            name =
-              case h.spec.name of
-                F _ s -> Just s
-                _ -> Nothing
-        in
-        if verb == "GET"
-        then
-          case name of
-            Just n ->
-              [Html.a [ Attrs.class "external"
-                      , Attrs.href n
-                      , Attrs.target "_blank"
-                      ]
-                      [Html.i [Attrs.class "fa fa-external-link"] []]]
-            Nothing ->
-              []
-        else
-          []
+        case (h.spec.modifier, h.spec.name) of
+          (F _ "GET", F _ name)  ->
+            [Html.a [ Attrs.class "external"
+                    , Attrs.href name
+                    , Attrs.target "_blank"
+                    ]
+                    [Html.i [Attrs.class "fa fa-external-link"] []]]
+          _ -> []
 
       input =
         Html.div
