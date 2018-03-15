@@ -59,49 +59,44 @@ integrationRPC m name =
 
 decodePointerData : JSD.Decoder PointerData
 decodePointerData =
-  let de = (JSD.lazy (\_ -> decodeExpr))
-      did = decodeID
-      dv4 = decodeVariant4
-      dv3 = decodeVariant3
-      dv2 = decodeVariant2
-      dv1 = decodeVariant1 in
+  let dv1 = decodeVariant1 in
   decodeVariants
-    [ ("PVarBind", dv2 PVarBind did (decodeBlankOr JSD.string))
-    , ("PEventName", dv2 PEventName did (decodeBlankOr JSD.string))
-    , ("PEventModifier", dv2 PEventModifier did (decodeBlankOr JSD.string))
-    , ("PEventSpace", dv2 PEventSpace did (decodeBlankOr JSD.string))
-    , ("PExpr", dv2 PExpr did decodeExpr)
-    , ("PField", dv2 PField did (decodeBlankOr JSD.string))
-    , ("PDBColName", dv2 PDBColName did (decodeBlankOr JSD.string))
-    , ("PDBColType", dv2 PDBColType did (decodeBlankOr JSD.string))
-    , ("PDarkType", dv2 PDarkType did (decodeBlankOr decodeDarkType))
-    , ("PDarkTypeField", dv2 PDarkTypeField did (decodeBlankOr JSD.string))
+    [ ("PVarBind", dv1 PVarBind (decodeBlankOr JSD.string))
+    , ("PEventName", dv1 PEventName (decodeBlankOr JSD.string))
+    , ("PEventModifier", dv1 PEventModifier (decodeBlankOr JSD.string))
+    , ("PEventSpace", dv1 PEventSpace (decodeBlankOr JSD.string))
+    , ("PExpr", dv1 PExpr decodeBExpr)
+    , ("PField", dv1 PField (decodeBlankOr JSD.string))
+    , ("PDBColName", dv1 PDBColName (decodeBlankOr JSD.string))
+    , ("PDBColType", dv1 PDBColType (decodeBlankOr JSD.string))
+    , ("PDarkType", dv1 PDarkType (decodeBlankOr decodeDarkType))
+    , ("PDarkTypeField", dv1 PDarkTypeField (decodeBlankOr JSD.string))
     ]
 
 encodePointerData : PointerData -> JSE.Value
 encodePointerData pd =
   let ev = encodeVariant in
   case pd of
-    PVarBind id var ->
-      ev "PVarBind" [encodeID id, encodeBlankOr JSE.string var]
-    PEventName id name ->
-      ev "PEventName" [encodeID id, encodeBlankOr JSE.string name]
-    PEventModifier id modifier ->
-      ev "PEventModifier" [encodeID id, encodeBlankOr JSE.string modifier]
-    PEventSpace id space ->
-      ev "PEventSpace" [encodeID id, encodeBlankOr JSE.string space]
-    PExpr id expr ->
-      ev "PExpr" [encodeID id, encodeAST expr]
-    PField id field ->
-      ev "PField" [encodeID id, encodeBlankOr JSE.string field]
-    PDBColName id colname ->
-      ev "PDBColName" [encodeID id, encodeBlankOr JSE.string colname]
-    PDBColType id coltype ->
-      ev "PDBColType" [encodeID id, encodeBlankOr JSE.string coltype]
-    PDarkType id darktype ->
-      ev "PDarkType" [encodeID id, encodeBlankOr encodeDarkType darktype]
-    PDarkTypeField id darktypefield ->
-      ev "PDarkTypeField" [encodeID id, encodeBlankOr JSE.string darktypefield]
+    PVarBind var ->
+      ev "PVarBind" [encodeBlankOr JSE.string var]
+    PEventName name ->
+      ev "PEventName" [encodeBlankOr JSE.string name]
+    PEventModifier modifier ->
+      ev "PEventModifier" [encodeBlankOr JSE.string modifier]
+    PEventSpace space ->
+      ev "PEventSpace" [encodeBlankOr JSE.string space]
+    PExpr expr ->
+      ev "PExpr" [encodeBExpr expr]
+    PField field ->
+      ev "PField" [encodeBlankOr JSE.string field]
+    PDBColName colname ->
+      ev "PDBColName" [encodeBlankOr JSE.string colname]
+    PDBColType coltype ->
+      ev "PDBColType" [encodeBlankOr JSE.string coltype]
+    PDarkType darktype ->
+      ev "PDarkType" [encodeBlankOr encodeDarkType darktype]
+    PDarkTypeField darktypefield ->
+      ev "PDarkTypeField" [encodeBlankOr JSE.string darktypefield]
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
@@ -390,5 +385,3 @@ decodeGetAnalysisRPC =
   JSDP.decode (,)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
-
-
