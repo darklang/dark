@@ -634,41 +634,42 @@ replaceField p replacement expr =
   in replace p (PField id (Filled id replacement)) expr
 
 
-clone : Expr -> Expr
-clone expr =
+clone : BExpr -> BExpr
+clone bexpr =
   let nid = gid ()
-      c e = clone e
-      cl es = List.map c es
+      c be = clone be
+      cl bes = List.map c bes
       cBlankOr bo =
         let nbid = gid () in
         case bo of
           Blank _ -> Blank nbid
           Filled _ a -> Filled nbid a
   in
-    case expr of
-      Let _ lhs rhs expr ->
-        Let nid (cBlankOr lhs) (c rhs) (c expr)
+    case bexpr of
+      Blank id -> Blank nid
+      Filled id expr ->
+        Filled nid
+          (case expr of
+            NLet lhs rhs expr ->
+              NLet (cBlankOr lhs) (c rhs) (c expr)
 
-      If _ cond ifbody elsebody ->
-        If nid  (c cond) (c ifbody) (c elsebody)
+            NIf cond ifbody elsebody ->
+              NIf (c cond) (c ifbody) (c elsebody)
 
-      FnCall _ name exprs ->
-        FnCall nid name (cl exprs)
+            NFnCall name exprs ->
+              NFnCall name (cl exprs)
 
-      Lambda _ vars expr ->
-        Lambda nid vars (c expr)
+            NLambda vars expr ->
+              NLambda vars (c expr)
 
-      Thread _ exprs ->
-        Thread nid (cl exprs)
+            NThread exprs ->
+              NThread (cl exprs)
 
-      FieldAccess _ obj field ->
-        FieldAccess nid (c obj) (cBlankOr field)
-
-      Hole _ ->
-        Hole nid
-      Value _ v ->
-        Value nid v
-      Variable _ name ->
-        Variable nid name
+            NFieldAccess obj field ->
+              NFieldAccess (c obj) (cBlankOr field)
+            NValue v ->
+              NValue v
+            NVariable name ->
+              NVariable name)
 
 
