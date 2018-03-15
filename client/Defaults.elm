@@ -23,7 +23,7 @@ pageWidth : Int
 pageWidth = 500
 
 defaultEditor : Editor
-defaultEditor = { }
+defaultEditor = { clipboard = Nothing }
 
 defaultModel : Editor -> Model
 defaultModel e = { error = Nothing
