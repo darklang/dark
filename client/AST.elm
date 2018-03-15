@@ -533,13 +533,13 @@ listData expr =
 
 
 
-subtree : ID -> Expr -> PointerData
+subtree : ID -> BExpr -> PointerData
 subtree id ast =
   deMaybe "subtree" (subData id ast)
 
-subData : ID -> Expr -> Maybe PointerData
-subData id expr =
-  listData expr
+subData : ID -> BExpr -> Maybe PointerData
+subData id bexpr =
+  listData (n2o bexpr)
   |> List.filter (\d -> id == P.idOfD d)
   |> List.head -- TODO might be multiple
 

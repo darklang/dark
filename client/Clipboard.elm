@@ -17,7 +17,7 @@ copy m tl mp =
         Nothing -> CopyToClipboard (Just <| AST.toPD (n2o h.ast))
         Just p ->
           let pid = P.idOf p
-          in CopyToClipboard (AST.subData pid (n2o h.ast))
+          in CopyToClipboard (AST.subData pid h.ast)
 
 cut : Model -> Toplevel -> Pointer -> Modification
 cut m tl p =
@@ -27,7 +27,7 @@ cut m tl p =
     case TL.asHandler tl of
       Nothing -> NoChange
       Just h ->
-        let newClipboard = AST.subData pid (n2o h.ast)
+        let newClipboard = AST.subData pid h.ast
             newAst = AST.deleteExpr p h.ast (gid ())
         in Many [ CopyToClipboard newClipboard
                 , RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]

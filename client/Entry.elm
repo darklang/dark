@@ -149,7 +149,7 @@ submit m cursor action value =
           replaceExpr : Model -> Handler -> TLID -> Pointer -> String -> Modification
           replaceExpr m h tlid p value =
             let id = P.idOf p
-                old_ = AST.subtree id (n2o h.ast)
+                old_ = AST.subtree id h.ast
                 target = Just (tlid, p)
                 (old, new) =
                   -- assign thread to variable
