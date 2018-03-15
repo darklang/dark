@@ -167,7 +167,7 @@ submit m cursor action value =
                           , AST.toPD <|
                               Let (gid ())
                                 (Blank.newF bindName)
-                                (AST.closeThread thread)
+                                (n2o (AST.closeThread (o2n thread)))
                                 (Hole (gid ())))
 
                       _ ->
