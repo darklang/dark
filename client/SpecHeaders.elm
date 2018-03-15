@@ -19,20 +19,20 @@ find h p =
 replaceEventModifierBlank : ID -> String -> HandlerSpec -> HandlerSpec
 replaceEventModifierBlank id value hs =
   { hs | modifier = if Blank.toID hs.modifier == id
-                    then Filled (Blank.toID hs.modifier) value
+                    then F (Blank.toID hs.modifier) value
                     else hs.modifier
   }
 replaceEventNameBlank : ID -> String -> HandlerSpec -> HandlerSpec
 replaceEventNameBlank id value hs =
   { hs | name = if Blank.toID hs.name == id
-                then Filled (Blank.toID hs.name) value
+                then F (Blank.toID hs.name) value
                 else hs.name
   }
 
 replaceEventSpaceBlank : ID -> String -> HandlerSpec -> HandlerSpec
 replaceEventSpaceBlank id value hs =
   { hs | module_ = if Blank.toID hs.module_ == id
-                    then Filled (Blank.toID hs.module_) value
+                    then F (Blank.toID hs.module_) value
                     else hs.module_
   }
 

@@ -113,7 +113,7 @@ encodeRPC m call =
 encodeBExpr : BExpr -> JSE.Value
 encodeBExpr bexpr =
   case bexpr of
-    Filled id expr -> encodeExpr id expr
+    F id expr -> encodeExpr id expr
     Blank id -> encodeVariant "Hole" [encodeID id]
 
 
@@ -212,15 +212,15 @@ decodeBExpr =
   decodeVariants
     -- In order to ignore the server for now, we tweak from one format
     -- to the other.
-    [ ("Let", dv4 (\id a b c -> Filled id (NLet a b c)) did (decodeBlankOr JSD.string) de de)
+    [ ("Let", dv4 (\id a b c -> F id (NLet a b c)) did (decodeBlankOr JSD.string) de de)
     , ("Hole", dv1 Blank did)
-    , ("Value", dv2 (\id a -> Filled id (NValue a)) did JSD.string)
-    , ("If", dv4 (\id a b c -> Filled id (NIf a b c)) did de de de)
-    , ("FnCall", dv3 (\id a b -> Filled id (NFnCall a b)) did JSD.string (JSD.list de))
-    , ("Lambda", dv3 (\id a b -> Filled id (NLambda a b)) did (JSD.list JSD.string) de)
-    , ("Variable", dv2 (\id a -> Filled id (NVariable a)) did JSD.string)
-    , ("Thread", dv2 (\id a -> Filled id (NThread a)) did (JSD.list de))
-    , ("FieldAccess", dv3 (\id a b -> Filled id (NFieldAccess a b)) did de (decodeBlankOr JSD.string))
+    , ("Value", dv2 (\id a -> F id (NValue a)) did JSD.string)
+    , ("If", dv4 (\id a b c -> F id (NIf a b c)) did de de de)
+    , ("FnCall", dv3 (\id a b -> F id (NFnCall a b)) did JSD.string (JSD.list de))
+    , ("Lambda", dv3 (\id a b -> F id (NLambda a b)) did (JSD.list JSD.string) de)
+    , ("Variable", dv2 (\id a -> F id (NVariable a)) did JSD.string)
+    , ("Thread", dv2 (\id a -> F id (NThread a)) did (JSD.list de))
+    , ("FieldAccess", dv3 (\id a b -> F id (NFieldAccess a b)) did de (decodeBlankOr JSD.string))
     ]
 
 decodeLiveValue : JSD.Decoder LiveValue

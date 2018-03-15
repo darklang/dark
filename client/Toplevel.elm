@@ -84,7 +84,7 @@ isHTTPHandler tl =
     Just h ->
       case h.spec.module_ of
         Blank _ -> True
-        Filled _ s ->
+        F _ s ->
           if String.toLower s == "http"
           then
             True
@@ -114,7 +114,7 @@ clonePointerData pd =
   let replaceBlankOr nid bo =
       case bo of
         Blank _ -> Blank nid
-        Filled _ a -> Filled nid a
+        F _ a -> F nid a
   in
   case pd of
     PVarBind id vb ->
