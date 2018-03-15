@@ -50,5 +50,8 @@ toP t b =
     Blank id -> PBlank t id
     Filled id _ -> PFilled t id
 
-
-
+asFilled : BlankOr a -> Maybe a
+asFilled a =
+  case a of
+    Blank _ -> Nothing
+    Filled _ v -> Just v
