@@ -430,10 +430,10 @@ siblings p ast =
 
         _ -> [p]
 
-getValueParent : Pointer -> Expr -> Maybe Pointer
-getValueParent p expr =
+getValueParent : Pointer -> BExpr -> Maybe Pointer
+getValueParent p bexpr =
   let id = P.idOf p
-      parent = parentOf_ id expr
+      parent = parentOf_ id (n2o bexpr)
   in
   case P.typeOf p of
     Expr ->
