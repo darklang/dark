@@ -138,30 +138,13 @@ addThreadHole id expr =
         Thread (gid ()) [expr, Hole (gid ())]
   else
     case expr of
-      Value _ _ -> expr
-      Hole _ -> expr
-      Variable _ _ -> expr
-
-      Let id lhs rhs expr ->
-        Let id lhs (ath rhs) (ath expr)
-
-      If id cond ifbody elsebody ->
-        If id (ath cond) (ath ifbody) (ath elsebody)
-
-      FnCall id name exprs ->
-        FnCall id name (List.map ath exprs)
-
-      Lambda id vars expr ->
-        Lambda id vars (ath expr)
-
-      FieldAccess id obj name ->
-        FieldAccess id (ath obj) name
-
       Thread tid exprs ->
         let replaced = extendThreadChild id exprs in
         if replaced == exprs
         then Thread tid (List.map ath exprs)
         else Thread tid replaced
+
+      _ -> traverse ath expr
 
 
 traverse : (Expr -> Expr) -> Expr -> Expr
@@ -245,31 +228,12 @@ extendThreadChild at threadExprs =
 -- extends thread at pos denoted by ID, if ID is in a thread
 maybeExtendThreadAt : ID -> Expr -> Expr
 maybeExtendThreadAt id expr =
-  let et e = maybeExtendThreadAt id e
-  in
-    case expr of
-      Value _ _ -> expr
-      Hole _ -> expr
-      Variable _ _ -> expr
-
-      Let id lhs rhs body ->
-        Let id lhs (et rhs) (et body)
-
-      If id cond ifbody elsebody ->
-        If id (et cond) (et ifbody) (et elsebody)
-
-      FnCall id name exprs ->
-        FnCall id name (List.map et exprs)
-
-      Lambda id vars lexpr ->
-        Lambda id vars (et lexpr)
-
-      Thread tid exprs ->
-        let newExprs = extendThreadChild id exprs
-        in Thread tid (List.map et newExprs)
-
-      FieldAccess id obj field ->
-        FieldAccess id (et obj) field
+  case expr of
+    Thread tid exprs ->
+      let newExprs = extendThreadChild id exprs
+                     |> List.map (maybeExtendThreadAt id)
+      in Thread tid newExprs
+    _ -> traverse (maybeExtendThreadAt id) expr
 
 isThread : BExpr -> Pointer -> Bool
 isThread expr p =
