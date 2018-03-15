@@ -84,42 +84,16 @@ listThreadBlanks expr =
 closeThread : BExpr -> BExpr
 closeThread bexpr =
   -- Close all threads
-  let ctb = closeThread
-      ctbList = List.map ctb
-      cte expr = case expr of
-                   NValue _ -> expr
-                   NVariable _ -> expr
-
-                   NLet lhs rhs expr ->
-                     NLet lhs (ctb rhs) (ctb expr)
-
-                   NIf cond ifbody elsebody ->
-                     NIf (ctb cond) (ctb ifbody) (ctb elsebody)
-
-                   NFnCall name exprs ->
-                     NFnCall name (ctbList exprs)
-
-                   NLambda vars expr ->
-                     NLambda vars (ctb expr)
-
-                   NFieldAccess obj name ->
-                     -- Probably don't want threading in a field access,
-                     -- but we'll make this work anyway
-                     NFieldAccess (ctb obj) name
-
-                   NThread exprs ->
-                     NThread (ctbList exprs)
-  in case bexpr of
-      F id (NThread exprs) ->
-        let filtered = List.filter Blank.isF exprs
-            newExprs = ctbList filtered
-        in
-        case newExprs of
-          [] -> Blank id
-          [e] -> e
-          _ -> F id (NThread newExprs)
-      F id e -> F id (cte e)
-      Blank _ -> bexpr
+  case bexpr of
+    F id (NThread exprs) ->
+      let newExprs = List.filter Blank.isF exprs
+                     |> List.map closeThread
+      in
+      case newExprs of
+        [] -> Blank id
+        [e] -> e
+        _ -> F id (NThread newExprs)
+    _ -> traverseBExpr closeThread bexpr
 
 
 -- take an expression, and if
@@ -551,45 +525,7 @@ toContent pd =
 
 replace : Pointer -> PointerData -> BExpr -> BExpr
 replace p replacement bexpr =
-  let rbe = replace p replacement
-      rlb : List BExpr -> List BExpr
-      rlb bexprs = List.map rbe bexprs
-      re expr = case expr of
-                  NLet lhs rhs body ->
-                    if Blank.toID lhs == P.idOf p
-                    then
-                      case replacement of
-                        PVarBind b ->
-                          NLet b rhs body
-                        _ -> expr
-                    else
-                      NLet lhs (rbe rhs) (rbe body)
-
-                  NIf cond ifbody elsebody ->
-                    NIf (rbe cond) (rbe ifbody) (rbe elsebody)
-
-                  NFnCall name exprs ->
-                    NFnCall name (rlb exprs)
-
-                  NLambda vars expr ->
-                    NLambda vars (rbe expr)
-
-                  NThread exprs ->
-                    NThread (rlb exprs)
-
-                  NFieldAccess obj field ->
-                    if Blank.toID field == P.idOf p
-                    then
-                      case replacement of
-                        PField f ->
-                          NFieldAccess obj f
-                        _ -> expr
-                    else
-                      NFieldAccess (rbe obj) field
-
-                  NValue v -> expr
-                  NVariable name -> expr
-  in
+  let r = replace p replacement in
   if Blank.toID bexpr == P.idOf p
   then
     case replacement of
@@ -597,8 +533,25 @@ replace p replacement bexpr =
       _ -> bexpr
   else
     case bexpr of
-      F id  e -> F id (re e)
-      Blank _ -> bexpr
+      F id (NLet lhs rhs body) ->
+        if Blank.toID lhs == P.idOf p
+        then
+          case replacement of
+            PVarBind b -> F id (NLet b rhs body)
+            _ -> bexpr
+        else
+          traverseBExpr r bexpr
+
+      F id (NFieldAccess obj field) ->
+        if Blank.toID field == P.idOf p
+        then
+          case replacement of
+            PField f -> F id (NFieldAccess obj f)
+            _ -> bexpr
+        else
+          traverseBExpr r bexpr
+
+      _ -> traverseBExpr r bexpr
 
 
 
