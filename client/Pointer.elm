@@ -53,7 +53,7 @@ emptyD pt id =
     EventModifier -> PEventModifier id (Blank id)
     EventName -> PEventName id (Blank id)
     EventSpace -> PEventSpace id (Blank id)
-    Expr -> PExpr id (Hole id)
+    Expr -> PExpr id (Blank id)
     Field -> PField id (Blank id)
     DBColName -> PDBColName id (Blank id)
     DBColType -> PDBColType id (Blank id)
