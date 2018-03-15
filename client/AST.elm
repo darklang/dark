@@ -121,32 +121,6 @@ addThreadBlank id bexpr =
       _ -> traverseBExpr atb bexpr
 
 
-traverse : (Expr -> Expr) -> Expr -> Expr
-traverse fn expr =
-  case expr of
-    Value _ _ -> expr
-    Hole _ -> expr
-    Variable _ _ -> expr
-
-    Let id lhs rhs body ->
-      Let id lhs (fn rhs) (fn body)
-
-    If id cond ifbody elsebody ->
-      If id (fn cond) (fn ifbody) (fn elsebody)
-
-    FnCall id name exprs ->
-      FnCall id name (List.map fn exprs)
-
-    Lambda id vars lexpr ->
-      Lambda id vars (fn lexpr)
-
-    Thread id exprs ->
-      Thread id (List.map fn exprs)
-
-    FieldAccess id obj field ->
-      FieldAccess id (fn obj) field
-
-
 traverseBExpr : (BExpr -> BExpr) -> BExpr -> BExpr
 traverseBExpr fn bexpr =
   case bexpr of
