@@ -57,7 +57,51 @@ integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
   rpc_ m "/admin/api/rpc" (RPCCallback FocusNothing (TriggerIntegrationTest name)) []
 
+decodePointerData : JSD.Decoder PointerData
+decodePointerData =
+  let de = (JSD.lazy (\_ -> decodeExpr))
+      did = decodeID
+      dv4 = decodeVariant4
+      dv3 = decodeVariant3
+      dv2 = decodeVariant2
+      dv1 = decodeVariant1 in
+  decodeVariants
+    [ ("PVarBind", dv2 PVarBind did (decodeBlankOr JSD.string))
+    , ("PEventName", dv2 PEventName did (decodeBlankOr JSD.string))
+    , ("PEventModifier", dv2 PEventModifier did (decodeBlankOr JSD.string))
+    , ("PEventSpace", dv2 PEventSpace did (decodeBlankOr JSD.string))
+    , ("PExpr", dv2 PExpr did decodeExpr)
+    , ("PField", dv2 PField did (decodeBlankOr JSD.string))
+    , ("PDBColName", dv2 PDBColName did (decodeBlankOr JSD.string))
+    , ("PDBColType", dv2 PDBColType did (decodeBlankOr JSD.string))
+    , ("PDarkType", dv2 PDarkType did (decodeBlankOr decodeDarkType))
+    , ("PDarkTypeField", dv2 PDarkTypeField did (decodeBlankOr JSD.string))
+    ]
 
+encodePointerData : PointerData -> JSE.Value
+encodePointerData pd =
+  let ev = encodeVariant in
+  case pd of
+    PVarBind id var ->
+      ev "PVarBind" [encodeID id, encodeBlankOr JSE.string var]
+    PEventName id name ->
+      ev "PEventName" [encodeID id, encodeBlankOr JSE.string name]
+    PEventModifier id modifier ->
+      ev "PEventModifier" [encodeID id, encodeBlankOr JSE.string modifier]
+    PEventSpace id space ->
+      ev "PEventSpace" [encodeID id, encodeBlankOr JSE.string space]
+    PExpr id expr ->
+      ev "PExpr" [encodeID id, encodeAST expr]
+    PField id field ->
+      ev "PField" [encodeID id, encodeBlankOr JSE.string field]
+    PDBColName id colname ->
+      ev "PDBColName" [encodeID id, encodeBlankOr JSE.string colname]
+    PDBColType id coltype ->
+      ev "PDBColType" [encodeID id, encodeBlankOr JSE.string coltype]
+    PDarkType id darktype ->
+      ev "PDarkType" [encodeID id, encodeBlankOr encodeDarkType darktype]
+    PDarkTypeField id darktypefield ->
+      ev "PDarkTypeField" [encodeID id, encodeBlankOr JSE.string darktypefield]
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
