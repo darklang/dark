@@ -46,7 +46,7 @@ onlyTL m =
   |> List.head
   |> deMaybe "test"
 
-onlyAST : Model -> AST
+onlyAST : Model -> Expr
 onlyAST m =
   let len = List.length m.toplevels
       _ = if len == 0

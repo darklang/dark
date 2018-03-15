@@ -248,7 +248,7 @@ maybeExtendThreadAt id expr =
       FieldAccess id obj field ->
         FieldAccess id (et obj) field
 
-isThread : AST -> Pointer -> Bool
+isThread : Expr -> Pointer -> Bool
 isThread ast p =
   ast |> listThreadHoles |> List.member (P.idOf p)
 
@@ -360,7 +360,7 @@ threadAncestors id expr =
 -------------------------
 -- Parents
 -------------------------
-parentOf : ID -> AST -> AST
+parentOf : ID -> Expr -> Expr
 parentOf id ast =
   deMaybe "parentOf" <| parentOf_ id ast
 
@@ -404,7 +404,7 @@ parentOf_ eid expr =
       else returnOr (\_ -> po obj) expr
 
 -- includes self
-siblings : Pointer -> AST -> List Pointer
+siblings : Pointer -> Expr -> List Pointer
 siblings p ast =
   case parentOf_ (P.idOf p) ast of
     Nothing -> [p]
@@ -532,7 +532,7 @@ listData expr =
 
 
 
-subtree : ID -> AST -> PointerData
+subtree : ID -> Expr -> PointerData
 subtree id ast =
   deMaybe "subtree" (subData id ast)
 
@@ -561,7 +561,7 @@ toContent pd =
     PDarkTypeField _ _ -> ""
 
 
-replace : Pointer -> PointerData -> AST -> AST
+replace : Pointer -> PointerData -> Expr -> Expr
 replace p replacement expr =
   let re = replace p replacement
       rl : List Expr -> List Expr
@@ -610,7 +610,7 @@ replace p replacement expr =
       Value id v -> expr
       Variable id name -> expr
 
-deleteExpr : Pointer -> AST -> ID -> AST
+deleteExpr : Pointer -> Expr -> ID -> Expr
 deleteExpr p ast id =
   let replacement =
         case P.typeOf p of
@@ -632,7 +632,7 @@ replaceField p replacement expr =
   in replace p (PField id (Filled id replacement)) expr
 
 
-clone : AST -> (ID, AST)
+clone : Expr -> (ID, Expr)
 clone expr =
   let nid = gid ()
       c e =

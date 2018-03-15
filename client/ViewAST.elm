@@ -207,7 +207,7 @@ vExpr state nest expr =
       , Selectable ["fieldname", "atom"] field Field
       ]
 
-walk : HtmlVisitState -> AST -> Element
+walk : HtmlVisitState -> Expr -> Element
 walk state = vExpr state 0
 
 toHtml : HtmlVisitState -> Expr -> Html.Html Msg

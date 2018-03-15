@@ -215,9 +215,6 @@ decodeExpr =
     , ("FieldAccess", dv3 FieldAccess did de (decodeBlankOr JSD.string))
     ]
 
-decodeAST : JSD.Decoder AST
-decodeAST = decodeExpr
-
 decodeLiveValue : JSD.Decoder LiveValue
 decodeLiveValue =
   let toLiveValue value tipe json exc =
@@ -280,7 +277,7 @@ decodeHandler : JSD.Decoder Handler
 decodeHandler =
   let toHandler ast spec = {ast = ast, spec = spec } in
   JSDP.decode toHandler
-  |> JSDP.required "ast" decodeAST
+  |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
 
 decodeTipe : JSD.Decoder String
