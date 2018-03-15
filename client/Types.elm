@@ -231,6 +231,90 @@ type alias FieldName = String
 type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
 
+-- Allow a slow transition over to the new types
+type alias BExpr = BlankOr NExpr
+type NExpr = NIf BExpr BExpr BExpr
+           | NFnCall FnName (List BExpr)
+           | NVariable VarName
+           | NLet VarBind BExpr BExpr
+           | NLambda (List VarName) BExpr
+           | NValue String
+           | NThread (List BExpr)
+           | NFieldAccess BExpr Field
+
+-- temporary during transition
+e2b : Expr -> BExpr
+e2b e =
+  let idOf expr =
+    case expr of
+      Value id _ -> id
+      Let id _ _ _ -> id
+      If id _ _ _ -> id
+      Variable id _ -> id
+      FnCall id _ _ -> id
+      Lambda id _ _ -> id
+      Hole id -> id
+      Thread id _ -> id
+      FieldAccess id _ _ -> id
+  in
+  case e of
+    Hole id -> Blank id
+    _ ->
+      Filled
+        (idOf e)
+        (case e of
+          Hole _ -> Debug.crash "already done hole"
+
+          Value _ v -> NValue v
+          Variable _ v -> NVariable v
+
+          Let _ lhs rhs body ->
+            NLet lhs (e2b rhs) (e2b body)
+
+          If _ cond ifbody elsebody ->
+            NIf (e2b cond) (e2b ifbody) (e2b elsebody)
+
+          FnCall id name exprs ->
+            NFnCall name (List.map e2b exprs)
+
+          Lambda id vars lexpr ->
+            NLambda vars (e2b lexpr)
+
+          Thread tid exprs ->
+            NThread (List.map e2b exprs)
+
+          FieldAccess id obj field ->
+            NFieldAccess (e2b obj) field)
+
+
+b2e : BExpr -> Expr
+b2e n =
+  case n of
+    Blank id -> Hole id
+    Filled id expr ->
+      case expr of
+        NValue v -> Value id v
+        NVariable name -> Variable id name
+        NLet lhs rhs expr ->
+          Let id lhs (b2e rhs) (b2e expr)
+
+        NIf cond ifbody elsebody ->
+          If id (b2e cond) (b2e ifbody) (b2e elsebody)
+
+        NFnCall name exprs ->
+          FnCall id name (List.map b2e exprs)
+
+        NLambda vars expr ->
+          Lambda id vars (b2e expr)
+
+        NThread exprs ->
+          Thread id (List.map b2e exprs)
+
+        NFieldAccess obj field ->
+          FieldAccess id (b2e obj) field
+
+
+
 type Expr = If ID Expr Expr Expr
           | FnCall ID FnName (List Expr)
           | Variable ID VarName
