@@ -90,46 +90,46 @@ listThreadHoles expr =
       listThreadHoles obj
 
 
-closeThread : Expr -> Expr
-closeThread expr =
+closeThread : BExpr -> BExpr
+closeThread bexpr =
   -- Close all threads
-  let ct = closeThread
-      ctList = List.map ct
-  in
-  case expr of
-    Value _ _ -> expr
-    Hole _ -> expr
-    Variable _ _ -> expr
+  let ctb = closeThread
+      ctbList = List.map ctb
+      cte expr = case expr of
+                   NValue _ -> expr
+                   NVariable _ -> expr
 
-    Let id lhs rhs expr ->
-      Let id lhs (ct rhs) (ct expr)
+                   NLet lhs rhs expr ->
+                     NLet lhs (ctb rhs) (ctb expr)
 
-    If id cond ifbody elsebody ->
-      If id (ct cond) (ct ifbody) (ct elsebody)
+                   NIf cond ifbody elsebody ->
+                     NIf (ctb cond) (ctb ifbody) (ctb elsebody)
 
+                   NFnCall name exprs ->
+                     NFnCall name (ctbList exprs)
 
-    FnCall id name exprs ->
-      FnCall id name (ctList exprs)
+                   NLambda vars expr ->
+                     NLambda vars (ctb expr)
 
-    Lambda id vars expr ->
-      Lambda id vars (ct expr)
+                   NFieldAccess obj name ->
+                     -- Probably don't want threading in a field access,
+                     -- but we'll make this work anyway
+                     NFieldAccess (ctb obj) name
 
-    FieldAccess id obj name ->
-      -- Probably don't want threading in a field access,
-      -- but we'll make this work anyway
-      FieldAccess id (ct obj) name
-
-    Thread tid exprs ->
-      let filtered = List.filter (isHole >> not) exprs
-          newExprs = ctList filtered
-      in
+                   NThread exprs ->
+                     NThread (ctbList exprs)
+  in case bexpr of
+      F id (NThread exprs) ->
+        let filtered = List.filter Blank.isF exprs
+            newExprs = ctbList filtered
+        in
         case newExprs of
-          [] ->
-            Hole tid
-          [e] ->
-            e
-          _ ->
-            Thread tid newExprs
+          [] -> Blank id
+          [e] -> e
+          _ -> F id (NThread newExprs)
+      F id e -> F id (cte e)
+      Blank _ -> bexpr
+
 
 -- take an expression, and if
 -- * it is a thread, add a hole at the end
