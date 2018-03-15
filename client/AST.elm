@@ -126,25 +126,25 @@ closeThread bexpr =
 -- * it is a thread, add a hole at the end
 -- * it is part of a thread, insert a hole just after the expr
 -- * if it is not part of a thread, wrap it in a thread
-addThreadHole : ID -> Expr -> Expr
-addThreadHole id expr =
-  let ath child = addThreadHole id child in
-  if id == toID expr
+addThreadBlank : ID -> BExpr -> BExpr
+addThreadBlank id bexpr =
+  let atb = addThreadBlank id in
+  if id == Blank.toID bexpr
   then
-    case expr of
-      Thread tid exprs ->
-        Thread tid (exprs ++ [Hole (gid ())])
+    case bexpr of
+      F tid (NThread exprs) ->
+        F tid (NThread (exprs ++ [Blank.new ()]))
       _ ->
-        Thread (gid ()) [expr, Hole (gid ())]
+        Blank.newF (NThread [bexpr, Blank.new ()])
   else
-    case expr of
-      Thread tid exprs ->
+    case bexpr of
+      F tid (NThread exprs) ->
         let replaced = extendThreadChild id exprs in
         if replaced == exprs
-        then Thread tid (List.map ath exprs)
-        else Thread tid replaced
+        then traverseBExpr atb bexpr
+        else F tid (NThread replaced)
 
-      _ -> traverse ath expr
+      _ -> traverseBExpr atb bexpr
 
 
 traverse : (Expr -> Expr) -> Expr -> Expr
@@ -215,25 +215,25 @@ wrapInThread id bexpr =
   else
     traverseBExpr (wrapInThread id) bexpr
 
--- Find the child with the id `at` in the threadExpr, and add a hole after it.
-extendThreadChild : ID -> List Expr -> List Expr
+-- Find the child with the id `at` in the thread, and add a blank after it.
+extendThreadChild : ID -> List BExpr -> List BExpr
 extendThreadChild at threadExprs =
   List.foldr (\e list ->
-    if (toID e) == at
-    then e :: Hole (gid ()) :: list
+    if (Blank.toID e) == at
+    then e :: Blank.new () :: list
     else e :: list)
     [] threadExprs
 
 
 -- extends thread at pos denoted by ID, if ID is in a thread
-maybeExtendThreadAt : ID -> Expr -> Expr
-maybeExtendThreadAt id expr =
-  case expr of
-    Thread tid exprs ->
+maybeExtendThreadAt : ID -> BExpr -> BExpr
+maybeExtendThreadAt id bexpr =
+  case bexpr of
+    F tid (NThread exprs) ->
       let newExprs = extendThreadChild id exprs
                      |> List.map (maybeExtendThreadAt id)
-      in Thread tid newExprs
-    _ -> traverse (maybeExtendThreadAt id) expr
+      in F tid (NThread newExprs)
+    _ -> traverseBExpr (maybeExtendThreadAt id) bexpr
 
 isThread : BExpr -> Pointer -> Bool
 isThread expr p =

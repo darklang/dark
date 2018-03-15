@@ -205,11 +205,11 @@ submit m cursor action value =
                     AST.wrapInThread id h.ast
 
                 ast2 = AST.replace (P.pdToP old) new ast1
-                ast3 = AST.maybeExtendThreadAt (P.idOfD new) (n2o ast2)
+                ast3 = AST.maybeExtendThreadAt (P.idOfD new) ast2
             in
                 if old == new
                 then NoChange
-                else wrap <| SetHandler tlid tl.pos { h | ast = o2n ast3 }
+                else wrap <| SetHandler tlid tl.pos { h | ast = ast3 }
 
       in
       if String.length value < 1

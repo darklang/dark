@@ -418,8 +418,8 @@ update_ msg m =
                     TLHandler h ->
                       case p of
                         Just p ->
-                          let replacement = AST.addThreadHole (P.idOf p) (n2o h.ast) in
-                          RPC ( [ SetHandler tl.id tl.pos { h | ast = o2n replacement}]
+                          let replacement = AST.addThreadBlank (P.idOf p) h.ast in
+                          RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
                               , FocusNext tlid (Just p))
                         Nothing -> NoChange
                 else
