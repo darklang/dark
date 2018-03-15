@@ -204,8 +204,8 @@ submit m cursor action value =
                   StartThread ->
                     AST.wrapInThread id (n2o h.ast)
 
-                ast2 = AST.replace (P.pdToP old) new ast1
-                ast3 = AST.maybeExtendThreadAt (P.idOfD new) ast2
+                ast2 = AST.replace (P.pdToP old) new (o2n ast1)
+                ast3 = AST.maybeExtendThreadAt (P.idOfD new) (n2o ast2)
             in
                 if old == new
                 then NoChange
@@ -234,8 +234,8 @@ submit m cursor action value =
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
             let h = deMaybe "maybeH - varbind" maybeH
-                replacement = AST.replaceVarBind p value (n2o h.ast) in
-            wrap <| SetHandler tlid tl.pos { h | ast = o2n replacement }
+                replacement = AST.replaceVarBind p value h.ast in
+            wrap <| SetHandler tlid tl.pos { h | ast = replacement }
         EventName ->
           let eventNameValidation =
                 if TL.isHTTPHandler tl
@@ -288,18 +288,19 @@ submit m cursor action value =
                             (Blank.new ())
                           _ -> Debug.crash "should be a field"
                   in
-                      AST.replace (AST.toP parent) (AST.toPD wrapped) (n2o h.ast)
+                      AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast
                 else
-                  let replacement = AST.replaceField p value (n2o h.ast) in
+                  let replacement = AST.replaceField p value h.ast in
                   case action of
                     ContinueThread -> replacement
                     StartThread ->
                       -- id is not in the replacement, so search for the
                       -- parent in the old ast
                       let parentID = AST.parentOf id (n2o h.ast) |> AST.toID in
-                      AST.wrapInThread parentID replacement
+                      AST.wrapInThread parentID (n2o replacement)
+                      |> o2n
           in
-              wrap <| SetHandler tlid tl.pos { h | ast = o2n newAst }
+              wrap <| SetHandler tlid tl.pos { h | ast = newAst }
         Expr ->
           let h = deMaybe "maybeH - expr" maybeH in
           replaceExpr m h tlid p value

@@ -43,8 +43,8 @@ paste m tl p =
       in case TL.asHandler tl of
            Nothing -> NoChange
            Just h ->
-             let newAst = AST.replace p cloned (n2o h.ast)
-             in RPC ( [ SetHandler tl.id tl.pos { h | ast = o2n newAst } ]
+             let newAst = AST.replace p cloned h.ast
+             in RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
                     , FocusNext tl.id (Just (P.pdToP cloned)))
 
 peek : Model -> Clipboard
