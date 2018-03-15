@@ -608,7 +608,7 @@ replace p replacement bexpr =
 
 deleteExpr : Pointer -> BExpr -> ID -> BExpr
 deleteExpr p ast id =
-  let replacement = P.emptyD (P.typeOf p)
+  let replacement = P.emptyD_ id (P.typeOf p)
   in replace p replacement ast
 
 replaceVarBind : Pointer -> VarName -> BExpr -> BExpr

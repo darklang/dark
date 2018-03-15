@@ -215,8 +215,6 @@ pressing_up_doesnt_return_to_start m =
 
 deleting_selects_the_blank : Model -> TestResult
 deleting_selects_the_blank m =
-  case m.state of
-    Entering (Filling _ _) -> pass
-    _ -> fail m.state
-
-
+  case onlyAST m of
+    (NValue "6") -> pass
+    ast -> fail ast

@@ -273,6 +273,8 @@ test('deleting_selects_the_blank', async t => {
     .pressKey("enter")
     .click(".ast")
     .pressKey("delete")
+    .typeText("#entry-box", "6")
+    .pressKey("enter")
 });
 
 
