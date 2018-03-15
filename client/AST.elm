@@ -164,41 +164,43 @@ addThreadHole id expr =
         else Thread tid replaced
 
 
+traverse : (Expr -> Expr) -> Expr -> Expr
+traverse fn expr =
+  case expr of
+    Value _ _ -> expr
+    Hole _ -> expr
+    Variable _ _ -> expr
+
+    Let id lhs rhs body ->
+      Let id lhs (fn rhs) (fn body)
+
+    If id cond ifbody elsebody ->
+      If id (fn cond) (fn ifbody) (fn elsebody)
+
+    FnCall id name exprs ->
+      FnCall id name (List.map fn exprs)
+
+    Lambda id vars lexpr ->
+      Lambda id vars (fn lexpr)
+
+    Thread id exprs ->
+      Thread id (List.map fn exprs)
+
+    FieldAccess id obj field ->
+      FieldAccess id (fn obj) field
+
+
 
 -- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> Expr -> Expr
 wrapInThread id expr =
-  let wt e = wrapInThread id e
-      wrap e =
-        case e of
-          Thread _ _ -> e
-          _ -> Thread (gid ()) [e, Hole (gid ())]
-      nested =
-        case expr of
-          Value _ _ -> expr
-          Hole _ -> expr
-          Variable _ _ -> expr
-
-          Let id lhs rhs body ->
-            Let id lhs (wt rhs) (wt body)
-
-          If id cond ifbody elsebody ->
-            If id (wt cond) (wt ifbody) (wt elsebody)
-
-          FnCall id name exprs ->
-            FnCall id name (List.map wt exprs)
-
-          Lambda id vars lexpr ->
-            Lambda id vars (wt lexpr)
-
-          Thread id exprs ->
-            Thread id (List.map wt exprs)
-
-          FieldAccess id obj field ->
-            FieldAccess id (wt obj) field
-  in if (toID expr) == id
-     then wrap expr
-     else nested
+  if toID expr == id
+  then
+    case expr of
+      Thread _ _ -> expr
+      _ -> Thread (gid ()) [expr, Hole (gid ())]
+  else
+    traverse (wrapInThread id) expr
 
 -- Find the child with the id `at` in the threadExpr, and add a hole after it.
 extendThreadChild : ID -> List Expr -> List Expr
