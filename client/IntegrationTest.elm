@@ -11,28 +11,27 @@ import Pointer as P
 import Blank
 
 trigger : String -> IntegrationTestState
-trigger name =
+trigger test_name =
+  let name = String.dropLeft 5 test_name in
   IntegrationTestExpectation <|
   case name of
-    "test_enter_changes_state" -> enterChangesState
-    "test_field_access" -> fieldAccess
-    "test_field_access_closes" -> fieldAccessCloses
-    "test_field_access_pipes" -> fieldAccessPipes
-    "test_field_access_nested" -> fieldAccessNested
-    "test_pipeline_let_equals" -> pipelineLetEquals
-    "test_pipe_within_let" -> pipeWithinLet
-    "test_tabbing_works" -> tabbingWorks
-    "test_next_sibling_works" -> nextSiblingWorks
-    "test_varbinds_are_editable" -> varbindsAreEditable
-    "test_editing_request_edits_request" -> editingRequestEditsRequest
-    "test_autocomplete_highlights_on_partial_match" ->
-      autocompleteHighlightsOnPartialMatch
-    "test_no_request_global_in_non_http_space" ->
-      noRequestGlobalInNonHttpSpace
-    "test_hover_values_for_varnames" ->
-      hoverValuesForVarnames
-    "test_pressing_up_doesnt_return_to_start" ->
-      pressingUpDoesntReturnToStart
+    "enter_changes_state" -> enter_changes_state
+    "field_access" -> field_access
+    "field_access_closes" -> field_access_closes
+    "field_access_pipes" -> field_access_pipes
+    "field_access_nested" -> field_access_nested
+    "pipeline_let_equals" -> pipeline_let_equals
+    "pipe_within_let" -> pipe_within_let
+    "tabbing_works" -> tabbing_works
+    "next_sibling_works" -> next_sibling_works
+    "varbinds_are_editable" -> varbinds_are_editable
+    "editing_request_edits_request" -> editing_request_edits_request
+    "autocomplete_highlights_on_partial_match" -> autocomplete_highlights_on_partial_match
+    "no_request_global_in_non_http_space" -> no_request_global_in_non_http_space
+    "hover_values_for_varnames" -> hover_values_for_varnames
+    "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
+    "deleting_selects_the_blank" -> deleting_selects_the_blank
+
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -66,22 +65,22 @@ onlyAST m =
 
 
 
-enterChangesState : Model -> TestResult
-enterChangesState m =
+enter_changes_state : Model -> TestResult
+enter_changes_state m =
   case m.state of
     Entering (Creating _) -> pass
     _ -> fail m.state
 
 
-fieldAccess : Model -> TestResult
-fieldAccess m =
+field_access : Model -> TestResult
+field_access m =
   case onlyAST m of
     NFieldAccess (F _ (NVariable "request")) (F _ "body") -> pass
     expr -> fail expr
 
 
-fieldAccessCloses : Model -> TestResult
-fieldAccessCloses m =
+field_access_closes : Model -> TestResult
+field_access_closes m =
   case m.state of
     Entering (Filling _ id) ->
       let tl = onlyTL m in
@@ -91,14 +90,14 @@ fieldAccessCloses m =
     _ ->
       fail m.state
 
-fieldAccessPipes : Model -> TestResult
-fieldAccessPipes m =
+field_access_pipes : Model -> TestResult
+field_access_pipes m =
   case onlyAST m of
     NThread [F _ (NFieldAccess (F _ (NVariable "request")) (F _ "body")), Blank _] -> pass
     expr -> fail expr
 
-fieldAccessNested : Model -> TestResult
-fieldAccessNested m =
+field_access_nested : Model -> TestResult
+field_access_nested m =
   case onlyAST m of
     NFieldAccess
       (F _ (NFieldAccess
@@ -109,8 +108,8 @@ fieldAccessNested m =
     expr -> fail expr
 
 
-pipelineLetEquals : Model -> TestResult
-pipelineLetEquals m =
+pipeline_let_equals : Model -> TestResult
+pipeline_let_equals m =
   -- should be a simple let, not in a pipeline, entering 1 hole
   let astR =
         case onlyAST m of
@@ -125,8 +124,8 @@ pipelineLetEquals m =
   in
       Result.map2 (\() () -> ()) astR stateR
 
-pipeWithinLet : Model -> TestResult
-pipeWithinLet m =
+pipe_within_let : Model -> TestResult
+pipe_within_let m =
   case onlyAST m of
     NLet
       (F _ "value")
@@ -140,14 +139,14 @@ pipeWithinLet m =
 
 
 
-tabbingWorks : Model -> TestResult
-tabbingWorks m =
+tabbing_works : Model -> TestResult
+tabbing_works m =
   case onlyAST m of
     NIf (Blank _) (F _ (NValue "5")) (Blank _) -> pass
     e -> fail e
 
-nextSiblingWorks : Model -> TestResult
-nextSiblingWorks m =
+next_sibling_works : Model -> TestResult
+next_sibling_works m =
   case onlyAST m of
     NLet (Blank _) (Blank id1)  (Blank _) ->
       case m.state of
@@ -159,8 +158,8 @@ nextSiblingWorks m =
     e -> fail e
 
 
-varbindsAreEditable : Model -> TestResult
-varbindsAreEditable m =
+varbinds_are_editable : Model -> TestResult
+varbinds_are_editable m =
   case onlyAST m of
     NLet (F id1 "var") (Blank _)  (Blank _) ->
       case m.state of
@@ -172,8 +171,8 @@ varbindsAreEditable m =
     e -> fail e
 
 
-editingRequestEditsRequest : Model -> TestResult
-editingRequestEditsRequest m =
+editing_request_edits_request : Model -> TestResult
+editing_request_edits_request m =
   case onlyAST m of
     NFieldAccess (F id1 (NVariable "request")) (Blank _) ->
       case m.complete.completions of
@@ -184,23 +183,23 @@ editingRequestEditsRequest m =
         allcs -> fail allcs
     e -> fail e
 
-autocompleteHighlightsOnPartialMatch : Model -> TestResult
-autocompleteHighlightsOnPartialMatch m =
+autocomplete_highlights_on_partial_match : Model -> TestResult
+autocomplete_highlights_on_partial_match m =
   case onlyAST m of
     NFnCall "Int::add" _ -> pass
     e -> fail e
 
 
-noRequestGlobalInNonHttpSpace : Model -> TestResult
-noRequestGlobalInNonHttpSpace m =
+no_request_global_in_non_http_space : Model -> TestResult
+no_request_global_in_non_http_space m =
   case onlyAST m of
     -- this might change but this is the answer for now.
     NFnCall "Http::bad_request" _ -> pass
     -- Blank _ -> pass
     e -> fail e
 
-hoverValuesForVarnames : Model -> TestResult
-hoverValuesForVarnames m =
+hover_values_for_varnames : Model -> TestResult
+hover_values_for_varnames m =
   let tlid = m.toplevels
            |> List.head
            |> deMaybe "test"
@@ -208,8 +207,16 @@ hoverValuesForVarnames m =
   in pass
 
 
-pressingUpDoesntReturnToStart : Model -> TestResult
-pressingUpDoesntReturnToStart m =
+pressing_up_doesnt_return_to_start : Model -> TestResult
+pressing_up_doesnt_return_to_start m =
   case onlyAST m of
     NFnCall "Char::toASCIIChar" _ -> pass
     e -> fail e
+
+deleting_selects_the_blank : Model -> TestResult
+deleting_selects_the_blank m =
+  case m.state of
+    Entering (Filling _ _) -> pass
+    _ -> fail m.state
+
+
