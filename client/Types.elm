@@ -243,8 +243,8 @@ type NExpr = NIf BExpr BExpr BExpr
            | NFieldAccess BExpr Field
 
 -- temporary during transition
-e2b : Expr -> BExpr
-e2b e =
+o2n : Expr -> BExpr
+o2n e =
   let idOf expr =
     case expr of
       Value id _ -> id
@@ -269,26 +269,26 @@ e2b e =
           Variable _ v -> NVariable v
 
           Let _ lhs rhs body ->
-            NLet lhs (e2b rhs) (e2b body)
+            NLet lhs (o2n rhs) (o2n body)
 
           If _ cond ifbody elsebody ->
-            NIf (e2b cond) (e2b ifbody) (e2b elsebody)
+            NIf (o2n cond) (o2n ifbody) (o2n elsebody)
 
           FnCall id name exprs ->
-            NFnCall name (List.map e2b exprs)
+            NFnCall name (List.map o2n exprs)
 
           Lambda id vars lexpr ->
-            NLambda vars (e2b lexpr)
+            NLambda vars (o2n lexpr)
 
           Thread tid exprs ->
-            NThread (List.map e2b exprs)
+            NThread (List.map o2n exprs)
 
           FieldAccess id obj field ->
-            NFieldAccess (e2b obj) field)
+            NFieldAccess (o2n obj) field)
 
 
-b2e : BExpr -> Expr
-b2e n =
+n2o : BExpr -> Expr
+n2o n =
   case n of
     Blank id -> Hole id
     Filled id expr ->
@@ -296,22 +296,22 @@ b2e n =
         NValue v -> Value id v
         NVariable name -> Variable id name
         NLet lhs rhs expr ->
-          Let id lhs (b2e rhs) (b2e expr)
+          Let id lhs (n2o rhs) (n2o expr)
 
         NIf cond ifbody elsebody ->
-          If id (b2e cond) (b2e ifbody) (b2e elsebody)
+          If id (n2o cond) (n2o ifbody) (n2o elsebody)
 
         NFnCall name exprs ->
-          FnCall id name (List.map b2e exprs)
+          FnCall id name (List.map n2o exprs)
 
         NLambda vars expr ->
-          Lambda id vars (b2e expr)
+          Lambda id vars (n2o expr)
 
         NThread exprs ->
-          Thread id (List.map b2e exprs)
+          Thread id (List.map n2o exprs)
 
         NFieldAccess obj field ->
-          FieldAccess id (b2e obj) field
+          FieldAccess id (n2o obj) field
 
 
 
@@ -381,7 +381,7 @@ type alias HandlerSpec = { module_ : BlankOr String
                          , types : SpecTypes
                          }
 
-type alias Handler = { ast : Expr
+type alias Handler = { ast : BExpr
                      , spec : HandlerSpec
                      }
 

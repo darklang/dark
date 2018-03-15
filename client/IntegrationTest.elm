@@ -60,6 +60,7 @@ onlyAST m =
   |> TL.asHandler
   |> deMaybe "test"
   |> .ast
+  |> n2o
 
 
 

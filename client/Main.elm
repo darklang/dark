@@ -195,11 +195,11 @@ updateMod mod (m, cmd) =
         |> Maybe.map (\tl ->
             case tl.data of
               TLHandler h ->
-                let replacement = AST.closeThread h.ast in
-                if replacement == h.ast
+                let replacement = AST.closeThread (n2o h.ast) in
+                if replacement == (n2o h.ast)
                 then []
                 else
-                  let newH = { h | ast = replacement }
+                  let newH = { h | ast = o2n replacement }
                       calls = [ SetHandler tl.id tl.pos newH]
                   -- call RPC on the new model
                   in [RPC.rpc newM FocusSame calls]
@@ -418,8 +418,8 @@ update_ msg m =
                     TLHandler h ->
                       case p of
                         Just p ->
-                          let replacement = AST.addThreadHole (P.idOf p) h.ast in
-                          RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                          let replacement = AST.addThreadHole (P.idOf p) (n2o h.ast) in
+                          RPC ( [ SetHandler tl.id tl.pos { h | ast = o2n replacement}]
                               , FocusNext tlid (Just p))
                         Nothing -> NoChange
                 else
@@ -579,13 +579,13 @@ update_ msg m =
                       let tl = TL.getTL m tlid in
                         case tl.data of
                           TLHandler h ->
-                            let replacement = AST.closeThread h.ast in
-                            if replacement == h.ast
+                            let replacement = AST.closeThread (n2o h.ast) in
+                            if replacement == n2o h.ast
                             then
                               Many [ Select tlid (Just p)
                                    , AutocompleteMod ACReset]
                             else
-                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                              RPC ( [ SetHandler tl.id tl.pos { h | ast = o2n replacement}]
                                   , FocusNext tl.id Nothing)
                           _ ->
                             Many [ Select tlid (Just p)

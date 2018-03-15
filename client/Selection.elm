@@ -137,8 +137,8 @@ delete m tlid cur =
       wrapDB <| SetDBColName tlid id ""
     VarBind ->
       let h = maybeH ()
-          replacement = AST.deleteExpr cur h.ast newID
-      in wrapH { h | ast = replacement }
+          replacement = AST.deleteExpr cur (n2o h.ast) newID
+      in wrapH { h | ast = o2n replacement }
     EventModifier ->
       let h = maybeH ()
           replacement = SpecHeaders.deleteEventModifierBlank cur h.spec newID
@@ -153,12 +153,12 @@ delete m tlid cur =
       in wrapH { h | spec = replacement }
     Field ->
       let h = maybeH ()
-          replacement = AST.deleteExpr cur h.ast newID
-      in wrapH { h | ast = replacement }
+          replacement = AST.deleteExpr cur (n2o h.ast) newID
+      in wrapH { h | ast = o2n replacement }
     Expr ->
       let h = maybeH ()
-          replacement = AST.deleteExpr cur h.ast newID
-      in wrapH { h | ast = replacement }
+          replacement = AST.deleteExpr cur (n2o h.ast) newID
+      in wrapH { h | ast = o2n replacement }
     DarkType ->
       let h = maybeH ()
           replacement = SpecTypes.delete cur h.spec newID
@@ -184,6 +184,7 @@ enter m tlid cur =
           case P.ownerOf cur of
             POAst ->
               (h ()).ast
+              |> n2o
               |> AST.subtree id
               |> AST.toContent
               |> Just
