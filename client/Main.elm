@@ -318,7 +318,8 @@ updateMod mod (m, cmd) =
         in
             newM ! []
       CopyToClipboard clipboard ->
-        { m | clipboard = clipboard } ! []
+        let newM = { m | clipboard = clipboard } in
+        newM ! [setStorage (Editor.model2editor newM)]
       SetStorage editorState ->
         m ! [setStorage editorState]
       Drag tlid offset hasMoved state ->
