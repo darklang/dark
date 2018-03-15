@@ -11,6 +11,7 @@ import DB
 import Types exposing (..)
 import Util exposing (deMaybe)
 import AST
+import Blank
 import Pointer as P
 import SpecTypes
 import SpecHeaders
@@ -83,7 +84,7 @@ isHTTPHandler tl =
     Just h ->
       case h.spec.module_ of
         Blank _ -> True
-        Filled _ s ->
+        F _ s ->
           if String.toLower s == "http"
           then
             True
@@ -99,7 +100,7 @@ allPointers tl =
     TLHandler h ->
       SpecHeaders.allPointers h.spec
       ++ SpecTypes.allPointers h.spec.types.input
-      ++ AST.allPointers h.ast
+      ++ AST.allPointers (n2o h.ast)
       ++ SpecTypes.allPointers h.spec.types.output
     TLDB db ->
       DB.allPointers db
@@ -110,34 +111,28 @@ isValidPointer tl p =
 
 clonePointerData : PointerData -> PointerData
 clonePointerData pd =
-  let replaceBlankOr nid bo =
+  let replaceBlankOr bo =
       case bo of
-        Blank _ -> Blank nid
-        Filled _ a -> Filled nid a
+        Blank _ -> Blank.new ()
+        F _ a -> Blank.newF a
   in
   case pd of
-    PVarBind id vb ->
-      let nid = gid ()
-      in PVarBind nid (replaceBlankOr nid vb)
-    PEventModifier id sp ->
-      let nid = gid ()
-      in PEventModifier nid (replaceBlankOr nid sp)
-    PEventName id sp ->
-      let nid = gid ()
-      in PEventName nid (replaceBlankOr nid sp)
-    PEventSpace id sp ->
-      let nid = gid ()
-      in PEventSpace nid (replaceBlankOr nid sp)
-    PExpr id expr ->
-      let (nid, ast) = AST.clone expr
-      in PExpr nid ast
-    PField id f ->
-      let nid = gid ()
-      in PField nid (replaceBlankOr nid f)
-    PDBColName id cn -> pd
-    PDBColType id ct -> pd
-    PDarkType id dt -> Debug.crash "TODO clonePointerdata"
-    PDarkTypeField id dt -> Debug.crash "TODO clonePointerdata"
+    PVarBind vb ->
+      PVarBind (replaceBlankOr vb)
+    PEventModifier sp ->
+      PEventModifier (replaceBlankOr sp)
+    PEventName sp ->
+      PEventName (replaceBlankOr sp)
+    PEventSpace sp ->
+      PEventSpace (replaceBlankOr sp)
+    PExpr expr ->
+      PExpr (AST.clone expr)
+    PField f ->
+      PField (replaceBlankOr f)
+    PDBColName cn -> pd
+    PDBColType ct -> pd
+    PDarkType dt -> Debug.crash "TODO clonePointerdata"
+    PDarkTypeField dt -> Debug.crash "TODO clonePointerdata"
 
 -------------------------
 -- Blanks
@@ -205,14 +200,14 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allPointers h.spec
-            ++ [ P.blankTo DarkType h.spec.types.input
-               , AST.toP h.ast
-               , P.blankTo DarkType h.spec.types.output] in
+            ++ [ Blank.toP DarkType h.spec.types.input
+               , Blank.toP Expr h.ast
+               , Blank.toP DarkType h.spec.types.output] in
 
       if List.member p toplevels
       then toplevels
       else
-         AST.siblings p h.ast
+         AST.siblings p (n2o h.ast)
          ++ SpecTypes.siblings p h.spec.types.input
          ++ SpecTypes.siblings p h.spec.types.output
     TLDB db -> DB.siblings p db
@@ -240,7 +235,7 @@ getParentOf tl p =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      AST.parentOf_ (P.idOf p) h.ast
+      AST.parentOf_ (P.idOf p) (n2o h.ast)
       |> Maybe.map AST.toP
     _ -> Nothing
 
@@ -250,7 +245,7 @@ getChildrenOf tl p =
     POSpecHeader -> []
     POAst ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
-      AST.childrenOf (P.idOf p) h.ast
+      AST.childrenOf (P.idOf p) (n2o h.ast)
     PODb -> []
     POSpecType ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
@@ -267,7 +262,7 @@ rootOf tl =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      Just <| AST.toP h.ast
+      Just <| Blank.toP Expr h.ast
     _ -> Nothing
 
 

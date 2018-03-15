@@ -7,6 +7,7 @@ import Toplevel as TL
 import Pointer as P
 import AST
 import Entry
+import Blank
 
 copy : Model -> Toplevel -> (Maybe Pointer) -> Modification
 copy m tl mp =
@@ -14,7 +15,7 @@ copy m tl mp =
     Nothing -> NoChange
     Just h ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
+        Nothing -> CopyToClipboard (Just <| AST.toPD (n2o h.ast))
         Just p ->
           let pid = P.idOf p
           in CopyToClipboard (AST.subData pid h.ast)
@@ -56,11 +57,11 @@ newFromClipboard m pos =
   let nid = gtlid ()
       ast =
         case peek m of
-          Nothing -> Hole (gid ())
+          Nothing -> Blank.new ()
           Just a ->
             case a of
-              PExpr _ exp -> exp
-              _ -> Hole (gid ())
+              PExpr exp -> exp
+              _ -> Blank.new ()
       spec = Entry.newHandlerSpec ()
       handler = { ast = ast, spec = spec }
   in

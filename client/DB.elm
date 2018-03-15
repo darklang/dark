@@ -5,13 +5,13 @@ module DB exposing (..)
 
 -- dark
 import Types exposing (..)
-import Pointer as P
+import Blank
 
 allPointers : DB -> List Pointer
 allPointers db =
   let colToList col =
         case col of
-          (lhs, rhs) -> [P.blankTo DBColName lhs, P.blankTo DBColType rhs]
+          (lhs, rhs) -> [Blank.toP DBColName lhs, Blank.toP DBColType rhs]
   in
       db.cols
       |> List.map colToList

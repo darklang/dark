@@ -24,9 +24,7 @@ type op = SetHandler of tlid * pos * Handler.handler
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
 let has_effect (op: op) : bool  =
-  match op with
-  | Savepoint -> false
-  | _ -> true
+  op = Savepoint
 
 let causes_any_changes (ops: oplist) : bool =
   List.exists ~f:has_effect ops

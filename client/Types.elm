@@ -146,6 +146,7 @@ type Msg
     | FinishIntegrationTest
     | ClearGraph
     | SaveTestButton
+    | ToggleSync
     | Initialization
     | NavigateTo String
     | WindowResize Int Int
@@ -232,6 +233,90 @@ type alias FieldName = String
 type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
 
+-- Allow a slow transition over to the new types
+type alias BExpr = BlankOr NExpr
+type NExpr = NIf BExpr BExpr BExpr
+           | NFnCall FnName (List BExpr)
+           | NVariable VarName
+           | NLet VarBind BExpr BExpr
+           | NLambda (List VarName) BExpr
+           | NValue String
+           | NThread (List BExpr)
+           | NFieldAccess BExpr Field
+
+-- temporary during transition
+o2n : Expr -> BExpr
+o2n e =
+  let idOf expr =
+    case expr of
+      Value id _ -> id
+      Let id _ _ _ -> id
+      If id _ _ _ -> id
+      Variable id _ -> id
+      FnCall id _ _ -> id
+      Lambda id _ _ -> id
+      Hole id -> id
+      Thread id _ -> id
+      FieldAccess id _ _ -> id
+  in
+  case e of
+    Hole id -> Blank id
+    _ ->
+      F
+        (idOf e)
+        (case e of
+          Hole _ -> Debug.crash "already done hole"
+
+          Value _ v -> NValue v
+          Variable _ v -> NVariable v
+
+          Let _ lhs rhs body ->
+            NLet lhs (o2n rhs) (o2n body)
+
+          If _ cond ifbody elsebody ->
+            NIf (o2n cond) (o2n ifbody) (o2n elsebody)
+
+          FnCall id name exprs ->
+            NFnCall name (List.map o2n exprs)
+
+          Lambda id vars lexpr ->
+            NLambda vars (o2n lexpr)
+
+          Thread tid exprs ->
+            NThread (List.map o2n exprs)
+
+          FieldAccess id obj field ->
+            NFieldAccess (o2n obj) field)
+
+
+n2o : BExpr -> Expr
+n2o n =
+  case n of
+    Blank id -> Hole id
+    F id expr ->
+      case expr of
+        NValue v -> Value id v
+        NVariable name -> Variable id name
+        NLet lhs rhs expr ->
+          Let id lhs (n2o rhs) (n2o expr)
+
+        NIf cond ifbody elsebody ->
+          If id (n2o cond) (n2o ifbody) (n2o elsebody)
+
+        NFnCall name exprs ->
+          FnCall id name (List.map n2o exprs)
+
+        NLambda vars expr ->
+          Lambda id vars (n2o expr)
+
+        NThread exprs ->
+          Thread id (List.map n2o exprs)
+
+        NFieldAccess obj field ->
+          FieldAccess id (n2o obj) field
+
+
+
 type Expr = If ID Expr Expr Expr
           | FnCall ID FnName (List Expr)
           | Variable ID VarName
@@ -241,8 +326,6 @@ type Expr = If ID Expr Expr Expr
           | Hole ID
           | Thread ID (List Expr)
           | FieldAccess ID Expr Field
-
-type alias AST = Expr
 
 -----------------------------
 -- High-level ID wrappers
@@ -262,19 +345,19 @@ type PointerType = VarBind
 type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
 
-type PointerData = PVarBind ID VarBind
-                 | PEventName ID (BlankOr String)
-                 | PEventModifier ID (BlankOr String)
-                 | PEventSpace ID (BlankOr String)
-                 | PExpr ID Expr
-                 | PField ID Field
-                 | PDBColName ID (BlankOr String)
-                 | PDBColType ID (BlankOr String)
-                 | PDarkType ID (BlankOr DarkType)
-                 | PDarkTypeField ID (BlankOr String)
+type PointerData = PVarBind VarBind
+                 | PEventName (BlankOr String)
+                 | PEventModifier (BlankOr String)
+                 | PEventSpace (BlankOr String)
+                 | PExpr BExpr
+                 | PField Field
+                 | PDBColName (BlankOr String)
+                 | PDBColType (BlankOr String)
+                 | PDarkType (BlankOr DarkType)
+                 | PDarkTypeField (BlankOr String)
 
 type BlankOr a = Blank ID
-               | Filled ID a
+               | F ID a
 
 type PointerOwner = POSpecHeader
                   | POAst
@@ -300,9 +383,7 @@ type alias HandlerSpec = { module_ : BlankOr String
                          , types : SpecTypes
                          }
 
-
-
-type alias Handler = { ast : AST
+type alias Handler = { ast : BExpr
                      , spec : HandlerSpec
                      }
 
@@ -354,6 +435,7 @@ type alias Model = { center : Pos
                    , integrationTestState : IntegrationTestState
                    , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
+                   , syncEnabled : Bool
                    }
 
 -- Values that we serialize
@@ -395,7 +477,8 @@ type Modification = Error String
                   | CopyToClipboard Clipboard
                   | SetStorage Editor
                   | SetCursor TLID Int
-                  | SetVisibility PageVisibility.Visibility
+                  -- designed for one-off small changes
+                  | TweakModel (Model -> Model)
 
 -----------------------------
 -- Flags / function types

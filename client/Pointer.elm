@@ -2,19 +2,13 @@ module Pointer exposing (..)
 
 -- dark
 import Types exposing (..)
-
+import Blank
 
 idOf : Pointer -> ID
 idOf p =
   case p of
     PBlank _ id -> id
     PFilled _ id -> id
-
-blankTo : PointerType -> BlankOr a -> Pointer
-blankTo t b =
-  case b of
-    Blank id -> PBlank t id
-    Filled id _ -> PFilled t id
 
 typeOf : Pointer -> PointerType
 typeOf p =
@@ -40,32 +34,35 @@ isFilled p =
 pdToP : PointerData -> Pointer
 pdToP pd =
   case pd of
-    PVarBind id _ -> PFilled VarBind id
-    PEventModifier id _ -> PFilled EventModifier id
-    PEventName id _ -> PFilled EventName id
-    PEventSpace id _ -> PFilled EventSpace id
-    PExpr id _ -> PFilled Expr id
-    PField id _ -> PFilled Field id
-    PDBColName id _ -> PFilled DBColName id
-    PDBColType id _ -> PFilled DBColType id
-    PDarkType id _ -> PFilled DarkType id
-    PDarkTypeField id _ -> PFilled DarkTypeField id
+    PVarBind d -> PFilled VarBind (Blank.toID d)
+    PEventModifier d -> PFilled EventModifier (Blank.toID d)
+    PEventName d -> PFilled EventName (Blank.toID d)
+    PEventSpace d -> PFilled EventSpace (Blank.toID d)
+    PExpr d -> PFilled Expr (Blank.toID d)
+    PField d -> PFilled Field (Blank.toID d)
+    PDBColName d -> PFilled DBColName (Blank.toID d)
+    PDBColType d -> PFilled DBColType (Blank.toID d)
+    PDarkType d -> PFilled DarkType (Blank.toID d)
+    PDarkTypeField d -> PFilled DarkTypeField (Blank.toID d)
 
-
-emptyD : PointerType -> ID -> PointerData
-emptyD pt id =
+emptyD_ : ID -> PointerType -> PointerData
+emptyD_ id pt =
   case pt of
-    VarBind -> PVarBind id (Blank id)
-    EventModifier -> PEventModifier id (Blank id)
-    EventName -> PEventName id (Blank id)
-    EventSpace -> PEventSpace id (Blank id)
-    Expr -> PExpr id (Hole id)
-    Field -> PField id (Blank id)
-    DBColName -> PDBColName id (Blank id)
-    DBColType -> PDBColType id (Blank id)
-    DarkType -> PDarkType id (Blank id)
-    DarkTypeField -> PDarkTypeField id (Blank id)
+    VarBind -> PVarBind (Blank id)
+    EventModifier -> PEventModifier (Blank id)
+    EventName -> PEventName (Blank id)
+    EventSpace -> PEventSpace (Blank id)
+    Expr -> PExpr (Blank id)
+    Field -> PField (Blank id)
+    DBColName -> PDBColName (Blank id)
+    DBColType -> PDBColType (Blank id)
+    DarkType -> PDarkType (Blank id)
+    DarkTypeField -> PDarkTypeField (Blank id)
 
+
+emptyD : PointerType -> PointerData
+emptyD pt =
+  emptyD_ (gid()) pt
 
 idOfD : PointerData -> ID
 idOfD = pdToP >> idOf

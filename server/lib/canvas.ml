@@ -66,8 +66,6 @@ let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
        else
          op :: ops)
   |> List.rev (* previous step leaves the list reversed *)
-  (* Bonus: remove noops *)
-  |> List.filter ~f:(fun (op, _) -> Op.has_effect op)
 
 let undo_count (c: canvas) : int =
   c.ops

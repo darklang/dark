@@ -324,8 +324,8 @@ updateMod mod (m, cmd) =
         m ! [setStorage editorState]
       Drag tlid offset hasMoved state ->
         { m | state = Dragging tlid offset hasMoved state } ! []
-      SetVisibility vis ->
-        { m | visibility = vis } ! []
+      TweakModel fn ->
+        fn m ! []
       AutocompleteMod mod ->
         let (complete, cmd) = processAutocompleteMods m [mod]
         in ({ m | complete = complete }
@@ -422,7 +422,7 @@ update_ msg m =
                     TLHandler h ->
                       case p of
                         Just p ->
-                          let replacement = AST.addThreadHole (P.idOf p) h.ast in
+                          let replacement = AST.addThreadBlank (P.idOf p) h.ast in
                           RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
                               , FocusNext tlid (Just p))
                         Nothing -> NoChange
@@ -745,6 +745,9 @@ update_ msg m =
     (ClearGraph, _) ->
       Many [ RPC ([DeleteAll], FocusNothing), Deselect]
 
+    (ToggleSync, _) ->
+      TweakModel (\m -> { m | syncEnabled = not m.syncEnabled })
+
     (SaveTestButton, _) ->
       MakeCmd RPC.saveTestRPC
 
@@ -834,10 +837,10 @@ update_ msg m =
       NoChange
 
     (PageVisibilityChange vis, _) ->
-      SetVisibility vis
+      TweakModel (\m -> { m | visibility = vis })
 
     (PageFocusChange vis, _) ->
-      SetVisibility vis
+      TweakModel (\m -> { m | visibility = vis })
 
 -----------------------
 -- SUBSCRIPTIONS
@@ -860,7 +863,9 @@ subscriptions m =
         case m.visibility of
           PageVisibility.Hidden -> []
           PageVisibility.Visible ->
-            [ Time.every Time.second (ClockTick RefreshAnalyses) ]
+            if m.syncEnabled
+            then [ Time.every Time.second (ClockTick RefreshAnalyses) ]
+            else []
 
       visibility =
         [ PageVisibility.visibilityChanges PageVisibilityChange

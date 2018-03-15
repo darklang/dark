@@ -47,8 +47,8 @@ newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { module_ = Blank.new ()
                    , name = Blank.new ()
                    , modifier = Blank.new ()
-                   , types = { input = Filled (gid ()) DTAny
-                             , output = Filled (gid ()) DTAny
+                   , types = { input = F (gid ()) DTAny
+                             , output = F (gid ()) DTAny
                              }
                    }
 
@@ -111,7 +111,7 @@ submit m cursor action value =
               StartThread ->
                 Thread (gid ()) [expr, Hole (gid ())]
           wrapExpr expr =
-            wrap <| SetHandler tlid pos { ast = threadIt expr
+            wrap <| SetHandler tlid pos { ast = o2n (threadIt expr)
                                         , spec = newHandlerSpec ()
                                         }
       in
@@ -155,7 +155,7 @@ submit m cursor action value =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
-                    case AST.threadAncestors id h.ast of
+                    case AST.threadAncestors id (n2o h.ast) of
                       -- turn the current thread into a let-assignment to this
                       -- name, and close the thread
                       (Thread tid _ as thread) :: _ ->
@@ -166,8 +166,8 @@ submit m cursor action value =
                           ( AST.toPD thread
                           , AST.toPD <|
                               Let (gid ())
-                                (Blank.newFilled bindName)
-                                (AST.closeThread thread)
+                                (Blank.newF bindName)
+                                (n2o (AST.closeThread (o2n thread)))
                                 (Hole (gid ())))
 
                       _ ->
@@ -272,7 +272,7 @@ submit m cursor action value =
           validate ".+" "fieldname"
             <|
           let h = deMaybe "maybeH - field" maybeH
-              parent = AST.parentOf id h.ast
+              parent = AST.parentOf id (n2o h.ast)
               newAst =
                 if String.endsWith "." value
                 then
@@ -284,7 +284,7 @@ submit m cursor action value =
                         case parent of
                           FieldAccess id lhs rhs ->
                             FieldAccess (gid ())
-                            (FieldAccess id lhs (Blank.newFilled fieldname))
+                            (FieldAccess id lhs (Blank.newF fieldname))
                             (Blank.new ())
                           _ -> Debug.crash "should be a field"
                   in
@@ -296,7 +296,7 @@ submit m cursor action value =
                     StartThread ->
                       -- id is not in the replacement, so search for the
                       -- parent in the old ast
-                      let parentID = AST.parentOf id h.ast |> AST.toID in
+                      let parentID = AST.parentOf id (n2o h.ast) |> AST.toID in
                       AST.wrapInThread parentID replacement
           in
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
@@ -315,14 +315,12 @@ submit m cursor action value =
                   "{" -> DTObj [(Blank.new (), Blank.new ())]
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
-              newID = gid ()
-              pd = PDarkType newID (Filled newID specType)
+              pd = PDarkType (Blank.newF specType)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         DarkTypeField ->
           let h = deMaybe "maybeH - expr" maybeH
-              newID = gid ()
-              pd = PDarkTypeField newID (Filled newID value)
+              pd = PDarkTypeField (Blank.newF value)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
 
