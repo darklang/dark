@@ -88,7 +88,7 @@ encodeRPC m call =
                    ]
             handler = JSE.object [ ("tlid", encodeTLID id)
                                  , ("spec", hs)
-                                 , ("ast", encodeAST h.ast) ] in
+                                 , ("ast", encodeBExpr h.ast) ] in
         ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
       CreateDB id pos name ->
@@ -110,34 +110,40 @@ encodeRPC m call =
       DeleteTL id -> ev "DeleteTL" [encodeTLID id]
       MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
 
-encodeAST : Expr -> JSE.Value
-encodeAST expr =
-  let e = encodeAST
+encodeBExpr : BExpr -> JSE.Value
+encodeBExpr bexpr =
+  case bexpr of
+    Filled id expr -> encodeExpr id expr
+    Blank id -> encodeVariant "Hole" [encodeID id]
+
+
+encodeExpr : ID -> NExpr -> JSE.Value
+encodeExpr id expr =
+  let e = encodeBExpr
       eid = encodeID
       ev = encodeVariant in
   case expr of
-    FnCall id n exprs ->
+    NFnCall n exprs ->
       ev "FnCall" [ eid id
                   , JSE.string n
                   , JSE.list (List.map e exprs)]
 
-    Let id lhs rhs body ->
+    NLet lhs rhs body ->
       ev "Let" [ eid id
                , encodeBlankOr JSE.string lhs
                , e rhs
                , e body]
 
-    Lambda id vars body ->
+    NLambda vars body ->
       ev "Lambda" [ eid id
                   , List.map JSE.string vars |> JSE.list
                   , e body]
 
-    If id cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
-    Variable id v -> ev "Variable" [ eid id , JSE.string v]
-    Value id v -> ev "Value" [ eid id , JSE.string v]
-    Hole id -> ev "Hole" [eid id]
-    Thread id exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
-    FieldAccess id obj field ->
+    NIf cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
+    NVariable v -> ev "Variable" [ eid id , JSE.string v]
+    NValue v -> ev "Value" [ eid id , JSE.string v]
+    NThread exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
+    NFieldAccess obj field ->
       ev "FieldAccess" [eid id, e obj, encodeBlankOr JSE.string field]
 
 
@@ -195,24 +201,26 @@ decodeDarkType =
     ]
 
 
-decodeExpr : JSD.Decoder Expr
-decodeExpr =
-  let de = (JSD.lazy (\_ -> decodeExpr))
+decodeBExpr : JSD.Decoder BExpr
+decodeBExpr =
+  let de = (JSD.lazy (\_ -> decodeBExpr))
       did = decodeID
       dv4 = decodeVariant4
       dv3 = decodeVariant3
       dv2 = decodeVariant2
       dv1 = decodeVariant1 in
   decodeVariants
-    [ ("Let", dv4 Let did (decodeBlankOr JSD.string) de de)
-    , ("Hole", dv1 Hole did)
-    , ("Value", dv2 Value did JSD.string)
-    , ("If", dv4 If did de de de)
-    , ("FnCall", dv3 FnCall did JSD.string (JSD.list de))
-    , ("Lambda", dv3 Lambda did (JSD.list JSD.string) de)
-    , ("Variable", dv2 Variable did JSD.string)
-    , ("Thread", dv2 Thread did (JSD.list de))
-    , ("FieldAccess", dv3 FieldAccess did de (decodeBlankOr JSD.string))
+    -- In order to ignore the server for now, we tweak from one format
+    -- to the other.
+    [ ("Let", dv4 (\id a b c -> Filled id (NLet a b c)) did (decodeBlankOr JSD.string) de de)
+    , ("Hole", dv1 Blank did)
+    , ("Value", dv2 (\id a -> Filled id (NValue a)) did JSD.string)
+    , ("If", dv4 (\id a b c -> Filled id (NIf a b c)) did de de de)
+    , ("FnCall", dv3 (\id a b -> Filled id (NFnCall a b)) did JSD.string (JSD.list de))
+    , ("Lambda", dv3 (\id a b -> Filled id (NLambda a b)) did (JSD.list JSD.string) de)
+    , ("Variable", dv2 (\id a -> Filled id (NVariable a)) did JSD.string)
+    , ("Thread", dv2 (\id a -> Filled id (NThread a)) did (JSD.list de))
+    , ("FieldAccess", dv3 (\id a b -> Filled id (NFieldAccess a b)) did de (decodeBlankOr JSD.string))
     ]
 
 decodeLiveValue : JSD.Decoder LiveValue
@@ -277,7 +285,7 @@ decodeHandler : JSD.Decoder Handler
 decodeHandler =
   let toHandler ast spec = {ast = ast, spec = spec } in
   JSDP.decode toHandler
-  |> JSDP.required "ast" decodeExpr
+  |> JSDP.required "ast" decodeBExpr
   |> JSDP.required "spec" decodeHandlerSpec
 
 decodeTipe : JSD.Decoder String

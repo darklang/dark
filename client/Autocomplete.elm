@@ -284,6 +284,7 @@ generateFromModel m a =
             TL.get m tlid
             |> Maybe.andThen TL.asHandler
             |> Maybe.map .ast
+            |> Maybe.map n2o
             |> Maybe.andThen (AST.getValueParent p)
             |> Maybe.map P.idOf
             |> Maybe.andThen (Analysis.getLiveValue m tlid)

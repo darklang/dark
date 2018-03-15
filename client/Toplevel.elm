@@ -100,7 +100,7 @@ allPointers tl =
     TLHandler h ->
       SpecHeaders.allPointers h.spec
       ++ SpecTypes.allPointers h.spec.types.input
-      ++ AST.allPointers h.ast
+      ++ AST.allPointers (n2o h.ast)
       ++ SpecTypes.allPointers h.spec.types.output
     TLDB db ->
       DB.allPointers db
@@ -207,13 +207,13 @@ siblings tl p =
       let toplevels =
             SpecHeaders.allPointers h.spec
             ++ [ Blank.toP DarkType h.spec.types.input
-               , AST.toP h.ast
+               , Blank.toP Expr h.ast
                , Blank.toP DarkType h.spec.types.output] in
 
       if List.member p toplevels
       then toplevels
       else
-         AST.siblings p h.ast
+         AST.siblings p (n2o h.ast)
          ++ SpecTypes.siblings p h.spec.types.input
          ++ SpecTypes.siblings p h.spec.types.output
     TLDB db -> DB.siblings p db
@@ -241,7 +241,7 @@ getParentOf tl p =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      AST.parentOf_ (P.idOf p) h.ast
+      AST.parentOf_ (P.idOf p) (n2o h.ast)
       |> Maybe.map AST.toP
     _ -> Nothing
 
@@ -251,7 +251,7 @@ getChildrenOf tl p =
     POSpecHeader -> []
     POAst ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
-      AST.childrenOf (P.idOf p) h.ast
+      AST.childrenOf (P.idOf p) (n2o h.ast)
     PODb -> []
     POSpecType ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
@@ -268,7 +268,7 @@ rootOf tl =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      Just <| AST.toP h.ast
+      Just <| Blank.toP Expr h.ast
     _ -> Nothing
 
 

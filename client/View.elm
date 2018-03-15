@@ -129,6 +129,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         tl
         |> TL.asHandler
         |> Maybe.map .ast
+        |> Maybe.map n2o
         |> Maybe.andThen
             (\ast ->
               let parent = AST.parentOf_ id ast
@@ -381,7 +382,7 @@ viewHandler m tl h =
                 , html4blank = html4blank
                 , liveValues = lvs
                 , functions = m.complete.functions}
-                h.ast]
+                (n2o h.ast)]
 
       externalLink =
         let verb =
