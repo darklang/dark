@@ -318,6 +318,8 @@ updateMod mod (m, cmd) =
             newM ! []
       CopyToClipboard clipboard ->
         { m | clipboard = clipboard } ! []
+      SetStorage editorState ->
+        m ! [setStorage editorState]
       Drag tlid offset hasMoved state ->
         { m | state = Dragging tlid offset hasMoved state } ! []
       SetVisibility vis ->

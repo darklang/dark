@@ -392,6 +392,7 @@ type Modification = Error String
                   | EndIntegrationTest
                   | SetState State
                   | CopyToClipboard Clipboard
+                  | SetStorage Editor
                   | SetCursor TLID Int
                   | SetVisibility PageVisibility.Visibility
 
