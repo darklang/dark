@@ -194,7 +194,7 @@ submit m cursor action value =
                     , parseAst
                         value
                           (action == ContinueThread
-                          && AST.isThread (n2o h.ast) p)
+                          && AST.isThread h.ast p)
                       |> Maybe.map AST.toPD
                       |> Maybe.withDefault old_)
 

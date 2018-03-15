@@ -50,44 +50,35 @@ isHole e =
 -------------------------
 -- Thread stuff
 -------------------------
-listThreadHoles : Expr -> List ID
-listThreadHoles expr =
-  let lthList : List Expr -> List ID
-      lthList exprs =
+listThreadBlanks : BExpr -> List ID
+listThreadBlanks expr =
+  let rb = listThreadBlanks
+      ltList : List BExpr -> List ID
+      ltList exprs =
         exprs
-        |> List.map listThreadHoles
+        |> List.map listThreadBlanks
         |> List.concat
-  in
-  case expr of
-    Value _ v ->
-      []
+      re expr = case expr of
+                  NValue v -> []
+                  NVariable name -> []
 
-    Let _ lhs rhs expr ->
-      lthList [rhs, expr]
+                  NLet lhs rhs expr -> rb rhs ++ rb expr
+                  NFnCall name exprs -> ltList exprs
+                  NLambda vars expr -> rb expr
+                  NFieldAccess obj _ -> rb obj
 
-    If _ cond ifbody elsebody ->
-      lthList [cond, ifbody, elsebody]
+                  NIf cond ifbody elsebody ->
+                    rb cond ++ rb ifbody ++ rb elsebody
 
-    Variable _ name ->
-      []
-
-    FnCall _ name exprs ->
-      lthList exprs
-
-    Lambda _ vars expr ->
-      listThreadHoles expr
-
-    Hole id -> []
-
-    Thread _ exprs ->
-      let (holes, notHoles) = List.partition isHole exprs
-          holeids = List.map toID holes
-          subExprsHoleids = lthList notHoles
-      in
-          holeids ++ subExprsHoleids
-
-    FieldAccess _ obj _ ->
-      listThreadHoles obj
+                  NThread exprs ->
+                    let (blanks, filled) = List.partition Blank.isBlank exprs
+                        blankids = List.map Blank.toID blanks
+                        subExprsBlankids = ltList filled
+                    in
+                        blankids ++ subExprsBlankids
+  in case expr of
+      Blank _ -> [Blank.toID expr]
+      F _ f -> re f
 
 
 closeThread : BExpr -> BExpr
@@ -248,9 +239,9 @@ maybeExtendThreadAt id expr =
       FieldAccess id obj field ->
         FieldAccess id (et obj) field
 
-isThread : Expr -> Pointer -> Bool
-isThread ast p =
-  ast |> listThreadHoles |> List.member (P.idOf p)
+isThread : BExpr -> Pointer -> Bool
+isThread expr p =
+  expr |> listThreadBlanks |> List.member (P.idOf p)
 
 
 -------------------------
