@@ -200,11 +200,11 @@ submit m cursor action value =
 
 
                 ast1 = case action of
-                  ContinueThread -> (n2o h.ast)
+                  ContinueThread -> h.ast
                   StartThread ->
-                    AST.wrapInThread id (n2o h.ast)
+                    AST.wrapInThread id h.ast
 
-                ast2 = AST.replace (P.pdToP old) new (o2n ast1)
+                ast2 = AST.replace (P.pdToP old) new ast1
                 ast3 = AST.maybeExtendThreadAt (P.idOfD new) (n2o ast2)
             in
                 if old == new
@@ -297,8 +297,7 @@ submit m cursor action value =
                       -- id is not in the replacement, so search for the
                       -- parent in the old ast
                       let parentID = AST.parentOf id (n2o h.ast) |> AST.toID in
-                      AST.wrapInThread parentID (n2o replacement)
-                      |> o2n
+                      AST.wrapInThread parentID replacement
           in
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
         Expr ->

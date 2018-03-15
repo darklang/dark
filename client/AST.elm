@@ -190,17 +190,47 @@ traverse fn expr =
       FieldAccess id (fn obj) field
 
 
+traverseBExpr : (BExpr -> BExpr) -> BExpr -> BExpr
+traverseBExpr fn bexpr =
+  case bexpr of
+    Blank _ -> bexpr
+    F id expr ->
+      F id
+        (case expr of
+          NValue _ -> expr
+          NVariable _ -> expr
+
+          NLet lhs rhs body ->
+            NLet lhs (fn rhs) (fn body)
+
+          NIf cond ifbody elsebody ->
+            NIf (fn cond) (fn ifbody) (fn elsebody)
+
+          NFnCall name exprs ->
+            NFnCall name (List.map fn exprs)
+
+          NLambda vars lexpr ->
+            NLambda vars (fn lexpr)
+
+          NThread exprs ->
+            NThread (List.map fn exprs)
+
+          NFieldAccess obj field ->
+            NFieldAccess (fn obj) field)
+
+
 
 -- takes an ID of an expr in the AST to wrap in a thread
-wrapInThread : ID -> Expr -> Expr
-wrapInThread id expr =
-  if toID expr == id
+wrapInThread : ID -> BExpr -> BExpr
+wrapInThread id bexpr =
+  if Blank.toID bexpr == id
   then
-    case expr of
-      Thread _ _ -> expr
-      _ -> Thread (gid ()) [expr, Hole (gid ())]
+    case bexpr of
+      F _ (NThread _) -> bexpr
+      F _ expr -> Blank.newF (NThread [bexpr, Blank.new ()])
+      Blank _ -> Blank.newF (NThread [bexpr])
   else
-    traverse (wrapInThread id) expr
+    traverseBExpr (wrapInThread id) bexpr
 
 -- Find the child with the id `at` in the threadExpr, and add a hole after it.
 extendThreadChild : ID -> List Expr -> List Expr
