@@ -184,7 +184,6 @@ enter m tlid cur =
           case P.ownerOf cur of
             POAst ->
               (h ()).ast
-              |> n2o
               |> AST.subtree id
               |> AST.toContent
               |> Just
