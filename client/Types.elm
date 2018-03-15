@@ -356,7 +356,7 @@ type alias Model = { center : Pos
                    }
 
 -- Values that we serialize
-type alias Editor = { }
+type alias Editor = { clipboard : (Maybe String) }
 
 -----------------------------
 -- Testing
