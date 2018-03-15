@@ -532,27 +532,18 @@ replace p replacement bexpr =
       PExpr e -> e
       _ -> bexpr
   else
-    case bexpr of
-      F id (NLet lhs rhs body) ->
+    case (bexpr, replacement) of
+      (F id (NLet lhs rhs body), PVarBind b) ->
         if Blank.toID lhs == P.idOf p
-        then
-          case replacement of
-            PVarBind b -> F id (NLet b rhs body)
-            _ -> bexpr
-        else
-          traverseBExpr r bexpr
+        then F id (NLet b rhs body)
+        else traverseBExpr r bexpr
 
-      F id (NFieldAccess obj field) ->
+      (F id (NFieldAccess obj field), PField f) ->
         if Blank.toID field == P.idOf p
-        then
-          case replacement of
-            PField f -> F id (NFieldAccess obj f)
-            _ -> bexpr
-        else
-          traverseBExpr r bexpr
+        then F id (NFieldAccess obj f)
+        else traverseBExpr r bexpr
 
       _ -> traverseBExpr r bexpr
-
 
 
 deleteExpr : Pointer -> BExpr -> ID -> BExpr
