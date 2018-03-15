@@ -53,7 +53,7 @@ all =
           , ("SomeModule::withLower", TObj)
           , ("SomeOtherModule::withlower", TObj)
           ]
-      m = Defaults.defaultModel Defaults.defaultEditor
+      m = Defaults.defaultModel
       create () = init completes |> regenerate m
   in
   describe "autocomplete"

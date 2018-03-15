@@ -25,23 +25,23 @@ pageWidth = 500
 defaultEditor : Editor
 defaultEditor = { clipboard = Nothing }
 
-defaultModel : Editor -> Model
-defaultModel e = { error = Nothing
-                 , lastMsg = Initialization
-                 , lastMod = NoChange
-                 , center = {x=initialPos.vx, y=initialPos.vy}
-                 , complete = Autocomplete.empty
-                 , state = Deselected
-                 , hovering = []
-                 , tests = []
-                 , toplevels = []
-                 , analysis = []
-                 , globals = []
-                 , integrationTestState = NoIntegrationTest
-                 , clipboard = Nothing
-                 , visibility = PageVisibility.Hidden
-                 -- editor
-                 -- these load before the graph does, causing
-                 -- exceptions. We'll need to only run these after the
-                 -- graph loads
-                 }
+defaultModel : Model
+defaultModel = { error = Nothing
+               , lastMsg = Initialization
+               , lastMod = NoChange
+               , center = {x=initialPos.vx, y=initialPos.vy}
+               , complete = Autocomplete.empty
+               , state = Deselected
+               , hovering = []
+               , tests = []
+               , toplevels = []
+               , analysis = []
+               , globals = []
+               , integrationTestState = NoIntegrationTest
+               , clipboard = Nothing
+               , visibility = PageVisibility.Hidden
+               -- editor
+               -- these load before the graph does, causing
+               -- exceptions. We'll need to only run these after the
+               -- graph loads
+               }
