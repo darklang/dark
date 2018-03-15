@@ -43,6 +43,7 @@ defaultModel e = { error = Nothing
                  , integrationTestState = NoIntegrationTest
                  , clipboard = Nothing
                  , visibility = PageVisibility.Hidden
+                 , syncEnabled = True
                  -- editor
                  -- these load before the graph does, causing
                  -- exceptions. We'll need to only run these after the

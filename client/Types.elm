@@ -145,6 +145,7 @@ type Msg
     | FinishIntegrationTest
     | ClearGraph
     | SaveTestButton
+    | ToggleSync
     | Initialization
     | NavigateTo String
     | WindowResize Int Int
@@ -433,6 +434,7 @@ type alias Model = { center : Pos
                    , integrationTestState : IntegrationTestState
                    , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
+                   , syncEnabled : Bool
                    }
 
 -- Values that we serialize
@@ -473,7 +475,8 @@ type Modification = Error String
                   | SetState State
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
-                  | SetVisibility PageVisibility.Visibility
+                  -- designed for one-off small changes
+                  | TweakModel (Model -> Model)
 
 -----------------------------
 -- Flags / function types
