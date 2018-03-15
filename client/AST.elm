@@ -611,7 +611,7 @@ replace p replacement expr =
       Value id v -> expr
       Variable id name -> expr
 
-deleteExpr : Pointer -> Expr -> ID -> Expr
+deleteExpr : Pointer -> BExpr -> ID -> BExpr
 deleteExpr p ast id =
   let replacement =
         case P.typeOf p of
@@ -619,7 +619,8 @@ deleteExpr p ast id =
           Expr -> PExpr id (Blank id)
           Field -> PField id (Blank id)
           tipe  -> Debug.crash <| (toString tipe) ++ " is not allowed in an AST"
-  in replace p replacement ast
+  in replace p replacement (n2o ast)
+     |> o2n
 
 replaceVarBind : Pointer -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
