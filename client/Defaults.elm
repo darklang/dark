@@ -25,9 +25,6 @@ pageWidth = 500
 defaultEditor : Editor
 defaultEditor = { }
 
-model2editor : Model -> Editor
-model2editor m = {}
-
 defaultModel : Editor -> Model
 defaultModel e = { error = Nothing
                  , lastMsg = Initialization
