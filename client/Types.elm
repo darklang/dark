@@ -347,7 +347,7 @@ type PointerData = PVarBind ID VarBind
                  | PEventName ID (BlankOr String)
                  | PEventModifier ID (BlankOr String)
                  | PEventSpace ID (BlankOr String)
-                 | PExpr ID Expr
+                 | PExpr ID BExpr
                  | PField ID Field
                  | PDBColName ID (BlankOr String)
                  | PDBColType ID (BlankOr String)

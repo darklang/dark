@@ -130,8 +130,8 @@ clonePointerData pd =
       let nid = gid ()
       in PEventSpace nid (replaceBlankOr nid sp)
     PExpr id expr ->
-      let ast = AST.clone expr
-      in PExpr (AST.toID ast) ast
+      let ast = AST.clone (n2o expr)
+      in PExpr (AST.toID ast) (o2n ast)
     PField id f ->
       let nid = gid ()
       in PField nid (replaceBlankOr nid f)

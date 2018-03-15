@@ -56,13 +56,13 @@ newFromClipboard m pos =
   let nid = gtlid ()
       ast =
         case peek m of
-          Nothing -> Hole (gid ())
+          Nothing -> Blank (gid ())
           Just a ->
             case a of
               PExpr _ exp -> exp
-              _ -> Hole (gid ())
+              _ -> Blank (gid ())
       spec = Entry.newHandlerSpec ()
-      handler = { ast = o2n ast, spec = spec }
+      handler = { ast = ast, spec = spec }
   in
       RPC ([SetHandler nid pos handler], FocusNext nid Nothing)
 

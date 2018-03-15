@@ -24,7 +24,7 @@ toP e =
 
 toPD : Expr -> PointerData
 toPD e =
-  PExpr (toID e) e
+  PExpr (toID e) (o2n e)
 
 
 toID : Expr -> ID
@@ -500,7 +500,7 @@ allPointers expr =
 
 listData : Expr -> List PointerData
 listData expr =
-  let e2ld e = PExpr (toID e) e
+  let e2ld e = PExpr (toID e) (o2n e)
       rl : List Expr -> List PointerData
       rl exprs =
         exprs
@@ -550,8 +550,8 @@ toContent pd =
     PField _ f -> f |> Blank.toMaybe |> Maybe.withDefault ""
     PExpr _ e ->
       case e of
-        Value _ s -> s
-        Variable _ v -> v
+        Filled _ (NValue s) -> s
+        Filled _ (NVariable v) -> v
         _ -> ""
     PEventModifier _ _ -> ""
     PEventName _ _ -> ""
@@ -571,7 +571,7 @@ replace p replacement expr =
   if toID expr == P.idOf p
   then
     case replacement of
-      PExpr _ e -> e
+      PExpr _ e -> n2o e
       _ -> expr
   else
     case expr of
@@ -616,7 +616,7 @@ deleteExpr p ast id =
   let replacement =
         case P.typeOf p of
           VarBind -> PVarBind id (Blank id)
-          Expr -> PExpr id (Hole id)
+          Expr -> PExpr id (Blank id)
           Field -> PField id (Blank id)
           tipe  -> Debug.crash <| (toString tipe) ++ " is not allowed in an AST"
   in replace p replacement ast
