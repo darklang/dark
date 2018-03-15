@@ -92,7 +92,7 @@ init {editorState, complete} location =
       tests = case parseVariantTestsFromQueryString location.search of
                   Just t  -> t
                   Nothing -> []
-      m = Defaults.defaultModel editor
+      m = Editor.editor2model editor
 
       visibilityTask =
         Task.perform PageVisibilityChange PageVisibility.visibility
