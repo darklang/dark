@@ -217,21 +217,23 @@ refilter query old  =
         |> Maybe.andThen (\oh ->
              LE.elemIndex oh (List.concat newCompletions))
 
-      index = case oldHighlightNewPos of
-                  -- If an entry is highlighted, and you press another
-                  -- valid key for that entry, keep it highlighted
-                  Just i -> i
-                  -- If an entry vanishes, highlight 0
-                  Nothing ->
-                    -- if nothing matches, highlight nothing
-                    if newCount == 0
-                    then -1
-                    -- if there's nothing to match, highlight nothing
-                    else if query == ""
-                    then -1
-                    -- we matched something but its gone, go to top of
-                    -- list
-                    else 0
+      index =
+        -- Clear the highlight when you delete the content
+        if query == ""
+        then -1
+        else
+          -- If an entry is highlighted, and you press another
+          -- valid key for that entry, keep it highlighted
+          case oldHighlightNewPos of
+            Just i -> i
+            -- If an entry vanishes, highlight 0
+            Nothing ->
+              -- if nothing matches, highlight nothing
+              if newCount == 0
+              then -1
+              -- we matched something but its gone, go to top of
+              -- list
+              else 0
   in { old | index = index
            , completions = newCompletions
            , value = query }

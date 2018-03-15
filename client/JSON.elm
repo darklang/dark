@@ -109,14 +109,14 @@ decodeVariants decoders =
 encodeBlankOr : (v -> JSE.Value) -> (BlankOr v) -> JSE.Value
 encodeBlankOr encoder v =
   case v of
-    Filled (ID id) s ->
+    F (ID id) s ->
       encodeVariant "Filled" [JSE.int id, encoder s]
     Blank (ID id) ->
       encodeVariant "Blank" [JSE.int id]
 
 decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
 decodeBlankOr d =
-  decodeVariants [ ("Filled", decodeVariant2 Filled decodeID d)
+  decodeVariants [ ("Filled", decodeVariant2 F decodeID d)
                  , ("Blank", decodeVariant1 Blank decodeID)]
 
 ------------------------------------

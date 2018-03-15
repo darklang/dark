@@ -90,6 +90,12 @@ viewButtons m =
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "SaveTest" ]
+    , Html.a
+      [ Events.onClick ToggleSync
+      , Attrs.src ""
+      , Attrs.class "specialButton"]
+      [ Html.text
+          (if m.syncEnabled then "DisableSync" else "EnableSync") ]
     , Html.span
       [ Attrs.class "specialButton"]
       [Html.text (toString m.center)]
@@ -123,7 +129,7 @@ viewBlankOrText = viewBlankOr Html.text
 type alias HoverData = Maybe (Result String String)
 viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> HoverData -> Html.Html Msg
 viewBlankOr htmlFn m tl pt b hoverdata =
-  let pointer = P.blankTo pt b
+  let pointer = Blank.toP pt b
       id = P.idOf pointer
       param =
         tl
@@ -131,11 +137,11 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         |> Maybe.map .ast
         |> Maybe.andThen
             (\ast ->
-              let parent = AST.parentOf_ id ast
+              let parent = AST.parentOf_ id (n2o ast)
                   grandparentIsThread =
                     parent
                     |> Maybe.map
-                         (\p -> case AST.parentOf_ (AST.toID p) ast of
+                         (\p -> case AST.parentOf_ (AST.toID p) (n2o ast) of
                                   Just (Thread _ ts) ->
                                     ts
                                     |> List.head
@@ -199,7 +205,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                      Html.div
                        [Attrs.class "blank"]
                        [Html.text placeholder]
-                   Filled _ fill -> fill |> htmlFn
+                   F _ fill -> fill |> htmlFn
       allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
@@ -209,7 +215,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                _ -> thisText
       classes = case b of
                Blank _ -> ["hole"]
-               Filled _ _ -> []
+               F _ _ -> []
       onClick = if selected == DivSelected
                 then Nothing
                 else Just (tl.id, pointer)
@@ -381,31 +387,17 @@ viewHandler m tl h =
                 , html4blank = html4blank
                 , liveValues = lvs
                 , functions = m.complete.functions}
-                h.ast]
+                (n2o h.ast)]
 
       externalLink =
-        let verb =
-              case h.spec.modifier of
-                Filled _ s -> s
-                _ -> ""
-            name =
-              case h.spec.name of
-                Filled _ s -> Just s
-                _ -> Nothing
-        in
-        if verb == "GET"
-        then
-          case name of
-            Just n ->
-              [Html.a [ Attrs.class "external"
-                      , Attrs.href n
-                      , Attrs.target "_blank"
-                      ]
-                      [Html.i [Attrs.class "fa fa-external-link"] []]]
-            Nothing ->
-              []
-        else
-          []
+        case (h.spec.modifier, h.spec.name) of
+          (F _ "GET", F _ name)  ->
+            [Html.a [ Attrs.class "external"
+                    , Attrs.href name
+                    , Attrs.target "_blank"
+                    ]
+                    [Html.i [Attrs.class "fa fa-external-link"] []]]
+          _ -> []
 
       input =
         Html.div
@@ -642,11 +634,11 @@ collapseHandlers tls =
                 Just h -> Just (tl.pos, h)
                 Nothing -> Nothing)
         |> List.map (\(pos, h) -> { name = case h.spec.name of
-                                      Filled _ s -> Just s
+                                      F _ s -> Just s
                                       Blank _ -> Nothing
                                   , prefix = []
                                   , verbs = case h.spec.modifier of
-                                             Filled _ s -> [(s, pos)]
+                                             F _ s -> [(s, pos)]
                                              Blank _ -> []
                                   })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)

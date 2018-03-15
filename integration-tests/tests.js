@@ -1,6 +1,7 @@
 import { Selector } from 'testcafe';
 
 fixture `Integration Tests`
+  .httpAuth({ username: 'tests', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     const host = process.env.TEST_HOST
@@ -264,4 +265,16 @@ test('pressing_up_doesnt_return_to_start', async t => {
     .typeText("#entry-box", "toASCII")
     .pressKey("enter")
 });
+
+test('deleting_selects_the_blank', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+    .click(".ast")
+    .pressKey("delete")
+    .typeText("#entry-box", "6")
+    .pressKey("enter")
+});
+
 

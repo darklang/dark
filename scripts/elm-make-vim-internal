@@ -6,12 +6,14 @@
 # ALE calls this with a tempdir, then uses it to check later, so get it
 # right.
 tempdir=
+file=
 while [[ $1 ]]; do
   if [[ $1 == *".elm"* ]]; then
     tempdir=$(dirname $1)
+    file=$(basename $1)
   fi
   shift
 done
 
 # run it and get all the outputs
-cd client && unbuffer elm-make --yes --warn --output=/dev/null --report=json Main.elm | sed -e "s!\.\/\.!$tempdir!g"
+cd client && unbuffer elm-make --yes --warn --output=/dev/null --report=json $file | sed -e "s!$file!$tempdir/$file!g"
