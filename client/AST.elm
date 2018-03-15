@@ -562,54 +562,58 @@ toContent pd =
     PDarkTypeField _ _ -> ""
 
 
-replace : Pointer -> PointerData -> Expr -> Expr
-replace p replacement expr =
-  let re = replace p replacement
-      rl : List Expr -> List Expr
-      rl exprs = List.map re exprs
+replace : Pointer -> PointerData -> BExpr -> BExpr
+replace p replacement bexpr =
+  let rbe = replace p replacement
+      rlb : List BExpr -> List BExpr
+      rlb bexprs = List.map rbe bexprs
+      re expr = case expr of
+                  NLet lhs rhs body ->
+                    if Blank.toID lhs == P.idOf p
+                    then
+                      case replacement of
+                        PVarBind _ b ->
+                          NLet b rhs body
+                        _ -> expr
+                    else
+                      NLet lhs (rbe rhs) (rbe body)
+
+                  NIf cond ifbody elsebody ->
+                    NIf (rbe cond) (rbe ifbody) (rbe elsebody)
+
+                  NFnCall name exprs ->
+                    NFnCall name (rlb exprs)
+
+                  NLambda vars expr ->
+                    NLambda vars (rbe expr)
+
+                  NThread exprs ->
+                    NThread (rlb exprs)
+
+                  NFieldAccess obj field ->
+                    if Blank.toID field == P.idOf p
+                    then
+                      case replacement of
+                        PField _ f ->
+                          NFieldAccess obj f
+                        _ -> expr
+                    else
+                      NFieldAccess (rbe obj) field
+
+                  NValue v -> expr
+                  NVariable name -> expr
   in
-  if toID expr == P.idOf p
+  if Blank.toID bexpr == P.idOf p
   then
     case replacement of
-      PExpr _ e -> n2o e
-      _ -> expr
+      PExpr _ e -> e
+      _ -> bexpr
   else
-    case expr of
-      Let id lhs rhs expr ->
-        if Blank.toID lhs == (P.idOf p)
-        then
-          case replacement of
-            PVarBind _ b ->
-              Let id b rhs expr
-            _ -> expr
-        else
-          Let id lhs (re rhs) (re expr)
+    case bexpr of
+      F id  e -> F id (re e)
+      Blank _ -> bexpr
 
-      If id cond ifbody elsebody ->
-        If id (re cond) (re ifbody) (re elsebody)
 
-      FnCall id name exprs ->
-        FnCall id name (rl exprs)
-
-      Lambda id vars expr ->
-        Lambda id vars (re expr)
-
-      Thread id exprs ->
-        Thread id (rl exprs)
-
-      FieldAccess id obj field ->
-        if Blank.toID field == (P.idOf p)
-        then
-          case replacement of
-            PField _ f ->
-              FieldAccess id obj f
-            _ -> expr
-        else
-          FieldAccess id (re obj) field
-
-      Hole id -> expr
-      Value id v -> expr
-      Variable id name -> expr
 
 deleteExpr : Pointer -> BExpr -> ID -> BExpr
 deleteExpr p ast id =
@@ -619,16 +623,15 @@ deleteExpr p ast id =
           Expr -> PExpr id (Blank id)
           Field -> PField id (Blank id)
           tipe  -> Debug.crash <| (toString tipe) ++ " is not allowed in an AST"
-  in replace p replacement (n2o ast)
-     |> o2n
+  in replace p replacement ast
 
-replaceVarBind : Pointer -> VarName -> Expr -> Expr
+replaceVarBind : Pointer -> VarName -> BExpr -> BExpr
 replaceVarBind p replacement expr =
   let id = gid ()
   in replace p (PVarBind id (F id replacement)) expr
 
 
-replaceField : Pointer -> FieldName -> Expr -> Expr
+replaceField : Pointer -> FieldName -> BExpr -> BExpr
 replaceField p replacement expr =
   let id = gid ()
   in replace p (PField id (F id replacement)) expr
