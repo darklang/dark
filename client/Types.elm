@@ -343,16 +343,16 @@ type PointerType = VarBind
 type Pointer = PBlank PointerType ID
              | PFilled PointerType ID
 
-type PointerData = PVarBind ID VarBind
-                 | PEventName ID (BlankOr String)
-                 | PEventModifier ID (BlankOr String)
-                 | PEventSpace ID (BlankOr String)
-                 | PExpr ID BExpr
-                 | PField ID Field
-                 | PDBColName ID (BlankOr String)
-                 | PDBColType ID (BlankOr String)
-                 | PDarkType ID (BlankOr DarkType)
-                 | PDarkTypeField ID (BlankOr String)
+type PointerData = PVarBind VarBind
+                 | PEventName (BlankOr String)
+                 | PEventModifier (BlankOr String)
+                 | PEventSpace (BlankOr String)
+                 | PExpr BExpr
+                 | PField Field
+                 | PDBColName (BlankOr String)
+                 | PDBColType (BlankOr String)
+                 | PDarkType (BlankOr DarkType)
+                 | PDarkTypeField (BlankOr String)
 
 type BlankOr a = Blank ID
                | F ID a

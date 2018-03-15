@@ -7,6 +7,7 @@ import Toplevel as TL
 import Pointer as P
 import AST
 import Entry
+import Blank
 
 copy : Model -> Toplevel -> (Maybe Pointer) -> Modification
 copy m tl mp =
@@ -56,11 +57,11 @@ newFromClipboard m pos =
   let nid = gtlid ()
       ast =
         case peek m of
-          Nothing -> Blank (gid ())
+          Nothing -> Blank.new ()
           Just a ->
             case a of
-              PExpr _ exp -> exp
-              _ -> Blank (gid ())
+              PExpr exp -> exp
+              _ -> Blank.new ()
       spec = Entry.newHandlerSpec ()
       handler = { ast = ast, spec = spec }
   in

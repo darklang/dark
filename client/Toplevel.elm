@@ -111,34 +111,28 @@ isValidPointer tl p =
 
 clonePointerData : PointerData -> PointerData
 clonePointerData pd =
-  let replaceBlankOr nid bo =
+  let replaceBlankOr bo =
       case bo of
-        Blank _ -> Blank nid
-        F _ a -> F nid a
+        Blank _ -> Blank.new ()
+        F _ a -> Blank.newF a
   in
   case pd of
-    PVarBind id vb ->
-      let nid = gid ()
-      in PVarBind nid (replaceBlankOr nid vb)
-    PEventModifier id sp ->
-      let nid = gid ()
-      in PEventModifier nid (replaceBlankOr nid sp)
-    PEventName id sp ->
-      let nid = gid ()
-      in PEventName nid (replaceBlankOr nid sp)
-    PEventSpace id sp ->
-      let nid = gid ()
-      in PEventSpace nid (replaceBlankOr nid sp)
-    PExpr id expr ->
-      let ast = AST.clone expr
-      in PExpr (Blank.toID ast) ast
-    PField id f ->
-      let nid = gid ()
-      in PField nid (replaceBlankOr nid f)
-    PDBColName id cn -> pd
-    PDBColType id ct -> pd
-    PDarkType id dt -> Debug.crash "TODO clonePointerdata"
-    PDarkTypeField id dt -> Debug.crash "TODO clonePointerdata"
+    PVarBind vb ->
+      PVarBind (replaceBlankOr vb)
+    PEventModifier sp ->
+      PEventModifier (replaceBlankOr sp)
+    PEventName sp ->
+      PEventName (replaceBlankOr sp)
+    PEventSpace sp ->
+      PEventSpace (replaceBlankOr sp)
+    PExpr expr ->
+      PExpr (AST.clone expr)
+    PField f ->
+      PField (replaceBlankOr f)
+    PDBColName cn -> pd
+    PDBColType ct -> pd
+    PDarkType dt -> Debug.crash "TODO clonePointerdata"
+    PDarkTypeField dt -> Debug.crash "TODO clonePointerdata"
 
 -------------------------
 -- Blanks
