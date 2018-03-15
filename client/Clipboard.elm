@@ -28,9 +28,9 @@ cut m tl p =
       Nothing -> NoChange
       Just h ->
         let newClipboard = AST.subData pid (n2o h.ast)
-            newAst = AST.deleteExpr p (n2o h.ast) (gid ())
+            newAst = AST.deleteExpr p h.ast (gid ())
         in Many [ CopyToClipboard newClipboard
-                , RPC ( [ SetHandler tl.id tl.pos { h | ast = o2n newAst } ]
+                , RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
                         , FocusNext tl.id pred)
                 ]
 
