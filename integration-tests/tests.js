@@ -265,3 +265,13 @@ test('pressing_up_doesnt_return_to_start', async t => {
     .pressKey("enter")
 });
 
+test('deleting_selects_the_blank', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+    .click(".ast")
+    .pressKey("delete")
+});
+
+
