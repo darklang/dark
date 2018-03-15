@@ -61,7 +61,7 @@ onlyAST m =
   |> TL.asHandler
   |> deMaybe "test3"
   |> .ast
-  |> Blank.asFilled
+  |> Blank.asF
   |> deMaybe "test4"
 
 
@@ -76,7 +76,7 @@ enterChangesState m =
 fieldAccess : Model -> TestResult
 fieldAccess m =
   case onlyAST m of
-    NFieldAccess (Filled _ (NVariable "request")) (Filled _ "body") -> pass
+    NFieldAccess (F _ (NVariable "request")) (F _ "body") -> pass
     expr -> fail expr
 
 
@@ -94,17 +94,17 @@ fieldAccessCloses m =
 fieldAccessPipes : Model -> TestResult
 fieldAccessPipes m =
   case onlyAST m of
-    NThread [Filled _ (NFieldAccess (Filled _ (NVariable "request")) (Filled _ "body")), Blank _] -> pass
+    NThread [F _ (NFieldAccess (F _ (NVariable "request")) (F _ "body")), Blank _] -> pass
     expr -> fail expr
 
 fieldAccessNested : Model -> TestResult
 fieldAccessNested m =
   case onlyAST m of
     NFieldAccess
-      (Filled _ (NFieldAccess
-         (Filled _ (NFieldAccess (Filled _ (NVariable "request")) (Filled _ "body")))
-         (Filled _ "field")))
-      (Filled _ "field2")
+      (F _ (NFieldAccess
+         (F _ (NFieldAccess (F _ (NVariable "request")) (F _ "body")))
+         (F _ "field")))
+      (F _ "field2")
       -> pass
     expr -> fail expr
 
@@ -114,7 +114,7 @@ pipelineLetEquals m =
   -- should be a simple let, not in a pipeline, entering 1 hole
   let astR =
         case onlyAST m of
-          NLet (Filled _ "value") (Filled _ (NValue "3")) (Blank _) ->
+          NLet (F _ "value") (F _ (NValue "3")) (Blank _) ->
             pass
           e ->
             fail e
@@ -129,11 +129,11 @@ pipeWithinLet : Model -> TestResult
 pipeWithinLet m =
   case onlyAST m of
     NLet
-      (Filled _ "value")
-      (Filled _ (NValue "3"))
-      (Filled _ (NThread
-        [ Filled _ (NVariable "value")
-        , Filled _ (NFnCall "assoc" [Blank _, Blank _])])) ->
+      (F _ "value")
+      (F _ (NValue "3"))
+      (F _ (NThread
+        [ F _ (NVariable "value")
+        , F _ (NFnCall "assoc" [Blank _, Blank _])])) ->
       pass
     e ->
       fail e
@@ -143,7 +143,7 @@ pipeWithinLet m =
 tabbingWorks : Model -> TestResult
 tabbingWorks m =
   case onlyAST m of
-    NIf (Blank _) (Filled _ (NValue "5")) (Blank _) -> pass
+    NIf (Blank _) (F _ (NValue "5")) (Blank _) -> pass
     e -> fail e
 
 nextSiblingWorks : Model -> TestResult
@@ -162,7 +162,7 @@ nextSiblingWorks m =
 varbindsAreEditable : Model -> TestResult
 varbindsAreEditable m =
   case onlyAST m of
-    NLet (Filled id1 "var") (Blank _)  (Blank _) ->
+    NLet (F id1 "var") (Blank _)  (Blank _) ->
       case m.state of
         Entering (Filling _ (PFilled _ id2)) ->
           if id1 == id2
@@ -175,7 +175,7 @@ varbindsAreEditable m =
 editingRequestEditsRequest : Model -> TestResult
 editingRequestEditsRequest m =
   case onlyAST m of
-    NFieldAccess (Filled id1 (NVariable "request")) (Blank _) ->
+    NFieldAccess (F id1 (NVariable "request")) (Blank _) ->
       case m.complete.completions of
         [cs, _, _, _] ->
           case cs of

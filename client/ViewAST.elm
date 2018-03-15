@@ -145,7 +145,7 @@ vExpr state nest expr =
            if RT.isString v
            then "“" ++ (SE.unquote v) ++ "”"
            else v
-     in Selectable ["atom", "value", cssClass] (Filled id valu) Expr
+     in Selectable ["atom", "value", cssClass] (F id valu) Expr
 
     Let id lhs rhs expr ->
       let rhsID = AST.toID rhs in
@@ -171,7 +171,7 @@ vExpr state nest expr =
         ]
 
     Variable id name ->
-      Selectable ["variable", "atom"] (Filled id name) Expr
+      Selectable ["variable", "atom"] (F id name) Expr
 
     FnCall id name exprs ->
       if state.functions

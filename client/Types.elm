@@ -260,7 +260,7 @@ o2n e =
   case e of
     Hole id -> Blank id
     _ ->
-      Filled
+      F
         (idOf e)
         (case e of
           Hole _ -> Debug.crash "already done hole"
@@ -291,7 +291,7 @@ n2o : BExpr -> Expr
 n2o n =
   case n of
     Blank id -> Hole id
-    Filled id expr ->
+    F id expr ->
       case expr of
         NValue v -> Value id v
         NVariable name -> Variable id name
@@ -355,7 +355,7 @@ type PointerData = PVarBind ID VarBind
                  | PDarkTypeField ID (BlankOr String)
 
 type BlankOr a = Blank ID
-               | Filled ID a
+               | F ID a
 
 type PointerOwner = POSpecHeader
                   | POAst

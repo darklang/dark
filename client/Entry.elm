@@ -47,8 +47,8 @@ newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { module_ = Blank.new ()
                    , name = Blank.new ()
                    , modifier = Blank.new ()
-                   , types = { input = Filled (gid ()) DTAny
-                             , output = Filled (gid ()) DTAny
+                   , types = { input = F (gid ()) DTAny
+                             , output = F (gid ()) DTAny
                              }
                    }
 
@@ -166,7 +166,7 @@ submit m cursor action value =
                           ( AST.toPD thread
                           , AST.toPD <|
                               Let (gid ())
-                                (Blank.newFilled bindName)
+                                (Blank.newF bindName)
                                 (AST.closeThread thread)
                                 (Hole (gid ())))
 
@@ -284,7 +284,7 @@ submit m cursor action value =
                         case parent of
                           FieldAccess id lhs rhs ->
                             FieldAccess (gid ())
-                            (FieldAccess id lhs (Blank.newFilled fieldname))
+                            (FieldAccess id lhs (Blank.newF fieldname))
                             (Blank.new ())
                           _ -> Debug.crash "should be a field"
                   in
@@ -316,13 +316,13 @@ submit m cursor action value =
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
               newID = gid ()
-              pd = PDarkType newID (Filled newID specType)
+              pd = PDarkType newID (F newID specType)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         DarkTypeField ->
           let h = deMaybe "maybeH - expr" maybeH
               newID = gid ()
-              pd = PDarkTypeField newID (Filled newID value)
+              pd = PDarkTypeField newID (F newID value)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
 

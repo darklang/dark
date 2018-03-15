@@ -550,8 +550,8 @@ toContent pd =
     PField _ f -> f |> Blank.toMaybe |> Maybe.withDefault ""
     PExpr _ e ->
       case e of
-        Filled _ (NValue s) -> s
-        Filled _ (NVariable v) -> v
+        F _ (NValue s) -> s
+        F _ (NVariable v) -> v
         _ -> ""
     PEventModifier _ _ -> ""
     PEventName _ _ -> ""
@@ -625,13 +625,13 @@ deleteExpr p ast id =
 replaceVarBind : Pointer -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
   let id = gid ()
-  in replace p (PVarBind id (Filled id replacement)) expr
+  in replace p (PVarBind id (F id replacement)) expr
 
 
 replaceField : Pointer -> FieldName -> Expr -> Expr
 replaceField p replacement expr =
   let id = gid ()
-  in replace p (PField id (Filled id replacement)) expr
+  in replace p (PField id (F id replacement)) expr
 
 
 clone : BExpr -> BExpr
@@ -643,12 +643,12 @@ clone bexpr =
         let nbid = gid () in
         case bo of
           Blank _ -> Blank nbid
-          Filled _ a -> Filled nbid a
+          F _ a -> F nbid a
   in
     case bexpr of
       Blank id -> Blank nid
-      Filled id expr ->
-        Filled nid
+      F id expr ->
+        F nid
           (case expr of
             NLet lhs rhs expr ->
               NLet (cBlankOr lhs) (c rhs) (c expr)

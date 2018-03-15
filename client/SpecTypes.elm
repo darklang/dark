@@ -30,7 +30,7 @@ replaceInType p replacement dt =
       _ -> dt
   else
     case dt of
-      Filled id (DTObj ts) ->
+      F id (DTObj ts) ->
         let newTs =
               ts
               |> List.map (\(n, t) ->
@@ -45,7 +45,7 @@ replaceInType p replacement dt =
                                   replaceInType p replacement t
                                 _ -> t
                    in (newN, newT))
-        in Filled id (DTObj newTs)
+        in F id (DTObj newTs)
       _ -> dt
 
 
@@ -53,7 +53,7 @@ allPointers : BlankOr DarkType -> List Pointer
 allPointers t =
   let nested =
         case t of
-          Filled _ (DTObj ts) ->
+          F _ (DTObj ts) ->
             ts
             |> List.map (\(n, dt) -> [ Blank.toP DarkTypeField n]
                                      ++ allPointers dt)
@@ -69,7 +69,7 @@ childrenOf id t =
   if Blank.toID t == id
   then
     case t of
-      Filled _ (DTObj ts) ->
+      F _ (DTObj ts) ->
         ts
         |> List.map (\(n, dt) ->
                        [ Blank.toP DarkTypeField n
@@ -78,7 +78,7 @@ childrenOf id t =
       _ -> []
   else
     case t of
-      Filled _ (DTObj ts) ->
+      F _ (DTObj ts) ->
         ts
         |> List.map (\(n, dt) -> childrenOf id dt)
         |> List.concat
@@ -90,7 +90,7 @@ childrenOf id t =
 siblings : Pointer -> BlankOr DarkType -> List Pointer
 siblings p t =
   case t of
-    Filled _ (DTObj ts) ->
+    F _ (DTObj ts) ->
       let result = ts
                    |> List.map (\(n, dt) ->
                                   [ Blank.toP DarkTypeField n

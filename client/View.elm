@@ -200,7 +200,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                      Html.div
                        [Attrs.class "blank"]
                        [Html.text placeholder]
-                   Filled _ fill -> fill |> htmlFn
+                   F _ fill -> fill |> htmlFn
       allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
@@ -210,7 +210,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                _ -> thisText
       classes = case b of
                Blank _ -> ["hole"]
-               Filled _ _ -> []
+               F _ _ -> []
       onClick = if selected == DivSelected
                 then Nothing
                 else Just (tl.id, pointer)
@@ -387,11 +387,11 @@ viewHandler m tl h =
       externalLink =
         let verb =
               case h.spec.modifier of
-                Filled _ s -> s
+                F _ s -> s
                 _ -> ""
             name =
               case h.spec.name of
-                Filled _ s -> Just s
+                F _ s -> Just s
                 _ -> Nothing
         in
         if verb == "GET"
@@ -643,11 +643,11 @@ collapseHandlers tls =
                 Just h -> Just (tl.pos, h)
                 Nothing -> Nothing)
         |> List.map (\(pos, h) -> { name = case h.spec.name of
-                                      Filled _ s -> Just s
+                                      F _ s -> Just s
                                       Blank _ -> Nothing
                                   , prefix = []
                                   , verbs = case h.spec.modifier of
-                                             Filled _ s -> [(s, pos)]
+                                             F _ s -> [(s, pos)]
                                              Blank _ -> []
                                   })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
