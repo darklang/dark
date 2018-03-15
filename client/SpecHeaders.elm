@@ -60,8 +60,8 @@ deleteEventSpaceBlank p hs newID =
 
 allPointers : HandlerSpec -> List Pointer
 allPointers spec =
-  [ P.blankTo EventName spec.name
-  , P.blankTo EventSpace spec.module_
-  , P.blankTo EventModifier spec.modifier]
+  [ Blank.toP EventName spec.name
+  , Blank.toP EventSpace spec.module_
+  , Blank.toP EventModifier spec.modifier]
 
 

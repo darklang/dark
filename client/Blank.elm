@@ -28,3 +28,27 @@ map fn a =
   case a of
     Filled id f -> Filled id (fn f)
     Blank id -> Blank id
+
+clone : (a -> a) -> BlankOr a -> BlankOr a
+clone fn b =
+  case b of
+    Blank id -> Blank (gid())
+    Filled id val -> Filled (gid()) (fn val)
+
+isFilled : BlankOr a -> Bool
+isFilled b =
+  case b of
+    Blank _ -> False
+    Filled _ _ -> True
+
+isBlank : BlankOr a -> Bool
+isBlank = isFilled >> not
+
+toP : PointerType -> BlankOr a -> Pointer
+toP t b =
+  case b of
+    Blank id -> PBlank t id
+    Filled id _ -> PFilled t id
+
+
+

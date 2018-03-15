@@ -11,6 +11,7 @@ import DB
 import Types exposing (..)
 import Util exposing (deMaybe)
 import AST
+import Blank
 import Pointer as P
 import SpecTypes
 import SpecHeaders
@@ -205,9 +206,9 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allPointers h.spec
-            ++ [ P.blankTo DarkType h.spec.types.input
+            ++ [ Blank.toP DarkType h.spec.types.input
                , AST.toP h.ast
-               , P.blankTo DarkType h.spec.types.output] in
+               , Blank.toP DarkType h.spec.types.output] in
 
       if List.member p toplevels
       then toplevels
