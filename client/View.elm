@@ -123,7 +123,7 @@ viewBlankOrText = viewBlankOr Html.text
 type alias HoverData = Maybe (Result String String)
 viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> HoverData -> Html.Html Msg
 viewBlankOr htmlFn m tl pt b hoverdata =
-  let pointer = P.blankTo pt b
+  let pointer = Blank.toP pt b
       id = P.idOf pointer
       param =
         tl

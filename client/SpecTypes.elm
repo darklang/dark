@@ -55,12 +55,12 @@ allPointers t =
         case t of
           Filled _ (DTObj ts) ->
             ts
-            |> List.map (\(n, dt) -> [ P.blankTo DarkTypeField n]
+            |> List.map (\(n, dt) -> [ Blank.toP DarkTypeField n]
                                      ++ allPointers dt)
             |> List.concat
           _ -> []
   in
-  [P.blankTo DarkType t]
+  [Blank.toP DarkType t]
   ++ nested
 
 -- recurse until we find ID, then return the children
@@ -72,8 +72,8 @@ childrenOf id t =
       Filled _ (DTObj ts) ->
         ts
         |> List.map (\(n, dt) ->
-                       [ P.blankTo DarkTypeField n
-                       , P.blankTo DarkType dt])
+                       [ Blank.toP DarkTypeField n
+                       , Blank.toP DarkType dt])
         |> List.concat
       _ -> []
   else
@@ -93,8 +93,8 @@ siblings p t =
     Filled _ (DTObj ts) ->
       let result = ts
                    |> List.map (\(n, dt) ->
-                                  [ P.blankTo DarkTypeField n
-                                  , P.blankTo DarkType dt])
+                                  [ Blank.toP DarkTypeField n
+                                  , Blank.toP DarkType dt])
                    |> List.concat in
       if List.member p result
       then result

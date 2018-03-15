@@ -271,9 +271,9 @@ children e =
     Thread _ exprs ->
       List.map toP exprs
     FieldAccess _ obj field ->
-      [toP obj, P.blankTo Field field]
+      [toP obj, Blank.toP Field field]
     Let _ lhs rhs body ->
-      [P.blankTo VarBind lhs, toP rhs, toP body]
+      [Blank.toP VarBind lhs, toP rhs, toP body]
 
 childrenOf : ID -> Expr -> List Pointer
 childrenOf pid expr =
@@ -414,7 +414,7 @@ siblings p ast =
           List.map toP [cond, ifbody, elsebody]
 
         Let _ lhs rhs body ->
-          [P.blankTo VarBind lhs, toP rhs, toP body]
+          [Blank.toP VarBind lhs, toP rhs, toP body]
 
         FnCall _ name exprs ->
           List.map toP exprs
@@ -426,7 +426,7 @@ siblings p ast =
           List.map toP exprs
 
         FieldAccess _ obj field ->
-          [toP obj, P.blankTo Field field]
+          [toP obj, Blank.toP Field field]
 
         _ -> [p]
 
@@ -475,7 +475,7 @@ allPointers expr =
     Hole id -> []
 
     Let _ lhs rhs expr ->
-      [P.blankTo VarBind lhs] ++ rl [rhs, expr]
+      [Blank.toP VarBind lhs] ++ rl [rhs, expr]
 
     If _ cond ifbody elsebody ->
       rl [cond, ifbody, elsebody]
@@ -490,7 +490,7 @@ allPointers expr =
       rl exprs
 
     FieldAccess _ obj field ->
-      allPointers obj ++ [P.blankTo Field field]
+      allPointers obj ++ [Blank.toP Field field]
 
 
 --------------------------------
