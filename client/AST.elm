@@ -24,7 +24,7 @@ toP e =
 
 toPD : Expr -> PointerData
 toPD e =
-  PExpr (toID e) (o2n e)
+  PExpr (o2n e)
 
 
 toID : Expr -> ID
@@ -491,7 +491,7 @@ allPointers expr =
 
 listData : Expr -> List PointerData
 listData expr =
-  let e2ld e = PExpr (toID e) (o2n e)
+  let e2ld e = PExpr (o2n e)
       rl : List Expr -> List PointerData
       rl exprs =
         exprs
@@ -505,7 +505,7 @@ listData expr =
     Hole id -> []
 
     Let _ lhs rhs expr ->
-      [PVarBind (Blank.toID lhs) lhs] ++ rl [rhs, expr]
+      [PVarBind lhs] ++ rl [rhs, expr]
 
     If _ cond ifbody elsebody ->
       rl [cond, ifbody, elsebody]
@@ -520,7 +520,7 @@ listData expr =
       rl exprs
 
     FieldAccess _ obj field ->
-      listData obj ++ [PField (Blank.toID field) field]
+      listData obj ++ [PField field]
 
 
 
@@ -537,20 +537,20 @@ subData id bexpr =
 toContent : PointerData -> String
 toContent pd =
   case pd of
-    PVarBind _ v -> v |> Blank.toMaybe |> Maybe.withDefault ""
-    PField _ f -> f |> Blank.toMaybe |> Maybe.withDefault ""
-    PExpr _ e ->
+    PVarBind v -> v |> Blank.toMaybe |> Maybe.withDefault ""
+    PField f -> f |> Blank.toMaybe |> Maybe.withDefault ""
+    PExpr e ->
       case e of
         F _ (NValue s) -> s
         F _ (NVariable v) -> v
         _ -> ""
-    PEventModifier _ _ -> ""
-    PEventName _ _ -> ""
-    PEventSpace _ _ -> ""
-    PDBColName _ _ -> ""
-    PDBColType _ _ -> ""
-    PDarkType _ _ -> ""
-    PDarkTypeField _ _ -> ""
+    PEventModifier _ -> ""
+    PEventName _ -> ""
+    PEventSpace _ -> ""
+    PDBColName _ -> ""
+    PDBColType _ -> ""
+    PDarkType _ -> ""
+    PDarkTypeField _ -> ""
 
 
 replace : Pointer -> PointerData -> BExpr -> BExpr
@@ -563,7 +563,7 @@ replace p replacement bexpr =
                     if Blank.toID lhs == P.idOf p
                     then
                       case replacement of
-                        PVarBind _ b ->
+                        PVarBind b ->
                           NLet b rhs body
                         _ -> expr
                     else
@@ -585,7 +585,7 @@ replace p replacement bexpr =
                     if Blank.toID field == P.idOf p
                     then
                       case replacement of
-                        PField _ f ->
+                        PField f ->
                           NFieldAccess obj f
                         _ -> expr
                     else
@@ -597,7 +597,7 @@ replace p replacement bexpr =
   if Blank.toID bexpr == P.idOf p
   then
     case replacement of
-      PExpr _ e -> e
+      PExpr e -> e
       _ -> bexpr
   else
     case bexpr of
@@ -608,24 +608,17 @@ replace p replacement bexpr =
 
 deleteExpr : Pointer -> BExpr -> ID -> BExpr
 deleteExpr p ast id =
-  let replacement =
-        case P.typeOf p of
-          VarBind -> PVarBind id (Blank id)
-          Expr -> PExpr id (Blank id)
-          Field -> PField id (Blank id)
-          tipe  -> Debug.crash <| (toString tipe) ++ " is not allowed in an AST"
+  let replacement = P.emptyD (P.typeOf p)
   in replace p replacement ast
 
 replaceVarBind : Pointer -> VarName -> BExpr -> BExpr
 replaceVarBind p replacement expr =
-  let id = gid ()
-  in replace p (PVarBind id (F id replacement)) expr
+  replace p (PVarBind (Blank.newF replacement)) expr
 
 
 replaceField : Pointer -> FieldName -> BExpr -> BExpr
 replaceField p replacement expr =
-  let id = gid ()
-  in replace p (PField id (F id replacement)) expr
+  replace p (PField (Blank.newF replacement)) expr
 
 
 clone : BExpr -> BExpr

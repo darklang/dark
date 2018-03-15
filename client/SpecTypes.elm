@@ -11,7 +11,7 @@ import Blank
 
 delete : Pointer -> HandlerSpec -> ID -> HandlerSpec
 delete p spec newID =
-  replace p (P.emptyD (P.typeOf p) newID) spec
+  replace p (P.emptyD_ newID (P.typeOf p)) spec
 
 replace : Pointer -> PointerData -> HandlerSpec -> HandlerSpec
 replace p dt spec =
@@ -26,7 +26,7 @@ replaceInType p replacement dt =
   if Blank.toID dt == (P.idOf p)
   then
     case replacement of
-      PDarkType _ t -> t
+      PDarkType t -> t
       _ -> dt
   else
     case dt of
@@ -35,13 +35,13 @@ replaceInType p replacement dt =
               ts
               |> List.map (\(n, t) ->
                    let newN = case replacement of
-                                PDarkTypeField _ name ->
+                                PDarkTypeField name ->
                                   if P.idOf p == Blank.toID n
                                   then name
                                   else n
                                 _ -> n
                        newT = case replacement of
-                                PDarkType _ tipe ->
+                                PDarkType tipe ->
                                   replaceInType p replacement t
                                 _ -> t
                    in (newN, newT))

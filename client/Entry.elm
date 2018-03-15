@@ -316,14 +316,12 @@ submit m cursor action value =
                   "{" -> DTObj [(Blank.new (), Blank.new ())]
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
-              newID = gid ()
-              pd = PDarkType newID (F newID specType)
+              pd = PDarkType (Blank.newF specType)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         DarkTypeField ->
           let h = deMaybe "maybeH - expr" maybeH
-              newID = gid ()
-              pd = PDarkTypeField newID (F newID value)
+              pd = PDarkTypeField (Blank.newF value)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
 
