@@ -1,6 +1,7 @@
 import { Selector } from 'testcafe';
 
 fixture `Integration Tests`
+  .httpAuth({ username: 'tests', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     const host = process.env.TEST_HOST
