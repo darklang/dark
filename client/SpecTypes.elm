@@ -7,7 +7,7 @@ module SpecTypes exposing (..)
 -- dark
 import Pointer as P
 import Types exposing (..)
-import Blank
+import Blank as B
 
 delete : Pointer -> HandlerSpec -> ID -> HandlerSpec
 delete p spec newID =
@@ -23,7 +23,7 @@ replace p dt spec =
 
 replaceInType : Pointer -> PointerData -> BlankOr DarkType -> BlankOr DarkType
 replaceInType p replacement dt =
-  if Blank.toID dt == (P.idOf p)
+  if B.toID dt == (P.idOf p)
   then
     case replacement of
       PDarkType t -> t
@@ -36,7 +36,7 @@ replaceInType p replacement dt =
               |> List.map (\(n, t) ->
                    let newN = case replacement of
                                 PDarkTypeField name ->
-                                  if P.idOf p == Blank.toID n
+                                  if P.idOf p == B.toID n
                                   then name
                                   else n
                                 _ -> n
@@ -55,25 +55,25 @@ allPointers t =
         case t of
           F _ (DTObj ts) ->
             ts
-            |> List.map (\(n, dt) -> [ Blank.toP DarkTypeField n]
+            |> List.map (\(n, dt) -> [ B.toP DarkTypeField n]
                                      ++ allPointers dt)
             |> List.concat
           _ -> []
   in
-  [Blank.toP DarkType t]
+  [B.toP DarkType t]
   ++ nested
 
 -- recurse until we find ID, then return the children
 childrenOf : ID -> BlankOr DarkType -> List Pointer
 childrenOf id t =
-  if Blank.toID t == id
+  if B.toID t == id
   then
     case t of
       F _ (DTObj ts) ->
         ts
         |> List.map (\(n, dt) ->
-                       [ Blank.toP DarkTypeField n
-                       , Blank.toP DarkType dt])
+                       [ B.toP DarkTypeField n
+                       , B.toP DarkType dt])
         |> List.concat
       _ -> []
   else
@@ -93,8 +93,8 @@ siblings p t =
     F _ (DTObj ts) ->
       let result = ts
                    |> List.map (\(n, dt) ->
-                                  [ Blank.toP DarkTypeField n
-                                  , Blank.toP DarkType dt])
+                                  [ B.toP DarkTypeField n
+                                  , B.toP DarkType dt])
                    |> List.concat in
       if List.member p result
       then result
