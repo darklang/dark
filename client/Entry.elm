@@ -282,7 +282,7 @@ submit m cursor action value =
                   let fieldname = String.dropRight 1 value
                   -- wrap the field access with another field access
                   -- get the parent ID from the old AST, cause it has the
-                  -- hole. Then get the parent structure from the new I
+                  -- blank. Then get the parent structure from the new I
                       wrapped =
                         case parent of
                           F id (FieldAccess lhs rhs) ->

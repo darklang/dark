@@ -111,7 +111,7 @@ field_access_nested m =
 
 pipeline_let_equals : Model -> TestResult
 pipeline_let_equals m =
-  -- should be a simple let, not in a pipeline, entering 1 hole
+  -- should be a simple let, not in a pipeline, entering 1 blank
   let astR =
         case onlyAST m of
           Let (F _ "value") (F _ (Value "3")) (Blank _) ->
