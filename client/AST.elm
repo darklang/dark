@@ -16,20 +16,20 @@ import Blank
 -------------------------
 -- Generic
 -------------------------
-toP : BExpr -> Pointer
+toP : Expr -> Pointer
 toP = Blank.toP Expr
 
-toPD : BExpr -> PointerData
+toPD : Expr -> PointerData
 toPD e =
   PExpr e
 
 -------------------------
 -- Thread stuff
 -------------------------
-listThreadBlanks : BExpr -> List ID
+listThreadBlanks : Expr -> List ID
 listThreadBlanks expr =
   let rb = listThreadBlanks
-      ltList : List BExpr -> List ID
+      ltList : List Expr -> List ID
       ltList exprs =
         exprs
         |> List.map listThreadBlanks
@@ -57,7 +57,7 @@ listThreadBlanks expr =
       F _ f -> re f
 
 
-closeThread : BExpr -> BExpr
+closeThread : Expr -> Expr
 closeThread bexpr =
   -- Close all threads
   case bexpr of
@@ -69,14 +69,14 @@ closeThread bexpr =
         [] -> Blank id
         [e] -> e
         _ -> F id (NThread newExprs)
-    _ -> traverseBExpr closeThread bexpr
+    _ -> traverseExpr closeThread bexpr
 
 
 -- take an expression, and if
 -- * it is a thread, add a hole at the end
 -- * it is part of a thread, insert a hole just after the expr
 -- * if it is not part of a thread, wrap it in a thread
-addThreadBlank : ID -> BExpr -> BExpr
+addThreadBlank : ID -> Expr -> Expr
 addThreadBlank id bexpr =
   let atb = addThreadBlank id in
   if id == Blank.toID bexpr
@@ -91,14 +91,14 @@ addThreadBlank id bexpr =
       F tid (NThread exprs) ->
         let replaced = extendThreadChild id exprs in
         if replaced == exprs
-        then traverseBExpr atb bexpr
+        then traverseExpr atb bexpr
         else F tid (NThread replaced)
 
-      _ -> traverseBExpr atb bexpr
+      _ -> traverseExpr atb bexpr
 
 
-traverseBExpr : (BExpr -> BExpr) -> BExpr -> BExpr
-traverseBExpr fn bexpr =
+traverseExpr : (Expr -> Expr) -> Expr -> Expr
+traverseExpr fn bexpr =
   case bexpr of
     Blank _ -> bexpr
     F id expr ->
@@ -128,7 +128,7 @@ traverseBExpr fn bexpr =
 
 
 -- takes an ID of an expr in the AST to wrap in a thread
-wrapInThread : ID -> BExpr -> BExpr
+wrapInThread : ID -> Expr -> Expr
 wrapInThread id bexpr =
   if Blank.toID bexpr == id
   then
@@ -137,10 +137,10 @@ wrapInThread id bexpr =
       F _ expr -> Blank.newF (NThread [bexpr, Blank.new ()])
       Blank _ -> Blank.newF (NThread [bexpr])
   else
-    traverseBExpr (wrapInThread id) bexpr
+    traverseExpr (wrapInThread id) bexpr
 
 -- Find the child with the id `at` in the thread, and add a blank after it.
-extendThreadChild : ID -> List BExpr -> List BExpr
+extendThreadChild : ID -> List Expr -> List Expr
 extendThreadChild at threadExprs =
   List.foldr (\e list ->
     if (Blank.toID e) == at
@@ -150,16 +150,16 @@ extendThreadChild at threadExprs =
 
 
 -- extends thread at pos denoted by ID, if ID is in a thread
-maybeExtendThreadAt : ID -> BExpr -> BExpr
+maybeExtendThreadAt : ID -> Expr -> Expr
 maybeExtendThreadAt id bexpr =
   case bexpr of
     F tid (NThread exprs) ->
       let newExprs = extendThreadChild id exprs
                      |> List.map (maybeExtendThreadAt id)
       in F tid (NThread newExprs)
-    _ -> traverseBExpr (maybeExtendThreadAt id) bexpr
+    _ -> traverseExpr (maybeExtendThreadAt id) bexpr
 
-isThread : BExpr -> Pointer -> Bool
+isThread : Expr -> Pointer -> Bool
 isThread expr p =
   expr |> listThreadBlanks |> List.member (P.idOf p)
 
@@ -167,7 +167,7 @@ isThread expr p =
 -------------------------
 -- Children
 -------------------------
-children : BExpr -> List Pointer
+children : Expr -> List Pointer
 children e =
   case e of
     Blank _ -> []
@@ -188,7 +188,7 @@ children e =
         NLet lhs rhs body ->
           [Blank.toP VarBind lhs, toP rhs, toP body]
 
-childrenOf : ID -> BExpr -> List Pointer
+childrenOf : ID -> Expr -> List Pointer
 childrenOf pid bexpr =
   let co = childrenOf pid
       returnOr fn e =
@@ -227,9 +227,9 @@ childrenOf pid bexpr =
 -------------------------
 -- Ancestors
 -------------------------
-ancestors : ID -> BExpr -> List BExpr
+ancestors : ID -> Expr -> List Expr
 ancestors id bexpr =
-  let rec_ancestors : ID -> List BExpr -> BExpr -> List BExpr
+  let rec_ancestors : ID -> List Expr -> Expr -> List Expr
       rec_ancestors tofind walk bexp =
         let rec id be walk = rec_ancestors id (be :: walk)
             reclist id be walk exprs =
@@ -259,11 +259,11 @@ ancestors id bexpr =
   in rec_ancestors id [] bexpr
 
 
-ancestorsWhere : ID -> BExpr -> (BExpr -> Bool) -> List BExpr
+ancestorsWhere : ID -> Expr -> (Expr -> Bool) -> List Expr
 ancestorsWhere id bexpr fn =
   List.filter fn (ancestors id bexpr)
 
-threadAncestors : ID -> BExpr -> List BExpr
+threadAncestors : ID -> Expr -> List Expr
 threadAncestors id bexpr =
   ancestorsWhere id bexpr
     (\e ->
@@ -275,14 +275,14 @@ threadAncestors id bexpr =
 -------------------------
 -- Parents
 -------------------------
-parentOf : ID -> BExpr -> BExpr
+parentOf : ID -> Expr -> Expr
 parentOf id ast =
   deMaybe "parentOf" <| parentOf_ id ast
 
-parentOf_ : ID -> BExpr -> Maybe BExpr
+parentOf_ : ID -> Expr -> Maybe Expr
 parentOf_ eid bexpr =
   let po = parentOf_ eid
-      returnOr : (BExpr -> Maybe BExpr) -> BExpr -> Maybe BExpr
+      returnOr : (Expr -> Maybe Expr) -> Expr -> Maybe Expr
       returnOr fn e =
         if List.member eid (children e |> List.map P.idOf)
         then Just e
@@ -320,7 +320,7 @@ parentOf_ eid bexpr =
           else returnOr (\_ -> po obj) bexpr
 
 -- includes self
-siblings : Pointer -> BExpr -> List Pointer
+siblings : Pointer -> Expr -> List Pointer
 siblings p expr =
   case parentOf_ (P.idOf p) expr of
     Nothing -> [p]
@@ -346,7 +346,7 @@ siblings p expr =
 
         _ -> [p]
 
-getValueParent : Pointer -> BExpr -> Maybe Pointer
+getValueParent : Pointer -> Expr -> Maybe Pointer
 getValueParent p bexpr =
   let id = P.idOf p
       parent = parentOf_ id bexpr
@@ -374,9 +374,9 @@ getValueParent p bexpr =
 -- Pointers
 --------------------------------
 
-allPointers : BExpr -> List Pointer
+allPointers : Expr -> List Pointer
 allPointers bexpr =
-  let rl : List BExpr -> List Pointer
+  let rl : List Expr -> List Pointer
       rl bexprs =
         bexprs
         |> List.map allPointers
@@ -414,10 +414,10 @@ allPointers bexpr =
 --------------------------------
 
 
-listData : BExpr -> List PointerData
+listData : Expr -> List PointerData
 listData bexpr =
   let e2ld e = PExpr e
-      rl : List BExpr -> List PointerData
+      rl : List Expr -> List PointerData
       rl exprs =
         exprs
         |> List.map listData
@@ -451,11 +451,11 @@ listData bexpr =
 
 
 
-subtree : ID -> BExpr -> PointerData
+subtree : ID -> Expr -> PointerData
 subtree id ast =
   deMaybe "subtree" (subData id ast)
 
-subData : ID -> BExpr -> Maybe PointerData
+subData : ID -> Expr -> Maybe PointerData
 subData id bexpr =
   listData bexpr
   |> List.filter (\d -> id == P.idOfD d)
@@ -480,7 +480,7 @@ toContent pd =
     PDarkTypeField _ -> ""
 
 
-replace : Pointer -> PointerData -> BExpr -> BExpr
+replace : Pointer -> PointerData -> Expr -> Expr
 replace p replacement bexpr =
   let r = replace p replacement in
   if Blank.toID bexpr == P.idOf p
@@ -493,32 +493,32 @@ replace p replacement bexpr =
       (F id (NLet lhs rhs body), PVarBind b) ->
         if Blank.toID lhs == P.idOf p
         then F id (NLet b rhs body)
-        else traverseBExpr r bexpr
+        else traverseExpr r bexpr
 
       (F id (NFieldAccess obj field), PField f) ->
         if Blank.toID field == P.idOf p
         then F id (NFieldAccess obj f)
-        else traverseBExpr r bexpr
+        else traverseExpr r bexpr
 
-      _ -> traverseBExpr r bexpr
+      _ -> traverseExpr r bexpr
 
 
-deleteExpr : Pointer -> BExpr -> ID -> BExpr
+deleteExpr : Pointer -> Expr -> ID -> Expr
 deleteExpr p ast id =
   let replacement = P.emptyD_ id (P.typeOf p)
   in replace p replacement ast
 
-replaceVarBind : Pointer -> VarName -> BExpr -> BExpr
+replaceVarBind : Pointer -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
   replace p (PVarBind (Blank.newF replacement)) expr
 
 
-replaceField : Pointer -> FieldName -> BExpr -> BExpr
+replaceField : Pointer -> FieldName -> Expr -> Expr
 replaceField p replacement expr =
   replace p (PField (Blank.newF replacement)) expr
 
 
-clone : BExpr -> BExpr
+clone : Expr -> Expr
 clone bexpr =
   let nid = gid ()
       c be = clone be
