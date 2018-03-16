@@ -277,4 +277,14 @@ test('deleting_selects_the_blank', async t => {
     .pressKey("enter")
 });
 
+test('right_number_of_blanks', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .click(".ast")
+    .pressKey("enter")
+    .typeText("#entry-box", "assoc")
+    .pressKey("enter")
+});
+
 
