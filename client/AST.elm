@@ -35,18 +35,18 @@ listThreadBlanks expr =
         |> List.map listThreadBlanks
         |> List.concat
       re expr = case expr of
-                  NValue v -> []
-                  NVariable name -> []
+                  Value v -> []
+                  Variable name -> []
 
-                  NLet lhs rhs expr -> rb rhs ++ rb expr
-                  NFnCall name exprs -> ltList exprs
-                  NLambda vars expr -> rb expr
-                  NFieldAccess obj _ -> rb obj
+                  Let lhs rhs expr -> rb rhs ++ rb expr
+                  FnCall name exprs -> ltList exprs
+                  Lambda vars expr -> rb expr
+                  FieldAccess obj _ -> rb obj
 
-                  NIf cond ifbody elsebody ->
+                  If cond ifbody elsebody ->
                     rb cond ++ rb ifbody ++ rb elsebody
 
-                  NThread exprs ->
+                  Thread exprs ->
                     let (blanks, filled) = List.partition Blank.isBlank exprs
                         blankids = List.map Blank.toID blanks
                         subExprsBlankids = ltList filled
@@ -61,14 +61,14 @@ closeThread : Expr -> Expr
 closeThread bexpr =
   -- Close all threads
   case bexpr of
-    F id (NThread exprs) ->
+    F id (Thread exprs) ->
       let newExprs = List.filter Blank.isF exprs
                      |> List.map closeThread
       in
       case newExprs of
         [] -> Blank id
         [e] -> e
-        _ -> F id (NThread newExprs)
+        _ -> F id (Thread newExprs)
     _ -> traverseExpr closeThread bexpr
 
 
@@ -82,17 +82,17 @@ addThreadBlank id bexpr =
   if id == Blank.toID bexpr
   then
     case bexpr of
-      F tid (NThread exprs) ->
-        F tid (NThread (exprs ++ [Blank.new ()]))
+      F tid (Thread exprs) ->
+        F tid (Thread (exprs ++ [Blank.new ()]))
       _ ->
-        Blank.newF (NThread [bexpr, Blank.new ()])
+        Blank.newF (Thread [bexpr, Blank.new ()])
   else
     case bexpr of
-      F tid (NThread exprs) ->
+      F tid (Thread exprs) ->
         let replaced = extendThreadChild id exprs in
         if replaced == exprs
         then traverseExpr atb bexpr
-        else F tid (NThread replaced)
+        else F tid (Thread replaced)
 
       _ -> traverseExpr atb bexpr
 
@@ -104,26 +104,26 @@ traverseExpr fn bexpr =
     F id expr ->
       F id
         (case expr of
-          NValue _ -> expr
-          NVariable _ -> expr
+          Value _ -> expr
+          Variable _ -> expr
 
-          NLet lhs rhs body ->
-            NLet lhs (fn rhs) (fn body)
+          Let lhs rhs body ->
+            Let lhs (fn rhs) (fn body)
 
-          NIf cond ifbody elsebody ->
-            NIf (fn cond) (fn ifbody) (fn elsebody)
+          If cond ifbody elsebody ->
+            If (fn cond) (fn ifbody) (fn elsebody)
 
-          NFnCall name exprs ->
-            NFnCall name (List.map fn exprs)
+          FnCall name exprs ->
+            FnCall name (List.map fn exprs)
 
-          NLambda vars lexpr ->
-            NLambda vars (fn lexpr)
+          Lambda vars lexpr ->
+            Lambda vars (fn lexpr)
 
-          NThread exprs ->
-            NThread (List.map fn exprs)
+          Thread exprs ->
+            Thread (List.map fn exprs)
 
-          NFieldAccess obj field ->
-            NFieldAccess (fn obj) field)
+          FieldAccess obj field ->
+            FieldAccess (fn obj) field)
 
 
 
@@ -133,9 +133,9 @@ wrapInThread id bexpr =
   if Blank.toID bexpr == id
   then
     case bexpr of
-      F _ (NThread _) -> bexpr
-      F _ expr -> Blank.newF (NThread [bexpr, Blank.new ()])
-      Blank _ -> Blank.newF (NThread [bexpr])
+      F _ (Thread _) -> bexpr
+      F _ expr -> Blank.newF (Thread [bexpr, Blank.new ()])
+      Blank _ -> Blank.newF (Thread [bexpr])
   else
     traverseExpr (wrapInThread id) bexpr
 
@@ -153,10 +153,10 @@ extendThreadChild at threadExprs =
 maybeExtendThreadAt : ID -> Expr -> Expr
 maybeExtendThreadAt id bexpr =
   case bexpr of
-    F tid (NThread exprs) ->
+    F tid (Thread exprs) ->
       let newExprs = extendThreadChild id exprs
                      |> List.map (maybeExtendThreadAt id)
-      in F tid (NThread newExprs)
+      in F tid (Thread newExprs)
     _ -> traverseExpr (maybeExtendThreadAt id) bexpr
 
 isThread : Expr -> Pointer -> Bool
@@ -173,19 +173,19 @@ children e =
     Blank _ -> []
     F _ expr ->
       case expr of
-        NValue _ -> []
-        NVariable _ -> []
-        NIf cond ifbody elsebody ->
+        Value _ -> []
+        Variable _ -> []
+        If cond ifbody elsebody ->
           [toP cond, toP ifbody, toP elsebody]
-        NFnCall name exprs ->
+        FnCall name exprs ->
           List.map toP exprs
-        NLambda vars lexpr ->
+        Lambda vars lexpr ->
           [toP lexpr]
-        NThread exprs ->
+        Thread exprs ->
           List.map toP exprs
-        NFieldAccess obj field ->
+        FieldAccess obj field ->
           [toP obj, Blank.toP Field field]
-        NLet lhs rhs body ->
+        Let lhs rhs body ->
           [Blank.toP VarBind lhs, toP rhs, toP body]
 
 childrenOf : ID -> Expr -> List Pointer
@@ -200,28 +200,28 @@ childrenOf pid bexpr =
     Blank _ -> []
     F _ expr ->
       case expr of
-        NValue _ -> []
-        NVariable _ -> []
-        NLet lhs rhs body ->
+        Value _ -> []
+        Variable _ -> []
+        Let lhs rhs body ->
           returnOr (\_ -> List.concat [co body, co rhs]) bexpr
 
-        NIf cond ifbody elsebody ->
+        If cond ifbody elsebody ->
           returnOr (\_ ->
             let c  = co cond
                 ib = co ifbody
                 eb = co elsebody
             in List.concat [c, ib, eb]) bexpr
 
-        NFnCall name exprs ->
+        FnCall name exprs ->
           returnOr (\_ -> exprs |> List.map co |> List.concat) bexpr
 
-        NLambda vars lexpr ->
+        Lambda vars lexpr ->
           returnOr (\_ -> co lexpr) bexpr
 
-        NThread exprs ->
+        Thread exprs ->
           returnOr (\_ -> exprs |> List.map co |> List.concat) bexpr
 
-        NFieldAccess obj field ->
+        FieldAccess obj field ->
           returnOr (\_ -> co obj) bexpr
 
 -------------------------
@@ -242,19 +242,19 @@ ancestors id bexpr =
             Blank _ -> []
             F i expr ->
               case expr of
-                NValue _ -> []
-                NVariable _ -> []
-                NLet lhs rhs body ->
+                Value _ -> []
+                Variable _ -> []
+                Let lhs rhs body ->
                   reclist id bexp walk [rhs, body]
-                NIf cond ifbody elsebody ->
+                If cond ifbody elsebody ->
                   reclist id bexp walk [cond, ifbody, elsebody]
-                NFnCall name exprs ->
+                FnCall name exprs ->
                   reclist id bexp walk exprs
-                NLambda vars lexpr ->
+                Lambda vars lexpr ->
                   rec id bexp walk lexpr
-                NThread exprs ->
+                Thread exprs ->
                   reclist id bexp walk exprs
-                NFieldAccess obj field ->
+                FieldAccess obj field ->
                   rec id bexp walk obj
   in rec_ancestors id [] bexpr
 
@@ -268,7 +268,7 @@ threadAncestors id bexpr =
   ancestorsWhere id bexpr
     (\e ->
       case e of
-        F _ (NThread _) -> True
+        F _ (Thread _) -> True
         _ -> False)
 
 
@@ -293,28 +293,28 @@ parentOf_ eid bexpr =
     Blank _ -> Nothing
     F id expr ->
       case expr of
-        NValue _ -> Nothing
-        NVariable _ -> Nothing
-        NLet lhs rhs body ->
+        Value _ -> Nothing
+        Variable _ -> Nothing
+        Let lhs rhs body ->
           returnOr (\_ -> filterMaybe [po body, po rhs]) bexpr
 
-        NIf cond ifbody elsebody ->
+        If cond ifbody elsebody ->
           returnOr (\_ ->
             let c  = po cond
                 ib = po ifbody
                 eb = po elsebody
             in filterMaybe [c, ib, eb]) bexpr
 
-        NFnCall name exprs ->
+        FnCall name exprs ->
           returnOr (\_ -> exprs |> List.map po |> filterMaybe) bexpr
 
-        NLambda vars lexpr ->
+        Lambda vars lexpr ->
           returnOr (\_ -> po lexpr) bexpr
 
-        NThread exprs ->
+        Thread exprs ->
           returnOr (\_ -> exprs |> List.map po |> filterMaybe) bexpr
 
-        NFieldAccess obj field ->
+        FieldAccess obj field ->
           if Blank.toID field == eid
           then Just bexpr
           else returnOr (\_ -> po obj) bexpr
@@ -326,22 +326,22 @@ siblings p expr =
     Nothing -> [p]
     Just parent ->
       case parent of
-        F _ (NIf cond ifbody elsebody) ->
+        F _ (If cond ifbody elsebody) ->
           List.map toP [cond, ifbody, elsebody]
 
-        F _ (NLet lhs rhs body) ->
+        F _ (Let lhs rhs body) ->
           [Blank.toP VarBind lhs, toP rhs, toP body]
 
-        F _ (NFnCall name exprs) ->
+        F _ (FnCall name exprs) ->
           List.map toP exprs
 
-        F _ (NLambda vars lexpr) ->
+        F _ (Lambda vars lexpr) ->
           [toP lexpr]
 
-        F _ (NThread exprs) ->
+        F _ (Thread exprs) ->
           List.map toP exprs
 
-        F _ (NFieldAccess obj field) ->
+        F _ (FieldAccess obj field) ->
           [toP obj, Blank.toP Field field]
 
         _ -> [p]
@@ -354,7 +354,7 @@ getValueParent p bexpr =
   case P.typeOf p of
     Expr ->
       case parent of
-        Just (F _ (NThread exprs)) ->
+        Just (F _ (Thread exprs)) ->
           exprs
           |> List.map toP
           |> Util.listPrevious p
@@ -362,7 +362,7 @@ getValueParent p bexpr =
 
     Field ->
       case parent of
-        Just (F _ (NFieldAccess obj _)) ->
+        Just (F _ (FieldAccess obj _)) ->
           Just <| toP obj
         _ -> Nothing
 
@@ -387,25 +387,25 @@ allPointers bexpr =
     Blank _ -> []
     F _ expr ->
       case expr of
-        NValue v -> []
-        NVariable name -> []
+        Value v -> []
+        Variable name -> []
 
-        NLet lhs rhs expr ->
+        Let lhs rhs expr ->
           [Blank.toP VarBind lhs] ++ rl [rhs, expr]
 
-        NIf cond ifbody elsebody ->
+        If cond ifbody elsebody ->
           rl [cond, ifbody, elsebody]
 
-        NFnCall name exprs ->
+        FnCall name exprs ->
           rl exprs
 
-        NLambda vars expr ->
+        Lambda vars expr ->
           allPointers expr
 
-        NThread exprs ->
+        Thread exprs ->
           rl exprs
 
-        NFieldAccess obj field ->
+        FieldAccess obj field ->
           allPointers obj ++ [Blank.toP Field field]
 
 
@@ -428,25 +428,25 @@ listData bexpr =
     Blank _ -> []
     F _ expr ->
       case expr of
-        NValue v -> []
-        NVariable name -> []
+        Value v -> []
+        Variable name -> []
 
-        NLet lhs rhs expr ->
+        Let lhs rhs expr ->
           [PVarBind lhs] ++ rl [rhs, expr]
 
-        NIf cond ifbody elsebody ->
+        If cond ifbody elsebody ->
           rl [cond, ifbody, elsebody]
 
-        NFnCall name exprs ->
+        FnCall name exprs ->
           rl exprs
 
-        NLambda vars expr ->
+        Lambda vars expr ->
           listData expr
 
-        NThread exprs ->
+        Thread exprs ->
           rl exprs
 
-        NFieldAccess obj field ->
+        FieldAccess obj field ->
           listData obj ++ [PField field]
 
 
@@ -468,8 +468,8 @@ toContent pd =
     PField f -> f |> Blank.toMaybe |> Maybe.withDefault ""
     PExpr e ->
       case e of
-        F _ (NValue s) -> s
-        F _ (NVariable v) -> v
+        F _ (Value s) -> s
+        F _ (Variable v) -> v
         _ -> ""
     PEventModifier _ -> ""
     PEventName _ -> ""
@@ -490,14 +490,14 @@ replace p replacement bexpr =
       _ -> bexpr
   else
     case (bexpr, replacement) of
-      (F id (NLet lhs rhs body), PVarBind b) ->
+      (F id (Let lhs rhs body), PVarBind b) ->
         if Blank.toID lhs == P.idOf p
-        then F id (NLet b rhs body)
+        then F id (Let b rhs body)
         else traverseExpr r bexpr
 
-      (F id (NFieldAccess obj field), PField f) ->
+      (F id (FieldAccess obj field), PField f) ->
         if Blank.toID field == P.idOf p
-        then F id (NFieldAccess obj f)
+        then F id (FieldAccess obj f)
         else traverseExpr r bexpr
 
       _ -> traverseExpr r bexpr
@@ -534,26 +534,26 @@ clone bexpr =
       F id expr ->
         F nid
           (case expr of
-            NLet lhs rhs expr ->
-              NLet (cBlankOr lhs) (c rhs) (c expr)
+            Let lhs rhs expr ->
+              Let (cBlankOr lhs) (c rhs) (c expr)
 
-            NIf cond ifbody elsebody ->
-              NIf (c cond) (c ifbody) (c elsebody)
+            If cond ifbody elsebody ->
+              If (c cond) (c ifbody) (c elsebody)
 
-            NFnCall name exprs ->
-              NFnCall name (cl exprs)
+            FnCall name exprs ->
+              FnCall name (cl exprs)
 
-            NLambda vars expr ->
-              NLambda vars (c expr)
+            Lambda vars expr ->
+              Lambda vars (c expr)
 
-            NThread exprs ->
-              NThread (cl exprs)
+            Thread exprs ->
+              Thread (cl exprs)
 
-            NFieldAccess obj field ->
-              NFieldAccess (c obj) (cBlankOr field)
-            NValue v ->
-              NValue v
-            NVariable name ->
-              NVariable name)
+            FieldAccess obj field ->
+              FieldAccess (c obj) (cBlankOr field)
+            Value v ->
+              Value v
+            Variable name ->
+              Variable name)
 
 

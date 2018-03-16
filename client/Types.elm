@@ -233,14 +233,14 @@ type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
 
 type alias Expr = BlankOr NExpr
-type NExpr = NIf Expr Expr Expr
-           | NFnCall FnName (List Expr)
-           | NVariable VarName
-           | NLet VarBind Expr Expr
-           | NLambda (List VarName) Expr
-           | NValue String
-           | NThread (List Expr)
-           | NFieldAccess Expr Field
+type NExpr = If Expr Expr Expr
+           | FnCall FnName (List Expr)
+           | Variable VarName
+           | Let VarBind Expr Expr
+           | Lambda (List VarName) Expr
+           | Value String
+           | Thread (List Expr)
+           | FieldAccess Expr Field
 
 -----------------------------
 -- High-level ID wrappers
