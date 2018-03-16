@@ -28,33 +28,33 @@ toPD e =
 -------------------------
 listThreadBlanks : Expr -> List ID
 listThreadBlanks expr =
-  let rb = listThreadBlanks
-      ltList : List Expr -> List ID
-      ltList exprs =
+  let r = listThreadBlanks
+      rList : List Expr -> List ID
+      rList exprs =
         exprs
         |> List.map listThreadBlanks
         |> List.concat
-      re nexpr =
+      rn nexpr =
         case nexpr of
           Value v -> []
           Variable name -> []
 
-          Let lhs rhs body -> rb rhs ++ rb body
-          FnCall name exprs -> ltList exprs
-          Lambda vars body -> rb body
-          FieldAccess obj _ -> rb obj
+          Let lhs rhs body -> r rhs ++ r body
+          FnCall name exprs -> rList exprs
+          Lambda vars body -> r body
+          FieldAccess obj _ -> r obj
 
           If cond ifbody elsebody ->
-            rb cond ++ rb ifbody ++ rb elsebody
+            r cond ++ r ifbody ++ r elsebody
 
           Thread exprs ->
             let (blanks, filled) = List.partition Blank.isBlank exprs
                 blankids = List.map Blank.toID blanks
-                subExprsBlankids = ltList filled
+                subExprsBlankids = rList filled
             in blankids ++ subExprsBlankids
   in case expr of
-      Blank _ -> [Blank.toID expr]
-      F _ f -> re f
+      Blank _ -> []
+      F _ f -> rn f
 
 
 closeThread : Expr -> Expr
@@ -160,8 +160,9 @@ maybeExtendThreadAt id expr =
       in F tid (Thread newExprs)
     _ -> traverse (maybeExtendThreadAt id) expr
 
-isThread : Expr -> Pointer -> Bool
-isThread expr p =
+-- Is Pointer a blank inside a thread
+isThreadBlank : Expr -> Pointer -> Bool
+isThreadBlank expr p =
   expr |> listThreadBlanks |> List.member (P.idOf p)
 
 

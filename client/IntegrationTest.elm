@@ -31,6 +31,7 @@ trigger test_name =
     "hover_values_for_varnames" -> hover_values_for_varnames
     "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
     "deleting_selects_the_blank" -> deleting_selects_the_blank
+    "right_number_of_blanks" -> right_number_of_blanks
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -216,5 +217,12 @@ pressing_up_doesnt_return_to_start m =
 deleting_selects_the_blank : Model -> TestResult
 deleting_selects_the_blank m =
   case onlyAST m of
-    (Value "6") -> pass
-    ast -> fail ast
+    Value "6" -> pass
+    e -> fail e
+
+
+right_number_of_blanks : Model -> TestResult
+right_number_of_blanks m =
+  case onlyAST m of
+    FnCall "assoc" [Blank _, Blank _, Blank _] -> pass
+    e -> fail e
