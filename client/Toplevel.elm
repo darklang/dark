@@ -245,7 +245,7 @@ getChildrenOf tl p =
     POSpecHeader -> []
     POAst ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
-      AST.childrenOf (P.idOf p) (n2o h.ast)
+      AST.childrenOf (P.idOf p) h.ast
     PODb -> []
     POSpecType ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in

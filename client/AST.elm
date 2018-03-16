@@ -209,40 +209,41 @@ children e =
         NLet lhs rhs body ->
           [Blank.toP VarBind lhs, toP rhs, toP body]
 
-childrenOf : ID -> Expr -> List Pointer
-childrenOf pid expr =
+childrenOf : ID -> BExpr -> List Pointer
+childrenOf pid bexpr =
   let co = childrenOf pid
       returnOr fn e =
-        if pid == (toID e)
-        then children (o2n e)
+        if pid == Blank.toID e
+        then children e
         else fn e
   in
-  case expr of
-    Value _ _ -> []
-    Hole _ -> []
-    Variable _ _ -> []
-    Let id lhs rhs body ->
-      returnOr (\_ -> List.concat [co body, co rhs]) expr
+  case bexpr of
+    Blank _ -> []
+    F _ expr ->
+      case expr of
+        NValue _ -> []
+        NVariable _ -> []
+        NLet lhs rhs body ->
+          returnOr (\_ -> List.concat [co body, co rhs]) bexpr
 
-    If id cond ifbody elsebody ->
-      returnOr (\_ ->
-        let c  = co cond
-            ib = co ifbody
-            eb = co elsebody
-        in
-            List.concat [c, ib, eb]) expr
+        NIf cond ifbody elsebody ->
+          returnOr (\_ ->
+            let c  = co cond
+                ib = co ifbody
+                eb = co elsebody
+            in List.concat [c, ib, eb]) bexpr
 
-    FnCall id name exprs ->
-      returnOr (\_ -> exprs |> List.map co |> List.concat) expr
+        NFnCall name exprs ->
+          returnOr (\_ -> exprs |> List.map co |> List.concat) bexpr
 
-    Lambda id vars lexpr ->
-      returnOr (\_ -> co lexpr) expr
+        NLambda vars lexpr ->
+          returnOr (\_ -> co lexpr) bexpr
 
-    Thread id exprs ->
-      returnOr (\_ -> exprs |> List.map co |> List.concat) expr
+        NThread exprs ->
+          returnOr (\_ -> exprs |> List.map co |> List.concat) bexpr
 
-    FieldAccess id obj field ->
-      returnOr (\_ -> co obj) expr
+        NFieldAccess obj field ->
+          returnOr (\_ -> co obj) bexpr
 
 -------------------------
 -- Ancestors
@@ -434,38 +435,40 @@ allPointers bexpr =
 --------------------------------
 
 
-listData : Expr -> List PointerData
-listData expr =
-  let e2ld e = PExpr (o2n e)
-      rl : List Expr -> List PointerData
+listData : BExpr -> List PointerData
+listData bexpr =
+  let e2ld e = PExpr e
+      rl : List BExpr -> List PointerData
       rl exprs =
         exprs
         |> List.map listData
         |> List.concat
   in
-  [e2ld expr] ++
-  case expr of
-    Value _ v -> []
-    Variable _ name -> []
-    Hole id -> []
+  [e2ld bexpr] ++
+  case bexpr of
+    Blank _ -> []
+    F _ expr ->
+      case expr of
+        NValue v -> []
+        NVariable name -> []
 
-    Let _ lhs rhs expr ->
-      [PVarBind lhs] ++ rl [rhs, expr]
+        NLet lhs rhs expr ->
+          [PVarBind lhs] ++ rl [rhs, expr]
 
-    If _ cond ifbody elsebody ->
-      rl [cond, ifbody, elsebody]
+        NIf cond ifbody elsebody ->
+          rl [cond, ifbody, elsebody]
 
-    FnCall _ name exprs ->
-      rl exprs
+        NFnCall name exprs ->
+          rl exprs
 
-    Lambda _ vars expr ->
-      listData expr
+        NLambda vars expr ->
+          listData expr
 
-    Thread _ exprs ->
-      rl exprs
+        NThread exprs ->
+          rl exprs
 
-    FieldAccess _ obj field ->
-      listData obj ++ [PField field]
+        NFieldAccess obj field ->
+          listData obj ++ [PField field]
 
 
 
@@ -475,7 +478,7 @@ subtree id ast =
 
 subData : ID -> BExpr -> Maybe PointerData
 subData id bexpr =
-  listData (n2o bexpr)
+  listData bexpr
   |> List.filter (\d -> id == P.idOfD d)
   |> List.head -- TODO might be multiple
 
