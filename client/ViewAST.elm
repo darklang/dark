@@ -116,14 +116,14 @@ vFn state id name =
       ]
     _ -> Text ["fnname", "atom"] name
 
-vPrefix : HtmlVisitState -> ID -> FnName -> List BExpr -> Int -> Element
+vPrefix : HtmlVisitState -> ID -> FnName -> List Expr -> Int -> Element
 vPrefix state id name exprs nest =
   Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fncall", "prefix", depthString nest]
     ((Nested [] ["op", name] [vFn state id name])
     :: (List.map (vExpr state (nest + 1)) exprs))
 
 
-vInfix : HtmlVisitState -> ID -> FnName -> List BExpr -> Int -> Element
+vInfix : HtmlVisitState -> ID -> FnName -> List Expr -> Int -> Element
 vInfix state id name exprs nesting =
   case exprs of
     [first, second] ->
@@ -134,7 +134,7 @@ vInfix state id name exprs nesting =
         ]
     _ -> vPrefix state id ("(" ++ name ++ ")") exprs nesting
 
-vExpr : HtmlVisitState -> Int -> BExpr -> Element
+vExpr : HtmlVisitState -> Int -> Expr -> Element
 vExpr state nest bexpr =
   case bexpr of
     Blank id -> Selectable ["atom"] (Blank id) Expr
@@ -207,10 +207,10 @@ vExpr state nest bexpr =
           , Selectable ["fieldname", "atom"] field Field
           ]
 
-walk : HtmlVisitState -> BExpr -> Element
+walk : HtmlVisitState -> Expr -> Element
 walk state = vExpr state 0
 
-toHtml : HtmlVisitState -> BExpr -> Html.Html Msg
+toHtml : HtmlVisitState -> Expr -> Html.Html Msg
 toHtml visitState expr =
   expr
   |> walk visitState

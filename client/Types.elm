@@ -232,16 +232,15 @@ type alias FieldName = String
 type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
 
--- Allow a slow transition over to the new types
-type alias BExpr = BlankOr NExpr
-type NExpr = NIf BExpr BExpr BExpr
-           | NFnCall FnName (List BExpr)
+type alias Expr = BlankOr NExpr
+type NExpr = NIf Expr Expr Expr
+           | NFnCall FnName (List Expr)
            | NVariable VarName
-           | NLet VarBind BExpr BExpr
-           | NLambda (List VarName) BExpr
+           | NLet VarBind Expr Expr
+           | NLambda (List VarName) Expr
            | NValue String
-           | NThread (List BExpr)
-           | NFieldAccess BExpr Field
+           | NThread (List Expr)
+           | NFieldAccess Expr Field
 
 -----------------------------
 -- High-level ID wrappers
@@ -265,7 +264,7 @@ type PointerData = PVarBind VarBind
                  | PEventName (BlankOr String)
                  | PEventModifier (BlankOr String)
                  | PEventSpace (BlankOr String)
-                 | PExpr BExpr
+                 | PExpr Expr
                  | PField Field
                  | PDBColName (BlankOr String)
                  | PDBColType (BlankOr String)
@@ -299,7 +298,7 @@ type alias HandlerSpec = { module_ : BlankOr String
                          , types : SpecTypes
                          }
 
-type alias Handler = { ast : BExpr
+type alias Handler = { ast : Expr
                      , spec : HandlerSpec
                      }
 

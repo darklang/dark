@@ -52,7 +52,7 @@ newHandlerSpec _ = { module_ = Blank.new ()
                              }
                    }
 
-createFunction : Model -> FnName -> Bool -> Maybe BExpr
+createFunction : Model -> FnName -> Bool -> Maybe Expr
 createFunction m name hasImplicitParam =
   let blankModifier = if hasImplicitParam then -1 else 0
       blanks count = List.map (\_ -> Blank.new ()) (List.range 1 count)

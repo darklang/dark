@@ -88,7 +88,7 @@ encodeRPC m call =
                    ]
             handler = JSE.object [ ("tlid", encodeTLID id)
                                  , ("spec", hs)
-                                 , ("ast", encodeBExpr h.ast) ] in
+                                 , ("ast", encodeExpr h.ast) ] in
         ev "SetHandler" [encodeTLID id, encodePos pos, handler]
 
       CreateDB id pos name ->
@@ -110,16 +110,16 @@ encodeRPC m call =
       DeleteTL id -> ev "DeleteTL" [encodeTLID id]
       MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
 
-encodeBExpr : BExpr -> JSE.Value
-encodeBExpr bexpr =
+encodeExpr : Expr -> JSE.Value
+encodeExpr bexpr =
   case bexpr of
-    F id expr -> encodeExpr id expr
+    F id expr -> encodeNExpr id expr
     Blank id -> encodeVariant "Hole" [encodeID id]
 
 
-encodeExpr : ID -> NExpr -> JSE.Value
-encodeExpr id expr =
-  let e = encodeBExpr
+encodeNExpr : ID -> NExpr -> JSE.Value
+encodeNExpr id expr =
+  let e = encodeExpr
       eid = encodeID
       ev = encodeVariant in
   case expr of
@@ -201,9 +201,9 @@ decodeDarkType =
     ]
 
 
-decodeBExpr : JSD.Decoder BExpr
-decodeBExpr =
-  let de = (JSD.lazy (\_ -> decodeBExpr))
+decodeExpr : JSD.Decoder Expr
+decodeExpr =
+  let de = (JSD.lazy (\_ -> decodeExpr))
       did = decodeID
       dv4 = decodeVariant4
       dv3 = decodeVariant3
@@ -285,7 +285,7 @@ decodeHandler : JSD.Decoder Handler
 decodeHandler =
   let toHandler ast spec = {ast = ast, spec = spec } in
   JSDP.decode toHandler
-  |> JSDP.required "ast" decodeBExpr
+  |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
 
 decodeTipe : JSD.Decoder String
