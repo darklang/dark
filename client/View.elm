@@ -387,7 +387,7 @@ viewHandler m tl h =
                 , html4blank = html4blank
                 , liveValues = lvs
                 , functions = m.complete.functions}
-                (n2o h.ast)]
+                h.ast]
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
