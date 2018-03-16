@@ -10,14 +10,14 @@ import List
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Pointer as P
-import Blank
+import Blank as B
 
 
 -------------------------
 -- Generic
 -------------------------
 toP : Expr -> Pointer
-toP = Blank.toP Expr
+toP = B.toP Expr
 
 toPD : Expr -> PointerData
 toPD e =
@@ -77,8 +77,8 @@ listThreadBlanks expr =
             r cond ++ r ifbody ++ r elsebody
 
           Thread exprs ->
-            let (blanks, filled) = List.partition Blank.isBlank exprs
-                blankids = List.map Blank.toID blanks
+            let (blanks, filled) = List.partition B.isBlank exprs
+                blankids = List.map B.toID blanks
                 subExprsBlankids = rList filled
             in blankids ++ subExprsBlankids
   in case expr of
@@ -90,7 +90,7 @@ closeThread expr =
   -- Close all threads
   case expr of
     F id (Thread exprs) ->
-      let newExprs = List.filter Blank.isF exprs
+      let newExprs = List.filter B.isF exprs
                      |> List.map closeThread
       in
       case newExprs of
@@ -107,13 +107,13 @@ closeThread expr =
 addThreadBlank : ID -> Expr -> Expr
 addThreadBlank id expr =
   let atb = addThreadBlank id in
-  if id == Blank.toID expr
+  if id == B.toID expr
   then
     case expr of
       F tid (Thread exprs) ->
-        F tid (Thread (exprs ++ [Blank.new ()]))
+        F tid (Thread (exprs ++ [B.new ()]))
       _ ->
-        Blank.newF (Thread [expr, Blank.new ()])
+        B.newF (Thread [expr, B.new ()])
   else
     case expr of
       F tid (Thread exprs) ->
@@ -128,12 +128,12 @@ addThreadBlank id expr =
 -- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> Expr -> Expr
 wrapInThread id expr =
-  if Blank.toID expr == id
+  if B.toID expr == id
   then
     case expr of
       F _ (Thread _) -> expr
-      F _ _ -> Blank.newF (Thread [expr, Blank.new ()])
-      Blank _ -> Blank.newF (Thread [expr])
+      F _ _ -> B.newF (Thread [expr, B.new ()])
+      Blank _ -> B.newF (Thread [expr])
   else
     traverse (wrapInThread id) expr
 
@@ -141,8 +141,8 @@ wrapInThread id expr =
 extendThreadChild : ID -> List Expr -> List Expr
 extendThreadChild at threadExprs =
   List.foldr (\e list ->
-                if (Blank.toID e) == at
-                then e :: Blank.new () :: list
+                if (B.toID e) == at
+                then e :: B.new () :: list
                 else e :: list)
              []
              threadExprs
@@ -167,7 +167,7 @@ grandparentIsThread expr parent =
   parent
   |> Maybe.map
        (\p ->
-         case parentOf_ (Blank.toID p) expr of
+         case parentOf_ (B.toID p) expr of
            Just (F _ (Thread ts)) ->
              ts
              |> List.head
@@ -197,15 +197,15 @@ children expr =
         Thread exprs ->
           List.map toP exprs
         FieldAccess obj field ->
-          [toP obj, Blank.toP Field field]
+          [toP obj, B.toP Field field]
         Let lhs rhs body ->
-          [Blank.toP VarBind lhs, toP rhs, toP body]
+          [B.toP VarBind lhs, toP rhs, toP body]
 
 childrenOf : ID -> Expr -> List Pointer
 childrenOf pid expr =
   let co = childrenOf pid
       returnOr fn e =
-        if pid == Blank.toID e
+        if pid == B.toID e
         then children e
         else fn e
   in
@@ -248,7 +248,7 @@ ancestors id expr =
             reclist id e walk exprs =
               exprs |> List.map (rec id e walk) |> List.concat
         in
-        if Blank.toID exp == tofind
+        if B.toID exp == tofind
         then walk
         else
           case exp of
@@ -328,7 +328,7 @@ parentOf_ eid expr =
           returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
 
         FieldAccess obj field ->
-          if Blank.toID field == eid
+          if B.toID field == eid
           then Just expr
           else returnOr (\_ -> po obj) expr
 
@@ -343,7 +343,7 @@ siblings p expr =
           List.map toP [cond, ifbody, elsebody]
 
         F _ (Let lhs rhs body) ->
-          [Blank.toP VarBind lhs, toP rhs, toP body]
+          [B.toP VarBind lhs, toP rhs, toP body]
 
         F _ (FnCall name exprs) ->
           List.map toP exprs
@@ -355,7 +355,7 @@ siblings p expr =
           List.map toP exprs
 
         F _ (FieldAccess obj field) ->
-          [toP obj, Blank.toP Field field]
+          [toP obj, B.toP Field field]
 
         _ -> [p]
 
@@ -396,7 +396,7 @@ allPointers expr =
         Variable name -> []
 
         Let lhs rhs body ->
-          [Blank.toP VarBind lhs] ++ rl [rhs, body]
+          [B.toP VarBind lhs] ++ rl [rhs, body]
 
         If cond ifbody elsebody ->
           rl [cond, ifbody, elsebody]
@@ -411,7 +411,7 @@ allPointers expr =
           rl exprs
 
         FieldAccess obj field ->
-          allPointers obj ++ [Blank.toP Field field]
+          allPointers obj ++ [B.toP Field field]
 
 
 --------------------------------
@@ -469,8 +469,8 @@ subData id expr =
 toContent : PointerData -> String
 toContent pd =
   case pd of
-    PVarBind v -> v |> Blank.toMaybe |> Maybe.withDefault ""
-    PField f -> f |> Blank.toMaybe |> Maybe.withDefault ""
+    PVarBind v -> v |> B.toMaybe |> Maybe.withDefault ""
+    PField f -> f |> B.toMaybe |> Maybe.withDefault ""
     PExpr e ->
       case e of
         F _ (Value s) -> s
@@ -488,7 +488,7 @@ toContent pd =
 replace : Pointer -> PointerData -> Expr -> Expr
 replace p replacement expr =
   let r = replace p replacement in
-  if Blank.toID expr == P.idOf p
+  if B.toID expr == P.idOf p
   then
     case replacement of
       PExpr e -> e
@@ -496,12 +496,12 @@ replace p replacement expr =
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind b) ->
-        if Blank.toID lhs == P.idOf p
+        if B.toID lhs == P.idOf p
         then F id (Let b rhs body)
         else traverse r expr
 
       (F id (FieldAccess obj field), PField f) ->
-        if Blank.toID field == P.idOf p
+        if B.toID field == P.idOf p
         then F id (FieldAccess obj f)
         else traverse r expr
 
@@ -515,12 +515,12 @@ deleteExpr p expr id =
 
 replaceVarBind : Pointer -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
-  replace p (PVarBind (Blank.newF replacement)) expr
+  replace p (PVarBind (B.newF replacement)) expr
 
 
 replaceField : Pointer -> FieldName -> Expr -> Expr
 replaceField p replacement expr =
-  replace p (PField (Blank.newF replacement)) expr
+  replace p (PField (B.newF replacement)) expr
 
 
 clone : Expr -> Expr

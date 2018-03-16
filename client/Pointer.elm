@@ -2,7 +2,7 @@ module Pointer exposing (..)
 
 -- dark
 import Types exposing (..)
-import Blank
+import Blank as B
 
 idOf : Pointer -> ID
 idOf p =
@@ -34,16 +34,16 @@ isFilled p =
 pdToP : PointerData -> Pointer
 pdToP pd =
   case pd of
-    PVarBind d -> PFilled VarBind (Blank.toID d)
-    PEventModifier d -> PFilled EventModifier (Blank.toID d)
-    PEventName d -> PFilled EventName (Blank.toID d)
-    PEventSpace d -> PFilled EventSpace (Blank.toID d)
-    PExpr d -> PFilled Expr (Blank.toID d)
-    PField d -> PFilled Field (Blank.toID d)
-    PDBColName d -> PFilled DBColName (Blank.toID d)
-    PDBColType d -> PFilled DBColType (Blank.toID d)
-    PDarkType d -> PFilled DarkType (Blank.toID d)
-    PDarkTypeField d -> PFilled DarkTypeField (Blank.toID d)
+    PVarBind d -> PFilled VarBind (B.toID d)
+    PEventModifier d -> PFilled EventModifier (B.toID d)
+    PEventName d -> PFilled EventName (B.toID d)
+    PEventSpace d -> PFilled EventSpace (B.toID d)
+    PExpr d -> PFilled Expr (B.toID d)
+    PField d -> PFilled Field (B.toID d)
+    PDBColName d -> PFilled DBColName (B.toID d)
+    PDBColType d -> PFilled DBColType (B.toID d)
+    PDarkType d -> PFilled DarkType (B.toID d)
+    PDarkTypeField d -> PFilled DarkTypeField (B.toID d)
 
 emptyD_ : ID -> PointerType -> PointerData
 emptyD_ id pt =

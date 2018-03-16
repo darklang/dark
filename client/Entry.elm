@@ -24,7 +24,7 @@ import Runtime as RT
 import Pointer as P
 import SpecTypes
 import SpecHeaders
-import Blank
+import Blank as B
 
 
 createFindSpace : Model -> Modification
@@ -44,9 +44,9 @@ focusEntry m =
 
 
 newHandlerSpec : () -> HandlerSpec
-newHandlerSpec _ = { module_ = Blank.new ()
-                   , name = Blank.new ()
-                   , modifier = Blank.new ()
+newHandlerSpec _ = { module_ = B.new ()
+                   , name = B.new ()
+                   , modifier = B.new ()
                    , types = { input = F (gid ()) DTAny
                              , output = F (gid ()) DTAny
                              }
@@ -55,7 +55,7 @@ newHandlerSpec _ = { module_ = Blank.new ()
 createFunction : Model -> FnName -> Bool -> Maybe Expr
 createFunction m name hasImplicitParam =
   let blankModifier = if hasImplicitParam then -1 else 0
-      blanks count = List.map (\_ -> Blank.new ()) (List.range 1 count)
+      blanks count = List.map (\_ -> B.new ()) (List.range 1 count)
       fn = m.complete.functions
            |> List.filter (\fn -> fn.name == name)
            |> List.head
@@ -63,7 +63,7 @@ createFunction m name hasImplicitParam =
     case fn of
       Just function ->
         Just <|
-          Blank.newF
+          B.newF
             (FnCall
               name
               (blanks ((List.length function.parameters) + blankModifier)))
@@ -75,15 +75,15 @@ submit m cursor action value =
   let
       parseAst str hasImplicit =
         let eid = gid ()
-            b1 = Blank.new ()
-            b2 = Blank.new ()
-            b3 = Blank.new ()
+            b1 = B.new ()
+            b2 = B.new ()
+            b3 = B.new ()
             firstWord = String.split " " str in
         case firstWord of
           ["if"] ->
             Just <| F eid (If b1 b2 b3)
           ["let"] ->
-            Just <| F eid (Let (Blank.new()) b2 b3)
+            Just <| F eid (Let (B.new()) b2 b3)
           ["lambda"] ->
             Just <| F eid (Lambda ["var"] b2)
           [""] ->
@@ -109,7 +109,7 @@ submit m cursor action value =
               ContinueThread ->
                 expr
               StartThread ->
-                Blank.newF (Thread [expr, Blank.new ()])
+                B.newF (Thread [expr, B.new ()])
           wrapExpr expr =
             wrap <| SetHandler tlid pos { ast = threadIt expr
                                         , spec = newHandlerSpec ()
@@ -128,14 +128,14 @@ submit m cursor action value =
       else if String.endsWith "." value
       then
         wrapExpr <|
-          Blank.newF
+          B.newF
             (FieldAccess
-               (Blank.newF (Variable (String.dropRight 1 value)))
-               (Blank.new ()))
+               (B.newF (Variable (String.dropRight 1 value)))
+               (B.new ()))
 
       -- varnames
       else if List.member value (Analysis.varnamesFor m Nothing)
-      then wrapExpr <| Blank.newF (Variable value)
+      then wrapExpr <| B.newF (Variable value)
 
       -- start new AST
       else
@@ -167,11 +167,11 @@ submit m cursor action value =
                         in
                           ( AST.toPD thread
                           , AST.toPD <|
-                              Blank.newF (
+                              B.newF (
                                 Let
-                                  (Blank.newF bindName)
+                                  (B.newF bindName)
                                   (AST.closeThread thread)
-                                  (Blank.new ())))
+                                  (B.new ())))
 
                       _ ->
                         (old_, old_)
@@ -181,15 +181,15 @@ submit m cursor action value =
                   then
                     ( old_
                     , AST.toPD <|
-                        Blank.newF
+                        B.newF
                           (FieldAccess
-                            (Blank.newF (Variable (String.dropRight 1 value)))
-                            (Blank.new ())))
+                            (B.newF (Variable (String.dropRight 1 value)))
+                            (B.new ())))
 
                   -- variables
                   else if List.member value (Analysis.varnamesFor m target)
                   then
-                    (old_, AST.toPD <| Blank.newF (Variable value))
+                    (old_, AST.toPD <| B.newF (Variable value))
 
                   -- parsed exprs
                   else
@@ -286,10 +286,10 @@ submit m cursor action value =
                       wrapped =
                         case parent of
                           F id (FieldAccess lhs rhs) ->
-                            Blank.newF (
+                            B.newF (
                               FieldAccess
-                                (F id (FieldAccess lhs (Blank.newF fieldname)))
-                                (Blank.new ()))
+                                (F id (FieldAccess lhs (B.newF fieldname)))
+                                (B.new ()))
                           _ -> Debug.crash "should be a field"
                   in
                       AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast
@@ -300,7 +300,7 @@ submit m cursor action value =
                     StartThread ->
                       -- id is not in the replacement, so search for the
                       -- parent in the old ast
-                      let parentID = AST.parentOf id h.ast |> Blank.toID in
+                      let parentID = AST.parentOf id h.ast |> B.toID in
                       AST.wrapInThread parentID replacement
           in
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
@@ -316,15 +316,15 @@ submit m cursor action value =
                   "Any" -> DTAny
                   "Int" -> DTInt
                   "Empty" -> DTEmpty
-                  "{" -> DTObj [(Blank.new (), Blank.new ())]
+                  "{" -> DTObj [(B.new (), B.new ())]
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
-              pd = PDarkType (Blank.newF specType)
+              pd = PDarkType (B.newF specType)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         DarkTypeField ->
           let h = deMaybe "maybeH - expr" maybeH
-              pd = PDarkTypeField (Blank.newF value)
+              pd = PDarkTypeField (B.newF value)
               replacement = SpecTypes.replace p pd h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
 

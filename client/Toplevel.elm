@@ -11,7 +11,7 @@ import DB
 import Types exposing (..)
 import Util exposing (deMaybe)
 import AST
-import Blank
+import Blank as B
 import Pointer as P
 import SpecTypes
 import SpecHeaders
@@ -113,8 +113,8 @@ clonePointerData : PointerData -> PointerData
 clonePointerData pd =
   let replaceBlankOr bo =
       case bo of
-        Blank _ -> Blank.new ()
-        F _ a -> Blank.newF a
+        Blank _ -> B.new ()
+        F _ a -> B.newF a
   in
   case pd of
     PVarBind vb ->
@@ -200,9 +200,9 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allPointers h.spec
-            ++ [ Blank.toP DarkType h.spec.types.input
-               , Blank.toP Expr h.ast
-               , Blank.toP DarkType h.spec.types.output] in
+            ++ [ B.toP DarkType h.spec.types.input
+               , B.toP Expr h.ast
+               , B.toP DarkType h.spec.types.output] in
 
       if List.member p toplevels
       then toplevels
@@ -262,7 +262,7 @@ rootOf tl =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      Just <| Blank.toP Expr h.ast
+      Just <| B.toP Expr h.ast
     _ -> Nothing
 
 
