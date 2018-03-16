@@ -248,6 +248,13 @@ html4blank selected mouseover classes clickable hoverdata content =
           Just (Ok msg) -> ([], [Attrs.title msg])
           Just (Err err) -> (["value-error"], [Attrs.title err])
 
+      featureFlag =
+        if selected == DivSelected
+        then [Html.div
+                [Attrs.class "feature-flag" ]
+                [fontAwesome "flag"] ]
+        else []
+
       allClasses = classes
                 ++ valClass
                 ++ (if selected == DivSelected
@@ -260,7 +267,7 @@ html4blank selected mouseover classes clickable hoverdata content =
   in
   Html.div
     (events ++ title ++ [Attrs.class (String.join " " allClasses)])
-    content
+    (content ++ featureFlag)
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =
@@ -286,9 +293,13 @@ viewTL m tl =
       class = [selected, toString (deTLID tl.id), "toplevel", "cursor-" ++ (toString tl.cursor)]
               |> String.join " "
 
-      html = Html.div
-        (Attrs.class class :: events)
-        body
+      html =
+        Html.div
+          [Attrs.class "sidebar-box"] -- see comment in css
+          [ Html.div
+              (Attrs.class class :: events)
+              body
+          ]
 
   in
       placeHtml m tl.pos html
