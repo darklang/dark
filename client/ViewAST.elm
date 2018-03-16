@@ -15,7 +15,7 @@ import Types exposing (..)
 import Runtime as RT
 import Runtime
 import Util exposing (deMaybe)
-import Blank
+import Blank as B
 
 type alias HtmlVisitState =
   { selectedID : ID
@@ -58,7 +58,7 @@ elemToHtml state elem =
         [Html.text str]
 
     Selectable classNames blankOr pointerType ->
-      let id = Blank.toID blankOr
+      let id = B.toID blankOr
           idAttr = Attrs.id (id |> deID |> toString)
           classes = asClass classNames
       in
@@ -118,7 +118,7 @@ vFn state id name =
 
 vPrefix : HtmlVisitState -> ID -> FnName -> List Expr -> Int -> Element
 vPrefix state id name exprs nest =
-  Nested 
+  Nested
     [DisplayValue id, ClickSelect Expr id, HighlightAs id]
     ["fncall", "prefix", depthString nest]
     ((Nested [] ["op", name] [vFn state id name])
@@ -143,6 +143,8 @@ vExpr state nest expr =
   case expr of
     Blank id ->
       Selectable ["atom"] (Blank id) Expr
+    Flagged _ _ _ _ ->
+      expr |> B.flattenFF |> vExpr state nest
     F id nexpr ->
       case nexpr of
         Value v ->
@@ -155,7 +157,7 @@ vExpr state nest expr =
          in Selectable ["atom", "value", cssClass] (F id valu) Expr
 
         Let lhs rhs expr ->
-          let rhsID = Blank.toID rhs in
+          let rhsID = B.toID rhs in
           Nested
             [DisplayValue id, ClickSelect Expr id, HighlightAs id]
             ["letexpr"]
@@ -229,8 +231,8 @@ vExpr state nest expr =
 
         Thread exprs ->
           let pipe = Text ["thread", "atom", "pipe"] "|>"
-              texpr e = 
-                let id = Blank.toID e in
+              texpr e =
+                let id = B.toID e in
                 Nested
                   [DisplayValue id, ClickSelect Expr id]
                   ["threadmember"]

@@ -15,6 +15,7 @@ import Types exposing (..)
 import Runtime as RT
 import Util
 import JSON exposing (..)
+import Blank as B
 
 rpc_ : Model -> String ->
  (List RPC -> Result Http.Error RPCResult -> Msg) ->
@@ -112,10 +113,7 @@ encodeRPC m call =
 
 encodeExpr : Expr -> JSE.Value
 encodeExpr expr =
-  case expr of
-    F id nexpr -> encodeNExpr id nexpr
-    Blank id -> encodeVariant "Hole" [encodeID id]
-
+  encodeBlankOr (encodeNExpr (B.toID expr)) expr
 
 encodeNExpr : ID -> NExpr -> JSE.Value
 encodeNExpr id expr =

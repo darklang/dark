@@ -84,12 +84,13 @@ isHTTPHandler tl =
     Just h ->
       case h.spec.module_ of
         Blank _ -> True
+        Flagged _ _ _ _ as ff ->
+          case B.flattenFF ff of
+            F _ s -> String.toLower s == "http"
+            _ -> False
+
         F _ s ->
-          if String.toLower s == "http"
-          then
-            True
-          else
-            False
+          String.toLower s == "http"
 
 -------------------------
 -- Generic
@@ -111,24 +112,19 @@ isValidPointer tl p =
 
 clonePointerData : PointerData -> PointerData
 clonePointerData pd =
-  let replaceBlankOr bo =
-      case bo of
-        Blank _ -> B.new ()
-        F _ a -> B.newF a
-  in
   case pd of
     PVarBind vb ->
-      PVarBind (replaceBlankOr vb)
+      PVarBind (B.clone identity vb)
     PEventModifier sp ->
-      PEventModifier (replaceBlankOr sp)
+      PEventModifier (B.clone identity sp)
     PEventName sp ->
-      PEventName (replaceBlankOr sp)
+      PEventName (B.clone identity sp)
     PEventSpace sp ->
-      PEventSpace (replaceBlankOr sp)
+      PEventSpace (B.clone identity sp)
     PExpr expr ->
       PExpr (AST.clone expr)
     PField f ->
-      PField (replaceBlankOr f)
+      PField (B.clone identity f)
     PDBColName cn -> pd
     PDBColType ct -> pd
     PDarkType dt -> Debug.crash "TODO clonePointerdata"

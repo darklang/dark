@@ -27,6 +27,7 @@ traverse : (Expr -> Expr) -> Expr -> Expr
 traverse fn expr =
   case expr of
     Blank _ -> expr
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> traverse fn
     F id nexpr ->
       F id
         (case nexpr of
@@ -83,6 +84,7 @@ listThreadBlanks expr =
             in blankids ++ subExprsBlankids
   in case expr of
       Blank _ -> []
+      Flagged _ _ _ _ -> expr |> B.flattenFF |> listThreadBlanks
       F _ f -> rn f
 
 closeThread : Expr -> Expr
@@ -134,6 +136,7 @@ wrapInThread id expr =
       F _ (Thread _) -> expr
       F _ _ -> B.newF (Thread [expr, B.new ()])
       Blank _ -> B.newF (Thread [expr])
+      Flagged _ _ _ _ -> expr |> B.flattenFF |> wrapInThread id
   else
     traverse (wrapInThread id) expr
 
@@ -184,6 +187,7 @@ children : Expr -> List Pointer
 children expr =
   case expr of
     Blank _ -> []
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> children
     F _ nexpr ->
       case nexpr of
         Value _ -> []
@@ -211,6 +215,7 @@ childrenOf pid expr =
   in
   case expr of
     Blank _ -> []
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> childrenOf pid
     F _ nexpr ->
       case nexpr of
         Value _ -> []
@@ -253,6 +258,7 @@ ancestors id expr =
         else
           case exp of
             Blank _ -> []
+            Flagged _ _ _ _ -> expr |> B.flattenFF |> ancestors id
             F i nexpr ->
               case nexpr of
                 Value _ -> []
@@ -304,6 +310,7 @@ parentOf_ eid expr =
   in
   case expr of
     Blank _ -> Nothing
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> parentOf_ eid
     F id nexpr ->
       case nexpr of
         Value _ -> Nothing
@@ -390,6 +397,7 @@ allPointers expr =
   [toP expr] ++
   case expr of
     Blank _ -> []
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> allPointers
     F _ nexpr ->
       case nexpr of
         Value v -> []
@@ -431,6 +439,7 @@ listData expr =
   [e2ld expr] ++
   case expr of
     Blank _ -> []
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> listData
     F _ nexpr ->
       case nexpr of
         Value v -> []
@@ -528,37 +537,17 @@ clone expr =
   let nid = gid ()
       c be = clone be
       cl bes = List.map c bes
-      cBlankOr bo =
-        let nbid = gid () in
-        case bo of
-          Blank _ -> Blank nbid
-          F _ a -> F nbid a
-  in
-    case expr of
-      Blank id -> Blank nid
-      F id nexpr ->
-        F nid
-          (case nexpr of
-            Let lhs rhs body ->
-              Let (cBlankOr lhs) (c rhs) (c expr)
-
-            If cond ifbody elsebody ->
-              If (c cond) (c ifbody) (c elsebody)
-
-            FnCall name exprs ->
-              FnCall name (cl exprs)
-
-            Lambda vars body ->
-              Lambda vars (c body)
-
-            Thread exprs ->
-              Thread (cl exprs)
-
-            FieldAccess obj field ->
-              FieldAccess (c obj) (cBlankOr field)
-            Value v ->
-              Value v
-            Variable name ->
-              Variable name)
-
+      cString : BlankOr String -> BlankOr String
+      cString = B.clone identity
+      cNExpr nexpr =
+        case nexpr of
+          Let lhs rhs body -> Let (cString lhs) (c rhs) (c expr)
+          If cond ifbody elsebody -> If (c cond) (c ifbody) (c elsebody)
+          FnCall name exprs -> FnCall name (cl exprs)
+          Lambda vars body -> Lambda vars (c body)
+          Thread exprs -> Thread (cl exprs)
+          FieldAccess obj field -> FieldAccess (c obj) (cString field)
+          Value v -> Value v
+          Variable name -> Variable name
+  in B.clone cNExpr expr
 
