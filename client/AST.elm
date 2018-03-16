@@ -23,6 +23,35 @@ toPD : Expr -> PointerData
 toPD e =
   PExpr e
 
+traverse : (Expr -> Expr) -> Expr -> Expr
+traverse fn expr =
+  case expr of
+    Blank _ -> expr
+    F id nexpr ->
+      F id
+        (case nexpr of
+          Value _ -> nexpr
+          Variable _ -> nexpr
+
+          Let lhs rhs body ->
+            Let lhs (fn rhs) (fn body)
+
+          If cond ifbody elsebody ->
+            If (fn cond) (fn ifbody) (fn elsebody)
+
+          FnCall name exprs ->
+            FnCall name (List.map fn exprs)
+
+          Lambda vars lexpr ->
+            Lambda vars (fn lexpr)
+
+          Thread exprs ->
+            Thread (List.map fn exprs)
+
+          FieldAccess obj field ->
+            FieldAccess (fn obj) field)
+
+
 -------------------------
 -- Thread stuff
 -------------------------
@@ -95,36 +124,6 @@ addThreadBlank id expr =
         else F tid (Thread replaced)
 
       _ -> traverse atb expr
-
-
-traverse : (Expr -> Expr) -> Expr -> Expr
-traverse fn expr =
-  case expr of
-    Blank _ -> expr
-    F id nexpr ->
-      F id
-        (case nexpr of
-          Value _ -> nexpr
-          Variable _ -> nexpr
-
-          Let lhs rhs body ->
-            Let lhs (fn rhs) (fn body)
-
-          If cond ifbody elsebody ->
-            If (fn cond) (fn ifbody) (fn elsebody)
-
-          FnCall name exprs ->
-            FnCall name (List.map fn exprs)
-
-          Lambda vars lexpr ->
-            Lambda vars (fn lexpr)
-
-          Thread exprs ->
-            Thread (List.map fn exprs)
-
-          FieldAccess obj field ->
-            FieldAccess (fn obj) field)
-
 
 
 -- takes an ID of an expr in the AST to wrap in a thread
