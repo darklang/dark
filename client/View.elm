@@ -29,6 +29,10 @@ import AST
 import Runtime as RT
 import Blank
 
+fontAwesome : String -> Html.Html Msg
+fontAwesome name =
+  Html.i [Attrs.class ("fa fa-" ++ name)] []
+
 view : Model -> Html.Html Msg
 view m =
   let (w, h) = Util.windowSize ()
@@ -697,7 +701,7 @@ viewRoutingTable m =
                      , Attrs.href source
                      , Attrs.target "_blank"
                      ]
-                     [Html.i [Attrs.class "fa fa-external-link"] []]
+                     [fontAwesome "external-link"]
             Nothing ->
               Html.div [] []
         else
