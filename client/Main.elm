@@ -530,17 +530,16 @@ update_ msg m =
             else
               case event.keyCode of
                 Key.Spacebar ->
-
                   -- if we're trying to create a database via our magic
-                  -- incantation, then we should be able to do that without
-                  -- submitting
+                  -- incantation, then we should be able to do that
+                  -- without submitting
                   if String.startsWith "DB" m.complete.value
                   || m.complete.value == "="
                   || AC.isStringEntry m.complete
                   then
-                    -- TODO: appending isnt right when we're editing, we want
-                    -- to put this wherever the cursor is. We need to allow the
-                    -- inputbox to do it's thing.
+                    -- TODO: appending isnt right when we're editing, we
+                    -- want to put this wherever the cursor is. We need
+                    -- to allow the inputbox to do it's thing.
                     AutocompleteMod <| ACAppendQuery " "
                   else
                     let name = AC.getValue m.complete
