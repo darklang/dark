@@ -109,9 +109,9 @@ submit m cursor action value =
               ContinueThread ->
                 expr
               StartThread ->
-                Thread (gid ()) [expr, Hole (gid ())]
+                Blank.newF (NThread [expr, Blank.new ()])
           wrapExpr expr =
-            wrap <| SetHandler tlid pos { ast = o2n (threadIt expr)
+            wrap <| SetHandler tlid pos { ast = threadIt expr
                                         , spec = newHandlerSpec ()
                                         }
       in
@@ -127,19 +127,21 @@ submit m cursor action value =
       -- field access
       else if String.endsWith "." value
       then
-        wrapExpr <| FieldAccess (gid ())
-                      (Variable (gid ()) (String.dropRight 1 value))
-                      (Blank.new ())
+        wrapExpr <|
+          Blank.newF
+            (NFieldAccess
+               (Blank.newF (NVariable (String.dropRight 1 value)))
+               (Blank.new ()))
 
       -- varnames
       else if List.member value (Analysis.varnamesFor m Nothing)
-      then wrapExpr <| Variable (gid ()) value
+      then wrapExpr <| Blank.newF (NVariable value)
 
       -- start new AST
       else
         case parseAst value False of
           Nothing -> NoChange
-          Just v -> wrapExpr (n2o v)
+          Just v -> wrapExpr v
 
     Filling tlid p ->
       let tl = TL.getTL m tlid
