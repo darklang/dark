@@ -274,6 +274,10 @@ type PointerData = PVarBind VarBind
 
 type BlankOr a = Blank ID
                | F ID a
+               -- it makes sense for flagged to have an ID, but simpler
+               -- for now, as it makes everything much more consistent
+               -- if it just has the ID of its winning child.
+               | Flagged String Int (BlankOr a) (BlankOr a)
 
 type PointerOwner = POSpecHeader
                   | POAst

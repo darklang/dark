@@ -106,13 +106,21 @@ decodeVariants decoders =
 ------------------------------------
 
 -- TODO: extend the metaphor to the server
-encodeBlankOr : (v -> JSE.Value) -> (BlankOr v) -> JSE.Value
+encodeBlankOr : (a -> JSE.Value) -> (BlankOr a) -> JSE.Value
 encodeBlankOr encoder v =
   case v of
     F (ID id) s ->
       encodeVariant "Filled" [JSE.int id, encoder s]
     Blank (ID id) ->
       encodeVariant "Blank" [JSE.int id]
+    Flagged msg s a b ->
+      encodeVariant
+        "Flagged"
+        [ JSE.string msg
+        , JSE.int s
+        , encodeBlankOr encoder a
+        , encodeBlankOr encoder b
+        ]
 
 decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
 decodeBlankOr d =

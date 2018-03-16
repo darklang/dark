@@ -27,7 +27,7 @@ import Toplevel as TL
 import Pointer as P
 import AST
 import Runtime as RT
-import Blank
+import Blank as B
 
 fontAwesome : String -> Html.Html Msg
 fontAwesome name =
@@ -133,7 +133,7 @@ viewBlankOrText = viewBlankOr Html.text
 type alias HoverData = Maybe (Result String String)
 viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> HoverData -> Html.Html Msg
 viewBlankOr htmlFn m tl pt b hoverdata =
-  let pointer = Blank.toP pt b
+  let pointer = B.toP pt b
       id = P.idOf pointer
       param =
         tl
@@ -148,7 +148,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                 Just (F _ (FnCall name args)) ->
                   let index =
                         args
-                        |> LE.findIndex (\a -> Blank.toID a == id)
+                        |> LE.findIndex (\a -> B.toID a == id)
                         |> Maybe.withDefault -1000
                         |> \i -> if inThread
                                  then i + 1
@@ -166,7 +166,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
 
       selected = case unwrapState m.state of
                    Selecting _ (Just p) ->
-                     if P.idOf p == Blank.toID b
+                     if P.idOf p == B.toID b
                      then DivSelected
                      else DivUnselected
                    _ -> DivUnselected
@@ -193,12 +193,13 @@ viewBlankOr htmlFn m tl pt b hoverdata =
           DBColType -> "db type"
           DarkType -> "type"
           DarkTypeField -> "fieldname"
-      thisText = case b of
+      thisText = case B.flattenFF b of
                    Blank _ ->
                      Html.div
                        [Attrs.class "blank"]
                        [Html.text placeholder]
                    F _ fill -> fill |> htmlFn
+                   Flagged _ _ _ _ -> Debug.crash "vbo"
       allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
@@ -641,14 +642,20 @@ collapseHandlers tls =
               case TL.asHandler tl of
                 Just h -> Just (tl.pos, h)
                 Nothing -> Nothing)
-        |> List.map (\(pos, h) -> { name = case h.spec.name of
-                                      F _ s -> Just s
-                                      Blank _ -> Nothing
-                                  , prefix = []
-                                  , verbs = case h.spec.modifier of
-                                             F _ s -> [(s, pos)]
-                                             Blank _ -> []
-                                  })
+        |> List.map
+             (\(pos, h) ->
+               { name =
+                   case B.flattenFF h.spec.name of
+                     F _ s -> Just s
+                     Blank _ -> Nothing
+                     Flagged _ _ _ _ -> Debug.crash "ch - tls"
+               , prefix = []
+               , verbs =
+                   case B.flattenFF h.spec.modifier of
+                     F _ s -> [(s, pos)]
+                     Blank _ -> []
+                     Flagged _ _ _ _ -> Debug.crash "ch - verbs"
+               })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   in
     prefixify <|
