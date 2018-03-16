@@ -15,7 +15,7 @@ copy m tl mp =
     Nothing -> NoChange
     Just h ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| AST.toPD (n2o h.ast))
+        Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
         Just p ->
           let pid = P.idOf p
           in CopyToClipboard (AST.subData pid h.ast)
