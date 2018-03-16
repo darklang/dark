@@ -85,7 +85,6 @@ listThreadBlanks expr =
       Blank _ -> []
       F _ f -> rn f
 
-
 closeThread : Expr -> Expr
 closeThread expr =
   -- Close all threads
@@ -148,7 +147,6 @@ extendThreadChild at threadExprs =
              []
              threadExprs
 
-
 -- extends thread at pos denoted by ID, if ID is in a thread
 maybeExtendThreadAt : ID -> Expr -> Expr
 maybeExtendThreadAt id expr =
@@ -163,6 +161,20 @@ maybeExtendThreadAt id expr =
 isThreadBlank : Expr -> Pointer -> Bool
 isThreadBlank expr p =
   expr |> listThreadBlanks |> List.member (P.idOf p)
+
+grandparentIsThread : Expr -> Maybe Expr -> Bool
+grandparentIsThread expr parent =
+  parent
+  |> Maybe.map
+       (\p ->
+         case parentOf_ (Blank.toID p) expr of
+           Just (F _ (Thread ts)) ->
+             ts
+             |> List.head
+             |> Maybe.map ((/=) p)
+             |> Maybe.withDefault True
+           _ -> False)
+  |> Maybe.withDefault False
 
 
 -------------------------
