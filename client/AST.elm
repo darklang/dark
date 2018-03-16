@@ -349,23 +349,15 @@ siblings p expr =
 
 getValueParent : Pointer -> Expr -> Maybe Pointer
 getValueParent p expr =
-  let id = P.idOf p
-      parent = parentOf_ id expr
-  in
-  case P.typeOf p of
-    Expr ->
-      case parent of
-        Just (F _ (Thread exprs)) ->
-          exprs
-          |> List.map toP
-          |> Util.listPrevious p
-        _ -> Nothing
+  let parent = parentOf_ (P.idOf p) expr in
+  case (P.typeOf p, parent) of
+    (Expr, Just (F _ (Thread exprs))) ->
+      exprs
+      |> List.map toP
+      |> Util.listPrevious p
 
-    Field ->
-      case parent of
-        Just (F _ (FieldAccess obj _)) ->
-          Just <| toP obj
-        _ -> Nothing
+    (Field, Just (F _ (FieldAccess obj _))) ->
+      Just <| toP obj
 
     _ -> Nothing
 
