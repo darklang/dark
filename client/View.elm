@@ -248,12 +248,7 @@ html4blank selected mouseover classes clickable hoverdata content =
           Just (Ok msg) -> ([], [Attrs.title msg])
           Just (Err err) -> (["value-error"], [Attrs.title err])
 
-      featureFlag =
-        if selected == DivSelected
-        then [Html.div
-                [Attrs.class "feature-flag" ]
-                [fontAwesome "flag"] ]
-        else []
+      featureFlag = viewFeatureFlag selected
 
       allClasses = classes
                 ++ valClass
@@ -268,6 +263,18 @@ html4blank selected mouseover classes clickable hoverdata content =
   Html.div
     (events ++ title ++ [Attrs.class (String.join " " allClasses)])
     (content ++ featureFlag)
+
+
+viewFeatureFlag : DivSelected -> List (Html.Html Msg)
+viewFeatureFlag selected =
+  if selected == DivSelected
+  then [Html.div
+          [ Attrs.class "feature-flag"
+          , Events.onClick StartFeatureFlag]
+          [fontAwesome "flag"] ]
+  else []
+
+
 
 viewTL : Model -> Toplevel -> Svg.Svg Msg
 viewTL m tl =

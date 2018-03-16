@@ -28,6 +28,7 @@ import Runtime as RT
 import Entry
 import Autocomplete as AC
 import Viewport
+import FeatureFlags
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
@@ -748,6 +749,15 @@ update_ msg m =
 
     (FinishIntegrationTest, _) ->
       EndIntegrationTest
+
+    ------------------------
+    -- feature flags
+    ------------------------
+    (StartFeatureFlag, _) ->
+      let (newM, cmd) = FeatureFlags.start m
+      in Many [ TweakModel (\_ -> newM)
+              , MakeCmd cmd]
+
 
     -----------------
     -- URL stuff

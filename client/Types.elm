@@ -152,6 +152,7 @@ type Msg
     | ClockTick Action Time
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
+    | StartFeatureFlag
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer
