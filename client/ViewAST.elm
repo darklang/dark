@@ -54,13 +54,13 @@ elemToHtml state elem =
   case elem of
     Text classNames str ->
       Html.div
-        [asClass ("leaf" :: classNames)]
+        [asClass classNames]
         [Html.text str]
 
     Selectable classNames blankOr pointerType ->
       let id = Blank.toID blankOr
           idAttr = Attrs.id (id |> deID |> toString)
-          classes = asClass ("leaf" :: classNames)
+          classes = asClass classNames
       in
         Html.div
         ( idAttr :: classes :: [])

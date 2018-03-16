@@ -213,9 +213,6 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                  then entryHtml allowStringEntry placeholder m
                  else thisText
                _ -> thisText
-      classes = case b of
-               Blank _ -> ["hole"]
-               F _ _ -> []
       onClick = if selected == DivSelected
                 then Nothing
                 else Just (tl.id, pointer)
@@ -226,7 +223,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
             if (P.idOf i) == (P.idOf pointer)
             then MouseOverDiv
             else MouseNotOverDiv
-  in html4blank selected mouseOvered classes onClick hoverdata [text]
+  in html4blank selected mouseOvered [] onClick hoverdata [text]
 
 html4blank : DivSelected -> MouseOverDiv -> List Class -> Clickable -> HoverData -> List (Html.Html Msg) -> Html.Html Msg
 html4blank selected mouseover classes clickable hoverdata content =
