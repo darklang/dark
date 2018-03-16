@@ -111,9 +111,9 @@ encodeRPC m call =
       MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
 
 encodeExpr : Expr -> JSE.Value
-encodeExpr bexpr =
-  case bexpr of
-    F id expr -> encodeNExpr id expr
+encodeExpr expr =
+  case expr of
+    F id nexpr -> encodeNExpr id nexpr
     Blank id -> encodeVariant "Hole" [encodeID id]
 
 

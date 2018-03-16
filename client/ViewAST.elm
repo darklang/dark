@@ -135,11 +135,11 @@ vInfix state id name exprs nesting =
     _ -> vPrefix state id ("(" ++ name ++ ")") exprs nesting
 
 vExpr : HtmlVisitState -> Int -> Expr -> Element
-vExpr state nest bexpr =
-  case bexpr of
+vExpr state nest expr =
+  case expr of
     Blank id -> Selectable ["atom"] (Blank id) Expr
-    F id expr ->
-      case expr of
+    F id nexpr ->
+      case nexpr of
         Value v ->
          let cssClass = v |> RT.tipeOf |> toString |> String.toLower
              valu =
