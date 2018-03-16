@@ -138,17 +138,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         |> Maybe.andThen
             (\ast ->
               let parent = AST.parentOf_ id ast
-                  grandparentIsThread =
-                    parent
-                    |> Maybe.map
-                         (\p -> case AST.parentOf_ (Blank.toID p) ast of
-                                  Just (F _ (Thread ts)) ->
-                                    ts
-                                    |> List.head
-                                    |> Maybe.map ((/=) p)
-                                    |> Maybe.withDefault True
-                                  _ -> False)
-                    |> Maybe.withDefault False
+                  inThread = AST.grandparentIsThread ast parent
               in
               case parent of
                 Just (F _ (FnCall name args)) ->
@@ -156,7 +146,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                         args
                         |> LE.findIndex (\a -> Blank.toID a == id)
                         |> Maybe.withDefault -1000
-                        |> \i -> if grandparentIsThread
+                        |> \i -> if inThread
                                  then i + 1
                                  else i
                   in
@@ -166,9 +156,8 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                     Nothing -> Nothing
                 _ -> Nothing)
       paramPlaceholder =
-        Maybe.map
-          (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
-          param
+        param
+        |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
         |> Maybe.withDefault ""
 
       selected = case unwrapState m.state of
