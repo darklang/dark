@@ -73,8 +73,8 @@ closeThread expr =
 
 
 -- take an expression, and if
--- * it is a thread, add a hole at the end
--- * it is part of a thread, insert a hole just after the expr
+-- * it is a thread, add a blank at the end
+-- * it is part of a thread, insert a blank just after the expr
 -- * if it is not part of a thread, wrap it in a thread
 addThreadBlank : ID -> Expr -> Expr
 addThreadBlank id expr =
