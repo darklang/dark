@@ -376,9 +376,9 @@ update_ msg m =
   let _ = if m.integrationTestState /= NoIntegrationTest
           then Debug.log "msg update" msg
           else msg in
-  case (msg, m.state) of
+  case msg of
 
-    (GlobalKeyPress event, state) ->
+    GlobalKeyPress event ->
       if event.ctrlKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
       then
         case event.keyCode of
@@ -386,7 +386,7 @@ update_ msg m =
           Key.Y -> RPC ([Redo], FocusSame)
           _ -> NoChange
       else
-        case state of
+        case m.state of
           Selecting tlid p ->
             case event.keyCode of
               Key.Delete ->
@@ -643,7 +643,7 @@ update_ msg m =
     ------------------------
     -- entry node
     ------------------------
-    (EntryInputMsg target, _) ->
+    EntryInputMsg target ->
       -- There are functions to convert strings to and from quoted
       -- strings, but they don't get to run until later, so hack
       -- around the problem here.
@@ -662,7 +662,7 @@ update_ msg m =
              , MakeCmd (Entry.focusEntry m)
              ]
 
-    (EntrySubmitMsg, _) ->
+    EntrySubmitMsg ->
       NoChange -- just keep this here to prevent the page from loading
 
 
@@ -676,14 +676,14 @@ update_ msg m =
     -- handlers to make it easier to choose between the desired
     -- interactions (esp ToplevelClickUp)
 
-    (GlobalClick event, _) ->
+    GlobalClick event ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
                 , Enter (Creating (Viewport.toAbsolute m event.pos))]
       else NoChange
 
 
-    (AutocompleteClick value, state) ->
+    AutocompleteClick value ->
       case unwrapState m.state of
         Entering cursor ->
           Entry.submit m cursor Entry.ContinueThread value
@@ -693,12 +693,12 @@ update_ msg m =
     ------------------------
     -- dragging
     ------------------------
-    (ToplevelClickDown tl event, _) ->
+    ToplevelClickDown tl event ->
       if event.button == Defaults.leftButton
       then Drag tl.id event.pos False m.state
       else NoChange
 
-    (DragToplevel id mousePos, _) ->
+    DragToplevel id mousePos ->
       case m.state of
         Dragging tlid startVPos _ origState ->
           let xDiff = mousePos.x-startVPos.vx
@@ -708,7 +708,7 @@ update_ msg m =
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    (ToplevelClickUp tlid mPointer event, _) ->
+    ToplevelClickUp tlid mPointer event ->
       if event.button == Defaults.leftButton
       then
         case m.state of
@@ -729,31 +729,31 @@ update_ msg m =
             NoChange
       else NoChange
 
-    (MouseEnter id _, _) ->
+    MouseEnter id _ ->
       SetHover id
 
-    (MouseLeave p _, _) ->
+    MouseLeave p _ ->
       ClearHover p
 
     -----------------
     -- Buttons
     -----------------
-    (ClearGraph, _) ->
+    ClearGraph ->
       Many [ RPC ([DeleteAll], FocusNothing), Deselect]
 
-    (ToggleSync, _) ->
+    ToggleSync ->
       TweakModel (\m -> { m | syncEnabled = not m.syncEnabled })
 
-    (SaveTestButton, _) ->
+    SaveTestButton ->
       MakeCmd RPC.saveTestRPC
 
-    (FinishIntegrationTest, _) ->
+    FinishIntegrationTest ->
       EndIntegrationTest
 
     ------------------------
     -- feature flags
     ------------------------
-    (StartFeatureFlag, _) ->
+    StartFeatureFlag ->
       let (newM, cmd) = FeatureFlags.start m
       in Many [ TweakModel (\_ -> newM)
               , MakeCmd cmd]
@@ -762,10 +762,10 @@ update_ msg m =
     -----------------
     -- URL stuff
     -----------------
-    (NavigateTo url, _) ->
+    NavigateTo url ->
       MakeCmd (Navigation.newUrl url)
 
-    (RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals)), _) ->
+    RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals)) ->
       if focus == FocusNoChange
       then
         Many [ SetToplevels toplevels analysis globals
@@ -784,67 +784,67 @@ update_ msg m =
                 , extraMod -- for testing, maybe more
                 ]
 
-    (SaveTestRPCCallback (Ok msg), _) ->
+    SaveTestRPCCallback (Ok msg) ->
       Error <| "Success! " ++ msg
 
-    (GetAnalysisRPCCallback (Ok (analysis, globals)), _) ->
+    GetAnalysisRPCCallback (Ok (analysis, globals)) ->
       SetToplevels m.toplevels analysis globals
 
     ------------------------
     -- plumbing
     ------------------------
-    (RPCCallback _ _ _ (Err (Http.BadStatus error)), _) ->
+    RPCCallback _ _ _ (Err (Http.BadStatus error)) ->
       Error <| "Error: " ++ error.body
 
-    (RPCCallback _ _ _ (Err (Http.NetworkError)), _) ->
+    RPCCallback _ _ _ (Err (Http.NetworkError)) ->
       Error <| "Network error: is the server running?"
 
-    (RPCCallback _ _ _ _, _) as t ->
+    (RPCCallback _ _ _ _) as t ->
       Error <| "Dark Client Error: unknown error: " ++ (toString t)
 
-    (SaveTestRPCCallback (Err err), _) ->
+    SaveTestRPCCallback (Err err) ->
       Error <| "Error: " ++ (toString err)
 
-    (GetAnalysisRPCCallback (Err (Http.NetworkError)), _) ->
+    GetAnalysisRPCCallback (Err (Http.NetworkError)) ->
       NoChange
 
-    (GetAnalysisRPCCallback (Err err), _) as t ->
+    GetAnalysisRPCCallback (Err err) as t ->
       Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
 
-    (WindowResize x y, _) ->
+    WindowResize x y ->
       -- just receiving the subscription will cause a redraw, which uses
       -- the native sizing function.
       NoChange
 
-    (FocusEntry _, _) ->
+    FocusEntry _ ->
       NoChange
 
-    (NothingClick _, _) ->
+    NothingClick _ ->
       NoChange
 
-    (FocusAutocompleteItem _, _) ->
+    FocusAutocompleteItem _ ->
       NoChange
 
-    (LocationChange loc, _) ->
-      case (parseLocation loc) of
+    LocationChange loc ->
+      case parseLocation loc of
         Nothing -> NoChange
         Just c -> SetCenter c
 
-    (ClockTick action time, _) ->
+    ClockTick action time  ->
       case action of
         RefreshAnalyses ->
           GetAnalysisRPC
 
-    (Initialization, _) ->
+    Initialization ->
       NoChange
 
-    (AddRandom, _) ->
+    AddRandom ->
       NoChange
 
-    (PageVisibilityChange vis, _) ->
+    PageVisibilityChange vis ->
       TweakModel (\m -> { m | visibility = vis })
 
-    (PageFocusChange vis, _) ->
+    PageFocusChange vis ->
       TweakModel (\m -> { m | visibility = vis })
 
 -----------------------
