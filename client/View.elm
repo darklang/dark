@@ -142,7 +142,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                     parent
                     |> Maybe.map
                          (\p -> case AST.parentOf_ (Blank.toID p) ast of
-                                  Just (F _ (NThread ts)) ->
+                                  Just (F _ (Thread ts)) ->
                                     ts
                                     |> List.head
                                     |> Maybe.map ((/=) p)
@@ -151,7 +151,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                     |> Maybe.withDefault False
               in
               case parent of
-                Just (F _ (NFnCall name args)) ->
+                Just (F _ (FnCall name args)) ->
                   let index =
                         args
                         |> LE.findIndex (\a -> Blank.toID a == id)

@@ -123,27 +123,27 @@ encodeNExpr id expr =
       eid = encodeID
       ev = encodeVariant in
   case expr of
-    NFnCall n exprs ->
+    FnCall n exprs ->
       ev "FnCall" [ eid id
                   , JSE.string n
                   , JSE.list (List.map e exprs)]
 
-    NLet lhs rhs body ->
+    Let lhs rhs body ->
       ev "Let" [ eid id
                , encodeBlankOr JSE.string lhs
                , e rhs
                , e body]
 
-    NLambda vars body ->
+    Lambda vars body ->
       ev "Lambda" [ eid id
                   , List.map JSE.string vars |> JSE.list
                   , e body]
 
-    NIf cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
-    NVariable v -> ev "Variable" [ eid id , JSE.string v]
-    NValue v -> ev "Value" [ eid id , JSE.string v]
-    NThread exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
-    NFieldAccess obj field ->
+    If cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
+    Variable v -> ev "Variable" [ eid id , JSE.string v]
+    Value v -> ev "Value" [ eid id , JSE.string v]
+    Thread exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
+    FieldAccess obj field ->
       ev "FieldAccess" [eid id, e obj, encodeBlankOr JSE.string field]
 
 
@@ -212,15 +212,15 @@ decodeExpr =
   decodeVariants
     -- In order to ignore the server for now, we tweak from one format
     -- to the other.
-    [ ("Let", dv4 (\id a b c -> F id (NLet a b c)) did (decodeBlankOr JSD.string) de de)
+    [ ("Let", dv4 (\id a b c -> F id (Let a b c)) did (decodeBlankOr JSD.string) de de)
     , ("Hole", dv1 Blank did)
-    , ("Value", dv2 (\id a -> F id (NValue a)) did JSD.string)
-    , ("If", dv4 (\id a b c -> F id (NIf a b c)) did de de de)
-    , ("FnCall", dv3 (\id a b -> F id (NFnCall a b)) did JSD.string (JSD.list de))
-    , ("Lambda", dv3 (\id a b -> F id (NLambda a b)) did (JSD.list JSD.string) de)
-    , ("Variable", dv2 (\id a -> F id (NVariable a)) did JSD.string)
-    , ("Thread", dv2 (\id a -> F id (NThread a)) did (JSD.list de))
-    , ("FieldAccess", dv3 (\id a b -> F id (NFieldAccess a b)) did de (decodeBlankOr JSD.string))
+    , ("Value", dv2 (\id a -> F id (Value a)) did JSD.string)
+    , ("If", dv4 (\id a b c -> F id (If a b c)) did de de de)
+    , ("FnCall", dv3 (\id a b -> F id (FnCall a b)) did JSD.string (JSD.list de))
+    , ("Lambda", dv3 (\id a b -> F id (Lambda a b)) did (JSD.list JSD.string) de)
+    , ("Variable", dv2 (\id a -> F id (Variable a)) did JSD.string)
+    , ("Thread", dv2 (\id a -> F id (Thread a)) did (JSD.list de))
+    , ("FieldAccess", dv3 (\id a b -> F id (FieldAccess a b)) did de (decodeBlankOr JSD.string))
     ]
 
 decodeLiveValue : JSD.Decoder LiveValue

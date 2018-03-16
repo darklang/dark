@@ -140,7 +140,7 @@ vExpr state nest bexpr =
     Blank id -> Selectable ["atom"] (Blank id) Expr
     F id expr ->
       case expr of
-        NValue v ->
+        Value v ->
          let cssClass = v |> RT.tipeOf |> toString |> String.toLower
              valu =
                -- TODO: remove
@@ -149,7 +149,7 @@ vExpr state nest bexpr =
                else v
          in Selectable ["atom", "value", cssClass] (F id valu) Expr
 
-        NLet lhs rhs expr ->
+        Let lhs rhs expr ->
           let rhsID = Blank.toID rhs in
           Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["letexpr"]
             [ Text ["let", "keyword", "atom"] "let"
@@ -163,7 +163,7 @@ vExpr state nest bexpr =
             ]
 
 
-        NIf cond ifbody elsebody ->
+        If cond ifbody elsebody ->
           Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["ifexpr"]
             [ Text ["if", "keyword", "atom"] "if"
             , Nested [] ["cond"] [vExpr state (nest + 1) cond]
@@ -172,10 +172,10 @@ vExpr state nest bexpr =
             , Nested [] ["elsebody"] [vExpr state 0 elsebody]
             ]
 
-        NVariable name ->
+        Variable name ->
           Selectable ["variable", "atom"] (F id name) Expr
 
-        NFnCall name exprs ->
+        FnCall name exprs ->
           if state.functions
              |> LE.find (\f -> f.name == name)
              |> deMaybe "vExpr fncall"
@@ -183,7 +183,7 @@ vExpr state nest bexpr =
           then vInfix state id name exprs nest
           else vPrefix state id name exprs nest
 
-        NLambda vars expr ->
+        Lambda vars expr ->
           let varname v = Text ["lambdavarname", "atom"] v in
           -- We want to allow you to select the lambda by clicking on the var, but
           -- we don't want you to think the var is selected. But we do that in CSS.
@@ -193,14 +193,14 @@ vExpr state nest bexpr =
             , Nested [] ["lambdabody"] [vExpr state 0 expr]
             ]
 
-        NThread exprs ->
+        Thread exprs ->
           let pipe = Text ["thread", "atom", "pipe"] "|>" in
           Nested [HighlightAs id, DisplayValue id] ["threadexpr"]
             (List.map (\e ->
               let id = Blank.toID e
               in Nested [DisplayValue id, ClickSelect Expr id] ["threadmember"] [pipe, vExpr state 0 e]) exprs)
 
-        NFieldAccess obj field ->
+        FieldAccess obj field ->
           Nested [DisplayValue id, ClickSelect Expr id, HighlightAs id] ["fieldaccessexpr"]
           [ Nested [] ["fieldobject"] [vExpr state 0 obj]
           , Text ["fieldaccessop", "operator", "atom"] "."

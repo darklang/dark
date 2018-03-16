@@ -75,7 +75,7 @@ enter_changes_state m =
 field_access : Model -> TestResult
 field_access m =
   case onlyAST m of
-    NFieldAccess (F _ (NVariable "request")) (F _ "body") -> pass
+    FieldAccess (F _ (Variable "request")) (F _ "body") -> pass
     expr -> fail expr
 
 
@@ -93,15 +93,15 @@ field_access_closes m =
 field_access_pipes : Model -> TestResult
 field_access_pipes m =
   case onlyAST m of
-    NThread [F _ (NFieldAccess (F _ (NVariable "request")) (F _ "body")), Blank _] -> pass
+    Thread [F _ (FieldAccess (F _ (Variable "request")) (F _ "body")), Blank _] -> pass
     expr -> fail expr
 
 field_access_nested : Model -> TestResult
 field_access_nested m =
   case onlyAST m of
-    NFieldAccess
-      (F _ (NFieldAccess
-         (F _ (NFieldAccess (F _ (NVariable "request")) (F _ "body")))
+    FieldAccess
+      (F _ (FieldAccess
+         (F _ (FieldAccess (F _ (Variable "request")) (F _ "body")))
          (F _ "field")))
       (F _ "field2")
       -> pass
@@ -113,7 +113,7 @@ pipeline_let_equals m =
   -- should be a simple let, not in a pipeline, entering 1 hole
   let astR =
         case onlyAST m of
-          NLet (F _ "value") (F _ (NValue "3")) (Blank _) ->
+          Let (F _ "value") (F _ (Value "3")) (Blank _) ->
             pass
           e ->
             fail e
@@ -127,12 +127,12 @@ pipeline_let_equals m =
 pipe_within_let : Model -> TestResult
 pipe_within_let m =
   case onlyAST m of
-    NLet
+    Let
       (F _ "value")
-      (F _ (NValue "3"))
-      (F _ (NThread
-        [ F _ (NVariable "value")
-        , F _ (NFnCall "assoc" [Blank _, Blank _])])) ->
+      (F _ (Value "3"))
+      (F _ (Thread
+        [ F _ (Variable "value")
+        , F _ (FnCall "assoc" [Blank _, Blank _])])) ->
       pass
     e ->
       fail e
@@ -142,13 +142,13 @@ pipe_within_let m =
 tabbing_works : Model -> TestResult
 tabbing_works m =
   case onlyAST m of
-    NIf (Blank _) (F _ (NValue "5")) (Blank _) -> pass
+    If (Blank _) (F _ (Value "5")) (Blank _) -> pass
     e -> fail e
 
 next_sibling_works : Model -> TestResult
 next_sibling_works m =
   case onlyAST m of
-    NLet (Blank _) (Blank id1)  (Blank _) ->
+    Let (Blank _) (Blank id1)  (Blank _) ->
       case m.state of
         Selecting _ (Just (PBlank _ id2)) ->
           if id1 == id2
@@ -161,7 +161,7 @@ next_sibling_works m =
 varbinds_are_editable : Model -> TestResult
 varbinds_are_editable m =
   case onlyAST m of
-    NLet (F id1 "var") (Blank _)  (Blank _) ->
+    Let (F id1 "var") (Blank _)  (Blank _) ->
       case m.state of
         Entering (Filling _ (PFilled _ id2)) ->
           if id1 == id2
@@ -174,7 +174,7 @@ varbinds_are_editable m =
 editing_request_edits_request : Model -> TestResult
 editing_request_edits_request m =
   case onlyAST m of
-    NFieldAccess (F id1 (NVariable "request")) (Blank _) ->
+    FieldAccess (F id1 (Variable "request")) (Blank _) ->
       case m.complete.completions of
         [cs, _, _, _] ->
           case cs of
@@ -186,7 +186,7 @@ editing_request_edits_request m =
 autocomplete_highlights_on_partial_match : Model -> TestResult
 autocomplete_highlights_on_partial_match m =
   case onlyAST m of
-    NFnCall "Int::add" _ -> pass
+    FnCall "Int::add" _ -> pass
     e -> fail e
 
 
@@ -194,7 +194,7 @@ no_request_global_in_non_http_space : Model -> TestResult
 no_request_global_in_non_http_space m =
   case onlyAST m of
     -- this might change but this is the answer for now.
-    NFnCall "Http::bad_request" _ -> pass
+    FnCall "Http::bad_request" _ -> pass
     -- Blank _ -> pass
     e -> fail e
 
@@ -210,11 +210,11 @@ hover_values_for_varnames m =
 pressing_up_doesnt_return_to_start : Model -> TestResult
 pressing_up_doesnt_return_to_start m =
   case onlyAST m of
-    NFnCall "Char::toASCIIChar" _ -> pass
+    FnCall "Char::toASCIIChar" _ -> pass
     e -> fail e
 
 deleting_selects_the_blank : Model -> TestResult
 deleting_selects_the_blank m =
   case onlyAST m of
-    (NValue "6") -> pass
+    (Value "6") -> pass
     ast -> fail ast

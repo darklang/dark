@@ -64,7 +64,7 @@ createFunction m name hasImplicitParam =
       Just function ->
         Just <|
           Blank.newF
-            (NFnCall
+            (FnCall
               name
               (blanks ((List.length function.parameters) + blankModifier)))
       Nothing -> Nothing
@@ -81,23 +81,23 @@ submit m cursor action value =
             firstWord = String.split " " str in
         case firstWord of
           ["if"] ->
-            Just <| F eid (NIf b1 b2 b3)
+            Just <| F eid (If b1 b2 b3)
           ["let"] ->
-            Just <| F eid (NLet (Blank.new()) b2 b3)
+            Just <| F eid (Let (Blank.new()) b2 b3)
           ["lambda"] ->
-            Just <| F eid (NLambda ["var"] b2)
+            Just <| F eid (Lambda ["var"] b2)
           [""] ->
             Just b1
           ["[]"] ->
-            Just <| F eid (NValue "[]")
+            Just <| F eid (Value "[]")
           ["{}"] ->
-            Just <| F eid (NValue "{}")
+            Just <| F eid (Value "{}")
           ["null"] ->
-            Just <| F eid (NValue "null")
+            Just <| F eid (Value "null")
           _ ->
             if not (RT.isLiteral str)
             then createFunction m value hasImplicit
-            else Just <| F eid (NValue str)
+            else Just <| F eid (Value str)
 
   in
   case cursor of
@@ -109,7 +109,7 @@ submit m cursor action value =
               ContinueThread ->
                 expr
               StartThread ->
-                Blank.newF (NThread [expr, Blank.new ()])
+                Blank.newF (Thread [expr, Blank.new ()])
           wrapExpr expr =
             wrap <| SetHandler tlid pos { ast = threadIt expr
                                         , spec = newHandlerSpec ()
@@ -129,13 +129,13 @@ submit m cursor action value =
       then
         wrapExpr <|
           Blank.newF
-            (NFieldAccess
-               (Blank.newF (NVariable (String.dropRight 1 value)))
+            (FieldAccess
+               (Blank.newF (Variable (String.dropRight 1 value)))
                (Blank.new ()))
 
       -- varnames
       else if List.member value (Analysis.varnamesFor m Nothing)
-      then wrapExpr <| Blank.newF (NVariable value)
+      then wrapExpr <| Blank.newF (Variable value)
 
       -- start new AST
       else
@@ -160,7 +160,7 @@ submit m cursor action value =
                     case AST.threadAncestors id h.ast of
                       -- turn the current thread into a let-assignment to this
                       -- name, and close the thread
-                      (F _ (NThread _) as thread) :: _ ->
+                      (F _ (Thread _) as thread) :: _ ->
                         let bindName = value
                                        |> String.dropLeft 2
                                        |> String.trim
@@ -168,7 +168,7 @@ submit m cursor action value =
                           ( AST.toPD thread
                           , AST.toPD <|
                               Blank.newF (
-                                NLet
+                                Let
                                   (Blank.newF bindName)
                                   (AST.closeThread thread)
                                   (Blank.new ())))
@@ -182,14 +182,14 @@ submit m cursor action value =
                     ( old_
                     , AST.toPD <|
                         Blank.newF
-                          (NFieldAccess
-                            (Blank.newF (NVariable (String.dropRight 1 value)))
+                          (FieldAccess
+                            (Blank.newF (Variable (String.dropRight 1 value)))
                             (Blank.new ())))
 
                   -- variables
                   else if List.member value (Analysis.varnamesFor m target)
                   then
-                    (old_, AST.toPD <| Blank.newF (NVariable value))
+                    (old_, AST.toPD <| Blank.newF (Variable value))
 
                   -- parsed exprs
                   else
@@ -285,10 +285,10 @@ submit m cursor action value =
                   -- hole. Then get the parent structure from the new I
                       wrapped =
                         case parent of
-                          F id (NFieldAccess lhs rhs) ->
+                          F id (FieldAccess lhs rhs) ->
                             Blank.newF (
-                              NFieldAccess
-                                (F id (NFieldAccess lhs (Blank.newF fieldname)))
+                              FieldAccess
+                                (F id (FieldAccess lhs (Blank.newF fieldname)))
                                 (Blank.new ()))
                           _ -> Debug.crash "should be a field"
                   in
