@@ -23,27 +23,6 @@ toPD : BExpr -> PointerData
 toPD e =
   PExpr e
 
-
-toID : Expr -> ID
-toID expr =
-  case expr of
-    Value id _ -> id
-    Let id _ _ _ -> id
-    If id _ _ _ -> id
-    Variable id _ -> id
-    FnCall id _ _ -> id
-    Lambda id _ _ -> id
-    Hole id -> id
-    Thread id _ -> id
-    FieldAccess id _ _ -> id
-
-
-isHole : Expr -> Bool
-isHole e =
-  case e of
-    Hole _ -> True
-    _ -> False
-
 -------------------------
 -- Thread stuff
 -------------------------
