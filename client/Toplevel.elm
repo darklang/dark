@@ -100,7 +100,7 @@ allPointers tl =
     TLHandler h ->
       SpecHeaders.allPointers h.spec
       ++ SpecTypes.allPointers h.spec.types.input
-      ++ AST.allPointers (n2o h.ast)
+      ++ AST.allPointers h.ast
       ++ SpecTypes.allPointers h.spec.types.output
     TLDB db ->
       DB.allPointers db
@@ -207,7 +207,7 @@ siblings tl p =
       if List.member p toplevels
       then toplevels
       else
-         AST.siblings p (n2o h.ast)
+         AST.siblings p h.ast
          ++ SpecTypes.siblings p h.spec.types.input
          ++ SpecTypes.siblings p h.spec.types.output
     TLDB db -> DB.siblings p db
@@ -235,7 +235,7 @@ getParentOf tl p =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      AST.parentOf_ (P.idOf p) (n2o h.ast)
+      AST.parentOf_ (P.idOf p) h.ast
       |> Maybe.map AST.toP
     _ -> Nothing
 

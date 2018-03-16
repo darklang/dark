@@ -52,10 +52,10 @@ newHandlerSpec _ = { module_ = Blank.new ()
                              }
                    }
 
-createFunction : Model -> FnName -> Bool -> Maybe Expr
+createFunction : Model -> FnName -> Bool -> Maybe BExpr
 createFunction m name hasImplicitParam =
-  let holeModifier = if hasImplicitParam then -1 else 0
-      holes count = List.map (\_ -> Hole (gid ())) (List.range 1 count)
+  let blankModifier = if hasImplicitParam then -1 else 0
+      blanks count = List.map (\_ -> Blank.new ()) (List.range 1 count)
       fn = m.complete.functions
            |> List.filter (\fn -> fn.name == name)
            |> List.head
@@ -63,10 +63,10 @@ createFunction m name hasImplicitParam =
     case fn of
       Just function ->
         Just <|
-          FnCall
-            (gid ())
-            name
-            (holes ((List.length function.parameters) + holeModifier))
+          Blank.newF
+            (NFnCall
+              name
+              (blanks ((List.length function.parameters) + blankModifier)))
       Nothing -> Nothing
 
 type ThreadAction = StartThread | ContinueThread
@@ -75,29 +75,29 @@ submit m cursor action value =
   let
       parseAst str hasImplicit =
         let eid = gid ()
-            hid1 = gid ()
-            hid2 = gid ()
-            hid3 = gid ()
+            b1 = Blank.new ()
+            b2 = Blank.new ()
+            b3 = Blank.new ()
             firstWord = String.split " " str in
         case firstWord of
           ["if"] ->
-            Just (If eid (Hole hid1) (Hole hid2) (Hole hid3))
+            Just <| F eid (NIf b1 b2 b3)
           ["let"] ->
-            Just (Let eid (Blank hid1) (Hole hid2) (Hole hid3))
+            Just <| F eid (NLet (Blank.new()) b2 b3)
           ["lambda"] ->
-            Just (Lambda eid ["var"] (Hole hid1))
+            Just <| F eid (NLambda ["var"] b2)
           [""] ->
-            Just (Hole eid)
+            Just b1
           ["[]"] ->
-            Just (Value eid "[]")
+            Just <| F eid (NValue "[]")
           ["{}"] ->
-            Just (Value eid "{}")
+            Just <| F eid (NValue "{}")
           ["null"] ->
-            Just (Value eid "null")
+            Just <| F eid (NValue "null")
           _ ->
             if not (RT.isLiteral str)
             then createFunction m value hasImplicit
-            else Just <| Value eid str
+            else Just <| F eid (NValue str)
 
   in
   case cursor of
@@ -139,7 +139,7 @@ submit m cursor action value =
       else
         case parseAst value False of
           Nothing -> NoChange
-          Just v -> wrapExpr v
+          Just v -> wrapExpr (n2o v)
 
     Filling tlid p ->
       let tl = TL.getTL m tlid
@@ -155,20 +155,21 @@ submit m cursor action value =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
-                    case AST.threadAncestors id (n2o h.ast) of
+                    case AST.threadAncestors id h.ast of
                       -- turn the current thread into a let-assignment to this
                       -- name, and close the thread
-                      (Thread tid _ as thread) :: _ ->
+                      (F _ (NThread _) as thread) :: _ ->
                         let bindName = value
                                        |> String.dropLeft 2
                                        |> String.trim
                         in
                           ( AST.toPD thread
                           , AST.toPD <|
-                              Let (gid ())
-                                (Blank.newF bindName)
-                                (n2o (AST.closeThread (o2n thread)))
-                                (Hole (gid ())))
+                              Blank.newF (
+                                NLet
+                                  (Blank.newF bindName)
+                                  (AST.closeThread thread)
+                                  (Blank.new ())))
 
                       _ ->
                         (old_, old_)
@@ -178,15 +179,15 @@ submit m cursor action value =
                   then
                     ( old_
                     , AST.toPD <|
-                        FieldAccess
-                          (gid ())
-                          (Variable (gid ()) (String.dropRight 1 value))
-                          (Blank.new ()))
+                        Blank.newF
+                          (NFieldAccess
+                            (Blank.newF (NVariable (String.dropRight 1 value)))
+                            (Blank.new ())))
 
                   -- variables
                   else if List.member value (Analysis.varnamesFor m target)
                   then
-                    (old_, AST.toPD <| Variable (gid ()) value)
+                    (old_, AST.toPD <| Blank.newF (NVariable value))
 
                   -- parsed exprs
                   else
@@ -272,7 +273,7 @@ submit m cursor action value =
           validate ".+" "fieldname"
             <|
           let h = deMaybe "maybeH - field" maybeH
-              parent = AST.parentOf id (n2o h.ast)
+              parent = AST.parentOf id h.ast
               newAst =
                 if String.endsWith "." value
                 then
@@ -282,10 +283,11 @@ submit m cursor action value =
                   -- hole. Then get the parent structure from the new I
                       wrapped =
                         case parent of
-                          FieldAccess id lhs rhs ->
-                            FieldAccess (gid ())
-                            (FieldAccess id lhs (Blank.newF fieldname))
-                            (Blank.new ())
+                          F id (NFieldAccess lhs rhs) ->
+                            Blank.newF (
+                              NFieldAccess
+                                (F id (NFieldAccess lhs (Blank.newF fieldname)))
+                                (Blank.new ()))
                           _ -> Debug.crash "should be a field"
                   in
                       AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast
@@ -296,7 +298,7 @@ submit m cursor action value =
                     StartThread ->
                       -- id is not in the replacement, so search for the
                       -- parent in the old ast
-                      let parentID = AST.parentOf id (n2o h.ast) |> AST.toID in
+                      let parentID = AST.parentOf id h.ast |> Blank.toID in
                       AST.wrapInThread parentID replacement
           in
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
