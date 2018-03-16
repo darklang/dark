@@ -10,28 +10,28 @@ import Types exposing (..)
 
 editor2model : Editor -> Model
 editor2model e =
-    let
-        m =
-            Defaults.defaultModel
-    in
-    case e.clipboard of
-        Nothing ->
-            m
+  let
+    m =
+      Defaults.defaultModel
+  in
+  case e.clipboard of
+    Nothing ->
+      m
 
-        Just enc ->
-            case JSD.decodeValue RPC.decodePointerData enc of
-                Ok pd ->
-                    { m | clipboard = Just pd }
+    Just enc ->
+      case JSD.decodeValue RPC.decodePointerData enc of
+        Ok pd ->
+          { m | clipboard = Just pd }
 
-                Err err ->
-                    m
+        Err err ->
+          m
 
 
 model2editor : Model -> Editor
 model2editor m =
-    case m.clipboard of
-        Nothing ->
-            { clipboard = Nothing }
+  case m.clipboard of
+    Nothing ->
+      { clipboard = Nothing }
 
-        Just pd ->
-            { clipboard = Just <| RPC.encodePointerData pd }
+    Just pd ->
+      { clipboard = Just <| RPC.encodePointerData pd }
