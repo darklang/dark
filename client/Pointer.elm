@@ -4,8 +4,8 @@ module Pointer exposing (..)
 import Types exposing (..)
 import Blank as B
 
-idOf : Pointer -> ID
-idOf p =
+toID : Pointer -> ID
+toID p =
   case p of
     PBlank _ id -> id
     PFilled _ id -> id
@@ -64,8 +64,8 @@ emptyD : PointerType -> PointerData
 emptyD pt =
   emptyD_ (gid()) pt
 
-idOfD : PointerData -> ID
-idOfD = pdToP >> idOf
+dToID : PointerData -> ID
+dToID = pdToP >> toID
 
 typeOfD : PointerData -> PointerType
 typeOfD = pdToP >> typeOf

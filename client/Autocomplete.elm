@@ -285,7 +285,7 @@ generateFromModel m a =
             |> Maybe.andThen TL.asHandler
             |> Maybe.map .ast
             |> Maybe.andThen (AST.getValueParent p)
-            |> Maybe.map P.idOf
+            |> Maybe.map P.toID
             |> Maybe.andThen (Analysis.getLiveValue m tlid)
             -- don't filter on incomplete values
             |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete

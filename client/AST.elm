@@ -163,7 +163,7 @@ maybeExtendThreadAt id expr =
 -- Is Pointer a blank inside a thread
 isThreadBlank : Expr -> Pointer -> Bool
 isThreadBlank expr p =
-  expr |> listThreadBlanks |> List.member (P.idOf p)
+  expr |> listThreadBlanks |> List.member (P.toID p)
 
 grandparentIsThread : Expr -> Maybe Expr -> Bool
 grandparentIsThread expr parent =
@@ -303,7 +303,7 @@ parentOf_ eid expr =
   let po = parentOf_ eid
       returnOr : (Expr -> Maybe Expr) -> Expr -> Maybe Expr
       returnOr fn e =
-        if List.member eid (children e |> List.map P.idOf)
+        if List.member eid (children e |> List.map P.toID)
         then Just e
         else fn e
       filterMaybe xs = xs |> List.filterMap identity |> List.head
@@ -342,7 +342,7 @@ parentOf_ eid expr =
 -- includes self
 siblings : Pointer -> Expr -> List Pointer
 siblings p expr =
-  case parentOf_ (P.idOf p) expr of
+  case parentOf_ (P.toID p) expr of
     Nothing -> [p]
     Just parent ->
       case parent of
@@ -368,7 +368,7 @@ siblings p expr =
 
 getValueParent : Pointer -> Expr -> Maybe Pointer
 getValueParent p expr =
-  let parent = parentOf_ (P.idOf p) expr in
+  let parent = parentOf_ (P.toID p) expr in
   case (P.typeOf p, parent) of
     (Expr, Just (F _ (Thread exprs))) ->
       exprs
@@ -472,7 +472,7 @@ subtree id ast =
 subData : ID -> Expr -> Maybe PointerData
 subData id expr =
   listData expr
-  |> List.filter (\d -> id == P.idOfD d)
+  |> List.filter (\d -> id == P.dToID d)
   |> List.head -- TODO might be multiple
 
 toContent : PointerData -> String
@@ -497,7 +497,7 @@ toContent pd =
 replace : Pointer -> PointerData -> Expr -> Expr
 replace p replacement expr =
   let r = replace p replacement in
-  if B.toID expr == P.idOf p
+  if B.toID expr == P.toID p
   then
     case replacement of
       PExpr e -> e
@@ -505,12 +505,12 @@ replace p replacement expr =
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind b) ->
-        if B.toID lhs == P.idOf p
+        if B.toID lhs == P.toID p
         then F id (Let b rhs body)
         else traverse r expr
 
       (F id (FieldAccess obj field), PField f) ->
-        if B.toID field == P.idOf p
+        if B.toID field == P.toID p
         then F id (FieldAccess obj f)
         else traverse r expr
 

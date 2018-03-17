@@ -17,12 +17,12 @@ copy m tl mp =
       case mp of
         Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
         Just p ->
-          let pid = P.idOf p
+          let pid = P.toID p
           in CopyToClipboard (AST.subData pid h.ast)
 
 cut : Model -> Toplevel -> Pointer -> Modification
 cut m tl p =
-  let pid = P.idOf p
+  let pid = P.toID p
       pred = TL.getPrevBlank tl (Just p)
   in
     case TL.asHandler tl of

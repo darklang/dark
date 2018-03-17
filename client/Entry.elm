@@ -150,7 +150,7 @@ submit m cursor action value =
 
           replaceExpr : Model -> Handler -> TLID -> Pointer -> String -> Modification
           replaceExpr m h tlid p value =
-            let id = P.idOf p
+            let id = P.toID p
                 old_ = AST.subtree id h.ast
                 target = Just (tlid, p)
                 (old, new) =
@@ -208,7 +208,7 @@ submit m cursor action value =
                     AST.wrapInThread id h.ast
 
                 ast2 = AST.replace (P.pdToP old) new ast1
-                ast3 = AST.maybeExtendThreadAt (P.idOfD new) ast2
+                ast3 = AST.maybeExtendThreadAt (P.dToID new) ast2
             in
                 if old == new
                 then NoChange
@@ -218,7 +218,7 @@ submit m cursor action value =
       if String.length value < 1
       then NoChange
       else
-      let id = P.idOf p
+      let id = P.toID p
           maybeH = TL.asHandler tl
           db = TL.asDB tl
           validate pattern name success =

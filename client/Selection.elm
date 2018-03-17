@@ -128,7 +128,7 @@ delete m tlid cur =
       wrapH newH = RPC ([SetHandler tlid tl.pos newH], FocusExact tlid newP)
       wrapDB op = RPC ([op], FocusExact tlid cur)
       maybeH = \_ -> TL.asHandler tl |> deMaybe "delete maybe"
-      id = P.idOf cur
+      id = P.toID cur
   in
   case P.typeOf cur of
     DBColType ->
@@ -174,7 +174,7 @@ enter m tlid cur =
   case cur of
     PBlank _ _ -> Enter (Filling tlid cur)
     PFilled tipe _ ->
-      let id = P.idOf cur
+      let id = P.toID cur
           h () = (tl |> TL.asHandler |> deMaybe "selection enter")
       in
       if TL.getChildrenOf tl cur /= []

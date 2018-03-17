@@ -12,7 +12,7 @@ import Blank as B
 find : Handler -> Pointer -> Maybe (BlankOr String)
 find h p =
   [h.spec.name, h.spec.modifier]
-  |> List.filter (\spec -> B.toID spec == P.idOf p)
+  |> List.filter (\spec -> B.toID spec == P.toID p)
         -- TODO: opportunity to check pointer types
   |> List.head
 
