@@ -754,9 +754,7 @@ update_ msg m =
     -- feature flags
     ------------------------
     StartFeatureFlag ->
-      let (newM, cmd) = FeatureFlags.start m
-      in Many [ TweakModel (\_ -> newM)
-              , MakeCmd cmd]
+      FeatureFlags.start m
 
 
     -----------------
