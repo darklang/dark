@@ -231,7 +231,7 @@ getParentOf tl p =
   -- TODO SpecTypePointerRefactor
   case tl.data of
     TLHandler h ->
-      AST.parentOf_ (P.idOf p) h.ast
+      AST.parentOf_ (P.toID p) h.ast
       |> Maybe.map AST.toP
     _ -> Nothing
 
@@ -241,12 +241,12 @@ getChildrenOf tl p =
     POSpecHeader -> []
     POAst ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
-      AST.childrenOf (P.idOf p) h.ast
+      AST.childrenOf (P.toID p) h.ast
     PODb -> []
     POSpecType ->
       let h = asHandler tl |> deMaybe "getChildrenOf" in
-      SpecTypes.childrenOf (P.idOf p) h.spec.types.input
-      ++ SpecTypes.childrenOf (P.idOf p) h.spec.types.output
+      SpecTypes.childrenOf (P.toID p) h.spec.types.input
+      ++ SpecTypes.childrenOf (P.toID p) h.spec.types.output
 
 
 firstChild : Toplevel -> Pointer -> Maybe Pointer

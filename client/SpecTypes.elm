@@ -23,7 +23,7 @@ replace p dt spec =
 
 replaceInType : Pointer -> PointerData -> BlankOr DarkType -> BlankOr DarkType
 replaceInType p replacement dt =
-  if B.toID dt == (P.idOf p)
+  if B.toID dt == (P.toID p)
   then
     case replacement of
       PDarkType t -> t
@@ -36,7 +36,7 @@ replaceInType p replacement dt =
               |> List.map (\(n, t) ->
                    let newN = case replacement of
                                 PDarkTypeField name ->
-                                  if P.idOf p == B.toID n
+                                  if P.toID p == B.toID n
                                   then name
                                   else n
                                 _ -> n

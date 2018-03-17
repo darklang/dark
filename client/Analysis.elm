@@ -17,7 +17,7 @@ varnamesFor m target =
       getAvailableVarnames
         m
         tlid
-        (P.idOf p)
+        (P.toID p)
 
 
 getAnalysisResults : Model -> TLID -> List AResult

@@ -134,7 +134,7 @@ type alias HoverData = Maybe (Result String String)
 viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> HoverData -> Html.Html Msg
 viewBlankOr htmlFn m tl pt b hoverdata =
   let pointer = B.toP pt b
-      id = P.idOf pointer
+      id = P.toID pointer
       param =
         tl
         |> TL.asHandler
@@ -166,7 +166,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
 
       selected = case unwrapState m.state of
                    Selecting _ (Just p) ->
-                     if P.idOf p == B.toID b
+                     if P.toID p == B.toID b
                      then DivSelected
                      else DivUnselected
                    _ -> DivUnselected
@@ -214,7 +214,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         case m.hovering |> List.head of
           Nothing -> MouseNotOverDiv
           Just i ->
-            if (P.idOf i) == (P.idOf pointer)
+            if (P.toID i) == (P.toID pointer)
             then MouseOverDiv
             else MouseNotOverDiv
   in html4blank selected mouseOvered [] onClick hoverdata [text]
@@ -376,13 +376,13 @@ viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
   let (id, filling) =
         case unwrapState m.state of
-          Selecting tlid (Just p) -> (P.idOf p, False)
-          Entering (Filling tlid p) -> (P.idOf p, True)
+          Selecting tlid (Just p) -> (P.toID p, False)
+          Entering (Filling tlid p) -> (P.toID p, True)
           _ -> (ID 0, False)
 
       hovering =
         case m.hovering |> List.head of
-          Just p -> P.idOf p
+          Just p -> P.toID p
           Nothing -> ID 0
 
       lvs = Analysis.getLiveValuesDict m tl.id
