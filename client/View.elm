@@ -435,7 +435,7 @@ viewHandler m tl h =
               ]
             )
           ]
-  in [header, input, ast, output]
+  in [header, ast]
 
 
 viewEntry : Model -> List (Svg.Svg Msg)
