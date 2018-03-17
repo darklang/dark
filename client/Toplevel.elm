@@ -262,3 +262,54 @@ rootOf tl =
     _ -> Nothing
 
 
+-------------------------
+-- Generic
+-------------------------
+replace : Toplevel -> PointerData -> RPC
+replace tl pd =
+  let ha () = tl |> asHandler |> deMaybe "TL.replace"
+      p = P.pdToP pd
+      id = P.toID p
+      setH ast = SetHandler tl.id tl.pos ast
+  in
+  case pd of
+    PVarBind vb ->
+      let h = ha ()
+          replacement = AST.replace p pd h.ast
+      in setH { h | ast = replacement }
+    PEventName en ->
+      let h = ha ()
+          replacement = SpecHeaders.replaceEventName id en h.spec
+      in setH { h | spec = replacement }
+    PEventModifier em ->
+      let h = ha ()
+          replacement = SpecHeaders.replaceEventModifier id em h.spec
+      in setH { h | spec = replacement }
+    PEventSpace es ->
+      let h = ha ()
+          replacement = SpecHeaders.replaceEventSpace id es h.spec
+      in setH { h | spec = replacement }
+    PField _ ->
+      let h = ha ()
+          ast = AST.replace p pd h.ast
+      in setH { h | ast = ast }
+    PExpr _ ->
+      let h = ha ()
+          ast = AST.replace p pd h.ast
+      in setH { h | ast = ast }
+    PDarkType _ ->
+      let h = ha ()
+          replacement = SpecTypes.replace p pd h.spec
+      in setH { h | spec = replacement }
+    PDarkTypeField _ ->
+      let h = ha ()
+          replacement = SpecTypes.replace p pd h.spec
+      in setH { h | spec = replacement }
+
+    PDBColType tipe ->
+      SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
+    PDBColName name ->
+      SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
+
+
+
