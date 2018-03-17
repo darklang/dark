@@ -16,44 +16,44 @@ find h p =
         -- TODO: opportunity to check pointer types
   |> List.head
 
-replaceEventModifierBlank : ID -> String -> HandlerSpec -> HandlerSpec
-replaceEventModifierBlank id value hs =
+replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
+replaceEventModifier id value hs =
   { hs | modifier = if B.toID hs.modifier == id
-                    then F (B.toID hs.modifier) value
+                    then value
                     else hs.modifier
   }
-replaceEventNameBlank : ID -> String -> HandlerSpec -> HandlerSpec
-replaceEventNameBlank id value hs =
+replaceEventName : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
+replaceEventName id value hs =
   { hs | name = if B.toID hs.name == id
-                then F (B.toID hs.name) value
+                then value
                 else hs.name
   }
 
-replaceEventSpaceBlank : ID -> String -> HandlerSpec -> HandlerSpec
-replaceEventSpaceBlank id value hs =
+replaceEventSpace : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
+replaceEventSpace id value hs =
   { hs | module_ = if B.toID hs.module_ == id
-                    then F (B.toID hs.module_) value
+                    then value
                     else hs.module_
   }
 
 
-deleteEventNameBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
-deleteEventNameBlank p hs newID =
-  { hs | name = if B.toID hs.name == (P.idOf p)
+deleteEventName : Pointer -> HandlerSpec -> ID -> HandlerSpec
+deleteEventName p hs newID =
+  { hs | name = if B.toID hs.name == (P.toID p)
                 then Blank newID
                 else hs.name
   }
 
-deleteEventModifierBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
-deleteEventModifierBlank p hs newID =
-  { hs | modifier = if B.toID hs.modifier == (P.idOf p)
+deleteEventModifier : Pointer -> HandlerSpec -> ID -> HandlerSpec
+deleteEventModifier p hs newID =
+  { hs | modifier = if B.toID hs.modifier == (P.toID p)
                     then Blank newID
                     else hs.modifier
   }
 
-deleteEventSpaceBlank : Pointer -> HandlerSpec -> ID -> HandlerSpec
-deleteEventSpaceBlank p hs newID =
-  { hs | module_ = if B.toID hs.module_ == (P.idOf p)
+deleteEventSpace : Pointer -> HandlerSpec -> ID -> HandlerSpec
+deleteEventSpace p hs newID =
+  { hs | module_ = if B.toID hs.module_ == (P.toID p)
                     then Blank newID
                     else hs.module_
   }

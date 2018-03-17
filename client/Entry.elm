@@ -250,7 +250,7 @@ submit m cursor action value =
               validate eventNameValidation "event name"
               <|
               let h = deMaybe "maybeH - eventname" maybeH
-                  replacement = SpecHeaders.replaceEventNameBlank id value h.spec in
+                  replacement = SpecHeaders.replaceEventName id (B.newF value) h.spec in
               wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         EventModifier ->
           let eventModifierValidation =
@@ -263,13 +263,13 @@ submit m cursor action value =
           validate eventModifierValidation "event modifier"
             <|
           let h = deMaybe "maybeH - eventmodifier" maybeH
-              replacement = SpecHeaders.replaceEventModifierBlank id value h.spec in
+              replacement = SpecHeaders.replaceEventModifier id (B.newF value) h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         EventSpace ->
           validate "[A-Z]+" "event space"
             <|
           let h = deMaybe "maybeH - eventspace" maybeH
-              replacement = SpecHeaders.replaceEventSpaceBlank id value h.spec in
+              replacement = SpecHeaders.replaceEventSpace id (B.newF value) h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
         Field ->
           validate ".+" "fieldname"

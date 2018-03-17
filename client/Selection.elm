@@ -141,15 +141,15 @@ delete m tlid cur =
       in wrapH { h | ast = replacement }
     EventModifier ->
       let h = maybeH ()
-          replacement = SpecHeaders.deleteEventModifierBlank cur h.spec newID
+          replacement = SpecHeaders.deleteEventModifier cur h.spec newID
       in wrapH { h | spec = replacement }
     EventName ->
       let h = maybeH ()
-          replacement = SpecHeaders.deleteEventNameBlank cur h.spec newID
+          replacement = SpecHeaders.deleteEventName cur h.spec newID
       in wrapH { h | spec = replacement }
     EventSpace ->
       let h = maybeH ()
-          replacement = SpecHeaders.deleteEventSpaceBlank cur h.spec newID
+          replacement = SpecHeaders.deleteEventSpace cur h.spec newID
       in wrapH { h | spec = replacement }
     Field ->
       let h = maybeH ()
