@@ -113,7 +113,10 @@ encodeRPC m call =
 
 encodeExpr : Expr -> JSE.Value
 encodeExpr expr =
-  encodeBlankOr (encodeNExpr (B.toID expr)) expr
+  case expr of
+    F id nexpr -> encodeNExpr id nexpr
+    Blank id -> encodeVariant "Hole" [encodeID id]
+    Flagged _ _ _ _ -> B.flattenFF expr |> encodeExpr
 
 encodeNExpr : ID -> NExpr -> JSE.Value
 encodeNExpr id expr =
