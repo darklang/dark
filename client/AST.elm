@@ -388,38 +388,8 @@ getValueParent p expr =
 
 allPointers : Expr -> List Pointer
 allPointers expr =
-  let rl : List Expr -> List Pointer
-      rl exprs =
-        exprs
-        |> List.map allPointers
-        |> List.concat
-  in
-  [toP expr] ++
-  case expr of
-    Blank _ -> []
-    Flagged _ _ _ _ -> expr |> B.flattenFF |> allPointers
-    F _ nexpr ->
-      case nexpr of
-        Value v -> []
-        Variable name -> []
-
-        Let lhs rhs body ->
-          [B.toP VarBind lhs] ++ rl [rhs, body]
-
-        If cond ifbody elsebody ->
-          rl [cond, ifbody, elsebody]
-
-        FnCall name exprs ->
-          rl exprs
-
-        Lambda vars body ->
-          allPointers body
-
-        Thread exprs ->
-          rl exprs
-
-        FieldAccess obj field ->
-          allPointers obj ++ [B.toP Field field]
+  allData expr
+  |> List.map P.pdToP
 
 
 --------------------------------
@@ -427,19 +397,19 @@ allPointers expr =
 --------------------------------
 
 
-listData : Expr -> List PointerData
-listData expr =
+allData : Expr -> List PointerData
+allData expr =
   let e2ld e = PExpr e
       rl : List Expr -> List PointerData
       rl exprs =
         exprs
-        |> List.map listData
+        |> List.map allData
         |> List.concat
   in
   [e2ld expr] ++
   case expr of
     Blank _ -> []
-    Flagged _ _ _ _ -> expr |> B.flattenFF |> listData
+    Flagged _ _ _ _ -> expr |> B.flattenFF |> allData
     F _ nexpr ->
       case nexpr of
         Value v -> []
@@ -455,13 +425,13 @@ listData expr =
           rl exprs
 
         Lambda vars body ->
-          listData body
+          allData body
 
         Thread exprs ->
           rl exprs
 
         FieldAccess obj field ->
-          listData obj ++ [PField field]
+          allData obj ++ [PField field]
 
 
 
@@ -472,7 +442,7 @@ findExn id ast =
 
 find : ID -> Expr -> Maybe PointerData
 find id expr =
-  listData expr
+  allData expr
   |> List.filter (\d -> id == P.dToID d)
   |> Util.assert (List.length >> ((==) 1))
   |> List.head
