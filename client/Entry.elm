@@ -151,7 +151,7 @@ submit m cursor action value =
           replaceExpr : Model -> Handler -> TLID -> Pointer -> String -> Modification
           replaceExpr m h tlid p value =
             let id = P.toID p
-                old_ = AST.subtree id h.ast
+                old_ = AST.findExn id h.ast
                 target = Just (tlid, p)
                 (old, new) =
                   -- assign thread to variable
