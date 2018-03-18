@@ -335,12 +335,12 @@ viewDB m tl db =
       (namediv :: coldivs)
   ]
 
-viewBlankOrDarkType : Model -> Toplevel -> BlankOr DarkType -> Html.Html Msg
-viewBlankOrDarkType m tl b =
-  viewBlankOr (viewDarkType m tl) m tl DarkType b Nothing
-
 viewDarkType : Model -> Toplevel -> DarkType -> Html.Html Msg
-viewDarkType m tl d =
+viewDarkType m tl b =
+  viewBlankOr (viewNDarkType m tl) m tl DarkType b Nothing
+
+viewNDarkType : Model -> Toplevel -> NDarkType -> Html.Html Msg
+viewNDarkType m tl d =
   case d of
     DTEmpty -> Html.text "Empty"
     DTString -> Html.text "String"
@@ -356,7 +356,7 @@ viewDarkType m tl d =
                  , Html.span [Attrs.class "colon"] [Html.text ":"]
                  , Html.span
                      [Attrs.class "fieldvalue"]
-                     [viewBlankOrDarkType m tl dt]
+                     [viewDarkType m tl dt]
                  ])
             |> List.intersperse
                  [Html.span [Attrs.class "separator"] [Html.text ","]]
@@ -412,12 +412,12 @@ viewHandler m tl h =
         Html.div
           [Attrs.class "spec-type input-type"]
           [ Html.span [Attrs.class "header"] [Html.text "Input:"]
-          , viewBlankOrDarkType m tl h.spec.types.input]
+          , viewDarkType m tl h.spec.types.input]
       output =
         Html.div
           [Attrs.class "spec-type output-type"]
           [ Html.span [Attrs.class "header"] [Html.text "Output:"]
-          , viewBlankOrDarkType m tl h.spec.types.output]
+          , viewDarkType m tl h.spec.types.output]
 
       header =
         Html.div

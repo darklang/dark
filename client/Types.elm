@@ -270,7 +270,7 @@ type PointerData = PVarBind VarBind
                  | PField Field
                  | PDBColName (BlankOr String)
                  | PDBColType (BlankOr String)
-                 | PDarkType (BlankOr DarkType)
+                 | PDarkType DarkType
                  | PDarkTypeField (BlankOr String)
 
 type BlankOr a = Blank ID
@@ -288,14 +288,15 @@ type PointerOwner = POSpecHeader
 -----------------------------
 -- Top-levels
 -----------------------------
-type DarkType = DTEmpty -- empty body
-              | DTAny
-              | DTString
-              | DTInt
-              | DTObj (List (BlankOr String, BlankOr DarkType))
+type alias DarkType = BlankOr NDarkType
+type NDarkType = DTEmpty -- empty body
+               | DTAny
+               | DTString
+               | DTInt
+               | DTObj (List (BlankOr String, DarkType))
 
-type alias SpecTypes = { input : BlankOr DarkType
-                       , output : BlankOr DarkType
+type alias SpecTypes = { input : DarkType
+                       , output : DarkType
                        }
 
 type alias HandlerSpec = { module_ : BlankOr String

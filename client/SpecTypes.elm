@@ -21,7 +21,7 @@ replace p dt spec =
     }
   }
 
-replaceInType : Pointer -> PointerData -> BlankOr DarkType -> BlankOr DarkType
+replaceInType : Pointer -> PointerData -> DarkType -> DarkType
 replaceInType p replacement dt =
   if B.toID dt == (P.toID p)
   then
@@ -48,8 +48,7 @@ replaceInType p replacement dt =
         in F id (DTObj newTs)
       _ -> dt
 
-
-allPointers : BlankOr DarkType -> List Pointer
+allPointers : DarkType -> List Pointer
 allPointers t =
   let nested =
         case t of
@@ -64,7 +63,7 @@ allPointers t =
   ++ nested
 
 -- recurse until we find ID, then return the children
-childrenOf : ID -> BlankOr DarkType -> List Pointer
+childrenOf : ID -> DarkType -> List Pointer
 childrenOf id t =
   if B.toID t == id
   then
@@ -87,7 +86,7 @@ childrenOf id t =
 
 
 -- recurse until we find ID, then return the children
-siblings : Pointer -> BlankOr DarkType -> List Pointer
+siblings : Pointer -> DarkType -> List Pointer
 siblings p t =
   case t of
     F _ (DTObj ts) ->
