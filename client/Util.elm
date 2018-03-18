@@ -137,3 +137,9 @@ listNextWrap a l =
   |> listNext a
   |> ME.orElse (List.head l)
 
+assert : (a -> Bool) -> a -> a
+assert fn a =
+  if fn a
+  then a
+  else Debug.crash ("assertion failure: " ++ toString a)
+
