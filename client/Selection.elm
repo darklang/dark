@@ -184,7 +184,7 @@ enter m tlid cur =
           case P.ownerOf cur of
             POAst ->
               (h ()).ast
-              |> AST.subtree id
+              |> AST.findExn id
               |> AST.toContent
               |> Just
             POSpecHeader ->
