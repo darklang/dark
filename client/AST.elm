@@ -465,15 +465,17 @@ listData expr =
 
 
 
-subtree : ID -> Expr -> PointerData
-subtree id ast =
-  deMaybe "subtree" (subData id ast)
+findExn : ID -> Expr -> PointerData
+findExn id ast =
+  find id ast
+  |> deMaybe "findExn"
 
-subData : ID -> Expr -> Maybe PointerData
-subData id expr =
+find : ID -> Expr -> Maybe PointerData
+find id expr =
   listData expr
   |> List.filter (\d -> id == P.dToID d)
-  |> List.head -- TODO might be multiple
+  |> Util.assert (List.length >> ((==) 1))
+  |> List.head
 
 toContent : PointerData -> String
 toContent pd =
