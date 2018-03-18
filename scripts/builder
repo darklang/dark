@@ -70,6 +70,11 @@ else
 fi
 echo "Using env: $ENV_FILE"
 
+POLL_FREQ=
+if [ -v POLL_FREQUENCY ]; then
+  POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
+fi
+
 ./scripts/support/create-dark-dev-network
 
 # --------------
@@ -88,6 +93,7 @@ $FSWATCH | docker run \
              --env-file $ENV_FILE \
              --env HOST_PWD=$PWD \
              --env IN_DEV_CONTAINER=true \
+             $POLL_FREQ \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
              -v pgdata:/var/lib/postgresql \
