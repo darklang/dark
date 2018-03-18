@@ -33,17 +33,22 @@ isFilled p =
 ------------------------
 pdToP : PointerData -> Pointer
 pdToP pd =
-  case pd of
-    PVarBind d -> PFilled VarBind (B.toID d)
-    PEventModifier d -> PFilled EventModifier (B.toID d)
-    PEventName d -> PFilled EventName (B.toID d)
-    PEventSpace d -> PFilled EventSpace (B.toID d)
-    PExpr d -> PFilled Expr (B.toID d)
-    PField d -> PFilled Field (B.toID d)
-    PDBColName d -> PFilled DBColName (B.toID d)
-    PDBColType d -> PFilled DBColType (B.toID d)
-    PDarkType d -> PFilled DarkType (B.toID d)
-    PDarkTypeField d -> PFilled DarkTypeField (B.toID d)
+  let (filled, tipe, id) =
+        case pd of
+          PVarBind d -> (B.isF d, VarBind, B.toID d)
+          PEventModifier d -> (B.isF d, EventModifier, B.toID d)
+          PEventName d -> (B.isF d, EventName, B.toID d)
+          PEventSpace d -> (B.isF d, EventSpace, B.toID d)
+          PExpr d -> (B.isF d, Expr, B.toID d)
+          PField d -> (B.isF d, Field, B.toID d)
+          PDBColName d -> (B.isF d, DBColName, B.toID d)
+          PDBColType d -> (B.isF d, DBColType, B.toID d)
+          PDarkType d -> (B.isF d, DarkType, B.toID d)
+          PDarkTypeField d -> (B.isF d, DarkTypeField, B.toID d)
+  in
+  if filled
+  then PFilled tipe id
+  else PBlank tipe id
 
 emptyD_ : ID -> PointerType -> PointerData
 emptyD_ id pt =
