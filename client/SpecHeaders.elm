@@ -60,8 +60,15 @@ deleteEventSpace p hs newID =
 
 allPointers : HandlerSpec -> List Pointer
 allPointers spec =
-  [ B.toP EventName spec.name
-  , B.toP EventSpace spec.module_
-  , B.toP EventModifier spec.modifier]
+  spec
+  |> allData
+  |> List.map P.pdToP
+
+allData : HandlerSpec -> List PointerData
+allData spec =
+  [ PEventName spec.name
+  , PEventSpace spec.module_
+  , PEventModifier spec.modifier]
+
 
 
