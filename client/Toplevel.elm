@@ -312,4 +312,15 @@ replace tl pd =
       SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
 
 
+allData : Toplevel -> List PointerData
+allData tl =
+  case tl.data of
+    TLHandler h ->
+      SpecHeaders.allData h.spec
+      ++ SpecTypes.allData h.spec.types.input
+      ++ AST.allData h.ast
+      ++ SpecTypes.allData h.spec.types.output
+    TLDB db ->
+      DB.allData db
+
 
