@@ -199,13 +199,16 @@ encodeNExpr id expr =
 encodeSpecTypes : SpecTypes -> JSE.Value
 encodeSpecTypes st =
   JSE.object
-    [ ("input", encodeBlankOr encodeDarkType st.input)
-    , ("output", encodeBlankOr encodeDarkType st.output)
+    [ ("input", encodeDarkType st.input)
+    , ("output", encodeDarkType st.output)
     ]
 
-
 encodeDarkType : DarkType -> JSE.Value
-encodeDarkType t =
+encodeDarkType dt =
+  encodeBlankOr encodeNDarkType dt
+
+encodeNDarkType : NDarkType -> JSE.Value
+encodeNDarkType t =
   let ev = encodeVariant in
   case t of
     DTEmpty -> ev "Empty" []
@@ -218,11 +221,11 @@ encodeDarkType t =
           (List.map
             (encodePair
               (encodeBlankOr JSE.string)
-              (encodeBlankOr encodeDarkType))
+              encodeDarkType)
             ts))]
 
-decodeDarkType : JSD.Decoder DarkType
-decodeDarkType =
+decodeNDarkType : JSD.Decoder NDarkType
+decodeNDarkType =
   let dv4 = decodeVariant4
       dv3 = decodeVariant3
       dv2 = decodeVariant2
@@ -237,8 +240,11 @@ decodeDarkType =
                (JSD.list
                  (decodePair
                    (decodeBlankOr JSD.string)
-                   (decodeBlankOr (JSD.lazy (\_ -> decodeDarkType))))))
+                   (JSD.lazy (\_ -> decodeDarkType)))))
     ]
+
+decodeDarkType : JSD.Decoder DarkType
+decodeDarkType = decodeBlankOr decodeNDarkType
 
 
 decodeExpr : JSD.Decoder Expr
@@ -318,8 +324,8 @@ decodeHandlerSpec =
   |> JSDP.required "module" (decodeBlankOr JSD.string)
   |> JSDP.required "name" (decodeBlankOr JSD.string)
   |> JSDP.required "modifier" (decodeBlankOr JSD.string)
-  |> JSDP.requiredAt ["types", "input"] (decodeBlankOr decodeDarkType)
-  |> JSDP.requiredAt ["types", "output"] (decodeBlankOr decodeDarkType)
+  |> JSDP.requiredAt ["types", "input"] decodeDarkType
+  |> JSDP.requiredAt ["types", "output"] decodeDarkType
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
