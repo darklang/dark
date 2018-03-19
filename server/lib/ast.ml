@@ -20,43 +20,33 @@ type field = fieldname or_blank
            [@@deriving eq, yojson, show, sexp, bin_io]
 
 
-type expr = If of id * expr * expr * expr
-          | Thread of id * expr list
-          | FnCall of id * fnname * expr list
-          | Variable of id * varname
-          | Let of id * varbinding * expr * expr
-          | Lambda of id * varname list * expr
-          | Value of id * string
-          | Hole of id
-          | FieldAccess of id * expr * field
-          [@@deriving eq, yojson, show, sexp, bin_io]
-
-type ast = expr [@@deriving eq, yojson, show, sexp, bin_io]
-
-let to_tuple (expr: expr) : (id * expr) =
-  match expr with
-  | Hole (id) -> (id, expr)
-  | Value (id, s) -> (id, expr)
-  | Variable (id, name) -> (id, expr)
-  | Let (id, lhs, rhs, body) -> (id, expr)
-  | FnCall (id, me, exprs) -> (id, expr)
-  | If (id, cond, ifbody, elsebody) -> (id, expr)
-  | Lambda (id, vars, body) -> (id, expr)
-  | Thread (id, exprs) -> (id, expr)
-  | FieldAccess (id, obj, field) -> (id, expr)
-
-let to_id (expr: expr) : id =
-  to_tuple expr |> Tuple.T2.get1
+type nexpr = If of expr * expr * expr
+           | Thread of expr list
+           | FnCall of fnname * expr list
+           | Variable of varname
+           | Let of varbinding * expr * expr
+           | Lambda of varname list * expr
+           | Value of string
+           | FieldAccess of expr * field
+           [@@deriving eq, yojson, show, sexp, bin_io]
+and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
 let blank_to_id (blank: 'a or_blank) : id =
   match blank with
   | Filled (id, _) -> id
   | Blank (id) -> id
 
+let to_id (expr: expr) : id =
+  blank_to_id expr
+
+let to_tuple (expr: expr) : (id * expr) =
+  let id = to_id expr in
+  (id, expr)
+
 let is_hole (expr: expr) =
   match expr with
-  | Hole _ -> true
-  | _ -> false
+  | Filled _ -> false
+  | Blank _ -> true
 
 (* -------------------- *)
 (* Execution *)
@@ -102,16 +92,16 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
 
   let inject_param_and_execute (st: symtable) (param: dval) (exp: expr) : dval =
     match exp with
-    | Lambda _ ->
+    | Filled (id, Lambda _) ->
       let result = exe st exp in
       (match result with
        | DBlock blk -> blk [param]
        | _ -> DIncomplete)
-    | FnCall (id, name, exprs) ->
+    | Filled (id, FnCall (name, exprs)) ->
       call name (param :: (List.map ~f:(exe st) exprs))
     (* If there's a hole, just run the computation straight through, as
      * if it wasn't there*)
-    | Hole _ ->
+    | Blank _ ->
       param
     | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
   in
@@ -123,10 +113,10 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
 
   let value _ =
     (match expr with
-     | Hole id ->
+     | Blank id ->
        DIncomplete
 
-     | Let (_, lhs, rhs, body) ->
+     | Filled (_, Let (lhs, rhs, body)) ->
        let bound = match lhs with
             | Filled (_, name) ->
               let data = exe st rhs in
@@ -135,20 +125,20 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
             | Blank _ -> st
        in exe bound body
 
-     | Value (_, s) ->
+     | Filled (_, Value s) ->
        Dval.parse s
 
-     | Variable (_, name) ->
+     | Filled (_, Variable name) ->
        (match Symtable.find st name with
         | None ->
           Exception.user ("There is no variables named: " ^ name)
         | Some result -> ignoreError result)
 
-     | FnCall (id, name, exprs) ->
+     | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        call name argvals
 
-     | If (id, cond, ifbody, elsebody) ->
+     | Filled (id, If (cond, ifbody, elsebody)) ->
        (match ctx with
         | Preview ->
           (* In the case of a preview trace execution, we want the 'if' expression as
@@ -181,13 +171,13 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
            | DError _ -> DIncomplete
            | _ -> exe st ifbody))
 
-     | Lambda (id, vars, body) ->
+     | Filled (id, Lambda (vars, body)) ->
        (* TODO: this will errror if the number of args and vars arent equal *)
        DBlock (fun args ->
            let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
            let new_st = Util.merge_left bindings st in
            exe new_st body)
-     | Thread (id, exprs) ->
+     | Filled (id, Thread exprs) ->
        (* For each expr, execute it, and then thread the previous result thru *)
        (match exprs with
         | e :: es ->
@@ -203,7 +193,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
           in
           List.hd_exn results
         | [] -> DIncomplete)
-     | FieldAccess (id, e, field) ->
+     | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
        (match obj with
         | DObj o ->
@@ -292,31 +282,31 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
   try
     let _ =
       (match expr with
-       | Hole id -> ()
-       | Value (_, s) -> ()
-       | Variable (_, name) -> ()
+       | Blank _ -> ()
+       | Filled (_, Value s) -> ()
+       | Filled (_, Variable name) -> ()
 
-       | Let (_, lhs, rhs, body) ->
+       | Filled (_, Let (lhs, rhs, body)) ->
          let bound = match lhs with
            | Filled (_, name) -> sexe st rhs; SymSet.add st name
            | Blank _ -> st
          in sexe bound body
 
-       | FnCall (id, name, exprs) -> List.iter ~f:(sexe st) exprs
+       | Filled (_, FnCall (name, exprs)) -> List.iter ~f:(sexe st) exprs
 
-       | If (id, cond, ifbody, elsebody) ->
+       | Filled (_, If (cond, ifbody, elsebody)) ->
          sexe st cond;
          sexe st ifbody;
          sexe st elsebody
 
-       | Lambda (id, vars, body) ->
+       | Filled (_, Lambda (vars, body)) ->
          let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) vars in
          sexe new_st body
 
-       | Thread (id, exprs) ->
+       | Filled (_, Thread (exprs)) ->
          List.iter ~f:(fun expr -> sexe st expr) exprs
 
-       | FieldAccess (id, obj, field) ->
+       | Filled (_, FieldAccess (obj, field)) ->
          sexe st obj)
     in
     trace expr st

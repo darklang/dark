@@ -15,7 +15,6 @@ import Types exposing (..)
 import Runtime as RT
 import Util
 import JSON exposing (..)
-import Blank as B
 
 rpc_ : Model -> String ->
  (List RPC -> Result Http.Error RPCResult -> Msg) ->
@@ -152,39 +151,33 @@ encodeRPC m call =
 
 encodeExpr : Expr -> JSE.Value
 encodeExpr expr =
-  case expr of
-    F id nexpr -> encodeNExpr id nexpr
-    Blank id -> encodeVariant "Hole" [encodeID id]
-    Flagged _ _ _ _ -> B.flattenFF expr |> encodeExpr
+  encodeBlankOr encodeNExpr expr
 
-encodeNExpr : ID -> NExpr -> JSE.Value
-encodeNExpr id expr =
+encodeNExpr : NExpr -> JSE.Value
+encodeNExpr expr =
   let e = encodeExpr
-      eid = encodeID
       ev = encodeVariant in
   case expr of
     FnCall n exprs ->
-      ev "FnCall" [ eid id
-                  , JSE.string n
+      ev "FnCall" [ JSE.string n
                   , JSE.list (List.map e exprs)]
 
     Let lhs rhs body ->
-      ev "Let" [ eid id
-               , encodeBlankOr JSE.string lhs
+      ev "Let" [ encodeBlankOr JSE.string lhs
                , e rhs
                , e body]
 
     Lambda vars body ->
-      ev "Lambda" [ eid id
-                  , List.map JSE.string vars |> JSE.list
+      ev "Lambda" [ List.map JSE.string vars |> JSE.list
                   , e body]
 
-    If cond then_ else_ -> ev "If" [eid id, e cond, e then_, e else_]
-    Variable v -> ev "Variable" [ eid id , JSE.string v]
-    Value v -> ev "Value" [ eid id , JSE.string v]
-    Thread exprs -> ev "Thread" [eid id, JSE.list (List.map e exprs)]
     FieldAccess obj field ->
-      ev "FieldAccess" [eid id, e obj, encodeBlankOr JSE.string field]
+      ev "FieldAccess" [e obj, encodeBlankOr JSE.string field]
+
+    If cond then_ else_ -> ev "If" [e cond, e then_, e else_]
+    Variable v -> ev "Variable" [ JSE.string v]
+    Value v -> ev "Value" [ JSE.string v]
+    Thread exprs -> ev "Thread" [JSE.list (List.map e exprs)]
 
 
 
@@ -246,9 +239,11 @@ decodeNDarkType =
 decodeDarkType : JSD.Decoder DarkType
 decodeDarkType = decodeBlankOr decodeNDarkType
 
-
 decodeExpr : JSD.Decoder Expr
-decodeExpr =
+decodeExpr = decodeBlankOr (JSD.lazy (\_ -> decodeNExpr))
+
+decodeNExpr : JSD.Decoder NExpr
+decodeNExpr =
   let de = (JSD.lazy (\_ -> decodeExpr))
       did = decodeID
       dv4 = decodeVariant4
@@ -258,15 +253,14 @@ decodeExpr =
   decodeVariants
     -- In order to ignore the server for now, we tweak from one format
     -- to the other.
-    [ ("Let", dv4 (\id a b c -> F id (Let a b c)) did (decodeBlankOr JSD.string) de de)
-    , ("Hole", dv1 Blank did)
-    , ("Value", dv2 (\id a -> F id (Value a)) did JSD.string)
-    , ("If", dv4 (\id a b c -> F id (If a b c)) did de de de)
-    , ("FnCall", dv3 (\id a b -> F id (FnCall a b)) did JSD.string (JSD.list de))
-    , ("Lambda", dv3 (\id a b -> F id (Lambda a b)) did (JSD.list JSD.string) de)
-    , ("Variable", dv2 (\id a -> F id (Variable a)) did JSD.string)
-    , ("Thread", dv2 (\id a -> F id (Thread a)) did (JSD.list de))
-    , ("FieldAccess", dv3 (\id a b -> F id (FieldAccess a b)) did de (decodeBlankOr JSD.string))
+    [ ("Let", dv3 Let (decodeBlankOr JSD.string) de de)
+    , ("Value", dv1 Value JSD.string)
+    , ("If", dv3 If de de de)
+    , ("FnCall", dv2 FnCall JSD.string (JSD.list de))
+    , ("Lambda", dv2 Lambda (JSD.list JSD.string) de)
+    , ("Variable", dv1 Variable JSD.string)
+    , ("Thread", dv1 Thread (JSD.list de))
+    , ("FieldAccess", dv2 FieldAccess de (decodeBlankOr JSD.string))
     ]
 
 decodeLiveValue : JSD.Decoder LiveValue
