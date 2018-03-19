@@ -4,8 +4,8 @@ open Types.RuntimeT
 open Types.SpecTypes
 module RT = Runtime
 
-type spec_types = { input : dark_type Types.or_blank
-                  ; output : dark_type Types.or_blank
+type spec_types = { input : dark_type
+                  ; output : dark_type
                   } [@@deriving eq, show, yojson, sexp, bin_io]
 
 
