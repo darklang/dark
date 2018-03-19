@@ -126,6 +126,7 @@ init {editorState, complete} location =
 -- ports, save Editor state in LocalStorage
 -----------------------
 port setStorage : Editor -> Cmd a
+port recordError : (String -> msg) -> Sub msg
 
 -----------------------
 -- updates
@@ -813,6 +814,10 @@ update_ msg m =
     GetAnalysisRPCCallback (Err err) as t ->
       Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
 
+    JSError msg ->
+      let _ = Debug.log "adasd" msg in
+      Error ("Error in JS: " ++ msg)
+
     WindowResize x y ->
       -- just receiving the subscription will cause a redraw, which uses
       -- the native sizing function.
@@ -873,12 +878,13 @@ subscriptions m =
             if m.syncEnabled
             then [ Time.every Time.second (ClockTick RefreshAnalyses) ]
             else []
+      onError = [recordError JSError]
 
       visibility =
         [ PageVisibility.visibilityChanges PageVisibilityChange
         , onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))
         , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
   in Sub.batch
-    (List.concat [keySubs, dragSubs, resizes, timers, visibility])
+    (List.concat [keySubs, dragSubs, resizes, timers, visibility, onError])
 
 

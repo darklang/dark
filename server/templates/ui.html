@@ -47,6 +47,9 @@
        window.localStorage.setItem('editorState', JSON.stringify(editorState));
      });
 
+     window.onerror = function (msg, url, line, col, error) {
+       elmapp.ports.recordError.send(msg);
+     };
      document.title = window.location.hostname.split('.')[0] + " - Dark";
 
     </script>
