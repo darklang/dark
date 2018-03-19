@@ -7,6 +7,7 @@ type id = int [@@deriving eq, show, yojson, sexp, bin_io]
 
 type 'a or_blank = Blank of id
                  | Filled of id * 'a
+                 | Flagged of string * int * ('a or_blank) * ('a or_blank)
                  [@@deriving eq, show, yojson, sexp, bin_io]
 
 type tipe_ =
