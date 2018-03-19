@@ -38,7 +38,14 @@
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
    <script type="text/javascript">
      complete = ALLFUNCTIONS;
-     elmapp = Elm.Main.fullscreen({editorState: null, complete: complete});
+     elmapp = Elm.Main.fullscreen({
+       editorState: JSON.parse(window.localStorage.getItem('editorState')),
+       complete: complete
+     });
+
+     elmapp.ports.setStorage.subscribe(function(editorState) {
+       window.localStorage.setItem('editorState', JSON.stringify(editorState));
+     });
 
      document.title = window.location.hostname.split('.')[0] + " - Dark";
 

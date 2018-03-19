@@ -3,6 +3,7 @@ module Types exposing (..)
 -- builtin
 import Dict exposing (Dict)
 import Http
+import Json.Encode as JSE
 import Dom
 import Navigation
 import Mouse
@@ -359,7 +360,7 @@ type alias Model = { center : Pos
                    }
 
 -- Values that we serialize
-type alias Editor = { }
+type alias Editor = { clipboard : (Maybe JSE.Value) }
 
 -----------------------------
 -- Testing
@@ -395,6 +396,7 @@ type Modification = Error String
                   | EndIntegrationTest
                   | SetState State
                   | CopyToClipboard Clipboard
+                  | SetStorage Editor
                   | SetCursor TLID Int
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
