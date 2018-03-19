@@ -802,6 +802,10 @@ update_ msg m =
     RPCCallback _ _ _ (Err (Http.NetworkError)) ->
       Error <| "Network error: is the server running?"
 
+    RPCCallback _ _ _ (Err (Http.BadPayload err response)) ->
+      let { body } = response in
+      Error <| "RPC decoding error: " ++ err ++ " in " ++ body
+
     (RPCCallback _ _ _ _) as t ->
       Error <| "Dark Client Error: unknown error: " ++ (toString t)
 
