@@ -97,14 +97,8 @@ isHTTPHandler tl =
 -------------------------
 allPointers : Toplevel -> List Pointer
 allPointers tl =
-  case tl.data of
-    TLHandler h ->
-      SpecHeaders.allPointers h.spec
-      ++ SpecTypes.allPointers h.spec.types.input
-      ++ AST.allPointers h.ast
-      ++ SpecTypes.allPointers h.spec.types.output
-    TLDB db ->
-      DB.allPointers db
+  allData tl
+  |> List.map P.pdToP
 
 isValidPointer : Toplevel -> Pointer -> Bool
 isValidPointer tl p =
@@ -265,51 +259,56 @@ rootOf tl =
 -------------------------
 -- Generic
 -------------------------
-replace : Toplevel -> PointerData -> RPC
-replace tl pd =
+replace : Toplevel -> Pointer -> PointerData -> Toplevel
+replace tl p pd =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
-      p = P.pdToP pd
       id = P.toID p
-      setH ast = SetHandler tl.id tl.pos ast
   in
   case pd of
     PVarBind vb ->
       let h = ha ()
           replacement = AST.replace p pd h.ast
-      in setH { h | ast = replacement }
+      in { tl | data = TLHandler { h | ast = replacement } }
     PEventName en ->
       let h = ha ()
           replacement = SpecHeaders.replaceEventName id en h.spec
-      in setH { h | spec = replacement }
+      in { tl | data = TLHandler { h | spec = replacement } }
     PEventModifier em ->
       let h = ha ()
           replacement = SpecHeaders.replaceEventModifier id em h.spec
-      in setH { h | spec = replacement }
+      in { tl | data = TLHandler { h | spec = replacement } }
     PEventSpace es ->
       let h = ha ()
           replacement = SpecHeaders.replaceEventSpace id es h.spec
-      in setH { h | spec = replacement }
+      in { tl | data = TLHandler { h | spec = replacement } }
     PField _ ->
       let h = ha ()
           ast = AST.replace p pd h.ast
-      in setH { h | ast = ast }
+      in { tl | data = TLHandler { h | ast = ast } }
     PExpr _ ->
       let h = ha ()
           ast = AST.replace p pd h.ast
-      in setH { h | ast = ast }
+      in { tl | data = TLHandler { h | ast = ast } }
     PDarkType _ ->
       let h = ha ()
           replacement = SpecTypes.replace p pd h.spec
-      in setH { h | spec = replacement }
+      in { tl | data = TLHandler { h | spec = replacement } }
     PDarkTypeField _ ->
       let h = ha ()
           replacement = SpecTypes.replace p pd h.spec
-      in setH { h | spec = replacement }
+      in { tl | data = TLHandler { h | spec = replacement } }
 
     PDBColType tipe ->
-      SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
+      tl
+      -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
     PDBColName name ->
-      SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
+      tl
+      -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
+
+delete : Toplevel -> Pointer -> ID -> Toplevel
+delete tl p newID =
+  let replacement = P.emptyD_ newID (P.typeOf p)
+  in replace tl p replacement
 
 
 allData : Toplevel -> List PointerData
@@ -322,5 +321,17 @@ allData tl =
       ++ SpecTypes.allData h.spec.types.output
     TLDB db ->
       DB.allData db
+
+findExn : Toplevel -> ID -> PointerData
+findExn tl id =
+  find tl id
+  |> deMaybe "findExn"
+
+find : Toplevel -> ID -> Maybe PointerData
+find tl id =
+  allData tl
+  |> List.filter (\d -> id == P.dToID d)
+  |> Util.assert (List.length >> ((==) 1))
+  |> List.head
 
 
