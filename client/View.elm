@@ -193,13 +193,23 @@ viewBlankOr htmlFn m tl pt b hoverdata =
           DBColType -> "db type"
           DarkType -> "type"
           DarkTypeField -> "fieldname"
-      thisText = case B.flattenFF b of
-                   Blank _ ->
+      thisTextFn bo = case bo of
+                        Blank _ ->
+                          Html.div
+                            [Attrs.class "blank"]
+                            [Html.text placeholder]
+                        F _ fill -> htmlFn fill
+                        Flagged _ _ _ _ -> Debug.crash "vbo"
+      thisText = case b of
+                   Flagged msg setting l r ->
                      Html.div
-                       [Attrs.class "blank"]
-                       [Html.text placeholder]
-                   F _ fill -> fill |> htmlFn
-                   Flagged _ _ _ _ -> Debug.crash "vbo"
+                       [Attrs.class "flagged"]
+                       [ Html.text msg
+                       , Html.text (toString setting)
+                       , thisTextFn l
+                       , thisTextFn r]
+                   _ -> thisTextFn b
+
       allowStringEntry = pt == Expr
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
