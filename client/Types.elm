@@ -120,7 +120,7 @@ tlidOf s =
 type Action = RefreshAnalyses
 
 type alias GlobalVariable = String
-type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable)
+type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable, List UserFunction)
 type alias GetAnalysisRPCResult = (List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
@@ -350,6 +350,7 @@ type alias Model = { center : Pos
                    , lastMod : Modification
                    , tests : List VariantTest
                    , complete : Autocomplete
+                   , userFunctions : List UserFunction
                    , state : State
                    , hovering : List Pointer
                    , toplevels : List Toplevel
@@ -386,7 +387,7 @@ type Modification = Error String
                   | SetHover Pointer
                   | ClearHover Pointer
                   | Deselect
-                  | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable)
+                  | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable) (List UserFunction)
                   | Enter EntryCursor
                   | RPC (List RPC, Focus)
                   | GetAnalysisRPC
@@ -429,6 +430,10 @@ type alias Function = { name: String
                       , returnTipe: Tipe
                       , infix: Bool
                       }
+
+type alias UserFunction = { metadata: Function
+                          , ast: Expr
+                          }
 
 type alias FlagParameter = { name: String
                            , tipe: String

@@ -40,6 +40,7 @@ defaultModel = { error = Nothing
                , lastMod = NoChange
                , center = {x=initialPos.vx, y=initialPos.vy}
                , complete = Autocomplete.empty
+               , userFunctions = []
                , state = Deselected
                , hovering = []
                , tests = []
