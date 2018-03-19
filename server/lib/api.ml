@@ -17,20 +17,19 @@ let to_ops (payload: string) : op list =
 (*------------------*)
 (* Functions *)
 (*------------------*)
-type param_ = { name: string
-              ; tipe: string
-              ; block_args : string list
-              ; optional: bool
-              ; description: string
-              } [@@deriving yojson]
+type param_metadata = { name: string
+                      ; tipe: string
+                      ; block_args : string list
+                      ; optional: bool
+                      ; description: string
+                      } [@@deriving yojson]
 
-type function_ = { name: string
-                 ; parameters : param_ list
-                 ; description : string
-                 ; return_type : string
-                 ; infix : bool
-                 } [@@deriving yojson]
-type functionlist = function_ list [@@deriving yojson]
+type function_metadata = { name: string
+                         ; parameters : param_metadata list
+                         ; description : string
+                         ; return_type : string
+                         ; infix : bool
+                         } [@@deriving yojson]
 
 let functions =
   Libs.fns
@@ -38,7 +37,7 @@ let functions =
   |> List.map ~f:(fun (k,(v:F.fn))
                    -> { name = k
                       ; parameters =
-                        List.map ~f:(fun p : param_ ->
+                        List.map ~f:(fun p : param_metadata ->
                           { name = p.name
                           ; tipe = Dval.tipe_to_string p.tipe
                           ; block_args = p.block_args
@@ -49,5 +48,5 @@ let functions =
                       ; return_type = Dval.tipe_to_string v.return_type
                       ; infix = List.mem ~equal:(=) v.infix_names k
                       })
-  |> functionlist_to_yojson
+  |> fun l -> `List (List.map ~f:function_metadata_to_yojson l)
   |> Yojson.Safe.pretty_to_string
