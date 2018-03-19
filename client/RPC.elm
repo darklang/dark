@@ -66,11 +66,11 @@ decodePointerData =
     , ("PEventName", dv1 PEventName (decodeBlankOr JSD.string))
     , ("PEventModifier", dv1 PEventModifier (decodeBlankOr JSD.string))
     , ("PEventSpace", dv1 PEventSpace (decodeBlankOr JSD.string))
-    , ("PExpr", dv1 PExpr decodeBExpr)
+    , ("PExpr", dv1 PExpr decodeExpr)
     , ("PField", dv1 PField (decodeBlankOr JSD.string))
     , ("PDBColName", dv1 PDBColName (decodeBlankOr JSD.string))
     , ("PDBColType", dv1 PDBColType (decodeBlankOr JSD.string))
-    , ("PDarkType", dv1 PDarkType (decodeBlankOr decodeDarkType))
+    , ("PDarkType", dv1 PDarkType (decodeDarkType))
     , ("PDarkTypeField", dv1 PDarkTypeField (decodeBlankOr JSD.string))
     ]
 
@@ -87,7 +87,7 @@ encodePointerData pd =
     PEventSpace space ->
       ev "PEventSpace" [encodeBlankOr JSE.string space]
     PExpr expr ->
-      ev "PExpr" [encodeBExpr expr]
+      ev "PExpr" [encodeExpr expr]
     PField field ->
       ev "PField" [encodeBlankOr JSE.string field]
     PDBColName colname ->
@@ -95,7 +95,7 @@ encodePointerData pd =
     PDBColType coltype ->
       ev "PDBColType" [encodeBlankOr JSE.string coltype]
     PDarkType darktype ->
-      ev "PDarkType" [encodeBlankOr encodeDarkType darktype]
+      ev "PDarkType" [encodeDarkType darktype]
     PDarkTypeField darktypefield ->
       ev "PDarkTypeField" [encodeBlankOr JSE.string darktypefield]
 
