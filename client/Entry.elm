@@ -148,11 +148,11 @@ submit m cursor action value =
           predecessor = TL.getPrevBlank tl (Just p)
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
-          replaceExpr : Model -> Handler -> TLID -> Pointer -> String -> Modification
-          replaceExpr m h tlid p value =
+          replaceExpr : Model -> Handler -> Pointer -> String -> Modification
+          replaceExpr m h p value =
             let id = P.toID p
-                old_ = AST.findExn id h.ast
-                target = Just (tlid, p)
+                old_ = TL.findExn tl id
+                target = Just (tl.id, p)
                 (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
@@ -306,7 +306,7 @@ submit m cursor action value =
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
         Expr ->
           let h = deMaybe "maybeH - expr" maybeH in
-          replaceExpr m h tlid p value
+          replaceExpr m h p value
         DarkType ->
           validate "(String|Int|Any|Empty|{)" "type"
             <|
