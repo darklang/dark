@@ -46,12 +46,14 @@ end
 
 
 module SpecTypes = struct
-  type dark_type = Empty
-                 | Any
-                 | String
-                 | Int
-                 | Obj of (string or_blank * dark_type or_blank) list
-                 [@@deriving eq, show, yojson, sexp, bin_io]
+  type n_dark_type = Empty
+                   | Any
+                   | String
+                   | Int
+                   | Obj of (string or_blank * dark_type ) list
+                   [@@deriving eq, show, yojson, sexp, bin_io]
+  and dark_type = n_dark_type or_blank
+                [@@deriving eq, show, yojson, sexp, bin_io]
 end
 
 module RuntimeT = struct
