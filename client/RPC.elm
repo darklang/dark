@@ -58,7 +58,46 @@ integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
   rpc_ m "/admin/api/rpc" (RPCCallback FocusNothing (TriggerIntegrationTest name)) []
 
+decodePointerData : JSD.Decoder PointerData
+decodePointerData =
+  let dv1 = decodeVariant1 in
+  decodeVariants
+    [ ("PVarBind", dv1 PVarBind (decodeBlankOr JSD.string))
+    , ("PEventName", dv1 PEventName (decodeBlankOr JSD.string))
+    , ("PEventModifier", dv1 PEventModifier (decodeBlankOr JSD.string))
+    , ("PEventSpace", dv1 PEventSpace (decodeBlankOr JSD.string))
+    , ("PExpr", dv1 PExpr decodeBExpr)
+    , ("PField", dv1 PField (decodeBlankOr JSD.string))
+    , ("PDBColName", dv1 PDBColName (decodeBlankOr JSD.string))
+    , ("PDBColType", dv1 PDBColType (decodeBlankOr JSD.string))
+    , ("PDarkType", dv1 PDarkType (decodeBlankOr decodeDarkType))
+    , ("PDarkTypeField", dv1 PDarkTypeField (decodeBlankOr JSD.string))
+    ]
 
+encodePointerData : PointerData -> JSE.Value
+encodePointerData pd =
+  let ev = encodeVariant in
+  case pd of
+    PVarBind var ->
+      ev "PVarBind" [encodeBlankOr JSE.string var]
+    PEventName name ->
+      ev "PEventName" [encodeBlankOr JSE.string name]
+    PEventModifier modifier ->
+      ev "PEventModifier" [encodeBlankOr JSE.string modifier]
+    PEventSpace space ->
+      ev "PEventSpace" [encodeBlankOr JSE.string space]
+    PExpr expr ->
+      ev "PExpr" [encodeBExpr expr]
+    PField field ->
+      ev "PField" [encodeBlankOr JSE.string field]
+    PDBColName colname ->
+      ev "PDBColName" [encodeBlankOr JSE.string colname]
+    PDBColType coltype ->
+      ev "PDBColType" [encodeBlankOr JSE.string coltype]
+    PDarkType darktype ->
+      ev "PDarkType" [encodeBlankOr encodeDarkType darktype]
+    PDarkTypeField darktypefield ->
+      ev "PDarkTypeField" [encodeBlankOr JSE.string darktypefield]
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value
@@ -347,5 +386,3 @@ decodeGetAnalysisRPC =
   JSDP.decode (,)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
-
-
