@@ -24,6 +24,7 @@ import Types exposing (..)
 import View
 import Clipboard
 import Defaults
+import Editor
 import Runtime as RT
 import Entry
 import Autocomplete as AC
@@ -92,7 +93,7 @@ init {editorState, complete} location =
       tests = case parseVariantTestsFromQueryString location.search of
                   Just t  -> t
                   Nothing -> []
-      m = Defaults.defaultModel editor
+      m = Editor.editor2model editor
 
       visibilityTask =
         Task.perform PageVisibilityChange PageVisibility.visibility
@@ -181,7 +182,7 @@ update msg m =
   in
     ({ newm | lastMsg = msg
             , lastMod = mods}
-     , Cmd.batch [newc, m |> Defaults.model2editor |> setStorage])
+     , Cmd.batch [newc, m |> Editor.model2editor |> setStorage])
 
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
@@ -318,7 +319,10 @@ updateMod mod (m, cmd) =
         in
             newM ! []
       CopyToClipboard clipboard ->
-        { m | clipboard = clipboard } ! []
+        let newM = { m | clipboard = clipboard } in
+        newM ! [setStorage (Editor.model2editor newM)]
+      SetStorage editorState ->
+        m ! [setStorage editorState]
       Drag tlid offset hasMoved state ->
         { m | state = Dragging tlid offset hasMoved state } ! []
       TweakModel fn ->
