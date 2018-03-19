@@ -5,12 +5,9 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 
 -- lib
-import Svg
-import Svg.Attributes as SA
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
-import VirtualDom
 import String.Extra as SE
 import List.Extra as LE
 -- import Maybe.Extra as ME
@@ -44,10 +41,7 @@ view m =
                    (decodeClickEvent GlobalClick)
                ]
                [ viewError m.error
-               , Svg.svg
-                 [ SA.width "100%"
-                 , SA.height (toString h) ]
-                 (viewCanvas m)
+               , (viewCanvas m)
                , viewButtons m
                ]
  in
@@ -111,20 +105,20 @@ viewButtons m =
 viewError : Maybe String -> Html.Html Msg
 viewError mMsg = case mMsg of
     Just msg ->
-      Html.div [Attrs.id "darkErrors"] [Html.text msg]
+      Html.div [Attrs.id "status", Attrs.class "error"] [Html.text msg]
     Nothing ->
-      Html.text "Dark"
+      Html.div [Attrs.id "status"] [Html.text "Dark"]
 
-viewCanvas : Model -> List (Svg.Svg Msg)
+viewCanvas : Model -> Html.Html Msg
 viewCanvas m =
     let
         entry = viewEntry m
         asts = List.map (viewTL m) m.toplevels
-        yaxis = svgLine m {x=0, y=6000} {x=0,y=-6000} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
-        xaxis = svgLine m {x=6000, y=0} {x=-6000,y=0} "" "" [SA.strokeWidth "1px", SA.stroke "#777"]
+        yaxis = axisLine m {x=0, y=1}
+        xaxis = axisLine m {x=1, y=0}
         routing = viewRoutingTable m
-        allSvgs = xaxis :: yaxis :: routing :: (asts ++ entry)
-    in allSvgs
+        allDivs = xaxis :: yaxis :: routing :: (asts ++ entry)
+    in Html.div [Attrs.id "canvas"] allDivs
 
 viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> HoverData -> Html.Html Msg
 viewBlankOrText = viewBlankOr Html.text
@@ -287,7 +281,7 @@ viewFeatureFlag selected =
 
 
 
-viewTL : Model -> Toplevel -> Svg.Svg Msg
+viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let body =
         case tl.data of
@@ -448,7 +442,7 @@ viewHandler m tl h =
   in [header, ast]
 
 
-viewEntry : Model -> List (Svg.Svg Msg)
+viewEntry : Model -> List (Html.Html Msg)
 viewEntry m =
   case unwrapState m.state of
     Entering (Creating pos) ->
@@ -717,7 +711,7 @@ prefixify hs =
 
 
 
-viewRoutingTable : Model -> Svg.Svg Msg
+viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
   let span class subs = Html.span [Attrs.class class] subs
       text class msg = span class [Html.text msg]
@@ -775,29 +769,29 @@ viewRoutingTable m =
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
 
 
-placeHtml : Model -> Pos -> Html.Html Msg -> Svg.Svg Msg
+placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
 placeHtml m pos html =
-  let rcpos = Viewport.toViewport m pos in
-  Svg.foreignObject
-    [ SA.x (toString rcpos.vx)
-    , SA.y (toString rcpos.vy)
-    ]
-    [ html ]
-
-svgLine : Model -> Pos -> Pos -> String -> String -> List (Svg.Attribute Msg) -> Svg.Svg Msg
-svgLine m p1a p2a sourcedebug targetdebug attrs =
-  let p1v = Viewport.toViewport m p1a
-      p2v = Viewport.toViewport m p2a
+  let rcpos = Viewport.toViewport m pos
+      div class subs = Html.div [Attrs.class class] subs
   in
-  Svg.line
-    ([ SA.x1 (toString p1v.vx)
-     , SA.y1 (toString p1v.vy)
-     , SA.x2 (toString p2v.vx)
-     , SA.y2 (toString p2v.vy)
-     , VirtualDom.attribute "source" sourcedebug
-     , VirtualDom.attribute "target" targetdebug
-     ] ++ attrs)
-    []
+  Html.div [ Attrs.class "node"
+           , Attrs.style [ ("left", (toString rcpos.vx) ++ "px")
+                         , ("top", (toString rcpos.vy) ++ "px")
+                         ]
+           ]
+           [ html ]
+
+axisLine : Model -> Pos -> Html.Html Msg
+axisLine m p =
+  let px = Viewport.toViewport m p
+  in
+  Html.div [ Attrs.classList [ ("axis", True)
+                             , ("horizontal", p.x > p.y)
+                             ]
+           , Attrs.style [ ("left", (toString px.vx) ++ "px")
+                         , ("top", (toString px.vy) ++ "px")
+                         ]
+           ] []
 
 decodeClickEvent : (MouseEvent -> a) -> JSD.Decoder a
 decodeClickEvent fn =
@@ -808,4 +802,3 @@ decodeClickEvent fn =
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
-
