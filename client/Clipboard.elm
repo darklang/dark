@@ -8,6 +8,7 @@ import Pointer as P
 import AST
 import Entry
 import Blank
+import Util exposing (deMaybe)
 
 copy : Model -> Toplevel -> (Maybe Pointer) -> Modification
 copy m tl mp =
@@ -16,9 +17,7 @@ copy m tl mp =
     Just h ->
       case mp of
         Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
-        Just p ->
-          let pid = P.toID p
-          in CopyToClipboard (AST.find pid h.ast)
+        Just p -> CopyToClipboard (TL.find tl (P.toID p))
 
 cut : Model -> Toplevel -> Pointer -> Modification
 cut m tl p =
@@ -28,10 +27,13 @@ cut m tl p =
     case TL.asHandler tl of
       Nothing -> NoChange
       Just h ->
-        let newClipboard = AST.find pid h.ast
-            newAst = AST.deleteExpr p h.ast (gid ())
+        let newClipboard = TL.find tl pid
+            newH = TL.delete tl p (gid ())
+                   |> TL.asHandler
+                   |> deMaybe "cut"
+
         in Many [ CopyToClipboard newClipboard
-                , RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
+                , RPC ( [ SetHandler tl.id tl.pos newH ]
                         , FocusNext tl.id pred)
                 ]
 

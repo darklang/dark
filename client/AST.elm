@@ -435,36 +435,6 @@ allData expr =
 
 
 
-findExn : ID -> Expr -> PointerData
-findExn id ast =
-  find id ast
-  |> deMaybe "findExn"
-
-find : ID -> Expr -> Maybe PointerData
-find id expr =
-  allData expr
-  |> List.filter (\d -> id == P.dToID d)
-  |> Util.assert (List.length >> ((==) 1))
-  |> List.head
-
-toContent : PointerData -> String
-toContent pd =
-  case pd of
-    PVarBind v -> v |> B.toMaybe |> Maybe.withDefault ""
-    PField f -> f |> B.toMaybe |> Maybe.withDefault ""
-    PExpr e ->
-      case e of
-        F _ (Value s) -> s
-        F _ (Variable v) -> v
-        _ -> ""
-    PEventModifier _ -> ""
-    PEventName _ -> ""
-    PEventSpace _ -> ""
-    PDBColName _ -> ""
-    PDBColType _ -> ""
-    PDarkType _ -> ""
-    PDarkTypeField _ -> ""
-
 
 replace : Pointer -> PointerData -> Expr -> Expr
 replace p replacement expr =
