@@ -151,6 +151,7 @@ type Msg
     | NavigateTo String
     | WindowResize Int Int
     | ClockTick Action Time
+    | JSError String
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
