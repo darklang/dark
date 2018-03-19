@@ -1,5 +1,8 @@
 module Pointer exposing (..)
 
+-- builtin
+import Maybe
+
 -- dark
 import Types exposing (..)
 import Blank as B
@@ -74,6 +77,53 @@ dToID = pdToP >> toID
 
 typeOfD : PointerData -> PointerType
 typeOfD = pdToP >> typeOf
+
+toContent : PointerData -> String
+toContent pd =
+  let bs2s s = s |> B.toMaybe |> Maybe.withDefault "" in
+  case pd of
+    PVarBind v -> bs2s v
+    PField f -> bs2s f
+    PExpr e ->
+      case e of
+        F _ (Value s) -> s
+        F _ (Variable v) -> v
+        _ -> ""
+    PEventModifier d -> bs2s d
+    PEventName d -> bs2s d
+    PEventSpace d -> bs2s d
+    PDBColName d -> bs2s d
+    PDBColType d -> bs2s d
+    PDarkType _ -> ""
+    PDarkTypeField d -> bs2s d
+
+dtmap : (DarkType -> DarkType) -> PointerData -> PointerData
+dtmap fn pd =
+  case pd of
+    PDarkType d -> PDarkType (fn d)
+    _ -> pd
+
+exprmap : (Expr -> Expr) -> PointerData -> PointerData
+exprmap fn pd =
+  case pd of
+    PExpr d -> PExpr (fn d)
+    _ -> pd
+
+strmap : (PointerType -> BlankOr String -> BlankOr String) -> PointerData -> PointerData
+strmap fn pd =
+  let pt = pd |> pdToP |> typeOf in
+  case pd of
+    PVarBind d -> PVarBind (fn pt d)
+    PField d -> PField (fn pt d)
+    PExpr _ -> pd
+    PEventModifier d -> PEventModifier (fn pt d)
+    PEventName d -> PEventName (fn pt d)
+    PEventSpace d -> PEventSpace (fn pt d)
+    PDBColName d -> PDBColName (fn pt d)
+    PDBColType d -> PDBColType (fn pt d)
+    PDarkType _ -> pd
+    PDarkTypeField d -> PDarkTypeField (fn pt d)
+
 
 ------------------------
 -- PointerOwner

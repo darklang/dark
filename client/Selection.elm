@@ -183,9 +183,8 @@ enter m tlid cur =
         let text =
           case P.ownerOf cur of
             POAst ->
-              (h ()).ast
-              |> AST.findExn id
-              |> AST.toContent
+              TL.findExn tl id
+              |> P.toContent
               |> Just
             POSpecHeader ->
               SpecHeaders.find (h ()) cur
