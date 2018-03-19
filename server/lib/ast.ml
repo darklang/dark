@@ -31,10 +31,22 @@ type nexpr = If of expr * expr * expr
            [@@deriving eq, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
+let flattenFF (bo: 'a or_blank) : 'a or_blank =
+  match bo with
+  | Flagged (msg, setting, l, r) ->
+      if setting >= 50
+      then r
+      else l
+  | _ -> bo
+
+let should_be_flat () =
+  Exception.internal "This blank_or should have been flattened"
+
 let blank_to_id (blank: 'a or_blank) : id =
-  match blank with
+  match flattenFF blank with
   | Filled (id, _) -> id
   | Blank (id) -> id
+  | Flagged _ -> should_be_flat ()
 
 let to_id (expr: expr) : id =
   blank_to_id expr
@@ -42,11 +54,6 @@ let to_id (expr: expr) : id =
 let to_tuple (expr: expr) : (id * expr) =
   let id = to_id expr in
   (id, expr)
-
-let is_hole (expr: expr) =
-  match expr with
-  | Filled _ -> false
-  | Blank _ -> true
 
 (* -------------------- *)
 (* Execution *)
@@ -112,17 +119,20 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
     | _ -> e in
 
   let value _ =
-    (match expr with
+    (match flattenFF expr with
      | Blank id ->
        DIncomplete
 
+     | Flagged _ -> should_be_flat ()
+
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound = match lhs with
+       let bound = match flattenFF lhs with
             | Filled (_, name) ->
               let data = exe st rhs in
               trace_blank lhs data st;
               String.Map.set ~key:name ~data:data st
             | Blank _ -> st
+            | Flagged _ -> should_be_flat ()
        in exe bound body
 
      | Filled (_, Value s) ->
@@ -197,8 +207,9 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
        let obj = exe st e in
        (match obj with
         | DObj o ->
-          (match field with
+          (match flattenFF field with
            | Blank _ -> DIncomplete
+           | Flagged _ -> should_be_flat ()
            | Filled (_, f) ->
              (match Map.find o f with
               | Some v -> v
@@ -281,13 +292,15 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
   let sexe = sym_exec ~trace in
   try
     let _ =
-      (match expr with
+      (match flattenFF expr with
        | Blank _ -> ()
+       | Flagged _ -> should_be_flat ()
        | Filled (_, Value s) -> ()
        | Filled (_, Variable name) -> ()
 
        | Filled (_, Let (lhs, rhs, body)) ->
-         let bound = match lhs with
+         let bound = match flattenFF lhs with
+           | Flagged _ -> should_be_flat ()
            | Filled (_, name) -> sexe st rhs; SymSet.add st name
            | Blank _ -> st
          in sexe bound body
