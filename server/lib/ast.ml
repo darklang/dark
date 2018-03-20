@@ -66,18 +66,6 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
               ?(trace_blank: (string or_blank -> dval -> symtable -> unit)=empty_trace)
               ~(ctx: context) (st: symtable) (expr: expr) : dval =
   let exe = exec_ ~trace ~trace_blank ~ctx in
-
-  (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
-   * -- it's definitely not a good thing to be doing, for a variety of reasons.
-   *     - We dump the passed dval to json to stick it into a Value
-   *     - More generally, we're mutating the ASTs exprs to inject dvals into them
-   *
-   * `Thread` as a separate construct in the AST as opposed to just being a function application
-   * is probably the root cause of this. Right now, we don't have function application in the language
-   * as FnCall is the AST element that actually handles interacting with the OCaml runtime to do
-   * useful work. We're going to need to make this a functional language with functions-as-values
-   * and application as a first-class concept sooner rather than later.
-   *)
   let call (name: string) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn name in
     (* equalize length *)
@@ -95,7 +83,17 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
    call_fn ~ind:0 ~ctx name fn args
   in
 
-
+  (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
+   * -- it's definitely not a good thing to be doing, for a variety of reasons.
+   *     - We dump the passed dval to json to stick it into a Value
+   *     - More generally, we're mutating the ASTs exprs to inject dvals into them
+   *
+   * `Thread` as a separate construct in the AST as opposed to just being a function application
+   * is probably the root cause of this. Right now, we don't have function application in the language
+   * as FnCall is the AST element that actually handles interacting with the OCaml runtime to do
+   * useful work. We're going to need to make this a functional language with functions-as-values
+   * and application as a first-class concept sooner rather than later.
+   *)
   let inject_param_and_execute (st: symtable) (param: dval) (exp: expr) : dval =
     match exp with
     | Filled (id, Lambda _) ->
