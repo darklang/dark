@@ -135,19 +135,8 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         |> Maybe.map .ast
         |> Maybe.andThen
             (\ast ->
-              let parent = AST.parentOf_ id ast
-                  inThread = AST.grandparentIsThread ast parent
-              in
-              case parent of
-                Just (F _ (FnCall name args)) ->
-                  let index =
-                        args
-                        |> LE.findIndex (\a -> B.toID a == id)
-                        |> Maybe.withDefault -1000
-                        |> \i -> if inThread
-                                 then i + 1
-                                 else i
-                  in
+              case AST.getParamIndex ast id of
+                Just (name, index) ->
                   case Autocomplete.findFunction m.complete name of
                     Just {parameters} ->
                       LE.getAt index parameters
