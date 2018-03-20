@@ -24,10 +24,10 @@ start m =
                   |> P.strmap (\_ a -> toFlagged a)
                   |> P.dtmap toFlagged
                   |> P.exprmap toFlagged
+          newTL = TL.replace tl p newPd
       in
-      TL.replace tl p newPd
-      |> \tl -> RPC ([SetHandler tl.id tl.pos
-                       (tl |> TL.asHandler |> deMaybe "FF.start") ]
-                     , FocusSame)
+      RPC ([SetHandler tl.id tl.pos
+                       (newTL |> TL.asHandler |> deMaybe "FF.start") ]
+           , FocusSame)
     _ -> NoChange
 
