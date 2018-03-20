@@ -30,7 +30,7 @@ type nexpr = If of expr * expr * expr
            [@@deriving eq, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
-let flattenFF (bo: 'a or_blank) : 'a or_blank =
+let flatten_ff (bo: 'a or_blank) : 'a or_blank =
   match bo with
   | Flagged (msg, setting, l, r) ->
       if setting >= 50
@@ -42,7 +42,7 @@ let should_be_flat () =
   Exception.internal "This blank_or should have been flattened"
 
 let blank_to_id (blank: 'a or_blank) : id =
-  match flattenFF blank with
+  match flatten_ff blank with
   | Filled (id, _) -> id
   | Blank (id) -> id
   | Flagged _ -> should_be_flat ()
@@ -116,14 +116,14 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
     | _ -> e in
 
   let value _ =
-    (match flattenFF expr with
+    (match flatten_ff expr with
      | Blank id ->
        DIncomplete
 
      | Flagged _ -> should_be_flat ()
 
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound = match flattenFF lhs with
+       let bound = match flatten_ff lhs with
             | Filled (_, name) ->
               let data = exe st rhs in
               trace_blank lhs data st;
@@ -204,7 +204,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
        let obj = exe st e in
        (match obj with
         | DObj o ->
-          (match flattenFF field with
+          (match flatten_ff field with
            | Blank _ -> DIncomplete
            | Flagged _ -> should_be_flat ()
            | Filled (_, f) ->
@@ -350,14 +350,14 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
   let sexe = sym_exec ~trace in
   try
     let _ =
-      (match flattenFF expr with
+      (match flatten_ff expr with
        | Blank _ -> ()
        | Flagged _ -> should_be_flat ()
        | Filled (_, Value s) -> ()
        | Filled (_, Variable name) -> ()
 
        | Filled (_, Let (lhs, rhs, body)) ->
-         let bound = match flattenFF lhs with
+         let bound = match flatten_ff lhs with
            | Flagged _ -> should_be_flat ()
            | Filled (_, name) -> sexe st rhs; SymSet.add st name
            | Blank _ -> st
