@@ -3,6 +3,7 @@ module View exposing (view)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Dict
 
 -- lib
 import Html
@@ -19,12 +20,13 @@ import Defaults
 import Viewport
 import Analysis
 import Autocomplete
-import ViewAST
+-- import ViewAST
 import Toplevel as TL
 import Pointer as P
 import AST
 import Runtime as RT
 import Blank as B
+import Runtime
 
 fontAwesome : String -> Html.Html Msg
 fontAwesome name =
@@ -381,18 +383,9 @@ viewHandler m tl h =
           Just p -> P.toID p
           Nothing -> ID 0
 
-      lvs = Analysis.getLiveValuesDict m tl.id
       ast = Html.div
               [ Attrs.class "ast"]
-              [ ViewAST.toHtml
-                { selectedID = id
-                , tlid = tl.id
-                , hoveredID = hovering
-                , viewBlankOr = viewBlankOrText m tl
-                , html4blank = html4blank
-                , liveValues = lvs
-                , functions = m.complete.functions}
-                h.ast]
+              [ viewExpr m tl h.ast ]
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
@@ -432,6 +425,91 @@ viewHandler m tl h =
             )
           ]
   in [header, ast]
+
+
+viewExpr : Model -> Toplevel -> Expr -> Html.Html Msg
+viewExpr m tl e =
+  -- TODO: add hoverdata
+  let lvs = Analysis.getLiveValuesDict m tl.id
+      displayVal id =
+      id
+      |> deID
+      |> \id -> Dict.get id lvs
+      |> Maybe.map .value
+      |> Maybe.map (\v -> if Runtime.isError v
+                          then Err (Runtime.extractErrorMessage v)
+                          else Ok v)
+  in
+  viewBlankOr (viewNExpr m tl) m tl Expr e (displayVal (B.toID e))
+
+viewNExpr : Model -> Toplevel -> NExpr -> Html.Html Msg
+viewNExpr m tl e =
+  let asClass cls = cls |> String.join " " |> Attrs.class
+      text cls str =
+        Html.div
+          [asClass cls]
+          [Html.text str]
+      wrap cls item =
+        Html.div
+          [asClass cls]
+          [item]
+  in
+  case e of
+    Value v ->
+      let cssClass = v |> RT.tipeOf |> toString |> String.toLower
+          valu =
+            -- TODO: remove
+            if RT.isString v
+            then "“" ++ (SE.unquote v) ++ "”"
+            else v
+      in
+      text [cssClass, "atom", "value"] valu
+
+    Variable name ->
+      text ["atom", "variable"] name
+
+    Let lhs rhs body ->
+      let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs Nothing in
+      Html.div
+        [ asClass ["letexpr"]]
+        [ text ["let", "keyword", "atom"] "let"
+        , wrap ["letbinding"]
+            (wrap ["letvarname", "atom"] viewLHS)
+        , text ["letbind", "atom"] "="
+        , wrap ["letrhs"] (viewExpr m tl rhs)
+        , wrap ["letbody"] (viewExpr m tl body)
+        ]
+
+
+
+
+      -- let rhsID = B.toID rhs in
+      -- Nested
+      --   [DisplayValue id, ClickSelect Expr id, HighlightAs id]
+      --   ["letexpr"]
+      --   [ Text ["let", "keyword", "atom"] "let"
+      --   , Nested
+      --       []
+      --       ["letbinding"]
+      --       [ Selectable ["letvarname", "atom"] lhs VarBind
+      --       , Text ["letbind", "atom"] "="
+      --       , Nested
+      --           [DisplayValue rhsID, ClickSelect Expr rhsID]
+      --           []
+      --           [vExpr state nest rhs]
+      --       ]
+      --   , Nested
+      --       []
+      --       ["letbody"]
+      --       [vExpr state nest expr]
+      --   ]
+
+
+
+
+
+    _ -> Html.div [] []
+
 
 
 viewEntry : Model -> List (Html.Html Msg)
@@ -624,6 +702,18 @@ entryHtml allowStringEntry placeholder m =
   if allowStringEntry && Autocomplete.isStringEntry m.complete
   then stringEntryHtml m
   else normalEntryHtml placeholder m
+
+
+
+
+
+
+
+
+
+
+
+
 
 type alias Collapsed = { name: Maybe String
                        , prefix: List String
