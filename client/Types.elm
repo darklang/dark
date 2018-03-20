@@ -362,7 +362,9 @@ type alias Model = { center : Pos
                    }
 
 -- Values that we serialize
-type alias Editor = { clipboard : (Maybe JSE.Value) }
+type alias Editor = { clipboard : JSE.Value
+                    , syncEnabled : Bool
+                    }
 
 -----------------------------
 -- Testing

@@ -1,37 +1,32 @@
 module Editor exposing (..)
 
--- Dark
+-- builtin
+import Json.Decode as JSD
+import Json.Encode as JSE
+
+-- lib
+
+-- dark
 
 import Defaults
-import Json.Decode as JSD
 import RPC
 import Types exposing (..)
 
 
 editor2model : Editor -> Model
 editor2model e =
-  let
-    m =
-      Defaults.defaultModel
-  in
-  case e.clipboard of
-    Nothing ->
-      m
-
-    Just enc ->
-      case JSD.decodeValue RPC.decodePointerData enc of
-        Ok pd ->
-          { m | clipboard = Just pd }
-
-        Err err ->
-          m
-
+  let m = Defaults.defaultModel in
+  { m | syncEnabled = e.syncEnabled
+      , clipboard = e.clipboard
+                    |> JSD.decodeValue
+                         (JSD.nullable RPC.decodePointerData)
+                    |> Result.withDefault Nothing
+  }
 
 model2editor : Model -> Editor
 model2editor m =
-  case m.clipboard of
-    Nothing ->
-      { clipboard = Nothing }
-
-    Just pd ->
-      { clipboard = Just <| RPC.encodePointerData pd }
+  { clipboard = case m.clipboard of
+                  Nothing -> JSE.null
+                  Just pd -> RPC.encodePointerData pd
+  , syncEnabled = m.syncEnabled
+  }
