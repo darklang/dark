@@ -101,6 +101,26 @@ module RuntimeT = struct
                | Real [@@deriving eq, show, yojson]
 
   exception TypeError of dval list
+
+  type param = { name: string
+               ; tipe: tipe
+               ; block_args : string list
+               ; optional : bool
+               ; description : string
+               } [@@deriving eq, show, yojson]
+
+  type funcimpl = InProcess of (dval list -> dval)
+                | API of (dval_map -> dval)
+
+  type fn = { prefix_names : string list
+            ; infix_names : string list
+            ; parameters : param list
+            ; return_type : tipe
+            ; description : string
+            ; preview : (dval list -> int -> dval list) option
+            ; func : funcimpl
+            ; previewExecutionSafe : bool
+            }
 end
 
 
