@@ -47,6 +47,8 @@ body {
 
 #grid {
   background: @black1;
+  height: 100vh;
+  overflow: hidden;
   position: relative;
 
   -webkit-touch-callout: none; /* iOS Safari */
@@ -64,32 +66,57 @@ body #grid * {
   }
 }
 
-#buttons {
-  position: absolute;
-  left: 0px;
-}
-
-.specialButton {
-  margin-right: 4px;
-
-  &#integrationTestSignal {
-    display: inline-block;
+#canvas {
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  .node {
+    position: absolute;
   }
 }
 
-#darkErrors {
-  color: red;
+#buttons {
+  bottom: 0;
+  left: 0px;
+  position: absolute;
+
+  .specialButton {
+    margin-right: 4px;
+    &#integrationTestSignal {
+      display: inline-block;
+    }
+  }
+}
+
+#status {
+  &.error {
+    color: red;
+  }
 }
 
 .as-pointer {
   cursor: pointer;
 }
 
-
 .verb-link {
   &:hover {
     color: @orange;
     text-decoration: underline;
+  }
+}
+
+.axis {
+  background: #777;
+  height: 200%;
+  position: absolute;
+  transform: translate(0, -50%);
+  width: 1px;
+  &.horizontal {
+    height: 1px;
+    transform: translate(-50%, 0);
+    width: 200%;
   }
 }
 
