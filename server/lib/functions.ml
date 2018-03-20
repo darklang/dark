@@ -11,15 +11,6 @@ let equal_dval = Dval.equal_dval
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
-type execute_t = (dval_map -> dval)
-type argument = AEdge of int
-              | AConst of dval
-              [@@deriving eq, show, yojson]
-
-let blank_arg = AConst DIncomplete
-module ArgMap = String.Map
-type arg_map = argument ArgMap.t
-
 type param = { name: string
              ; tipe: tipe
              ; block_args : string list
