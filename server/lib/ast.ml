@@ -1,34 +1,8 @@
 open Core
 
+open Types
 open Types.RuntimeT
 module RT = Runtime
-
-(* --------------------- *)
-(* Types *)
-(* --------------------- *)
-type fnname = string [@@deriving eq, yojson, show, sexp, bin_io]
-type fieldname = string [@@deriving eq, yojson, show, sexp, bin_io]
-type varname = string [@@deriving eq, yojson, show, sexp, bin_io]
-type id = Types.id [@@deriving eq, yojson, show, sexp, bin_io]
-type 'a or_blank = 'a Types.or_blank [@@deriving eq, yojson, show, sexp, bin_io]
-
-type varbinding = varname or_blank
-                [@@deriving eq, yojson, show, sexp, bin_io]
-
-type field = fieldname or_blank
-           [@@deriving eq, yojson, show, sexp, bin_io]
-
-
-type nexpr = If of expr * expr * expr
-           | Thread of expr list
-           | FnCall of fnname * expr list
-           | Variable of varname
-           | Let of varbinding * expr * expr
-           | Lambda of varname list * expr
-           | Value of string
-           | FieldAccess of expr * field
-           [@@deriving eq, yojson, show, sexp, bin_io]
-and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
 let flatten_ff (bo: 'a or_blank) : 'a or_blank =
   match bo with
@@ -282,6 +256,7 @@ and call_fn ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) 
                 ~expected:(Dval.tipe_to_string p.tipe)
                 (fnname ^ " was called with the wrong type to parameter: " ^ p.name))
 
+  | UserCreated _ -> failwith "TODO(ian)"
   | API f ->
       try
         f args
