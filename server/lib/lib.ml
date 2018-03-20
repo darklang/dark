@@ -1,7 +1,6 @@
 open Core
 
 open Types.RuntimeT
-open Functions
 
 let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   { name = name
