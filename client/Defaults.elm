@@ -1,8 +1,15 @@
 module Defaults exposing (..)
 
+-- builtin
+import Json.Encode as JSE
+-- lib
+
+
+-- dark
 import Types exposing (..)
 import PageVisibility
 import Autocomplete
+
 
 entryID : String
 entryID = "entry-box"
@@ -23,7 +30,9 @@ pageWidth : Int
 pageWidth = 500
 
 defaultEditor : Editor
-defaultEditor = { clipboard = Nothing }
+defaultEditor = { clipboard = JSE.null
+                , syncEnabled = True
+                }
 
 defaultModel : Model
 defaultModel = { error = Nothing
@@ -38,11 +47,8 @@ defaultModel = { error = Nothing
                , analysis = []
                , globals = []
                , integrationTestState = NoIntegrationTest
-               , clipboard = Nothing
                , visibility = PageVisibility.Hidden
+               -- saved in editor
+               , clipboard = Nothing
                , syncEnabled = True
-               -- editor
-               -- these load before the graph does, causing
-               -- exceptions. We'll need to only run these after the
-               -- graph loads
                }
