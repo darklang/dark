@@ -20,7 +20,7 @@ type shortfn = { pns : string list
                ; ins : string list
                ; p : param list
                ; r : tipe
-               ; f : ccfunc
+               ; f : funcimpl
                ; d : string
                ; pr : (dval list -> int -> dval list) option
                ; ps : bool

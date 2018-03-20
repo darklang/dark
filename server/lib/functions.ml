@@ -11,32 +11,11 @@ let equal_dval = Dval.equal_dval
 (* ------------------------- *)
 (* Functions *)
 (* ------------------------- *)
-type param = { name: string
-             ; tipe: tipe
-             ; block_args : string list
-             ; optional : bool
-             ; description : string
-             } [@@deriving eq, show, yojson]
-
 let param_to_string (param: param) : string =
   param.name
   ^ (if param.optional then "?" else "")
   ^ " : "
   ^ (Dval.tipe_to_string param.tipe)
-
-
-type ccfunc = InProcess of (dval list -> dval)
-            | API of (dval_map -> dval)
-
-type fn = { prefix_names : string list
-          ; infix_names : string list
-          ; parameters : param list
-          ; return_type : tipe
-          ; description : string
-          ; preview : (dval list -> int -> dval list) option
-          ; func : ccfunc
-          ; previewExecutionSafe : bool
-          }
 
 let exe ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) : dval =
   let apply f arglist =

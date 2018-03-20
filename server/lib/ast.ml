@@ -91,7 +91,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
       else Exception.user ("Too many args in fncall to " ^ name) in
     let args =
       fn.parameters
-      |> List.map2_exn ~f:(fun dv (p: F.param) -> (p.name, dv)) argvals
+      |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn in
     F.exe ~ind:0 ~ctx name fn args
   in
