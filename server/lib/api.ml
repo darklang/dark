@@ -34,7 +34,7 @@ type function_metadata = { name: string
 let functions =
   Libs.fns
   |> String.Map.to_alist
-  |> List.map ~f:(fun (k,(v:F.fn))
+  |> List.map ~f:(fun (k,(v: RuntimeT.fn))
                    -> { name = k
                       ; parameters =
                         List.map ~f:(fun p : param_metadata ->
