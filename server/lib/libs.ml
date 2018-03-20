@@ -3,7 +3,6 @@ open Types
 open Lib
 
 module RT = Runtime
-module F = Functions
 
 module FnMap = String.Map
 

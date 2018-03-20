@@ -3,7 +3,6 @@ open Core
 open Lib
 open Types
 open Types.RuntimeT
-open Functions
 
 let schema = Swagger.parse "lib/twitter_api.json"
 

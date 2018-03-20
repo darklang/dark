@@ -3,7 +3,6 @@ open Types
 
 open Op
 module RT = Runtime
-module F = Functions
 
 type pos = Types.pos [@@deriving yojson]
 type oplist = op list [@@deriving yojson]
