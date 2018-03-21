@@ -713,32 +713,81 @@ update_ msg m =
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    ToplevelClickUp tlid mPointer event ->
+    ToplevelClickUp tl mPointer event ->
       if event.button == Defaults.leftButton
       then
         case m.state of
-          Dragging tlid startVPos hasMoved origState ->
-            let xDiff = event.pos.vx-startVPos.vx
-                yDiff = event.pos.vy-startVPos.vy
-                m2 = TL.move tlid xDiff yDiff m
-                tl = TL.getTL m2 tlid
-            in
+          Dragging _ _ hasMoved origState ->
             if hasMoved
-            then Many
-                  [ SetState origState
-                  , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            -- this is where we select toplevels
-            else Select tlid mPointer
+            then
+              Many
+                  [ NoChange
+                  , RPC ([MoveTL tl.id tl.pos], FocusNoChange)
+                  ]
+            else
+              SetState origState
           _ ->
-            -- if we stopPropagative the TopleveClickDown
             NoChange
       else NoChange
+
+    ToplevelClick tl mPointer event ->
+      case m.state of
+        Dragging tlid _ _ origState ->
+          SetState origState
+        Selecting tlid maybeP ->
+          if tlid == tl.id
+          then
+            Deselect
+          else
+            Select tl.id mPointer
+        Deselected ->
+          Select tl.id mPointer
+        _ ->
+          NoChange
 
     MouseEnter id _ ->
       SetHover id
 
     MouseLeave p _ ->
       ClearHover p
+
+    BlankOrClick tlid mPointer event ->
+      case m.state of
+        Deselected ->
+          Select tlid mPointer
+        Dragging tlid _ _ origState ->
+          SetState origState
+        Entering cursor ->
+          case cursor of
+            Filling tlid pp ->
+              case mPointer of
+                Just p ->
+                  if P.toID pp == P.toID p
+                  then
+                    Select tlid Nothing
+                  else
+                    Select tlid mPointer
+                Nothing -> NoChange
+            _ ->
+              Select tlid mPointer
+        Selecting _ (Just pp) ->
+          case mPointer of
+            Just p ->
+              if P.toID pp == P.toID p
+              then
+                Select tlid Nothing
+              else
+                Select tlid mPointer
+            Nothing -> NoChange
+        Selecting tild Nothing ->
+          Select tlid mPointer
+
+    BlankOrDoubleClick tlid mPointer event ->
+      case mPointer of
+        Just p ->
+          Selection.enter m tlid p
+        Nothing ->
+          NoChange
 
     -----------------
     -- Buttons
