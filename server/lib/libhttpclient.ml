@@ -3,8 +3,6 @@ open Runtime
 open Lib
 open Types.RuntimeT
 
-open Functions
-
 let params = [ par "uri" TStr
              ; par "body" TAny
              ; par "query" TObj

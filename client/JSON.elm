@@ -124,8 +124,12 @@ encodeBlankOr encoder v =
 
 decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
 decodeBlankOr d =
-  decodeVariants [ ("Filled", decodeVariant2 F decodeID d)
-                 , ("Blank", decodeVariant1 Blank decodeID)]
+  let db = JSD.lazy (\_ -> decodeBlankOr d) in
+  decodeVariants
+  [ ("Filled", decodeVariant2 F decodeID d)
+  , ("Blank", decodeVariant1 Blank decodeID)
+  , ("Flagged", decodeVariant4 Flagged JSD.string JSD.int db db)
+  ]
 
 ------------------------------------
 -- IDs

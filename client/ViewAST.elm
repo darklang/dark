@@ -50,6 +50,7 @@ elemToHtml state elem =
                           then Err (Runtime.extractErrorMessage v)
                           else Ok v)
       asClass classNames = classNames |> String.join " " |> Attrs.class
+      idAttr b = b |> B.toID |> deID |> toString |> Attrs.id
   in
   case elem of
     Text classNames str ->
@@ -57,14 +58,11 @@ elemToHtml state elem =
         [asClass classNames]
         [Html.text str]
 
-    Selectable classNames blankOr pointerType ->
-      let id = B.toID blankOr
-          idAttr = Attrs.id (id |> deID |> toString)
-          classes = asClass classNames
-      in
-        Html.div
-        ( idAttr :: classes :: [])
-        [state.viewBlankOr pointerType blankOr (displayVal (Just id))]
+    Selectable classNames bo pointerType ->
+      let id = B.toID bo in
+      Html.div
+        ( idAttr bo :: asClass classNames :: [])
+        [state.viewBlankOr pointerType bo (displayVal (Just id))]
 
     Nested assocs classNames elems ->
       let selected =

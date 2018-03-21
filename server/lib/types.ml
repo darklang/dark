@@ -58,6 +58,26 @@ module SpecTypes = struct
 end
 
 module RuntimeT = struct
+  type fnname = string [@@deriving eq, yojson, show, sexp, bin_io]
+  type fieldname = string [@@deriving eq, yojson, show, sexp, bin_io]
+  type varname = string [@@deriving eq, yojson, show, sexp, bin_io]
+
+  type varbinding = varname or_blank
+  [@@deriving eq, yojson, show, sexp, bin_io]
+
+  type field = fieldname or_blank
+  [@@deriving eq, yojson, show, sexp, bin_io]
+
+  type nexpr = If of expr * expr * expr
+             | Thread of expr list
+             | FnCall of fnname * expr list
+             | Variable of varname
+             | Let of varbinding * expr * expr
+             | Lambda of varname list * expr
+             | Value of string
+             | FieldAccess of expr * field
+  [@@deriving eq, yojson, show, sexp, bin_io]
+and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
   (* ------------------------ *)
   (* Dvals*)
   (* ------------------------ *)
@@ -101,6 +121,27 @@ module RuntimeT = struct
                | Real [@@deriving eq, show, yojson]
 
   exception TypeError of dval list
+
+  type param = { name: string
+               ; tipe: tipe
+               ; block_args : string list
+               ; optional : bool
+               ; description : string
+               } [@@deriving eq, show, yojson]
+
+  type funcimpl = InProcess of (dval list -> dval)
+                | API of (dval_map -> dval)
+                | UserCreated of expr
+
+  type fn = { prefix_names : string list
+            ; infix_names : string list
+            ; parameters : param list
+            ; return_type : tipe
+            ; description : string
+            ; preview : (dval list -> int -> dval list) option
+            ; func : funcimpl
+            ; previewExecutionSafe : bool
+            }
 end
 
 

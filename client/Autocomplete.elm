@@ -119,11 +119,10 @@ init functions = { functions = functions
                  , target = Nothing
                  }
 
--- forParamType : Tipe -> NodeList -> Autocomplete -> Autocomplete
--- forParamType tipe ns a = { a | tipe = Just tipe, nodes = Just ns }
---
 reset : Model -> Autocomplete -> Autocomplete
-reset m a = init a.functions |> regenerate m
+reset m a =
+  let userFunctionMetadata = List.map .metadata m.userFunctions in
+  init (a.functions ++ userFunctionMetadata) |> regenerate m
 
 numCompletions : Autocomplete -> Int
 numCompletions a =
@@ -143,14 +142,6 @@ selectUp a = let max = numCompletions a - 1 in
                            else a.index - 1
              }
 
--- variablesForType : NodeList -> Tipe -> List AutocompleteItem
--- variablesForType ns t =
---     ns
---       |> List.indexedMap (,)
---       |> List.filter (\(_, n) -> RT.isCompatible t n.liveValue.tipe)
---       |> List.map (\(i, n) -> (int2letter i, n))
---       |> List.map ACVariable
---
 -- Implementation:
 -- n The autocomplete list should include:
 --    y all imported functions
@@ -192,7 +183,6 @@ update m mod a =
      ACSelectUp -> selectUp a
      ACSetTarget target -> setTarget m target a
      ACRegenerate -> regenerate m a
-     -- ACFilterByParamType tipe nodes -> forParamType tipe nodes a
   )
 
 
@@ -297,12 +287,6 @@ generateFromModel m a =
                             else []
                  Nothing -> []
 
-
-      --
-      -- variables
-      -- variables = case (a.tipe, a.nodes) of
-      --                 (Just t, Just ns)  -> variablesForType ns t
-      --                 _ -> []
       showFunctions =
         case a.target of
           Just (_, p) -> P.typeOf p == Expr
@@ -323,7 +307,6 @@ generateFromModel m a =
                Just {tipe} -> Nothing /= findParamByType fn tipe
                Nothing -> True)
         |> List.map ACFunction
-
 
       extras =
         case a.target of
@@ -370,8 +353,6 @@ generateFromModel m a =
     ++ fields
     ++ List.map ACVariable varnames
 
-
-
 asName : AutocompleteItem -> String
 asName aci =
   case aci of
@@ -412,5 +393,4 @@ findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
   parameters
   |> LE.find (\p -> RT.isCompatible p.tipe tipe)
-
 

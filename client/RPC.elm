@@ -374,12 +374,16 @@ decodeToplevel =
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "data" variant
 
+decodeUserFunction : JSD.Decoder UserFunction
+decodeUserFunction = JSD.fail "TODO(ian)"
+
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,,)
+  JSDP.decode (,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
+  |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
 
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisRPCResult
 decodeGetAnalysisRPC =
