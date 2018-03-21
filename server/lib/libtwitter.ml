@@ -3,7 +3,6 @@ open Core
 open Lib
 open Types
 open Types.RuntimeT
-open Functions
 
 let schema = Swagger.parse "lib/twitter_api.json"
 
@@ -45,7 +44,7 @@ let fns =
             { pns = ["Twitter::" ^ (twurl2name api.path)]
             ; ins = []
             ; r = TAny
-            ; f = Functions.API (call_twitter api.path)
+            ; f = API (call_twitter api.path)
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             ; pr = None

@@ -268,8 +268,11 @@ html4blank selected mouseover classes clickable hoverdata content =
 
   in
   Html.div
-    (events ++ title ++ [Attrs.class (String.join " " allClasses)])
-    (content ++ featureFlag)
+    []
+    (( Html.div
+      (events ++ title ++ [Attrs.class (String.join " " allClasses)])
+      content
+      ) :: featureFlag)
 
 
 viewFeatureFlag : DivSelected -> List (Html.Html Msg)
@@ -277,7 +280,7 @@ viewFeatureFlag selected =
   if selected == DivSelected
   then [Html.div
           [ Attrs.class "feature-flag"
-          , Events.onClick StartFeatureFlag]
+          , Events.onMouseDown StartFeatureFlag]
           [fontAwesome "flag"] ]
   else []
 

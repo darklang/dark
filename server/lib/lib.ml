@@ -1,7 +1,6 @@
 open Core
 
 open Types.RuntimeT
-open Functions
 
 let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
   { name = name
@@ -20,7 +19,7 @@ type shortfn = { pns : string list
                ; ins : string list
                ; p : param list
                ; r : tipe
-               ; f : ccfunc
+               ; f : funcimpl
                ; d : string
                ; pr : (dval list -> int -> dval list) option
                ; ps : bool

@@ -298,10 +298,12 @@ updateMod mod (m, cmd) =
         newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
 
 
-      SetToplevels tls tlars globals ->
+      SetToplevels tls tlars globals userFuncs ->
         let m2 = { m | toplevels = tls
                      , analysis = tlars
-                     , globals = globals }
+                     , globals = globals
+                     , userFunctions = userFuncs
+                 }
             (complete, acCmd) =
               processAutocompleteMods m2 [ ACRegenerate ]
         in
@@ -709,7 +711,7 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move tlid xDiff yDiff m in
-          Many [ SetToplevels m2.toplevels m2.analysis m2.globals
+          Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
@@ -817,10 +819,10 @@ update_ msg m =
     NavigateTo url ->
       MakeCmd (Navigation.newUrl url)
 
-    RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals)) ->
+    RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals, userFuncs)) ->
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels analysis globals
+        Many [ SetToplevels toplevels analysis globals userFuncs
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              ]
@@ -829,7 +831,7 @@ update_ msg m =
             newState = processFocus m2 focus
         -- TODO: can make this much faster by only receiving things that have
         -- been updated
-        in Many [ SetToplevels toplevels analysis globals
+        in Many [ SetToplevels toplevels analysis globals userFuncs
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -840,7 +842,7 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     GetAnalysisRPCCallback (Ok (analysis, globals)) ->
-      SetToplevels m.toplevels analysis globals
+      SetToplevels m.toplevels analysis globals m.userFunctions
 
     ------------------------
     -- plumbing
@@ -850,6 +852,10 @@ update_ msg m =
 
     RPCCallback _ _ _ (Err (Http.NetworkError)) ->
       Error <| "Network error: is the server running?"
+
+    RPCCallback _ _ _ (Err (Http.BadPayload err response)) ->
+      let { body } = response in
+      Error <| "RPC decoding error: " ++ err ++ " in " ++ body
 
     (RPCCallback _ _ _ _) as t ->
       Error <| "Dark Client Error: unknown error: " ++ (toString t)

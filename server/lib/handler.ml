@@ -16,7 +16,7 @@ type spec = { module_ : string Types.or_blank [@key "module"]
             } [@@deriving eq, show, yojson, sexp, bin_io]
 
 type handler = { tlid: Types.tlid
-               ; ast: Ast.expr
+               ; ast: expr
                ; spec : spec
                } [@@deriving eq, show, yojson, sexp, bin_io]
 
