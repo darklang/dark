@@ -211,9 +211,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                  then entryHtml allowStringEntry placeholder m
                  else thisText
                _ -> thisText
-      onClick = if selected == DivSelected
-                then Nothing
-                else Just (tl.id, pointer)
+      onClick = Just (tl.id, pointer)
       mouseOvered =
         case m.hovering |> List.head of
           Nothing -> MouseNotOverDiv
@@ -229,19 +227,23 @@ html4blank selected mouseover classes clickable hoverdata content =
                  Nothing -> []
                  Just (tlid, pointer) ->
                    -- click so that dragging still works
-                   [Events.onWithOptions "mouseup"
-                     -- only the leafiest node should be selected, so
-                     -- don't let this propagate to ancestors
+                   [
+                     Events.onWithOptions "click"
                      { stopPropagation = True
                      , preventDefault = False
                      }
-                     (decodeClickEvent (ToplevelClickUp tlid (Just pointer)))
-                   ,Events.onWithOptions "mouseenter"
+                     (decodeClickEvent (BlankOrClick tlid (Just pointer)))
+                   , Events.onWithOptions "dblclick"
+                     { stopPropagation = True
+                     , preventDefault = False
+                     }
+                     (decodeClickEvent (BlankOrDoubleClick tlid (Just pointer)))
+                   , Events.onWithOptions "mouseenter"
                      { stopPropagation = True
                      , preventDefault = False
                      }
                      (decodeClickEvent (MouseEnter pointer))
-                   ,Events.onWithOptions "mouseleave"
+                   , Events.onWithOptions "mouseleave"
                      { stopPropagation = True
                      , preventDefault = False
                      }
@@ -299,7 +301,11 @@ viewTL m tl =
                , Events.onWithOptions
                    "mouseup"
                    { stopPropagation = True, preventDefault = False }
-                   (decodeClickEvent (ToplevelClickUp tl.id Nothing))
+                   (decodeClickEvent (ToplevelClickUp tl Nothing))
+              , Events.onWithOptions
+                  "click"
+                  { stopPropagation = True, preventDefault = False }
+                  (decodeClickEvent (ToplevelClick tl Nothing))
                ]
 
       selected = if Just tl.id == tlidOf m.state
