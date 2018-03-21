@@ -109,7 +109,7 @@ tlidOf s =
         Filling tlid _ ->
           Just tlid
     Deselected -> Nothing
-    _ -> Debug.crash "can't have dragging"
+    Dragging _ _ _ _ -> Nothing
 
 
 
@@ -128,7 +128,8 @@ type Msg
     | ToplevelClickDown Toplevel MouseEvent
     -- we have the actual node when ToplevelClickUp is created,
     -- but by the time we use it the proper node will be changed
-    | ToplevelClickUp TLID (Maybe Pointer) MouseEvent
+    | ToplevelClickUp Toplevel (Maybe Pointer) MouseEvent
+    | ToplevelClick Toplevel (Maybe Pointer) MouseEvent
     | DragToplevel TLID Mouse.Position
     | MouseEnter Pointer MouseEvent
     | MouseLeave Pointer MouseEvent
@@ -155,6 +156,8 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
+    | BlankOrClick TLID (Maybe Pointer) MouseEvent
+    | BlankOrDoubleClick TLID (Maybe Pointer) MouseEvent
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer
