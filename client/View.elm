@@ -453,6 +453,11 @@ viewNExpr m tl e =
         Html.div
           [asClass cls]
           [item]
+      nested cls items =
+        Html.div
+          [asClass cls]
+          items
+      vExpr = viewExpr m tl
   in
   case e of
     Value v ->
@@ -470,45 +475,76 @@ viewNExpr m tl e =
 
     Let lhs rhs body ->
       let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs Nothing in
-      Html.div
-        [ asClass ["letexpr"]]
+      nested ["letexpr"]
         [ text ["let", "keyword", "atom"] "let"
         , wrap ["letbinding"]
             (wrap ["letvarname", "atom"] viewLHS)
         , text ["letbind", "atom"] "="
-        , wrap ["letrhs"] (viewExpr m tl rhs)
-        , wrap ["letbody"] (viewExpr m tl body)
+        , wrap ["letrhs"] (vExpr rhs)
+        , wrap ["letbody"] (vExpr body)
         ]
 
+    If cond ifbody elsebody ->
+      nested ["ifexpr"]
+      [ text ["if", "keyword", "atom"] "if"
+      , wrap ["cond"] (vExpr cond)
+      , wrap ["ifbody"] (vExpr ifbody)
+      , text ["else", "keyword", "atom"] "else"
+      , wrap ["elsebody"] (vExpr elsebody)
+      ]
+
+    FnCall name exprs ->
+      let fnname = case String.split "::" name of
+                     [mod, n] ->
+                       nested ["namegroup", "atom"]
+                         [ text ["module"] mod
+                         , text ["moduleseparator"] "::"
+                         , text ["fnname"] n
+                         ]
+                     _ -> text ["fnname", "atom"] name
+          fnDiv = wrap ["op", name] fnname
+          isInfix = m.complete.functions
+                    |> LE.find (\f -> f.name == name)
+                    |> deMaybe "vExpr fncall"
+                    |> .infix
+      in
+      case (isInfix, exprs) of
+        (True, [first, second]) ->
+          nested ["fncall", "infix"]
+          [ wrap ["lhs"] (vExpr first)
+          , fnDiv
+          , wrap ["rhs"] (vExpr second)
+          ]
+        _ ->
+          nested ["fncall", "prefix"]
+            (fnDiv :: List.map vExpr exprs)
+
+    Lambda vars expr ->
+      let varname v = text ["lambdavarname", "atom"] v in
+      nested ["lambdaexpr"]
+        [ nested ["lambdabinding"] (List.map varname vars)
+        , text ["arrow", "atom"] "->"
+        , nested ["lambdabody"] [vExpr expr]
+        ]
+
+    Thread exprs ->
+      let pipe = text ["thread", "atom", "pipe"] "|>"
+          texpr e = nested ["threadmember"] [pipe, vExpr e]
+      in
+      nested ["threadexpr"] (List.map texpr exprs)
 
 
 
-      -- let rhsID = B.toID rhs in
-      -- Nested
-      --   [DisplayValue id, ClickSelect Expr id, HighlightAs id]
-      --   ["letexpr"]
-      --   [ Text ["let", "keyword", "atom"] "let"
-      --   , Nested
-      --       []
-      --       ["letbinding"]
-      --       [ Selectable ["letvarname", "atom"] lhs VarBind
-      --       , Text ["letbind", "atom"] "="
-      --       , Nested
-      --           [DisplayValue rhsID, ClickSelect Expr rhsID]
-      --           []
-      --           [vExpr state nest rhs]
-      --       ]
-      --   , Nested
-      --       []
-      --       ["letbody"]
-      --       [vExpr state nest expr]
-      --   ]
+    FieldAccess obj field ->
+      let viewFieldName  =
+            viewBlankOr (Html.text) m tl Field field Nothing
+      in
+      nested ["fieldaccessexpr"]
+        [ wrap ["fieldobject"] (vExpr obj)
+        , text ["fieldaccessop", "operator", "atom"] "."
+        , wrap ["fieldname", "atom"] viewFieldName
+        ]
 
-
-
-
-
-    _ -> Html.div [] []
 
 
 
