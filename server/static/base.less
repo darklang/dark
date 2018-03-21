@@ -630,11 +630,14 @@ body #grid * {
 // ---------------------------
 // Feature-flags
 // ---------------------------
+
+// This creates an ancestor for .feature-flag to be absolute positioned
+// against.
 .sidebar-box {
   position: relative;
 }
 
 .feature-flag {
   position: absolute;
-  right: 5px;
+  right: -16px;
 }
