@@ -453,9 +453,13 @@ viewNExpr m tl e =
         Html.div
           [asClass cls]
           [item]
+      atom cls str =
+        text ("atom" :: cls) str
+      keyword str =
+        atom [str, "keyword"] str
       nested cls items =
         Html.div
-          [asClass cls]
+          [asClass ("nested" :: cls)]
           items
       vExpr = viewExpr m tl
   in
@@ -468,28 +472,28 @@ viewNExpr m tl e =
             then "“" ++ (SE.unquote v) ++ "”"
             else v
       in
-      text [cssClass, "atom", "value"] valu
+      atom [cssClass, "value"] valu
 
     Variable name ->
-      text ["atom", "variable"] name
+      atom ["variable"] name
 
     Let lhs rhs body ->
       let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs Nothing in
       nested ["letexpr"]
-        [ text ["let", "keyword", "atom"] "let"
+        [ keyword "let"
         , wrap ["letbinding"]
-            (wrap ["letvarname", "atom"] viewLHS)
-        , text ["letbind", "atom"] "="
+            (wrap ["atom", "letvarname"] viewLHS)
+        , atom ["letbind"] "="
         , wrap ["letrhs"] (vExpr rhs)
         , wrap ["letbody"] (vExpr body)
         ]
 
     If cond ifbody elsebody ->
       nested ["ifexpr"]
-      [ text ["if", "keyword", "atom"] "if"
+      [ keyword "if"
       , wrap ["cond"] (vExpr cond)
       , wrap ["ifbody"] (vExpr ifbody)
-      , text ["else", "keyword", "atom"] "else"
+      , keyword "else"
       , wrap ["elsebody"] (vExpr elsebody)
       ]
 
@@ -501,7 +505,7 @@ viewNExpr m tl e =
                          , text ["moduleseparator"] "::"
                          , text ["fnname"] n
                          ]
-                     _ -> text ["fnname", "atom"] name
+                     _ -> atom ["fnname"] name
           fnDiv = wrap ["op", name] fnname
           isInfix = m.complete.functions
                     |> LE.find (\f -> f.name == name)
@@ -523,12 +527,12 @@ viewNExpr m tl e =
       let varname v = text ["lambdavarname", "atom"] v in
       nested ["lambdaexpr"]
         [ nested ["lambdabinding"] (List.map varname vars)
-        , text ["arrow", "atom"] "->"
+        , atom ["arrow"] "->"
         , nested ["lambdabody"] [vExpr expr]
         ]
 
     Thread exprs ->
-      let pipe = text ["thread", "atom", "pipe"] "|>"
+      let pipe = atom ["thread", "pipe"] "|>"
           texpr e = nested ["threadmember"] [pipe, vExpr e]
       in
       nested ["threadexpr"] (List.map texpr exprs)
