@@ -582,7 +582,7 @@ viewNExpr m tl config e =
           ]
         _ ->
           nesteds (wc "fncall" :: wc "prefix" :: config)
-            (fnDiv True :: List.map vExpr exprs)
+            (fnDiv isInfix :: List.map vExpr exprs)
 
     Lambda vars expr ->
       let varname v = text [wc "lambdavarname", atom] v in
