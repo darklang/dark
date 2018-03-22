@@ -497,15 +497,17 @@ viewNExpr m tl e =
       ]
 
     FnCall name exprs ->
-      let fnname = case String.split "::" name of
-                     [mod, n] ->
-                       nested ["namegroup", "atom"]
-                         [ text ["module"] mod
-                         , text ["moduleseparator"] "::"
-                         , text ["fnname"] n
-                         ]
-                     _ -> atom ["fnname"] name
-          fnDiv = wrap ["op", name] fnname
+      let fnname parens =
+            let withP name = if parens then "(" + name + ")" else name in
+            case String.split "::" name of
+              [mod, n] ->
+                nested ["namegroup", "atom"]
+                [ text ["module"] mod
+                , text ["moduleseparator"] "::"
+                , text ["fnname"] (withP n)
+                ]
+              _ -> atom ["fnname"] (withP name)
+          fnDiv parens = wrap ["op", name] (fnname parens)
           isInfix = m.complete.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
@@ -515,12 +517,12 @@ viewNExpr m tl e =
         (True, [first, second]) ->
           nested ["fncall", "infix"]
           [ wrap ["lhs"] (vExpr first)
-          , fnDiv
+          , fnDiv False
           , wrap ["rhs"] (vExpr second)
           ]
         _ ->
           nested ["fncall", "prefix"]
-            (fnDiv :: List.map vExpr exprs)
+            (fnDiv True :: List.map vExpr exprs)
 
     Lambda vars expr ->
       let varname v = text ["lambdavarname", "atom"] v in
