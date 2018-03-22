@@ -130,13 +130,21 @@ viewCanvas m =
         allDivs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in Html.div [Attrs.id "canvas"] allDivs
 
-viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> HoverData -> Html.Html Msg
+viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Html.Html Msg
 viewBlankOrText = viewBlankOr Html.text
 
+viewDarkType : Model -> Toplevel -> DarkType -> Html.Html Msg
+viewDarkType m tl b =
+  viewBlankOr (viewNDarkType m tl) m tl DarkType b
 
-type alias HoverData = Maybe (Result String String)
-viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> HoverData -> Html.Html Msg
-viewBlankOr htmlFn m tl pt b hoverdata =
+viewExpr : Model -> Toplevel -> Expr -> Html.Html Msg
+viewExpr m tl e =
+  viewBlankOr (viewNExpr m tl) m tl Expr e
+
+
+
+viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> Html.Html Msg
+viewBlankOr htmlFn m tl pt b =
   let pointer = B.toP pt b
       id = P.toID pointer
       paramPlaceholder =
@@ -200,13 +208,23 @@ viewBlankOr htmlFn m tl pt b hoverdata =
       allowStringEntry = pt == Expr
 
       text = case unwrapState m.state of
-               Entering (Filling tlid p) ->
+               Entering (Filling _ p) ->
                  if pointer == p
                  then entryHtml allowStringEntry placeholder m.complete
                  else thisText
                _ -> thisText
 
       featureFlag = viewFeatureFlag selected
+
+      lvs = Analysis.getLiveValuesDict m tl.id
+      hoverdata =
+        id
+        |> deID
+        |> \id -> Dict.get id lvs
+        |> Maybe.map .value
+        |> Maybe.map (\v -> if Runtime.isError v
+                            then Err (Runtime.extractErrorMessage v)
+                            else Ok v)
 
       (valClass, title) =
         case hoverdata of
@@ -309,10 +327,10 @@ viewDB m tl db =
                              [ Attrs.class "col" ]
                              [ Html.span
                                  [ Attrs.class "name" ]
-                                 [ viewBlankOrText m tl DBColName n Nothing ]
+                                 [ viewBlankOrText m tl DBColName n ]
                              , Html.span
                                  [ Attrs.class "type" ]
-                                 [ viewBlankOrText m tl DBColType t Nothing ]
+                                 [ viewBlankOrText m tl DBColType t ]
                              ])
                          db.cols
   in
@@ -322,9 +340,6 @@ viewDB m tl db =
       (namediv :: coldivs)
   ]
 
-viewDarkType : Model -> Toplevel -> DarkType -> Html.Html Msg
-viewDarkType m tl b =
-  viewBlankOr (viewNDarkType m tl) m tl DarkType b Nothing
 
 viewNDarkType : Model -> Toplevel -> NDarkType -> Html.Html Msg
 viewNDarkType m tl d =
@@ -339,7 +354,7 @@ viewNDarkType m tl d =
             |> List.map (\(n,dt) ->
                  [ Html.span
                      [Attrs.class "fieldname"]
-                     [viewBlankOrText m tl DarkTypeField n Nothing]
+                     [viewBlankOrText m tl DarkTypeField n ]
                  , Html.span [Attrs.class "colon"] [Html.text ":"]
                  , Html.span
                      [Attrs.class "fieldvalue"]
@@ -402,34 +417,19 @@ viewHandler m tl h =
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "name"]
-            [ viewBlankOrText m tl EventName h.spec.name Nothing ]
+            [ viewBlankOrText m tl EventName h.spec.name ]
           , Html.div
             [ Attrs.class "modifier" ]
             ( externalLink ++
               [ Html.div
                 [ Attrs.class "module" ]
-                [ viewBlankOrText m tl EventSpace h.spec.module_ Nothing ]
-              , viewBlankOrText m tl EventModifier h.spec.modifier Nothing
+                [ viewBlankOrText m tl EventSpace h.spec.module_ ]
+              , viewBlankOrText m tl EventModifier h.spec.modifier
               ]
             )
           ]
   in [header, ast]
 
-
-viewExpr : Model -> Toplevel -> Expr -> Html.Html Msg
-viewExpr m tl e =
-  -- TODO: add hoverdata
-  let lvs = Analysis.getLiveValuesDict m tl.id
-      displayVal id =
-      id
-      |> deID
-      |> \id -> Dict.get id lvs
-      |> Maybe.map .value
-      |> Maybe.map (\v -> if Runtime.isError v
-                          then Err (Runtime.extractErrorMessage v)
-                          else Ok v)
-  in
-  viewBlankOr (viewNExpr m tl) m tl Expr e (displayVal (B.toID e))
 
 viewNExpr : Model -> Toplevel -> NExpr -> Html.Html Msg
 viewNExpr m tl e =
@@ -467,7 +467,7 @@ viewNExpr m tl e =
       atom ["variable"] name
 
     Let lhs rhs body ->
-      let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs Nothing in
+      let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs in
       nested ["letexpr"]
         [ keyword "let"
         , wrap ["letbinding"]
@@ -530,7 +530,7 @@ viewNExpr m tl e =
 
     FieldAccess obj field ->
       let viewFieldName  =
-            viewBlankOr (Html.text) m tl Field field Nothing
+            viewBlankOr (Html.text) m tl Field field
       in
       nested ["fieldaccessexpr"]
         [ wrap ["fieldobject"] (vExpr obj)
