@@ -186,8 +186,9 @@ div m tl id content =
                     else [])
       events =
         case selected of
-          DivUnselected -> []
           DivSelected ->
+            []
+          DivUnselected ->
             [ eventNoPropagation "mouseup" (ToplevelClickUp tl.id (Just pointer))
             , eventNoPropagation "mouseenter" (MouseEnter id)
             , eventNoPropagation "mouseleave" (MouseLeave id)
