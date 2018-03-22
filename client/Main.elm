@@ -739,8 +739,8 @@ update_ msg m =
     MouseEnter id _ ->
       SetHover id
 
-    MouseLeave p _ ->
-      ClearHover p
+    MouseLeave id _ ->
+      ClearHover id
 
     -----------------
     -- Buttons
