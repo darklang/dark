@@ -470,10 +470,11 @@ viewNExpr m tl e =
       let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs in
       nested ["letexpr"]
         [ keyword "let"
-        , wrap ["letbinding"]
-            (wrap ["atom", "letvarname"] viewLHS)
-        , atom ["letbind"] "="
-        , wrap ["letrhs"] (vExpr rhs)
+        , nested ["letbinding"]
+            [ wrap ["atom", "letvarname"] viewLHS
+            , atom ["letbind"] "="
+            , wrap ["letrhs"] (vExpr rhs)
+            ]
         , wrap ["letbody"] (vExpr body)
         ]
 
