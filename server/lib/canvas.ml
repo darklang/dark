@@ -11,12 +11,14 @@ type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : Op.oplist
               ; toplevels: toplevellist
+              ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
 let create (name : string) : canvas ref =
   ref { name = name
       ; ops = []
       ; toplevels = []
+      ; user_functions = []
       }
 
 (* forgive me simon peyton-jones *)
@@ -246,7 +248,7 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
            `List (RTT.DvalMap.keys (RTT.EnvMap.find_exn environments 0 |> List.hd_exn)
                   |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
-        ; ("user_functions", `List [])
+        ; ("user_functions", `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]

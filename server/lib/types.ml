@@ -133,6 +133,15 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                 | API of (dval_map -> dval)
                 | UserCreated of expr
 
+  type fn_metadata = { prefix_names : string list
+                     ; infix_names : string list
+                     ; parameters : param list
+                     ; return_type : tipe
+                     ; description : string
+                     ; previewExecutionSafe : bool
+                     } [@@deriving eq, show, yojson]
+
+  (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
             ; infix_names : string list
             ; parameters : param list
@@ -142,6 +151,21 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
             ; func : funcimpl
             ; previewExecutionSafe : bool
             }
+
+  type user_fn = { metadata : fn_metadata
+                 ; ast:  expr
+                 } [@@deriving eq, show, yojson]
+
+  let user_fn_to_fn uf =
+    { prefix_names = uf.metadata.prefix_names
+    ; infix_names = uf.metadata.infix_names
+    ; parameters = uf.metadata.parameters
+    ; return_type = uf.metadata.return_type
+    ; description = uf.metadata.description
+    ; previewExecutionSafe = uf.metadata.previewExecutionSafe
+    ; preview = None
+    ; func = UserCreated uf.ast
+    }
 end
 
 
