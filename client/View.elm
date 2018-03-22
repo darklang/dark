@@ -525,18 +525,18 @@ viewNExpr m tl id e =
         , nested [wc "letbinding"]
             [ wrap [atom, wc "letvarname"] viewLHS
             , text [wc "letbind"] "="
-            , wrap [wc "letrhs"] (vExpr rhs)
+            , nested [wc "letrhs"] [vExpr rhs]
             ]
-        , wrap [wc "letbody"] (vExpr body)
+        , nested [wc "letbody"] [vExpr body]
         ]
 
     If cond ifbody elsebody ->
       nested [wc "ifexpr"]
       [ keyword "if"
-      , wrap [wc "cond"] (vExpr cond)
-      , wrap [wc "ifbody"] (vExpr ifbody)
+      , nested [wc "cond"] [vExpr cond]
+      , nested [wc "ifbody"] [vExpr ifbody]
       , keyword "else"
-      , wrap [wc "elsebody"] (vExpr elsebody)
+      , nested [wc "elsebody"] [vExpr elsebody]
       ]
 
     FnCall name exprs ->
@@ -550,7 +550,7 @@ viewNExpr m tl id e =
                 , text [wc "fnname"] (withP n)
                 ]
               _ -> text [atom, wc "fnname"] (withP name)
-          fnDiv parens = wrap [wc "op", wc name] (fnname parens)
+          fnDiv parens = nested [wc "op", wc name] [fnname parens]
           isInfix = m.complete.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
@@ -559,9 +559,9 @@ viewNExpr m tl id e =
       case (isInfix, exprs) of
         (True, [first, second]) ->
           nested [wc "fncall", wc "infix"]
-          [ wrap [wc "lhs"] (vExpr first)
+          [ nested [wc "lhs"] [vExpr first]
           , fnDiv False
-          , wrap [wc "rhs"] (vExpr second)
+          , nested [wc "rhs"] [vExpr second]
           ]
         _ ->
           nested [wc "fncall", wc "prefix"]
@@ -588,7 +588,7 @@ viewNExpr m tl id e =
             viewBlankOr (Html.text) m tl Field field
       in
       nested [wc "fieldaccessexpr"]
-        [ wrap [wc "fieldobject"] (vExpr obj)
+        [ nested [wc "fieldobject"] [vExpr obj]
         , text [wc "fieldaccessop operator", atom] "."
         , wrap [wc "fieldname", atom] viewFieldName
         ]
