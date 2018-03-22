@@ -205,7 +205,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
                  if pointer == p
-                 then entryHtml allowStringEntry placeholder m
+                 then entryHtml allowStringEntry placeholder m.complete
                  else thisText
                _ -> thisText
       mouseover =
@@ -540,7 +540,10 @@ viewEntry : Model -> List (Html.Html Msg)
 viewEntry m =
   case unwrapState m.state of
     Entering (Creating pos) ->
-      let html = Html.div [Attrs.class "omnibox"] [entryHtml True "" m]
+      let html =
+            Html.div
+              [Attrs.class "omnibox"]
+              [entryHtml True "" m.complete]
       in [placeHtml m pos html]
     _ ->
       []
@@ -566,12 +569,12 @@ transformFromStringEntry s =
   in
   "\"" ++ s2 ++ "\""
 
-stringEntryHtml : Model -> Html.Html Msg
-stringEntryHtml m =
+stringEntryHtml : Autocomplete -> Html.Html Msg
+stringEntryHtml ac =
   let
       -- stick with the overlapping things for now, just ignore the back
       -- one
-      value = transformToStringEntry m.complete.value
+      value = transformToStringEntry ac.value
       length = value
                |> String.length
                |> max 3
@@ -605,7 +608,7 @@ stringEntryHtml m =
                       , Attrs.autocomplete False
                       ] []
     in
-    if Autocomplete.isSmallStringEntry m.complete
+    if Autocomplete.isSmallStringEntry ac
     then
       Html.div
       [ Attrs.class "string-entry small-string-entry"
@@ -643,12 +646,12 @@ widthInCh w =
 
 
 
-normalEntryHtml : String -> Model -> Html.Html Msg
-normalEntryHtml placeholder m =
+normalEntryHtml : String -> Autocomplete -> Html.Html Msg
+normalEntryHtml placeholder ac =
   let autocompleteList =
         (List.indexedMap
            (\i item ->
-              let highlighted = m.complete.index == i
+              let highlighted = ac.index == i
                   hlClass = if highlighted then " highlighted" else ""
                   name = Autocomplete.asName item
               in Html.li
@@ -661,7 +664,7 @@ normalEntryHtml placeholder m =
                     [Attrs.class "types"]
                     [Html.text <| Autocomplete.asTypeString item ]
                 ])
-           (List.concat m.complete.completions))
+           (List.concat ac.completions))
 
       autocomplete = Html.ul
                      [ Attrs.id "autocomplete-holder" ]
@@ -671,7 +674,7 @@ normalEntryHtml placeholder m =
       -- two overlapping input boxes, one to provide suggestions, one
       -- to provide the search
       (indent, suggestion, search) =
-        Autocomplete.compareSuggestionWithActual m.complete m.complete.value
+        Autocomplete.compareSuggestionWithActual ac ac.value
 
       indentWidth = String.length indent
       searchWidth = search ++ indent
@@ -712,11 +715,11 @@ normalEntryHtml placeholder m =
                 [ viewForm ]
   in wrapper
 
-entryHtml : Bool -> String -> Model -> Html.Html Msg
-entryHtml allowStringEntry placeholder m =
-  if allowStringEntry && Autocomplete.isStringEntry m.complete
-  then stringEntryHtml m
-  else normalEntryHtml placeholder m
+entryHtml : Bool -> String -> Autocomplete -> Html.Html Msg
+entryHtml allowStringEntry placeholder ac =
+  if allowStringEntry && Autocomplete.isStringEntry ac
+  then stringEntryHtml ac
+  else normalEntryHtml placeholder ac
 
 
 
