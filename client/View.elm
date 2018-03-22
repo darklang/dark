@@ -39,6 +39,10 @@ eventNoPropagation event constructor =
     { stopPropagation = True, preventDefault = False}
     (decodeClickEvent constructor)
 
+nothingMouseEvent : String -> Html.Attribute Msg
+nothingMouseEvent name = eventNoPropagation name NothingClick
+
+
 view : Model -> Html.Html Msg
 view m =
   let (w, h) = Util.windowSize ()
@@ -561,13 +565,6 @@ transformFromStringEntry s =
            |> Util.replace "\"" "\\\""
   in
   "\"" ++ s2 ++ "\""
-
-nothingMouseEvent : String -> Html.Attribute Msg
-nothingMouseEvent name =
-  Events.onWithOptions
-    name
-    { stopPropagation = True, preventDefault = False}
-    (decodeClickEvent NothingClick)
 
 stringEntryHtml : Model -> Html.Html Msg
 stringEntryHtml m =
