@@ -155,12 +155,6 @@ viewBlankOr htmlFn m tl pt b hoverdata =
         |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
         |> Maybe.withDefault ""
 
-      selected = case unwrapState m.state of
-                   Selecting _ (Just p) ->
-                     if P.toID p == B.toID b
-                     then DivSelected
-                     else DivUnselected
-                   _ -> DivUnselected
       isHTTP = TL.isHTTPHandler tl
       placeholder =
         case pt of
@@ -184,6 +178,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
           DBColType -> "db type"
           DarkType -> "type"
           DarkTypeField -> "fieldname"
+
       thisTextFn bo = case bo of
                         Blank _ ->
                           Html.div
@@ -191,6 +186,7 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                             [Html.text placeholder]
                         F _ fill -> htmlFn fill
                         Flagged _ _ _ _ -> Debug.crash "vbo"
+
       thisText = case b of
                    Flagged msg setting l r ->
                      Html.div
@@ -202,12 +198,28 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                    _ -> thisTextFn b
 
       allowStringEntry = pt == Expr
+
       text = case unwrapState m.state of
                Entering (Filling tlid p) ->
                  if pointer == p
                  then entryHtml allowStringEntry placeholder m.complete
                  else thisText
                _ -> thisText
+
+      featureFlag = viewFeatureFlag selected
+
+      (valClass, title) =
+        case hoverdata of
+          Nothing -> ([], [])
+          Just (Ok msg) -> ([], [Attrs.title msg])
+          Just (Err err) -> (["value-error"], [Attrs.title err])
+
+      selected = case unwrapState m.state of
+                   Selecting _ (Just p) ->
+                     if P.toID p == B.toID b
+                     then DivSelected
+                     else DivUnselected
+                   _ -> DivUnselected
       mouseover =
         case m.hovering |> List.head of
           Nothing -> MouseNotOverDiv
@@ -215,6 +227,14 @@ viewBlankOr htmlFn m tl pt b hoverdata =
             if P.toID i == P.toID pointer
             then MouseOverDiv
             else MouseNotOverDiv
+
+      allClasses = valClass
+                ++ (if selected == DivSelected
+                    then ["selected"]
+                    else [])
+                ++ (if mouseover == MouseOverDiv
+                    then ["mouseovered"]
+                    else [])
       events =
         case selected of
           DivUnselected -> []
@@ -227,21 +247,6 @@ viewBlankOr htmlFn m tl pt b hoverdata =
             , eventNoPropagation "mouseenter" (MouseEnter pointer)
             , eventNoPropagation "mouseleave" (MouseLeave pointer)
             ]
-      (valClass, title) =
-        case hoverdata of
-          Nothing -> ([], [])
-          Just (Ok msg) -> ([], [Attrs.title msg])
-          Just (Err err) -> (["value-error"], [Attrs.title err])
-
-      featureFlag = viewFeatureFlag selected
-
-      allClasses = valClass
-                ++ (if selected == DivSelected
-                    then ["selected"]
-                    else [])
-                ++ (if mouseover == MouseOverDiv
-                    then ["mouseovered"]
-                    else [])
 
   in
   Html.div
