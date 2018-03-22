@@ -38,10 +38,12 @@ let empty_trace _ _ _ = ()
 
 let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
               ?(trace_blank: (string or_blank -> dval -> symtable -> unit)=empty_trace)
-              ~(ctx: context) (st: symtable) (expr: expr) : dval =
-  let exe = exec_ ~trace ~trace_blank ~ctx in
+              ~(ctx: context)
+              ~(user_fns: user_fn list)
+              (st: symtable) (expr: expr) : dval =
+  let exe = exec_ ~trace ~trace_blank ~user_fns ~ctx in
   let call (name: string) (argvals: dval list) : dval =
-    let fn = Libs.get_fn_exn name in
+    let fn = Libs.get_fn_exn ~user_fns name in
     (* equalize length *)
     let length_diff = List.length fn.parameters - List.length argvals in
     let argvals =
@@ -280,7 +282,7 @@ and call_fn ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) 
           ~actual:DIncomplete
 
 (* default to no tracing *)
-let execute = exec_ ~trace:empty_trace ~ctx:Real
+let execute user_fns = exec_ ~trace:empty_trace ~ctx:Real ~user_fns
 
 (* -------------------- *)
 (* Analysis *)
@@ -289,7 +291,8 @@ let execute = exec_ ~trace:empty_trace ~ctx:Real
 
 type dval_store = dval Int.Table.t
 
-let execute_saving_intermediates (init: symtable) (ast: expr) : (dval * dval_store) =
+let execute_saving_intermediates (user_fns: user_fn list) (init: symtable) (ast: expr) : (dval * dval_store) =
+
   let value_store = Int.Table.create () in
   let trace expr dval st =
     Hashtbl.set value_store ~key:(to_id expr) ~data:dval
@@ -297,7 +300,7 @@ let execute_saving_intermediates (init: symtable) (ast: expr) : (dval * dval_sto
   let trace_blank blank dval st =
     Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
   in
-  (exec_ ~trace ~trace_blank ~ctx:Preview init ast, value_store)
+  (exec_ ~trace ~trace_blank ~ctx:Preview ~user_fns init ast, value_store)
 
 let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in

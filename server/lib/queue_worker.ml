@@ -35,7 +35,7 @@ let dequeue_and_evaluate_all () : string =
                        let dbs_env = Db.dbs_as_exe_env (dbs) in
                        Db.cur_dbs := dbs;
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
-                       let result = Handler.execute q env in
+                       let result = Handler.execute q !c.user_functions env in
                        (match result with
                         | RTT.DIncomplete ->
                           Event_queue.put_back event ~status:`Incomplete
