@@ -27,6 +27,7 @@ import AST
 import Runtime as RT
 import Blank as B
 import Runtime
+import Toplevel
 
 fontAwesome : String -> Html.Html Msg
 fontAwesome name =
@@ -141,6 +142,61 @@ viewExpr : Model -> Toplevel -> Expr -> Html.Html Msg
 viewExpr m tl e =
   viewBlankOr (viewNExpr m tl) m tl Expr e
 
+-- Create a Html.div for this ID, incorporating all ID-related data,
+-- such as whether it's selected, appropriate events, mouseover, etc.
+div : Model -> Toplevel -> ID -> List (Html.Html Msg) -> Html.Html Msg
+div m tl id content =
+  let lvs = Analysis.getLiveValuesDict m tl.id
+      pointer = Toplevel.find tl id |> deMaybe "div" |> P.pdToP
+      hoverdata =
+        id
+        |> deID
+        |> \id -> Dict.get id lvs
+        |> Maybe.map .value
+        |> Maybe.map (\v -> if Runtime.isError v
+                            then Err (Runtime.extractErrorMessage v)
+                            else Ok v)
+
+      (valClass, title) =
+        case hoverdata of
+          Nothing -> ([], [])
+          Just (Ok msg) -> ([], [Attrs.title msg])
+          Just (Err err) -> (["value-error"], [Attrs.title err])
+
+      selected = case unwrapState m.state of
+                   Selecting _ (Just p) ->
+                     if P.toID p == id
+                     then DivSelected
+                     else DivUnselected
+                   _ -> DivUnselected
+      mouseover =
+        case m.hovering |> List.head of
+          Nothing -> MouseNotOverDiv
+          Just hid ->
+            if hid == id
+            then MouseOverDiv
+            else MouseNotOverDiv
+
+      allClasses = valClass
+                ++ (if selected == DivSelected
+                    then ["selected"]
+                    else [])
+                ++ (if mouseover == MouseOverDiv
+                    then ["mouseovered"]
+                    else [])
+      events =
+        case selected of
+          DivUnselected -> []
+          DivSelected ->
+            [ eventNoPropagation "mouseup" (ToplevelClickUp tl.id (Just pointer))
+            , eventNoPropagation "mouseenter" (MouseEnter id)
+            , eventNoPropagation "mouseleave" (MouseLeave id)
+            ]
+
+  in
+  Html.div
+    (events ++ title ++ [Attrs.class (String.join " " allClasses)])
+    content
 
 
 viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> Html.Html Msg
@@ -213,66 +269,18 @@ viewBlankOr htmlFn m tl pt b =
                  then entryHtml allowStringEntry placeholder m.complete
                  else thisText
                _ -> thisText
+      selected = case unwrapState m.state of
+                     Selecting _ (Just p) ->
+                       if P.toID p == id
+                       then DivSelected
+                       else DivUnselected
+                     _ -> DivUnselected
 
       featureFlag = viewFeatureFlag selected
-
-      lvs = Analysis.getLiveValuesDict m tl.id
-      hoverdata =
-        id
-        |> deID
-        |> \id -> Dict.get id lvs
-        |> Maybe.map .value
-        |> Maybe.map (\v -> if Runtime.isError v
-                            then Err (Runtime.extractErrorMessage v)
-                            else Ok v)
-
-      (valClass, title) =
-        case hoverdata of
-          Nothing -> ([], [])
-          Just (Ok msg) -> ([], [Attrs.title msg])
-          Just (Err err) -> (["value-error"], [Attrs.title err])
-
-      selected = case unwrapState m.state of
-                   Selecting _ (Just p) ->
-                     if P.toID p == B.toID b
-                     then DivSelected
-                     else DivUnselected
-                   _ -> DivUnselected
-      mouseover =
-        case m.hovering |> List.head of
-          Nothing -> MouseNotOverDiv
-          Just hid ->
-            if hid == P.toID pointer
-            then MouseOverDiv
-            else MouseNotOverDiv
-
-      allClasses = valClass
-                ++ (if selected == DivSelected
-                    then ["selected"]
-                    else [])
-                ++ (if mouseover == MouseOverDiv
-                    then ["mouseovered"]
-                    else [])
-      events =
-        case selected of
-          DivUnselected -> []
-          DivSelected ->
-            -- click so that dragging still works
-            -- only the leafiest node should be selected, so
-            -- don't let this propagate to ancestors
-            [ eventNoPropagation "mouseup"
-                (ToplevelClickUp tl.id (Just pointer))
-            , eventNoPropagation "mouseenter" (MouseEnter id)
-            , eventNoPropagation "mouseleave" (MouseLeave id)
-            ]
-
   in
   Html.div
     []
-    (( Html.div
-      (events ++ title ++ [Attrs.class (String.join " " allClasses)])
-      [text]
-      ) :: featureFlag)
+    (div m tl id [text] :: featureFlag)
 
 
 viewFeatureFlag : DivSelected -> List (Html.Html Msg)
