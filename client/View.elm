@@ -241,8 +241,8 @@ viewBlankOr htmlFn m tl pt b =
       mouseover =
         case m.hovering |> List.head of
           Nothing -> MouseNotOverDiv
-          Just i ->
-            if P.toID i == P.toID pointer
+          Just hid ->
+            if hid == P.toID pointer
             then MouseOverDiv
             else MouseNotOverDiv
 
@@ -262,8 +262,8 @@ viewBlankOr htmlFn m tl pt b =
             -- don't let this propagate to ancestors
             [ eventNoPropagation "mouseup"
                 (ToplevelClickUp tl.id (Just pointer))
-            , eventNoPropagation "mouseenter" (MouseEnter pointer)
-            , eventNoPropagation "mouseleave" (MouseLeave pointer)
+            , eventNoPropagation "mouseenter" (MouseEnter id)
+            , eventNoPropagation "mouseleave" (MouseLeave id)
             ]
 
   in
@@ -384,7 +384,7 @@ viewHandler m tl h =
 
       hovering =
         case m.hovering |> List.head of
-          Just p -> P.toID p
+          Just hid -> hid
           Nothing -> ID 0
 
       ast = Html.div
