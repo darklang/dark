@@ -191,7 +191,7 @@ test('tabbing_works', async t => {
 
 test('next_sibling_works', async t => {
   await t
-    .click(".ast")
+    .click(".letbind")
     .pressKey("down")
     .pressKey("right")
     ;
@@ -199,7 +199,7 @@ test('next_sibling_works', async t => {
 
 test('varbinds_are_editable', async t => {
   await t
-    .click(".ast")
+    .click(".letbind")
     .pressKey("down")
     .pressKey("enter")
     ;
