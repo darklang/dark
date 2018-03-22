@@ -148,6 +148,16 @@ type HtmlConfig =
                 -- do all of the above
                 | WithID Pointer
 
+wc = WithClass
+atom = wc "atom"
+text_ m tl c str =
+  div m tl c [Html.text str]
+nesteds_ m tl c items =
+  div m tl (WithClass "nested" :: c) items
+nested_ m tl c item =
+  nesteds_ m tl c [item]
+keyword_ m tl c name =
+  text_ m tl (atom :: wc "keyword" :: wc name :: c) name
 
 div : Model -> Toplevel -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
 div m tl configs_ content =
@@ -251,26 +261,31 @@ div m tl configs_ content =
   in
     Html.div attrs content
 
-type alias Viewer a = Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
 
-viewBlankOrText : PointerType -> Viewer String
+type alias Viewer a = Model -> Toplevel -> List HtmlConfig -> a -> Html.Html Msg
+type alias BlankViewer a = Viewer (BlankOr a)
+
+viewBlankOrText : PointerType -> BlankViewer String
 viewBlankOrText = viewBlankOr (\_ -> Html.text)
 
-viewFieldName : Viewer String
-viewFieldName = viewBlankOrText Field
+viewFieldName : BlankViewer String
+viewFieldName m tl c f =
+  viewBlankOr (viewNFieldName m tl) Field m tl c f
 
-viewVarBind : Viewer String
-viewVarBind = viewBlankOrText VarBind
+viewVarBind : BlankViewer String
+viewVarBind m tl c v =
+  viewBlankOr (viewNVarBind m tl) VarBind m tl c v
 
-viewDarkType : Viewer NDarkType
+viewDarkType : BlankViewer NDarkType
 viewDarkType m tl c =
   viewBlankOr (viewNDarkType m tl) DarkType m tl c
 
-viewExpr : Viewer NExpr
+viewExpr : BlankViewer NExpr
 viewExpr m tl c e =
   viewBlankOr (viewNExpr m tl) Expr m tl c e
 
-viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType -> Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
+viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
+  BlankViewer a
 viewBlankOr htmlFn pt m tl c bo =
   let pointer = B.toP pt bo
       id = P.toID pointer
@@ -418,40 +433,6 @@ viewDB m tl db =
       (namediv :: coldivs)
   ]
 
-
-viewNDarkType : Model -> Toplevel -> List HtmlConfig -> NDarkType -> Html.Html Msg
-viewNDarkType m tl c d =
-  case d of
-    DTEmpty -> Html.text "Empty"
-    DTString -> Html.text "String"
-    DTAny -> Html.text "Any"
-    DTInt -> Html.text "Int"
-    DTObj ts ->
-      let nested =
-            ts
-            |> List.map (\(n,dt) ->
-                 [ Html.span
-                     [Attrs.class "fieldname"]
-                     [viewBlankOrText DarkTypeField m tl [] n ]
-                 , Html.span [Attrs.class "colon"] [Html.text ":"]
-                 , Html.span
-                     [Attrs.class "fieldvalue"]
-                     [viewDarkType m tl [] dt]
-                 ])
-            |> List.intersperse
-                 [Html.span [Attrs.class "separator"] [Html.text ","]]
-            |> List.concat
-          open = Html.span [Attrs.class "open"] [Html.text "{"]
-          close = Html.span [Attrs.class "close"] [Html.text "}"]
-      in
-      Html.div
-        [Attrs.class "type-object"]
-        ([open] ++ nested ++ [close])
-
-
-
-
-
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
   let (id, filling) =
@@ -509,18 +490,53 @@ viewHandler m tl h =
   in [header, ast]
 
 
-viewNExpr : Model -> Toplevel -> List HtmlConfig -> NExpr -> Html.Html Msg
+
+viewNDarkType : Model -> Toplevel -> List HtmlConfig -> NDarkType -> Html.Html Msg
+viewNDarkType m tl c d =
+  case d of
+    DTEmpty -> Html.text "Empty"
+    DTString -> Html.text "String"
+    DTAny -> Html.text "Any"
+    DTInt -> Html.text "Int"
+    DTObj ts ->
+      let nested =
+            ts
+            |> List.map (\(n,dt) ->
+                 [ Html.span
+                     [Attrs.class "fieldname"]
+                     [viewBlankOrText DarkTypeField m tl [] n ]
+                 , Html.span [Attrs.class "colon"] [Html.text ":"]
+                 , Html.span
+                     [Attrs.class "fieldvalue"]
+                     [viewDarkType m tl [] dt]
+                 ])
+            |> List.intersperse
+                 [Html.span [Attrs.class "separator"] [Html.text ","]]
+            |> List.concat
+          open = Html.span [Attrs.class "open"] [Html.text "{"]
+          close = Html.span [Attrs.class "close"] [Html.text "}"]
+      in
+      Html.div
+        [Attrs.class "type-object"]
+        ([open] ++ nested ++ [close])
+
+
+
+viewNVarBind : Viewer VarName
+viewNVarBind  m tl config f =
+  text_ m tl config f
+
+viewNFieldName : Viewer FieldName
+viewNFieldName m tl config f =
+  text_ m tl config f
+
+viewNExpr : Viewer NExpr
 viewNExpr m tl config e =
-  let wc = WithClass
-      atom = wc "atom"
-      text c str = div m tl c [Html.text str]
-      nesteds c items =
-        div m tl (WithClass "nested" :: c) items
-      nested c item = nesteds c [item]
-      keyword c name = text (atom :: wc "keyword" :: wc name :: c) name
-      vExpr = viewExpr m tl []
-      vFieldName = viewFieldName m tl []
-      vVarBind = viewVarBind m tl
+  let vExpr = viewExpr m tl []
+      text = text_ m tl
+      nesteds = nesteds_ m tl
+      nested = nested_ m tl
+      keyword = keyword_ m tl
   in
   case e of
     Value v ->
@@ -540,7 +556,7 @@ viewNExpr m tl config e =
       nesteds (wc "letexpr" :: config)
         [ keyword [] "let"
         , nesteds [wc "letbinding"]
-            [ vVarBind [atom, wc "letvarname"] lhs
+            [ nested [atom, wc "letvarname"] (viewVarBind m tl [] lhs)
             , text [wc "letbind"] "="
             , nested [wc "letrhs"] (vExpr rhs)
             ]
@@ -603,7 +619,7 @@ viewNExpr m tl config e =
       nesteds (wc "fieldaccessexpr" :: config)
         [ nested [wc "fieldobject"] (vExpr obj)
         , text [wc "fieldaccessop operator", atom] "."
-        , nested [wc "fieldname", atom] (vFieldName field)
+        , nested [wc "fieldname", atom] (viewFieldName m tl [] field)
         ]
 
 
