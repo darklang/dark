@@ -32,6 +32,13 @@ fontAwesome : String -> Html.Html Msg
 fontAwesome name =
   Html.i [Attrs.class ("fa fa-" ++ name)] []
 
+eventNoPropagation : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
+eventNoPropagation event constructor =
+  Events.onWithOptions
+    event
+    { stopPropagation = True, preventDefault = False}
+    (decodeClickEvent constructor)
+
 view : Model -> Html.Html Msg
 view m =
   let (w, h) = Util.windowSize ()
@@ -55,10 +62,7 @@ viewButtons m =
     case m.integrationTestState of
       IntegrationTestExpectation _ ->
         [ Html.a
-          [ Events.onWithOptions
-              "mouseup"
-              { stopPropagation = True, preventDefault = False }
-              (decodeClickEvent (\_ -> FinishIntegrationTest))
+          [ eventNoPropagation "mouseup" (\_ -> FinishIntegrationTest)
           , Attrs.src ""
           , Attrs.id "finishIntegrationTest"
           , Attrs.class "specialButton"]
@@ -207,28 +211,18 @@ viewBlankOr htmlFn m tl pt b hoverdata =
             if P.toID i == P.toID pointer
             then MouseOverDiv
             else MouseNotOverDiv
-      events = case selected of
-                 DivUnselected -> []
-                 DivSelected ->
-                   -- click so that dragging still works
-                   [Events.onWithOptions "mouseup"
-                     -- only the leafiest node should be selected, so
-                     -- don't let this propagate to ancestors
-                     { stopPropagation = True
-                     , preventDefault = False
-                     }
-                     (decodeClickEvent (ToplevelClickUp tl.id (Just pointer)))
-                   ,Events.onWithOptions "mouseenter"
-                     { stopPropagation = True
-                     , preventDefault = False
-                     }
-                     (decodeClickEvent (MouseEnter pointer))
-                   ,Events.onWithOptions "mouseleave"
-                     { stopPropagation = True
-                     , preventDefault = False
-                     }
-                     (decodeClickEvent (MouseLeave pointer))
-                   ]
+      events =
+        case selected of
+          DivUnselected -> []
+          DivSelected ->
+            -- click so that dragging still works
+            -- only the leafiest node should be selected, so
+            -- don't let this propagate to ancestors
+            [ eventNoPropagation "mouseup"
+                (ToplevelClickUp tl.id (Just pointer))
+            , eventNoPropagation "mouseenter" (MouseEnter pointer)
+            , eventNoPropagation "mouseleave" (MouseLeave pointer)
+            ]
       (valClass, title) =
         case hoverdata of
           Nothing -> ([], [])
@@ -273,15 +267,10 @@ viewTL m tl =
             viewHandler m tl h
           TLDB db ->
             viewDB m tl db
-      events = [ Events.onWithOptions
-                   "mousedown"
-                   { stopPropagation = True, preventDefault = False }
-                   (decodeClickEvent (ToplevelClickDown tl))
-               , Events.onWithOptions
-                   "mouseup"
-                   { stopPropagation = True, preventDefault = False }
-                   (decodeClickEvent (ToplevelClickUp tl.id Nothing))
-               ]
+      events =
+        [ eventNoPropagation "mousedown" (ToplevelClickDown tl)
+        , eventNoPropagation "mouseup" (ToplevelClickUp tl.id Nothing)
+        ]
 
       selected = if Just tl.id == tlidOf m.state
                  then "selected"
@@ -305,7 +294,8 @@ viewDB m tl db =
   let namediv = Html.div
                  [ Attrs.class "dbname"]
                  [ Html.text db.name]
-      coldivs = List.map (\(n, t) ->
+      coldivs =
+        List.map (\(n, t) ->
                            Html.div
                              [ Attrs.class "col" ]
                              [ Html.span
@@ -666,10 +656,8 @@ normalEntryHtml placeholder m =
                   name = Autocomplete.asName item
               in Html.li
                 [ Attrs.class <| "autocomplete-item" ++ hlClass
-                , Events.onWithOptions
-                    "mouseup"
-                    { stopPropagation = True, preventDefault = False }
-                    (decodeClickEvent (\_ -> AutocompleteClick name))
+                , eventNoPropagation "mouseup"
+                    (\_ -> AutocompleteClick name)
                 ]
                 [ Html.text name
                 , Html.span
@@ -853,10 +841,8 @@ viewRoutingTable m =
         |> List.map
           (\(verb, pos) ->
             Html.a
-            [ Events.onWithOptions
-              "mouseup"
-              { stopPropagation = True, preventDefault = False }
-              (decodeClickEvent (\_ -> (NavigateTo (Viewport.urlForPos pos))))
+            [ eventNoPropagation "mouseup"
+                (\_ -> (NavigateTo (Viewport.urlForPos pos)))
             , Attrs.src ""
             , Attrs.class "verb-link as-pointer"
             ]
