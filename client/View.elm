@@ -168,10 +168,13 @@ div m tl configs_ content =
           Nothing -> configs_
 
 
-      selected =
-        LE.find (\a -> case a of
-                         HighlightAs id -> Just id == selectedID
-                         _ -> False) configs /= Nothing
+      thisID =
+        configs
+        |> List.filterMap (\a -> case a of
+                                   HighlightAs id -> Just id
+                                   _ -> Nothing)
+        |> List.head
+
       clickAs =
         configs
         |> List.filterMap (\a -> case a of
@@ -216,10 +219,16 @@ div m tl configs_ content =
           Just (Ok msg) -> ([], [Attrs.title msg])
           Just (Err err) -> (["value-error"], [Attrs.title err])
 
+      selected = thisID == selectedID
+                 && ME.isJust thisID
       mouseover = mouseoverAs == (m.hovering |> List.head)
                                  && ME.isJust mouseoverAs
 
+      idAttr = case thisID of
+                 Just id -> ["id-" ++ toString (deID id)]
+                 _ -> []
       allClasses = classes
+                  ++ idAttr
                   ++ valClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
@@ -245,7 +254,7 @@ div m tl configs_ content =
 type alias Viewer a = Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
 
 viewBlankOrText : PointerType -> Viewer String
-viewBlankOrText = viewBlankOr Html.text
+viewBlankOrText = viewBlankOr (\_ -> Html.text)
 
 viewFieldName : Viewer String
 viewFieldName = viewBlankOrText Field
@@ -261,7 +270,7 @@ viewExpr : Viewer NExpr
 viewExpr m tl c e =
   viewBlankOr (viewNExpr m tl) Expr m tl c e
 
-viewBlankOr : (a -> Html.Html Msg) -> PointerType -> Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
+viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType -> Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
 viewBlankOr htmlFn pt m tl c bo =
   let pointer = B.toP pt bo
       id = P.toID pointer
@@ -305,12 +314,23 @@ viewBlankOr htmlFn pt m tl c bo =
           DarkType -> "type"
           DarkTypeField -> "fieldname"
 
+      selected = case unwrapState m.state of
+                     Selecting _ (Just p) -> P.toID p == id
+                     _ -> False
+
+      featureFlag = if selected
+                    then [viewFeatureFlag]
+                    else []
+
       thisTextFn bo = case bo of
                         Blank _ ->
-                          Html.div
-                            [Attrs.class "blank"]
-                            [Html.text placeholder]
-                        F _ fill -> htmlFn fill
+                          div m tl
+                            ([WithID pointer, WithClass "blank"] ++ c)
+                            ([Html.text placeholder] ++ featureFlag)
+                        F _ fill ->
+                          -- to add FeatureFlag here, we need to pass it
+                          -- to the htmlFn maybe?
+                          htmlFn (WithID pointer :: c) fill
                         Flagged _ _ _ _ -> Debug.crash "vbo"
 
       thisText = case bo of
@@ -331,15 +351,8 @@ viewBlankOr htmlFn pt m tl c bo =
                  then entryHtml allowStringEntry placeholder m.complete
                  else thisText
                _ -> thisText
-      selected = case unwrapState m.state of
-                     Selecting _ (Just p) -> P.toID p == id
-                     _ -> False
-
-      featureFlag = if selected
-                    then [viewFeatureFlag]
-                    else []
   in
-  (div m tl (c ++ [WithID pointer]) (text :: featureFlag))
+  text
 
 
 viewFeatureFlag : Html.Html Msg
@@ -406,8 +419,8 @@ viewDB m tl db =
   ]
 
 
-viewNDarkType : Model -> Toplevel -> NDarkType -> Html.Html Msg
-viewNDarkType m tl d =
+viewNDarkType : Model -> Toplevel -> List HtmlConfig -> NDarkType -> Html.Html Msg
+viewNDarkType m tl c d =
   case d of
     DTEmpty -> Html.text "Empty"
     DTString -> Html.text "String"
@@ -496,17 +509,17 @@ viewHandler m tl h =
   in [header, ast]
 
 
-viewNExpr : Model -> Toplevel -> NExpr -> Html.Html Msg
-viewNExpr m tl e =
-  let asClass cls = cls |> String.join " " |> Attrs.class
-      wc = WithClass
+viewNExpr : Model -> Toplevel -> List HtmlConfig -> NExpr -> Html.Html Msg
+viewNExpr m tl config e =
+  let wc = WithClass
       atom = wc "atom"
       text c str = div m tl c [Html.text str]
-      nested c items =
+      nesteds c items =
         div m tl (WithClass "nested" :: c) items
-      keyword name = text [wc "keyword", atom, wc name] name
-      vExpr = viewExpr m tl
-      vFieldName = viewFieldName m tl
+      nested c item = nesteds c [item]
+      keyword c name = text (atom :: wc "keyword" :: wc name :: c) name
+      vExpr = viewExpr m tl []
+      vFieldName = viewFieldName m tl []
       vVarBind = viewVarBind m tl
   in
   case e of
@@ -518,29 +531,29 @@ viewNExpr m tl e =
             then "“" ++ (SE.unquote v) ++ "”"
             else v
       in
-      text [wc cssClass, wc "value", atom] valu
+      text (wc cssClass :: wc "value" :: atom :: config) valu
 
     Variable name ->
-      text [atom, wc "variable"] name
+      text (atom :: wc "variable" :: config) name
 
     Let lhs rhs body ->
-      nested [wc "letexpr"]
-        [ keyword "let"
-        , nested [wc "letbinding"]
+      nesteds (wc "letexpr" :: config)
+        [ keyword [] "let"
+        , nesteds [wc "letbinding"]
             [ vVarBind [atom, wc "letvarname"] lhs
             , text [wc "letbind"] "="
-            , vExpr [wc "letrhs"] rhs
+            , nested [wc "letrhs"] (vExpr rhs)
             ]
-        , vExpr [wc "letbody"] body
+        , nested [wc "letbody"] (vExpr body)
         ]
 
     If cond ifbody elsebody ->
-      nested [wc "ifexpr"]
-      [ keyword "if"
-      , vExpr [wc "cond"] cond
-      , vExpr [wc "ifbody"] ifbody
-      , keyword "else"
-      , vExpr [wc "elsebody"] elsebody
+      nesteds (wc "ifexpr" :: config)
+      [ keyword [] "if"
+      , nested [wc "cond"] (vExpr cond)
+      , nested [wc "ifbody"] (vExpr ifbody)
+      , keyword [] "else"
+      , nested [wc "elsebody"] (vExpr elsebody)
       ]
 
     FnCall name exprs ->
@@ -548,13 +561,13 @@ viewNExpr m tl e =
             let withP name = if parens then "(" ++ name ++ ")" else name in
             case String.split "::" name of
               [mod, n] ->
-                nested [wc "namegroup", atom]
+                nesteds [wc "namegroup", atom]
                 [ text [wc "module"] mod
                 , text [wc "moduleseparator"] "::"
                 , text [wc "fnname"] (withP n)
                 ]
               _ -> text [atom, wc "fnname"] (withP name)
-          fnDiv parens = nested [wc "op", wc name] [fnname parens]
+          fnDiv parens = nested [wc "op", wc name] (fnname parens)
           isInfix = m.complete.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
@@ -562,34 +575,35 @@ viewNExpr m tl e =
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
-          nested [wc "fncall", wc "infix"]
-          [ vExpr [wc "lhs"] first
+          nesteds (wc "fncall" :: wc "infix" :: config)
+          [ nested [wc "lhs"] (vExpr first)
           , fnDiv False
-          , vExpr [wc "rhs"] second
+          , nested [wc "rhs"] (vExpr second)
           ]
         _ ->
-          nested [wc "fncall", wc "prefix"]
-            (fnDiv True :: List.map (vExpr []) exprs)
+          nesteds (wc "fncall" :: wc "prefix" :: config)
+            (fnDiv True :: List.map vExpr exprs)
 
     Lambda vars expr ->
       let varname v = text [wc "lambdavarname", atom] v in
-      nested [wc "lambdaexpr"]
-        [ nested [wc "lambdabinding"] (List.map varname vars)
+      nesteds (wc "lambdaexpr" :: config)
+        [ nesteds [wc "lambdabinding"] (List.map varname vars)
         , text [atom, wc "arrow"] "->"
-        , vExpr [wc "lambdabody"] expr
+        , nested [wc "lambdabody"] (vExpr expr)
         ]
 
     Thread exprs ->
       let pipe = text [atom, wc "thread", wc "pipe"] "|>"
-          texpr e = nested [wc "threadmember"] [pipe, vExpr [] e]
+          texpr e = nesteds [wc "threadmember"] [pipe, vExpr e]
       in
-      nested [wc "threadexpr"] (List.map texpr exprs)
+      nesteds (wc "threadexpr" :: config)
+        (List.map texpr exprs)
 
     FieldAccess obj field ->
-      nested [wc "fieldaccessexpr"]
-        [ vExpr [wc "fieldobject"] obj
+      nesteds (wc "fieldaccessexpr" :: config)
+        [ nested [wc "fieldobject"] (vExpr obj)
         , text [wc "fieldaccessop operator", atom] "."
-        , vFieldName [wc "fieldname", atom] field
+        , nested [wc "fieldname", atom] (vFieldName field)
         ]
 
 
