@@ -131,7 +131,7 @@ viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankO
 viewBlankOr htmlFn m tl pt b hoverdata =
   let pointer = B.toP pt b
       id = P.toID pointer
-      param =
+      paramPlaceholder =
         tl
         |> TL.asHandler
         |> Maybe.map .ast
@@ -144,8 +144,6 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                       LE.getAt index parameters
                     Nothing -> Nothing
                 _ -> Nothing)
-      paramPlaceholder =
-        param
         |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
         |> Maybe.withDefault ""
 
@@ -202,23 +200,16 @@ viewBlankOr htmlFn m tl pt b hoverdata =
                  then entryHtml allowStringEntry placeholder m
                  else thisText
                _ -> thisText
-      onClick = if selected == DivSelected
-                then Nothing
-                else Just (tl.id, pointer)
-      mouseOvered =
+      mouseover =
         case m.hovering |> List.head of
           Nothing -> MouseNotOverDiv
           Just i ->
-            if (P.toID i) == (P.toID pointer)
+            if P.toID i == P.toID pointer
             then MouseOverDiv
             else MouseNotOverDiv
-  in html4blank selected mouseOvered [] onClick hoverdata [text]
-
-html4blank : DivSelected -> MouseOverDiv -> List Class -> Clickable -> HoverData -> List (Html.Html Msg) -> Html.Html Msg
-html4blank selected mouseover classes clickable hoverdata content =
-  let events = case clickable of
-                 Nothing -> []
-                 Just (tlid, pointer) ->
+      events = case selected of
+                 DivUnselected -> []
+                 DivSelected ->
                    -- click so that dragging still works
                    [Events.onWithOptions "mouseup"
                      -- only the leafiest node should be selected, so
@@ -226,7 +217,7 @@ html4blank selected mouseover classes clickable hoverdata content =
                      { stopPropagation = True
                      , preventDefault = False
                      }
-                     (decodeClickEvent (ToplevelClickUp tlid (Just pointer)))
+                     (decodeClickEvent (ToplevelClickUp tl.id (Just pointer)))
                    ,Events.onWithOptions "mouseenter"
                      { stopPropagation = True
                      , preventDefault = False
@@ -246,8 +237,7 @@ html4blank selected mouseover classes clickable hoverdata content =
 
       featureFlag = viewFeatureFlag selected
 
-      allClasses = classes
-                ++ valClass
+      allClasses = valClass
                 ++ (if selected == DivSelected
                     then ["selected"]
                     else [])
@@ -260,7 +250,7 @@ html4blank selected mouseover classes clickable hoverdata content =
     []
     (( Html.div
       (events ++ title ++ [Attrs.class (String.join " " allClasses)])
-      content
+      [text]
       ) :: featureFlag)
 
 
