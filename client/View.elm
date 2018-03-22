@@ -131,17 +131,7 @@ viewCanvas m =
         allDivs = xaxis :: yaxis :: routing :: (asts ++ entry)
     in Html.div [Attrs.id "canvas"] allDivs
 
-viewBlankOrText : Model -> Toplevel -> PointerType -> BlankOr String -> Html.Html Msg
-viewBlankOrText = viewBlankOr Html.text
 
-viewDarkType : Model -> Toplevel -> DarkType -> Html.Html Msg
-viewDarkType m tl b =
-  viewBlankOr (viewNDarkType m tl) m tl DarkType b
-
-viewExpr : Model -> Toplevel -> Expr -> Html.Html Msg
-viewExpr m tl e =
-  let id = B.toID e in
-  viewBlankOr (viewNExpr m tl id) m tl Expr e
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.
@@ -172,6 +162,7 @@ div m tl configs_ content =
                                      _ -> Nothing) configs_
              |> List.head of
           Just p ->
+            -- at the back so they can be overridden by earlier ones
             let id = P.toID p in
             configs_ ++ [ClickSelect p, DisplayValueOf id, HighlightAs id]
           Nothing -> configs_
@@ -246,15 +237,32 @@ div m tl configs_ content =
               , eventNoPropagation "mouseleave" (MouseLeave id)
               ]
             _ -> []
+      attrs = events ++ title ++ [classAttr]
 
   in
-  Html.div
-    (events ++ title ++ [classAttr])
-    content
+    Html.div attrs content
 
+type alias Viewer a = Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
 
-viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> Html.Html Msg
-viewBlankOr htmlFn m tl pt bo =
+viewBlankOrText : PointerType -> Viewer String
+viewBlankOrText = viewBlankOr Html.text
+
+viewFieldName : Viewer String
+viewFieldName = viewBlankOrText Field
+
+viewVarBind : Viewer String
+viewVarBind = viewBlankOrText VarBind
+
+viewDarkType : Viewer NDarkType
+viewDarkType m tl c =
+  viewBlankOr (viewNDarkType m tl) DarkType m tl c
+
+viewExpr : Viewer NExpr
+viewExpr m tl c e =
+  viewBlankOr (viewNExpr m tl) Expr m tl c e
+
+viewBlankOr : (a -> Html.Html Msg) -> PointerType -> Model -> Toplevel -> List HtmlConfig -> BlankOr a -> Html.Html Msg
+viewBlankOr htmlFn pt m tl c bo =
   let pointer = B.toP pt bo
       id = P.toID pointer
       paramPlaceholder =
@@ -331,9 +339,7 @@ viewBlankOr htmlFn m tl pt bo =
                     then [viewFeatureFlag]
                     else []
   in
-  Html.div
-    []
-    (div m tl [WithID pointer] [text] :: featureFlag)
+  (div m tl (c ++ [WithID pointer]) (text :: featureFlag))
 
 
 viewFeatureFlag : Html.Html Msg
@@ -386,10 +392,10 @@ viewDB m tl db =
                              [ Attrs.class "col" ]
                              [ Html.span
                                  [ Attrs.class "name" ]
-                                 [ viewBlankOrText m tl DBColName n ]
+                                 [ viewBlankOrText DBColName m tl [] n ]
                              , Html.span
                                  [ Attrs.class "type" ]
-                                 [ viewBlankOrText m tl DBColType t ]
+                                 [ viewBlankOrText DBColType m tl [] t ]
                              ])
                          db.cols
   in
@@ -413,11 +419,11 @@ viewNDarkType m tl d =
             |> List.map (\(n,dt) ->
                  [ Html.span
                      [Attrs.class "fieldname"]
-                     [viewBlankOrText m tl DarkTypeField n ]
+                     [viewBlankOrText DarkTypeField m tl [] n ]
                  , Html.span [Attrs.class "colon"] [Html.text ":"]
                  , Html.span
                      [Attrs.class "fieldvalue"]
-                     [viewDarkType m tl dt]
+                     [viewDarkType m tl [] dt]
                  ])
             |> List.intersperse
                  [Html.span [Attrs.class "separator"] [Html.text ","]]
@@ -448,7 +454,7 @@ viewHandler m tl h =
 
       ast = Html.div
               [ Attrs.class "ast"]
-              [ viewExpr m tl h.ast ]
+              [ viewExpr m tl [] h.ast ]
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
@@ -464,45 +470,44 @@ viewHandler m tl h =
         Html.div
           [Attrs.class "spec-type input-type"]
           [ Html.span [Attrs.class "header"] [Html.text "Input:"]
-          , viewDarkType m tl h.spec.types.input]
+          , viewDarkType m tl [] h.spec.types.input]
       output =
         Html.div
           [Attrs.class "spec-type output-type"]
           [ Html.span [Attrs.class "header"] [Html.text "Output:"]
-          , viewDarkType m tl h.spec.types.output]
+          , viewDarkType m tl [] h.spec.types.output]
 
       header =
         Html.div
           [Attrs.class "header"]
           [ Html.div
             [ Attrs.class "name"]
-            [ viewBlankOrText m tl EventName h.spec.name ]
+            [ viewBlankOrText EventName m tl [] h.spec.name ]
           , Html.div
             [ Attrs.class "modifier" ]
             ( externalLink ++
               [ Html.div
                 [ Attrs.class "module" ]
-                [ viewBlankOrText m tl EventSpace h.spec.module_ ]
-              , viewBlankOrText m tl EventModifier h.spec.modifier
+                [ viewBlankOrText EventSpace m tl [] h.spec.module_ ]
+              , viewBlankOrText EventModifier m tl [] h.spec.modifier
               ]
             )
           ]
   in [header, ast]
 
 
-viewNExpr : Model -> Toplevel -> ID -> NExpr -> Html.Html Msg
-viewNExpr m tl id e =
+viewNExpr : Model -> Toplevel -> NExpr -> Html.Html Msg
+viewNExpr m tl e =
   let asClass cls = cls |> String.join " " |> Attrs.class
       wc = WithClass
       atom = wc "atom"
-      kw = wc "keyword"
-      wrap c item =
-        div m tl c [item]
-      text c str = wrap c (Html.text str)
+      text c str = div m tl c [Html.text str]
       nested c items =
         div m tl (WithClass "nested" :: c) items
-      keyword name = text [wc "keyword", wc name] name
+      keyword name = text [wc "keyword", atom, wc name] name
       vExpr = viewExpr m tl
+      vFieldName = viewFieldName m tl
+      vVarBind = viewVarBind m tl
   in
   case e of
     Value v ->
@@ -519,24 +524,23 @@ viewNExpr m tl id e =
       text [atom, wc "variable"] name
 
     Let lhs rhs body ->
-      let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs in
       nested [wc "letexpr"]
         [ keyword "let"
         , nested [wc "letbinding"]
-            [ wrap [atom, wc "letvarname"] viewLHS
+            [ vVarBind [atom, wc "letvarname"] lhs
             , text [wc "letbind"] "="
-            , nested [wc "letrhs"] [vExpr rhs]
+            , vExpr [wc "letrhs"] rhs
             ]
-        , nested [wc "letbody"] [vExpr body]
+        , vExpr [wc "letbody"] body
         ]
 
     If cond ifbody elsebody ->
       nested [wc "ifexpr"]
       [ keyword "if"
-      , nested [wc "cond"] [vExpr cond]
-      , nested [wc "ifbody"] [vExpr ifbody]
+      , vExpr [wc "cond"] cond
+      , vExpr [wc "ifbody"] ifbody
       , keyword "else"
-      , nested [wc "elsebody"] [vExpr elsebody]
+      , vExpr [wc "elsebody"] elsebody
       ]
 
     FnCall name exprs ->
@@ -559,40 +563,34 @@ viewNExpr m tl id e =
       case (isInfix, exprs) of
         (True, [first, second]) ->
           nested [wc "fncall", wc "infix"]
-          [ nested [wc "lhs"] [vExpr first]
+          [ vExpr [wc "lhs"] first
           , fnDiv False
-          , nested [wc "rhs"] [vExpr second]
+          , vExpr [wc "rhs"] second
           ]
         _ ->
           nested [wc "fncall", wc "prefix"]
-            (fnDiv True :: List.map vExpr exprs)
+            (fnDiv True :: List.map (vExpr []) exprs)
 
     Lambda vars expr ->
       let varname v = text [wc "lambdavarname", atom] v in
       nested [wc "lambdaexpr"]
         [ nested [wc "lambdabinding"] (List.map varname vars)
         , text [atom, wc "arrow"] "->"
-        , nested [wc "lambdabody"] [vExpr expr]
+        , vExpr [wc "lambdabody"] expr
         ]
 
     Thread exprs ->
       let pipe = text [atom, wc "thread", wc "pipe"] "|>"
-          texpr e = nested [wc "threadmember"] [pipe, vExpr e]
+          texpr e = nested [wc "threadmember"] [pipe, vExpr [] e]
       in
       nested [wc "threadexpr"] (List.map texpr exprs)
 
-
-
     FieldAccess obj field ->
-      let viewFieldName  =
-            viewBlankOr (Html.text) m tl Field field
-      in
       nested [wc "fieldaccessexpr"]
-        [ nested [wc "fieldobject"] [vExpr obj]
+        [ vExpr [wc "fieldobject"] obj
         , text [wc "fieldaccessop operator", atom] "."
-        , wrap [wc "fieldname", atom] viewFieldName
+        , vFieldName [wc "fieldname", atom] field
         ]
-
 
 
 
