@@ -11,7 +11,7 @@ import Html.Attributes as Attrs
 import Html.Events as Events
 import String.Extra as SE
 import List.Extra as LE
--- import Maybe.Extra as ME
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
@@ -140,69 +140,122 @@ viewDarkType m tl b =
 
 viewExpr : Model -> Toplevel -> Expr -> Html.Html Msg
 viewExpr m tl e =
-  viewBlankOr (viewNExpr m tl) m tl Expr e
+  let id = B.toID e in
+  viewBlankOr (viewNExpr m tl id) m tl Expr e
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.
-div : Model -> Toplevel -> ID -> List (Html.Html Msg) -> Html.Html Msg
-div m tl id content =
-  let lvs = Analysis.getLiveValuesDict m tl.id
-      pointer = Toplevel.find tl id |> deMaybe "div" |> P.pdToP
-      hoverdata =
-        id
-        |> deID
-        |> \id -> Dict.get id lvs
-        |> Maybe.map .value
-        |> Maybe.map (\v -> if Runtime.isError v
-                            then Err (Runtime.extractErrorMessage v)
-                            else Ok v)
 
-      (valClass, title) =
+type HtmlConfig =
+                -- Add this class (can be done multiple times)
+                  WithClass String
+                -- when you click this node, select this pointer
+                | ClickSelect Pointer
+                -- highlight this node as if it were ID
+                | HighlightAs ID
+                -- display the value from this ID
+                | DisplayValueOf ID
+                -- do all of the above
+                | WithID Pointer
+
+
+div : Model -> Toplevel -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
+div m tl configs_ content =
+  let selectedID = case unwrapState m.state of
+                     Selecting _ (Just p) -> Just (P.toID p)
+                     _ -> Nothing
+
+      -- Extract config
+      configs =
+        case List.filterMap (\a -> case a of
+                                     WithID p -> Just p
+                                     _ -> Nothing) configs_
+             |> List.head of
+          Just p ->
+            let id = P.toID p in
+            configs_ ++ [ClickSelect p, DisplayValueOf id, HighlightAs id]
+          Nothing -> configs_
+
+
+      selected =
+        LE.find (\a -> case a of
+                         HighlightAs id -> Just id == selectedID
+                         _ -> False) configs /= Nothing
+      clickAs =
+        configs
+        |> List.filterMap (\a -> case a of
+                                   ClickSelect p ->
+                                     Just (tl.id, p)
+                                   _ -> Nothing)
+        |> List.head
+      hoverAs =
+        configs
+        |> List.filterMap (\a -> case a of
+                                   DisplayValueOf id -> Just id
+                                   _ -> Nothing)
+        |> List.head
+      mouseoverAs =
+        configs
+        |> List.filterMap (\a -> case a of
+                                   HighlightAs id -> Just id
+                                   _ -> Nothing)
+        |> List.head
+      classes =
+        configs
+        |> List.filterMap (\a -> case a of
+                             WithClass c -> Just c
+                             _ -> Nothing)
+
+
+      -- Start using the config
+      lvs = Analysis.getLiveValuesDict m tl.id
+      hoverdata =
+        case hoverAs of
+          Just (ID id) ->
+            Dict.get id lvs
+            |> Maybe.map .value
+            |> Maybe.map (\v -> if Runtime.isError v
+                                then Err (Runtime.extractErrorMessage v)
+                                else Ok v)
+          _ -> Nothing
+
+      (valClasses, title) =
         case hoverdata of
           Nothing -> ([], [])
           Just (Ok msg) -> ([], [Attrs.title msg])
           Just (Err err) -> (["value-error"], [Attrs.title err])
 
-      selected = case unwrapState m.state of
-                   Selecting _ (Just p) ->
-                     if P.toID p == id
-                     then DivSelected
-                     else DivUnselected
-                   _ -> DivUnselected
-      mouseover =
-        case m.hovering |> List.head of
-          Nothing -> MouseNotOverDiv
-          Just hid ->
-            if hid == id
-            then MouseOverDiv
-            else MouseNotOverDiv
+      mouseover = mouseoverAs == (m.hovering |> List.head)
+                                 && ME.isJust mouseoverAs
 
-      allClasses = valClass
-                ++ (if selected == DivSelected
-                    then ["selected"]
-                    else [])
-                ++ (if mouseover == MouseOverDiv
-                    then ["mouseovered"]
-                    else [])
+      allClasses = classes
+                  ++ valClasses
+                  ++ (if selected then ["selected"] else [])
+                  ++ (if mouseover then ["mouseovered"] else [])
+      classAttr = Attrs.class (String.join " " allClasses)
       events =
-        case selected of
-          DivSelected ->
-            []
-          DivUnselected ->
-            [ eventNoPropagation "mouseup" (ToplevelClickUp tl.id (Just pointer))
-            , eventNoPropagation "mouseenter" (MouseEnter id)
-            , eventNoPropagation "mouseleave" (MouseLeave id)
-            ]
+        if selected
+        then []
+        else
+          case clickAs of
+            Just (tlid, p) ->
+              let id = P.toID p in
+              [ eventNoPropagation "mouseup"
+                  (ToplevelClickUp tlid (Just p))
+              , eventNoPropagation "mouseenter" (MouseEnter id)
+              , eventNoPropagation "mouseleave" (MouseLeave id)
+              ]
+            _ -> []
 
   in
   Html.div
-    (events ++ title ++ [Attrs.class (String.join " " allClasses)])
+    (events ++ title ++ [classAttr])
     content
 
 
 viewBlankOr : (a -> Html.Html Msg) -> Model -> Toplevel -> PointerType -> BlankOr a -> Html.Html Msg
-viewBlankOr htmlFn m tl pt b =
-  let pointer = B.toP pt b
+viewBlankOr htmlFn m tl pt bo =
+  let pointer = B.toP pt bo
       id = P.toID pointer
       paramPlaceholder =
         tl
@@ -252,7 +305,7 @@ viewBlankOr htmlFn m tl pt b =
                         F _ fill -> htmlFn fill
                         Flagged _ _ _ _ -> Debug.crash "vbo"
 
-      thisText = case b of
+      thisText = case bo of
                    Flagged msg setting l r ->
                      Html.div
                        [Attrs.class "flagged"]
@@ -260,7 +313,7 @@ viewBlankOr htmlFn m tl pt b =
                        , Html.text (toString setting)
                        , thisTextFn l
                        , thisTextFn r]
-                   _ -> thisTextFn b
+                   _ -> thisTextFn bo
 
       allowStringEntry = pt == Expr
 
@@ -271,27 +324,24 @@ viewBlankOr htmlFn m tl pt b =
                  else thisText
                _ -> thisText
       selected = case unwrapState m.state of
-                     Selecting _ (Just p) ->
-                       if P.toID p == id
-                       then DivSelected
-                       else DivUnselected
-                     _ -> DivUnselected
+                     Selecting _ (Just p) -> P.toID p == id
+                     _ -> False
 
-      featureFlag = viewFeatureFlag selected
+      featureFlag = if selected
+                    then [viewFeatureFlag]
+                    else []
   in
   Html.div
     []
-    (div m tl id [text] :: featureFlag)
+    (div m tl [WithID pointer] [text] :: featureFlag)
 
 
-viewFeatureFlag : DivSelected -> List (Html.Html Msg)
-viewFeatureFlag selected =
-  if selected == DivSelected
-  then [Html.div
-          [ Attrs.class "feature-flag"
-          , Events.onMouseDown StartFeatureFlag]
-          [fontAwesome "flag"] ]
-  else []
+viewFeatureFlag : Html.Html Msg
+viewFeatureFlag =
+  Html.div
+    [ Attrs.class "feature-flag"
+    , Events.onMouseDown StartFeatureFlag]
+    [ fontAwesome "flag"]
 
 
 
@@ -440,25 +490,18 @@ viewHandler m tl h =
   in [header, ast]
 
 
-viewNExpr : Model -> Toplevel -> NExpr -> Html.Html Msg
-viewNExpr m tl e =
+viewNExpr : Model -> Toplevel -> ID -> NExpr -> Html.Html Msg
+viewNExpr m tl id e =
   let asClass cls = cls |> String.join " " |> Attrs.class
-      text cls str =
-        Html.div
-          [asClass cls]
-          [Html.text str]
-      wrap cls item =
-        Html.div
-          [asClass cls]
-          [item]
-      atom cls str =
-        text ("atom" :: cls) str
-      keyword str =
-        atom [str, "keyword"] str
-      nested cls items =
-        Html.div
-          [asClass ("nested" :: cls)]
-          items
+      wc = WithClass
+      atom = wc "atom"
+      kw = wc "keyword"
+      wrap c item =
+        div m tl c [item]
+      text c str = wrap c (Html.text str)
+      nested c items =
+        div m tl (WithClass "nested" :: c) items
+      keyword name = text [wc "keyword", wc name] name
       vExpr = viewExpr m tl
   in
   case e of
@@ -470,44 +513,44 @@ viewNExpr m tl e =
             then "“" ++ (SE.unquote v) ++ "”"
             else v
       in
-      atom [cssClass, "value"] valu
+      text [wc cssClass, wc "value", atom] valu
 
     Variable name ->
-      atom ["variable"] name
+      text [atom, wc "variable"] name
 
     Let lhs rhs body ->
       let viewLHS = viewBlankOr (Html.text) m tl VarBind lhs in
-      nested ["letexpr"]
+      nested [wc "letexpr"]
         [ keyword "let"
-        , nested ["letbinding"]
-            [ wrap ["atom", "letvarname"] viewLHS
-            , atom ["letbind"] "="
-            , wrap ["letrhs"] (vExpr rhs)
+        , nested [wc "letbinding"]
+            [ wrap [atom, wc "letvarname"] viewLHS
+            , text [wc "letbind"] "="
+            , wrap [wc "letrhs"] (vExpr rhs)
             ]
-        , wrap ["letbody"] (vExpr body)
+        , wrap [wc "letbody"] (vExpr body)
         ]
 
     If cond ifbody elsebody ->
-      nested ["ifexpr"]
+      nested [wc "ifexpr"]
       [ keyword "if"
-      , wrap ["cond"] (vExpr cond)
-      , wrap ["ifbody"] (vExpr ifbody)
+      , wrap [wc "cond"] (vExpr cond)
+      , wrap [wc "ifbody"] (vExpr ifbody)
       , keyword "else"
-      , wrap ["elsebody"] (vExpr elsebody)
+      , wrap [wc "elsebody"] (vExpr elsebody)
       ]
 
     FnCall name exprs ->
       let fnname parens =
-            let withP name = if parens then "(" + name + ")" else name in
+            let withP name = if parens then "(" ++ name ++ ")" else name in
             case String.split "::" name of
               [mod, n] ->
-                nested ["namegroup", "atom"]
-                [ text ["module"] mod
-                , text ["moduleseparator"] "::"
-                , text ["fnname"] (withP n)
+                nested [wc "namegroup", atom]
+                [ text [wc "module"] mod
+                , text [wc "moduleseparator"] "::"
+                , text [wc "fnname"] (withP n)
                 ]
-              _ -> atom ["fnname"] (withP name)
-          fnDiv parens = wrap ["op", name] (fnname parens)
+              _ -> text [atom, wc "fnname"] (withP name)
+          fnDiv parens = wrap [wc "op", wc name] (fnname parens)
           isInfix = m.complete.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
@@ -515,28 +558,28 @@ viewNExpr m tl e =
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
-          nested ["fncall", "infix"]
-          [ wrap ["lhs"] (vExpr first)
+          nested [wc "fncall", wc "infix"]
+          [ wrap [wc "lhs"] (vExpr first)
           , fnDiv False
-          , wrap ["rhs"] (vExpr second)
+          , wrap [wc "rhs"] (vExpr second)
           ]
         _ ->
-          nested ["fncall", "prefix"]
+          nested [wc "fncall", wc "prefix"]
             (fnDiv True :: List.map vExpr exprs)
 
     Lambda vars expr ->
-      let varname v = text ["lambdavarname", "atom"] v in
-      nested ["lambdaexpr"]
-        [ nested ["lambdabinding"] (List.map varname vars)
-        , atom ["arrow"] "->"
-        , nested ["lambdabody"] [vExpr expr]
+      let varname v = text [wc "lambdavarname", atom] v in
+      nested [wc "lambdaexpr"]
+        [ nested [wc "lambdabinding"] (List.map varname vars)
+        , text [atom, wc "arrow"] "->"
+        , nested [wc "lambdabody"] [vExpr expr]
         ]
 
     Thread exprs ->
-      let pipe = atom ["thread", "pipe"] "|>"
-          texpr e = nested ["threadmember"] [pipe, vExpr e]
+      let pipe = text [atom, wc "thread", wc "pipe"] "|>"
+          texpr e = nested [wc "threadmember"] [pipe, vExpr e]
       in
-      nested ["threadexpr"] (List.map texpr exprs)
+      nested [wc "threadexpr"] (List.map texpr exprs)
 
 
 
@@ -544,10 +587,10 @@ viewNExpr m tl e =
       let viewFieldName  =
             viewBlankOr (Html.text) m tl Field field
       in
-      nested ["fieldaccessexpr"]
-        [ wrap ["fieldobject"] (vExpr obj)
-        , text ["fieldaccessop", "operator", "atom"] "."
-        , wrap ["fieldname", "atom"] viewFieldName
+      nested [wc "fieldaccessexpr"]
+        [ wrap [wc "fieldobject"] (vExpr obj)
+        , text [wc "fieldaccessop operator", atom] "."
+        , wrap [wc "fieldname", atom] viewFieldName
         ]
 
 
