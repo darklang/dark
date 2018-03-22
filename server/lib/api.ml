@@ -31,7 +31,7 @@ type function_metadata = { name: string
                          } [@@deriving yojson]
 
 let functions =
-  Libs.fns
+  Libs.static_fns
   |> String.Map.to_alist
   |> List.map ~f:(fun (k,(v: RuntimeT.fn))
                    -> { name = k

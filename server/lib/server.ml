@@ -143,7 +143,7 @@ let server () =
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
         let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
-        let result = Handler.execute page env in
+        let result = Handler.execute page !c.user_functions env in
         (match result with
         | DResp (http, value) ->
           (match http with
