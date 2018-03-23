@@ -15,8 +15,26 @@ import Html.Events as Events
 -- dark
 import Types exposing (..)
 import Viewport
+import Toplevel as TL
 
-type alias ViewState = (Model, Toplevel)
+type alias ViewState =
+  { m: Model
+  , tl: Toplevel
+  , state: State
+  , tlid: TLID
+  , hovering: Maybe ID
+  , ac: Autocomplete
+  , isHTTP: Bool
+  }
+createVS : Model -> Toplevel -> ViewState
+createVS m tl = { m = m
+                , tl = tl
+                , state = unwrapState m.state
+                , tlid = tl.id
+                , hovering = m.hovering |> List.head
+                , ac = m.complete
+                , isHTTP = TL.isHTTPHandler tl
+                }
 
 fontAwesome : String -> Html.Html Msg
 fontAwesome name =
