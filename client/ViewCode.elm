@@ -30,9 +30,9 @@ viewDarkType : BlankViewer NDarkType
 viewDarkType vs c =
   viewBlankOr (viewNDarkType vs) DarkType vs c
 
-viewExpr : BlankViewer NExpr
-viewExpr vs c e =
-  viewBlankOr (viewNExpr vs) Expr vs c e
+viewExpr : Int -> BlankViewer NExpr
+viewExpr depth vs c e =
+  viewBlankOr (viewNExpr depth vs) Expr vs c e
 
 
 viewNDarkType : Viewer NDarkType
@@ -70,9 +70,12 @@ viewNFieldName : Viewer FieldName
 viewNFieldName vs config f =
   text_ vs config f
 
-viewNExpr : Viewer NExpr
-viewNExpr vs c e =
-  let vExpr = viewExpr vs []
+depthString : Int -> String
+depthString n = "precedence-" ++ (toString n)
+
+viewNExpr : Int -> Viewer NExpr
+viewNExpr d vs c e =
+  let vExpr d = viewExpr d vs []
       text = text_ vs
       nesteds = nesteds_ vs
       nested = nested_ vs
@@ -82,6 +85,7 @@ viewNExpr vs c e =
       dv = DisplayValue
       cs = ClickSelect
       mo = Mouseover
+      incD = d + 1
 
   in
   case e of
@@ -104,18 +108,18 @@ viewNExpr vs c e =
         , nesteds [wc "letbinding"]
             [ selectable [wc "letvarname"] (viewVarBind vs [] lhs)
             , text [wc "letbind"] "="
-            , nested [wc "letrhs", dv, cs] (vExpr rhs)
+            , nested [wc "letrhs", dv, cs] (vExpr (d+1) rhs)
             ]
-        , nested [wc "letbody"] (vExpr body)
+        , nested [wc "letbody"] (vExpr d body)
         ]
 
     If cond ifbody elsebody ->
       nesteds (wc "ifexpr" :: all ++ c)
       [ keyword [] "if"
-      , nested [wc "cond"] (vExpr cond)
-      , nested [wc "ifbody"] (vExpr ifbody)
+      , nested [wc "cond"] (vExpr incD cond)
+      , nested [wc "ifbody"] (vExpr 0 ifbody)
       , keyword [] "else"
-      , nested [wc "elsebody"] (vExpr elsebody)
+      , nested [wc "elsebody"] (vExpr 0 elsebody)
       ]
 
     FnCall name exprs ->
@@ -137,21 +141,21 @@ viewNExpr vs c e =
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
-          nesteds (wc "fncall" :: wc "infix" :: all ++ c)
-          [ nested [wc "lhs"] (vExpr first)
+          nesteds (wc "fncall" :: wc "infix" :: wc (depthString d) :: all ++ c)
+          [ nested [wc "lhs"] (vExpr incD first)
           , fnDiv False
-          , nested [wc "rhs"] (vExpr second)
+          , nested [wc "rhs"] (vExpr incD second)
           ]
         _ ->
-          nesteds (wc "fncall" :: wc "prefix" :: all ++ c)
-            (fnDiv isInfix :: List.map vExpr exprs)
+          nesteds (wc "fncall" :: wc "prefix" :: wc (depthString d) :: all ++ c)
+            (fnDiv isInfix :: List.map (vExpr incD) exprs)
 
     Lambda vars expr ->
       let varname v = text [wc "lambdavarname", atom] v in
       nesteds (wc "lambdaexpr" :: all ++ c)
         [ nesteds [wc "lambdabinding"] (List.map varname vars)
         , text [atom, wc "arrow"] "->"
-        , nested [wc "lambdabody"] (vExpr expr)
+        , nested [wc "lambdabody"] (vExpr 0 expr)
         ]
 
     Thread exprs ->
@@ -161,14 +165,14 @@ viewNExpr vs c e =
                 p = B.toP Expr e
             in
             nesteds [wc "threadmember", DisplayValueOf id, ClickSelectAs p]
-              [pipe, vExpr e]
+              [pipe, vExpr 0 e]
       in
       nesteds (wc "threadexpr" :: mo :: dv :: c)
         (List.map texpr exprs)
 
     FieldAccess obj field ->
       nesteds (wc "fieldaccessexpr" :: all ++ c)
-        [ nested [wc "fieldobject"] (vExpr obj)
+        [ nested [wc "fieldobject"] (vExpr 0 obj)
         , text [wc "fieldaccessop operator", atom] "."
         , selectable [wc "fieldname", atom] (viewFieldName vs [] field)
         ]
