@@ -69,19 +69,24 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
    * and application as a first-class concept sooner rather than later.
    *)
   let inject_param_and_execute (st: symtable) (param: dval) (exp: expr) : dval =
-    match exp with
-    | Filled (id, Lambda _) ->
-      let result = exe st exp in
-      (match result with
-       | DBlock blk -> blk [param]
-       | _ -> DIncomplete)
-    | Filled (id, FnCall (name, exprs)) ->
-      call name (param :: (List.map ~f:(exe st) exprs))
-    (* If there's a hole, just run the computation straight through, as
-     * if it wasn't there*)
-    | Blank _ ->
-      param
-    | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
+    let result =
+      match exp with
+      | Filled (id, Lambda _) ->
+        let result = exe st exp in
+        (match result with
+         | DBlock blk -> blk [param]
+         | _ -> DIncomplete)
+      | Filled (id, FnCall (name, exprs)) ->
+        call name (param :: (List.map ~f:(exe st) exprs))
+      (* If there's a hole, just run the computation straight through, as
+       * if it wasn't there*)
+      | Blank _ ->
+        param
+      | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
+    in
+    trace exp result st;
+    result
+
   in
 
   let ignoreError e =
