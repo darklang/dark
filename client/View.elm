@@ -261,7 +261,8 @@ type alias Viewer a = Model -> Toplevel -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
 
 viewBlankOrText : PointerType -> BlankViewer String
-viewBlankOrText = viewBlankOr (\_ -> Html.text)
+viewBlankOrText pt m tl c str =
+  viewBlankOr (text_ m tl) pt m tl c str
 
 viewFieldName : BlankViewer String
 viewFieldName m tl c f =
