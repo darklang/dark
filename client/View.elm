@@ -332,7 +332,7 @@ viewBlankOr htmlFn pt m tl c bo =
       thisTextFn bo = case bo of
                         Blank _ ->
                           div m tl
-                            (idConfigs ++ c)
+                            ([WithClass "blank"] ++ idConfigs ++ c)
                             ([Html.text placeholder] ++ featureFlag)
                         F _ fill ->
                           -- to add FeatureFlag here, we need to pass it
