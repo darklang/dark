@@ -52,32 +52,32 @@ idConfigs =
 atom : HtmlConfig
 atom = wc "atom"
 
-text_ : Viewer String
-text_ m tl c str =
-  div m tl c [Html.text str]
+text_ : ViewState -> List HtmlConfig -> String -> Html.Html Msg
+text_ vs c str =
+  div vs c [Html.text str]
 
-keyword_ : Viewer String
-keyword_ m tl c name =
-  text_ m tl (atom :: wc "keyword" :: wc name :: c) name
+keyword_ : ViewState -> List HtmlConfig -> String -> Html.Html Msg
+keyword_ vs c name =
+  text_ vs (atom :: wc "keyword" :: wc name :: c) name
 
-nesteds_ : Viewer (List (Html.Html Msg))
-nesteds_ m tl c items =
-  div m tl (WithClass "nested" :: c) items
+nesteds_ : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
+nesteds_ vs c items =
+  div vs (WithClass "nested" :: c) items
 
-nested_ : Viewer (Html.Html Msg)
-nested_ m tl c item =
-  nesteds_ m tl c [item]
+nested_ : ViewState -> List HtmlConfig -> Html.Html Msg -> Html.Html Msg
+nested_ vs c item =
+  nesteds_ vs c [item]
 
-selectable_ : Viewer (Html.Html Msg)
-selectable_ m tl c item =
-  div m tl (atom :: idConfigs ++ c) [item]
+selectable_ : ViewState -> List HtmlConfig -> Html.Html Msg -> Html.Html Msg
+selectable_ vs c item =
+  div vs (atom :: idConfigs ++ c) [item]
 
 
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.
-div : Viewer (List (Html.Html Msg))
-div m tl configs content =
+div : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
+div (m, tl) configs content =
   let selectedID = case unwrapState m.state of
                      Selecting _ (Just p) -> Just (P.toID p)
                      _ -> Nothing
@@ -158,17 +158,16 @@ div m tl configs content =
   in
     Html.div attrs content
 
-
-type alias Viewer a = Model -> Toplevel -> List HtmlConfig -> a -> Html.Html Msg
+type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
 
-viewBlankOrText : PointerType -> BlankViewer String
-viewBlankOrText pt m tl c str =
-  viewBlankOr (text_ m tl) pt m tl c str
+viewBlankOrText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
+viewBlankOrText pt vs c str =
+  viewBlankOr (text_ vs) pt vs c str
 
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
-  BlankViewer a
-viewBlankOr htmlFn pt m tl c bo =
+  ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
+viewBlankOr htmlFn pt (m, tl) c bo =
   let p = B.toP pt bo
       id = P.toID p
       paramPlaceholder =
@@ -216,7 +215,7 @@ viewBlankOr htmlFn pt m tl c bo =
                     else []
       thisTextFn bo = case bo of
                         Blank _ ->
-                          div m tl
+                          div (m, tl)
                             ([WithClass "blank", WithID p]
                              ++ idConfigs ++ c)
                             ([Html.text placeholder] ++ featureFlag)
