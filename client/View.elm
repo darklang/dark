@@ -306,16 +306,12 @@ viewBlankOr htmlFn pt m tl c bo =
           VarBind -> "varname"
           EventName ->
             if isHTTP
-            then
-              "route"
-            else
-              "event name"
+            then "route"
+            else "event name"
           EventModifier ->
             if isHTTP
-            then
-              "verb"
-            else
-              "event modifier"
+            then "verb"
+            else "event modifier"
           EventSpace -> "event space"
           Expr -> paramPlaceholder
           Field -> "fieldname"
