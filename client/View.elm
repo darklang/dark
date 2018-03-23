@@ -152,23 +152,37 @@ type HtmlConfig =
                 -- DisplayValue
                 | WithID Pointer
 
+wc : String -> HtmlConfig
 wc = WithClass
-atom = wc "atom"
-text_ m tl c str =
-  div m tl c [Html.text str]
-nesteds_ m tl c items =
-  div m tl (WithClass "nested" :: c) items
-nested_ m tl c item =
-  nesteds_ m tl c [item]
-keyword_ m tl c name =
-  text_ m tl (atom :: wc "keyword" :: wc name :: c) name
-selectable_ m tl c item =
-  div m tl (atom :: idConfigs ++ c) [item]
 
+idConfigs : List HtmlConfig
 idConfigs =
   [ClickSelect, DisplayValue, Mouseover]
 
-div : Model -> Toplevel -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
+atom : HtmlConfig
+atom = wc "atom"
+
+text_ : Viewer String
+text_ m tl c str =
+  div m tl c [Html.text str]
+
+keyword_ : Viewer String
+keyword_ m tl c name =
+  text_ m tl (atom :: wc "keyword" :: wc name :: c) name
+
+nesteds_ : Viewer (List (Html.Html Msg))
+nesteds_ m tl c items =
+  div m tl (WithClass "nested" :: c) items
+
+nested_ : Viewer (Html.Html Msg)
+nested_ m tl c item =
+  nesteds_ m tl c [item]
+
+selectable_ : Viewer (Html.Html Msg)
+selectable_ m tl c item =
+  div m tl (atom :: idConfigs ++ c) [item]
+
+div : Viewer (List (Html.Html Msg))
 div m tl configs content =
   let selectedID = case unwrapState m.state of
                      Selecting _ (Just p) -> Just (P.toID p)
