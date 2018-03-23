@@ -104,11 +104,9 @@ viewNExpr d vs c e =
     Let lhs rhs body ->
       nested (wc "letexpr" :: all ++ c)
         [ keyword [] "let"
-        , nested [wc "letbinding"]
-            [ selectable [wc "letvarname"] (viewVarBind vs [] lhs)
-            , text [wc "letbind"] "="
-            , nested [wc "letrhs", dv, cs] [vExpr (d+1) rhs]
-            ]
+        , selectable [wc "letvarname"] (viewVarBind vs [] lhs)
+        , text [wc "letbind"] "="
+        , nested [wc "letrhs", dv, cs] [vExpr (d+1) rhs]
         , nested [wc "letbody"] [vExpr d body]
         ]
 
