@@ -610,7 +610,9 @@ viewNExpr m tl config e =
 
     Thread exprs ->
       let pipe = text [atom, wc "thread", wc "pipe"] "|>"
-          texpr e = nesteds [wc "threadmember"] [pipe, vExpr e]
+          texpr e =
+            let p = B.toP Expr e in
+            nesteds [wc "threadmember", WithID p] [pipe, vExpr e]
       in
       nesteds (wc "threadexpr" :: config)
         (List.map texpr exprs)
