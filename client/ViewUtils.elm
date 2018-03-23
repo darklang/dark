@@ -16,24 +16,26 @@ import Html.Events as Events
 import Types exposing (..)
 import Viewport
 import Toplevel as TL
+import Analysis
 
 type alias ViewState =
-  { m: Model
-  , tl: Toplevel
+  { tl: Toplevel
   , state: State
   , tlid: TLID
   , hovering: Maybe ID
   , ac: Autocomplete
   , isHTTP: Bool
+  , lvs: LVDict
   }
+
 createVS : Model -> Toplevel -> ViewState
-createVS m tl = { m = m
-                , tl = tl
+createVS m tl = { tl = tl
                 , state = unwrapState m.state
                 , tlid = tl.id
                 , hovering = m.hovering |> List.head
                 , ac = m.complete
                 , isHTTP = TL.isHTTPHandler tl
+                , lvs = Analysis.getLiveValuesDict m tl.id
                 }
 
 fontAwesome : String -> Html.Html Msg
