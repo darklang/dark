@@ -19,24 +19,24 @@ import ViewBlankOr exposing (..)
 
 
 viewFieldName : BlankViewer String
-viewFieldName m tl c f =
-  viewBlankOr (viewNFieldName m tl) Field m tl c f
+viewFieldName vs c f =
+  viewBlankOr (viewNFieldName vs) Field vs c f
 
 viewVarBind : BlankViewer String
-viewVarBind m tl c v =
-  viewBlankOr (viewNVarBind m tl) VarBind m tl c v
+viewVarBind vs c v =
+  viewBlankOr (viewNVarBind vs) VarBind vs c v
 
 viewDarkType : BlankViewer NDarkType
-viewDarkType m tl c =
-  viewBlankOr (viewNDarkType m tl) DarkType m tl c
+viewDarkType vs c =
+  viewBlankOr (viewNDarkType vs) DarkType vs c
 
 viewExpr : BlankViewer NExpr
-viewExpr m tl c e =
-  viewBlankOr (viewNExpr m tl) Expr m tl c e
+viewExpr vs c e =
+  viewBlankOr (viewNExpr vs) Expr vs c e
 
 
 viewNDarkType : Viewer NDarkType
-viewNDarkType m tl c d =
+viewNDarkType vs c d =
   case d of
     DTEmpty -> Html.text "Empty"
     DTString -> Html.text "String"
@@ -46,15 +46,15 @@ viewNDarkType m tl c d =
       let nested =
             ts
             |> List.map (\(n,dt) ->
-                 [ viewBlankOrText DarkTypeField m tl [wc "fieldname"] n
-                 , text_ m tl [wc "colon"] ":"
-                 , viewDarkType m tl [wc "fieldvalue"] dt
+                 [ viewBlankOrText DarkTypeField vs [wc "fieldname"] n
+                 , text_ vs [wc "colon"] ":"
+                 , viewDarkType vs [wc "fieldvalue"] dt
                  ])
             |> List.intersperse
-                 [text_ m tl [wc "separator"] ","]
+                 [text_ vs [wc "separator"] ","]
             |> List.concat
-          open = text_ m tl [wc "open"] "{"
-          close = text_ m tl [wc "close"] "}"
+          open = text_ vs [wc "open"] "{"
+          close = text_ vs [wc "close"] "}"
       in
       Html.div
         [Attrs.class "type-object"]
@@ -63,25 +63,26 @@ viewNDarkType m tl c d =
 
 
 viewNVarBind : Viewer VarName
-viewNVarBind  m tl config f =
-  text_ m tl config f
+viewNVarBind vs config f =
+  text_ vs config f
 
 viewNFieldName : Viewer FieldName
-viewNFieldName m tl config f =
-  text_ m tl config f
+viewNFieldName vs config f =
+  text_ vs config f
 
 viewNExpr : Viewer NExpr
-viewNExpr m tl c e =
-  let vExpr = viewExpr m tl []
-      text = text_ m tl
-      nesteds = nesteds_ m tl
-      nested = nested_ m tl
-      keyword = keyword_ m tl
-      selectable = selectable_ m tl
+viewNExpr vs c e =
+  let vExpr = viewExpr vs []
+      text = text_ vs
+      nesteds = nesteds_ vs
+      nested = nested_ vs
+      keyword = keyword_ vs
+      selectable = selectable_ vs
       all = idConfigs
       dv = DisplayValue
       cs = ClickSelect
       mo = Mouseover
+      (m, _) = vs
 
   in
   case e of
@@ -102,7 +103,7 @@ viewNExpr m tl c e =
       nesteds (wc "letexpr" :: all ++ c)
         [ keyword [] "let"
         , nesteds [wc "letbinding"]
-            [ selectable [wc "letvarname"] (viewVarBind m tl [] lhs)
+            [ selectable [wc "letvarname"] (viewVarBind vs [] lhs)
             , text [wc "letbind"] "="
             , nested [wc "letrhs", dv, cs] (vExpr rhs)
             ]
@@ -170,7 +171,7 @@ viewNExpr m tl c e =
       nesteds (wc "fieldaccessexpr" :: all ++ c)
         [ nested [wc "fieldobject"] (vExpr obj)
         , text [wc "fieldaccessop operator", atom] "."
-        , selectable [wc "fieldname", atom] (viewFieldName m tl [] field)
+        , selectable [wc "fieldname", atom] (viewFieldName vs [] field)
         ]
 
 

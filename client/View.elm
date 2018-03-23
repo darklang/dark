@@ -48,9 +48,9 @@ viewTL m tl =
   let body =
         case tl.data of
           TLHandler h ->
-            viewHandler m tl h
+            viewHandler (m, tl) h
           TLDB db ->
-            viewDB m tl db
+            viewDB (m, tl) db
       events =
         [ eventNoPropagation "mousedown" (ToplevelClickDown tl)
         , eventNoPropagation "mouseup" (ToplevelClickUp tl.id Nothing)
@@ -73,8 +73,8 @@ viewTL m tl =
   in
       placeHtml m tl.pos html
 
-viewDB : Model -> Toplevel -> DB -> List (Html.Html Msg)
-viewDB m tl db =
+viewDB : ViewState -> DB -> List (Html.Html Msg)
+viewDB vs db =
   let namediv = Html.div
                  [ Attrs.class "dbname"]
                  [ Html.text db.name]
@@ -83,8 +83,8 @@ viewDB m tl db =
         |> List.map (\(n, t) ->
              Html.div
                [ Attrs.class "col" ]
-               [ viewBlankOrText DBColName m tl [wc "name"] n
-               , viewBlankOrText DBColType m tl [wc "type"] t
+               [ viewBlankOrText DBColName vs [wc "name"] n
+               , viewBlankOrText DBColType vs [wc "type"] t
                ])
   in
   [
@@ -93,9 +93,9 @@ viewDB m tl db =
       (namediv :: coldivs)
   ]
 
-viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
-viewHandler m tl h =
-  let ast = viewExpr m tl [wc "ast"] h.ast
+viewHandler : ViewState -> Handler -> List (Html.Html Msg)
+viewHandler vs h =
+  let ast = viewExpr vs [wc "ast"] h.ast
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
@@ -111,22 +111,22 @@ viewHandler m tl h =
         Html.div
           [Attrs.class "spec-type input-type"]
           [ Html.span [Attrs.class "header"] [Html.text "Input:"]
-          , viewDarkType m tl [] h.spec.types.input]
+          , viewDarkType vs [] h.spec.types.input]
       output =
         Html.div
           [Attrs.class "spec-type output-type"]
           [ Html.span [Attrs.class "header"] [Html.text "Output:"]
-          , viewDarkType m tl [] h.spec.types.output]
+          , viewDarkType vs [] h.spec.types.output]
 
       header =
         Html.div
           [Attrs.class "header"]
-          [ viewBlankOrText EventName m tl [wc "name"] h.spec.name
+          [ viewBlankOrText EventName vs [wc "name"] h.spec.name
           , (Html.div
             [ Attrs.class "modifier" ]
              externalLink)
-          , viewBlankOrText EventSpace m tl [wc "module"] h.spec.module_
-          , viewBlankOrText EventModifier m tl [wc "modifier"] h.spec.modifier]
+          , viewBlankOrText EventSpace vs [wc "module"] h.spec.module_
+          , viewBlankOrText EventModifier vs [wc "modifier"] h.spec.modifier]
   in [header, ast]
 
 
