@@ -77,8 +77,8 @@ selectable_ vs c item =
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.
 div : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
-div (m, tl) configs content =
-  let selectedID = case unwrapState m.state of
+div vs configs content =
+  let selectedID = case vs.state of
                      Selecting _ (Just p) -> Just (P.toID p)
                      _ -> Nothing
 
@@ -109,7 +109,7 @@ div (m, tl) configs content =
 
 
       -- Start using the config
-      lvs = Analysis.getLiveValuesDict m tl.id
+      lvs = Analysis.getLiveValuesDict vs.m vs.tlid
       hoverdata =
         case hoverAs of
           Just (ID id) ->
@@ -128,7 +128,7 @@ div (m, tl) configs content =
 
       selected = thisID == selectedID
                  && ME.isJust thisID
-      mouseover = mouseoverAs == (m.hovering |> List.head)
+      mouseover = mouseoverAs == vs.hovering
                                  && ME.isJust mouseoverAs
 
       idAttr = case thisID of
@@ -148,7 +148,7 @@ div (m, tl) configs content =
             Just p ->
               let id = P.toID p in
               [ eventNoPropagation "mouseup"
-                  (ToplevelClickUp tl.id (Just p))
+                  (ToplevelClickUp vs.tlid (Just p))
               , eventNoPropagation "mouseenter" (MouseEnter id)
               , eventNoPropagation "mouseleave" (MouseLeave id)
               ]
@@ -167,18 +167,18 @@ viewBlankOrText pt vs c str =
 
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
   ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
-viewBlankOr htmlFn pt (m, tl) c bo =
+viewBlankOr htmlFn pt vs c bo =
   let p = B.toP pt bo
       id = P.toID p
       paramPlaceholder =
-        tl
+        vs.tl
         |> TL.asHandler
         |> Maybe.map .ast
         |> Maybe.andThen
             (\ast ->
               case AST.getParamIndex ast id of
                 Just (name, index) ->
-                  case Autocomplete.findFunction m.complete name of
+                  case Autocomplete.findFunction vs.ac name of
                     Just {parameters} ->
                       LE.getAt index parameters
                     Nothing -> Nothing
@@ -186,16 +186,15 @@ viewBlankOr htmlFn pt (m, tl) c bo =
         |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
         |> Maybe.withDefault ""
 
-      isHTTP = TL.isHTTPHandler tl
       placeholder =
         case pt of
           VarBind -> "varname"
           EventName ->
-            if isHTTP
+            if vs.isHTTP
             then "route"
             else "event name"
           EventModifier ->
-            if isHTTP
+            if vs.isHTTP
             then "verb"
             else "event modifier"
           EventSpace -> "event space"
@@ -206,26 +205,26 @@ viewBlankOr htmlFn pt (m, tl) c bo =
           DarkType -> "type"
           DarkTypeField -> "fieldname"
 
-      selected = case unwrapState m.state of
-                     Selecting _ (Just p) -> P.toID p == id
-                     _ -> False
+      selected = case vs.state of
+                   Selecting _ (Just p) -> P.toID p == id
+                   _ -> False
 
       featureFlag = if selected
                     then [viewFeatureFlag]
                     else []
-      thisTextFn bo = case bo of
-                        Blank _ ->
-                          div (m, tl)
-                            ([WithClass "blank", WithID p]
-                             ++ idConfigs ++ c)
-                            ([Html.text placeholder] ++ featureFlag)
-                        F _ fill ->
-                          -- to add FeatureFlag here, we need to pass it
-                          -- to the htmlFn maybe?
-                          if pt == Expr
-                          then htmlFn ([WithID p] ++ c) fill
-                          else htmlFn ([WithID p] ++ idConfigs ++ c) fill
-                        Flagged _ _ _ _ -> Debug.crash "vbo"
+      thisTextFn bo =
+        case bo of
+          Blank _ ->
+            div vs
+              ([WithClass "blank", WithID p] ++ idConfigs ++ c)
+              ([Html.text placeholder] ++ featureFlag)
+          F _ fill ->
+            -- to add FeatureFlag here, we need to pass it
+            -- to the htmlFn maybe?
+            if pt == Expr
+            then htmlFn ([WithID p] ++ c) fill
+            else htmlFn ([WithID p] ++ idConfigs ++ c) fill
+          Flagged _ _ _ _ -> Debug.crash "vbo"
 
       thisText = case bo of
                    Flagged msg setting l r ->
@@ -239,10 +238,10 @@ viewBlankOr htmlFn pt (m, tl) c bo =
 
       allowStringEntry = pt == Expr
 
-      text = case unwrapState m.state of
+      text = case vs.state of
                Entering (Filling _ thisP) ->
                  if p == thisP
-                 then ViewEntry.entryHtml allowStringEntry placeholder m.complete
+                 then ViewEntry.entryHtml allowStringEntry placeholder vs.ac
                  else thisText
                _ -> thisText
   in

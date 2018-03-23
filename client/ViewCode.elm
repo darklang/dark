@@ -82,7 +82,6 @@ viewNExpr vs c e =
       dv = DisplayValue
       cs = ClickSelect
       mo = Mouseover
-      (m, _) = vs
 
   in
   case e of
@@ -131,7 +130,7 @@ viewNExpr vs c e =
                 ]
               _ -> text [atom, wc "fnname"] (withP name)
           fnDiv parens = nested [wc "op", wc name] (fnname parens)
-          isInfix = m.complete.functions
+          isInfix = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
                     |> .infix

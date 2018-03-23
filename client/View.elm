@@ -48,9 +48,9 @@ viewTL m tl =
   let body =
         case tl.data of
           TLHandler h ->
-            viewHandler (m, tl) h
+            viewHandler (createVS m tl) h
           TLDB db ->
-            viewDB (m, tl) db
+            viewDB (createVS m tl) db
       events =
         [ eventNoPropagation "mousedown" (ToplevelClickDown tl)
         , eventNoPropagation "mouseup" (ToplevelClickUp tl.id Nothing)
