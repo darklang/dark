@@ -159,8 +159,8 @@ div vs configs content =
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
 
-viewBlankOrText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
-viewBlankOrText pt vs c str =
+viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
+viewText pt vs c str =
   viewBlankOr (text_ vs) pt vs c str
 
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->

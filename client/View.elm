@@ -14,7 +14,7 @@ import ViewEntry
 import ViewUtils exposing (..)
 import ViewScaffold
 import ViewRoutingTable
-import ViewBlankOr exposing (viewBlankOrText, wc)
+import ViewBlankOr exposing (viewText, wc)
 import ViewCode exposing (viewExpr, viewDarkType)
 
 
@@ -83,8 +83,8 @@ viewDB vs db =
         |> List.map (\(n, t) ->
              Html.div
                [ Attrs.class "col" ]
-               [ viewBlankOrText DBColName vs [wc "name"] n
-               , viewBlankOrText DBColType vs [wc "type"] t
+               [ viewText DBColName vs [wc "name"] n
+               , viewText DBColType vs [wc "type"] t
                ])
   in
   [
@@ -123,12 +123,12 @@ viewHandler vs h =
       header =
         Html.div
           [Attrs.class "header"]
-          [ viewBlankOrText EventName vs [wc "name"] h.spec.name
+          [ viewText EventName vs [wc "name"] h.spec.name
           , (Html.div
             [ Attrs.class "modifier" ]
              externalLink)
-          , viewBlankOrText EventSpace vs [wc "module"] h.spec.module_
-          , viewBlankOrText EventModifier vs [wc "modifier"] h.spec.modifier]
+          , viewText EventSpace vs [wc "module"] h.spec.module_
+          , viewText EventModifier vs [wc "modifier"] h.spec.modifier]
   in [header, ast]
 
 

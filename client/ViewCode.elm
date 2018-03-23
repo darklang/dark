@@ -46,7 +46,7 @@ viewNDarkType vs c d =
       let nested =
             ts
             |> List.map (\(n,dt) ->
-                 [ viewBlankOrText DarkTypeField vs [wc "fieldname"] n
+                 [ viewText DarkTypeField vs [wc "fieldname"] n
                  , text_ vs [wc "colon"] ":"
                  , viewDarkType vs [wc "fieldvalue"] dt
                  ])
