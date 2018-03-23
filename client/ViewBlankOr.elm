@@ -82,41 +82,30 @@ div m tl configs content =
                      Selecting _ (Just p) -> Just (P.toID p)
                      _ -> Nothing
 
+      getFirst fn = configs |> List.filterMap fn |> List.head
+
       -- Extract config
-      thisPointer =
-        configs
-        |> List.filterMap (\a -> case a of
-                                   WithID p -> Just p
-                                   _ -> Nothing)
-        |> List.head
+      thisPointer = getFirst (\a -> case a of
+                                      WithID p -> Just p
+                                      _ -> Nothing)
       thisID = thisPointer |> Maybe.map P.toID
 
-      clickAs =
-        configs
-        |> List.filterMap (\a -> case a of
-                                   ClickSelectAs p -> Just p
-                                   ClickSelect -> thisPointer
-                                   _ -> Nothing)
-        |> List.head
-      hoverAs =
-        configs
-        |> List.filterMap (\a -> case a of
-                                   DisplayValueOf id -> Just id
-                                   DisplayValue -> thisID
-                                   _ -> Nothing)
-        |> List.head
-      mouseoverAs =
-        configs
-        |> List.filterMap (\a -> case a of
-                                   MouseoverAs id -> Just id
-                                   Mouseover -> thisID
-                                   _ -> Nothing)
-        |> List.head
-      classes =
-        configs
-        |> List.filterMap (\a -> case a of
-                             WithClass c -> Just c
-                             _ -> Nothing)
+      clickAs = getFirst (\a -> case a of
+                                  ClickSelectAs p -> Just p
+                                  ClickSelect -> thisPointer
+                                  _ -> Nothing)
+      hoverAs = getFirst (\a -> case a of
+                                  DisplayValueOf id -> Just id
+                                  DisplayValue -> thisID
+                                  _ -> Nothing)
+      mouseoverAs = getFirst (\a -> case a of
+                                      MouseoverAs id -> Just id
+                                      Mouseover -> thisID
+                                      _ -> Nothing)
+      classes = configs
+                |> List.filterMap (\a -> case a of
+                                           WithClass c -> Just c
+                                           _ -> Nothing)
 
 
       -- Start using the config
