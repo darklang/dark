@@ -26,9 +26,6 @@ import ViewUtils exposing (..)
 
 
 
--- Create a Html.div for this ID, incorporating all ID-related data,
--- such as whether it's selected, appropriate events, mouseover, etc.
-
 type HtmlConfig =
                 -- Add this class (can be done multiple times)
                   WithClass String
@@ -75,6 +72,10 @@ selectable_ : Viewer (Html.Html Msg)
 selectable_ m tl c item =
   div m tl (atom :: idConfigs ++ c) [item]
 
+
+
+-- Create a Html.div for this ID, incorporating all ID-related data,
+-- such as whether it's selected, appropriate events, mouseover, etc.
 div : Viewer (List (Html.Html Msg))
 div m tl configs content =
   let selectedID = case unwrapState m.state of
