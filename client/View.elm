@@ -143,12 +143,12 @@ type HtmlConfig =
                 | ClickSelectAs Pointer
                 | ClickSelect -- use withID
                 -- highlight this node as if it were ID
-                | HighlightAs ID
-                | Highlight
+                | MouseoverAs ID
+                | Mouseover
                 -- display the value from this ID
                 | DisplayValueOf ID
                 | DisplayValue
-                -- use this as ID for Highlight, ClickSelect and
+                -- use this as ID for Mouseover, ClickSelect and
                 -- DisplayValue
                 | WithID Pointer
 
@@ -162,6 +162,11 @@ nested_ m tl c item =
   nesteds_ m tl c [item]
 keyword_ m tl c name =
   text_ m tl (atom :: wc "keyword" :: wc name :: c) name
+selectable_ m tl c item =
+  div m tl (atom :: idConfigs ++ c) [item]
+
+idConfigs =
+  [ClickSelect, DisplayValue, Mouseover]
 
 div : Model -> Toplevel -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
 div m tl configs content =
@@ -195,8 +200,8 @@ div m tl configs content =
       mouseoverAs =
         configs
         |> List.filterMap (\a -> case a of
-                                   HighlightAs id -> Just id
-                                   Highlight -> thisID
+                                   MouseoverAs id -> Just id
+                                   Mouseover -> thisID
                                    _ -> Nothing)
         |> List.head
       classes =
@@ -283,8 +288,8 @@ viewExpr m tl c e =
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
   BlankViewer a
 viewBlankOr htmlFn pt m tl c bo =
-  let pointer = B.toP pt bo
-      id = P.toID pointer
+  let p = B.toP pt bo
+      id = P.toID p
       paramPlaceholder =
         tl
         |> TL.asHandler
@@ -328,17 +333,18 @@ viewBlankOr htmlFn pt m tl c bo =
       featureFlag = if selected
                     then [viewFeatureFlag]
                     else []
-      idConfigs = [WithID pointer, ClickSelect, DisplayValue, Highlight]
-
       thisTextFn bo = case bo of
                         Blank _ ->
                           div m tl
-                            ([WithClass "blank"] ++ idConfigs ++ c)
+                            ([WithClass "blank", WithID p]
+                             ++ idConfigs ++ c)
                             ([Html.text placeholder] ++ featureFlag)
                         F _ fill ->
                           -- to add FeatureFlag here, we need to pass it
                           -- to the htmlFn maybe?
-                          htmlFn (idConfigs ++ c) fill
+                          if pt == Expr
+                          then htmlFn ([WithID p] ++ c) fill
+                          else htmlFn ([WithID p] ++ idConfigs ++ c) fill
                         Flagged _ _ _ _ -> Debug.crash "vbo"
 
       thisText = case bo of
@@ -354,8 +360,8 @@ viewBlankOr htmlFn pt m tl c bo =
       allowStringEntry = pt == Expr
 
       text = case unwrapState m.state of
-               Entering (Filling _ p) ->
-                 if pointer == p
+               Entering (Filling _ thisP) ->
+                 if p == thisP
                  then entryHtml allowStringEntry placeholder m.complete
                  else thisText
                _ -> thisText
@@ -524,12 +530,18 @@ viewNFieldName m tl config f =
   text_ m tl config f
 
 viewNExpr : Viewer NExpr
-viewNExpr m tl config e =
+viewNExpr m tl c e =
   let vExpr = viewExpr m tl []
       text = text_ m tl
       nesteds = nesteds_ m tl
       nested = nested_ m tl
       keyword = keyword_ m tl
+      selectable = selectable_ m tl
+      all = idConfigs
+      dv = DisplayValue
+      cs = ClickSelect
+      mo = Mouseover
+
   in
   case e of
     Value v ->
@@ -540,24 +552,24 @@ viewNExpr m tl config e =
             then "“" ++ (SE.unquote v) ++ "”"
             else v
       in
-      text (wc cssClass :: wc "value" :: atom :: config) valu
+      selectable (wc cssClass :: wc "value" :: c) (Html.text valu)
 
     Variable name ->
-      text (atom :: wc "variable" :: config) name
+      selectable (wc "variable" :: c) (Html.text name)
 
     Let lhs rhs body ->
-      nesteds (wc "letexpr" :: config)
+      nesteds (wc "letexpr" :: all ++ c)
         [ keyword [] "let"
         , nesteds [wc "letbinding"]
-            [ nested [atom, wc "letvarname"] (viewVarBind m tl [] lhs)
+            [ selectable [wc "letvarname"] (viewVarBind m tl [] lhs)
             , text [wc "letbind"] "="
-            , nested [wc "letrhs"] (vExpr rhs)
+            , nested [wc "letrhs", dv, cs] (vExpr rhs)
             ]
         , nested [wc "letbody"] (vExpr body)
         ]
 
     If cond ifbody elsebody ->
-      nesteds (wc "ifexpr" :: config)
+      nesteds (wc "ifexpr" :: all ++ c)
       [ keyword [] "if"
       , nested [wc "cond"] (vExpr cond)
       , nested [wc "ifbody"] (vExpr ifbody)
@@ -584,18 +596,18 @@ viewNExpr m tl config e =
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
-          nesteds (wc "fncall" :: wc "infix" :: config)
+          nesteds (wc "fncall" :: wc "infix" :: all ++ c)
           [ nested [wc "lhs"] (vExpr first)
           , fnDiv False
           , nested [wc "rhs"] (vExpr second)
           ]
         _ ->
-          nesteds (wc "fncall" :: wc "prefix" :: config)
+          nesteds (wc "fncall" :: wc "prefix" :: all ++ c)
             (fnDiv isInfix :: List.map vExpr exprs)
 
     Lambda vars expr ->
       let varname v = text [wc "lambdavarname", atom] v in
-      nesteds (wc "lambdaexpr" :: config)
+      nesteds (wc "lambdaexpr" :: all ++ c)
         [ nesteds [wc "lambdabinding"] (List.map varname vars)
         , text [atom, wc "arrow"] "->"
         , nested [wc "lambdabody"] (vExpr expr)
@@ -604,17 +616,20 @@ viewNExpr m tl config e =
     Thread exprs ->
       let pipe = text [atom, wc "thread", wc "pipe"] "|>"
           texpr e =
-            let p = B.toP Expr e in
-            nesteds [wc "threadmember", WithID p] [pipe, vExpr e]
+            let id = B.toID e
+                p = B.toP Expr e
+            in
+            nesteds [wc "threadmember", DisplayValueOf id, ClickSelectAs p]
+              [pipe, vExpr e]
       in
-      nesteds (wc "threadexpr" :: config)
+      nesteds (wc "threadexpr" :: mo :: dv :: c)
         (List.map texpr exprs)
 
     FieldAccess obj field ->
-      nesteds (wc "fieldaccessexpr" :: config)
+      nesteds (wc "fieldaccessexpr" :: all ++ c)
         [ nested [wc "fieldobject"] (vExpr obj)
         , text [wc "fieldaccessop operator", atom] "."
-        , nested [wc "fieldname", atom] (viewFieldName m tl [] field)
+        , selectable [wc "fieldname", atom] (viewFieldName m tl [] field)
         ]
 
 
