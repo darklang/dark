@@ -95,7 +95,7 @@ viewDB vs db =
 
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)
 viewHandler vs h =
-  let ast = viewExpr vs [wc "ast"] h.ast
+  let ast = viewExpr 0 vs [wc "ast"] h.ast
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
