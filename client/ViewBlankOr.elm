@@ -12,7 +12,6 @@ import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
-import Analysis
 import Autocomplete
 import Toplevel as TL
 import Pointer as P
@@ -109,11 +108,10 @@ div vs configs content =
 
 
       -- Start using the config
-      lvs = Analysis.getLiveValuesDict vs.m vs.tlid
       hoverdata =
         case hoverAs of
           Just (ID id) ->
-            Dict.get id lvs
+            Dict.get id vs.lvs
             |> Maybe.map .value
             |> Maybe.map (\v -> if Runtime.isError v
                                 then Err (Runtime.extractErrorMessage v)
