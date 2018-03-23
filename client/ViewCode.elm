@@ -46,19 +46,15 @@ viewNDarkType m tl c d =
       let nested =
             ts
             |> List.map (\(n,dt) ->
-                 [ Html.span
-                     [Attrs.class "fieldname"]
-                     [viewBlankOrText DarkTypeField m tl [] n ]
-                 , Html.span [Attrs.class "colon"] [Html.text ":"]
-                 , Html.span
-                     [Attrs.class "fieldvalue"]
-                     [viewDarkType m tl [] dt]
+                 [ viewBlankOrText DarkTypeField m tl [wc "fieldname"] n
+                 , text_ m tl [wc "colon"] ":"
+                 , viewDarkType m tl [wc "fieldvalue"] dt
                  ])
             |> List.intersperse
-                 [Html.span [Attrs.class "separator"] [Html.text ","]]
+                 [text_ m tl [wc "separator"] ","]
             |> List.concat
-          open = Html.span [Attrs.class "open"] [Html.text "{"]
-          close = Html.span [Attrs.class "close"] [Html.text "}"]
+          open = text_ m tl [wc "open"] "{"
+          close = text_ m tl [wc "close"] "}"
       in
       Html.div
         [Attrs.class "type-object"]
