@@ -140,7 +140,7 @@ viewNExpr d vs c e =
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
-          nested (wc "fncall" :: wc "infix" :: wc (depthString d) :: all ++ c)
+          nested (wc "fncall infix" :: wc (depthString d) :: all ++ c)
           [ nested [wc "lhs"] [vExpr incD first]
           , fnDiv False
           , nested [wc "rhs"] [vExpr incD second]
