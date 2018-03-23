@@ -16,6 +16,8 @@ import Html.Events as Events
 import Types exposing (..)
 import Viewport
 
+type alias ViewState = (Model, Toplevel)
+
 fontAwesome : String -> Html.Html Msg
 fontAwesome name =
   Html.i [Attrs.class ("fa fa-" ++ name)] []
