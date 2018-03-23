@@ -10,12 +10,11 @@ import Html.Events as Events
 -- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
-import Pointer as P
 import ViewEntry
 import ViewUtils exposing (..)
 import ViewScaffold
 import ViewRoutingTable
-import ViewBlankOr exposing (viewBlankOrText)
+import ViewBlankOr exposing (viewBlankOrText, wc)
 import ViewCode exposing (viewExpr, viewDarkType)
 
 
@@ -80,17 +79,13 @@ viewDB m tl db =
                  [ Attrs.class "dbname"]
                  [ Html.text db.name]
       coldivs =
-        List.map (\(n, t) ->
-                           Html.div
-                             [ Attrs.class "col" ]
-                             [ Html.span
-                                 [ Attrs.class "name" ]
-                                 [ viewBlankOrText DBColName m tl [] n ]
-                             , Html.span
-                                 [ Attrs.class "type" ]
-                                 [ viewBlankOrText DBColType m tl [] t ]
-                             ])
-                         db.cols
+        db.cols
+        |> List.map (\(n, t) ->
+             Html.div
+               [ Attrs.class "col" ]
+               [ viewBlankOrText DBColName m tl [wc "name"] n
+               , viewBlankOrText DBColType m tl [wc "type"] t
+               ])
   in
   [
     Html.div
@@ -100,20 +95,7 @@ viewDB m tl db =
 
 viewHandler : Model -> Toplevel -> Handler -> List (Html.Html Msg)
 viewHandler m tl h =
-  let (id, filling) =
-        case unwrapState m.state of
-          Selecting tlid (Just p) -> (P.toID p, False)
-          Entering (Filling tlid p) -> (P.toID p, True)
-          _ -> (ID 0, False)
-
-      hovering =
-        case m.hovering |> List.head of
-          Just hid -> hid
-          Nothing -> ID 0
-
-      ast = Html.div
-              [ Attrs.class "ast"]
-              [ viewExpr m tl [] h.ast ]
+  let ast = viewExpr m tl [wc "ast"] h.ast
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
@@ -122,7 +104,7 @@ viewHandler m tl h =
                     , Attrs.href name
                     , Attrs.target "_blank"
                     ]
-                    [Html.i [Attrs.class "fa fa-external-link"] []]]
+                    [fontAwesome "external-link"]]
           _ -> []
 
       input =
@@ -139,19 +121,12 @@ viewHandler m tl h =
       header =
         Html.div
           [Attrs.class "header"]
-          [ Html.div
-            [ Attrs.class "name"]
-            [ viewBlankOrText EventName m tl [] h.spec.name ]
-          , Html.div
+          [ viewBlankOrText EventName m tl [wc "name"] h.spec.name
+          , (Html.div
             [ Attrs.class "modifier" ]
-            ( externalLink ++
-              [ Html.div
-                [ Attrs.class "module" ]
-                [ viewBlankOrText EventSpace m tl [] h.spec.module_ ]
-              , viewBlankOrText EventModifier m tl [] h.spec.modifier
-              ]
-            )
-          ]
+             externalLink)
+          , viewBlankOrText EventSpace m tl [wc "module"] h.spec.module_
+          , viewBlankOrText EventModifier m tl [wc "modifier"] h.spec.modifier]
   in [header, ast]
 
 
