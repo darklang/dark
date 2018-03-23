@@ -239,7 +239,7 @@ test('no_request_global_in_non_http_space', async t => {
     .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("req")).ok() // actually hits Http::bad_request
+    .expect(acHighlighted("Http::bad_request")).ok()
     .pressKey("enter")
 });
 
@@ -280,8 +280,6 @@ test('deleting_selects_the_blank', async t => {
 test('right_number_of_blanks', async t => {
   await t
     .pressKey("enter")
-    .pressKey("enter")
-    .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "assoc")
     .pressKey("enter")
