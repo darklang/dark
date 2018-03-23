@@ -140,12 +140,16 @@ type HtmlConfig =
                 -- Add this class (can be done multiple times)
                   WithClass String
                 -- when you click this node, select this pointer
-                | ClickSelect Pointer
+                | ClickSelectAs Pointer
+                | ClickSelect -- use withID
                 -- highlight this node as if it were ID
                 | HighlightAs ID
+                | Highlight
                 -- display the value from this ID
                 | DisplayValueOf ID
-                -- do all of the above
+                | DisplayValue
+                -- use this as ID for Highlight, ClickSelect and
+                -- DisplayValue
                 | WithID Pointer
 
 wc = WithClass
@@ -160,48 +164,39 @@ keyword_ m tl c name =
   text_ m tl (atom :: wc "keyword" :: wc name :: c) name
 
 div : Model -> Toplevel -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
-div m tl configs_ content =
+div m tl configs content =
   let selectedID = case unwrapState m.state of
                      Selecting _ (Just p) -> Just (P.toID p)
                      _ -> Nothing
 
       -- Extract config
-      configs =
-        case List.filterMap (\a -> case a of
-                                     WithID p -> Just p
-                                     _ -> Nothing) configs_
-             |> List.head of
-          Just p ->
-            -- at the back so they can be overridden by earlier ones
-            let id = P.toID p in
-            configs_ ++ [ClickSelect p, DisplayValueOf id, HighlightAs id]
-          Nothing -> configs_
-
-
-      thisID =
+      thisPointer =
         configs
         |> List.filterMap (\a -> case a of
-                                   HighlightAs id -> Just id
+                                   WithID p -> Just p
                                    _ -> Nothing)
         |> List.head
+      thisID = thisPointer |> Maybe.map P.toID
 
       clickAs =
         configs
         |> List.filterMap (\a -> case a of
-                                   ClickSelect p ->
-                                     Just (tl.id, p)
+                                   ClickSelectAs p -> Just p
+                                   ClickSelect -> thisPointer
                                    _ -> Nothing)
         |> List.head
       hoverAs =
         configs
         |> List.filterMap (\a -> case a of
                                    DisplayValueOf id -> Just id
+                                   DisplayValue -> thisID
                                    _ -> Nothing)
         |> List.head
       mouseoverAs =
         configs
         |> List.filterMap (\a -> case a of
                                    HighlightAs id -> Just id
+                                   Highlight -> thisID
                                    _ -> Nothing)
         |> List.head
       classes =
@@ -248,10 +243,10 @@ div m tl configs_ content =
         then []
         else
           case clickAs of
-            Just (tlid, p) ->
+            Just p ->
               let id = P.toID p in
               [ eventNoPropagation "mouseup"
-                  (ToplevelClickUp tlid (Just p))
+                  (ToplevelClickUp tl.id (Just p))
               , eventNoPropagation "mouseenter" (MouseEnter id)
               , eventNoPropagation "mouseleave" (MouseLeave id)
               ]
@@ -336,16 +331,17 @@ viewBlankOr htmlFn pt m tl c bo =
       featureFlag = if selected
                     then [viewFeatureFlag]
                     else []
+      idConfigs = [WithID pointer, ClickSelect, DisplayValue, Highlight]
 
       thisTextFn bo = case bo of
                         Blank _ ->
                           div m tl
-                            ([WithID pointer, WithClass "blank"] ++ c)
+                            (idConfigs ++ c)
                             ([Html.text placeholder] ++ featureFlag)
                         F _ fill ->
                           -- to add FeatureFlag here, we need to pass it
                           -- to the htmlFn maybe?
-                          htmlFn (WithID pointer :: c) fill
+                          htmlFn (idConfigs ++ c) fill
                         Flagged _ _ _ _ -> Debug.crash "vbo"
 
       thisText = case bo of
