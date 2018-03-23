@@ -59,13 +59,9 @@ keyword_ : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 keyword_ vs c name =
   text_ vs (atom :: wc "keyword" :: wc name :: c) name
 
-nesteds_ : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
-nesteds_ vs c items =
+nested_ : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
+nested_ vs c items =
   div vs (WithClass "nested" :: c) items
-
-nested_ : ViewState -> List HtmlConfig -> Html.Html Msg -> Html.Html Msg
-nested_ vs c item =
-  nesteds_ vs c [item]
 
 selectable_ : ViewState -> List HtmlConfig -> Html.Html Msg -> Html.Html Msg
 selectable_ vs c item =
