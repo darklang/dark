@@ -201,43 +201,63 @@ viewBlankOr htmlFn pt vs c bo =
       featureFlag = if selected
                     then [viewFeatureFlag]
                     else []
-      thisTextFn bo =
-        case bo of
-          Blank _ ->
-            div vs
-              ([WithClass "blank", WithID p] ++ idConfigs ++ c)
-              ([Html.text placeholder] ++ featureFlag)
-          F _ fill ->
-            let configs =
-              if pt == Expr
-              then [WithID p] ++ c
-              else [WithID p] ++ idConfigs ++ c
-            in
-            Html.div
-              [Attrs.class "feature-flag-container"]
-              (htmlFn configs fill :: featureFlag)
-          Flagged _ _ _ _ -> Debug.crash "vbo"
+      thisTextFn flagClass bo =
+        let std = c ++ [WithID p] in
+        let inner =
+          case bo of
+            Blank _ ->
+              div vs
+                ([WithClass "blank"] ++ idConfigs ++ std)
+                ([Html.text placeholder] ++ featureFlag)
+            F _ fill ->
+              let configs =
+                if pt == Expr
+                then std
+                else idConfigs ++ std
+              in htmlFn configs fill
+            Flagged _ _ _ _ -> Debug.crash "vbo"
+        in
+        Html.div
+          [Attrs.class "feature-flag-container"]
+          (inner :: featureFlag)
 
+      -- the desired css layouts are:
+      -- no ff:
+      --   .FFC
+      --     .blank/expr
+      --     .feature-flag (only if selected)
+      -- after click
+      --   .flagged
+      --     .message
+      --     .setting
+      --     .flag-left
+      --       .FFC
+      --         etc
+      --     .flag-right
+      --       .FFC
+      --         etc
       thisText = case bo of
                    Flagged msg setting l r ->
                      Html.div
                        [Attrs.class "flagged"]
-                       [ Html.text msg
-                       , Html.text (toString setting)
-                       , thisTextFn l
-                       , thisTextFn r]
-                   _ -> thisTextFn bo
+                       [ text vs [wc "flag-message"] msg
+                       , text vs [wc "flag-setting"] (toString setting)
+                       , Html.div [Attrs.class "flag-left"]
+                         [thisTextFn [] l]
+                       , Html.div [Attrs.class "flag-right"]
+                         [thisTextFn [] r]]
+
+                   _ -> thisTextFn [] bo
 
       allowStringEntry = pt == Expr
-
-      text = case vs.state of
-               Entering (Filling _ thisP) ->
-                 if p == thisP
-                 then ViewEntry.entryHtml allowStringEntry placeholder vs.ac
-                 else thisText
-               _ -> thisText
   in
-  text
+  case vs.state of
+    Entering (Filling _ thisP) ->
+      if p == thisP
+      then ViewEntry.entryHtml allowStringEntry placeholder vs.ac
+      else thisText
+    _ -> thisText
+
 
 
 viewFeatureFlag : Html.Html Msg
