@@ -710,15 +710,15 @@ update_ msg m =
     ------------------------
     -- dragging
     ------------------------
-
-    DragToplevel id mousePos ->
+    DragToplevel _ mousePos ->
       case m.state of
-        Dragging tlid startVPos _ origState ->
+        Dragging draggingTLID startVPos _ origState ->
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
-              m2 = TL.move tlid xDiff yDiff m in
+              m2 = TL.move draggingTLID xDiff yDiff m in
           Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions
-               , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
+               , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origState
+               ]
         _ -> NoChange
 
 
@@ -732,13 +732,13 @@ update_ msg m =
       if event.button == Defaults.leftButton
       then
         case m.state of
-          Dragging _ _ hasMoved origState ->
+          Dragging _ startVPos hasMoved origState ->
             if hasMoved
             then
-              Many
-                  [ NoChange
-                  , RPC ([MoveTL tl.id tl.pos], FocusNoChange)
-                  ]
+              let tl = TL.getTL m targetTLID in
+              -- We've been updating tl.pos as mouse moves,
+              -- now want to report last pos to server
+              RPC ([MoveTL targetTLID tl.pos], FocusNoChange)
             else
               SetState origState
           _ ->
