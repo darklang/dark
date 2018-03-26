@@ -51,21 +51,16 @@ idConfigs =
 atom : HtmlConfig
 atom = wc "atom"
 
-text_ : ViewState -> List HtmlConfig -> String -> Html.Html Msg
-text_ vs c str =
+nested : HtmlConfig
+nested = wc "nested"
+
+text : ViewState -> List HtmlConfig -> String -> Html.Html Msg
+text vs c str =
   div vs c [Html.text str]
 
-keyword_ : ViewState -> List HtmlConfig -> String -> Html.Html Msg
-keyword_ vs c name =
-  text_ vs (atom :: wc "keyword" :: wc name :: c) name
-
-nested_ : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
-nested_ vs c items =
-  div vs (WithClass "nested" :: c) items
-
-selectable_ : ViewState -> List HtmlConfig -> Html.Html Msg -> Html.Html Msg
-selectable_ vs c item =
-  div vs (atom :: idConfigs ++ c) [item]
+keyword : ViewState -> List HtmlConfig -> String -> Html.Html Msg
+keyword vs c name =
+  text vs (atom :: wc "keyword" :: wc name :: c) name
 
 
 
@@ -157,7 +152,7 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  viewBlankOr (text_ vs) pt vs c str
+  viewBlankOr (text vs) pt vs c str
 
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
   ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg

@@ -38,23 +38,23 @@ viewExpr depth vs c e =
 viewNDarkType : Viewer NDarkType
 viewNDarkType vs c d =
   case d of
-    DTEmpty -> Html.text "Empty"
-    DTString -> Html.text "String"
-    DTAny -> Html.text "Any"
-    DTInt -> Html.text "Int"
+    DTEmpty -> text vs c "Empty"
+    DTString -> text vs c "String"
+    DTAny -> text vs c "Any"
+    DTInt -> text vs c "Int"
     DTObj ts ->
       let nested =
             ts
             |> List.map (\(n,dt) ->
                  [ viewText DarkTypeField vs [wc "fieldname"] n
-                 , text_ vs [wc "colon"] ":"
+                 , text vs [wc "colon"] ":"
                  , viewDarkType vs [wc "fieldvalue"] dt
                  ])
             |> List.intersperse
-                 [text_ vs [wc "separator"] ","]
+                 [text vs [wc "separator"] ","]
             |> List.concat
-          open = text_ vs [wc "open"] "{"
-          close = text_ vs [wc "close"] "}"
+          open = text vs [wc "open"] "{"
+          close = text vs [wc "close"] "}"
       in
       Html.div
         [Attrs.class "type-object"]
@@ -64,23 +64,23 @@ viewNDarkType vs c d =
 
 viewNVarBind : Viewer VarName
 viewNVarBind vs config f =
-  text_ vs config f
+  text vs config f
 
 viewNFieldName : Viewer FieldName
 viewNFieldName vs config f =
-  text_ vs config f
+  text vs config f
 
 depthString : Int -> String
 depthString n = "precedence-" ++ (toString n)
 
 viewNExpr : Int -> Viewer NExpr
-viewNExpr d vs c e =
+viewNExpr d vs config e =
   let vExpr d = viewExpr d vs []
-      text = text_ vs
-      nested = nested_ vs
-      keyword = keyword_ vs
-      selectable = selectable_ vs
-      all = idConfigs
+      t = text vs
+      n c = div vs (nested :: c)
+      a c = text vs (atom :: c)
+      kw = keyword vs
+      all = idConfigs ++ config
       dv = DisplayValue
       cs = ClickSelect
       mo = Mouseover
@@ -96,41 +96,41 @@ viewNExpr d vs c e =
             then "“" ++ (SE.unquote v) ++ "”"
             else v
       in
-      selectable (wc cssClass :: wc "value" :: c) (Html.text valu)
+      a (wc cssClass :: wc "value" :: all) valu
 
     Variable name ->
-      selectable (wc "variable" :: c) (Html.text name)
+      a (wc "variable" :: all) name
 
     Let lhs rhs body ->
-      nested (wc "letexpr" :: all ++ c)
-        [ keyword [] "let"
-        , selectable [wc "letvarname"] (viewVarBind vs [] lhs)
-        , text [wc "letbind"] "="
-        , nested [wc "letrhs", dv, cs] [vExpr (d+1) rhs]
-        , nested [wc "letbody"] [vExpr d body]
+      n (wc "letexpr" :: all)
+        [ kw [] "let"
+        , viewVarBind vs [wc "letvarname"] lhs
+        , a [wc "letbind"] "="
+        , n [wc "letrhs", dv, cs] [vExpr (d+1) rhs]
+        , n [wc "letbody"] [vExpr d body]
         ]
 
     If cond ifbody elsebody ->
-      nested (wc "ifexpr" :: all ++ c)
-      [ keyword [] "if"
-      , nested [wc "cond"] [vExpr incD cond]
-      , nested [wc "ifbody"] [vExpr 0 ifbody]
-      , keyword [] "else"
-      , nested [wc "elsebody"] [vExpr 0 elsebody]
+      n (wc "ifexpr" :: all)
+      [ kw [] "if"
+      , n [wc "cond"] [vExpr incD cond]
+      , n [wc "ifbody"] [vExpr 0 ifbody]
+      , kw [] "else"
+      , n [wc "elsebody"] [vExpr 0 elsebody]
       ]
 
     FnCall name exprs ->
       let fnname parens =
             let withP name = if parens then "(" ++ name ++ ")" else name in
             case String.split "::" name of
-              [mod, n] ->
-                nested [wc "namegroup", atom]
-                [ text [wc "module"] mod
-                , text [wc "moduleseparator"] "::"
-                , text [wc "fnname"] (withP n)
+              [mod, justname] ->
+                n [wc "namegroup", atom]
+                [ t [wc "module"] mod
+                , t [wc "moduleseparator"] "::"
+                , t [wc "fnname"] (withP justname)
                 ]
-              _ -> text [atom, wc "fnname"] (withP name)
-          fnDiv parens = nested [wc "op", wc name] [fnname parens]
+              _ -> a [wc "fnname"] (withP name)
+          fnDiv parens = n [wc "op", wc name] [fnname parens]
           isInfix = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
@@ -138,40 +138,40 @@ viewNExpr d vs c e =
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
-          nested (wc "fncall infix" :: wc (depthString d) :: all ++ c)
-          [ nested [wc "lhs"] [vExpr incD first]
+          n (wc "fncall infix" :: wc (depthString d) :: all)
+          [ n [wc "lhs"] [vExpr incD first]
           , fnDiv False
-          , nested [wc "rhs"] [vExpr incD second]
+          , n [wc "rhs"] [vExpr incD second]
           ]
         _ ->
-          nested (wc "fncall prefix" :: wc (depthString d) :: all ++ c)
+          n (wc "fncall prefix" :: wc (depthString d) :: all)
             (fnDiv isInfix :: List.map (vExpr incD) exprs)
 
     Lambda vars expr ->
-      let varname v = text [wc "lambdavarname", atom] v in
-      nested (wc "lambdaexpr" :: all ++ c)
-        [ nested [wc "lambdabinding"] (List.map varname vars)
-        , text [atom, wc "arrow"] "->"
-        , nested [wc "lambdabody"] [vExpr 0 expr]
+      let varname v = t [wc "lambdavarname", atom] v in
+      n (wc "lambdaexpr" :: all)
+        [ n [wc "lambdabinding"] (List.map varname vars)
+        , a [wc "arrow"] "->"
+        , n [wc "lambdabody"] [vExpr 0 expr]
         ]
 
     Thread exprs ->
-      let pipe = text [atom, wc "thread pipe"] "|>"
+      let pipe = a [wc "thread pipe"] "|>"
           texpr e =
             let id = B.toID e
                 p = B.toP Expr e
             in
-            nested [wc "threadmember", DisplayValueOf id, ClickSelectAs p]
+            n [wc "threadmember", DisplayValueOf id, ClickSelectAs p]
               [pipe, vExpr 0 e]
       in
-      nested (wc "threadexpr" :: mo :: dv :: c)
+      n (wc "threadexpr" :: mo :: dv :: config)
         (List.map texpr exprs)
 
     FieldAccess obj field ->
-      nested (wc "fieldaccessexpr" :: all ++ c)
-        [ nested [wc "fieldobject"] [vExpr 0 obj]
-        , text [wc "fieldaccessop operator", atom] "."
-        , selectable [wc "fieldname", atom] (viewFieldName vs [] field)
+      n (wc "fieldaccessexpr" :: all)
+        [ n [wc "fieldobject"] [vExpr 0 obj]
+        , a [wc "fieldaccessop operator"] "."
+        , viewFieldName vs (wc "fieldname" :: atom :: []) field
         ]
 
 
