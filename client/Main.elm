@@ -697,6 +697,14 @@ update_ msg m =
       else NoChange
 
 
+    BlankOrMouseEnter _ targetPointer _ ->
+      let id = P.toID targetPointer in
+      SetHover id
+
+
+    BlankOrMouseLeave _ targetPointer _ ->
+      let id = P.toID targetPointer in
+      ClearHover id
 
 
     ------------------------
@@ -736,13 +744,6 @@ update_ msg m =
           _ ->
             NoChange
       else NoChange
-
-
-    MouseEnter id _ ->
-      SetHover id
-
-    MouseLeave id _ ->
-      ClearHover id
 
     BlankOrClick tlid mPointer event ->
       case m.state of
