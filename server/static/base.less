@@ -33,12 +33,16 @@ html {
   background-color: @grey1;
 }
 
-body {
+.default() {
   margin: 0;
   padding: 0;
-  height: 100%;
   background-color: @black2;
   color: @grey3;
+}
+
+body {
+  .default;
+  height: 100%;
 }
 
 /********************
@@ -637,22 +641,22 @@ body #grid * {
   position: relative;
 }
 
-.feature-flag-container {
-  .feature-flag {
-    position: absolute;
-    right: -16px;
+.feature-flag {
+  position: absolute;
+  right: -16px;
+  .default;
+
+}
+.flagged {
+  .flag-message {
   }
-  .flagged {
-    .flag-message {
-    }
-    .flag-setting {
-    }
-    .flag-left {
-      background-color: red;
-    }
-    .flag-right {
-      background-color: green;
-    }
+  .flag-setting {
+  }
+  .flag-left {
+    background-color: red;
+  }
+  .flag-right {
+    background-color: green;
   }
 }
 
