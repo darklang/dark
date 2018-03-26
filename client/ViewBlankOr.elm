@@ -208,11 +208,14 @@ viewBlankOr htmlFn pt vs c bo =
               ([WithClass "blank", WithID p] ++ idConfigs ++ c)
               ([Html.text placeholder] ++ featureFlag)
           F _ fill ->
-            -- to add FeatureFlag here, we need to pass it
-            -- to the htmlFn maybe?
-            if pt == Expr
-            then htmlFn ([WithID p] ++ c) fill
-            else htmlFn ([WithID p] ++ idConfigs ++ c) fill
+            let configs =
+              if pt == Expr
+              then [WithID p] ++ c
+              else [WithID p] ++ idConfigs ++ c
+            in
+            Html.div
+              [Attrs.class "feature-flag-container"]
+              (htmlFn configs fill :: featureFlag)
           Flagged _ _ _ _ -> Debug.crash "vbo"
 
       thisText = case bo of
