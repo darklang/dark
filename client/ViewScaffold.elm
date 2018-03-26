@@ -5,7 +5,6 @@ module ViewScaffold exposing (..)
 -- lib
 import Html
 import Html.Attributes as Attrs
-import Html.Events as Events
 
 -- dark
 import Types exposing (..)
@@ -37,22 +36,22 @@ viewButtons m =
   in
   Html.div [Attrs.id "buttons"]
     ([ Html.a
-      [ Events.onClick AddRandom
+      [ eventNoPropagation "mouseup" (\_ -> AddRandom)
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "Random" ]
     , Html.a
-      [ Events.onClick ClearGraph
+      [ eventNoPropagation "mouseup" (\_ -> ClearGraph)
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "Clear" ]
     , Html.a
-      [ Events.onClick SaveTestButton
+      [ eventNoPropagation "mouseup" (\_ -> SaveTestButton)
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "SaveTest" ]
     , Html.a
-      [ Events.onClick ToggleSync
+      [ eventNoPropagation "mouseup" (\_ -> ToggleSync)
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text
