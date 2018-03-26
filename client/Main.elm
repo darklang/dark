@@ -795,6 +795,44 @@ update_ msg m =
         _ ->
           NoChange
 
+    BlankOrClick tlid mPointer event ->
+      case m.state of
+        Deselected ->
+          Select tlid mPointer
+        Dragging tlid _ _ origState ->
+          SetState origState
+        Entering cursor ->
+          case cursor of
+            Filling tlid pp ->
+              case mPointer of
+                Just p ->
+                  if P.toID pp == P.toID p
+                  then
+                    Select tlid Nothing
+                  else
+                    Select tlid mPointer
+                Nothing -> NoChange
+            _ ->
+              Select tlid mPointer
+        Selecting _ (Just pp) ->
+          case mPointer of
+            Just p ->
+              if P.toID pp == P.toID p
+              then
+                Select tlid Nothing
+              else
+                Select tlid mPointer
+            Nothing -> NoChange
+        Selecting tild Nothing ->
+          Select tlid mPointer
+
+    BlankOrDoubleClick tlid mPointer event ->
+      case mPointer of
+        Just p ->
+          Selection.enter m tlid p
+        Nothing ->
+          NoChange
+
     -----------------
     -- Buttons
     -----------------
@@ -945,5 +983,3 @@ subscriptions m =
         , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
   in Sub.batch
     (List.concat [keySubs, dragSubs, resizes, timers, visibility, onError])
-
-
