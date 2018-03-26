@@ -52,8 +52,8 @@ viewTL m tl =
           TLDB db ->
             viewDB (createVS m tl) db
       events =
-        [ eventNoPropagation "mousedown" (ToplevelClickDown tl.id)
-        , eventNoPropagation "mouseup" (ToplevelClickUp tl.id)
+        [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)
+        , eventNoPropagation "mouseup" (ToplevelMouseUp tl.id)
         , eventNoPropagation "click" (ToplevelClick tl.id)
         ]
 
