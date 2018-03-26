@@ -750,8 +750,8 @@ update_ msg m =
     MouseEnter id _ ->
       SetHover id
 
-    MouseLeave p _ ->
-      ClearHover p
+    MouseLeave id _ ->
+      ClearHover id
 
     BlankOrClick tlid mPointer event ->
       case m.state of

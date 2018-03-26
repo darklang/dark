@@ -157,6 +157,11 @@ body #grid * {
     .blank-text-style;
   }
 
+  .entry {
+    vertical-align: baseline;
+    min-width: 8ch;
+  }
+
 }
 
 //*************
@@ -236,7 +241,7 @@ body #grid * {
     .name, .type {
       margin: 2px 5px;
       flex: 1 0 0;
-      .blank {
+      &.blank {
         width: 96px; // put it all on one line
       }
     }
@@ -256,21 +261,19 @@ body #grid * {
   justify-content: space-between;
   flex-wrap: wrap;
 
-  & > div {
-    // center it
-    /* border-right: @top-border; */
-    /* margin-right: 2px; */
-    /* padding-right: 2px; */
-    /* &::last-child  { */
-    /*   border-right: none; */
-    /*   margin-right: 0px; */
-    /*   padding-right: 0px; */
-    /* } */
-    /*  */
+  // center it
+  /* border-right: @top-border; */
+  /* margin-right: 2px; */
+  /* padding-right: 2px; */
+  /* &::last-child  { */
+  /*   border-right: none; */
+  /*   margin-right: 0px; */
+  /*   padding-right: 0px; */
+  /* } */
+  /*  */
 
-    color: @orange;
-    font-size: 50%;
-  }
+  color: @orange;
+  font-size: 50%;
 
   .name {
     padding-left: 10px;
@@ -289,6 +292,7 @@ body #grid * {
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
+  // TODO: this doesn't work after a recent change.
   a:focus {
     outline: none;
   }
@@ -306,43 +310,36 @@ body #grid * {
 //*************
 // AST macros
 //*************
-.indent {
+.indent() {
   margin-left: 16px;
 }
 
-.string-style {
+.string-style() {
     color: @purple;
     font-style: italic;
     letter-spacing: -0.75px;
 }
 
-.blank-box-style {
+.blank-box-style() {
   height: 15px;
   border-bottom: @blank-underline;
 }
-.blank-text-style {
+.blank-text-style() {
   color: @grey1;
   font-style: italic;
   font-size: 8pt;
   text-indent: 4px;
 }
 
-.layout-block {
+.layout-block() {
   display: block;
-  & > .nested > .atom {
-    margin-left: 0px;
-  }
-  & > .nested > .atom.fieldaccessop {
-    margin-right: 0px;
-    margin-left: -4px;
-  }
 }
 
-.layout-inline {
+.layout-inline() {
   display: inline-block;
 }
 
-.highlighted-indent {
+.highlighted-indent() {
   margin-left: 8px;
   padding-left: 8px;
   border-left: 1px solid @orange;
@@ -365,9 +362,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-    .entry {
-      vertical-align: baseline;
-    }
   }
 
   .value-error {
@@ -420,7 +414,11 @@ body #grid * {
 
   .atom.fieldaccessop {
     margin-left: -4px;
-    margin-right: -4px;
+    margin-right: 0px;
+  }
+
+  .atom.fieldname {
+    margin-left: 0px;
   }
 
   .moduleseparator {
@@ -608,6 +606,7 @@ body #grid * {
 // ---------------------------
 // Types
 // ---------------------------
+/*
 .spec-type {
   .blank-text-style;
   padding: 8px;
@@ -626,6 +625,7 @@ body #grid * {
     }
   }
 }
+*/
 
 // ---------------------------
 // Feature-flags
@@ -637,7 +637,22 @@ body #grid * {
   position: relative;
 }
 
-.feature-flag {
-  position: absolute;
-  right: -16px;
+.feature-flag-container {
+  .feature-flag {
+    position: absolute;
+    right: -16px;
+  }
+  .flagged {
+    .flag-message {
+    }
+    .flag-setting {
+    }
+    .flag-left {
+      background-color: red;
+    }
+    .flag-right {
+      background-color: green;
+    }
+  }
 }
+

@@ -149,7 +149,7 @@ tabbing_works m =
 next_sibling_works : Model -> TestResult
 next_sibling_works m =
   case onlyAST m of
-    Let (Blank _) (Blank id1)  (Blank _) ->
+    Let (Blank _) (Blank id1) (Blank _) ->
       case m.state of
         Selecting _ (Just (PBlank _ id2)) ->
           if id1 == id2
@@ -162,13 +162,13 @@ next_sibling_works m =
 varbinds_are_editable : Model -> TestResult
 varbinds_are_editable m =
   case onlyAST m of
-    Let (F id1 "var") (Blank _)  (Blank _) ->
+    Let (F id1 "var") (Blank _) (Blank _) as l ->
       case m.state of
-        Entering (Filling _ (PFilled _ id2)) ->
+        Entering (Filling _ (PFilled _ id2))->
           if id1 == id2
           then pass
-          else fail (id1, id2)
-        s -> fail m.state
+          else fail (l, m.state)
+        s -> fail (l, m.state)
     e -> fail e
 
 

@@ -4,7 +4,7 @@ module AST exposing (..)
 import List
 
 -- lib
--- import List.Extra as LE
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -178,6 +178,21 @@ grandparentIsThread expr parent =
              |> Maybe.withDefault True
            _ -> False)
   |> Maybe.withDefault False
+
+getParamIndex : Expr -> ID -> Maybe (String, Int)
+getParamIndex expr id =
+  let parent = parentOf_ id expr
+      inThread = grandparentIsThread expr parent
+  in
+  case parent of
+    Just (F _ (FnCall name args)) ->
+      args
+      |> LE.findIndex (\a -> B.toID a == id)
+      |> Maybe.map
+           (\i -> if inThread
+                  then (name, i + 1)
+                  else (name, i))
+    _ -> Nothing
 
 
 -------------------------
