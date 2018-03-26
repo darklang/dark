@@ -451,4 +451,3 @@ type alias FlagFunction = { name: String
                           , return_type: String
                           , infix: Bool
                           }
-
