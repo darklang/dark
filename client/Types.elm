@@ -131,8 +131,6 @@ type Msg
     | ToplevelMouseUp TLID MouseEvent
     | ToplevelClick TLID MouseEvent
     | DragToplevel TLID Mouse.Position
-    | MouseEnter ID MouseEvent
-    | MouseLeave ID MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -158,6 +156,8 @@ type Msg
     | StartFeatureFlag
     | BlankOrClick TLID (Maybe Pointer) MouseEvent
     | BlankOrDoubleClick TLID (Maybe Pointer) MouseEvent
+    | BlankOrMouseEnter TLID Pointer MouseEvent
+    | BlankOrMouseLeave TLID Pointer MouseEvent
 
 type alias Predecessor = Maybe Pointer
 type alias Successor = Maybe Pointer

@@ -135,8 +135,8 @@ div vs configs content =
             let id = P.toID p in
             [ eventNoPropagation "click" (BlankOrClick vs.tl.id p)
             , eventNoPropagation "dblclick" (BlankOrDoubleClick vs.tl.id p)
-            , eventNoPropagation "mouseenter" (MouseEnter vs.tl.id p)
-            , eventNoPropagation "mouseleave" (MouseLeave vs.tl.id p)
+            , eventNoPropagation "mouseenter" (BlankOrMouseEnter vs.tl.id p)
+            , eventNoPropagation "mouseleave" (BlankOrMouseLeave vs.tl.id p)
             ]
           _ -> []
 
