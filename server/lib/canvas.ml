@@ -11,12 +11,14 @@ type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
               ; ops : Op.oplist
               ; toplevels: toplevellist
+              ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
 let create (name : string) : canvas ref =
   ref { name = name
       ; ops = []
       ; toplevels = []
+      ; user_functions = []
       }
 
 (* forgive me simon peyton-jones *)
@@ -92,6 +94,11 @@ let upsert_toplevel (tlid: tlid) (pos: pos) (data: TL.tldata) (c: canvas) : canv
   in
   { c with toplevels = tls @ [toplevel] }
 
+let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
+  let fns = List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions
+  in
+  { c with user_functions = fns @ [user_fn] }
+
 let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
   let tls = List.filter ~f:(fun x -> x.tlid <> tlid) c.toplevels
   in
@@ -147,6 +154,8 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident
+    | SetFunction user_fn ->
+      upsert_function user_fn
     | DeleteAll | Undo | Redo ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
@@ -223,7 +232,7 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
                    let envs = available_reqs h.tlid in
                    let values =
                      List.map
-                       ~f:(Handler.execute_for_analysis h)
+                       ~f:(Handler.execute_for_analysis h c.user_functions)
                        envs
                    in
                    (h.tlid, values)
@@ -246,7 +255,7 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
            `List (RTT.DvalMap.keys (RTT.EnvMap.find_exn environments 0 |> List.hd_exn)
                   |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
-        ; ("user_functions", `List [])
+        ; ("user_functions", `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]

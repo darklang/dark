@@ -7,8 +7,15 @@ module RT = Runtime
 module FnMap = String.Map
 
 type fnmap = RuntimeT.fn FnMap.t
-let fns : fnmap =
-  let add_fn (m : fnmap) (s : shortfn) : fnmap =
+
+let add_fn (m : fnmap) (f : RuntimeT.fn) : fnmap =
+  List.fold_left
+    ~f:(fun m1 n -> FnMap.set m1 ~key:n ~data:f)
+    ~init:m
+    (f.prefix_names @ f.infix_names)
+
+let static_fns : fnmap =
+  let add_short_fn (m : fnmap) (s : shortfn) : fnmap =
     let (def: RuntimeT.fn) = { prefix_names = s.pns
                              ; infix_names = s.ins
                              ; return_type = s.r
@@ -18,9 +25,9 @@ let fns : fnmap =
                              ; preview = s.pr
                              ; previewExecutionSafe = s.ps
                              } in
-    List.fold_left ~f:(fun m1 n -> FnMap.set m1 ~key:n ~data:def) ~init:m (s.pns @ s.ins)
+    add_fn m def
   in
-  List.fold_left ~f:add_fn ~init:FnMap.empty
+  List.fold_left ~f:add_short_fn ~init:FnMap.empty
     (List.concat [ Stdlib.fns
                  ; Libdb.fns
                  ; Libhttp.fns
@@ -29,11 +36,17 @@ let fns : fnmap =
                  (* ; Libtwitter.fns *)
                  ])
 
-(* Give access to other modules *)
-let get_fn (name : string) : RuntimeT.fn option =
-  FnMap.find fns name
+let fns (user_fns: RuntimeT.user_fn list) : fnmap =
+  List.fold_left
+    ~init:static_fns
+    ~f:(fun map uf -> uf |> RuntimeT.user_fn_to_fn |> add_fn map)
+    user_fns
 
-let get_fn_exn (name : string) : RuntimeT.fn =
-  match FnMap.find fns name with
+(* Give access to other modules *)
+let get_fn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn option =
+  FnMap.find (fns user_fns) name
+
+let get_fn_exn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn =
+  match get_fn ~user_fns name with
   | Some fn -> fn
   | None -> RT.raise_error ("No function named '" ^ name ^ "' exists")
