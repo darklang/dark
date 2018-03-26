@@ -157,6 +157,11 @@ body #grid * {
     .blank-text-style;
   }
 
+  .entry {
+    vertical-align: baseline;
+    min-width: 8ch;
+  }
+
 }
 
 //*************
@@ -236,7 +241,7 @@ body #grid * {
     .name, .type {
       margin: 2px 5px;
       flex: 1 0 0;
-      .blank {
+      &.blank {
         width: 96px; // put it all on one line
       }
     }
@@ -287,6 +292,7 @@ body #grid * {
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
+  // TODO: this doesn't work after a recent change.
   a:focus {
     outline: none;
   }
@@ -330,7 +336,7 @@ body #grid * {
   & > .nested > .atom:first-child {
     margin-left: 0px;
   }
-  & > .nested > .atom.fieldaccessop {
+  & > .nested .atom.fieldaccessop {
     margin-right: 0px;
     margin-left: -4px;
   }
@@ -363,9 +369,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-    .entry {
-      vertical-align: baseline;
-    }
   }
 
   .value-error {
@@ -419,6 +422,10 @@ body #grid * {
   .atom.fieldaccessop {
     margin-left: -4px;
     margin-right: -4px;
+  }
+
+  .atom.fieldname {
+    margin-left: 0px;
   }
 
   .moduleseparator {
