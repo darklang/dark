@@ -32,7 +32,7 @@ type tipe_ =
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
-  [@@deriving eq, show, yojson]
+  [@@deriving eq, show, yojson, sexp, bin_io]
 
 
 module DbT = struct
@@ -110,7 +110,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
     | DUrl of string
     [@@deriving show]
 
-  type tipe = tipe_ [@@deriving eq, show, yojson]
+  type tipe = tipe_ [@@deriving eq, show, yojson, sexp, bin_io]
 
   module EnvMap = Int.Map
   type env_map = (dval_map list) EnvMap.t [@opaque]
@@ -127,12 +127,21 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                ; block_args : string list
                ; optional : bool
                ; description : string
-               } [@@deriving eq, show, yojson]
+               } [@@deriving eq, show, yojson, sexp, bin_io]
 
   type funcimpl = InProcess of (dval list -> dval)
                 | API of (dval_map -> dval)
                 | UserCreated of expr
 
+  type fn_metadata = { prefix_names : string list
+                     ; infix_names : string list
+                     ; parameters : param list
+                     ; return_type : tipe
+                     ; description : string
+                     ; previewExecutionSafe : bool
+                     } [@@deriving eq, show, yojson, sexp, bin_io]
+
+  (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
             ; infix_names : string list
             ; parameters : param list
@@ -142,6 +151,22 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
             ; func : funcimpl
             ; previewExecutionSafe : bool
             }
+
+  type user_fn = { tlid: tlid
+                 ; metadata : fn_metadata
+                 ; ast:  expr
+                 } [@@deriving eq, show, yojson, sexp, bin_io]
+
+  let user_fn_to_fn uf =
+    { prefix_names = uf.metadata.prefix_names
+    ; infix_names = uf.metadata.infix_names
+    ; parameters = uf.metadata.parameters
+    ; return_type = uf.metadata.return_type
+    ; description = uf.metadata.description
+    ; previewExecutionSafe = uf.metadata.previewExecutionSafe
+    ; preview = None
+    ; func = UserCreated uf.ast
+    }
 end
 
 
