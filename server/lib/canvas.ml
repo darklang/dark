@@ -94,6 +94,11 @@ let upsert_toplevel (tlid: tlid) (pos: pos) (data: TL.tldata) (c: canvas) : canv
   in
   { c with toplevels = tls @ [toplevel] }
 
+let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
+  let fns = List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions
+  in
+  { c with user_functions = fns @ [user_fn] }
+
 let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
   let tls = List.filter ~f:(fun x -> x.tlid <> tlid) c.toplevels
   in
@@ -149,6 +154,8 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident
+    | SetFunction user_fn ->
+      upsert_function user_fn
     | DeleteAll | Undo | Redo ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 

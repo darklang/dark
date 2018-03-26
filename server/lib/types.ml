@@ -32,7 +32,7 @@ type tipe_ =
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
-  [@@deriving eq, show, yojson]
+  [@@deriving eq, show, yojson, sexp, bin_io]
 
 
 module DbT = struct
@@ -110,7 +110,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
     | DUrl of string
     [@@deriving show]
 
-  type tipe = tipe_ [@@deriving eq, show, yojson]
+  type tipe = tipe_ [@@deriving eq, show, yojson, sexp, bin_io]
 
   module EnvMap = Int.Map
   type env_map = (dval_map list) EnvMap.t [@opaque]
@@ -127,7 +127,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                ; block_args : string list
                ; optional : bool
                ; description : string
-               } [@@deriving eq, show, yojson]
+               } [@@deriving eq, show, yojson, sexp, bin_io]
 
   type funcimpl = InProcess of (dval list -> dval)
                 | API of (dval_map -> dval)
@@ -139,7 +139,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                      ; return_type : tipe
                      ; description : string
                      ; previewExecutionSafe : bool
-                     } [@@deriving eq, show, yojson]
+                     } [@@deriving eq, show, yojson, sexp, bin_io]
 
   (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
@@ -152,9 +152,10 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
             ; previewExecutionSafe : bool
             }
 
-  type user_fn = { metadata : fn_metadata
+  type user_fn = { tlid: tlid
+                 ; metadata : fn_metadata
                  ; ast:  expr
-                 } [@@deriving eq, show, yojson]
+                 } [@@deriving eq, show, yojson, sexp, bin_io]
 
   let user_fn_to_fn uf =
     { prefix_names = uf.metadata.prefix_names

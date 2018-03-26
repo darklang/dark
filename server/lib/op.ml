@@ -19,6 +19,7 @@ type op = SetHandler of tlid * pos * Handler.handler
         | DeleteAll
         | Undo
         | Redo
+        | SetFunction of RuntimeT.user_fn
 [@@deriving eq, yojson, show, sexp, bin_io]
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
