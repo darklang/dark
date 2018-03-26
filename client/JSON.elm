@@ -105,7 +105,6 @@ decodeVariants decoders =
 -- Blanks
 ------------------------------------
 
--- TODO: extend the metaphor to the server
 encodeBlankOr : (a -> JSE.Value) -> (BlankOr a) -> JSE.Value
 encodeBlankOr encoder v =
   case v of

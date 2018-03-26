@@ -12,9 +12,9 @@ module Map = Map.Poly
 module AT = Alcotest
 
 let fid = Util.create_id
-let h () = Ast.Hole (fid ())
-let v str = Ast.Value (fid (), str)
+let v str = Filled (fid (), Value str)
 let b () = Types.Blank (fid ())
+let f a = Types.Filled (fid (), a)
 
 let handle_exception e =
   (* Builtin testing doesnt seem to print exceptions *)
@@ -60,9 +60,9 @@ let handler ast =
 
 let t_undo_fns () =
   let n1 = Op.Savepoint in
-  let n2 = handler (FnCall (fid (), "-", [h (); h ()])) in
-  let n3 = handler (FnCall (fid (), "-", [v "3"; h ()])) in
-  let n4 = handler (FnCall (fid (), "-", [v "3"; v "4"])) in
+  let n2 = handler (f (FnCall ("-", [b (); b ()]))) in
+  let n3 = handler (f (FnCall ("-", [v "3"; b ()]))) in
+  let n4 = handler (f (FnCall ("-", [v "3"; v "4"]))) in
   let u = Op.Undo in
   let r = Op.Redo in
 
@@ -94,11 +94,11 @@ let t_undo () =
   let sp = Op.Savepoint in
   let u = Op.Undo in
   let r = Op.Redo in
-  let o1 = Value (fid (), "1") in
-  let o2 = Value (fid (), "2") in
-  let o3 = Value (fid (), "3") in
-  let o4 = Value (fid (), "4") in
-  let o5 = Value (fid (), "5") in
+  let o1 = v "1" in
+  let o2 = v "2" in
+  let o3 = v "3" in
+  let o4 = v "4" in
+  let o5 = v "5" in
   let ops = [sp; ha o1; sp; ha o2; sp; ha o3; sp; ha o4; sp; ha o5] in
 
   (* Check assumptions *)
@@ -132,20 +132,17 @@ let t_undo () =
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  let add = FnCall (fid (), "+", [v "5"; v "3"]) in
+  let add = f (FnCall ("+", [v "5"; v "3"])) in
   let r = execute_ops [handler add] in
   check_dval "int_add" (DInt 8) r
 
 
 let t_lambda_with_foreach () =
-  let ast = FnCall ( fid ()
-                   , "String::foreach"
-                   , [ Value (fid (), "\"some string\"")
-                     ; Lambda (fid ()
-                              , ["var"]
-                              , FnCall (fid ()
-                                       , "Char::toUppercase"
-                                       , [Variable (fid (), "var")]))])
+  let ast = f (FnCall ( "String::foreach"
+                   , [ v "\"some string\""
+                     ; f (Lambda ( ["var"]
+                              , f (FnCall ( "Char::toUppercase"
+                                          , [f (Variable "var")]))))]))
   in
   let r = execute_ops [handler ast] in
   check_dval "lambda_wit_foreach" r (DStr "SOME STRING")

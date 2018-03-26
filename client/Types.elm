@@ -131,8 +131,8 @@ type Msg
     | ToplevelClickUp Toplevel (Maybe Pointer) MouseEvent
     | ToplevelClick Toplevel (Maybe Pointer) MouseEvent
     | DragToplevel TLID Mouse.Position
-    | MouseEnter Pointer MouseEvent
-    | MouseLeave Pointer MouseEvent
+    | MouseEnter ID MouseEvent
+    | MouseLeave ID MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -355,7 +355,7 @@ type alias Model = { center : Pos
                    , complete : Autocomplete
                    , userFunctions : List UserFunction
                    , state : State
-                   , hovering : List Pointer
+                   , hovering : List ID
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
@@ -387,8 +387,8 @@ type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
 type Modification = Error String
                   | ClearError
                   | Select TLID (Maybe Pointer)
-                  | SetHover Pointer
-                  | ClearHover Pointer
+                  | SetHover ID
+                  | ClearHover ID
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable) (List UserFunction)
                   | Enter EntryCursor

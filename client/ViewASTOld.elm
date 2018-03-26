@@ -1,3 +1,4 @@
+-- This is an old, unused file that still has some functionality we want to copy
 module ViewAST exposing (..)
 
 -- builtin

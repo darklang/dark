@@ -373,7 +373,7 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
 (* Some initialization *)
 (* ------------------------- *)
 let init () : unit  =
-  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id INT PRIMARY KEY)";
+  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id BIGINT PRIMARY KEY)";
   (* https://github.com/inhabitedtype/ocaml-session/blob/master/backends/postgresql/lwt/session_postgresql_lwt.mli#L39 *)
   run_sql "CREATE TABLE IF NOT EXISTS \"session\" (SESSION_KEY char(40), EXPIRE_DATE timestamp (2) with time zone, SESSION_DATA text)";
   run_sql "CREATE INDEX IF NOT EXISTS session_key_idx ON \"session\" (session_key)";

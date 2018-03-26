@@ -16,7 +16,6 @@ import AST
 import Analysis
 import Pointer as P
 import Util exposing (deMaybe)
-import Blank
 
 moveCursorBackInTime : Model -> TLID -> Modification
 moveCursorBackInTime m selected =
@@ -173,30 +172,14 @@ enter m tlid cur =
   let tl = TL.getTL m tlid in
   case cur of
     PBlank _ _ -> Enter (Filling tlid cur)
-    PFilled tipe _ ->
-      let id = P.toID cur
-          h () = (tl |> TL.asHandler |> deMaybe "selection enter")
-      in
+    PFilled tipe id ->
       if TL.getChildrenOf tl cur /= []
       then selectDownLevel m tlid (Just cur)
       else
-        let text =
-          case P.ownerOf cur of
-            POAst ->
-              TL.findExn tl id
-              |> P.toContent
-              |> Just
-            POSpecHeader ->
-              SpecHeaders.find (h ()) cur
-              |> Maybe.andThen Blank.toMaybe
-              |> Maybe.withDefault ""
-              |> Just
-            _ -> Nothing
-        in
-          case text of
-            Just content ->
-              Many [ Enter (Filling tlid cur)
-                   , AutocompleteMod (ACSetQuery content)
-                   ]
-            Nothing -> NoChange
+        case TL.findExn tl id of
+          PDBColName _ -> NoChange
+          PDBColType _ -> NoChange
+          pd -> Many [ Enter (Filling tlid cur)
+                     , AutocompleteMod (ACSetQuery (P.toContent pd))
+                     ]
 
