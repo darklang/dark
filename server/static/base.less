@@ -310,28 +310,28 @@ body #grid * {
 //*************
 // AST macros
 //*************
-.indent {
+.indent() {
   margin-left: 16px;
 }
 
-.string-style {
+.string-style() {
     color: @purple;
     font-style: italic;
     letter-spacing: -0.75px;
 }
 
-.blank-box-style {
+.blank-box-style() {
   height: 15px;
   border-bottom: @blank-underline;
 }
-.blank-text-style {
+.blank-text-style() {
   color: @grey1;
   font-style: italic;
   font-size: 8pt;
   text-indent: 4px;
 }
 
-.layout-block {
+.layout-block() {
   display: block;
   & > .nested > .atom:first-child {
     margin-left: 0px;
@@ -342,11 +342,11 @@ body #grid * {
   }
 }
 
-.layout-inline {
+.layout-inline() {
   display: inline-block;
 }
 
-.highlighted-indent {
+.highlighted-indent() {
   margin-left: 8px;
   padding-left: 8px;
   border-left: 1px solid @orange;
