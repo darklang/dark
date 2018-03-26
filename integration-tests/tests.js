@@ -191,7 +191,7 @@ test('tabbing_works', async t => {
 
 test('next_sibling_works', async t => {
   await t
-    .click(".ast")
+    .click(".letbind")
     .pressKey("down")
     .pressKey("right")
     ;
@@ -199,7 +199,7 @@ test('next_sibling_works', async t => {
 
 test('varbinds_are_editable', async t => {
   await t
-    .click(".ast")
+    .click(".letbind")
     .pressKey("down")
     .pressKey("enter")
     ;
@@ -239,7 +239,7 @@ test('no_request_global_in_non_http_space', async t => {
     .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("req")).ok() // actually hits Http::bad_request
+    .expect(acHighlighted("Http::bad_request")).ok()
     .pressKey("enter")
 });
 
@@ -280,8 +280,6 @@ test('deleting_selects_the_blank', async t => {
 test('right_number_of_blanks', async t => {
   await t
     .pressKey("enter")
-    .pressKey("enter")
-    .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "assoc")
     .pressKey("enter")
