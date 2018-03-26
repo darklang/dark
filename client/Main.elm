@@ -681,7 +681,7 @@ update_ msg m =
     -- tricky. We use stopPropagating a lot of ensure the interactions
     -- work, but also combine multiple interactions into single
     -- handlers to make it easier to choose between the desired
-    -- interactions (esp ToplevelClickUp)
+    -- interactions (esp ToplevelMouseUp)
 
     GlobalClick event ->
       if event.button == Defaults.leftButton
@@ -700,10 +700,6 @@ update_ msg m =
     ------------------------
     -- dragging
     ------------------------
-    ToplevelClickDown tl event ->
-      if event.button == Defaults.leftButton
-      then Drag tl.id event.pos False m.state
-      else NoChange
 
     DragToplevel id mousePos ->
       case m.state of
@@ -715,7 +711,14 @@ update_ msg m =
                , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
         _ -> NoChange
 
-    ToplevelClickUp tl mPointer event ->
+
+    ToplevelMouseDown targetTLID event ->
+      if event.button == Defaults.leftButton
+      then Drag targetTLID event.pos False m.state
+      else NoChange
+
+
+    ToplevelMouseUp targetTLID event ->
       if event.button == Defaults.leftButton
       then
         case m.state of
@@ -732,20 +735,6 @@ update_ msg m =
             NoChange
       else NoChange
 
-    ToplevelClick tl mPointer event ->
-      case m.state of
-        Dragging tlid _ _ origState ->
-          SetState origState
-        Selecting tlid maybeP ->
-          if tlid == tl.id
-          then
-            Deselect
-          else
-            Select tl.id mPointer
-        Deselected ->
-          Select tl.id mPointer
-        _ ->
-          NoChange
 
     MouseEnter id _ ->
       SetHover id
@@ -789,6 +778,19 @@ update_ msg m =
         Just p ->
           Selection.enter m tlid p
         Nothing ->
+    ToplevelClick targetTLID _ ->
+      case m.state of
+        Dragging _ _ _ origState ->
+          SetState origState
+        Selecting selectingTLID _ ->
+          if targetTLID == selectingTLID
+          then
+            Deselect
+          else
+            Select targetTLID Nothing
+        Deselected ->
+          Select targetTLID Nothing
+        _ ->
           NoChange
 
     -----------------

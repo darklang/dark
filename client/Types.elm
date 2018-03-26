@@ -125,11 +125,11 @@ type alias GetAnalysisRPCResult = (List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
-    | ToplevelClickDown Toplevel MouseEvent
-    -- we have the actual node when ToplevelClickUp is created,
+    | ToplevelMouseDown TLID MouseEvent
+    -- we have the actual node when ToplevelMouseUp is created,
     -- but by the time we use it the proper node will be changed
-    | ToplevelClickUp Toplevel (Maybe Pointer) MouseEvent
-    | ToplevelClick Toplevel (Maybe Pointer) MouseEvent
+    | ToplevelMouseUp TLID MouseEvent
+    | ToplevelClick TLID MouseEvent
     | DragToplevel TLID Mouse.Position
     | MouseEnter ID MouseEvent
     | MouseLeave ID MouseEvent
