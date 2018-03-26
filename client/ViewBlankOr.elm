@@ -40,6 +40,8 @@ type HtmlConfig =
                 -- use this as ID for Mouseover, ClickSelect and
                 -- DisplayValue
                 | WithID Pointer
+                -- show a featureflag
+                | WithFF
 
 wc : String -> HtmlConfig
 wc = WithClass
@@ -96,6 +98,8 @@ div vs configs content =
                 |> List.filterMap (\a -> case a of
                                            WithClass c -> Just c
                                            _ -> Nothing)
+      showFeatureFlag = List.member WithFF configs
+
 
 
       -- Start using the config
@@ -143,9 +147,11 @@ div vs configs content =
               ]
             _ -> []
       attrs = events ++ title ++ [classAttr]
-
+      featureFlag = if showFeatureFlag
+                    then [viewFeatureFlag]
+                    else []
   in
-    Html.div attrs content
+    Html.div attrs (content ++ featureFlag)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
@@ -198,44 +204,34 @@ viewBlankOr htmlFn pt vs c bo =
                    Selecting _ (Just p) -> P.toID p == id
                    _ -> False
 
-      featureFlag = if selected
-                    then [viewFeatureFlag]
-                    else []
       thisTextFn flagClass bo =
-        let std = c ++ [WithID p] in
-        let inner =
-          case bo of
-            Blank _ ->
-              div vs
-                ([WithClass "blank"] ++ idConfigs ++ std)
-                ([Html.text placeholder] ++ featureFlag)
-            F _ fill ->
-              let configs =
-                if pt == Expr
-                then std
-                else idConfigs ++ std
-              in htmlFn configs fill
-            Flagged _ _ _ _ -> Debug.crash "vbo"
+        let std = c ++ [WithID p]
+            ++ (if selected then [WithFF] else [])
         in
-        Html.div
-          [Attrs.class "feature-flag-container"]
-          (inner :: featureFlag)
+        case bo of
+          Blank _ ->
+            div vs
+              ([WithClass "blank"] ++ idConfigs ++ std)
+              [Html.text placeholder]
+          F _ fill ->
+            let configs =
+              std
+              ++ (if pt == Expr then idConfigs else [])
+            in htmlFn configs fill
+          Flagged _ _ _ _ -> Debug.crash "vbo"
 
       -- the desired css layouts are:
       -- no ff:
-      --   .FFC
-      --     .blank/expr
+      --   .blank/expr
       --     .feature-flag (only if selected)
       -- after click
       --   .flagged
       --     .message
       --     .setting
       --     .flag-left
-      --       .FFC
-      --         etc
+      --       etc
       --     .flag-right
-      --       .FFC
-      --         etc
+      --       etc
       thisText = case bo of
                    Flagged msg setting l r ->
                      Html.div
