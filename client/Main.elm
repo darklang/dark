@@ -738,6 +738,8 @@ update_ msg m =
               let tl = TL.getTL m targetTLID in
               -- We've been updating tl.pos as mouse moves,
               -- now want to report last pos to server
+              -- NB: do *not* stop dragging here because we're using
+              --     the dragging state in `ToplevelClick` coming up next
               RPC ([MoveTL targetTLID tl.pos], FocusNoChange)
             else
               SetState origState
@@ -752,7 +754,7 @@ update_ msg m =
       case m.state of
         Deselected ->
           Select targetTLID (Just targetPointer)
-        Dragging _ _ _ origState ->
+        Dragging _ _ _ _ ->
           Util.impossible "dragging should've concluded before here" NoChange
         Entering cursor ->
           case cursor of
@@ -795,43 +797,6 @@ update_ msg m =
         _ ->
           NoChange
 
-    BlankOrClick tlid mPointer event ->
-      case m.state of
-        Deselected ->
-          Select tlid mPointer
-        Dragging tlid _ _ origState ->
-          SetState origState
-        Entering cursor ->
-          case cursor of
-            Filling tlid pp ->
-              case mPointer of
-                Just p ->
-                  if P.toID pp == P.toID p
-                  then
-                    Select tlid Nothing
-                  else
-                    Select tlid mPointer
-                Nothing -> NoChange
-            _ ->
-              Select tlid mPointer
-        Selecting _ (Just pp) ->
-          case mPointer of
-            Just p ->
-              if P.toID pp == P.toID p
-              then
-                Select tlid Nothing
-              else
-                Select tlid mPointer
-            Nothing -> NoChange
-        Selecting tild Nothing ->
-          Select tlid mPointer
-
-    BlankOrDoubleClick tlid mPointer event ->
-      case mPointer of
-        Just p ->
-          Selection.enter m tlid p
-        Nothing ->
-          NoChange
 
     -----------------
     -- Buttons
