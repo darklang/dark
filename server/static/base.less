@@ -333,13 +333,6 @@ body #grid * {
 
 .layout-block() {
   display: block;
-  & > .nested > .atom:first-child {
-    margin-left: 0px;
-  }
-  & > .nested .atom.fieldaccessop {
-    margin-right: 0px;
-    margin-left: -4px;
-  }
 }
 
 .layout-inline() {
@@ -421,7 +414,7 @@ body #grid * {
 
   .atom.fieldaccessop {
     margin-left: -4px;
-    margin-right: -4px;
+    margin-right: 0px;
   }
 
   .atom.fieldname {
