@@ -56,7 +56,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
       fn.parameters
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn in
-   call_fn ~ind:0 ~ctx name fn args
+   call_fn ~ind:0 ~ctx ~user_fns name fn args
   in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
@@ -218,7 +218,7 @@ let rec exec_ ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
         DIncomplete
   in
   trace expr execed_value st; execed_value
-and call_fn ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) : dval =
+and call_fn ?(ind=0) ~(ctx: context) ~(user_fns: user_fn list) (fnname: string) (fn: fn) (args: dval_map) : dval =
   let apply f arglist =
     match ctx with
     | Preview ->
@@ -262,8 +262,8 @@ and call_fn ?(ind=0) ~(ctx: context) (fnname: string) (fn: fn) (args: dval_map) 
                 ~actual:a
                 ~expected:(Dval.tipe_to_string p.tipe)
                 (fnname ^ " was called with the wrong type to parameter: " ^ p.name))
-
-  | UserCreated _ -> failwith "TODO(ian)"
+  | UserCreated body ->
+    exec_ ~trace:empty_trace ~ctx ~user_fns args body
   | API f ->
       try
         f args
