@@ -36,7 +36,7 @@ let execute_ops (ops : Op.op list) : dval =
             |> TL.handlers
             |> List.hd_exn
             |> fun h -> h.ast in
-  Ast.execute DvalMap.empty ast
+  Ast.execute [] DvalMap.empty ast
 
 
 let check_dval = AT.check (AT.testable pp_dval (=))
