@@ -154,8 +154,8 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
-    | BlankOrClick TLID (Maybe Pointer) MouseEvent
-    | BlankOrDoubleClick TLID (Maybe Pointer) MouseEvent
+    | BlankOrClick TLID Pointer MouseEvent
+    | BlankOrDoubleClick TLID Pointer MouseEvent
     | BlankOrMouseEnter TLID Pointer MouseEvent
     | BlankOrMouseLeave TLID Pointer MouseEvent
 

@@ -745,42 +745,41 @@ update_ msg m =
             NoChange
       else NoChange
 
-    BlankOrClick tlid mPointer event ->
+    ------------------------
+    -- clicking
+    ------------------------
+    BlankOrClick targetTLID targetPointer _ ->
       case m.state of
         Deselected ->
-          Select tlid mPointer
-        Dragging tlid _ _ origState ->
-          SetState origState
+          Select targetTLID (Just targetPointer)
+        Dragging _ _ _ origState ->
+          Util.impossible "dragging should've concluded before here" NoChange
         Entering cursor ->
           case cursor of
-            Filling tlid pp ->
-              case mPointer of
-                Just p ->
-                  if P.toID pp == P.toID p
-                  then
-                    Select tlid Nothing
-                  else
-                    Select tlid mPointer
-                Nothing -> NoChange
-            _ ->
-              Select tlid mPointer
-        Selecting _ (Just pp) ->
-          case mPointer of
-            Just p ->
-              if P.toID pp == P.toID p
+            Filling _ fillingPointer ->
+              if fillingPointer == targetPointer
               then
-                Select tlid Nothing
+                NoChange
               else
-                Select tlid mPointer
-            Nothing -> NoChange
-        Selecting tild Nothing ->
-          Select tlid mPointer
+                Select targetTLID (Just targetPointer)
+            _ ->
+              Select targetTLID (Just targetPointer)
+        Selecting _ maybeSelectingPointer ->
+          case maybeSelectingPointer of
+            Just selectingPointer ->
+              if selectingPointer == targetPointer
+              then
+                NoChange
+              else
+                Select targetTLID (Just targetPointer)
+            Nothing ->
+              Select targetTLID (Just targetPointer)
 
-    BlankOrDoubleClick tlid mPointer event ->
-      case mPointer of
-        Just p ->
-          Selection.enter m tlid p
-        Nothing ->
+
+    BlankOrDoubleClick targetTLID targetPointer _ ->
+      Selection.enter m targetTLID targetPointer
+
+
     ToplevelClick targetTLID _ ->
       case m.state of
         Dragging _ _ _ origState ->
