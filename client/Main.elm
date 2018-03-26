@@ -683,6 +683,13 @@ update_ msg m =
     -- handlers to make it easier to choose between the desired
     -- interactions (esp ToplevelMouseUp)
 
+    AutocompleteClick value ->
+      case unwrapState m.state of
+        Entering cursor ->
+          Entry.submit m cursor Entry.ContinueThread value
+        _ -> NoChange
+
+
     GlobalClick event ->
       if event.button == Defaults.leftButton
       then Many [ AutocompleteMod ACReset
@@ -690,11 +697,6 @@ update_ msg m =
       else NoChange
 
 
-    AutocompleteClick value ->
-      case unwrapState m.state of
-        Entering cursor ->
-          Entry.submit m cursor Entry.ContinueThread value
-        _ -> NoChange
 
 
     ------------------------
