@@ -2,8 +2,6 @@
 set -euo pipefail
 ./scripts/support/assert-in-container $0 $@
 
-set -x
-
 PROJECT="balmy-ground-195100"
 ZONE="--zone=dark-single-instance"
 DNS_SETTINGS="--name=darksingleinstance.com. --type=A $ZONE"
