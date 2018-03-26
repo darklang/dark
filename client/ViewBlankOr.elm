@@ -234,14 +234,21 @@ viewBlankOr htmlFn pt vs c bo =
       --       etc
       thisText = case bo of
                    Flagged msg setting l r ->
-                     Html.div
-                       [Attrs.class "flagged"]
-                       [ text vs [wc "flag-message"] msg
-                       , text vs [wc "flag-setting"] (toString setting)
-                       , Html.div [Attrs.class "flag-left"]
-                         [thisTextFn [] l]
-                       , Html.div [Attrs.class "flag-right"]
-                         [thisTextFn [] r]]
+                     if selected
+                     then
+                       Html.div
+                         [Attrs.class "flagged shown"]
+                         [ text vs [wc "flag-message"] msg
+                         , text vs [wc "flag-setting"] (toString setting)
+                         , thisTextFn [] (B.flattenFF bo)
+                         , Html.div [Attrs.class "flag-left"]
+                             [thisTextFn [] l]
+                         , Html.div [Attrs.class "flag-right"]
+                             [thisTextFn [] r]]
+                    else
+                      Html.div
+                        [Attrs.class "flagged hidden"]
+                        [thisTextFn [] (B.flattenFF bo)]
 
                    _ -> thisTextFn [] bo
 
