@@ -130,18 +130,16 @@ div vs configs content =
                   ++ (if mouseover then ["mouseovered"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
       events =
-        if selected
-        then []
-        else
-          case clickAs of
-            Just p ->
-              let id = P.toID p in
-              [ eventNoPropagation "mouseup"
-                  (ToplevelClickUp vs.tlid (Just p))
-              , eventNoPropagation "mouseenter" (MouseEnter id)
-              , eventNoPropagation "mouseleave" (MouseLeave id)
-              ]
-            _ -> []
+        case clickAs of
+          Just p ->
+            let id = P.toID p in
+            [ eventNoPropagation "click" (BlankOrClick vs.tl.id p)
+            , eventNoPropagation "dblclick" (BlankOrDoubleClick vs.tl.id p)
+            , eventNoPropagation "mouseenter" (MouseEnter vs.tl.id p)
+            , eventNoPropagation "mouseleave" (MouseLeave vs.tl.id p)
+            ]
+          _ -> []
+
       attrs = events ++ title ++ [classAttr]
 
   in
