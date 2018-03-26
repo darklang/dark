@@ -642,7 +642,22 @@ body #grid * {
   position: relative;
 }
 
-.feature-flag {
-  position: absolute;
-  right: -16px;
+.feature-flag-container {
+  .feature-flag {
+    position: absolute;
+    right: -16px;
+  }
+  .flagged {
+    .flag-message {
+    }
+    .flag-setting {
+    }
+    .flag-left {
+      background-color: red;
+    }
+    .flag-right {
+      background-color: green;
+    }
+  }
 }
+
