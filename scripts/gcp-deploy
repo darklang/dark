@@ -51,23 +51,27 @@ fi
 #########################
 # Set DNS
 #########################
-OLDIP=$($GCLOUD dns record-sets list $DNS_SETTINGS \
-  --format=json | jq --raw-output .[0].rrdatas[0])
-NEWIP=$(echo $INFO \
-  | jq --raw-output .networkInterfaces[0].accessConfigs[0].natIP)
+
+# We use a static DNS now, so commented this out. This was slightly
+# buggy anyway, unsure why.
+
+# OLDIP=$($GCLOUD dns record-sets list $DNS_SETTINGS \
+#   --format=json | jq --raw-output .[0].rrdatas[0])
+# NEWIP=$(echo $INFO \
+#   | jq --raw-output .networkInterfaces[0].accessConfigs[0].natIP)
 
 
-echo "Setting DNS ($OLDIP -> $NEWIP)"
-if [[ -e transaction.yaml ]]; then
-  echo "Deleting old DNS"
-  $GCLOUD dns record-sets transaction abort $ZONE
-fi
+# echo "Setting DNS ($OLDIP -> $NEWIP)"
+# if [[ -e transaction.yaml ]]; then
+#   echo "Deleting old DNS"
+#   $GCLOUD dns record-sets transaction abort $ZONE
+# fi
 
-$GCLOUD dns record-sets transaction start $ZONE
+# $GCLOUD dns record-sets transaction start $ZONE
 
-$GCLOUD dns record-sets transaction remove ${FULL_DNS_SETTINGS} $OLDIP
-$GCLOUD dns record-sets transaction add ${FULL_DNS_SETTINGS} $NEWIP
+# $GCLOUD dns record-sets transaction remove ${FULL_DNS_SETTINGS} $OLDIP
+# $GCLOUD dns record-sets transaction add ${FULL_DNS_SETTINGS} $NEWIP
 
-$GCLOUD dns record-sets transaction execute $ZONE
+# $GCLOUD dns record-sets transaction execute $ZONE
 
 rm -f transaction.yaml
