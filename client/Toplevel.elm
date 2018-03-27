@@ -325,8 +325,8 @@ findExn tl id =
 find : Toplevel -> ID -> Maybe PointerData
 find tl id =
   allData tl
-  |> List.filter (\d -> id == P.dToID d)
-  |> Util.assert (List.length >> ((==) 1))
+  |> List.filter (\d -> id == P.toID d)
+  |> Util.assert (\r -> List.length r <= 1) -- guard against dups
   |> List.head
 
 
