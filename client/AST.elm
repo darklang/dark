@@ -445,7 +445,7 @@ allData expr =
 replace : PointerData -> PointerData -> Expr -> Expr
 replace p replacement expr =
   let r = replace p replacement in
-  if B.toID expr == P.dToID p
+  if B.toID expr == P.toID p
   then
     case replacement of
       PExpr e -> e

@@ -24,8 +24,8 @@ emptyD_ id pt =
     DarkType -> PDarkType (Blank id)
     DarkTypeField -> PDarkTypeField (Blank id)
 
-toType : PointerData -> PointerType
-toType pd =
+typeOf : PointerData -> PointerType
+typeOf pd =
   case pd of
     PVarBind _ -> VarBind
     PEventModifier _ -> EventModifier
@@ -38,16 +38,13 @@ toType pd =
     PDarkType _ -> DarkType
     PDarkTypeField _ -> DarkTypeField
 
-typeOf : PointerData -> PointerType
-typeOf = toType
-
 
 emptyD : PointerType -> PointerData
 emptyD pt =
   emptyD_ (gid()) pt
 
-dToID : PointerData -> ID
-dToID pd =
+toID : PointerData -> ID
+toID pd =
   case pd of
     PVarBind d -> B.toID d
     PField d -> B.toID d
@@ -60,8 +57,6 @@ dToID pd =
     PDarkType d -> B.toID d
     PDarkTypeField d -> B.toID d
 
-toID : PointerData -> ID
-toID = dToID
 
 isBlank : PointerData -> Bool
 isBlank pd =
@@ -112,18 +107,17 @@ exprmap fn pd =
 
 strmap : (PointerType -> BlankOr String -> BlankOr String) -> PointerData -> PointerData
 strmap fn pd =
-  let pt = pd |> toType in
   case pd of
-    PVarBind d -> PVarBind (fn pt d)
-    PField d -> PField (fn pt d)
+    PVarBind d -> PVarBind (fn VarBind d)
+    PField d -> PField (fn Field d)
     PExpr _ -> pd
-    PEventModifier d -> PEventModifier (fn pt d)
-    PEventName d -> PEventName (fn pt d)
-    PEventSpace d -> PEventSpace (fn pt d)
-    PDBColName d -> PDBColName (fn pt d)
-    PDBColType d -> PDBColType (fn pt d)
+    PEventModifier d -> PEventModifier (fn EventModifier d)
+    PEventName d -> PEventName (fn EventName d)
+    PEventSpace d -> PEventSpace (fn EventSpace d)
+    PDBColName d -> PDBColName (fn DBColName d)
+    PDBColType d -> PDBColType (fn DBColType d)
     PDarkType _ -> pd
-    PDarkTypeField d -> PDarkTypeField (fn pt d)
+    PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
 
 
 ------------------------
