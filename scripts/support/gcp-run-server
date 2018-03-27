@@ -5,6 +5,7 @@ set -euo pipefail
 sudo chown dark $DARK_CONFIG_RUN_DIR
 sudo chown dark $DARK_CONFIG_PERSIST_DIR
 
+./scripts/support/setup-for-dev
 ./scripts/support/write-config-file
 ./scripts/support/create-app-directories
 ./scripts/support/start-background-services cron postgresql
