@@ -96,12 +96,22 @@ let search_and_load (name: string) : Op.oplist =
       with
       | e ->
           if Sys.file_exists json = `Yes
-          then load_json json
+          then
+            (try
+              load_json json
+             with
+             | e ->
+               Deserialize_b68219ec99d4a17c9a1d6524129da928.load_json json)
           else raise e)
 
     else
       if Sys.file_exists json  = `Yes
-      then load_json json
+      then
+        (try
+           load_json json
+         with
+         | e ->
+           Deserialize_b68219ec99d4a17c9a1d6524129da928.load_json json)
 
       else []
 
