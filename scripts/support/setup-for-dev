@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+PEOPLE="paul ian cam zane ellen stefi aoife"
+
+for i in $PEOPLE; do
+  mkdir -p $DARK_CONFIG_PERSIST_DIR/appdata
+  cp -f saved-apps/conduit.json $DARK_CONFIG_PERSIST_DIR/appdata/$i-conduit.json
+  cp -f saved-apps/onecalendar.json $DARK_CONFIG_PERSIST_DIR/appdata/$i-onecalendar.json
+done
+
