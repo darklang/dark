@@ -328,8 +328,8 @@ decodeHandler =
   |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
 
-decodeTipe : JSD.Decoder String
-decodeTipe =
+decodeTipeString : JSD.Decoder String
+decodeTipeString =
   let toTipeString l =
         case l of
           constructor :: arg :: [] ->
@@ -353,7 +353,7 @@ decodeDB =
   |> JSDP.required "cols" (JSD.list
                             (decodePair
                               (decodeBlankOr JSD.string)
-                              (decodeBlankOr decodeTipe)))
+                              (decodeBlankOr decodeTipeString)))
 
 
 decodeToplevel : JSD.Decoder Toplevel
@@ -374,8 +374,80 @@ decodeToplevel =
   |> JSDP.requiredAt ["pos", "y"] JSD.int
   |> JSDP.required "data" variant
 
+decodeTipe : JSD.Decoder Tipe
+decodeTipe =
+  let dv0 = decodeVariant0
+      dv1 = decodeVariant1
+  in
+      decodeVariants
+      [("TInt", dv0 TInt)
+      ,("TStr", dv0 TStr)
+      ,("TChar", dv0 TChar)
+      ,("TBool", dv0 TBool)
+      ,("TFloat", dv0 TFloat)
+      ,("TObj", dv0 TObj)
+      ,("TList", dv0 TList)
+      ,("TAny", dv0 TAny)
+      ,("TNull", dv0 TNull)
+      ,("TBlock", dv0 TBlock)
+      ,("TIncomplete", dv0 TIncomplete)
+      ,("TError", dv0 TError)
+      ,("TResp", dv0 TResp)
+      ,("TDB", dv0 TDB)
+      ,("TID", dv0 TID)
+      ,("TDate", dv0 TDate)
+      ,("TTitle", dv0 TTitle)
+      ,("TUrl", dv0 TUrl)
+      ,("TBelongsTo", dv1 TBelongsTo JSD.string)
+      ,("THasMany", dv1 TBelongsTo JSD.string)
+      ]
+
+decodeParameter : JSD.Decoder Parameter
+decodeParameter =
+  let toParam name tipe args option desc =
+        { name = name
+        , tipe = tipe
+        , block_args = args
+        , optional = option
+        , description = desc
+        }
+  in
+      JSDP.decode toParam
+      |> JSDP.required "name" JSD.string
+      |> JSDP.required "tipe" decodeTipe
+      |> JSDP.required "block_args" (JSD.list JSD.string)
+      |> JSDP.required "optional" JSD.bool
+      |> JSDP.required "description" JSD.string
+
+decodeFunction : JSD.Decoder Function
+decodeFunction =
+  let toFn name params desc returnTipe infix =
+        { name = name
+        , parameters = params
+        , description = desc
+        , returnTipe = returnTipe
+        , infix = infix
+        }
+  in
+      JSDP.decode toFn
+      |> JSDP.required "name" JSD.string
+      |> JSDP.required "parameters" (JSD.list decodeParameter)
+      |> JSDP.required "description" JSD.string
+      |> JSDP.required "returnTipe" decodeTipe
+      |> JSDP.required "infix" JSD.bool
+
 decodeUserFunction : JSD.Decoder UserFunction
-decodeUserFunction = JSD.fail "TODO(ian)"
+decodeUserFunction =
+  let toUserFn id meta ast =
+      { tlid = id
+      , metadata = meta
+      , ast = ast
+      }
+  in
+      JSDP.decode toUserFn
+      |> JSDP.required "tlid" decodeTLID
+      |> JSDP.required "metadata" decodeFunction
+      |> JSDP.required "ast" decodeExpr
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
