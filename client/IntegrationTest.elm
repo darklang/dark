@@ -151,7 +151,7 @@ next_sibling_works m =
   case onlyAST m of
     Let (Blank _) (Blank id1) (Blank _) ->
       case m.state of
-        Selecting _ (Just (PBlank _ id2)) ->
+        Selecting _ (Just id2) ->
           if id1 == id2
           then pass
           else fail (id1, id2)
@@ -164,7 +164,7 @@ varbinds_are_editable m =
   case onlyAST m of
     Let (F id1 "var") (Blank _) (Blank _) as l ->
       case m.state of
-        Entering (Filling _ (PFilled _ id2))->
+        Entering (Filling _ id2)->
           if id1 == id2
           then pass
           else fail (l, m.state)

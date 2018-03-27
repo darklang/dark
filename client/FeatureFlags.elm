@@ -17,14 +17,14 @@ toFlagged bo =
 start : Model -> Modification
 start m =
   case unwrapState m.state of
-    Selecting tlid (Just p) ->
+    Selecting tlid (Just id) ->
       let tl = TL.getTL m tlid
-          pd = TL.findExn tl (P.toID p)
+          pd = TL.findExn tl id
           newPd = pd
                   |> P.strmap (\_ a -> toFlagged a)
                   |> P.dtmap toFlagged
                   |> P.exprmap toFlagged
-          newTL = TL.replace tl p newPd
+          newTL = TL.replace tl pd newPd
       in
       RPC ([SetHandler tl.id tl.pos
                        (newTL |> TL.asHandler |> deMaybe "FF.start") ]

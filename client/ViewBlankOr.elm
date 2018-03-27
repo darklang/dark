@@ -14,7 +14,6 @@ import Maybe.Extra as ME
 import Types exposing (..)
 import Autocomplete
 import Toplevel as TL
-import Pointer as P
 import AST
 import Runtime as RT
 import Blank as B
@@ -29,7 +28,7 @@ type HtmlConfig =
                 -- Add this class (can be done multiple times)
                   WithClass String
                 -- when you click this node, select this pointer
-                | ClickSelectAs Pointer
+                | ClickSelectAs ID
                 | ClickSelect -- use withID
                 -- highlight this node as if it were ID
                 | MouseoverAs ID
@@ -39,7 +38,7 @@ type HtmlConfig =
                 | DisplayValue
                 -- use this as ID for Mouseover, ClickSelect and
                 -- DisplayValue
-                | WithID Pointer
+                | WithID ID
                 -- show a featureflag
                 | WithFF
 
@@ -71,20 +70,19 @@ keyword vs c name =
 div : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
 div vs configs content =
   let selectedID = case vs.state of
-                     Selecting _ (Just p) -> Just (P.toID p)
+                     Selecting _ (Just id) -> Just id
                      _ -> Nothing
 
       getFirst fn = configs |> List.filterMap fn |> List.head
 
       -- Extract config
-      thisPointer = getFirst (\a -> case a of
-                                      WithID p -> Just p
-                                      _ -> Nothing)
-      thisID = thisPointer |> Maybe.map P.toID
+      thisID = getFirst (\a -> case a of
+                                 WithID id -> Just id
+                                 _ -> Nothing)
 
       clickAs = getFirst (\a -> case a of
-                                  ClickSelectAs p -> Just p
-                                  ClickSelect -> thisPointer
+                                  ClickSelectAs id -> Just id
+                                  ClickSelect -> thisID
                                   _ -> Nothing)
       hoverAs = getFirst (\a -> case a of
                                   DisplayValueOf id -> Just id
@@ -138,10 +136,9 @@ div vs configs content =
         then []
         else
           case clickAs of
-            Just p ->
-              let id = P.toID p in
+            Just id ->
               [ eventNoPropagation "mouseup"
-                  (ToplevelClickUp vs.tlid (Just p))
+                  (ToplevelClickUp vs.tlid (Just id))
               , eventNoPropagation "mouseenter" (MouseEnter id)
               , eventNoPropagation "mouseleave" (MouseLeave id)
               ]
@@ -163,8 +160,7 @@ viewText pt vs c str =
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
   ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
 viewBlankOr htmlFn pt vs c bo =
-  let p = B.toP pt bo
-      id = P.toID p
+  let id = B.toID bo
       paramPlaceholder =
         vs.tl
         |> TL.asHandler
@@ -201,11 +197,11 @@ viewBlankOr htmlFn pt vs c bo =
           DarkTypeField -> "fieldname"
 
       selected = case vs.state of
-                   Selecting _ (Just p) -> P.toID p == id
+                   Selecting _ (Just sId) -> sId == id
                    _ -> False
 
       thisTextFn flagClass bo =
-        let std = c ++ [WithID p]
+        let std = c ++ [WithID id]
             ++ (if selected then [WithFF] else [])
         in
         case bo of
@@ -255,8 +251,8 @@ viewBlankOr htmlFn pt vs c bo =
       allowStringEntry = pt == Expr
   in
   case vs.state of
-    Entering (Filling _ thisP) ->
-      if p == thisP
+    Entering (Filling _ thisID) ->
+      if id == thisID
       then ViewEntry.entryHtml allowStringEntry placeholder vs.ac
       else thisText
     _ -> thisText

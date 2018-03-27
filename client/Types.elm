@@ -83,10 +83,10 @@ gtlid unit = TLID (Util.random unit)
 -- State
 -----------------------------
 type EntryCursor = Creating Pos
-                 | Filling TLID Pointer
+                 | Filling TLID ID
 
 type alias HasMoved = Bool
-type State = Selecting TLID (Maybe Pointer)
+type State = Selecting TLID (Maybe ID)
            | Entering EntryCursor
            | Dragging TLID VPos HasMoved State
            | Deselected
@@ -128,7 +128,7 @@ type Msg
     | ToplevelClickDown Toplevel MouseEvent
     -- we have the actual node when ToplevelClickUp is created,
     -- but by the time we use it the proper node will be changed
-    | ToplevelClickUp TLID (Maybe Pointer) MouseEvent
+    | ToplevelClickUp TLID (Maybe ID) MouseEvent
     | DragToplevel TLID Mouse.Position
     | MouseEnter ID MouseEvent
     | MouseLeave ID MouseEvent
@@ -156,12 +156,12 @@ type Msg
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
 
-type alias Predecessor = Maybe Pointer
-type alias Successor = Maybe Pointer
+type alias Predecessor = Maybe PointerData
+type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
            | Refocus TLID
-           | FocusExact TLID Pointer
-           | FocusNext TLID Predecessor
+           | FocusExact TLID ID
+           | FocusNext TLID (Maybe ID)
            | FocusFirstAST TLID
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
@@ -190,7 +190,7 @@ type alias Autocomplete = { functions : List Function
                           , allCompletions : List AutocompleteItem
                           , index : Int
                           , value : String
-                          , target : Maybe (TLID, Pointer)
+                          , target : Maybe (TLID, PointerData)
                           , tipe : Maybe Tipe
                           }
 
@@ -204,7 +204,7 @@ type AutocompleteMod = ACSetQuery String
                      | ACReset
                      | ACSelectDown
                      | ACSelectUp
-                     | ACSetTarget (Maybe (TLID, Pointer))
+                     | ACSetTarget (Maybe (TLID, PointerData))
                      | ACRegenerate
                      -- | ACFilterByParamType Tipe NodeList
 
@@ -221,7 +221,6 @@ type VariantTest = StubVariant
 type DivSelected = DivSelected | DivUnselected
 type MouseOverDiv = MouseOverDiv | MouseNotOverDiv
 type alias Class = String
-type alias Clickable = Maybe (TLID, Pointer)
 
 
 -----------------------------
@@ -246,22 +245,8 @@ type NExpr = If Expr Expr Expr
            | FieldAccess Expr Field
 
 -----------------------------
--- High-level ID wrappers
--- so we're not using IDs in important APIs
+-- Pointers
 -----------------------------
-type PointerType = VarBind
-                 | EventName
-                 | EventSpace
-                 | EventModifier
-                 | Expr
-                 | Field
-                 | DBColName
-                 | DBColType
-                 | DarkType
-                 | DarkTypeField
-
-type Pointer = PBlank PointerType ID
-             | PFilled PointerType ID
 
 type PointerData = PVarBind VarBind
                  | PEventName (BlankOr String)
@@ -273,6 +258,17 @@ type PointerData = PVarBind VarBind
                  | PDBColType (BlankOr String)
                  | PDarkType DarkType
                  | PDarkTypeField (BlankOr String)
+
+type PointerType = VarBind
+                 | EventName
+                 | EventSpace
+                 | EventModifier
+                 | Expr
+                 | Field
+                 | DBColName
+                 | DBColType
+                 | DarkType
+                 | DarkTypeField
 
 type BlankOr a = Blank ID
                | F ID a
@@ -383,7 +379,7 @@ type IntegrationTestState = IntegrationTestExpectation (Model -> TestResult)
 -----------------------------
 type Modification = Error String
                   | ClearError
-                  | Select TLID (Maybe Pointer)
+                  | Select TLID (Maybe ID)
                   | SetHover ID
                   | ClearHover ID
                   | Deselect

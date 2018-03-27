@@ -158,10 +158,8 @@ viewNExpr d vs config e =
     Thread exprs ->
       let pipe = a [wc "thread pipe"] "|>"
           texpr e =
-            let id = B.toID e
-                p = B.toP Expr e
-            in
-            n [wc "threadmember", DisplayValueOf id, ClickSelectAs p]
+            let id = B.toID e in
+            n [wc "threadmember", DisplayValueOf id, ClickSelectAs id]
               [pipe, vExpr 0 e]
       in
       n (wc "threadexpr" :: mo :: dv :: config)

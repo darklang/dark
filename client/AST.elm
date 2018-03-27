@@ -16,12 +16,6 @@ import Blank as B
 -------------------------
 -- Generic
 -------------------------
-toP : Expr -> Pointer
-toP = B.toP Expr
-
-toPD : Expr -> PointerData
-toPD e =
-  PExpr e
 
 traverse : (Expr -> Expr) -> Expr -> Expr
 traverse fn expr =
@@ -162,10 +156,10 @@ maybeExtendThreadAt id expr =
       in F tid (Thread newExprs)
     _ -> traverse (maybeExtendThreadAt id) expr
 
--- Is Pointer a blank inside a thread
-isThreadBlank : Expr -> Pointer -> Bool
+-- Is PointerData a blank inside a thread
+isThreadBlank : Expr -> ID -> Bool
 isThreadBlank expr p =
-  expr |> listThreadBlanks |> List.member (P.toID p)
+  expr |> listThreadBlanks |> List.member p
 
 grandparentIsThread : Expr -> Maybe Expr -> Bool
 grandparentIsThread expr parent =
@@ -200,7 +194,7 @@ getParamIndex expr id =
 -------------------------
 -- Children
 -------------------------
-children : Expr -> List Pointer
+children : Expr -> List PointerData
 children expr =
   case expr of
     Blank _ -> []
@@ -212,19 +206,19 @@ children expr =
         Value _ -> []
         Variable _ -> []
         If cond ifbody elsebody ->
-          [toP cond, toP ifbody, toP elsebody]
+          [PExpr cond, PExpr ifbody, PExpr elsebody]
         FnCall name exprs ->
-          List.map toP exprs
+          List.map PExpr exprs
         Lambda vars lexpr ->
-          [toP lexpr]
+          [PExpr lexpr]
         Thread exprs ->
-          List.map toP exprs
+          List.map PExpr exprs
         FieldAccess obj field ->
-          [toP obj, B.toP Field field]
+          [PExpr obj, PField field]
         Let lhs rhs body ->
-          [B.toP VarBind lhs, toP rhs, toP body]
+          [PVarBind lhs, PExpr rhs, PExpr body]
 
-childrenOf : ID -> Expr -> List Pointer
+childrenOf : ID -> Expr -> List PointerData
 childrenOf pid expr =
   let co = childrenOf pid
       returnOr fn e =
@@ -363,62 +357,51 @@ parentOf_ eid expr =
           else returnOr (\_ -> po obj) expr
 
 -- includes self
-siblings : Pointer -> Expr -> List Pointer
+siblings : PointerData -> Expr -> List PointerData
 siblings p expr =
   case parentOf_ (P.toID p) expr of
     Nothing -> [p]
     Just parent ->
       case parent of
         F _ (If cond ifbody elsebody) ->
-          List.map toP [cond, ifbody, elsebody]
+          List.map PExpr [cond, ifbody, elsebody]
 
         F _ (Let lhs rhs body) ->
-          [B.toP VarBind lhs, toP rhs, toP body]
+          [ PVarBind lhs, PExpr rhs, PExpr body]
 
         F _ (FnCall name exprs) ->
-          List.map toP exprs
+          List.map PExpr exprs
 
         F _ (Lambda vars lexpr) ->
-          [toP lexpr]
+          [PExpr lexpr]
 
         F _ (Thread exprs) ->
-          List.map toP exprs
+          List.map PExpr exprs
 
         F _ (FieldAccess obj field) ->
-          [toP obj, B.toP Field field]
+          [PExpr obj, PField field]
 
         _ -> [p]
 
-getValueParent : Pointer -> Expr -> Maybe Pointer
+getValueParent : PointerData -> Expr -> Maybe PointerData
 getValueParent p expr =
   let parent = parentOf_ (P.toID p) expr in
   case (P.typeOf p, parent) of
     (Expr, Just (F _ (Thread exprs))) ->
       exprs
-      |> List.map toP
+      |> List.map PExpr
       |> Util.listPrevious p
 
     (Field, Just (F _ (FieldAccess obj _))) ->
-      Just <| toP obj
+      Just <| PExpr obj
 
     _ -> Nothing
 
 
 
 --------------------------------
--- Pointers
+-- PointerData
 --------------------------------
-
-allPointers : Expr -> List Pointer
-allPointers expr =
-  allData expr
-  |> List.map P.pdToP
-
-
---------------------------------
--- PointersData
---------------------------------
-
 
 allData : Expr -> List PointerData
 allData expr =
@@ -459,10 +442,10 @@ allData expr =
 
 
 
-replace : Pointer -> PointerData -> Expr -> Expr
+replace : PointerData -> PointerData -> Expr -> Expr
 replace p replacement expr =
   let r = replace p replacement in
-  if B.toID expr == P.toID p
+  if B.toID expr == P.dToID p
   then
     case replacement of
       PExpr e -> e
@@ -482,17 +465,17 @@ replace p replacement expr =
       _ -> traverse r expr
 
 
-deleteExpr : Pointer -> Expr -> ID -> Expr
+deleteExpr : PointerData -> Expr -> ID -> Expr
 deleteExpr p expr id =
   let replacement = P.emptyD_ id (P.typeOf p)
   in replace p replacement expr
 
-replaceVarBind : Pointer -> VarName -> Expr -> Expr
+replaceVarBind : PointerData -> VarName -> Expr -> Expr
 replaceVarBind p replacement expr =
   replace p (PVarBind (B.newF replacement)) expr
 
 
-replaceField : Pointer -> FieldName -> Expr -> Expr
+replaceField : PointerData -> FieldName -> Expr -> Expr
 replaceField p replacement expr =
   replace p (PField (B.newF replacement)) expr
 

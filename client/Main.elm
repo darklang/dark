@@ -137,35 +137,38 @@ processFocus m focus =
   case focus of
     FocusNext tlid pred ->
       let tl = TL.getTL m tlid
-          next = TL.getNextBlank tl pred in
+          pd = Maybe.map (TL.findExn tl) pred
+          next = TL.getNextBlank tl pd in
       case next of
-        Just p -> Enter (Filling tlid p)
+        Just pd -> Enter (Filling tlid (P.toID pd))
         Nothing -> Select tlid Nothing
-    FocusExact tlid p ->
-      case p of
-        PFilled _ _ -> Select tlid (Just p)
-        PBlank _ _ -> Enter (Filling tlid p)
+    FocusExact tlid id ->
+      let tl = TL.getTL m tlid
+          pd = TL.findExn tl id in
+          if P.isBlank pd
+          then Enter (Filling tlid id)
+          else Select tlid (Just id)
     Refocus tlid ->
       Select tlid Nothing
     FocusFirstAST tlid ->
       let tl = TL.getTL m tlid
           next = TL.getFirstASTBlank tl in
       case next of
-        Just p -> Enter (Filling tlid p)
+        Just pd -> Enter (Filling tlid (P.toID pd))
         Nothing -> Select tlid Nothing
     FocusSame ->
       case unwrapState m.state of
-        Selecting tlid mp ->
-          case (TL.get m tlid, mp) of
-            (Just tl, Just p) ->
-                if TL.isValidPointer tl p
+        Selecting tlid mId ->
+          case (TL.get m tlid, mId) of
+            (Just tl, Just id) ->
+                if TL.isValidID tl id
                 then NoChange
                 else Deselect
             _ -> Deselect
-        Entering (Filling tlid p) ->
+        Entering (Filling tlid id) ->
           case TL.get m tlid of
             Just tl ->
-              if TL.isValidPointer tl p
+              if TL.isValidID tl id
               then NoChange
               else Deselect
             _ -> Deselect
@@ -289,7 +292,11 @@ updateMod mod (m, cmd) =
         let target =
               case entry of
                 Creating _ -> Nothing
-                Filling tlid p -> Just (tlid, p)
+                Filling tlid id ->
+                  let tl = TL.getTL m tlid
+                      pd = TL.findExn tl id
+                  in
+                  Just (tlid, pd)
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetTarget target ]
@@ -362,19 +369,21 @@ processAutocompleteMods m mods =
 
 -- Figure out from the string and the state whether this '.' means field
 -- access.
-isFieldAccessDot : State -> String -> Bool
-isFieldAccessDot state baseStr =
+isFieldAccessDot : Model -> String -> Bool
+isFieldAccessDot m baseStr =
   -- We know from the fact that this function is called that there has
   -- been a '.' entered. However, it might not be in baseStr, so
   -- canonicalize it first.
   let str = Util.replace "\\.*$" "" baseStr
       intOrString = String.startsWith "\"" str || Runtime.isInt str
   in
-  case state of
+  case m.state of
     Entering (Creating _) -> not intOrString
-    Entering (Filling tlid p) ->
-      (P.typeOf p == Expr
-       || P.typeOf p == Field)
+    Entering (Filling tlid id) ->
+      let tl = TL.getTL m tlid
+          pd = TL.findExn tl id in
+      (P.typeOf pd == Expr
+       || P.typeOf pd == Field)
       && not intOrString
     _ -> False
 
@@ -394,23 +403,15 @@ update_ msg m =
           _ -> NoChange
       else
         case m.state of
-          Selecting tlid p ->
+          Selecting tlid mId ->
             case event.keyCode of
-              Key.Delete ->
-                case p of
-                  Nothing ->
-                    Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
-                  Just i -> Selection.delete m tlid i
-              Key.Backspace ->
-                case p of
-                  Nothing ->
-                    Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
-                  Just i -> Selection.delete m tlid i
+              Key.Delete -> Selection.delete m tlid mId
+              Key.Backspace -> Selection.delete m tlid mId
               Key.Escape ->
-                case p of
+                case mId of
                   -- if we're selecting an expression,
                   -- go 'up' to selecting the toplevel only
-                  Just p ->
+                  Just _ ->
                     Select tlid Nothing
                   -- if we're selecting a toplevel only, deselect.
                   Nothing ->
@@ -424,79 +425,82 @@ update_ msg m =
                       RPC ([ AddDBCol tlid (gid ()) (gid ())]
                           , FocusNext tlid Nothing)
                     TLHandler h ->
-                      case p of
-                        Just p ->
-                          let replacement = AST.addThreadBlank (P.toID p) h.ast in
+                      case mId of
+                        Just id ->
+                          let replacement = AST.addThreadBlank id h.ast in
                           RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
-                              , FocusNext tlid (Just p))
+                              , FocusNext tlid (Just id))
                         Nothing -> NoChange
                 else
-                  case p of
-                    Just i -> Selection.enter m tlid i
-                    Nothing -> Selection.selectDownLevel m tlid p
-              Key.Up -> Selection.selectUpLevel m tlid p
-              Key.Down -> Selection.selectDownLevel m tlid p
+                  case mId of
+                    Just id -> Selection.enter m tlid id
+                    Nothing -> Selection.selectDownLevel m tlid mId
+              Key.Up -> Selection.selectUpLevel m tlid mId
+              Key.Down -> Selection.selectDownLevel m tlid mId
               Key.Right ->
                 if event.altKey
                 then Selection.moveCursorForwardInTime m tlid
-                else Selection.selectNextSibling m tlid p
+                else Selection.selectNextSibling m tlid mId
               Key.Left ->
                 if event.altKey
                 then Selection.moveCursorBackInTime m tlid
-                else Selection.selectPreviousSibling m tlid p
+                else Selection.selectPreviousSibling m tlid mId
               Key.Tab ->
-                case p of
-                  Just pp ->
+                case mId of
+                  Just id ->
                     if event.shiftKey
-                    then Selection.selectPrevBlank m tlid p
-                    else Selection.selectNextBlank m tlid p
+                    then Selection.selectPrevBlank m tlid mId
+                    else Selection.selectNextBlank m tlid mId
                   Nothing ->
                     if event.shiftKey
                     then Selection.selectPrevToplevel m (Just tlid)
                     else Selection.selectNextToplevel m (Just tlid)
               Key.O ->
                 if event.ctrlKey
-                then Selection.selectUpLevel m tlid p
+                then Selection.selectUpLevel m tlid mId
                 else NoChange
               Key.I ->
                 if event.ctrlKey
-                then Selection.selectDownLevel m tlid p
+                then Selection.selectDownLevel m tlid mId
                 else NoChange
               Key.N ->
                 if event.ctrlKey
-                then Selection.selectNextSibling m tlid p
+                then Selection.selectNextSibling m tlid mId
                 else NoChange
               Key.P ->
                 if event.ctrlKey
-                then Selection.selectPreviousSibling m tlid p
+                then Selection.selectPreviousSibling m tlid mId
                 else NoChange
               Key.C ->
                 if event.ctrlKey
                 then
                   let tl = TL.getTL m tlid
+                      mPd = Maybe.map (TL.findExn tl) mId
                   in
-                      Clipboard.copy m tl p
+                  Clipboard.copy m tl mPd
                 else NoChange
               Key.V ->
                 if event.ctrlKey
                 then
                   let tl = TL.getTL m tlid in
-                  case p of
+                  case mId of
                     Nothing ->
                       case TL.rootOf tl of
-                        Just i -> Clipboard.paste m tl i
+                        Just pd -> Clipboard.paste m tl (P.toID pd)
                         Nothing -> NoChange
-                    Just i ->
-                      Clipboard.paste m tl i
+                    Just id ->
+                      Clipboard.paste m tl id
                 else NoChange
               Key.X ->
                 if event.ctrlKey
                 then
-                  case p of
+                  case mId of
                     Nothing -> NoChange
-                    Just i ->
-                      let tl = TL.getTL m tlid in
-                      Clipboard.cut m tl i
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Clipboard.cut m tl pd
                 else NoChange
               _ -> NoChange
 
@@ -573,7 +577,7 @@ update_ msg m =
 
                 Key.Unknown c ->
                   if event.key == Just "."
-                  && isFieldAccessDot m.state m.complete.value
+                  && isFieldAccessDot m m.complete.value
                   then
                     let name = AC.getValue m.complete
                     in Entry.submit m cursor Entry.ContinueThread (name ++ ".")
@@ -661,7 +665,7 @@ update_ msg m =
       -- and it will reset the order, losing our spot. The '.' will be
       -- processed by
       if String.endsWith "." query
-      && isFieldAccessDot m.state query
+      && isFieldAccessDot m query
       then
         NoChange
       else
