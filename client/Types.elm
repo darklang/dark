@@ -181,6 +181,7 @@ type RPC
     | Savepoint
     | Undo
     | Redo
+    | SetFunction UserFunction
 
 -----------------------------
 -- Autocompletes
