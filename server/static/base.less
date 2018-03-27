@@ -641,6 +641,17 @@ body #grid * {
   position: relative;
 }
 
+.computed-value {
+  color: green;
+  left: -17px;
+  outline: 0.4px green dotted;
+  position: absolute;
+  .default;
+  &.hidden {
+    display: none;
+  }
+}
+
 .feature-flag {
   position: absolute;
   right: -16px;
@@ -673,4 +684,3 @@ body #grid * {
 
   }
 }
-
