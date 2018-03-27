@@ -285,7 +285,9 @@ test('right_number_of_blanks', async t => {
     .pressKey("enter")
 });
 
-test('hello_world', async t => {
+// This is how Ellen demos, and should be kept in sync with that if she
+// changes.
+test('ellen_hello_world_demo', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
