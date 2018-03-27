@@ -96,8 +96,8 @@ div vs configs content =
                 |> List.filterMap (\a -> case a of
                                            WithClass c -> Just c
                                            _ -> Nothing)
+      showComputedValue = List.member WithFF configs -- TODO: calculate this more cleverly
       showFeatureFlag = List.member WithFF configs
-
 
 
       -- Start using the config
@@ -111,11 +111,11 @@ div vs configs content =
                                 else Ok v)
           _ -> Nothing
 
-      (valClasses, title) =
+      (valClasses, computedValue, title) =
         case hoverdata of
-          Nothing -> ([], [])
-          Just (Ok msg) -> ([], [Attrs.title msg])
-          Just (Err err) -> (["value-error"], [Attrs.title err])
+          Nothing -> ([], Nothing, [])
+          Just (Ok msg) -> ([], Just msg, [Attrs.title msg])
+          Just (Err err) -> (["value-error"], Just err, [Attrs.title err])
 
       selected = thisID == selectedID
                  && ME.isJust thisID
@@ -145,8 +145,11 @@ div vs configs content =
       featureFlag = if showFeatureFlag
                     then [viewFeatureFlag]
                     else []
+      computedValueElement = if showComputedValue
+                      then [renderComputedValue computedValue]
+                      else []
   in
-    Html.div attrs (content ++ featureFlag)
+    Html.div attrs (content ++ featureFlag ++ computedValueElement)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
@@ -256,10 +259,17 @@ viewBlankOr htmlFn pt vs c bo =
     _ -> thisText
 
 
+renderComputedValue : Maybe String -> Html.Html Msg
+renderComputedValue maybeString =
+  case maybeString of
+    Just value -> Html.div [ Attrs.class "computed-value" ] [ Html.text value ]
+    Nothing -> Html.div [ Attrs.class "computed-value hidden" ] []
+
 
 viewFeatureFlag : Html.Html Msg
 viewFeatureFlag =
   Html.div
     [ Attrs.class "feature-flag"
-    , Events.onMouseDown StartFeatureFlag]
+    , Events.onMouseDown StartFeatureFlag
+    ]
     [ fontAwesome "flag"]
