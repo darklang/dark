@@ -185,9 +185,11 @@ siblings tl p =
     TLHandler h ->
       let toplevels =
             SpecHeaders.allData h.spec
-            ++ [ PDarkType h.spec.types.input
-               , PExpr h.ast
-               , PDarkType h.spec.types.output] in
+            -- types are disabled for now
+            ++ [ --PDarkType h.spec.types.input
+                PExpr h.ast
+               --, PDarkType h.spec.types.output
+               ] in
 
       if List.member p toplevels
       then toplevels

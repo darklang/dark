@@ -32,6 +32,7 @@ trigger test_name =
     "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
     "deleting_selects_the_blank" -> deleting_selects_the_blank
     "right_number_of_blanks" -> right_number_of_blanks
+    "hello_world" -> hello_world
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -226,3 +227,21 @@ right_number_of_blanks m =
   case onlyAST m of
     FnCall "assoc" [Blank _, Blank _, Blank _] -> pass
     e -> fail e
+
+hello_world : Model -> TestResult
+hello_world m =
+  let spec = m.toplevels
+             |> List.head
+             |> deMaybe "hw1"
+             |> TL.asHandler
+             |> deMaybe "hw2"
+             |> .spec in
+    case (spec.module_, spec.name, spec.modifier, onlyAST m) of
+      ( F _ "HTTP"
+      , F _ "/hello"
+      , F _ "GET"
+      , Value "\"Hello world!\"") ->
+        pass
+      other -> fail other
+
+
