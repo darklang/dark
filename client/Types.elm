@@ -427,7 +427,8 @@ type alias Function = { name: String
                       , infix: Bool
                       }
 
-type alias UserFunction = { metadata: Function
+type alias UserFunction = { tlid: TLID
+                          , metadata: Function
                           , ast: Expr
                           }
 
