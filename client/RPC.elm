@@ -148,6 +148,62 @@ encodeRPC m call =
       Redo -> ev "Redo" []
       DeleteTL id -> ev "DeleteTL" [encodeTLID id]
       MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
+      SetFunction uf -> ev "SetFunction" [encodeUserFunction uf]
+
+encodeUserFunction : UserFunction -> JSE.Value
+encodeUserFunction uf =
+  JSE.object
+  [("tlid", encodeTLID uf.tlid)
+  ,("metadata", encodeFunction uf.metadata)
+  ,("ast", encodeExpr uf.ast)
+  ]
+
+encodeFunction : Function -> JSE.Value
+encodeFunction f =
+  JSE.object
+  [("name", JSE.string f.name)
+  ,("parameters", JSE.list (List.map encodeParameter f.parameters))
+  ,("description", JSE.string f.description)
+  ,("returnTipe", encodeTipe f.returnTipe)
+  ,("infix", JSE.bool f.infix)
+  ]
+
+encodeTipe : Tipe -> JSE.Value
+encodeTipe t =
+  let ev = encodeVariant
+  in
+      case t of
+        TInt -> ev "TInt" []
+        TStr -> ev "TStr" []
+        TChar -> ev "TChar" []
+        TBool -> ev "TBool" []
+        TFloat -> ev "TFloat" []
+        TObj -> ev "TObj" []
+        TList -> ev "TList" []
+        TAny -> ev "TAny" []
+        TNull -> ev "TNull" []
+        TBlock -> ev "TBlock" []
+        TIncomplete -> ev "TIncomplete" []
+        TError -> ev "TError" []
+        TResp -> ev "TResp" []
+        TDB -> ev "TDB" []
+        TID -> ev "TID" []
+        TDate -> ev "TDate" []
+        TTitle -> ev "TTitle" []
+        TUrl -> ev "TUrl" []
+        TBelongsTo s -> ev "TBelongsTo" [JSE.string s]
+        THasMany s -> ev "THasMany" [JSE.string s]
+
+encodeParameter : Parameter -> JSE.Value
+encodeParameter p =
+  JSE.object
+  [("name", JSE.string p.name)
+  ,("tipe", encodeTipe p.tipe)
+  ,("block_args", JSE.list (List.map JSE.string p.block_args))
+  ,("optional", JSE.bool p.optional)
+  ,("description", JSE.string p.description)
+  ]
+
 
 encodeExpr : Expr -> JSE.Value
 encodeExpr expr =
