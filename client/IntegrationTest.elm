@@ -32,7 +32,7 @@ trigger test_name =
     "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
     "deleting_selects_the_blank" -> deleting_selects_the_blank
     "right_number_of_blanks" -> right_number_of_blanks
-    "hello_world" -> hello_world
+    "ellen_hello_world_demo" -> ellen_hello_world_demo
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -228,8 +228,8 @@ right_number_of_blanks m =
     FnCall "assoc" [Blank _, Blank _, Blank _] -> pass
     e -> fail e
 
-hello_world : Model -> TestResult
-hello_world m =
+ellen_hello_world_demo : Model -> TestResult
+ellen_hello_world_demo m =
   let spec = m.toplevels
              |> List.head
              |> deMaybe "hw1"
