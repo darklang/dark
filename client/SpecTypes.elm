@@ -9,11 +9,11 @@ import Pointer as P
 import Types exposing (..)
 import Blank as B
 
-delete : Pointer -> HandlerSpec -> ID -> HandlerSpec
-delete p spec newID =
-  replace p (P.emptyD_ newID (P.typeOf p)) spec
+delete : PointerData -> HandlerSpec -> ID -> HandlerSpec
+delete pd spec newID =
+  replace pd (P.emptyD_ newID (P.toType pd)) spec
 
-replace : Pointer -> PointerData -> HandlerSpec -> HandlerSpec
+replace : PointerData -> PointerData -> HandlerSpec -> HandlerSpec
 replace p dt spec =
   { spec | types =
     { input = replaceInType p dt spec.types.input
@@ -21,9 +21,9 @@ replace p dt spec =
     }
   }
 
-replaceInType : Pointer -> PointerData -> DarkType -> DarkType
-replaceInType p replacement dt =
-  if B.toID dt == (P.toID p)
+replaceInType : PointerData -> PointerData -> DarkType -> DarkType
+replaceInType pd replacement dt =
+  if B.toID dt == P.dToID pd
   then
     case replacement of
       PDarkType t -> t
@@ -36,22 +36,17 @@ replaceInType p replacement dt =
               |> List.map (\(n, t) ->
                    let newN = case replacement of
                                 PDarkTypeField name ->
-                                  if P.toID p == B.toID n
+                                  if P.dToID pd == B.toID n
                                   then name
                                   else n
                                 _ -> n
                        newT = case replacement of
                                 PDarkType tipe ->
-                                  replaceInType p replacement t
+                                  replaceInType pd replacement t
                                 _ -> t
                    in (newN, newT))
         in F id (DTObj newTs)
       _ -> dt
-
-allPointers : DarkType -> List Pointer
-allPointers t =
-  allData t
-  |> List.map P.pdToP
 
 allData : DarkType -> List PointerData
 allData t =
@@ -67,7 +62,7 @@ allData t =
 
 
 -- recurse until we find ID, then return the children
-childrenOf : ID -> DarkType -> List Pointer
+childrenOf : ID -> DarkType -> List PointerData
 childrenOf id t =
   if B.toID t == id
   then
@@ -75,8 +70,8 @@ childrenOf id t =
       F _ (DTObj ts) ->
         ts
         |> List.map (\(n, dt) ->
-                       [ B.toP DarkTypeField n
-                       , B.toP DarkType dt])
+                       [ PDarkTypeField n
+                       , PDarkType dt])
         |> List.concat
       _ -> []
   else
@@ -90,14 +85,14 @@ childrenOf id t =
 
 
 -- recurse until we find ID, then return the children
-siblings : Pointer -> DarkType -> List Pointer
+siblings : PointerData -> DarkType -> List PointerData
 siblings p t =
   case t of
     F _ (DTObj ts) ->
       let result = ts
                    |> List.map (\(n, dt) ->
-                                  [ B.toP DarkTypeField n
-                                  , B.toP DarkType dt])
+                                  [ PDarkTypeField n
+                                  , PDarkType dt])
                    |> List.concat in
       if List.member p result
       then result
