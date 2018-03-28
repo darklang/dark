@@ -109,7 +109,7 @@ tlidOf s =
         Filling tlid _ ->
           Just tlid
     Deselected -> Nothing
-    _ -> Debug.crash "can't have dragging"
+    Dragging _ _ _ _ -> Nothing
 
 
 
@@ -125,13 +125,12 @@ type alias GetAnalysisRPCResult = (List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
-    | ToplevelClickDown Toplevel MouseEvent
-    -- we have the actual node when ToplevelClickUp is created,
+    | ToplevelMouseDown TLID MouseEvent
+    -- we have the actual node when ToplevelMouseUp is created,
     -- but by the time we use it the proper node will be changed
-    | ToplevelClickUp TLID (Maybe ID) MouseEvent
+    | ToplevelMouseUp TLID MouseEvent
+    | ToplevelClick TLID MouseEvent
     | DragToplevel TLID Mouse.Position
-    | MouseEnter ID MouseEvent
-    | MouseLeave ID MouseEvent
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
@@ -155,6 +154,10 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
+    | BlankOrClick TLID ID MouseEvent
+    | BlankOrDoubleClick TLID ID MouseEvent
+    | BlankOrMouseEnter TLID ID MouseEvent
+    | BlankOrMouseLeave TLID ID MouseEvent
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -446,4 +449,3 @@ type alias FlagFunction = { name: String
                           , return_type: String
                           , infix: Bool
                           }
-

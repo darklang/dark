@@ -52,8 +52,9 @@ viewTL m tl =
           TLDB db ->
             viewDB (createVS m tl) db
       events =
-        [ eventNoPropagation "mousedown" (ToplevelClickDown tl)
-        , eventNoPropagation "mouseup" (ToplevelClickUp tl.id Nothing)
+        [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)
+        , eventNoPropagation "mouseup" (ToplevelMouseUp tl.id)
+        , eventNoPropagation "click" (ToplevelClick tl.id)
         ]
 
       selected = if Just tl.id == tlidOf m.state
@@ -130,6 +131,3 @@ viewHandler vs h =
           , viewText EventSpace vs [wc "module"] h.spec.module_
           , viewText EventModifier vs [wc "modifier"] h.spec.modifier]
   in [header, ast]
-
-
-

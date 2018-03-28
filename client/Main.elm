@@ -685,14 +685,7 @@ update_ msg m =
     -- tricky. We use stopPropagating a lot of ensure the interactions
     -- work, but also combine multiple interactions into single
     -- handlers to make it easier to choose between the desired
-    -- interactions (esp ToplevelClickUp)
-
-    GlobalClick event ->
-      if event.button == Defaults.leftButton
-      then Many [ AutocompleteMod ACReset
-                , Enter (Creating (Viewport.toAbsolute m event.pos))]
-      else NoChange
-
+    -- interactions (esp ToplevelMouseUp)
 
     AutocompleteClick value ->
       case unwrapState m.state of
@@ -701,50 +694,111 @@ update_ msg m =
         _ -> NoChange
 
 
+    GlobalClick event ->
+      if event.button == Defaults.leftButton
+      then Many [ AutocompleteMod ACReset
+                , Enter (Creating (Viewport.toAbsolute m event.pos))]
+      else NoChange
+
+
+    BlankOrMouseEnter _ id _ ->
+      SetHover id
+
+
+    BlankOrMouseLeave _ id _ ->
+      ClearHover id
+
+
     ------------------------
     -- dragging
     ------------------------
-    ToplevelClickDown tl event ->
-      if event.button == Defaults.leftButton
-      then Drag tl.id event.pos False m.state
-      else NoChange
-
-    DragToplevel id mousePos ->
+    DragToplevel _ mousePos ->
       case m.state of
-        Dragging tlid startVPos _ origState ->
+        Dragging draggingTLID startVPos _ origState ->
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
-              m2 = TL.move tlid xDiff yDiff m in
+              m2 = TL.move draggingTLID xDiff yDiff m in
           Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions
-               , Drag tlid {vx=mousePos.x, vy=mousePos.y} True origState ]
+               , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origState
+               ]
         _ -> NoChange
 
-    ToplevelClickUp tlid mPointer event ->
+
+    ToplevelMouseDown targetTLID event ->
+      if event.button == Defaults.leftButton
+      then Drag targetTLID event.pos False m.state
+      else NoChange
+
+
+    ToplevelMouseUp targetTLID event ->
       if event.button == Defaults.leftButton
       then
         case m.state of
-          Dragging tlid startVPos hasMoved origState ->
-            let xDiff = event.pos.vx-startVPos.vx
-                yDiff = event.pos.vy-startVPos.vy
-                m2 = TL.move tlid xDiff yDiff m
-                tl = TL.getTL m2 tlid
-            in
+          Dragging draggingTLID startVPos hasMoved origState ->
             if hasMoved
-            then Many
-                  [ SetState origState
-                  , RPC ([MoveTL tl.id tl.pos], FocusSame)]
-            -- this is where we select toplevels
-            else Select tlid mPointer
+            then
+              let tl = TL.getTL m draggingTLID in
+              -- We've been updating tl.pos as mouse moves,
+              -- now want to report last pos to server
+              -- NB: do *not* stop dragging here because we're using
+              --     the dragging state in `ToplevelClick` coming up next
+              RPC ([MoveTL draggingTLID tl.pos], FocusNoChange)
+            else
+              SetState origState
           _ ->
-            -- if we stopPropagative the TopleveClickDown
             NoChange
       else NoChange
 
-    MouseEnter id _ ->
-      SetHover id
+    ------------------------
+    -- clicking
+    ------------------------
+    BlankOrClick targetTLID targetID _ ->
+      case m.state of
+        Deselected ->
+          Select targetTLID (Just targetID)
+        Dragging _ _ _ _ ->
+          Util.impossible "dragging should've concluded before here" NoChange
+        Entering cursor ->
+          case cursor of
+            Filling _ fillingID ->
+              if fillingID == targetID
+              then
+                NoChange
+              else
+                Select targetTLID (Just targetID)
+            _ ->
+              Select targetTLID (Just targetID)
+        Selecting _ maybeSelectingID ->
+          case maybeSelectingID of
+            Just selectingID ->
+              if selectingID == targetID
+              then
+                NoChange
+              else
+                Select targetTLID (Just targetID)
+            Nothing ->
+              Select targetTLID (Just targetID)
 
-    MouseLeave id _ ->
-      ClearHover id
+
+    BlankOrDoubleClick targetTLID targetID _ ->
+      Selection.enter m targetTLID targetID
+
+
+    ToplevelClick targetTLID _ ->
+      case m.state of
+        Dragging _ _ _ origState ->
+          SetState origState
+        Selecting selectingTLID _ ->
+          if targetTLID == selectingTLID
+          then
+            Deselect
+          else
+            Select targetTLID Nothing
+        Deselected ->
+          Select targetTLID Nothing
+        _ ->
+          NoChange
+
 
     -----------------
     -- Buttons
@@ -896,5 +950,3 @@ subscriptions m =
         , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
   in Sub.batch
     (List.concat [keySubs, dragSubs, resizes, timers, visibility, onError])
-
-
