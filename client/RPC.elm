@@ -164,7 +164,7 @@ encodeFunction f =
   [("name", JSE.string f.name)
   ,("parameters", JSE.list (List.map encodeParameter f.parameters))
   ,("description", JSE.string f.description)
-  ,("returnTipe", encodeTipe f.returnTipe)
+  ,("return_type", encodeTipe f.returnTipe)
   ,("infix", JSE.bool f.infix)
   ]
 
@@ -489,7 +489,7 @@ decodeFunction =
       |> JSDP.required "name" JSD.string
       |> JSDP.required "parameters" (JSD.list decodeParameter)
       |> JSDP.required "description" JSD.string
-      |> JSDP.required "returnTipe" decodeTipe
+      |> JSDP.required "return_type" decodeTipe
       |> JSDP.required "infix" JSD.bool
 
 decodeUserFunction : JSD.Decoder UserFunction

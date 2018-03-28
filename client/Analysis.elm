@@ -57,6 +57,12 @@ getLiveValue m tlid (ID id) =
   |> getLiveValuesDict m
   |> Dict.get id
 
+getTipeOf : Model -> TLID -> ID -> Maybe Tipe
+getTipeOf m tlid id =
+  case getLiveValue m tlid id of
+    Nothing -> Nothing
+    Just lv -> Just lv.tipe
+
 getAvailableVarnamesDict : Model -> TLID -> AVDict
 getAvailableVarnamesDict m tlid =
   getAnalysisResults m tlid
