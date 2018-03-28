@@ -193,6 +193,7 @@ viewBlankOr htmlFn pt vs c bo =
           DBColType -> "db type"
           DarkType -> "type"
           DarkTypeField -> "fieldname"
+          FFMsg -> "Flag name"
 
       selected = case vs.state of
                    Selecting _ (Just sId) -> sId == id
@@ -232,7 +233,7 @@ viewBlankOr htmlFn pt vs c bo =
                      then
                        div vs
                          [wc "flagged shown", WithID fid]
-                         [ text vs [wc "flag-message"] msg
+                         [ viewText FFMsg vs [wc "flag-message"] msg
                          , text vs [wc "flag-setting"] (toString setting)
                          , thisTextFn [] (B.flattenFF bo)
                          , Html.div [Attrs.class "flag-left"]
