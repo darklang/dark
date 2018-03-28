@@ -29,21 +29,21 @@ extractFunction m tl p =
         Nothing -> NoChange
         Just (PExpr body) ->
           let pred = TL.getPrevBlank tl (Just p)
-                   |> Maybe.map P.toID
+                     |> Maybe.map P.toID
               name = generateFnName ()
               vars = AST.allData body
-                       |> List.filterMap
-                          (\n ->
-                            case n of
-                              PExpr boe ->
-                                case Blank.flattenFF boe of
-                                  Blank _ -> Nothing
-                                  Flagged _ _ _ _ _ -> Nothing
-                                  F id e ->
-                                    case e of
-                                      Variable name -> Just (id, name)
-                                      _ -> Nothing
-                              _ -> Nothing)
+                     |> List.filterMap
+                        (\n ->
+                          case n of
+                            PExpr boe ->
+                              case Blank.flattenFF boe of
+                                Blank _ -> Nothing
+                                Flagged _ _ _ _ _ -> Nothing
+                                F id e ->
+                                  case e of
+                                    Variable name -> Just (id, name)
+                                    _ -> Nothing
+                            _ -> Nothing)
               paramExprs =
                 List.map (\_ -> Blank.new ()) vars
               replacement =
@@ -55,8 +55,8 @@ extractFunction m tl p =
                 List.map
                 (\(id, name) ->
                   let tipe = Analysis.getTipeOf m tl.id id
-                           |> Maybe.withDefault TAny
-                           |> convertTipe
+                             |> Maybe.withDefault TAny
+                             |> convertTipe
                   in
                       { name = name
                       , tipe = tipe
@@ -78,6 +78,6 @@ extractFunction m tl p =
                 , ast = AST.clone body
                 }
           in
-              RPC ( [ SetFunction newF, SetHandler tl.id tl.pos newH ]
-              , FocusNext tl.id pred)
+              RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
+                  , FocusNext tl.id pred)
         _ -> NoChange
