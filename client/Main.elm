@@ -756,8 +756,8 @@ update_ msg m =
       case m.state of
         Deselected ->
           Select targetTLID (Just targetID)
-        Dragging _ _ _ _ ->
-          Util.impossible "dragging should've concluded before here" NoChange
+        Dragging _ _ _ origState ->
+          SetState origState
         Entering cursor ->
           case cursor of
             Filling _ fillingID ->
