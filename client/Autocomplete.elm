@@ -122,7 +122,7 @@ init functions = { functions = functions
 reset : Model -> Autocomplete -> Autocomplete
 reset m a =
   let userFunctionMetadata = List.map .metadata m.userFunctions in
-  init (a.functions ++ userFunctionMetadata) |> regenerate m
+  init ((a.functions ++ userFunctionMetadata) |> LE.uniqueBy (\f -> f.name)) |> regenerate m
 
 numCompletions : Autocomplete -> Int
 numCompletions a =
