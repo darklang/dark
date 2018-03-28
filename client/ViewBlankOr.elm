@@ -6,7 +6,6 @@ import Dict
 -- lib
 import Html
 import Html.Attributes as Attrs
-import Html.Events as Events
 import List.Extra as LE
 import Maybe.Extra as ME
 
@@ -21,6 +20,7 @@ import Runtime
 import Toplevel
 import ViewEntry
 import ViewUtils exposing (..)
+import Util
 
 
 
@@ -300,5 +300,5 @@ viewFeatureFlag : Html.Html Msg
 viewFeatureFlag =
   Html.div
     [ Attrs.class "feature-flag"
-    , Events.onMouseDown StartFeatureFlag]
+    , eventNoPropagation "click" (\_ -> StartFeatureFlag)]
     [ fontAwesome "flag"]
