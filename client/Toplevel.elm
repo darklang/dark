@@ -84,7 +84,7 @@ isHTTPHandler tl =
     Just h ->
       case h.spec.module_ of
         Blank _ -> True
-        Flagged _ _ _ _ as ff ->
+        Flagged _ _ _ _ _ as ff ->
           case B.flattenFF ff of
             F _ s -> String.toLower s == "http"
             _ -> False

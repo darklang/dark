@@ -7,8 +7,9 @@ type id = int [@@deriving eq, show, yojson, sexp, bin_io]
 
 type 'a or_blank = Blank of id
                  | Filled of id * 'a
-                 | Flagged of string * int * ('a or_blank) * ('a or_blank)
+                 | Flagged of id * string * int * ('a or_blank) * ('a or_blank)
                  [@@deriving eq, show, yojson, sexp, bin_io]
+
 
 type tipe_ =
   | TAny (* extra type meaning anything *)
@@ -54,7 +55,7 @@ module SpecTypes = struct
                    | Obj of (string or_blank * dark_type ) list
                    [@@deriving eq, show, yojson, sexp, bin_io]
   and dark_type = n_dark_type or_blank
-                [@@deriving eq, show, yojson, sexp, bin_io]
+                  [@@deriving eq, show, yojson, sexp, bin_io]
 end
 
 module RuntimeT = struct

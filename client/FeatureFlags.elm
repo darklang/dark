@@ -10,8 +10,8 @@ import Util exposing (deMaybe)
 toFlagged : BlankOr a -> BlankOr a
 toFlagged bo =
   case bo of
-    Flagged _ _ _ _ -> Debug.crash "cant convert flagged to flagged"
-    _ -> Flagged "" 0 bo (B.new ())
+    Flagged _ _ _ _ _ -> Debug.crash "cant convert flagged to flagged"
+    _ -> Flagged (gid()) (B.new ()) 0 bo (B.new ())
 
 
 start : Model -> Modification
