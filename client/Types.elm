@@ -262,6 +262,7 @@ type PointerData = PVarBind VarBind
                  | PDBColType (BlankOr String)
                  | PDarkType DarkType
                  | PDarkTypeField (BlankOr String)
+                 | PFFMsg (BlankOr String)
 
 type PointerType = VarBind
                  | EventName
@@ -273,6 +274,7 @@ type PointerType = VarBind
                  | DBColType
                  | DarkType
                  | DarkTypeField
+                 | FFMsg
 
 type BlankOr a = Blank ID
                | F ID a

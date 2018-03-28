@@ -118,6 +118,7 @@ clonePointerData pd =
     PDBColType ct -> pd
     PDarkType dt -> Debug.crash "TODO clonePointerDatadata"
     PDarkTypeField dt -> Debug.crash "TODO clonePointerDatadata"
+    PFFMsg msg -> PFFMsg (B.clone identity msg)
 
 -------------------------
 -- Blanks
@@ -229,17 +230,27 @@ getParentOf tl p =
     _ -> Nothing
 
 getChildrenOf : Toplevel -> PointerData -> List PointerData
-getChildrenOf tl p =
-  case P.ownerOf p of
-    POSpecHeader -> []
-    POAst ->
-      let h = asHandler tl |> deMaybe "getChildrenOf" in
-      AST.childrenOf (P.toID p) h.ast
-    PODb -> []
-    POSpecType ->
-      let h = asHandler tl |> deMaybe "getChildrenOf" in
-      SpecTypes.childrenOf (P.toID p) h.spec.types.input
-      ++ SpecTypes.childrenOf (P.toID p) h.spec.types.output
+getChildrenOf tl pd =
+  let astChildren () =
+        let h = asHandler tl |> deMaybe "getChildrenOf - ast" in
+        AST.childrenOf (P.toID pd) h.ast
+      specChildren () =
+        let h = asHandler tl |> deMaybe "getChildrenOf - spec" in
+        SpecTypes.childrenOf (P.toID pd) h.spec.types.input
+        ++ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
+  in
+  case pd of
+    PVarBind _ -> []
+    PField d -> []
+    PExpr _ -> astChildren ()
+    PEventModifier d -> []
+    PEventName d -> []
+    PEventSpace d -> []
+    PDBColName d -> []
+    PDBColType d -> []
+    PDarkType _ -> specChildren ()
+    PDarkTypeField d -> []
+    PFFMsg _ -> []
 
 
 firstChild : Toplevel -> PointerData -> Maybe PointerData
@@ -290,6 +301,13 @@ replace tl p pd =
     PDBColName name ->
       tl
       -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
+    PFFMsg bo ->
+      let h = ha ()
+          -- replace everywhere
+          spec = SpecTypes.replace p pd h.spec
+          spec2 = SpecHeaders.replace id bo spec
+          ast = AST.replace p pd h.ast
+      in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
 
 delete : Toplevel -> PointerData -> ID -> Toplevel
 delete tl p newID =

@@ -61,3 +61,14 @@ flattenFF bo =
       else a
     _ -> bo
 
+replace : ID -> BlankOr a -> BlankOr a -> BlankOr a
+replace id bo replacement =
+  if toID bo == id
+  then replacement
+  else
+    case bo of
+      Flagged thisId msg setting l r ->
+        Flagged thisId msg setting
+          (replace id l replacement)
+          (replace id r replacement)
+      _ -> bo
