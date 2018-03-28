@@ -23,6 +23,7 @@ emptyD_ id pt =
     DBColType -> PDBColType (Blank id)
     DarkType -> PDarkType (Blank id)
     DarkTypeField -> PDarkTypeField (Blank id)
+    FFMsg -> PFFMsg (Blank id)
 
 typeOf : PointerData -> PointerType
 typeOf pd =
@@ -37,6 +38,7 @@ typeOf pd =
     PDBColType _ -> DBColType
     PDarkType _ -> DarkType
     PDarkTypeField _ -> DarkTypeField
+    PFFMsg _ -> FFMsg
 
 
 emptyD : PointerType -> PointerData
@@ -56,6 +58,7 @@ toID pd =
     PDBColType d -> B.toID d
     PDarkType d -> B.toID d
     PDarkTypeField d -> B.toID d
+    PFFMsg d -> B.toID d
 
 
 isBlank : PointerData -> Bool
@@ -71,6 +74,8 @@ isBlank pd =
     PDBColType d -> B.isBlank d
     PDarkType d -> B.isBlank d
     PDarkTypeField d -> B.isBlank d
+    PFFMsg d -> B.isBlank d
+
 
 
 
@@ -92,6 +97,7 @@ toContent pd =
     PDBColType d -> bs2s d
     PDarkType _ -> ""
     PDarkTypeField d -> bs2s d
+    PFFMsg d -> bs2s d
 
 dtmap : (DarkType -> DarkType) -> PointerData -> PointerData
 dtmap fn pd =
@@ -118,6 +124,8 @@ strmap fn pd =
     PDBColType d -> PDBColType (fn DBColType d)
     PDarkType _ -> pd
     PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
+    PFFMsg d -> PFFMsg (fn FFMsg d)
+
 
 
 

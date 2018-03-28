@@ -327,4 +327,11 @@ submit m cursor action value =
               newPD = PDarkTypeField (B.newF value)
               replacement = SpecTypes.replace pd newPD h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
+        PFFMsg _ ->
+          let newPD = PFFMsg (B.newF value)
+              newTL = TL.replace tl pd newPD
+          in
+          wrap <| SetHandler tlid tl.pos (TL.asHandler tl |> deMaybe "must be handler")
+
+
 
