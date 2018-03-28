@@ -9,15 +9,12 @@ import Toplevel as TL
 import Types exposing (..)
 import Pointer as P
 
-varnamesFor : Model -> Maybe (TLID, Pointer) -> List VarName
+varnamesFor : Model -> Maybe (TLID, PointerData) -> List VarName
 varnamesFor m target =
   case target of
     Nothing -> m.globals
-    Just (tlid, p) ->
-      getAvailableVarnames
-        m
-        tlid
-        (P.toID p)
+    Just (tlid, pd) ->
+      getAvailableVarnames m tlid (P.toID pd)
 
 
 getAnalysisResults : Model -> TLID -> List AResult

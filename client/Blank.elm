@@ -44,13 +44,6 @@ isBlank b =
     F _ _ -> False
     Flagged _ _ _ _ -> b |> flattenFF |> isBlank
 
-toP : PointerType -> BlankOr a -> Pointer
-toP t b =
-  case b of
-    Blank id -> PBlank t id
-    F id _ -> PFilled t id
-    Flagged _ _ _ _ -> b |> flattenFF |> toP t
-
 asF : BlankOr a -> Maybe a
 asF b =
   case b of

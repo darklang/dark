@@ -10,9 +10,6 @@ import Maybe.Extra as ME
 -- dark
 import Types exposing (..)
 import Toplevel as TL
-import SpecTypes
-import SpecHeaders
-import AST
 import Analysis
 import Pointer as P
 import Util exposing (deMaybe)
@@ -38,9 +35,9 @@ selectNextToplevel m cur =
         cur
         |> Maybe.andThen (\cur -> Util.listNextWrap cur tls)
   in
-      case next of
-        Just nextId -> Select nextId Nothing
-        Nothing -> Deselect
+  case next of
+    Just nextId -> Select nextId Nothing
+    Nothing -> Deselect
 
 selectPrevToplevel : Model -> (Maybe TLID) -> Modification
 selectPrevToplevel m cur =
@@ -49,137 +46,133 @@ selectPrevToplevel m cur =
         cur
         |> Maybe.andThen (\cur -> Util.listPreviousWrap cur tls)
   in
-      case next of
-        Just nextId -> Select nextId Nothing
-        Nothing -> Deselect
+  case next of
+    Just nextId -> Select nextId Nothing
+    Nothing -> Deselect
 
 
 
-selectUpLevel : Model -> TLID -> (Maybe Pointer) -> Modification
+selectUpLevel : Model -> TLID -> (Maybe ID) -> Modification
 selectUpLevel m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
   |> Maybe.andThen (TL.getParentOf tl)
+  |> Maybe.map P.toID
   |> Select tlid
 
-selectDownLevel : Model -> TLID -> (Maybe Pointer) -> Modification
+selectDownLevel : Model -> TLID -> (Maybe ID) -> Modification
 selectDownLevel m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
   |> ME.orElse (TL.rootOf tl)
   |> Maybe.andThen (TL.firstChild tl)
-  |> ME.orElse cur
+  |> ME.orElse pd
+  |> Maybe.map P.toID
   |> Select tlid
 
-selectNextSibling : Model -> TLID -> (Maybe Pointer) -> Modification
+selectNextSibling : Model -> TLID -> (Maybe ID) -> Modification
 selectNextSibling m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> Maybe.map (TL.getNextSibling tl)
-  |> ME.orElse cur
-  |> Select tlid
-
-selectPreviousSibling : Model -> TLID -> (Maybe Pointer) -> Modification
-selectPreviousSibling m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> Maybe.map (TL.getPrevSibling tl)
-  |> ME.orElse cur
-  |> Select tlid
-
-selectNextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
-selectNextBlank m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> TL.getNextBlank tl
-  |> Select tlid
-
-enterNextBlank : Model -> TLID -> (Maybe Pointer) -> Modification
-enterNextBlank m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> TL.getNextBlank tl
-  |> Maybe.map (\p -> Enter (Filling tlid p))
-  |> Maybe.withDefault NoChange
-
-selectPrevBlank : Model -> TLID -> (Maybe Pointer) -> Modification
-selectPrevBlank m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> TL.getPrevBlank tl
-  |> Select tlid
-
-enterPrevBlank : Model -> TLID -> (Maybe Pointer) -> Modification
-enterPrevBlank m tlid cur =
-  let tl = TL.getTL m tlid in
-  cur
-  |> TL.getPrevBlank tl
-  |> Maybe.map (\p -> Enter (Filling tlid p))
-  |> Maybe.withDefault NoChange
-
-
-
-delete : Model -> TLID -> Pointer -> Modification
-delete m tlid cur =
   let tl = TL.getTL m tlid
-      newID = gid ()
-      newP = PBlank (P.typeOf cur) newID
-      wrapH newH = RPC ([SetHandler tlid tl.pos newH], FocusExact tlid newP)
-      wrapDB op = RPC ([op], FocusExact tlid cur)
-      maybeH = \_ -> TL.asHandler tl |> deMaybe "delete maybe"
-      id = P.toID cur
+      pd = Maybe.map (TL.findExn tl) cur
   in
-  case P.typeOf cur of
-    DBColType ->
-      wrapDB <| SetDBColType tlid id ""
-    DBColName ->
-      wrapDB <| SetDBColName tlid id ""
-    VarBind ->
-      let h = maybeH ()
-          replacement = AST.deleteExpr cur h.ast newID
-      in wrapH { h | ast = replacement }
-    EventModifier ->
-      let h = maybeH ()
-          replacement = SpecHeaders.deleteEventModifier cur h.spec newID
-      in wrapH { h | spec = replacement }
-    EventName ->
-      let h = maybeH ()
-          replacement = SpecHeaders.deleteEventName cur h.spec newID
-      in wrapH { h | spec = replacement }
-    EventSpace ->
-      let h = maybeH ()
-          replacement = SpecHeaders.deleteEventSpace cur h.spec newID
-      in wrapH { h | spec = replacement }
-    Field ->
-      let h = maybeH ()
-          replacement = AST.deleteExpr cur h.ast newID
-      in wrapH { h | ast = replacement }
-    Expr ->
-      let h = maybeH ()
-          replacement = AST.deleteExpr cur h.ast newID
-      in wrapH { h | ast = replacement }
-    DarkType ->
-      let h = maybeH ()
-          replacement = SpecTypes.delete cur h.spec newID
-      in wrapH { h | spec = replacement }
-    DarkTypeField ->
-      let h = maybeH ()
-          replacement = SpecTypes.delete cur h.spec newID
-      in wrapH { h | spec = replacement }
+  pd
+  |> Maybe.map (TL.getNextSibling tl)
+  |> ME.orElse pd
+  |> Maybe.map P.toID
+  |> Select tlid
 
-enter : Model -> TLID -> Pointer -> Modification
-enter m tlid cur =
-  let tl = TL.getTL m tlid in
-  case cur of
-    PBlank _ _ -> Enter (Filling tlid cur)
-    PFilled tipe id ->
-      if TL.getChildrenOf tl cur /= []
-      then selectDownLevel m tlid (Just cur)
-      else
-        case TL.findExn tl id of
-          PDBColName _ -> NoChange
-          PDBColType _ -> NoChange
-          pd -> Many [ Enter (Filling tlid cur)
-                     , AutocompleteMod (ACSetQuery (P.toContent pd))
-                     ]
+selectPreviousSibling : Model -> TLID -> (Maybe ID) -> Modification
+selectPreviousSibling m tlid cur =
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
+  |> Maybe.map (TL.getPrevSibling tl)
+  |> ME.orElse pd
+  |> Maybe.map P.toID
+  |> Select tlid
+
+selectNextBlank : Model -> TLID -> (Maybe ID) -> Modification
+selectNextBlank m tlid cur =
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
+  |> TL.getNextBlank tl
+  |> Maybe.map P.toID
+  |> Select tlid
+
+enterNextBlank : Model -> TLID -> (Maybe ID) -> Modification
+enterNextBlank m tlid cur =
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
+  |> TL.getNextBlank tl
+  |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
+  |> Maybe.withDefault NoChange
+
+selectPrevBlank : Model -> TLID -> (Maybe ID) -> Modification
+selectPrevBlank m tlid cur =
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
+  |> TL.getPrevBlank tl
+  |> Maybe.map P.toID
+  |> Select tlid
+
+enterPrevBlank : Model -> TLID -> (Maybe ID) -> Modification
+enterPrevBlank m tlid cur =
+  let tl = TL.getTL m tlid
+      pd = Maybe.map (TL.findExn tl) cur
+  in
+  pd
+  |> TL.getPrevBlank tl
+  |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
+  |> Maybe.withDefault NoChange
+
+
+
+delete : Model -> TLID -> Maybe ID -> Modification
+delete m tlid mId =
+  case mId of
+    Nothing ->
+      Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+    Just id ->
+      let newID = gid ()
+          wrapDB op = RPC ([op], FocusExact tlid newID)
+          tl = TL.getTL m tlid
+          pd = TL.findExn tl id
+      in
+      case P.typeOf pd of
+        DBColType ->
+          wrapDB <| SetDBColType tlid id ""
+        DBColName ->
+          wrapDB <| SetDBColName tlid id ""
+        _ ->
+          let h = TL.delete tl pd newID
+                  |> TL.asHandler
+                  |> deMaybe "selection.delete" in
+          RPC ([SetHandler tlid tl.pos h], FocusExact tlid newID)
+
+
+enter : Model -> TLID -> ID -> Modification
+enter m tlid id =
+  let tl = TL.getTL m tlid
+      pd = TL.findExn tl id
+  in
+  if TL.getChildrenOf tl pd /= []
+  then selectDownLevel m tlid (Just id)
+  else
+    case pd of
+      PDBColName _ -> NoChange
+      PDBColType _ -> NoChange
+      pd -> Many [ Enter (Filling tlid id)
+                 , AutocompleteMod (ACSetQuery (P.toContent pd))
+                 ]
 
