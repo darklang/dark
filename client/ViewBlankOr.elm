@@ -155,11 +155,9 @@ viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html
 viewText pt vs c str =
   viewBlankOr (text vs) pt vs c str
 
-viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
-  ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
-viewBlankOr htmlFn pt vs c bo =
-  let id = B.toID bo
-      paramPlaceholder =
+placeHolderFor : ViewState -> ID -> PointerType -> String
+placeHolderFor vs id pt =
+  let paramPlaceholder =
         vs.tl
         |> TL.asHandler
         |> Maybe.map .ast
@@ -174,46 +172,95 @@ viewBlankOr htmlFn pt vs c bo =
                 _ -> Nothing)
         |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
         |> Maybe.withDefault ""
+  in
+  case pt of
+    VarBind -> "varname"
+    EventName ->
+      if vs.isHTTP
+      then "route"
+      else "event name"
+    EventModifier ->
+      if vs.isHTTP
+      then "verb"
+      else "event modifier"
+    EventSpace -> "event space"
+    Expr -> paramPlaceholder
+    Field -> "fieldname"
+    DBColName -> "db field name"
+    DBColType -> "db type"
+    DarkType -> "type"
+    DarkTypeField -> "fieldname"
+    FFMsg -> "Flag name"
 
-      placeholder =
-        case pt of
-          VarBind -> "varname"
-          EventName ->
-            if vs.isHTTP
-            then "route"
-            else "event name"
-          EventModifier ->
-            if vs.isHTTP
-            then "verb"
-            else "event modifier"
-          EventSpace -> "event space"
-          Expr -> paramPlaceholder
-          Field -> "fieldname"
-          DBColName -> "db field name"
-          DBColType -> "db type"
-          DarkType -> "type"
-          DarkTypeField -> "fieldname"
-          FFMsg -> "Flag name"
 
-      selected = case vs.state of
-                   Selecting _ (Just sId) -> sId == id
-                   _ -> False
 
-      thisTextFn flagClass bo =
-        let std = c ++ [WithID id]
-            ++ (if selected then [WithFF] else [])
-        in
+viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
+  ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
+viewBlankOr htmlFn pt vs c bo =
+  let
+      _ = case bo of
+            Flagged _ _ _ _ _ ->
+              let _ = Debug.log "state " vs.state in
+              let _ = Debug.log "bo" bo in
+              bo
+            _ -> bo
+
+      isSelected id =
+        case vs.state of
+          Selecting _ (Just sId) -> sId == id
+          _ -> False
+
+      wID id = [WithID id]
+      wFF id =
+        if isSelected id then [WithFF] else []
+
+      drawBlank id =
+        div vs
+          ([WithClass "blank"] ++ idConfigs ++ c ++ wID id ++ wFF id)
+          [Html.text (placeHolderFor vs id pt)]
+
+      drawFilled id fill =
+        let configs =
+          wID id
+          ++ c
+          ++ wFF id
+          ++ (if pt == Expr then idConfigs else [])
+        in htmlFn configs fill
+
+      drawFilledInFlag id fill =
+        htmlFn [] fill
+
+      drawBlankInFlag id =
+        div vs
+          ([WithClass "blank"])
+          [Html.text (placeHolderFor vs id pt)]
+
+      drawInFlag id bo =
         case bo of
-          Blank _ ->
-            div vs
-              ([WithClass "blank"] ++ idConfigs ++ std)
-              [Html.text placeholder]
-          F _ fill ->
-            let configs =
-              std
-              ++ (if pt == Expr then idConfigs else [])
-            in htmlFn configs fill
-          Flagged _ _ _ _ _ -> Debug.crash "vbo"
+          F fid fill  ->
+            [div vs (WithID id :: idConfigs) [drawFilledInFlag id fill]]
+          Blank id ->
+            [drawBlankInFlag id]
+          _ -> Util.impossible "nested flagging not allowed for now" []
+
+
+      drawFlagged id msg setting l r =
+         if isSelected id
+         then
+           div vs
+             [ wc "flagged shown", WithID id]
+             ([ viewText FFMsg vs [wc "flag-message"] msg
+             , text vs [wc "flag-setting"] (toString setting)
+             ] ++ drawInFlag id (B.flattenFF bo) ++
+             [ viewBlankOr htmlFn pt vs [wc "flag-left"] l
+             , viewBlankOr htmlFn pt vs [wc "flag-right"] r
+             ])
+        else
+          Html.div
+            [Attrs.class "flagged hidden"]
+            (drawInFlag id (B.flattenFF bo))
+
+
 
       -- the desired css layouts are:
       -- no ff:
@@ -227,32 +274,23 @@ viewBlankOr htmlFn pt vs c bo =
       --       etc
       --     .flag-right
       --       etc
-      thisText = case bo of
-                   Flagged fid msg setting l r ->
-                     if selected
-                     then
-                       div vs
-                         [wc "flagged shown", WithID fid]
-                         [ viewText FFMsg vs [wc "flag-message"] msg
-                         , text vs [wc "flag-setting"] (toString setting)
-                         , thisTextFn [] (B.flattenFF bo)
-                         , Html.div [Attrs.class "flag-left"]
-                             [thisTextFn [] l]
-                         , Html.div [Attrs.class "flag-right"]
-                             [thisTextFn [] r]]
-                    else
-                      Html.div
-                        [Attrs.class "flagged hidden"]
-                        [thisTextFn [] (B.flattenFF bo)]
+      thisText =
+        case bo of
+          Flagged fid msg setting l r ->
+            drawFlagged fid msg setting l r
+          F id fill -> drawFilled id fill
+          Blank id -> drawBlank id
 
-                   _ -> thisTextFn [] bo
-
-      allowStringEntry = pt == Expr
   in
   case vs.state of
     Entering (Filling _ thisID) ->
+      let id = B.toID bo in
       if id == thisID
-      then ViewEntry.entryHtml allowStringEntry placeholder vs.ac
+      then
+        let allowStringEntry = pt == Expr
+            placeholder = placeHolderFor vs id pt
+        in
+        ViewEntry.entryHtml allowStringEntry placeholder vs.ac
       else thisText
     _ -> thisText
 
