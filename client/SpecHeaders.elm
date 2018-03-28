@@ -18,45 +18,26 @@ find h p =
 
 replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventModifier id value hs =
-  { hs | modifier = if B.toID hs.modifier == id
-                    then value
-                    else hs.modifier
-  }
+  { hs | modifier = B.replace id value hs.modifier }
+
 replaceEventName : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventName id value hs =
-  { hs | name = if B.toID hs.name == id
-                then value
-                else hs.name
-  }
+  { hs | name = B.replace id value hs.name}
 
 replaceEventSpace : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventSpace id value hs =
-  { hs | module_ = if B.toID hs.module_ == id
-                    then value
-                    else hs.module_
-  }
+  { hs | module_ = B.replace id value hs.module_}
 
+replace : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
+replace id value hs =
+  hs
+  |> replaceEventModifier id value
+  |> replaceEventName id value
+  |> replaceEventSpace id value
 
-deleteEventName : PointerData -> HandlerSpec -> ID -> HandlerSpec
-deleteEventName p hs newID =
-  { hs | name = if B.toID hs.name == (P.toID p)
-                then Blank newID
-                else hs.name
-  }
-
-deleteEventModifier : PointerData -> HandlerSpec -> ID -> HandlerSpec
-deleteEventModifier p hs newID =
-  { hs | modifier = if B.toID hs.modifier == (P.toID p)
-                    then Blank newID
-                    else hs.modifier
-  }
-
-deleteEventSpace : PointerData -> HandlerSpec -> ID -> HandlerSpec
-deleteEventSpace p hs newID =
-  { hs | module_ = if B.toID hs.module_ == (P.toID p)
-                    then Blank newID
-                    else hs.module_
-  }
+delete : PointerData -> HandlerSpec -> ID -> HandlerSpec
+delete pd hs newID =
+  replace (P.toID pd) (Blank newID) hs
 
 allData : HandlerSpec -> List PointerData
 allData spec =

@@ -260,41 +260,28 @@ replace : Toplevel -> PointerData -> PointerData -> Toplevel
 replace tl p pd =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
       id = P.toID p
+      astReplace () =
+        let h = ha ()
+            replacement = AST.replace p pd h.ast
+        in { tl | data = TLHandler { h | ast = replacement } }
+      specTypeReplace () =
+        let h = ha ()
+            replacement = SpecTypes.replace p pd h.spec
+        in { tl | data = TLHandler { h | spec = replacement } }
+      specHeaderReplace bo =
+        let h = ha ()
+            replacement = SpecHeaders.replace id bo h.spec
+        in { tl | data = TLHandler { h | spec = replacement } }
   in
   case pd of
-    PVarBind vb ->
-      let h = ha ()
-          replacement = AST.replace p pd h.ast
-      in { tl | data = TLHandler { h | ast = replacement } }
-    PEventName en ->
-      let h = ha ()
-          replacement = SpecHeaders.replaceEventName id en h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PEventModifier em ->
-      let h = ha ()
-          replacement = SpecHeaders.replaceEventModifier id em h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PEventSpace es ->
-      let h = ha ()
-          replacement = SpecHeaders.replaceEventSpace id es h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PField _ ->
-      let h = ha ()
-          ast = AST.replace p pd h.ast
-      in { tl | data = TLHandler { h | ast = ast } }
-    PExpr _ ->
-      let h = ha ()
-          ast = AST.replace p pd h.ast
-      in { tl | data = TLHandler { h | ast = ast } }
-    PDarkType _ ->
-      let h = ha ()
-          replacement = SpecTypes.replace p pd h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PDarkTypeField _ ->
-      let h = ha ()
-          replacement = SpecTypes.replace p pd h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-
+    PVarBind vb -> astReplace ()
+    PField _ -> astReplace ()
+    PExpr _ -> astReplace ()
+    PEventName en -> specHeaderReplace en
+    PEventModifier em -> specHeaderReplace em
+    PEventSpace es -> specHeaderReplace es
+    PDarkType _ -> specTypeReplace ()
+    PDarkTypeField _ -> specTypeReplace ()
     PDBColType tipe ->
       tl
       -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
