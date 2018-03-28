@@ -143,3 +143,11 @@ assert fn a =
   then a
   else Debug.crash ("assertion failure: " ++ toString a)
 
+impossible : String -> a -> a
+impossible msg a =
+  let appIsGentle = False in -- TODO: make the app a lil' gentler by reporting this event to a crash logger or something instead of savagely crashing poor elm's runtime ;(
+  if appIsGentle
+  then
+    a
+  else
+    Debug.crash ("something impossible occurred: " ++ msg ++ " (would have returned: '" ++ toString a ++ "' under gentler circumstances)")
