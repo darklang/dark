@@ -133,12 +133,11 @@ div vs configs content =
       classAttr = Attrs.class (String.join " " allClasses)
       events =
         case clickAs of
-          Just p ->
-            let id = P.toID p in
-            [ eventNoPropagation "click" (BlankOrClick vs.tl.id p)
-            , eventNoPropagation "dblclick" (BlankOrDoubleClick vs.tl.id p)
-            , eventNoPropagation "mouseenter" (BlankOrMouseEnter vs.tl.id p)
-            , eventNoPropagation "mouseleave" (BlankOrMouseLeave vs.tl.id p)
+          Just id ->
+            [ eventNoPropagation "click" (BlankOrClick vs.tl.id id)
+            , eventNoPropagation "dblclick" (BlankOrDoubleClick vs.tl.id id)
+            , eventNoPropagation "mouseenter" (BlankOrMouseEnter vs.tl.id id)
+            , eventNoPropagation "mouseleave" (BlankOrMouseLeave vs.tl.id id)
             ]
           _ -> []
 
