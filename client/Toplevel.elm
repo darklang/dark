@@ -172,8 +172,10 @@ lastBlank tl =
 getFirstASTBlank : Toplevel -> Successor
 getFirstASTBlank tl =
   tl
-  |> blanksWhere (\p -> P.ownerOf p == POAst)
-  |> List.head
+  |> asHandler
+  |> Maybe.map .ast
+  |> Maybe.map AST.allData
+  |> Maybe.andThen List.head
 
 
 -------------------------
