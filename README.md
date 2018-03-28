@@ -86,8 +86,6 @@ We have this kinda working, but not fully. You can use ocamlmerlin in
 the container, but it needs some vim/emacs scripts locally, which
 require the whole toolchain to get installed unless you want to hack it.
 
-To get elm to work (in vim at least), you need elm-make locally.
-
 - Install merlin:
   - `brew install opam`
   - `opam init`
@@ -95,8 +93,9 @@ To get elm to work (in vim at least), you need elm-make locally.
   - `opam install merlin`
   - `opam install ocp-indent`
 
-- Install elm tools:
-  - `brew install elm`
+To get elm to work, we added scripts/elm-make-vim, which handles how ALE uses
+elm-make. It's possible this may need changes, or it may work out of the
+box.
 
 # (Not) Rebuilding the dev container
 
@@ -111,6 +110,18 @@ in parallel with your currently working one.
 
 You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker invocations, including say ocamlmerlin, use the old+running container as opposed to attempting to use the container
 that has an in progress build.
+
+# Preserving battery life
+
+The're a poll during building that is a great drain on battery life. To
+reduce the frequency of the poll, run script/builder using
+POLL_FREQUENCY, which is the number of times per second to check.
+
+- `POLL_FREQUENCY=0.1 scripts/builder --etc`
+
+You can also disable the polling (ans consequently the building):
+
+- `scripts/builder --compile --serve`
 
 # Debugging elm
 
@@ -131,7 +142,7 @@ If you change the structure of an Op (including the nested structure),
 then the binary version will no longer load.
 
 By default, the server will also save a json version. You can manually
-edit this to the new version. Check out server/canvas.ml to see how it
+edit this to the new version. Check out server/serialize.ml to see how it
 all works.
 
 
@@ -139,6 +150,8 @@ all works.
 
 Darkfiles are backed up daily, so long as the build container is running
 at 4pm. They are backed up to persistdir/backup_appdata.
+
+TODO: this doesnt work
 
 # Debugging ppx stuff
 
