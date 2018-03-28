@@ -36,13 +36,13 @@ collapseHandlers tls =
                    case B.flattenFF h.spec.name of
                      F _ s -> Just s
                      Blank _ -> Nothing
-                     Flagged _ _ _ _ -> Debug.crash "ch - tls"
+                     Flagged _ _ _ _ _ -> Debug.crash "ch - tls"
                , prefix = []
                , verbs =
                    case B.flattenFF h.spec.modifier of
                      F _ s -> [(s, pos)]
                      Blank _ -> []
-                     Flagged _ _ _ _ -> Debug.crash "ch - verbs"
+                     Flagged _ _ _ _ _ -> Debug.crash "ch - verbs"
                })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   in

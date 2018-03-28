@@ -6,7 +6,7 @@ module RT = Runtime
 
 let flatten_ff (bo: 'a or_blank) : 'a or_blank =
   match bo with
-  | Flagged (msg, setting, l, r) ->
+  | Flagged (id, msg, setting, l, r) ->
       if setting >= 50
       then r
       else l
