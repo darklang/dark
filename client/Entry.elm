@@ -143,12 +143,13 @@ submit m cursor action value =
           Nothing -> NoChange
           Just v -> wrapExpr v
 
-    Filling tlid p ->
+    Filling tlid id ->
       let tl = TL.getTL m tlid
-          predecessor = TL.getPrevBlank tl (Just p)
+          pd = TL.findExn tl id
+          predecessor = TL.getPrevBlank tl (Just pd) |> Maybe.map P.toID
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
-          replaceExpr : Model -> Handler -> Pointer -> String -> Modification
+          replaceExpr : Model -> Handler -> PointerData -> String -> Modification
           replaceExpr m h p value =
             let id = P.toID p
                 old_ = TL.findExn tl id
@@ -165,8 +166,8 @@ submit m cursor action value =
                                        |> String.dropLeft 2
                                        |> String.trim
                         in
-                          ( AST.toPD thread
-                          , AST.toPD <|
+                          ( PExpr thread
+                          , PExpr <|
                               B.newF (
                                 Let
                                   (B.newF bindName)
@@ -180,7 +181,7 @@ submit m cursor action value =
                   else if String.endsWith "." value
                   then
                     ( old_
-                    , AST.toPD <|
+                    , PExpr <|
                         B.newF
                           (FieldAccess
                             (B.newF (Variable (String.dropRight 1 value)))
@@ -189,7 +190,7 @@ submit m cursor action value =
                   -- variables
                   else if List.member value (Analysis.varnamesFor m target)
                   then
-                    (old_, AST.toPD <| B.newF (Variable value))
+                    (old_, PExpr <| B.newF (Variable value))
 
                   -- parsed exprs
                   else
@@ -197,8 +198,8 @@ submit m cursor action value =
                     , parseAst
                         value
                           (action == ContinueThread
-                          && AST.isThreadBlank h.ast p)
-                      |> Maybe.map AST.toPD
+                          && AST.isThreadBlank h.ast (P.toID p))
+                      |> Maybe.map PExpr
                       |> Maybe.withDefault old_)
 
 
@@ -207,8 +208,8 @@ submit m cursor action value =
                   StartThread ->
                     AST.wrapInThread id h.ast
 
-                ast2 = AST.replace (P.pdToP old) new ast1
-                ast3 = AST.maybeExtendThreadAt (P.dToID new) ast2
+                ast2 = AST.replace old new ast1
+                ast3 = AST.maybeExtendThreadAt (P.toID new) ast2
             in
                 if old == new
                 then NoChange
@@ -218,28 +219,27 @@ submit m cursor action value =
       if String.length value < 1
       then NoChange
       else
-      let id = P.toID p
-          maybeH = TL.asHandler tl
+      let maybeH = TL.asHandler tl
           db = TL.asDB tl
           validate pattern name success =
             if Util.rematch pattern value
             then success
             else Error (name ++ " must match /" ++ pattern ++ "/")
       in
-      case P.typeOf p of
-        DBColType ->
+      case pd of
+        PDBColType _ ->
           validate "[A-Z]\\w+" "DB type"
             <| wrap <| SetDBColType tlid id value
-        DBColName ->
+        PDBColName _ ->
           validate "\\w+" "DB name"
             <| wrap <| SetDBColName tlid id value
-        VarBind ->
+        PVarBind _ ->
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
             let h = deMaybe "maybeH - varbind" maybeH
-                replacement = AST.replaceVarBind p value h.ast in
+                replacement = AST.replaceVarBind pd value h.ast in
             wrap <| SetHandler tlid tl.pos { h | ast = replacement }
-        EventName ->
+        PEventName _ ->
           let eventNameValidation =
                 if TL.isHTTPHandler tl
                 then
@@ -252,7 +252,7 @@ submit m cursor action value =
               let h = deMaybe "maybeH - eventname" maybeH
                   replacement = SpecHeaders.replaceEventName id (B.newF value) h.spec in
               wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        EventModifier ->
+        PEventModifier _ ->
           let eventModifierValidation =
                 if TL.isHTTPHandler tl
                 then
@@ -265,13 +265,13 @@ submit m cursor action value =
           let h = deMaybe "maybeH - eventmodifier" maybeH
               replacement = SpecHeaders.replaceEventModifier id (B.newF value) h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        EventSpace ->
+        PEventSpace _ ->
           validate "[A-Z]+" "event space"
             <|
           let h = deMaybe "maybeH - eventspace" maybeH
               replacement = SpecHeaders.replaceEventSpace id (B.newF value) h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        Field ->
+        PField _ ->
           validate ".+" "fieldname"
             <|
           let h = deMaybe "maybeH - field" maybeH
@@ -292,9 +292,9 @@ submit m cursor action value =
                                 (B.new ()))
                           _ -> Debug.crash "should be a field"
                   in
-                      AST.replace (AST.toP parent) (AST.toPD wrapped) h.ast
+                  AST.replace (PExpr parent) (PExpr wrapped) h.ast
                 else
-                  let replacement = AST.replaceField p value h.ast in
+                  let replacement = AST.replaceField pd value h.ast in
                   case action of
                     ContinueThread -> replacement
                     StartThread ->
@@ -304,10 +304,10 @@ submit m cursor action value =
                       AST.wrapInThread parentID replacement
           in
               wrap <| SetHandler tlid tl.pos { h | ast = newAst }
-        Expr ->
+        PExpr _ ->
           let h = deMaybe "maybeH - expr" maybeH in
-          replaceExpr m h p value
-        DarkType ->
+          replaceExpr m h pd value
+        PDarkType _ ->
           validate "(String|Int|Any|Empty|{)" "type"
             <|
           let specType =
@@ -319,12 +319,12 @@ submit m cursor action value =
                   "{" -> DTObj [(B.new (), B.new ())]
                   _ -> Debug.crash "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
-              pd = PDarkType (B.newF specType)
-              replacement = SpecTypes.replace p pd h.spec in
+              newPD = PDarkType (B.newF specType)
+              replacement = SpecTypes.replace pd newPD h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
-        DarkTypeField ->
+        PDarkTypeField _ ->
           let h = deMaybe "maybeH - expr" maybeH
-              pd = PDarkTypeField (B.newF value)
-              replacement = SpecTypes.replace p pd h.spec in
+              newPD = PDarkTypeField (B.newF value)
+              replacement = SpecTypes.replace pd newPD h.spec in
           wrap <| SetHandler tlid tl.pos { h | spec = replacement }
 

@@ -21,21 +21,21 @@ all =
   describe "ast"
     [ test "isThreadBlank for thread" <|
       \_ -> Expect.true "false"
-      (AST.isThreadBlank 
+      (AST.isThreadBlank
         (F id1 (Thread [Blank id2]))
-        (PFilled Expr id2))
+        id2)
 
     ,  test "isThreadBlank for blank" <|
       \_ -> Expect.false "true"
       (AST.isThreadBlank
         (Blank id1)
-        (PFilled Expr id1))
+        id1)
 
     ,  test "isThreadBlank for thread non-blank" <|
       \_ -> Expect.false "true"
-      (AST.isThreadBlank 
+      (AST.isThreadBlank
         (F id1 (Thread [F id2 (Value "")]))
-        (PFilled Expr id2))
+        id2)
     ]
 
 

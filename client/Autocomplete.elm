@@ -168,7 +168,7 @@ appendQuery str a =
 highlighted : Autocomplete -> Maybe AutocompleteItem
 highlighted a = LE.getAt a.index (List.concat a.completions)
 
-setTarget : Model -> Maybe (TLID, Pointer) -> Autocomplete -> Autocomplete
+setTarget : Model -> Maybe (TLID, PointerData) -> Autocomplete -> Autocomplete
 setTarget m t a =
   { a | target = t }
   |> regenerate m

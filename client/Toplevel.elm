@@ -95,14 +95,9 @@ isHTTPHandler tl =
 -------------------------
 -- Generic
 -------------------------
-allPointers : Toplevel -> List Pointer
-allPointers tl =
-  allData tl
-  |> List.map P.pdToP
-
-isValidPointer : Toplevel -> Pointer -> Bool
-isValidPointer tl p =
-  List.member p (allPointers tl)
+isValidID : Toplevel -> ID -> Bool
+isValidID tl id =
+  List.member id (tl |> allData |> List.map P.toID)
 
 clonePointerData : PointerData -> PointerData
 clonePointerData pd =
@@ -121,19 +116,19 @@ clonePointerData pd =
       PField (B.clone identity f)
     PDBColName cn -> pd
     PDBColType ct -> pd
-    PDarkType dt -> Debug.crash "TODO clonePointerdata"
-    PDarkTypeField dt -> Debug.crash "TODO clonePointerdata"
+    PDarkType dt -> Debug.crash "TODO clonePointerDatadata"
+    PDarkTypeField dt -> Debug.crash "TODO clonePointerDatadata"
 
 -------------------------
 -- Blanks
 -------------------------
-allBlanks : Toplevel -> List Pointer
+allBlanks : Toplevel -> List PointerData
 allBlanks tl =
   tl
-  |> allPointers
+  |> allData
   |> List.filter P.isBlank
 
-blanksWhere : (Pointer -> Bool) -> Toplevel -> List Pointer
+blanksWhere : (PointerData -> Bool) -> Toplevel -> List PointerData
 blanksWhere fn tl =
   tl
   |> allBlanks
@@ -143,7 +138,7 @@ getNextBlank : Toplevel -> Predecessor -> Successor
 getNextBlank tl pred =
   case pred of
     Just pred ->
-      let ps = allPointers tl
+      let ps = allData tl
           index = LE.elemIndex pred ps |> Maybe.withDefault (-1)
           remaining = List.drop (index+1) ps
           blanks = List.filter P.isBlank remaining in
@@ -156,7 +151,7 @@ getPrevBlank : Toplevel -> Successor -> Predecessor
 getPrevBlank tl next =
   case next of
     Just next ->
-      let ps = allPointers tl
+      let ps = allData tl
           index = LE.elemIndex next ps |> Maybe.withDefault (List.length ps)
           remaining = List.take index ps
           blanks = List.filter P.isBlank remaining in
@@ -184,15 +179,17 @@ getFirstASTBlank tl =
 -------------------------
 -- Siblings
 -------------------------
-siblings : Toplevel -> Pointer -> List Pointer
+siblings : Toplevel -> PointerData -> List PointerData
 siblings tl p =
   case tl.data of
     TLHandler h ->
       let toplevels =
-            SpecHeaders.allPointers h.spec
-            ++ [ B.toP DarkType h.spec.types.input
-               , B.toP Expr h.ast
-               , B.toP DarkType h.spec.types.output] in
+            SpecHeaders.allData h.spec
+            -- types are disabled for now
+            ++ [ --PDarkType h.spec.types.input
+                PExpr h.ast
+               --, PDarkType h.spec.types.output
+               ] in
 
       if List.member p toplevels
       then toplevels
@@ -202,14 +199,14 @@ siblings tl p =
          ++ SpecTypes.siblings p h.spec.types.output
     TLDB db -> DB.siblings p db
 
-getNextSibling : Toplevel -> Pointer -> Pointer
+getNextSibling : Toplevel -> PointerData -> PointerData
 getNextSibling tl p =
   siblings tl p
   |> Util.listNextWrap p
   -- 'safe' to deMaybe as there's always at least one member in the array
   |> deMaybe "nextSibling"
 
-getPrevSibling : Toplevel -> Pointer -> Pointer
+getPrevSibling : Toplevel -> PointerData -> PointerData
 getPrevSibling tl p =
   siblings tl p
   |> Util.listPreviousWrap p
@@ -220,16 +217,16 @@ getPrevSibling tl p =
 -------------------------
 -- Up/Down the tree
 -------------------------
-getParentOf : Toplevel -> Pointer -> Maybe Pointer
+getParentOf : Toplevel -> PointerData -> Maybe PointerData
 getParentOf tl p =
-  -- TODO SpecTypePointerRefactor
+  -- TODO SpecTypePointerDataRefactor
   case tl.data of
     TLHandler h ->
       AST.parentOf_ (P.toID p) h.ast
-      |> Maybe.map AST.toP
+      |> Maybe.map PExpr
     _ -> Nothing
 
-getChildrenOf : Toplevel -> Pointer -> List Pointer
+getChildrenOf : Toplevel -> PointerData -> List PointerData
 getChildrenOf tl p =
   case P.ownerOf p of
     POSpecHeader -> []
@@ -243,23 +240,23 @@ getChildrenOf tl p =
       ++ SpecTypes.childrenOf (P.toID p) h.spec.types.output
 
 
-firstChild : Toplevel -> Pointer -> Maybe Pointer
+firstChild : Toplevel -> PointerData -> Maybe PointerData
 firstChild tl id = getChildrenOf tl id
                    |> List.head
 
-rootOf : Toplevel -> Maybe Pointer
+rootOf : Toplevel -> Maybe PointerData
 rootOf tl =
-  -- TODO SpecTypePointerRefactor
+  -- TODO SpecTypePointerDataRefactor
   case tl.data of
     TLHandler h ->
-      Just <| B.toP Expr h.ast
+      Just <| PExpr h.ast
     _ -> Nothing
 
 
 -------------------------
 -- Generic
 -------------------------
-replace : Toplevel -> Pointer -> PointerData -> Toplevel
+replace : Toplevel -> PointerData -> PointerData -> Toplevel
 replace tl p pd =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
       id = P.toID p
@@ -305,7 +302,7 @@ replace tl p pd =
       tl
       -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
 
-delete : Toplevel -> Pointer -> ID -> Toplevel
+delete : Toplevel -> PointerData -> ID -> Toplevel
 delete tl p newID =
   let replacement = P.emptyD_ newID (P.typeOf p)
   in replace tl p replacement
@@ -330,8 +327,8 @@ findExn tl id =
 find : Toplevel -> ID -> Maybe PointerData
 find tl id =
   allData tl
-  |> List.filter (\d -> id == P.dToID d)
-  |> Util.assert (List.length >> ((==) 1))
+  |> List.filter (\d -> id == P.toID d)
+  |> Util.assert (\r -> List.length r <= 1) -- guard against dups
   |> List.head
 
 

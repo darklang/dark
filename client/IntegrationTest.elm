@@ -32,6 +32,7 @@ trigger test_name =
     "pressing_up_doesnt_return_to_start" -> pressing_up_doesnt_return_to_start
     "deleting_selects_the_blank" -> deleting_selects_the_blank
     "right_number_of_blanks" -> right_number_of_blanks
+    "ellen_hello_world_demo" -> ellen_hello_world_demo
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -151,7 +152,7 @@ next_sibling_works m =
   case onlyAST m of
     Let (Blank _) (Blank id1) (Blank _) ->
       case m.state of
-        Selecting _ (Just (PBlank _ id2)) ->
+        Selecting _ (Just id2) ->
           if id1 == id2
           then pass
           else fail (id1, id2)
@@ -164,7 +165,7 @@ varbinds_are_editable m =
   case onlyAST m of
     Let (F id1 "var") (Blank _) (Blank _) as l ->
       case m.state of
-        Entering (Filling _ (PFilled _ id2))->
+        Entering (Filling _ id2)->
           if id1 == id2
           then pass
           else fail (l, m.state)
@@ -226,3 +227,21 @@ right_number_of_blanks m =
   case onlyAST m of
     FnCall "assoc" [Blank _, Blank _, Blank _] -> pass
     e -> fail e
+
+ellen_hello_world_demo : Model -> TestResult
+ellen_hello_world_demo m =
+  let spec = m.toplevels
+             |> List.head
+             |> deMaybe "hw1"
+             |> TL.asHandler
+             |> deMaybe "hw2"
+             |> .spec in
+    case (spec.module_, spec.name, spec.modifier, onlyAST m) of
+      ( F _ "HTTP"
+      , F _ "/hello"
+      , F _ "GET"
+      , Value "\"Hello world!\"") ->
+        pass
+      other -> fail other
+
+

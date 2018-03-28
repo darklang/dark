@@ -7,52 +7,9 @@ import Maybe
 import Types exposing (..)
 import Blank as B
 
-toID : Pointer -> ID
-toID p =
-  case p of
-    PBlank _ id -> id
-    PFilled _ id -> id
-
-typeOf : Pointer -> PointerType
-typeOf p =
-  case p of
-    PBlank t _ -> t
-    PFilled t _ -> t
-
-isBlank : Pointer -> Bool
-isBlank p =
-  case p of
-    PBlank _ _ -> True
-    _ -> False
-
-isFilled : Pointer -> Bool
-isFilled p =
-  case p of
-    PFilled _ _ -> True
-    _ -> False
-
 ------------------------
 -- PointerData
 ------------------------
-pdToP : PointerData -> Pointer
-pdToP pd =
-  let (filled, tipe, id) =
-        case pd of
-          PVarBind d -> (B.isF d, VarBind, B.toID d)
-          PEventModifier d -> (B.isF d, EventModifier, B.toID d)
-          PEventName d -> (B.isF d, EventName, B.toID d)
-          PEventSpace d -> (B.isF d, EventSpace, B.toID d)
-          PExpr d -> (B.isF d, Expr, B.toID d)
-          PField d -> (B.isF d, Field, B.toID d)
-          PDBColName d -> (B.isF d, DBColName, B.toID d)
-          PDBColType d -> (B.isF d, DBColType, B.toID d)
-          PDarkType d -> (B.isF d, DarkType, B.toID d)
-          PDarkTypeField d -> (B.isF d, DarkTypeField, B.toID d)
-  in
-  if filled
-  then PFilled tipe id
-  else PBlank tipe id
-
 emptyD_ : ID -> PointerType -> PointerData
 emptyD_ id pt =
   case pt of
@@ -67,16 +24,55 @@ emptyD_ id pt =
     DarkType -> PDarkType (Blank id)
     DarkTypeField -> PDarkTypeField (Blank id)
 
+typeOf : PointerData -> PointerType
+typeOf pd =
+  case pd of
+    PVarBind _ -> VarBind
+    PEventModifier _ -> EventModifier
+    PEventName _ -> EventName
+    PEventSpace _ -> EventSpace
+    PExpr _ -> Expr
+    PField _ -> Field
+    PDBColName _ -> DBColName
+    PDBColType _ -> DBColType
+    PDarkType _ -> DarkType
+    PDarkTypeField _ -> DarkTypeField
+
 
 emptyD : PointerType -> PointerData
 emptyD pt =
   emptyD_ (gid()) pt
 
-dToID : PointerData -> ID
-dToID = pdToP >> toID
+toID : PointerData -> ID
+toID pd =
+  case pd of
+    PVarBind d -> B.toID d
+    PField d -> B.toID d
+    PExpr d -> B.toID d
+    PEventModifier d -> B.toID d
+    PEventName d -> B.toID d
+    PEventSpace d -> B.toID d
+    PDBColName d -> B.toID d
+    PDBColType d -> B.toID d
+    PDarkType d -> B.toID d
+    PDarkTypeField d -> B.toID d
 
-typeOfD : PointerData -> PointerType
-typeOfD = pdToP >> typeOf
+
+isBlank : PointerData -> Bool
+isBlank pd =
+  case pd of
+    PVarBind d -> B.isBlank d
+    PField d -> B.isBlank d
+    PExpr d -> B.isBlank d
+    PEventModifier d -> B.isBlank d
+    PEventName d -> B.isBlank d
+    PEventSpace d -> B.isBlank d
+    PDBColName d -> B.isBlank d
+    PDBColType d -> B.isBlank d
+    PDarkType d -> B.isBlank d
+    PDarkTypeField d -> B.isBlank d
+
+
 
 toContent : PointerData -> String
 toContent pd =
@@ -111,40 +107,35 @@ exprmap fn pd =
 
 strmap : (PointerType -> BlankOr String -> BlankOr String) -> PointerData -> PointerData
 strmap fn pd =
-  let pt = pd |> pdToP |> typeOf in
   case pd of
-    PVarBind d -> PVarBind (fn pt d)
-    PField d -> PField (fn pt d)
+    PVarBind d -> PVarBind (fn VarBind d)
+    PField d -> PField (fn Field d)
     PExpr _ -> pd
-    PEventModifier d -> PEventModifier (fn pt d)
-    PEventName d -> PEventName (fn pt d)
-    PEventSpace d -> PEventSpace (fn pt d)
-    PDBColName d -> PDBColName (fn pt d)
-    PDBColType d -> PDBColType (fn pt d)
+    PEventModifier d -> PEventModifier (fn EventModifier d)
+    PEventName d -> PEventName (fn EventName d)
+    PEventSpace d -> PEventSpace (fn EventSpace d)
+    PDBColName d -> PDBColName (fn DBColName d)
+    PDBColType d -> PDBColType (fn DBColType d)
     PDarkType _ -> pd
-    PDarkTypeField d -> PDarkTypeField (fn pt d)
+    PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
 
 
 ------------------------
 -- PointerOwner
 ------------------------
-ownerOf : Pointer -> PointerOwner
-ownerOf p =
-  case (typeOf p) of
-    VarBind -> POAst
-    EventName -> POSpecHeader
-    EventModifier -> POSpecHeader
-    EventSpace -> POSpecHeader
-    Expr -> POAst
-    Field -> POAst
-    DBColName -> PODb
-    DBColType -> PODb
-    DarkTypeField -> POSpecType
-    DarkType -> POSpecType
+ownerOf : PointerData -> PointerOwner
+ownerOf pd =
+  case pd of
+    PVarBind d -> POAst
+    PField d -> POAst
+    PExpr _ -> POAst
+    PEventModifier d -> POSpecHeader
+    PEventName d -> POSpecHeader
+    PEventSpace d -> POSpecHeader
+    PDBColName d -> PODb
+    PDBColType d -> PODb
+    PDarkType _ -> POSpecType
+    PDarkTypeField d -> POSpecType
 
-pdOwnerOf : PointerData -> PointerOwner
-pdOwnerOf pd =
-  pd
-  |> pdToP
-  |> ownerOf
+
 
