@@ -132,17 +132,15 @@ div vs configs content =
                   ++ (if mouseover then ["mouseovered"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
       events =
-        if selected
-        then []
-        else
-          case clickAs of
-            Just id ->
-              [ eventNoPropagation "mouseup"
-                  (ToplevelClickUp vs.tlid (Just id))
-              , eventNoPropagation "mouseenter" (MouseEnter id)
-              , eventNoPropagation "mouseleave" (MouseLeave id)
-              ]
-            _ -> []
+        case clickAs of
+          Just id ->
+            [ eventNoPropagation "click" (BlankOrClick vs.tl.id id)
+            , eventNoPropagation "dblclick" (BlankOrDoubleClick vs.tl.id id)
+            , eventNoPropagation "mouseenter" (BlankOrMouseEnter vs.tl.id id)
+            , eventNoPropagation "mouseleave" (BlankOrMouseLeave vs.tl.id id)
+            ]
+          _ -> []
+
       attrs = events ++ title ++ [classAttr]
       featureFlag = if showFeatureFlag
                     then [viewFeatureFlag]
@@ -265,6 +263,3 @@ viewFeatureFlag =
     [ Attrs.class "feature-flag"
     , Events.onMouseDown StartFeatureFlag]
     [ fontAwesome "flag"]
-
-
-
