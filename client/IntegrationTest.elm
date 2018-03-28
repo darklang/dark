@@ -7,8 +7,9 @@ import Result exposing (Result (..))
 import Types exposing (..)
 import Toplevel as TL
 import Util exposing (deMaybe)
+import Blank as B
 import Pointer as P
-import Blank
+import AST
 
 trigger : String -> IntegrationTestState
 trigger test_name =
@@ -62,7 +63,7 @@ onlyAST m =
   |> TL.asHandler
   |> deMaybe "test3"
   |> .ast
-  |> Blank.asF
+  |> B.asF
   |> deMaybe "test4"
 
 
@@ -85,10 +86,10 @@ field_access_closes : Model -> TestResult
 field_access_closes m =
   case m.state of
     Entering (Filling _ id) ->
-      let tl = onlyTL m in
-      if TL.blanksWhere (\p -> P.ownerOf p == POAst) tl == []
+      let ast = onlyTL m |> TL.asHandler |> deMaybe "test" |> .ast in
+      if (AST.allData ast |> List.filter P.isBlank) == []
       then pass
-      else fail (TL.allBlanks tl)
+      else fail (TL.allBlanks (onlyTL m))
     _ ->
       fail m.state
 
@@ -230,9 +231,7 @@ right_number_of_blanks m =
 
 ellen_hello_world_demo : Model -> TestResult
 ellen_hello_world_demo m =
-  let spec = m.toplevels
-             |> List.head
-             |> deMaybe "hw1"
+  let spec = onlyTL m
              |> TL.asHandler
              |> deMaybe "hw2"
              |> .spec in
