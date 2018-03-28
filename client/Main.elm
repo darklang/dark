@@ -25,6 +25,7 @@ import View
 import Clipboard
 import Defaults
 import Editor
+import Refactor
 import Runtime as RT
 import Entry
 import Autocomplete as AC
@@ -502,6 +503,18 @@ update_ msg m =
                       in
                       Clipboard.cut m tl pd
                 else NoChange
+              Key.F ->
+                if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.extractFunction m tl pd
+                else
+                  NoChange
               _ -> NoChange
 
           Entering cursor ->
