@@ -10,19 +10,20 @@ import Entry
 import Blank
 import Util exposing (deMaybe)
 
-copy : Model -> Toplevel -> (Maybe Pointer) -> Modification
+copy : Model -> Toplevel -> (Maybe PointerData) -> Modification
 copy m tl mp =
   case TL.asHandler tl of
     Nothing -> NoChange
     Just h ->
       case mp of
-        Nothing -> CopyToClipboard (Just <| AST.toPD h.ast)
+        Nothing -> CopyToClipboard (Just <| PExpr h.ast)
         Just p -> CopyToClipboard (TL.find tl (P.toID p))
 
-cut : Model -> Toplevel -> Pointer -> Modification
+cut : Model -> Toplevel -> PointerData -> Modification
 cut m tl p =
   let pid = P.toID p
       pred = TL.getPrevBlank tl (Just p)
+             |> Maybe.map P.toID
   in
     case TL.asHandler tl of
       Nothing -> NoChange
@@ -37,8 +38,8 @@ cut m tl p =
                         , FocusNext tl.id pred)
                 ]
 
-paste : Model -> Toplevel -> Pointer -> Modification
-paste m tl p =
+paste : Model -> Toplevel -> ID -> Modification
+paste m tl id =
   case m.clipboard of
     Nothing -> NoChange
     Just pd ->
@@ -46,9 +47,9 @@ paste m tl p =
       in case TL.asHandler tl of
            Nothing -> NoChange
            Just h ->
-             let newAst = AST.replace p cloned h.ast
+             let newAst = AST.replace (TL.findExn tl id) cloned h.ast
              in RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
-                    , FocusNext tl.id (Just (P.pdToP cloned)))
+                    , FocusNext tl.id (Just (P.toID cloned)))
 
 peek : Model -> Clipboard
 peek m =
