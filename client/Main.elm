@@ -734,15 +734,15 @@ update_ msg m =
       if event.button == Defaults.leftButton
       then
         case m.state of
-          Dragging _ startVPos hasMoved origState ->
+          Dragging draggingTLID startVPos hasMoved origState ->
             if hasMoved
             then
-              let tl = TL.getTL m targetTLID in
+              let tl = TL.getTL m draggingTLID in
               -- We've been updating tl.pos as mouse moves,
               -- now want to report last pos to server
               -- NB: do *not* stop dragging here because we're using
               --     the dragging state in `ToplevelClick` coming up next
-              RPC ([MoveTL targetTLID tl.pos], FocusNoChange)
+              RPC ([MoveTL draggingTLID tl.pos], FocusNoChange)
             else
               SetState origState
           _ ->
