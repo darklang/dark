@@ -28,6 +28,6 @@ start m =
       in
       RPC ([SetHandler tl.id tl.pos
                        (newTL |> TL.asHandler |> deMaybe "FF.start") ]
-           , FocusSame)
+           , FocusExact tl.id (P.toID newPd))
     _ -> NoChange
 
