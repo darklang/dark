@@ -120,22 +120,6 @@ strmap fn pd =
     PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
 
 
-------------------------
--- PointerOwner
-------------------------
-ownerOf : PointerData -> PointerOwner
-ownerOf pd =
-  case pd of
-    PVarBind d -> POAst
-    PField d -> POAst
-    PExpr _ -> POAst
-    PEventModifier d -> POSpecHeader
-    PEventName d -> POSpecHeader
-    PEventSpace d -> POSpecHeader
-    PDBColName d -> PODb
-    PDBColType d -> PODb
-    PDarkType _ -> POSpecType
-    PDarkTypeField d -> POSpecType
 
 
 
