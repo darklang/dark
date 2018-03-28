@@ -212,7 +212,7 @@ viewBlankOr htmlFn pt vs c bo =
               std
               ++ (if pt == Expr then idConfigs else [])
             in htmlFn configs fill
-          Flagged _ _ _ _ -> Debug.crash "vbo"
+          Flagged _ _ _ _ _ -> Debug.crash "vbo"
 
       -- the desired css layouts are:
       -- no ff:
@@ -227,11 +227,11 @@ viewBlankOr htmlFn pt vs c bo =
       --     .flag-right
       --       etc
       thisText = case bo of
-                   Flagged msg setting l r ->
+                   Flagged fid msg setting l r ->
                      if selected
                      then
-                       Html.div
-                         [Attrs.class "flagged shown"]
+                       div vs
+                         [wc "flagged shown", WithID fid]
                          [ text vs [wc "flag-message"] msg
                          , text vs [wc "flag-setting"] (toString setting)
                          , thisTextFn [] (B.flattenFF bo)
