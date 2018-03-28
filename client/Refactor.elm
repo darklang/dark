@@ -38,7 +38,7 @@ extractFunction m tl p =
                               PExpr boe ->
                                 case Blank.flattenFF boe of
                                   Blank _ -> Nothing
-                                  Flagged _ _ _ _ -> Nothing
+                                  Flagged _ _ _ _ _ -> Nothing
                                   F id e ->
                                     case e of
                                       Variable name -> Just (id, name)
