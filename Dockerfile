@@ -155,12 +155,12 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.0/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/4.06.0/man:"
 ENV PERL5LIB "/home/dark/.opam/4.06.0/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.0/lib/toplevel"
-ENV FORCE_BUILD 1
+ENV FORCE_BUILD 2
 RUN opam update
 
 #ENV OPAMDEBUG true
 RUN opam install ppx_deriving.4.2.1
-RUN opam install core.v0.10.0
+RUN opam install core.v0.11.0
 RUN opam install conf-libev lwt.3.1.0
 RUN opam install yojson.1.4.0
 RUN opam install postgresql.4.0.1
@@ -177,7 +177,7 @@ RUN opam install landmarks.1.1
 RUN opam install cstruct.3.2.0
 RUN opam install nocrypto.0.5.4
 RUN opam install re2.v0.10.0
-RUN opam install core_extended.v0.10.0
+RUN opam install core_extended.v0.11.0
 
 # Environment
 ENV TERM=xterm-256color
