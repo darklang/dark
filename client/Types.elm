@@ -154,10 +154,10 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
-    | BlankOrClick TLID Pointer MouseEvent
-    | BlankOrDoubleClick TLID Pointer MouseEvent
-    | BlankOrMouseEnter TLID Pointer MouseEvent
-    | BlankOrMouseLeave TLID Pointer MouseEvent
+    | BlankOrClick TLID ID MouseEvent
+    | BlankOrDoubleClick TLID ID MouseEvent
+    | BlankOrMouseEnter TLID ID MouseEvent
+    | BlankOrMouseLeave TLID ID MouseEvent
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData

@@ -701,13 +701,11 @@ update_ msg m =
       else NoChange
 
 
-    BlankOrMouseEnter _ targetPointer _ ->
-      let id = P.toID targetPointer in
+    BlankOrMouseEnter _ id _ ->
       SetHover id
 
 
-    BlankOrMouseLeave _ targetPointer _ ->
-      let id = P.toID targetPointer in
+    BlankOrMouseLeave _ id _ ->
       ClearHover id
 
 
@@ -754,36 +752,36 @@ update_ msg m =
     ------------------------
     -- clicking
     ------------------------
-    BlankOrClick targetTLID targetPointer _ ->
+    BlankOrClick targetTLID targetID _ ->
       case m.state of
         Deselected ->
-          Select targetTLID (Just targetPointer)
+          Select targetTLID (Just targetID)
         Dragging _ _ _ _ ->
           Util.impossible "dragging should've concluded before here" NoChange
         Entering cursor ->
           case cursor of
-            Filling _ fillingPointer ->
-              if fillingPointer == targetPointer
+            Filling _ fillingID ->
+              if fillingID == targetID
               then
                 NoChange
               else
-                Select targetTLID (Just targetPointer)
+                Select targetTLID (Just targetID)
             _ ->
-              Select targetTLID (Just targetPointer)
-        Selecting _ maybeSelectingPointer ->
-          case maybeSelectingPointer of
-            Just selectingPointer ->
-              if selectingPointer == targetPointer
+              Select targetTLID (Just targetID)
+        Selecting _ maybeSelectingID ->
+          case maybeSelectingID of
+            Just selectingID ->
+              if selectingID == targetID
               then
                 NoChange
               else
-                Select targetTLID (Just targetPointer)
+                Select targetTLID (Just targetID)
             Nothing ->
-              Select targetTLID (Just targetPointer)
+              Select targetTLID (Just targetID)
 
 
-    BlankOrDoubleClick targetTLID targetPointer _ ->
-      Selection.enter m targetTLID targetPointer
+    BlankOrDoubleClick targetTLID targetID _ ->
+      Selection.enter m targetTLID targetID
 
 
     ToplevelClick targetTLID _ ->
