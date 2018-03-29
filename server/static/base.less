@@ -641,14 +641,26 @@ body #grid * {
   position: relative;
 }
 
+.selected[title] {
+  &:after {
+    bottom: calc(100% + 2px);
+    color: magenta;
+    content: attr(title);
+    display: block;
+    left: 0;
+    outline: 0.4px green solid;
+    position: absolute;
+  }
+}
+
 .computed-value {
-  color: green;
-  left: -17px;
-  outline: 0.4px green dotted;
-  position: absolute;
-  .default;
-  &.hidden {
-    display: none;
+  &:before {
+    color: green;
+    content: attr(computed-value);
+    outline: 0.4px green dotted;
+    position: absolute;
+    right: calc(100% + 0.4px);
+    .default;
   }
 }
 

@@ -41,6 +41,11 @@ type HtmlConfig =
                 | WithID ID
                 -- show a featureflag
                 | WithFF
+                -- display computed value from this ID
+                | ComputedValueAs ID
+                | ComputedValue
+                -- show a computedvalue
+                | WithCV
 
 wc : String -> HtmlConfig
 wc = WithClass
@@ -96,9 +101,28 @@ div vs configs content =
                 |> List.filterMap (\a -> case a of
                                            WithClass c -> Just c
                                            _ -> Nothing)
-      showComputedValue = List.member WithFF configs -- TODO: calculate this more cleverly
+      computedValueAs = getFirst (\a -> case a of
+                                  ComputedValueAs id -> Just id
+                                  ComputedValue -> thisID
+                                  _ -> Nothing)
+      showComputedValue = List.member WithCV configs
       showFeatureFlag = List.member WithFF configs
 
+      computedValueData =
+        case computedValueAs of
+          Just (ID id) ->
+            Dict.get id vs.lvs
+            |> Maybe.map .value
+            |> Maybe.map (\v -> if Runtime.isError v
+                                then Err (Runtime.extractErrorMessage v)
+                                else Ok v)
+          _ -> Nothing
+
+      (computedValueClasses, computedValue) =
+        case computedValueData of
+          Nothing -> ([], [])
+          Just (Ok msg) -> (["computed-value"], [Attrs.attribute "computed-value" msg])
+          Just (Err err) -> (["computed-value computed-value-error"], [Attrs.attribute "computed-value" err])
 
       -- Start using the config
       hoverdata =
@@ -111,11 +135,11 @@ div vs configs content =
                                 else Ok v)
           _ -> Nothing
 
-      (valClasses, computedValue, title) =
+      (valClasses, title) =
         case hoverdata of
-          Nothing -> ([], Nothing, [])
-          Just (Ok msg) -> ([], Just msg, [Attrs.title msg])
-          Just (Err err) -> (["value-error"], Just err, [Attrs.title err])
+          Nothing -> ([], [])
+          Just (Ok msg) -> ([], [Attrs.title msg])
+          Just (Err err) -> (["value-error"], [Attrs.title err])
 
       selected = thisID == selectedID
                  && ME.isJust thisID
@@ -127,6 +151,7 @@ div vs configs content =
                  _ -> []
       allClasses = classes
                   ++ idAttr
+                  ++ computedValueClasses
                   ++ valClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
@@ -141,15 +166,12 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ title ++ [classAttr]
+      attrs = events ++ title ++ computedValue ++ [classAttr]
       featureFlag = if showFeatureFlag
                     then [viewFeatureFlag]
                     else []
-      computedValueElement = if showComputedValue
-                      then [renderComputedValue computedValue]
-                      else []
   in
-    Html.div attrs (content ++ featureFlag ++ computedValueElement)
+    Html.div attrs (content ++ featureFlag)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
@@ -203,7 +225,7 @@ viewBlankOr htmlFn pt vs c bo =
 
       thisTextFn flagClass bo =
         let std = c ++ [WithID id]
-            ++ (if selected then [WithFF] else [])
+            ++ (if selected then [WithFF] else [WithCV])
         in
         case bo of
           Blank _ ->
@@ -259,11 +281,9 @@ viewBlankOr htmlFn pt vs c bo =
     _ -> thisText
 
 
-renderComputedValue : Maybe String -> Html.Html Msg
-renderComputedValue maybeString =
-  case maybeString of
-    Just value -> Html.div [ Attrs.class "computed-value" ] [ Html.text value ]
-    Nothing -> Html.div [ Attrs.class "computed-value hidden" ] []
+renderComputedValue : String -> Html.Html Msg
+renderComputedValue value =
+  Html.div [ Attrs.class "computed-value" ] [ Html.text value ]
 
 
 viewFeatureFlag : Html.Html Msg
