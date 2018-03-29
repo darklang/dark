@@ -57,7 +57,7 @@ viewTL m tl =
         , eventNoPropagation "click" (ToplevelClick tl.id)
         ]
 
-      selected = if Just tl.id == tlidOf m.state
+      selected = if Just tl.id == tlidOf m.cursorState
                  then "selected"
                  else ""
       class = [selected, toString (deTLID tl.id), "toplevel", "cursor-" ++ (toString tl.cursor)]

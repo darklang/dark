@@ -69,7 +69,7 @@ keyword vs c name =
 -- such as whether it's selected, appropriate events, mouseover, etc.
 div : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
 div vs configs content =
-  let selectedID = case vs.state of
+  let selectedID = case vs.cursorState of
                      Selecting _ (Just id) -> Just id
                      _ -> Nothing
 
@@ -210,16 +210,16 @@ viewBlankOr htmlFn pt vs c bo =
   let
       _ = case bo of
             Flagged _ _ _ _ _ ->
-              let _ = Debug.log "state " vs.state in
+              let _ = Debug.log "cursorState " vs.cursorState in
               let _ = Debug.log "bo" bo in
               bo
             _ -> bo
 
       isSelected id =
-        idOf vs.state == Just id
+        idOf vs.cursorState == Just id
 
       isSelectionWithin bo =
-        idOf vs.state
+        idOf vs.cursorState
         |> Maybe.map (B.within bo)
         |> Maybe.withDefault False
 
@@ -298,7 +298,7 @@ viewBlankOr htmlFn pt vs c bo =
           Blank id -> drawBlank id
 
   in
-  case vs.state of
+  case vs.cursorState of
     Entering (Filling _ thisID) ->
       let id = B.toID bo in
       if id == thisID

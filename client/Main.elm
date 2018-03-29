@@ -150,7 +150,7 @@ processFocus m focus =
           then Enter (Filling tlid id)
           else Select tlid (Just id)
     FocusSame ->
-      case unwrapState m.state of
+      case unwrapCursorState m.cursorState of
         Selecting tlid mId ->
           case (TL.get m tlid, mId) of
             (Just tl, Just id) ->
@@ -188,7 +188,7 @@ updateMod mod (m, cmd) =
           else mod
       closeThreads newM =
         -- close open threads in the previous TL
-        m.state
+        m.cursorState
         |> tlidOf
         |> Maybe.andThen (TL.get m)
         |> Maybe.map (\tl ->
@@ -204,7 +204,7 @@ updateMod mod (m, cmd) =
                   in [RPC.rpc newM FocusSame calls]
               _ -> [])
         |> Maybe.withDefault []
-        |> \rpc -> if tlidOf newM.state == tlidOf m.state
+        |> \rpc -> if tlidOf newM.cursorState == tlidOf m.cursorState
                    then []
                    else rpc
   in
@@ -269,16 +269,16 @@ updateMod mod (m, cmd) =
         { m | integrationTestState = IntegrationTestFinished result } ! []
 
       MakeCmd cmd -> m ! [cmd]
-      SetState state ->
+      SetCursorState cursorState ->
         -- DOES NOT RECALCULATE VIEW
-        { m | state = state } ! []
+        { m | cursorState = cursorState } ! []
 
       Select tlid p ->
-        let newM = { m | state = Selecting tlid p } in
+        let newM = { m | cursorState = Selecting tlid p } in
         newM ! closeThreads newM
 
       Deselect ->
-        let newM = { m | state = Deselected }
+        let newM = { m | cursorState = Deselected }
         in newM ! (closeThreads newM)
 
       Enter entry ->
@@ -293,7 +293,7 @@ updateMod mod (m, cmd) =
 
             (complete, acCmd) =
               processAutocompleteMods m [ ACSetTarget target ]
-            newM = { m | state = Entering entry, complete = complete }
+            newM = { m | cursorState = Entering entry, complete = complete }
         in
         newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
 
@@ -327,7 +327,7 @@ updateMod mod (m, cmd) =
       SetStorage editorState ->
         m ! [setStorage editorState]
       Drag tlid offset hasMoved state ->
-        { m | state = Dragging tlid offset hasMoved state } ! []
+        { m | cursorState = Dragging tlid offset hasMoved state } ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -348,7 +348,7 @@ processAutocompleteMods m mods =
         (\mod complete -> AC.update m mod complete)
         m.complete
         mods
-      focus = case unwrapState m.state of
+      focus = case unwrapCursorState m.cursorState of
                 Entering _ -> AC.focusItem complete.index
                 _ -> Cmd.none
       _ = if m.integrationTestState /= NoIntegrationTest
@@ -370,7 +370,7 @@ isFieldAccessDot m baseStr =
   let str = Util.replace "\\.*$" "" baseStr
       intOrString = String.startsWith "\"" str || Runtime.isInt str
   in
-  case m.state of
+  case m.cursorState of
     Entering (Creating _) -> not intOrString
     Entering (Filling tlid id) ->
       let tl = TL.getTL m tlid
@@ -395,7 +395,7 @@ update_ msg m =
           Key.Y -> RPC ([Redo], FocusSame)
           _ -> NoChange
       else
-        case m.state of
+        case m.cursorState of
           Selecting tlid mId ->
             case event.keyCode of
               Key.Delete -> Selection.delete m tlid mId
@@ -693,7 +693,7 @@ update_ msg m =
     -- interactions (esp ToplevelMouseUp)
 
     AutocompleteClick value ->
-      case unwrapState m.state of
+      case unwrapCursorState m.cursorState of
         Entering cursor ->
           Entry.submit m cursor Entry.ContinueThread value
         _ -> NoChange
@@ -718,28 +718,28 @@ update_ msg m =
     -- dragging
     ------------------------
     DragToplevel _ mousePos ->
-      case m.state of
-        Dragging draggingTLID startVPos _ origState ->
+      case m.cursorState of
+        Dragging draggingTLID startVPos _ origCursorState ->
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move draggingTLID xDiff yDiff m in
           Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions
-               , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origState
+               , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origCursorState
                ]
         _ -> NoChange
 
 
     ToplevelMouseDown targetTLID event ->
       if event.button == Defaults.leftButton
-      then Drag targetTLID event.pos False m.state
+      then Drag targetTLID event.pos False m.cursorState
       else NoChange
 
 
     ToplevelMouseUp targetTLID event ->
       if event.button == Defaults.leftButton
       then
-        case m.state of
-          Dragging draggingTLID startVPos hasMoved origState ->
+        case m.cursorState of
+          Dragging draggingTLID startVPos hasMoved origCursorState ->
             if hasMoved
             then
               let tl = TL.getTL m draggingTLID in
@@ -749,7 +749,7 @@ update_ msg m =
               --     the dragging state in `ToplevelClick` coming up next
               RPC ([MoveTL draggingTLID tl.pos], FocusNoChange)
             else
-              SetState origState
+              SetCursorState origCursorState
           _ ->
             NoChange
       else NoChange
@@ -758,11 +758,11 @@ update_ msg m =
     -- clicking
     ------------------------
     BlankOrClick targetTLID targetID _ ->
-      case m.state of
+      case m.cursorState of
         Deselected ->
           Select targetTLID (Just targetID)
-        Dragging _ _ _ origState ->
-          SetState origState
+        Dragging _ _ _ origCursorState ->
+          SetCursorState origCursorState
         Entering cursor ->
           case cursor of
             Filling _ fillingID ->
@@ -790,9 +790,9 @@ update_ msg m =
 
 
     ToplevelClick targetTLID _ ->
-      case m.state of
-        Dragging _ _ _ origState ->
-          SetState origState
+      case m.cursorState of
+        Dragging _ _ _ origCursorState ->
+          SetCursorState origCursorState
         Selecting selectingTLID _ ->
           if targetTLID == selectingTLID
           then
@@ -934,7 +934,7 @@ subscriptions m =
       resizes = [Window.resizes (\{height,width} ->
                                     WindowResize height width)]
       dragSubs =
-        case m.state of
+        case m.cursorState of
           -- we use IDs here because the node will change
           -- before they're triggered
           Dragging id offset _ _ ->
