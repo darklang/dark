@@ -172,10 +172,8 @@ type Msg
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
-           | Refocus TLID
            | FocusExact TLID ID
            | FocusNext TLID (Maybe ID)
-           | FocusFirstAST TLID
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
 
