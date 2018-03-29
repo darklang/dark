@@ -36,7 +36,7 @@ createFindSpace m = Enter (Creating (Viewport.toAbsolute m Defaults.initialPos))
 
 focusEntry : Model -> Cmd Msg
 focusEntry m =
-  case unwrapState m.state of
+  case unwrapCursorState m.cursorState of
     Entering _ ->
       Dom.focus Defaults.entryID |> Task.attempt FocusEntry
     _ ->

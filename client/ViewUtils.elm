@@ -20,7 +20,7 @@ import Analysis
 
 type alias ViewState =
   { tl: Toplevel
-  , state: State
+  , cursorState: CursorState
   , tlid: TLID
   , hovering: Maybe ID
   , ac: Autocomplete
@@ -30,7 +30,7 @@ type alias ViewState =
 
 createVS : Model -> Toplevel -> ViewState
 createVS m tl = { tl = tl
-                , state = unwrapState m.state
+                , cursorState = unwrapCursorState m.cursorState
                 , tlid = tl.id
                 , hovering = m.hovering |> List.head
                 , ac = m.complete
