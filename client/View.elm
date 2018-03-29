@@ -125,9 +125,7 @@ viewHandler vs h =
         Html.div
           [Attrs.class "header"]
           [ viewText EventName vs [wc "name"] h.spec.name
-          , (Html.div
-            [ Attrs.class "modifier" ]
-             externalLink)
+          , (Html.div [] externalLink)
           , viewText EventSpace vs [wc "module"] h.spec.module_
           , viewText EventModifier vs [wc "modifier"] h.spec.modifier]
   in [header, ast]
