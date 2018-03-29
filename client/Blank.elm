@@ -76,10 +76,10 @@ replace id bo replacement =
 -- checks if the ID is in the blank. Does not recurse past the Blank
 -- definitions (eg, it will find a deeply nested Flagged, but won't find
 -- a node within the AST)
-within : ID -> BlankOr a -> Bool
-within id bo =
+within : BlankOr a -> ID -> Bool
+within bo id =
   case bo of
     Flagged thisId msg setting l r ->
-      id == thisId || within id l || within id r
+      id == thisId || within l id || within r id
     Blank thisId -> id == thisId
     F thisId _ -> id == thisId
