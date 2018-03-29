@@ -96,22 +96,14 @@ test('field_access_closes', async t => {
 
   await t
     .pressKey("enter")
-      .takeScreenshot("1_enter")
     .typeText("#entry-box", "req")
-      .takeScreenshot("2_req")
     .expect(acHighlighted("request")).ok()
-      .takeScreenshot("3_request")
     .typeText("#entry-box", ".")
-      .takeScreenshot("4_dot")
 
     .typeText("#entry-box", "b")
-      .takeScreenshot("5_b")
     .typeText("#entry-box", "o")
-      .takeScreenshot("6_o")
     .expect(acHighlighted("body")).ok()
-      .takeScreenshot("7_wait_bo")
     .pressKey("enter")
-      .takeScreenshot("8_enter")
     ;
 });
 
@@ -312,5 +304,80 @@ test('ellen_hello_world_demo', async t => {
     .typeText("#entry-box", "\"Hello world!", slow)
     .pressKey("enter")
 });
+
+test('editing_headers', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+
+    // add headers
+    .doubleClick(".spec-header > .name")
+    .typeText("#entry-box", "/hello", slow)
+    .pressKey("enter")
+
+    .doubleClick(".spec-header > .modifier")
+    .typeText("#entry-box", "PO", slow)
+    .expect(acHighlighted("POST")).ok()
+    .pressKey("enter")
+
+    .doubleClick(".spec-header > .module")
+    .typeText("#entry-box", "HTTP", slow)
+    .pressKey("enter")
+
+    // edit them
+    .doubleClick(".spec-header > .name")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .typeText("#entry-box", "/myroute", slow)
+    .pressKey("enter")
+
+    .click(".spec-header > .modifier")
+    .pressKey("delete")
+    .typeText("#entry-box", "GET", slow)
+    .pressKey("enter")
+});
+
+test('tabbing_through_let', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "let")
+    .pressKey("enter")
+
+    // fill in the headers first
+    .pressKey("tab")
+    .pressKey("tab")
+    .pressKey("tab")
+    .typeText("#entry-box", "/route", slow)
+    .pressKey("enter")
+    .typeText("#entry-box", "HTTP")
+    .pressKey("enter")
+    .typeText("#entry-box", "GET")
+    .pressKey("enter")
+
+    // round trip through the let blanks once
+    .pressKey("tab")
+    .pressKey("tab")
+    .pressKey("tab")
+
+    // go to the body and fill it in
+    .pressKey("tab")
+    .pressKey("tab")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+
+    // go to the rhs and fill it in
+    .pressKey("tab")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+
+    // fill in the var
+    .typeText("#entry-box", "myvar")
+    .pressKey("enter")
+});
+
 
 
