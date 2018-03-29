@@ -62,15 +62,15 @@ flattenFF bo =
     _ -> bo
 
 replace : ID -> BlankOr a -> BlankOr a -> BlankOr a
-replace id bo replacement =
-  if toID bo == id
+replace search replacement bo =
+  if toID bo == search
   then replacement
   else
     case bo of
       Flagged thisId msg setting l r ->
         Flagged thisId msg setting
-          (replace id l replacement)
-          (replace id r replacement)
+          (replace search replacement l)
+          (replace search replacement r)
       _ -> bo
 
 -- checks if the ID is in the blank. Does not recurse past the Blank
