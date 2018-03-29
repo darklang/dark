@@ -153,15 +153,22 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  let cs =
-        case pt of
-          VarBind -> idConfigs
-          EventName -> idConfigs
-          EventSpace -> idConfigs
-          EventModifier -> idConfigs
-          Field -> idConfigs
-          FFMsg -> idConfigs
-          _ -> []
+  let cs = case pt of
+             VarBind -> idConfigs
+             EventName -> idConfigs
+             EventSpace -> idConfigs
+             EventModifier -> idConfigs
+             Field -> idConfigs
+             FFMsg -> idConfigs
+             DBColName ->
+               if B.isBlank str
+               then idConfigs
+               else []
+             DBColType ->
+               if B.isBlank str
+               then idConfigs
+               else []
+             _ -> []
   in
   viewBlankOr (text vs) pt vs (c ++ cs) str
 
