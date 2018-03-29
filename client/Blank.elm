@@ -80,6 +80,6 @@ within : BlankOr a -> ID -> Bool
 within bo id =
   case bo of
     Flagged thisId msg setting l r ->
-      id == thisId || within l id || within r id
+      id == thisId || within l id || within r id || within msg id
     Blank thisId -> id == thisId
     F thisId _ -> id == thisId
