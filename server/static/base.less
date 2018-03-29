@@ -156,11 +156,6 @@ body #grid * {
     .blank-text-style;
   }
 
-  .entry {
-    vertical-align: baseline;
-    min-width: 8ch;
-  }
-
 }
 
 //*************
@@ -238,7 +233,6 @@ body #grid * {
     flex-direction: row;
 
     .name, .type {
-      margin: 2px 5px;
       flex: 1 0 0;
       &.blank {
         width: 96px; // put it all on one line
@@ -259,34 +253,11 @@ body #grid * {
   justify-content: space-between;
   flex-wrap: wrap;
 
-  // center it
-  /* border-right: @top-border; */
-  /* margin-right: 2px; */
-  /* padding-right: 2px; */
-  /* &::last-child  { */
-  /*   border-right: none; */
-  /*   margin-right: 0px; */
-  /*   padding-right: 0px; */
-  /* } */
-  /*  */
-
   color: @orange;
-  font-size: 50%;
+  font-size: 8pt;
 
-  .name {
-    padding-left: 10px;
-    padding-right: 1ch;
-  }
-
-  .module {
-    padding-left: 10px;
-    padding-right: 1ch;
-  }
-
-  .modifier {
-    display: flex;
-    flex-direction: row;
-    justify-content: flex-end;
+  .name, .modifier, .module {
+    margin: 0 4px;
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
@@ -321,11 +292,14 @@ body #grid * {
   border-bottom: @blank-underline;
 }
 .blank-text-style() {
-  color: @grey1;
+  color: @grey2;
   font-style: italic;
   font-size: 8pt;
-  text-indent: 4px;
-  margin: 4px;
+  padding-left: 1ch;
+  padding-right: 1ch;
+  margin-left: 4px;
+  margin-right: 4px;
+  text-align: center;
 }
 
 .layout-block() {
@@ -499,8 +473,7 @@ body #grid * {
 
 // TODO: figure out proper entry box positioning
 // -- this is a demo hack
-.header .entry form {
-  position: relative;
+.spec-header .entry form {
   margin-top: 0px;
 }
 
@@ -509,16 +482,21 @@ body #grid * {
   margin-top: 0px;
 }
 
+.ast .entry form {
+  position: relative;
+  margin-top: 0px;
+}
+
+
 .entry {
   // headers need to be relative to position them. We need to be above
   // the headers, and position:relative allows us to do it.
-  position: relative;
   cursor: default;
   background: @black2;
   color: @white3;
   width: auto;
-  /* width: 96px; // keeps autocomplete appearing when Creating */
 
+  /* width: 96px; // keeps autocomplete appearing when Creating */
   .types {
     float: right;
     text-transform: lowercase;
@@ -529,16 +507,25 @@ body #grid * {
     // makes the form takes up no space in the DOM, meaning we don't
     // expand the top-level
     position: absolute;
-    margin-top: -12px; // account for the space of both input boxes
+
+    // account for the space of both input boxes
+    margin-top: -12px;
 
     #search-container {
+      font-size: 8pt;
+      height: 15px;
+      border-bottom: @blank-underline;
       position: relative;
       #entry-box {
+        // as much like the blank box as possible
+        vertical-align: baseline;
+        padding-right: 1ch;
+        min-width: 8ch;
+        color: @grey3;
+
         z-index: 20;
         position: relative;
-        color: @grey3;
         background: transparent;
-        border-bottom: @blank-underline;
       }
       #suggestionBox {
         position: absolute;
