@@ -261,8 +261,8 @@ rootOf tl =
 -------------------------
 -- Generic
 -------------------------
-replace : Toplevel -> PointerData -> PointerData -> Toplevel
-replace tl p pd =
+replace : PointerData -> PointerData -> Toplevel -> Toplevel
+replace p pd tl =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
       id = P.toID p
       astReplace () =
@@ -304,7 +304,7 @@ replace tl p pd =
 delete : Toplevel -> PointerData -> ID -> Toplevel
 delete tl p newID =
   let replacement = P.emptyD_ newID (P.typeOf p)
-  in replace tl p replacement
+  in replace p replacement tl
 
 
 allData : Toplevel -> List PointerData

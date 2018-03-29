@@ -24,7 +24,7 @@ start m =
                   |> P.strmap (\_ a -> toFlagged a)
                   |> P.dtmap toFlagged
                   |> P.exprmap toFlagged
-          newTL = TL.replace tl pd newPd
+          newTL = TL.replace pd newPd tl
       in
       RPC ([SetHandler tl.id tl.pos
                        (newTL |> TL.asHandler |> deMaybe "FF.start") ]
