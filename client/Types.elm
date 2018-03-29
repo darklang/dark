@@ -100,16 +100,26 @@ unwrapState s =
 tlidOf : State -> Maybe TLID
 tlidOf s =
   case unwrapState s of
-    Selecting tlid _ ->
-      Just tlid
+    Selecting tlid _ -> Just tlid
     Entering cursor ->
       case cursor of
-        Creating _ ->
-          Nothing
-        Filling tlid _ ->
-          Just tlid
+        Creating _ -> Nothing
+        Filling tlid _ -> Just tlid
     Deselected -> Nothing
     Dragging _ _ _ _ -> Nothing
+
+idOf : State -> Maybe ID
+idOf s =
+  case unwrapState s of
+    Selecting _ id -> id
+    Entering cursor ->
+      case cursor of
+        Creating _ -> Nothing
+        Filling _ id  -> Just id
+    Deselected -> Nothing
+    Dragging _ _ _ _ -> Nothing
+
+
 
 
 

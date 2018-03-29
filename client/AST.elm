@@ -447,7 +447,7 @@ replace pd replacement expr =
   let r = replace pd replacement
       pId = P.toID pd
   in
-  if B.within pId expr
+  if B.within expr pId
   then
     case replacement of
       PExpr e -> B.replace pId expr e
@@ -455,12 +455,12 @@ replace pd replacement expr =
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind b) ->
-        if B.within pId lhs
+        if B.within lhs pId
         then F id (Let (B.replace pId lhs b) rhs body)
         else traverse r expr
 
       (F id (FieldAccess obj field), PField f) ->
-        if B.within pId field
+        if B.within field pId
         then F id (FieldAccess obj (B.replace pId field f))
         else traverse r expr
 

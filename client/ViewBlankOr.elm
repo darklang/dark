@@ -206,9 +206,12 @@ viewBlankOr htmlFn pt vs c bo =
             _ -> bo
 
       isSelected id =
-        case vs.state of
-          Selecting _ (Just sId) -> sId == id
-          _ -> False
+        idOf vs.state == Just id
+
+      isSelectionWithin bo =
+        idOf vs.state
+        |> Maybe.map (B.within bo)
+        |> Maybe.withDefault False
 
       wID id = [WithID id]
       wFF id =
@@ -245,7 +248,7 @@ viewBlankOr htmlFn pt vs c bo =
 
 
       drawFlagged id msg setting l r =
-         if isSelected id
+         if isSelectionWithin (Flagged id msg setting l r)
          then
            div vs
              [ wc "flagged shown"]
@@ -253,8 +256,10 @@ viewBlankOr htmlFn pt vs c bo =
               [ fontAwesome "flag"
               , viewText FFMsg vs [wc "flag-message"] msg
               , text vs [wc "flag-setting"] (toString setting)
-              , viewBlankOr htmlFn pt vs [wc "flag-left nested-flag"] l
-              , viewBlankOr htmlFn pt vs [wc "flag-right nested-flag"] r
+              , div vs [wc "flag-left nested-flag"]
+                  [viewBlankOr htmlFn pt vs [] l]
+              , div vs [wc "flag-right nested-flag"]
+                  [viewBlankOr htmlFn pt vs [] r]
               ])
         else
           Html.div
