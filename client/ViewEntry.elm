@@ -172,7 +172,9 @@ normalEntryHtml placeholder ac =
               [searchInput, suggestionInput]
 
       viewForm = Html.form
-                 [ Events.onSubmit (EntrySubmitMsg) ]
+                 [ Events.onSubmit (EntrySubmitMsg)
+                 , widthInCh searchWidth
+                 ]
                  [ input, autocomplete ]
 
       wrapper = Html.div
