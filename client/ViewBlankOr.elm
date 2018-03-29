@@ -153,7 +153,17 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  viewBlankOr (text vs) pt vs c str
+  let cs =
+        case pt of
+          VarBind -> idConfigs
+          EventName -> idConfigs
+          EventSpace -> idConfigs
+          EventModifier -> idConfigs
+          Field -> idConfigs
+          FFMsg -> idConfigs
+          _ -> []
+  in
+  viewBlankOr (text vs) pt vs (c ++ cs) str
 
 placeHolderFor : ViewState -> ID -> PointerType -> String
 placeHolderFor vs id pt =
