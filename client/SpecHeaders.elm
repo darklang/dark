@@ -9,13 +9,6 @@ import Types exposing (..)
 import Pointer as P
 import Blank as B
 
-find : Handler -> PointerData -> Maybe (BlankOr String)
-find h p =
-  [h.spec.name, h.spec.modifier]
-  |> List.filter (\spec -> B.toID spec == P.toID p)
-        -- TODO: opportunity to check pointer types
-  |> List.head
-
 replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventModifier search replacement hs =
   { hs | modifier = B.replace search replacement hs.modifier }
