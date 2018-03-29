@@ -170,14 +170,6 @@ lastBlank : Toplevel -> Successor
 lastBlank tl =
   tl |> allBlanks |> LE.last
 
-getFirstASTBlank : Toplevel -> Successor
-getFirstASTBlank tl =
-  tl
-  |> asHandler
-  |> Maybe.map .ast
-  |> Maybe.map AST.allData
-  |> Maybe.andThen List.head
-
 
 -------------------------
 -- Siblings
