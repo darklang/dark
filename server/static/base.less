@@ -147,10 +147,6 @@ body #grid * {
     }
   }
 
-  .header > .mouseovered, .spec-type > .mouseovered {
-    color: @grey3;
-  }
-
   .selected {
     outline: 0.5px magenta solid;
   }
@@ -295,12 +291,10 @@ body #grid * {
   }
 
   // remove dotted outline after clicking (source: reset-normalize)
-  // TODO: this doesn't work after a recent change.
   a:focus {
     outline: none;
   }
   .external {
-    /* font-size: 200%; */
     padding-right: 1ch;
     color: @orange;
     vertical-align: center;
