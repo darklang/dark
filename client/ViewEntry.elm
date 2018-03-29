@@ -19,7 +19,7 @@ import ViewUtils exposing (..)
 
 viewEntry : Model -> List (Html.Html Msg)
 viewEntry m =
-  case unwrapState m.state of
+  case unwrapCursorState m.cursorState of
     Entering (Creating pos) ->
       let html =
             Html.div

@@ -16,7 +16,7 @@ toFlagged bo =
 
 start : Model -> Modification
 start m =
-  case unwrapState m.state of
+  case unwrapCursorState m.cursorState of
     Selecting tlid (Just id) ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id

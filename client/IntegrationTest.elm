@@ -70,9 +70,9 @@ onlyAST m =
 
 enter_changes_state : Model -> TestResult
 enter_changes_state m =
-  case m.state of
+  case m.cursorState of
     Entering (Creating _) -> pass
-    _ -> fail m.state
+    _ -> fail m.cursorState
 
 
 field_access : Model -> TestResult
@@ -84,14 +84,14 @@ field_access m =
 
 field_access_closes : Model -> TestResult
 field_access_closes m =
-  case m.state of
+  case m.cursorState of
     Entering (Filling _ id) ->
       let ast = onlyTL m |> TL.asHandler |> deMaybe "test" |> .ast in
       if (AST.allData ast |> List.filter P.isBlank) == []
       then pass
       else fail (TL.allBlanks (onlyTL m))
     _ ->
-      fail m.state
+      fail m.cursorState
 
 field_access_pipes : Model -> TestResult
 field_access_pipes m =
@@ -121,9 +121,9 @@ pipeline_let_equals m =
           e ->
             fail e
       stateR =
-        case m.state of
+        case m.cursorState of
           Entering _ -> pass
-          _ -> fail m.state
+          _ -> fail m.cursorState
   in
       Result.map2 (\() () -> ()) astR stateR
 
@@ -152,12 +152,12 @@ next_sibling_works : Model -> TestResult
 next_sibling_works m =
   case onlyAST m of
     Let (Blank _) (Blank id1) (Blank _) ->
-      case m.state of
+      case m.cursorState of
         Selecting _ (Just id2) ->
           if id1 == id2
           then pass
           else fail (id1, id2)
-        s -> fail m.state
+        s -> fail m.cursorState
     e -> fail e
 
 
@@ -165,12 +165,12 @@ varbinds_are_editable : Model -> TestResult
 varbinds_are_editable m =
   case onlyAST m of
     Let (F id1 "var") (Blank _) (Blank _) as l ->
-      case m.state of
+      case m.cursorState of
         Entering (Filling _ id2)->
           if id1 == id2
           then pass
-          else fail (l, m.state)
-        s -> fail (l, m.state)
+          else fail (l, m.cursorState)
+        s -> fail (l, m.cursorState)
     e -> fail e
 
 
