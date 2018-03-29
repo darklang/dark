@@ -17,27 +17,27 @@ find h p =
   |> List.head
 
 replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
-replaceEventModifier id value hs =
-  { hs | modifier = B.replace id value hs.modifier }
+replaceEventModifier search replacement hs =
+  { hs | modifier = B.replace search replacement hs.modifier }
 
 replaceEventName : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
-replaceEventName id value hs =
-  { hs | name = B.replace id value hs.name}
+replaceEventName search replacement hs =
+  { hs | name = B.replace search replacement hs.name }
 
 replaceEventSpace : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
-replaceEventSpace id value hs =
-  { hs | module_ = B.replace id value hs.module_}
+replaceEventSpace search replacement hs =
+  { hs | module_ = B.replace search replacement hs.module_ }
 
 replace : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
-replace id value hs =
+replace search replacement hs =
   hs
-  |> replaceEventModifier id value
-  |> replaceEventName id value
-  |> replaceEventSpace id value
+  |> replaceEventModifier search replacement
+  |> replaceEventName search replacement
+  |> replaceEventSpace search replacement
 
 delete : PointerData -> HandlerSpec -> ID -> HandlerSpec
 delete pd hs newID =
-  replace (P.toID pd) (Blank newID) hs
+  replace (P.toID pd |> Debug.log "id") (Blank newID) hs
 
 allData : HandlerSpec -> List PointerData
 allData spec =
