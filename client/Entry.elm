@@ -103,7 +103,6 @@ submit m cursor action value =
   case cursor of
     Creating pos ->
       let tlid = gtlid ()
-          wrap op = RPC ([op], FocusFirstAST tlid)
           threadIt expr =
             case action of
               ContinueThread ->
@@ -111,9 +110,18 @@ submit m cursor action value =
               StartThread ->
                 B.newF (Thread [expr, B.new ()])
           wrapExpr expr =
-            wrap <| SetHandler tlid pos { ast = threadIt expr
-                                        , spec = newHandlerSpec ()
-                                        }
+            let newAst = threadIt expr
+                focus = newAst
+                        |> AST.allData
+                        |> List.filter P.isBlank
+                        |> List.head
+                        |> Maybe.map P.toID
+                        |> Maybe.map (FocusExact tlid)
+                        |> Maybe.withDefault FocusNothing
+                op = SetHandler tlid pos { ast = newAst
+                                         , spec = newHandlerSpec ()
+                                         }
+            in RPC ([op], focus)
       in
 
       -- DB creation
@@ -122,7 +130,7 @@ submit m cursor action value =
         let dbName = value
                      |> String.dropLeft 2
                      |> String.trim
-        in wrap <| CreateDB tlid pos dbName
+        in RPC ([CreateDB tlid pos dbName], FocusNothing)
 
       -- field access
       else if String.endsWith "." value
