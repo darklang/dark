@@ -149,14 +149,6 @@ processFocus m focus =
           if P.isBlank pd
           then Enter (Filling tlid id)
           else Select tlid (Just id)
-    Refocus tlid ->
-      Select tlid Nothing
-    FocusFirstAST tlid ->
-      let tl = TL.getTL m tlid
-          next = TL.getFirstASTBlank tl in
-      case next of
-        Just pd -> Enter (Filling tlid (P.toID pd))
-        Nothing -> Select tlid Nothing
     FocusSame ->
       case unwrapState m.state of
         Selecting tlid mId ->
