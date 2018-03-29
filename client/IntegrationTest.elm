@@ -34,6 +34,8 @@ trigger test_name =
     "deleting_selects_the_blank" -> deleting_selects_the_blank
     "right_number_of_blanks" -> right_number_of_blanks
     "ellen_hello_world_demo" -> ellen_hello_world_demo
+    "editing_headers" -> editing_headers
+    "tabbing_through_let" -> tabbing_through_let
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -234,13 +236,33 @@ ellen_hello_world_demo m =
   let spec = onlyTL m
              |> TL.asHandler
              |> deMaybe "hw2"
-             |> .spec in
-    case (spec.module_, spec.name, spec.modifier, onlyAST m) of
-      ( F _ "HTTP"
-      , F _ "/hello"
-      , F _ "GET"
-      , Value "\"Hello world!\"") ->
-        pass
-      other -> fail other
+             |> .spec
+  in
+  case (spec.module_, spec.name, spec.modifier, onlyAST m) of
+    ( F _ "HTTP"
+    , F _ "/hello"
+    , F _ "GET"
+    , Value "\"Hello world!\"") ->
+      pass
+    other -> fail other
 
+editing_headers : Model -> TestResult
+editing_headers m =
+  let spec = onlyTL m
+             |> TL.asHandler
+             |> deMaybe "hw2"
+             |> .spec
+  in
+  case (spec.module_, spec.name, spec.modifier) of
+    ( F _ "HTTP"
+    , F _ "/myroute"
+    , F _ "GET") ->
+      pass
+    other -> fail other
 
+tabbing_through_let : Model -> TestResult
+tabbing_through_let m =
+  case onlyAST m of
+    Let (F _ "myvar") (F _ (Value "5")) (F _ (Value "5")) ->
+      pass
+    e -> fail e
