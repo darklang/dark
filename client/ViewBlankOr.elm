@@ -248,17 +248,18 @@ viewBlankOr htmlFn pt vs c bo =
          if isSelected id
          then
            div vs
-             [ wc "flagged shown", WithID id]
-             ([ viewText FFMsg vs [wc "flag-message"] msg
-             , text vs [wc "flag-setting"] (toString setting)
-             ] ++ drawInFlag id (B.flattenFF bo) ++
-             [ viewBlankOr htmlFn pt vs [wc "flag-left"] l
-             , viewBlankOr htmlFn pt vs [wc "flag-right"] r
-             ])
+             [ wc "flagged shown"]
+             (drawInFlag id (B.flattenFF bo) ++
+              [ fontAwesome "flag"
+              , viewText FFMsg vs [wc "flag-message"] msg
+              , text vs [wc "flag-setting"] (toString setting)
+              , viewBlankOr htmlFn pt vs [wc "flag-left nested-flag"] l
+              , viewBlankOr htmlFn pt vs [wc "flag-right nested-flag"] r
+              ])
         else
           Html.div
             [Attrs.class "flagged hidden"]
-            (drawInFlag id (B.flattenFF bo))
+            (drawInFlag id (B.flattenFF bo) ++ [fontAwesome "flag"])
 
 
 
