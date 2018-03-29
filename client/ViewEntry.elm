@@ -17,8 +17,6 @@ import Defaults
 import Autocomplete
 import ViewUtils exposing (..)
 
-
-
 viewEntry : Model -> List (Html.Html Msg)
 viewEntry m =
   case unwrapState m.state of
@@ -189,13 +187,4 @@ entryHtml allowStringEntry placeholder ac =
   if allowStringEntry && Autocomplete.isStringEntry ac
   then stringEntryHtml ac
   else normalEntryHtml placeholder ac
-
-
-
-
-
-
-
-
-
 
