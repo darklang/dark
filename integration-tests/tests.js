@@ -262,7 +262,8 @@ test('pressing_up_doesnt_return_to_start', async t => {
     .expect(acHighlighted("Char::toASCIIChar")).ok()
     .pressKey("down")
     .pressKey("up")
-    .typeText("#entry-box", "toASCII")
+    .expect(acHighlighted("Char::toASCIIChar")).ok()
+    .typeText("#entry-box", "toASCII", slow)
     .pressKey("enter")
 });
 
