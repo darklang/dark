@@ -112,37 +112,37 @@ jobs:
       - run: scripts/run-in-docker scripts/gcp-build-container
 
       # Disable this as all further stuff is disabled.
-      # - run:
-      #     name: Get GCP deploy key
-      #     command: |
-      #       echo $GCLOUD_SERVICE_KEY \
-      #         | base64 --decode --ignore-garbage > gcloud-service-key.json
-      #       docker cp gcloud-service-key.json \
-      #         dark-dev:/home/dark/app/gcloud-service-key.json
+      - run:
+          name: Get GCP deploy key
+          command: |
+            echo $GCLOUD_SERVICE_KEY \
+              | base64 --decode --ignore-garbage > gcloud-service-key.json
+            docker cp gcloud-service-key.json \
+              dark-dev:/home/dark/app/gcloud-service-key.json
 
-      #       scripts/run-in-docker gcloud auth activate-service-account \
-      #         --key-file /home/dark/app/gcloud-service-key.json
+            scripts/run-in-docker gcloud auth activate-service-account \
+              --key-file /home/dark/app/gcloud-service-key.json
 
       # TODO: This fails by timing out during the upload to gcr. Skip
       # for now.
-      # - run: scripts/run-in-docker scripts/gcp-deploy
+      - run: scripts/run-in-docker scripts/gcp-deploy
 
-      # # For now, we do integration tests after the deploy. If they work
-      # # above, then it works. This needs more work but I'm stopping here
-      # # for now.
-      # - run:
-      #     command: scripts/run-in-docker scripts/gcp-run-locally
-      #     background: true
+      # For now, we do integration tests after the deploy. If they work
+      # above, then it works. This needs more work but I'm stopping here
+      # for now.
+      - run:
+          command: scripts/run-in-docker scripts/gcp-run-locally
+          background: true
 
-      # - run: scripts/run-in-docker integration-tests/run.sh --gcp
+      - run: scripts/run-in-docker integration-tests/run.sh --gcp
 
       # TODO: figure this out when the container actually runs
-      # - run:
-      #     name: Copy out artifacts
-      #     when: always
-      #     command: |
-      #       docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
-      #       docker cp vols:/home/dark/app/rundir artifacts/rundir2
+      - run:
+          name: Copy out artifacts
+          when: always
+          command: |
+            docker cp vols:/home/dark/app/persistdir artifacts/persistdir2
+            docker cp vols:/home/dark/app/rundir artifacts/rundir2
 
       - store_artifacts:
           path: artifacts
