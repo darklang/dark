@@ -152,10 +152,10 @@ let server () =
 
         let headers = CRequest.headers req in
         let ip = get_ip_address ch in
-        let userid = FF.fingerprint_user ip headers in
-        let session_headers = FF.session_headers headers userid in
+        let ff = FF.fingerprint_user ip headers in
+        let session_headers = FF.session_headers headers ff in
 
-        let result = Handler.execute page !c.user_functions env in
+        let result = Handler.execute ff page !c.user_functions env in
         (match result with
         | DResp (http, value) ->
           (match http with
