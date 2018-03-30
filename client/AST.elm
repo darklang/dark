@@ -443,25 +443,25 @@ allData expr =
 
 
 replace : PointerData -> PointerData -> Expr -> Expr
-replace pd replacement expr =
-  let r = replace pd replacement
-      pId = P.toID pd
+replace search replacement expr =
+  let r = replace search replacement
+      sId = P.toID search
   in
-  if B.within expr pId
+  if B.within expr sId
   then
     case replacement of
-      PExpr e -> B.replace pId expr e
+      PExpr e -> B.replace sId e expr
       _ -> expr
   else
     case (expr, replacement) of
-      (F id (Let lhs rhs body), PVarBind b) ->
-        if B.within lhs pId
-        then F id (Let (B.replace pId lhs b) rhs body)
+      (F id (Let lhs rhs body), PVarBind replacement) ->
+        if B.within lhs sId
+        then F id (Let (B.replace sId replacement lhs) rhs body)
         else traverse r expr
 
-      (F id (FieldAccess obj field), PField f) ->
-        if B.within field pId
-        then F id (FieldAccess obj (B.replace pId field f))
+      (F id (FieldAccess obj field), PField replacement) ->
+        if B.within field sId
+        then F id (FieldAccess obj (B.replace sId replacement field))
         else traverse r expr
 
       _ -> traverse r expr
