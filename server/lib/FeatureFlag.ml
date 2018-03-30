@@ -2,7 +2,8 @@ open Core
 
 module Cookie = Cohttp.Cookie
 
-type t = string
+type t = Analysis
+       | FromUser of string
 
 let is_browser headers : bool =
   headers
@@ -13,10 +14,25 @@ let is_browser headers : bool =
 
 let session_name = "dark_session"
 
-let session_headers headers id : Cookie.cookie list =
+let make (str : string) : t =
+  FromUser str
+
+let todo reason : t = "TODO: " ^ reason |> make
+
+let analysis : t =
+  Analysis
+
+let to_session_string (ff: t) : string =
+  match ff with
+  | Analysis -> ""
+  | FromUser str -> str
+
+
+
+let session_headers headers (ff: t) : Cookie.cookie list =
   if is_browser headers
   then
-    (session_name, id)
+    (session_name, to_session_string ff)
     |> Cookie.Set_cookie_hdr.make
     |> Cookie.Set_cookie_hdr.serialize
     |> fun x -> [x]
@@ -37,8 +53,8 @@ let fingerprint_user ip headers : t =
                 |> List.find ~f:(fun (n,_) -> n = session_name)
     in
     match session with
-    | Some (_, value) -> value
-    | None -> Util.random_string 42 |> B64.encode
+    | Some (_, value) -> value |> make
+    | None -> Util.random_string 42 |> B64.encode |> make
 
   else
     (* If they're an API user, fingerprint off as many stable headers as
@@ -56,5 +72,6 @@ let fingerprint_user ip headers : t =
     |> Nocrypto.Hash.SHA1.digest
     |> Cstruct.to_string
     |> B64.encode
+    |> make
 
 
