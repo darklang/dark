@@ -826,6 +826,9 @@ update_ msg m =
     StartFeatureFlag ->
       FeatureFlags.start m
 
+    SliderChange id value ->
+      FeatureFlags.updateSlider m id value
+
 
     -----------------
     -- URL stuff
