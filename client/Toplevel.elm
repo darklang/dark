@@ -262,23 +262,23 @@ rootOf tl =
 -- Generic
 -------------------------
 replace : PointerData -> PointerData -> Toplevel -> Toplevel
-replace p pd tl =
+replace p replacement tl =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
       id = P.toID p
       astReplace () =
         let h = ha ()
-            replacement = AST.replace p pd h.ast
-        in { tl | data = TLHandler { h | ast = replacement } }
+            newAST = AST.replace p replacement h.ast
+        in { tl | data = TLHandler { h | ast = newAST } }
       specTypeReplace () =
         let h = ha ()
-            replacement = SpecTypes.replace p pd h.spec
-        in { tl | data = TLHandler { h | spec = replacement } }
+            newSpec = SpecTypes.replace p replacement h.spec
+        in { tl | data = TLHandler { h | spec = newSpec } }
       specHeaderReplace bo =
         let h = ha ()
-            replacement = SpecHeaders.replace id bo h.spec
-        in { tl | data = TLHandler { h | spec = replacement } }
+            newSpec = SpecHeaders.replace id bo h.spec
+        in { tl | data = TLHandler { h | spec = newSpec } }
   in
-  case pd of
+  case replacement of
     PVarBind vb -> astReplace ()
     PField _ -> astReplace ()
     PExpr _ -> astReplace ()
@@ -296,9 +296,9 @@ replace p pd tl =
     PFFMsg bo ->
       let h = ha ()
           -- replace everywhere
-          spec = SpecTypes.replace p pd h.spec
+          spec = SpecTypes.replace p replacement h.spec
           spec2 = SpecHeaders.replace id bo spec
-          ast = AST.replace p pd h.ast
+          ast = AST.replace p replacement h.ast
       in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
 
 delete : Toplevel -> PointerData -> ID -> Toplevel
