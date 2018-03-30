@@ -62,6 +62,14 @@ decodeClickEvent fn =
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
 
+-- input fires all along the drag, while
+decodeSliderInputEvent : (String -> a) -> JSD.Decoder a
+decodeSliderInputEvent fn =
+  JSDP.decode fn
+  |> JSDP.requiredAt ["target", "value"] JSD.string
+
+
+
 placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
 placeHtml m pos html =
   let rcpos = Viewport.toViewport m pos
