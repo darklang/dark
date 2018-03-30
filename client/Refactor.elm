@@ -45,7 +45,7 @@ extractFunction m tl p =
                                     _ -> Nothing
                             _ -> Nothing)
               paramExprs =
-                List.map (\_ -> Blank.new ()) vars
+                List.map (\(_, name) -> F (gid ()) (Variable name)) vars
               replacement =
                PExpr (F (gid ()) (FnCall name paramExprs))
               newAst =
