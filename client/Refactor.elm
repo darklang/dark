@@ -79,5 +79,5 @@ extractFunction m tl p =
                 }
           in
               RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
-                  , FocusNext tl.id pred)
+                  , FocusExact tl.id (P.toID replacement))
         _ -> NoChange
