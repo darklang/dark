@@ -31,3 +31,31 @@ start m =
            , FocusExact tl.id (P.toID newPd))
     _ -> NoChange
 
+moveSlider : Int -> BlankOr a -> BlankOr a
+moveSlider newSetting bo =
+  case bo of
+    Flagged id msg _ l r -> Flagged id msg newSetting l r
+    _ -> Debug.crash "should only be called on slider"
+
+
+updateSlider : Model -> ID -> String -> Modification
+updateSlider m id val =
+  case String.toFloat val of
+    Result.Err err -> Error err
+    Result.Ok asFloat ->
+      case tlidOf (unwrapCursorState m.cursorState) of
+        Nothing -> NoChange
+        Just tlid ->
+          let tl = TL.getTL m tlid
+              pd = TL.findExn tl id
+              move = moveSlider (round asFloat)
+              newPd = pd
+                      |> P.strmap (\_ a -> move a)
+                      |> P.dtmap move
+                      |> P.exprmap move
+              newTL = TL.replace pd newPd tl
+          in
+          RPC ([SetHandler tl.id tl.pos
+                           (newTL |> TL.asHandler |> deMaybe "FF.updateSlider") ]
+               , FocusSame)
+

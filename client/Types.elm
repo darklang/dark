@@ -144,6 +144,7 @@ type Msg
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
+    | SliderChange ID String
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())

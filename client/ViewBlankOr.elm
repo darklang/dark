@@ -5,6 +5,7 @@ import Dict
 
 -- lib
 import Html
+import Html.Events as Events
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
@@ -263,6 +264,27 @@ viewBlankOr htmlFn pt vs c bo =
             [drawBlankInFlag id]
           _ -> Util.impossible "nested flagging not allowed for now" []
 
+      drawSetting ffID setting =
+        Html.div
+          [Attrs.class "setting-slider" ]
+          [ Html.input
+              [ Attrs.type_ "range"
+              , Attrs.min "0"
+              , Attrs.max "100"
+              , Attrs.step "0.5"
+              , Attrs.value (toString setting)
+              , eventNoPropagation "click" NothingClick
+              , eventNoPropagation "mouseup" NothingClick
+              , eventNoPropagation "mousedown" NothingClick
+              , Events.onWithOptions
+                  "input"
+                  { stopPropagation = True, preventDefault = True }
+                  (decodeSliderInputEvent (SliderChange ffID))
+              ]
+              []
+          ]
+
+
 
       drawFlagged id msg setting l r =
          if isSelectionWithin (Flagged id msg setting l r)
@@ -272,7 +294,7 @@ viewBlankOr htmlFn pt vs c bo =
              (drawInFlag id (B.flattenFF bo) ++
               [ fontAwesome "flag"
               , viewText FFMsg vs [wc "flag-message"] msg
-              , text vs [wc "flag-setting"] (toString setting)
+              , drawSetting id setting
               , div vs [wc "flag-left nested-flag"]
                   [viewBlankOr htmlFn pt vs [] l]
               , div vs [wc "flag-right nested-flag"]
