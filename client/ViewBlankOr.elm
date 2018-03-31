@@ -259,7 +259,10 @@ viewBlankOr htmlFn pt vs c bo =
       drawInFlag id bo =
         case bo of
           F fid fill  ->
-            [div vs (WithID id :: idConfigs) [drawFilledInFlag id fill]]
+            [div vs [ DisplayValueOf fid
+                    , ClickSelectAs id
+                    , WithID id]
+               [drawFilledInFlag id fill]]
           Blank id ->
             [drawBlankInFlag id]
           _ -> Util.impossible "nested flagging not allowed for now" []
