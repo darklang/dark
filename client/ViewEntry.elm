@@ -17,11 +17,9 @@ import Defaults
 import Autocomplete
 import ViewUtils exposing (..)
 
-
-
 viewEntry : Model -> List (Html.Html Msg)
 viewEntry m =
-  case unwrapState m.state of
+  case unwrapCursorState m.cursorState of
     Entering (Creating pos) ->
       let html =
             Html.div
@@ -174,7 +172,9 @@ normalEntryHtml placeholder ac =
               [searchInput, suggestionInput]
 
       viewForm = Html.form
-                 [ Events.onSubmit (EntrySubmitMsg) ]
+                 [ Events.onSubmit (EntrySubmitMsg)
+                 , widthInCh searchWidth
+                 ]
                  [ input, autocomplete ]
 
       wrapper = Html.div
@@ -189,13 +189,4 @@ entryHtml allowStringEntry placeholder ac =
   if allowStringEntry && Autocomplete.isStringEntry ac
   then stringEntryHtml ac
   else normalEntryHtml placeholder ac
-
-
-
-
-
-
-
-
-
 

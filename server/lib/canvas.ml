@@ -6,6 +6,7 @@ module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
 module PReq = Parsed_request
+module FF = FeatureFlag
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
@@ -232,7 +233,7 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
                    let envs = available_reqs h.tlid in
                    let values =
                      List.map
-                       ~f:(Handler.execute_for_analysis h c.user_functions)
+                       ~f:(Handler.execute_for_analysis FF.analysis h c.user_functions)
                        envs
                    in
                    (h.tlid, values)

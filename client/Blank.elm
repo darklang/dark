@@ -8,13 +8,13 @@ toID b =
   case b of
     Blank id -> id
     F id _ -> id
-    Flagged _ _ _ _ -> b |> flattenFF |> toID
+    Flagged id _ _ _ _ -> id
 
 toMaybe : BlankOr a -> Maybe a
 toMaybe b =
   case b of
     F _ v -> Just v
-    Flagged _ _ _ _ -> b |> flattenFF |> toMaybe
+    Flagged _ _ _ _ _ -> b |> flattenFF |> toMaybe
     Blank _ -> Nothing
 
 
@@ -31,8 +31,8 @@ clone fn b =
   case b of
     Blank id -> Blank (gid())
     F id val -> F (gid()) (fn val)
-    Flagged msg setting a b ->
-      Flagged msg setting (clone fn a) (clone fn b)
+    Flagged id msg setting a b ->
+      Flagged (gid()) msg setting (clone fn a) (clone fn b)
 
 isF : BlankOr a -> Bool
 isF = isBlank >> not
@@ -42,22 +42,44 @@ isBlank b =
   case b of
     Blank _ -> True
     F _ _ -> False
-    Flagged _ _ _ _ -> b |> flattenFF |> isBlank
+    Flagged _ _ _ _ _ -> b |> flattenFF |> isBlank
 
 asF : BlankOr a -> Maybe a
 asF b =
   case b of
     F _ v -> Just v
     Blank _ -> Nothing
-    Flagged _ _ _ _ -> b |> flattenFF |> asF
+    Flagged _ _ _ _ _ -> b |> flattenFF |> asF
 
 -- flatten the feature flag as appropriate
 flattenFF : BlankOr a -> BlankOr a
 flattenFF bo =
   case bo of
-    Flagged _ setting a b ->
+    Flagged _ _ setting a b ->
       if setting >= 50
       then b
       else a
     _ -> bo
 
+replace : ID -> BlankOr a -> BlankOr a -> BlankOr a
+replace search replacement bo =
+  if toID bo == search
+  then replacement
+  else
+    case bo of
+      Flagged thisId msg setting l r ->
+        Flagged thisId msg setting
+          (replace search replacement l)
+          (replace search replacement r)
+      _ -> bo
+
+-- checks if the ID is in the blank. Does not recurse past the Blank
+-- definitions (eg, it will find a deeply nested Flagged, but won't find
+-- a node within the AST)
+within : BlankOr a -> ID -> Bool
+within bo id =
+  case bo of
+    Flagged thisId msg setting l r ->
+      id == thisId || within l id || within r id || within msg id
+    Blank thisId -> id == thisId
+    F thisId _ -> id == thisId

@@ -7,8 +7,9 @@ import Result exposing (Result (..))
 import Types exposing (..)
 import Toplevel as TL
 import Util exposing (deMaybe)
+import Blank as B
 import Pointer as P
-import Blank
+import AST
 
 trigger : String -> IntegrationTestState
 trigger test_name =
@@ -33,6 +34,8 @@ trigger test_name =
     "deleting_selects_the_blank" -> deleting_selects_the_blank
     "right_number_of_blanks" -> right_number_of_blanks
     "ellen_hello_world_demo" -> ellen_hello_world_demo
+    "editing_headers" -> editing_headers
+    "tabbing_through_let" -> tabbing_through_let
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -62,16 +65,16 @@ onlyAST m =
   |> TL.asHandler
   |> deMaybe "test3"
   |> .ast
-  |> Blank.asF
+  |> B.asF
   |> deMaybe "test4"
 
 
 
 enter_changes_state : Model -> TestResult
 enter_changes_state m =
-  case m.state of
+  case m.cursorState of
     Entering (Creating _) -> pass
-    _ -> fail m.state
+    _ -> fail m.cursorState
 
 
 field_access : Model -> TestResult
@@ -83,14 +86,14 @@ field_access m =
 
 field_access_closes : Model -> TestResult
 field_access_closes m =
-  case m.state of
+  case m.cursorState of
     Entering (Filling _ id) ->
-      let tl = onlyTL m in
-      if TL.blanksWhere (\p -> P.ownerOf p == POAst) tl == []
+      let ast = onlyTL m |> TL.asHandler |> deMaybe "test" |> .ast in
+      if (AST.allData ast |> List.filter P.isBlank) == []
       then pass
-      else fail (TL.allBlanks tl)
+      else fail (TL.allBlanks (onlyTL m))
     _ ->
-      fail m.state
+      fail m.cursorState
 
 field_access_pipes : Model -> TestResult
 field_access_pipes m =
@@ -120,9 +123,9 @@ pipeline_let_equals m =
           e ->
             fail e
       stateR =
-        case m.state of
+        case m.cursorState of
           Entering _ -> pass
-          _ -> fail m.state
+          _ -> fail m.cursorState
   in
       Result.map2 (\() () -> ()) astR stateR
 
@@ -151,12 +154,12 @@ next_sibling_works : Model -> TestResult
 next_sibling_works m =
   case onlyAST m of
     Let (Blank _) (Blank id1) (Blank _) ->
-      case m.state of
+      case m.cursorState of
         Selecting _ (Just id2) ->
           if id1 == id2
           then pass
           else fail (id1, id2)
-        s -> fail m.state
+        s -> fail m.cursorState
     e -> fail e
 
 
@@ -164,12 +167,12 @@ varbinds_are_editable : Model -> TestResult
 varbinds_are_editable m =
   case onlyAST m of
     Let (F id1 "var") (Blank _) (Blank _) as l ->
-      case m.state of
+      case m.cursorState of
         Entering (Filling _ id2)->
           if id1 == id2
           then pass
-          else fail (l, m.state)
-        s -> fail (l, m.state)
+          else fail (l, m.cursorState)
+        s -> fail (l, m.cursorState)
     e -> fail e
 
 
@@ -230,18 +233,36 @@ right_number_of_blanks m =
 
 ellen_hello_world_demo : Model -> TestResult
 ellen_hello_world_demo m =
-  let spec = m.toplevels
-             |> List.head
-             |> deMaybe "hw1"
+  let spec = onlyTL m
              |> TL.asHandler
              |> deMaybe "hw2"
-             |> .spec in
-    case (spec.module_, spec.name, spec.modifier, onlyAST m) of
-      ( F _ "HTTP"
-      , F _ "/hello"
-      , F _ "GET"
-      , Value "\"Hello world!\"") ->
-        pass
-      other -> fail other
+             |> .spec
+  in
+  case (spec.module_, spec.name, spec.modifier, onlyAST m) of
+    ( F _ "HTTP"
+    , F _ "/hello"
+    , F _ "GET"
+    , Value "\"Hello world!\"") ->
+      pass
+    other -> fail other
 
+editing_headers : Model -> TestResult
+editing_headers m =
+  let spec = onlyTL m
+             |> TL.asHandler
+             |> deMaybe "hw2"
+             |> .spec
+  in
+  case (spec.module_, spec.name, spec.modifier) of
+    ( F _ "HTTP"
+    , F _ "/myroute"
+    , F _ "GET") ->
+      pass
+    other -> fail other
 
+tabbing_through_let : Model -> TestResult
+tabbing_through_let m =
+  case onlyAST m of
+    Let (F _ "myvar") (F _ (Value "5")) (F _ (Value "5")) ->
+      pass
+    e -> fail e

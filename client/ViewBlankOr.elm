@@ -5,8 +5,8 @@ import Dict
 
 -- lib
 import Html
-import Html.Attributes as Attrs
 import Html.Events as Events
+import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
 
@@ -21,6 +21,7 @@ import Runtime
 import Toplevel
 import ViewEntry
 import ViewUtils exposing (..)
+import Util
 
 
 
@@ -74,7 +75,7 @@ keyword vs c name =
 -- such as whether it's selected, appropriate events, mouseover, etc.
 div : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
 div vs configs content =
-  let selectedID = case vs.state of
+  let selectedID = case vs.cursorState of
                      Selecting _ (Just id) -> Just id
                      _ -> Nothing
 
@@ -178,13 +179,28 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  viewBlankOr (text vs) pt vs c str
+  let cs = case pt of
+             VarBind -> idConfigs
+             EventName -> idConfigs
+             EventSpace -> idConfigs
+             EventModifier -> idConfigs
+             Field -> idConfigs
+             FFMsg -> idConfigs
+             DBColName ->
+               if B.isBlank str
+               then idConfigs
+               else []
+             DBColType ->
+               if B.isBlank str
+               then idConfigs
+               else []
+             _ -> []
+  in
+  viewBlankOr (text vs) pt vs (c ++ cs) str
 
-viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
-  ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
-viewBlankOr htmlFn pt vs c bo =
-  let id = B.toID bo
-      paramPlaceholder =
+placeHolderFor : ViewState -> ID -> PointerType -> String
+placeHolderFor vs id pt =
+  let paramPlaceholder =
         vs.tl
         |> TL.asHandler
         |> Maybe.map .ast
@@ -199,45 +215,122 @@ viewBlankOr htmlFn pt vs c bo =
                 _ -> Nothing)
         |> Maybe.map (\p -> p.name ++ ": " ++ RT.tipe2str p.tipe ++ "")
         |> Maybe.withDefault ""
+  in
+  case pt of
+    VarBind -> "varname"
+    EventName ->
+      if vs.isHTTP
+      then "route"
+      else "event name"
+    EventModifier ->
+      if vs.isHTTP
+      then "verb"
+      else "event modifier"
+    EventSpace -> "event space"
+    Expr -> paramPlaceholder
+    Field -> "fieldname"
+    DBColName -> "db field name"
+    DBColType -> "db type"
+    DarkType -> "type"
+    DarkTypeField -> "fieldname"
+    FFMsg -> "Flag name"
 
-      placeholder =
-        case pt of
-          VarBind -> "varname"
-          EventName ->
-            if vs.isHTTP
-            then "route"
-            else "event name"
-          EventModifier ->
-            if vs.isHTTP
-            then "verb"
-            else "event modifier"
-          EventSpace -> "event space"
-          Expr -> paramPlaceholder
-          Field -> "fieldname"
-          DBColName -> "db field name"
-          DBColType -> "db type"
-          DarkType -> "type"
-          DarkTypeField -> "fieldname"
 
-      selected = case vs.state of
-                   Selecting _ (Just sId) -> sId == id
-                   _ -> False
 
-      thisTextFn flagClass bo =
-        let std = c ++ [WithID id]
-            ++ (if selected then [WithFF] else [WithCV])
-        in
+viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
+  ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
+viewBlankOr htmlFn pt vs c bo =
+  let
+      _ = case bo of
+            Flagged _ _ _ _ _ ->
+              let _ = Debug.log "cursorState " vs.cursorState in
+              let _ = Debug.log "bo" bo in
+              bo
+            _ -> bo
+
+      isSelected id =
+        idOf vs.cursorState == Just id
+
+      isSelectionWithin bo =
+        idOf vs.cursorState
+        |> Maybe.map (B.within bo)
+        |> Maybe.withDefault False
+
+      wID id = [WithID id]
+      wFF id =
+        if isSelected id then [WithFF] else []
+
+      drawBlank id =
+        div vs
+          ([WithClass "blank"] ++ idConfigs ++ c ++ wID id ++ wFF id)
+          [Html.text (placeHolderFor vs id pt)]
+
+      drawFilled id fill =
+        let configs =
+          wID id
+          ++ c
+          ++ wFF id
+          ++ (if pt == Expr then idConfigs else [])
+        in htmlFn configs fill
+
+      drawFilledInFlag id fill =
+        htmlFn [] fill
+
+      drawBlankInFlag id =
+        div vs
+          ([WithClass "blank"])
+          [Html.text (placeHolderFor vs id pt)]
+
+      drawInFlag id bo =
         case bo of
-          Blank _ ->
-            div vs
-              ([WithClass "blank"] ++ idConfigs ++ std)
-              [Html.text placeholder]
-          F _ fill ->
-            let configs =
-              std
-              ++ (if pt == Expr then idConfigs else [])
-            in htmlFn configs fill
-          Flagged _ _ _ _ -> Debug.crash "vbo"
+          F fid fill  ->
+            [div vs (WithID id :: idConfigs) [drawFilledInFlag id fill]]
+          Blank id ->
+            [drawBlankInFlag id]
+          _ -> Util.impossible "nested flagging not allowed for now" []
+
+      drawSetting ffID setting =
+        Html.div
+          [Attrs.class "setting-slider" ]
+          [ Html.input
+              [ Attrs.type_ "range"
+              , Attrs.min "0"
+              , Attrs.max "100"
+              , Attrs.step "0.5"
+              , Attrs.value (toString setting)
+              , eventNoPropagation "click" NothingClick
+              , eventNoPropagation "mouseup" NothingClick
+              , eventNoPropagation "mousedown" NothingClick
+              , Events.onWithOptions
+                  "input"
+                  { stopPropagation = True, preventDefault = True }
+                  (decodeSliderInputEvent (SliderChange ffID))
+              ]
+              []
+          ]
+
+
+
+      drawFlagged id msg setting l r =
+         if isSelectionWithin (Flagged id msg setting l r)
+         then
+           div vs
+             [ wc "flagged shown"]
+             (drawInFlag id (B.flattenFF bo) ++
+              [ fontAwesome "flag"
+              , viewText FFMsg vs [wc "flag-message"] msg
+              , drawSetting id setting
+              , div vs [wc "flag-left nested-flag"]
+                  [viewBlankOr htmlFn pt vs [] l]
+              , div vs [wc "flag-right nested-flag"]
+                  [viewBlankOr htmlFn pt vs [] r]
+              ])
+        else
+          Html.div
+            [Attrs.class "flagged hidden"]
+            (drawInFlag id (B.flattenFF bo) ++ [fontAwesome "flag"])
+
+
 
       -- the desired css layouts are:
       -- no ff:
@@ -251,32 +344,23 @@ viewBlankOr htmlFn pt vs c bo =
       --       etc
       --     .flag-right
       --       etc
-      thisText = case bo of
-                   Flagged msg setting l r ->
-                     if selected
-                     then
-                       Html.div
-                         [Attrs.class "flagged shown"]
-                         [ text vs [wc "flag-message"] msg
-                         , text vs [wc "flag-setting"] (toString setting)
-                         , thisTextFn [] (B.flattenFF bo)
-                         , Html.div [Attrs.class "flag-left"]
-                             [thisTextFn [] l]
-                         , Html.div [Attrs.class "flag-right"]
-                             [thisTextFn [] r]]
-                    else
-                      Html.div
-                        [Attrs.class "flagged hidden"]
-                        [thisTextFn [] (B.flattenFF bo)]
+      thisText =
+        case bo of
+          Flagged fid msg setting l r ->
+            drawFlagged fid msg setting l r
+          F id fill -> drawFilled id fill
+          Blank id -> drawBlank id
 
-                   _ -> thisTextFn [] bo
-
-      allowStringEntry = pt == Expr
   in
-  case vs.state of
+  case vs.cursorState of
     Entering (Filling _ thisID) ->
+      let id = B.toID bo in
       if id == thisID
-      then ViewEntry.entryHtml allowStringEntry placeholder vs.ac
+      then
+        let allowStringEntry = pt == Expr
+            placeholder = placeHolderFor vs id pt
+        in
+        ViewEntry.entryHtml allowStringEntry placeholder vs.ac
       else thisText
     _ -> thisText
 
@@ -290,6 +374,5 @@ viewFeatureFlag : Html.Html Msg
 viewFeatureFlag =
   Html.div
     [ Attrs.class "feature-flag"
-    , Events.onMouseDown StartFeatureFlag
-    ]
+    , eventNoPropagation "click" (\_ -> StartFeatureFlag)]
     [ fontAwesome "flag"]

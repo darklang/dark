@@ -84,7 +84,7 @@ isHTTPHandler tl =
     Just h ->
       case h.spec.module_ of
         Blank _ -> True
-        Flagged _ _ _ _ as ff ->
+        Flagged _ _ _ _ _ as ff ->
           case B.flattenFF ff of
             F _ s -> String.toLower s == "http"
             _ -> False
@@ -118,6 +118,7 @@ clonePointerData pd =
     PDBColType ct -> pd
     PDarkType dt -> Debug.crash "TODO clonePointerDatadata"
     PDarkTypeField dt -> Debug.crash "TODO clonePointerDatadata"
+    PFFMsg msg -> PFFMsg (B.clone identity msg)
 
 -------------------------
 -- Blanks
@@ -168,12 +169,6 @@ firstBlank tl =
 lastBlank : Toplevel -> Successor
 lastBlank tl =
   tl |> allBlanks |> LE.last
-
-getFirstASTBlank : Toplevel -> Successor
-getFirstASTBlank tl =
-  tl
-  |> blanksWhere (\p -> P.ownerOf p == POAst)
-  |> List.head
 
 
 -------------------------
@@ -227,17 +222,27 @@ getParentOf tl p =
     _ -> Nothing
 
 getChildrenOf : Toplevel -> PointerData -> List PointerData
-getChildrenOf tl p =
-  case P.ownerOf p of
-    POSpecHeader -> []
-    POAst ->
-      let h = asHandler tl |> deMaybe "getChildrenOf" in
-      AST.childrenOf (P.toID p) h.ast
-    PODb -> []
-    POSpecType ->
-      let h = asHandler tl |> deMaybe "getChildrenOf" in
-      SpecTypes.childrenOf (P.toID p) h.spec.types.input
-      ++ SpecTypes.childrenOf (P.toID p) h.spec.types.output
+getChildrenOf tl pd =
+  let astChildren () =
+        let h = asHandler tl |> deMaybe "getChildrenOf - ast" in
+        AST.childrenOf (P.toID pd) h.ast
+      specChildren () =
+        let h = asHandler tl |> deMaybe "getChildrenOf - spec" in
+        SpecTypes.childrenOf (P.toID pd) h.spec.types.input
+        ++ SpecTypes.childrenOf (P.toID pd) h.spec.types.output
+  in
+  case pd of
+    PVarBind _ -> []
+    PField d -> []
+    PExpr _ -> astChildren ()
+    PEventModifier d -> []
+    PEventName d -> []
+    PEventSpace d -> []
+    PDBColName d -> []
+    PDBColType d -> []
+    PDarkType _ -> specChildren ()
+    PDarkTypeField d -> []
+    PFFMsg _ -> []
 
 
 firstChild : Toplevel -> PointerData -> Maybe PointerData
@@ -256,56 +261,50 @@ rootOf tl =
 -------------------------
 -- Generic
 -------------------------
-replace : Toplevel -> PointerData -> PointerData -> Toplevel
-replace tl p pd =
+replace : PointerData -> PointerData -> Toplevel -> Toplevel
+replace p replacement tl =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
       id = P.toID p
+      astReplace () =
+        let h = ha ()
+            newAST = AST.replace p replacement h.ast
+        in { tl | data = TLHandler { h | ast = newAST } }
+      specTypeReplace () =
+        let h = ha ()
+            newSpec = SpecTypes.replace p replacement h.spec
+        in { tl | data = TLHandler { h | spec = newSpec } }
+      specHeaderReplace bo =
+        let h = ha ()
+            newSpec = SpecHeaders.replace id bo h.spec
+        in { tl | data = TLHandler { h | spec = newSpec } }
   in
-  case pd of
-    PVarBind vb ->
-      let h = ha ()
-          replacement = AST.replace p pd h.ast
-      in { tl | data = TLHandler { h | ast = replacement } }
-    PEventName en ->
-      let h = ha ()
-          replacement = SpecHeaders.replaceEventName id en h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PEventModifier em ->
-      let h = ha ()
-          replacement = SpecHeaders.replaceEventModifier id em h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PEventSpace es ->
-      let h = ha ()
-          replacement = SpecHeaders.replaceEventSpace id es h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PField _ ->
-      let h = ha ()
-          ast = AST.replace p pd h.ast
-      in { tl | data = TLHandler { h | ast = ast } }
-    PExpr _ ->
-      let h = ha ()
-          ast = AST.replace p pd h.ast
-      in { tl | data = TLHandler { h | ast = ast } }
-    PDarkType _ ->
-      let h = ha ()
-          replacement = SpecTypes.replace p pd h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-    PDarkTypeField _ ->
-      let h = ha ()
-          replacement = SpecTypes.replace p pd h.spec
-      in { tl | data = TLHandler { h | spec = replacement } }
-
+  case replacement of
+    PVarBind vb -> astReplace ()
+    PField _ -> astReplace ()
+    PExpr _ -> astReplace ()
+    PEventName en -> specHeaderReplace en
+    PEventModifier em -> specHeaderReplace em
+    PEventSpace es -> specHeaderReplace es
+    PDarkType _ -> specTypeReplace ()
+    PDarkTypeField _ -> specTypeReplace ()
     PDBColType tipe ->
       tl
       -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
     PDBColName name ->
       tl
       -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
+    PFFMsg bo ->
+      let h = ha ()
+          -- replace everywhere
+          spec = SpecTypes.replace p replacement h.spec
+          spec2 = SpecHeaders.replace id bo spec
+          ast = AST.replace p replacement h.ast
+      in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
 
 delete : Toplevel -> PointerData -> ID -> Toplevel
 delete tl p newID =
   let replacement = P.emptyD_ newID (P.typeOf p)
-  in replace tl p replacement
+  in replace p replacement tl
 
 
 allData : Toplevel -> List PointerData
