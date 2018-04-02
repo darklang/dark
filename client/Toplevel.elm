@@ -56,6 +56,18 @@ moveTL xOffset yOffset tl =
   let newPos = { x = tl.pos.x + xOffset, y = tl.pos.y + yOffset }
   in { tl | pos = newPos }
 
+ufToTL : Model -> UserFunction -> Toplevel
+ufToTL m uf = { id = uf.tlid
+              , cursor = 0
+              , pos = m.center
+              , data = TLFunc uf
+              }
+
+asUserFunction : Toplevel -> Maybe UserFunction
+asUserFunction tl =
+  case tl.data of
+    TLFunc f -> Just f
+    _ -> Nothing
 
 asHandler : Toplevel -> Maybe Handler
 asHandler tl =

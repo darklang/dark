@@ -331,6 +331,7 @@ type alias DB = { name : DBName
 
 type TLData = TLHandler Handler
             | TLDB DB
+            | TLFunc UserFunction
 
 type alias Toplevel = { id : TLID
                       , cursor: Int
