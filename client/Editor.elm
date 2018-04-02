@@ -12,9 +12,11 @@ import Defaults
 import RPC
 import Types exposing (..)
 
-fromString : String -> SerializableEditor
+fromString : Maybe String -> SerializableEditor
 fromString json =
-  JSD.decodeString RPC.decodeSerializableEditor json
+  json
+  |> Maybe.map (JSD.decodeString RPC.decodeSerializableEditor)
+  |> Maybe.withDefault (Ok Defaults.defaultEditor)
   |> Result.withDefault Defaults.defaultEditor
 
 toString : SerializableEditor -> String
