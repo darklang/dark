@@ -3,7 +3,6 @@ module Types exposing (..)
 -- builtin
 import Dict exposing (Dict)
 import Http
-import Json.Encode as JSE
 import Dom
 import Navigation
 import Mouse
@@ -175,6 +174,7 @@ type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
            | FocusExact TLID ID
            | FocusNext TLID (Maybe ID)
+           | FocusCursorState CursorState
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
 
@@ -376,9 +376,10 @@ type alias Model = { center : Pos
                    }
 
 -- Values that we serialize
-type alias Editor = { clipboard : JSE.Value
-                    , syncEnabled : Bool
-                    }
+type alias SerializableEditor = { clipboard : Maybe PointerData
+                                , syncEnabled : Bool
+                                , cursorState : CursorState
+                                }
 
 -----------------------------
 -- Testing
@@ -414,7 +415,6 @@ type Modification = Error String
                   | EndIntegrationTest
                   | SetCursorState CursorState
                   | CopyToClipboard Clipboard
-                  | SetStorage Editor
                   | SetCursor TLID Int
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
@@ -424,7 +424,7 @@ type Modification = Error String
 -----------------------------
 
 type alias Flags =
-  { editorState: Maybe Editor
+  { editorState: Maybe String
   , complete: List FlagFunction
   }
 

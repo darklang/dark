@@ -39,12 +39,12 @@
    <script type="text/javascript">
      complete = ALLFUNCTIONS;
      elmapp = Elm.Main.fullscreen({
-       editorState: JSON.parse(window.localStorage.getItem('editorState')),
+       editorState: window.localStorage.getItem('editorState'),
        complete: complete
      });
 
      elmapp.ports.setStorage.subscribe(function(editorState) {
-       window.localStorage.setItem('editorState', JSON.stringify(editorState));
+       window.localStorage.setItem('editorState', editorState);
      });
 
      window.onerror = function (msg, url, line, col, error) {

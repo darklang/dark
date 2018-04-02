@@ -2,9 +2,9 @@ module Editor exposing (..)
 
 -- builtin
 import Json.Decode as JSD
-import Json.Encode as JSE
 
 -- lib
+import Json.Encode as JSE
 
 -- dark
 
@@ -12,21 +12,30 @@ import Defaults
 import RPC
 import Types exposing (..)
 
+fromString : Maybe String -> SerializableEditor
+fromString json =
+  json
+  |> Maybe.map (JSD.decodeString RPC.decodeSerializableEditor)
+  |> Maybe.withDefault (Ok Defaults.defaultEditor)
+  |> Result.withDefault Defaults.defaultEditor
 
-editor2model : Editor -> Model
+toString : SerializableEditor -> String
+toString se =
+  RPC.encodeSerializableEditor se
+  |> JSE.encode 0
+
+
+editor2model : SerializableEditor -> Model
 editor2model e =
   let m = Defaults.defaultModel in
   { m | syncEnabled = e.syncEnabled
       , clipboard = e.clipboard
-                    |> JSD.decodeValue
-                         (JSD.nullable RPC.decodePointerData)
-                    |> Result.withDefault Nothing
+      , cursorState = e.cursorState
   }
 
-model2editor : Model -> Editor
+model2editor : Model -> SerializableEditor
 model2editor m =
-  { clipboard = case m.clipboard of
-                  Nothing -> JSE.null
-                  Just pd -> RPC.encodePointerData pd
+  { clipboard = m.clipboard
   , syncEnabled = m.syncEnabled
+  , cursorState = m.cursorState
   }
