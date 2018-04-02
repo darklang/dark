@@ -175,6 +175,7 @@ type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
            | FocusExact TLID ID
            | FocusNext TLID (Maybe ID)
+           | FocusCursorState CursorState
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
 
@@ -376,9 +377,10 @@ type alias Model = { center : Pos
                    }
 
 -- Values that we serialize
-type alias Editor = { clipboard : JSE.Value
-                    , syncEnabled : Bool
-                    }
+type alias SerializableEditor = { clipboard : JSE.Value
+                                , syncEnabled : Bool
+                                , cursorState : JSE.Value
+                                }
 
 -----------------------------
 -- Testing
@@ -414,7 +416,7 @@ type Modification = Error String
                   | EndIntegrationTest
                   | SetCursorState CursorState
                   | CopyToClipboard Clipboard
-                  | SetStorage Editor
+                  | SetStorage SerializableEditor
                   | SetCursor TLID Int
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
@@ -424,7 +426,7 @@ type Modification = Error String
 -----------------------------
 
 type alias Flags =
-  { editorState: Maybe Editor
+  { editorState: Maybe SerializableEditor
   , complete: List FlagFunction
   }
 
