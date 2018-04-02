@@ -491,7 +491,7 @@ clone expr =
       cString = B.clone identity
       cNExpr nexpr =
         case nexpr of
-          Let lhs rhs body -> Let (cString lhs) (c rhs) (c expr)
+          Let lhs rhs body -> Let (cString lhs) (c rhs) (c body)
           If cond ifbody elsebody -> If (c cond) (c ifbody) (c elsebody)
           FnCall name exprs -> FnCall name (cl exprs)
           Lambda vars body -> Lambda vars (c body)
