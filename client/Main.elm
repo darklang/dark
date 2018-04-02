@@ -451,6 +451,13 @@ update_ msg m =
                           RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
                               , FocusNext tlid (Just id))
                         Nothing -> NoChange
+                    TLFunc f ->
+                      case mId of
+                        Just id ->
+                          let replacement = AST.addThreadBlank id f.ast in
+                          RPC ( [ SetFunction { f | ast = replacement}]
+                              , FocusNext tlid (Just id))
+                        Nothing -> NoChange
                 else
                   case mId of
                     Just id -> Selection.enter m tlid id
@@ -568,6 +575,7 @@ update_ msg m =
                     TLHandler h ->
                       let name = AC.getValue m.complete
                       in Entry.submit m cursor Entry.StartThread name
+                    TLFunc f -> NoChange
                 Creating _ ->
                   let name = AC.getValue m.complete
                   in Entry.submit m cursor Entry.StartThread name
@@ -727,7 +735,7 @@ update_ msg m =
 
 
     GlobalClick event ->
-      if event.button == Defaults.leftButton
+      if event.button == Defaults.leftButton && m.currentPage == Toplevels
       then Many [ AutocompleteMod ACReset
                 , Enter (Creating (Viewport.toAbsolute m event.pos))]
       else NoChange
@@ -758,7 +766,11 @@ update_ msg m =
 
     ToplevelMouseDown targetTLID event ->
       if event.button == Defaults.leftButton
-      then Drag targetTLID event.pos False m.cursorState
+      then
+        let tl = TL.getTL m targetTLID in
+            case tl.data of
+              TLFunc _ -> NoChange
+              _ -> Drag targetTLID event.pos False m.cursorState
       else NoChange
 
 
