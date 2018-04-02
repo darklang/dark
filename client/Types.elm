@@ -424,7 +424,7 @@ type Modification = Error String
 -----------------------------
 
 type alias Flags =
-  { editorState: String
+  { editorState: Maybe String
   , complete: List FlagFunction
   }
 
