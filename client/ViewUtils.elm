@@ -20,7 +20,7 @@ import Analysis
 
 type alias ViewState =
   { tl: Toplevel
-  , state: State
+  , cursorState: CursorState
   , tlid: TLID
   , hovering: Maybe ID
   , ac: Autocomplete
@@ -30,7 +30,7 @@ type alias ViewState =
 
 createVS : Model -> Toplevel -> ViewState
 createVS m tl = { tl = tl
-                , state = unwrapState m.state
+                , cursorState = unwrapCursorState m.cursorState
                 , tlid = tl.id
                 , hovering = m.hovering |> List.head
                 , ac = m.complete
@@ -61,6 +61,14 @@ decodeClickEvent fn =
       |> JSDP.required "pageX" JSD.int
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
+
+-- input fires all along the drag, while
+decodeSliderInputEvent : (String -> a) -> JSD.Decoder a
+decodeSliderInputEvent fn =
+  JSDP.decode fn
+  |> JSDP.requiredAt ["target", "value"] JSD.string
+
+
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
 placeHtml m pos html =

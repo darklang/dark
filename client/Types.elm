@@ -80,36 +80,46 @@ gtlid : () -> TLID -- Generate ID
 gtlid unit = TLID (Util.random unit)
 
 -----------------------------
--- State
+-- CursorState
 -----------------------------
 type EntryCursor = Creating Pos
                  | Filling TLID ID
 
 type alias HasMoved = Bool
-type State = Selecting TLID (Maybe ID)
-           | Entering EntryCursor
-           | Dragging TLID VPos HasMoved State
-           | Deselected
+type CursorState = Selecting TLID (Maybe ID)
+                 | Entering EntryCursor
+                 | Dragging TLID VPos HasMoved CursorState
+                 | Deselected
 
-unwrapState : State -> State
-unwrapState s =
+unwrapCursorState : CursorState -> CursorState
+unwrapCursorState s =
   case s of
     Dragging _ _ _ unwrap -> unwrap
     _ -> s
 
-tlidOf : State -> Maybe TLID
+tlidOf : CursorState -> Maybe TLID
 tlidOf s =
-  case unwrapState s of
-    Selecting tlid _ ->
-      Just tlid
-    Entering cursor ->
-      case cursor of
-        Creating _ ->
-          Nothing
-        Filling tlid _ ->
-          Just tlid
+  case unwrapCursorState s of
+    Selecting tlid _ -> Just tlid
+    Entering entryCursor ->
+      case entryCursor of
+        Creating _ -> Nothing
+        Filling tlid _ -> Just tlid
     Deselected -> Nothing
     Dragging _ _ _ _ -> Nothing
+
+idOf : CursorState -> Maybe ID
+idOf s =
+  case unwrapCursorState s of
+    Selecting _ id -> id
+    Entering entryCursor ->
+      case entryCursor of
+        Creating _ -> Nothing
+        Filling _ id  -> Just id
+    Deselected -> Nothing
+    Dragging _ _ _ _ -> Nothing
+
+
 
 
 
@@ -134,6 +144,7 @@ type Msg
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress KeyboardEvent
+    | SliderChange ID String
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
@@ -162,10 +173,8 @@ type Msg
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
-           | Refocus TLID
            | FocusExact TLID ID
            | FocusNext TLID (Maybe ID)
-           | FocusFirstAST TLID
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
 
@@ -262,6 +271,7 @@ type PointerData = PVarBind VarBind
                  | PDBColType (BlankOr String)
                  | PDarkType DarkType
                  | PDarkTypeField (BlankOr String)
+                 | PFFMsg (BlankOr String)
 
 type PointerType = VarBind
                  | EventName
@@ -273,13 +283,16 @@ type PointerType = VarBind
                  | DBColType
                  | DarkType
                  | DarkTypeField
+                 | FFMsg
 
 type BlankOr a = Blank ID
                | F ID a
-               -- it makes sense for flagged to have an ID, but simpler
-               -- for now, as it makes everything much more consistent
-               -- if it just has the ID of its winning child.
-               | Flagged String Int (BlankOr a) (BlankOr a)
+               | Flagged
+                   ID
+                   (BlankOr String)
+                   Int
+                   (BlankOr a)
+                   (BlankOr a)
 
 type PointerOwner = POSpecHeader
                   | POAst
@@ -351,7 +364,7 @@ type alias Model = { center : Pos
                    , tests : List VariantTest
                    , complete : Autocomplete
                    , userFunctions : List UserFunction
-                   , state : State
+                   , cursorState : CursorState
                    , hovering : List ID
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
@@ -396,10 +409,10 @@ type Modification = Error String
                   | MakeCmd (Cmd Msg)
                   | AutocompleteMod AutocompleteMod
                   | Many (List Modification)
-                  | Drag TLID VPos HasMoved State
+                  | Drag TLID VPos HasMoved CursorState
                   | TriggerIntegrationTest String
                   | EndIntegrationTest
-                  | SetState State
+                  | SetCursorState CursorState
                   | CopyToClipboard Clipboard
                   | SetStorage Editor
                   | SetCursor TLID Int

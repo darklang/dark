@@ -23,6 +23,9 @@ replace p dt spec =
 
 replaceInType : PointerData -> PointerData -> DarkType -> DarkType
 replaceInType pd replacement dt =
+  -- This needs to check the entire Flagged structure, as in
+  -- AST.replace.
+  let _ = Debug.crash "broken" in
   if B.toID dt == P.toID pd
   then
     case replacement of

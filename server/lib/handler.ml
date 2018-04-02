@@ -3,6 +3,7 @@ open Core
 open Types.RuntimeT
 open Types.SpecTypes
 module RT = Runtime
+module FF = FeatureFlag
 
 type spec_types = { input : dark_type
                   ; output : dark_type
@@ -82,11 +83,11 @@ let default_env (h: handler) : dval_map =
 let with_defaults (h: handler) (env: Ast.symtable) : Ast.symtable =
   Util.merge_left env (default_env h)
 
-let execute (h: handler) (user_fns: user_fn list) (env: Ast.symtable) : dval =
-  Ast.execute user_fns (with_defaults h env) h.ast
+let execute (ff: FF.t) (h: handler) (user_fns: user_fn list) (env: Ast.symtable) : dval =
+  Ast.execute ff user_fns (with_defaults h env) h.ast
 
-let execute_for_analysis (h: handler) (user_fns: user_fn list) (env: Ast.symtable) :
+let execute_for_analysis (ff: FF.t) (h: handler) (user_fns: user_fn list) (env: Ast.symtable) :
     (dval * Ast.dval_store * Ast.sym_store) =
   let traced_symbols = Ast.symbolic_execute (with_defaults h env) h.ast in
-  let (ast_value, traced_values) = Ast.execute_saving_intermediates user_fns env h.ast in
+  let (ast_value, traced_values) = Ast.execute_saving_intermediates ff user_fns env h.ast in
   (ast_value, traced_values, traced_symbols)

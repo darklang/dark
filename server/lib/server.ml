@@ -10,6 +10,7 @@ module RT = Runtime
 module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
+module FF = FeatureFlag
 
 
 type timing_header = string * float * string
@@ -29,7 +30,7 @@ let server_timing (times: timing_header list) =
 
   |> String.concat ~sep:","
   |> fun x -> [("Server-timing", x)]
-  |> Cohttp.Header.of_list
+  |> Header.of_list
 
 let time (name: string) (fn: (_ -> 'a)) :
   (timing_header * 'a) =
@@ -38,11 +39,16 @@ let time (name: string) (fn: (_ -> 'a)) :
   let finish = Unix.gettimeofday () in
   ((name, (finish -. start) *. 1000.0, name), result)
 
+let get_ip_address ch : string =
+  match Conduit_lwt_unix.endp_of_flow ch with
+  | `TCP (ip, port) -> Ipaddr.to_string ip
+  | _ -> assert false
+
 
 let server () =
   let stop,stopper = Lwt.wait () in
 
-  let callback _ req req_body =
+  let callback (ch, conn) req req_body =
     let admin_rpc_handler body (host: string) : (Cohttp.Header.t * string) =
       try
         let (t1, ops) = time "1-read-api-ops"
@@ -143,16 +149,22 @@ let server () =
         Db.cur_dbs := dbs;
         let env = Util.merge_left bound dbs_env in
         let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
-        let result = Handler.execute page !c.user_functions env in
+
+        let headers = CRequest.headers req in
+        let ip = get_ip_address ch in
+        let ff = FF.fingerprint_user ip headers in
+        let session_headers = FF.session_headers headers ff in
+
+        let result = Handler.execute ff page !c.user_functions env in
         (match result with
         | DResp (http, value) ->
           (match http with
            | Redirect url ->
              Event_queue.unset_scope ~status:`OK;
              S.respond_redirect (Uri.of_string url) ()
-           | Response (code, headers) ->
+           | Response (code, resp_headers) ->
              let body =
-               if List.exists headers ~f:(fun (name, value) ->
+               if List.exists resp_headers ~f:(fun (name, value) ->
                   String.lowercase name = "content-type"
                   && String.lowercase value = "text/html")
                then Dval.to_simple_repr "<" ">" value
@@ -162,7 +174,8 @@ let server () =
              Event_queue.unset_scope ~status:`OK;
              S.respond_string
                ~status:(Cohttp.Code.status_of_code code)
-               ~headers:(Cohttp.Header.of_list (List.cons cors headers))
+               ~headers:(Cohttp.Header.of_list
+                           ([cors] @ resp_headers @ session_headers))
                ~body:body
                ())
         | _ ->
@@ -173,7 +186,7 @@ let server () =
           let code = 200 in
           S.respond_string
             ~status:(Cohttp.Code.status_of_code code)
-            ~headers:(Cohttp.Header.of_list [cors])
+            ~headers:(Cohttp.Header.of_list ([cors] @ session_headers))
             ~body:body
             ())
       | _ ->

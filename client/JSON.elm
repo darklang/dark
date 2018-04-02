@@ -112,10 +112,11 @@ encodeBlankOr encoder v =
       encodeVariant "Filled" [JSE.int id, encoder s]
     Blank (ID id) ->
       encodeVariant "Blank" [JSE.int id]
-    Flagged msg s a b ->
+    Flagged id msg s a b ->
       encodeVariant
         "Flagged"
-        [ JSE.string msg
+        [ encodeID id
+        , JSE.string "testmessage"
         , JSE.int s
         , encodeBlankOr encoder a
         , encodeBlankOr encoder b
@@ -123,11 +124,12 @@ encodeBlankOr encoder v =
 
 decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
 decodeBlankOr d =
-  let db = JSD.lazy (\_ -> decodeBlankOr d) in
+  let db = JSD.lazy (\_ -> decodeBlankOr d)
+      ds = JSD.lazy (\_ -> JSD.map (F (ID 5)) JSD.string ) in
   decodeVariants
   [ ("Filled", decodeVariant2 F decodeID d)
   , ("Blank", decodeVariant1 Blank decodeID)
-  , ("Flagged", decodeVariant4 Flagged JSD.string JSD.int db db)
+  , ("Flagged", decodeVariant5 Flagged decodeID ds JSD.int db db)
   ]
 
 ------------------------------------

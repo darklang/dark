@@ -57,7 +57,7 @@ viewTL m tl =
         , eventNoPropagation "click" (ToplevelClick tl.id)
         ]
 
-      selected = if Just tl.id == tlidOf m.state
+      selected = if Just tl.id == tlidOf m.cursorState
                  then "selected"
                  else ""
       class = [selected, toString (deTLID tl.id), "toplevel", "cursor-" ++ (toString tl.cursor)]
@@ -123,11 +123,9 @@ viewHandler vs h =
 
       header =
         Html.div
-          [Attrs.class "header"]
+          [Attrs.class "spec-header"]
           [ viewText EventName vs [wc "name"] h.spec.name
-          , (Html.div
-            [ Attrs.class "modifier" ]
-             externalLink)
+          , (Html.div [] externalLink)
           , viewText EventSpace vs [wc "module"] h.spec.module_
           , viewText EventModifier vs [wc "modifier"] h.spec.modifier]
   in [header, ast]
