@@ -1,5 +1,8 @@
 module Refactor exposing (extractFunction)
 
+-- lib
+import List.Extra as LE
+
 -- Dark
 import Types exposing (..)
 import Util exposing (..)
@@ -29,21 +32,26 @@ extractFunction m tl p =
   else case p of
     PExpr body ->
       let pred = TL.getPrevBlank tl (Just p)
-                  |> Maybe.map P.toID
+               |> Maybe.map P.toID
           name = generateFnName ()
+          -- TODO: do actual analysis to figure out
+          -- what vars are 'free'
           vars = AST.allData body
-                  |> List.filterMap
-                    (\n ->
-                      case n of
-                        PExpr boe ->
-                          case Blank.flattenFF boe of
-                            Blank _ -> Nothing
-                            Flagged _ _ _ _ _ -> Nothing
-                            F id e ->
-                              case e of
-                                Variable name -> Just (id, name)
-                                _ -> Nothing
-                        _ -> Nothing)
+               |> List.filterMap
+                 (\n ->
+                   case n of
+                     PExpr boe ->
+                       case Blank.flattenFF boe of
+                         Blank _ -> Nothing
+                         Flagged _ _ _ _ _ -> Nothing
+                         F id e ->
+                           case e of
+                             Variable name -> Just (id, name)
+                             _ -> Nothing
+                     _ -> Nothing)
+                |> LE.uniqueBy
+                  (\(_, name) -> name)
+
           paramExprs =
             List.map (\(_, name) -> F (gid ()) (Variable name)) vars
           replacement =
