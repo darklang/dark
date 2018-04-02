@@ -26,6 +26,7 @@ type alias ViewState =
   , ac: Autocomplete
   , isHTTP: Bool
   , lvs: LVDict
+  , ffDisabled : Bool
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -36,6 +37,10 @@ createVS m tl = { tl = tl
                 , ac = m.complete
                 , isHTTP = TL.isHTTPHandler tl
                 , lvs = Analysis.getLiveValuesDict m tl.id
+                , ffDisabled =
+                  case tl.data of
+                    TLHandler _ -> False
+                    _ -> True
                 }
 
 fontAwesome : String -> Html.Html Msg

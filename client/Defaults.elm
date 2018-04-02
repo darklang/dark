@@ -40,6 +40,7 @@ defaultModel = { error = Nothing
                , center = {x=initialPos.vx, y=initialPos.vy}
                , complete = Autocomplete.empty
                , userFunctions = []
+               , currentPage = Toplevels
                , hovering = []
                , tests = []
                , toplevels = []

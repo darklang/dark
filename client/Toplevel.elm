@@ -27,8 +27,8 @@ getTL m id =
 
 get : Model -> TLID -> Maybe Toplevel
 get m id =
-  LE.find (\tl -> tl.id == id) m.toplevels
-
+  let tls = (List.map (ufToTL m) m.userFunctions) ++ m.toplevels in
+  LE.find (\tl -> tl.id == id) tls
 
 
 upsert : Model -> Toplevel -> Model
@@ -205,6 +205,7 @@ siblings tl p =
          ++ SpecTypes.siblings p h.spec.types.input
          ++ SpecTypes.siblings p h.spec.types.output
     TLDB db -> DB.siblings p db
+    TLFunc f -> AST.siblings p f.ast
 
 getNextSibling : Toplevel -> PointerData -> PointerData
 getNextSibling tl p =
@@ -231,13 +232,21 @@ getParentOf tl p =
     TLHandler h ->
       AST.parentOf_ (P.toID p) h.ast
       |> Maybe.map PExpr
+    TLFunc f ->
+      AST.parentOf_ (P.toID p) f.ast
+      |> Maybe.map PExpr
     _ -> Nothing
 
 getChildrenOf : Toplevel -> PointerData -> List PointerData
 getChildrenOf tl pd =
   let astChildren () =
-        let h = asHandler tl |> deMaybe "getChildrenOf - ast" in
-        AST.childrenOf (P.toID pd) h.ast
+        let ast =
+              case tl.data of
+                TLHandler h -> Just h.ast
+                TLFunc f -> Just f.ast
+                _ -> Nothing
+        in
+        AST.childrenOf (P.toID pd) (deMaybe "getChildrenOf - ast" ast)
       specChildren () =
         let h = asHandler tl |> deMaybe "getChildrenOf - spec" in
         SpecTypes.childrenOf (P.toID pd) h.spec.types.input
@@ -267,6 +276,8 @@ rootOf tl =
   case tl.data of
     TLHandler h ->
       Just <| PExpr h.ast
+    TLFunc f ->
+      Just <| PExpr f.ast
     _ -> Nothing
 
 
@@ -278,9 +289,14 @@ replace p replacement tl =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
       id = P.toID p
       astReplace () =
-        let h = ha ()
-            newAST = AST.replace p replacement h.ast
-        in { tl | data = TLHandler { h | ast = newAST } }
+        case tl.data of
+          TLHandler h ->
+            let newAST = AST.replace p replacement h.ast
+            in { tl | data = TLHandler { h | ast = newAST } }
+          TLFunc f ->
+            let newAST = AST.replace p replacement f.ast
+            in { tl | data = TLFunc { f | ast = newAST } }
+          _ -> Debug.crash "TL.replace"
       specTypeReplace () =
         let h = ha ()
             newSpec = SpecTypes.replace p replacement h.spec
@@ -329,6 +345,8 @@ allData tl =
       ++ SpecTypes.allData h.spec.types.output
     TLDB db ->
       DB.allData db
+    TLFunc f ->
+      AST.allData f.ast
 
 findExn : Toplevel -> ID -> PointerData
 findExn tl id =
