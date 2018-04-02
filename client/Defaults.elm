@@ -1,15 +1,12 @@
 module Defaults exposing (..)
 
 -- builtin
-import Json.Encode as JSE
 -- lib
-
 
 -- dark
 import Types exposing (..)
 import PageVisibility
 import Autocomplete
-import RPC
 
 
 entryID : String
@@ -31,9 +28,9 @@ pageWidth : Int
 pageWidth = 500
 
 defaultEditor : SerializableEditor
-defaultEditor = { clipboard = JSE.null
+defaultEditor = { clipboard = Nothing
                 , syncEnabled = True
-                , cursorState = (RPC.encodeCursorState Deselected)
+                , cursorState = Deselected
                 }
 
 defaultModel : Model
@@ -43,7 +40,6 @@ defaultModel = { error = Nothing
                , center = {x=initialPos.vx, y=initialPos.vy}
                , complete = Autocomplete.empty
                , userFunctions = []
-               , cursorState = Deselected
                , hovering = []
                , tests = []
                , toplevels = []
@@ -54,4 +50,5 @@ defaultModel = { error = Nothing
                -- saved in editor
                , clipboard = Nothing
                , syncEnabled = True
+               , cursorState = Deselected
                }

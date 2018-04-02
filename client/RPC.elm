@@ -291,10 +291,30 @@ encodeCursorState cs =
       ev "Dragging" [ encodeTLID tlid
                     , encodeVPos vpos
                     , JSE.bool hasMoved
-                    , encodeCursorState cs
+                    , encodeCursorState cursor
                     ]
     Deselected ->
       ev "Deselected" []
+
+encodeSerializableEditor : SerializableEditor -> JSE.Value
+encodeSerializableEditor se =
+  JSE.object
+    [ ("clipboard", JSEE.maybe encodePointerData se.clipboard)
+    , ("syncEnabled", JSE.bool se.syncEnabled)
+    , ("cursorState", encodeCursorState se.cursorState)
+    ]
+
+
+decodeSerializableEditor : JSD.Decoder SerializableEditor
+decodeSerializableEditor =
+  -- always make these optional so that we don't crash the page when we
+  -- change the structure
+  JSDP.decode SerializableEditor
+  |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) Nothing
+  |> JSDP.optional "syncEnabled" JSD.bool True
+  |> JSDP.optional "cursorState" decodeCursorState Deselected
+
+
 
 decodeCursorState : JSD.Decoder CursorState
 decodeCursorState =

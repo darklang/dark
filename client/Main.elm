@@ -88,9 +88,7 @@ flag2function fn =
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
 init {editorState, complete} location =
-  let savedEditor = case editorState of
-                      Just e -> e
-                      Nothing -> Defaults.defaultEditor
+  let savedEditor = Editor.fromString editorState
 
       m0 = Editor.editor2model savedEditor
       savedCursorState = m0.cursorState
@@ -136,7 +134,7 @@ init {editorState, complete} location =
 -----------------------
 -- ports, save Editor state in LocalStorage
 -----------------------
-port setStorage : SerializableEditor -> Cmd a
+port setStorage : String -> Cmd a
 port recordError : (String -> msg) -> Sub msg
 
 -----------------------
@@ -208,7 +206,10 @@ update msg m =
   in
     ({ newm | lastMsg = msg
             , lastMod = mods}
-     , Cmd.batch [newc, m |> Editor.model2editor |> setStorage])
+     , Cmd.batch [newc, m
+                        |> Editor.model2editor
+                        |> Editor.toString
+                        |> setStorage])
 
 updateMod : Modification -> (Model, Cmd Msg) -> (Model, Cmd Msg)
 updateMod mod (m, cmd) =
@@ -351,10 +352,7 @@ updateMod mod (m, cmd) =
         in
             newM ! []
       CopyToClipboard clipboard ->
-        let newM = { m | clipboard = clipboard } in
-        newM ! [setStorage (Editor.model2editor newM)]
-      SetStorage editorState ->
-        m ! [setStorage editorState]
+        { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
         { m | cursorState = Dragging tlid offset hasMoved state } ! []
       TweakModel fn ->
