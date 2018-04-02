@@ -21,8 +21,8 @@ traverse : (Expr -> Expr) -> Expr -> Expr
 traverse fn expr =
   case expr of
     Blank _ -> expr
-    Flagged msg setting l r ->
-      Flagged msg setting (traverse fn l) (traverse fn r)
+    Flagged id msg setting l r ->
+      Flagged id msg setting (traverse fn l) (traverse fn r)
     F id nexpr ->
       F id
         (case nexpr of
@@ -79,7 +79,7 @@ listThreadBlanks expr =
             in blankids ++ subExprsBlankids
   in case expr of
       Blank _ -> []
-      Flagged _ _ l r -> rList [l, r]
+      Flagged _ _ _ l r -> rList [l, r]
       F _ f -> rn f
 
 closeThread : Expr -> Expr
@@ -132,7 +132,7 @@ wrapInThread id expr =
       F _ _ -> B.newF (Thread [expr, B.new ()])
       Blank _ -> B.newF (Thread [expr])
       -- decide based on the displayed value, so flatten
-      Flagged _ _ _ _ -> Debug.crash "wit"
+      Flagged _ _ _ _ _ -> Debug.crash "wit"
   else
     traverse (wrapInThread id) expr
 
@@ -198,7 +198,7 @@ children : Expr -> List PointerData
 children expr =
   case expr of
     Blank _ -> []
-    Flagged _ _ _ _ ->
+    Flagged _ _ _ _ _ ->
       -- only return the children of the shown expression
       expr |> B.flattenFF |> children
     F _ nexpr ->
@@ -228,7 +228,7 @@ childrenOf pid expr =
   in
   case expr of
     Blank _ -> []
-    Flagged _ _ _ _ ->
+    Flagged _ _ _ _ _ ->
       -- only return the children of the shown expression
       expr |> B.flattenFF |> childrenOf pid
     F _ nexpr ->
@@ -274,7 +274,7 @@ ancestors id expr =
           case exp of
             Blank _ -> []
             -- no idea what to do here
-            Flagged _ _ _ _ -> expr |> B.flattenFF |> ancestors id
+            Flagged _ _ _ _ _ -> expr |> B.flattenFF |> ancestors id
             F i nexpr ->
               case nexpr of
                 Value _ -> []
@@ -327,7 +327,7 @@ parentOf_ eid expr =
   case expr of
     Blank _ -> Nothing
     -- not really sure what to do here
-    Flagged _ _ _ _ -> expr |> B.flattenFF |> parentOf_ eid
+    Flagged _ _ _ _ _ -> expr |> B.flattenFF |> parentOf_ eid
     F id nexpr ->
       case nexpr of
         Value _ -> Nothing
@@ -415,7 +415,7 @@ allData expr =
   [e2ld expr] ++
   case expr of
     Blank _ -> []
-    Flagged _ _ l r -> rl [l, r]
+    Flagged _ _ _ l r -> rl [l, r]
     F _ nexpr ->
       case nexpr of
         Value v -> []
@@ -443,23 +443,25 @@ allData expr =
 
 
 replace : PointerData -> PointerData -> Expr -> Expr
-replace p replacement expr =
-  let r = replace p replacement in
-  if B.toID expr == P.toID p
+replace search replacement expr =
+  let r = replace search replacement
+      sId = P.toID search
+  in
+  if B.within expr sId
   then
     case replacement of
-      PExpr e -> e
+      PExpr e -> B.replace sId e expr
       _ -> expr
   else
     case (expr, replacement) of
-      (F id (Let lhs rhs body), PVarBind b) ->
-        if B.toID lhs == P.toID p
-        then F id (Let b rhs body)
+      (F id (Let lhs rhs body), PVarBind replacement) ->
+        if B.within lhs sId
+        then F id (Let (B.replace sId replacement lhs) rhs body)
         else traverse r expr
 
-      (F id (FieldAccess obj field), PField f) ->
-        if B.toID field == P.toID p
-        then F id (FieldAccess obj f)
+      (F id (FieldAccess obj field), PField replacement) ->
+        if B.within field sId
+        then F id (FieldAccess obj (B.replace sId replacement field))
         else traverse r expr
 
       _ -> traverse r expr

@@ -71,6 +71,7 @@ decodePointerData =
     , ("PDBColType", dv1 PDBColType (decodeBlankOr JSD.string))
     , ("PDarkType", dv1 PDarkType (decodeDarkType))
     , ("PDarkTypeField", dv1 PDarkTypeField (decodeBlankOr JSD.string))
+    , ("PFFMsg", dv1 PFFMsg (decodeBlankOr JSD.string))
     ]
 
 encodePointerData : PointerData -> JSE.Value
@@ -97,6 +98,9 @@ encodePointerData pd =
       ev "PDarkType" [encodeDarkType darktype]
     PDarkTypeField darktypefield ->
       ev "PDarkTypeField" [encodeBlankOr JSE.string darktypefield]
+    PFFMsg msg ->
+      ev "PFFMsg" [encodeBlankOr JSE.string msg]
+
 
 
 encodeRPCs : Model -> List RPC -> JSE.Value

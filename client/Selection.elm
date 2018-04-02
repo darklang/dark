@@ -170,8 +170,6 @@ enter m tlid id =
   then selectDownLevel m tlid (Just id)
   else
     case pd of
-      PDBColName _ -> NoChange
-      PDBColType _ -> NoChange
       pd -> Many [ Enter (Filling tlid id)
                  , AutocompleteMod (ACSetQuery (P.toContent pd))
                  ]
