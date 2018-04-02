@@ -3,6 +3,8 @@
 
 FROM ubuntu:17.10
 
+ENV FORCE_BUILD 0
+
 ## apt-get
 
 # We pin the exact package version so that we don't have any surprises.
@@ -155,7 +157,7 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.0/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/4.06.0/man:"
 ENV PERL5LIB "/home/dark/.opam/4.06.0/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.0/lib/toplevel"
-ENV FORCE_BUILD 2
+ENV FORCE_OCAML_BUILD 2
 RUN opam update
 
 #ENV OPAMDEBUG true
