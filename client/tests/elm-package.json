@@ -18,6 +18,7 @@
         "elm-community/result-extra": "2.2.0 <= v < 2.2.1",
         "elm-community/dict-extra": "2.2.0 <= v < 2.2.1",
         "elm-community/string-extra": "1.4.0 <= v < 1.4.1",
+        "elm-community/json-extra": "2.7.0 <= v < 2.7.1",
         "Fresheyeball/elm-tuple-extra": "3.0.0 <= v < 3.0.1",
         "elm-lang/core": "5.1.1 <= v < 6.0.0",
         "elm-lang/dom": "1.1.1 <= v < 2.0.0",
