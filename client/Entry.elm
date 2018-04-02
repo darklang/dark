@@ -157,16 +157,21 @@ submit m cursor action value =
           predecessor = TL.getPrevBlank tl (Just pd) |> Maybe.map P.toID
           wrap op = RPC ([op], FocusNext tlid predecessor)
 
-          replaceExpr : Model -> Handler -> PointerData -> String -> Modification
-          replaceExpr m h p value =
+          replaceExpr : Model -> Toplevel -> PointerData -> String -> Modification
+          replaceExpr m tl p value =
             let id = P.toID p
                 old_ = TL.findExn tl id
                 target = Just (tl.id, p)
+                ast =
+                  case tl.data of
+                    TLHandler h -> h.ast
+                    TLFunc f -> f.ast
+                    TLDB _ -> Debug.crash "replaceExpr: expected toplevel with AST component, got TLDB"
                 (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
                   then
-                    case AST.threadAncestors id h.ast of
+                    case AST.threadAncestors id ast of
                       -- turn the current thread into a let-assignment to this
                       -- name, and close the thread
                       (F _ (Thread _) as thread) :: _ ->
@@ -206,22 +211,26 @@ submit m cursor action value =
                     , parseAst
                         value
                           (action == ContinueThread
-                          && AST.isThreadBlank h.ast (P.toID p))
+                          && AST.isThreadBlank ast (P.toID p))
                       |> Maybe.map PExpr
                       |> Maybe.withDefault old_)
 
 
                 ast1 = case action of
-                  ContinueThread -> h.ast
+                  ContinueThread -> ast
                   StartThread ->
-                    AST.wrapInThread id h.ast
+                    AST.wrapInThread id ast
 
                 ast2 = AST.replace old new ast1
                 ast3 = AST.maybeExtendThreadAt (P.toID new) ast2
             in
                 if old == new
                 then NoChange
-                else wrap <| SetHandler tlid tl.pos { h | ast = ast3 }
+                else
+                  case tl.data of
+                    TLHandler h -> wrap <| SetHandler tlid tl.pos { h | ast = ast3 }
+                    TLFunc f -> wrap <| SetFunction { f | ast = ast3 }
+                    TLDB _ -> Debug.crash "replaceExpr: expected toplevel with AST component, got TLDB"
 
       in
       if String.length value < 1
@@ -244,9 +253,15 @@ submit m cursor action value =
         PVarBind _ ->
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
-            let h = deMaybe "maybeH - varbind" maybeH
-                replacement = AST.replaceVarBind pd value h.ast in
-            wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+              case tl.data of
+                TLHandler h ->
+                  let replacement = AST.replaceVarBind pd value h.ast in
+                  wrap <| SetHandler tlid tl.pos { h | ast = replacement }
+                TLFunc f ->
+                  let replacement = AST.replaceVarBind pd value f.ast in
+                  wrap <| SetFunction { f | ast = replacement }
+                TLDB _ -> Debug.crash "not handler or func - varbind"
+
         PEventName _ ->
           let eventNameValidation =
                 if TL.isHTTPHandler tl
@@ -282,8 +297,12 @@ submit m cursor action value =
         PField _ ->
           validate ".+" "fieldname"
             <|
-          let h = deMaybe "maybeH - field" maybeH
-              parent = AST.parentOf id h.ast
+          let ast =
+                case tl.data of
+                  TLHandler h -> h.ast
+                  TLFunc f -> f.ast
+                  TLDB _ -> Debug.crash "not handler or func - field"
+              parent = AST.parentOf id ast
               newAst =
                 if String.endsWith "." value
                 then
@@ -300,21 +319,24 @@ submit m cursor action value =
                                 (B.new ()))
                           _ -> Debug.crash "should be a field"
                   in
-                  AST.replace (PExpr parent) (PExpr wrapped) h.ast
+                  AST.replace (PExpr parent) (PExpr wrapped) ast
                 else
-                  let replacement = AST.replaceField pd value h.ast in
+                  let replacement = AST.replaceField pd value ast in
                   case action of
                     ContinueThread -> replacement
                     StartThread ->
                       -- id is not in the replacement, so search for the
                       -- parent in the old ast
-                      let parentID = AST.parentOf id h.ast |> B.toID in
+                      let parentID = AST.parentOf id ast |> B.toID in
                       AST.wrapInThread parentID replacement
           in
-              wrap <| SetHandler tlid tl.pos { h | ast = newAst }
+              case tl.data of
+                TLHandler h -> wrap <| SetHandler tlid tl.pos { h | ast = newAst }
+                TLFunc f -> wrap <| SetFunction { f | ast = newAst }
+                TLDB _ -> Debug.crash "not handler or func - field"
+
         PExpr _ ->
-          let h = deMaybe "maybeH - expr" maybeH in
-          replaceExpr m h pd value
+          replaceExpr m tl pd value
         PDarkType _ ->
           validate "(String|Int|Any|Empty|{)" "type"
             <|

@@ -353,6 +353,10 @@ type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
 
+type alias Name = String
+type CurrentPage = Toplevels
+                 | Fn TLID
+
 -----------------------------
 -- Model
 -----------------------------
@@ -366,6 +370,7 @@ type alias Model = { center : Pos
                    , complete : Autocomplete
                    , userFunctions : List UserFunction
                    , cursorState : CursorState
+                   , currentPage : CurrentPage
                    , hovering : List ID
                    , toplevels : List Toplevel
                    , analysis : List TLAResult

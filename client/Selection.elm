@@ -155,10 +155,11 @@ delete m tlid mId =
         DBColName ->
           wrapDB <| SetDBColName tlid id ""
         _ ->
-          let h = TL.delete tl pd newID
-                  |> TL.asHandler
-                  |> deMaybe "selection.delete" in
-          RPC ([SetHandler tlid tl.pos h], FocusExact tlid newID)
+          let newTL = TL.delete tl pd newID in
+              case newTL.data of
+                TLHandler h -> RPC ([SetHandler tlid tl.pos h], FocusExact tlid newID)
+                TLFunc f -> RPC ([SetFunction f], FocusExact tlid newID)
+                TLDB _ -> Debug.crash "pointer type mismatch - Selection.delete"
 
 
 enter : Model -> TLID -> ID -> Modification
