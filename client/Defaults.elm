@@ -1,9 +1,7 @@
 module Defaults exposing (..)
 
 -- builtin
-import Json.Encode as JSE
 -- lib
-
 
 -- dark
 import Types exposing (..)
@@ -29,9 +27,10 @@ pageHeight = 400
 pageWidth : Int
 pageWidth = 500
 
-defaultEditor : Editor
-defaultEditor = { clipboard = JSE.null
+defaultEditor : SerializableEditor
+defaultEditor = { clipboard = Nothing
                 , syncEnabled = True
+                , cursorState = Deselected
                 }
 
 defaultModel : Model
@@ -41,7 +40,6 @@ defaultModel = { error = Nothing
                , center = {x=initialPos.vx, y=initialPos.vy}
                , complete = Autocomplete.empty
                , userFunctions = []
-               , cursorState = Deselected
                , hovering = []
                , tests = []
                , toplevels = []
@@ -52,4 +50,5 @@ defaultModel = { error = Nothing
                -- saved in editor
                , clipboard = Nothing
                , syncEnabled = True
+               , cursorState = Deselected
                }

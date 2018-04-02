@@ -116,7 +116,7 @@ encodeBlankOr encoder v =
       encodeVariant
         "Flagged"
         [ encodeID id
-        , JSE.string "testmessage"
+        , encodeBlankOr JSE.string msg
         , JSE.int s
         , encodeBlankOr encoder a
         , encodeBlankOr encoder b
@@ -125,7 +125,7 @@ encodeBlankOr encoder v =
 decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
 decodeBlankOr d =
   let db = JSD.lazy (\_ -> decodeBlankOr d)
-      ds = JSD.lazy (\_ -> JSD.map (F (ID 5)) JSD.string ) in
+      ds = JSD.lazy (\_ -> decodeBlankOr JSD.string) in
   decodeVariants
   [ ("Filled", decodeVariant2 F decodeID d)
   , ("Blank", decodeVariant1 Blank decodeID)
@@ -158,6 +158,31 @@ decodePair d1 d2 =
 encodePair : (a -> JSE.Value) -> (b -> JSE.Value) -> (a, b) -> JSE.Value
 encodePair encA encB (a, b) =
   JSE.list [encA a, encB b]
+
+encodePos : Pos -> JSE.Value
+encodePos {x,y} =
+  JSE.object [ ("x", JSE.int x)
+             , ("y", JSE.int y)]
+
+encodeVPos : VPos -> JSE.Value
+encodeVPos {vx,vy} =
+  JSE.object [ ("vx", JSE.int vx)
+             , ("vy", JSE.int vy)]
+
+decodePos : JSD.Decoder Pos
+decodePos =
+  JSDP.decode Pos
+  |> JSDP.required "x" JSD.int
+  |> JSDP.required "y" JSD.int
+
+decodeVPos : JSD.Decoder VPos
+decodeVPos =
+  JSDP.decode VPos
+  |> JSDP.required "vx" JSD.int
+  |> JSDP.required "vy" JSD.int
+
+
+
 
 
 decodeException : JSD.Decoder Exception

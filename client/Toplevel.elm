@@ -296,8 +296,8 @@ replace p replacement tl =
     PFFMsg bo ->
       let h = ha ()
           -- replace everywhere
-          spec = SpecTypes.replace p replacement h.spec
-          spec2 = SpecHeaders.replace id bo spec
+          -- spec = SpecTypes.replace p replacement h.spec
+          spec2 = SpecHeaders.replace id bo h.spec
           ast = AST.replace p replacement h.ast
       in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
 
