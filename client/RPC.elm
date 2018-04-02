@@ -7,6 +7,7 @@ import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict.Extra as DE
 import String.Extra as SE
+import Json.Encode.Extra as JSEE
 
 -- lib
 
@@ -114,12 +115,11 @@ encodeRPCs m calls =
   |> List.map (encodeRPC m)
   |> JSE.list
 
+
+
 encodeRPC : Model -> RPC -> JSE.Value
 encodeRPC m call =
-  let encodePos {x,y} =
-        JSE.object [ ("x", JSE.int x)
-                   , ("y", JSE.int y)]
-      ev = encodeVariant
+  let ev = encodeVariant
   in
     case call of
       SetHandler id pos h ->
@@ -276,6 +276,47 @@ encodeNDarkType t =
               (encodeBlankOr JSE.string)
               encodeDarkType)
             ts))]
+
+encodeCursorState : CursorState -> JSE.Value
+encodeCursorState cs =
+  let ev = encodeVariant in
+  case cs of
+    Selecting tlid mId ->
+      ev "Selecting" [encodeTLID tlid, JSEE.maybe encodeID mId]
+    Entering (Creating pos) ->
+      ev "Entering" [ev "Creating" [encodePos pos]]
+    Entering (Filling tlid id) ->
+      ev "Entering" [ev "Filling" [encodeTLID tlid, encodeID id]]
+    Dragging tlid vpos hasMoved cursor ->
+      ev "Dragging" [ encodeTLID tlid
+                    , encodeVPos vpos
+                    , JSE.bool hasMoved
+                    , encodeCursorState cs
+                    ]
+    Deselected ->
+      ev "Deselected" []
+
+decodeCursorState : JSD.Decoder CursorState
+decodeCursorState =
+  let dv4 = decodeVariant4
+      dv3 = decodeVariant3
+      dv2 = decodeVariant2
+      dv1 = decodeVariant1
+      dv0 = decodeVariant0
+      dcs = JSD.lazy (\_ -> decodeCursorState)
+      decodeEntering =
+        decodeVariants
+          [ ("Creating", dv1 Creating decodePos)
+          , ("Filling", dv2 Filling decodeTLID decodeID)
+          ]
+  in
+  decodeVariants
+    [ ("Selecting", dv2 Selecting decodeTLID (JSD.maybe decodeID))
+    , ("Entering", dv1 Entering decodeEntering)
+    , ("Dragging", dv4 Dragging decodeTLID decodeVPos JSD.bool dcs)
+    , ("Deselected", dv0 Deselected)
+    ]
+
 
 decodeNDarkType : JSD.Decoder NDarkType
 decodeNDarkType =

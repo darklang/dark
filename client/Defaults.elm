@@ -9,6 +9,7 @@ import Json.Encode as JSE
 import Types exposing (..)
 import PageVisibility
 import Autocomplete
+import RPC
 
 
 entryID : String
@@ -29,9 +30,10 @@ pageHeight = 400
 pageWidth : Int
 pageWidth = 500
 
-defaultEditor : Editor
+defaultEditor : SerializableEditor
 defaultEditor = { clipboard = JSE.null
                 , syncEnabled = True
+                , cursorState = (RPC.encodeCursorState Deselected)
                 }
 
 defaultModel : Model

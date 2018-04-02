@@ -88,25 +88,27 @@ flag2function fn =
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )
 init {editorState, complete} location =
-  let editor = case editorState of
-            Just e -> e
-            Nothing -> Defaults.defaultEditor
+  let savedEditor = case editorState of
+                      Just e -> e
+                      Nothing -> Defaults.defaultEditor
+
+      m0 = Editor.editor2model savedEditor
+      savedCursorState = m0.cursorState
+      m = { m0 | cursorState = Deselected}
+
       tests = case parseVariantTestsFromQueryString location.search of
                   Just t  -> t
                   Nothing -> []
-      m = Editor.editor2model editor
 
-      visibilityTask =
-        Task.perform PageVisibilityChange PageVisibility.visibility
       center =
         case parseLocation location of
           Nothing -> m.center
           Just c -> c
-      m2 = { m | complete = AC.init (List.map flag2function complete)
-               , tests = tests
-               , toplevels = []
-               , center = center
-           }
+
+      visibilityTask =
+        Task.perform PageVisibilityChange PageVisibility.visibility
+
+
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
       integrationTestName =
@@ -117,16 +119,24 @@ init {editorState, complete} location =
         |> SE.replace ".dark-local-gcp" ""
         |> SE.replace ":8000" ""
         |> SE.replace ":9000" ""
+
+      m2 = { m | complete = AC.init (List.map flag2function complete)
+               , tests = tests
+               , toplevels = []
+               , center = center
+           }
+
   in
     if shouldRunIntegrationTest
     then m2 ! [RPC.integrationRPC m integrationTestName, visibilityTask]
-    else m2 ! [RPC.rpc m FocusNothing [], visibilityTask]
+    else m2 ! [RPC.rpc m (FocusCursorState savedCursorState) []
+              , visibilityTask]
 
 
 -----------------------
 -- ports, save Editor state in LocalStorage
 -----------------------
-port setStorage : Editor -> Cmd a
+port setStorage : SerializableEditor -> Cmd a
 port recordError : (String -> msg) -> Sub msg
 
 -----------------------
@@ -166,6 +176,25 @@ processFocus m focus =
               else Deselect
             _ -> Deselect
         _ -> NoChange
+    FocusCursorState cs ->
+      let setCS = SetCursorState cs in
+      case cs of
+        Selecting tlid mId ->
+          case (TL.get m tlid, mId) of
+            (Just tl, Just id) ->
+                if TL.isValidID tl id
+                then setCS
+                else Deselect
+            (Just tl, Nothing) -> setCS
+            _ -> Deselect
+        Entering (Filling tlid id) ->
+          case TL.get m tlid of
+            Just tl ->
+              if TL.isValidID tl id
+              then setCS
+              else Deselect
+            _ -> Deselect
+        _ -> setCS
     FocusNothing -> Deselect
     -- used instead of focussame when we've already done the focus
     FocusNoChange -> NoChange

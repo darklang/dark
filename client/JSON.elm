@@ -159,6 +159,31 @@ encodePair : (a -> JSE.Value) -> (b -> JSE.Value) -> (a, b) -> JSE.Value
 encodePair encA encB (a, b) =
   JSE.list [encA a, encB b]
 
+encodePos : Pos -> JSE.Value
+encodePos {x,y} =
+  JSE.object [ ("x", JSE.int x)
+             , ("y", JSE.int y)]
+
+encodeVPos : VPos -> JSE.Value
+encodeVPos {vx,vy} =
+  JSE.object [ ("vx", JSE.int vx)
+             , ("vy", JSE.int vy)]
+
+decodePos : JSD.Decoder Pos
+decodePos =
+  JSDP.decode Pos
+  |> JSDP.required "x" JSD.int
+  |> JSDP.required "y" JSD.int
+
+decodeVPos : JSD.Decoder VPos
+decodeVPos =
+  JSDP.decode VPos
+  |> JSDP.required "vx" JSD.int
+  |> JSDP.required "vy" JSD.int
+
+
+
+
 
 decodeException : JSD.Decoder Exception
 decodeException =
