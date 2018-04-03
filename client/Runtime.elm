@@ -34,6 +34,9 @@ isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s
 isNull : String -> Bool
 isNull s = String.toLower s == "null"
 
+isIncomplete : String -> Bool
+isIncomplete s = String.toLower s == "<incomplete>"
+
 isError : String -> Bool
 isError s =
   String.startsWith "<error:" s
