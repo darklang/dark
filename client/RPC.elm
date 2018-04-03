@@ -18,13 +18,13 @@ import Util
 import JSON exposing (..)
 
 rpc_ : Model -> String ->
- (List Op -> Result Http.Error RPCResult -> Msg) ->
- List Op -> Cmd Msg
-rpc_ m url callback calls =
-  let payload = encodeOps m calls
+ (RPCParams -> Result Http.Error RPCResult -> Msg) ->
+ RPCParams -> Cmd Msg
+rpc_ m url callback params =
+  let payload = encodeRPCParams params
       json = Http.jsonBody payload
       request = Http.post url json decodeRPC
-  in Http.send (callback calls) request
+  in Http.send (callback params) request
 
 postString : String -> Http.Request String
 postString url =
@@ -38,9 +38,9 @@ postString url =
     , withCredentials = False
     }
 
-rpc : Model -> Focus -> List Op -> Cmd Msg
-rpc m focus calls =
-  rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) calls
+rpc : Model -> Focus -> RPCParams -> Cmd Msg
+rpc m focus params =
+  rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) params
 
 getAnalysisRPC : Cmd Msg
 getAnalysisRPC =
@@ -56,7 +56,7 @@ saveTestRPC =
 
 integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
-  rpc_ m "/admin/api/rpc" (RPCCallback FocusNothing (TriggerIntegrationTest name)) []
+  rpc_ m "/admin/api/rpc" (RPCCallback FocusNothing (TriggerIntegrationTest name)) { ops = []}
 
 decodePointerData : JSD.Decoder PointerData
 decodePointerData =
@@ -104,21 +104,19 @@ encodePointerData pd =
 
 
 
-encodeOps : Model -> List Op -> JSE.Value
-encodeOps m calls =
-  calls
+encodeOps : List Op -> JSE.Value
+encodeOps ops =
+  ops
   |> (\cs -> if cs == [Undo]
              || cs == [Redo]
              || cs == []
              then cs
              else Savepoint :: cs)
-  |> List.map (encodeOp m)
+  |> List.map encodeOp
   |> JSE.list
 
-
-
-encodeOp : Model -> Op -> JSE.Value
-encodeOp m call =
+encodeOp : Op -> JSE.Value
+encodeOp call =
   let ev = encodeVariant
   in
     case call of
@@ -153,6 +151,11 @@ encodeOp m call =
       DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid]
       MoveTL tlid pos -> ev "MoveTL" [encodeTLID tlid, encodePos pos]
       SetFunction uf -> ev "SetFunction" [encodeUserFunction uf]
+
+encodeRPCParams : RPCParams -> JSE.Value
+encodeRPCParams params =
+  JSE.object
+    [("ops", encodeOps params.ops)]
 
 encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
