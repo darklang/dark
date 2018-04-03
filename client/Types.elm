@@ -346,9 +346,11 @@ type alias Toplevel = { id : TLID
 -----------------------------
 type alias LVDict = Dict Int LiveValue
 type alias AVDict = Dict Int (List VarName)
+type alias InputDict = Dict VarName LiveValue
 type alias AResult = { astValue: LiveValue
                      , liveValues : LVDict
                      , availableVarnames : AVDict
+                     , inputValues : InputDict
                      }
 type alias TLAResult = { id: TLID
                        , results: List AResult
