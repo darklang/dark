@@ -150,8 +150,8 @@ encodeRPC m call =
       Savepoint -> ev "Savepoint" []
       Undo -> ev "Undo" []
       Redo -> ev "Redo" []
-      DeleteTL id -> ev "DeleteTL" [encodeTLID id]
-      MoveTL id pos -> ev "MoveTL" [encodeTLID id, encodePos pos]
+      DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid]
+      MoveTL tlid pos -> ev "MoveTL" [encodeTLID tlid, encodePos pos]
       SetFunction uf -> ev "SetFunction" [encodeUserFunction uf]
 
 encodeUserFunction : UserFunction -> JSE.Value
