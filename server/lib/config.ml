@@ -34,9 +34,6 @@ let events_dir : string =
 let log_dir : string =
   run_dir ^ "logs/"
 
-let cache_dir : string =
-  run_dir ^ "cache/"
-
 let serialization_dir: string =
   server_dir ^ "serialization/"
 
