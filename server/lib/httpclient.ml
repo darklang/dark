@@ -5,38 +5,6 @@ module C = Curl
 type verb = GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS [@@deriving show]
 type headers = string list [@@deriving show]
 
-let filename_for (url: string) (verb: verb) (body: string) : string =
-  let verbs =
-    match verb with
-    | GET -> "GET"
-    | POST -> "POST"
-    | PUT -> "PUT"
-    | PATCH -> "PATCH"
-    | DELETE -> "DELETE"
-    | HEAD -> "HEAD"
-    | OPTIONS -> "OPTIONS"
-  in
-  url
-  |> String.tr ~target:'/' ~replacement:'_'
-  |> String.tr ~target:':' ~replacement:'_'
-  |> String.tr ~target:'-' ~replacement:'_'
-  |> String.tr ~target:'?' ~replacement:'_'
-  |> (^) (Config.cache_dir ^ verbs ^ "_")
-
-let save_call (url: string) (verb: verb) (body: string) (value : string) : unit =
-  let filename = filename_for url verb body in
-  Util.writefile filename value
-
-let cached_call (url: string) (verb: verb) (body: string) : string option =
-  if body <> "" then
-    None
-  else
-    let filename = filename_for url verb body in
-    if Sys.file_exists filename <> `Yes then
-      None
-    else
-      Some (Util.readfile filename)
-
 let http_call (url: string) (query_params : (string * string list) list)
     (verb: verb) (headers: (string * string) list) (body: string)
   : (string * (string * string) list) =
@@ -151,12 +119,8 @@ let http_call (url: string) (query_params : (string * string list) list)
 
 let call (url: string) (verb: verb) (headers: (string * string) list) (body: string) : string =
   Log.debuG "HTTP" ((show_verb verb) ^ " (" ^ (body |> String.length |> string_of_int) ^ "): " ^ url) ;
-  match cached_call url verb body with
-  | None ->
-    let (result, headers) = http_call url [] verb headers body in
-    save_call url verb body result;
-    result
-  | Some result -> result
+  let (results, _) = http_call url [] verb headers body  in
+  results
 
 let init () : unit =
   C.global_init C.CURLINIT_GLOBALALL
