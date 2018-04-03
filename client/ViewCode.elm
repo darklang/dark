@@ -95,19 +95,25 @@ viewNExpr d vs config e =
             if RT.isString v
             then "“" ++ (SE.unquote v) ++ "”"
             else v
+          computedValue = if d == 0
+            then [ComputedValue]
+            else []
       in
-      a (wc cssClass :: wc "value" :: all) valu
+      a (wc cssClass :: wc "value" :: all ++ computedValue) valu
 
     Variable name ->
       a (wc "variable" :: all) name
 
     Let lhs rhs body ->
-      n (wc "letexpr" :: all)
+      let lhsID = B.toID lhs
+          bodyID = B.toID body
+      in
+      n (wc "letexpr" :: ComputedValueAs lhsID :: all)
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
         , a [wc "letbind"] "="
         , n [wc "letrhs", dv, cs] [vExpr (d+1) rhs]
-        , n [wc "letbody"] [vExpr d body]
+        , n [wc "letbody", ComputedValueAs bodyID] [vExpr d body]
         ]
 
     If cond ifbody elsebody ->
@@ -158,8 +164,12 @@ viewNExpr d vs config e =
     Thread exprs ->
       let pipe = a [wc "thread pipe"] "|>"
           texpr e =
-            let id = B.toID e in
-            n [wc "threadmember", DisplayValueOf id, ClickSelectAs id]
+            let id = B.toID e
+                dopts = if d == 0
+                then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
+                else [DisplayValueOf id, ClickSelectAs id]
+            in
+            n ([wc "threadmember"] ++ dopts)
               [pipe, vExpr 0 e]
       in
       n (wc "threadexpr" :: mo :: dv :: config)
@@ -171,6 +181,3 @@ viewNExpr d vs config e =
         , a [wc "fieldaccessop operator"] "."
         , viewFieldName vs (wc "fieldname" :: atom :: []) field
         ]
-
-
-
