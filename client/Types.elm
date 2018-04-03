@@ -147,7 +147,7 @@ type Msg
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallback Focus Modification (List RPC) (Result Http.Error RPCResult)
+    | RPCCallback Focus Modification (List Op) (Result Http.Error RPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisRPCResult)
     | LocationChange Navigation.Location
@@ -182,7 +182,7 @@ type Focus = FocusNothing -- deselect
 -----------------------------
 -- RPCs
 -----------------------------
-type RPC
+type Op
     = SetHandler TLID Pos Handler
     | CreateDB TLID Pos DBName
     | AddDBCol TLID ID ID
@@ -410,7 +410,7 @@ type Modification = Error String
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable) (List UserFunction)
                   | Enter EntryCursor
-                  | RPC (List RPC, Focus)
+                  | RPC (List Op, Focus)
                   | GetAnalysisRPC
                   | SetCenter Pos
                   | NoChange
