@@ -54,9 +54,20 @@ saveTestRPC =
       request = postString url
   in Http.send SaveTestRPCCallback request
 
+emptyParams : RPCParams
+emptyParams =
+  { ops = [], executableFns = []}
+
+opsParams : List Op -> RPCParams
+opsParams ops =
+  { ops = ops, executableFns = []}
+
 integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
-  rpc_ m "/admin/api/rpc" (RPCCallback FocusNothing (TriggerIntegrationTest name)) { ops = []}
+  rpc_ m
+    "/admin/api/rpc"
+    (RPCCallback FocusNothing (TriggerIntegrationTest name))
+    emptyParams
 
 decodePointerData : JSD.Decoder PointerData
 decodePointerData =

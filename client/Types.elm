@@ -196,7 +196,9 @@ type Op
     | Redo
     | SetFunction UserFunction
 
-type alias RPCParams = { ops : List Op }
+type alias RPCParams = { ops : List Op
+                       , executableFns : List (TLID, ID)
+                       }
 
 
 -----------------------------
@@ -415,7 +417,8 @@ type Modification = Error String
                   | Deselect
                   | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable) (List UserFunction)
                   | Enter EntryCursor
-                  | RPC (List Op, Focus)
+                  | RPCFull (RPCParams, Focus)
+                  | RPC (List Op, Focus) -- shortcut for RPCFull
                   | GetAnalysisRPC
                   | SetCenter Pos
                   | NoChange
