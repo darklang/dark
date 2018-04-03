@@ -10,8 +10,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with HTTP status `code` and `response` body"
   ; f = InProcess
         (function
-          | [dv; DInt code] -> DResp (Response (code, []), dv)
-          | args -> fail args)
+          | (_, [dv; DInt code]) -> DResp (Response (code, []), dv)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -25,8 +25,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with HTTP status 200 and `response` body"
   ; f = InProcess
         (function
-          | [dv] -> DResp (Response (200, []), dv)
-          | args -> fail args)
+          | (_, [dv]) -> DResp (Response (200, []), dv)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -40,8 +40,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"text/html\""
   ; f = InProcess
         (function
-          | [dv; DInt code] -> DResp (Response (code, ["Content-Type", "text/html"]), dv)
-          | args -> fail args)
+          | (_, [dv; DInt code]) -> DResp (Response (code, ["Content-Type", "text/html"]), dv)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -55,8 +55,8 @@ let fns : Lib.shortfn list = [
   ; d = "Redirect to url"
   ; f = InProcess
         (function
-          | [DStr url] -> DResp (Redirect url, DNull)
-          | args -> fail args)
+          | (_, [DStr url]) -> DResp (Redirect url, DNull)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -70,8 +70,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with a 400 and an error message"
   ; f = InProcess
         (function
-          | [DStr msg] -> DResp (Response (400, []), DStr msg)
-          | args -> fail args)
+          | (_, [DStr msg]) -> DResp (Response (400, []), DStr msg)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -85,8 +85,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with 404 Not Found"
   ; f = InProcess
         (function
-          | [] -> DResp (Response (404, []), DNull)
-          | args -> fail args)
+          | (_, []) -> DResp (Response (404, []), DNull)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -100,8 +100,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with 401 Unauthorized"
   ; f = InProcess
         (function
-          | [] -> DResp (Response (401, []), DNull)
-          | args -> fail args)
+          | (_, []) -> DResp (Response (401, []), DNull)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -115,8 +115,8 @@ let fns : Lib.shortfn list = [
   ; d = "Respond with 403 Forbidden"
   ; f = InProcess
         (function
-          | [] -> DResp (Response (403, []), DNull)
-          | args -> fail args)
+          | (_, []) -> DResp (Response (403, []), DNull)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
