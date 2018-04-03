@@ -38,7 +38,7 @@ let dequeue_and_evaluate_all () : string =
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
                        let result =
                          Handler.execute
-                           (FF.todo "queue_worker") q !c.user_functions env
+                           event.flag_context q !c.user_functions env
                        in
                        (match result with
                         | RTT.DIncomplete ->

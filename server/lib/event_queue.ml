@@ -3,9 +3,12 @@ open Core
 open Types
 open Types.RuntimeT
 
-type t = { id: int;
-           value: dval;
-           retries: int;
+module FF = FeatureFlag
+
+type t = { id: int
+         ; value: dval
+         ; retries: int
+         ; flag_context: feature_flag
          }
 
 (* --------------------------- *)
@@ -68,14 +71,14 @@ let unset_scope ~status : unit =
 
 let wrap s = "'" ^ s ^ "'"
 
-let enqueue (space: string) (name: string) (data: dval) : unit =
+let enqueue (space: string) (name: string) (data: dval) (ff: feature_flag) : unit =
   let serialized_data = Dval.dval_to_json_string data in
   let column_names =
-    ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"; "delay_until"]
+    ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"; "delay_until"; "flag_context"]
     |> String.concat ~sep:", "
   in
   let column_values =
-    ["'new'"; "NULL"; wrap (current_scope_exn ()); wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"]
+    ["'new'"; "NULL"; wrap (current_scope_exn ()); wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"; FF.to_sql ff]
     |> String.concat ~sep:", "
   in
   (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
@@ -89,7 +92,7 @@ let dequeue (space: string) (name: string) : t option =
   has_dequeued := true;
   let fetched =
     Printf.sprintf
-      "SELECT id, value, retries from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
+      "SELECT id, value, retries, flag_context from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
       (wrap space)
       (wrap name)
       (wrap (current_scope_exn ()))
@@ -98,11 +101,15 @@ let dequeue (space: string) (name: string) : t option =
   in
   match fetched with
   | None -> None
-  | Some [id; value; retries] ->
+  | Some [id; value; retries; flag_context] ->
     Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
                   (string_of_int (scope_setter_exn ()))
                   id);
-    Some { id = int_of_string id; value = Dval.parse value; retries = int_of_string retries }
+    Some { id = int_of_string id
+         ; value = Dval.parse value
+         ; retries = int_of_string retries
+         ; flag_context = FF.from_sql flag_context
+         }
   | Some s -> Exception.internal ("Fetched seemingly impossible shape from Postgres" ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
 let put_back (item: t) ~status : unit =
@@ -152,6 +159,9 @@ END$$;" in
   let ensure_retries_column_exists =
     "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS retries INTEGER DEFAULT 0 NOT NULL"
   in
+  let ensure_flag_context_column_exists =
+    "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS flag_context INTEGER DEFAULT 0 NOT NULL"
+  in
   let ensure_delay_column_exists =
     "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS delay_until TIMESTAMP"
   in
@@ -160,5 +170,6 @@ END$$;" in
   Db.run_sql ensure_dequeue_index_exists;
   Db.run_sql ensure_cleanup_index_exists;
   Db.run_sql ensure_retries_column_exists;
+  Db.run_sql ensure_flag_context_column_exists;
   Db.run_sql ensure_delay_column_exists;
 

@@ -131,7 +131,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                ; description : string
                } [@@deriving eq, show, yojson, sexp, bin_io]
 
-  type funcimpl = InProcess of (dval list -> dval)
+  type funcimpl = InProcess of (feature_flag * dval list -> dval)
                 | API of (dval_map -> dval)
                 | UserCreated of expr
 

@@ -25,7 +25,7 @@ let has_json_header (headers: headers) : bool =
 let call verb =
   InProcess
   (function
-    | [DStr uri; body; query_; headers_] ->
+    | (_, [DStr uri; body; query_; headers_]) ->
         let query = Dval.dval_to_query query_ in
         let headers = Dval.to_string_pairs headers_ in
         let body =
@@ -51,7 +51,7 @@ let call verb =
           |> fun dm -> DObj dm
         in
         Dval.to_dobj [("body", parsed_result); ("headers", parsed_headers)]
-    | args -> fail args)
+    | (_, args) -> fail args)
 
 
 let fns : Lib.shortfn list = [
@@ -128,8 +128,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-        | [] -> DStr "application/x-www-form-urlencoded"
-        | args -> fail args)
+        | (_, []) -> DStr "application/x-www-form-urlencoded"
+        | (_, args) -> fail args)
   ; pr = None
   ; ps = false
   }
@@ -143,8 +143,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-        | [] -> DStr "application/json"
-        | args -> fail args)
+        | (_, []) -> DStr "application/json"
+        | (_, args) -> fail args)
   ; pr = None
   ; ps = false
   }
