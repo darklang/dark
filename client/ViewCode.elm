@@ -34,7 +34,7 @@ viewDarkType vs c dt =
 
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
-  let configs = idConfigs ++ c ++ withFeatureFlag vs e in
+  let configs = idConfigs ++ c ++ withFeatureFlag vs e ++ withEditFn vs e in
   viewBlankOr (viewNExpr depth vs) Expr vs configs e
 
 viewEventName : BlankViewer String
