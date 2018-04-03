@@ -69,6 +69,11 @@ keyword : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 keyword vs c name =
   text vs (atom :: wc "keyword" :: wc name :: c) name
 
+withFeatureFlag : ViewState -> BlankOr a -> List HtmlConfig
+withFeatureFlag vs v =
+  if idOf vs.cursorState == Just (B.toID v)
+  then [WithFF]
+  else []
 
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
@@ -179,24 +184,7 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  let cs = case pt of
-             VarBind -> idConfigs
-             EventName -> idConfigs
-             EventSpace -> idConfigs
-             EventModifier -> idConfigs
-             Field -> idConfigs
-             FFMsg -> idConfigs
-             DBColName ->
-               if B.isBlank str
-               then idConfigs
-               else []
-             DBColType ->
-               if B.isBlank str
-               then idConfigs
-               else []
-             _ -> []
-  in
-  viewBlankOr (text vs) pt vs (c ++ cs) str
+  viewBlankOr (text vs) pt vs c str
 
 placeHolderFor : ViewState -> ID -> PointerType -> String
 placeHolderFor vs id pt =
@@ -233,7 +221,7 @@ placeHolderFor vs id pt =
     DBColType -> "db type"
     DarkType -> "type"
     DarkTypeField -> "fieldname"
-    FFMsg -> "Flag name"
+    FFMsg -> "flag name"
 
 
 
@@ -248,35 +236,25 @@ viewBlankOr htmlFn pt vs c bo =
       --         bo
       --       _ -> bo
 
-      isSelected id =
-        idOf vs.cursorState == Just id
-
       isSelectionWithin bo =
         idOf vs.cursorState
         |> Maybe.map (B.within bo)
         |> Maybe.withDefault False
 
       wID id = [WithID id]
-      wFF id =
-        if isSelected id then [WithFF] else []
-
       drawBlank id =
         div vs
-          ([WithClass "blank"] ++ idConfigs ++ c ++ wID id ++ wFF id)
+          ([WithClass "blank"] ++ c ++ wID id)
           [Html.text (placeHolderFor vs id pt)]
 
       drawFilled id fill =
-        let configs =
-          wID id
-          ++ c
-          ++ wFF id
-          ++ (if pt == Expr then idConfigs else [])
+        let configs = wID id ++ c
         in htmlFn configs fill
 
-      drawFilledInFlag id fill =
+      drawFilledInsideFlag id fill =
         htmlFn [] fill
 
-      drawBlankInFlag id =
+      drawBlankInsideFlag id =
         div vs
           ([WithClass "blank"])
           [Html.text (placeHolderFor vs id pt)]
@@ -287,9 +265,9 @@ viewBlankOr htmlFn pt vs c bo =
             [div vs [ DisplayValueOf fid
                     , ClickSelectAs id
                     , WithID id]
-               [drawFilledInFlag id fill]]
+               [drawFilledInsideFlag id fill]]
           Blank id ->
-            [drawBlankInFlag id]
+            [drawBlankInsideFlag id]
           _ -> Util.impossible "nested flagging not allowed for now" []
 
       drawSetting ffID setting =
