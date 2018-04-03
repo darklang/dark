@@ -38,11 +38,12 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DObj o] -> o
-                        |> DvalMap.keys
-                        |> List.map ~f:(fun k -> DStr k)
-                        |> fun l -> DList l
-          | args -> fail args)
+          | (_, [DObj o]) ->
+            o
+            |> DvalMap.keys
+            |> List.map ~f:(fun k -> DStr k)
+            |> fun l -> DList l
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -55,8 +56,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DObj o] -> DList (DvalMap.data o)
-          | args -> fail args)
+          | (_, [DObj o]) -> DList (DvalMap.data o)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -73,9 +74,9 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [] ->
+          | (_, []) ->
             DObj (DvalMap.empty)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -88,9 +89,9 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DObj o; DStr k; v] ->
+          | (_, [DObj o; DStr k; v]) ->
             DObj (Map.set o ~key:k ~data:v)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -103,9 +104,9 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DObj o; DStr k] ->
+          | (_, [DObj o; DStr k]) ->
             DObj (Map.remove o k)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -118,7 +119,7 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DObj o; DStr uri] ->
+          | (_, [DObj o; DStr uri]) ->
             let fmt =
               format_of_string
                 "<form action=\"%s\" method=\"post\">\n%s\n<input type=\"submit\" value=\"Save\">\n</form>"
@@ -139,7 +140,7 @@ let fns : Lib.shortfn list = [
               |> String.concat ~sep:"\n"
             in
             DStr (Printf.sprintf fmt uri inputs)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -155,8 +156,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (a mod b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DInt (a mod b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -170,8 +171,8 @@ let fns : Lib.shortfn list = [
   ; d = "Adds two integers together"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (a + b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DInt (a + b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -185,8 +186,8 @@ let fns : Lib.shortfn list = [
   ; d = "Subtracts two integers"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (a - b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DInt (a - b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -200,8 +201,8 @@ let fns : Lib.shortfn list = [
   ; d = "Multiples two integers"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (a * b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DInt (a * b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -214,8 +215,8 @@ let fns : Lib.shortfn list = [
   ; d = "Raise `base` to the power of `exponent`"
   ; f = InProcess
         (function
-          | [DInt base; DInt exp] -> DInt (Int.pow base exp)
-          | args -> fail args)
+          | (_, [DInt base; DInt exp]) -> DInt (Int.pow base exp)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -229,8 +230,8 @@ let fns : Lib.shortfn list = [
   ; d = "Divides two integers"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DInt (a / b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DInt (a / b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -244,8 +245,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if a is greater than b"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DBool (a > b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DBool (a > b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -259,8 +260,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if a is less than b"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DBool (a < b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DBool (a < b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -273,8 +274,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if a is less than or equal to b"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DBool (a <= b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DBool (a <= b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -288,8 +289,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if a is greater than or equal to b"
   ; f = InProcess
         (function
-          | [DInt a; DInt b] -> DBool (a >= b)
-          | args -> fail args)
+          | (_, [DInt a; DInt b]) -> DBool (a >= b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -303,9 +304,9 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a random integer between a and b (inclusive)"
   ; f = InProcess
         (function
-          (* +1 as Random.int is exclusive *)
-          | [DInt a; DInt b] -> DInt (a + 1 + (Random.int (b - a)))
-          | args -> fail args)
+          (*( +1 as Random.int is exclusive *)
+          | (_, [DInt a; DInt b]) -> DInt (a + 1 + (Random.int (b - a)))
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -318,8 +319,8 @@ let fns : Lib.shortfn list = [
   ; d = "Get the square root of an Int"
   ; f = InProcess
         (function
-          | [DInt a] -> DFloat (float_of_int a |> sqrt)
-          | args -> fail args)
+          | (_, [DInt a]) -> DFloat (float_of_int a |> sqrt)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -333,8 +334,8 @@ let fns : Lib.shortfn list = [
   ; d = "Converts an Int to a Float"
   ; f = InProcess
         (function
-          | [DInt a] -> DFloat (float_of_int a)
-          | args -> fail args)
+          | (_, [DInt a]) -> DFloat (float_of_int a)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -352,8 +353,8 @@ let fns : Lib.shortfn list = [
   ; d = "Round above to an integer value"
   ; f = InProcess
         (function
-          | [DFloat a] -> DInt (Float.round_up a |> int_of_float)
-          | args -> fail args)
+          | (_, [DFloat a]) -> DInt (Float.round_up a |> int_of_float)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -367,8 +368,8 @@ let fns : Lib.shortfn list = [
   ; d = "Round down to an integer value"
   ; f = InProcess
         (function
-          | [DFloat a] -> DInt (Float.round_down a |> int_of_float)
-          | args -> fail args)
+          | (_, [DFloat a]) -> DInt (Float.round_down a |> int_of_float)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -382,8 +383,8 @@ let fns : Lib.shortfn list = [
   ; d = "Round to nearest integer value"
   ; f = InProcess
         (function
-          | [DFloat a] -> DInt (Float.round a |> int_of_float)
-          | args -> fail args)
+          | (_, [DFloat a]) -> DInt (Float.round a |> int_of_float)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -397,8 +398,8 @@ let fns : Lib.shortfn list = [
   ; d = "Get the square root of a float"
   ; f = InProcess
         (function
-          | [DFloat a] -> DFloat (sqrt a)
-          | args -> fail args)
+          | (_, [DFloat a]) -> DFloat (sqrt a)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -412,7 +413,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the sum of all the ints in the list"
   ; f = InProcess
         (function
-          | [DList l] ->
+          | (_, [DList l]) ->
             l
             |> list_coerce ~f:Dval.to_int
             >>| List.fold_left ~f:(+) ~init:0
@@ -425,7 +426,7 @@ let fns : Lib.shortfn list = [
                   ~expected:"every list item to be an int "
                   "Sum expects you to pass a list of ints")
             |> Result.ok_exn
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -442,8 +443,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
         (function
-          | [a] -> DStr (Dval.to_repr a)
-          | args -> fail args)
+          | (_, [a]) -> DStr (Dval.to_repr a)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -457,8 +458,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (Dval.equal_dval a b)
-          | args -> fail args)
+          | (_, [a; b]) -> DBool (Dval.equal_dval a b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -472,8 +473,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are not equal"
   ; f = InProcess
         (function
-          | [a; b] -> DBool (not (Dval.equal_dval a b))
-          | args -> fail args)
+          | (_, [a; b]) -> DBool (not (Dval.equal_dval a b))
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -490,8 +491,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DBool b] -> DBool (not b)
-          | args -> fail args)
+          | (_, [DBool b]) -> DBool (not b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -505,8 +506,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if both a and b are true"
   ; f = InProcess
         (function
-          | [DBool a; DBool b] -> DBool (a && b)
-          | args -> fail args)
+          | (_, [DBool a; DBool b]) -> DBool (a && b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -520,8 +521,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if either a is true or b is true"
   ; f = InProcess
         (function
-          | [DBool a; DBool b] -> DBool (a || b)
-          | args -> fail args)
+          | (_, [DBool a; DBool b]) -> DBool (a || b)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -535,11 +536,11 @@ let fns : Lib.shortfn list = [
   ; d = "Ignores the first param and returns the 2nd."
   ; f = InProcess
         (function
-          | [value] ->
+          | (_, [value]) ->
             (match value with
              | DNull -> DBool true
              | _ -> DBool false)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -555,7 +556,7 @@ let fns : Lib.shortfn list = [
   ; d = "Iterate over each character in the string, performing the operation in the block on each one"
   ; f = InProcess
         (function
-          | [DStr s; DBlock fn] ->
+          | (_, [DStr s; DBlock fn]) ->
             s
             |> String.to_list
             |> List.map ~f:(fun c -> fn [(DChar c)])
@@ -570,7 +571,7 @@ let fns : Lib.shortfn list = [
                   ~expected:"every value to be a char"
                   "Foreach expects you to return chars")
             |> Result.ok_exn
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = Some
         (fun dv cursor ->
           match dv with
@@ -591,9 +592,9 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the list of characters in the string"
   ; f = InProcess
         (function
-          | [DStr s] ->
+          | (_, [DStr s]) ->
               DList (String.to_list s |> List.map ~f:(fun c -> DChar c))
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -606,9 +607,9 @@ let fns : Lib.shortfn list = [
   ; d = "Replace all instances on `searchFor` in `s` with `replaceWith`"
   ; f = InProcess
         (function
-          | [DStr s; DStr searchFor; DStr replaceWith] ->
+          | (_, [DStr s; DStr searchFor; DStr replaceWith]) ->
               DStr (Util.string_replace searchFor replaceWith s)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -621,9 +622,9 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the int value of the string"
   ; f = InProcess
         (function
-          | [DStr s] ->
+          | (_, [DStr s]) ->
               DInt (int_of_string s)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -639,8 +640,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the length of the string"
   ; f = InProcess
         (function
-          | [DStr s] -> DInt (String.length s)
-          | args -> fail args)
+          | (_, [DStr s]) -> DInt (String.length s)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -654,8 +655,8 @@ let fns : Lib.shortfn list = [
   ; d = "Concatenates the two strings and returns the joined string"
   ; f = InProcess
         (function
-          | [DStr s1; DStr s2] -> DStr (s1 ^ s2)
-          | args -> fail args)
+          | (_, [DStr s1; DStr s2]) -> DStr (s1 ^ s2)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -668,7 +669,7 @@ let fns : Lib.shortfn list = [
   ; d = "Turns a string into a slug"
   ; f = InProcess
         (function
-          | [DStr s] ->
+          | (_, [DStr s]) ->
             let re_compile = Re2.Regex.create_exn in
             let re_replace = Re2.Regex.replace_exn in
             let to_remove  = re_compile "[^\\w\\s$*_+~.()'\"!\\-:@]" in
@@ -680,7 +681,7 @@ let fns : Lib.shortfn list = [
             |> re_replace ~f:(fun _ -> "-") spaces
             |> String.lowercase
             |> fun x -> DStr x
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -693,8 +694,8 @@ let fns : Lib.shortfn list = [
   ; d = "Reverses `string`"
   ; f = InProcess
         (function
-          | [DStr s] -> DStr (String.rev s)
-          | args -> fail args)
+          | (_, [DStr s]) -> DStr (String.rev s)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -708,12 +709,12 @@ let fns : Lib.shortfn list = [
   ; d = "Splits a string at the separator, returning a list of strings without the separator. If the separator is not present, returns a list containing only the initial string."
   ; f = InProcess
         (function
-          | [DStr s; DStr sep] ->
+          | (_, [DStr s; DStr sep]) ->
             let split = (Str.split (Str.regexp_string sep) s)
             in split
                |> List.map ~f:(fun str -> DStr str)
                |> DList
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -727,14 +728,14 @@ let fns : Lib.shortfn list = [
   ; d = "Combines a list of strings with the provided separator"
   ; f = InProcess
         (function
-          | [DList l; DStr sep] ->
+          | (_, [DList l; DStr sep]) ->
             let s = List.map ~f:(fun s ->
                 match s with
                 | DStr st -> st
                 | _  -> Dval.to_repr s) l
             in
             DStr (String.concat ~sep s)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -748,12 +749,12 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the list of characters as a string"
   ; f = InProcess
         (function
-          | [DList l] ->
+          | (_, [DList l]) ->
               DStr (l |> List.map ~f:(function
                                       | DChar c -> c
                                       | dv -> RT.raise_error ~actual:dv "expected a char")
                       |> String.of_char_list)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -767,8 +768,8 @@ let fns : Lib.shortfn list = [
   ; d = "Converts a char to a string"
   ; f = InProcess
         (function
-          | [DChar c] -> DStr (Char.to_string c)
-          | args -> fail args)
+          | (_, [DChar c]) -> DStr (Char.to_string c)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -785,12 +786,12 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DList l] ->
+          | (_, [DList l]) ->
             (match List.hd l with
              | Some dv -> dv
              | None -> DNull)
 
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -804,8 +805,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [] -> DList []
-          | args -> fail args)
+          | (_, []) -> DList []
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -819,8 +820,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DList l; i] -> DList (i :: l)
-          | args -> fail args)
+          | (_, [DList l; i]) -> DList (i :: l)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -834,8 +835,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DList l] -> List.last_exn l
-          | args -> fail args)
+          | (_, [DList l]) -> List.last_exn l
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -848,8 +849,8 @@ let fns : Lib.shortfn list = [
   ; d = "Reverses `list`"
   ; f = InProcess
         (function
-          | [DList l] -> DList (List.rev l)
-          | args -> fail args)
+          | (_, [DList l]) -> DList (List.rev l)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -862,13 +863,13 @@ let fns : Lib.shortfn list = [
   ; d = "Find the first element of the list, for which `f` returns true"
   ; f = InProcess
         (function
-          | [DList l; DBlock fn] ->
+          | (_, [DList l; DBlock fn]) ->
             (let f (dv: dval) : bool = DBool true = fn [dv]
             in
             match List.find ~f l with
             | None -> DNull
             | Some dv -> dv)
-        | args -> fail args)
+        | (_, args) -> fail args)
   ; pr = Some list_preview
   ; ps = true
   }
@@ -882,8 +883,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns if the value is in the list"
   ; f = InProcess
         (function
-          | [DList l; i] -> DBool (List.mem ~equal:Dval.equal_dval l i)
-          | args -> fail args)
+          | (_, [DList l; i]) -> DBool (List.mem ~equal:Dval.equal_dval l i)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -897,8 +898,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a list containing `val` repeated `count` times"
   ; f = InProcess
         (function
-          | [DInt t; dv] -> DList (List.init t ~f:(fun _ -> dv))
-          | args -> fail args)
+          | (_, [DInt t; dv]) -> DList (List.init t ~f:(fun _ -> dv))
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -912,8 +913,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the length of the list"
   ; f = InProcess
         (function
-          | [DList l] -> DInt (List.length l)
-          | args -> fail args)
+          | (_, [DList l]) -> DInt (List.length l)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -928,9 +929,9 @@ let fns : Lib.shortfn list = [
   ; d = "Return a list of increasing integers from `start` to `stop`, inclusive"
   ; f = InProcess
         (function
-          | [DInt start; DInt stop] -> DList (List.range start (stop+1)
+          | (_, [DInt start; DInt stop]) -> DList (List.range start (stop+1)
                                               |> List.map ~f:(fun i -> DInt i))
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -944,10 +945,10 @@ let fns : Lib.shortfn list = [
   ; d = "Folds the list into a single value, by repeatedly apply `f` to any two pairs"
   ; f = InProcess
         (function
-          | [DList l; init; DBlock fn] ->
+          | (_, [DList l; init; DBlock fn]) ->
             let f (dv1: dval) (dv2: dval) : dval = fn [dv1; dv2] in
             List.fold ~f ~init l
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = Some
         (fun dv cursor ->
           match dv with
@@ -973,14 +974,14 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a single list containing the elements of all the lists in `l`"
   ; f = InProcess
         (function
-          | [DList l] ->
+          | (_, [DList l]) ->
               let f = fun a b ->
                 match (a, b) with
                   | (DList a, DList b) -> DList (List.append a b)
                   | _ -> DIncomplete
               in
               List.fold ~init:(DList []) ~f l
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -993,9 +994,9 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true iff. the list `l` is empty"
   ; f = InProcess
         (function
-          | [DList l] ->
+          | (_, [DList l]) ->
             DBool (List.is_empty l)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1009,8 +1010,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the combined list of `l1` and `l2`"
   ; f = InProcess
         (function
-          | [DList l1; DList l2] -> DList (List.append l1 l2)
-          | args -> fail args)
+          | (_, [DList l1; DList l2]) -> DList (List.append l1 l2)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1025,14 +1026,14 @@ let fns : Lib.shortfn list = [
   ; d = "Return only values in `l` which meet the function's criteria"
   ; f = InProcess
         (function
-          | [DList l; DBlock fn] ->
+          | (_, [DList l; DBlock fn]) ->
             let f (dv: dval) : bool =
             match fn [dv] with
             | DBool b -> b
             | dv -> fail [dv]
             in
             DList (List.filter ~f l)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = Some list_preview
   ; ps = true
   }
@@ -1045,9 +1046,9 @@ let fns : Lib.shortfn list = [
   ; d = "Drops the first `count` items from the list"
   ; f = InProcess
         (function
-          | [DList l; DInt c] ->
+          | (_, [DList l; DInt c]) ->
             DList (List.drop l c)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = Some list_preview
   ; ps = true
   }
@@ -1060,9 +1061,9 @@ let fns : Lib.shortfn list = [
   ; d = "Drops all but the first `count` items from the list"
   ; f = InProcess
         (function
-          | [DList l; DInt c] ->
+          | (_, [DList l; DInt c]) ->
             DList (List.take l c)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = Some list_preview
   ; ps = true
   }
@@ -1079,11 +1080,11 @@ let fns : Lib.shortfn list = [
   those calls"
   ; f = InProcess
         (function
-          | [DList l; DBlock fn] ->
+          | (_, [DList l; DBlock fn]) ->
             let f (dv: dval) : dval = fn [dv]
             in
             DList (List.map ~f l)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = Some list_preview
   ; ps = true
   }
@@ -1100,7 +1101,7 @@ let fns : Lib.shortfn list = [
   ; p = [par "cond" TBool]
   ; r = TAny
   ; d = "If cond is true, executes the `then` expression. Otherwise runs the `else` expression."
-  ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it" )
+  ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it")
   ; pr = None
   ; ps = true
   }
@@ -1124,7 +1125,7 @@ let fns : Lib.shortfn list = [
   ; p = [par "bindings" TList; par "body" TAny]
   ; r = TAny
   ; d = "Execute and bind the variables in binding, and then execute body, possibly using those expressions. Execution is strict."
-  ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it" )
+  ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it")
   ; pr = None
   ; ps = true
   }
@@ -1136,7 +1137,7 @@ let fns : Lib.shortfn list = [
   ; p = []
   ; r = TBool
   ; d = "The true value"
-  ; f = InProcess (fun _ -> failwith "True is a placeholer, we shouldn't be calling it" )
+  ; f = InProcess (fun _ -> failwith "True is a placeholer, we shouldn't be calling it")
   ; pr = None
   ; ps = true
   }
@@ -1160,7 +1161,7 @@ let fns : Lib.shortfn list = [
   ; p = []
   ; r = TAny
   ; d = "The null value"
-  ; f = InProcess (fun _ -> failwith "Null is a placeholer, we shouldn't be calling it" )
+  ; f = InProcess (fun _ -> failwith "Null is a placeholer, we shouldn't be calling it")
   ; pr = None
   ; ps = true
   }
@@ -1178,7 +1179,7 @@ let fns : Lib.shortfn list = [
   (* ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)" *)
   (* ; f = InProcess *)
   (*       (function *)
-  (*         | [DStr s] -> *)
+  (*         | (_, [DStr s]) -> *)
   (*             (try *)
   (*               DInt (s *)
   (*                     |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y" *)
@@ -1186,7 +1187,7 @@ let fns : Lib.shortfn list = [
   (*                     |> int_of_float *)
   (*                     ) *)
   (*             with e -> raise (TypeError [DStr "Invalid date format"])) *)
-  (*         | args -> fail args) *)
+  (*         | (_, args) -> fail args) *)
   (* ; pr = None *)
   (* ; ps = true *)
   (* } *)
@@ -1200,8 +1201,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the number of seconds since the epoch (midnight, Jan 1, 1970)"
   ; f = InProcess
         (function
-          | [] -> DDate (Time.now ())
-          | args -> fail args)
+          | (_, []) -> DDate (Time.now ())
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1215,8 +1216,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a new Date `seconds` seconds after `d`"
   ; f = InProcess
         (function
-          | [DDate d; DInt s] -> DDate (Time.add d (Time.Span.of_int_sec s))
-          | args -> fail args)
+          | (_, [DDate d; DInt s]) -> DDate (Time.add d (Time.Span.of_int_sec s))
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1230,8 +1231,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a new Date `seconds` seconds before `d`"
   ; f = InProcess
         (function
-          | [DDate d; DInt s] -> DDate (Time.add d (Time.Span.of_int_sec s))
-          | args -> fail args)
+          | (_, [DDate d; DInt s]) -> DDate (Time.add d (Time.Span.of_int_sec s))
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1244,9 +1245,9 @@ let fns : Lib.shortfn list = [
   ; d = "Returns whetheer `d1` < ` d2`"
   ; f = InProcess
         (function
-          | [DDate d1; DDate d2] ->
+          | (_, [DDate d1; DDate d2]) ->
             DBool (Time.(<) d1 d2)
-          | args -> fail args)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1265,8 +1266,8 @@ let fns : Lib.shortfn list = [
   ; d = "Return `c`'s ASCII code"
   ; f = InProcess
         (function
-          | [DChar c] -> DInt (Char.to_int c)
-          | args -> fail args)
+          | (_, [DChar c]) -> DInt (Char.to_int c)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1280,8 +1281,8 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
-          | [DInt i] -> DChar (Char.of_int_exn i)
-          | args -> fail args)
+          | (_, [DInt i]) -> DChar (Char.of_int_exn i)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1295,8 +1296,8 @@ let fns : Lib.shortfn list = [
   ; d = "Return the lowercase value of `c`"
   ; f = InProcess
         (function
-          | [DChar c] -> DChar (Char.lowercase c)
-          | args -> fail args)
+          | (_, [DChar c]) -> DChar (Char.lowercase c)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -1310,8 +1311,8 @@ let fns : Lib.shortfn list = [
   ; d = "Return the uppercase value of `c`"
   ; f = InProcess
         (function
-          | [DChar c] -> DChar (Char.uppercase c)
-          | args -> fail args)
+          | (_, [DChar c]) -> DChar (Char.uppercase c)
+          | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
