@@ -1,4 +1,4 @@
-module ViewCode exposing (viewExpr, viewDarkType)
+module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
 
 -- builtin
 
@@ -14,25 +14,43 @@ import Util exposing (deMaybe)
 import Runtime as RT
 import Blank as B
 import ViewBlankOr exposing (..)
-
-
+import ViewUtils exposing (..)
 
 
 viewFieldName : BlankViewer String
 viewFieldName vs c f =
-  viewBlankOr (viewNFieldName vs) Field vs c f
+  let configs = idConfigs ++ c ++ withFeatureFlag vs f in
+  viewBlankOr (viewNFieldName vs) Field vs configs f
 
 viewVarBind : BlankViewer String
 viewVarBind vs c v =
-  viewBlankOr (viewNVarBind vs) VarBind vs c v
+  let configs = idConfigs ++ c in
+  viewBlankOr (viewNVarBind vs) VarBind vs configs v
 
 viewDarkType : BlankViewer NDarkType
-viewDarkType vs c =
-  viewBlankOr (viewNDarkType vs) DarkType vs c
+viewDarkType vs c dt =
+  let configs = idConfigs ++ c in
+  viewBlankOr (viewNDarkType vs) DarkType vs configs dt
 
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
-  viewBlankOr (viewNExpr depth vs) Expr vs c e
+  let configs = idConfigs ++ c ++ withFeatureFlag vs e in
+  viewBlankOr (viewNExpr depth vs) Expr vs configs e
+
+viewEventName : BlankViewer String
+viewEventName vs c v =
+  let configs = idConfigs ++ c in
+  viewText EventName vs configs v
+
+viewEventSpace : BlankViewer String
+viewEventSpace vs c v =
+  let configs = idConfigs ++ c in
+  viewText EventSpace vs configs v
+
+viewEventModifier : BlankViewer String
+viewEventModifier vs c v =
+  let configs = idConfigs ++ c in
+  viewText EventModifier vs configs v
 
 
 viewNDarkType : Viewer NDarkType
@@ -181,3 +199,40 @@ viewNExpr d vs config e =
         , a [wc "fieldaccessop operator"] "."
         , viewFieldName vs (wc "fieldname" :: atom :: []) field
         ]
+
+
+viewHandler : ViewState -> Handler -> List (Html.Html Msg)
+viewHandler vs h =
+  let ast = Html.div
+              [ Attrs.class "ast"]
+              [viewExpr 0 vs [] h.ast]
+
+      externalLink =
+        case (h.spec.modifier, h.spec.name) of
+          (F _ "GET", F _ name)  ->
+            [Html.a [ Attrs.class "external"
+                    , Attrs.href name
+                    , Attrs.target "_blank"
+                    ]
+                    [fontAwesome "external-link"]]
+          _ -> []
+
+      input =
+        Html.div
+          [Attrs.class "spec-type input-type"]
+          [ Html.span [Attrs.class "header"] [Html.text "Input:"]
+          , viewDarkType vs [] h.spec.types.input]
+      output =
+        Html.div
+          [Attrs.class "spec-type output-type"]
+          [ Html.span [Attrs.class "header"] [Html.text "Output:"]
+          , viewDarkType vs [] h.spec.types.output]
+
+      header =
+        Html.div
+          [Attrs.class "spec-header"]
+          [ viewEventName vs [wc "name"] h.spec.name
+          , (Html.div [] externalLink)
+          , viewEventSpace vs [wc "module"] h.spec.module_
+          , viewEventModifier vs [wc "modifier"] h.spec.modifier]
+  in [header, ast]
