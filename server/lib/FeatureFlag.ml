@@ -1,9 +1,9 @@
 open Core
 
-module Cookie = Cohttp.Cookie
+open Types
+open Types.RuntimeT
 
-type t = Analysis
-       | FromUser of string
+module Cookie = Cohttp.Cookie
 
 let is_browser headers : bool =
   headers
@@ -14,22 +14,51 @@ let is_browser headers : bool =
 
 let session_name = "dark_session"
 
-let make (str : string) : t =
+let make (str : string) : feature_flag =
   FromUser str
 
-let todo reason : t = "TODO: " ^ reason |> make
+let to_sql (ff: feature_flag) : string =
+  ff
+  |> feature_flag_to_yojson
+  |> Yojson.Safe.to_string
 
-let analysis : t =
+let from_sql (sql: string) : feature_flag =
+  sql
+  |> Yojson.Safe.from_string
+  |> feature_flag_of_yojson
+  |> Result.ok_or_failwith
+
+
+let todo reason : feature_flag = "TODO: " ^ reason |> make
+
+let analysis : feature_flag =
   Analysis
 
-let to_session_string (ff: t) : string =
+let to_session_string (ff: feature_flag) : string =
   match ff with
   | Analysis -> ""
   | FromUser str -> str
 
+let select (id: id) (setting : int) (l: 'a or_blank) (r: 'a or_blank) ff : 'a or_blank =
+  match ff with
+  | Analysis -> l
+  | FromUser str ->
+    let sum = str
+              |> Batteries.String.to_list
+              |> List.map ~f:Char.to_int
+              |> List.reduce ~f:(+)
+              |> Option.value ~default:0
+              (* We want each feature flag to be different, but keyed
+               * off the user. *)
+              |> fun x -> x % id
+              |> fun x -> x % 100
+    in
+    if setting < sum
+    then l
+    else r
 
 
-let session_headers headers (ff: t) : Cookie.cookie list =
+let session_headers headers (ff: feature_flag) : Cookie.cookie list =
   if is_browser headers
   then
     (session_name, to_session_string ff)
@@ -39,7 +68,7 @@ let session_headers headers (ff: t) : Cookie.cookie list =
   else
     []
 
-let fingerprint_user ip headers : t =
+let fingerprint_user ip headers : feature_flag =
   (* We want to do the absolute minimal fingerprinting to allow users
    * get roughly the same set of feature flags on each request, while
    * preserving user privacy. *)
