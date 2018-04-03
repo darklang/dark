@@ -127,7 +127,7 @@ init {editorState, complete} location =
   in
     if shouldRunIntegrationTest
     then m2 ! [RPC.integrationRPC m integrationTestName, visibilityTask]
-    else m2 ! [RPC.rpc m (FocusCursorState savedCursorState) {ops=[]}
+    else m2 ! [RPC.rpc m (FocusCursorState savedCursorState) RPC.emptyParams
               , visibilityTask]
 
 
@@ -229,9 +229,10 @@ updateMod mod (m, cmd) =
                 then []
                 else
                   let newH = { h | ast = replacement }
-                      calls = [ SetHandler tl.id tl.pos newH]
+                      ops = [ SetHandler tl.id tl.pos newH]
+                      params = RPC.opsParams ops
                   -- call RPC on the new model
-                  in [RPC.rpc newM FocusSame { ops = calls }]
+                  in [RPC.rpc newM FocusSame params]
               _ -> [])
         |> Maybe.withDefault []
         |> \rpc -> if tlidOf newM.cursorState == tlidOf m.cursorState
@@ -239,49 +240,52 @@ updateMod mod (m, cmd) =
                    else rpc
   in
   let (newm, newcmd) =
+    let handleRPC params focus =
+          -- immediately update the model based on SetHandler and focus, if
+          -- possible
+          let hasNonHandlers =
+                List.any (\c -> case c of
+                                  SetHandler _ _ _ ->
+                                    False
+                                  _ -> True) params.ops
+
+          in
+          if hasNonHandlers
+          then
+            m ! [RPC.rpc m focus params]
+          else
+            let localM =
+                  List.foldl (\call m ->
+                    case call of
+                      SetHandler tlid pos h ->
+                        TL.upsert m
+                          { id = tlid
+                          , pos = pos
+                          , data = TLHandler h
+                          , cursor = 0
+                          }
+                      _ -> m) m params.ops
+
+                (withFocus, wfCmd) =
+                  updateMod (Many [ AutocompleteMod ACReset
+                                  , processFocus localM focus
+                                  ])
+                            (localM, Cmd.none)
+             in
+             withFocus ! [wfCmd, RPC.rpc withFocus FocusNoChange params]
+
+    in
     case mod of
       Error e -> { m | error = Just e} ! []
       ClearError -> { m | error = Nothing} ! []
 
       RPC (ops, focus) ->
-        -- immediately update the model based on SetHandler and focus, if
-        -- possible
-        let hasNonHandlers =
-              List.any (\c -> case c of
-                                SetHandler _ _ _ ->
-                                  False
-                                _ -> True) ops
-
-        -- Set to true to disable for now. There is a bug where
-        -- autocomplete results no longer work. It's related to the ID
-        -- of the toplevel (and also the lower-level exprs/blanks/etc)
-        -- changing ID on every tick (until something happens like
-        -- deselecting). Haven't figured it out, so just disable to fix
-        -- for now.
-        -- Update: turns out the situation without this is unbearable,
-        -- and the breakage is worth it.
-        in if hasNonHandlers
-           then
-             m ! [RPC.rpc m focus {ops=ops}]
-           else
-             let localM =
-                   List.foldl (\call m ->
-                     case call of
-                       SetHandler tlid pos h ->
-                         TL.upsert m
-                           {id = tlid, pos = pos, data = TLHandler h, cursor = 0 }
-                       _ -> m) m ops
-
-                 (withFocus, wfCmd) =
-                   updateMod (Many [ AutocompleteMod ACReset
-                                   , processFocus localM focus
-                                   ])
-                             (localM, Cmd.none)
-              in withFocus ! [wfCmd, RPC.rpc withFocus FocusNoChange {ops=ops}]
+        handleRPC (RPC.opsParams ops) focus
+      RPCFull (params, focus) ->
+        handleRPC params focus
 
       GetAnalysisRPC ->
         m ! [RPC.getAnalysisRPC]
-
       NoChange -> m ! []
       TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
@@ -844,8 +848,9 @@ update_ msg m =
           NoChange
 
     ExecuteFunctionButton tlid id ->
-      NoChange
-
+      RPCFull ({ ops = []
+               , executableFns = [(tlid, id)]
+               }, FocusNoChange)
 
     -----------------
     -- Buttons
