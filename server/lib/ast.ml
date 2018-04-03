@@ -5,22 +5,20 @@ open Types.RuntimeT
 module RT = Runtime
 module FF = FeatureFlag
 
-let flatten_ff (bo: 'a or_blank) : 'a or_blank =
+let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
   | Flagged (id, msg, setting, l, r) ->
-      if setting >= 50
-      then r
-      else l
+      FF.select id setting l r ff
   | _ -> bo
 
 let should_be_flat () =
   Exception.internal "This blank_or should have been flattened"
 
-let blank_to_id (blank: 'a or_blank) : id =
-  match flatten_ff blank with
+let blank_to_id (bo : 'a or_blank) : id =
+  match bo with
   | Filled (id, _) -> id
   | Blank (id) -> id
-  | Flagged _ -> should_be_flat ()
+  | Flagged (id, _, _, _, _) -> id
 
 let to_id (expr: expr) : id =
   blank_to_id expr
@@ -37,7 +35,7 @@ type symtable = dval_map
 
 let empty_trace _ _ _ = ()
 
-let rec exec_ ~(ff: FF.t)
+let rec exec_ ~(ff: feature_flag)
               ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
               ?(trace_blank: (string or_blank -> dval -> symtable -> unit)=empty_trace)
               ~(ctx: context)
@@ -99,14 +97,15 @@ let rec exec_ ~(ff: FF.t)
     | _ -> e in
 
   let value _ =
-    (match flatten_ff expr with
-     | Blank id ->
-       DIncomplete
+    (match expr with
+     | Blank id -> DIncomplete
 
-     | Flagged _ -> should_be_flat ()
+     | Flagged (id, msg, setting, l, r) ->
+       let v = flatten_ff expr ff in
+       exe st v
 
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound = match flatten_ff lhs with
+       let bound = match lhs with
             | Filled (_, name) ->
               let data = exe st rhs in
               trace_blank lhs data st;
@@ -187,7 +186,7 @@ let rec exec_ ~(ff: FF.t)
        let obj = exe st e in
        (match obj with
         | DObj o ->
-          (match flatten_ff field with
+          (match flatten_ff field ff with
            | Blank _ -> DIncomplete
            | Flagged _ -> should_be_flat ()
            | Filled (_, f) ->
@@ -220,15 +219,15 @@ let rec exec_ ~(ff: FF.t)
         DIncomplete
   in
   trace expr execed_value st; execed_value
-and call_fn ?(ind=0) ~(ff: FF.t) ~(ctx: context) ~(user_fns: user_fn list) (fnname: string) (fn: fn) (args: dval_map) : dval =
-  let apply f arglist =
+and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn list) (fnname: string) (fn: fn) (args: dval_map) : dval =
+  let apply f ff arglist =
     match ctx with
     | Preview ->
       if fn.previewExecutionSafe
-      then f arglist
+      then f (ff, arglist)
       else DIncomplete
     | Real ->
-      f arglist
+      f (ff, arglist)
   in
   match fn.func with
   | InProcess f ->
@@ -243,7 +242,7 @@ and call_fn ?(ind=0) ~(ff: FF.t) ~(ctx: context) ~(user_fns: user_fn list) (fnna
                               | _ -> false)
              arglist
          then DIncomplete
-         else apply f arglist
+         else apply f ff arglist
        with
        | TypeError _ ->
            Log.erroR ~name:"execution" ~ind "exception caught" args
@@ -293,7 +292,7 @@ let execute ff user_fns = exec_ ~ff ~trace:empty_trace ~ctx:Real ~user_fns
 
 type dval_store = dval Int.Table.t
 
-let execute_saving_intermediates (ff : FF.t) (user_fns: user_fn list) (init: symtable) (ast: expr) : (dval * dval_store) =
+let execute_saving_intermediates (ff : feature_flag) (user_fns: user_fn list) (init: symtable) (ast: expr) : (dval * dval_store) =
 
   let value_store = Int.Table.create () in
   let trace expr dval st =
@@ -331,18 +330,22 @@ let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
 module SymSet = Set.Make(String)
 type sym_set = SymSet.t
 
-let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
-  let sexe = sym_exec ~trace in
+let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
+  let sexe = sym_exec ~trace ~ff in
   try
     let _ =
-      (match flatten_ff expr with
+      (match expr with
        | Blank _ -> ()
-       | Flagged _ -> should_be_flat ()
+       | Flagged (id, _, _, l, r) ->
+         sexe st l;
+         sexe st r;
+         sexe st (flatten_ff expr ff)
+
        | Filled (_, Value s) -> ()
        | Filled (_, Variable name) -> ()
 
        | Filled (_, Let (lhs, rhs, body)) ->
-         let bound = match flatten_ff lhs with
+         let bound = match lhs with
            | Flagged _ -> should_be_flat ()
            | Filled (_, name) -> sexe st rhs; SymSet.add st name
            | Blank _ -> st
@@ -375,7 +378,7 @@ let rec sym_exec ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) 
 
 type sym_store = sym_set Int.Table.t
 
-let symbolic_execute (init: symtable) (ast: expr) : sym_store =
+let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
   let sym_store = Int.Table.create () in
   let trace expr st =
     Hashtbl.set sym_store ~key:(to_id expr) ~data:st
@@ -387,7 +390,7 @@ let symbolic_execute (init: symtable) (ast: expr) : sym_store =
           SymSet.add acc s)
       (Symtable.keys init)
   in
-  sym_exec ~trace init_set ast; sym_store
+  sym_exec ~trace ~ff init_set ast; sym_store
 
 let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
   ht_to_json_dict st ~f:(fun syms ->
