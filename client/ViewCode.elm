@@ -15,6 +15,7 @@ import Runtime as RT
 import Blank as B
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
+import Runtime
 
 
 viewFieldName : BlankViewer String
@@ -34,8 +35,10 @@ viewDarkType vs c dt =
 
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
-  let configs = idConfigs ++ c ++ withFeatureFlag vs e ++ withEditFn vs e in
-  viewBlankOr (viewNExpr depth vs) Expr vs configs e
+  let configs = idConfigs ++ c ++ withFeatureFlag vs e ++ withEditFn vs e
+      id = B.toID e
+  in
+  viewBlankOr (viewNExpr depth id vs) Expr vs configs e
 
 viewEventName : BlankViewer String
 viewEventName vs c v =
@@ -91,8 +94,8 @@ viewNFieldName vs config f =
 depthString : Int -> String
 depthString n = "precedence-" ++ (toString n)
 
-viewNExpr : Int -> Viewer NExpr
-viewNExpr d vs config e =
+viewNExpr : Int -> ID -> Viewer NExpr
+viewNExpr d id vs config e =
   let vExpr d = viewExpr d vs []
       t = text vs
       n c = div vs (nested :: c)
@@ -154,11 +157,30 @@ viewNExpr d vs config e =
                 , t [wc "fnname"] (withP justname)
                 ]
               _ -> a [wc "fnname"] (withP name)
-          fnDiv parens = n [wc "op", wc name] [fnname parens]
           isInfix = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
                     |> .infix
+          paramsComplete = List.all (\b -> b
+                                           |> B.toID
+                                           |> getLiveValue vs.lvs
+                                           |> Runtime.isIncomplete
+                                           |> not) exprs
+
+          -- we need to pass in an ID to get this
+          noValue = getLiveValue vs.lvs id |> Runtime.isIncomplete
+          showButton = noValue && paramsComplete
+          button =
+            if not showButton
+            then []
+            else [Html.div
+              [ Attrs.class "execution-button"
+              , Attrs.title "Click to run this function"
+              , eventNoPropagation "mouseup"
+                  (\_ -> ExecuteFunctionButton vs.tl.id id)
+              ]
+              [fontAwesome "gear"]]
+          fnDiv parens = n [wc "op", wc name] (fnname parens :: button)
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->

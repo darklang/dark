@@ -843,6 +843,9 @@ update_ msg m =
         _ ->
           NoChange
 
+    ExecuteFunctionButton tlid id ->
+      NoChange
+
 
     -----------------
     -- Buttons
