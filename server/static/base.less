@@ -156,6 +156,45 @@ body #grid * {
     .blank-text-style;
   }
 
+  .view-data {
+    bottom: 100%;
+    left: 0px;
+    position: absolute;
+    width: 100%;
+    ul.request-cursor {
+      bottom: 1em;
+      float: left;
+      list-style-type: none;
+      max-height: calc(~"1.5em + 1px");
+      overflow: hidden;
+      width: 100%;
+      li {
+        float: left;
+        line-height: 1.5em;
+        &.mouseovered {
+          background-color: orange;
+          color: orange;
+          &:after {
+            background-color: @grey1;
+            bottom: calc(~"-100% + 4.5em");
+            content: attr(data-content);
+            display: block;
+            font-size: 0.7em;
+            left: 0;
+            // max-height: 6em;
+            max-width: 100%;
+            overflow: auto;
+            position: absolute;
+            width: auto;
+            word-wrap: break-word;
+          }
+        }
+        &.active {
+          border-bottom: 1px solid orange;
+        }
+      }
+    }
+  }
 }
 
 //*************
