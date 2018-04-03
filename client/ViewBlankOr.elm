@@ -42,6 +42,11 @@ type HtmlConfig =
                 | WithID ID
                 -- show a featureflag
                 | WithFF
+                -- display computed value from this ID
+                | ComputedValueAs ID
+                | ComputedValue
+                -- show a computedvalue
+                | WithCV
 
 wc : String -> HtmlConfig
 wc = WithClass
@@ -97,9 +102,28 @@ div vs configs content =
                 |> List.filterMap (\a -> case a of
                                            WithClass c -> Just c
                                            _ -> Nothing)
+      computedValueAs = getFirst (\a -> case a of
+                                  ComputedValueAs id -> Just id
+                                  ComputedValue -> thisID
+                                  _ -> Nothing)
+      showComputedValue = List.member WithCV configs
       showFeatureFlag = List.member WithFF configs
 
+      computedValueData =
+        case computedValueAs of
+          Just (ID id) ->
+            Dict.get id vs.lvs
+            |> Maybe.map .value
+            |> Maybe.map (\v -> if Runtime.isError v
+                                then Err (Runtime.extractErrorMessage v)
+                                else Ok v)
+          _ -> Nothing
 
+      (computedValueClasses, computedValue) =
+        case computedValueData of
+          Nothing -> ([], [])
+          Just (Ok msg) -> (["computed-value"], [Attrs.attribute "computed-value" msg])
+          Just (Err err) -> (["computed-value computed-value-error"], [Attrs.attribute "computed-value" err])
 
       -- Start using the config
       hoverdata =
@@ -128,6 +152,7 @@ div vs configs content =
                  _ -> []
       allClasses = classes
                   ++ idAttr
+                  ++ computedValueClasses
                   ++ valClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
@@ -142,7 +167,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ title ++ [classAttr]
+      attrs = events ++ title ++ computedValue ++ [classAttr]
       featureFlag = if showFeatureFlag
                     then [viewFeatureFlag]
                     else []
@@ -342,6 +367,10 @@ viewBlankOr htmlFn pt vs c bo =
       else thisText
     _ -> thisText
 
+
+renderComputedValue : String -> Html.Html Msg
+renderComputedValue value =
+  Html.div [ Attrs.class "computed-value" ] [ Html.text value ]
 
 
 viewFeatureFlag : Html.Html Msg
