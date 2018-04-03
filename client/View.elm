@@ -68,8 +68,7 @@ viewFunction : ViewState -> UserFunction -> Html.Html Msg
 viewFunction vs fn =
   Html.div
   [ Attrs.class "ast"]
-  [viewExpr 0 vs [] fn.ast]
-
+  [ViewCode.viewExpr 0 vs [] fn.ast]
 
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
@@ -79,7 +78,7 @@ viewTL m tl =
           TLHandler h ->
             ViewCode.viewHandler vs h
           TLDB db ->
-            viewDB (createVS m tl) db
+            ViewDB.viewDB (createVS m tl) db
           TLFunc f ->
             [viewFunction (createVS m tl) f]
       events =

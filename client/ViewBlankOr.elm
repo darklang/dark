@@ -47,6 +47,9 @@ type HtmlConfig =
                 | ComputedValue
                 -- show a computedvalue
                 | WithCV
+                -- show an 'edit function' link
+                | WithEditFn
+
 
 wc : String -> HtmlConfig
 wc = WithClass
@@ -73,6 +76,18 @@ withFeatureFlag : ViewState -> BlankOr a -> List HtmlConfig
 withFeatureFlag vs v =
   if idOf vs.cursorState == Just (B.toID v)
   then [WithFF]
+  else []
+
+withEditFn : ViewState -> BlankOr NExpr -> List HtmlConfig
+withEditFn vs v =
+  if idOf vs.cursorState == Just (B.toID v)
+  then
+    case v of
+      F _ (FnCall name _) ->
+        if List.member name (List.map (\fn -> fn.metadata.name) vs.ufns)
+        then [WithEditFn]
+        else []
+      _ -> []
   else []
 
 
