@@ -167,7 +167,6 @@ viewNExpr d id vs config e =
                                            |> Runtime.isIncomplete
                                            |> not) exprs
 
-          -- we need to pass in an ID to get this
           noValue = getLiveValue vs.lvs id |> Runtime.isIncomplete
           showButton = noValue && paramsComplete
           button =
