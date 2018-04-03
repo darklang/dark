@@ -33,6 +33,7 @@ getAnalysisResults m tlid =
                                      }
                         , liveValues = Dict.empty
                         , availableVarnames = Dict.empty
+                        , inputValues = Dict.empty
                         }]
 
 cursor : Model -> TLID -> Int

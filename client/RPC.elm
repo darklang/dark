@@ -400,16 +400,18 @@ decodeLiveValue =
 
 decodeAResult : JSD.Decoder AResult
 decodeAResult =
-  let toAResult astValue liveValues availableVarnames =
+  let toAResult astValue liveValues availableVarnames inputValues =
         { astValue = astValue
         , liveValues = (DE.mapKeys (Util.toIntWithDefault 0) liveValues)
         , availableVarnames = (DE.mapKeys (Util.toIntWithDefault 0) availableVarnames)
+        , inputValues = inputValues
         }
   in
       JSDP.decode toAResult
       |> JSDP.required "ast_value" decodeLiveValue
       |> JSDP.required "live_values" (JSD.dict decodeLiveValue)
       |> JSDP.required "available_varnames" (JSD.dict (JSD.list JSD.string))
+      |> JSDP.required "input_values" (JSD.dict decodeLiveValue)
 
 
 decodeTLAResult : JSD.Decoder TLAResult
