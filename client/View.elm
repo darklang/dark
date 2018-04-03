@@ -14,8 +14,8 @@ import ViewEntry
 import ViewUtils exposing (..)
 import ViewScaffold
 import ViewRoutingTable
-import ViewBlankOr exposing (viewText, wc)
-import ViewCode exposing (viewExpr, viewDarkType)
+import ViewCode
+import ViewDB
 
 
 view : Model -> Html.Html Msg
@@ -45,12 +45,13 @@ viewCanvas m =
 
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
-  let body =
+  let vs = createVS m tl
+      body =
         case tl.data of
           TLHandler h ->
-            viewHandler (createVS m tl) h
+            ViewCode.viewHandler vs h
           TLDB db ->
-            viewDB (createVS m tl) db
+            ViewDB.viewDB vs db
       events =
         [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)
         , eventNoPropagation "mouseup" (ToplevelMouseUp tl.id)
@@ -60,7 +61,11 @@ viewTL m tl =
       selected = if Just tl.id == tlidOf m.cursorState
                  then "selected"
                  else ""
-      class = [selected, toString (deTLID tl.id), "toplevel", "cursor-" ++ (toString tl.cursor)]
+      class = [ selected
+              , toString (deTLID tl.id)
+              , "toplevel"
+              , "cursor-" ++ (toString tl.cursor)
+              ]
               |> String.join " "
 
       html =
@@ -71,61 +76,6 @@ viewTL m tl =
               body
           ]
 
-  in
-      placeHtml m tl.pos html
+  in placeHtml m tl.pos html
 
-viewDB : ViewState -> DB -> List (Html.Html Msg)
-viewDB vs db =
-  let namediv = Html.div
-                 [ Attrs.class "dbname"]
-                 [ Html.text db.name]
-      coldivs =
-        db.cols
-        |> List.map (\(n, t) ->
-             Html.div
-               [ Attrs.class "col" ]
-               [ viewText DBColName vs [wc "name"] n
-               , viewText DBColType vs [wc "type"] t
-               ])
-  in
-  [
-    Html.div
-      [ Attrs.class "db"]
-      (namediv :: coldivs)
-  ]
 
-viewHandler : ViewState -> Handler -> List (Html.Html Msg)
-viewHandler vs h =
-  let ast = Html.div
-              [ Attrs.class "ast"]
-              [viewExpr 0 vs [] h.ast]
-
-      externalLink =
-        case (h.spec.modifier, h.spec.name) of
-          (F _ "GET", F _ name)  ->
-            [Html.a [ Attrs.class "external"
-                    , Attrs.href name
-                    , Attrs.target "_blank"
-                    ]
-                    [fontAwesome "external-link"]]
-          _ -> []
-
-      input =
-        Html.div
-          [Attrs.class "spec-type input-type"]
-          [ Html.span [Attrs.class "header"] [Html.text "Input:"]
-          , viewDarkType vs [] h.spec.types.input]
-      output =
-        Html.div
-          [Attrs.class "spec-type output-type"]
-          [ Html.span [Attrs.class "header"] [Html.text "Output:"]
-          , viewDarkType vs [] h.spec.types.output]
-
-      header =
-        Html.div
-          [Attrs.class "spec-header"]
-          [ viewText EventName vs [wc "name"] h.spec.name
-          , (Html.div [] externalLink)
-          , viewText EventSpace vs [wc "module"] h.spec.module_
-          , viewText EventModifier vs [wc "modifier"] h.spec.modifier]
-  in [header, ast]
