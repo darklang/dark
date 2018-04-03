@@ -239,11 +239,20 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
                    (h.tlid, values)
                  )
              |> List.map ~f:(fun (id, results) ->
-                 let to_result (v, ds, syms) =
+                 let to_result (v, ds, syms, inputs) =
+                   let inputs_to_json i =
+                     i
+                     |> Map.to_alist
+                     |> List.map
+                       ~f:(fun (k, v) -> (k, v
+                                             |> Ast.dval_to_livevalue
+                                             |> Ast.livevalue_to_yojson))
+                   in
                    `Assoc [ ("ast_value", v |> Ast.dval_to_livevalue
                                             |> Ast.livevalue_to_yojson)
                           ; ("live_values", Ast.dval_store_to_yojson ds)
                           ; ("available_varnames", Ast.sym_store_to_yojson syms)
+                          ; ("input_values", `Assoc (inputs_to_json inputs))
                           ]
                   in
                   `Assoc [ ("id", `Int id)
