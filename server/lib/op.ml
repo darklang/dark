@@ -1,13 +1,6 @@
 open Core
 open Types
 
-module J = Yojson.Safe.Util
-
-type json = Yojson.Safe.json
-
-(* ------------------------- *)
-(* Ops *)
-(* ------------------------- *)
 type op = SetHandler of tlid * pos * Handler.handler
         | CreateDB of tlid * pos * string
         | AddDBCol of tlid * id * id
@@ -20,7 +13,7 @@ type op = SetHandler of tlid * pos * Handler.handler
         | Undo
         | Redo
         | SetFunction of RuntimeT.user_fn
-[@@deriving eq, yojson, show, sexp, bin_io]
+        [@@deriving eq, yojson, show, sexp, bin_io]
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
