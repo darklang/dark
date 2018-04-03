@@ -10,7 +10,6 @@ let is_browser headers : bool =
   |> fun hs -> Cohttp.Header.get hs "user-agent"
   |> Option.value ~default:""
   |> String.is_substring ~substring:"Mozilla"
-  |> Log.pp "user"
 
 let session_name = "dark_session"
 
@@ -21,6 +20,7 @@ let to_sql (ff: feature_flag) : string =
   ff
   |> feature_flag_to_yojson
   |> Yojson.Safe.to_string
+  |> fun sql -> "'" ^ sql ^ "'"
 
 let from_sql (sql: string) : feature_flag =
   sql

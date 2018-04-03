@@ -160,7 +160,7 @@ END$$;" in
     "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS retries INTEGER DEFAULT 0 NOT NULL"
   in
   let ensure_flag_context_column_exists =
-    "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS flag_context INTEGER DEFAULT 0 NOT NULL"
+    "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS flag_context TEXT DEFAULT '' NOT NULL"
   in
   let ensure_delay_column_exists =
     "ALTER TABLE \"events\" ADD COLUMN IF NOT EXISTS delay_until TIMESTAMP"
