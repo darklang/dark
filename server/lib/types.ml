@@ -80,6 +80,12 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
   type dhttp = Redirect of string
              | Response of int * (string * string) list [@@deriving show, eq, yojson]
 
+  type feature_flag = Analysis
+                    | FromUser of string
+                    [@@deriving yojson]
+
+
+
   module DvalMap = String.Map
   type dval_map = dval DvalMap.t [@opaque]
   and dval =
