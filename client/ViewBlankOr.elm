@@ -90,6 +90,19 @@ withEditFn vs v =
       _ -> []
   else []
 
+getLiveValue : LVDict -> ID -> String
+getLiveValue lvs (ID id) =
+  lvs
+  |> Dict.get id
+  |> Maybe.map .value
+  |> Maybe.map (\v -> if Runtime.isError v
+                      then Err (Runtime.extractErrorMessage v)
+                      else Ok v)
+  |> Maybe.withDefault (Ok "<Incomplete>")
+  |> Result.withDefault "<Incomplete>"
+
+
+
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.

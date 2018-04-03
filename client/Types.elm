@@ -156,6 +156,7 @@ type Msg
     | ClearGraph
     | SaveTestButton
     | ToggleSync
+    | ExecuteFunctionButton TLID ID
     | Initialization
     | NavigateTo String
     | WindowResize Int Int
