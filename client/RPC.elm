@@ -18,10 +18,10 @@ import Util
 import JSON exposing (..)
 
 rpc_ : Model -> String ->
- (List RPC -> Result Http.Error RPCResult -> Msg) ->
- List RPC -> Cmd Msg
+ (List Op -> Result Http.Error RPCResult -> Msg) ->
+ List Op -> Cmd Msg
 rpc_ m url callback calls =
-  let payload = encodeRPCs m calls
+  let payload = encodeOps m calls
       json = Http.jsonBody payload
       request = Http.post url json decodeRPC
   in Http.send (callback calls) request
@@ -38,7 +38,7 @@ postString url =
     , withCredentials = False
     }
 
-rpc : Model -> Focus -> List RPC -> Cmd Msg
+rpc : Model -> Focus -> List Op -> Cmd Msg
 rpc m focus calls =
   rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) calls
 
@@ -104,21 +104,21 @@ encodePointerData pd =
 
 
 
-encodeRPCs : Model -> List RPC -> JSE.Value
-encodeRPCs m calls =
+encodeOps : Model -> List Op -> JSE.Value
+encodeOps m calls =
   calls
   |> (\cs -> if cs == [Undo]
              || cs == [Redo]
              || cs == []
              then cs
              else Savepoint :: cs)
-  |> List.map (encodeRPC m)
+  |> List.map (encodeOp m)
   |> JSE.list
 
 
 
-encodeRPC : Model -> RPC -> JSE.Value
-encodeRPC m call =
+encodeOp : Model -> Op -> JSE.Value
+encodeOp m call =
   let ev = encodeVariant
   in
     case call of
