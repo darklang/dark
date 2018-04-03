@@ -1,17 +1,19 @@
 open Core
 open Types
 
-open Op
-module RT = Runtime
+type oplist = Op.op list [@@deriving yojson]
+type rpc_params = { ops: oplist } [@@deriving yojson]
 
-type pos = Types.pos [@@deriving yojson]
-type oplist = op list [@@deriving yojson]
 
-let to_ops (payload: string) : op list =
+let to_rpc_params (payload: string) : rpc_params =
   payload
   |> Yojson.Safe.from_string
-  |> oplist_of_yojson
+  |> rpc_params_of_yojson
   |> Result.ok_or_failwith
+
+let causes_any_changes (ps: rpc_params) : bool =
+  List.exists ~f:Op.has_effect ps.ops
+
 
 (*------------------*)
 (* Functions *)

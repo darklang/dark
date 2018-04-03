@@ -51,11 +51,11 @@ let server () =
   let callback (ch, conn) req req_body =
     let admin_rpc_handler body (host: string) : (Cohttp.Header.t * string) =
       try
-        let (t1, ops) = time "1-read-api-ops"
-          (fun _ -> Api.to_ops body) in
+        let (t1, params) = time "1-read-api-ops"
+          (fun _ -> Api.to_rpc_params body) in
 
         let (t2, c) = time "2-load-saved-ops"
-          (fun _ -> C.load host ops) in
+          (fun _ -> C.load host params.ops) in
 
         let (t3, envs) = time "3-create-envs"
           (fun _ ->
@@ -69,7 +69,7 @@ let server () =
           (fun _ ->
             (* work out the result before we save it, incase it has a
              stackoverflow or other crashing bug *)
-            if Op.causes_any_changes ops
+            if Api.causes_any_changes params
             then C.save !c
             else ()
           ) in

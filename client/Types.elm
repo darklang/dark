@@ -147,7 +147,7 @@ type Msg
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallback Focus Modification (List Op) (Result Http.Error RPCResult)
+    | RPCCallback Focus Modification RPCParams (Result Http.Error RPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisRPCResult)
     | LocationChange Navigation.Location
@@ -195,6 +195,9 @@ type Op
     | Undo
     | Redo
     | SetFunction UserFunction
+
+type alias RPCParams = { ops : List Op }
+
 
 -----------------------------
 -- Autocompletes
