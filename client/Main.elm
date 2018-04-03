@@ -814,6 +814,22 @@ update_ msg m =
       in
       Viewport.moveTo destination
 
+    DataMouseEnter tlid idx _ ->
+      -- we need to make up a unique'ish ID from tlid + idx
+      let stringID = (toString (deTLID tlid)) ++ (toString idx)
+          intID = Result.withDefault 0 (String.toInt stringID)
+          id = (ID intID)
+      in
+      SetHover id
+
+    DataMouseLeave tlid idx _ ->
+      -- we need to make up a unique'ish ID from tlid + idx
+      let stringID = (toString (deTLID tlid)) ++ (toString idx)
+          intID = Result.withDefault 0 (String.toInt stringID)
+          id = (ID intID)
+      in
+      ClearHover id
+
 
     ------------------------
     -- dragging
@@ -913,6 +929,13 @@ update_ msg m =
       RPCFull ({ ops = []
                , executableFns = [(tlid, id)]
                }, FocusNoChange)
+
+    DataClick tlid idx _ ->
+      case m.cursorState of
+        Dragging _ _ _ origCursorState ->
+          SetCursorState origCursorState
+        _ -> SetCursor tlid idx
+
 
     -----------------
     -- Buttons

@@ -172,6 +172,9 @@ type Msg
     | BlankOrMouseEnter TLID ID MouseEvent
     | BlankOrMouseLeave TLID ID MouseEvent
     | MouseWheel (List Int)
+    | DataClick TLID Int MouseEvent
+    | DataMouseEnter TLID Int MouseEvent
+    | DataMouseLeave TLID Int MouseEvent
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
