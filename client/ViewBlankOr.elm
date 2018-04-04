@@ -141,6 +141,7 @@ div vs configs content =
                                   _ -> Nothing)
       showComputedValue = List.member WithCV configs
       showFeatureFlag = List.member WithFF configs
+      showEditFn = List.member WithEditFn configs
 
       computedValueData =
         case computedValueAs of
@@ -204,8 +205,11 @@ div vs configs content =
       featureFlag = if showFeatureFlag
                     then [viewFeatureFlag]
                     else []
+      editFn = if showEditFn
+               then [viewEditFn showFeatureFlag]
+               else []
   in
-    Html.div attrs (content ++ featureFlag)
+    Html.div attrs (content ++ featureFlag ++ editFn)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
@@ -385,3 +389,16 @@ viewFeatureFlag =
     [ Attrs.class "feature-flag"
     , eventNoPropagation "click" (\_ -> StartFeatureFlag)]
     [ fontAwesome "flag"]
+
+viewEditFn : Bool -> Html.Html Msg
+viewEditFn hasFlagAlso =
+  let rightOffset =
+        if hasFlagAlso
+        then "-32px"
+        else "-16px"
+  in
+  Html.div
+    [ Attrs.class "edit-fn"
+    , Attrs.style [("right", rightOffset)]
+    , eventNoPropagation "click" (\_ -> EditFunction)]
+    [ fontAwesome "edit"]

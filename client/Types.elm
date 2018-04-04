@@ -165,6 +165,8 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
+    | EditFunction
+    | ReturnToMainCanvas
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
     | BlankOrMouseEnter TLID ID MouseEvent
@@ -175,7 +177,7 @@ type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
            | FocusExact TLID ID
            | FocusNext TLID (Maybe ID)
-           | FocusCursorState CursorState
+           | FocusPageAndCursor CurrentPage CursorState
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
 
@@ -429,6 +431,7 @@ type Modification = Error String
                   | TriggerIntegrationTest String
                   | EndIntegrationTest
                   | SetCursorState CursorState
+                  | SetCurrentPage CurrentPage
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   -- designed for one-off small changes
@@ -477,3 +480,11 @@ type alias FlagFunction = { name: String
                           , return_type: String
                           , infix: Bool
                           }
+
+-----------------------------
+-- URL Fragments
+-----------------------------
+
+type alias UrlFragmentData = { center: Maybe Pos
+                             , editedFn : Maybe TLID
+                             }
