@@ -2,8 +2,12 @@ open Core
 open Types
 
 type oplist = Op.op list [@@deriving yojson]
+
+type executable_fns = (tlid * id) list
+                    [@@deriving eq, show, yojson, sexp]
+
 type rpc_params = { ops: oplist
-                  ; executable_fns: (tlid * id) list }
+                  ; executable_fns: executable_fns }
                   [@@deriving yojson]
 
 

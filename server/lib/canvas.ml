@@ -220,7 +220,7 @@ let save_test (c: canvas) : string =
 (* To Frontend JSON *)
 (* ------------------------- *)
 
-let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
+let to_frontend (environments: RTT.env_map) (exe_fn_ids: Api.executable_fns) (c : canvas) : Yojson.Safe.json =
   let available_reqs id =
     match RTT.EnvMap.find environments id with
     | Some e -> e
@@ -231,9 +231,15 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
              |> List.map
                ~f:(fun h ->
                    let envs = available_reqs h.tlid in
+                   let fn_ids = exe_fn_ids
+                                |> List.filter_map
+                                     ~f:(fun (tlid, id) ->
+                                           if tlid = h.tlid
+                                           then Some id
+                                           else None) in
                    let values =
                      List.map
-                       ~f:(Handler.execute_for_analysis FF.analysis h c.user_functions)
+                       ~f:(Handler.execute_for_analysis FF.analysis h c.user_functions fn_ids)
                        envs
                    in
                    (h.tlid, values)
@@ -270,8 +276,8 @@ let to_frontend (environments: RTT.env_map) (c : canvas) : Yojson.Safe.json =
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]
 
-let to_frontend_string (environments: RTT.env_map) (c: canvas) : string =
-  c |> to_frontend environments |> Yojson.Safe.pretty_to_string ~std:true
+let to_frontend_string (environments: RTT.env_map) (exe_fn_ids: Api.executable_fns) (c: canvas) : string =
+  c |> to_frontend environments exe_fn_ids |> Yojson.Safe.pretty_to_string ~std:true
 
 (* ------------------------- *)
 (* Routing *)

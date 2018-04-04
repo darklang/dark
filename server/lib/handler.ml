@@ -1,5 +1,6 @@
 open Core
 
+open Types
 open Types.RuntimeT
 open Types.SpecTypes
 module RT = Runtime
@@ -86,8 +87,11 @@ let with_defaults (h: handler) (env: Ast.symtable) : Ast.symtable =
 let execute (ff: feature_flag) (h: handler) (user_fns: user_fn list) (env: Ast.symtable) : dval =
   Ast.execute ff user_fns (with_defaults h env) h.ast
 
-let execute_for_analysis (ff: feature_flag) (h: handler) (user_fns: user_fn list) (env: Ast.symtable) :
+let execute_for_analysis (ff: feature_flag) (h: handler) (user_fns: user_fn list) (exe_fn_ids: id list) (env: Ast.symtable) :
     (dval * Ast.dval_store * Ast.sym_store * Ast.symtable) =
   let traced_symbols = Ast.symbolic_execute ff (with_defaults h env) h.ast in
-  let (ast_value, traced_values) = Ast.execute_saving_intermediates ff user_fns env h.ast in
+  let (ast_value, traced_values) = Ast.execute_saving_intermediates ff
+      user_fns env exe_fn_ids h.ast in
   (ast_value, traced_values, traced_symbols, env)
+
+
