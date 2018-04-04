@@ -43,7 +43,7 @@ viewRequests vs h =
       in
       viewRequest vs.tl.id idx value isActive isHover
   in
-  List.indexedMap resultToHtml vs.results
+  List.indexedMap resultToHtml <| List.reverse vs.results
 
 
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)
