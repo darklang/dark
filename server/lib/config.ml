@@ -31,6 +31,9 @@ let testdata_dir : string =
 let events_dir : string =
   persist_dir ^ "events/"
 
+let function_results_dir : string =
+  persist_dir ^ "function_results/"
+
 let log_dir : string =
   run_dir ^ "logs/"
 
