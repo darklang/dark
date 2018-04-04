@@ -38,10 +38,7 @@ viewRequests vs h =
               Just v -> v.value
               _ -> ""
           isActive = vs.tl.cursor == idx
-          -- we need to make up a unique'ish ID from tlid + idx
-          stringID = (toString (deTLID vs.tl.id)) ++ (toString idx)
-          intID = Result.withDefault 0 (String.toInt stringID)
-          hoverID = (ID intID)
+          hoverID = tlCursorID vs.tl.id idx
           isHover = vs.hovering == Just hoverID
       in
       viewRequest vs.tl.id idx value isActive isHover
