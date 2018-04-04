@@ -2,7 +2,9 @@ open Core
 open Types
 
 type oplist = Op.op list [@@deriving yojson]
-type rpc_params = { ops: oplist } [@@deriving yojson]
+type rpc_params = { ops: oplist
+                  ; executable_fns: (tlid * id) list }
+                  [@@deriving yojson]
 
 
 let to_rpc_params (payload: string) : rpc_params =
