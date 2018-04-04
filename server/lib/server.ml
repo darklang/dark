@@ -154,8 +154,14 @@ let server () =
         let ip = get_ip_address ch in
         let ff = FF.fingerprint_user ip headers in
         let session_headers = FF.session_headers headers ff in
-
-        let result = Handler.execute ff page !c.user_functions env in
+        let state : Ast.exec_state =
+          { ff = ff
+          ; tlid = page.tlid
+          ; hostname = !c.name
+          ; user_fns = !c.user_functions
+          ; exe_fn_ids = []
+          ; env = env} in
+        let result = Handler.execute state page in
         (match result with
         | DResp (http, value) ->
           (match http with
