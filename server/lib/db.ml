@@ -332,7 +332,7 @@ let create_table_sql (table_name: string) =
 
 let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
-    "ALTER TABLE \"%s\" ADD COLUMN %s %s"
+    "ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s"
     (escape table_name) (escape name) (sql_tipe_for tipe)
 
 
