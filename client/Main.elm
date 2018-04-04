@@ -951,7 +951,7 @@ update_ msg m =
              , MakeCmd (Entry.focusEntry m)
              ]
       else
-        let m2 = { m | toplevels = toplevels }
+        let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
             newState = processFocus m2 focus
         -- TODO: can make this much faster by only receiving things that have
         -- been updated
