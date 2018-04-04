@@ -45,7 +45,7 @@ rpc m focus params =
 getAnalysisRPC : Cmd Msg
 getAnalysisRPC =
   let url = "/admin/api/get_analysis"
-      request = Http.post url  Http.emptyBody decodeGetAnalysisRPC
+      request = Http.post url Http.emptyBody decodeGetAnalysisRPC
   in Http.send GetAnalysisRPCCallback request
 
 saveTestRPC : Cmd Msg

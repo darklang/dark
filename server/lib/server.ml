@@ -280,7 +280,8 @@ let server () =
               * thing. It shouldn't save because there are no ops sent.
               * It also sends too much data back, but we just ignore it
               * in the client. *)
-             let (headers, body) = admin_rpc_handler "[]" domain in
+             let empty_body = "{ ops: [], executable_fns: []}" in
+             let (headers, body) = admin_rpc_handler empty_body domain in
              S.respond_string ~status:`OK ~body ~headers ()
            | "/admin/api/rpc" ->
              let (headers, body) = admin_rpc_handler req_body domain in
