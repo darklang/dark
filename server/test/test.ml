@@ -32,11 +32,17 @@ let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
 
 let execute_ops (ops : Op.op list) : dval =
   let c = ops2c "test" ops in
-  let ast = !c.toplevels
-            |> TL.handlers
-            |> List.hd_exn
-            |> fun h -> h.ast in
-  Ast.execute (FF.todo "test") [] DvalMap.empty ast
+  let h = !c.toplevels
+          |> TL.handlers
+          |> List.hd_exn in
+  let state : Ast.exec_state =
+    { ff = (FF.todo "test")
+    ; tlid = h.tlid
+    ; hostname = !c.name
+    ; user_fns = !c.user_functions
+    ; exe_fn_ids = []
+    ; env = DvalMap.empty} in
+  Ast.execute state DvalMap.empty h.ast
 
 
 let check_dval = AT.check (AT.testable pp_dval (=))

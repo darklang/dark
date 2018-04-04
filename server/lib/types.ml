@@ -119,7 +119,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
   (* this is _why_ we're executing the AST, to allow us to not
    * emit certain side-effects (eg. DB writes) when showing previews *)
-  type context = Preview of id list
+  type context = Preview
                | Real [@@deriving eq, show, yojson]
 
   exception TypeError of dval list

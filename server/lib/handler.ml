@@ -84,14 +84,14 @@ let default_env (h: handler) : dval_map =
 let with_defaults (h: handler) (env: Ast.symtable) : Ast.symtable =
   Util.merge_left env (default_env h)
 
-let execute (ff: feature_flag) (h: handler) (user_fns: user_fn list) (env: Ast.symtable) : dval =
-  Ast.execute ff user_fns (with_defaults h env) h.ast
+let execute (state: Ast.exec_state) (h: handler) : dval =
+  Ast.execute state (with_defaults h state.env) h.ast
 
-let execute_for_analysis (ff: feature_flag) (h: handler) (user_fns: user_fn list) (exe_fn_ids: id list) (env: Ast.symtable) :
+let execute_for_analysis (state : Ast.exec_state) (h : handler) :
     (dval * Ast.dval_store * Ast.sym_store * Ast.symtable) =
-  let traced_symbols = Ast.symbolic_execute ff (with_defaults h env) h.ast in
-  let (ast_value, traced_values) = Ast.execute_saving_intermediates ff
-      user_fns env exe_fn_ids h.ast in
-  (ast_value, traced_values, traced_symbols, env)
-
-
+  let default_env = with_defaults h state.env in
+  let traced_symbols =
+    Ast.symbolic_execute state.ff default_env h.ast in
+  let (ast_value, traced_values) =
+    Ast.execute_saving_intermediates state h.ast in
+  (ast_value, traced_values, traced_symbols, state.env)

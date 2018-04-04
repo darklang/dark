@@ -237,9 +237,17 @@ let to_frontend (environments: RTT.env_map) (exe_fn_ids: Api.executable_fns) (c 
                                            if tlid = h.tlid
                                            then Some id
                                            else None) in
+                   let state env : Ast.exec_state =
+                         { ff = FF.analysis
+                         ; tlid = h.tlid
+                         ; hostname = c.name
+                         ; user_fns = c.user_functions
+                         ; exe_fn_ids = fn_ids
+                         ; env = env} in
                    let values =
                      List.map
-                       ~f:(Handler.execute_for_analysis FF.analysis h c.user_functions fn_ids)
+                       ~f:(fun env ->
+                           Handler.execute_for_analysis (state env) h)
                        envs
                    in
                    (h.tlid, values)

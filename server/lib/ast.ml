@@ -33,17 +33,25 @@ let to_tuple (expr: expr) : (id * expr) =
 module Symtable = DvalMap
 type symtable = dval_map
 
+type exec_trace = (expr -> dval -> symtable -> unit)
+type exec_trace_blank = (string or_blank -> dval -> symtable -> unit)
 let empty_trace _ _ _ = ()
 
-let rec exec_ ~(ff: feature_flag)
-              ?(trace: (expr -> dval -> symtable -> unit)=empty_trace)
-              ?(trace_blank: (string or_blank -> dval -> symtable -> unit)=empty_trace)
+type exec_state = { ff: feature_flag
+                  ; tlid: tlid
+                  ; hostname: string
+                  ; user_fns: user_fn list
+                  ; exe_fn_ids: id list
+                  ; env: symtable }
+
+let rec exec_ ?(trace: exec_trace=empty_trace)
+              ?(trace_blank: exec_trace_blank=empty_trace)
               ~(ctx: context)
-              ~(user_fns: user_fn list)
+              ~(state: exec_state)
               (st: symtable) (expr: expr) : dval =
-  let exe = exec_ ~ff ~trace ~trace_blank ~user_fns ~ctx in
+  let exe = exec_ ~trace ~trace_blank ~ctx ~state in
   let call (name: string) (argvals: dval list) : dval =
-    let fn = Libs.get_fn_exn ~user_fns name in
+    let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
     let length_diff = List.length fn.parameters - List.length argvals in
     let argvals =
@@ -59,7 +67,7 @@ let rec exec_ ~(ff: feature_flag)
     in
     let id = to_id expr in
 
-    call_fn ~ff ~ind:0 ~ctx ~user_fns name id fn args
+    call_fn ~state ~ind:0 ~ctx name id fn args
   in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
@@ -104,7 +112,7 @@ let rec exec_ ~(ff: feature_flag)
      | Blank id -> DIncomplete
 
      | Flagged (id, msg, setting, l, r) ->
-       let v = flatten_ff expr ff in
+       let v = flatten_ff expr state.ff in
        exe st v
 
      | Filled (_, Let (lhs, rhs, body)) ->
@@ -132,7 +140,7 @@ let rec exec_ ~(ff: feature_flag)
 
      | Filled (id, If (cond, ifbody, elsebody)) ->
        (match ctx with
-        | Preview _ ->
+        | Preview ->
           (* In the case of a preview trace execution, we want the 'if' expression as
            * a whole to evaluate to its correct value -- but we also want preview values
            * for _all_ sides of the if *)
@@ -189,7 +197,7 @@ let rec exec_ ~(ff: feature_flag)
        let obj = exe st e in
        (match obj with
         | DObj o ->
-          (match flatten_ff field ff with
+          (match flatten_ff field state.ff with
            | Blank _ -> DIncomplete
            | Flagged _ -> should_be_flat ()
            | Filled (_, f) ->
@@ -223,23 +231,25 @@ let rec exec_ ~(ff: feature_flag)
   in
   trace expr execed_value st; execed_value
 
-and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn list) (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
-  let apply f ff arglist =
+and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
+    (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
+  let apply f arglist =
     match ctx with
-    | Preview previewable_ids  ->
+    | Preview ->
+      let sfr_state = (state.hostname, state.tlid, fnname, id) in
       if fn.previewExecutionSafe
-      then f (ff, arglist)
-      else if List.mem ~equal:(=) previewable_ids id
+      then f (state.ff, arglist)
+      else if List.mem ~equal:(=) state.exe_fn_ids id
       then
-        let result = f (ff, arglist) in
-        Stored_function_result.store ("todo", 5, fnname, id) arglist result;
+        let result = f (state.ff, arglist) in
+        Stored_function_result.store sfr_state arglist result;
         result
       else
-        (match Stored_function_result.load ("todo", 5, fnname, id) arglist with
+        (match Stored_function_result.load sfr_state arglist with
         | Some result -> result
         | _ -> DIncomplete)
     | Real ->
-      f (ff, arglist)
+      f (state.ff, arglist)
   in
   match fn.func with
   | InProcess f ->
@@ -254,7 +264,7 @@ and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn lis
                               | _ -> false)
              arglist
          then DIncomplete
-         else apply f ff arglist
+         else apply f arglist
        with
        | TypeError _ ->
            Log.erroR ~name:"execution" ~ind "exception caught" args
@@ -276,7 +286,7 @@ and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn lis
                 ~expected:(Dval.tipe_to_string p.tipe)
                 (fnname ^ " was called with the wrong type to parameter: " ^ p.name))
   | UserCreated body ->
-    exec_ ~ff ~trace:empty_trace ~ctx ~user_fns args body
+    exec_ ~trace:empty_trace ~ctx ~state args body
   | API f ->
       try
         f args
@@ -295,7 +305,10 @@ and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn lis
           ~actual:DIncomplete
 
 (* default to no tracing *)
-let execute ff user_fns = exec_ ~ff ~trace:empty_trace ~ctx:Real ~user_fns
+let execute state env expr =
+  exec_
+    ~trace:empty_trace ~trace_blank:empty_trace ~ctx:Real ~state
+    env expr
 
 (* -------------------- *)
 (* Analysis *)
@@ -304,7 +317,9 @@ let execute ff user_fns = exec_ ~ff ~trace:empty_trace ~ctx:Real ~user_fns
 
 type dval_store = dval Int.Table.t
 
-let execute_saving_intermediates (ff : feature_flag) (user_fns: user_fn list) (init: symtable) (exe_fn_ids: id list) (ast: expr) : (dval * dval_store) =
+
+let execute_saving_intermediates (state : exec_state) (ast: expr)
+  : (dval * dval_store) =
 
   let value_store = Int.Table.create () in
   let trace expr dval st =
@@ -313,7 +328,7 @@ let execute_saving_intermediates (ff : feature_flag) (user_fns: user_fn list) (i
   let trace_blank blank dval st =
     Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
   in
-  (exec_ ~ff ~trace ~trace_blank ~ctx:(Preview exe_fn_ids) ~user_fns init ast, value_store)
+  (exec_ ~trace ~trace_blank ~ctx:Preview ~state state.env ast, value_store)
 
 let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in
