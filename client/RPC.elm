@@ -166,7 +166,13 @@ encodeOp call =
 encodeRPCParams : RPCParams -> JSE.Value
 encodeRPCParams params =
   JSE.object
-    [("ops", encodeOps params.ops)]
+    [ ("ops", encodeOps params.ops)
+    , ("executable_fns"
+      , params.executableFns
+        |> List.map (encodePair encodeTLID encodeID)
+        |> JSE.list
+      )
+    ]
 
 encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
