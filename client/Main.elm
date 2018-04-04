@@ -12,6 +12,8 @@ import Keyboard.Key as Key
 import Navigation
 import Mouse
 import PageVisibility
+import Dict
+import String
 -- import List.Extra as LE
 import String.Extra as SE
 import Time
@@ -31,6 +33,7 @@ import Entry
 import Autocomplete as AC
 import Viewport
 import FeatureFlags
+import Functions
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
@@ -58,20 +61,34 @@ main = Navigation.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-parseLocation : Navigation.Location -> Maybe Pos
+parseLocation : Navigation.Location -> UrlFragmentData
 parseLocation loc =
-  let removeHash = String.dropLeft 1 loc.hash in -- remove "#"
-  case String.split "&" removeHash of -- split on delimiter
-    [xpart, ypart] ->
-      let trimmedx = String.dropLeft 1 xpart -- remove 'x'
-          trimmedy = String.dropLeft 1 ypart -- remove 'y'
-      in
-      case (String.toInt trimmedx, String.toInt trimmedy) of
-        (Ok x, Ok y) ->
-          let newPosition = { x = x, y = y } in
-          Just newPosition
-        _ -> Nothing
-    _ -> Nothing
+  let unstructured = loc.hash
+                   |> String.dropLeft 1 -- remove "#"
+                   |> String.split "&"
+                   |> List.map (String.split "=")
+                   |> List.filterMap
+                      (\arr ->
+                        case arr of
+                          a :: b :: [] -> Just (String.toLower a, b)
+                          _ -> Nothing)
+                   |> Dict.fromList
+      center =
+        case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
+          (Just x, Just y) ->
+            case (String.toInt x, String.toInt y) of
+              (Ok x, Ok y) -> Just { x = x, y = y }
+              _  -> Nothing
+          _ -> Nothing
+      editedFn =
+        case (Dict.get "fn" unstructured) of
+          Just sid ->
+            case String.toInt sid of
+              Ok id -> Just <| TLID id
+              _ -> Nothing
+          _ -> Nothing
+  in
+      { center = center, editedFn = editedFn }
 
 flag2function : FlagFunction -> Function
 flag2function fn =
@@ -92,23 +109,32 @@ init {editorState, complete} location =
 
       m0 = Editor.editor2model savedEditor
       savedCursorState = m0.cursorState
-      m = { m0 | cursorState = Deselected}
+      savedCurrentPage = m0.currentPage
+      m = { m0 | cursorState = Deselected, currentPage = Toplevels }
 
       tests = case parseVariantTestsFromQueryString location.search of
                   Just t  -> t
                   Nothing -> []
 
+      urlFragmentData =
+        parseLocation location
+
       center =
-        case parseLocation location of
+        case urlFragmentData.center of
           Nothing -> m.center
           Just c -> c
+
+      nextPage =
+        case urlFragmentData.editedFn of
+          Nothing -> savedCurrentPage
+          Just tlid -> Fn tlid
 
       visibilityTask =
         Task.perform PageVisibilityChange PageVisibility.visibility
 
-
       shouldRunIntegrationTest =
         "/admin/integration_test" == location.pathname
+
       integrationTestName =
         location.hostname
         |> SE.replace ".localhost" ""
@@ -127,8 +153,7 @@ init {editorState, complete} location =
   in
     if shouldRunIntegrationTest
     then m2 ! [RPC.integrationRPC m integrationTestName, visibilityTask]
-    else m2 ! [RPC.rpc m (FocusCursorState savedCursorState) RPC.emptyParams
-              , visibilityTask]
+    else m2 ! [RPC.rpc m (FocusPageAndCursor nextPage savedCursorState) RPC.emptyParams, visibilityTask]
 
 
 -----------------------
@@ -174,25 +199,44 @@ processFocus m focus =
               else Deselect
             _ -> Deselect
         _ -> NoChange
-    FocusCursorState cs ->
-      let setCS = SetCursorState cs in
-      case cs of
-        Selecting tlid mId ->
-          case (TL.get m tlid, mId) of
-            (Just tl, Just id) ->
-                if TL.isValidID tl id
-                then setCS
-                else Deselect
-            (Just tl, Nothing) -> setCS
-            _ -> Deselect
-        Entering (Filling tlid id) ->
-          case TL.get m tlid of
-            Just tl ->
-              if TL.isValidID tl id
-              then setCS
-              else Deselect
-            _ -> Deselect
-        _ -> setCS
+    FocusPageAndCursor page cs ->
+      let setCS = SetCursorState cs
+          tlOnPage tl =
+            case page of
+              Toplevels ->
+                case tl.data of
+                  TLHandler _ -> True
+                  TLDB _ -> True
+                  TLFunc _ -> False
+              Fn id ->
+                tl.id == id
+          nextCursor =
+            case cs of
+              Selecting tlid mId ->
+                case (TL.get m tlid, mId) of
+                  (Just tl, Just id) ->
+                      if TL.isValidID tl id && (tlOnPage tl)
+                      then setCS
+                      else Deselect
+                  (Just tl, Nothing) -> setCS
+                  _ -> Deselect
+              Entering (Filling tlid id) ->
+                case TL.get m tlid of
+                  Just tl ->
+                    if TL.isValidID tl id && (tlOnPage tl)
+                    then setCS
+                    else Deselect
+                  _ -> Deselect
+              Dragging tlid _ _ _  ->
+                case TL.get m tlid of
+                  Just tl ->
+                    if tlOnPage tl
+                    then setCS
+                    else Deselect
+                  _ -> Deselect
+              _ -> Deselect
+      in
+          Many [SetCurrentPage page, nextCursor]
     FocusNothing -> Deselect
     -- used instead of focussame when we've already done the focus
     FocusNoChange -> NoChange
@@ -306,6 +350,10 @@ updateMod mod (m, cmd) =
       SetCursorState cursorState ->
         -- DOES NOT RECALCULATE VIEW
         { m | cursorState = cursorState } ! []
+
+      SetCurrentPage page ->
+        let newM = { m | currentPage = page }
+        in newM ! closeThreads newM
 
       Select tlid p ->
         let newM = { m | cursorState = Selecting tlid p } in
@@ -659,6 +707,10 @@ update_ msg m =
 
 
           Deselected ->
+            -- Don't move viewport when editing fns
+            if not (m.currentPage == Toplevels)
+            then NoChange
+            else
             case event.keyCode of
               Key.Enter -> Entry.createFindSpace m
 
@@ -876,6 +928,14 @@ update_ msg m =
     SliderChange id value ->
       FeatureFlags.updateSlider m id value
 
+    ------------------------
+    -- Functions
+    ------------------------
+    EditFunction ->
+      Functions.startEditing m
+
+    ReturnToMainCanvas ->
+      SetCurrentPage Toplevels
 
     -----------------
     -- URL stuff
@@ -952,9 +1012,20 @@ update_ msg m =
       NoChange
 
     LocationChange loc ->
-      case parseLocation loc of
-        Nothing -> NoChange
-        Just c -> SetCenter c
+      let urlFragmentData = parseLocation loc
+          page =
+            case urlFragmentData.editedFn of
+              Just id ->
+                case Functions.find m id of
+                  Just uf -> [SetCurrentPage (Fn uf.tlid)]
+                  _ -> []
+              Nothing -> []
+          center =
+            case urlFragmentData.center of
+              Nothing -> []
+              Just c -> [SetCenter c]
+      in
+          Many (page ++ center)
 
     ClockTick action time  ->
       case action of
