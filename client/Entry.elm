@@ -130,7 +130,10 @@ submit m cursor action value =
         let dbName = value
                      |> String.dropLeft 2
                      |> String.trim
-        in RPC ([CreateDB tlid pos dbName], FocusNothing)
+            next = gid ()
+        in RPC ([ CreateDB tlid pos dbName
+                , AddDBCol tlid next (gid ())
+                ], FocusExact tlid next)
 
       -- field access
       else if String.endsWith "." value
