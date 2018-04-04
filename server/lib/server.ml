@@ -63,7 +63,7 @@ let server () =
             C.create_environments !c host) in
 
         let (t4, result) = time "4-to-frontend"
-          (fun _ -> C.to_frontend_string envs !c) in
+          (fun _ -> C.to_frontend_string envs params.executable_fns !c) in
 
         let (t5, _) = time "5-save-to-disk"
           (fun _ ->

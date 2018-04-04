@@ -187,6 +187,12 @@ let to_repr ?(pp : bool = true) (dv : dval) : string =
     | DDB db -> "<db>"
     in to_repr_ 0 pp dv
 
+(* Not for external consumption *)
+let to_internal_repr (dv : dval) : string =
+  match dv with
+  | DDB db -> "<db: " ^ db.actual_name ^ ">"
+  | _ -> to_repr dv
+
 (* If someone returns a string or int, that's probably a web page. If
  * someone returns something else, show the structure so they can figure
  * out how to get it into a string. *)

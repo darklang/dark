@@ -55,8 +55,11 @@ let rec exec_ ~(ff: feature_flag)
     let args =
       fn.parameters
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
-      |> DvalMap.of_alist_exn in
-   call_fn ~ff ~ind:0 ~ctx ~user_fns name fn args
+      |> DvalMap.of_alist_exn
+    in
+    let id = to_id expr in
+
+    call_fn ~ff ~ind:0 ~ctx ~user_fns name id fn args
   in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
@@ -129,7 +132,7 @@ let rec exec_ ~(ff: feature_flag)
 
      | Filled (id, If (cond, ifbody, elsebody)) ->
        (match ctx with
-        | Preview ->
+        | Preview _ ->
           (* In the case of a preview trace execution, we want the 'if' expression as
            * a whole to evaluate to its correct value -- but we also want preview values
            * for _all_ sides of the if *)
@@ -220,13 +223,21 @@ let rec exec_ ~(ff: feature_flag)
   in
   trace expr execed_value st; execed_value
 
-and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn list) (fnname: string) (fn: fn) (args: dval_map) : dval =
+and call_fn ?(ind=0) ~(ff: feature_flag) ~(ctx: context) ~(user_fns: user_fn list) (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
   let apply f ff arglist =
     match ctx with
-    | Preview ->
+    | Preview previewable_ids  ->
       if fn.previewExecutionSafe
       then f (ff, arglist)
-      else DIncomplete
+      else if List.mem ~equal:(=) previewable_ids id
+      then
+        let result = f (ff, arglist) in
+        Stored_function_result.store ("todo", 5, fnname, id) arglist result;
+        result
+      else
+        (match Stored_function_result.load ("todo", 5, fnname, id) arglist with
+        | Some result -> result
+        | _ -> DIncomplete)
     | Real ->
       f (ff, arglist)
   in
@@ -293,7 +304,7 @@ let execute ff user_fns = exec_ ~ff ~trace:empty_trace ~ctx:Real ~user_fns
 
 type dval_store = dval Int.Table.t
 
-let execute_saving_intermediates (ff : feature_flag) (user_fns: user_fn list) (init: symtable) (ast: expr) : (dval * dval_store) =
+let execute_saving_intermediates (ff : feature_flag) (user_fns: user_fn list) (init: symtable) (exe_fn_ids: id list) (ast: expr) : (dval * dval_store) =
 
   let value_store = Int.Table.create () in
   let trace expr dval st =
@@ -302,7 +313,7 @@ let execute_saving_intermediates (ff : feature_flag) (user_fns: user_fn list) (i
   let trace_blank blank dval st =
     Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
   in
-  (exec_ ~ff ~trace ~trace_blank ~ctx:Preview ~user_fns init ast, value_store)
+  (exec_ ~ff ~trace ~trace_blank ~ctx:(Preview exe_fn_ids) ~user_fns init ast, value_store)
 
 let ht_to_json_dict ds ~f =
   let alist = Hashtbl.to_alist ds in
