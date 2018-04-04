@@ -1,0 +1,18 @@
+{
+  "name": "dark",
+  "version": "1.0.0",
+  "main": "main.js",
+  "repository": "git@github.com:darklang/dark.git",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "build": "browserify server/src/main.js --standalone bundle -o server/static/bundle.js"
+  },
+  "devDependencies": {
+    "browserify": "^16.1.1"
+  },
+  "dependencies": {
+    "domready": "^1.0.8",
+    "mouse-wheel": "^1.2.0"
+  }
+}

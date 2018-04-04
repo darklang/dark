@@ -183,4 +183,11 @@ the preprocessed version.
 - upload the profile.json to https://lexifi.github.io/landmarks/viewer.html
 - look in "Source Tree Time"
 
+# Importing packages from npm
 
+npm dependencies are managed in development, bundled up via browserify, tracked in git, and included in `ui.html`.
+
+* `yarn install`
+* $`yarn add PACKAGE_NAME`
+* Use the package in `server/src/main.js` or whatever
+* $`yarn build` manages `/server/static/bundle.js`
