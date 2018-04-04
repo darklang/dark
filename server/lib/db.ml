@@ -341,6 +341,15 @@ let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
 (* DB schema *)
 (* ------------------------- *)
 
+let to_display_name (name: string) =
+  if name
+     |> String.to_list
+     |> List.for_all ~f:Char.is_uppercase
+  then name
+       |> String.lowercase
+       |> String.capitalize
+  else String.capitalize name
+
 let create_new_db (tlid: tlid) (db: db) =
   run_migration tlid (create_table_sql db.actual_name)
 

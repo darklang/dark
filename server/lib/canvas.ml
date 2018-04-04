@@ -151,9 +151,7 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       upsert_toplevel tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
       let db : DbT.db = { tlid = tlid
-                        ; display_name = name
-                                         |> String.lowercase
-                                         |> String.capitalize
+                        ; display_name = Db.to_display_name name
                         ; actual_name = (!c.name ^ "_" ^ name)
                                         |> String.lowercase
                         ; cols = []} in
