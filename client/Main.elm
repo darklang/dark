@@ -815,20 +815,10 @@ update_ msg m =
       Viewport.moveTo destination
 
     DataMouseEnter tlid idx _ ->
-      -- we need to make up a unique'ish ID from tlid + idx
-      let stringID = (toString (deTLID tlid)) ++ (toString idx)
-          intID = Result.withDefault 0 (String.toInt stringID)
-          id = (ID intID)
-      in
-      SetHover id
+      SetHover <| tlCursorID tlid idx
 
     DataMouseLeave tlid idx _ ->
-      -- we need to make up a unique'ish ID from tlid + idx
-      let stringID = (toString (deTLID tlid)) ++ (toString idx)
-          intID = Result.withDefault 0 (String.toInt stringID)
-          id = (ID intID)
-      in
-      ClearHover id
+      ClearHover <| tlCursorID tlid idx
 
 
     ------------------------

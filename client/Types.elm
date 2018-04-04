@@ -367,6 +367,15 @@ type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
 
+
+tlCursorID : TLID -> Int -> ID -- Generate ID for
+tlCursorID tlid idx =
+  let stringID = (toString (deTLID tlid)) ++ (toString idx)
+      intID = Result.withDefault 0 (String.toInt stringID)
+  in
+    (ID intID)
+
+
 type alias Name = String
 type CurrentPage = Toplevels
                  | Fn TLID
