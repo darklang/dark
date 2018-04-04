@@ -22,7 +22,7 @@ viewRequest tlid idx value isActive isHover =
                ]
   in
   Html.li ([(Attrs.attribute "data-content" value)] ++ classes ++ events)
-          [Html.text "📡"]
+          [Html.text "•"]
 
 viewRequests : ViewState -> Handler -> List (Html.Html Msg)
 viewRequests vs h =

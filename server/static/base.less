@@ -170,13 +170,11 @@ body #grid * {
       width: 100%;
       li {
         float: left;
-        line-height: 1.5em;
         &.mouseovered {
-          background-color: orange;
           color: orange;
-          &:after {
+          &:before {
             background-color: @grey1;
-            bottom: calc(~"-100% + 4.5em");
+            bottom: calc(~"-100% + 3.5em");
             content: attr(data-content);
             display: block;
             font-size: 0.7em;
