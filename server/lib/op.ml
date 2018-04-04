@@ -18,6 +18,6 @@ type op = SetHandler of tlid * pos * Handler.handler
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
 let has_effect (op: op) : bool  =
-  op = Savepoint
+  op <> Savepoint
 
 
