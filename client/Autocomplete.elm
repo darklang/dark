@@ -196,9 +196,34 @@ regenerate m a =
   { a | allCompletions = generateFromModel m a }
   |> refilter a.value
 
+
+parseLiteral : String -> Maybe Literal
+parseLiteral s =
+  s |> String.toInt |> Result.toMaybe
+
 refilter : String -> Autocomplete -> Autocomplete
 refilter query old  =
-  let newCompletions = filter old.allCompletions query
+  -- add or replace the literal the user is typing to the completions
+  let fudgedCompletions =
+        if List.any
+          (\ai ->
+            case ai of
+              ACLiteral _ -> True
+              _ -> False) old.allCompletions
+        then
+          List.filterMap
+            (\ai ->
+              case ai of
+                ACLiteral _ ->
+                  parseLiteral query |> Maybe.map ACLiteral
+                _ -> Just ai)
+            old.allCompletions
+        else
+          case parseLiteral query of
+            Just l -> (ACLiteral l) :: old.allCompletions
+            Nothing -> old.allCompletions
+
+      newCompletions = filter fudgedCompletions query
       newCount = newCompletions |> List.concat |> List.length
 
       oldHighlight = highlighted old
@@ -365,6 +390,7 @@ asName aci =
     ACField name -> name
     ACVariable name -> name
     ACExtra name -> name
+    ACLiteral lit -> toString lit
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -377,6 +403,7 @@ asTypeString item =
     ACField _ -> "field"
     ACVariable _ -> "variable"
     ACExtra _ -> ""
+    ACLiteral _ -> "int literal"
 
 asString : AutocompleteItem -> String
 asString aci =

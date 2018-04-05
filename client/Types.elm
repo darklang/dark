@@ -219,10 +219,12 @@ type alias Autocomplete = { functions : List Function
                           , tipe : Maybe Tipe
                           }
 
+type alias Literal = Int
 type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
                       | ACExtra String
+                      | ACLiteral Literal
 
 type AutocompleteMod = ACSetQuery String
                      | ACAppendQuery String
