@@ -43,6 +43,7 @@ let find_db table_name : DbT.db =
    | Some d -> d
    | None -> failwith ("table not found: " ^ table_name)
 
+
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
@@ -64,6 +65,24 @@ let rec dval_to_sql (dv: dval) : string =
     ^ (String.concat ~sep:", " (List.map ~f:dval_to_sql l))
     ^ " }'"
   | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
+
+let key_names (vals: dval_map) : string =
+  vals
+  |> DvalMap.keys
+  |> List.map ~f:escape
+  |> String.concat ~sep:", "
+
+let val_names (vals: dval_map) : string =
+  vals
+  |> DvalMap.data
+  |> List.map ~f:dval_to_sql
+  |> String.concat ~sep:", "
+
+let col_names names : string =
+  names
+  |> List.map ~f:escape
+  |> List.map ~f:(fun name -> "\"" ^ name ^ "\"")
+  |> String.concat ~sep:", "
 
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
@@ -133,7 +152,7 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
 and
 fetch_by db (col: string) (dv: dval) : dval =
   let (names, types) = cols_for db |> List.unzip in
-  let colnames = names |> List.map ~f:escape |> String.concat ~sep:", " in
+  let colnames = col_names names in
   Printf.sprintf
     "SELECT %s FROM \"%s\" WHERE %s = %s"
     colnames (escape db.actual_name) (escape col) (dval_to_sql dv)
@@ -201,18 +220,6 @@ let with_postgres fn =
   | PG.Error e ->
     Exception.internal ("DB error with: " ^ (PG.string_of_error e))
 
-let key_names (vals: dval_map) : string =
-  vals
-  |> DvalMap.keys
-  |> List.map ~f:escape
-  |> String.concat ~sep:", "
-
-let val_names (vals: dval_map) : string =
-  vals
-  |> DvalMap.data
-  |> List.map ~f:dval_to_sql
-  |> String.concat ~sep:", "
-
 let is_relation (valu: dval) : bool =
   match valu with
   | DObj _ -> true
@@ -275,10 +282,9 @@ and upsert_dependent_object cols ~key:relation ~data:obj : dval =
     List.map ~f:(fun x -> upsert_dependent_object cols ~key:relation ~data:x) l |> DList
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
 
-
 let fetch_all (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
-  let colnames = names |> List.map ~f:escape |> String.concat ~sep:", " in
+  let colnames = col_names names in
   Printf.sprintf
     "SELECT %s FROM \"%s\""
     colnames (escape db.actual_name)
