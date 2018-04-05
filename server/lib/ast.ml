@@ -50,7 +50,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
               ~(state: exec_state)
               (st: symtable) (expr: expr) : dval =
   let exe = exec_ ~trace ~trace_blank ~ctx ~state in
-  let call (name: string) (argvals: dval list) : dval =
+  let call (name: string) (id: id) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
     let length_diff = List.length fn.parameters - List.length argvals in
@@ -65,8 +65,6 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn
     in
-    let id = to_id expr in
-
     call_fn ~state ~ind:0 ~ctx name id fn args
   in
 
@@ -90,7 +88,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
          | DBlock blk -> blk [param]
          | _ -> DIncomplete)
       | Filled (id, FnCall (name, exprs)) ->
-        call name (param :: (List.map ~f:(exe st) exprs))
+        call name id (param :: (List.map ~f:(exe st) exprs))
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
       | Blank _ ->
@@ -136,7 +134,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
 
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
-       call name argvals
+       call name id argvals
 
      | Filled (id, If (cond, ifbody, elsebody)) ->
        (match ctx with
