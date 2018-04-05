@@ -79,9 +79,9 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
   respond ~headers:(Cohttp.Header.of_list headers) `OK ""
 
 
-let user_page_handler ~(domain: string) ~(ip: string) ~(uri: Uri.t)
+let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
-  let c = C.load domain [] in
+  let c = C.load subdomain [] in
   Event_queue.set_scope !c.name;
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let pages = C.pages_matching_route ~uri ~verb !c in
@@ -100,7 +100,7 @@ let user_page_handler ~(domain: string) ~(ip: string) ~(uri: Uri.t)
   | [page] ->
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request req body in
-    Stored_event.store domain page.tlid (PReq.to_dval input);
+    Stored_event.store subdomain page.tlid (PReq.to_dval input);
     let bound = Http.bind_route_params_exn ~uri ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = Db.dbs_as_exe_env (dbs) in
@@ -249,10 +249,10 @@ let auth_then_handle req subdomain handler =
     | _ ->
       respond `Unauthorized "Invalid session"
 
-let admin_handler ~(domain: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
+let admin_handler ~(subdomain: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
   let empty_body = "{ ops: [], executable_fns: []}" in
   let rpc ?(body=empty_body) () =
-    let (headers, response_body) = admin_rpc_handler body domain in
+    let (headers, response_body) = admin_rpc_handler body subdomain in
     respond ~headers `OK response_body
   in
 
@@ -272,7 +272,7 @@ let admin_handler ~(domain: string) ~(uri: Uri.t) ~stopper ~(body: string) (req:
   | "/admin/integration_test" ->
     admin_ui_handler () >>= fun body -> respond `OK body
   | "/admin/api/save_test" ->
-    save_test_handler domain
+    save_test_handler subdomain
   | _ -> failwith "Not an admin route"
 
 (* -------------------------------------------- *)
@@ -290,14 +290,14 @@ let server () =
   let callback (ch, conn) req req_body =
     let ip = (get_ip_address ch) in
     let subdomain =
-      let domain = req
+      let host = req
                    |> CRequest.uri
                    |> Uri.host
                    |> Option.value ~default:"" in
-      match String.split domain '.' with
+      match String.split host '.' with
       | ["localhost"] -> "localhost"
       | a :: rest -> a
-      | _ -> ""
+      | _ -> failwith @@ "Unsupported subdomain: " ^ host
     in
 
     let route_handler =
@@ -307,12 +307,7 @@ let server () =
            let uri = req |> CRequest.uri in
            let verb = req |> CRequest.meth in
 
-           let domain = match subdomain with
-             | "" ->  failwith @@ "Unsupported domain: " ^ subdomain
-             | _ -> subdomain
-           in
-
-           Log.infO "request" ( domain
+           Log.infO "request" ( subdomain
                               , Cohttp.Code.string_of_method verb
                               , "http:" ^ Uri.to_string uri);
            match (Uri.path uri) with
@@ -323,9 +318,9 @@ let server () =
              static_handler uri
            | p when  (String.is_prefix ~prefix:"/admin/" p) ->
              auth_then_handle req subdomain
-               (admin_handler ~domain ~uri ~body ~stopper req)
+               (admin_handler ~subdomain ~uri ~body ~stopper req)
            | _ ->
-             user_page_handler ~domain ~ip ~uri ~body req
+             user_page_handler ~subdomain ~ip ~uri ~body req
          with
          | e ->
            let bt = Backtrace.Exn.most_recent () in
