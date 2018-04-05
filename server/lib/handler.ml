@@ -77,7 +77,7 @@ let default_env (h: handler) : dval_map =
     List.fold_left
       ~init
       ~f:(fun acc v ->
-          DvalMap.set ~key:v ~data:DNull acc)
+          DvalMap.set ~key:v ~data:DIncomplete acc)
       (Http.route_variables n)
   | None -> init
 
