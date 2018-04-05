@@ -2,6 +2,7 @@ module IntegrationTest exposing (..)
 
 -- builtin
 import Result exposing (Result (..))
+import Result.Extra as RE
 
 -- dark
 import Types exposing (..)
@@ -10,6 +11,7 @@ import Util exposing (deMaybe)
 import Blank as B
 import Pointer as P
 import AST
+import Analysis
 
 trigger : String -> IntegrationTestState
 trigger test_name =
@@ -36,6 +38,7 @@ trigger test_name =
     "ellen_hello_world_demo" -> ellen_hello_world_demo
     "editing_headers" -> editing_headers
     "tabbing_through_let" -> tabbing_through_let
+    "case_sensitivity" -> case_sensitivity
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -266,3 +269,47 @@ tabbing_through_let m =
     Let (F _ "myvar") (F _ (Value "5")) (F _ (Value "5")) ->
       pass
     e -> fail e
+
+case_sensitivity : Model -> TestResult
+case_sensitivity m =
+  if List.length m.toplevels /= 3
+  then fail m.toplevels
+  else
+    m.toplevels
+    |> List.map
+         (\tl ->
+             case tl.data of
+               TLDB {name, cols} ->
+                 case (name, cols) of
+                   ("TestUnicode" , [(F _ "cOlUmNnAmE", F _ "Str")]) ->
+                     pass
+                   other -> fail other
+               TLHandler h ->
+                 case h.ast of
+                   F _ (Thread [ F _ (Value "{}")
+                                , F _ (FnCall "assoc"
+                                        [ F _ (Value "\"cOlUmNnAmE\"")
+                                        , F _ (Value "\"some value\"")])
+                                , F _ (FnCall "DB::insert"
+                                        [F _ (Variable "TestUnicode")])
+                                ]) ->
+                     pass
+                   F id (Thread [ F _ (Variable "TestUnicode")
+                                , F _ (FnCall "DB::fetchAll" [])
+                                , F _ (FnCall "List::head" [])
+                                , F _ (Lambda ["var"]
+                                        (F _ (FieldAccess
+                                               (F _ (Variable "var"))
+                                               (F _ "cOlUmNnAmE"))))
+                                ]) ->
+                     Analysis.getLiveValue m tl.id id
+                     |> Maybe.map (\lv -> if lv.value == "\"some value\""
+                                          then pass
+                                          else fail lv)
+
+                     |> Maybe.withDefault (fail h.ast)
+                   _ -> fail h.ast
+               other -> fail other)
+    |> RE.combine
+    |> Result.map (\_ -> ())
+
