@@ -156,6 +156,46 @@ body #grid * {
     .blank-text-style;
   }
 
+  .view-data {
+    bottom: 100%;
+    left: 0px;
+    position: absolute;
+    width: 100%;
+    &.live-view-selection-active {
+      bottom: calc(~"100% + 22px");
+    }
+    ul.request-cursor {
+      bottom: 1em;
+      float: left;
+      list-style-type: none;
+      max-height: calc(~"1.5em + 1px");
+      overflow: hidden;
+      width: 100%;
+      li {
+        float: left;
+        &.mouseovered {
+          color: orange;
+          &:before {
+            background-color: @grey1;
+            bottom: calc(~"-100% + 3.5em");
+            content: attr(data-content);
+            display: block;
+            font-size: 0.7em;
+            left: 0;
+            // max-height: 6em;
+            max-width: 100%;
+            overflow: auto;
+            position: absolute;
+            width: auto;
+            word-wrap: break-word;
+          }
+        }
+        &.active {
+          border-bottom: 1px solid orange;
+        }
+      }
+    }
+  }
 }
 
 //*************

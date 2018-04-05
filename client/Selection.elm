@@ -16,7 +16,7 @@ import Util exposing (deMaybe)
 
 moveCursorBackInTime : Model -> TLID -> Modification
 moveCursorBackInTime m selected =
-  let maxCursor = List.length (Analysis.getAnalysisResults m selected)
+  let maxCursor = List.length (Analysis.getAnalysisResults m selected) - 1
   in
     selected
     |> TL.getTL m
