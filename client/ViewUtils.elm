@@ -19,6 +19,7 @@ import Toplevel as TL
 import Analysis
 import AST
 import Blank as B
+import Util exposing (deMaybe)
 
 type alias ViewState =
   { tl: Toplevel
@@ -52,8 +53,8 @@ createVS m tl = { tl = tl
                   case (unwrapCursorState m.cursorState, TL.asHandler tl) of
                     (Entering (Filling _ id), Just h) ->
                       case TL.find tl id of
-                        Just pd ->
-                          case TL.getParentOf tl pd of
+                        Just (PVarBind _) as pd ->
+                          case TL.getParentOf tl (deMaybe "impossible" pd)  of
                             Just (PExpr e) -> e |> AST.usesOf |> List.map B.toID
                             _ -> []
                         _ -> []
