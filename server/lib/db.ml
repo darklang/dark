@@ -66,22 +66,25 @@ let rec dval_to_sql (dv: dval) : string =
     ^ " }'"
   | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
 
+let escape_col (keyname: string) : string =
+  keyname
+  |> escape
+  |> fun name -> "\"" ^ name ^ "\""
+
+let col_names names : string =
+  names
+  |> List.map ~f:escape_col
+  |> String.concat ~sep:", "
+
 let key_names (vals: dval_map) : string =
   vals
   |> DvalMap.keys
-  |> List.map ~f:escape
-  |> String.concat ~sep:", "
+  |> col_names
 
 let val_names (vals: dval_map) : string =
   vals
   |> DvalMap.data
   |> List.map ~f:dval_to_sql
-  |> String.concat ~sep:", "
-
-let col_names names : string =
-  names
-  |> List.map ~f:escape
-  |> List.map ~f:(fun name -> "\"" ^ name ^ "\"")
   |> String.concat ~sep:", "
 
 (* Turn db rows into list of string/type pairs - removes elements with
@@ -155,7 +158,7 @@ fetch_by db (col: string) (dv: dval) : dval =
   let colnames = col_names names in
   Printf.sprintf
     "SELECT %s FROM \"%s\" WHERE %s = %s"
-    colnames (escape db.actual_name) (escape col) (dval_to_sql dv)
+    colnames (escape db.actual_name) (escape_col col) (dval_to_sql dv)
   |> fetch_via_sql
   |> List.map ~f:(to_obj names types)
   |> DList
@@ -259,7 +262,7 @@ and update db (vals: dval_map) =
   let sets = merged
            |> DvalMap.to_alist
            |> List.map ~f:(fun (k,v) ->
-               (escape k) ^ " = " ^ dval_to_sql v)
+               (escape_col k) ^ " = " ^ dval_to_sql v)
            |> String.concat ~sep:", " in
   Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
     (escape db.actual_name) sets (dval_to_sql id)
