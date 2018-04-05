@@ -144,6 +144,9 @@ let apply_to_db ~(f:(DbT.db -> DbT.db)) (tlid: tlid) (c:canvas) : canvas =
 (* ------------------------- *)
 
 let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
+  (* uncomment if you've cleared the DB for an existing canvas and want
+   * to rebuild it *)
+  (* let do_db_ops = true in *)
   c :=
     !c |>
     match op with
