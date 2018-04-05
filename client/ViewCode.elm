@@ -7,11 +7,14 @@ import Html
 import Html.Attributes as Attrs
 import String.Extra as SE
 import List.Extra as LE
+import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
 import Util exposing (deMaybe)
 import Runtime as RT
+import AST
+import Toplevel as TL
 import Blank as B
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
@@ -161,11 +164,18 @@ viewNExpr d id vs config e =
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
                     |> .infix
+          previous = vs.tl
+                     |> TL.asHandler
+                     |> deMaybe ""
+                     |> .ast
+                     |> AST.threadPrevious id
+                     |> ME.toList
+          allExprs = previous ++  exprs
           paramsComplete = List.all (\b -> b
                                            |> B.toID
                                            |> getLiveValue vs.lvs
                                            |> Runtime.isIncomplete
-                                           |> not) exprs
+                                           |> not) allExprs
 
           noValue = getLiveValue vs.lvs id |> Runtime.isIncomplete
           showButton = noValue && paramsComplete
