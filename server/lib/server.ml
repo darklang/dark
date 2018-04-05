@@ -47,6 +47,10 @@ let get_ip_address ch : string =
   | `TCP (ip, port) -> Ipaddr.to_string ip
   | _ -> assert false
 
+let respond ?(headers=Header.init ()) status (body: string) =
+  S.respond_string ~status ~body ~headers ()
+
+
 (* ------------------------------- *)
 (* handlers for dark developers *)
 (* ------------------------------- *)
@@ -72,13 +76,11 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
                  , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS")
                 ; ("Access-Control-Allow-Origin", "*")
                 ; ("Access-Control-Allow-Headers", allow_headers)] in
-  S.respond_string ~status:`OK
-                   ~body:""
-                   ~headers:(Cohttp.Header.of_list headers)
-                   ()
+  respond ~headers:(Cohttp.Header.of_list headers) `OK ""
 
 
-let user_page_handler ~(domain: string) ~(ip: string) ~(uri: Uri.t) ~(body: string) (req: CRequest.t) =
+let user_page_handler ~(domain: string) ~(ip: string) ~(uri: Uri.t)
+    ~(body: string) (req: CRequest.t) =
   let c = C.load domain [] in
   Event_queue.set_scope !c.name;
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
@@ -93,7 +95,8 @@ let user_page_handler ~(domain: string) ~(ip: string) ~(uri: Uri.t) ~(body: stri
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler !c req
   | [] ->
-    S.respond_string ~status:`Not_found ~headers:(Cohttp.Header.of_list [cors]) ~body:"404: No page matches" ()
+    let headers = Cohttp.Header.of_list [cors] in
+    respond ~headers `Not_found "404: No page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request req body in
@@ -132,26 +135,21 @@ let user_page_handler ~(domain: string) ~(ip: string) ~(uri: Uri.t) ~(body: stri
            else Dval.dval_to_pretty_json_string value
          in
          Event_queue.unset_scope ~status:`OK;
-         S.respond_string
-           ~status:(Cohttp.Code.status_of_code code)
-           ~headers:(Cohttp.Header.of_list
-                       ([cors] @ resp_headers @ session_headers))
-           ~body:body
-           ())
+         let status = Cohttp.Code.status_of_code code in
+         let headers = Cohttp.Header.of_list
+                        ([cors] @ resp_headers @ session_headers) in
+         respond ~headers status body)
     | _ ->
       Event_queue.unset_scope ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
+      let headers = Cohttp.Header.of_list ([cors] @ session_headers) in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
-      let code = 200 in
-      S.respond_string
-        ~status:(Cohttp.Code.status_of_code code)
-        ~headers:(Cohttp.Header.of_list ([cors] @ session_headers))
-        ~body:body
-        ())
+      respond ~headers `OK body)
   | _ ->
     Event_queue.unset_scope ~status:`Err;
-    S.respond_string ~status:`Internal_server_error ~headers:(Cohttp.Header.of_list [cors]) ~body:"500: More than one page matches" ()
+    let headers = Cohttp.Header.of_list [cors] in
+    respond `Internal_server_error ~headers "500: More than one page matches"
 
 (* -------------------------------------------- *)
 (* Admin server *)
@@ -199,69 +197,63 @@ let admin_ui_handler () =
 let save_test_handler domain =
   let g = C.load domain [] in
   let filename = C.save_test !g in
-  S.respond_string ~status:`OK ~body:("Saved as: " ^ filename) ()
+  respond `OK ("Saved as: " ^ filename)
 
 
 let auth_then_handle req subdomain handler =
   let path = req |> CRequest.uri |> Uri.path in
   (* only handle auth for admin routes *)
-  if String.is_prefix ~prefix:"/admin" path
-  then
-    (* let users use their domain as a prefix for scratch work *)
-    let auth_domain =
-      match String.split subdomain '-' with
-      | d :: scratch -> d
-      | _ -> subdomain
+  (* let users use their domain as a prefix for scratch work *)
+  let auth_domain =
+    match String.split subdomain '-' with
+    | d :: scratch -> d
+    | _ -> subdomain
+  in
+  Auth.Session.of_request req
+  >>= function
+  | Ok (Some session) ->
+    if path = "/admin/logout"
+    then
+      Auth.Session.clear Auth.Session.backend session
+      >>= fun _ ->
+      let headers =
+        (Header.of_list
+           (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
+      S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
+    else
+      (match Auth.Session.user_for session with
+       | Some user ->
+         if Auth.has_access ~domain:auth_domain ~user
+         then handler (Header.init ())
+         else respond `Unauthorized "Unauthorized"
+       | None ->
+         respond `Unauthorized "Invalid Session")
+  | _ ->
+    let auth =
+      req
+      |> CRequest.headers
+      |> Header.get_authorization
     in
-    Auth.Session.of_request req
-    >>= function
-    | Ok (Some session) ->
-      if path = "/admin/logout"
-      then
-        Auth.Session.clear Auth.Session.backend session
-        >>= fun _ ->
-        let headers =
-          (Header.of_list 
-             (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-        S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
-      else
-        (match Auth.Session.user_for session with
-         | Some user ->
-           if Auth.has_access ~domain:auth_domain ~user
-           then handler (Header.init ())
-           else S.respond_string ~status:`Unauthorized ~body:"Unauthorized" ()
-         | None ->
-           S.respond_string ~status:`Unauthorized ~body:"Invalid Session" ())
+    match auth with
+    | (Some (`Basic (user, pass))) ->
+      (match Auth.authenticate ~domain:auth_domain ~username:user ~password:pass with
+       | Some user ->
+         Auth.Session.new_for_user user >>=
+         (fun session ->
+            let headers = Header.of_list (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session) in
+            handler headers)
+       | None ->
+        respond `Unauthorized "Bad credentials")
+    | None ->
+      S.respond_need_auth ~auth:(`Basic "dark") ()
     | _ ->
-      let auth =
-        req
-        |> CRequest.headers
-        |> Header.get_authorization
-      in
-      match auth with
-      | (Some (`Basic (user, pass))) ->
-        (match Auth.authenticate ~domain:auth_domain ~username:user ~password:pass with
-         | Some user ->
-           Auth.Session.new_for_user user >>=
-           (fun session ->
-              let headers = Header.of_list (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session) in
-              handler headers)
-         | None ->
-          S.respond_string ~status:`Unauthorized ~body:"Bad credentials" ())
-      | None ->
-        S.respond_need_auth ~auth:(`Basic "dark") ()
-      | _ ->
-        S.respond_string ~status:`Unauthorized ~body:"Invalid session" ()
-  else
-    handler (Header.init ())
+      respond `Unauthorized "Invalid session"
 
 let admin_handler ~(domain: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
-  let rpc ?(body: string option) () =
-    let empty_body = "{ ops: [], executable_fns: []}" in
-    let req_body = Option.value ~default:empty_body body in
-
-    let (headers, response_body) = admin_rpc_handler req_body domain in
-    S.respond_string ~status:`OK ~body:response_body ~headers ()
+  let empty_body = "{ ops: [], executable_fns: []}" in
+  let rpc ?(body=empty_body) () =
+    let (headers, response_body) = admin_rpc_handler body domain in
+    respond ~headers `OK response_body
   in
 
   match Uri.path uri with
@@ -274,11 +266,11 @@ let admin_handler ~(domain: string) ~(uri: Uri.t) ~stopper ~(body: string) (req:
     rpc ()
   | "/admin/api/shutdown" ->
     Lwt.wakeup stopper ();
-    S.respond_string ~status:`OK ~body:"Disembowelment" ()
+    respond `OK "Disembowelment"
   | "/admin/ui" ->
-    admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~headers ~body ()
+    admin_ui_handler () >>= fun body -> respond ~headers `OK body
   | "/admin/integration_test" ->
-    admin_ui_handler () >>= fun body -> S.respond_string ~status:`OK ~body ()
+    admin_ui_handler () >>= fun body -> respond `OK body
   | "/admin/api/save_test" ->
     save_test_handler domain
   | _ -> failwith "Not an admin route"
@@ -298,7 +290,10 @@ let server () =
   let callback (ch, conn) req req_body =
     let ip = (get_ip_address ch) in
     let subdomain =
-      let domain = Uri.host (req |> CRequest.uri) |> Option.value ~default:"" in
+      let domain = req
+                   |> CRequest.uri
+                   |> Uri.host
+                   |> Option.value ~default:"" in
       match String.split domain '.' with
       | ["localhost"] -> "localhost"
       | a :: rest -> a
@@ -317,31 +312,39 @@ let server () =
              | _ -> subdomain
            in
 
-           Log.infO "request" (domain, Cohttp.Code.string_of_method verb, ("http:" ^Uri.to_string uri));
+           Log.infO "request" ( domain
+                              , Cohttp.Code.string_of_method verb
+                              , "http:" ^ Uri.to_string uri);
            match (Uri.path uri) with
            | "/sitemap.xml"
            | "/favicon.ico" ->
-             S.respond_string ~status:`OK ~body:"" ()
+             respond `OK ""
            | p when (String.is_prefix ~prefix:"/static/" p) ->
              static_handler uri
            | p when  (String.is_prefix ~prefix:"/admin/" p) ->
              auth_then_handle req subdomain
                (admin_handler ~domain ~uri ~body ~stopper req)
            | _ ->
-             user_page_handler ~domain  ~ip ~uri ~body req
+             user_page_handler ~domain ~ip ~uri ~body req
          with
          | e ->
            let bt = Backtrace.Exn.most_recent () in
            let body = match e with
              | Exception.DarkException e ->
-               Exception.exception_data_to_yojson e |> Yojson.Safe.pretty_to_string
-             | Yojson.Json_error msg -> "Not a value: " ^ msg
-             | Postgresql.Error e -> "Postgres error: " ^ Postgresql.string_of_error e
-             | _ -> "Dark Internal Error: " ^ Exn.to_string e
+               e
+               |> Exception.exception_data_to_yojson
+               |> Yojson.Safe.pretty_to_string
+             | Yojson.Json_error msg ->
+               "Not a value: " ^ msg
+             | Postgresql.Error e ->
+               "Postgres error: " ^ Postgresql.string_of_error e
+             | _ ->
+               "Dark Internal Error: " ^ Exn.to_string e
            in
            Lwt_io.printl ("Error: " ^ body) >>= fun () ->
            Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
-           S.respond_string ~status:`Internal_server_error ~headers:(Cohttp.Header.of_list [cors]) ~body ())
+           let headers = Cohttp.Header.of_list [cors] in
+           respond ~headers `Internal_server_error body)
     in
     route_handler
   in
