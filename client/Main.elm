@@ -159,8 +159,9 @@ init {editorState, complete} location =
 -----------------------
 -- ports, save Editor state in LocalStorage
 -----------------------
-port setStorage : String -> Cmd a
+port mousewheel : ((List Int) -> msg) -> Sub msg
 port recordError : (String -> msg) -> Sub msg
+port setStorage : String -> Cmd a
 
 -----------------------
 -- updates
@@ -805,6 +806,15 @@ update_ msg m =
       ClearHover id
 
 
+    MouseWheel deltaCoords ->
+      let delta = case deltaCoords of
+            x::y::_ -> { x=x, y=y }
+            _ -> { x=0, y=0 }
+          destination = { x= m.center.x + delta.x, y= m.center.y + delta.y }
+      in
+      Viewport.moveTo destination
+
+
     ------------------------
     -- dragging
     ------------------------
@@ -1074,5 +1084,7 @@ subscriptions m =
         [ PageVisibility.visibilityChanges PageVisibilityChange
         , onWindow "focus" (JSD.succeed (PageFocusChange PageVisibility.Visible))
         , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
+
+      mousewheelSubs = [mousewheel MouseWheel]
   in Sub.batch
-    (List.concat [keySubs, dragSubs, resizes, timers, visibility, onError])
+    (List.concat [keySubs, dragSubs, resizes, timers, visibility, onError, mousewheelSubs])
