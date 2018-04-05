@@ -90,8 +90,9 @@ let execute (state: Ast.exec_state) (h: handler) : dval =
 let execute_for_analysis (state : Ast.exec_state) (h : handler) :
     (dval * Ast.dval_store * Ast.sym_store * Ast.symtable) =
   let default_env = with_defaults h state.env in
+  let state = { state with env = default_env } in
   let traced_symbols =
-    Ast.symbolic_execute state.ff default_env h.ast in
+    Ast.symbolic_execute state.ff state.env h.ast in
   let (ast_value, traced_values) =
     Ast.execute_saving_intermediates state h.ast in
   (ast_value, traced_values, traced_symbols, state.env)
