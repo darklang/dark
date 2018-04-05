@@ -220,6 +220,14 @@ all =
               , ["SomeOtherModule::withlower"]
               ]
 
+      -- typing literals works
+      , \_ -> create ()
+      |> setQuery "21434234"
+      |> selectDown
+      |> highlighted
+      |> Maybe.map asName
+      |> (==) (Just "21434234")
+
       ]
     ]
 
