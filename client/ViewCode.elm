@@ -136,14 +136,14 @@ viewNExpr d id vs config e =
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
         , a [wc "letbind"] "="
-        , n [wc "letrhs", dv, cs] [vExpr (d+1) rhs]
+        , n [wc "letrhs", dv, cs] [vExpr d rhs]
         , n [wc "letbody", ComputedValueAs bodyID] [vExpr d body]
         ]
 
     If cond ifbody elsebody ->
       n (wc "ifexpr" :: all)
       [ kw [] "if"
-      , n [wc "cond"] [vExpr incD cond]
+      , n [wc "cond"] [vExpr d cond]
       , n [wc "ifbody"] [vExpr 0 ifbody]
       , kw [] "else"
       , n [wc "elsebody"] [vExpr 0 elsebody]
