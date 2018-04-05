@@ -51,6 +51,11 @@
      window.onerror = function (msg, url, line, col, error) {
        elmapp.ports.recordError.send(msg);
      };
+
+     bundle.mousewheel(function(dx,dy){
+       elmapp.ports.mousewheel.send([dx,dy]);
+     });
+
      document.title = window.location.hostname.split('.')[0] + " - Dark";
 
     </script>
