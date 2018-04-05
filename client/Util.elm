@@ -10,12 +10,8 @@ import Maybe.Extra as ME
 
 -- dark
 import Native.Window
-import Native.Timestamp
 import Native.Random
 import Native.Size
-
-timestamp : () -> Int
-timestamp a = Native.Timestamp.timestamp a
 
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
