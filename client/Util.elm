@@ -11,7 +11,6 @@ import Maybe.Extra as ME
 -- dark
 import Native.Window
 import Native.Random
-import Native.Size
 
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
@@ -19,10 +18,6 @@ windowSize a = let size = Native.Window.size a
 
 random : () -> Int
 random a = Native.Random.random a
-
-htmlSize : String -> (Float, Float)
-htmlSize str = let size = Native.Size.size str
-               in (size.width, size.height)
 
 deMaybe : String -> Maybe a -> a
 deMaybe msg x =
