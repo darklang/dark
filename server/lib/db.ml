@@ -292,6 +292,14 @@ let delete db (vals: dval_map) =
     (escape db.actual_name) (dval_to_sql id)
   |> run_sql
 
+let count db =
+  Printf.sprintf "SELECT COUNT(*) AS c FROM \"%s\""
+    (escape db.actual_name)
+  |> fetch_via_sql
+  |> List.hd_exn
+  |> List.hd_exn
+  |> int_of_string
+
 (* ------------------------- *)
 (* run all db and schema changes as migrations *)
 (* ------------------------- *)

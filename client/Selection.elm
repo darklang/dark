@@ -142,7 +142,12 @@ delete : Model -> TLID -> Maybe ID -> Modification
 delete m tlid mId =
   case mId of
     Nothing ->
-      Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+      let tl = TL.getTL m tlid
+      in
+      case tl.data of
+        TLHandler _ -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+        TLDB _ -> Many [ RPC ([DeleteTL tlid], FocusNothing), Deselect ]
+        TLFunc _ -> Error ("Cannot delete functions!")
     Just id ->
       let newID = gid ()
           wrapDB op = RPC ([op], FocusExact tlid newID)
