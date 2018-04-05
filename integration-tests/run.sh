@@ -38,7 +38,8 @@ fi
 echo "Setting up DNS for integration-tests -> $IP"
 CONF="address=/integration-tests/$IP"
 echo "$CONF" | sudo tee /etc/dnsmasq.d/dnsmasq-integration-tests.conf
-sudo service dnsmasq --full-restart
+sudo service dnsmasq stop
+sudo service dnsmasq start
 
 # Slowing this down massively slows down the test suite. If needed, we
 # can change this on an individual action:
