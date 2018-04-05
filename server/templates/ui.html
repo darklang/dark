@@ -52,7 +52,8 @@
        elmapp.ports.recordError.send(msg);
      };
 
-     bundle.mousewheel(function(dx,dy){
+     bundle.mousewheel(function(dx,dy, dz, ev){
+       ev.preventDefault();
        elmapp.ports.mousewheel.send([dx,dy]);
      });
 
