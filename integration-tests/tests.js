@@ -379,5 +379,59 @@ test('tabbing_through_let', async t => {
     .pressKey("enter")
 });
 
+test('case_sensitivity', async t => {
+  // store something in the DB and check we get it out
+  await t
+
+    // create the DB
+    .click("#grid", {offsetX: 50, offsetY: 50})
+    .typeText("#entry-box", "DB TestUnicode", slow)
+    .pressKey("enter")
+
+    .typeText("#entry-box", "cOlUmNnAmE", slow)
+    .pressKey("enter")
+    .typeText("#entry-box", "Str")
+    .pressKey("enter")
+
+
+    // store the data in the db
+    .pressKey("esc")
+    .click("#grid", {offsetX: 600, offsetY: 50})
+    .typeText("#entry-box", "{}") // line 1
+    .pressKey("shift+enter")
+    .typeText("#entry-box", "assoc", slow) // line 2
+    .pressKey("enter")
+    .typeText("#entry-box", "\"cOlUmNnAmE", slow)
+    .pressKey("enter")
+    .typeText("#entry-box", "\"some value", slow)
+    .pressKey("enter")
+    .typeText("#entry-box", "DB::ins", slow) // line 3
+    .pressKey("enter")
+    .typeText("#entry-box", "TestUn", slow)
+    .pressKey("enter")
+
+    // process the storing step
+    .click(".execution-button")
+
+    // fetch the data from the DB
+    .pressKey("esc")
+    .pressKey("esc")
+    .click("#grid", {offsetX: 50, offsetY: 650})
+    .typeText("#entry-box", "TestUn", slow)
+    .pressKey("shift+enter")
+    .typeText("#entry-box", "DB::fetchAll", slow) // line 2
+    .pressKey("enter")
+    .typeText("#entry-box", "List::head", slow) // line 2
+    .pressKey("enter")
+    .typeText("#entry-box", "lambda", slow)
+    .pressKey("enter")
+    .typeText("#entry-box", "var", slow)
+    .pressKey(".")
+    .typeText("#entry-box", "cOlUmNnAmE", slow)
+    .pressKey("enter")
+    .pressKey("esc")
+
+});
+
 
 
