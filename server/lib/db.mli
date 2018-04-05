@@ -19,6 +19,7 @@ val fetch_all : DbT.db -> RuntimeT.dval
 val fetch_by : DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
 val delete : DbT.db -> RuntimeT.dval_map -> unit
 val update : DbT.db -> RuntimeT.dval_map -> unit
+val count : DbT.db -> int
 
 (* DB schema modifications *)
 val create_new_db : tlid -> DbT.db -> unit

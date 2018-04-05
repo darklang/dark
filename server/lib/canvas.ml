@@ -101,9 +101,24 @@ let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
   { c with user_functions = fns @ [user_fn] }
 
 let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
-  let tls = List.filter ~f:(fun x -> x.tlid <> tlid) c.toplevels
+  let tls, removed =
+    List.partition_map
+      ~f:(fun x -> if x.tlid <> tlid then `Fst x else `Snd x)
+      c.toplevels
   in
-  { c with toplevels = tls }
+  let attempted_to_remove_db_with_data =
+    let dbs = List.filter_map ~f:TL.as_db removed in
+    match dbs with
+    | [] -> false
+    | db :: [] ->
+      if Db.count db > 0
+      then true
+      else false
+    | oops -> Exception.internal "Multiple DBs with same tlid"
+  in
+  if attempted_to_remove_db_with_data
+  then Exception.client "Cannot delete DBs with data"
+  else { c with toplevels = tls }
 
 let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) =
   match List.find ~f:(fun t -> t.tlid = tlid) c.toplevels with
