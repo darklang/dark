@@ -183,8 +183,8 @@ let admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
   (server_timing [t1; t2; t3; t4; t5], result)
   with
   | e ->
-    Event_queue.unset_scope ~status:`Err;
     let bt = Backtrace.Exn.most_recent () in
+    Event_queue.unset_scope ~status:`Err;
     let msg = Exn.to_string e in
     print_endline ("Exception: " ^ msg);
     print_endline (Backtrace.to_string bt);
