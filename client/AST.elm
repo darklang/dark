@@ -190,6 +190,17 @@ getParamIndex expr id =
                   else (name, i))
     _ -> Nothing
 
+threadPrevious : ID -> Expr -> Maybe Expr
+threadPrevious id ast =
+  let parent = parentOf_ id  ast in
+  case parent of
+    Just (F _ (Thread exprs)) ->
+      exprs
+      |> List.filter (\e -> B.toID e == id)
+      |> List.head
+      |> Maybe.andThen (\this -> Util.listPrevious this exprs)
+    _ -> Nothing
+
 
 -------------------------
 -- Children
