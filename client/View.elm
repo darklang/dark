@@ -18,6 +18,7 @@ import ViewScaffold
 import ViewRoutingTable
 import ViewCode
 import ViewDB
+import ViewData
 
 
 view : Model -> Html.Html Msg
@@ -73,14 +74,20 @@ viewFunction vs fn =
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let vs = createVS m tl
-      body =
+      (body, data) =
         case tl.data of
           TLHandler h ->
-            ViewCode.viewHandler vs h
+            ( ViewCode.viewHandler vs h
+            , ViewData.viewHandler vs h
+            )
           TLDB db ->
-            ViewDB.viewDB (createVS m tl) db
+            ( ViewDB.viewDB vs db
+            , []
+            )
           TLFunc f ->
-            [viewFunction (createVS m tl) f]
+            ( [viewFunction vs f]
+            , []
+            )
       events =
         [ eventNoPropagation "mousedown" (ToplevelMouseDown tl.id)
         , eventNoPropagation "mouseup" (ToplevelMouseUp tl.id)
@@ -102,7 +109,7 @@ viewTL m tl =
           [Attrs.class "sidebar-box"] -- see comment in css
           [Html.div
             (Attrs.class class :: events)
-            body
+            (body ++ data)
           ]
   in
       placeHtml m tl.pos html
