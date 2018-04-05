@@ -17,7 +17,6 @@ let users =
   ;["paul";"admin"; "paul"]
   ;["ellen"; "admin"; "ellen"]
   ;["stefi"; "admin"; "stefi"]
-  ;["cam"; "admin"; "cam"]
   ;["zane"; "admin"; "zane"]
   ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"]
   ;["aoife"; "dogtreats"; "aoife"]
