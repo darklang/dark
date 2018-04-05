@@ -50,7 +50,14 @@ viewHandler : ViewState -> Handler -> List (Html.Html Msg)
 viewHandler vs h =
   let requestEls = viewRequests vs h
       isSelecting = case vs.cursorState of
-        Selecting tlid id -> tlid == vs.tl.id && (not <| id == Nothing)
+        Selecting tlid id ->
+          case id of
+            Just id ->
+              let lv = vs.lvs |> Dict.get (deID id) in
+              case lv of
+                Just lv -> tlid == vs.tl.id
+                _ -> False
+            _ -> False
         _ -> False
       classes = if isSelecting then [Attrs.class "view-data live-view-selection-active"] else [Attrs.class "view-data"]
   in
