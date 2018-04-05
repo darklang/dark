@@ -17,6 +17,8 @@ import Types exposing (..)
 import Viewport
 import Toplevel as TL
 import Analysis
+import AST
+import Blank as B
 
 type alias ViewState =
   { tl: Toplevel
@@ -29,6 +31,7 @@ type alias ViewState =
   , ffDisabled : Bool
   , ufns: List UserFunction
   , results: List AResult
+  , relatedBlankOrs: List ID
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -45,6 +48,16 @@ createVS m tl = { tl = tl
                     _ -> True
                 , ufns = m.userFunctions
                 , results = Analysis.getAnalysisResults m tl.id
+                , relatedBlankOrs =
+                  case (unwrapCursorState m.cursorState, TL.asHandler tl) of
+                    (Entering (Filling _ id), Just h) ->
+                      case TL.find tl id of
+                        Just pd ->
+                          case TL.getParentOf tl pd of
+                            Just (PExpr e) -> e |> AST.usesOf |> List.map B.toID
+                            _ -> []
+                        _ -> []
+                    _ -> []
                 }
 
 fontAwesome : String -> Html.Html Msg
