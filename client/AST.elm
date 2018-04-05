@@ -268,6 +268,53 @@ childrenOf pid expr =
         FieldAccess obj field ->
           returnOr (\_ -> co obj) expr
 
+uses : VarName -> Expr -> List Expr
+uses var expr =
+  let is_rebinding newbind =
+        case newbind of
+          Blank _ -> False
+          Flagged _ _ _ _ _ -> False
+          F _ potential ->
+            if potential == var then True else False
+      u = uses var
+  in
+  case expr of
+    Blank _ -> []
+    Flagged _ _ _ _ _ -> []
+    F _ nexpr ->
+      case nexpr of
+        Value _ -> []
+        Variable potential ->
+          if potential == var then [expr] else []
+        Let lhs rhs body ->
+          if is_rebinding lhs then [] else List.concat [u rhs, u body]
+        If cond ifbody elsebody ->
+          List.concat [u cond, u ifbody, u elsebody]
+        FnCall name exprs ->
+          exprs |> List.map u |> List.concat
+        Lambda vars lexpr ->
+          if List.any (\v -> v == var) vars
+          then []
+          else u lexpr
+        Thread exprs ->
+          exprs |> List.map u |> List.concat
+        FieldAccess obj field ->
+          u obj
+
+usesOf : Expr -> List Expr
+usesOf expr =
+  case expr of
+    Blank _ -> []
+    Flagged _ _ _ _ _ -> []
+    F _ nexpr ->
+      case nexpr of
+        Let lhs rhs body ->
+          case lhs of
+            Blank _ -> []
+            Flagged _ _ _ _ _ -> [] -- unsupported rn
+            F _ varname -> uses varname body
+        _ -> []
+
 -------------------------
 -- Ancestors
 -------------------------
@@ -467,7 +514,38 @@ replace search replacement expr =
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind replacement) ->
         if B.within lhs sId
-        then F id (Let (B.replace sId replacement lhs) rhs body)
+        then
+          let replacementContent =
+                case replacement of
+                  Blank _ -> Nothing
+                  Flagged _ _ _ _ _ -> Nothing
+                  F _ var -> Just var
+              orig =
+                case lhs of
+                  Blank _ -> Nothing
+                  Flagged _ _ _ _ _ -> Nothing
+                  F _ var -> Just var
+              newBody =
+                  let uses = usesOf expr |> List.map PExpr
+                      transformUse replacementContent old =
+                        case old of
+                          PExpr e ->
+                            case e of
+                              Blank _ -> Debug.crash "impossible"
+                              Flagged _ _ _ _ _ -> Debug.crash "impossible"
+                              F _ _ ->
+                                PExpr (F (gid ()) (Variable replacementContent))
+                          _ -> Debug.crash "impossible"
+                  in
+                      case (orig, replacementContent) of
+                        (Just o, Just r) ->
+                          List.foldr
+                          (\use acc -> replace use (transformUse r use) acc)
+                          body
+                          uses
+                        _ -> body
+          in
+              F id (Let (B.replace sId replacement lhs) rhs newBody)
         else traverse r expr
 
       (F id (FieldAccess obj field), PField replacement) ->

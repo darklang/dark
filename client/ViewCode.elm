@@ -126,7 +126,11 @@ viewNExpr d id vs config e =
       a (wc cssClass :: wc "value" :: all ++ computedValue) valu
 
     Variable name ->
-      a (wc "variable" :: all) name
+      if List.member id vs.relatedBlankOrs
+      then
+        a (wc "variable" :: wc "related-change" :: all) (vs.ac.value)
+      else
+        a (wc "variable" :: all) name
 
     Let lhs rhs body ->
       let lhsID = B.toID lhs
