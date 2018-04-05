@@ -209,7 +209,7 @@ refilter query old  =
 
       index =
         -- Clear the highlight when you delete the content
-        if query == ""
+        if query == "" && old.value /= ""
         then -1
         else
           -- If an entry is highlighted, and you press another
