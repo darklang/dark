@@ -208,9 +208,14 @@ refilter query old  =
              LE.elemIndex oh (List.concat newCompletions))
 
       index =
-        -- Clear the highlight when you delete the content
-        if query == "" && old.value /= ""
-        then -1
+        -- Clear the highlight conditions
+        if query == "" &&
+        -- when we had previously highlighted something due to any actual match
+        ((old.index /= -1 && old.value /= query)
+        -- or this condition previously held and nothing has changed
+        || (old.index == -1))
+        then
+          -1
         else
           -- If an entry is highlighted, and you press another
           -- valid key for that entry, keep it highlighted
