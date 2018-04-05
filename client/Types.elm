@@ -172,6 +172,9 @@ type Msg
     | BlankOrMouseEnter TLID ID MouseEvent
     | BlankOrMouseLeave TLID ID MouseEvent
     | MouseWheel (List Int)
+    | DataClick TLID Int MouseEvent
+    | DataMouseEnter TLID Int MouseEvent
+    | DataMouseLeave TLID Int MouseEvent
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -363,6 +366,15 @@ type alias AResult = { astValue: LiveValue
 type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
+
+
+tlCursorID : TLID -> Int -> ID -- Generate ID for
+tlCursorID tlid idx =
+  let stringID = (toString (deTLID tlid)) ++ (toString idx)
+      intID = Result.withDefault 0 (String.toInt stringID)
+  in
+    (ID intID)
+
 
 type alias Name = String
 type CurrentPage = Toplevels

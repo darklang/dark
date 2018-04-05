@@ -28,6 +28,7 @@ type alias ViewState =
   , lvs: LVDict
   , ffDisabled : Bool
   , ufns: List UserFunction
+  , results: List AResult
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -43,6 +44,7 @@ createVS m tl = { tl = tl
                     TLHandler _ -> False
                     _ -> True
                 , ufns = m.userFunctions
+                , results = Analysis.getAnalysisResults m tl.id
                 }
 
 fontAwesome : String -> Html.Html Msg

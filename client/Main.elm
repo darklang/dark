@@ -519,11 +519,11 @@ update_ msg m =
               Key.Down -> Selection.selectDownLevel m tlid mId
               Key.Right ->
                 if event.altKey
-                then Selection.moveCursorForwardInTime m tlid
+                then Selection.moveCursorBackInTime m tlid
                 else Selection.selectNextSibling m tlid mId
               Key.Left ->
                 if event.altKey
-                then Selection.moveCursorBackInTime m tlid
+                then Selection.moveCursorForwardInTime m tlid
                 else Selection.selectPreviousSibling m tlid mId
               Key.Tab ->
                 case mId of
@@ -814,6 +814,12 @@ update_ msg m =
       in
       Viewport.moveTo destination
 
+    DataMouseEnter tlid idx _ ->
+      SetHover <| tlCursorID tlid idx
+
+    DataMouseLeave tlid idx _ ->
+      ClearHover <| tlCursorID tlid idx
+
 
     ------------------------
     -- dragging
@@ -913,6 +919,13 @@ update_ msg m =
       RPCFull ({ ops = []
                , executableFns = [(tlid, id)]
                }, FocusNoChange)
+
+    DataClick tlid idx _ ->
+      case m.cursorState of
+        Dragging _ _ _ origCursorState ->
+          SetCursorState origCursorState
+        _ -> SetCursor tlid idx
+
 
     -----------------
     -- Buttons
