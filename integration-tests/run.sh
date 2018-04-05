@@ -53,9 +53,11 @@ rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
 rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${DARK_CONFIG_RUN_DIR}/integration.json
 
-echo "Clearing test DBs"
-TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_)
-psql -d proddb -c "DROP TABLE $TESTDBS;"
+TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_ || true )
+if [[ "$TESTDBS" != "" ]]; then
+  echo "Clearing test DBs: $TESTDBS"
+  psql -d proddb -c "DROP TABLE $TESTDBS;"
+fi
 
 
 TEST_HOST="integration-tests:$PORT" \
