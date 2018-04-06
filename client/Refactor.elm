@@ -2,6 +2,7 @@ module Refactor exposing (extractFunction)
 
 -- lib
 import List.Extra as LE
+import Set
 
 -- Dark
 import Types exposing (..)
@@ -36,7 +37,7 @@ extractFunction m tl p =
           name = generateFnName ()
           -- TODO: do actual analysis to figure out
           -- what vars are 'free'
-          vars = AST.allData body
+          lets = AST.allData body
                |> List.filterMap
                  (\n ->
                    case n of
@@ -44,16 +45,40 @@ extractFunction m tl p =
                        case Blank.flattenFF boe of
                          Blank _ -> Nothing
                          Flagged _ _ _ _ _ -> Nothing
-                         F id e ->
+                         F id e as expr ->
                            case e of
-                             Variable name -> Just (id, name)
+                             Let lhs rhs body-> Just expr
                              _ -> Nothing
                      _ -> Nothing)
-                |> LE.uniqueBy
-                  (\(_, name) -> name)
+          uses =
+            lets
+            |> List.map AST.usesOf
+            |> List.concat
+            |> List.map (Blank.toID >> deID)
+            |> Set.fromList
+
+          freeVars =
+            AST.allData body
+            |> List.filterMap
+              (\n ->
+                case n of
+                  PExpr boe ->
+                    case Blank.flattenFF boe of
+                      Blank _ -> Nothing
+                      Flagged _ _ _ _ _ -> Nothing
+                      F id e ->
+                        case e of
+                          Variable name ->
+                            if Set.member (deID id) uses
+                            then Nothing
+                            else Just (id, name)
+                          _ -> Nothing
+                  _ -> Nothing)
+            |> LE.uniqueBy
+              (\(_, name) -> name)
 
           paramExprs =
-            List.map (\(_, name) -> F (gid ()) (Variable name)) vars
+            List.map (\(_, name) -> F (gid ()) (Variable name)) freeVars
           replacement =
             PExpr (F (gid ()) (FnCall name paramExprs))
           h =
@@ -76,7 +101,7 @@ extractFunction m tl p =
                   , optional = False
                   , description = ""
                   })
-                  vars
+                  freeVars
           metadata =
             { name = name
             , parameters = params
