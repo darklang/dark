@@ -95,16 +95,20 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler !c req
   | [] ->
+    let input = PReq.from_request req body in
+    Stored_event.store_event subdomain ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
     let headers = Cohttp.Header.of_list [cors] in
     respond ~headers `Not_found "404: No page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request req body in
-    Stored_event.store subdomain page.tlid (PReq.to_dval input);
     let bound = Http.bind_route_params_exn ~uri ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = Db.dbs_as_exe_env (dbs) in
     Db.cur_dbs := dbs;
+    (match (Handler.event_desc_for page) with
+    | Some desc -> Stored_event.store_event subdomain desc (PReq.to_dval input)
+    | _-> ());
     let env = Util.merge_left bound dbs_env in
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
@@ -162,13 +166,13 @@ let admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load domain params.ops) in
 
-    let (t3, envs) = time "3-create-envs"
+    let (t3, (envs, f404s)) = time "3-create-envs"
       (fun _ ->
         Event_queue.set_scope !c.name;
         C.create_environments !c domain) in
 
     let (t4, result) = time "4-to-frontend"
-      (fun _ -> C.to_frontend_string envs params.executable_fns !c) in
+      (fun _ -> C.to_frontend_string envs f404s params.executable_fns !c) in
 
     let (t5, _) = time "5-save-to-disk"
       (fun _ ->

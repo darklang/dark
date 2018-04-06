@@ -31,7 +31,10 @@ let dequeue_and_evaluate_all () : string =
                     (match Event_queue.dequeue space name with
                      | None -> None
                      | Some event ->
-                       Stored_event.store endpoint q.tlid (event.value);
+                       (match Handler.event_desc_for q with
+                       | Some desc ->
+                         Stored_event.store_event endpoint desc event.value
+                       | None -> ());
                        let dbs = TL.dbs !c.toplevels in
                        let dbs_env = Db.dbs_as_exe_env (dbs) in
                        Db.cur_dbs := dbs;
