@@ -327,6 +327,21 @@ generateFromModel m a =
           Just (_, p) -> P.typeOf p == Expr
           Nothing -> True
 
+      isThreadMember =
+        case a.target of
+          Nothing -> False
+          Just (tlid, p) ->
+            TL.get m tlid
+            |> Maybe.andThen TL.asHandler
+            |> Maybe.map .ast
+            |> Maybe.andThen (AST.parentOf_ (P.toID p))
+            |> Maybe.map
+              (\e ->
+                case e of
+                  F _ (Thread _) -> True
+                  _ -> False)
+            |> Maybe.withDefault False
+
       -- functions
       funcList = if showFunctions then a.functions else []
       functions =
@@ -339,7 +354,12 @@ generateFromModel m a =
         |> List.filter
           (\fn ->
              case lv of
-               Just {tipe} -> Nothing /= findParamByType fn tipe
+               Just {tipe} ->
+                 if isThreadMember
+                 then
+                   Nothing /= findCompatibleThreadParam fn tipe
+                 else
+                   Nothing /= findParamByType fn tipe
                Nothing -> True)
         |> List.map ACFunction
 
@@ -425,6 +445,15 @@ jsonFields json =
     |> Dict.keys
     |> List.map ACField
 
+findCompatibleThreadParam : Function -> Tipe -> Maybe Parameter
+findCompatibleThreadParam {parameters} tipe =
+  parameters
+  |> List.head
+  |> Maybe.andThen
+      (\fst ->
+        if RT.isCompatible fst.tipe tipe
+        then Just fst
+        else Nothing)
 
 findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
