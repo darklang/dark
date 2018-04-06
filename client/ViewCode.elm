@@ -14,7 +14,6 @@ import Types exposing (..)
 import Util exposing (deMaybe)
 import Runtime as RT
 import AST
-import Toplevel as TL
 import Blank as B
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
@@ -168,12 +167,19 @@ viewNExpr d id vs config e =
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
                     |> .infix
-          previous = vs.tl
-                     |> TL.asHandler
-                     |> deMaybe ""
-                     |> .ast
-                     |> AST.threadPrevious id
-                     |> ME.toList
+          previous =
+            case vs.tl.data of
+              TLHandler h ->
+                h.ast
+                |> AST.threadPrevious id
+                |> ME.toList
+              TLFunc f ->
+                f.ast
+                |> AST.threadPrevious id
+                |> ME.toList
+              TLDB db ->
+                Debug.crash "impossible, ViewCode is for AST only"
+
           allExprs = previous ++  exprs
           paramsComplete = List.all (\b -> b
                                            |> B.toID
