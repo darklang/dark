@@ -311,11 +311,16 @@ generateFromModel m a =
             |> Maybe.andThen (\lv -> if lv.tipe == TIncomplete
                                      then Nothing
                                      else Just lv)
-      fields = case lv of
-                 Just lv -> if lv.tipe == TObj
-                            then jsonFields lv.json
-                            else []
-                 Nothing -> []
+      fields =
+        case lv of
+          Just lv ->
+            case (a.target, lv.tipe) of
+              (Just (_, p), TObj) ->
+                if P.typeOf p == Field
+                then jsonFields lv.json
+                else []
+              _ -> []
+          Nothing -> []
 
       showFunctions =
         case a.target of
