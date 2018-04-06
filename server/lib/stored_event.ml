@@ -2,78 +2,87 @@ open Core
 
 module RTT = Types.RuntimeT
 
+type event_desc = string * string * string
+type four_oh_four = (event_desc * Types.RuntimeT.dval list)
+
 (* ------------------------- *)
 (* Internal *)
 (* ------------------------- *)
 
 let file_ext  = ".events.json"
 
-let dir_name (host: string) (id: int) : string =
-  Config.events_dir ^ host ^ "-" ^ (string_of_int id)
+let dir_name (host: string) (space, _, modifier : event_desc) : string =
+  Config.events_dir ^ host ^ "/" ^ space ^ "/" ^ modifier
 
-let mkdir (host: string) (id: int) : unit =
-  Unix.mkdir_p (dir_name host id)
+let mkdir (host: string) (desc : event_desc) : unit =
+  Unix.mkdir_p (dir_name host desc)
 
 let is_request (name: string) : bool =
   String.is_suffix name ~suffix:file_ext
 
-let parse_seq_idx (name: string) : int option =
-  let re = Str.regexp "\\([0-9]+\\)" in
-  try
-    (* this throws if Not found *)
-    let _ = Str.search_forward re name 0 in
-    let first_match = Str.matched_group 0 name in
-    (* this throws if we can't parse as an int for whatever reason *)
-    Some (int_of_string first_match)
-  with
-  | _ -> None
+let parse_seq_idx ~path (filename: string) : int option =
+  let prefix = path ^ "::" in
+  if String.is_prefix ~prefix filename
+  then
+    filename
+    |> String.chop_prefix_exn ~prefix
+    |> String.chop_suffix_exn ~suffix:file_ext
+    |> int_of_string
+    |> fun idx -> Some idx
+  else
+    None
 
-let parse_seq_idx_exn (name: string) : int =
-  match parse_seq_idx name with
-  | Some s -> s
-  | None -> failwith ("parse_seq_idx_exn failed to parse number from: " ^ name)
-
-let ls (host: string) (id: int) : string list =
-  Sys.ls_dir (dir_name host id)
+let ls (host: string) (desc : event_desc) : string list =
+  Sys.ls_dir (dir_name host desc)
   |> List.filter ~f:is_request
-  |> List.sort
-    ~cmp:(fun x y ->
-        Pervasives.compare (parse_seq_idx_exn x) (parse_seq_idx_exn y))
 
-let next_seq (files: string list) : int =
+let next_seq (files: string list) ~path : int =
   files
-  |> List.filter_map ~f:parse_seq_idx
+  |> List.filter_map ~f:(parse_seq_idx ~path)
   |> List.fold_left
        ~f:(fun acc x -> max acc x) ~init:1
   |> (+) 1
 
-let next_filename (host: string) (id: int) : string =
+let next_filename (host: string) (desc : event_desc) : string =
+  let (_, path, _) = desc in
   let next_number =
     try
-      ls host id
-      |> next_seq
+      ls host desc
+      |> next_seq ~path
     with
     | _ -> 1
   in
-  let dir = dir_name host id in
-  dir ^ "/" ^ (string_of_int next_number) ^ file_ext
+  let dir = dir_name host desc in
+  dir ^ "/" ^ path ^ "::" ^ (string_of_int next_number) ^ file_ext
 
 (* ------------------------- *)
 (* Exported *)
 (* ------------------------- *)
 
-(* TODO(ian): tag the event so if a handler changes from http -> async
- * that namespace them etc. *)
-let store (host: string) (id: int) (event: RTT.dval) : unit =
-  mkdir host id;
-  let filename = next_filename host id in
+let store_event host desc event : unit =
+  mkdir host desc;
+  let filename = next_filename host desc in
   let s = Dval.dval_to_yojson event in
   Yojson.Safe.to_file filename s
 
-let load_all (host: string) (id: int) : RTT.dval list =
-  ls host id
+(* We store a set of events for each host. The events may or may not
+ * belong to a toplevel. We provide a list in advance so that they can
+ * be partitioned effectively *)
+let list_events (host: string) : (event_desc) list =
+  []
+
+let load_events (host: string) (desc : event_desc) : RTT.dval list =
+  ls host desc
   |> List.map
-    ~f:(fun x -> (dir_name host id) ^ "/" ^ x)
+    ~f:(fun x -> (dir_name host desc) ^ "/" ^ x)
   |> List.map
        ~f:(fun f -> f |> Yojson.Safe.from_file |> Dval.dval_of_yojson_)
+
+
+let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Yojson.Safe.json =
+  `List [ `String space
+        ; `String path
+        ; `String modifier
+        ; `List (List.map ~f:Dval.dval_to_yojson dvals)
+        ]
 

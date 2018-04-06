@@ -7,6 +7,7 @@ module RT = Runtime
 module TL = Toplevel
 module PReq = Parsed_request
 module FF = FeatureFlag
+module SE = Stored_event
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { name : string
@@ -219,7 +220,6 @@ let save (c : canvas) : unit =
        ())
 
 
-
 let save_test (c: canvas) : string =
   let c = minimize c in
   let name = "test_" ^ c.name in
@@ -236,7 +236,9 @@ let save_test (c: canvas) : string =
 (* To Frontend JSON *)
 (* ------------------------- *)
 
-let to_frontend (environments: RTT.env_map) (exe_fn_ids: Api.executable_fns) (c : canvas) : Yojson.Safe.json =
+let to_frontend (environments: RTT.env_map)
+    (f404s : SE.four_oh_four list)
+    (exe_fn_ids: Api.executable_fns) (c : canvas) : Yojson.Safe.json =
   let available_reqs id =
     match RTT.EnvMap.find environments id with
     | Some e -> e
@@ -292,16 +294,24 @@ let to_frontend (environments: RTT.env_map) (exe_fn_ids: Api.executable_fns) (c 
         [ ("analyses", `List vals)
         ; ("global_varnames",
            (* TODO(ian) *)
-           `List (RTT.DvalMap.keys (RTT.EnvMap.find_exn environments 0 |> List.hd_exn)
+           `List (RTT.EnvMap.find_exn environments 0
+                  |> List.hd_exn
+                  |> RTT.DvalMap.keys
                   |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
-        ; ("user_functions", `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
+        ; ("404s", `List (List.map ~f:SE.four_oh_four_to_yojson f404s))
+        ; ("user_functions",
+           `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
         ; ("redoable", `Bool (is_redoable c))
         ; ("undo_count", `Int (undo_count c))
         ; ("undoable", `Bool (is_undoable c)) ]
 
-let to_frontend_string (environments: RTT.env_map) (exe_fn_ids: Api.executable_fns) (c: canvas) : string =
-  c |> to_frontend environments exe_fn_ids |> Yojson.Safe.pretty_to_string ~std:true
+let to_frontend_string (environments: RTT.env_map)
+    (f404s : SE.four_oh_four list)
+    (exe_fn_ids: Api.executable_fns) (c: canvas) : string =
+  c
+  |> to_frontend environments f404s exe_fn_ids
+  |> Yojson.Safe.pretty_to_string ~std:true
 
 (* ------------------------- *)
 (* Routing *)
@@ -331,42 +341,76 @@ let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Han
 (* Events *)
 (* ------------------------- *)
 
-let create_environments (c: canvas) (host: string) : RTT.env_map =
+let create_environments (c: canvas) (host: string) :
+  (RTT.env_map * SE.four_oh_four list) =
+
   let dbs = TL.dbs c.toplevels in
-  let dbs_env = Db.dbs_as_env dbs in
   Db.cur_dbs := dbs;
+
+  let initial_env = Db.dbs_as_env dbs in
   let sample_request = PReq.sample |> PReq.to_dval in
   let sample_event = RTT.DObj (RTT.DvalMap.empty) in
   let default_env =
-    dbs_env
+    initial_env
     |> RTT.DvalMap.set ~key:"request" ~data:sample_request
     |> RTT.DvalMap.set ~key:"event" ~data:sample_event
   in
+
+  let descs = SE.list_events host in
+  let match_desc h (space, path, modifier) : bool =
+    match Handler.event_desc_for h with
+    | Some (h_space, h_path, h_modifier) ->
+      Http.path_matches_route ~path h_path
+      && h_modifier = modifier
+      && h_space = space
+    | None -> false
+  in
+
+
   let env_map acc (h : Handler.handler) =
     let h_envs =
-      try
-        Stored_event.load_all host h.tlid
-      with
-      | _ ->
+      let default =
         if Handler.is_http h
         then [sample_request]
-        else [sample_event]
+        else [sample_event] in
+      try
+        descs
+        |> List.filter ~f:(match_desc h)
+        |> List.map ~f:(SE.load_events host)
+        |> List.concat
+        |> fun ds -> if ds = [] then default else ds
+      with _ -> default
     in
     let new_envs =
       List.map h_envs
         ~f:(fun e ->
             if Handler.is_http h
-            then RTT.DvalMap.set dbs_env "request" e
-            else RTT.DvalMap.set dbs_env "event" e)
+            then RTT.DvalMap.set initial_env "request" e
+            else RTT.DvalMap.set initial_env "event" e)
     in
     RTT.EnvMap.set acc h.tlid new_envs
   in
-  let tls_map =
-    List.fold_left ~init:RTT.EnvMap.empty ~f:env_map (TL.handlers c.toplevels)
+
+  let unused_descs =
+    descs
+    |> List.filter
+      ~f:(fun d ->
+          not (List.exists (TL.handlers c.toplevels)
+                 ~f:(fun h -> match_desc h d)))
+    |> List.map ~f:(fun d -> (d, SE.load_events host d))
+
   in
+
+  let tls_map =
+    List.fold_left ~init:RTT.EnvMap.empty ~f:env_map
+      (TL.handlers c.toplevels)
+  in
+
+
   (* TODO(ian): using 0 as a default, come up with better idea
    * later *)
-  RTT.EnvMap.set tls_map 0 [default_env]
+  let envs = RTT.EnvMap.set tls_map 0 [default_env] in
+  (envs, unused_descs)
 
 
 
