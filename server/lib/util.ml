@@ -53,3 +53,10 @@ let merge_left = Map.merge ~f:(fun ~key v ->
 let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
   List.length (List.filter ~f l) > 0
 
+let hash (input: string) : string =
+  input
+  |> Cstruct.of_string
+  |> Nocrypto.Hash.SHA1.digest
+  |> Cstruct.to_string
+  |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+

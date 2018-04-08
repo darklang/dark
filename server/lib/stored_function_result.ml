@@ -20,10 +20,7 @@ let hash (arglist : RTT.dval list) : string =
   arglist
   |> List.map ~f:Dval.to_internal_repr
   |> String.concat
-  |> Cstruct.of_string
-  |> Nocrypto.Hash.SHA1.digest
-  |> Cstruct.to_string
-  |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+  |> Util.hash
 
 let basename (fnname: string) (id: id) (arglist : RTT.dval list)
  : string =
