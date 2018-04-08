@@ -68,7 +68,7 @@ let next_seq (files: string list) ~path : int =
   files
   |> List.filter_map ~f:(parse_seq_idx ~path)
   |> List.fold_left
-       ~f:(fun acc x -> max acc x) ~init:1
+       ~f:(fun acc x -> max acc x) ~init:(-1)
   |> (+) 1
 
 let next_filename (host: string) (desc : event_desc) : string =
