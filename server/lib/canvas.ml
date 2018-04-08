@@ -236,9 +236,10 @@ let save_test (c: canvas) : string =
 (* To Frontend JSON *)
 (* ------------------------- *)
 
-let to_frontend (environments: RTT.env_map)
-    (f404s : SE.four_oh_four list)
-    (exe_fn_ids: Api.executable_fns) (c : canvas) : Yojson.Safe.json =
+let to_frontend
+    (environments: RTT.env_map) (f404s : SE.four_oh_four list)
+    (exe_fn_ids: Api.executable_fns) (c : canvas)
+  : Yojson.Safe.json =
   let available_reqs id =
     match RTT.EnvMap.find environments id with
     | Some e -> e
