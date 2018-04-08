@@ -11,11 +11,21 @@ type four_oh_four = (event_desc * Types.RuntimeT.dval list)
 
 let file_ext  = ".events.json"
 
-let dir_name (host: string) (space, _, modifier : event_desc) : string =
-  Config.events_dir ^ host ^ "/" ^ space ^ "/" ^ modifier
+let host_dir_name (host: string) : string =
+  Config.events_dir ^ host
 
-let mkdir (host: string) (desc : event_desc) : unit =
-  Unix.mkdir_p (dir_name host desc)
+let space_dir_name (host: string) (space: string) : string =
+  host_dir_name host ^ "/" ^ space
+
+let dir_name (host: string) (space, _, modifier : event_desc) : string =
+  space_dir_name host space ^ "/" ^ modifier
+
+let ls_dir dir =
+  (* avoid exceptions during lsdirs. We don't want to wrap everything in
+   * a try/with incase it masks other errors. *)
+  Unix.mkdir_p dir;
+  Sys.ls_dir dir
+  |> Log.pp ("ls of " ^ dir)
 
 let is_request (name: string) : bool =
   String.is_suffix name ~suffix:file_ext
@@ -32,8 +42,24 @@ let parse_seq_idx ~path (filename: string) : int option =
   else
     None
 
-let ls (host: string) (desc : event_desc) : string list =
-  Sys.ls_dir (dir_name host desc)
+let ls_host (host: string) : event_desc list =
+  ls_dir (host_dir_name host)
+  |> List.map ~f:(fun space ->
+      ls_dir (space_dir_name host space)
+      |> List.map ~f:(fun mod_ ->
+          ls_dir (dir_name host (space, "", mod_))
+          |> List.map ~f:(fun path ->
+              path
+              |> String.lsplit2_exn ~on:':'
+              |> fun (path, _) ->
+                  (space, path, mod_))))
+  |> List.concat
+  |> List.concat
+
+
+
+let ls_descs (host: string) (desc : event_desc) : string list =
+  ls_dir (dir_name host desc)
   |> List.filter ~f:is_request
 
 let next_seq (files: string list) ~path : int =
@@ -47,20 +73,23 @@ let next_filename (host: string) (desc : event_desc) : string =
   let (_, path, _) = desc in
   let next_number =
     try
-      ls host desc
+      ls_descs host desc
       |> next_seq ~path
     with
     | _ -> 1
   in
   let dir = dir_name host desc in
-  dir ^ "/" ^ path ^ "::" ^ (string_of_int next_number) ^ file_ext
+  dir ^ "/"
+    ^ String.escaped path
+    ^ "::"
+    ^ (string_of_int next_number)
+    ^ file_ext
 
 (* ------------------------- *)
 (* Exported *)
 (* ------------------------- *)
 
 let store_event host desc event : unit =
-  mkdir host desc;
   let filename = next_filename host desc in
   let s = Dval.dval_to_yojson event in
   Yojson.Safe.to_file filename s
@@ -69,10 +98,10 @@ let store_event host desc event : unit =
  * belong to a toplevel. We provide a list in advance so that they can
  * be partitioned effectively *)
 let list_events (host: string) : (event_desc) list =
-  []
+  ls_host host
 
 let load_events (host: string) (desc : event_desc) : RTT.dval list =
-  ls host desc
+  ls_descs host desc
   |> List.map
     ~f:(fun x -> (dir_name host desc) ^ "/" ^ x)
   |> List.map
