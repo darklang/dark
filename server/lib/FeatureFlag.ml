@@ -97,10 +97,7 @@ let fingerprint_user ip headers : feature_flag =
     |> List.map ~f:Tuple.T2.get2
     |> (@) [ip]
     |> String.concat
-    |> Cstruct.of_string
-    |> Nocrypto.Hash.SHA1.digest
-    |> Cstruct.to_string
-    |> B64.encode
+    |> Util.hash
     |> make
 
 
