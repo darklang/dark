@@ -13,14 +13,16 @@ type four_oh_four = (event_desc * Types.RuntimeT.dval list)
 
 let file_ext  = ".events.json"
 
+let (/) = Filename.concat
+
 let host_dir_name (host: string) : string =
-  Config.events_dir ^ host
+  Config.events_dir / host
 
 let space_dir_name (host: string) (space: string) : string =
-  host_dir_name host ^ "/" ^ space
+  host_dir_name host / space
 
 let dir_name (host: string) (space, _, modifier : event_desc) : string =
-  space_dir_name host space ^ "/" ^ modifier
+  space_dir_name host space / modifier
 
 let ls_dir dir =
   (* avoid exceptions during lsdirs. We don't want to wrap everything in
@@ -38,7 +40,7 @@ let parse_seq_idx ~path (filename: string) : int option =
   then
     filename
     |> String.chop_prefix_exn ~prefix
-    |> String.chop_suffix_exn ~suffix:file_ext
+    |> Filename.chop_extension
     |> int_of_string
     |> fun idx -> Some idx
   else
@@ -74,18 +76,16 @@ let next_seq (files: string list) ~path : int =
 let next_filename (host: string) (desc : event_desc) : string =
   let (_, path, _) = desc in
   let next_number =
-    try
-      ls_descs host desc
-      |> next_seq ~path
-    with
-    | _ -> 1
+    ls_descs host desc
+    |> next_seq ~path
   in
   let dir = dir_name host desc in
-  dir ^ "/"
-    ^ String.escaped path
-    ^ "::"
-    ^ (string_of_int next_number)
-    ^ file_ext
+  let filename = String.escaped path
+               ^ "::"
+               ^ (string_of_int next_number)
+               ^ file_ext
+  in
+  dir / filename
 
 (* ------------------------- *)
 (* Exported *)
