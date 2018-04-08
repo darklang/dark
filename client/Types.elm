@@ -8,6 +8,7 @@ import Navigation
 import Mouse
 import Time exposing (Time)
 import PageVisibility
+import Json.Decode as JSD
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -129,7 +130,7 @@ idOf s =
 type Action = RefreshAnalyses
 
 type alias GlobalVariable = String
-type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable, List UserFunction)
+type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable, List UserFunction, List FourOhFour)
 type alias GetAnalysisRPCResult = (List TLAResult, List GlobalVariable)
 type Msg
     = GlobalClick MouseEvent
@@ -369,6 +370,8 @@ type alias TLAResult = { id: TLID
                        , results: List AResult
                        }
 
+type alias FourOhFour = (String, String, String, List JSD.Value)
+
 
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
@@ -400,6 +403,7 @@ type alias Model = { center : Pos
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
+                   , f404s : List FourOhFour
                    , integrationTestState : IntegrationTestState
                    , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
@@ -432,7 +436,8 @@ type Modification = Error String
                   | SetHover ID
                   | ClearHover ID
                   | Deselect
-                  | SetToplevels (List Toplevel) (List TLAResult) (List GlobalVariable) (List UserFunction)
+                  | SetToplevels (List Toplevel) (List TLAResult) (List
+                  GlobalVariable) (List UserFunction) (List FourOhFour)
                   | Enter EntryCursor
                   | RPCFull (RPCParams, Focus)
                   | RPC (List Op, Focus) -- shortcut for RPCFull

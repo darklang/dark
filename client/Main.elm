@@ -381,11 +381,12 @@ updateMod mod (m, cmd) =
         newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
 
 
-      SetToplevels tls tlars globals userFuncs ->
+      SetToplevels tls tlars globals userFuncs f404s ->
         let m2 = { m | toplevels = tls
                      , analysis = tlars
                      , globals = globals
                      , userFunctions = userFuncs
+                     , f404s = f404s
                  }
             (complete, acCmd) =
               processAutocompleteMods m2 [ ACRegenerate ]
@@ -830,7 +831,7 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move draggingTLID xDiff yDiff m in
-          Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions
+          Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions m2.f404s
                , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origCursorState
                ]
         _ -> NoChange
@@ -966,10 +967,11 @@ update_ msg m =
     NavigateTo url ->
       MakeCmd (Navigation.newUrl url)
 
-    RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals, userFuncs)) ->
+    RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals,
+        userFuncs, f404s)) ->
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels analysis globals userFuncs
+        Many [ SetToplevels toplevels analysis globals userFuncs f404s
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              ]
@@ -978,7 +980,7 @@ update_ msg m =
             newState = processFocus m2 focus
         -- TODO: can make this much faster by only receiving things that have
         -- been updated
-        in Many [ SetToplevels toplevels analysis globals userFuncs
+        in Many [ SetToplevels toplevels analysis globals userFuncs f404s
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -989,7 +991,7 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     GetAnalysisRPCCallback (Ok (analysis, globals)) ->
-      SetToplevels m.toplevels analysis globals m.userFunctions
+      SetToplevels m.toplevels analysis globals m.userFunctions m.f404s
 
     ------------------------
     -- plumbing
