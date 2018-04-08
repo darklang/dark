@@ -46,6 +46,7 @@ defaultModel = { error = Nothing
                , toplevels = []
                , analysis = []
                , globals = []
+               , f404s = []
                , integrationTestState = NoIntegrationTest
                , visibility = PageVisibility.Hidden
                -- saved in editor
