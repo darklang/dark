@@ -45,8 +45,9 @@ let execute_ops (ops : Op.op list) : dval =
   Ast.execute state DvalMap.empty h.ast
 
 
-let check_dval = AT.check (AT.testable pp_dval (=))
-let check_canvas = AT.check (AT.testable C.pp_canvas C.equal_canvas)
+let at_dval = AT.of_pp pp_dval
+let at_dval_list = AT.list at_dval
+let check_dval = AT.check at_dval
 
 let handler ast =
   Op.SetHandler ( 7
@@ -153,6 +154,42 @@ let t_lambda_with_foreach () =
   let r = execute_ops [handler ast] in
   check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
 
+module SE = Stored_event
+let t_stored_event_roundtrip () =
+  let desc1 = ("HTTP", "/path", "GET") in
+  let desc2 = ("HTTP", "/path2", "GET") in
+  let desc3 = ("HTTP", "/path", "POST") in
+  SE.store_event "host" desc1 (DStr "1");
+  SE.store_event "host" desc1 (DStr "2");
+  SE.store_event "host" desc3 (DStr "3");
+  SE.store_event "host" desc2 (DStr "3");
+  SE.store_event "host2" desc2 (DStr "3");
+
+  let at_desc = AT.of_pp SE.pp_event_desc in
+
+  let listed = SE.list_events "host" in
+  AT.check
+    (AT.list at_desc) "list host events" [desc1; desc2; desc3] listed;
+
+  let loaded1 = SE.load_events "host" desc1 in
+  AT.check
+    (AT.list at_dval) "load GET events" [DStr "1"; DStr "2"] loaded1;
+
+  let loaded2 = SE.load_events "host" desc3 in
+  AT.check
+    (AT.list at_dval) "load POST events" [DStr "3"] loaded2;
+
+  let loaded3 = SE.load_events "host2" desc3 in
+  AT.check
+    (AT.list at_dval) "load no host2 events" [] loaded3;
+
+  let loaded4 = SE.load_events "host2" desc2 in
+  AT.check
+    (AT.list at_dval) "load host2 events" [DStr "3"] loaded4;
+
+  ()
+
+
 
 let t_hmac_signing _ =
   let url = "https://api.twitter.com/1.1/statuses/update.json" in
@@ -213,6 +250,7 @@ let suite =
   ; "undo_fns", `Slow, t_undo_fns
   ; "int_add_works", `Slow, t_int_add_works
   ; "lambda_with_foreach", `Slow, t_lambda_with_foreach
+  ; "stored_events", `Slow, t_stored_event_roundtrip
   ]
 
 let () =

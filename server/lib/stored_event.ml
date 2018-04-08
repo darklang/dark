@@ -3,7 +3,9 @@ open Core
 module RTT = Types.RuntimeT
 
 type event_desc = string * string * string
+                [@@deriving show]
 type four_oh_four = (event_desc * Types.RuntimeT.dval list)
+                  [@@deriving show]
 
 (* ------------------------- *)
 (* Internal *)
