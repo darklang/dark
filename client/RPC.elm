@@ -592,13 +592,22 @@ decodeUserFunction =
       |> JSDP.required "metadata" decodeFunction
       |> JSDP.required "ast" decodeExpr
 
+decode404 : JSD.Decoder FourOhFour
+decode404 =
+  JSD.map4 (,,,)
+    (JSD.index 0 JSD.string)
+    (JSD.index 1 JSD.string)
+    (JSD.index 2 JSD.string)
+    (JSD.index 3 (JSD.list JSD.value))
+
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,,,)
+  JSDP.decode (,,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
+  |> JSDP.required "404s" (JSD.list decode404)
 
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisRPCResult
 decodeGetAnalysisRPC =
