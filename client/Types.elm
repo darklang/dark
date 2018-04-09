@@ -172,6 +172,7 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
+    | EndFeatureFlag ID
     | EditFunction
     | ReturnToMainCanvas
     | BlankOrClick TLID ID MouseEvent
