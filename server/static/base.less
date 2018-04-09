@@ -131,6 +131,7 @@ body #grid * {
   display: flex;
   flex-direction: column;
   width: max-content;
+  min-width: 245px;
   padding: 4px;
   border: @top-border;
 
@@ -281,6 +282,7 @@ body #grid * {
     background-repeat: no-repeat;
     padding-left: 20px; /* Adjust according to image size to push text across. */
     margin-bottom: 10px;
+    margin: 0 auto; /* center the db name */
     &::before {
       content: "DB: ";
       font-weight: bold;
@@ -291,11 +293,12 @@ body #grid * {
   .col {
     display: flex;
     flex-direction: row;
+    text-align: center;
 
     .name, .type {
-      flex: 1 0 0;
+      flex: 1;
       &.blank {
-        width: 96px; // put it all on one line
+        width: 96; // put it all on one line
       }
     }
 
@@ -358,10 +361,6 @@ body #grid * {
   color: @grey2;
   font-style: italic;
   font-size: 8pt;
-  padding-left: 1ch;
-  padding-right: 1ch;
-  margin-left: 4px;
-  margin-right: 4px;
   text-align: center;
 }
 
@@ -610,6 +609,7 @@ body #grid * {
   }
   #autocomplete-holder {
 
+    text-align: initial;
     overflow-y: scroll;
     max-height: 90px;
     font-size: 85%;
