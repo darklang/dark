@@ -322,7 +322,17 @@ viewBlankOr htmlFn pt vs c bo =
               []
           ]
 
-
+      drawEndFeatureFlag setting ffID =
+        let (actionClass, icon) =
+              if setting == 0 || setting == 100
+              then ("valid-action", "check")
+              else ("invalid-action", "window-close")
+        in
+        Html.div
+        [ Attrs.class (String.join " " ["end-ff", actionClass])
+        , Attrs.attribute "data-content" "Click to finalize and remove flag"
+        , eventNoPropagation "click" (\_ -> EndFeatureFlag ffID)]
+        [ fontAwesome icon ]
 
       drawFlagged id msg setting l r =
          if isSelectionWithin (Flagged id msg setting l r)
@@ -333,6 +343,7 @@ viewBlankOr htmlFn pt vs c bo =
               [ fontAwesome "flag"
               , viewText FFMsg vs [wc "flag-message"] msg
               , drawSetting id setting
+              , drawEndFeatureFlag setting id
               , div vs [wc "flag-left nested-flag"]
                   [viewBlankOr htmlFn pt vs [] l]
               , div vs [wc "flag-right nested-flag"]
@@ -389,6 +400,7 @@ viewFeatureFlag =
     [ Attrs.class "feature-flag"
     , eventNoPropagation "click" (\_ -> StartFeatureFlag)]
     [ fontAwesome "flag"]
+
 
 viewEditFn : Bool -> Html.Html Msg
 viewEditFn hasFlagAlso =
