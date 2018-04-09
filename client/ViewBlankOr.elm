@@ -326,7 +326,7 @@ viewBlankOr htmlFn pt vs c bo =
         let (actionClass, icon) =
               if setting == 0 || setting == 100
               then ("valid-action", "check")
-              else ("invalid-action", "window-close")
+              else ("invalid-action", "times")
         in
         Html.div
         [ Attrs.class (String.join " " ["end-ff", actionClass])
