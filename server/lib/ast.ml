@@ -201,7 +201,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
            | Filled (_, f) ->
              (match Map.find o f with
               | Some v -> v
-              | None -> DIncomplete))
+              | None -> DNull))
         | DIncomplete -> DIncomplete
         | DError _ -> DIncomplete
         | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
