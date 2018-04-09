@@ -990,8 +990,8 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       Error <| "Success! " ++ msg
 
-    GetAnalysisRPCCallback (Ok (analysis, globals)) ->
-      SetToplevels m.toplevels analysis globals m.userFunctions m.f404s
+    GetAnalysisRPCCallback (Ok (analysis, globals, f404s)) ->
+      SetToplevels m.toplevels analysis globals m.userFunctions f404s
 
     ------------------------
     -- plumbing
