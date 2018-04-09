@@ -199,9 +199,16 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
            | Blank _ -> DIncomplete
            | Flagged _ -> should_be_flat ()
            | Filled (_, f) ->
-             (match Map.find o f with
-              | Some v -> v
-              | None -> DNull))
+             (match e with
+              | Filled (_, Variable "request")
+                when ctx = Preview
+                  && Dval.equal_dval obj
+                       (Parsed_request.to_dval Parsed_request.sample) ->
+                DIncomplete
+              | _ ->
+                (match Map.find o f with
+                  | Some v -> v
+                  | None -> DNull)))
         | DIncomplete -> DIncomplete
         | DError _ -> DIncomplete
         | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
