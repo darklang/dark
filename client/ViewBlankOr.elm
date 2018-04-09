@@ -315,7 +315,7 @@ viewBlankOr htmlFn pt vs c bo =
               , eventNoPropagation "mouseup" NothingClick
               , eventNoPropagation "mousedown" NothingClick
               , Events.onWithOptions
-                  "input"
+                  "change"
                   { stopPropagation = True, preventDefault = True }
                   (decodeSliderInputEvent (SliderChange ffID))
               ]
