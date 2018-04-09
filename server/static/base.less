@@ -701,16 +701,16 @@ body #grid * {
     content: attr(title);
     display: block;
     left: 0;
-    outline: 0.4px green solid;
+    outline: 0.4px @green solid;
     position: absolute;
   }
 }
 
 .computed-value {
   &:before {
-    color: green;
+    color: @green;
     content: attr(computed-value);
-    outline: 0.4px green dotted;
+    outline: 0.4px @green dotted;
     position: absolute;
     right: calc(100% + 0.4px);
     .default;
@@ -731,7 +731,7 @@ body #grid * {
 .flagged {
 
   .fa-flag {
-    color: red;
+    color: @red;
     font-size: 8px;
   }
 
@@ -739,6 +739,18 @@ body #grid * {
     position: absolute;
     left: 110%;
     margin-top: -10px;
+  }
+
+  .end-ff {
+    position: absolute;
+    left: 165%;
+    margin-top: -9px;
+    &.valid-action {
+      color: @green;
+    }
+    &.invalid-action {
+      color: @red;
+    }
   }
 
   .hidden {

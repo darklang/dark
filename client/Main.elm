@@ -949,6 +949,9 @@ update_ msg m =
     StartFeatureFlag ->
       FeatureFlags.start m
 
+    EndFeatureFlag ffID ->
+      FeatureFlags.end m ffID
+
     SliderChange id value ->
       FeatureFlags.updateSlider m id value
 
