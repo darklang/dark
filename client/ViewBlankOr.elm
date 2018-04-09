@@ -373,7 +373,7 @@ viewBlankOr htmlFn pt vs c bo =
         let allowStringEntry = pt == Expr
             placeholder = placeHolderFor vs id pt
         in
-        ViewEntry.entryHtml allowStringEntry placeholder vs.ac
+            div vs c [ViewEntry.entryHtml allowStringEntry placeholder vs.ac]
       else thisText
     _ -> thisText
 

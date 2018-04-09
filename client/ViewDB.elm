@@ -17,16 +17,16 @@ import ViewUtils exposing (..)
 viewDBColName : BlankViewer String
 viewDBColName vs c v =
   let configs = if B.isBlank v
-               then idConfigs ++ c
-               else c
+                then idConfigs ++ c
+                else c
   in
   viewText DBColName vs configs v
 
 viewDBColType : BlankViewer String
 viewDBColType vs c v =
   let configs = if B.isBlank v
-               then idConfigs ++ c
-               else c
+                then idConfigs ++ c
+                else c
   in
   viewText DBColType vs configs v
 
