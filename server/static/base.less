@@ -201,49 +201,69 @@ body #grid * {
 //*************
 // Routing table
 //*************
-.routing-table {
+.viewing-table {
   border: 2px solid @blue;
   padding: 8px;
   width: max-content;
 
   .header {
-
     width: 300px;
     color: @orange;
     padding-bottom: 8px;
     margin-bottom: 8px;
     border-bottom: 2px @white3 solid;
 
-    .http {
+    .title {
       margin-right: 5px;
     }
-
     .count {
       font-weight: bold;
-
     }
   }
 
-  .handler {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
+  .fofs {
+    .fof {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
 
-    .url{
-      color: @white3;
-      .prefix {
+      .path {
+        color: @white3;
+      }
+
+      .modifier {
         color: @grey2;
       }
     }
+  }
 
-    .external {
-      color: @orange;
+  .http-routes {
+    .routes {
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 2px @purple solid;
     }
 
-    .verbs {
-      color: @grey2;
-    }
+    .handler {
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
 
+      .url{
+        color: @white3;
+        .prefix {
+          color: @grey2;
+        }
+      }
+
+      .external {
+        color: @orange;
+      }
+
+      .verbs {
+        color: @grey2;
+      }
+    }
   }
 }
 
