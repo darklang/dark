@@ -130,8 +130,14 @@ idOf s =
 type Action = RefreshAnalyses
 
 type alias GlobalVariable = String
-type alias RPCResult = (List Toplevel, List TLAResult, List GlobalVariable, List UserFunction, List FourOhFour)
-type alias GetAnalysisRPCResult = (List TLAResult, List GlobalVariable)
+type alias RPCResult = ( List Toplevel
+                       , List TLAResult
+                       , List GlobalVariable
+                       , List UserFunction
+                       , List FourOhFour)
+type alias GetAnalysisRPCResult = ( List TLAResult
+                                  , List GlobalVariable
+                                  , List FourOhFour)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
