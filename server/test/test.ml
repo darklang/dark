@@ -156,6 +156,8 @@ let t_lambda_with_foreach () =
 
 module SE = Stored_event
 let t_stored_event_roundtrip () =
+  SE.clear_events "host";
+  SE.clear_events "host2";
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
@@ -166,26 +168,23 @@ let t_stored_event_roundtrip () =
   SE.store_event "host2" desc2 (DStr "3");
 
   let at_desc = AT.of_pp SE.pp_event_desc in
+  let at_dval_list = AT.list at_dval in
 
   let listed = SE.list_events "host" in
   AT.check
     (AT.list at_desc) "list host events" [desc1; desc2; desc3] listed;
 
   let loaded1 = SE.load_events "host" desc1 in
-  AT.check
-    (AT.list at_dval) "load GET events" [DStr "1"; DStr "2"] loaded1;
+  AT.check at_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
 
   let loaded2 = SE.load_events "host" desc3 in
-  AT.check
-    (AT.list at_dval) "load POST events" [DStr "3"] loaded2;
+  AT.check at_dval_list "load POST events" [DStr "3"] loaded2;
 
   let loaded3 = SE.load_events "host2" desc3 in
-  AT.check
-    (AT.list at_dval) "load no host2 events" [] loaded3;
+  AT.check at_dval_list "load no host2 events" [] loaded3;
 
   let loaded4 = SE.load_events "host2" desc2 in
-  AT.check
-    (AT.list at_dval) "load host2 events" [DStr "3"] loaded4;
+  AT.check at_dval_list "load host2 events" [DStr "3"] loaded4;
 
   ()
 
@@ -256,6 +255,8 @@ let suite =
 let () =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
-  AT.run ~argv:[|"--verbose"; "--show-errors"|] "suite" [ "tests", suite ]
+  AT.run
+    ~argv:[|"--verbose"; "--show-errors"|]
+    "suite" [ "tests", suite ]
 
 
