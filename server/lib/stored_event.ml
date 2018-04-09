@@ -3,111 +3,137 @@ open Core
 module RTT = Types.RuntimeT
 
 type event_desc = string * string * string
-                [@@deriving show]
+                [@@deriving show, yojson]
 type four_oh_four = (event_desc * Types.RuntimeT.dval list)
                   [@@deriving show]
+
+(* TODO SECURITY: the host isn't checked for ../, etc *)
 
 (* ------------------------- *)
 (* Internal *)
 (* ------------------------- *)
 
+(* for security and performance, and also because it's tricky to get
+ * right otherwise, we store this in the following directory structure:
+ * /hostname/
+ *   descriptors/
+ *     {sha1s of event_desc} -> json with (path, space, modifier)
+ *   events/
+ *     {sha1s of event_desc}/
+ *       1.event.json -> json of dval
+ *       n.event.json -> json of dval
+ *)
+
+
+(* -------------------------- *)
+(* Utils *)
+(* -------------------------- *)
+
 let file_ext  = ".events.json"
-
-let (/) = Filename.concat
-
-let host_dir_name (host: string) : string =
-  Config.events_dir / host
-
-let space_dir_name (host: string) (space: string) : string =
-  host_dir_name host / space
-
-let dir_name (host: string) (space, _, modifier : event_desc) : string =
-  space_dir_name host space / modifier
-
-let ls_dir dir =
-  (* avoid exceptions during lsdirs. We don't want to wrap everything in
-   * a try/with incase it masks other errors. *)
-  Unix.mkdir_p dir;
-  Sys.ls_dir dir
-  |> Log.pp ("ls of " ^ dir)
 
 let is_request (name: string) : bool =
   String.is_suffix name ~suffix:file_ext
 
-let parse_seq_idx ~path (filename: string) : int option =
-  let prefix = path ^ "::" in
-  if String.is_prefix ~prefix filename
-  then
-    filename
-    |> String.chop_prefix_exn ~prefix
-    |> Filename.chop_extension
-    |> int_of_string
-    |> fun idx -> Some idx
-  else
-    None
+type hash = string
+let desc_hash ((space, path, modifier): event_desc) : hash =
+  [space ; path; modifier]
+  |> String.concat
+  |> Util.hash
 
-let ls_host (host: string) : event_desc list =
-  ls_dir (host_dir_name host)
-  |> List.map ~f:(fun space ->
-      ls_dir (space_dir_name host space)
-      |> List.map ~f:(fun mod_ ->
-          ls_dir (dir_name host (space, "", mod_))
-          |> List.map ~f:(fun path ->
-              path
-              |> String.lsplit2_exn ~on:':'
-              |> fun (path, _) ->
-                  (space, path, mod_))))
-  |> List.concat
-  |> List.concat
+let (/) = Filename.concat
 
 
+(* -------------------------- *)
+(* Dirs *)
+(* -------------------------- *)
 
-let ls_descs (host: string) (desc : event_desc) : string list =
-  ls_dir (dir_name host desc)
+let host_dir (host: string) : string =
+  Config.events_dir / host
+
+let descriptor_dir (host: string) : string =
+  host_dir host / "descriptors"
+
+let eventdata_dir (host: string) (desc : event_desc) : string =
+  host_dir host / "eventdata" / (desc_hash desc)
+
+(* -------------------------- *)
+(* Descriptors *)
+(* -------------------------- *)
+let read_descriptor (host: string) (hash : hash) : event_desc =
+  (descriptor_dir host / hash)
+  |> Yojson.Safe.from_file
+  |> event_desc_of_yojson
+  |> Result.ok_or_failwith
+
+let list_descriptors (host : string) : hash list =
+  let dir = descriptor_dir host in
+  Unix.mkdir_p dir;
+  Sys.ls_dir dir
+
+let save_descriptor (host: string) (desc: event_desc) : unit =
+  let dir = descriptor_dir host in
+  Unix.mkdir_p dir;
+  let filename = dir / desc_hash desc in
+  Yojson.Safe.to_file filename (event_desc_to_yojson desc)
+
+
+
+(* -------------------------- *)
+(* Event data *)
+(* -------------------------- *)
+let list_data_files (host: string) (desc : event_desc) : string list =
+  eventdata_dir host desc
+  |> Sys.ls_dir
   |> List.filter ~f:is_request
 
-let next_seq (files: string list) ~path : int =
-  files
-  |> List.filter_map ~f:(parse_seq_idx ~path)
-  |> List.fold_left
-       ~f:(fun acc x -> max acc x) ~init:(-1)
-  |> (+) 1
+let read_data (host: string) (desc: event_desc) : RTT.dval list =
+  let dir = eventdata_dir host desc in
+  Unix.mkdir_p dir;
+  dir
+  |> Sys.ls_dir
+  |> List.sort ~cmp:Pervasives.compare
+  |> List.map ~f:(fun file -> dir / file
+                              |> Yojson.Safe.from_file
+                              |> Dval.dval_of_yojson
+                              |> Result.ok_or_failwith)
 
-let next_filename (host: string) (desc : event_desc) : string =
-  let (_, path, _) = desc in
-  let next_number =
-    ls_descs host desc
-    |> next_seq ~path
-  in
-  let dir = dir_name host desc in
-  let filename = String.escaped path
-               ^ "::"
-               ^ (string_of_int next_number)
-               ^ file_ext
-  in
-  dir / filename
+let next_data_filename (host: string) (desc : event_desc) : string =
+  let dir = eventdata_dir host desc in
+  Unix.mkdir_p dir;
+  list_data_files host desc
+  |> List.map ~f:(String.chop_suffix_exn ~suffix:file_ext)
+  |> List.map ~f:int_of_string
+  |> List.fold_left
+    ~f:(fun acc x -> max acc x) ~init:0
+  |> (+) 1
+  |> fun index -> dir / (string_of_int index) ^ file_ext
+
+let save_data (host: string) (desc: event_desc) (dval : RTT.dval) =
+  let filename = next_data_filename host desc |> Log.pp "filename" in
+  let s = Dval.dval_to_yojson dval in
+  Yojson.Safe.to_file filename s
+
+
 
 (* ------------------------- *)
 (* Exported *)
 (* ------------------------- *)
 
-let store_event host desc event : unit =
-  let filename = next_filename host desc in
-  let s = Dval.dval_to_yojson event in
-  Yojson.Safe.to_file filename s
+let store_event (host : string) (desc : event_desc) (event: RTT.dval)
+  : unit =
+  save_descriptor host desc;
+  save_data host desc event;
+  ()
 
-(* We store a set of events for each host. The events may or may not
- * belong to a toplevel. We provide a list in advance so that they can
- * be partitioned effectively *)
-let list_events (host: string) : (event_desc) list =
-  ls_host host
+let list_events (host: string) : event_desc list =
+  list_descriptors host
+  |> List.map ~f:(read_descriptor host)
 
 let load_events (host: string) (desc : event_desc) : RTT.dval list =
-  ls_descs host desc
-  |> List.map
-    ~f:(fun x -> (dir_name host desc) ^ "/" ^ x)
-  |> List.map
-       ~f:(fun f -> f |> Yojson.Safe.from_file |> Dval.dval_of_yojson_)
+  read_data host desc
+
+let clear_events (host: string) : unit =
+  Core_extended.Shell.rm ~r:() ~f:() (host_dir host)
 
 
 let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Yojson.Safe.json =
