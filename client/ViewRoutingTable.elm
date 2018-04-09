@@ -93,15 +93,18 @@ prefixify hs =
             Just (matched, unmatched) ->
               h :: (prefixify <| (List.map makePrefix matched) ++ unmatched)
 
+span : String -> List (Html.Html Msg) -> Html.Html Msg
+span class subs = Html.span [Attrs.class class] subs
 
+text : String -> String  -> Html.Html Msg
+text class msg = span class [Html.text msg]
 
-viewRoutingTable : Model -> Html.Html Msg
-viewRoutingTable m =
-  let span class subs = Html.span [Attrs.class class] subs
-      text class msg = span class [Html.text msg]
-      div class subs = Html.div [Attrs.class class] subs
+div : String -> List (Html.Html Msg) -> Html.Html Msg
+div class subs = Html.div [Attrs.class class] subs
 
-      handlers = m.toplevels |> collapseHandlers
+viewRoutes : Model -> Html.Html Msg
+viewRoutes m =
+  let handlers = m.toplevels |> collapseHandlers
       handlerCount = List.length handlers
       def s = Maybe.withDefault "<not entered>" s
       link h =
@@ -140,13 +143,47 @@ viewRoutingTable m =
                       , span "verbs" (internalLinks h)
                       ]
       header = div "header"
-                 [ text "http" "HTTP"
+                 [ text "title" "HTTP"
                  , text "parens" "("
                  , text "count" (toString handlerCount)
                  , text "parens" ")"
                  ]
       routes = div "routes" (List.map handlerHtml handlers)
-      html = div "routing-table" [header, routes]
+  in
+  Html.div
+    [ Attrs.class "http-routes"]
+    [ header, routes]
+
+
+
+view404s : Model -> Html.Html Msg
+view404s m =
+  let count = List.length m.f404s
+      fofHtml (space, path, modifier, values) =
+        div "fof"
+          [ text "path" path
+          , text "space" space
+          , text "modifier" modifier
+          ]
+      header = div "header"
+                 [ text "title" "404s"
+                 , text "parens" "("
+                 , text "count" (toString count)
+                 , text "parens" ")"
+                 ]
+      routes = div "routes" (List.map fofHtml m.f404s)
+  in Html.div
+       [Attrs.class "fofs"]
+       [header, routes]
+
+
+
+viewRoutingTable : Model -> Html.Html Msg
+viewRoutingTable m =
+  let html = Html.div
+               [Attrs.class "viewing-table"]
+               [ viewRoutes m
+               , view404s m]
 
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
 
