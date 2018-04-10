@@ -61,20 +61,24 @@ let eventdata_dir (host: string) (desc : event_desc) : string =
 (* -------------------------- *)
 let read_descriptor (host: string) (hash : hash) : event_desc =
   (descriptor_dir host / hash)
-  |> Yojson.Safe.from_file
+  |> Util.readfile
+  |> Yojson.Safe.from_string
   |> event_desc_of_yojson
   |> Result.ok_or_failwith
 
 let list_descriptors (host : string) : hash list =
   let dir = descriptor_dir host in
-  Unix.mkdir_p dir;
-  Sys.ls_dir dir
+  Util.mkdir dir;
+  Util.lsdir dir
 
 let save_descriptor (host: string) (desc: event_desc) : unit =
   let dir = descriptor_dir host in
-  Unix.mkdir_p dir;
+  Util.mkdir dir;
   let filename = dir / desc_hash desc in
-  Yojson.Safe.to_file filename (event_desc_to_yojson desc)
+  desc
+  |> event_desc_to_yojson
+  |> Yojson.Safe.to_string
+  |> Util.writefile filename
 
 
 
@@ -83,23 +87,24 @@ let save_descriptor (host: string) (desc: event_desc) : unit =
 (* -------------------------- *)
 let list_data_files (host: string) (desc : event_desc) : string list =
   eventdata_dir host desc
-  |> Sys.ls_dir
+  |> Util.lsdir
   |> List.filter ~f:is_request
 
 let read_data (host: string) (desc: event_desc) : RTT.dval list =
   let dir = eventdata_dir host desc in
-  Unix.mkdir_p dir;
+  Util.mkdir dir;
   dir
-  |> Sys.ls_dir
+  |> Util.lsdir
   |> List.sort ~cmp:Pervasives.compare
   |> List.map ~f:(fun file -> dir / file
-                              |> Yojson.Safe.from_file
+                              |> Util.readfile
+                              |> Yojson.Safe.from_string
                               |> Dval.dval_of_yojson
                               |> Result.ok_or_failwith)
 
 let next_data_filename (host: string) (desc : event_desc) : string =
   let dir = eventdata_dir host desc in
-  Unix.mkdir_p dir;
+  Util.mkdir dir;
   list_data_files host desc
   |> List.map ~f:(String.chop_suffix_exn ~suffix:file_ext)
   |> List.map ~f:int_of_string
@@ -110,8 +115,10 @@ let next_data_filename (host: string) (desc : event_desc) : string =
 
 let save_data (host: string) (desc: event_desc) (dval : RTT.dval) =
   let filename = next_data_filename host desc |> Log.pp "filename" in
-  let s = Dval.dval_to_yojson dval in
-  Yojson.Safe.to_file filename s
+  dval
+  |> Dval.dval_to_yojson
+  |> Yojson.Safe.to_string
+  |> Util.writefile filename
 
 
 
