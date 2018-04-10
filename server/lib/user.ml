@@ -13,13 +13,12 @@ let construct ~username ~domain ~password =
   { username; domain; password }
 
 let users =
-  [["ian"; "admin"; "ian"]
-  ;["paul";"admin"; "paul"]
-  ;["ellen"; "admin"; "ellen"]
-  ;["stefi"; "admin"; "stefi"]
-  ;["zane"; "admin"; "zane"]
+  [["ian"; "admin"; "look"]
+  ;["paul";"admin"; "what"]
+  ;["ellen"; "admin"; "you"]
+  ;["stefi"; "admin"; "made"]
+  ;["zane"; "admin"; "me do"]
   ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"]
-  ;["aoife"; "dogtreats"; "aoife"]
   ]
   |> List.map
        ~f:(function
