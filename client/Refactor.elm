@@ -95,18 +95,18 @@ extractFunction m tl p =
                           |> Maybe.withDefault TAny
                           |> convertTipe
               in
-                  { name = name
-                  , tipe = tipe
+                  { name = F (gid ()) name
+                  , tipe = F (gid ()) tipe
                   , block_args = []
                   , optional = False
                   , description = ""
                   })
                   freeVars
           metadata =
-            { name = name
+            { name = F (gid ()) name
             , parameters = params
             , description = ""
-            , returnTipe = TAny
+            , returnTipe = F (gid ()) TAny
             , infix = False
             }
           newF =

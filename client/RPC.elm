@@ -178,17 +178,17 @@ encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
   JSE.object
   [("tlid", encodeTLID uf.tlid)
-  ,("metadata", encodeFunction uf.metadata)
+  ,("metadata", encodeUserFunctionMetadata uf.metadata)
   ,("ast", encodeExpr uf.ast)
   ]
 
-encodeFunction : Function -> JSE.Value
-encodeFunction f =
+encodeUserFunctionMetadata : UserFunctionMetadata -> JSE.Value
+encodeUserFunctionMetadata f =
   JSE.object
-  [("name", JSE.string f.name)
-  ,("parameters", JSE.list (List.map encodeParameter f.parameters))
+  [("name", encodeBlankOr JSE.string f.name)
+  ,("parameters", JSE.list (List.map encodeUserFunctionParameter f.parameters))
   ,("description", JSE.string f.description)
-  ,("return_type", encodeTipe f.returnTipe)
+  ,("return_type", encodeBlankOr encodeTipe f.returnTipe)
   ,("infix", JSE.bool f.infix)
   ]
 
@@ -218,11 +218,11 @@ encodeTipe t =
         TBelongsTo s -> ev "TBelongsTo" [JSE.string s]
         THasMany s -> ev "THasMany" [JSE.string s]
 
-encodeParameter : Parameter -> JSE.Value
-encodeParameter p =
+encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
+encodeUserFunctionParameter p =
   JSE.object
-  [("name", JSE.string p.name)
-  ,("tipe", encodeTipe p.tipe)
+  [("name", encodeBlankOr JSE.string p.name)
+  ,("tipe", encodeBlankOr encodeTipe p.tipe)
   ,("block_args", JSE.list (List.map JSE.string p.block_args))
   ,("optional", JSE.bool p.optional)
   ,("description", JSE.string p.description)
@@ -545,8 +545,8 @@ decodeTipe =
       ,("THasMany", dv1 TBelongsTo JSD.string)
       ]
 
-decodeParameter : JSD.Decoder Parameter
-decodeParameter =
+decodeUserFunctionParameter : JSD.Decoder UserFunctionParameter
+decodeUserFunctionParameter =
   let toParam name tipe args option desc =
         { name = name
         , tipe = tipe
@@ -556,14 +556,14 @@ decodeParameter =
         }
   in
       JSDP.decode toParam
-      |> JSDP.required "name" JSD.string
-      |> JSDP.required "tipe" decodeTipe
+      |> JSDP.required "name" (decodeBlankOr JSD.string)
+      |> JSDP.required "tipe" (decodeBlankOr decodeTipe)
       |> JSDP.required "block_args" (JSD.list JSD.string)
       |> JSDP.required "optional" JSD.bool
       |> JSDP.required "description" JSD.string
 
-decodeFunction : JSD.Decoder Function
-decodeFunction =
+decodeUserFunctionMetadata : JSD.Decoder UserFunctionMetadata
+decodeUserFunctionMetadata =
   let toFn name params desc returnTipe infix =
         { name = name
         , parameters = params
@@ -573,10 +573,10 @@ decodeFunction =
         }
   in
       JSDP.decode toFn
-      |> JSDP.required "name" JSD.string
-      |> JSDP.required "parameters" (JSD.list decodeParameter)
+      |> JSDP.required "name" (decodeBlankOr JSD.string)
+      |> JSDP.required "parameters" (JSD.list decodeUserFunctionParameter)
       |> JSDP.required "description" JSD.string
-      |> JSDP.required "return_type" decodeTipe
+      |> JSDP.required "return_type" (decodeBlankOr decodeTipe)
       |> JSDP.required "infix" JSD.bool
 
 decodeUserFunction : JSD.Decoder UserFunction
@@ -589,7 +589,7 @@ decodeUserFunction =
   in
       JSDP.decode toUserFn
       |> JSDP.required "tlid" decodeTLID
-      |> JSDP.required "metadata" decodeFunction
+      |> JSDP.required "metadata" decodeUserFunctionMetadata
       |> JSDP.required "ast" decodeExpr
 
 decode404 : JSD.Decoder FourOhFour

@@ -14,6 +14,7 @@ import List.Extra as LE
 -- dark
 import Util exposing (deMaybe, int2letter, letter2int)
 import Types exposing (..)
+import Functions
 import Runtime as RT
 import Pointer as P
 import Analysis
@@ -121,7 +122,11 @@ init functions = { functions = functions
 
 reset : Model -> Autocomplete -> Autocomplete
 reset m a =
-  let userFunctionMetadata = List.map .metadata m.userFunctions in
+  let userFunctionMetadata =
+      m.userFunctions
+      |> List.map .metadata
+      |> List.filterMap Functions.ufmToF
+  in
   init ((a.functions ++ userFunctionMetadata) |> LE.uniqueBy (\f -> f.name)) |> regenerate m
 
 numCompletions : Autocomplete -> Int
