@@ -18,7 +18,6 @@ let root_dir : string =
   then Exception.internal "FAIL: DARK_CONFIG_ROOT_DIR is not absolute"
   else dir ^ "/"
 
-
 let server_dir : string =
   root_dir ^ "server/"
 
@@ -27,6 +26,9 @@ let appdata_dir : string =
 
 let testdata_dir : string =
   server_dir ^ "test_appdata/"
+
+let swagger_dir : string =
+  server_dir ^ "swagger/"
 
 let events_dir : string =
   persist_dir ^ "events/"
@@ -58,7 +60,44 @@ let bin_root_dir : string =
   |> Option.value ~default:(server_dir ^ "_build/default/bin")
   |> fun x -> x ^ "/"
 
+(* -------------------- *)
+(* external *)
+(* -------------------- *)
+
+type root = Events
+          | Function_results
+          | Log
+          | Serialization
+          | Templates
+          | Webroot
+          | Completed_test
+          | Testdata
+          | Bin_root
+          | Appdata
+          | Swagger
+          | No_check
+
+
+
+let dir root =
+  match root with
+  | Events -> events_dir
+  | Function_results -> function_results_dir
+  | Log -> log_dir
+  | Serialization -> serialization_dir
+  | Templates -> templates_dir
+  | Webroot -> webroot_dir
+  | Completed_test -> completed_test_dir
+  | Bin_root -> bin_root_dir
+  | Appdata -> appdata_dir
+  | Swagger -> swagger_dir
+  | Testdata -> testdata_dir
+  | No_check -> ""
+
+
 let port : int =
   Sys.getenv "DARK_CONFIG_HTTP_PORT"
   |> Option.value ~default:"8000"
   |> int_of_string
+
+

@@ -195,7 +195,7 @@ let admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
     raise e
 
 let admin_ui_handler () =
-  let template = Util.readfile_lwt (Config.templates_dir ^ "ui.html") in
+  let template = Util.readfile_lwt ~root:Templates "ui.html" in
   template >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
 
 let save_test_handler domain =
@@ -288,7 +288,7 @@ let admin_handler ~(subdomain: string) ~(uri: Uri.t) ~stopper ~(body: string) (r
 (* -------------------------------------------- *)
 
 let static_handler uri =
-  let fname = S.resolve_file ~docroot:(Config.webroot_dir) ~uri in
+  let fname = S.resolve_file ~docroot:(Config.dir Config.Webroot) ~uri in
   S.respond_file ~fname ()
 
 

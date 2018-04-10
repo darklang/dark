@@ -8,11 +8,13 @@ module RTT = Types.RuntimeT
 (* ------------------------- *)
 let file_ext  = ".results.json"
 
+let root = Config.Function_results
+
 let dir_name (host: string) (tlid: tlid) : string =
-  Config.function_results_dir ^ host ^ "-" ^ (string_of_int tlid)
+  host ^ "-" ^ (string_of_int tlid)
 
 let mkdir (host: string) (tlid: tlid) : unit =
-  Util.mkdir (dir_name host tlid)
+  Util.mkdir ~root (dir_name host tlid)
 
 (* By hashing the filename, it's cheap to know if anything has changed,
  * without security implication of saving passwords to disk *)
@@ -40,12 +42,12 @@ let filename (host, tlid, fnname, id) arglist =
 let store (host, tlid, fnname, id) arglist result =
   mkdir host tlid;
   let filename = filename (host, tlid, fnname, id) arglist in
-  Util.writejsonfile ~conv:Dval.dval_to_yojson ~value:result filename
+  Util.writejsonfile ~root ~conv:Dval.dval_to_yojson ~value:result filename
 
 let load (host, tlid, fnname, id) arglist =
   try
     filename (host, tlid, fnname, id) arglist
-    |> Util.readjsonfile ~conv:Dval.dval_of_yojson
+    |> Util.readjsonfile ~root ~conv:Dval.dval_of_yojson
     |> fun x -> Some x
   with e -> None
 
