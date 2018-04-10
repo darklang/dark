@@ -1,6 +1,9 @@
 open Core
 open Lwt.Infix
 
+(* ------------------- *)
+(* file stuff with checks *)
+(* ------------------- *)
 let check_filename ~mode f =
   if String.is_substring ~substring:".." f
   || String.contains f '~'
@@ -44,6 +47,7 @@ let readfile f : string =
     Caml.close_in_noerr ic;
     raise e)
 
+
 let readfile_lwt f : string Lwt.t =
   let f = check_filename ~mode:`Read f in
   Lwt_io.with_file ~mode:Lwt_io.input f Lwt_io.read
@@ -55,7 +59,28 @@ let writefile (f: string) (str: string) : unit =
     ~f:(fun desc ->
         let _ = Unix.write desc ~buf:(Bytes.of_string str) in ())
 
+(* ------------------- *)
+(* json *)
+(* ------------------- *)
 
+let readjsonfile ~(conv: (Yojson.Safe.json -> ('a, string) result)) (filename: string) : 'a =
+  filename
+  |> readfile
+  |> Yojson.Safe.from_string
+  |> conv
+  |> Result.ok_or_failwith
+
+let writejsonfile ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
+  : unit =
+  value
+  |> conv
+  |> Yojson.Safe.to_string
+  |> writefile filename
+
+
+(* ------------------- *)
+(* random *)
+(* ------------------- *)
 let create_id (_ : unit) : int =
   Random.int (Int.pow 2 29)
 
