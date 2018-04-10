@@ -12,7 +12,7 @@ let dir_name (host: string) (tlid: tlid) : string =
   Config.function_results_dir ^ host ^ "-" ^ (string_of_int tlid)
 
 let mkdir (host: string) (tlid: tlid) : unit =
-  Unix.mkdir_p (dir_name host tlid)
+  Util.mkdir (dir_name host tlid)
 
 (* By hashing the filename, it's cheap to know if anything has changed,
  * without security implication of saving passwords to disk *)
@@ -40,13 +40,16 @@ let filename (host, tlid, fnname, id) arglist =
 let store (host, tlid, fnname, id) arglist result =
   mkdir host tlid;
   let filename = filename (host, tlid, fnname, id) arglist in
-  let s = Dval.dval_to_yojson result in
-  Yojson.Safe.to_file filename s
+  result
+  |> Dval.dval_to_yojson
+  |> Yojson.Safe.to_string
+  |> Util.writefile filename
 
 let load (host, tlid, fnname, id) arglist =
   try
     filename (host, tlid, fnname, id) arglist
-    |> Yojson.Safe.from_file
+    |> Util.readfile
+    |> Yojson.Safe.from_string
     |> Dval.dval_of_yojson
     |> Result.ok
   with e -> None

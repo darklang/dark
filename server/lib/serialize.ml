@@ -34,7 +34,7 @@ let json_unversioned_filename name = full (savedir name) name "" "json"
 
 
 let current_filenames () : string list =
-  Sys.ls_dir Config.appdata_dir
+  Util.lsdir Config.appdata_dir
   |> List.filter
        ~f:(fun f ->
         String.is_substring ~substring:".dark" f
