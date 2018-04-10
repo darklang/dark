@@ -131,16 +131,34 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                ; description : string
                } [@@deriving eq, show, yojson, sexp, bin_io]
 
+  type ufn_param = { name: string or_blank
+                   ; tipe: tipe or_blank
+                   ; block_args : string list
+                   ; optional : bool
+                   ; description : string
+                   } [@@deriving eq, show, yojson, sexp, bin_io]
+
+  let ufn_param_to_param p : param option =
+    match (p.name, p.tipe) with
+    | (Filled (_, n), Filled (_, t)) ->
+       { name = n
+       ; tipe = t
+       ; block_args = p.block_args
+       ; optional = p.optional
+       ; description = p.description
+       } |> Some
+    | _ -> None
+
   type funcimpl = InProcess of (feature_flag * dval list -> dval)
                 | API of (dval_map -> dval)
                 | UserCreated of expr
 
-  type fn_metadata = { name : string
-                     ; parameters : param list
-                     ; return_type : tipe
-                     ; description : string
-                     ; infix : bool
-                     } [@@deriving eq, show, yojson, sexp, bin_io]
+  type ufn_metadata = { name : string or_blank
+                      ; parameters : ufn_param list
+                      ; return_type : tipe or_blank
+                      ; description : string
+                      ; infix : bool
+                      } [@@deriving eq, show, yojson, sexp, bin_io]
 
   (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
@@ -154,20 +172,39 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
             }
 
   type user_fn = { tlid: tlid
-                 ; metadata : fn_metadata
+                 ; metadata : ufn_metadata
                  ; ast:  expr
                  } [@@deriving eq, show, yojson, sexp, bin_io]
 
-  let user_fn_to_fn uf =
-    { prefix_names = [uf.metadata.name]
-    ; infix_names = []
-    ; parameters = uf.metadata.parameters
-    ; return_type = uf.metadata.return_type
-    ; description = uf.metadata.description
-    ; previewExecutionSafe = false
-    ; preview = None
-    ; func = UserCreated uf.ast
-    }
+  let user_fn_to_fn uf : fn option =
+    let name =
+      match uf.metadata.name with
+      | Filled (_, n) -> Some n
+      | _ -> None
+    in
+    let rt =
+      match uf.metadata.return_type with
+      | Filled (_, t) -> Some t
+      | _ -> None
+    in
+    let params =
+      List.filter_map ~f:ufn_param_to_param uf.metadata.parameters
+    in
+    let params_all_filled =
+      (List.length params) = (List.length uf.metadata.parameters)
+    in
+    match (name, rt, params_all_filled) with
+    | (Some n, Some t, true) ->
+      { prefix_names = [n]
+      ; infix_names = []
+      ; parameters = params
+      ; return_type = t
+      ; description = uf.metadata.description
+      ; previewExecutionSafe = false
+      ; preview = None
+      ; func = UserCreated uf.ast
+      } |> Some
+    | _ -> None
 end
 
 

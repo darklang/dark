@@ -9,6 +9,32 @@ import Types exposing (..)
 import Toplevel as TL
 import Util exposing (deMaybe)
 
+ufpToP : UserFunctionParameter -> Maybe Parameter
+ufpToP ufp =
+    case (ufp.name, ufp.tipe) of
+      (F _ name, F _ tipe) ->
+        { name = name
+        , tipe = tipe
+        , block_args = ufp.block_args
+        , optional = ufp.optional
+        , description = ufp.description
+        } |> Just
+      _ -> Nothing
+
+ufmToF : UserFunctionMetadata -> Maybe Function
+ufmToF ufm =
+  let ps = List.filterMap ufpToP ufm.parameters
+      sameLength = (List.length ps) == (List.length ufm.parameters)
+  in
+      case (ufm.name, ufm.returnTipe, sameLength) of
+        (F _ name, F _ tipe, True) ->
+          { name = name
+          , parameters = ps
+          , description = ufm.description
+          , returnTipe = tipe
+          , infix = ufm.infix
+          } |> Just
+        _ -> Nothing
 
 find : Model -> TLID -> Maybe UserFunction
 find m id =
@@ -18,9 +44,17 @@ findExn : Model -> TLID -> UserFunction
 findExn m id =
   find m id |> deMaybe "Functions.findExn"
 
+
+sameName : String -> UserFunction -> Bool
+sameName name uf =
+  case uf.metadata.name of
+    F _ n -> n == name
+    _ -> False
+
+
 findByName : Model -> String -> Maybe UserFunction
 findByName m s =
-  LE.find (\f -> s == f.metadata.name) m.userFunctions
+  LE.find (sameName s) m.userFunctions
 
 findByNameExn : Model -> String -> UserFunction
 findByNameExn m s =

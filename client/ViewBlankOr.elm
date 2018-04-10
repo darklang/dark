@@ -12,6 +12,7 @@ import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
+import Functions
 import Autocomplete
 import Toplevel as TL
 import AST
@@ -84,9 +85,9 @@ withEditFn vs v =
   then
     case v of
       F _ (FnCall name _) ->
-        if List.member name (List.map (\fn -> fn.metadata.name) vs.ufns)
-        then [WithEditFn]
-        else []
+        case LE.find (Functions.sameName name) vs.ufns of
+          Just _ -> [WithEditFn]
+          _ -> []
       _ -> []
   else []
 

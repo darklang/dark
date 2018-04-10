@@ -489,8 +489,22 @@ type alias Function = { name: String
                       , infix: Bool
                       }
 
+type alias UserFunctionParameter = { name: BlankOr String
+                                   , tipe: BlankOr Tipe
+                                   , block_args: List String
+                                   , optional: Bool
+                                   , description: String
+                                   }
+
+type alias UserFunctionMetadata = { name: BlankOr String
+                                  , parameters: List UserFunctionParameter
+                                  , description: String
+                                  , returnTipe: BlankOr Tipe
+                                  , infix: Bool
+                                  }
+
 type alias UserFunction = { tlid: TLID
-                          , metadata: Function
+                          , metadata: UserFunctionMetadata
                           , ast: Expr
                           }
 
