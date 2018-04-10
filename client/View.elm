@@ -19,6 +19,7 @@ import ViewRoutingTable
 import ViewCode
 import ViewDB
 import ViewData
+import ViewFunction
 
 
 view : Model -> Html.Html Msg
@@ -65,12 +66,6 @@ viewCanvas m =
     in
         Html.div [Attrs.id "canvas"] allDivs
 
-viewFunction : ViewState -> UserFunction -> Html.Html Msg
-viewFunction vs fn =
-  Html.div
-  [ Attrs.class "ast"]
-  [ViewCode.viewExpr 0 vs [] fn.ast]
-
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let vs = createVS m tl
@@ -85,7 +80,7 @@ viewTL m tl =
             , []
             )
           TLFunc f ->
-            ( [viewFunction vs f]
+            ( [ViewFunction.viewFunction vs f]
             , []
             )
       events =
