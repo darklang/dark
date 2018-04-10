@@ -6,6 +6,7 @@ import Maybe
 -- dark
 import Types exposing (..)
 import Blank as B
+import Runtime
 
 ------------------------
 -- PointerData
@@ -24,6 +25,9 @@ emptyD_ id pt =
     DarkType -> PDarkType (Blank id)
     DarkTypeField -> PDarkTypeField (Blank id)
     FFMsg -> PFFMsg (Blank id)
+    FnName -> PFnName (Blank id)
+    ParamName -> PParamName (Blank id)
+    ParamTipe -> PParamTipe (Blank id)
 
 typeOf : PointerData -> PointerType
 typeOf pd =
@@ -39,6 +43,9 @@ typeOf pd =
     PDarkType _ -> DarkType
     PDarkTypeField _ -> DarkTypeField
     PFFMsg _ -> FFMsg
+    PFnName _ -> FnName
+    PParamName _ -> ParamName
+    PParamTipe _ -> ParamTipe
 
 
 emptyD : PointerType -> PointerData
@@ -59,6 +66,9 @@ toID pd =
     PDarkType d -> B.toID d
     PDarkTypeField d -> B.toID d
     PFFMsg d -> B.toID d
+    PFnName d -> B.toID d
+    PParamName d -> B.toID d
+    PParamTipe d -> B.toID d
 
 
 isBlank : PointerData -> Bool
@@ -75,8 +85,9 @@ isBlank pd =
     PDarkType d -> B.isBlank d
     PDarkTypeField d -> B.isBlank d
     PFFMsg d -> B.isBlank d
-
-
+    PFnName d -> B.isBlank d
+    PParamName d -> B.isBlank d
+    PParamTipe d -> B.isBlank d
 
 
 toContent : PointerData -> String
@@ -98,6 +109,10 @@ toContent pd =
     PDarkType _ -> ""
     PDarkTypeField d -> bs2s d
     PFFMsg d -> bs2s d
+    PFnName d -> bs2s d
+    PParamName d -> bs2s d
+    PParamTipe d ->
+      d |> B.toMaybe |> Maybe.map Runtime.tipe2str |> Maybe.withDefault ""
 
 dtmap : (DarkType -> DarkType) -> PointerData -> PointerData
 dtmap fn pd =
@@ -109,6 +124,12 @@ exprmap : (Expr -> Expr) -> PointerData -> PointerData
 exprmap fn pd =
   case pd of
     PExpr d -> PExpr (fn d)
+    _ -> pd
+
+tmap : (BlankOr Tipe -> BlankOr Tipe) -> PointerData -> PointerData
+tmap fn pd =
+  case pd of
+    PParamTipe d -> PParamTipe (fn d)
     _ -> pd
 
 strmap : (PointerType -> BlankOr String -> BlankOr String) -> PointerData -> PointerData
@@ -125,9 +146,7 @@ strmap fn pd =
     PDarkType _ -> pd
     PDarkTypeField d -> PDarkTypeField (fn DarkTypeField d)
     PFFMsg d -> PFFMsg (fn FFMsg d)
-
-
-
-
-
+    PFnName d -> PFnName (fn FnName d)
+    PParamName d -> PParamName (fn ParamName d)
+    PParamTipe _ -> pd
 

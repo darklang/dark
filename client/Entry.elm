@@ -365,6 +365,21 @@ submit m cursor action value =
               newTL = TL.replace pd newPD tl
           in
           wrap <| SetHandler tlid tl.pos (TL.asHandler tl |> deMaybe "must be handler")
+        PFnName _ ->
+          let newPD = PFnName (B.newF value)
+              newTL = TL.replace pd newPD tl
+          in
+          wrap <| SetFunction (TL.asUserFunction tl |> deMaybe "must be function")
+        PParamName _ ->
+          let newPD = PParamName (B.newF value)
+              newTL = TL.replace pd newPD tl
+          in
+          wrap <| SetFunction (TL.asUserFunction tl |> deMaybe "must be function")
+        PParamTipe _ ->
+          let newPD = PParamTipe (B.newF (RT.str2tipe value))
+              newTL = TL.replace pd newPD tl
+          in
+          wrap <| SetFunction (TL.asUserFunction tl |> deMaybe "must be function")
 
 
 

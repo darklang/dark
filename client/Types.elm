@@ -294,6 +294,10 @@ type PointerData = PVarBind VarBind
                  | PDarkType DarkType
                  | PDarkTypeField (BlankOr String)
                  | PFFMsg (BlankOr String)
+                 | PFnName (BlankOr String)
+                 | PParamName (BlankOr String)
+                 | PParamTipe (BlankOr Tipe)
+
 
 type PointerType = VarBind
                  | EventName
@@ -306,6 +310,9 @@ type PointerType = VarBind
                  | DarkType
                  | DarkTypeField
                  | FFMsg
+                 | FnName
+                 | ParamName
+                 | ParamTipe
 
 type BlankOr a = Blank ID
                | F ID a
