@@ -31,11 +31,4 @@ type schema = { basePath: string
               } [@@deriving yojson]
 
 let parse (filename: string) : schema =
-  match
-    filename
-    |> Util.readfile
-    |> Yojson.Safe.from_string
-    |> schema_of_yojson
-  with
-  | Error loc -> Exception.internal ("Error parsing Swagger schema: " ^ loc)
-  | Ok schema -> schema
+  Util.readjsonfile ~conv:schema_of_yojson filename
