@@ -1,7 +1,38 @@
 open Core
 open Lwt.Infix
 
+let check_filename ~mode f =
+  if String.is_substring ~substring:".." f
+  || String.contains f '~'
+  || String.is_suffix ~suffix:"." f
+  || String.is_suffix ~suffix:"/" f
+  || String.is_substring ~substring:"etc/passwd" f
+  || (not (String.is_prefix ~prefix:"/" f))
+  || (mode = `Read (* check for irregular file *)
+      && not (Sys.is_file f = `Yes))
+  || (not (String.is_substring ~substring:Config.persist_dir f
+           || String.is_substring ~substring:Config.run_dir f
+           || (mode = `Write
+               && String.is_substring ~substring:Config.serialization_dir f)
+           || (mode = `Read
+               && String.is_substring ~substring:Config.templates_dir f)
+          ))
+  then
+    (Log.pP "SECURITY_VIOLATION" f;
+    Exception.client "")
+  else
+    f
+
+let mkdir dir =
+  let dir = check_filename ~mode:`Dir dir in
+  Unix.mkdir_p dir
+
+let lsdir dir =
+  let dir = check_filename ~mode:`Dir dir in
+  Sys.ls_dir dir
+
 let readfile f : string =
+  let f = check_filename ~mode:`Read f in
   let ic = Caml.open_in f in
   (try
     let n = Caml.in_channel_length ic in
@@ -13,17 +44,16 @@ let readfile f : string =
     Caml.close_in_noerr ic;
     raise e)
 
-let readfile_lwt ?(default="") f : string Lwt.t =
-  Lwt_io.with_file ~mode:Lwt_io.input f (Lwt_io.read ?count:None) >|= function
-  | "" -> default
-  | s -> s
+let readfile_lwt f : string Lwt.t =
+  let f = check_filename ~mode:`Read f in
+  Lwt_io.with_file ~mode:Lwt_io.input f Lwt_io.read
 
 let writefile (f: string) (str: string) : unit =
+  let f = check_filename ~mode:`Write f in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
-  let file = Unix.openfile f ~mode:flags ~perm:0o640 in
-  let _ = Unix.write file ~buf:(Bytes.of_string str) in
-  Unix.close file
-
+  Unix.with_file ~perm:0o600 ~mode:flags f
+    ~f:(fun desc ->
+        let _ = Unix.write desc ~buf:(Bytes.of_string str) in ())
 
 
 let create_id (_ : unit) : int =
