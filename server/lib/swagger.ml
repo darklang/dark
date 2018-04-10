@@ -31,4 +31,4 @@ type schema = { basePath: string
               } [@@deriving yojson]
 
 let parse (filename: string) : schema =
-  Util.readjsonfile ~conv:schema_of_yojson filename
+  Util.readjsonfile ~root:Swagger ~conv:schema_of_yojson filename

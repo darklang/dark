@@ -100,12 +100,9 @@ let convert (ops : oplist) : Op.oplist =
           | NoOp -> Exception.internal "cant noop")
 
 
-let load_json filename : Op.oplist =
+let load_json ~root filename : Op.oplist =
   filename
-  |> Util.readfile
-  |> Yojson.Safe.from_string
-  |> oplist_of_yojson
-  |> Result.ok_or_failwith
+  |> Util.readjsonfile ~root ~conv:oplist_of_yojson
   |> convert
 
 

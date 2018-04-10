@@ -42,37 +42,36 @@ let desc_hash ((space, path, modifier): event_desc) : hash =
 
 let (/) = Filename.concat
 
+let root = Config.Events
+
 
 (* -------------------------- *)
 (* Dirs *)
 (* -------------------------- *)
 
-let host_dir (host: string) : string =
-  Config.events_dir / host
-
 let descriptor_dir (host: string) : string =
-  host_dir host / "descriptors"
+  host / "descriptors"
 
 let eventdata_dir (host: string) (desc : event_desc) : string =
-  host_dir host / "eventdata" / (desc_hash desc)
+  host / "eventdata" / (desc_hash desc)
 
 (* -------------------------- *)
 (* Descriptors *)
 (* -------------------------- *)
 let read_descriptor (host: string) (hash : hash) : event_desc =
   (descriptor_dir host / hash)
-  |> Util.readjsonfile ~conv:event_desc_of_yojson
+  |> Util.readjsonfile ~root:Events ~conv:event_desc_of_yojson
 
 let list_descriptors (host : string) : hash list =
   let dir = descriptor_dir host in
-  Util.mkdir dir;
-  Util.lsdir dir
+  Util.mkdir ~root dir;
+  Util.lsdir  ~root dir
 
 let save_descriptor (host: string) (desc: event_desc) : unit =
   let dir = descriptor_dir host in
-  Util.mkdir dir;
+  Util.mkdir ~root dir;
   let filename = dir / desc_hash desc in
-  Util.writejsonfile ~conv:event_desc_to_yojson ~value:desc filename
+  Util.writejsonfile ~root ~conv:event_desc_to_yojson ~value:desc filename
 
 
 
@@ -81,22 +80,22 @@ let save_descriptor (host: string) (desc: event_desc) : unit =
 (* -------------------------- *)
 let list_data_files (host: string) (desc : event_desc) : string list =
   eventdata_dir host desc
-  |> Util.lsdir
+  |> Util.lsdir ~root
   |> List.filter ~f:is_request
 
 let read_data (host: string) (desc: event_desc) : RTT.dval list =
   let dir = eventdata_dir host desc in
-  Util.mkdir dir;
+  Util.mkdir ~root dir;
   dir
-  |> Util.lsdir
+  |> Util.lsdir ~root
   |> List.sort ~cmp:Pervasives.compare
   |> List.map ~f:(fun file ->
       dir / file
-      |> Util.readjsonfile ~conv:Dval.dval_of_yojson)
+      |> Util.readjsonfile ~root ~conv:Dval.dval_of_yojson)
 
 let next_data_filename (host: string) (desc : event_desc) : string =
   let dir = eventdata_dir host desc in
-  Util.mkdir dir;
+  Util.mkdir ~root dir;
   list_data_files host desc
   |> List.map ~f:(String.chop_suffix_exn ~suffix:file_ext)
   |> List.map ~f:int_of_string
@@ -107,7 +106,7 @@ let next_data_filename (host: string) (desc : event_desc) : string =
 
 let save_data (host: string) (desc: event_desc) (dval : RTT.dval) =
   let filename = next_data_filename host desc |> Log.pp "filename" in
-  Util.writejsonfile ~conv:Dval.dval_to_yojson ~value:dval filename
+  Util.writejsonfile ~root ~conv:Dval.dval_to_yojson ~value:dval filename
 
 
 
@@ -129,7 +128,7 @@ let load_events (host: string) (desc : event_desc) : RTT.dval list =
   read_data host desc
 
 let clear_events (host: string) : unit =
-  Core_extended.Shell.rm ~r:() ~f:() (host_dir host)
+  Util.rmRF ~root host
 
 
 let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Yojson.Safe.json =
