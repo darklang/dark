@@ -4,7 +4,7 @@ open Lib
 open Types
 open Types.RuntimeT
 
-let schema = Swagger.parse "lib/twitter_api.json"
+let schema = Swagger.parse "twitter.json"
 
 let call_twitter path (args: dval_map) : dval =
   Twitter.get path args

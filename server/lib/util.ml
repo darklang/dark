@@ -4,38 +4,43 @@ open Lwt.Infix
 (* ------------------- *)
 (* file stuff with checks *)
 (* ------------------- *)
-let check_filename ~mode f =
+let check_filename ~(root:Config.root) ~mode f =
+  let dir = Config.dir root in
+  let f = dir ^ f in
+
   if String.is_substring ~substring:".." f
   || String.contains f '~'
   || String.is_suffix ~suffix:"." f
   || String.is_suffix ~suffix:"/" f
+  || not (String.is_suffix ~suffix:"/" dir)
   || String.is_substring ~substring:"etc/passwd" f
-  || (not (String.is_prefix ~prefix:"/" f))
+  || String.is_substring ~substring:"//" f (* being used wrong *)
   || (mode = `Read (* check for irregular file *)
       && not (Sys.is_file f = `Yes))
-  || (not (String.is_substring ~substring:Config.persist_dir f
-           || String.is_substring ~substring:Config.run_dir f
-           || (mode = `Write
-               && String.is_substring ~substring:Config.serialization_dir f)
-           || (mode = `Read
-               && String.is_substring ~substring:Config.templates_dir f)
-          ))
   then
-    (Log.pP "SECURITY_VIOLATION" f;
+    (Log.erroR "SECURITY_VIOLATION" f;
     Exception.client "")
   else
     f
 
-let mkdir dir =
-  let dir = check_filename ~mode:`Dir dir in
+let file_exists ~root f : bool =
+  let f = check_filename ~root ~mode:`Check f in
+  Sys.file_exists f = `Yes
+
+let mkdir ~root dir : unit =
+  let dir = check_filename ~root ~mode:`Dir dir in
   Unix.mkdir_p dir
 
-let lsdir dir =
-  let dir = check_filename ~mode:`Dir dir in
+let lsdir ~root dir : string list =
+  let dir = check_filename ~root ~mode:`Dir dir in
   Sys.ls_dir dir
 
-let readfile f : string =
-  let f = check_filename ~mode:`Read f in
+let rmRF ~root dir : unit =
+  let dir = check_filename ~root ~mode:`Dir dir in
+  Core_extended.Shell.rm ~r:() ~f:() dir
+
+let readfile ~root f : string =
+  let f = check_filename ~root ~mode:`Read f in
   let ic = Caml.open_in f in
   (try
     let n = Caml.in_channel_length ic in
@@ -48,12 +53,12 @@ let readfile f : string =
     raise e)
 
 
-let readfile_lwt f : string Lwt.t =
-  let f = check_filename ~mode:`Read f in
+let readfile_lwt ~root f : string Lwt.t =
+  let f = check_filename ~root ~mode:`Read f in
   Lwt_io.with_file ~mode:Lwt_io.input f Lwt_io.read
 
-let writefile (f: string) (str: string) : unit =
-  let f = check_filename ~mode:`Write f in
+let writefile ~root (f: string) (str: string) : unit =
+  let f = check_filename ~root ~mode:`Write f in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   Unix.with_file ~perm:0o600 ~mode:flags f
     ~f:(fun desc ->
@@ -63,19 +68,43 @@ let writefile (f: string) (str: string) : unit =
 (* json *)
 (* ------------------- *)
 
-let readjsonfile ~(conv: (Yojson.Safe.json -> ('a, string) result)) (filename: string) : 'a =
+let readjsonfile ~root ~(conv: (Yojson.Safe.json -> ('a, string) result)) (filename: string) : 'a =
   filename
-  |> readfile
+  |> readfile ~root
   |> Yojson.Safe.from_string
   |> conv
   |> Result.ok_or_failwith
 
-let writejsonfile ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
+let writejsonfile ~root ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
   : unit =
   value
   |> conv
   |> Yojson.Safe.to_string
-  |> writefile filename
+  |> writefile ~root filename
+
+(* ------------------- *)
+(* binary *)
+(* ------------------- *)
+let writebinaryfile ~root ~(conv: 'a Bin_prot__Type_class.writer)
+    ~(value: 'a) f : unit =
+  let f = check_filename ~root ~mode:`Write f in
+  Core_extended.Bin_io_utils.save f conv value
+
+let readbinaryfile ~root ~(conv: 'a Core.Bin_prot.Read.reader) (f: string) : 'a =
+  let f = check_filename ~root ~mode:`Read f in
+  Core_extended.Bin_io_utils.load f conv
+
+(* ------------------- *)
+(* spawning *)
+(* ------------------- *)
+let convert_bin_to_json ~root (infile: string) (outfile: string) =
+  let infile = check_filename ~root ~mode:`Read infile in
+  let outfile = check_filename ~root ~mode:`Write outfile in
+  Spawn.spawn
+    ~prog:(Config.dir Config.Bin_root ^ "/darkfile_bin_to_json.exe")
+    ~argv:[""; infile; outfile]
+    ()
+
 
 
 (* ------------------- *)
