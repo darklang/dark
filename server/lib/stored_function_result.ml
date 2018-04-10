@@ -40,17 +40,12 @@ let filename (host, tlid, fnname, id) arglist =
 let store (host, tlid, fnname, id) arglist result =
   mkdir host tlid;
   let filename = filename (host, tlid, fnname, id) arglist in
-  result
-  |> Dval.dval_to_yojson
-  |> Yojson.Safe.to_string
-  |> Util.writefile filename
+  Util.writejsonfile ~conv:Dval.dval_to_yojson ~value:result filename
 
 let load (host, tlid, fnname, id) arglist =
   try
     filename (host, tlid, fnname, id) arglist
-    |> Util.readfile
-    |> Yojson.Safe.from_string
-    |> Dval.dval_of_yojson
-    |> Result.ok
+    |> Util.readjsonfile ~conv:Dval.dval_of_yojson
+    |> fun x -> Some x
   with e -> None
 

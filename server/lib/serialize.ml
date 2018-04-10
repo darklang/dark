@@ -42,8 +42,6 @@ let current_filenames () : string list =
           && (not (String.is_substring ~substring:"test_" f))
       )
 
-
-
 let load_binary (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
    * used a default value of []. Which means we wiped out our old Dark
@@ -55,11 +53,7 @@ let save_binary (filename: string) (ops: Op.oplist) : unit =
 
 
 let load_json (filename:string) : Op.oplist =
-  filename
-  |> Util.readfile
-  |> Yojson.Safe.from_string
-  |> Op.oplist_of_yojson
-  |> Result.ok_or_failwith
+  Util.readjsonfile ~conv:Op.oplist_of_yojson filename
 
 let save_json (filename: string) (ops: Op.oplist) : unit =
   ops
