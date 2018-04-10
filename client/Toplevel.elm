@@ -13,6 +13,7 @@ import Util exposing (deMaybe)
 import AST
 import Blank as B
 import Pointer as P
+import FunctionMetadata
 import SpecTypes
 import SpecHeaders
 import DB
@@ -131,6 +132,9 @@ clonePointerData pd =
     PDarkType dt -> Debug.crash "TODO clonePointerDatadata"
     PDarkTypeField dt -> Debug.crash "TODO clonePointerDatadata"
     PFFMsg msg -> PFFMsg (B.clone identity msg)
+    PFnName name -> PFnName (B.clone identity name)
+    PParamName name -> PParamName (B.clone identity name)
+    PParamTipe tipe -> PParamTipe (B.clone identity tipe)
 
 -------------------------
 -- Blanks
@@ -264,6 +268,9 @@ getChildrenOf tl pd =
     PDarkType _ -> specChildren ()
     PDarkTypeField d -> []
     PFFMsg _ -> []
+    PFnName _ -> []
+    PParamName _ -> []
+    PParamTipe _ -> []
 
 
 firstChild : Toplevel -> PointerData -> Maybe PointerData
@@ -287,6 +294,7 @@ rootOf tl =
 replace : PointerData -> PointerData -> Toplevel -> Toplevel
 replace p replacement tl =
   let ha () = tl |> asHandler |> deMaybe "TL.replace"
+      fn () = tl |> asUserFunction |> deMaybe "TL.replace"
       id = P.toID p
       astReplace () =
         case tl.data of
@@ -305,6 +313,13 @@ replace p replacement tl =
         let h = ha ()
             newSpec = SpecHeaders.replace id bo h.spec
         in { tl | data = TLHandler { h | spec = newSpec } }
+      fnMetadataReplace () =
+        let f = fn ()
+            newMetadata =
+              FunctionMetadata.replaceMetadataField p replacement f.metadata
+        in
+           { tl | data = TLFunc { f | metadata = newMetadata } }
+
   in
   case replacement of
     PVarBind vb -> astReplace ()
@@ -328,6 +343,9 @@ replace p replacement tl =
           spec2 = SpecHeaders.replace id bo h.spec
           ast = AST.replace p replacement h.ast
       in { tl | data = TLHandler { h | spec = spec2, ast = ast } }
+    PFnName _ -> fnMetadataReplace ()
+    PParamName _ -> fnMetadataReplace ()
+    PParamTipe _ -> fnMetadataReplace ()
 
 delete : Toplevel -> PointerData -> ID -> Toplevel
 delete tl p newID =
@@ -346,7 +364,8 @@ allData tl =
     TLDB db ->
       DB.allData db
     TLFunc f ->
-      AST.allData f.ast
+      FunctionMetadata.allData f.metadata
+      ++ AST.allData f.ast
 
 findExn : Toplevel -> ID -> PointerData
 findExn tl id =

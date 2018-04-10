@@ -73,6 +73,10 @@ keyword : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 keyword vs c name =
   text vs (atom :: wc "keyword" :: wc name :: c) name
 
+tipe : ViewState -> List HtmlConfig -> Tipe -> Html.Html Msg
+tipe vs c t =
+  text vs c (Runtime.tipe2str t)
+
 withFeatureFlag : ViewState -> BlankOr a -> List HtmlConfig
 withFeatureFlag vs v =
   if idOf vs.cursorState == Just (B.toID v)
@@ -219,6 +223,10 @@ viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html
 viewText pt vs c str =
   viewBlankOr (text vs) pt vs c str
 
+viewTipe : PointerType -> ViewState -> List HtmlConfig -> BlankOr Tipe -> Html.Html Msg
+viewTipe pt vs c str =
+  viewBlankOr (tipe vs) pt vs c str
+
 placeHolderFor : ViewState -> ID -> PointerType -> String
 placeHolderFor vs id pt =
   let paramPlaceholder =
@@ -255,8 +263,9 @@ placeHolderFor vs id pt =
     DarkType -> "type"
     DarkTypeField -> "fieldname"
     FFMsg -> "flag name"
-
-
+    FnName -> "function name"
+    ParamName -> "param name"
+    ParamTipe -> "param type"
 
 viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
   ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg

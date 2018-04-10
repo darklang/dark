@@ -305,6 +305,33 @@ body #grid * {
   }
 }
 
+.user-fn {
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid @orange;
+  padding-bottom: 10px;
+
+  .ufn-name {
+    padding-bottom: 10px;
+    margin: 0 auto;
+  }
+
+  .col {
+    display: flex;
+    flex-direction: row;
+    text-align: center;
+
+    .name, .type {
+      flex: 1;
+      &.blank {
+        width: 96; // put it all on one line
+      }
+    }
+
+  }
+}
+
 
 //*************
 // Handler

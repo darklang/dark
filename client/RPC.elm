@@ -84,6 +84,9 @@ decodePointerData =
     , ("PDarkType", dv1 PDarkType (decodeDarkType))
     , ("PDarkTypeField", dv1 PDarkTypeField (decodeBlankOr JSD.string))
     , ("PFFMsg", dv1 PFFMsg (decodeBlankOr JSD.string))
+    , ("PFnName", dv1 PFnName (decodeBlankOr JSD.string))
+    , ("PParamName", dv1 PParamName (decodeBlankOr JSD.string))
+    , ("PParamTipe", dv1 PParamTipe (decodeBlankOr decodeTipe))
     ]
 
 encodePointerData : PointerData -> JSE.Value
@@ -112,7 +115,12 @@ encodePointerData pd =
       ev "PDarkTypeField" [encodeBlankOr JSE.string darktypefield]
     PFFMsg msg ->
       ev "PFFMsg" [encodeBlankOr JSE.string msg]
-
+    PFnName msg ->
+      ev "PFnName" [encodeBlankOr JSE.string msg]
+    PParamName msg ->
+      ev "PParamName" [encodeBlankOr JSE.string msg]
+    PParamTipe msg ->
+      ev "PParamTipe" [encodeBlankOr encodeTipe msg]
 
 
 encodeOps : List Op -> JSE.Value
