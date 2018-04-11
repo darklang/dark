@@ -8,16 +8,26 @@ let check_filename ~(root:Config.root) ~mode f =
   let dir = Config.dir root in
   let f = dir ^ f in
 
+  let debug str value =
+    if false
+    then
+      Log.debug str value
+    else
+      value
+  in
+
   if root <> No_check
-  && (String.is_substring ~substring:".." f
-      || String.contains f '~'
-      || String.is_suffix ~suffix:"." f
-      || String.is_suffix ~suffix:"/" f
-      || not (String.is_suffix ~suffix:"/" dir)
-      || String.is_substring ~substring:"etc/passwd" f
-      || String.is_substring ~substring:"//" f (* being used wrong *)
-      || (mode = `Read (* check for irregular file *)
-          && not (Sys.is_file f = `Yes)))
+  && (String.is_substring ~substring:".." f |> debug "dots"
+      || String.contains f '~' |> debug "tilde"
+      || String.is_suffix ~suffix:"." f |> debug "tilde"
+      || String.is_suffix ~suffix:"/" f |> debug "ends slash"
+      || not (String.is_suffix ~suffix:"/" dir) |> debug "dir no slash"
+      || String.is_substring ~substring:"etc/passwd" f |> debug "etc"
+      (* being used wrong *)
+      || String.is_substring ~substring:"//" f |> debug "double slash"
+      (* check for irregular file *)
+      || (mode = `Read
+          && not (Sys.is_file f = `Yes))) |> debug "irreg"
   then
     (Log.erroR "SECURITY_VIOLATION" f;
     Exception.client "")
