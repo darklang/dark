@@ -13,8 +13,9 @@ type root = Events
           | Swagger
           | No_check
 
-
 val dir : root -> string
 
 val port : int
+
+val log_level : Log.level
 
