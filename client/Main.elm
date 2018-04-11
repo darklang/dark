@@ -1025,7 +1025,6 @@ update_ msg m =
       Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
 
     JSError msg ->
-      let _ = Debug.log "adasd" msg in
       Error ("Error in JS: " ++ msg)
 
     WindowResize x y ->
