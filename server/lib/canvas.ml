@@ -220,14 +220,16 @@ let save (c : canvas) : unit =
 let save_test (c: canvas) : string =
   let c = minimize c in
   let name = "test_" ^ c.name in
-  let name = if Sys.file_exists (Serialize.json_unversioned_filename name) = `Yes
-             then name ^ "_"
-                  ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
+  let file = Serialize.json_unversioned_filename name in
+  let name = if Util.file_exists ~root:Testdata file
+             then
+               name
+               ^ "_"
+               ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else name in
-  let c = {c with name = name } in
-  save c;
-  Serialize.json_unversioned_filename c.name
-
+  let file = Serialize.json_unversioned_filename name in
+  Serialize.save_json ~root:Testdata file c.ops;
+  file
 
 (* ------------------------- *)
 (* To Frontend JSON *)
