@@ -112,9 +112,10 @@ init {editorState, complete} location =
       savedCurrentPage = m0.currentPage
       m = { m0 | cursorState = Deselected, currentPage = Toplevels }
 
-      tests = case parseVariantTestsFromQueryString location.search of
-                  Just t  -> t
-                  Nothing -> []
+      tests =
+        case parseVariantTestsFromQueryString location.search of
+          Just t  -> t
+          Nothing -> []
 
       urlFragmentData =
         parseLocation location
@@ -813,7 +814,9 @@ update_ msg m =
             _ -> { x=0, y=0 }
           destination = { x= m.center.x + delta.x, y= m.center.y + delta.y }
       in
-      Viewport.moveTo destination
+          case m.currentPage of
+            Toplevels -> Viewport.moveTo destination
+            Fn _ -> NoChange
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx
@@ -962,7 +965,7 @@ update_ msg m =
       Functions.startEditing m
 
     ReturnToMainCanvas ->
-      SetCurrentPage Toplevels
+      MakeCmd (Navigation.modifyUrl "/admin/ui")
 
     -----------------
     -- URL stuff
@@ -1046,8 +1049,8 @@ update_ msg m =
               Just id ->
                 case Functions.find m id of
                   Just uf -> [SetCurrentPage (Fn uf.tlid)]
-                  _ -> []
-              Nothing -> []
+                  _ -> [SetCurrentPage Toplevels]
+              Nothing -> [SetCurrentPage Toplevels]
           center =
             case urlFragmentData.center of
               Nothing -> []
