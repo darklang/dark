@@ -383,6 +383,8 @@ submit m cursor action value =
           in
           wrap <| SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
         PParamTipe _ ->
+          validate "[A-Z][a-z]*" "param tipe"
+          <|
           let newPD = PParamTipe (B.newF (RT.str2tipe value))
               newTL = TL.replace pd newPD tl
           in
