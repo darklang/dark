@@ -962,7 +962,7 @@ update_ msg m =
     -- Functions
     ------------------------
     EditFunction ->
-      Functions.startEditing m
+      Selection.startEditingFn m
 
     ReturnToMainCanvas ->
       MakeCmd (Navigation.modifyUrl "/admin/ui")

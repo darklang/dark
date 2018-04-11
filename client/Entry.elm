@@ -21,6 +21,7 @@ import Util exposing (deMaybe)
 import AST
 import Toplevel as TL
 import Runtime as RT
+import Refactor
 import Pointer as P
 import SpecTypes
 import SpecHeaders
@@ -368,18 +369,24 @@ submit m cursor action value =
         PFnName _ ->
           let newPD = PFnName (B.newF value)
               newTL = TL.replace pd newPD tl
+              changedNames =
+                let old = TL.asUserFunction tl |> deMaybe "fuck off"
+                    new = TL.asUserFunction newTL |> deMaybe "fuckOff"
+                in
+                    Refactor.renameFunction m old new
           in
-          wrap <| SetFunction (TL.asUserFunction tl |> deMaybe "must be function")
+          RPC (SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
+               :: changedNames, FocusNext tlid predecessor)
         PParamName _ ->
           let newPD = PParamName (B.newF value)
               newTL = TL.replace pd newPD tl
           in
-          wrap <| SetFunction (TL.asUserFunction tl |> deMaybe "must be function")
+          wrap <| SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
         PParamTipe _ ->
           let newPD = PParamTipe (B.newF (RT.str2tipe value))
               newTL = TL.replace pd newPD tl
           in
-          wrap <| SetFunction (TL.asUserFunction tl |> deMaybe "must be function")
+          wrap <| SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
 
 
 
