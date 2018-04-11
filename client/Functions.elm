@@ -154,7 +154,33 @@ replaceParamName search replacement uf =
         uf
 
 replaceParamTipe : PointerData -> PointerData -> UserFunction -> UserFunction
-replaceParamTipe search replacement uf = uf
+replaceParamTipe search replacement uf =
+  let metadata = uf.metadata
+      sId = P.toID search
+      paramTipes =
+        uf
+        |> allParamData
+        |> List.filterMap
+          (\p ->
+            case p of
+              PParamTipe t -> Just t
+              _ -> Nothing)
+  in
+      if List.any (\p -> B.within p sId) paramTipes
+      then
+        let newMetadata =
+              case replacement of
+                PParamTipe new ->
+                  let newP =
+                    metadata.parameters
+                    |> List.map (\p -> { p | tipe = B.replace sId new p.tipe })
+                  in
+                      { metadata | parameters = newP }
+                _ -> metadata
+        in
+            { uf | metadata = newMetadata }
+      else
+          uf
 
 replaceMetadataField : PointerData -> PointerData -> UserFunction -> UserFunction
 replaceMetadataField old new uf =
