@@ -67,11 +67,28 @@ replace search replacement bo =
   then replacement
   else
     case bo of
+      -- note that we can't replace msg here, because it's a BlankOr
+      -- String, and this funcion can only replace BlankOr 'a
       Flagged thisId msg setting l r ->
         Flagged thisId msg setting
           (replace search replacement l)
           (replace search replacement r)
       _ -> bo
+
+-- Basically a copy of replace because the elm type system doesn't
+-- support this.
+replaceFFMsg : ID -> BlankOr String -> BlankOr a -> BlankOr a
+replaceFFMsg search replacement bo =
+  case bo of
+    Flagged thisId msg setting l r ->
+      if toID msg == search
+      then
+        Flagged thisId replacement setting l r
+      else
+        Flagged thisId msg setting
+          (replaceFFMsg search replacement l)
+          (replaceFFMsg search replacement r)
+    _ -> bo
 
 -- checks if the ID is in the blank. Does not recurse past the Blank
 -- definitions (eg, it will find a deeply nested Flagged, but won't find
