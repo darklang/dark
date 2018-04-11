@@ -486,7 +486,7 @@ allData expr =
   [e2ld expr] ++
   case expr of
     Blank _ -> []
-    Flagged _ msg  _ l r -> PFFMsg msg :: rl [l, r]
+    Flagged _ msg  _ l r -> allData l ++ [PFFMsg msg] ++ allData r
     F _ nexpr ->
       case nexpr of
         Value v -> []
