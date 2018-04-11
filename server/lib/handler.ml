@@ -71,13 +71,9 @@ let modifier_for_exn (h: handler) : string =
       "Called modifier_for_exn on a toplevel without a `modifier` param"
 
 let event_desc_for (h: handler) : Stored_event.event_desc option =
-  try
-    Some ( module_for_exn h
-         , event_name_for_exn h
-         , modifier_for_exn h)
-  with e
-    -> None
-
+  match (module_for h, event_name_for h, modifier_for h) with
+  | (Some m, Some en, Some mo) -> Some (m, en, mo)
+  | _ -> None
 
 let default_env (h: handler) : dval_map =
   let init = DvalMap.empty in
