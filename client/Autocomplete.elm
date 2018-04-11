@@ -403,6 +403,18 @@ generateFromModel m a =
                 , "Int"
                 , "{"
                 ]
+              ParamTipe ->
+                [ "Any"
+                , "String"
+                , "Int"
+                , "Boolean"
+                , "Float"
+                , "Date"
+                , "Obj"
+                , "Block"
+                , "Char"
+                , "List"
+                ]
               _ -> []
           _ -> []
 

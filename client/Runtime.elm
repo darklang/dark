@@ -80,9 +80,11 @@ str2tipe t =
   "int" -> TInt
   "float" -> TFloat
   "bool" -> TBool
+  "boolean" -> TBool
   "nothing" -> TNull
   "char" -> TChar
   "str" -> TStr
+  "string" -> TStr
   "list" -> TList
   "obj" -> TObj
   "block" -> TBlock
