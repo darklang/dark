@@ -39,6 +39,9 @@ trigger test_name =
     "editing_headers" -> editing_headers
     "tabbing_through_let" -> tabbing_through_let
     "case_sensitivity" -> case_sensitivity
+    "focus_on_ast_in_new_empty_tl" -> focus_on_ast_in_new_empty_tl
+    "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
+    "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -50,12 +53,6 @@ fail v = Err (toString v)
 
 onlyTL : Model -> Toplevel
 onlyTL m =
-  m.toplevels
-  |> List.head
-  |> deMaybe "test1"
-
-onlyAST : Model -> NExpr
-onlyAST m =
   let len = List.length m.toplevels
       _ = if len == 0
           then Debug.crash ("no toplevels")
@@ -64,12 +61,22 @@ onlyAST m =
           else "nothing to see here" in
   m.toplevels
   |> List.head
-  |> deMaybe "test2"
+  |> deMaybe "onlytl1"
+
+onlyHandler : Model -> Handler
+onlyHandler m =
+  m
+  |> onlyTL
   |> TL.asHandler
-  |> deMaybe "test3"
+  |> deMaybe "onlyhandler"
+
+onlyExpr : Model -> NExpr
+onlyExpr m =
+  m
+  |> onlyHandler
   |> .ast
   |> B.asF
-  |> deMaybe "test4"
+  |> deMaybe "onlyast4"
 
 
 
@@ -82,7 +89,7 @@ enter_changes_state m =
 
 field_access : Model -> TestResult
 field_access m =
-  case onlyAST m of
+  case onlyExpr m of
     FieldAccess (F _ (Variable "request")) (F _ "body") -> pass
     expr -> fail expr
 
@@ -100,13 +107,13 @@ field_access_closes m =
 
 field_access_pipes : Model -> TestResult
 field_access_pipes m =
-  case onlyAST m of
+  case onlyExpr m of
     Thread [F _ (FieldAccess (F _ (Variable "request")) (F _ "body")), Blank _] -> pass
     expr -> fail expr
 
 field_access_nested : Model -> TestResult
 field_access_nested m =
-  case onlyAST m of
+  case onlyExpr m of
     FieldAccess
       (F _ (FieldAccess
          (F _ (FieldAccess (F _ (Variable "request")) (F _ "body")))
@@ -120,7 +127,7 @@ pipeline_let_equals : Model -> TestResult
 pipeline_let_equals m =
   -- should be a simple let, not in a pipeline, entering 1 blank
   let astR =
-        case onlyAST m of
+        case onlyExpr m of
           Let (F _ "value") (F _ (Value "3")) (Blank _) ->
             pass
           e ->
@@ -134,7 +141,7 @@ pipeline_let_equals m =
 
 pipe_within_let : Model -> TestResult
 pipe_within_let m =
-  case onlyAST m of
+  case onlyExpr m of
     Let
       (F _ "value")
       (F _ (Value "3"))
@@ -149,13 +156,13 @@ pipe_within_let m =
 
 tabbing_works : Model -> TestResult
 tabbing_works m =
-  case onlyAST m of
+  case onlyExpr m of
     If (Blank _) (F _ (Value "5")) (Blank _) -> pass
     e -> fail e
 
 next_sibling_works : Model -> TestResult
 next_sibling_works m =
-  case onlyAST m of
+  case onlyExpr m of
     Let (Blank _) (Blank id1) (Blank _) ->
       case m.cursorState of
         Selecting _ (Just id2) ->
@@ -168,7 +175,7 @@ next_sibling_works m =
 
 varbinds_are_editable : Model -> TestResult
 varbinds_are_editable m =
-  case onlyAST m of
+  case onlyExpr m of
     Let (F id1 "var") (Blank _) (Blank _) as l ->
       case m.cursorState of
         Entering (Filling _ id2)->
@@ -181,7 +188,7 @@ varbinds_are_editable m =
 
 editing_request_edits_request : Model -> TestResult
 editing_request_edits_request m =
-  case onlyAST m of
+  case onlyExpr m of
     FieldAccess (F id1 (Variable "request")) (Blank _) ->
       case m.complete.completions of
         [cs, _, _, _] ->
@@ -193,14 +200,14 @@ editing_request_edits_request m =
 
 autocomplete_highlights_on_partial_match : Model -> TestResult
 autocomplete_highlights_on_partial_match m =
-  case onlyAST m of
+  case onlyExpr m of
     FnCall "Int::add" _ -> pass
     e -> fail e
 
 
 no_request_global_in_non_http_space : Model -> TestResult
 no_request_global_in_non_http_space m =
-  case onlyAST m of
+  case onlyExpr m of
     -- this might change but this is the answer for now.
     FnCall "Http::bad_request" _ -> pass
     -- Blank _ -> pass
@@ -217,20 +224,20 @@ hover_values_for_varnames m =
 
 pressing_up_doesnt_return_to_start : Model -> TestResult
 pressing_up_doesnt_return_to_start m =
-  case onlyAST m of
+  case onlyExpr m of
     FnCall "Char::toASCIIChar" _ -> pass
     e -> fail e
 
 deleting_selects_the_blank : Model -> TestResult
 deleting_selects_the_blank m =
-  case onlyAST m of
+  case onlyExpr m of
     Value "6" -> pass
     e -> fail e
 
 
 right_number_of_blanks : Model -> TestResult
 right_number_of_blanks m =
-  case onlyAST m of
+  case onlyExpr m of
     FnCall "assoc" [Blank _, Blank _, Blank _] -> pass
     e -> fail e
 
@@ -241,7 +248,7 @@ ellen_hello_world_demo m =
              |> deMaybe "hw2"
              |> .spec
   in
-  case (spec.module_, spec.name, spec.modifier, onlyAST m) of
+  case (spec.module_, spec.name, spec.modifier, onlyExpr m) of
     ( F _ "HTTP"
     , F _ "/hello"
     , F _ "GET"
@@ -265,7 +272,7 @@ editing_headers m =
 
 tabbing_through_let : Model -> TestResult
 tabbing_through_let m =
-  case onlyAST m of
+  case onlyExpr m of
     Let (F _ "myvar") (F _ (Value "5")) (F _ (Value "5")) ->
       pass
     e -> fail e
@@ -312,4 +319,32 @@ case_sensitivity m =
                other -> fail other)
     |> RE.combine
     |> Result.map (\_ -> ())
+
+focus_on_ast_in_new_empty_tl : Model -> TestResult
+focus_on_ast_in_new_empty_tl m =
+  case (onlyHandler m).ast of
+    Blank id ->
+      if idOf m.cursorState == Just id
+      then pass
+      else fail (id, m.cursorState)
+    e -> fail e
+
+focus_on_path_in_new_filled_tl : Model -> TestResult
+focus_on_path_in_new_filled_tl m =
+  case (onlyHandler m).spec.name of
+    Blank id ->
+      if idOf m.cursorState == Just id
+      then pass
+      else fail (id, m.cursorState)
+    e -> fail e
+
+focus_on_cond_in_new_tl_with_if : Model -> TestResult
+focus_on_cond_in_new_tl_with_if m =
+  case onlyExpr m of
+    If cond _ _ ->
+      if idOf m.cursorState == Just (B.toID cond)
+      then pass
+      else fail m.cursorState
+    e -> fail e
+
 

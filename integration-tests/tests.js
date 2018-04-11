@@ -433,5 +433,25 @@ test('case_sensitivity', async t => {
 
 });
 
+test('focus_on_ast_in_new_empty_tl', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+});
 
+test('focus_on_path_in_new_filled_tl', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+});
+
+test('focus_on_cond_in_new_tl_with_if', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "if")
+    .pressKey("enter")
+});
 
