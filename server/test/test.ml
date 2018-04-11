@@ -188,6 +188,23 @@ let t_stored_event_roundtrip () =
 
   ()
 
+let t_bad_ssl_cert _ =
+  let ast = f (FnCall ( "HttpClient::get"
+                   , [ v "\"https://self-signed.badssl.com\""
+                     ; v "{}"
+                     ; v "{}"
+                     ; v "{}"]))
+  in
+  let v =
+    try
+      let _ = execute_ops [handler ast] in
+      Some "no exception"
+    with
+    | Exception.DarkException ed -> None
+    | _ -> Some "different exception"
+  in AT.check (AT.option AT.string) "should get bad_ssl" v None
+
+
 
 
 let t_hmac_signing _ =
@@ -250,6 +267,7 @@ let suite =
   ; "int_add_works", `Slow, t_int_add_works
   ; "lambda_with_foreach", `Slow, t_lambda_with_foreach
   ; "stored_events", `Slow, t_stored_event_roundtrip
+  ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ]
 
 let () =
@@ -258,5 +276,7 @@ let () =
   AT.run
     ~argv:[|"--verbose"; "--show-errors"|]
     "suite" [ "tests", suite ]
+
+
 
 
