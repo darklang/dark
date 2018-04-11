@@ -2,11 +2,12 @@ module Functions exposing (..)
 
 -- lib
 import List.Extra as LE
-import Navigation
 
 -- dark
 import Types exposing (..)
-import Toplevel as TL
+import Blank as B
+import Pointer as P
+import AST
 import Util exposing (deMaybe)
 
 ufpToP : UserFunctionParameter -> Maybe Parameter
@@ -60,26 +61,48 @@ findByNameExn : Model -> String -> UserFunction
 findByNameExn m s =
   findByName m s |> deMaybe "Functions.findByNameExn"
 
-startEditing : Model -> Modification
-startEditing m =
-  case unwrapCursorState m.cursorState of
-    Selecting tlid (Just id) ->
-      let tl = TL.getTL m tlid
-          pd = TL.findExn tl id
-      in
-          case pd of
-            PExpr (F _ (FnCall name _)) ->
-              edit (findByNameExn m name)
-            _ ->
-              Debug.crash "should only be called on an FnCall for a UserFunction"
-    _ -> NoChange
-
-
-edit : UserFunction -> Modification
-edit uf =
-  MakeCmd (Navigation.modifyUrl (urlForFn uf))
-
 urlForFn : UserFunction -> String
 urlForFn uf =
   "/admin/ui#" ++ ("fn=" ++ (toString (deTLID uf.tlid)))
+
+allParamData : UserFunctionParameter -> List PointerData
+allParamData ufp =
+  [(PParamName ufp.name), (PParamTipe ufp.tipe)]
+
+allData : UserFunction -> List PointerData
+allData uf =
+  (PFnName uf.metadata.name) :: (List.concat (List.map allParamData uf.metadata.parameters))
+  ++ AST.allData uf.ast
+
+replaceFnName : PointerData -> PointerData -> UserFunction -> UserFunction
+replaceFnName search replacement uf =
+  let metadata = uf.metadata
+      sId = P.toID search
+  in
+      if B.within metadata.name sId
+      then
+        let newMetadata =
+              case replacement of
+                PFnName new ->
+                  { metadata | name = (B.replace sId new metadata.name) }
+                _ -> metadata
+        in
+            { uf | metadata = newMetadata }
+      else
+        uf
+
+replaceParamName : PointerData -> PointerData -> UserFunction -> UserFunction
+replaceParamName search replacement uf = uf
+
+replaceParamTipe : PointerData -> PointerData -> UserFunction -> UserFunction
+replaceParamTipe search replacement uf = uf
+
+replaceMetadataField : PointerData -> PointerData -> UserFunction -> UserFunction
+replaceMetadataField old new uf =
+  uf
+  |> replaceFnName old new
+  |> replaceParamName old new
+  |> replaceParamTipe old new
+
+
 

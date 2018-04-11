@@ -1,4 +1,4 @@
-module Refactor exposing (extractFunction)
+module Refactor exposing (extractFunction, renameFunction)
 
 -- lib
 import List.Extra as LE
@@ -118,4 +118,67 @@ extractFunction m tl p =
           RPC ([ SetFunction newF, SetHandler tl.id tl.pos newH ]
               , FocusExact tl.id (P.toID replacement))
     _ -> NoChange
+
+renameFunction : Model -> UserFunction -> UserFunction -> List Op
+renameFunction m old new =
+  let renameFnCalls ast old new =
+        let transformCall newName old =
+              let transformExpr name old =
+                    case old of
+                      F id (FnCall _ params) ->
+                        F id (FnCall name params)
+                      _ ->
+                        old
+              in
+                  case old of
+                    PExpr e ->
+                      PExpr (transformExpr newName e)
+                    _ -> old
+            (origName, calls) =
+              case old.metadata.name of
+                Blank _ -> (Nothing, [])
+                Flagged _ _ _ _ _ -> (Nothing, [])
+                F _ n ->
+                  (Just n, AST.allCallsToFn n ast |> List.map PExpr)
+            newName =
+              case new.metadata.name of
+                Blank _ -> Nothing
+                Flagged _ _ _ _ _ -> Nothing
+                F _ n -> Just n
+        in
+            case (origName, newName) of
+              (Just o, Just r) ->
+                List.foldr
+                (\call acc -> AST.replace call (transformCall r call) acc)
+                ast
+                calls
+              _ -> ast
+  in
+      let newHandlers =
+            m.toplevels
+            |> List.filterMap
+              (\tl ->
+                case TL.asHandler tl of
+                  Nothing -> Nothing
+                  Just h ->
+                    let newAst = renameFnCalls h.ast old new
+                    in
+                        if newAst /= h.ast
+                        then
+                          Just (SetHandler tl.id tl.pos { h | ast = newAst })
+                        else Nothing)
+          newFunctions =
+              m.userFunctions
+              |> List.filterMap
+                (\uf ->
+                  let newAst = renameFnCalls uf.ast old new
+                  in
+                      if newAst /= uf.ast
+                      then
+                        Just (SetFunction { uf | ast = newAst })
+                      else Nothing)
+      in
+          newHandlers ++ newFunctions
+
+
 

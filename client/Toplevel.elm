@@ -13,7 +13,7 @@ import Util exposing (deMaybe)
 import AST
 import Blank as B
 import Pointer as P
-import FunctionMetadata
+import Functions as Fns
 import SpecTypes
 import SpecHeaders
 import DB
@@ -315,10 +315,10 @@ replace p replacement tl =
         in { tl | data = TLHandler { h | spec = newSpec } }
       fnMetadataReplace () =
         let f = fn ()
-            newMetadata =
-              FunctionMetadata.replaceMetadataField p replacement f.metadata
+            newF =
+              Fns.replaceMetadataField p replacement f
         in
-           { tl | data = TLFunc { f | metadata = newMetadata } }
+           { tl | data = TLFunc newF }
 
   in
   case replacement of
@@ -364,8 +364,7 @@ allData tl =
     TLDB db ->
       DB.allData db
     TLFunc f ->
-      FunctionMetadata.allData f.metadata
-      ++ AST.allData f.ast
+      Fns.allData f
 
 findExn : Toplevel -> ID -> PointerData
 findExn tl id =
