@@ -45,9 +45,11 @@ let store (host, tlid, fnname, id) arglist result =
   Util.writejsonfile ~root ~conv:Dval.dval_to_yojson ~value:result filename
 
 let load (host, tlid, fnname, id) arglist =
-  try
-    filename (host, tlid, fnname, id) arglist
+  let fn = filename (host, tlid, fnname, id) arglist in
+  if Util.file_exists ~root fn
+  then
+    fn
     |> Util.readjsonfile ~root ~conv:Dval.dval_of_yojson
     |> fun x -> Some x
-  with e -> None
+  else None
 
