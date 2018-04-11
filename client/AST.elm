@@ -509,7 +509,8 @@ replace search replacement expr =
   then
     case replacement of
       PExpr e -> B.replace sId e expr
-      _ -> expr
+      PFFMsg newMsg -> B.replaceFFMsg sId newMsg expr
+      _ -> Util.impossible "cannot occur" expr
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind replacement) ->
