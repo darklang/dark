@@ -118,7 +118,7 @@ submit m cursor action value =
                         |> List.head
                         |> Maybe.map P.toID
                         |> Maybe.map (FocusExact tlid)
-                        |> Maybe.withDefault FocusNothing
+                        |> Maybe.withDefault (FocusNext tlid Nothing)
                 op = SetHandler tlid pos { ast = newAst
                                          , spec = newHandlerSpec ()
                                          }
