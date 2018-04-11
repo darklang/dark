@@ -351,13 +351,13 @@ viewBlankOr htmlFn pt vs c bo =
              [ wc "flagged shown"]
              (drawInFlag id (B.flattenFF bo) ++
               [ fontAwesome "flag"
-              , viewText FFMsg vs [wc "flag-message"] msg
+              , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
               , drawSetting id setting
               , drawEndFeatureFlag setting id
               , div vs [wc "flag-left nested-flag"]
-                  [viewBlankOr htmlFn pt vs [] l]
+                  [viewBlankOr htmlFn pt vs idConfigs l]
               , div vs [wc "flag-right nested-flag"]
-                  [viewBlankOr htmlFn pt vs [] r]
+                  [viewBlankOr htmlFn pt vs idConfigs r]
               ])
         else
           Html.div
