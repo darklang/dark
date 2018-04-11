@@ -271,13 +271,6 @@ viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
   ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
 viewBlankOr htmlFn pt vs c bo =
   let
-      -- _ = case bo of
-      --       Flagged _ _ _ _ _ ->
-      --         let _ = Debug.log "cursorState " vs.cursorState in
-      --         let _ = Debug.log "bo" bo in
-      --         bo
-      --       _ -> bo
-
       isSelectionWithin bo =
         idOf vs.cursorState
         |> Maybe.map (B.within bo)
