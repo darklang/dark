@@ -13,6 +13,7 @@ let init () =
     (* init the Random module, will be seeded from /dev/urandom on Linux *)
     Random.self_init ();
     Db.init ();
+    Serialize.write_shape_data ();
     Event_queue.init ();
     Httpclient.init ();
     Log.infO "SYSTEM" "Initialization Complete";
