@@ -30,7 +30,7 @@ replace search replacement hs =
 
 delete : PointerData -> HandlerSpec -> ID -> HandlerSpec
 delete pd hs newID =
-  replace (P.toID pd |> Debug.log "id") (Blank newID) hs
+  replace (P.toID pd) (Blank newID) hs
 
 allData : HandlerSpec -> List PointerData
 allData spec =
