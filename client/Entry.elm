@@ -364,7 +364,7 @@ submit m cursor action value =
           let newPD = PFFMsg (B.newF value)
               newTL = TL.replace pd newPD tl
           in
-          wrap <| SetHandler tlid tl.pos (TL.asHandler tl |> deMaybe "must be handler")
+          wrap <| SetHandler tlid tl.pos (TL.asHandler newTL |> deMaybe "must be handler")
         PFnName _ ->
           let newPD = PFnName (B.newF value)
               newTL = TL.replace pd newPD tl
