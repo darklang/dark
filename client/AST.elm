@@ -320,13 +320,13 @@ allCallsToFn s e =
   e
   |> allData
   |> List.filterMap
-  (\pd ->
-    case pd of
-      PExpr (F id (FnCall name params)) ->
-        if name == s
-        then Just (F id (FnCall name params))
-        else Nothing
-      _ -> Nothing)
+    (\pd ->
+      case pd of
+        PExpr (F id (FnCall name params)) ->
+          if name == s
+          then Just (F id (FnCall name params))
+          else Nothing
+        _ -> Nothing)
 
 -------------------------
 -- Ancestors

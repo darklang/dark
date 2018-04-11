@@ -65,13 +65,18 @@ urlForFn : UserFunction -> String
 urlForFn uf =
   "/admin/ui#" ++ ("fn=" ++ (toString (deTLID uf.tlid)))
 
-allParamData : UserFunctionParameter -> List PointerData
-allParamData ufp =
+paramData : UserFunctionParameter -> List PointerData
+paramData ufp =
   [(PParamName ufp.name), (PParamTipe ufp.tipe)]
+
+allParamData : UserFunction -> List PointerData
+allParamData uf =
+  List.concat (List.map paramData uf.metadata.parameters)
 
 allData : UserFunction -> List PointerData
 allData uf =
-  (PFnName uf.metadata.name) :: (List.concat (List.map allParamData uf.metadata.parameters))
+  [PFnName uf.metadata.name]
+  ++ (allParamData uf)
   ++ AST.allData uf.ast
 
 replaceFnName : PointerData -> PointerData -> UserFunction -> UserFunction
@@ -92,7 +97,61 @@ replaceFnName search replacement uf =
         uf
 
 replaceParamName : PointerData -> PointerData -> UserFunction -> UserFunction
-replaceParamName search replacement uf = uf
+replaceParamName search replacement uf =
+  let metadata = uf.metadata
+      sId = P.toID search
+      paramNames =
+        uf
+        |> allParamData
+        |> List.filterMap
+          (\p ->
+            case p of
+              PParamName n -> Just n
+              _ -> Nothing)
+  in
+      if List.any (\p -> B.within p sId) paramNames
+      then
+        let newMetadata =
+              case replacement of
+                PParamName new ->
+                  let newP =
+                    metadata.parameters
+                    |> List.map (\p -> { p | name = B.replace sId new p.name })
+                  in
+                      { metadata | parameters = newP }
+                _ -> metadata
+            newBody =
+              let sContent =
+                    case search of
+                      PParamName d -> B.toMaybe d
+                      _ -> Debug.crash "impossible"
+                  rContent =
+                    case replacement of
+                      PParamName d -> B.toMaybe d
+                      _ -> Debug.crash "impossible"
+                  transformUse rep old =
+                    case old of
+                      PExpr e ->
+                        case e of
+                          F _ _ ->
+                            PExpr (F (gid ()) (Variable rep))
+                          _ ->
+                            Debug.crash "impossible"
+                      _ -> Debug.crash "impossible"
+              in
+                  case (sContent, rContent) of
+                    (Just o, Just r) ->
+                      let uses = AST.uses o uf.ast |> List.map PExpr
+                      in
+                          List.foldr
+                          (\use acc -> AST.replace use (transformUse r use) acc)
+                          uf.ast
+                          uses
+                    _ -> uf.ast
+        in
+            { uf | metadata = newMetadata, ast = newBody }
+      else
+        uf
 
 replaceParamTipe : PointerData -> PointerData -> UserFunction -> UserFunction
 replaceParamTipe search replacement uf = uf
