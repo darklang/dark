@@ -8,15 +8,16 @@ let check_filename ~(root:Config.root) ~mode f =
   let dir = Config.dir root in
   let f = dir ^ f in
 
-  if String.is_substring ~substring:".." f
-  || String.contains f '~'
-  || String.is_suffix ~suffix:"." f
-  || String.is_suffix ~suffix:"/" f
-  || not (String.is_suffix ~suffix:"/" dir)
-  || String.is_substring ~substring:"etc/passwd" f
-  || String.is_substring ~substring:"//" f (* being used wrong *)
-  || (mode = `Read (* check for irregular file *)
-      && not (Sys.is_file f = `Yes))
+  if root <> No_check
+  && (String.is_substring ~substring:".." f
+      || String.contains f '~'
+      || String.is_suffix ~suffix:"." f
+      || String.is_suffix ~suffix:"/" f
+      || not (String.is_suffix ~suffix:"/" dir)
+      || String.is_substring ~substring:"etc/passwd" f
+      || String.is_substring ~substring:"//" f (* being used wrong *)
+      || (mode = `Read (* check for irregular file *)
+          && not (Sys.is_file f = `Yes)))
   then
     (Log.erroR "SECURITY_VIOLATION" f;
     Exception.client "")
@@ -100,8 +101,9 @@ let readbinaryfile ~root ~(conv: 'a Core.Bin_prot.Read.reader) (f: string) : 'a 
 let convert_bin_to_json ~root (infile: string) (outfile: string) =
   let infile = check_filename ~root ~mode:`Read infile in
   let outfile = check_filename ~root ~mode:`Write outfile in
+
   Spawn.spawn
-    ~prog:(Config.dir Config.Bin_root ^ "/darkfile_bin_to_json.exe")
+    ~prog:(Config.dir Config.Bin_root ^ "darkfile_bin_to_json.exe")
     ~argv:[""; infile; outfile]
     ()
 
