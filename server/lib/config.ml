@@ -100,4 +100,19 @@ let port : int =
   |> Option.value ~default:"8000"
   |> int_of_string
 
+let log_level : Log.level =
+  let level = Sys.getenv "DARK_CONFIG_LOGLEVEL"
+              |> Option.value ~default:"all"
+              |> String.uppercase
+  in
+  match level with
+  | "OFF" -> `Off
+  | "FATAL" -> `Fatal
+  | "ERROR" -> `Error
+  | "WARN" -> `Warn
+  | "INFO" -> `Info
+  | "DEBUG" -> `Debug
+  | "ALL" -> `All
+  | _ -> `All
+
 
