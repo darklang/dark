@@ -21,15 +21,9 @@ type timing_header = string * float * string
 let server_timing (times: timing_header list) =
   times
   |> List.map ~f:(fun (name, time, desc) ->
-      (* chrome 64 *)
       name
-      ^ "=" ^ (time |> Float.to_string_hum ~decimals:3)
-      ^ "; \"" ^ desc ^ "\"")
-
-  (* chrome 65 *)
-  (* name *)
-  (* ^ ";desc=\"" ^ desc ^ "\"" *)
-  (* ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3) *)
+      ^ ";desc=\"" ^ desc ^ "\""
+      ^ ";dur=" ^ (time |> Float.to_string_hum ~decimals:3))
 
   |> String.concat ~sep:","
   |> fun x -> [("Server-timing", x)]
