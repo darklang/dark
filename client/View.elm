@@ -58,11 +58,15 @@ viewCanvas m =
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
         yaxis = axisLine m {x=0, y=1}
         xaxis = axisLine m {x=1, y=0}
+        axes =
+          case m.currentPage of
+            Toplevels -> [xaxis, yaxis]
+            Fn _ -> []
         routing =
           case m.currentPage of
             Toplevels -> [ViewRoutingTable.viewRoutingTable m]
             Fn _ -> []
-        allDivs = [xaxis, yaxis] ++ routing ++ asts ++ entry
+        allDivs = axes ++ routing ++ asts ++ entry
     in
         Html.div [Attrs.id "canvas"] allDivs
 
