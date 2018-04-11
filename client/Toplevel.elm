@@ -35,7 +35,7 @@ get m id =
 upsert : Model -> Toplevel -> Model
 upsert m tl =
   let updated = update m tl.id (\_ -> tl) in
-  if m.toplevels == updated.toplevels
+  if Nothing == LE.find (\thisTl -> thisTl.id == tl.id) updated.toplevels
   then { m | toplevels = m.toplevels ++ [tl] }
   else updated
 
