@@ -4,7 +4,7 @@ let digest = Op.bin_shape_oplist
              |> Bin_prot.Shape.eval_to_digest_string
 
 let write_shape_data () =
-  if Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
+  if Config.should_write_shape_data
   then
     let shape_string = Op.bin_shape_oplist
                      |> Bin_prot.Shape.eval
