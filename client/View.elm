@@ -96,6 +96,11 @@ viewTL m tl =
         if Just tl.id == tlidOf m.cursorState
         then "selected"
         else ""
+      boxClasses =
+        case m.cursorState of
+          Dragging tlid _ _ _ ->
+            if tlid == tl.id then ["dragging"] else []
+          _ -> []
       class =
         [ selected
         , toString (deTLID tl.id)
@@ -105,7 +110,7 @@ viewTL m tl =
         |> String.join " "
       html =
         Html.div
-          [Attrs.class "sidebar-box"] -- see comment in css
+          [Attrs.class <| String.join " " (boxClasses ++ ["sidebar-box"])] -- see comment in css
           [Html.div
             (Attrs.class class :: events)
             (body ++ data)
