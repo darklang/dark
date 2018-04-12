@@ -123,11 +123,16 @@ init functions = { functions = functions
 reset : Model -> Autocomplete -> Autocomplete
 reset m a =
   let userFunctionMetadata =
-      m.userFunctions
-      |> List.map .metadata
-      |> List.filterMap Functions.ufmToF
+        m.userFunctions
+        |> List.map .metadata
+        |> List.filterMap Functions.ufmToF
+      functions =
+        m.builtInFunctions
+        |> List.filter
+          (\f -> not (List.member f.name (List.map .name userFunctionMetadata)))
+        |> List.append userFunctionMetadata
   in
-  init ((a.functions ++ userFunctionMetadata) |> LE.uniqueBy (\f -> f.name)) |> regenerate m
+      init functions |> regenerate m
 
 numCompletions : Autocomplete -> Int
 numCompletions a =

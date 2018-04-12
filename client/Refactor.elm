@@ -1,4 +1,4 @@
-module Refactor exposing (extractFunction, renameFunction)
+module Refactor exposing (..)
 
 -- lib
 import List.Extra as LE
@@ -180,4 +180,59 @@ renameFunction m old new =
       in
           newHandlers ++ newFunctions
 
+addNewFunctionParameter : Model -> UserFunction -> List Op
+addNewFunctionParameter m old =
+  let extendFnCalls ast old =
+        let transformCall old =
+              let transformExpr old =
+                    case old of
+                      F id (FnCall name params) ->
+                        F id (FnCall name (params ++ [Blank.new ()]))
+                      _ ->
+                        old
+              in
+                  case old of
+                    PExpr e ->
+                      PExpr (transformExpr e)
+                    _ -> old
+            (origName, calls) =
+              case old.metadata.name of
+                Blank _ -> (Nothing, [])
+                Flagged _ _ _ _ _ -> (Nothing, [])
+                F _ n ->
+                  (Just n, AST.allCallsToFn n ast |> List.map PExpr)
+        in
+            case origName of
+              Just _ ->
+                List.foldr
+                (\call acc -> AST.replace call (transformCall call) acc)
+                ast
+                calls
+              _ -> ast
+  in
+      let newHandlers =
+            m.toplevels
+            |> List.filterMap
+              (\tl ->
+                case TL.asHandler tl of
+                  Nothing -> Nothing
+                  Just h ->
+                    let newAst = extendFnCalls h.ast old
+                    in
+                        if newAst /= h.ast
+                        then
+                          Just (SetHandler tl.id tl.pos { h | ast = newAst })
+                        else Nothing)
+          newFunctions =
+              m.userFunctions
+              |> List.filterMap
+                (\uf ->
+                  let newAst = extendFnCalls uf.ast old
+                  in
+                      if newAst /= uf.ast
+                      then
+                        Just (SetFunction { uf | ast = newAst })
+                      else Nothing)
+      in
+          newHandlers ++ newFunctions
 

@@ -189,5 +189,21 @@ replaceMetadataField old new uf =
   |> replaceParamName old new
   |> replaceParamTipe old new
 
+extend : UserFunction -> UserFunction
+extend uf =
+  let newParam =
+      { name = B.new ()
+      , tipe = B.new ()
+      , block_args = []
+      , optional = False
+      , description = ""
+      }
+      metadata = uf.metadata
+      newMetadata =
+        { metadata | parameters = (uf.metadata.parameters ++ [newParam]) }
+  in
+      { uf | metadata = newMetadata }
+
+
 
 
