@@ -63,6 +63,16 @@ moveSlider newSetting bo =
     Flagged id msg _ l r -> Flagged id msg newSetting l r
     _ -> Debug.crash "should only be called on slider"
 
+commitSlider : Model -> ID -> Modification
+commitSlider m id =
+  case tlidOf (unwrapCursorState m.cursorState) of
+    Nothing -> NoChange
+    Just tlid ->
+      let tl = TL.getTL m tlid in
+      RPC ([SetHandler tl.id tl.pos (tl
+                                     |> TL.asHandler
+                                     |> deMaybe "FF.updateSlider")]
+           , FocusSame)
 
 updateSlider : Model -> ID -> String -> Modification
 updateSlider m id val =
@@ -81,7 +91,4 @@ updateSlider m id val =
                       |> P.exprmap move
               newTL = TL.replace pd newPd tl
           in
-          RPC ([SetHandler tl.id tl.pos
-                           (newTL |> TL.asHandler |> deMaybe "FF.updateSlider") ]
-               , FocusSame)
-
+          TweakModel (\m -> TL.upsert m newTL)
