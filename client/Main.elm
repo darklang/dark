@@ -145,7 +145,11 @@ init {editorState, complete} location =
         |> SE.replace ":8000" ""
         |> SE.replace ":9000" ""
 
-      m2 = { m | complete = AC.init (List.map flag2function complete)
+      builtins =
+        List.map flag2function complete
+
+      m2 = { m | builtInFunctions = builtins
+               , complete = AC.init builtins
                , tests = tests
                , toplevels = []
                , center = center
@@ -509,10 +513,31 @@ update_ msg m =
                     TLFunc f ->
                       case mId of
                         Just id ->
-                          let replacement = AST.addThreadBlank id f.ast in
-                          RPC ( [ SetFunction { f | ast = replacement}]
-                              , FocusNext tlid (Just id))
+                          case (TL.findExn tl id) of
+                            PExpr _ ->
+                              let replacement = AST.addThreadBlank id f.ast
+                              in
+                                  RPC ( [ SetFunction { f | ast = replacement}]
+                                      , FocusNext tlid (Just id))
+                            PParamTipe _ ->
+                              let replacement = Functions.extend f
+                                  newCalls = Refactor.addNewFunctionParameter m f
+                              in
+                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                            PParamName _ ->
+                              let replacement = Functions.extend f
+                                  newCalls = Refactor.addNewFunctionParameter m f
+                              in
+                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                            PFnName _ ->
+                              let replacement = Functions.extend f
+                                  newCalls = Refactor.addNewFunctionParameter m f
+                              in
+                                  RPC ( [SetFunction replacement] ++ newCalls, FocusNext tlid (Just id))
+                            _ ->
+                              NoChange
                         Nothing -> NoChange
+
                 else
                   case mId of
                     Just id -> Selection.enter m tlid id

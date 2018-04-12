@@ -412,6 +412,7 @@ type alias Model = { center : Pos
                    , tests : List VariantTest
                    , complete : Autocomplete
                    , userFunctions : List UserFunction
+                   , builtInFunctions : List Function
                    , cursorState : CursorState
                    , currentPage : CurrentPage
                    , hovering : List ID
