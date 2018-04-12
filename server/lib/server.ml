@@ -292,9 +292,9 @@ let server () =
   let callback (ch, conn) req body =
     let subdomain =
       let host = req
-                   |> CRequest.uri
-                   |> Uri.host
-                   |> Option.value ~default:"" in
+                 |> CRequest.uri
+                 |> Uri.host
+                 |> Option.value ~default:"" in
       match String.split host '.' with
       | ["localhost"] -> "localhost"
       | a :: rest -> a
