@@ -266,7 +266,7 @@ let admin_handler ~(subdomain: string) ~(uri: Uri.t) ~stopper ~(body: string) (r
      * It also sends too much data back, but we just ignore it
      * in the client. *)
     rpc ()
-  | "/admin/api/shutdown" ->
+  | "/admin/api/shutdown" when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond `OK "Disembowelment"
   | "/admin/ui" ->
