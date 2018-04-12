@@ -204,9 +204,12 @@ body #grid * {
 // Routing table
 //*************
 .viewing-table {
+  background-color: @black2;
   border: 2px solid @blue;
   padding: 8px;
+  position: relative;
   width: max-content;
+  z-index: 20;
 
   .header {
     width: 300px;
@@ -720,6 +723,7 @@ body #grid * {
 // against.
 .sidebar-box {
   position: relative;
+  z-index: 10;
 }
 
 .selected[title] {
