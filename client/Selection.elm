@@ -12,6 +12,7 @@ import Types exposing (..)
 import Toplevel as TL
 import Analysis
 import Pointer as P
+import Blank as B
 import Functions as Fns
 import Navigation
 import Util exposing (deMaybe)
@@ -173,12 +174,14 @@ enter : Model -> TLID -> ID -> Modification
 enter m tlid id =
   let tl = TL.getTL m tlid
       pd = TL.findExn tl id
+      -- if it's a FF, enter a side of it, not the thing itself
+      flat = P.exprmap (B.flattenFF) pd
   in
   if TL.getChildrenOf tl pd /= []
   then selectDownLevel m tlid (Just id)
   else
     case pd of
-      pd -> Many [ Enter (Filling tlid id)
+      pd -> Many [ Enter (Filling tlid (P.toID flat))
                  , AutocompleteMod (ACSetQuery (P.toContent pd))
                  ]
 
