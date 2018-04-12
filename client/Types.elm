@@ -167,6 +167,7 @@ type Msg
     | ExecuteFunctionButton TLID ID
     | Initialization
     | NavigateTo String
+    | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
     | ClockTick Action Time
     | JSError String

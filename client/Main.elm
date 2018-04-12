@@ -38,6 +38,7 @@ import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
 import Pointer as P
+import Blank as B
 import AST
 import Selection
 import Runtime
@@ -1108,6 +1109,25 @@ update_ msg m =
 
     PageFocusChange vis ->
       TweakModel (\m -> { m | visibility = vis })
+
+    CreateHandlerFrom404 (space, path, modifier, _) ->
+      let anId = gtlid ()
+          aPos = m.center
+          aHandler =
+            { ast = B.new ()
+            , spec =
+              { module_ = B.newF space
+              , name = B.newF path
+              , modifier = B.newF modifier
+              , types =
+                { input = B.new ()
+                , output = B.new ()
+                }
+              }
+            }
+      in
+          RPC ([SetHandler anId aPos aHandler], FocusNothing)
+
 
 -----------------------
 -- SUBSCRIPTIONS
