@@ -4,7 +4,7 @@ open Types
 open Types.RuntimeT
 open Types.SpecTypes
 module RT = Runtime
-module FF = FeatureFlag
+module FF = Feature_flag
 
 type spec_types = { input : dark_type
                   ; output : dark_type

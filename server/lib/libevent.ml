@@ -3,7 +3,7 @@ open Lib
 
 open Types.RuntimeT
 module RT = Runtime
-module FF = FeatureFlag
+module FF = Feature_flag
 
 
 let fns : Lib.shortfn list = [

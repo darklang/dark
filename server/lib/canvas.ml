@@ -6,7 +6,7 @@ module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
 module PReq = Parsed_request
-module FF = FeatureFlag
+module FF = Feature_flag
 module SE = Stored_event
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
