@@ -690,13 +690,20 @@ update_ msg m =
                 Key.Tab ->
                   case cursor of
                     Filling tlid p ->
-                      if event.shiftKey
+                      let name = AC.getValue m.complete
+                          tabMod = if event.shiftKey
+                                   then Selection.enterPrevBlank m tlid (Just p)
+                                   else Selection.enterNextBlank m tlid (Just p)
+                          enterMod = if AC.isLargeStringEntry m.complete
+                                     then AutocompleteMod (ACSetQuery m.complete.value)
+                                     else Entry.submit m cursor Entry.ContinueThread name
+                      in
+                      if String.length name < 1
                       then
-                        Selection.enterPrevBlank m tlid (Just p)
+                        tabMod
                       else
-                        Selection.enterNextBlank m tlid (Just p)
-                    Creating _ ->
-                      NoChange
+                        enterMod
+                    Creating _ -> NoChange
 
                 Key.Unknown c ->
                   if event.key == Just "."
