@@ -955,8 +955,14 @@ update_ msg m =
     EndFeatureFlag ffID ->
       FeatureFlags.end m ffID
 
-    SliderChange id value ->
-      FeatureFlags.updateSlider m id value
+    SliderChange id ->
+      Many [ FeatureFlags.commitSlider m id
+           , TweakModel (\m -> { m | syncEnabled = True}) ]
+
+    SliderMoving id value ->
+      Many [ TweakModel (\m -> { m | syncEnabled = False })
+           , FeatureFlags.updateSlider m id value
+           ]
 
     ------------------------
     -- Functions
@@ -997,7 +1003,11 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s)) ->
-      SetToplevels m.toplevels analysis globals m.userFunctions f404s
+      if m.syncEnabled
+      then
+        SetToplevels m.toplevels analysis globals m.userFunctions f404s
+      else
+        NoChange
 
     ------------------------
     -- plumbing

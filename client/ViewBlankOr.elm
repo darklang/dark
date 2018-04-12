@@ -315,12 +315,15 @@ viewBlankOr htmlFn pt vs c bo =
               , Attrs.step "0.5"
               , Attrs.value (toString setting)
               , eventNoPropagation "click" NothingClick
-              , eventNoPropagation "mouseup" NothingClick
               , eventNoPropagation "mousedown" NothingClick
               , Events.onWithOptions
-                  "change"
-                  { stopPropagation = True, preventDefault = True }
-                  (decodeSliderInputEvent (SliderChange ffID))
+                  "mouseup"
+                  { stopPropagation = False, preventDefault = False }
+                  (decodeSliderInputEvent (\_ -> SliderChange ffID))
+              , Events.onWithOptions
+                  "input"
+                  { stopPropagation = False, preventDefault = False }
+                  (decodeSliderInputEvent (SliderMoving ffID))
               ]
               []
           ]
