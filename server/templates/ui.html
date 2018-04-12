@@ -54,7 +54,8 @@
 
      bundle.mousewheel(function(dx,dy, dz, ev){
        ev.preventDefault();
-       elmapp.ports.mousewheel.send([dx,dy]);
+       // NB: rounding values here because Elm wants ints
+       elmapp.ports.mousewheel.send([Math.round(dx),Math.round(dy)]);
      });
 
      document.title = window.location.hostname.split('.')[0] + " - Dark";
