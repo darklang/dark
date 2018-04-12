@@ -42,6 +42,7 @@ trigger test_name =
     "focus_on_ast_in_new_empty_tl" -> focus_on_ast_in_new_empty_tl
     "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
     "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
+    "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -346,5 +347,19 @@ focus_on_cond_in_new_tl_with_if m =
       then pass
       else fail m.cursorState
     e -> fail e
+
+dont_shift_focus_after_filling_last_blank : Model -> TestResult
+dont_shift_focus_after_filling_last_blank m =
+  case m.cursorState of
+    Selecting _ mId ->
+      if mId == (m
+                 |> onlyHandler
+                 |> .spec
+                 |> .modifier
+                 |> B.toID
+                 |> Just)
+      then pass
+      else fail (m.toplevels, m.cursorState)
+    s -> fail (m.toplevels, m.cursorState)
 
 
