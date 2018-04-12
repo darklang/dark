@@ -173,11 +173,11 @@ processFocus m focus =
   case focus of
     FocusNext tlid pred ->
       let tl = TL.getTL m tlid
-          pd = Maybe.andThen (TL.find tl) pred
-          next = TL.getNextBlank tl pd in
+          predPd = Maybe.andThen (TL.find tl) pred
+          next = TL.getNextBlank tl predPd in
       case next of
         Just pd -> Enter (Filling tlid (P.toID pd))
-        Nothing -> Select tlid Nothing
+        Nothing -> Select tlid pred
     FocusExact tlid id ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id in
