@@ -112,6 +112,8 @@ let convert_bin_to_json ~root (infile: string) (outfile: string) =
   let infile = check_filename ~root ~mode:`Read infile in
   let outfile = check_filename ~root ~mode:`Write outfile in
 
+
+  (* Goes through execve, so never hits the shell *)
   Spawn.spawn
     ~prog:(Config.dir Config.Bin_root ^ "darkfile_bin_to_json.exe")
     ~argv:[""; infile; outfile]
