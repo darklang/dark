@@ -455,3 +455,17 @@ test('focus_on_cond_in_new_tl_with_if', async t => {
     .pressKey("enter")
 });
 
+test('dont_shift_focus_after_filling_last_blank', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "5")
+    .pressKey("enter")
+    .typeText("#entry-box", "/")
+    .pressKey("enter")
+    .typeText("#entry-box", "HTTP")
+    .pressKey("enter")
+    .typeText("#entry-box", "GET")
+    .pressKey("enter")
+});
+
+
