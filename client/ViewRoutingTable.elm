@@ -159,9 +159,20 @@ viewRoutes m =
 view404s : Model -> Html.Html Msg
 view404s m =
   let count = List.length m.f404s
+
+      link fof =
+        Html.a
+          [ eventNoPropagation "mouseup"
+          (\_ -> (CreateHandlerFrom404 fof))
+          , Attrs.src ""
+          , Attrs.class "verb-link as-pointer"
+          ]
+          [ fontAwesome "plus-circle" ]
+
       fofHtml (space, path, modifier, values) =
         div "fof"
           [ text "path" path
+          , link (space, path, modifier, values)
           , text "space" space
           , text "modifier" modifier
           ]
