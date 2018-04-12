@@ -119,7 +119,8 @@ submit m cursor action value =
                         |> Maybe.map P.toID
                         |> Maybe.map (FocusExact tlid)
                         |> Maybe.withDefault (FocusNext tlid Nothing)
-                op = SetHandler tlid pos { ast = newAst
+                -- NB: pos.y - 20 offsets for the request cursor "above" the toplevel
+                op = SetHandler tlid { pos | y = pos.y - 20 } { ast = newAst
                                          , spec = newHandlerSpec ()
                                          }
             in RPC ([op], focus)
