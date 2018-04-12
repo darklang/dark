@@ -3,7 +3,7 @@ open Core
 module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
-module FF = FeatureFlag
+module FF = Feature_flag
 
 let dequeue_and_evaluate_all () : string =
   (* iterate all darkfiles *)

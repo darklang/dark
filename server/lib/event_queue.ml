@@ -3,7 +3,7 @@ open Core
 open Types
 open Types.RuntimeT
 
-module FF = FeatureFlag
+module FF = Feature_flag
 
 type t = { id: int
          ; value: dval

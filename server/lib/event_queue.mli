@@ -1,6 +1,6 @@
 open Types
 
-module FF = FeatureFlag
+module FF = Feature_flag
 
 type t = { id: int
          ; value: RuntimeT.dval

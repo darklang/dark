@@ -10,7 +10,7 @@ module RT = Runtime
 module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
-module FF = FeatureFlag
+module FF = Feature_flag
 
 
 (* ------------------------------- *)

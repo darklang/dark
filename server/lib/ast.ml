@@ -3,7 +3,7 @@ open Core
 open Types
 open Types.RuntimeT
 module RT = Runtime
-module FF = FeatureFlag
+module FF = Feature_flag
 
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
