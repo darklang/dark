@@ -21,3 +21,4 @@ val log_level : Log.level
 
 val should_write_shape_data : bool
 
+val allow_server_shutdown : bool

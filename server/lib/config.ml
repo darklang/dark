@@ -100,6 +100,13 @@ let port : int =
   |> Option.value ~default:"8000"
   |> int_of_string
 
+let allow_server_shutdown : bool =
+  Sys.getenv "DARK_CONFIG_ALLOW_SERVER_SHUTDOWN"
+  |> Option.value ~default:"N"
+  |> (=) "Y"
+
+
+
 let log_level : Log.level =
   let level = Sys.getenv "DARK_CONFIG_LOGLEVEL"
               |> Option.value ~default:"all"
