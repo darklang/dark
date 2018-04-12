@@ -46,8 +46,6 @@ type HtmlConfig =
                 -- display computed value from this ID
                 | ComputedValueAs ID
                 | ComputedValue
-                -- show a computedvalue
-                | WithCV
                 -- show an 'edit function' link
                 | WithEditFn
 
@@ -144,7 +142,6 @@ div vs configs content =
                                   ComputedValueAs id -> Just id
                                   ComputedValue -> thisID
                                   _ -> Nothing)
-      showComputedValue = List.member WithCV configs
       showFeatureFlag = List.member WithFF configs
       showEditFn = List.member WithEditFn configs
 
@@ -393,11 +390,6 @@ viewBlankOr htmlFn pt vs c bo =
             div vs c [ViewEntry.entryHtml allowStringEntry placeholder vs.ac]
       else thisText
     _ -> thisText
-
-
-renderComputedValue : String -> Html.Html Msg
-renderComputedValue value =
-  Html.div [ Attrs.class "computed-value" ] [ Html.text value ]
 
 
 viewFeatureFlag : Html.Html Msg

@@ -118,7 +118,8 @@ viewNExpr d id vs config e =
             if RT.isString v
             then "“" ++ (SE.unquote v) ++ "”"
             else v
-          computedValue = if d == 0
+          computedValue =
+            if d == 0
             then [ComputedValue]
             else []
       in
