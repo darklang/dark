@@ -36,7 +36,7 @@ let execute_ops (ops : Op.op list) : dval =
           |> TL.handlers
           |> List.hd_exn in
   let state : Ast.exec_state =
-    { ff = (FF.todo "test")
+    { ff = FromUser "test"
     ; tlid = h.tlid
     ; hostname = !c.name
     ; user_fns = !c.user_functions
