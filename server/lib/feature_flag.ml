@@ -29,8 +29,6 @@ let from_sql (sql: string) : feature_flag =
   |> Result.ok_or_failwith
 
 
-let todo reason : feature_flag = "TODO: " ^ reason |> make
-
 let analysis : feature_flag =
   Analysis
 
