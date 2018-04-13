@@ -309,20 +309,23 @@ let count db =
 (* ------------------------- *)
 (* run all db and schema changes as migrations *)
 (* ------------------------- *)
-let run_migration (migration_id: id) (sql:string) : unit =
+let run_migration (host: string) (id: id) (sql:string) : unit =
+  let host = escape host in
   Log.infO "sql" sql;
   Printf.sprintf
     "DO
        $do$
          BEGIN
-           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d) = 0)
+           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d
+                                                  AND host = '%s') = 0)
            THEN
              %s;
-             INSERT INTO migrations (id) VALUES (%d);
+             INSERT INTO migrations (id, host, sql)
+               VALUES (%d, '%s', (quote_literal('%s')));
            END IF;
          END
        $do$;
-     COMMIT;" migration_id sql migration_id
+     COMMIT;" id host sql id host (escape sql)
   |> run_sql
 
 (* -------------------------
@@ -356,8 +359,8 @@ let to_display_name (name: string) =
        |> String.capitalize
   else String.capitalize name
 
-let create_new_db (tlid: tlid) (db: db) =
-  run_migration tlid (create_table_sql db.actual_name)
+let create_new_db (db: db) =
+  run_migration db.host db.tlid (create_table_sql db.actual_name)
 
 (* we only add this when it is complete, and we use the ID to mark the
    migration table to know whether it's been done before. *)
@@ -366,7 +369,7 @@ let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col 
   then
     (match col with
     | Filled (_, name), Filled (_, tipe) ->
-      run_migration id (add_col_sql db.actual_name name tipe)
+      run_migration db.host id (add_col_sql db.actual_name name tipe)
     | _ ->
       ())
   else ();
@@ -396,7 +399,7 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
 (* Some initialization *)
 (* ------------------------- *)
 let init () : unit  =
-  run_sql "CREATE TABLE IF NOT EXISTS \"migrations\" (id BIGINT PRIMARY KEY)";
+  run_sql "CREATE TABLE IF NOT EXISTS migrations (id BIGINT, host TEXT, sql TEXT, PRIMARY KEY (id, host))";
   (* https://github.com/inhabitedtype/ocaml-session/blob/master/backends/postgresql/lwt/session_postgresql_lwt.mli#L39 *)
-  run_sql "CREATE TABLE IF NOT EXISTS \"session\" (SESSION_KEY char(40), EXPIRE_DATE timestamp (2) with time zone, SESSION_DATA text)";
+  run_sql "CREATE TABLE IF NOT EXISTS session (session_key CHAR(40), expire_date TIMESTAMP (2) WITH TIME ZONE, session_data TEXT)";
   run_sql "CREATE INDEX IF NOT EXISTS session_key_idx ON \"session\" (session_key)";
