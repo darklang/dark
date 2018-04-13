@@ -76,7 +76,6 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
 let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
   let c = C.load subdomain [] in
-  Event_queue.set_scope !c.name;
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let pages = C.pages_matching_route ~uri ~verb !c in
   let pages =
@@ -116,13 +115,14 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
       ; exe_fn_ids = []
       ; env = env
       ; dbs = dbs
+      ; id = Util.create_id ()
       } in
     let result = Handler.execute state page in
     (match result with
     | DResp (http, value) ->
       (match http with
        | Redirect url ->
-         Event_queue.unset_scope ~status:`OK;
+         Event_queue.finalize state.id ~status:`OK;
          S.respond_redirect (Uri.of_string url) ()
        | Response (code, resp_headers) ->
          let body =
@@ -133,20 +133,19 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
            (* TODO: only pretty print for a webbrowser *)
            else Dval.dval_to_pretty_json_string value
          in
-         Event_queue.unset_scope ~status:`OK;
+         Event_queue.finalize state.id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
          let headers = Cohttp.Header.of_list
                         ([cors] @ resp_headers @ session_headers) in
          respond ~headers status body)
     | _ ->
-      Event_queue.unset_scope ~status:`OK;
+      Event_queue.finalize state.id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let headers = Cohttp.Header.of_list ([cors] @ session_headers) in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
       respond ~headers `OK body)
   | _ ->
-    Event_queue.unset_scope ~status:`Err;
     let headers = Cohttp.Header.of_list [cors] in
     respond `Internal_server_error ~headers "500: More than one page matches"
 
@@ -154,6 +153,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
 (* Admin server *)
 (* -------------------------------------------- *)
 let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
+  let execution_id = Util.create_id () in
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
@@ -163,12 +163,10 @@ let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
 
     let (t3, (envs, f404s)) = time "3-create-envs"
       (fun _ ->
-        Event_queue.set_scope !c.name;
         C.create_environments !c domain) in
 
     let (t4, result) = time "4-to-frontend"
-      (fun _ -> C.to_frontend_string envs f404s params.executable_fns !c)
-    in
+      (fun _ -> C.to_frontend_string envs f404s execution_id params.executable_fns !c) in
 
     let (t5, _) = time "5-save-to-disk"
       (fun _ ->
@@ -179,7 +177,7 @@ let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
         else ()
       ) in
 
-  Event_queue.unset_scope ~status:`OK;
+  Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5], result)
   with
   | Postgresql.Error e when C.is_uninitialized_db_error domain e ->
@@ -187,7 +185,7 @@ let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
     admin_rpc_handler body domain
   | e ->
     let bt = Backtrace.Exn.most_recent () in
-    Event_queue.unset_scope ~status:`Err;
+    Event_queue.finalize execution_id ~status:`Err;
     let msg = Exn.to_string e in
     print_endline ("Exception: " ^ msg);
     print_endline (Backtrace.to_string bt);

@@ -11,59 +11,18 @@ type t = { id: int
          ; flag_context: feature_flag
          }
 
-(* --------------------------- *)
-(* Awful Global State (public) *)
-(* --------------------------- *)
-
-let current_scope : string option ref =
-  ref None
-
-let scope_setter : int option ref =
-  ref None
-
-let has_dequeued : bool ref =
-  ref false
-
-let current_scope_exn () : string =
-  match !current_scope with
-  | Some sc -> sc
-  | None ->
-    Exception.internal
-      "Missing Event_queue.current_scope! Time to ditch global mutable state!"
-
-let scope_setter_exn () : int =
-  match !scope_setter with
-  | Some ss -> ss
-  | None ->
-    Exception.internal
-      "Missing Event_queue.scope_setter, internal invariant broken. Can't even blame global mutable state this time you dingus"
-
 let status_to_enum status : string =
   match status with
   | `OK -> "'done'"
   | `Err -> "'error'"
   | `Incomplete -> "'error'"
 
-let unlock_jobs ~status : unit =
+let unlock_jobs (dequeuer: int) ~status : unit =
   Printf.sprintf
     "UPDATE \"events\" SET status = %s WHERE dequeued_by = %s AND status = 'locked'"
     (status_to_enum status)
-    (string_of_int (scope_setter_exn ()))
+    (string_of_int dequeuer)
   |> Db.run_sql
-
-let set_scope (scope: string) : unit =
-  let setter = Util.create_id () in
-  current_scope := Some scope;
-  scope_setter  := Some setter
-
-let unset_scope ~status : unit =
-  let _ =
-    if !has_dequeued
-    then unlock_jobs ~status
-    else ()
-  in
-  current_scope := None;
-  scope_setter  := None
 
 (* ------------------------- *)
 (* Public API *)
@@ -71,14 +30,17 @@ let unset_scope ~status : unit =
 
 let wrap s = "'" ^ s ^ "'"
 
-let enqueue (space: string) (name: string) (data: dval) (ff: feature_flag) : unit =
+let finalize (dequeuer: int) ~status : unit =
+  unlock_jobs ~status dequeuer
+
+let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
   let serialized_data = Dval.dval_to_json_string data in
   let column_names =
     ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"; "delay_until"; "flag_context"]
     |> String.concat ~sep:", "
   in
   let column_values =
-    ["'new'"; "NULL"; wrap (current_scope_exn ()); wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"; FF.to_sql ff]
+    ["'new'"; "NULL"; wrap state.hostname; wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"; FF.to_sql state.ff]
     |> String.concat ~sep:", "
   in
   (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
@@ -88,14 +50,13 @@ let enqueue (space: string) (name: string) (data: dval) (ff: feature_flag) : uni
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue (space: string) (name: string) : t option =
-  has_dequeued := true;
+let dequeue (execution_id: int) (hostname: string) (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf
       "SELECT id, value, retries, flag_context from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
       (wrap space)
       (wrap name)
-      (wrap (current_scope_exn ()))
+      (wrap hostname)
     |> Db.fetch_via_sql
     |> List.hd
   in
@@ -103,7 +64,7 @@ let dequeue (space: string) (name: string) : t option =
   | None -> None
   | Some [id; value; retries; flag_context] ->
     Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
-                  (string_of_int (scope_setter_exn ()))
+                  (string_of_int execution_id)
                   id);
     Some { id = int_of_string id
          ; value = Dval.parse value

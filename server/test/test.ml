@@ -43,6 +43,7 @@ let execute_ops (ops : Op.op list) : dval =
     ; exe_fn_ids = []
     ; env = DvalMap.empty
     ; dbs = TL.dbs !c.toplevels
+    ; id = Util.create_id ()
     } in
   Ast.execute state DvalMap.empty h.ast
 
