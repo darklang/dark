@@ -86,14 +86,14 @@ let default_env (h: handler) : dval_map =
       (Http.route_variables n)
   | None -> init
 
-let with_defaults (h: handler) (env: Ast.symtable) : Ast.symtable =
+let with_defaults (h: handler) (env: symtable) : symtable =
   Util.merge_left env (default_env h)
 
-let execute (state: Ast.exec_state) (h: handler) : dval =
+let execute (state: exec_state) (h: handler) : dval =
   Ast.execute state (with_defaults h state.env) h.ast
 
-let execute_for_analysis (state : Ast.exec_state) (h : handler) :
-    (dval * Ast.dval_store * Ast.sym_store * Ast.symtable) =
+let execute_for_analysis (state : exec_state) (h : handler) :
+    (dval * Ast.dval_store * Ast.sym_store * symtable) =
   let default_env = with_defaults h state.env in
   let state = { state with env = default_env } in
   let traced_symbols =

@@ -99,7 +99,6 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     let bound = Http.bind_route_params_exn ~uri ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = Db.dbs_as_exe_env (dbs) in
-    Db.cur_dbs := dbs;
     (match (Handler.event_desc_for page) with
     | Some desc -> Stored_event.store_event subdomain desc (PReq.to_dval input)
     | _-> ());
@@ -109,13 +108,15 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     let headers = CRequest.headers req in
     let ff = FF.fingerprint_user ip headers in
     let session_headers = FF.session_headers headers ff in
-    let state : Ast.exec_state =
+    let state : RTT.exec_state =
       { ff = ff
       ; tlid = page.tlid
       ; hostname = !c.name
       ; user_fns = !c.user_functions
       ; exe_fn_ids = []
-      ; env = env} in
+      ; env = env
+      ; dbs = dbs
+      } in
     let result = Handler.execute state page in
     (match result with
     | DResp (http, value) ->

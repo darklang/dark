@@ -255,13 +255,15 @@ let to_frontend
                                            if tlid = h.tlid
                                            then Some id
                                            else None) in
-                   let state env : Ast.exec_state =
+                   let state env : RTT.exec_state =
                          { ff = FF.analysis
                          ; tlid = h.tlid
                          ; hostname = c.name
                          ; user_fns = c.user_functions
                          ; exe_fn_ids = fn_ids
-                         ; env = env} in
+                         ; env = env
+                         ; dbs = TL.dbs c.toplevels
+                         } in
                    let values =
                      List.map
                        ~f:(fun env ->
@@ -345,8 +347,6 @@ let create_environments (c: canvas) (host: string) :
   (RTT.env_map * SE.four_oh_four list) =
 
   let dbs = TL.dbs c.toplevels in
-  Db.cur_dbs := dbs;
-
   let initial_env = Db.dbs_as_env dbs in
   let sample_request = PReq.sample |> PReq.to_dval in
   let sample_event = RTT.DObj (RTT.DvalMap.empty) in

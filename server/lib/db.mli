@@ -4,7 +4,6 @@ open Types
 val conn : Postgresql.connection
 val init : unit -> unit
 val with_postgres : (unit -> 'b) -> 'b
-val cur_dbs : DbT.db list ref
 
 (* Low-level API *)
 val run_sql : string -> unit
@@ -14,11 +13,11 @@ val fetch_via_sql : string -> string list list
 val cols_for : DbT.db -> (string * RuntimeT.tipe) list
 
 (* DB runtime functions *)
-val insert : DbT.db -> RuntimeT.dval_map -> Uuid.t
-val fetch_all : DbT.db -> RuntimeT.dval
-val fetch_by : DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
-val delete : DbT.db -> RuntimeT.dval_map -> unit
-val update : DbT.db -> RuntimeT.dval_map -> unit
+val insert : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> Uuid.t
+val fetch_all : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval
+val fetch_by : tables:(DbT.db list) -> DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
+val delete : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
+val update : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
 val count : DbT.db -> int
 
 (* DB schema modifications *)
