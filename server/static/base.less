@@ -615,26 +615,31 @@ body #grid * {
     margin-top: -12px;
 
     #search-container {
+      border-bottom: @blank-underline;
       font-size: 8pt;
       height: 15px;
-      border-bottom: @blank-underline;
+      min-width: 8ch;
       position: relative;
+      // width: 100px;
       #entry-box {
         // as much like the blank box as possible
-        vertical-align: baseline;
-        padding-right: 1ch;
-        min-width: 8ch;
-        color: @grey3;
-
-        z-index: 20;
-        position: relative;
         background: transparent;
+        color: transparent;
+        direction: rtl;
+        padding-right: 1ch;
+        position: relative;
+        text-align: left;
+        text-shadow: 0 0 0 @grey3;
+        vertical-align: baseline;
+        width: 100%;
+        z-index: 20;
       }
       #suggestionBox {
+        background: @selected-background;
+        left: 0;
         position: absolute;
         top: 0;
-        left: 0;
-        background: @selected-background;
+        width: 100%;
       }
     }
   }
