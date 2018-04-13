@@ -91,9 +91,7 @@ stringEntryHtml ac =
     if Autocomplete.isSmallStringEntry ac
     then
       Html.div
-      [ Attrs.class "string-entry small-string-entry"
-      , widthInCh (length + 3)
-      ]
+      [ Attrs.class "string-entry small-string-entry" ]
       [
         Html.form
         [ Events.onSubmit (EntrySubmitMsg)
@@ -149,7 +147,6 @@ normalEntryHtml placeholder ac =
                     |> (\l -> if l == 0
                               then max (String.length placeholder) 6
                               else l)
-                    |> (+) 3
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
                                , Attrs.style [("text-indent", inCh indentWidth)]
@@ -157,12 +154,10 @@ normalEntryHtml placeholder ac =
                                , Attrs.placeholder placeholder
                                , Attrs.spellcheck False
                                , Attrs.autocomplete False
-                               , widthInCh searchWidth
                                ] []
       suggestionInput = Html.input [ Attrs.id "suggestionBox"
                                    , Attrs.disabled True
                                    , Attrs.value suggestion
-                                   , widthInCh searchWidth
                                    ] []
 
       input = Html.div
@@ -172,15 +167,11 @@ normalEntryHtml placeholder ac =
               [searchInput, suggestionInput]
 
       viewForm = Html.form
-                 [ Events.onSubmit (EntrySubmitMsg)
-                 , widthInCh searchWidth
-                 ]
+                 [ Events.onSubmit (EntrySubmitMsg) ]
                  [ input, autocomplete ]
 
       wrapper = Html.div
-                [ Attrs.class "entry"
-                , widthInCh searchWidth
-                ]
+                [ Attrs.class "entry" ]
                 [ viewForm ]
   in wrapper
 
