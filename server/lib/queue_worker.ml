@@ -37,15 +37,16 @@ let dequeue_and_evaluate_all () : string =
                        | None -> ());
                        let dbs = TL.dbs !c.toplevels in
                        let dbs_env = Db.dbs_as_exe_env (dbs) in
-                       Db.cur_dbs := dbs;
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
-                       let state : Ast.exec_state =
+                       let state : RTT.exec_state =
                              { ff = event.flag_context
                              ; tlid = q.tlid
                              ; hostname = !c.name
                              ; user_fns = !c.user_functions
                              ; exe_fn_ids = []
-                             ; env = env} in
+                             ; env = env
+                             ; dbs = dbs
+                             } in
                        let result = Handler.execute state q in
                        (match result with
                         | RTT.DIncomplete ->

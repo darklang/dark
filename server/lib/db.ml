@@ -35,11 +35,8 @@ let conn = rec_con 0
 let escape s =
   conn#escape_string s
 
-let cur_dbs : DbT.db list ref =
-  ref []
-
-let find_db table_name : DbT.db =
-  match List.find ~f:(fun d -> d.display_name = String.capitalize table_name) !cur_dbs with
+let find_db tables table_name : DbT.db =
+  match List.find ~f:(fun d -> d.display_name = String.capitalize table_name) tables with
    | Some d -> d
    | None -> failwith ("table not found: " ^ table_name)
 
@@ -108,7 +105,7 @@ let fetch_via_sql (sql: string) : string list list =
 (*
  * Dear god, OCaml this is the worst
  * *)
-let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
+let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
   match tipe with
   | TID -> sql |> Uuid.of_string |> DID
   | TInt -> sql |> int_of_string |> DInt
@@ -122,8 +119,8 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   | TBelongsTo table ->
     (* fetch here for now *)
     let id = sql |> Uuid.of_string |> DID in
-    let db = find_db table in
-    (match (fetch_by db "id" id) with
+    let db = find_db tables table in
+    (match (fetch_by ~tables db "id" id) with
     | DList l -> List.hd_exn l
     | _ -> failwith "should never happen, fetch_by returns a DList")
   | THasMany table ->
@@ -141,11 +138,11 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
         split
         |> List.map ~f:(fun s -> s |> String.strip |> Uuid.of_string |> DID)
     in
-    let db = find_db table in
+    let db = find_db tables table in
     (* TODO(ian): fix the N+1 here *)
     List.map
       ~f:(fun i ->
-          (match (fetch_by db "id" i) with
+          (match (fetch_by ~tables db "id" i) with
            | DList l -> List.hd_exn l
            | _ -> failwith "should never happen, fetch_by returns a DList")
         ) ids
@@ -153,22 +150,22 @@ let rec sql_to_dval (tipe: tipe) (sql: string) : dval =
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
 and
-fetch_by db (col: string) (dv: dval) : dval =
+fetch_by ~tables db (col: string) (dv: dval) : dval =
   let (names, types) = cols_for db |> List.unzip in
   let colnames = col_names names in
   Printf.sprintf
     "SELECT %s FROM \"%s\" WHERE %s = %s"
     colnames (escape db.actual_name) (escape_col col) (dval_to_sql dv)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj names types)
+  |> List.map ~f:(to_obj tables names types)
   |> DList
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-to_obj (names : string list) (types: tipe list) (db_strings : string list)
+to_obj tables (names : string list) (types: tipe list) (db_strings : string list)
   : dval =
   db_strings
-  |> List.map2_exn ~f:sql_to_dval types
+  |> List.map2_exn ~f:(sql_to_dval tables) types
   |> List.zip_exn names
   |> Dval.to_dobj
 
@@ -230,7 +227,7 @@ let is_relation (valu: dval) : bool =
     List.for_all ~f:Dval.is_obj l
   | _ -> false
 
-let rec insert (db: db) (vals: dval_map) : Uuid.t =
+let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
   let id = Uuid.create () in
   let vals = DvalMap.set ~key:"id" ~data:(DID id) vals in
   (* split out complex objects *)
@@ -240,7 +237,7 @@ let rec insert (db: db) (vals: dval_map) : Uuid.t =
   in
   let cols = cols_for db in
   (* insert complex objects into their own table, return the inserted ids *)
-  let obj_id_map = Map.mapi ~f:(upsert_dependent_object cols) objs in
+  let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
   (* merge the maps *)
   let merged = Util.merge_left normal obj_id_map in
   let _ = Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
@@ -248,7 +245,7 @@ let rec insert (db: db) (vals: dval_map) : Uuid.t =
           |> run_sql
   in
     id
-and update db (vals: dval_map) =
+and update ~tables db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   (* split out complex objects *)
   let objs, normal =
@@ -257,7 +254,7 @@ and update db (vals: dval_map) =
   in
   let cols = cols_for db in
   (* update complex objects *)
-  let obj_id_map = Map.mapi ~f:(upsert_dependent_object cols) objs in
+  let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
   let merged = Util.merge_left normal obj_id_map in
   let sets = merged
            |> DvalMap.to_alist
@@ -267,7 +264,7 @@ and update db (vals: dval_map) =
   Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
     (escape db.actual_name) sets (dval_to_sql id)
   |> run_sql
-and upsert_dependent_object cols ~key:relation ~data:obj : dval =
+and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
   let table_name =
     let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = relation) in
@@ -275,27 +272,27 @@ and upsert_dependent_object cols ~key:relation ~data:obj : dval =
     | TBelongsTo t | THasMany t -> t
     | _ -> failwith ("Expected TBelongsTo/THasMany, got: " ^ (show_tipe_ ctype))
   in
-  let db_obj = find_db table_name in
+  let db_obj = find_db tables table_name in
   match obj with
   | DObj m ->
     (match DvalMap.find m "id" with
-     | Some existing -> update db_obj m; existing
-     | None -> insert db_obj m |> DID)
+     | Some existing -> update ~tables db_obj m; existing
+     | None -> insert ~tables db_obj m |> DID)
   | DList l ->
-    List.map ~f:(fun x -> upsert_dependent_object cols ~key:relation ~data:x) l |> DList
+    List.map ~f:(fun x -> upsert_dependent_object tables cols ~key:relation ~data:x) l |> DList
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
 
-let fetch_all (db: db) : dval =
+let fetch_all ~tables (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
   let colnames = col_names names in
   Printf.sprintf
     "SELECT %s FROM \"%s\""
     colnames (escape db.actual_name)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj names types)
+  |> List.map ~f:(to_obj tables names types)
   |> DList
 
-let delete db (vals: dval_map) =
+let delete ~tables db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
     (escape db.actual_name) (dval_to_sql id)

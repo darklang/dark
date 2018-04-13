@@ -85,7 +85,6 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                     [@@deriving yojson]
 
 
-
   module DvalMap = String.Map
   type dval_map = dval DvalMap.t [@opaque]
   and dval =
@@ -116,6 +115,9 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
   module EnvMap = Int.Map
   type env_map = (dval_map list) EnvMap.t [@opaque]
+
+  module Symtable = DvalMap
+  type symtable = dval_map
 
   (* this is _why_ we're executing the AST, to allow us to not
    * emit certain side-effects (eg. DB writes) when showing previews *)
@@ -149,16 +151,30 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
        } |> Some
     | _ -> None
 
-  type funcimpl = InProcess of (feature_flag * dval list -> dval)
-                | API of (dval_map -> dval)
-                | UserCreated of expr
-
   type ufn_metadata = { name : string or_blank
                       ; parameters : ufn_param list
                       ; return_type : tipe or_blank
                       ; description : string
                       ; infix : bool
                       } [@@deriving eq, show, yojson, sexp, bin_io]
+
+  type user_fn = { tlid: tlid
+                 ; metadata : ufn_metadata
+                 ; ast:  expr
+                 } [@@deriving eq, show, yojson, sexp, bin_io]
+
+  type exec_state = { ff: feature_flag
+                    ; tlid: tlid
+                    ; hostname: string
+                    ; user_fns: user_fn list
+                    ; exe_fn_ids: id list
+                    ; env: symtable
+                    ; dbs: DbT.db list
+                    }
+
+  type funcimpl = InProcess of (exec_state * dval list -> dval)
+                | API of (dval_map -> dval)
+                | UserCreated of expr
 
   (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
@@ -170,11 +186,6 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
             ; func : funcimpl
             ; previewExecutionSafe : bool
             }
-
-  type user_fn = { tlid: tlid
-                 ; metadata : ufn_metadata
-                 ; ast:  expr
-                 } [@@deriving eq, show, yojson, sexp, bin_io]
 
   let user_fn_to_fn uf : fn option =
     let name =
