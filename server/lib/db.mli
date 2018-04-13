@@ -21,7 +21,7 @@ val update : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
 val count : DbT.db -> int
 
 (* DB schema modifications *)
-val create_new_db : tlid -> DbT.db -> unit
+val create_new_db : DbT.db -> unit
 val to_display_name : string -> string
 val add_db_col : id -> id -> DbT.db -> DbT.db
 val set_col_name : id -> string -> bool -> DbT.db -> DbT.db
