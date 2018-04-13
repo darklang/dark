@@ -171,6 +171,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
                     ; exe_fn_ids: id list
                     ; env: symtable
                     ; dbs: DbT.db list
+                    ; id: int
                     }
 
   type funcimpl = InProcess of (exec_state * dval list -> dval)
