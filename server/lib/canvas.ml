@@ -177,6 +177,21 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | DeleteAll | Undo | Redo ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
+let is_uninitialized_db_error (host: string) (e: Postgresql.error) : bool =
+  let str = Postgresql.string_of_error e in
+  String.is_prefix (Log.pp "str" str)
+      ~prefix: "Result status PGRES_FATAL_ERROR unexpected (expected status:PGRES_TUPLES_OK); ERROR:  relation"
+  &&
+  String.is_substring str
+    ~substring:"does not exist\nLINE 1:"
+
+let rerun_all_db_ops (domain : string) : unit =
+  let ops = Serialize.search_and_load domain in
+  let op_pairs = List.map ~f:(fun op -> (op, true)) ops in
+  let reduced_ops = preprocess (op_pairs) in
+  let new_canvas = ref { !(create domain) with ops = ops } in
+  List.iter ~f:(fun (op, _) -> apply_op op true new_canvas) reduced_ops;
+  ()
 
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let oldpairs = List.map ~f:(fun o -> (o, false)) oldops in
