@@ -35,13 +35,15 @@ let execute_ops (ops : Op.op list) : dval =
   let h = !c.toplevels
           |> TL.handlers
           |> List.hd_exn in
-  let state : Ast.exec_state =
+  let state : exec_state =
     { ff = FromUser "test"
     ; tlid = h.tlid
     ; hostname = !c.name
     ; user_fns = !c.user_functions
     ; exe_fn_ids = []
-    ; env = DvalMap.empty} in
+    ; env = DvalMap.empty
+    ; dbs = TL.dbs !c.toplevels
+    } in
   Ast.execute state DvalMap.empty h.ast
 
 

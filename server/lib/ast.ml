@@ -30,19 +30,10 @@ let to_tuple (expr: expr) : (id * expr) =
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
-module Symtable = DvalMap
-type symtable = dval_map
 
 type exec_trace = (expr -> dval -> symtable -> unit)
 type exec_trace_blank = (string or_blank -> dval -> symtable -> unit)
 let empty_trace _ _ _ = ()
-
-type exec_state = { ff: feature_flag
-                  ; tlid: tlid
-                  ; hostname: string
-                  ; user_fns: user_fn list
-                  ; exe_fn_ids: id list
-                  ; env: symtable }
 
 let rec exec_ ?(trace: exec_trace=empty_trace)
               ?(trace_blank: exec_trace_blank=empty_trace)
@@ -243,10 +234,10 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     | Preview ->
       let sfr_state = (state.hostname, state.tlid, fnname, id) in
       if fn.previewExecutionSafe
-      then f (state.ff, arglist)
+      then f (state, arglist)
       else if List.mem ~equal:(=) state.exe_fn_ids id
       then
-        let result = f (state.ff, arglist) in
+        let result = f (state, arglist) in
         Stored_function_result.store sfr_state arglist result;
         result
       else
@@ -254,7 +245,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
         | Some result -> result
         | _ -> DIncomplete)
     | Real ->
-      f (state.ff, arglist)
+      f (state, arglist)
   in
   match fn.func with
   | InProcess f ->
