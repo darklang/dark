@@ -153,7 +153,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
+let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
@@ -167,7 +167,8 @@ let admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
         C.create_environments !c domain) in
 
     let (t4, result) = time "4-to-frontend"
-      (fun _ -> C.to_frontend_string envs f404s params.executable_fns !c) in
+      (fun _ -> C.to_frontend_string envs f404s params.executable_fns !c)
+    in
 
     let (t5, _) = time "5-save-to-disk"
       (fun _ ->
@@ -181,6 +182,9 @@ let admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
   Event_queue.unset_scope ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5], result)
   with
+  | Postgresql.Error e when C.is_uninitialized_db_error domain e ->
+    C.rerun_all_db_ops domain;
+    admin_rpc_handler body domain
   | e ->
     let bt = Backtrace.Exn.most_recent () in
     Event_queue.unset_scope ~status:`Err;
