@@ -20,7 +20,8 @@ let check_filename ~(root:Config.root) ~mode f =
   && (String.is_substring ~substring:".." f |> debug "dots"
       || String.contains f '~' |> debug "tilde"
       || String.is_suffix ~suffix:"." f |> debug "tilde"
-      || String.is_suffix ~suffix:"/" f |> debug "ends slash"
+      || (mode <> `Dir
+          && String.is_suffix ~suffix:"/" f) |> debug "ends slash"
       || not (String.is_suffix ~suffix:"/" dir) |> debug "dir no slash"
       || String.is_substring ~substring:"etc/passwd" f |> debug "etc"
       (* being used wrong *)
