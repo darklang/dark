@@ -254,6 +254,7 @@ let save_test (c: canvas) : string =
 
 let to_frontend
     (environments: RTT.env_map) (f404s : SE.four_oh_four list)
+    (execution_id: int)
     (exe_fn_ids: Api.executable_fns) (c : canvas)
   : Yojson.Safe.json =
   let available_reqs id =
@@ -280,6 +281,7 @@ let to_frontend
                          ; exe_fn_ids = fn_ids
                          ; env = env
                          ; dbs = TL.dbs c.toplevels
+                         ; id = execution_id
                          } in
                    let values =
                      List.map
@@ -327,9 +329,10 @@ let to_frontend
 
 let to_frontend_string (environments: RTT.env_map)
     (f404s : SE.four_oh_four list)
+    (execution_id: int)
     (exe_fn_ids: Api.executable_fns) (c: canvas) : string =
   c
-  |> to_frontend environments f404s exe_fn_ids
+  |> to_frontend environments f404s execution_id exe_fn_ids
   |> Yojson.Safe.pretty_to_string ~std:true
 
 (* ------------------------- *)

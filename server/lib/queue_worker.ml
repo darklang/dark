@@ -15,11 +15,11 @@ let dequeue_and_evaluate_all () : string =
                                   ~suffix:current_file_ext
                                   f)
   in
+  let execution_id = Util.create_id () in
   let results =
     List.map current_endpoints
       ~f:(fun endpoint ->
           let c = C.load endpoint [] in
-          Event_queue.set_scope !c.name;
           try
             (* iterate all queues *)
             let queues = TL.bg_handlers !c.toplevels in
@@ -28,7 +28,7 @@ let dequeue_and_evaluate_all () : string =
                 ~f:(fun q ->
                     let space = Handler.module_for_exn q in
                     let name = Handler.event_name_for_exn q in
-                    (match Event_queue.dequeue space name with
+                    (match Event_queue.dequeue execution_id endpoint space name with
                      | None -> None
                      | Some event ->
                        (match Handler.event_desc_for q with
@@ -46,6 +46,7 @@ let dequeue_and_evaluate_all () : string =
                              ; exe_fn_ids = []
                              ; env = env
                              ; dbs = dbs
+                             ; id = execution_id
                              } in
                        let result = Handler.execute state q in
                        (match result with
@@ -58,13 +59,13 @@ let dequeue_and_evaluate_all () : string =
                        Some result)
                   )
             in
-            Event_queue.unset_scope ~status:`OK;
+            Event_queue.finalize execution_id ~status:`OK;
             match results with
             | [] -> RTT.DIncomplete
             | l -> RTT.DList l
           with
           | e ->
-            Event_queue.unset_scope ~status:`Err;
+            Event_queue.finalize execution_id ~status:`Err;
             RTT.DError (Exn.to_string e)
         )
   in
