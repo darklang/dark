@@ -257,7 +257,9 @@ submit m cursor action value =
       case pd of
         PDBColType _ ->
           validate "[A-Z]\\w+" "DB type"
-            <| wrap [SetDBColType tlid id value] id
+            <| wrap [ SetDBColType tlid id value
+                    , AddDBCol tlid (gid ()) (gid ())]
+                    id
         PDBColName _ ->
           if value == "id"
           then Error ("id's are automatic and implicit, no need to add them")
