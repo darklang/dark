@@ -72,6 +72,9 @@ stringEntryHtml ac =
                    , Attrs.spellcheck False
                    , Attrs.autocomplete False
                    ] []
+      fluidWidthSpan = Html.span [ Attrs.id "fluidWidthSpan"
+                                 , Attrs.attribute "contentEditable" ""
+                                 ] [Html.text value]
 
 
       largeInput =
@@ -97,7 +100,7 @@ stringEntryHtml ac =
         [ Events.onSubmit (EntrySubmitMsg)
         , Attrs.class "string-container"
         ]
-        [ smallInput ]
+        [ smallInput, fluidWidthSpan ]
       ]
     else
        Html.div
@@ -153,16 +156,18 @@ normalEntryHtml placeholder ac =
                                , Attrs.spellcheck False
                                , Attrs.autocomplete False
                                ] []
-      suggestionInput = Html.input [ Attrs.id "suggestionBox"
-                                   , Attrs.disabled True
-                                   , Attrs.value suggestion
-                                   ] []
+      suggestionSpan = Html.span [ Attrs.id "suggestionBox"
+                                 ] [Html.text suggestion]
+      fluidWidthSpan = Html.span [ Attrs.id "fluidWidthSpan"
+                                 , Attrs.attribute "contentEditable" ""
+                                 , Attrs.style [("text-indent", inCh indentWidth)]
+                                 ] [Html.text search]
 
-      input = Html.div
+      input = Html.fieldset
               [ Attrs.id "search-container"
               , widthInCh searchWidth
               ]
-              [searchInput, suggestionInput]
+              [searchInput, suggestionSpan, fluidWidthSpan]
 
       viewForm = Html.form
                  [ Events.onSubmit (EntrySubmitMsg) ]
