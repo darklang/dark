@@ -257,8 +257,11 @@ submit m cursor action value =
           validate "[A-Z]\\w+" "DB type"
             <| wrap (SetDBColType tlid id value) id
         PDBColName _ ->
-          validate "\\w+" "DB column name"
-            <| wrap (SetDBColName tlid id value) id
+          if value == "id"
+          then Error ("id's are automatic and implicit, no need to add them")
+          else
+            validate "\\w+" "DB column name"
+              <| wrap (SetDBColName tlid id value) id
         PVarBind _ ->
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
