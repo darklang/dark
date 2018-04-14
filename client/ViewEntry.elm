@@ -144,10 +144,7 @@ normalEntryHtml placeholder ac =
       indentWidth = String.length indent
       searchWidth = search ++ indent
                     |> String.length
-                    |> (\l -> if l == 0
-                              then max (String.length placeholder) 6
-                              else l)
-                    |> (+) 1
+                    |> max (String.length suggestion)
       searchInput = Html.input [ Attrs.id Defaults.entryID
                                , Events.onInput EntryInputMsg
                                , Attrs.style [("text-indent", inCh indentWidth)]
