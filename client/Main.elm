@@ -475,7 +475,7 @@ update_ msg m =
   case msg of
 
     GlobalKeyPress event ->
-      if event.ctrlKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
+      if event.metaKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
       then
         case event.keyCode of
           Key.Z -> RPC ([Undo], FocusSame)
