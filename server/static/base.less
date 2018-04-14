@@ -811,9 +811,14 @@ body #grid * {
     display: none;
   }
   .nested-flag {
-
-    position: absolute;
     left: 100%;
+    position: absolute;
+    // hiding preview values in feature flags because fixing them is too much and they only work today as literals anyway
+    .computed-value {
+      &:after, &:before {
+        display: none;
+      }
+    }
 
     &.flag-left {
       margin-top: -50px;
