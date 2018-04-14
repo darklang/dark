@@ -184,7 +184,7 @@ div vs configs content =
                                  && ME.isJust mouseoverAs
 
       idAttr = case thisID of
-                 Just id -> ["id-" ++ toString (deID id)]
+                 Just id -> ["blankOr", "id-" ++ toString (deID id)]
                  _ -> []
       allClasses = classes
                   ++ idAttr

@@ -545,16 +545,16 @@ update_ msg m =
                   case mId of
                     Just id -> Selection.enter m tlid id
                     Nothing -> Selection.selectDownLevel m tlid mId
-              Key.Up -> Selection.selectUpLevel m tlid mId
-              Key.Down -> Selection.selectDownLevel m tlid mId
+              Key.Up -> Selection.moveUp m tlid mId
+              Key.Down -> Selection.moveDown m tlid mId
               Key.Right ->
                 if event.altKey
                 then Selection.moveCursorBackInTime m tlid
-                else Selection.selectNextSibling m tlid mId
+                else Selection.moveRight m tlid mId
               Key.Left ->
                 if event.altKey
                 then Selection.moveCursorForwardInTime m tlid
-                else Selection.selectPreviousSibling m tlid mId
+                else Selection.moveLeft m tlid mId
               Key.Tab ->
                 case mId of
                   Just id ->
