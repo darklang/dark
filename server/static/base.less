@@ -614,17 +614,19 @@ body #grid * {
     margin-top: -12px;
 
     #search-container {
+      background: @selected-background;
+      border: 0;
       border-bottom: @blank-underline;
       font-size: 8pt;
-      height: 15px;
+      margin: 0;
       min-width: 8ch;
+      padding: 0;
       position: relative;
-      // width: 100px;
       #entry-box {
         // as much like the blank box as possible
         background: transparent;
-        color: @grey3;
-        padding-right: 1ch;
+        color: transparent;
+        caret-color: @grey3;
         position: relative;
         text-align: left;
         vertical-align: baseline;
@@ -632,7 +634,14 @@ body #grid * {
         z-index: 20;
       }
       #suggestionBox {
-        background: @selected-background;
+        color: rgb(84,84,84);
+        left: 0;
+        position: absolute;
+        top: 0;
+        width: 100%;
+      }
+      #fluidWidthSpan {
+        color: @grey3;
         left: 0;
         position: absolute;
         top: 0;
@@ -673,26 +682,53 @@ body #grid * {
 // Strings
 // ---------------------------
 .string-entry {
-  position: relative;
   background: @selected-background;
-  padding-left: 4px;
-  padding-right: 4px;
-  #entry-box {
-    .blank-box-style;
+  border: 0;
+  border-bottom: @blank-underline;
+  font-size: 8pt;
+  margin: 0;
+  position: relative;
+
+  &::before {
+    content: "“";
     .string-style;
+    display: inline-block;
+    width: 1.5ch;
+  }
+  &::after{
+    content: "”";
+    .string-style;
+    display: inline-block;
+    width: 1.5ch;
+  }
+  .string-container {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    width: calc(~"100% - 3ch");
+  }
+  #entry-box {
     background: transparent;
+    color: transparent;
+    caret-color: @grey3;
+    margin: 0;
+    padding: 0;
+    position: relative;
+    text-align: left;
+    vertical-align: baseline;
+    width: 100%;
+    z-index: 20;
+  }
+  #fluidWidthSpan {
+    .string-style;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
   }
 }
 
-.string-container::before {
-  content: "“";
-  .string-style;
-}
-
-.string-container::after{
-  content: "”";
-  .string-style;
-}
 
 
 // ---------------------------
