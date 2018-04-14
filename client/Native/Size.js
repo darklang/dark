@@ -11,5 +11,41 @@ var _user$project$Native_Size = {
     var bb = div.getBoundingClientRect();
     document.body.removeChild(div);
     return bb;
+  },
+
+  positions: function(tlid) {
+    let tls = document.getElementsByClassName("toplevel " + tlid);
+    if (tls.length != 1) {
+      console.log(tls);
+      throw ("Couldn't find toplevel: " + tlid);
+    }
+    let tl = tls[0];
+    let results = [];
+    for (var bor of tl.getElementsByClassName("blankOr")) {
+      let bb = bor.getBoundingClientRect();
+      var id = -1;
+      for (var c of bor.classList) {
+        let match = c.match(/id-(\d+)/);
+        if (match) {
+          id = parseInt(match[1]);
+        }
+      }
+      if (id == -1) {
+        console.log(bor.classList);
+        throw ("Couldn't find id property");
+      }
+      var v = { x: bb.x
+              , y: bb.y
+              , width : bb.width
+              , height: bb.height
+              , top: bb.top
+              , bottom: bb.bottom
+              , left: bb.left
+              , right: bb.right
+              , id: id
+              };
+      results.push(v);
+    }
+    return _elm_lang$core$Native_List.fromArray(results);
   }
 };
