@@ -5,7 +5,7 @@ import Maybe
 
 -- lib
 import Maybe.Extra as ME
--- import List.Extra as LE
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -17,6 +17,9 @@ import Functions as Fns
 import Navigation
 import Util exposing (deMaybe)
 
+-------------------------------
+-- Cursors
+-------------------------------
 moveCursorBackInTime : Model -> TLID -> Modification
 moveCursorBackInTime m selected =
   let maxCursor = List.length (Analysis.getAnalysisResults m selected) - 1
@@ -31,6 +34,9 @@ moveCursorForwardInTime m selected =
   |> TL.getTL m
   |> (\tl -> SetCursor tl.id (max (tl.cursor - 1) 0))
 
+-------------------------------
+-- Toplevels
+-------------------------------
 selectNextToplevel : Model -> (Maybe TLID) -> Modification
 selectNextToplevel m cur =
   let tls = List.map .id m.toplevels
@@ -53,8 +59,104 @@ selectPrevToplevel m cur =
     Just nextId -> Select nextId Nothing
     Nothing -> Deselect
 
+-------------------------------
+-- Move direction-wise
+-------------------------------
+
+-- This is not an easy problem.
+-- We want to move to the _thing_ above us, to the right of us, etc.
+
+-- Left and right are pretty straightforward, until you hit interesting
+-- edge cases:
+--   (1 |> + 2) + (4 |> + 5)
+-- In this example, pressing right on 2 should go to 5. That pretty much
+-- rules out a straightforward AST traversal, though we could try up and
+-- down, it seems tricky to get right.
+--
+-- Up and down are pretty complicated even in simple cases:
+--   L1: 4 + 5 + 6 + 7
+--   L2: 485960020 + 8
+-- From 8, if you press up you should go to 7. How can we know?
+--
+-- The most obvious implementation is to model a grid (just like a text
+-- editor) and then use simple integer to go up/down using the column
+-- numbers. However, this is subject to a lot of weird errors: what if
+-- the gear or flag icons are showing for example? Or what if we change
+-- the fonts, etc. We tried to simulate sizes before for a similar
+-- problem, and kept getting it wrong.
+--
+-- So the easiest thing to get correct -- and, importantly, to keep
+-- correct over time -- is to use the browser to figure this out. Take
+-- the TL, draw it, get the sizes and positions of the elements and use
+-- them to figure out what's "above" and "below".
+
+type alias HtmlSizing = { x: Float
+                        , y: Float
+                        , width: Float
+                        , height: Float
+                        , top: Float
+                        , right: Float
+                        , bottom: Float
+                        , left: Float
+                        }
+tlToSizes : Model -> TLID -> List (ID, HtmlSizing)
+tlToSizes m tlid =
+  Native.Size.positions (deTLID tlid)
+  |> List.map
+       (\obj -> (ID obj.id, { x = obj.x
+                            , y = obj.y
+                            , width  = obj.width
+                            , height = obj.height
+                            , top = obj.top
+                            , bottom = obj.bottom
+                            , left = obj.left
+                            , right = obj.right
+                            }))
+
+moveUp : Model -> TLID -> (Maybe ID) -> Modification
+moveUp m tlid mId =
+  case mId of
+    Nothing -> NoChange
+    Just id ->
+      let sizes = tlToSizes m tlid |> Debug.log "sizes"
+          this = sizes
+                 |> List.filter (\(oid, o) -> oid == id)
+                 |> List.head
+                 |> deMaybe "must be one of them"
+                 |> Debug.log "this"
+                 |> Tuple.second
+          above = sizes
+                  |> LE.minimumBy (\(id, o) ->
+                    if o.top >= this.top -- y axis is inverted in browser
+                    then 10000000000
+                    else
+                      let thisCenter = (this.left + this.right) / 2 |> Debug.log "thiscenter"
+
+                          oCenter = (o.left + o.right) / 2 |> Debug.log "ocenter"
+                          yDist = this.top - o.top |> Debug.log "ydist"
+                          xDist = abs (oCenter - thisCenter) |> Debug.log "xdist"
+                      in yDist * 100000 + xDist)
+                  |> Debug.log "above"
+                  |> Maybe.map Tuple.first
+      in
+      Select tlid above
+
+moveDown : Model -> TLID -> (Maybe ID) -> Modification
+moveDown m tlid mId =
+  Select tlid mId
+
+moveRight : Model -> TLID -> (Maybe ID) -> Modification
+moveRight m tlid mId =
+  Select tlid mId
+
+moveLeft : Model -> TLID -> (Maybe ID) -> Modification
+moveLeft m tlid mId =
+  Select tlid mId
 
 
+-------------------------------
+-- Move AST-wide
+-------------------------------
 selectUpLevel : Model -> TLID -> (Maybe ID) -> Modification
 selectUpLevel m tlid cur =
   let tl = TL.getTL m tlid
@@ -99,6 +201,10 @@ selectPreviousSibling m tlid cur =
   |> Maybe.map P.toID
   |> Select tlid
 
+-------------------------------
+-- Blanks
+-------------------------------
+
 selectNextBlank : Model -> TLID -> (Maybe ID) -> Modification
 selectNextBlank m tlid cur =
   let tl = TL.getTL m tlid
@@ -139,6 +245,10 @@ enterPrevBlank m tlid cur =
   |> Maybe.map (\pd -> Enter (Filling tlid (P.toID pd)))
   |> Maybe.withDefault NoChange
 
+
+-------------------------------
+-- misc
+-------------------------------
 
 
 delete : Model -> TLID -> Maybe ID -> Modification
