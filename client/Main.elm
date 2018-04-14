@@ -41,6 +41,7 @@ import Pointer as P
 import Blank as B
 import AST
 import Selection
+import Sync
 import Runtime
 import Toplevel as TL
 import Util exposing (deMaybe)
@@ -964,7 +965,7 @@ update_ msg m =
       Many [ RPC ([DeleteAll], FocusNothing), Deselect]
 
     ToggleSync ->
-      TweakModel (\m -> { m | syncEnabled = not m.syncEnabled })
+      TweakModel Sync.toggle
 
     SaveTestButton ->
       MakeCmd RPC.saveTestRPC
@@ -983,10 +984,10 @@ update_ msg m =
 
     SliderChange id ->
       Many [ FeatureFlags.commitSlider m id
-           , TweakModel (\m -> { m | syncEnabled = True}) ]
+           , TweakModel Sync.enable ]
 
     SliderMoving id value ->
-      Many [ TweakModel (\m -> { m | syncEnabled = False })
+      Many [ TweakModel Sync.disable
            , FeatureFlags.updateSlider m id value
            ]
 
@@ -1029,7 +1030,7 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s)) ->
-      if m.syncEnabled
+      if m.syncState.enabled
       then
         SetToplevels m.toplevels analysis globals m.userFunctions f404s
       else
@@ -1150,7 +1151,7 @@ subscriptions m =
         case m.visibility of
           PageVisibility.Hidden -> []
           PageVisibility.Visible ->
-            if m.syncEnabled
+            if m.syncState.enabled
             then [ Time.every Time.second (ClockTick RefreshAnalyses) ]
             else []
       onError = [recordError JSError]

@@ -33,6 +33,12 @@ defaultEditor = { clipboard = Nothing
                 , cursorState = Deselected
                 }
 
+defaultSyncState : SyncState
+defaultSyncState = { enabled = True
+                   , inFlight = False
+                   , ticksSinceLastRequest = 0
+                   }
+
 defaultModel : Model
 defaultModel = { error = Nothing
                , lastMsg = Initialization
@@ -50,8 +56,9 @@ defaultModel = { error = Nothing
                , f404s = []
                , integrationTestState = NoIntegrationTest
                , visibility = PageVisibility.Hidden
+               -- partially saved in editor
+               , syncState = defaultSyncState
                -- saved in editor
                , clipboard = Nothing
-               , syncEnabled = True
                , cursorState = Deselected
                }

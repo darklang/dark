@@ -65,7 +65,7 @@ viewButtons m =
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text
-          (if m.syncEnabled then "DisableSync" else "EnableSync") ]
+          (if m.syncState.enabled then "DisableSync" else "EnableSync") ]
     , Html.span
       [ Attrs.class "specialButton"]
       [Html.text (toString m.center)]

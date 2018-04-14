@@ -406,6 +406,12 @@ type CurrentPage = Toplevels
 -----------------------------
 
 type alias Clipboard = Maybe PointerData
+
+type alias SyncState = { enabled : Bool
+                       , inFlight : Bool
+                       , ticksSinceLastRequest : Int
+                       }
+
 type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
@@ -424,7 +430,7 @@ type alias Model = { center : Pos
                    , integrationTestState : IntegrationTestState
                    , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
-                   , syncEnabled : Bool
+                   , syncState : SyncState
                    }
 
 -- Values that we serialize
