@@ -409,7 +409,7 @@ type alias Clipboard = Maybe PointerData
 
 type alias SyncState = { enabled : Bool
                        , inFlight : Bool
-                       , ticksSinceLastRequest : Int
+                       , ticks : Int
                        }
 
 type alias Model = { center : Pos
