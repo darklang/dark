@@ -90,6 +90,17 @@ selectPrevToplevel m cur =
 -- the TL, draw it, get the sizes and positions of the elements and use
 -- them to figure out what's "above" and "below".
 
+type alias JSSide = { x: Float
+                    , y: Float
+                    , width: Float
+                    , height: Float
+                    , top: Float
+                    , right: Float
+                    , bottom: Float
+                    , left: Float
+                    , id: Int
+                    }
+
 type alias HtmlSizing = { x: Float
                         , y: Float
                         , width: Float
@@ -98,60 +109,93 @@ type alias HtmlSizing = { x: Float
                         , right: Float
                         , bottom: Float
                         , left: Float
+                        , centerX: Float
+                        , centerY: Float
+                        , id: ID
                         }
-tlToSizes : Model -> TLID -> List (ID, HtmlSizing)
+jsToHtmlSizing : JSSide -> HtmlSizing
+jsToHtmlSizing obj =
+  { x = obj.x
+  , y = obj.y
+  , width  = obj.width
+  , height = obj.height
+  , top = obj.top
+  , bottom = obj.bottom
+  , left = obj.left
+  , right = obj.right
+  , centerX = (obj.left + obj.right) / 2
+  , centerY = (obj.top + obj.bottom) / 2
+  , id = ID obj.id
+  }
+
+tlToSizes : Model -> TLID -> (List HtmlSizing, List HtmlSizing)
 tlToSizes m tlid =
-  Native.Size.positions (deTLID tlid)
-  |> List.map
-       (\obj -> (ID obj.id, { x = obj.x
-                            , y = obj.y
-                            , width  = obj.width
-                            , height = obj.height
-                            , top = obj.top
-                            , bottom = obj.bottom
-                            , left = obj.left
-                            , right = obj.right
-                            }))
+  let poses = Native.Size.positions (deTLID tlid) in
+  ( List.map jsToHtmlSizing poses.nested |> Debug.log "nested"
+  , List.map jsToHtmlSizing poses.atoms)
 
-moveUp : Model -> TLID -> (Maybe ID) -> Modification
+type UDDirection = Up | Down
+moveUpDown : UDDirection -> List HtmlSizing -> ID -> Maybe ID
+moveUpDown direction sizes id =
+  let dir = if direction == Up then 1 else -1 in
+  case List.filter (\o -> o.id == id) sizes  of
+    [this] ->
+      sizes
+      |> LE.minimumBy (\o ->
+        if dir * o.centerY >= dir * this.centerY
+        then 10000000000
+        else
+          let majorDist = dir * (this.centerY - o.centerY)
+              minorDist = abs (this.centerX - o.centerX)
+          in majorDist * 100000 + minorDist)
+      |> Maybe.map .id
+    _ -> Nothing
+
+type LRDirection = Left | Right
+moveLeftRight : LRDirection -> List HtmlSizing -> ID -> Maybe ID
+moveLeftRight direction sizes id =
+  let this = sizes
+             |> List.filter (\o -> o.id == id)
+             |> List.head
+             |> deMaybe "must be one of them"
+      dir = if direction == Left then 1 else -1
+  in
+  sizes
+  |> LE.minimumBy (\o ->
+    if dir * o.centerX >= dir * this.centerX
+    then 10000000000
+    else
+      let majorDist = dir * (this.centerX - o.centerX)
+          minorDist = abs (this.centerY - o.centerY)
+      in majorDist * 100000 + minorDist)
+  |> Maybe.map .id
+
+move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID) ->
+  Modification
+move m tlid mId fn =
+  let (nested, atoms) = tlToSizes m tlid in
+    Maybe.map (fn atoms) mId
+    |> ME.orElseLazy (\_ -> Maybe.map (fn nested) mId)
+    |> Maybe.map (Select tlid)
+    |> Maybe.withDefault NoChange
+
+
+
+moveUp : Model -> TLID -> Maybe ID -> Modification
 moveUp m tlid mId =
-  case mId of
-    Nothing -> NoChange
-    Just id ->
-      let sizes = tlToSizes m tlid |> Debug.log "sizes"
-          this = sizes
-                 |> List.filter (\(oid, o) -> oid == id)
-                 |> List.head
-                 |> deMaybe "must be one of them"
-                 |> Debug.log "this"
-                 |> Tuple.second
-          above = sizes
-                  |> LE.minimumBy (\(id, o) ->
-                    if o.top >= this.top -- y axis is inverted in browser
-                    then 10000000000
-                    else
-                      let thisCenter = (this.left + this.right) / 2 |> Debug.log "thiscenter"
-
-                          oCenter = (o.left + o.right) / 2 |> Debug.log "ocenter"
-                          yDist = this.top - o.top |> Debug.log "ydist"
-                          xDist = abs (oCenter - thisCenter) |> Debug.log "xdist"
-                      in yDist * 100000 + xDist)
-                  |> Debug.log "above"
-                  |> Maybe.map Tuple.first
-      in
-      Select tlid above
+  move m tlid mId (moveUpDown Up)
 
 moveDown : Model -> TLID -> (Maybe ID) -> Modification
 moveDown m tlid mId =
-  Select tlid mId
+  move m tlid mId (moveUpDown Down)
 
 moveRight : Model -> TLID -> (Maybe ID) -> Modification
 moveRight m tlid mId =
-  Select tlid mId
+  Select tlid Nothing
 
 moveLeft : Model -> TLID -> (Maybe ID) -> Modification
 moveLeft m tlid mId =
-  Select tlid mId
+  Select tlid Nothing
 
 
 -------------------------------
