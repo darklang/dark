@@ -247,8 +247,8 @@ submit m cursor action value =
       let maybeH = TL.asHandler tl
           db = TL.asDB tl
           predecessor = TL.getPrevBlank tl (Just pd) |> Maybe.map P.toID
-          wrapPred op = RPC ([op], FocusNext tlid predecessor)
-          wrap op new = RPC ([op], FocusNext tlid (Just new))
+          wrapPred ops = RPC (ops, FocusNext tlid predecessor)
+          wrap ops new = RPC (ops, FocusNext tlid (Just new))
           validate pattern name success =
             if Util.rematch pattern value
             then success
@@ -257,24 +257,24 @@ submit m cursor action value =
       case pd of
         PDBColType _ ->
           validate "[A-Z]\\w+" "DB type"
-            <| wrap (SetDBColType tlid id value) id
+            <| wrap [SetDBColType tlid id value] id
         PDBColName _ ->
           if value == "id"
           then Error ("id's are automatic and implicit, no need to add them")
           else
             validate "\\w+" "DB column name"
-              <| wrap (SetDBColName tlid id value) id
+              <| wrap [SetDBColName tlid id value] id
         PVarBind _ ->
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
               case tl.data of
                 TLHandler h ->
                   let replacement = AST.replaceVarBind pd value h.ast in
-                  wrapPred <|
-                    SetHandler tlid tl.pos { h | ast = replacement }
+                  wrapPred
+                    [SetHandler tlid tl.pos { h | ast = replacement }]
                 TLFunc f ->
                   let replacement = AST.replaceVarBind pd value f.ast in
-                  wrapPred <| SetFunction { f | ast = replacement }
+                  wrapPred [SetFunction { f | ast = replacement }]
                 TLDB _ -> Debug.crash "not handler or func - varbind"
 
         PEventName _ ->
@@ -290,7 +290,7 @@ submit m cursor action value =
               replacement = SpecHeaders.replaceEventName id new h.spec
           in
           wrap
-            (SetHandler tlid tl.pos { h | spec = replacement })
+            [SetHandler tlid tl.pos { h | spec = replacement }]
             (B.toID new)
         PEventModifier _ ->
           let eventModifierValidation =
@@ -304,7 +304,7 @@ submit m cursor action value =
               new = B.newF value
               replacement = SpecHeaders.replaceEventModifier id new h.spec in
           wrap
-            (SetHandler tlid tl.pos { h | spec = replacement })
+            [SetHandler tlid tl.pos { h | spec = replacement }]
             (B.toID new)
         PEventSpace _ ->
           validate "[A-Z]+" "event space"
@@ -314,7 +314,7 @@ submit m cursor action value =
               replacement = SpecHeaders.replaceEventSpace id new h.spec
           in
           wrap
-            (SetHandler tlid tl.pos { h | spec = replacement })
+            [SetHandler tlid tl.pos { h | spec = replacement }]
             (B.toID new)
         PField _ ->
           validate ".+" "fieldname"
@@ -354,9 +354,9 @@ submit m cursor action value =
           in
               case tl.data of
                 TLHandler h ->
-                  wrapPred <| SetHandler tlid tl.pos { h | ast = newAst }
+                  wrapPred [SetHandler tlid tl.pos { h | ast = newAst }]
                 TLFunc f ->
-                  wrapPred <| SetFunction { f | ast = newAst }
+                  wrapPred [SetFunction { f | ast = newAst }]
                 TLDB _ -> Debug.crash "not handler or func - field"
 
         PExpr _ ->
@@ -377,7 +377,7 @@ submit m cursor action value =
               replacement = SpecTypes.replace pd newPD h.spec
           in
           wrap
-            (SetHandler tlid tl.pos { h | spec = replacement })
+            [SetHandler tlid tl.pos { h | spec = replacement }]
             (P.toID newPD)
 
         PDarkTypeField _ ->
@@ -386,14 +386,14 @@ submit m cursor action value =
               replacement = SpecTypes.replace pd newPD h.spec
           in
           wrap
-            (SetHandler tlid tl.pos { h | spec = replacement })
+            [SetHandler tlid tl.pos { h | spec = replacement }]
             (P.toID newPD)
         PFFMsg _ ->
           let newPD = PFFMsg (B.newF value)
               newTL = TL.replace pd newPD tl
               h = TL.asHandler newTL |> deMaybe "must be handler"
           in
-          wrap (SetHandler tlid tl.pos h) (P.toID newPD)
+          wrap [SetHandler tlid tl.pos h] (P.toID newPD)
         PFnName _ ->
           let newPD = PFnName (B.newF value)
               newTL = TL.replace pd newPD tl
@@ -402,15 +402,17 @@ submit m cursor action value =
                     new = TL.asUserFunction newTL |> deMaybe "new userFn"
                 in Refactor.renameFunction m old new
           in
-          RPC (SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
-               :: changedNames, FocusNext tlid (Just (P.toID newPD)))
+          wrap
+            (SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
+            :: changedNames)
+            (P.toID newPD)
         PParamName _ ->
           let newPD = PParamName (B.newF value)
               newTL = TL.replace pd newPD tl
               newFn = TL.asUserFunction newTL |> deMaybe "param fn"
           in
           wrap
-            (SetFunction newFn)
+            [SetFunction newFn]
             (P.toID newPD)
         PParamTipe _ ->
           validate "[A-Z][a-z]*" "param tipe"
@@ -419,7 +421,7 @@ submit m cursor action value =
               newTL = TL.replace pd newPD tl
               newFn = TL.asUserFunction newTL |> deMaybe "tipe fn"
           in
-          wrap (SetFunction newFn) (P.toID newPD)
+          wrap [SetFunction newFn] (P.toID newPD)
 
 
 
