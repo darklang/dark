@@ -225,9 +225,10 @@ viewNExpr d id vs config e =
       let pipe = a [wc "thread pipe"] "|>"
           texpr e =
             let id = B.toID e
-                dopts = if d == 0
-                then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
-                else [DisplayValueOf id, ClickSelectAs id]
+                dopts =
+                  if d == 0
+                  then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
+                  else [DisplayValueOf id, ClickSelectAs id]
             in
             n ([wc "threadmember"] ++ dopts)
               [pipe, vExpr 0 e]
