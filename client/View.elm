@@ -110,12 +110,10 @@ viewTL m tl =
         |> String.join " "
       html =
         Html.div
-          [Attrs.class <| String.join " " (boxClasses ++ ["sidebar-box"])] -- see comment in css
+          [Attrs.class <| String.join " " (boxClasses ++ ["sidebar-box", selected])] -- see comment in css
           [Html.div
             (Attrs.class class :: events)
             (body ++ data)
           ]
   in
       placeHtml m tl.pos html
-
-
