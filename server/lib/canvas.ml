@@ -154,15 +154,18 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | SetHandler (tlid, pos, handler) ->
       upsert_toplevel tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
-      let db : DbT.db = { tlid = tlid
-                        ; host = !c.name
-                        ; display_name = Db.to_display_name name
-                        ; actual_name = (!c.name ^ "_" ^ name)
-                                        |> String.lowercase
-                        ; cols = []} in
-      if do_db_ops
-      then Db.create_new_db db
-      else ();
+      if name = ""
+      then Exception.client ("DB must have a name")
+      else
+        let db : DbT.db = { tlid = tlid
+                          ; host = !c.name
+                          ; display_name = Db.to_display_name name
+                          ; actual_name = (!c.name ^ "_" ^ name)
+                                          |> String.lowercase
+                          ; cols = []} in
+        if do_db_ops
+        then Db.create_new_db db
+        else ();
       upsert_toplevel tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(Db.add_db_col colid typeid) tlid
