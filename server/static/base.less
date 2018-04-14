@@ -381,7 +381,6 @@ body #grid * {
 .string-style() {
     color: @purple;
     font-style: italic;
-    letter-spacing: -0.75px;
 }
 
 .blank-box-style() {
@@ -642,11 +641,11 @@ body #grid * {
     }
   }
   #autocomplete-holder {
-
-    text-align: initial;
-    overflow-y: scroll;
-    max-height: 90px;
     font-size: 85%;
+    max-height: 90px;
+    overflow-y: scroll;
+    position: absolute;
+    text-align: initial;
     width: 350px;
 
     .autocomplete-item {
@@ -676,6 +675,8 @@ body #grid * {
 .string-entry {
   position: relative;
   background: @selected-background;
+  padding-left: 4px;
+  padding-right: 4px;
   #entry-box {
     .blank-box-style;
     .string-style;

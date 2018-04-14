@@ -55,10 +55,10 @@ stringEntryHtml ac =
       -- stick with the overlapping things for now, just ignore the back
       -- one
       value = transformToStringEntry ac.value
+      -- NB: if the letter spacing isn't normal, need to adjust the length here for that
       length = value
                |> String.length
-               |> max 3
-               |> (+) 1
+               |> max 1 -- need this to be at least 1 for the cursor to blink?
 
 
       smallInput =
