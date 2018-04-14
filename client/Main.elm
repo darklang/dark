@@ -337,7 +337,8 @@ updateMod mod (m, cmd) =
         handleRPC params focus
 
       GetAnalysisRPC ->
-        m ! [RPC.getAnalysisRPC]
+        Sync.fetch m
+
       NoChange -> m ! []
       TriggerIntegrationTest name ->
         let expect = IntegrationTest.trigger name in
@@ -1032,7 +1033,9 @@ update_ msg m =
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s)) ->
       if m.syncState.enabled
       then
-        SetToplevels m.toplevels analysis globals m.userFunctions f404s
+        Many [ TweakModel Sync.markResponseInModel
+             , SetToplevels m.toplevels analysis globals m.userFunctions f404s
+             ]
       else
         NoChange
 

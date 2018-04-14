@@ -36,7 +36,7 @@ defaultEditor = { clipboard = Nothing
 defaultSyncState : SyncState
 defaultSyncState = { enabled = True
                    , inFlight = False
-                   , ticksSinceLastRequest = 0
+                   , ticks = 0
                    }
 
 defaultModel : Model
