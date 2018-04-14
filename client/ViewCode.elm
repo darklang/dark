@@ -200,7 +200,7 @@ viewNExpr d id vs config e =
                   (\_ -> ExecuteFunctionButton vs.tl.id id)
               ]
               [fontAwesome "gear"]]
-          fnDiv parens = n [wc "op", wc name] (fnname parens :: button)
+          fnDiv parens = n [wc "op", wc name, ComputedValueAs id] (fnname parens :: button)
       in
       case (isInfix, exprs) of
         (True, [first, second]) ->
