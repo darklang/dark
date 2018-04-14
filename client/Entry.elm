@@ -127,7 +127,9 @@ submit m cursor action value =
       in
 
       -- DB creation
-      if String.startsWith "DB" value && (value |> String.contains "::" |> not)
+      if String.startsWith "DB" value
+         && (value |> String.contains "::" |> not)
+         && (value |> String.trim |> String.length) >= 4
       then
         let dbName = value
                      |> String.dropLeft 2
