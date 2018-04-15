@@ -22,6 +22,11 @@ else
   NAME=$(docker ps --last 1 --filter "ancestor=dark" --filter status=running --quiet)
 fi
 
+if [[ "$NAME" == "" ]]; then
+  echo "No container name. Is the container not running?"
+  exit -1
+fi
+
 if [ -t 0 ] ;
 then
   docker exec -it ${NAME} bash -c "source /home/dark/.dark-config && ${ARGS}";
