@@ -158,6 +158,8 @@ normalEntryHtml placeholder ac =
                                ] []
       suggestionSpan = Html.span [ Attrs.id "suggestionBox"
                                  ] [Html.text suggestion]
+
+      -- http://making.fiftythree.com/fluid-text-inputs/
       fluidWidthSpan = Html.span [ Attrs.id "fluidWidthSpan"
                                  , Attrs.attribute "contentEditable" ""
                                  , Attrs.style [("text-indent", inCh indentWidth)]
