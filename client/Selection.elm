@@ -101,29 +101,13 @@ type alias JSSide = { x: Float
                     , id: Int
                     }
 
-type alias HtmlSizing = { x: Float
-                        , y: Float
-                        , width: Float
-                        , height: Float
-                        , top: Float
-                        , right: Float
-                        , bottom: Float
-                        , left: Float
-                        , centerX: Float
+type alias HtmlSizing = { centerX: Float
                         , centerY: Float
                         , id: ID
                         }
 jsToHtmlSizing : JSSide -> HtmlSizing
 jsToHtmlSizing obj =
-  { x = obj.x
-  , y = obj.y
-  , width  = obj.width
-  , height = obj.height
-  , top = obj.top
-  , bottom = obj.bottom
-  , left = obj.left
-  , right = obj.right
-  , centerX = (obj.left + obj.right) / 2
+  { centerX = (obj.left + obj.right) / 2
   , centerY = (obj.top + obj.bottom) / 2
   , id = ID obj.id
   }
@@ -131,44 +115,42 @@ jsToHtmlSizing obj =
 tlToSizes : Model -> TLID -> (List HtmlSizing, List HtmlSizing)
 tlToSizes m tlid =
   let poses = Native.Size.positions (deTLID tlid) in
-  ( List.map jsToHtmlSizing poses.nested |> Debug.log "nested"
+  ( List.map jsToHtmlSizing poses.nested
   , List.map jsToHtmlSizing poses.atoms)
 
 type UDDirection = Up | Down
 moveUpDown : UDDirection -> List HtmlSizing -> ID -> Maybe ID
 moveUpDown direction sizes id =
-  let dir = if direction == Up then 1 else -1 in
-  case List.filter (\o -> o.id == id) sizes  of
+  -- TODO: store original pos so that it's consistent if we go back in
+  -- the other direction
+  let dir = if direction == Up then -1 else 1 in
+  case List.filter (\o -> o.id == id) sizes of
     [this] ->
       sizes
+      |> List.filter (\o -> o.centerY /= this.centerY
+                            && dir * o.centerY > dir * this.centerY)
       |> LE.minimumBy (\o ->
-        if dir * o.centerY >= dir * this.centerY
-        then 10000000000
-        else
-          let majorDist = dir * (this.centerY - o.centerY)
-              minorDist = abs (this.centerX - o.centerX)
-          in majorDist * 100000 + minorDist)
-      |> Maybe.map .id
+           let majorDist = dir * (o.centerY - this.centerY)
+               minorDist = abs (o.centerX - this.centerX)
+           in majorDist * 100000 + minorDist)
+      |> Maybe.withDefault this
+      |> .id
+      |> Just
     _ -> Nothing
 
 type LRDirection = Left | Right
 moveLeftRight : LRDirection -> List HtmlSizing -> ID -> Maybe ID
 moveLeftRight direction sizes id =
-  let this = sizes
-             |> List.filter (\o -> o.id == id)
-             |> List.head
-             |> deMaybe "must be one of them"
-      dir = if direction == Left then 1 else -1
-  in
-  sizes
-  |> LE.minimumBy (\o ->
-    if dir * o.centerX >= dir * this.centerX
-    then 10000000000
-    else
-      let majorDist = dir * (this.centerX - o.centerX)
-          minorDist = abs (this.centerY - o.centerY)
-      in majorDist * 100000 + minorDist)
-  |> Maybe.map .id
+  let dir = if direction == Left then 1 else -1 in
+  case List.filter (\o -> o.id == id) sizes  of
+    [this] ->
+      sizes
+      |> List.filter (\o -> o.centerY == this.centerY
+                            && dir * this.centerX >= dir * o.centerX)
+      |> LE.minimumBy (\o ->
+           dir * (this.centerX - o.centerX))
+      |> Maybe.map .id
+    _ -> Nothing
 
 move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID) ->
   Modification
@@ -191,11 +173,11 @@ moveDown m tlid mId =
 
 moveRight : Model -> TLID -> (Maybe ID) -> Modification
 moveRight m tlid mId =
-  Select tlid Nothing
+  move m tlid mId (moveLeftRight Left)
 
 moveLeft : Model -> TLID -> (Maybe ID) -> Modification
 moveLeft m tlid mId =
-  Select tlid Nothing
+  move m tlid mId (moveLeftRight Right)
 
 
 -------------------------------
