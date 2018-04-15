@@ -35,7 +35,7 @@ RUN curl -sSL https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add
 RUN curl -sSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | apt-key add -
 RUN curl -sSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
 
-RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+# RUN echo "deb http://apt.postgresql.org/pub/repos/apt/ zesty-pgdg main" > /etc/apt/sources.list.d/pgdg.list
 RUN echo "deb [arch=amd64] https://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list
 RUN echo "deb https://deb.nodesource.com/node_9.x zesty main" > /etc/apt/sources.list.d/nodesource.list
 RUN echo "deb-src https://deb.nodesource.com/node_9.x zesty main" >> /etc/apt/sources.list.d/nodesource.list
@@ -70,9 +70,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pkg-config=0.29.1-0ubuntu2 \
       libcurl4-gnutls-dev=7.55.1-1ubuntu2.4 \
       python-software-properties=0.96.24.17 \
-      libpq-dev=10.1-1.pgdg17.04+1 \
-      postgresql-10=10.1-1.pgdg17.04+1 \
-      postgresql-client-10=10.1-1.pgdg17.04+1 \
+      libpq-dev=9.6.8-0ubuntu0.17.10 \
+      postgresql-9.6=9.6.8-0ubuntu0.17.10 \
+      postgresql-client-9.6=9.6.8-0ubuntu0.17.10 \
       chromium-browser \
       firefox \
       gnupg \
@@ -83,8 +83,8 @@ RUN DEBIAN_FRONTEND=noninteractive \
       google-cloud-sdk \
       jq \
       aspcud \
+      && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
-      # todo apt-clean
 
 # dont run as root (allow sudo)
 RUN adduser --disabled-password --gecos '' dark
@@ -130,9 +130,9 @@ RUN /etc/init.d/postgresql start && \
 
 # Adjust PostgreSQL configuration so that remote connections to the
 # database are possible.
-#RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.3/main/pg_hba.conf
+RUN echo "host all  all    0.0.0.0/0  md5" >> /etc/postgresql/9.6/main/pg_hba.conf
 
-RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
+# RUN echo "listen_addresses='*'" >> /etc/postgresql/10/main/postgresql.conf
 
 user dark
 # Add VOLUMEs to allow backup of config, logs and databases
