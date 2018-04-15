@@ -128,7 +128,7 @@ moveUpDown direction sizes id =
     [this] ->
       sizes
       |> List.filter (\o -> o.centerY /= this.centerY
-                            && dir * o.centerY > dir * this.centerY)
+                            && dir * this.centerY < dir * o.centerY)
       |> LE.minimumBy (\o ->
            let majorDist = dir * (o.centerY - this.centerY)
                minorDist = abs (o.centerX - this.centerX)
@@ -141,15 +141,17 @@ moveUpDown direction sizes id =
 type LRDirection = Left | Right
 moveLeftRight : LRDirection -> List HtmlSizing -> ID -> Maybe ID
 moveLeftRight direction sizes id =
-  let dir = if direction == Left then 1 else -1 in
+  let dir = if direction == Left then -1 else 1 in
   case List.filter (\o -> o.id == id) sizes  of
     [this] ->
       sizes
       |> List.filter (\o -> o.centerY == this.centerY
-                            && dir * this.centerX >= dir * o.centerX)
+                            && dir * this.centerX > dir * o.centerX)
       |> LE.minimumBy (\o ->
            dir * (this.centerX - o.centerX))
-      |> Maybe.map .id
+      |> Maybe.withDefault this
+      |> .id
+      |> Just
     _ -> Nothing
 
 move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID) ->
