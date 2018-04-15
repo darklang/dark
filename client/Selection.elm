@@ -158,10 +158,13 @@ move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID) ->
   Modification
 move m tlid mId fn =
   let (nested, atoms) = tlToSizes m tlid in
-    Maybe.map (fn atoms) mId
-    |> ME.orElseLazy (\_ -> Maybe.map (fn nested) mId)
-    |> Maybe.map (Select tlid)
-    |> Maybe.withDefault NoChange
+    Maybe.andThen (fn atoms) mId
+    |> ME.orElse (Maybe.andThen (fn nested) mId)
+    -- TODO: if neither, check nested+atoms. this would allow us to
+    -- press Left on the expr of a let and go to the varbind. I think we
+    -- would need to switch to use .left and .right instead of .centerX.
+    |> ME.orElse mId
+    |> Select tlid
 
 
 
