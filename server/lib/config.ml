@@ -124,3 +124,38 @@ let log_level : Log.level =
 
 let should_write_shape_data =
   Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
+
+
+(* -------------------- *)
+(* db *)
+(* -------------------- *)
+
+
+type postgres_config = { host: string
+                       ; dbname: string
+                       ; user: string
+                       ; password: string
+                       }
+
+let default_pg = { host = "localhost"
+                 ; dbname = "proddb"
+                 ; user = "dark"
+                 ; password = "eapnsdc"
+                 }
+
+
+
+let postgres_settings : postgres_config =
+  let host = Sys.getenv "DARK_CONFIG_DB_HOST" in
+  let dbname = Sys.getenv "DARK_CONFIG_DB_NAME" in
+  let user = Sys.getenv "DARK_CONFIG_DB_USER" in
+  let password = Sys.getenv "DARK_CONFIG_DB_PASSWORD" in
+  match (host, dbname, user, password) with
+  | (None, None, None, None) -> default_pg
+  | (Some host, Some dbname, Some user, Some password) ->
+    { host = host
+    ; dbname = dbname
+    ; user = user
+    ; password = password
+    }
+  | _ -> failwith "Inconsistent DB setup, so refusing to start. Either set all DB configs, or none."
