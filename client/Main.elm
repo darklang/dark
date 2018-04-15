@@ -545,8 +545,14 @@ update_ msg m =
                   case mId of
                     Just id -> Selection.enter m tlid id
                     Nothing -> Selection.selectDownLevel m tlid mId
-              Key.Up -> Selection.moveUp m tlid mId
-              Key.Down -> Selection.moveDown m tlid mId
+              Key.Up ->
+                if event.ctrlKey
+                then Selection.selectUpLevel m tlid mId
+                else Selection.moveUp m tlid mId
+              Key.Down ->
+                if event.ctrlKey
+                then Selection.selectDownLevel m tlid mId
+                else Selection.moveDown m tlid mId
               Key.Right ->
                 if event.altKey
                 then Selection.moveCursorBackInTime m tlid
