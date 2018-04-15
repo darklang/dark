@@ -147,7 +147,7 @@ let default_pg = { host = "localhost"
 
 let postgres_settings : postgres_config =
   let host = Sys.getenv "DARK_CONFIG_DB_HOST" in
-  let dbname = Sys.getenv "DARK_CONFIG_DB_NAME" in
+  let dbname = Sys.getenv "DARK_CONFIG_DB_DBNAME" in
   let user = Sys.getenv "DARK_CONFIG_DB_USER" in
   let password = Sys.getenv "DARK_CONFIG_DB_PASSWORD" in
   match (host, dbname, user, password) with
