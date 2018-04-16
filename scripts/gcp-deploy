@@ -2,6 +2,18 @@
 set -euo pipefail
 ./scripts/support/assert-in-container $0 $@
 
+FORCE=""
+for i in "$@"
+do
+  case $i in
+    --force)
+    FORCE="y"
+    ;;
+  esac
+done
+
+
+
 PROJECT="balmy-ground-195100"
 ZONE="--zone=dark-single-instance"
 DNS_SETTINGS="--name=darksingleinstance.com. --type=A $ZONE"
@@ -37,7 +49,7 @@ $GCLOUD compute instances add-metadata $INSTANCE \
 # GCP always restarts, so only restart if something has changed
 OLDIMAGE=$(echo $INFO | jq -r '.metadata.items | map(select(.key == "gce-container-declaration")) | .[0].value' | grep image | sed -E "s/[[:space:]]+image: //")
 
-if [[ "$OLDIMAGE" != "$IMAGE" ]]; then
+if [[ "$OLDIMAGE" != "$IMAGE" || "$FORCE" ]]; then
   echo "New image - updating container: $IMAGE"
   $GCLOUD beta compute instances update-container $INSTANCE \
     --container-image $IMAGE \
@@ -45,7 +57,7 @@ if [[ "$OLDIMAGE" != "$IMAGE" ]]; then
     --container-mount-host-path mount-path=/home/dark/gcp-persistdir,host-path=/mnt/disks/dark-disk/persistdir,mode=rw \
     --container-mount-host-path mount-path=/home/dark/gcp-rundir,host-path=/mnt/disks/dark-disk/rundir,mode=rw
 else
-  echo "Not updating container as image hasnt changed: $IMAGE"
+  echo "Not updating container as image hasnt changed: $IMAGE (use --force to push anyway, eg if config/gcp-prod has changed)"
 fi
 
 #########################
