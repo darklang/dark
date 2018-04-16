@@ -335,7 +335,7 @@ let to_frontend_string (environments: RTT.env_map)
     (exe_fn_ids: Api.executable_fns) (c: canvas) : string =
   c
   |> to_frontend environments f404s execution_id exe_fn_ids
-  |> Yojson.Safe.pretty_to_string ~std:true
+  |> Yojson.Safe.to_string ~std:true
 
 (* ------------------------- *)
 (* Routing *)
