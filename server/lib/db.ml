@@ -41,6 +41,37 @@ let find_db tables table_name : DbT.db =
    | None -> failwith ("table not found: " ^ table_name)
 
 
+(* Hex converter stolen from PGOcaml, with modifications because our
+ * string does not start with "\\x" *)
+let is_hex_digit = function '0'..'9' | 'a'..'f' | 'A'..'F' -> true
+                                     | _ -> false
+
+let hex_val c =
+  let offset = match c with
+    | '0'..'9' -> 0x30
+    | 'a'..'f' -> 0x57
+    | 'A'..'F' -> 0x37
+    | _	       -> failwith "hex_val"
+  in Char.to_int c - offset
+
+(* Deserialiser for the new 'hex' format introduced in PostgreSQL 9.0. *)
+let bytea_of_string_hex str =
+  let len = String.length str in
+  let buf = Buffer.create ((len)/2) in
+  let i = ref 1 in
+  while !i < len do
+    let hi_nibble = str.[!i-1] in
+    let lo_nibble = str.[!i] in
+    i := !i+2;
+    if is_hex_digit hi_nibble && is_hex_digit lo_nibble
+    then begin
+      let byte = ((hex_val hi_nibble) lsl 4) + (hex_val lo_nibble) in
+      Buffer.add_char buf (Char.of_int_exn byte)
+    end
+  done;
+  Buffer.contents buf
+
+
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
@@ -402,10 +433,6 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
-let unescape str =
-  str
-  |> String.filter ~f:((<>) '\n')
-
 (* ------------------------- *)
 (* Serializing canvases *)
 (* ------------------------- *)
@@ -424,21 +451,20 @@ let save_oplists (host: string) (data: string) : unit =
 
 let load_oplists (host: string) : string option =
   (* It's quite a bit of work to make a binary bytea go into the DB and
-   * come out in the same shape. encode(data, 'escape') takes a bytea
-   * and gives it to us as a string that is only slightly overescaped
-   * (using \\ and then \123 (backslash then 3-digit octal) for anything
-   * weird.
-   * It seemed easier to run it through base64, however, postgres
-   * helpfully inserts newlines. This is slow af, but it's a start. *)
+   * come out in the same shape:
+   *
+   * https://www.postgresql.org/docs/9.6/static/datatype-binary.html
+   *
+   * Postgres advices us to parse the hex format, above. We tried base64
+   * as well, which is approx twice as slow. *)
   Printf.sprintf
-    "SELECT encode(data, 'base64') FROM oplists
+    "SELECT encode(data, 'hex') FROM oplists
      WHERE host = '%s';"
     (escape host)
   |> fetch_via_sql ~quiet:true
   |> List.hd
   |> Option.value_map ~default:None ~f:List.hd
-  |> Option.map ~f:unescape
-  |> Option.map ~f:B64.decode
+  |> Option.map ~f:bytea_of_string_hex
 
 
 
