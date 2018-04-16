@@ -33,5 +33,5 @@ val dbs_as_exe_env : DbT.db list -> RuntimeT.dval_map
 
 
 (* Saving canvases to the DB *)
-val save_oplists : string -> string -> unit
-val load_oplists : string -> string option
+val save_oplists : string -> string -> string -> unit
+val load_oplists : string -> string -> string option
