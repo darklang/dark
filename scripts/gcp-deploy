@@ -18,7 +18,7 @@ PROJECT="balmy-ground-195100"
 ZONE="--zone=dark-single-instance"
 DNS_SETTINGS="--name=darksingleinstance.com. --type=A $ZONE"
 FULL_DNS_SETTINGS="$DNS_SETTINGS --ttl=300"
-INSTANCE="instance-2"
+INSTANCE="instance-4"
 
 GCLOUD="gcloud --project=$PROJECT "
 
