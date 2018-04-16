@@ -191,3 +191,8 @@ npm dependencies are managed in development, bundled up via browserify, tracked 
 * $`yarn add PACKAGE_NAME`
 * Use the package in `server/src/main.js` or whatever
 * $`yarn build` manages `/server/static/bundle.js`
+
+# Notes on GCP
+
+- when you create a startup disk, it needs to be formatted. This could
+  be automated.
