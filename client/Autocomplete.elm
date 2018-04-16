@@ -30,7 +30,7 @@ import AST
 height : Int -> Int
 height i = if i < 4
            then 0
-           else 17 * (i - 4)
+           else 14 * (i - 4)
 
 focusItem : Int -> Cmd Msg
 focusItem i = Dom.Scroll.toY "autocomplete-holder" (i |> height |> toFloat)
