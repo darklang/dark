@@ -2,6 +2,8 @@
 set -euo pipefail
 ./scripts/support/assert-in-container $0 $@
 
+set -euo pipefail
+
 PATTERN=".*"
 GCP=
 
