@@ -183,7 +183,7 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
 
 let is_uninitialized_db_error (host: string) (e: Postgresql.error) : bool =
   let str = Postgresql.string_of_error e in
-  String.is_prefix (Log.pp "str" str)
+  String.is_prefix str
       ~prefix: "Result status PGRES_FATAL_ERROR unexpected (expected status:PGRES_TUPLES_OK); ERROR:  relation"
   &&
   String.is_substring str
@@ -230,11 +230,10 @@ let load (name: string) (newops: Op.op list) : canvas ref =
   c
 
 let save (c : canvas) : unit =
-  (* let bin = Serialize.binary_save_filename c.name in *)
-  (* let json = Serialize.json_unversioned_filename c.name in *)
-  (* let root = Serialize.root_of c.name in *)
-  Serialize.save_in_db c.name c.ops
-  (* ignore (Util.convert_bin_to_json ~root bin json) *)
+  Serialize.save_in_db c.name c.ops;
+  let json = Serialize.json_unversioned_filename c.name in
+  let root = Serialize.root_of c.name in
+  ignore (Util.convert_bin_to_json ~root c.name json)
 
 
 let save_test (c: canvas) : string =

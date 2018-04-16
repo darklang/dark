@@ -46,6 +46,17 @@
 
 (executable
   (
+    (name darkfile_db_to_json_file)
+    (public_name darkfile_db_to_json_file)
+    (modules darkfile_db_to_json_file)
+    (modes (native))
+    (flags (-warn-error (+A)))
+    (libraries (dark))
+  )
+)
+
+(executable
+  (
     (name trigger_queue_workers)
     (public_name trigger_queue_workers)
     (modules trigger_queue_workers)
