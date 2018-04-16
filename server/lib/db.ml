@@ -436,20 +436,21 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
 (* ------------------------- *)
 (* Serializing canvases *)
 (* ------------------------- *)
-let save_oplists (host: string) (data: string) : unit =
+let save_oplists (host: string) (digest: string) (data: string) : unit =
   let data = escapea data in
   Printf.sprintf
     (* this is an upsert *)
     "INSERT INTO oplists
-    (host, data) VALUES ('%s', '%s')
-    ON CONFLICT (host) DO UPDATE
+    (host, digest, data) VALUES ('%s', '%s', '%s')
+    ON CONFLICT (host, digest) DO UPDATE
     SET data = '%s';"
     (escape host)
+    digest
     data
     data
   |> run_sql ~quiet:true
 
-let load_oplists (host: string) : string option =
+let load_oplists (host: string) (digest: string) : string option =
   (* It's quite a bit of work to make a binary bytea go into the DB and
    * come out in the same shape:
    *
@@ -459,8 +460,10 @@ let load_oplists (host: string) : string option =
    * as well, which is approx twice as slow. *)
   Printf.sprintf
     "SELECT encode(data, 'hex') FROM oplists
-     WHERE host = '%s';"
+     WHERE host = '%s'
+     AND digest = '%s';"
     (escape host)
+    digest
   |> fetch_via_sql ~quiet:true
   |> List.hd
   |> Option.value_map ~default:None ~f:List.hd
@@ -476,4 +479,4 @@ let init () : unit  =
   (* https://github.com/inhabitedtype/ocaml-session/blob/master/backends/postgresql/lwt/session_postgresql_lwt.mli#L39 *)
   run_sql "CREATE TABLE IF NOT EXISTS session (session_key CHAR(40), expire_date TIMESTAMP (2) WITH TIME ZONE, session_data TEXT)";
   run_sql "CREATE INDEX IF NOT EXISTS session_key_idx ON \"session\" (session_key)";
-  run_sql "CREATE TABLE IF NOT EXISTS oplists (host VARCHAR(64) PRIMARY KEY, data BYTEA)";
+  run_sql "CREATE TABLE IF NOT EXISTS oplists (host VARCHAR(64), digest CHAR(32), data BYTEA, PRIMARY KEY (host, digest))";
