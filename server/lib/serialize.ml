@@ -61,48 +61,67 @@ let save_json ~root (filename: string) (ops: Op.oplist) : unit =
   |> (fun s -> s ^ "\n")
   |> Util.writefile ~root filename
 
+let save_in_db (host: string) (ops: Op.oplist) : unit =
+  ops
+  |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
+  (* |> to_line Op.bin_oplist *)
+  |> Bigstring.to_string
+  |> Db.save_oplists host
+
+
+let load_from_db (host: string) : Op.oplist option =
+  host
+  |> Db.load_oplists
+  |> Option.map
+    ~f:(fun x ->
+        (* of_line x Op.bin_oplist) *)
+        Core_extended.Bin_io_utils.of_line x Op.bin_oplist)
+
 let deserialize_ordered
-    (name : string)
+    (host : string)
     (descs : ((root:Config.root -> string -> Op.oplist) * Config.root * string) list)
     : Op.oplist =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
-  let (result, errors) =
-    List.fold descs ~init:(None, [])
-      ~f:(fun (result, errors) (fn, root, filename) ->
-          match result with
-          | Some r -> (result, errors)
-          | None ->
-            if not (Util.file_exists ~root filename)
-            then (None, errors)
-            else
-              (try
-                 (Some (fn ~root filename), errors)
-               with
-               | e -> (None, (errors @ [e])))) in
-  match (result, errors) with
-  | (Some r, _) -> r
-  | (None, []) -> []
-  | (None, es) ->
-    Log.erroR "deserialization" es;
-    Exception.internal ("storage error with " ^ name)
+  match load_from_db host with
+  | Some ops -> ops
+  | None ->
+      let (result, errors) =
+        List.fold descs ~init:(None, [])
+          ~f:(fun (result, errors) (fn, root, filename) ->
+              match result with
+              | Some r -> (result, errors)
+              | None ->
+                if not (Util.file_exists ~root filename)
+                then (None, errors)
+                else
+                  (try
+                     (Some (fn ~root filename), errors)
+                   with
+                   | e -> (None, (errors @ [e])))) in
+      match (result, errors) with
+      | (Some r, _) -> r
+      | (None, []) -> []
+      | (None, es) ->
+        Log.erroR "deserialization" es;
+        Exception.internal ("storage error with " ^ host)
 
-let search_and_load (name: string) : Op.oplist =
+let search_and_load (host: string) : Op.oplist =
   (* testfiles load and save from different directories *)
-  if is_test name
+  if is_test host
   then
     (* we allow loading from the Completed_test dir so that subsequent
      * steps in the test use the altered file. The test harness cleans
      * them first *)
-    deserialize_ordered name
-      [ (load_binary, Completed_test, full name digest "dark")
-      ; (load_json, Testdata, full name "" "json")
+    deserialize_ordered host
+      [ (load_binary, Completed_test, full host digest "dark")
+      ; (load_json, Testdata, full host "" "json")
       ]
   else
-    let root = root_of name in
-    let json = json_unversioned_filename name in
-    let bin = binary_save_filename name in
-    deserialize_ordered name
+    let root = root_of host in
+    let json = json_unversioned_filename host in
+    let bin = binary_save_filename host in
+    deserialize_ordered host
       [ (load_binary, root, bin)
       ; (load_json, root, json)
       ; (Deserialize_b68219ec99d4a17c9a1d6524129da928.load_json, root, json)

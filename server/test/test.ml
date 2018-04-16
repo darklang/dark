@@ -51,6 +51,7 @@ let execute_ops (ops : Op.op list) : dval =
 let at_dval = AT.of_pp pp_dval
 let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
+let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 
 let handler ast =
   Op.SetHandler ( 7
@@ -145,6 +146,20 @@ let t_int_add_works () =
   let add = f (FnCall ("+", [v "5"; v "3"])) in
   let r = execute_ops [handler add] in
   check_dval "int_add" (DInt 8) r
+
+let t_db_oplist_roundtrip () =
+  let host = "test_db_oplist_roundtrip" in
+  let oplist = [ Op.Undo
+               ; Op.Redo
+               ; Op.Undo
+               ; Op.Redo] in
+  Serialize.save_in_db host oplist;
+  match (Serialize.load_from_db host) with
+  | Some ops ->
+    check_oplist "db_oplist roundtrip" oplist ops
+  | None -> AT.fail "nothing in db"
+
+
 
 
 let t_lambda_with_foreach () =
@@ -271,6 +286,7 @@ let suite =
   ; "lambda_with_foreach", `Slow, t_lambda_with_foreach
   ; "stored_events", `Slow, t_stored_event_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
+  ; "db oplist roundtrip", `Slow, t_db_oplist_roundtrip
   ]
 
 let () =
