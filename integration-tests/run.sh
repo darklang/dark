@@ -53,11 +53,13 @@ rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
 rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${DARK_CONFIG_RUN_DIR}/integration.json
 
-TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_ || true )
+TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_  | echo -n || true)
 if [[ "$TESTDBS" != "" ]]; then
-  echo "Clearing test DBs: $TESTDBS"
-  psql -d proddb -c "DROP TABLE $TESTDBS;"
+  echo "Clearing test DBs: $TESTDBS";
+  psql -d proddb -c "DROP TABLE $TESTDBS;";
 fi
+echo "Clearing saved test oplists";
+psql -d proddb -c "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';";
 
 
 TEST_HOST="integration-tests:$PORT" \
