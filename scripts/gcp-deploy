@@ -26,7 +26,7 @@ GCLOUD="gcloud --project=$PROJECT "
 CLOUDFLARE_ACCOUNT="paul.biggar@gmail.com"
 CLOUDFLARE_ZONE="e2a8f090f530d9da76e54af6bdd097a2"
 CLOUDFLARE_API_KEY="30d7a6ae4be97de5c052fcc33216396444d97"
-CLOUDFLARE_PURGE_URL="https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE/purge_cache"
+CLOUDFLARE_PURGE_URL="https://api.cloudflare.com/client/v4/zones/${CLOUDFLARE_ZONE}/purge_cache"
 ROLLBAR_ACCESS_TOKEN="ac042ea56b054bbdbddbfffaa149004e"
 ENVIRONMENT=production
 LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'account' | awk '{print $3}' | awk -F "@" '{print $1}'`
@@ -66,21 +66,21 @@ if [[ "$OLDIMAGE" != "$IMAGE" || "$FORCE" ]]; then
     --container-mount-host-path mount-path=/home/dark/gcp-rundir,host-path=/mnt/disks/dark-disk/rundir,mode=rw
   echo "Image $IMAGE deployed"
 
-  PURGE_OUTPUT=$(curl -s -X DELETE "$CLOUDFLARE_PURGE_URL" -H "X-Auth-Email: $CLOUDFLARE_ACCOUNT" -H "X-Auth-Key: $CLOUDFLARE_API_KEY" -H "Content-Type: application/json" --data '{"purge_everything":true}' | jq ".success")
+  PURGE_OUTPUT=$(curl -s -X DELETE "${CLOUDFLARE_PURGE_URL}" -H "X-Auth-Email: ${CLOUDFLARE_ACCOUNT}" -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}" -H "Content-Type: application/json" --data '{"purge_everything":true}' | jq ".success")
 
-  if [[ "$PURGE_OUTPUT" != "true" ]]; then
+  if [[ "${PURGE_OUTPUT}" != "true" ]]; then
     PURGE_COMMENT="Failed to purge Cloudflare cache, try manual intervention: https://www.cloudflare.com/a/caching/darksingleinstance.com"
   else
     PURGE_COMMENT="Cloudflare cache purged"
   fi
-  echo "$PURGE_COMMENT"
+  echo "${PURGE_COMMENT}"
 
   curl -s https://api.rollbar.com/api/1/deploy/ \
-    -F access_token=$ROLLBAR_ACCESS_TOKEN \
-    -F environment=$ENVIRONMENT \
-    -F revision=$IMAGE \
-    -F comment=$PURGE_COMMENT \
-    -F local_username=$LOCAL_USERNAME > /dev/null
+    -F access_token="${ROLLBAR_ACCESS_TOKEN}" \
+    -F environment="$ENVIRONMENT" \
+    -F revision="$IMAGE" \
+    -F comment="${PURGE_COMMENT}" \
+    -F local_username="${LOCAL_USERNAME}" > /dev/null
 
   echo "Rollbar notified."
 else
