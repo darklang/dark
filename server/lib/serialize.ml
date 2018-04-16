@@ -64,7 +64,6 @@ let save_json ~root (filename: string) (ops: Op.oplist) : unit =
 let save_in_db (host: string) (ops: Op.oplist) : unit =
   ops
   |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
-  (* |> to_line Op.bin_oplist *)
   |> Bigstring.to_string
   |> Db.save_oplists host
 
@@ -74,7 +73,9 @@ let load_from_db (host: string) : Op.oplist option =
   |> Db.load_oplists
   |> Option.map
     ~f:(fun x ->
-        (* of_line x Op.bin_oplist) *)
+        (* Supposedly, we're supposed to remove an ending \n that
+         * to_line helpfully adds, but that hasn't been a problem so
+         * far. *)
         Core_extended.Bin_io_utils.of_line x Op.bin_oplist)
 
 let deserialize_ordered
