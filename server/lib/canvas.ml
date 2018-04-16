@@ -230,11 +230,11 @@ let load (name: string) (newops: Op.op list) : canvas ref =
   c
 
 let save (c : canvas) : unit =
-  let bin = Serialize.binary_save_filename c.name in
-  let json = Serialize.json_unversioned_filename c.name in
-  let root = Serialize.root_of c.name in
-  Serialize.save_binary ~root bin c.ops;
-  ignore (Util.convert_bin_to_json ~root bin json)
+  (* let bin = Serialize.binary_save_filename c.name in *)
+  (* let json = Serialize.json_unversioned_filename c.name in *)
+  (* let root = Serialize.root_of c.name in *)
+  Serialize.save_in_db c.name c.ops
+  (* ignore (Util.convert_bin_to_json ~root bin json) *)
 
 
 let save_test (c: canvas) : string =
