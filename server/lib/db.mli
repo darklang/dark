@@ -6,8 +6,8 @@ val init : unit -> unit
 val with_postgres : (unit -> 'b) -> 'b
 
 (* Low-level API *)
-val run_sql : string -> unit
-val fetch_via_sql : string -> string list list
+val run_sql : ?quiet:bool -> string -> unit
+val fetch_via_sql : ?quiet:bool -> string -> string list list
 
 (* DB struct functions *)
 val cols_for : DbT.db -> (string * RuntimeT.tipe) list
@@ -30,3 +30,8 @@ val set_db_col_type : id -> RuntimeT.tipe -> bool ->  DbT.db -> DbT.db
 (* DBs as values for execution *)
 val dbs_as_env : DbT.db list -> RuntimeT.dval_map
 val dbs_as_exe_env : DbT.db list -> RuntimeT.dval_map
+
+
+(* Saving canvases to the DB *)
+val save_oplists : string -> string -> unit
+val load_oplists : string -> string option

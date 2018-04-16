@@ -29,8 +29,11 @@ let rec rec_con depth =
 
 let conn = rec_con 0
 
-let escape s =
+let escape (s: string) : string =
   conn#escape_string s
+
+let escapea (s: string) : string =
+  conn#escape_bytea s
 
 let find_db tables table_name : DbT.db =
   match List.find ~f:(fun d -> d.display_name = String.capitalize table_name) tables with
@@ -93,9 +96,13 @@ let cols_for (db: db) : (string * tipe) list =
       None)
   |> fun l -> ("id", TID) :: l
 
-let fetch_via_sql (sql: string) : string list list =
+let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
+  if quiet
+  then
+    ()
+  else
+    Log.infO "fetching via sql" sql;
   sql
-  |> Log.info "sql"
   |> conn#exec ~expect:PG.[Tuples_ok]
   |> (fun res -> res#get_all_lst)
 
@@ -205,8 +212,11 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 (* ------------------------- *)
 
 
-let run_sql (sql: string) : unit =
-  Log.infO "sql" sql ~stop:10000;
+let run_sql ?(quiet=false) (sql: string) : unit =
+  if quiet
+  then ()
+  else
+    Log.infO "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
 
@@ -392,6 +402,46 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
+let unescape str =
+  str
+  |> String.filter ~f:((<>) '\n')
+
+(* ------------------------- *)
+(* Serializing canvases *)
+(* ------------------------- *)
+let save_oplists (host: string) (data: string) : unit =
+  let data = escapea data in
+  Printf.sprintf
+    (* this is an upsert *)
+    "INSERT INTO oplists
+    (host, data) VALUES ('%s', '%s')
+    ON CONFLICT (host) DO UPDATE
+    SET data = '%s';"
+    (escape host)
+    data
+    data
+  |> run_sql ~quiet:true
+
+let load_oplists (host: string) : string option =
+  (* It's quite a bit of work to make a binary bytea go into the DB and
+   * come out in the same shape. encode(data, 'escape') takes a bytea
+   * and gives it to us as a string that is only slightly overescaped
+   * (using \\ and then \123 (backslash then 3-digit octal) for anything
+   * weird.
+   * It seemed easier to run it through base64, however, postgres
+   * helpfully inserts newlines. This is slow af, but it's a start. *)
+  Printf.sprintf
+    "SELECT encode(data, 'base64') FROM oplists
+     WHERE host = '%s';"
+    (escape host)
+  |> fetch_via_sql ~quiet:true
+  |> List.hd
+  |> Option.value_map ~default:None ~f:List.hd
+  |> Option.map ~f:unescape
+  |> Option.map ~f:B64.decode
+
+
+
 (* ------------------------- *)
 (* Some initialization *)
 (* ------------------------- *)
@@ -400,3 +450,4 @@ let init () : unit  =
   (* https://github.com/inhabitedtype/ocaml-session/blob/master/backends/postgresql/lwt/session_postgresql_lwt.mli#L39 *)
   run_sql "CREATE TABLE IF NOT EXISTS session (session_key CHAR(40), expire_date TIMESTAMP (2) WITH TIME ZONE, session_data TEXT)";
   run_sql "CREATE INDEX IF NOT EXISTS session_key_idx ON \"session\" (session_key)";
+  run_sql "CREATE TABLE IF NOT EXISTS oplists (host VARCHAR(64) PRIMARY KEY, data BYTEA)";
