@@ -60,7 +60,7 @@ if [[ "$OLDIMAGE" != "$IMAGE" || "$FORCE" ]]; then
 
   ACCESS_TOKEN=ac042ea56b054bbdbddbfffaa149004e
   ENVIRONMENT=production
-  LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | tail -n 2 | head -n 1 | awk '{print $3}' | awk -F "@" '{print $1}'`
+  LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'account' | awk '{print $3}' | awk -F "@" '{print $1}'`
 
   curl -s https://api.rollbar.com/api/1/deploy/ \
     -F access_token=$ACCESS_TOKEN \
