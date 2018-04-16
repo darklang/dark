@@ -65,12 +65,11 @@ let save_in_db (host: string) (ops: Op.oplist) : unit =
   ops
   |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
   |> Bigstring.to_string
-  |> Db.save_oplists host
+  |> Db.save_oplists host digest
 
 
 let load_from_db (host: string) : Op.oplist option =
-  host
-  |> Db.load_oplists
+  Db.load_oplists host digest
   |> Option.map
     ~f:(fun x ->
         (* Supposedly, we're supposed to remove an ending \n that
