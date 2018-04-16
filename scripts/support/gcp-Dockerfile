@@ -38,4 +38,7 @@ WORKDIR /home/dark
 
 COPY . /home/dark
 
+ARG GIT_COMMIT
+ENV GIT_COMMIT ${GIT_COMMIT}
+
 CMD "./gcp-run-server"
