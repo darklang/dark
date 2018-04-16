@@ -4,6 +4,11 @@ const mousewheel = function(callback){
   });
 };
 
+var rollbar = require('rollbar-browser');
+
+var Rollbar = rollbar.init({});
+window.Rollbar = Rollbar;
+
 module.exports = {
   mousewheel: mousewheel
 };
