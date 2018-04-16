@@ -54,11 +54,15 @@ echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
 rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${DARK_CONFIG_RUN_DIR}/integration.json
+rm -Rf ${DARK_CONFIG_PERSIST_DIR}/events/test_*
+rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
 
-TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_  | echo -n || true)
+TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_ || true)
 if [[ "$TESTDBS" != "" ]]; then
   echo "Clearing test DBs: $TESTDBS";
-  psql -d proddb -c "DROP TABLE $TESTDBS;";
+  for db in $TESTDBS; do
+    psql -d proddb -c "DROP TABLE $db;";
+  done
 fi
 echo "Clearing saved test oplists";
 psql -d proddb -c "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';";
