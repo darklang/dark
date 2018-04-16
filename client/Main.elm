@@ -396,10 +396,15 @@ updateMod mod (m, cmd) =
                      , userFunctions = userFuncs
                      , f404s = f404s
                  }
+            -- If the server is slow, we don't a jittery experience.
+            m3 = case tlidOf m.cursorState of
+                   Just tlid -> TL.upsert m2 (TL.getTL m tlid)
+                   Nothing -> m2
+
             (complete, acCmd) =
-              processAutocompleteMods m2 [ ACRegenerate ]
+              processAutocompleteMods m3 [ ACRegenerate ]
         in
-        { m2 | complete = complete } ! [acCmd]
+        { m3 | complete = complete } ! [acCmd]
 
       SetCenter c ->
         { m | center = c } ! []
