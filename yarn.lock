@@ -259,6 +259,10 @@ console-browserify@^1.1.0:
   dependencies:
     date-now "^0.1.4"
 
+"console-polyfill@github:rollbar/console-polyfill#eab6ff9d2b7597fc2f259baa18100556bdb94dbe":
+  version "0.2.3"
+  resolved "https://codeload.github.com/rollbar/console-polyfill/tar.gz/eab6ff9d2b7597fc2f259baa18100556bdb94dbe"
+
 constants-browserify@~1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/constants-browserify/-/constants-browserify-1.0.0.tgz#c20b96d8c617748aaf1c16021760cd27fcb8cb75"
@@ -380,6 +384,12 @@ elliptic@^6.0.0:
     minimalistic-assert "^1.0.0"
     minimalistic-crypto-utils "^1.0.0"
 
+error-stack-parser@1.3.3:
+  version "1.3.3"
+  resolved "https://registry.yarnpkg.com/error-stack-parser/-/error-stack-parser-1.3.3.tgz#fada6e3a9cd2b0e080e6d6fc751418649734f35c"
+  dependencies:
+    stackframe "^0.3.1"
+
 events@^2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/events/-/events-2.0.0.tgz#cbbb56bf3ab1ac18d71c43bb32c86255062769f2"
@@ -390,6 +400,10 @@ evp_bytestokey@^1.0.0, evp_bytestokey@^1.0.3:
   dependencies:
     md5.js "^1.3.4"
     safe-buffer "^5.1.1"
+
+extend@3.0.0:
+  version "3.0.0"
+  resolved "https://registry.yarnpkg.com/extend/-/extend-3.0.0.tgz#5a474353b9f3353ddd8176dfd37b91c83a46f1d4"
 
 fs.realpath@^1.0.0:
   version "1.0.0"
@@ -754,6 +768,14 @@ ripemd160@^2.0.0, ripemd160@^2.0.1:
     hash-base "^2.0.0"
     inherits "^2.0.1"
 
+rollbar-browser@^1.9.5:
+  version "1.9.5"
+  resolved "https://registry.yarnpkg.com/rollbar-browser/-/rollbar-browser-1.9.5.tgz#0cb8f6ba998c11da5ca303f74e8bc54bed9e53fa"
+  dependencies:
+    console-polyfill rollbar/console-polyfill#eab6ff9d2b7597fc2f259baa18100556bdb94dbe
+    error-stack-parser "1.3.3"
+    extend "3.0.0"
+
 safe-buffer@^5.0.1, safe-buffer@^5.1.0, safe-buffer@^5.1.1, safe-buffer@~5.1.0, safe-buffer@~5.1.1:
   version "5.1.1"
   resolved "https://registry.yarnpkg.com/safe-buffer/-/safe-buffer-5.1.1.tgz#893312af69b2123def71f57889001671eeb2c853"
@@ -788,6 +810,10 @@ signum@^1.0.0:
 source-map@~0.5.3:
   version "0.5.7"
   resolved "https://registry.yarnpkg.com/source-map/-/source-map-0.5.7.tgz#8a039d2d1021d22d1ea14c80d8ea468ba2ef3fcc"
+
+stackframe@^0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/stackframe/-/stackframe-0.3.1.tgz#33aa84f1177a5548c8935533cbfeb3420975f5a4"
 
 stream-browserify@^2.0.0:
   version "2.0.1"

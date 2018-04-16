@@ -193,7 +193,9 @@ let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
 
 let admin_ui_handler () =
   let template = Util.readfile_lwt ~root:Templates "ui.html" in
-  template >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
+  template
+  >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
+  >|= Util.string_replace "ROLLBARCONFIG" (Config.rollbar_js)
 
 let save_test_handler domain =
   let g = C.load domain [] in

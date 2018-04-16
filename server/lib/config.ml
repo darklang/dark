@@ -125,6 +125,33 @@ let log_level : Log.level =
 let should_write_shape_data =
   Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
 
+let rollbar_enabled =
+  Sys.getenv "DARK_CONFIG_ROLLBAR_ENABLED"
+  |> Option.value ~default:"N"
+  |> String.uppercase
+  |> (=) "Y"
+
+let rollbar_environment =
+  Sys.getenv "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
+  |> Option.value ~default:"development"
+  |> String.lowercase
+
+let rollbar_client_access_token =
+  Sys.getenv "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM"
+
+let rollbar_server_access_token =
+  Sys.getenv "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
+
+let rollbar_js =
+  match rollbar_client_access_token with
+  | Some token ->
+    Printf.sprintf
+      "{captureUncaught:true,enabled:%s,accessToken:%s,payload:{environment: '%s'}}"
+      (string_of_bool rollbar_enabled)
+      token
+      rollbar_environment
+  | _ ->
+    "{enabled:false}"
 
 (* -------------------- *)
 (* db *)
