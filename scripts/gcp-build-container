@@ -20,6 +20,6 @@ cp -Rf server/static $DIR/webroot/
 mkdir -p $DIR/saved-apps
 cp -Rf saved-apps/* $DIR/saved-apps/
 
-docker build -t dark-gcp:latest $DIR
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp:latest $DIR
 
 
