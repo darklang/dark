@@ -76,6 +76,9 @@ let writefile ~root (f: string) (str: string) : unit =
     ~f:(fun desc ->
         let _ = Unix.write desc ~buf:(Bytes.of_string str) in ())
 
+let log_to_file ~(filename: string) (value: string)  : 'a =
+  writefile ~root:Log filename value;
+  value
 (* ------------------- *)
 (* json *)
 (* ------------------- *)
