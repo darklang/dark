@@ -482,12 +482,11 @@ update_ msg m =
   case msg of
 
     GlobalKeyPress event ->
-      if event.metaKey && (event.keyCode == Key.Z || event.keyCode == Key.Y)
+      if event.metaKey && event.keyCode == Key.Z
       then
-        case event.keyCode of
-          Key.Z -> RPC ([Undo], FocusSame)
-          Key.Y -> RPC ([Redo], FocusSame)
-          _ -> NoChange
+        if event.shiftKey
+        then RPC ([Redo], FocusSame)
+        else RPC ([Undo], FocusSame)
       else
         case m.cursorState of
           Selecting tlid mId ->
