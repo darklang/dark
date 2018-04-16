@@ -55,7 +55,7 @@ let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
     | (Op.Undo, _) :: (Op.Redo, _) :: rest -> rest
     | (Op.Redo, a) :: (Op.Redo, b) :: rest -> (Op.Redo, a) :: (Op.Redo, b) :: rest
     | _ :: (Op.Redo, _) :: rest -> (* Step 2: error on solo redos *)
-        Exception.internal "Found a redo with no previous undo"
+        Exception.client "Already at latest redo"
     | ops -> ops)
   (* Step 3: remove undos and all the ops up to the savepoint. *)
   (* Go from the front and build the list up. If we hit an undo, drop back until *)
