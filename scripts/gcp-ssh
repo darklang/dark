@@ -2,4 +2,4 @@
 
 set -euo pipefail
 
-gcloud compute ssh instance-2
+gcloud compute ssh --zone=us-west1-b instance-4
