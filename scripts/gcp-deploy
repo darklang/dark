@@ -61,14 +61,13 @@ if [[ "$OLDIMAGE" != "$IMAGE" || "$FORCE" ]]; then
   ACCESS_TOKEN=ac042ea56b054bbdbddbfffaa149004e
   ENVIRONMENT=production
   LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | tail -n 2 | head -n 1 | awk '{print $3}' | awk -F "@" '{print $1}'`
-  REVISION=`git log -n 1 --pretty=format:"%H"`
 
   curl -s https://api.rollbar.com/api/1/deploy/ \
     -F access_token=$ACCESS_TOKEN \
     -F environment=$ENVIRONMENT \
-    -F revision=$REVISION \
+    -F revision=$IMAGE \
     -F local_username=$LOCAL_USERNAME > /dev/null
-  echo "Image $IMAGE @ revision ($REVISION) deployed -- Rollbar notified."
+  echo "Image $IMAGE deployed -- Rollbar notified."
 else
   echo "Not updating container as image hasnt changed: $IMAGE (use --force to push anyway, eg if config/gcp-prod has changed)"
 fi
