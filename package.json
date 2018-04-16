@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "domready": "^1.0.8",
-    "mouse-wheel": "^1.2.0"
+    "mouse-wheel": "^1.2.0",
+    "rollbar-browser": "^1.9.5"
   }
 }

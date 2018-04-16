@@ -38,27 +38,29 @@
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
    <script type="text/javascript">
-     complete = ALLFUNCTIONS;
-     elmapp = Elm.Main.fullscreen({
-       editorState: window.localStorage.getItem('editorState'),
-       complete: complete
-     });
+       window.Rollbar.configure(ROLLBARCONFIG);
+       complete = ALLFUNCTIONS;
+       elmapp = Elm.Main.fullscreen({
+         editorState: window.localStorage.getItem('editorState'),
+         complete: complete
+       });
 
-     elmapp.ports.setStorage.subscribe(function(editorState) {
-       window.localStorage.setItem('editorState', editorState);
-     });
+       elmapp.ports.setStorage.subscribe(function(editorState) {
+         window.localStorage.setItem('editorState', editorState);
+       })
 
-     window.onerror = function (msg, url, line, col, error) {
-       elmapp.ports.recordError.send(msg);
-     };
+       window.onerror = function (msg, url, line, col, error) {
+         window.Rollbar.error(msg, error);
+         elmapp.ports.recordError.send(msg);
+       };
 
-     bundle.mousewheel(function(dx,dy, dz, ev){
-       ev.preventDefault();
-       // NB: rounding values here because Elm wants ints
-       elmapp.ports.mousewheel.send([Math.round(dx),Math.round(dy)]);
-     });
+       bundle.mousewheel(function(dx,dy, dz, ev){
+         ev.preventDefault();
+         // NB: rounding values here because Elm wants ints
+         elmapp.ports.mousewheel.send([Math.round(dx),Math.round(dy)]);
+       });
 
-     document.title = window.location.hostname.split('.')[0] + " - Dark";
+       document.title = window.location.hostname.split('.')[0] + " - Dark";
 
     </script>
   </body>
