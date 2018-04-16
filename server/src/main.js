@@ -4,7 +4,7 @@ const mousewheel = function(callback){
   });
 };
 
-var rollbar = require('rollbar-browser');
+var rollbar = require('rollbar');
 
 var Rollbar = rollbar.init({});
 window.Rollbar = Rollbar;
