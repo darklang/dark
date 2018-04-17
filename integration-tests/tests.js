@@ -181,11 +181,18 @@ test('tabbing_works', async t => {
     ;
 });
 
-test('next_sibling_works', async t => {
+test('left_right_works', async t => {
   await t
-    .click(".letbind")
-    .pressKey("down")
+    .pressKey("enter")
+    .pressKey("enter")
+    .pressKey("esc")
+    .pressKey("tab")
     .pressKey("right")
+    .pressKey("right")
+    .pressKey("right")
+    .pressKey("right") // stop on final elem
+    .pressKey("right")
+    .pressKey("left")
     ;
 });
 
