@@ -389,12 +389,13 @@ updateMod mod (m, cmd) =
         newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
 
 
-      SetToplevels tls tlars globals userFuncs f404s updateCurrentTL ->
+      SetToplevels tls tlars globals userFuncs f404s unlocked updateCurrentTL ->
         let m2 = { m | toplevels = tls
                      , analysis = tlars
                      , globals = globals
                      , userFunctions = userFuncs
                      , f404s = f404s
+                     , unlockedDBs = unlocked
                  }
             -- If the server is slow, we don't a jittery experience.
             m3 = case tlidOf m.cursorState of
@@ -890,9 +891,20 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move draggingTLID xDiff yDiff m in
-          Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions m2.f404s True
-
-               , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origCursorState
+          Many [ SetToplevels
+                   m2.toplevels
+                   m2.analysis
+                   m2.globals
+                   m2.userFunctions
+                   m2.f404s
+                   m2.unlockedDBs
+                   True
+               , Drag
+                   draggingTLID
+                   { vx=mousePos.x
+                   , vy=mousePos.y}
+                   True
+                   origCursorState
                ]
         _ -> NoChange
 
@@ -1036,11 +1048,11 @@ update_ msg m =
     NavigateTo url ->
       MakeCmd (Navigation.newUrl url)
 
-    RPCCallback focus extraMod calls (Ok (toplevels, analysis, globals,
-        userFuncs, f404s)) ->
+    RPCCallback focus extraMod calls
+      (Ok (toplevels, analysis, globals, userFuncs, f404s, unlocked)) ->
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels analysis globals userFuncs f404s False
+        Many [ SetToplevels toplevels analysis globals userFuncs f404s unlocked False
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              ]
@@ -1049,7 +1061,7 @@ update_ msg m =
             newState = processFocus m2 focus
         -- TODO: can make this much faster by only receiving things that have
         -- been updated
-        in Many [ SetToplevels toplevels analysis globals userFuncs f404s True
+        in Many [ SetToplevels toplevels analysis globals userFuncs f404s unlocked True
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -1059,11 +1071,11 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       Error <| "Success! " ++ msg
 
-    GetAnalysisRPCCallback (Ok (analysis, globals, f404s)) ->
+    GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlocked)) ->
       if m.syncState.enabled
       then
         Many [ TweakModel Sync.markResponseInModel
-             , SetToplevels m.toplevels analysis globals m.userFunctions f404s False
+             , SetToplevels m.toplevels analysis globals m.userFunctions f404s unlocked False
              ]
       else
         NoChange

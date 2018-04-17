@@ -34,7 +34,10 @@ viewDBColType vs c v =
 
 viewDB : ViewState -> DB -> List (Html.Html Msg)
 viewDB vs db =
-  let namediv = Html.div
+  let locked = if vs.dbLocked
+               then fontAwesome "lock"
+               else fontAwesome "unlock"
+      namediv = Html.div
                  [ Attrs.class "dbname"]
                  [ Html.text db.name]
       coldivs =
@@ -49,7 +52,7 @@ viewDB vs db =
   [
     Html.div
       [ Attrs.class "db"]
-      (namediv :: coldivs)
+      (locked :: namediv :: coldivs)
   ]
 
 

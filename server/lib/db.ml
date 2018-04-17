@@ -433,6 +433,10 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
+let unlocked (dbs: db list) =
+  (* right now, technically none are unlocked, since they can't be edited *)
+  []
+
 (* ------------------------- *)
 (* Serializing canvases *)
 (* ------------------------- *)

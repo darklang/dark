@@ -283,6 +283,19 @@ body #grid * {
   display: flex;
   flex-direction: column;
 
+  .fa-lock, .fa-unlock {
+    position: fixed;
+    margin-left: -20px;
+    margin-top: -22px;
+    &.fa-lock {
+      color: @red;
+    }
+    &.fa-unlock {
+      color: @green;
+    }
+  }
+
+
   .dbname {
     background-image: url('/static/_db.png');
     background-position: left center;
@@ -504,7 +517,7 @@ body #grid * {
   }
 
   .execution-button {
-    color: red;
+    color: @red;
     font-size: 60%;
     margin-left: -4px;
   }

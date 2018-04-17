@@ -264,6 +264,13 @@ let to_frontend
     | Some e -> e
     | None -> RTT.EnvMap.find_exn environments 0
   in
+  let unlocked = c.toplevels
+                 |> TL.dbs
+                 |> Db.unlocked
+                 |> List.map ~f:(fun x -> x.tlid)
+                 |> List.map ~f:tlid_to_yojson
+                 |> fun x -> `List x
+  in
   let vals = c.toplevels
              |> TL.handlers
              |> List.map
@@ -322,6 +329,7 @@ let to_frontend
                   |> RTT.DvalMap.keys
                   |> List.map ~f:(fun s -> `String s)))
         ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
+        ; ("unlocked_dbs", unlocked )
         ; ("404s", `List (List.map ~f:SE.four_oh_four_to_yojson f404s))
         ; ("user_functions",
            `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
