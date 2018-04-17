@@ -337,6 +337,7 @@ let server () =
           | _ ->
             "Dark Internal Error: " ^ Exn.to_string e)
         in
+        Rollbar.report_lwt e bt (Remote req) >>= fun _ ->
         Lwt_io.printl ("Error: " ^ body) >>= fun () ->
         Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
         let headers = Cohttp.Header.of_list [cors] in
