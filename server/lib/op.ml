@@ -1,6 +1,7 @@
 open Core
 open Types
 
+(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 type op = SetHandler of tlid * pos * Handler.handler
         | CreateDB of tlid * pos * string
         | AddDBCol of tlid * id * id
@@ -13,7 +14,9 @@ type op = SetHandler of tlid * pos * Handler.handler
         | Undo
         | Redo
         | SetFunction of RuntimeT.user_fn
+        | ChangeDBColName of tlid * id * string
         [@@deriving eq, yojson, show, sexp, bin_io]
+(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 

@@ -159,6 +159,7 @@ type Op
     | CreateDB TLID Pos DBName
     | AddDBCol TLID ID ID
     | SetDBColName TLID ID DBColName
+    | ChangeDBColName TLID ID DBColName
     | SetDBColType TLID ID DBColType
     | DeleteTL TLID
     | MoveTL TLID Pos
