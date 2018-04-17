@@ -193,15 +193,15 @@ let is_uninitialized_db_error (host: string) (e: Postgresql.error) : bool =
 
 let rerun_all_db_ops (domain : string) : unit =
   Log.infO "Reruning all ops for" domain;
-  let ops = Serialize.search_and_load domain in
+  let (_, ops) = Serialize.search_and_load domain in
   let op_pairs = List.map ~f:(fun op -> (op, true)) ops in
   let reduced_ops = preprocess (op_pairs) in
   let new_canvas = ref { !(create domain) with ops = ops } in
   List.iter ~f:(fun (op, _) -> apply_op op true new_canvas) reduced_ops;
   ()
 
-let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
-  let oldpairs = List.map ~f:(fun o -> (o, false)) oldops in
+let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
+  let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
   let newpairs = List.map ~f:(fun o -> (o, true)) newops in
   let reduced_ops = preprocess (oldpairs @ newpairs) in
   List.iter ~f:(fun (op, do_db_ops) -> apply_op op do_db_ops c) reduced_ops;
@@ -227,8 +227,8 @@ let minimize (c : canvas) : canvas =
 
 let load (name: string) (newops: Op.op list) : canvas ref =
   let c = create name in
-  let oldops = Serialize.search_and_load name in
-  add_ops c oldops newops;
+  let (run_old_db_ops, oldops) = Serialize.search_and_load name in
+  add_ops ~run_old_db_ops c oldops newops;
   c
 
 let save (c : canvas) : unit =
