@@ -54,6 +54,7 @@ defaultModel = { error = Nothing
                , analysis = []
                , globals = []
                , f404s = []
+               , unlockedDBs = []
                , integrationTestState = NoIntegrationTest
                , visibility = PageVisibility.Hidden
                -- partially saved in editor

@@ -134,10 +134,12 @@ type alias RPCResult = ( List Toplevel
                        , List TLAResult
                        , List GlobalVariable
                        , List UserFunction
-                       , List FourOhFour)
+                       , List FourOhFour
+                       , List TLID)
 type alias GetAnalysisRPCResult = ( List TLAResult
                                   , List GlobalVariable
-                                  , List FourOhFour)
+                                  , List FourOhFour
+                                  , List TLID)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
@@ -427,6 +429,7 @@ type alias Model = { center : Pos
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
+                   , unlockedDBs : List TLID
                    , integrationTestState : IntegrationTestState
                    , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
@@ -465,6 +468,7 @@ type Modification = Error String
                       (List GlobalVariable)
                       (List UserFunction)
                       (List FourOhFour)
+                      (List TLID)
                       Bool
                   | Enter EntryCursor
                   | RPCFull (RPCParams, Focus)

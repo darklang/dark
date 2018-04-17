@@ -610,16 +610,18 @@ decode404 =
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,,,,)
+  JSDP.decode (,,,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
   |> JSDP.required "404s" (JSD.list decode404)
+  |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
 
 decodeGetAnalysisRPC : JSD.Decoder GetAnalysisRPCResult
 decodeGetAnalysisRPC =
-  JSDP.decode (,,)
+  JSDP.decode (,,,)
   |> JSDP.required "analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
+  |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
