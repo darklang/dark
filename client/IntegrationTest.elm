@@ -289,8 +289,11 @@ case_sensitivity m =
              case tl.data of
                TLDB {name, cols} ->
                  case (name, cols) of
-                   ("TestUnicode" , [(F _ "cOlUmNnAmE", F _ "Str")]) ->
-                     pass
+                   ( "TestUnicode"
+                   , [ (F _ "cOlUmNnAmE", F _ "Str")
+                     , (Blank _, Blank _)
+                     ]
+                   ) -> pass
                    other -> fail other
                TLHandler h ->
                  case h.ast of
