@@ -555,11 +555,11 @@ update_ msg m =
                   case mId of
                     Just id -> Selection.enter m tlid id
                     Nothing -> Selection.selectDownLevel m tlid mId
-              Key.Up ->
+              Key.Up -> -- NB: see `stopKeys` in ui.html
                 if event.ctrlKey
                 then Selection.selectUpLevel m tlid mId
                 else Selection.moveUp m tlid mId
-              Key.Down ->
+              Key.Down -> -- NB: see `stopKeys` in ui.html
                 if event.ctrlKey
                 then Selection.selectDownLevel m tlid mId
                 else Selection.moveDown m tlid mId
@@ -571,7 +571,7 @@ update_ msg m =
                 if event.altKey
                 then Selection.moveCursorForwardInTime m tlid
                 else Selection.moveLeft m tlid mId
-              Key.Tab ->
+              Key.Tab ->  -- NB: see `stopKeys` in ui.html
                 case mId of
                   Just id ->
                     if event.shiftKey
@@ -680,7 +680,7 @@ update_ msg m =
                   in Entry.submit m cursor Entry.StartThread name
             else
               case event.keyCode of
-                Key.Spacebar ->
+                Key.Spacebar ->  -- NB: see `stopKeys` in ui.html
                   -- if we're trying to create a database via our magic
                   -- incantation, then we should be able to do that
                   -- without submitting
@@ -703,7 +703,7 @@ update_ msg m =
                     let name = AC.getValue m.complete
                     in Entry.submit m cursor Entry.ContinueThread name
 
-                Key.Tab ->
+                Key.Tab ->  -- NB: see `stopKeys` in ui.html
                   case cursor of
                     Filling tlid p ->
                       if AC.isLargeStringEntry m.complete
@@ -755,8 +755,8 @@ update_ msg m =
                             Many [ Select tlid (Just p)
                                  , AutocompleteMod ACReset]
 
-                Key.Up -> AutocompleteMod ACSelectUp
-                Key.Down -> AutocompleteMod ACSelectDown
+                Key.Up -> AutocompleteMod ACSelectUp -- NB: see `stopKeys` in ui.html
+                Key.Down -> AutocompleteMod ACSelectDown -- NB: see `stopKeys` in ui.html
                 Key.Right ->
                   let sp = AC.sharedPrefix m.complete in
                   if sp == "" then NoChange
@@ -795,14 +795,14 @@ update_ msg m =
               Key.PageUp -> Viewport.pageUp m.center
               Key.PageDown -> Viewport.pageDown m.center
 
-              Key.Up -> Viewport.moveUp m.center
-              Key.Down -> Viewport.moveDown m.center
+              Key.Up -> Viewport.moveUp m.center -- NB: see `stopKeys` in ui.html
+              Key.Down -> Viewport.moveDown m.center -- NB: see `stopKeys` in ui.html
               Key.Left -> Viewport.moveLeft m.center
               Key.Right -> Viewport.moveRight m.center
 
               Key.Zero -> Viewport.moveTo { x=0, y=0 }
 
-              Key.Tab -> Selection.selectNextToplevel m Nothing
+              Key.Tab -> Selection.selectNextToplevel m Nothing -- NB: see `stopKeys` in ui.html
               _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange
