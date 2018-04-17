@@ -281,22 +281,20 @@ let t_hmac_signing _ =
 let suite =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
-  [ "hmac signing works", `Slow, t_hmac_signing
-  ; "undo", `Slow, t_undo
-  ; "undo_fns", `Slow, t_undo_fns
-  ; "int_add_works", `Slow, t_int_add_works
-  ; "lambda_with_foreach", `Slow, t_lambda_with_foreach
-  ; "stored_events", `Slow, t_stored_event_roundtrip
+  [ "hmac signing works", `Quick, t_hmac_signing
+  ; "undo", `Quick, t_undo
+  ; "undo_fns", `Quick, t_undo_fns
+  ; "int_add_works", `Quick, t_int_add_works
+  ; "lambda_with_foreach", `Quick, t_lambda_with_foreach
+  ; "stored_events", `Quick, t_stored_event_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
-  ; "db oplist roundtrip", `Slow, t_db_oplist_roundtrip
+  ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ]
 
 let () =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
-  AT.run
-    ~argv:[|"--verbose"; "--show-errors"|]
-    "suite" [ "tests", suite ]
+  AT.run "suite" [ "tests", suite ]
 
 
 
