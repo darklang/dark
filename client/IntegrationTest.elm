@@ -294,29 +294,32 @@ case_sensitivity m =
                    other -> fail other
                TLHandler h ->
                  case h.ast of
-                   F _ (Thread [ F _ (Value "{}")
-                                , F _ (FnCall "assoc"
-                                        [ F _ (Value "\"cOlUmNnAmE\"")
-                                        , F _ (Value "\"some value\"")])
-                                , F _ (FnCall "DB::insert"
-                                        [F _ (Variable "TestUnicode")])
-                                ]) ->
-                     pass
-                   F id (Thread [ F _ (Variable "TestUnicode")
-                                , F _ (FnCall "DB::fetchAll" [])
-                                , F _ (FnCall "List::head" [])
-                                , F _ (Lambda ["var"]
-                                        (F _ (FieldAccess
-                                               (F _ (Variable "var"))
-                                               (F _ "cOlUmNnAmE"))))
-                                ]) ->
-                     Analysis.getLiveValue m tl.id id
-                     |> Maybe.map (\lv -> if lv.value == "\"some value\""
-                                          then pass
-                                          else fail lv)
+                   F _ (Thread
+                     [ F _ (Value "{}")
+                     , F _ (FnCall "assoc"
+                             [ F _ (Value "\"cOlUmNnAmE\"")
+                             , F _ (Value "\"some value\"")])
+                     , F _ (FnCall "DB::insert"
+                             [F _ (Variable "TestUnicode")])
+                       ]) -> pass
 
+                   F id (Thread
+                     [ F _ (Variable "TestUnicode")
+                     , F _ (FnCall "DB::fetchAll" [])
+                     , F _ (FnCall "List::head" [])
+                     , F _ (Lambda ["var"]
+                             (F _ (FieldAccess
+                                     (F _ (Variable "var"))
+                                     (F _ "cOlUmNnAmE"))))]) ->
+
+                     Analysis.getLiveValue m tl.id id
+                     |> Maybe.map (\lv ->
+                       if lv.value == "\"some value\""
+                       then pass
+                       else fail lv)
                      |> Maybe.withDefault (fail h.ast)
                    _ -> fail h.ast
+
                other -> fail other)
     |> RE.combine
     |> Result.map (\_ -> ())
