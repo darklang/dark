@@ -16,7 +16,7 @@ import ViewUtils exposing (..)
 
 viewDBColName : BlankViewer String
 viewDBColName vs c v =
-  let configs = if B.isBlank v
+  let configs = if B.isBlank v || not vs.dbLocked
                 then idConfigs ++ c
                 else c
   in

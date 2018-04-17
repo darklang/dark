@@ -382,6 +382,44 @@ let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
     "ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s"
     (escape table_name) (escape name) (sql_tipe_for tipe)
 
+let rename_col_sql (table_name: string) (oldname: string) (newname: string) : string =
+  Printf.sprintf
+    "ALTER TABLE \"%s\" RENAME \"%s\" TO \"%s\""
+    (escape table_name) (escape oldname) (escape newname)
+
+
+(* ------------------------- *)
+(* locked/unlocked (not _locking_) *)
+(* ------------------------- *)
+
+let db_locked (db: db) : bool =
+  Printf.sprintf
+    "SELECT n_live_tup
+    FROM pg_stat_all_tables
+    WHERE relname = '%s';"
+    (escape db.actual_name)
+  |> fetch_via_sql
+  |> (<>) [["0"]]
+
+
+let unlocked (dbs: db list) : db list =
+  match dbs with
+  | [] -> []
+  | db :: _ ->
+    let host = db.host in
+    let empties =
+      (Printf.sprintf
+        "SELECT relname, n_live_tup
+        FROM pg_stat_all_tables
+        WHERE relname LIKE '%s_%%';"
+        (escape host))
+      |> fetch_via_sql
+    in
+    dbs
+    |> List.filter
+      ~f:(fun db ->
+          List.mem ~equal:(=) empties [db.actual_name; "0"])
+
 
 
 (* ------------------------- *)
@@ -425,6 +463,22 @@ let set_col_name id name (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
+let change_col_name id name (do_db_ops: bool) db =
+  let change col =
+    match col with
+    | (Filled (hid, oldname), Filled (tipeid, tipename))
+      when hid = id ->
+      if do_db_ops && not (db_locked db)
+      then
+        run_migration db.host id
+          (rename_col_sql db.actual_name oldname name)
+      else ();
+      (Filled (hid, name), Filled (tipeid, tipename))
+
+    | _ -> col in
+  { db with cols = List.map ~f:change db.cols }
+
+
 let set_db_col_type id tipe (do_db_ops: bool) db =
   let set col =
     match col with
@@ -432,27 +486,6 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
         maybe_add_to_actual_db db id (name, Filled (hid, tipe)) do_db_ops
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
-
-let unlocked (dbs: db list) : db list =
-  match dbs with
-  | [] -> []
-  | db :: _ ->
-    let host = db.host in
-    let empties =
-      (Printf.sprintf
-        (* this is an upsert *)
-        "SELECT relname, n_live_tup
-        FROM pg_stat_all_tables
-        WHERE relname LIKE '%s_%%';"
-        (escape host))
-      |> fetch_via_sql
-      |> Log.pp "results"
-    in
-    dbs
-    |> List.filter
-      ~f:(fun db ->
-          List.mem ~equal:(=) empties [db.actual_name; "0"])
-
 
 
 (* ------------------------- *)

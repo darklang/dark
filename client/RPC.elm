@@ -160,6 +160,9 @@ encodeOp call =
       SetDBColName tlid id name ->
         ev "SetDBColName" [encodeTLID tlid, encodeID id, JSE.string name]
 
+      ChangeDBColName tlid id name ->
+        ev "ChangeDBColName" [encodeTLID tlid, encodeID id, JSE.string name]
+
       SetDBColType tlid id tipe ->
         ev "SetDBColType" [encodeTLID tlid, encodeID id, JSE.string tipe]
 
