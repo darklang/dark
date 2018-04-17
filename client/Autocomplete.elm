@@ -426,9 +426,9 @@ generateFromModel m a =
       varnames = Analysis.varnamesFor m a.target
     in
     List.map ACExtra extras
+    ++ List.map ACVariable varnames
     ++ functions
     ++ fields
-    ++ List.map ACVariable varnames
 
 asName : AutocompleteItem -> String
 asName aci =
