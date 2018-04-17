@@ -79,16 +79,18 @@ let load_from_db (host: string) : Op.oplist option =
 
 let deserialize_ordered
     (host : string)
-    (descs : ((root:Config.root -> string -> Op.oplist) * Config.root * string) list)
-    : Op.oplist =
+    (descs : ((root:Config.root -> string -> Op.oplist)
+              * Config.root * string * bool)
+             list)
+    : (bool * Op.oplist) =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
   match load_from_db host with
-  | Some ops -> ops
+  | Some ops -> (false, ops)
   | None ->
       let (result, errors) =
         List.fold descs ~init:(None, [])
-          ~f:(fun (result, errors) (fn, root, filename) ->
+          ~f:(fun (result, errors) (fn, root, filename, rerun) ->
               match result with
               | Some r -> (result, errors)
               | None ->
@@ -96,17 +98,17 @@ let deserialize_ordered
                 then (None, errors)
                 else
                   (try
-                     (Some (fn ~root filename), errors)
+                     (Some (rerun, fn ~root filename), errors)
                    with
                    | e -> (None, (errors @ [e])))) in
       match (result, errors) with
       | (Some r, _) -> r
-      | (None, []) -> []
+      | (None, []) -> (false, [])
       | (None, es) ->
         Log.erroR "deserialization" es;
         Exception.internal ("storage error with " ^ host)
 
-let search_and_load (host: string) : Op.oplist =
+let search_and_load (host: string) : (bool * Op.oplist) =
   (* testfiles load and save from different directories *)
   if is_test host
   then
@@ -114,16 +116,16 @@ let search_and_load (host: string) : Op.oplist =
      * steps in the test use the altered file. The test harness cleans
      * them first *)
     deserialize_ordered host
-      [ (load_binary, Completed_test, full host digest "dark")
-      ; (load_json, Testdata, full host "" "json")
+      [ (load_binary, Completed_test, full host digest "dark", false)
+      ; (load_json, Testdata, full host "" "json", true)
       ]
   else
     let root = root_of host in
     let json = json_unversioned_filename host in
     let bin = binary_save_filename host in
     deserialize_ordered host
-      [ (load_binary, root, bin)
-      ; (load_json, root, json)
-      ; (Deserialize_b68219ec99d4a17c9a1d6524129da928.load_json, root, json)
+      [ (load_binary, root, bin, false)
+      ; (load_json, root, json, false)
+      ; (Deserialize_b68219ec99d4a17c9a1d6524129da928.load_json, root, json, false)
       ]
 
