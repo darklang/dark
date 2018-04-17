@@ -26,7 +26,7 @@ trigger test_name =
     "pipeline_let_equals" -> pipeline_let_equals
     "pipe_within_let" -> pipe_within_let
     "tabbing_works" -> tabbing_works
-    "next_sibling_works" -> next_sibling_works
+    "left_right_works" -> left_right_works
     "varbinds_are_editable" -> varbinds_are_editable
     "editing_request_edits_request" -> editing_request_edits_request
     "autocomplete_highlights_on_partial_match" -> autocomplete_highlights_on_partial_match
@@ -161,17 +161,16 @@ tabbing_works m =
     If (Blank _) (F _ (Value "5")) (Blank _) -> pass
     e -> fail e
 
-next_sibling_works : Model -> TestResult
-next_sibling_works m =
-  case onlyExpr m of
-    Let (Blank _) (Blank id1) (Blank _) ->
-      case m.cursorState of
-        Selecting _ (Just id2) ->
-          if id1 == id2
-          then pass
-          else fail (id1, id2)
-        s -> fail m.cursorState
-    e -> fail e
+left_right_works : Model -> TestResult
+left_right_works m =
+  let h = onlyHandler m in
+  case m.cursorState of
+    Selecting tlid (Just id) ->
+      let pd = TL.getTL m tlid |> \tl -> TL.find tl id in
+      case pd of
+        Just (PEventSpace _) -> pass
+        other -> fail (m.cursorState, other)
+    s -> fail m.cursorState
 
 
 varbinds_are_editable : Model -> TestResult
