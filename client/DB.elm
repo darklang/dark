@@ -16,3 +16,12 @@ allData db =
 siblings : PointerData -> DB -> List PointerData
 siblings _ db = allData db
 
+hasCol : DB -> String -> Bool
+hasCol db name =
+  db.cols
+  |> List.any
+        (\(colname,_) ->
+          case colname of
+            Blank _ -> False
+            F _ n -> name == n
+            Flagged _ _ _ _ _ -> Debug.crash "not possible")
