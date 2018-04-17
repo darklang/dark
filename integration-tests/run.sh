@@ -57,15 +57,20 @@ rm -f ${DARK_CONFIG_RUN_DIR}/integration.json
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/events/test_*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
 
-TESTDBS=$(psql -d proddb -q --command 'SELECT table_name FROM information_schema.tables' | grep test_ || true)
-if [[ "$TESTDBS" != "" ]]; then
-  echo "Clearing test DBs: $TESTDBS";
-  for db in $TESTDBS; do
-    psql -d proddb -c "DROP TABLE $db;";
-  done
-fi
-echo "Clearing saved test oplists";
-psql -d proddb -c "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';";
+function exe { psql -d proddb -c "$@"; }
+
+echo "Clearing test tables";
+TESTDBS=$(psql -d proddb -q --command "SELECT table_name FROM information_schema.tables WHERE SUBSTRING(table_name, 0, 6) = 'test_';" | grep test_ || true)
+SCRIPT="" # concated into on script for speed
+for db in $TESTDBS; do
+  SCRIPT+="DROP TABLE $db;";
+done
+exe "$SCRIPT"
+
+echo "Clearing from migrations";
+exe "DELETE FROM migrations WHERE SUBSTRING(host, 0, 6) = 'test_';"
+echo "Clearing from oplists";
+exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
 
 
 TEST_HOST="integration-tests:$PORT" \
