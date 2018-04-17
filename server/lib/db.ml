@@ -433,9 +433,27 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
-let unlocked (dbs: db list) =
-  (* right now, technically none are unlocked, since they can't be edited *)
-  []
+let unlocked (dbs: db list) : db list =
+  match dbs with
+  | [] -> []
+  | db :: _ ->
+    let host = db.host in
+    let empties =
+      (Printf.sprintf
+        (* this is an upsert *)
+        "SELECT relname, n_live_tup
+        FROM pg_stat_all_tables
+        WHERE relname LIKE '%s_%%';"
+        (escape host))
+      |> fetch_via_sql
+      |> Log.pp "results"
+    in
+    dbs
+    |> List.filter
+      ~f:(fun db ->
+          List.mem ~equal:(=) empties [db.actual_name; "0"])
+
+
 
 (* ------------------------- *)
 (* Serializing canvases *)
