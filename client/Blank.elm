@@ -2,6 +2,7 @@ module Blank exposing (..)
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 
 toID : BlankOr a -> ID
 toID b =

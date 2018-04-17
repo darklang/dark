@@ -8,7 +8,8 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
+import Prelude exposing (..)
+import Util
 import Pointer as P
 import Blank as B
 
@@ -523,7 +524,7 @@ replace search replacement expr =
     case replacement of
       PExpr e -> B.replace sId e expr
       PFFMsg newMsg -> B.replaceFFMsg sId newMsg expr
-      _ -> Util.impossible "cannot occur" expr
+      _ -> impossible "cannot occur" expr
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind replacement) ->

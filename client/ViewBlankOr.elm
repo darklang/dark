@@ -12,6 +12,7 @@ import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Functions
 import Autocomplete
 import Toplevel as TL
@@ -300,7 +301,7 @@ viewBlankOr htmlFn pt vs c bo =
                [drawFilledInsideFlag id fill]]
           Blank id ->
             [drawBlankInsideFlag id]
-          _ -> Util.impossible "nested flagging not allowed for now" []
+          _ -> impossible "nested flagging not allowed for now" []
 
       drawSetting ffID setting =
         Html.div

@@ -14,12 +14,13 @@ import Html.Events as Events
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Viewport
 import Toplevel as TL
 import Analysis
 import AST
 import Blank as B
-import Util exposing (deMaybe)
+import Util
 
 type alias ViewState =
   { tl: Toplevel

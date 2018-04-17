@@ -6,7 +6,8 @@ import Set
 
 -- Dark
 import Types exposing (..)
-import Util exposing (..)
+import Util
+import Prelude exposing (..)
 import Toplevel as TL
 import Pointer as P
 import AST

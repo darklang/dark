@@ -9,13 +9,14 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Toplevel as TL
 import Analysis
 import Pointer as P
 import Blank as B
 import Functions as Fns
 import Navigation
-import Util exposing (deMaybe)
+import Util
 
 -------------------------------
 -- Cursors
