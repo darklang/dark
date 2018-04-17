@@ -29,6 +29,7 @@ type alias ViewState =
   , ac: Autocomplete
   , isHTTP: Bool
   , lvs: LVDict
+  , dbLocked : Bool
   , ffDisabled : Bool
   , ufns: List UserFunction
   , results: List AResult
@@ -43,6 +44,7 @@ createVS m tl = { tl = tl
                 , ac = m.complete
                 , isHTTP = TL.isHTTPHandler tl
                 , lvs = Analysis.getLiveValuesDict m tl.id
+                , dbLocked = not (List.member tl.id m.unlockedDBs)
                 , ffDisabled =
                   case tl.data of
                     TLHandler _ -> False
