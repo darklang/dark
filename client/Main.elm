@@ -712,10 +712,8 @@ update_ msg m =
                         if event.shiftKey
                         then
                           if hasContent
-                          then
-                            NoChange
-                          else
-                            Selection.enterPrevBlank m tlid (Just p)
+                          then NoChange
+                          else Selection.enterPrevBlank m tlid (Just p)
                         else
                           if hasContent
                           then
