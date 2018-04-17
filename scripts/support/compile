@@ -82,8 +82,9 @@ def ocaml_build():
 
 def ocaml_test():
   start = time.time()
+  ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
-  return run_test(start, "unbuffer jbuilder build --root server test/test.exe && cd " + rundir + " && unbuffer ../server/_build/default/test/test.exe 2>&1")
+  return run_test(start, "unbuffer jbuilder build --root server test/test.exe && cd " + rundir + " && unbuffer ../server/_build/default/test/test.exe --show-errors " + ci + " 2>&1")
 
 def reload_server():
   start = time.time()
