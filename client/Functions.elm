@@ -5,10 +5,10 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Blank as B
 import Pointer as P
 import AST
-import Util exposing (deMaybe)
 
 ufpToP : UserFunctionParameter -> Maybe Parameter
 ufpToP ufp =

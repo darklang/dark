@@ -12,7 +12,8 @@ import String.Extra as SE
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
+import Prelude exposing (..)
+import Util
 import Defaults
 import Autocomplete
 import ViewUtils exposing (..)

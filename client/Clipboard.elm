@@ -3,12 +3,12 @@ module Clipboard exposing (..)
 
 -- Dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Toplevel as TL
 import Pointer as P
 import AST
 import Entry
 import Blank
-import Util exposing (deMaybe)
 
 copy : Model -> Toplevel -> (Maybe PointerData) -> Modification
 copy m tl mp =

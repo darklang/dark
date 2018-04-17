@@ -24,12 +24,6 @@ htmlSize : String -> (Float, Float)
 htmlSize str = let size = Native.Size.size str
                in (size.width, size.height)
 
-deMaybe : String -> Maybe a -> a
-deMaybe msg x =
-  case x of
-    Just y -> y
-    Nothing -> Debug.crash <| "deMaybe: got an error, expected a " ++ msg
-
 toIntWithDefault : Int -> String -> Int
 toIntWithDefault d s =
   s
@@ -133,17 +127,4 @@ listNextWrap a l =
   |> listNext a
   |> ME.orElse (List.head l)
 
-assert : (a -> Bool) -> a -> a
-assert fn a =
-  if fn a
-  then a
-  else Debug.crash ("assertion failure: " ++ toString a)
 
-impossible : String -> a -> a
-impossible msg a =
-  let appIsGentle = False in -- TODO: make the app a lil' gentler by reporting this event to a crash logger or something instead of savagely crashing poor elm's runtime ;(
-  if appIsGentle
-  then
-    a
-  else
-    Debug.crash ("something impossible occurred: " ++ msg ++ " (would have returned: '" ++ toString a ++ "' under gentler circumstances)")

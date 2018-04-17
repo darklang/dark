@@ -12,13 +12,13 @@ import Dom
 -- import List.Extra as LE
 
 -- dark
--- import Util
+import Types exposing (..)
+import Prelude  exposing (..)
+import Util
 import DB
 import Defaults
-import Types exposing (..)
 import Analysis
 import Viewport
-import Util exposing (deMaybe)
 import AST
 import Toplevel as TL
 import Runtime as RT

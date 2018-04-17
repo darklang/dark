@@ -2,10 +2,10 @@ module FeatureFlags exposing (..)
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Toplevel as TL
 import Pointer as P
 import Blank as B
-import Util exposing (deMaybe)
 
 toFlagged : BlankOr a -> BlankOr a
 toFlagged bo =
