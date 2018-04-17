@@ -13,6 +13,7 @@ import Dom
 
 -- dark
 -- import Util
+import DB
 import Defaults
 import Types exposing (..)
 import Analysis
@@ -263,6 +264,8 @@ submit m cursor action value =
         PDBColName _ ->
           if value == "id"
           then Error ("id's are automatic and implicit, no need to add them")
+          else if DB.hasCol (db |> deMaybe "db") value
+          then Error ("Can't have two DB fields with the same name: " ++ value)
           else
             validate "\\w+" "DB column name"
               <| wrap [SetDBColName tlid id value] id
