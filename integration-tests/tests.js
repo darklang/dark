@@ -199,7 +199,7 @@ test('left_right_works', async t => {
 test('varbinds_are_editable', async t => {
   await t
     .click(".letbind")
-    .pressKey("down")
+    .pressKey("enter")
     .pressKey("enter")
     ;
 });
@@ -212,8 +212,7 @@ test('editing_request_edits_request', async t => {
     .typeText("#entry-box", ".")
 
     .pressKey("esc")
-    .pressKey("up")
-    .pressKey("down")
+    .pressKey("left")
     .pressKey("enter")
     ;
 });
