@@ -31,9 +31,10 @@ val should_write_shape_data : bool
 
 val allow_server_shutdown : bool
 
+val rollbar_url : string
 val rollbar_enabled : bool
 val rollbar_environment : string
 val rollbar_client_access_token : string option
-val rollbar_server_access_token : string option
+val rollbar_server_access_token : string
 val rollbar_js : string
 

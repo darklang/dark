@@ -24,6 +24,7 @@
                 core_extended
                 cstruct
                 curl
+                curl.lwt
                 lwt
                 nocrypto
                 nocrypto.lwt

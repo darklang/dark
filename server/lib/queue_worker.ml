@@ -65,6 +65,8 @@ let dequeue_and_evaluate_all () : string =
             | l -> RTT.DList l
           with
           | e ->
+            let bt = Backtrace.Exn.most_recent () in
+            let _  = Rollbar.report e bt EventQueue in
             Event_queue.finalize execution_id ~status:`Err;
             RTT.DError (Exn.to_string e)
         )

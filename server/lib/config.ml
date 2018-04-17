@@ -125,6 +125,9 @@ let log_level : Log.level =
 let should_write_shape_data =
   Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
 
+let rollbar_url =
+  "https://api.rollbar.com/api/1/item/"
+
 let rollbar_enabled =
   Sys.getenv "DARK_CONFIG_ROLLBAR_ENABLED"
   |> Option.value ~default:"N"
@@ -140,7 +143,10 @@ let rollbar_client_access_token =
   Sys.getenv "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM"
 
 let rollbar_server_access_token =
-  Sys.getenv "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
+  let tok = Sys.getenv "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM" in
+  if rollbar_enabled
+  then Option.value_exn tok
+  else Option.value ~default:"unused" tok
 
 let rollbar_js =
   match rollbar_client_access_token with
