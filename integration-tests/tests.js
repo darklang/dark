@@ -384,7 +384,7 @@ test('case_sensitivity', async t => {
   await t
 
     // create the DB
-    .click("#grid", {offsetX: 50, offsetY: 50})
+    .click("#grid", {offsetX: 100, offsetY: 400})
     .typeText("#entry-box", "DB TestUnicode", slow)
     .pressKey("enter")
 
@@ -396,7 +396,8 @@ test('case_sensitivity', async t => {
 
     // store the data in the db
     .pressKey("esc")
-    .click("#grid", {offsetX: 600, offsetY: 50})
+    .pressKey("esc")
+    .click("#grid", {offsetX: 600, offsetY: 100})
     .typeText("#entry-box", "{}") // line 1
     .pressKey("shift+enter")
     .typeText("#entry-box", "assoc", slow) // line 2
@@ -416,7 +417,7 @@ test('case_sensitivity', async t => {
     // fetch the data from the DB
     .pressKey("esc")
     .pressKey("esc")
-    .click("#grid", {offsetX: 50, offsetY: 650})
+    .click("#grid", {offsetX: 450, offsetY: 450})
     .typeText("#entry-box", "TestUn", slow)
     .pressKey("shift+enter")
     .typeText("#entry-box", "DB::fetchAll", slow) // line 2
@@ -430,7 +431,6 @@ test('case_sensitivity', async t => {
     .typeText("#entry-box", "cOlUmNnAmE", slow)
     .pressKey("enter")
     .pressKey("esc")
-
 });
 
 test('focus_on_ast_in_new_empty_tl', async t => {
