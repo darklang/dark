@@ -320,8 +320,11 @@ body #grid * {
       &.blank {
         width: 96; // put it all on one line
       }
+      .entry {
+        // Don't center text-entry, it makes everything weird
+        text-align: left;
+      }
     }
-
   }
 }
 
