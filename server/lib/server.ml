@@ -184,11 +184,7 @@ let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
     C.rerun_all_db_ops domain;
     admin_rpc_handler body domain
   | e ->
-    let bt = Backtrace.Exn.most_recent () in
     Event_queue.finalize execution_id ~status:`Err;
-    let msg = Exn.to_string e in
-    print_endline ("Exception: " ^ msg);
-    print_endline (Backtrace.to_string bt);
     raise e
 
 let admin_ui_handler () =
