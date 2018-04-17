@@ -389,7 +389,7 @@ updateMod mod (m, cmd) =
         newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
 
 
-      SetToplevels tls tlars globals userFuncs f404s ->
+      SetToplevels tls tlars globals userFuncs f404s updateCurrentTL ->
         let m2 = { m | toplevels = tls
                      , analysis = tlars
                      , globals = globals
@@ -398,8 +398,12 @@ updateMod mod (m, cmd) =
                  }
             -- If the server is slow, we don't a jittery experience.
             m3 = case tlidOf m.cursorState of
-                   Just tlid -> TL.upsert m2 (TL.getTL m tlid)
-                   Nothing -> m2
+                   Just tlid ->
+                     if updateCurrentTL
+                     then m2
+                     else TL.upsert m2 (TL.getTL m tlid)
+                   Nothing ->
+                     m2
 
             (complete, acCmd) =
               processAutocompleteMods m3 [ ACRegenerate ]
@@ -886,7 +890,8 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move draggingTLID xDiff yDiff m in
-          Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions m2.f404s
+          Many [ SetToplevels m2.toplevels m2.analysis m2.globals m2.userFunctions m2.f404s True
+
                , Drag draggingTLID {vx=mousePos.x, vy=mousePos.y} True origCursorState
                ]
         _ -> NoChange
@@ -1035,7 +1040,7 @@ update_ msg m =
         userFuncs, f404s)) ->
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels analysis globals userFuncs f404s
+        Many [ SetToplevels toplevels analysis globals userFuncs f404s False
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              ]
@@ -1044,7 +1049,7 @@ update_ msg m =
             newState = processFocus m2 focus
         -- TODO: can make this much faster by only receiving things that have
         -- been updated
-        in Many [ SetToplevels toplevels analysis globals userFuncs f404s
+        in Many [ SetToplevels toplevels analysis globals userFuncs f404s True
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -1058,7 +1063,7 @@ update_ msg m =
       if m.syncState.enabled
       then
         Many [ TweakModel Sync.markResponseInModel
-             , SetToplevels m.toplevels analysis globals m.userFunctions f404s
+             , SetToplevels m.toplevels analysis globals m.userFunctions f404s False
              ]
       else
         NoChange

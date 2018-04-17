@@ -459,8 +459,13 @@ type Modification = Error String
                   | SetHover ID
                   | ClearHover ID
                   | Deselect
-                  | SetToplevels (List Toplevel) (List TLAResult) (List
-                  GlobalVariable) (List UserFunction) (List FourOhFour)
+                  | SetToplevels
+                      (List Toplevel)
+                      (List TLAResult)
+                      (List GlobalVariable)
+                      (List UserFunction)
+                      (List FourOhFour)
+                      Bool
                   | Enter EntryCursor
                   | RPCFull (RPCParams, Focus)
                   | RPC (List Op, Focus) -- shortcut for RPCFull
