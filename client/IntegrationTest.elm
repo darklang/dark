@@ -6,8 +6,8 @@ import Result.Extra as RE
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Toplevel as TL
-import Util exposing (deMaybe)
 import Blank as B
 import Pointer as P
 import AST

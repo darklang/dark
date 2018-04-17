@@ -9,7 +9,8 @@ import Maybe.Extra as ME
 -- dark
 import DB
 import Types exposing (..)
-import Util exposing (deMaybe)
+import Util
+import Prelude exposing (..)
 import AST
 import Blank as B
 import Pointer as P
@@ -375,7 +376,7 @@ find : Toplevel -> ID -> Maybe PointerData
 find tl id =
   allData tl
   |> List.filter (\d -> id == P.toID d)
-  |> Util.assert (\r -> List.length r <= 1) -- guard against dups
+  |> assert (\r -> List.length r <= 1) -- guard against dups
   |> List.head
 
 

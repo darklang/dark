@@ -23,6 +23,7 @@ import Window
 -- dark
 import RPC
 import Types exposing (..)
+import Prelude exposing (..)
 import View
 import Clipboard
 import Defaults
@@ -44,7 +45,7 @@ import Selection
 import Sync
 import Runtime
 import Toplevel as TL
-import Util exposing (deMaybe)
+import Util
 import IntegrationTest
 
 

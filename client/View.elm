@@ -10,7 +10,8 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
+import Prelude exposing (..)
+import Util
 import Toplevel as TL
 import ViewEntry
 import ViewUtils exposing (..)

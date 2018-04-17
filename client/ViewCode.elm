@@ -11,7 +11,7 @@ import Maybe.Extra as ME
 
 -- dark
 import Types exposing (..)
-import Util exposing (deMaybe)
+import Prelude exposing (..)
 import Runtime as RT
 import AST
 import Blank as B

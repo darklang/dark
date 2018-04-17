@@ -9,7 +9,8 @@ import Expect exposing (Expectation, pass, fail)
 -- libs
 
 -- dark
-import Util exposing (deMaybe)
+import Prelude exposing (..)
+import Util
 
 listContainsOrdered : Test
 listContainsOrdered =

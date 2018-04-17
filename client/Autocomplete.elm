@@ -12,7 +12,8 @@ import List.Extra as LE
 -- import String.Extra as SE
 
 -- dark
-import Util exposing (deMaybe, int2letter, letter2int)
+import Prelude exposing (..)
+import Util exposing (int2letter, letter2int)
 import Types exposing (..)
 import Functions
 import Runtime as RT

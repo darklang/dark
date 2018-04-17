@@ -13,9 +13,6 @@ import Json.Decode as JSD
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
 
--- Dark
-import Util
-
 type alias Exception =
   { short : String
   , long : String
@@ -67,18 +64,6 @@ type alias Special = Int
 type TLID = TLID Int
 type ID = ID Int
 
-deID : ID -> Int
-deID (ID i) = i
-
-deTLID : TLID -> Int
-deTLID (TLID i) = i
-
-gid : () -> ID -- Generate ID
-gid unit = ID (Util.random unit)
-
-gtlid : () -> TLID -- Generate ID
-gtlid unit = TLID (Util.random unit)
-
 -----------------------------
 -- CursorState
 -----------------------------
@@ -90,37 +75,6 @@ type CursorState = Selecting TLID (Maybe ID)
                  | Entering EntryCursor
                  | Dragging TLID VPos HasMoved CursorState
                  | Deselected
-
-unwrapCursorState : CursorState -> CursorState
-unwrapCursorState s =
-  case s of
-    Dragging _ _ _ unwrap -> unwrap
-    _ -> s
-
-tlidOf : CursorState -> Maybe TLID
-tlidOf s =
-  case unwrapCursorState s of
-    Selecting tlid _ -> Just tlid
-    Entering entryCursor ->
-      case entryCursor of
-        Creating _ -> Nothing
-        Filling tlid _ -> Just tlid
-    Deselected -> Nothing
-    Dragging _ _ _ _ -> Nothing
-
-idOf : CursorState -> Maybe ID
-idOf s =
-  case unwrapCursorState s of
-    Selecting _ id -> id
-    Entering entryCursor ->
-      case entryCursor of
-        Creating _ -> Nothing
-        Filling _ id  -> Just id
-    Deselected -> Nothing
-    Dragging _ _ _ _ -> Nothing
-
-
-
 
 
 -----------------------------
@@ -389,14 +343,6 @@ type alias TLAResult = { id: TLID
                        }
 
 type alias FourOhFour = (String, String, String, List JSD.Value)
-
-
-tlCursorID : TLID -> Int -> ID -- Generate ID for
-tlCursorID tlid idx =
-  let stringID = (toString (deTLID tlid)) ++ (toString idx)
-      intID = Result.withDefault 0 (String.toInt stringID)
-  in
-    (ID intID)
 
 
 type alias Name = String
