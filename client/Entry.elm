@@ -261,11 +261,15 @@ submit m cursor action value =
             <| wrap [ SetDBColType tlid id value
                     , AddDBCol tlid (gid ()) (gid ())]
                     id
-        PDBColName _ ->
+        PDBColName cn ->
           if value == "id"
           then Error ("id's are automatic and implicit, no need to add them")
           else if DB.hasCol (db |> deMaybe "db") value
           then Error ("Can't have two DB fields with the same name: " ++ value)
+          else if not (B.isBlank cn)
+          then
+            validate "\\w+" "DB column name"
+              <| wrap [ChangeDBColName tlid id value] id
           else
             validate "\\w+" "DB column name"
               <| wrap [SetDBColName tlid id value] id

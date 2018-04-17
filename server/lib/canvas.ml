@@ -171,6 +171,8 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       apply_to_db ~f:(Db.add_db_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
       apply_to_db ~f:(Db.set_col_name id name do_db_ops) tlid
+    | ChangeDBColName (tlid, id, name) ->
+      apply_to_db ~f:(Db.change_col_name id name do_db_ops) tlid
     | SetDBColType (tlid, id, tipe) ->
       apply_to_db ~f:(Db.set_db_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
