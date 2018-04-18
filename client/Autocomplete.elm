@@ -409,6 +409,25 @@ generateFromModel m a =
                   _ -> False)
             |> Maybe.withDefault False
 
+      paramTipeForTarget =
+        case a.target of
+          Nothing -> Nothing
+          Just (tlid, p) ->
+            TL.get m tlid
+            |> Maybe.andThen TL.asHandler
+            |> Maybe.map .ast
+            |> Maybe.andThen
+              (\ast ->
+                AST.getParamIndex ast (P.toID p))
+            |> Maybe.andThen
+              (\(name, index) ->
+                a.functions
+                |> LE.find (\f -> name == f.name)
+                |> Maybe.map .parameters
+                |> Maybe.andThen
+                  (LE.getAt index)
+                |> Maybe.map .tipe)
+
       -- functions
       funcList = if showFunctions then a.functions else []
       functions =
@@ -417,7 +436,11 @@ generateFromModel m a =
            (\{returnTipe} ->
               case a.tipe of
                 Just t -> RT.isCompatible returnTipe t
-                Nothing -> True)
+                Nothing ->
+                  case paramTipeForTarget of
+                    Just t ->
+                      RT.isCompatible returnTipe t
+                    Nothing -> True)
         |> List.filter
           (\fn ->
              case lv of
