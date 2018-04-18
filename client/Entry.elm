@@ -71,6 +71,17 @@ createFunction m name hasImplicitParam =
               (blanks ((List.length function.parameters) + blankModifier)))
       Nothing -> Nothing
 
+submitOmniAction : Model -> Pos -> OmniAction -> Modification
+submitOmniAction m pos action =
+  case action of
+    NewDB dbname ->
+      let next = gid ()
+          tlid = gtlid ()
+      in
+          RPC ([ CreateDB tlid pos dbname
+               , AddDBCol tlid next (gid ())
+               ] , FocusExact tlid next)
+
 type ThreadAction = StartThread | ContinueThread
 submit : Model -> EntryCursor -> ThreadAction -> String -> Modification
 submit m cursor action value =
@@ -127,21 +138,8 @@ submit m cursor action value =
             in RPC ([op], focus)
       in
 
-      -- DB creation
-      if String.startsWith "DB" value
-         && (value |> String.contains "::" |> not)
-         && (value |> String.trim |> String.length) >= 4
-      then
-        let dbName = value
-                     |> String.dropLeft 2
-                     |> String.trim
-            next = gid ()
-        in RPC ([ CreateDB tlid pos dbName
-                , AddDBCol tlid next (gid ())
-                ], FocusExact tlid next)
-
       -- field access
-      else if String.endsWith "." value
+      if String.endsWith "." value
       then
         wrapExpr <|
           B.newF

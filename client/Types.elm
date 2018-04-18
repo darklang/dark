@@ -187,18 +187,21 @@ type alias Autocomplete = { functions : List Function
                           }
 
 type alias Literal = Int
+type OmniAction = NewDB DBName
 type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
                       | ACExtra String
                       | ACLiteral Literal
+                      | ACOmniAction OmniAction
 
+type alias Target = (TLID, PointerData)
 type AutocompleteMod = ACSetQuery String
                      | ACAppendQuery String
                      | ACReset
                      | ACSelectDown
                      | ACSelectUp
-                     | ACSetTarget (Maybe (TLID, PointerData))
+                     | ACSetTarget (Maybe Target)
                      | ACRegenerate
                      -- | ACFilterByParamType Tipe NodeList
 
