@@ -45,7 +45,20 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = true
   }
+  ;
 
+  { pns = ["Http::respond_with_json"]
+  ; ins = []
+  ; p = [par "response" TAny; par "code" TInt]
+  ; r = TResp
+  ; d = "Respond with HTTP status `code` and `response` body, with `content-type` set to \"application/json\""
+  ; f = InProcess
+        (function
+          | (_, [dv; DInt code]) -> DResp (Response (code, ["Content-Type", "application/json"]), dv)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
   ;
 
   { pns = ["Http::redirect_to"]
