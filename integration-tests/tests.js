@@ -479,8 +479,6 @@ test('dont_shift_focus_after_filling_last_blank', async t => {
 });
 
 test('rename_db_fields', async t => {
-  const sel1 = Selector('.name').withText('field1');
-  const sel2 = Selector('.name:not(.blank)').withText('field6');
 
   const callBackend = ClientFunction(
     function () {
@@ -492,20 +490,30 @@ test('rename_db_fields', async t => {
 
   // rename
   await t
-    .doubleClick(sel1)
+    .doubleClick(Selector('.name').withText('field1'))
     .pressKey("backspace")
     .pressKey("6")
     .pressKey("enter")
     .pressKey("esc")
-    .pressKey("esc")
     ;
+
 
   // add data and check we can't rename again
   await callBackend();
 
+  // This is super-shaky if we remove this. There's some timing things
+  // around when the .fa-lock appears, and the selectors we'd expect
+  // (below) doesn't work. But if we split it into two it works. Who
+  // knows.
+  // await t.expect(Selector('.fa-lock', {timeout: 5000})().exists).ok() ;
+
+  await Selector('.fa-lock', {timeout: 5000})();
+  await t.expect(Selector('.fa-lock').exists).ok();
+
   await t
-    .expect(sel2.exists).ok()
-    .doubleClick(sel2)
+    .pressKey("up")
+    .pressKey("up")
+    .pressKey("enter")
     ;
 });
 
