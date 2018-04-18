@@ -40,6 +40,9 @@ fi
 echo "Setting up DNS for integration-tests -> $IP"
 CONF="address=/integration-tests/$IP"
 echo "$CONF" | sudo tee /etc/dnsmasq.d/dnsmasq-integration-tests.conf
+# When the container starts up, the first --full-restart takes 35s. This
+# pkill fixes that.
+sudo pkill dnsmasq
 sudo service dnsmasq --full-restart
 
 # Slowing this down massively slows down the test suite. If needed, we
