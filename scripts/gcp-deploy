@@ -47,6 +47,12 @@ $GCLOUD docker -- push $IMAGE
 
 # Get the info from the running instance for use later
 INFO=$($GCLOUD beta compute instances describe --zone=$ZONE $INSTANCE --format=json)
+IP=$(echo $INFO | jq -r '.networkInterfaces[0].accessConfigs | map(select(.name == "External NAT"))[0].natIP | select (.!=null)')
+
+if [ -z "$IP" ]; then
+  echo "Couldn't parse instance IP from gcloud"
+  exit 1
+fi
 
 # This updates automatically
 echo "Setting GCP instance metadata"
@@ -65,6 +71,13 @@ if [[ "$OLDIMAGE" != "$IMAGE" || "$FORCE" ]]; then
     --container-mount-host-path mount-path=/home/dark/gcp-persistdir,host-path=/mnt/disks/dark-disk/persistdir,mode=rw \
     --container-mount-host-path mount-path=/home/dark/gcp-rundir,host-path=/mnt/disks/dark-disk/rundir,mode=rw
   echo "Image $IMAGE deployed"
+
+  echo "Waiting for deploy to be up"
+  until $(curl --output /dev/null --silent --head --fail http://${IP}:80/static/elm.js); do
+    echo -n '.'
+    sleep 1
+  done
+  echo "Server is up"
 
   PURGE_OUTPUT=$(curl -s -X DELETE "${CLOUDFLARE_PURGE_URL}" -H "X-Auth-Email: ${CLOUDFLARE_ACCOUNT}" -H "X-Auth-Key: ${CLOUDFLARE_API_KEY}" -H "Content-Type: application/json" --data '{"purge_everything":true}' | jq ".success")
 
