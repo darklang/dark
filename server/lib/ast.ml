@@ -101,6 +101,15 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
      | Blank id -> DIncomplete
 
      | Flagged (id, msg, setting, l, r) ->
+       (* Only compute l & r in Preview to avoid production side-effects *)
+       (match ctx with
+        | Preview ->
+          let _ = exe st l in
+          let _ = exe st r in
+          ()
+        | _ -> ()
+       );
+
        let v = flatten_ff expr state.ff in
        exe st v
 
