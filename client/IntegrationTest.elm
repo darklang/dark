@@ -43,6 +43,7 @@ trigger test_name =
     "focus_on_path_in_new_filled_tl" -> focus_on_path_in_new_filled_tl
     "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
     "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
+    "rename_db_fields" -> rename_db_fields
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -70,6 +71,13 @@ onlyHandler m =
   |> onlyTL
   |> TL.asHandler
   |> deMaybe "onlyhandler"
+
+onlyDB : Model -> DB
+onlyDB m =
+  m
+  |> onlyTL
+  |> TL.asDB
+  |> deMaybe "onlyDB"
 
 onlyExpr : Model -> NExpr
 onlyExpr m =
@@ -366,5 +374,25 @@ dont_shift_focus_after_filling_last_blank m =
       then pass
       else fail (m.toplevels, m.cursorState)
     s -> fail (m.toplevels, m.cursorState)
+
+rename_db_fields : Model -> TestResult
+rename_db_fields m =
+  m.toplevels
+  |> List.map (\tl ->
+    case tl.data of
+      TLDB {name, cols} ->
+        case cols of
+          [ (F _ "field6", F _ "Str")
+          , (F _ "field2", F _ "Str")
+          , (Blank _, Blank _)] -> pass
+          _ -> fail cols
+      _ -> pass)
+  |> (\rs ->
+        let r = case m.cursorState of
+                  Selecting _ _ -> pass
+                  _ -> fail m.cursorState
+        in r :: rs)
+  |> RE.combine
+  |> Result.map (\_ -> ())
 
 
