@@ -17,9 +17,7 @@ fixture `Integration Tests`
   .afterEach( async t => {
     const signal = Selector('#integrationTestSignal');
     await t
-      .takeScreenshot()
       .click("#finishIntegrationTest")
-      .takeScreenshot()
       .expect(signal.exists).ok()
       ;
 
