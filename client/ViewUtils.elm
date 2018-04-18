@@ -20,7 +20,6 @@ import Toplevel as TL
 import Analysis
 import AST
 import Blank as B
-import Util
 
 type alias ViewState =
   { tl: Toplevel
