@@ -831,7 +831,7 @@ body #grid * {
     content: attr(computed-value);
     outline: 0.4px @green dotted;
     position: absolute;
-    right: calc(~"100% + 0.4px");
+    right: calc(~"100% + 2px");
     .default;
   }
 }
@@ -889,8 +889,9 @@ body #grid * {
   }
   .nested-flag {
 
-    position: absolute;
     left: 100%;
+    position: absolute;
+    width: 100%;
 
     &.flag-left {
       margin-top: -50px;
@@ -900,8 +901,11 @@ body #grid * {
     }
     .computed-value {
       &:before {
-        left: 165%;
+        left: 100%;
         right: auto;
+      }
+      &.selected[title]:after {
+        left: -100%;
       }
     }
   }
