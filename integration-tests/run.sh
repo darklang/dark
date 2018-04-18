@@ -66,7 +66,7 @@ echo "Clearing test tables";
 TESTDBS=$(psql -d proddb -q --command "SELECT table_name FROM information_schema.tables WHERE SUBSTRING(table_name, 0, 6) = 'test_';" | grep test_ || true)
 SCRIPT="" # concated into on script for speed
 for db in $TESTDBS; do
-  SCRIPT+="DROP TABLE $db;";
+  SCRIPT+="DROP TABLE \"${db}\";";
 done
 exe "$SCRIPT"
 
