@@ -1,4 +1,5 @@
 import { Selector } from 'testcafe';
+import { ClientFunction } from 'testcafe';
 
 fixture `Integration Tests`
   .httpAuth({ username: 'tests', password: 'fVm2CUePzGKCwoEQQdNJktUQ'})
@@ -472,6 +473,36 @@ test('dont_shift_focus_after_filling_last_blank', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter")
+});
+
+test('rename_db_fields', async t => {
+  const sel1 = Selector('.name').withText('field1');
+  const sel2 = Selector('.name:not(.blank)').withText('field6');
+
+  const callBackend = ClientFunction(
+    function () {
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("POST", "/add", true);
+      xhttp.setRequestHeader("Content-type", "application/json");
+      xhttp.send('{ "field6": "a", "field2": "b" }');
+    });
+
+  // rename
+  await t
+    .doubleClick(sel1)
+    .pressKey("backspace")
+    .pressKey("6")
+    .pressKey("enter")
+    .pressKey("esc")
+    ;
+
+  // add data and check we can't rename again
+  await callBackend();
+
+  await t
+    .expect(sel2.exists).ok()
+    .doubleClick(sel2)
+    ;
 });
 
 
