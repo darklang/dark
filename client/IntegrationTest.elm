@@ -382,16 +382,17 @@ rename_db_fields m =
     case tl.data of
       TLDB {name, cols} ->
         case cols of
-          [ (F _ "field6", F _ "Str")
+          [ (F id "field6", F _ "Str")
           , (F _ "field2", F _ "Str")
-          , (Blank _, Blank _)] -> pass
+          , (Blank _, Blank _)] ->
+            case m.cursorState of
+              Selecting _ (Just sid) ->
+                if sid == id
+                then pass
+                else fail (cols, m.cursorState)
+              _ -> fail m.cursorState
           _ -> fail cols
       _ -> pass)
-  |> (\rs ->
-        let r = case m.cursorState of
-                  Deselected -> pass
-                  _ -> fail m.cursorState
-        in r :: rs)
   |> RE.combine
   |> Result.map (\_ -> ())
 
