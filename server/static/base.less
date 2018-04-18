@@ -815,7 +815,7 @@ body #grid * {
 
 .selected[title] {
   &:after {
-    bottom: calc(100% + 2px);
+    bottom: calc(~"100% + 2px");
     color: magenta;
     content: attr(title);
     display: block;
@@ -831,7 +831,7 @@ body #grid * {
     content: attr(computed-value);
     outline: 0.4px @green dotted;
     position: absolute;
-    right: calc(100% + 0.4px);
+    right: calc(~"100% + 0.4px");
     .default;
   }
 }
