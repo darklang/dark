@@ -23,8 +23,6 @@ import Runtime
 import Toplevel
 import ViewEntry
 import ViewUtils exposing (..)
-import Util
-
 
 
 type HtmlConfig =
