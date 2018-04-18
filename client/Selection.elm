@@ -11,6 +11,7 @@ import List.Extra as LE
 import Types exposing (..)
 import Prelude exposing (..)
 import Toplevel as TL
+import DB
 import Analysis
 import Pointer as P
 import Blank as B
@@ -322,11 +323,17 @@ enter m tlid id =
   if TL.getChildrenOf tl pd /= []
   then selectDownLevel m tlid (Just id)
   else
+    let enterMods =
+          Many [ Enter (Filling tlid (P.toID flat))
+               , AutocompleteMod (ACSetQuery (P.toContent pd))
+          ]
+    in
     case pd of
-      pd -> Many [ Enter (Filling tlid (P.toID flat))
-                 , AutocompleteMod (ACSetQuery (P.toContent pd))
-                 ]
-
+      PDBColName _ ->
+        if DB.isLocked m tlid
+        then NoChange
+        else enterMods
+      pd -> enterMods
 startEditingFn : Model -> Modification
 startEditingFn m =
   case unwrapCursorState m.cursorState of

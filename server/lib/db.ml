@@ -468,10 +468,18 @@ let change_col_name id name (do_db_ops: bool) db =
     match col with
     | (Filled (hid, oldname), Filled (tipeid, tipename))
       when hid = id ->
-      if do_db_ops && not (db_locked db)
+      if do_db_ops
       then
-        run_migration db.host id
-          (rename_col_sql db.actual_name oldname name)
+        if db_locked db
+        then
+          (* change_col_name is called every time we build the canvas
+           * (eg every API call).  However, db_locked is an transitory
+           * state - so only fail if we're really trying to execute the
+           * change, rather than just building the canvas. *)
+          Exception.client ("Can't edit a locked DB: " ^ db.display_name)
+        else
+          run_migration db.host id
+            (rename_col_sql db.actual_name oldname name)
       else ();
       (Filled (hid, name), Filled (tipeid, tipename))
 

@@ -18,6 +18,7 @@ import Prelude exposing (..)
 import Viewport
 import Toplevel as TL
 import Analysis
+import DB
 import AST
 import Blank as B
 
@@ -44,7 +45,7 @@ createVS m tl = { tl = tl
                 , ac = m.complete
                 , isHTTP = TL.isHTTPHandler tl
                 , lvs = Analysis.getLiveValuesDict m tl.id
-                , dbLocked = not (List.member tl.id m.unlockedDBs)
+                , dbLocked = DB.isLocked m tl.id
                 , ffDisabled =
                   case tl.data of
                     TLHandler _ -> False

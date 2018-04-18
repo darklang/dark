@@ -25,3 +25,7 @@ hasCol db name =
             Blank _ -> False
             F _ n -> name == n
             Flagged _ _ _ _ _ -> Debug.crash "not possible")
+
+isLocked : Model -> TLID -> Bool
+isLocked m tlid =
+  not (List.member tlid m.unlockedDBs)
