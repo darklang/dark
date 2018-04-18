@@ -389,7 +389,7 @@ rename_db_fields m =
       _ -> pass)
   |> (\rs ->
         let r = case m.cursorState of
-                  Selecting _ _ -> pass
+                  Deselected -> pass
                   _ -> fail m.cursorState
         in r :: rs)
   |> RE.combine

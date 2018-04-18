@@ -57,6 +57,9 @@ function astAvailable() {
 function entryBoxAvailable() {
   return Selector('#entry-box').exists;
 }
+function available(css) {
+  return Selector(css).exists;
+}
 
 // Allow us wait for a certain autocomplete entry to be selected
 function acHighlighted(content) {
@@ -493,6 +496,7 @@ test('rename_db_fields', async t => {
     .pressKey("backspace")
     .pressKey("6")
     .pressKey("enter")
+    .pressKey("esc")
     .pressKey("esc")
     ;
 
