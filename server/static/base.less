@@ -708,20 +708,28 @@ body #grid * {
   background: @selected-background;
   border: 0;
   border-bottom: @blank-underline;
-  font-size: 8pt;
+  font-size: 13.333px;
   margin: 0;
+  margin-left: 0.5ch;
+  padding-left: 1ch;
+  padding-right: 1.5ch;
   position: relative;
-
   &::before {
     content: "“";
     .string-style;
     display: inline-block;
+    left: 0;
+    position: absolute;
+    top: 0;
     width: 1.5ch;
   }
   &::after{
     content: "”";
     .string-style;
+    bottom: 0;
     display: inline-block;
+    position: absolute;
+    right: 0;
     width: 1.5ch;
   }
   .string-container {
@@ -729,7 +737,7 @@ body #grid * {
     margin: 0;
     padding: 0;
     position: relative;
-    width: calc(~"100% - 3ch");
+    width: 100%;
   }
   #entry-box {
     background: transparent;
@@ -743,12 +751,21 @@ body #grid * {
     width: 100%;
     z-index: 20;
   }
+  textarea {
+    color: @purple !important;
+    overflow: hidden;
+    resize: none;
+    text-indent: 1.5ch;
+  }
   #fluidWidthSpan {
     .string-style;
     left: 0;
+    margin: 0;
+    padding: 0;
     position: absolute;
     top: 0;
     width: 100%;
+    white-space: nowrap;
   }
 }
 

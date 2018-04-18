@@ -87,8 +87,7 @@ stringEntryHtml ac =
                       , nothingMouseEvent "mouseup"
                       , nothingMouseEvent "mouseclick"
                       , nothingMouseEvent "mousedown"
-                      , Attrs.cols 50
-                      , Attrs.rows (5 + SE.countOccurrences "\n" value)
+                      , Attrs.rows (1 + SE.countOccurrences "\n" value)
                       , Attrs.autocomplete False
                       ] []
     in
