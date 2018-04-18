@@ -210,6 +210,8 @@ processFocus m focus =
         _ -> NoChange
     FocusPageAndCursor page cs ->
       let setCS = SetCursorState cs
+          noTarget = ACSetTarget Nothing
+          target tuple = ACSetTarget (Just tuple)
           tlOnPage tl =
             case page of
               Toplevels ->
@@ -219,33 +221,36 @@ processFocus m focus =
                   TLFunc _ -> False
               Fn id ->
                 tl.id == id
-          nextCursor =
+          (nextCursor, acTarget) =
             case cs of
               Selecting tlid mId ->
                 case (TL.get m tlid, mId) of
                   (Just tl, Just id) ->
                       if TL.isValidID tl id && (tlOnPage tl)
-                      then setCS
-                      else Deselect
-                  (Just tl, Nothing) -> setCS
-                  _ -> Deselect
+                      then (setCS, target (tlid, TL.findExn tl id))
+                      else (Deselect, noTarget)
+                  (Just tl, Nothing) -> (setCS, noTarget)
+                  _ -> (Deselect, noTarget)
               Entering (Filling tlid id) ->
                 case TL.get m tlid of
                   Just tl ->
                     if TL.isValidID tl id && (tlOnPage tl)
-                    then setCS
-                    else Deselect
-                  _ -> Deselect
+                    then (setCS, target (tlid, TL.findExn tl id))
+                    else (Deselect, noTarget)
+                  _ -> (Deselect, noTarget)
               Dragging tlid _ _ _  ->
                 case TL.get m tlid of
                   Just tl ->
                     if tlOnPage tl
-                    then setCS
-                    else Deselect
-                  _ -> Deselect
-              _ -> Deselect
+                    then (setCS, noTarget)
+                    else (Deselect, noTarget)
+                  _ -> (Deselect, noTarget)
+              _ -> (Deselect, noTarget)
       in
-          Many [SetCurrentPage page, nextCursor]
+          Many [ SetCurrentPage page
+               , nextCursor
+               , AutocompleteMod acTarget
+               ]
     FocusNothing -> Deselect
     -- used instead of focussame when we've already done the focus
     FocusNoChange -> NoChange
@@ -358,8 +363,10 @@ updateMod mod (m, cmd) =
 
       MakeCmd cmd -> m ! [cmd]
       SetCursorState cursorState ->
-        -- DOES NOT RECALCULATE VIEW
-        { m | cursorState = cursorState } ! []
+        let newM =
+            { m | cursorState = cursorState }
+        in
+            newM ! [Entry.focusEntry newM]
 
       SetCurrentPage page ->
         let newM = { m | currentPage = page }
