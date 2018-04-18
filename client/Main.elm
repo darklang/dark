@@ -707,9 +707,17 @@ update_ msg m =
                   if AC.isLargeStringEntry m.complete
                   then AutocompleteMod (ACSetQuery m.complete.value)
                   else
-                    let name = AC.getValue m.complete
-                    in Entry.submit m cursor Entry.ContinueThread name
-
+                    case cursor of
+                      Creating pos ->
+                        case AC.highlighted m.complete of
+                          Just (ACOmniAction action) ->
+                            Entry.submitOmniAction m pos action
+                          _ ->
+                            let name = AC.getValue m.complete
+                            in Entry.submit m cursor Entry.ContinueThread name
+                      Filling _ _ ->
+                        let name = AC.getValue m.complete
+                        in Entry.submit m cursor Entry.ContinueThread name
                 Key.Tab ->  -- NB: see `stopKeys` in ui.html
                   case cursor of
                     Filling tlid p ->

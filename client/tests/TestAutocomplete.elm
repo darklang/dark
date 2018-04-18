@@ -4,12 +4,6 @@ module TestAutocomplete exposing (all)
 import Test exposing (..)
 import Expect exposing (Expectation)
 
--- builtins
--- import Set
-
--- libs
-import List.Extra as LE
-
 -- dark
 import Autocomplete exposing (..)
 import Types exposing (..)
@@ -105,6 +99,7 @@ all =
       |> setQuery "twit::"
       |> .completions
       |> List.concat
+      |> List.filter isStaticItem
       |> List.map asName
       |> (==) ["Twit::somefunc", "Twit::someOtherFunc", "Twit::yetAnother"]
 
@@ -113,6 +108,7 @@ all =
       |> setQuery "twit::y"
       |> .completions
       |> List.concat
+      |> List.filter isStaticItem
       |> List.map asName
       |> (==) ["Twit::yetAnother"]
 
@@ -121,6 +117,7 @@ all =
       |> setQuery "Another"
       |> .completions
       |> List.concat
+      |> List.filter isStaticItem
       |> List.map asName
       |> (==) ["Twit::yetAnother"]
 
@@ -129,6 +126,7 @@ all =
       |> setQuery "List::head"
       |> .completions
       |> List.concat
+      |> List.filter isStaticItem
       |> List.map asName
       |> List.length
       |> (==) 1
@@ -147,6 +145,7 @@ all =
       |> selectDown
       |> selectDown
       |> selectDown
+      |> selectDown
       |> .index
       |> (==) 0
 
@@ -156,12 +155,14 @@ all =
       |> selectDown
       |> selectUp
       |> selectUp
+      |> selectUp
       |> .index
       |> (==) 2
 
       -- Scrolling loops the other way without going forward first
       , \_ -> create ()
       |> setQuery "Twit"
+      |> selectUp
       |> selectUp
       |> selectUp
       |> .index
@@ -179,7 +180,7 @@ all =
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
-      |> setQuery "Twitxxx"
+      |> setQuery "Twit1334xxx"
       |> .index
       |> (==) -1
 
@@ -213,12 +214,13 @@ all =
       , \_ -> create ()
       |> setQuery "withL"
       |> .completions
-      |> List.map (List.map asName)
-      |> (==) [ ["withLower"]
-              , ["withlower"]
-              , ["SomeModule::withLower"]
-              , ["SomeOtherModule::withlower"]
-              ]
+      |> List.concat
+      |> List.filter isStaticItem
+      |> List.map asName
+      |> (==) ["withLower"
+              , "withlower"
+              ,"SomeModule::withLower"
+              ,"SomeOtherModule::withlower"]
 
       -- typing literals works
       , \_ -> create ()
@@ -227,6 +229,34 @@ all =
       |> highlighted
       |> Maybe.map asName
       |> (==) (Just "21434234")
+
+      -- typing db names works
+      , \_ -> create ()
+      |> setQuery "mydbname"
+      |> selectDown
+      |> highlighted
+      |> (==) (Just (ACOmniAction (NewDB "mydbname")))
+
+      -- db names can be multicase
+      , \_ -> create ()
+      |> setQuery "MyDBnaMe"
+      |> selectDown
+      |> highlighted
+      |> (==) (Just (ACOmniAction (NewDB "MyDBnaMe")))
+
+      -- alphabetical only #1
+      , \_ -> create ()
+      |> setQuery "dbname1234"
+      |> selectDown
+      |> highlighted
+      |> (==) Nothing
+
+      -- alphabetical only #2
+      , \_ -> create ()
+      |> setQuery "db_name"
+      |> selectDown
+      |> highlighted
+      |> (==) Nothing
 
       ]
     ]
