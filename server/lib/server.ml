@@ -118,6 +118,25 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
       ; id = Util.create_id ()
       } in
     let result = Handler.execute state page in
+    let maybe_infer_headers headers value =
+      if List.Assoc.mem headers ~equal:(=) "Content-Type"
+      then
+        headers
+      else
+        match value with
+        | RTT.DObj _ | RTT.DList _ ->
+          List.Assoc.add
+            headers
+            ~equal:(=)
+            "Content-Type"
+            "application/json"
+        | _ ->
+          List.Assoc.add
+            headers
+            ~equal:(=)
+            "Content-Type"
+            "text/plain"
+    in
     (match result with
     | DResp (http, value) ->
       (match http with
@@ -131,7 +150,11 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
               && String.lowercase value = "text/html")
            then Dval.to_simple_repr "<" ">" value
            (* TODO: only pretty print for a webbrowser *)
-           else Dval.dval_to_pretty_json_string value
+           else
+             Dval.dval_to_pretty_json_string value
+         in
+         let resp_headers =
+           maybe_infer_headers resp_headers value
          in
          Event_queue.finalize state.id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
@@ -141,7 +164,10 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     | _ ->
       Event_queue.finalize state.id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
-      let headers = Cohttp.Header.of_list ([cors] @ session_headers) in
+      let ct_headers =
+        maybe_infer_headers [] result
+      in
+      let headers = Cohttp.Header.of_list ([cors] @ ct_headers @session_headers) in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
       respond ~headers `OK body)
