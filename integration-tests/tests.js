@@ -393,7 +393,7 @@ test('case_sensitivity', async t => {
 
     // create the DB
     .click("#grid", {offsetX: 100, offsetY: 400})
-    .typeText("#entry-box", "DB TestUnicode", slow)
+    .typeText("#entry-box", "TestUnicode", slow)
     .pressKey("enter")
 
     .typeText("#entry-box", "cOlUmNnAmE", slow)

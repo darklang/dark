@@ -91,17 +91,23 @@ sharedPrefix a =
 --  - indent is the string that occurs before the match
 --  - suggestion is the match rewritten with the search
 --  - search is the search rewritten to match the suggestion
+--
+-- Returns no suggestion or indent for an OmniAction
+--
 compareSuggestionWithActual : Autocomplete -> String -> (String, String, String)
 compareSuggestionWithActual a actual =
-  let suggestion = sharedPrefix a
-  in
-    case String.indexes (String.toLower actual) (String.toLower suggestion) of
-      [] -> ("", suggestion, actual)
-      index :: _ ->
-        let prefix = String.slice 0 index suggestion
-            suffix = String.slice (index + String.length actual) (String.length suggestion) suggestion
-        in
-           (prefix, prefix ++ actual ++ suffix, actual)
+  case highlighted a of
+    Just (ACOmniAction _) -> ("", "", actual)
+    _ ->
+      let suggestion = sharedPrefix a
+      in
+        case String.indexes (String.toLower actual) (String.toLower suggestion) of
+          [] -> ("", suggestion, actual)
+          index :: _ ->
+            let prefix = String.slice 0 index suggestion
+                suffix = String.slice (index + String.length actual) (String.length suggestion) suggestion
+            in
+              (prefix, prefix ++ actual ++ suffix, actual)
 
 
 ----------------------------
@@ -196,7 +202,73 @@ update m mod a =
      ACRegenerate -> regenerate m a
   )
 
+------------------------------------
+-- Dynamic Items
+------------------------------------
 
+isDynamicItem : AutocompleteItem -> Bool
+isDynamicItem item =
+  case item of
+    ACLiteral _ -> True
+    ACOmniAction _ -> True
+    _ -> False
+
+isStaticItem : AutocompleteItem -> Bool
+isStaticItem item = not (isDynamicItem item)
+
+parseLiteral : String -> Maybe Literal
+parseLiteral s =
+  s |> String.toInt |> Result.toMaybe
+
+parseDBName : String -> Maybe DBName
+parseDBName s =
+  if String.length s >= 4
+      && Util.rematch "^[A-Za-z]*$" s
+  then
+    Just s
+  else
+    Nothing
+
+-- Note, this does the filterMap to keep the indices of the new
+-- items the same.
+replaceDynamicItems : String -> List AutocompleteItem -> List AutocompleteItem
+replaceDynamicItems query acis =
+  List.filterMap
+    (\ai ->
+      case ai of
+        ACLiteral _ ->
+          parseLiteral query |> Maybe.map ACLiteral
+        ACOmniAction act ->
+          case act of
+            NewDB _ ->
+              parseDBName query |> Maybe.map (\n -> ACOmniAction (NewDB n))
+        _ -> Just ai)
+    acis
+
+addDynamicItems : Maybe Target -> String -> List AutocompleteItem -> List AutocompleteItem
+addDynamicItems target query acis =
+  let addOmnis acis  =
+        case target of
+          Nothing ->
+            acis
+            |> (\acis -> parseDBName query
+                         |> Maybe.andThen
+                           (\n ->
+                             if List.any (\a -> asName a == n) acis
+                             then
+                               Nothing
+                             else
+                               Just (ACOmniAction (NewDB n)))
+                         |> Maybe.map (\l -> l :: acis)
+                         |> Maybe.withDefault acis)
+          Just _ -> acis
+  in
+      acis
+      |> (\acis -> parseLiteral query
+                  |> Maybe.map ACLiteral
+                  |> Maybe.map (\l -> l :: acis)
+                  |> Maybe.withDefault acis)
+      |> addOmnis
 
 ------------------------------------
 -- Create the list
@@ -208,31 +280,15 @@ regenerate m a =
   |> refilter a.value
 
 
-parseLiteral : String -> Maybe Literal
-parseLiteral s =
-  s |> String.toInt |> Result.toMaybe
-
 refilter : String -> Autocomplete -> Autocomplete
 refilter query old  =
   -- add or replace the literal the user is typing to the completions
   let fudgedCompletions =
-        if List.any
-          (\ai ->
-            case ai of
-              ACLiteral _ -> True
-              _ -> False) old.allCompletions
+        if List.any isDynamicItem old.allCompletions
         then
-          List.filterMap
-            (\ai ->
-              case ai of
-                ACLiteral _ ->
-                  parseLiteral query |> Maybe.map ACLiteral
-                _ -> Just ai)
-            old.allCompletions
+          replaceDynamicItems query old.allCompletions
         else
-          case parseLiteral query of
-            Just l -> (ACLiteral l) :: old.allCompletions
-            Nothing -> old.allCompletions
+          addDynamicItems old.target query old.allCompletions
 
       newCompletions = filter fudgedCompletions query
       newCount = newCompletions |> List.concat |> List.length
@@ -439,6 +495,10 @@ asName aci =
     ACVariable name -> name
     ACExtra name -> name
     ACLiteral lit -> toString lit
+    ACOmniAction ac ->
+      case ac of
+        NewDB name -> "Create new database: " ++ name
+
 
 asTypeString : AutocompleteItem -> String
 asTypeString item =
@@ -452,6 +512,7 @@ asTypeString item =
     ACVariable _ -> "variable"
     ACExtra _ -> ""
     ACLiteral _ -> "int literal"
+    ACOmniAction _ -> ""
 
 asString : AutocompleteItem -> String
 asString aci =
