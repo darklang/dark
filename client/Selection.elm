@@ -158,9 +158,10 @@ moveLeftRight direction sizes id =
       |> Just
     _ -> Nothing
 
-move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID) ->
+move : Model -> TLID -> Maybe ID -> (List HtmlSizing -> ID -> Maybe ID)
+    -> Maybe ID ->
   Modification
-move m tlid mId fn =
+move m tlid mId fn default =
   let (nested, atoms) = tlToSizes m tlid in
     Maybe.andThen (fn atoms) mId
     |> ME.orElse (Maybe.andThen (fn nested) mId)
@@ -168,25 +169,40 @@ move m tlid mId fn =
     -- press Left on the expr of a let and go to the varbind. I think we
     -- would need to switch to use .left and .right instead of .centerX.
     |> ME.orElse mId
+    |> ME.orElse default
     |> Select tlid
 
-
+body : Model -> TLID -> Maybe ID
+body m tlid =
+  let tl = TL.getTL m tlid in
+  case tl.data of
+    TLHandler h -> Just (B.toID h.ast)
+    -- TODO
+    _ -> Nothing
 
 moveUp : Model -> TLID -> Maybe ID -> Modification
 moveUp m tlid mId =
-  move m tlid mId (moveUpDown Up)
+  let default = body m tlid in
+  move m tlid mId (moveUpDown Up) default
 
 moveDown : Model -> TLID -> (Maybe ID) -> Modification
 moveDown m tlid mId =
-  move m tlid mId (moveUpDown Down)
+  let default = TL.getTL m tlid
+                |> TL.allData
+                |> List.head
+                |> Maybe.map P.toID
+  in
+  move m tlid mId (moveUpDown Down) default
 
 moveRight : Model -> TLID -> (Maybe ID) -> Modification
 moveRight m tlid mId =
-  move m tlid mId (moveLeftRight Left)
+  let default = body m tlid in
+  move m tlid mId (moveLeftRight Left) default
 
 moveLeft : Model -> TLID -> (Maybe ID) -> Modification
 moveLeft m tlid mId =
-  move m tlid mId (moveLeftRight Right)
+  let default = body m tlid in
+  move m tlid mId (moveLeftRight Right) default
 
 
 -------------------------------
