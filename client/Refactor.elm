@@ -27,6 +27,7 @@ convertTipe tipe =
     _ -> tipe
 
 type WrapLoc = WLetRHS
+             | WLetBody
              | WIfCond
              | WIfThen
              | WIfElse
@@ -44,6 +45,13 @@ wrap m tl p wl =
                           B.new ()
                         replacement =
                           PExpr (B.newF (Let lhs e (B.new ())))
+                    in
+                        (replacement, FocusExact tl.id (B.toID lhs))
+                  WLetBody ->
+                    let lhs =
+                          B.new ()
+                        replacement =
+                          PExpr (B.newF (Let lhs (B.new ()) e))
                     in
                         (replacement, FocusExact tl.id (B.toID lhs))
                   WIfCond ->
