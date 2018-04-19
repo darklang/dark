@@ -5,8 +5,9 @@ module SpecTypes exposing (..)
 -- libs
 
 -- dark
-import Pointer as P
 import Types exposing (..)
+import Prelude exposing (..)
+import Pointer as P
 import Blank as B
 
 delete : PointerData -> HandlerSpec -> ID -> HandlerSpec
@@ -25,7 +26,7 @@ replaceInType : PointerData -> PointerData -> DarkType -> DarkType
 replaceInType pd replacement dt =
   -- This needs to check the entire Flagged structure, as in
   -- AST.replace.
-  let _ = Debug.crash "broken" in
+  let _ = todo ("replaceInType", pd, replacement, dt) in
   if B.toID dt == P.toID pd
   then
     case replacement of

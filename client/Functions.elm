@@ -124,20 +124,16 @@ replaceParamName search replacement uf =
               let sContent =
                     case search of
                       PParamName d -> B.toMaybe d
-                      _ -> Debug.crash "impossible"
+                      _ -> impossible search
                   rContent =
                     case replacement of
                       PParamName d -> B.toMaybe d
-                      _ -> Debug.crash "impossible"
+                      _ -> impossible replacement
                   transformUse rep old =
                     case old of
-                      PExpr e ->
-                        case e of
-                          F _ _ ->
-                            PExpr (F (gid ()) (Variable rep))
-                          _ ->
-                            Debug.crash "impossible"
-                      _ -> Debug.crash "impossible"
+                      PExpr (F _ _) ->
+                        PExpr (F (gid ()) (Variable rep))
+                      _ -> impossible old
               in
                   case (sContent, rContent) of
                     (Just o, Just r) ->

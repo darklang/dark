@@ -5,6 +5,7 @@ module DB exposing (..)
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 
 allData : DB -> List PointerData
 allData db =
@@ -24,7 +25,8 @@ hasCol db name =
           case colname of
             Blank _ -> False
             F _ n -> name == n
-            Flagged _ _ _ _ _ -> Debug.crash "not possible")
+            Flagged _ _ _ _ _ ->
+              impossible ("no flags allowed in DBs", colname))
 
 isLocked : Model -> TLID -> Bool
 isLocked m tlid =

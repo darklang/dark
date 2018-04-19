@@ -133,7 +133,8 @@ wrapInThread id expr =
       F _ _ -> B.newF (Thread [expr, B.new ()])
       Blank _ -> B.newF (Thread [expr])
       -- decide based on the displayed value, so flatten
-      Flagged _ _ _ _ _ -> Debug.crash "wit"
+      Flagged _ _ _ _ _ ->
+        impossible expr
   else
     traverse (wrapInThread id) expr
 
@@ -524,7 +525,7 @@ replace search replacement expr =
     case replacement of
       PExpr e -> B.replace sId e expr
       PFFMsg newMsg -> B.replaceFFMsg sId newMsg expr
-      _ -> impossible "cannot occur" expr
+      _ -> recoverable ("cannot occur", replacement) expr
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind replacement) ->
@@ -544,13 +545,9 @@ replace search replacement expr =
                   let uses = usesOf expr |> List.map PExpr
                       transformUse replacementContent old =
                         case old of
-                          PExpr e ->
-                            case e of
-                              Blank _ -> Debug.crash "impossible"
-                              Flagged _ _ _ _ _ -> Debug.crash "impossible"
-                              F _ _ ->
-                                PExpr (F (gid ()) (Variable replacementContent))
-                          _ -> Debug.crash "impossible"
+                          PExpr (F _ _) ->
+                            PExpr (F (gid ()) (Variable replacementContent))
+                          _ -> impossible old
                   in
                       case (orig, replacementContent) of
                         (Just o, Just r) ->

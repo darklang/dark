@@ -299,7 +299,7 @@ viewBlankOr htmlFn pt vs c bo =
                [drawFilledInsideFlag id fill]]
           Blank id ->
             [drawBlankInsideFlag id]
-          _ -> impossible "nested flagging not allowed for now" []
+          _ -> recoverable ("nested flagging not allowed for now", bo) []
 
       drawSetting ffID setting =
         Html.div

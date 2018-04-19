@@ -170,7 +170,7 @@ submit m cursor action value =
                   case tl.data of
                     TLHandler h -> h.ast
                     TLFunc f -> f.ast
-                    TLDB _ -> Debug.crash "replaceExpr: expected toplevel with AST component, got TLDB"
+                    TLDB _ -> impossible ("No expressions in DBs", tl.data)
                 (old, new) =
                   -- assign thread to variable
                   if String.startsWith "= " value
@@ -237,7 +237,7 @@ submit m cursor action value =
                  RPC ([SetHandler tlid tl.pos { h | ast = ast3 }] , focus)
                 TLFunc f ->
                  RPC ([SetFunction { f | ast = ast3 }], focus)
-                TLDB _ -> Debug.crash "replaceExpr: expected toplevel with AST component, got TLDB"
+                TLDB _ -> impossible ("No expres in DBs", tl.data)
 
       in
       if String.length value < 1
@@ -292,7 +292,7 @@ submit m cursor action value =
                 TLFunc f ->
                   let replacement = AST.replaceVarBind pd value f.ast in
                   wrapPred [SetFunction { f | ast = replacement }]
-                TLDB _ -> Debug.crash "not handler or func - varbind"
+                TLDB _ -> impossible ("no vars in DBs", tl.data)
 
         PEventName _ ->
           let eventNameValidation =
@@ -340,7 +340,7 @@ submit m cursor action value =
                 case tl.data of
                   TLHandler h -> h.ast
                   TLFunc f -> f.ast
-                  TLDB _ -> Debug.crash "not handler or func - field"
+                  TLDB _ -> impossible ("No fields in DBs", tl.data)
               parent = AST.parentOf id ast
               newAst =
                 if String.endsWith "." value
@@ -356,7 +356,7 @@ submit m cursor action value =
                               FieldAccess
                                 (F id (FieldAccess lhs (B.newF fieldname)))
                                 (B.new ()))
-                          _ -> Debug.crash "should be a field"
+                          _ -> impossible ("should be a field", parent)
                   in
                   AST.replace (PExpr parent) (PExpr wrapped) ast
                 else
@@ -374,7 +374,7 @@ submit m cursor action value =
                   wrapPred [SetHandler tlid tl.pos { h | ast = newAst }]
                 TLFunc f ->
                   wrapPred [SetFunction { f | ast = newAst }]
-                TLDB _ -> Debug.crash "not handler or func - field"
+                TLDB _ -> impossible ("no fields in DBs", tl.data)
 
         PExpr _ ->
           replaceExpr m tl pd value
@@ -388,7 +388,7 @@ submit m cursor action value =
                   "Int" -> DTInt
                   "Empty" -> DTEmpty
                   "{" -> DTObj [(B.new (), B.new ())]
-                  _ -> Debug.crash "disallowed value"
+                  _ -> todo "disallowed value"
               h = deMaybe "maybeH - httpverb" maybeH
               newPD = PDarkType (B.newF specType)
               replacement = SpecTypes.replace pd newPD h.spec
