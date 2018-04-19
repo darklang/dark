@@ -651,6 +651,18 @@ update_ msg m =
                       Refactor.extractFunction m tl pd
                 else
                   NoChange
+              Key.B ->
+                if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.wrap m tl pd WLetBody
+                else
+                  NoChange
               Key.L ->
                 if event.ctrlKey
                 then
