@@ -130,8 +130,8 @@ clonePointerData pd =
       PField (B.clone identity f)
     PDBColName cn -> pd
     PDBColType ct -> pd
-    PDarkType dt -> Debug.crash "TODO clonePointerDatadata"
-    PDarkTypeField dt -> Debug.crash "TODO clonePointerDatadata"
+    PDarkType dt -> todo ("clonePointerData", pd)
+    PDarkTypeField dt -> todo ("clonePointerData", pd)
     PFFMsg msg -> PFFMsg (B.clone identity msg)
     PFnName name -> PFnName (B.clone identity name)
     PParamName name -> PParamName (B.clone identity name)
@@ -305,7 +305,7 @@ replace p replacement tl =
           TLFunc f ->
             let newAST = AST.replace p replacement f.ast
             in { tl | data = TLFunc { f | ast = newAST } }
-          _ -> Debug.crash "TL.replace"
+          _ -> impossible ("no AST here", tl.data)
       specTypeReplace () =
         let h = ha ()
             newSpec = SpecTypes.replace p replacement h.spec

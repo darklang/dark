@@ -179,7 +179,7 @@ viewNExpr d id vs config e =
                 |> AST.threadPrevious id
                 |> ME.toList
               TLDB db ->
-                Debug.crash "impossible, ViewCode is for AST only"
+                impossible db
 
           allExprs = previous ++  exprs
           paramsComplete = List.all (\b -> b

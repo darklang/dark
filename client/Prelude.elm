@@ -4,6 +4,10 @@ module Prelude exposing (..)
 import Types exposing (..)
 import Util
 
+--------------------------------------
+-- CursorState
+--------------------------------------
+
 tlCursorID : TLID -> Int -> ID -- Generate ID for
 tlCursorID tlid idx =
   let stringID = (toString (deTLID tlid)) ++ (toString idx)
@@ -40,7 +44,9 @@ idOf s =
     Dragging _ _ _ _ -> Nothing
 
 
-
+--------------------------------------
+-- IDs
+--------------------------------------
 deID : ID -> Int
 deID (ID i) = i
 
@@ -53,23 +59,54 @@ gid unit = ID (Util.random unit)
 gtlid : () -> TLID -- Generate ID
 gtlid unit = TLID (Util.random unit)
 
+
+--------------------------------------
+-- Crashing
+--------------------------------------
+
 deMaybe : String -> Maybe a -> a
 deMaybe msg x =
   case x of
     Just y -> y
-    Nothing -> Debug.crash <| "deMaybe: got an error, expected a " ++ msg
+    Nothing -> impossible ("got Nothing but expected something", msg)
 
 assert : (a -> Bool) -> a -> a
 assert fn a =
   if fn a
   then a
-  else Debug.crash ("assertion failure: " ++ toString a)
+  else impossible ("assertion failure", a)
 
-impossible : String -> a -> a
-impossible msg a =
-  let appIsGentle = False in -- TODO: make the app a lil' gentler by reporting this event to a crash logger or something instead of savagely crashing poor elm's runtime ;(
-  if appIsGentle
-  then
-    a
-  else
-    Debug.crash ("something impossible occurred: " ++ msg ++ " (would have returned: '" ++ toString a ++ "' under gentler circumstances)")
+-- `Impossible` crashes with the value provided.
+-- Is it very obvious why?
+--   impossible ()
+-- Want a string message?
+--   impossible "The widgets can't arrive in this order"
+-- Show a value:
+--   impossible myVar
+-- Combine them:
+--   impossible ("The widges can't arrive in this order:", myVar)
+impossible : a -> b
+impossible a =
+  Debug.crash ("something impossible occurred: " ++ (toString a))
+
+
+-- Like impossible but has a different semantic meaning. If you have a
+-- value you _could_ continue with, consider this.
+recoverable : a -> b -> b
+recoverable msg val =
+  let error = "An unexpected but recoverable error happened. "
+            ++ "For now we crash. "
+            ++ "Message: "
+            ++ toString msg
+            ++ "Value: "
+            ++ toString val
+      -- TODO: surface the error to the user and in rollbar and
+      -- continue.
+      _ = Debug.crash error
+  in
+  val
+
+-- Like impossible but with the message TODO
+todo : a -> b
+todo a =
+  Debug.crash ("TODO: " ++ (toString a))

@@ -328,7 +328,7 @@ delete m tlid mId =
               case newTL.data of
                 TLHandler h -> RPC ([SetHandler tlid tl.pos h], FocusExact tlid newID)
                 TLFunc f -> RPC ([SetFunction f], FocusExact tlid newID)
-                TLDB _ -> Debug.crash "pointer type mismatch - Selection.delete"
+                TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
 
 
 enter : Model -> TLID -> ID -> Modification
@@ -356,6 +356,8 @@ enter m tlid id =
         then NoChange
         else enterMods
       pd -> enterMods
+
+
 startEditingFn : Model -> Modification
 startEditingFn m =
   case unwrapCursorState m.cursorState of
@@ -367,7 +369,7 @@ startEditingFn m =
             PExpr (F _ (FnCall name _)) ->
               editFunction (Fns.findByNameExn m name)
             _ ->
-              Debug.crash "should only be called on an FnCall for a UserFunction"
+              impossible ("should only be called on an FnCall for a UserFunction", pd)
     _ -> NoChange
 
 editFunction : UserFunction -> Modification
