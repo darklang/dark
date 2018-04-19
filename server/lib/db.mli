@@ -23,10 +23,11 @@ val count : DbT.db -> int
 (* DB schema modifications *)
 val create_new_db : DbT.db -> unit
 val to_display_name : string -> string
-val add_db_col : id -> id -> DbT.db -> DbT.db
+val add_col : id -> id -> DbT.db -> DbT.db
 val set_col_name : id -> string -> bool -> DbT.db -> DbT.db
+val set_col_type : id -> RuntimeT.tipe -> bool ->  DbT.db -> DbT.db
 val change_col_name : id -> string -> bool -> DbT.db -> DbT.db
-val set_db_col_type : id -> RuntimeT.tipe -> bool ->  DbT.db -> DbT.db
+val change_col_type : id -> RuntimeT.tipe -> bool -> DbT.db -> DbT.db
 val unlocked : DbT.db list -> DbT.db list
 
 (* DBs as values for execution *)
