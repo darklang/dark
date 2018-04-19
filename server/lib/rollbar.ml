@@ -7,6 +7,7 @@ type result = [`Success | `Failure | `Disabled]
 
 type err_ctx = Remote of CRequest.t
              | EventQueue
+             | Tracing
 
 let exn_to_string (e: exn) : string =
   match e with
@@ -32,6 +33,7 @@ let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.jso
     match ctx with
     | Remote _ -> `String "server"
     | EventQueue -> `String "event queue worker"
+    | Tracing -> `String "tracing"
   in
   let env = `String Config.rollbar_environment in
   let language = `String "OCaml" in
@@ -51,7 +53,7 @@ let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.jso
       ;("framework", framework)
       ;("context", context)
       ;("request", request)]
-    | EventQueue ->
+    | EventQueue | Tracing ->
       [("body", message)
       ;("environment", env)
       ;("language", language)
