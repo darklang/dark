@@ -308,7 +308,7 @@ let fns : Lib.shortfn list = [
           | (_, [DInt a; DInt b]) -> DInt (a + 1 + (Random.int (b - a)))
           | (_, args) -> fail args)
   ; pr = None
-  ; ps = true
+  ; ps = false
   }
   ;
 
@@ -1204,7 +1204,7 @@ let fns : Lib.shortfn list = [
           | (_, []) -> DDate (Time.now ())
           | (_, args) -> fail args)
   ; pr = None
-  ; ps = true
+  ; ps = false
   }
   ;
 
