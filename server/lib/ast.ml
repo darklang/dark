@@ -221,18 +221,21 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       try
         value ()
       with
-      | Exception.DarkException e ->
+      | Exception.DarkException e as ex->
+        let bt = Backtrace.Exn.most_recent () in
         let json = e
                    |> Exception.exception_data_to_yojson
                    |> Yojson.Safe.pretty_to_string in
         print_endline json;
+        let _ = Rollbar.report ex bt Tracing in
         DError json
       | e ->
         let bt = Backtrace.Exn.most_recent () in
         let msg = Exn.to_string e in
+        let _ = Rollbar.report e bt Tracing in
         print_endline (Backtrace.to_string bt);
         print_endline msg;
-        DIncomplete
+        DError msg
   in
   trace expr execed_value st; execed_value
 
