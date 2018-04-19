@@ -354,9 +354,9 @@ updateMod mod (m, cmd) =
             case m.integrationTestState of
               IntegrationTestExpectation fn -> fn
               IntegrationTestFinished _ ->
-                Debug.crash "Attempted to end integration test but one ran + was already finished"
+                impossible "Attempted to end integration test but one ran + was already finished"
               NoIntegrationTest ->
-                Debug.crash "Attempted to end integration test but none was running"
+                impossible "Attempted to end integration test but none was running"
             result = expectationFn m
         in
         { m | integrationTestState = IntegrationTestFinished result } ! []

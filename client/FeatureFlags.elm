@@ -10,7 +10,8 @@ import Blank as B
 toFlagged : BlankOr a -> BlankOr a
 toFlagged bo =
   case bo of
-    Flagged _ _ _ _ _ -> Debug.crash "cant convert flagged to flagged"
+    Flagged _ _ _ _ _ ->
+      impossible ("cant convert flagged to flagged", bo)
     _ -> Flagged (gid()) (B.new ()) 0 bo (B.new ())
 
 fromFlagged : BlankOr a -> BlankOr a
@@ -21,7 +22,7 @@ fromFlagged bo =
         0 -> a
         100 -> b
         _ -> bo
-    _ -> Debug.crash "Can't remove flag that doesn't exist"
+    _ -> impossible ("cant convert flagged to flagged", bo)
 
 start : Model -> Modification
 start m =
@@ -61,7 +62,7 @@ moveSlider : Int -> BlankOr a -> BlankOr a
 moveSlider newSetting bo =
   case bo of
     Flagged id msg _ l r -> Flagged id msg newSetting l r
-    _ -> Debug.crash "should only be called on slider"
+    _ -> impossible ("should only be called on slider", bo)
 
 commitSlider : Model -> ID -> Modification
 commitSlider m id =

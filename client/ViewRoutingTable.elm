@@ -9,6 +9,7 @@ import List.Extra as LE
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Viewport
 import Toplevel as TL
 import Blank as B
@@ -36,13 +37,15 @@ collapseHandlers tls =
                    case B.flattenFF h.spec.name of
                      F _ s -> Just s
                      Blank _ -> Nothing
-                     Flagged _ _ _ _ _ -> Debug.crash "ch - tls"
+                     Flagged _ _ _ _ _ ->
+                       impossible ("FF in spec name", h.spec.name)
                , prefix = []
                , verbs =
                    case B.flattenFF h.spec.modifier of
                      F _ s -> [(s, pos)]
                      Blank _ -> []
-                     Flagged _ _ _ _ _ -> Debug.crash "ch - verbs"
+                     Flagged _ _ _ _ _ ->
+                       impossible ("FF in spec modifier", h.spec.modifier)
                })
         |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   in
