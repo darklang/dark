@@ -28,7 +28,7 @@ import View
 import Clipboard
 import Defaults
 import Editor
-import Refactor
+import Refactor exposing (WrapLoc(..))
 import Runtime as RT
 import Entry
 import Autocomplete as AC
@@ -605,7 +605,17 @@ update_ msg m =
                       mPd = Maybe.map (TL.findExn tl) mId
                   in
                   Clipboard.copy m tl mPd
-                else NoChange
+                else if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.wrap m tl pd WIfCond
+                else
+                  NoChange
               Key.V ->
                 if event.metaKey
                 then
@@ -639,6 +649,42 @@ update_ msg m =
                           pd = TL.findExn tl id
                       in
                       Refactor.extractFunction m tl pd
+                else
+                  NoChange
+              Key.L ->
+                if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.wrap m tl pd WLetRHS
+                else
+                  NoChange
+              Key.T ->
+                if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.wrap m tl pd WIfThen
+                else
+                  NoChange
+              Key.E ->
+                if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.wrap m tl pd WIfElse
                 else
                   NoChange
               _ -> NoChange
