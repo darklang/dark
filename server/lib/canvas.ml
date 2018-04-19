@@ -168,13 +168,15 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
         else ();
       upsert_toplevel tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
-      apply_to_db ~f:(Db.add_db_col colid typeid) tlid
+      apply_to_db ~f:(Db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
       apply_to_db ~f:(Db.set_col_name id name do_db_ops) tlid
     | ChangeDBColName (tlid, id, name) ->
       apply_to_db ~f:(Db.change_col_name id name do_db_ops) tlid
     | SetDBColType (tlid, id, tipe) ->
-      apply_to_db ~f:(Db.set_db_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
+      apply_to_db ~f:(Db.set_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
+    | ChangeDBColType (tlid, id, tipe) ->
+      apply_to_db ~f:(Db.change_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | Savepoint -> ident

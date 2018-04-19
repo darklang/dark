@@ -254,11 +254,19 @@ submit m cursor action value =
             else Error (name ++ " must match /" ++ pattern ++ "/")
       in
       case pd of
-        PDBColType _ ->
-          validate "[A-Z]\\w+" "DB type"
-            <| wrap [ SetDBColType tlid id value
-                    , AddDBCol tlid (gid ()) (gid ())]
-                    id
+        PDBColType ct ->
+          if B.asF ct == Just value
+          then Select tlid (Just id)
+          else if B.isBlank ct
+          then
+            validate "[A-Z]\\w+" "DB type"
+              <| wrap [ SetDBColType tlid id value
+                      , AddDBCol tlid (gid ()) (gid ())]
+                      id
+          else
+            validate "[A-Z]\\w+" "DB type"
+              <| wrap [ ChangeDBColType tlid id value] id
+
         PDBColName cn ->
           if value == "id"
           then Error ("id's are automatic and implicit, no need to add them")

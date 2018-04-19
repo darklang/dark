@@ -515,4 +515,43 @@ test('rename_db_fields', async t => {
     ;
 });
 
+test('rename_db_type', async t => {
 
+  const callBackend = ClientFunction(
+    function () {
+      var xhttp = new XMLHttpRequest();
+      xhttp.open("POST", "/add", true);
+      xhttp.setRequestHeader("Content-type", "application/json");
+      xhttp.send('{ "field1": "a", "field2": 5 }');
+    });
+
+  // rename
+  await t
+    .doubleClick(Selector('.type').withText('Str'))
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .typeText("#entry-box", "Int")
+    .pressKey("enter")
+    .pressKey("esc")
+    ;
+
+
+  // add data and check we can't rename again
+  await callBackend();
+
+  // This is super-shaky if we remove this. There's some timing things
+  // around when the .fa-lock appears, and the selectors we'd expect
+  // (below) doesn't work. But if we split it into two it works. Who
+  // knows.
+  // await t.expect(Selector('.fa-lock', {timeout: 5000})().exists).ok() ;
+
+  await Selector('.fa-lock', {timeout: 5000})();
+  await t.expect(Selector('.fa-lock').exists).ok();
+
+  await t
+    .pressKey("up")
+    .pressKey("up")
+    .pressKey("enter")
+    ;
+});

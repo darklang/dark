@@ -351,6 +351,10 @@ enter m tlid id =
         if DB.isLocked m tlid
         then NoChange
         else enterMods
+      PDBColType _ ->
+        if DB.isLocked m tlid
+        then NoChange
+        else enterMods
       pd -> enterMods
 startEditingFn : Model -> Modification
 startEditingFn m =

@@ -387,6 +387,12 @@ let rename_col_sql (table_name: string) (oldname: string) (newname: string) : st
     "ALTER TABLE \"%s\" RENAME \"%s\" TO \"%s\""
     (escape table_name) (escape oldname) (escape newname)
 
+let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
+  Printf.sprintf
+    "ALTER TABLE \"%s\" ALTER COLUMN \"%s\" TYPE %s"
+    (escape table_name) (escape name) (sql_tipe_for tipe)
+
+
 
 (* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
@@ -452,7 +458,7 @@ let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col 
   col
 
 
-let add_db_col colid typeid (db: db) =
+let add_col colid typeid (db: db) =
   { db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
 let set_col_name id name (do_db_ops: bool) db =
@@ -487,7 +493,7 @@ let change_col_name id name (do_db_ops: bool) db =
   { db with cols = List.map ~f:change db.cols }
 
 
-let set_db_col_type id tipe (do_db_ops: bool) db =
+let set_col_type id tipe (do_db_ops: bool) db =
   let set col =
     match col with
     | (name, Blank hid) when hid = id ->
@@ -495,6 +501,28 @@ let set_db_col_type id tipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:set db.cols }
 
+let change_col_type id newtipe (do_db_ops: bool) db =
+  let change col =
+    match col with
+    | (Filled (nameid, name), Filled (tipeid, oldtipe))
+      when tipeid = id ->
+      if do_db_ops
+      then
+        if db_locked db
+        then
+          (* change_col_name is called every time we build the canvas
+           * (eg every API call).  However, db_locked is an transitory
+           * state - so only fail if we're really trying to execute the
+           * change, rather than just building the canvas. *)
+          Exception.client ("Can't edit a locked DB: " ^ db.display_name)
+        else
+          run_migration db.host id
+            (retype_col_sql db.actual_name name newtipe)
+      else ();
+      (Filled (nameid, name), Filled (tipeid, newtipe))
+
+    | _ -> col in
+  { db with cols = List.map ~f:change db.cols }
 
 (* ------------------------- *)
 (* Serializing canvases *)
