@@ -45,7 +45,7 @@ trigger test_name =
     "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
     "rename_db_fields" -> rename_db_fields
     "rename_db_type" -> rename_db_type
-
+    "paste_right_number_of_blanks" -> paste_right_number_of_blanks
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -418,4 +418,19 @@ rename_db_type m =
   |> RE.combine
   |> Result.map (\_ -> ())
 
+paste_right_number_of_blanks : Model -> TestResult
+paste_right_number_of_blanks m =
+   m.toplevels
+  |> List.map (\tl ->
+    case tl.data of
+      TLHandler {ast} ->
+        case ast of
+          F _ (Thread [_, F _ (FnCall "-" [Blank _])]) ->
+            pass
+          F _ (FnCall "-" [Blank _, Blank _]) ->
+            pass -- ignore this TL
+          _ -> fail ast
+      _ -> fail ("Shouldn't be other handlers here", tl.data))
+  |> RE.combine
+  |> Result.map (\_ -> ())
 
