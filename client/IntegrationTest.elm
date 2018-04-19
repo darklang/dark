@@ -44,6 +44,7 @@ trigger test_name =
     "focus_on_cond_in_new_tl_with_if" -> focus_on_cond_in_new_tl_with_if
     "dont_shift_focus_after_filling_last_blank" -> dont_shift_focus_after_filling_last_blank
     "rename_db_fields" -> rename_db_fields
+    "rename_db_type" -> rename_db_type
 
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
@@ -384,6 +385,27 @@ rename_db_fields m =
         case cols of
           [ (F id "field6", F _ "Str")
           , (F _ "field2", F _ "Str")
+          , (Blank _, Blank _)] ->
+            case m.cursorState of
+              Selecting _ (Just sid) ->
+                if sid == id
+                then pass
+                else fail (cols, m.cursorState)
+              _ -> fail m.cursorState
+          _ -> fail cols
+      _ -> pass)
+  |> RE.combine
+  |> Result.map (\_ -> ())
+
+rename_db_type : Model -> TestResult
+rename_db_type m =
+  m.toplevels
+  |> List.map (\tl ->
+    case tl.data of
+      TLDB {name, cols} ->
+        case cols of
+          [ (F id "field1", F _ "Int")
+          , (F _ "field2", F _ "Int")
           , (Blank _, Blank _)] ->
             case m.cursorState of
               Selecting _ (Just sid) ->
