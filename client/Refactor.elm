@@ -11,7 +11,7 @@ import Prelude exposing (..)
 import Toplevel as TL
 import Pointer as P
 import AST
-import Blank
+import Blank as B
 import Analysis
 import Util
 
@@ -25,6 +25,58 @@ convertTipe tipe =
     TIncomplete -> TAny
     TError -> TAny
     _ -> tipe
+
+type WrapLoc = WLetRHS
+             | WIfCond
+             | WIfThen
+             | WIfElse
+
+wrap : Model -> Toplevel -> PointerData -> WrapLoc -> Modification
+wrap m tl p wl =
+  case TL.asHandler tl of
+    Just h ->
+      case p of
+        PExpr e ->
+          let (replacement, focus) =
+                case wl of
+                  WLetRHS ->
+                    let lhs =
+                          B.new ()
+                        replacement =
+                          PExpr (B.newF (Let lhs e (B.new ())))
+                    in
+                        (replacement, FocusExact tl.id (B.toID lhs))
+                  WIfCond ->
+                    let thenBlank =
+                          B.new ()
+                        replacement =
+                          PExpr (B.newF (If e thenBlank (B.new ())))
+                    in
+                        (replacement, FocusExact tl.id (B.toID thenBlank))
+                  WIfThen ->
+                    let condBlank =
+                          B.new ()
+                        replacement =
+                          PExpr (B.newF (If condBlank e (B.new ())))
+                    in
+                        (replacement, FocusExact tl.id (B.toID condBlank))
+                  WIfElse ->
+                    let condBlank =
+                          B.new ()
+                        replacement =
+                          PExpr (B.newF (If condBlank (B.new ()) e))
+                    in
+                        (replacement, FocusExact tl.id (B.toID condBlank))
+              newH =
+                let newAst =
+                      AST.replace p replacement h.ast
+                in
+                    { h | ast = newAst }
+          in
+              RPC ([SetHandler tl.id tl.pos newH]
+                  ,focus)
+        _ -> NoChange
+    _ -> NoChange
 
 extractFunction : Model -> Toplevel -> PointerData -> Modification
 extractFunction m tl p =
@@ -43,7 +95,7 @@ extractFunction m tl p =
                  (\n ->
                    case n of
                      PExpr boe ->
-                       case Blank.flattenFF boe of
+                       case B.flattenFF boe of
                          Blank _ -> Nothing
                          Flagged _ _ _ _ _ -> Nothing
                          F id e as expr ->
@@ -55,7 +107,7 @@ extractFunction m tl p =
             lets
             |> List.map AST.usesOf
             |> List.concat
-            |> List.map (Blank.toID >> deID)
+            |> List.map (B.toID >> deID)
             |> Set.fromList
 
           freeVars =
@@ -64,7 +116,7 @@ extractFunction m tl p =
               (\n ->
                 case n of
                   PExpr boe ->
-                    case Blank.flattenFF boe of
+                    case B.flattenFF boe of
                       Blank _ -> Nothing
                       Flagged _ _ _ _ _ -> Nothing
                       F id e ->
@@ -188,7 +240,7 @@ addNewFunctionParameter m old =
               let transformExpr old =
                     case old of
                       F id (FnCall name params) ->
-                        F id (FnCall name (params ++ [Blank.new ()]))
+                        F id (FnCall name (params ++ [B.new ()]))
                       _ ->
                         old
               in
