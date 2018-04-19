@@ -52,3 +52,4 @@ let get_fn_exn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn 
   match get_fn ~user_fns name with
   | Some fn -> fn
   | None -> RT.raise_error ("No function named '" ^ name ^ "' exists")
+
