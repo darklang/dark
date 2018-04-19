@@ -579,15 +579,9 @@ update_ msg m =
                 then Selection.moveCursorForwardInTime m tlid
                 else Selection.moveLeft m tlid mId
               Key.Tab ->  -- NB: see `stopKeys` in ui.html
-                case mId of
-                  Just id ->
-                    if event.shiftKey
-                    then Selection.selectPrevBlank m tlid mId
-                    else Selection.selectNextBlank m tlid mId
-                  Nothing ->
-                    if event.shiftKey
-                    then Selection.selectPrevToplevel m (Just tlid)
-                    else Selection.selectNextToplevel m (Just tlid)
+                if event.shiftKey
+                then Selection.selectPrevBlank m tlid mId
+                else Selection.selectNextBlank m tlid mId
               Key.O ->
                 if event.ctrlKey
                 then Selection.selectUpLevel m tlid mId
