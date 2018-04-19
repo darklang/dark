@@ -131,7 +131,7 @@ let fns : Lib.shortfn list = [
         | (_, []) -> DStr "application/x-www-form-urlencoded"
         | (_, args) -> fail args)
   ; pr = None
-  ; ps = false
+  ; ps = true
   }
   ;
 
@@ -146,7 +146,7 @@ let fns : Lib.shortfn list = [
         | (_, []) -> DStr "application/json"
         | (_, args) -> fail args)
   ; pr = None
-  ; ps = false
+  ; ps = true
   }
 ]
 
