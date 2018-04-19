@@ -707,12 +707,6 @@ update_ msg m =
               case event.keyCode of
                 Key.P -> AutocompleteMod ACSelectUp
                 Key.N -> AutocompleteMod ACSelectDown
-                Key.V ->
-                  case cursor of
-                    Creating pos -> Clipboard.newFromClipboard m pos
-                    Filling tlid p ->
-                      let tl = TL.getTL m tlid in
-                      Clipboard.paste m tl p
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
                   then Entry.submit m cursor Entry.ContinueThread m.complete.value
@@ -723,6 +717,17 @@ update_ msg m =
                          ]
                   else NoChange
                 _ -> NoChange
+            else if event.metaKey
+            then
+              case event.keyCode of
+                Key.V ->
+                  case cursor of
+                    Creating pos -> Clipboard.newFromClipboard m pos
+                    Filling tlid p ->
+                      let tl = TL.getTL m tlid in
+                      Clipboard.paste m tl p
+                _ -> NoChange
+
             else if event.shiftKey && event.keyCode == Key.Enter
             then
               case cursor of
