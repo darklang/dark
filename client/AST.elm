@@ -513,17 +513,29 @@ allData expr =
           allData obj ++ [PField field]
 
 
-
-
 replace : PointerData -> PointerData -> Expr -> Expr
 replace search replacement expr =
-  let r = replace search replacement
+  replace_ search replacement Nothing expr
+
+replace_ : PointerData -> PointerData -> Maybe Expr -> Expr -> Expr
+replace_ search replacement parent expr =
+  let r = replace_ search replacement (Just expr) -- expr is new parent
       sId = P.toID search
   in
   if B.within expr sId
   then
     case replacement of
-      PExpr e -> B.replace sId e expr
+      PExpr e ->
+        let repl_ =
+              case parent of
+                -- if pasting it into a thread, make the shape fit
+                Just (F _ (Thread _)) ->
+                  case e of
+                    F _ (FnCall fn (_ :: rest)) ->
+                      (F (gid ()) (FnCall fn rest))
+                    _ -> e
+                _ -> e
+        in B.replace sId repl_ expr
       PFFMsg newMsg -> B.replaceFFMsg sId newMsg expr
       _ -> recoverable ("cannot occur", replacement) expr
   else
@@ -542,20 +554,21 @@ replace search replacement expr =
                   Flagged _ _ _ _ _ -> Nothing
                   F _ var -> Just var
               newBody =
-                  let uses = usesOf expr |> List.map PExpr
-                      transformUse replacementContent old =
-                        case old of
-                          PExpr (F _ _) ->
-                            PExpr (F (gid ()) (Variable replacementContent))
-                          _ -> impossible old
-                  in
-                      case (orig, replacementContent) of
-                        (Just o, Just r) ->
-                          List.foldr
-                          (\use acc -> replace use (transformUse r use) acc)
-                          body
-                          uses
-                        _ -> body
+                let uses = usesOf expr |> List.map PExpr
+                    transformUse replacementContent old =
+                      case old of
+                        PExpr (F _ _) ->
+                          PExpr (F (gid ()) (Variable replacementContent))
+                        _ -> impossible old
+                in
+                case (orig, replacementContent) of
+                  (Just o, Just r) ->
+                    List.foldr
+                      (\use acc ->
+                        replace_ use (transformUse r use) (Just expr) acc)
+                      body
+                      uses
+                  _ -> body
           in
               F id (Let (B.replace sId replacement lhs) rhs newBody)
         else traverse r expr
