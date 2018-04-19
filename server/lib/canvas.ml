@@ -268,78 +268,114 @@ let to_frontend
     | Some e -> e
     | None -> RTT.EnvMap.find_exn environments 0
   in
-  let unlocked = c.toplevels
-                 |> TL.dbs
-                 |> Db.unlocked
-                 |> List.map ~f:(fun x -> x.tlid)
-                 |> List.map ~f:tlid_to_yojson
-                 |> fun x -> `List x
+  let unlocked =
+    c.toplevels
+    |> TL.dbs
+    |> Db.unlocked
+    |> List.map ~f:(fun x -> x.tlid)
+    |> List.map ~f:tlid_to_yojson
+    |> fun x -> `List x
   in
-  let vals = c.toplevels
-             |> TL.handlers
+  let fvals =
+    List.map
+      c.user_functions
+      ~f:(fun f ->
+          let fn_ids =
+            exe_fn_ids
+            |> List.filter_map
+              ~f:(fun (tlid, id) ->
+                  if tlid = f.tlid
+                  then Some id
+                  else None)
+          in
+          let env = Functions.environment_for_user_fn f in
+          let state : RTT.exec_state =
+            { ff = FF.analysis
+            ; tlid = f.tlid
+            ; hostname = c.name
+            ; user_fns = c.user_functions
+            ; exe_fn_ids = fn_ids
+            ; env = env
+            ; dbs = TL.dbs c.toplevels
+            ; id = execution_id
+            }
+          in
+          let value = Functions.execute_for_analysis state f in
+          (f.tlid, [value]))
+  in
+  let vals =
+    c.toplevels
+    |> TL.handlers
+    |> List.map
+      ~f:(fun h ->
+          let envs = available_reqs h.tlid in
+          let fn_ids =
+            exe_fn_ids
+            |> List.filter_map
+              ~f:(fun (tlid, id) ->
+                  if tlid = h.tlid
+                  then Some id
+                  else None)
+          in
+          let state env : RTT.exec_state =
+            { ff = FF.analysis
+            ; tlid = h.tlid
+            ; hostname = c.name
+            ; user_fns = c.user_functions
+            ; exe_fn_ids = fn_ids
+            ; env = env
+            ; dbs = TL.dbs c.toplevels
+            ; id = execution_id
+            }
+          in
+          let values =
+            List.map
+              ~f:(fun env ->
+                  Handler.execute_for_analysis (state env) h)
+              envs
+          in
+          (h.tlid, values))
+   in
+   let vals_to_results vs =
+     List.map vs ~f:(fun (id, results) ->
+         let to_result (v, ds, syms, inputs) =
+           let inputs_to_json i =
+             i
+             |> Map.to_alist
              |> List.map
-               ~f:(fun h ->
-                   let envs = available_reqs h.tlid in
-                   let fn_ids = exe_fn_ids
-                                |> List.filter_map
-                                     ~f:(fun (tlid, id) ->
-                                           if tlid = h.tlid
-                                           then Some id
-                                           else None) in
-                   let state env : RTT.exec_state =
-                         { ff = FF.analysis
-                         ; tlid = h.tlid
-                         ; hostname = c.name
-                         ; user_fns = c.user_functions
-                         ; exe_fn_ids = fn_ids
-                         ; env = env
-                         ; dbs = TL.dbs c.toplevels
-                         ; id = execution_id
-                         } in
-                   let values =
-                     List.map
-                       ~f:(fun env ->
-                           Handler.execute_for_analysis (state env) h)
-                       envs
-                   in
-                   (h.tlid, values)
-                 )
-             |> List.map ~f:(fun (id, results) ->
-                 let to_result (v, ds, syms, inputs) =
-                   let inputs_to_json i =
-                     i
-                     |> Map.to_alist
-                     |> List.map
-                       ~f:(fun (k, v) -> (k, v
-                                             |> Ast.dval_to_livevalue
-                                             |> Ast.livevalue_to_yojson))
-                   in
-                   `Assoc [ ("ast_value", v |> Ast.dval_to_livevalue
-                                            |> Ast.livevalue_to_yojson)
-                          ; ("live_values", Ast.dval_store_to_yojson ds)
-                          ; ("available_varnames", Ast.sym_store_to_yojson syms)
-                          ; ("input_values", `Assoc (inputs_to_json inputs))
-                          ]
-                  in
-                  `Assoc [ ("id", `Int id)
-                         ; ("results", `List (List.map ~f:to_result results))
-                         ])
-  in `Assoc
-        [ ("analyses", `List vals)
-        ; ("global_varnames",
-           (* TODO(ian) *)
-           `List (RTT.EnvMap.find_exn environments 0
-                  |> List.hd_exn
-                  |> RTT.DvalMap.keys
-                  |> List.map ~f:(fun s -> `String s)))
-        ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
-        ; ("unlocked_dbs", unlocked )
-        ; ("404s", `List (List.map ~f:SE.four_oh_four_to_yojson f404s))
-        ; ("user_functions",
-           `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
-        ; ("redoable", `Bool (is_redoable c))
-        ; ("undo_count", `Int (undo_count c))
-        ; ("undoable", `Bool (is_undoable c)) ]
+               ~f:(fun (k, v) ->
+                   (k, v
+                       |> Ast.dval_to_livevalue
+                       |> Ast.livevalue_to_yojson))
+           in
+           `Assoc [ ("ast_value"
+                    , v |> Ast.dval_to_livevalue |> Ast.livevalue_to_yojson)
+                  ; ("live_values", Ast.dval_store_to_yojson ds)
+                  ; ("available_varnames", Ast.sym_store_to_yojson syms)
+                  ; ("input_values", `Assoc (inputs_to_json inputs))
+                  ]
+         in
+         `Assoc [ ("id", `Int id)
+                ; ("results", `List (List.map ~f:to_result results))
+                ])
+   in
+   let analyses = vals_to_results (vals @ fvals)
+   in `Assoc
+     [ ("analyses", `List analyses)
+     ; ("global_varnames",
+        (* TODO(ian) *)
+        `List (RTT.EnvMap.find_exn environments 0
+               |> List.hd_exn
+               |> RTT.DvalMap.keys
+               |> List.map ~f:(fun s -> `String s)))
+     ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
+     ; ("unlocked_dbs", unlocked )
+     ; ("404s", `List (List.map ~f:SE.four_oh_four_to_yojson f404s))
+     ; ("user_functions",
+        `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
+     ; ("redoable", `Bool (is_redoable c))
+     ; ("undo_count", `Int (undo_count c))
+     ; ("undoable", `Bool (is_undoable c)) ]
 
 let to_frontend_string (environments: RTT.env_map)
     (f404s : SE.four_oh_four list)
