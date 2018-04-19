@@ -750,10 +750,11 @@ update_ msg m =
                   if m.complete.value == "="
                   || AC.isStringEntry m.complete
                   then
-                    -- TODO: appending isnt right when we're editing, we
-                    -- want to put this wherever the cursor is. We need
-                    -- to allow the inputbox to do it's thing.
-                    AutocompleteMod <| ACAppendQuery " "
+                    case devent.selectionStart of
+                      Just idx ->
+                        let newQ = SE.insertAt " " (idx + 1) m.complete.value in
+                        AutocompleteMod <| ACSetQuery newQ
+                      Nothing -> AutocompleteMod <| ACAppendQuery " "
                   else
                     let name = AC.getValue m.complete
                     in Entry.submit m cursor Entry.ContinueThread name
@@ -778,7 +779,11 @@ update_ msg m =
                     Filling tlid p ->
                       if AC.isLargeStringEntry m.complete
                       then
-                        AutocompleteMod <| ACAppendQuery "\t"
+                        case devent.selectionStart of
+                          Just idx ->
+                            let newQ = SE.insertAt "\t" (idx + 1) m.complete.value in
+                            AutocompleteMod <| ACSetQuery newQ
+                          Nothing -> NoChange
                       else
                         let content = AC.getValue m.complete
                             hasContent = content
