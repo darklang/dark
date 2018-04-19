@@ -314,21 +314,21 @@ delete m tlid mId =
         TLFunc _ -> Error ("Cannot delete functions!")
     Just id ->
       let newID = gid ()
-          wrapDB op = RPC ([op], FocusExact tlid newID)
+          focus = FocusExact tlid newID
           tl = TL.getTL m tlid
           pd = TL.findExn tl id
       in
       case P.typeOf pd of
         DBColType ->
-          wrapDB <| SetDBColType tlid id ""
+          RPC ([SetDBColType tlid id ""], focus)
         DBColName ->
-          wrapDB <| SetDBColName tlid id ""
+          RPC ([SetDBColName tlid id ""], focus)
         _ ->
           let newTL = TL.delete tl pd newID in
-              case newTL.data of
-                TLHandler h -> RPC ([SetHandler tlid tl.pos h], FocusExact tlid newID)
-                TLFunc f -> RPC ([SetFunction f], FocusExact tlid newID)
-                TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
+          case newTL.data of
+            TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
+            TLFunc f -> RPC ([SetFunction f], focus)
+            TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
 
 
 enter : Model -> TLID -> ID -> Modification
