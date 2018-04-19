@@ -682,11 +682,8 @@ update_ msg m =
             else
               case event.keyCode of
                 Key.Spacebar ->  -- NB: see `stopKeys` in ui.html
-                  -- if we're trying to create a database via our magic
-                  -- incantation, then we should be able to do that
                   -- without submitting
-                  if String.startsWith "DB" m.complete.value
-                  || m.complete.value == "="
+                  if m.complete.value == "="
                   || AC.isStringEntry m.complete
                   then
                     -- TODO: appending isnt right when we're editing, we
