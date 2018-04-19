@@ -67,6 +67,11 @@ type ID = ID Int
 -----------------------------
 -- CursorState
 -----------------------------
+type alias DarkKeyboardEvent =
+    { standard : KeyboardEvent
+    , selectionStart : Maybe Int
+    , selectionEnd : Maybe Int
+    }
 type EntryCursor = Creating Pos
                  | Filling TLID ID
 
@@ -105,7 +110,7 @@ type Msg
     | DragToplevel TLID Mouse.Position
     | EntryInputMsg String
     | EntrySubmitMsg
-    | GlobalKeyPress KeyboardEvent
+    | GlobalKeyPress DarkKeyboardEvent
     | SliderChange ID
     | SliderMoving ID String
     | AutocompleteClick String

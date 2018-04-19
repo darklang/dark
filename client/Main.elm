@@ -7,7 +7,6 @@ import Maybe
 -- lib
 import Json.Decode as JSD
 import Http
-import Keyboard.Event
 import Keyboard.Key as Key
 import Navigation
 import Mouse
@@ -28,6 +27,7 @@ import View
 import Clipboard
 import Defaults
 import Editor
+import DarkKeyboard
 import Refactor exposing (WrapLoc(..))
 import Runtime as RT
 import Entry
@@ -494,7 +494,8 @@ update_ msg m =
           else msg in
   case msg of
 
-    GlobalKeyPress event ->
+    GlobalKeyPress devent ->
+      let event = devent.standard in
       if event.metaKey && event.keyCode == Key.Z
       then
         if event.shiftKey
@@ -1251,7 +1252,7 @@ subscriptions : Model -> Sub Msg
 subscriptions m =
   let keySubs =
         [onWindow "keydown"
-           (JSD.map GlobalKeyPress Keyboard.Event.decodeKeyboardEvent)]
+           (JSD.map GlobalKeyPress DarkKeyboard.decodeDarkKeyboardEvent)]
       resizes = [Window.resizes (\{height,width} ->
                                     WindowResize height width)]
       dragSubs =
