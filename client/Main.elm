@@ -599,13 +599,13 @@ update_ msg m =
                 then Selection.selectPreviousSibling m tlid mId
                 else NoChange
               Key.C ->
-                if event.metaKey
+                if event.ctrlKey
                 then
                   let tl = TL.getTL m tlid
                       mPd = Maybe.map (TL.findExn tl) mId
                   in
                   Clipboard.copy m tl mPd
-                else if event.ctrlKey
+                else if False
                 then
                   case mId of
                     Nothing -> NoChange
@@ -617,7 +617,7 @@ update_ msg m =
                 else
                   NoChange
               Key.V ->
-                if event.metaKey
+                if event.ctrlKey
                 then
                   let tl = TL.getTL m tlid in
                   case mId of
@@ -629,7 +629,7 @@ update_ msg m =
                       Clipboard.paste m tl id
                 else NoChange
               Key.X ->
-                if event.metaKey
+                if event.ctrlKey
                 then
                   case mId of
                     Nothing -> NoChange
@@ -717,7 +717,7 @@ update_ msg m =
                          ]
                   else NoChange
                 _ -> NoChange
-            else if event.metaKey
+            else if event.ctrlKey
             then
               case event.keyCode of
                 Key.V ->
