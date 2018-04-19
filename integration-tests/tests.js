@@ -555,3 +555,16 @@ test('rename_db_type', async t => {
     .pressKey("enter")
     ;
 });
+
+test('paste_right_number_of_blanks', async t => {
+  await t
+    .takeScreenshot()
+    .click(Selector('.fnname').withText('-'))
+    .takeScreenshot()
+    .pressKey("meta+c")
+    .takeScreenshot()
+    .click(Selector('.fnname').withText('(+)'))
+    .takeScreenshot()
+    .pressKey("meta+v")
+    .takeScreenshot()
+});

@@ -9,7 +9,7 @@ import Task
 import Dom
 -- import Result.Extra as RE
 -- import Maybe.Extra as ME
--- import List.Extra as LE
+import List.Extra as LE
 
 -- dark
 import Types exposing (..)
@@ -54,10 +54,9 @@ newHandlerSpec _ = { module_ = B.new ()
                              }
                    }
 
-createFunction : Model -> FnName -> Bool -> Maybe Expr
-createFunction m name hasImplicitParam =
-  let blankModifier = if hasImplicitParam then -1 else 0
-      blanks count = List.map (\_ -> B.new ()) (List.range 1 count)
+createFunction : Model -> FnName -> Maybe Expr
+createFunction m name =
+  let blanks count = LE.initialize count (\_ -> B.new ())
       fn = m.complete.functions
            |> List.filter (\fn -> fn.name == name)
            |> List.head
@@ -65,10 +64,7 @@ createFunction m name hasImplicitParam =
     case fn of
       Just function ->
         Just <|
-          B.newF
-            (FnCall
-              name
-              (blanks ((List.length function.parameters) + blankModifier)))
+          B.newF (FnCall name (blanks (List.length function.parameters)))
       Nothing -> Nothing
 
 submitOmniAction : Model -> Pos -> OmniAction -> Modification
@@ -86,7 +82,7 @@ type ThreadAction = StartThread | ContinueThread
 submit : Model -> EntryCursor -> ThreadAction -> String -> Modification
 submit m cursor action value =
   let
-      parseAst str hasImplicit =
+      parseAst str =
         let eid = gid ()
             b1 = B.new ()
             b2 = B.new ()
@@ -109,7 +105,7 @@ submit m cursor action value =
             Just <| F eid (Value "null")
           _ ->
             if not (RT.isLiteral str)
-            then createFunction m value hasImplicit
+            then createFunction m value
             else Just <| F eid (Value str)
 
   in
@@ -153,7 +149,7 @@ submit m cursor action value =
 
       -- start new AST
       else
-        case parseAst value False of
+        case parseAst value of
           Nothing -> NoChange
           Just v -> wrapExpr v
 
@@ -206,16 +202,12 @@ submit m cursor action value =
 
                   -- variables
                   else if List.member value (Analysis.varnamesFor m target)
-                  then
-                    (old_, PExpr <| B.newF (Variable value))
+                  then (old_, PExpr <| B.newF (Variable value))
 
                   -- parsed exprs
                   else
                     ( old_
-                    , parseAst
-                        value
-                          (action == ContinueThread
-                          && AST.isThreadBlank ast (P.toID p))
+                    , parseAst value
                       |> Maybe.map PExpr
                       |> Maybe.withDefault old_)
 
