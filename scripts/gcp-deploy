@@ -12,7 +12,10 @@ do
   esac
 done
 
-
+if [[ -e client/DEBUG ]]; then
+  echo "client/DEBUG exists. Are you shipping a debug client?"
+  exit 1
+fi
 
 PROJECT="balmy-ground-195100"
 DNSZONE="--zone=dark-single-instance"
