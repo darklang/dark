@@ -208,7 +208,7 @@ let sql_tipe_for (tipe: tipe) : string =
   match tipe with
   | TAny -> failwith "todo sql type"
   | TInt -> "INT"
-  | TFloat -> failwith "todo sql type"
+  | TFloat -> "REAL"
   | TBool -> "BOOLEAN"
   | TNull -> failwith "todo sql type"
   | TChar -> failwith "todo sql type"
