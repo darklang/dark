@@ -123,8 +123,8 @@ tlToSizes m tlid =
 type UDDirection = Up | Down
 moveUpDown : UDDirection -> List HtmlSizing -> ID -> Maybe ID
 moveUpDown direction sizes id =
-  -- TODO: store original pos so that it's consistent if we go back in
-  -- the other direction
+  -- TODO: if we store the original position, we can allow the user to
+  -- go up in a straight line, like in vim, word, etc.
   let dir = if direction == Up then -1 else 1 in
   case List.filter (\o -> o.id == id) sizes of
     [this] ->
@@ -143,6 +143,8 @@ moveUpDown direction sizes id =
 type LRDirection = Left | Right
 moveLeftRight : LRDirection -> List HtmlSizing -> ID -> Maybe ID
 moveLeftRight direction sizes id =
+  -- I seem to recall some of these values seemed weird, and now I see
+  -- that moveLeft passes Right and moveRight passes Left. Whoops.
   let dir = if direction == Left then -1 else 1 in
   case List.filter (\o -> o.id == id) sizes  of
     [this] ->
