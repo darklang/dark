@@ -175,6 +175,11 @@ div vs configs content =
                  && ME.isJust thisID
       mouseover = mouseoverAs == vs.hovering
                                  && ME.isJust mouseoverAs
+      incomplete =
+        case computedValueData of
+          Nothing -> False
+          Just (Err _) -> False
+          Just (Ok val) -> Runtime.isIncomplete val
 
       idAttr = case thisID of
                  Just id -> ["blankOr", "id-" ++ toString (deID id)]
@@ -185,6 +190,7 @@ div vs configs content =
                   ++ valClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
+                  ++ (if incomplete then ["incomplete"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
       events =
         case clickAs of
