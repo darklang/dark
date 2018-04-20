@@ -95,7 +95,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
   | [page] ->
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request req body in
-    let bound = Http.bind_route_params_exn ~uri ~route in
+    let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = Db.dbs_as_exe_env (dbs) in
     (match (Handler.event_desc_for page) with

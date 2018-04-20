@@ -427,7 +427,8 @@ let create_environments (c: canvas) (host: string) :
   in
 
   let descs = SE.list_events host in
-  let match_desc h (space, path, modifier) : bool =
+  let match_desc h d : bool =
+    let (space, path, modifier) = d in
     match Handler.event_desc_for h with
     | Some (h_space, h_path, h_modifier) ->
       Http.path_matches_route ~path h_path
@@ -438,24 +439,58 @@ let create_environments (c: canvas) (host: string) :
 
 
   let env_map acc (h : Handler.handler) =
-    let h_envs =
+    let h_envs : (Stored_event.event_desc option * RTT.dval) list =
       let default =
         if Handler.is_http h
         then [sample_request]
         else [sample_event] in
       try
+        (* super sorry about this, this is how we go from
+         * "here are all the matching event descs for this handler"
+         * to a list of input values to the handler tupled with
+         * (potentially, if it exists) the event_desc that describes
+         * the event that produced that input value
+         *
+         *
+         * The nested fold does this transformation:
+         *
+         * (event_desc option, dval list) list
+         * -> (event_desc option, dval) list
+         *)
         descs
         |> List.filter ~f:(match_desc h)
-        |> List.map ~f:(SE.load_events host)
-        |> List.concat
-        |> fun ds -> if ds = [] then default else ds
-      with _ -> default
+        |> List.map ~f:(fun d -> (Some d, SE.load_events host d))
+        |> List.fold_left
+             ~f:(fun acc (desc, events) ->
+                List.fold_left
+                ~f:(fun nacc e ->
+                     (desc, e) :: nacc)
+                ~init:acc
+                events)
+             ~init:[]
+        |> fun ds ->
+            if List.is_empty ds
+            then List.map ~f:(fun d -> (None, d)) default
+            else ds
+      with _ ->
+        List.map ~f:(fun d -> (None, d)) default
     in
     let new_envs =
-      List.map h_envs
-        ~f:(fun e ->
+      List.map
+        h_envs
+        ~f:(fun (maybe_desc, e) ->
             if Handler.is_http h
-            then RTT.DvalMap.set initial_env "request" e
+            then
+              let with_r = RTT.DvalMap.set initial_env "request" e in
+              (match maybe_desc with
+               | Some (space, path, modifier) ->
+                 let bound =
+                    Http.bind_route_params_exn
+                      path
+                      (Handler.event_name_for_exn h)
+                 in
+                 Util.merge_left with_r bound
+               | None -> with_r)
             else RTT.DvalMap.set initial_env "event" e)
     in
     RTT.EnvMap.set acc h.tlid new_envs

@@ -43,8 +43,7 @@ let sample_bound_route_params ~(route: string) : route_param_map =
     vars
 
 (* assumes route and path match *)
-let bind_route_params_exn ~(uri: Uri.t) ~(route: string) : route_param_map =
-  let path = Uri.path uri in
+let bind_route_params_exn ~(path: string) ~(route: string) : route_param_map =
   if path_matches_route ~path:path route
   then
     let split_path = split_uri_path path in
