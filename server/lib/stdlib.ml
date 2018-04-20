@@ -631,8 +631,6 @@ let fns : Lib.shortfn list = [
   ;
 
 
-
-
   { pns = ["String::length"]
   ; ins = []
   ; p = [par "s" TStr]
@@ -775,6 +773,57 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
+  { pns = ["String::base64Encode"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TStr
+  ; d = "Base64 encodes a string. Uses URL-safe encoding."
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) ->
+            DStr (B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+  { pns = ["String::base64Decode"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TStr
+  ; d = "Base64 decodes a string."
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) ->
+            (try
+              DStr (B64.decode ~alphabet:B64.uri_safe_alphabet s)
+            with
+            | Not_found ->
+              DStr (B64.decode ~alphabet:B64.default_alphabet s))
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+  { pns = ["String::digest"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TStr
+  ; d = "Take a string and hash it to a cryptographically-secure digest.
+  Uses SHA2. Don't rely on either the size or the algorithm."
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) -> DStr (Util.hash s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
   (* ====================================== *)
   (* List *)
@@ -1068,8 +1117,6 @@ let fns : Lib.shortfn list = [
   ; ps = true
   }
   ;
-
-
 
 
   { pns = ["List::foreach"]
