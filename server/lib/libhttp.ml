@@ -17,6 +17,27 @@ let fns : Lib.shortfn list = [
   }
 
   ;
+  (* TODO(ian): merge Http::respond with Http::respond_with_headers
+   * -- need to figure out how to deprecate functions w/o breaking
+   * user code
+   *)
+
+  { pns = ["Http::respond_with_headers"]
+  ; ins = []
+  ; p = [par "response" TAny; par "headers" TObj; par "code" TInt]
+  ; r = TResp
+  ; d = "Respond with HTTP status `code` and `response` body and `headers` headers"
+  ; f = InProcess
+        (function
+          | (_, [dv; DObj _ as obj; DInt code]) ->
+            let pairs = Dval.to_string_pairs obj in
+            DResp (Response (code, pairs), dv)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+
+  ;
 
   { pns = ["Http::success"]
   ; ins = []
