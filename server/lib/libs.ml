@@ -23,7 +23,7 @@ let static_fns : fnmap =
                              ; description = s.d
                              ; func = s.f
                              ; preview = s.pr
-                             ; previewExecutionSafe = s.ps
+                             ; preview_execution_safe = s.ps
                              } in
     add_fn m def
   in
