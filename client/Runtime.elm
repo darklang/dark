@@ -144,6 +144,7 @@ extractErrorMessage str =
        |> unwrapValue
        |> JSD.decodeString JSON.decodeException
        |> Result.toMaybe
+       |> Maybe.map .short
        |> Maybe.map toString
        |> Maybe.withDefault ("Error decoding error: " ++ toString str)
   else str
