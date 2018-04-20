@@ -223,7 +223,7 @@ parseLiteral s =
 parseDBName : String -> Maybe DBName
 parseDBName s =
   if String.length s >= 4
-      && Util.rematch "^[A-Za-z]*$" s
+      && Util.reExactly "[A-Za-z]*" s
   then
     Just s
   else
