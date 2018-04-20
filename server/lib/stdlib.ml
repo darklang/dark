@@ -299,7 +299,7 @@ let fns : Lib.shortfn list = [
 
   { pns = ["Int::random"]
   ; ins = []
-  ; p = [par "a" TInt ; par "b" TInt]
+  ; p = [par "start" TInt ; par "end" TInt]
   ; r = TInt
   ; d = "Returns a random integer between a and b (inclusive)"
   ; f = InProcess
