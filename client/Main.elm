@@ -369,7 +369,7 @@ updateMod mod (m, cmd) =
             newM ! [Entry.focusEntry newM]
 
       SetCurrentPage page ->
-        let newM = { m | currentPage = page }
+        let newM = { m | currentPage = page, cursorState = Deselected }
         in newM ! closeThreads newM
 
       Select tlid p ->
@@ -410,7 +410,12 @@ updateMod mod (m, cmd) =
                    Just tlid ->
                      if updateCurrentTL
                      then m2
-                     else TL.upsert m2 (TL.getTL m tlid)
+                     else
+                       let tl = TL.getTL m tlid in
+                       case tl.data of
+                         TLDB _ -> TL.upsert m2 tl
+                         TLHandler _ -> TL.upsert m2 tl
+                         TLFunc _ -> m2
                    Nothing ->
                      m2
 
