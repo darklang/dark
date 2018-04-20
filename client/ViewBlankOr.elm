@@ -92,7 +92,7 @@ withEditFn vs v =
       _ -> []
   else []
 
-getLiveValue : LVDict -> ID -> String
+getLiveValue : LVDict -> ID -> Maybe (Result String String)
 getLiveValue lvs (ID id) =
   lvs
   |> Dict.get id
@@ -100,8 +100,6 @@ getLiveValue lvs (ID id) =
   |> Maybe.map (\v -> if Runtime.isError v
                       then Err (Runtime.extractErrorMessage v)
                       else Ok v)
-  |> Maybe.withDefault (Ok "<Incomplete>")
-  |> Result.withDefault "<Incomplete>"
 
 
 
@@ -144,13 +142,7 @@ div vs configs content =
       showFeatureFlag = List.member WithFF configs
       showEditFn = List.member WithEditFn configs
 
-      value (ID id) =
-        Dict.get id vs.lvs
-        |> Maybe.map .value
-        |> Maybe.map (\v -> if Runtime.isError v
-                            then Err (Runtime.extractErrorMessage v)
-                            else Ok v)
-
+      value = getLiveValue vs.lvs
 
       computedValueData = Maybe.andThen value computedValueAs
       hoverdata = Maybe.andThen value hoverAs
