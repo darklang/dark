@@ -561,10 +561,10 @@ test('paste_right_number_of_blanks', async t => {
     .takeScreenshot()
     .click(Selector('.fnname').withText('-'))
     .takeScreenshot()
-    .pressKey("meta+c")
+    .pressKey("ctrl+c")
     .takeScreenshot()
     .click(Selector('.fnname').withText('(+)'))
     .takeScreenshot()
-    .pressKey("meta+v")
+    .pressKey("ctrl+v")
     .takeScreenshot()
 });
