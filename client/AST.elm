@@ -531,8 +531,8 @@ replace_ search replacement parent expr =
                 -- if pasting it into a thread, make the shape fit
                 Just (F _ (Thread _)) ->
                   case e of
-                    F _ (FnCall fn (_ :: rest)) ->
-                      (F (gid ()) (FnCall fn rest))
+                    F id (FnCall fn (_ :: rest)) ->
+                      (F id (FnCall fn rest))
                     _ -> e
                 _ -> e
         in B.replace sId repl_ expr
