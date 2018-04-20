@@ -102,8 +102,10 @@ flag2function fn =
                                  , tipe = RT.str2tipe p.tipe
                                  , block_args = p.block_args
                                  , optional = p.optional
-                                 , description = p.description}) fn.parameters
+                                 , description = p.description})
+                          fn.parameters
   , infix = fn.infix
+  , previewExecutionSafe = fn.preview_execution_safe
   }
 
 init : Flags -> Navigation.Location -> ( Model, Cmd Msg )

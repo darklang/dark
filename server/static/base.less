@@ -516,9 +516,24 @@ body #grid * {
   }
 
   .execution-button {
-    color: @red;
+    position: absolute;
     font-size: 60%;
+    &:hover {
+      font-size: 100%;
+      font-weight: strong;
+      margin-left: -6px;
+      margin-top: -3px;
+    }
     margin-left: -4px;
+    &.execution-button-unavailable {
+      color: grey;
+    }
+    &.execution-button-needed {
+      color: green;
+    }
+    &.execution-button-repeat {
+      color: green;
+    }
   }
 
   .precedence-1 {

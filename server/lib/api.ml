@@ -36,24 +36,27 @@ type function_metadata = { name: string
                          ; description : string
                          ; return_type : string
                          ; infix : bool
+                         ; preview_execution_safe: bool
                          } [@@deriving yojson]
 
 let functions =
   Libs.static_fns
   |> String.Map.to_alist
-  |> List.map ~f:(fun (k,(v: RuntimeT.fn))
-                   -> { name = k
-                      ; parameters =
-                        List.map ~f:(fun p : param_metadata ->
-                          { name = p.name
-                          ; tipe = Dval.tipe_to_string p.tipe
-                          ; block_args = p.block_args
-                          ; optional = p.optional
-                          ; description = p.description })
-                        v.parameters
-                      ; description = v.description
-                      ; return_type = Dval.tipe_to_string v.return_type
-                      ; infix = List.mem ~equal:(=) v.infix_names k
-                      })
+  |> List.map
+    ~f:(fun (k,(v: RuntimeT.fn))
+         -> { name = k
+            ; parameters =
+                List.map ~f:(fun p : param_metadata ->
+                    { name = p.name
+                    ; tipe = Dval.tipe_to_string p.tipe
+                    ; block_args = p.block_args
+                    ; optional = p.optional
+                    ; description = p.description })
+                  v.parameters
+            ; description = v.description
+            ; return_type = Dval.tipe_to_string v.return_type
+            ; preview_execution_safe = v.preview_execution_safe
+            ; infix = List.mem ~equal:(=) v.infix_names k
+            })
   |> fun l -> `List (List.map ~f:function_metadata_to_yojson l)
   |> Yojson.Safe.pretty_to_string
