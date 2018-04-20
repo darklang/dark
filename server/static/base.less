@@ -451,7 +451,11 @@ body #grid * {
   }
 
   .value-error {
-    background-color: rgba(255, 0, 0, 0.4);
+    background-color: fadeout(red, 70%);
+  }
+
+  .incomplete {
+    background-color: mix(@black1, rgb(255, 128, 000), 85%);
   }
 
   .letexpr > .letbody {
@@ -825,6 +829,9 @@ body #grid * {
   &:before {
     .value-error & {
       outline: 0.4px red dotted;
+    }
+    .incomplete & {
+      visibility: hidden;
     }
     content: attr(computed-value);
     outline: 0.4px @green dotted;
