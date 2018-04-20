@@ -316,7 +316,7 @@ submit m cursor action value =
             [SetHandler tlid tl.pos { h | spec = replacement }]
             (B.toID new)
         PEventSpace _ ->
-          validate "[A-Z]+" "event space"
+          validate "[A-Z_]+" "event space"
             <|
           let h = deMaybe "maybeH - eventspace" maybeH
               new = B.newF value
