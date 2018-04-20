@@ -144,32 +144,26 @@ div vs configs content =
       showFeatureFlag = List.member WithFF configs
       showEditFn = List.member WithEditFn configs
 
-      computedValueData =
-        case computedValueAs of
-          Just (ID id) ->
-            Dict.get id vs.lvs
-            |> Maybe.map .value
-            |> Maybe.map (\v -> if Runtime.isError v
-                                then Err (Runtime.extractErrorMessage v)
-                                else Ok v)
-          _ -> Nothing
+      value (ID id) =
+        Dict.get id vs.lvs
+        |> Maybe.map .value
+        |> Maybe.map (\v -> if Runtime.isError v
+                            then Err (Runtime.extractErrorMessage v)
+                            else Ok v)
+
+
+      computedValueData = Maybe.andThen value computedValueAs
+      hoverdata = Maybe.andThen value hoverAs
 
       (computedValueClasses, computedValue) =
         case computedValueData of
           Nothing -> ([], [])
-          Just (Ok msg) -> (["computed-value"], [Attrs.attribute "computed-value" msg])
-          Just (Err err) -> (["computed-value computed-value-error"], [Attrs.attribute "computed-value" err])
-
-      -- Start using the config
-      hoverdata =
-        case hoverAs of
-          Just (ID id) ->
-            Dict.get id vs.lvs
-            |> Maybe.map .value
-            |> Maybe.map (\v -> if Runtime.isError v
-                                then Err (Runtime.extractErrorMessage v)
-                                else Ok v)
-          _ -> Nothing
+          Just (Ok msg) ->
+            ( ["computed-value"]
+            , [Attrs.attribute "computed-value" msg])
+          Just (Err err) ->
+            ( ["computed-value computed-value-error"]
+            , [Attrs.attribute "computed-value" err])
 
       (valClasses, title) =
         case hoverdata of
