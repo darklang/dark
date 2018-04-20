@@ -232,7 +232,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
         let msg = Exn.to_string e in
         print_endline (Backtrace.to_string bt);
         print_endline msg;
-        DIncomplete
+        DError msg
   in
   trace expr execed_value st; execed_value
 
