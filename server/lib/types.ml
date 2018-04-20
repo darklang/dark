@@ -186,7 +186,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
             ; description : string
             ; preview : (dval list -> int -> dval list) option
             ; func : funcimpl
-            ; previewExecutionSafe : bool
+            ; preview_execution_safe : bool
             }
 
   let user_fn_to_fn uf : fn option =
@@ -213,7 +213,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
       ; parameters = params
       ; return_type = t
       ; description = uf.metadata.description
-      ; previewExecutionSafe = false
+      ; preview_execution_safe = false
       ; preview = None
       ; func = UserCreated uf.ast
       } |> Some

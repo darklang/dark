@@ -164,10 +164,10 @@ viewNExpr d id vs config e =
                 , t [wc "fnname"] (withP justname)
                 ]
               _ -> a [wc "fnname"] (withP name)
-          isInfix = vs.ac.functions
+          fn = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
                     |> deMaybe "vExpr fncall"
-                    |> .infix
+
           previous =
             case vs.tl.data of
               TLHandler h ->
@@ -181,6 +181,7 @@ viewNExpr d id vs config e =
               TLDB db ->
                 impossible db
 
+          -- buttons
           allExprs = previous ++  exprs
           isComplete v =
             v
@@ -195,20 +196,47 @@ viewNExpr d id vs config e =
 
           paramsComplete = List.all (isComplete << B.toID) allExprs
           resultHasValue = isComplete id
-          showButton = not resultHasValue && paramsComplete
+
+          buttonUnavailable = not paramsComplete
+          showButton = not fn.previewExecutionSafe
+          buttonNeeded = not resultHasValue
+
+          event = eventNoPropagation "mouseup"
+                    (\_ -> ExecuteFunctionButton vs.tl.id id)
+          (bClass, bEvent, bTitle, bIcon) =
+            if buttonUnavailable
+            then ("execution-button-unavailable"
+                 , []
+                 , "Cannot run: some parameters are incomplete"
+                 , "cog")
+            else if buttonNeeded
+            then
+              ( "execution-button-needed"
+              , [event]
+              , "Click to execute function"
+              , "cog")
+            else
+              ( "execution-button-repeat"
+              , [event]
+              , "Click to execute function again"
+              , "redo")
           button =
             if not showButton
             then []
-            else [Html.div
-              [ Attrs.class "execution-button"
-              , Attrs.title "Click to run this function"
-              , eventNoPropagation "mouseup"
-                  (\_ -> ExecuteFunctionButton vs.tl.id id)
+            else
+              [ Html.div
+                ([ Attrs.class ("execution-button " ++ bClass)
+                 , Attrs.title bTitle
+                 ] ++ bEvent)
+                [fontAwesome bIcon]
               ]
-              [fontAwesome "gear"]]
-          fnDiv parens = n [wc "op", wc name, ComputedValueAs id] (fnname parens :: button)
+
+          fnDiv parens =
+            n
+              [wc "op", wc name, ComputedValueAs id]
+              (fnname parens :: button)
       in
-      case (isInfix, exprs) of
+      case (fn.infix, exprs) of
         (True, [first, second]) ->
           n (wc "fncall infix" :: wc (depthString d) :: all)
           [ n [wc "lhs"] [vExpr incD first]
@@ -217,7 +245,7 @@ viewNExpr d id vs config e =
           ]
         _ ->
           n (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv isInfix :: List.map (vExpr incD) exprs)
+            (fnDiv fn.infix :: List.map (vExpr incD) exprs)
 
     Lambda vars expr ->
       let varname v = t [wc "lambdavarname", atom] v in

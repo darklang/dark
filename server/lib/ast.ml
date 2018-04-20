@@ -242,7 +242,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     match ctx with
     | Preview ->
       let sfr_state = (state.hostname, state.tlid, fnname, id) in
-      if fn.previewExecutionSafe
+      if fn.preview_execution_safe
       then f (state, arglist)
       else if List.mem ~equal:(=) state.exe_fn_ids id
       then

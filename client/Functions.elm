@@ -34,6 +34,7 @@ ufmToF ufm =
           , description = ufm.description
           , returnTipe = tipe
           , infix = ufm.infix
+          , previewExecutionSafe = False
           } |> Just
         _ -> Nothing
 
