@@ -815,12 +815,15 @@ body #grid * {
 
 .selected[title] {
   &:after {
+    outline: 0.4px @green solid;
+    .computed-value-error & {
+      outline: 0.4px red solid;
+    }
     bottom: calc(~"100% + 2px");
     color: magenta;
     content: attr(title);
     display: block;
     left: 0;
-    outline: 0.4px @green solid;
     position: absolute;
     background: @black2;
   }
@@ -828,7 +831,9 @@ body #grid * {
 
 .computed-value {
   &:before {
-    color: @green;
+    .value-error & {
+      outline: 0.4px red dotted;
+    }
     content: attr(computed-value);
     outline: 0.4px @green dotted;
     position: absolute;
