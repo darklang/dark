@@ -182,14 +182,20 @@ viewNExpr d id vs config e =
                 impossible db
 
           allExprs = previous ++  exprs
-          paramsComplete = List.all (\b -> b
-                                           |> B.toID
-                                           |> getLiveValue vs.lvs
-                                           |> Runtime.isIncomplete
-                                           |> not) allExprs
+          isComplete v =
+            v
+            |> getLiveValue vs.lvs
+            |> \v ->
+                 case v of
+                   Nothing -> False
+                   Just (Err _) -> True
+                   Just (Ok val) ->
+                     not (Runtime.isIncomplete val
+                         || Runtime.isError val)
 
-          noValue = getLiveValue vs.lvs id |> Runtime.isIncomplete
-          showButton = noValue && paramsComplete
+          paramsComplete = List.all (isComplete << B.toID) allExprs
+          resultHasValue = isComplete id
+          showButton = not resultHasValue && paramsComplete
           button =
             if not showButton
             then []
