@@ -140,13 +140,14 @@ isLiteral s =
 extractErrorMessage : String -> String
 extractErrorMessage str =
   if isError str
-  then str
-       |> unwrapValue
-       |> JSD.decodeString JSON.decodeException
-       |> Result.toMaybe
-       |> Maybe.map .short
-       |> Maybe.map toString
-       |> Maybe.withDefault ("Error decoding error: " ++ toString str)
+  then
+    let value = unwrapValue str in
+      value
+      |> JSD.decodeString JSON.decodeException
+      |> Result.toMaybe
+      |> Maybe.map .short
+      |> Maybe.map toString
+      |> Maybe.withDefault value
   else str
 
 
