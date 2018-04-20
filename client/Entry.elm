@@ -241,7 +241,7 @@ submit m cursor action value =
           wrapPred ops = RPC (ops, FocusNext tlid predecessor)
           wrap ops new = RPC (ops, FocusNext tlid (Just new))
           validate pattern name success =
-            if Util.rematch pattern value
+            if Util.reExactly pattern value
             then success
             else Error (name ++ " must match /" ++ pattern ++ "/")
       in

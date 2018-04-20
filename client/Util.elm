@@ -30,8 +30,11 @@ toIntWithDefault d s =
   |> String.toInt
   |> Result.withDefault d
 
-rematch : String -> String -> Bool
-rematch re s = Regex.contains (Regex.regex re) s
+reContains : String -> String -> Bool
+reContains  re s = Regex.contains (Regex.regex re) s
+
+reExactly : String -> String -> Bool
+reExactly re s = reContains ("^" ++ re ++ "$") s
 
 replace : String -> String -> String -> String
 replace re repl str = Regex.replace Regex.All (Regex.regex re) (\_ -> repl) str
