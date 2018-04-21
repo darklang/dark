@@ -27,6 +27,30 @@ let to_tuple (expr: expr) : (id * expr) =
   let id = to_id expr in
   (id, expr)
 
+
+let exception_to_dval ~(log: bool) e =
+  match e with
+  | Exception.DarkException e ->
+    let json = e
+               |> Exception.exception_data_to_yojson
+               |> Yojson.Safe.pretty_to_string in
+    if log then print_endline json else ();
+    DError json
+  | e ->
+    (* We do this split because it can be fragile grabbing the
+     * Backtrace so we need to do that first *)
+    if log
+    then
+      let bt = Backtrace.Exn.most_recent () in
+      let msg = Exn.to_string e in
+      print_endline (Backtrace.to_string bt);
+      print_endline msg;
+      DError msg
+    else
+      let msg = Exn.to_string e in
+      DError msg
+
+
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
@@ -220,19 +244,8 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
     else
       try
         value ()
-      with
-      | Exception.DarkException e ->
-        let json = e
-                   |> Exception.exception_data_to_yojson
-                   |> Yojson.Safe.pretty_to_string in
-        print_endline json;
-        DError json
-      | e ->
-        let bt = Backtrace.Exn.most_recent () in
-        let msg = Exn.to_string e in
-        print_endline (Backtrace.to_string bt);
-        print_endline msg;
-        DError msg
+      with e ->
+        exception_to_dval ~log:true e
   in
   trace expr execed_value st; execed_value
 
@@ -246,12 +259,24 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
       then f (state, arglist)
       else if List.mem ~equal:(=) state.exe_fn_ids id
       then
-        let result = f (state, arglist) in
-        Stored_function_result.store sfr_state arglist result;
-        result
+        try
+          let result = f (state, arglist) in
+          Stored_function_result.store sfr_state arglist result;
+          result
+        with
+        | e ->
+          let result = exception_to_dval ~log:true (Log.pp "e" e) in
+          Log.pP "tyope of" (Dval.tipe_of result |> Dval.tipe_to_string);
+          Stored_function_result.store sfr_state arglist (Log.pp
+                                                            "storing"
+            result);
+          raise e
       else
         (match Stored_function_result.load sfr_state arglist with
-        | Some result -> result
+        | Some result ->
+
+          Log.pP "tyope of on the way out" (Dval.tipe_of result |> Dval.tipe_to_string);
+          result |> Log.pp "result"
         | _ -> DIncomplete)
     | Real ->
       f (state, arglist)
