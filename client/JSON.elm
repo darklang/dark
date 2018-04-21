@@ -159,6 +159,19 @@ encodePair : (a -> JSE.Value) -> (b -> JSE.Value) -> (a, b) -> JSE.Value
 encodePair encA encB (a, b) =
   JSE.list [encA a, encB b]
 
+decodeTriple : JSD.Decoder a -> JSD.Decoder b -> JSD.Decoder c ->
+  JSD.Decoder (a,b,c)
+decodeTriple d1 d2 d3 =
+  JSD.map3 (,,)
+    (JSD.index 0 d1)
+    (JSD.index 1 d2)
+    (JSD.index 2 d3)
+
+encodeTriple : (a -> JSE.Value) -> (b -> JSE.Value) -> (c -> JSE.Value) -> (a, b, c) -> JSE.Value
+encodeTriple encA encB encC (a, b, c) =
+  JSE.list [encA a, encB b, encC c]
+
+
 encodePos : Pos -> JSE.Value
 encodePos {x,y} =
   JSE.object [ ("x", JSE.int x)
