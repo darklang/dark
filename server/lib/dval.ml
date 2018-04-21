@@ -300,26 +300,33 @@ let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
 let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   match json with
   | `Int i -> DInt i
-  | `String s -> DStr s
-  | `Bool b -> DBool b
   | `Float f -> DFloat f
+  | `Bool b -> DBool b
   | `Null -> DNull
-  | `Assoc [("type", `String "date"); ("value", `String v)] ->
-    DDate (date_of_isostring v)
-  | `Assoc [("type", `String "id"); ("value", `String v)] -> DID (Uuid.of_string v)
-  | `Assoc [("type", `String "title"); ("value", `String v)] -> DTitle v
-  | `Assoc [("type", `String "url"); ("value", `String v)] -> DUrl v
-  | `Assoc [("type", `String "error"); ("value", `String v)] -> DError v
-  (* DB doesnt make sense *)
-  (* response is a weird format, dunno why *)
-  | `Assoc alist -> DObj (List.fold_left
-                        alist
-                        ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
-                        ~init:DvalMap.empty)
+  | `String s -> DStr s
   | `List l -> DList (List.map ~f:dval_of_yojson_ l)
-  | j -> DStr ( "<todo, incomplete conversion: "
-                ^ (Yojson.Safe.to_string j)
-                ^ ">")
+  | `Variant v -> Exception.client "We dont use variants"
+  | `Intlit v -> Exception.client "We dont use intlits"
+  | `Tuple v -> Exception.client "We dont use tuples"
+  | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
+    DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
+  | `Assoc [("type", `String tipe); ("value", `String v)] ->
+    (match tipe with
+    | "date" -> DDate (date_of_isostring v)
+    | "id" -> DID (Uuid.of_string v)
+    | "title" -> DTitle v
+    | "url" -> DUrl v
+    | "error" -> DError v
+    | "incomplete" -> DIncomplete
+    | "char" -> DChar (Char.of_string v)
+    | "db" -> Exception.client "Can't deserialize DBs"
+    | "block" -> Exception.client "Can't deserialize blocks"
+    | _ -> Exception.client ("Can't deserialize type: " ^ tipe)
+    )
+  | `Assoc alist ->
+       DObj (List.fold_left alist
+               ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
+               ~init:DvalMap.empty)
 
 let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
   Result.Ok (dval_of_yojson_ json)
@@ -330,11 +337,11 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
                                     ; ("value", value)] in
   let wrap_user_str value = wrap_user_type (`String value) in
   match dv with
+  (* basic types *)
   | DInt i -> `Int i
   | DFloat f -> `Float f
   | DBool b -> `Bool b
   | DNull -> `Null
-  | DChar c -> `String (Char.to_string c)
   | DStr s -> `String s
   | DList l -> `List (List.map l dval_to_yojson)
   | DObj o -> o
@@ -342,19 +349,22 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
               |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
               |> (fun a -> `Assoc a)
 
+  (* opaque types *)
   | DBlock _ | DIncomplete ->
     `String ("<" ^ (tipename dv) ^ ">")
 
+  (* opaque types *)
+  | DChar c -> wrap_user_str (Char.to_string c)
   | DError msg -> wrap_user_str msg
 
   | DResp (h, hdv) ->
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
 
   | DDB db -> wrap_user_str db.display_name
-  | DID id -> `String (Uuid.to_string id)
-  | DUrl url -> `String url
-  | DTitle title -> `String title
-  | DDate date -> `String (isostring_of_date date)
+  | DID id -> wrap_user_str (Uuid.to_string id)
+  | DUrl url -> wrap_user_str url
+  | DTitle title -> wrap_user_str title
+  | DDate date -> wrap_user_str (isostring_of_date date)
 
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string
