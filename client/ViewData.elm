@@ -27,22 +27,21 @@ viewRequest tlid idx value isActive isHover =
 
 viewRequests : ViewState -> Handler -> List (Html.Html Msg)
 viewRequests vs h =
-  let resultToHtml =
-    \idx result ->
-      let value = if vs.isHTTP
-          then
-            case (Dict.get "request" result.inputValues) of
-              Just v -> v.value
-              _ -> ""
-          else
-            case (Dict.get "event" result.inputValues) of
-              Just v -> v.value
-              _ -> ""
-          isActive = vs.tl.cursor == idx
-          hoverID = tlCursorID vs.tl.id idx
-          isHover = vs.hovering == Just hoverID
-      in
-      viewRequest vs.tl.id idx value isActive isHover
+  let resultToHtml idx result =
+    let value = if vs.isHTTP
+                then
+                  case (Dict.get "request" result.inputValues) of
+                    Just v -> v.value
+                    _ -> ""
+                else
+                  case (Dict.get "event" result.inputValues) of
+                    Just v -> v.value
+                    _ -> ""
+        isActive = vs.tl.cursor == idx
+        hoverID = tlCursorID vs.tl.id idx
+        isHover = vs.hovering == Just hoverID
+    in
+    viewRequest vs.tl.id idx value isActive isHover
   in
   List.indexedMap resultToHtml <| List.reverse vs.results
 
