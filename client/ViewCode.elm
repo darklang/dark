@@ -291,7 +291,7 @@ viewHandler vs h =
                     , Attrs.href name
                     , Attrs.target "_blank"
                     ]
-                    [fontAwesome "external-link"]]
+                    [fontAwesome "external-link-alt"]]
           _ -> []
 
       input =
