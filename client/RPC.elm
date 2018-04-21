@@ -183,7 +183,7 @@ encodeRPCParams params =
     [ ("ops", encodeOps params.ops)
     , ("executable_fns"
       , params.executableFns
-        |> List.map (encodePair encodeTLID encodeID)
+        |> List.map (encodeTriple encodeTLID encodeID JSE.int)
         |> JSE.list
       )
     ]
