@@ -1072,8 +1072,9 @@ update_ msg m =
           NoChange
 
     ExecuteFunctionButton tlid id ->
+      let tl = TL.getTL m tlid in
       RPCFull ({ ops = []
-               , executableFns = [(tlid, id)]
+               , executableFns = [(tlid, id, tl.cursor)]
                }, FocusNoChange)
 
     DataClick tlid idx _ ->

@@ -3,7 +3,7 @@ open Types
 
 type oplist = Op.op list [@@deriving yojson]
 
-type executable_fns = (tlid * id) list
+type executable_fns = (tlid * id * int) list
                     [@@deriving eq, show, yojson, sexp]
 
 type rpc_params = { ops: oplist

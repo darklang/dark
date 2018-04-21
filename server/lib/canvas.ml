@@ -283,8 +283,8 @@ let to_frontend
           let fn_ids =
             exe_fn_ids
             |> List.filter_map
-              ~f:(fun (tlid, id) ->
-                  if tlid = f.tlid
+              ~f:(fun (tlid, id, cursor) ->
+                  if tlid = f.tlid && cursor = 0
                   then Some id
                   else None)
           in
@@ -309,29 +309,29 @@ let to_frontend
     |> List.map
       ~f:(fun h ->
           let envs = available_reqs h.tlid in
-          let fn_ids =
+          let fn_ids i =
             exe_fn_ids
             |> List.filter_map
-              ~f:(fun (tlid, id) ->
-                  if tlid = h.tlid
+              ~f:(fun (tlid, id, cursor) ->
+                  if tlid = h.tlid && i = cursor
                   then Some id
                   else None)
           in
-          let state env : RTT.exec_state =
+          let state i env : RTT.exec_state =
             { ff = FF.analysis
             ; tlid = h.tlid
             ; hostname = c.name
             ; user_fns = c.user_functions
-            ; exe_fn_ids = fn_ids
+            ; exe_fn_ids = fn_ids i
             ; env = env
             ; dbs = TL.dbs c.toplevels
             ; id = execution_id
             }
           in
           let values =
-            List.map
-              ~f:(fun env ->
-                  Handler.execute_for_analysis (state env) h)
+            List.mapi
+              ~f:(fun i env ->
+                  Handler.execute_for_analysis (state i env) h)
               envs
           in
           (h.tlid, values))

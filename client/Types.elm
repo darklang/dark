@@ -176,7 +176,7 @@ type Op
     | ChangeDBColType TLID ID DBColType
 
 type alias RPCParams = { ops : List Op
-                       , executableFns : List (TLID, ID)
+                       , executableFns : List (TLID, ID, Int)
                        }
 
 
