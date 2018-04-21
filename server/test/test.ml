@@ -147,6 +147,16 @@ let t_int_add_works () =
   let r = execute_ops [handler add] in
   check_dval "int_add" (DInt 8) r
 
+let t_derror_roundtrip () =
+  let x = DError "test" in
+  let converted = x
+                |> Dval.dval_to_yojson
+                |> Dval.dval_of_yojson
+                |> Result.ok_or_failwith in
+  check_dval "roundtrip" converted x
+
+
+
 let t_db_oplist_roundtrip () =
   let host = "test_db_oplist_roundtrip" in
   let oplist = [ Op.Undo
@@ -289,6 +299,7 @@ let suite =
   ; "stored_events", `Quick, t_stored_event_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
+  ; "derror roundtrip", `Quick, t_derror_roundtrip
   ]
 
 let () =
