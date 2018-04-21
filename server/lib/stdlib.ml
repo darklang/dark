@@ -825,6 +825,21 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
+  { pns = ["String::random"]
+  ; ins = []
+  ; p = [par "length" TInt]
+  ; r = TStr
+  ; d = "Generate a string of length `length` from random characters."
+  ; f = InProcess
+        (function
+          | (_, [DInt s]) -> DStr (Util.random_string s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
   (* ====================================== *)
   (* List *)
   (* ====================================== *)
