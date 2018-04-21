@@ -265,18 +265,12 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
           result
         with
         | e ->
-          let result = exception_to_dval ~log:true (Log.pp "e" e) in
-          Log.pP "tyope of" (Dval.tipe_of result |> Dval.tipe_to_string);
-          Stored_function_result.store sfr_state arglist (Log.pp
-                                                            "storing"
-            result);
+          let result = exception_to_dval ~log:false e in
+          Stored_function_result.store sfr_state arglist result;
           raise e
       else
         (match Stored_function_result.load sfr_state arglist with
-        | Some result ->
-
-          Log.pP "tyope of on the way out" (Dval.tipe_of result |> Dval.tipe_to_string);
-          result |> Log.pp "result"
+        | Some result -> result
         | _ -> DIncomplete)
     | Real ->
       f (state, arglist)
