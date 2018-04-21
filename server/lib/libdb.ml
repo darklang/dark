@@ -38,6 +38,25 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+
+  { pns = ["DB::delete_all"]
+  ; ins = []
+  ; p = [par "table" TDB]
+  ; r = TNull
+  ; d = "Delete everything from `table`"
+  ; f = InProcess
+        (function
+          | (state, [DDB db]) ->
+            Db.with_postgres (fun _ -> Db.delete_all state.dbs db);
+            DNull
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+
+
   { pns = ["DB::update"]
   ; ins = []
   ; p = [par "value" TObj; par "table" TDB]
