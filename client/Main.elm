@@ -1215,17 +1215,15 @@ update_ msg m =
                   Just uf -> [SetCurrentPage (Fn uf.tlid)]
                   _ -> [SetCurrentPage Toplevels]
               Nothing -> [SetCurrentPage Toplevels]
-          center =
-            case urlFragmentData.center of
-              Nothing -> []
-              Just c -> [SetCenter c]
       in
-          Many (page ++ center)
+      Many page
 
-    ClockTick action time  ->
+    TimerFire action time  ->
       case action of
         RefreshAnalyses ->
           GetAnalysisRPC
+        CheckUrlHashPosition ->
+          Viewport.maybeUpdateUrl m
 
     Initialization ->
       NoChange
@@ -1275,13 +1273,18 @@ subscriptions m =
           Dragging id offset _ _ ->
             [ Mouse.moves (DragToplevel id)]
           _ -> []
-      timers =
+
+      syncTimer =
         case m.visibility of
           PageVisibility.Hidden -> []
           PageVisibility.Visible ->
             if m.syncState.enabled
-            then [ Time.every Time.second (ClockTick RefreshAnalyses) ]
+            then [ Time.every Time.second (TimerFire RefreshAnalyses) ]
             else []
+
+      urlTimer =
+        [Time.every Time.second (TimerFire CheckUrlHashPosition)]
+
       onError = [recordError JSError]
 
       visibility =
@@ -1290,5 +1293,13 @@ subscriptions m =
         , onWindow "blur" (JSD.succeed (PageFocusChange PageVisibility.Hidden))]
 
       mousewheelSubs = [mousewheel MouseWheel]
+
   in Sub.batch
-    (List.concat [keySubs, dragSubs, resizes, timers, visibility, onError, mousewheelSubs])
+    (List.concat [ keySubs
+                 , dragSubs
+                 , resizes
+                 , syncTimer
+                 , urlTimer
+                 , visibility
+                 , onError
+                 , mousewheelSubs])

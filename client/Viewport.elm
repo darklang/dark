@@ -53,12 +53,24 @@ moveRight c =
   {x=c.x + Defaults.moveSize, y=c.y } |> moveTo
 
 moveTo : Pos -> Modification
-moveTo p =
-  MakeCmd (Navigation.modifyUrl (urlForPos p))
+moveTo pos =
+  SetCenter pos
+
+
+maybeUpdateUrl : Model -> Modification
+maybeUpdateUrl m =
+  if m.urlState.lastPos /= m.center
+  then
+    Many [ TweakModel (\m -> { m | urlState = {lastPos = m.center}})
+         , MakeCmd (Navigation.modifyUrl (urlForPos m.center))
+         ]
+  else
+    NoChange
 
 urlForPos : Pos -> String
 urlForPos pos =
-  let x = "x=" ++ (toString pos.x)
-      y = "y=" ++ (toString pos.y)
-  in
-      "/admin/ui#" ++ x ++ "&" ++ y
+  "/admin/ui#" ++ hashForPos pos
+
+hashForPos : Pos -> String
+hashForPos pos =
+  "x=" ++ toString pos.x ++ "y=" ++ toString pos.y
