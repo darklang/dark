@@ -17,6 +17,7 @@ val insert : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> Uuid.t
 val fetch_all : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval
 val fetch_by : tables:(DbT.db list) -> DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
 val delete : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
+val delete_all : tables:(DbT.db list) -> DbT.db -> unit
 val update : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
 val count : DbT.db -> int
 
