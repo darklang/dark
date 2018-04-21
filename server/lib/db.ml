@@ -336,6 +336,13 @@ let delete ~tables db (vals: dval_map) =
     (escape db.actual_name) (dval_to_sql id)
   |> run_sql
 
+let delete_all ~tables db =
+  Printf.sprintf "DELETE FROM \"%s\""
+    (escape db.actual_name)
+  |> run_sql
+
+
+
 let count db =
   Printf.sprintf "SELECT COUNT(*) AS c FROM \"%s\""
     (escape db.actual_name)
