@@ -32,6 +32,7 @@ all =
                                     , description = ""
                                     }]
                     , returnTipe = TBool
+                    , previewExecutionSafe = False
                     , description = ""
                     , infix = True
                     })
