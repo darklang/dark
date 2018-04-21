@@ -73,4 +73,4 @@ urlForPos pos =
 
 hashForPos : Pos -> String
 hashForPos pos =
-  "x=" ++ toString pos.x ++ "y=" ++ toString pos.y
+  "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
