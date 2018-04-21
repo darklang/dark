@@ -133,7 +133,7 @@ let string_replace (search: string) (replace: string) (str: string) : string =
   String.Search_pattern.replace_all (String.Search_pattern.create search) ~in_:str ~with_:replace
 
 let random_string length =
-    let gen() = match Random.int(26+26+10) with
+    let gen () = match Random.int(26+26+10) with
         n when n < 26 -> int_of_char 'a' + n
       | n when n < 26 + 26 -> int_of_char 'A' + n - 26
       | n -> int_of_char '0' + n - 26 - 26 in
