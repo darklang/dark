@@ -309,6 +309,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Assoc [("type", `String "id"); ("value", `String v)] -> DID (Uuid.of_string v)
   | `Assoc [("type", `String "title"); ("value", `String v)] -> DTitle v
   | `Assoc [("type", `String "url"); ("value", `String v)] -> DUrl v
+  | `Assoc [("type", `String "error"); ("value", `String v)] -> DError v
   (* DB doesnt make sense *)
   (* response is a weird format, dunno why *)
   | `Assoc alist -> DObj (List.fold_left
