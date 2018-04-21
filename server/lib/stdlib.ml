@@ -833,7 +833,11 @@ let fns : Lib.shortfn list = [
   ; d = "Generate a string of length `length` from random characters."
   ; f = InProcess
         (function
-          | (_, [DInt s]) -> DStr (Util.random_string s)
+          | (_, [DInt l]) ->
+            if l < 0
+            then Exception.client "l should be a positive integer"
+            else
+              DStr (Util.random_string l)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = false

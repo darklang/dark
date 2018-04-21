@@ -251,64 +251,78 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
 
 and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
-  let apply f arglist =
-    match ctx with
-    | Preview ->
-      let sfr_state = (state.hostname, state.tlid, fnname, id) in
-      if fn.preview_execution_safe
-      then f (state, arglist)
-      else if List.mem ~equal:(=) state.exe_fn_ids id
-      then
-        try
-          let result = f (state, arglist) in
-          Stored_function_result.store sfr_state arglist result;
-          result
-        with
-        | e ->
-          let result = exception_to_dval ~log:false e in
-          Stored_function_result.store sfr_state arglist result;
-          raise e
-      else
-        (match Stored_function_result.load sfr_state arglist with
-        | Some result -> result
-        | _ -> DIncomplete)
-    | Real ->
-      f (state, arglist)
+
+  let paramsIncomplete args =
+    List.exists args
+      ~f:(fun x ->
+          match x with
+          | DIncomplete -> true
+          | DError _ -> true
+          | _ -> false)
   in
+
+  let raise_arglist_error args arglist : unit =
+    Log.erroR ~name:"execution" ~ind "exception caught" args
+               ~f:Dval.dvalmap_to_string;
+    let all = List.zip_exn fn.parameters arglist in
+    let invalid =
+      List.filter all
+        ~f:(fun (p,a) ->
+            Dval.tipe_of a <> p.tipe && p.tipe <> TAny)
+    in
+    match invalid with
+    | [] -> ()
+
+    | (p,a) :: _ ->
+       RT.raise_error
+         ~actual:a
+         ~expected:(Dval.tipe_to_string p.tipe)
+         (fnname ^ " was called with the wrong type to parameter: " ^ p.name)
+
+  in
+
   match fn.func with
   | InProcess f ->
-      let arglist = fn.parameters
-                    |> List.map ~f:(fun (p: param) -> p.name)
-                    |> List.map ~f:(DvalMap.find_exn args) in
-      (try
-         if List.exists ~f:(fun x ->
-                              match x with
-                              | DIncomplete -> true
-                              | DError _ -> true
-                              | _ -> false)
-             arglist
-         then DIncomplete
-         else apply f arglist
-       with
-       | TypeError _ ->
-           Log.erroR ~name:"execution" ~ind "exception caught" args
-             ~f:Dval.dvalmap_to_string;
-           let range = List.range 0 (List.length arglist) in
-           let all = List.map3_exn range fn.parameters arglist ~f:(fun i p a -> (i,p,a)) in
-           let invalid = List.filter_map all
-                           ~f:(fun (i,p,a) -> if (Dval.tipe_of a <> p.tipe
-                                                  && p.tipe <> TAny)
-                               then Some (i,p,a)
-                               else None) in
-           (* let invalid_count = List.length invalid in *)
-           match invalid with
-           | [] -> Exception.internal "There was an type error in the arguments, but we had an error and can't find it"
+    let arglist = fn.parameters
+                  |> List.map ~f:(fun (p: param) -> p.name)
+                  |> List.map ~f:(DvalMap.find_exn args) in
 
-           | (i,p,a) :: _ ->
-              RT.raise_error
-                ~actual:a
-                ~expected:(Dval.tipe_to_string p.tipe)
-                (fnname ^ " was called with the wrong type to parameter: " ^ p.name))
+    if paramsIncomplete arglist
+    then DIncomplete
+    else
+      let executingUnsafe = ctx = Preview
+                            && not fn.preview_execution_safe
+                            && List.mem ~equal:(=) state.exe_fn_ids id
+      in
+      let sfr_state = (state.hostname, state.tlid, fnname, id) in
+      let maybe_store_result result =
+        if executingUnsafe
+        then Stored_function_result.store sfr_state arglist result
+        else ();
+      in
+
+      let result =
+        (try
+           match ctx with
+           | Real ->
+             f (state, arglist)
+           | Preview ->
+             if fn.preview_execution_safe || executingUnsafe
+             then f (state, arglist)
+             else
+               (match Stored_function_result.load sfr_state arglist with
+                | Some result -> result
+               | _ -> DIncomplete)
+         with
+         | e ->
+           maybe_store_result (exception_to_dval ~log:false e);
+           raise_arglist_error args arglist;
+           raise e)
+      in
+      maybe_store_result result;
+      result
+
+
   | UserCreated body ->
     exec_ ~trace:empty_trace ~ctx ~state args body
   | API f ->
