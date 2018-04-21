@@ -86,7 +86,8 @@ type CursorState = Selecting TLID (Maybe ID)
 -- Msg
 -- main Elm Architecture bus type
 -----------------------------
-type Action = RefreshAnalyses
+type TimerAction = RefreshAnalyses
+                 | CheckUrlHashPosition
 
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
@@ -130,7 +131,7 @@ type Msg
     | NavigateTo String
     | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
-    | ClockTick Action Time
+    | TimerFire TimerAction Time
     | JSError String
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
@@ -370,6 +371,9 @@ type alias SyncState = { enabled : Bool
                        , ticks : Int
                        }
 
+type alias UrlState = { lastPos : Pos
+                      }
+
 type alias Model = { center : Pos
                    , error : Maybe String
                    , lastMsg : Msg
@@ -390,6 +394,7 @@ type alias Model = { center : Pos
                    , visibility : PageVisibility.Visibility
                    , clipboard : Clipboard
                    , syncState : SyncState
+                   , urlState : UrlState
                    }
 
 -- Values that we serialize

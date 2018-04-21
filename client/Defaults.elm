@@ -39,6 +39,10 @@ defaultSyncState = { enabled = True
                    , ticks = 0
                    }
 
+defaultUrlState : UrlState
+defaultUrlState = { lastPos = {x=0, y=0}
+                  }
+
 defaultModel : Model
 defaultModel = { error = Nothing
                , lastMsg = Initialization
@@ -59,6 +63,7 @@ defaultModel = { error = Nothing
                , visibility = PageVisibility.Hidden
                -- partially saved in editor
                , syncState = defaultSyncState
+               , urlState = defaultUrlState
                -- saved in editor
                , clipboard = Nothing
                , cursorState = Deselected
