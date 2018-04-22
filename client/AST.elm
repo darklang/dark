@@ -529,10 +529,12 @@ replace_ search replacement parent expr =
         let repl_ =
               case parent of
                 -- if pasting it into a thread, make the shape fit
-                Just (F _ (Thread _)) ->
+                Just (F _ (Thread (first :: _))) ->
                   case e of
-                    F id (FnCall fn (_ :: rest)) ->
-                      (F id (FnCall fn rest))
+                    F id (FnCall fn (_ :: rest as args)) ->
+                      if B.within first sId
+                      then (F id (FnCall fn args))
+                      else (F id (FnCall fn rest))
                     _ -> e
                 _ -> e
         in B.replace sId repl_ expr
