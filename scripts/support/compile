@@ -78,7 +78,7 @@ def ocaml_build():
                   #  , "bin/darkfile_bin_to_json.exe"
                   #  , "bin/darkfile_json_to_bin.exe"
                   , "bin/trigger_queue_workers.exe"
-                  #  , "bin/darkfile_db_to_json_file.exe"
+                  , "bin/darkfile_db_to_json_file.exe"
                   ])
   build = "unbuffer jbuilder build --root server -j 8 " + exes
   if profile:
