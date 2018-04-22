@@ -74,7 +74,13 @@ landmarks = " OCAML_LANDMARKS='time,allocation,on,auto,format=json,output=profil
 def ocaml_build():
   start = time.time()
   global profile
-  build = "unbuffer jbuilder build --root server bin/main.exe bin/darkfile_bin_to_json.exe bin/darkfile_json_to_bin.exe bin/trigger_queue_workers.exe bin/darkfile_db_to_json_file.exe -j 8"
+  exes = " ".join([ "bin/main.exe"
+                  #  , "bin/darkfile_bin_to_json.exe"
+                  #  , "bin/darkfile_json_to_bin.exe"
+                  , "bin/trigger_queue_workers.exe"
+                  #  , "bin/darkfile_db_to_json_file.exe"
+                  ])
+  build = "unbuffer jbuilder build --root server -j 8 " + exes
   if profile:
     return run_backend(start, landmarks + build)
   else:
