@@ -227,6 +227,7 @@ let rec to_livevalue_repr (dv : dval) : string =
 let rec to_internal_repr (dv : dval) : string =
   match dv with
   | DDB db -> "<db: " ^ db.actual_name ^ ">"
+  | dv when is_stringable dv -> to_simple_repr dv
   | _ -> to_repr ~reprfn:to_internal_repr dv
 
 (* If someone returns a string or int, that's probably a web page. If
