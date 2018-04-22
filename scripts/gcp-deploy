@@ -42,7 +42,7 @@ IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
 
 echo "Deploying container to GCP"
 docker tag dark-gcp:latest $IMAGE
-$GCLOUD docker -- push $IMAGE
+docker push $IMAGE
 
 #########################
 # Configure instance and containers
