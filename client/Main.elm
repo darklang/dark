@@ -1215,8 +1215,16 @@ update_ msg m =
                   Just uf -> [SetCurrentPage (Fn uf.tlid)]
                   _ -> [SetCurrentPage Toplevels]
               Nothing -> [SetCurrentPage Toplevels]
+          center =
+            case urlFragmentData.center of
+              Just pos ->
+                if pos /= m.center
+                then SetCenter pos
+                else NoChange
+              Nothing -> NoChange
+
       in
-      Many page
+      Many (center :: page)
 
     TimerFire action time  ->
       case action of
