@@ -569,12 +569,4 @@ let load_oplists (host: string) (digest: string) : string option =
 
 
 
-(* ------------------------- *)
-(* Some initialization *)
-(* ------------------------- *)
-let init () : unit  =
-  run_sql "CREATE TABLE IF NOT EXISTS migrations (id BIGINT, host TEXT, sql TEXT, PRIMARY KEY (id, host))";
-  (* https://github.com/inhabitedtype/ocaml-session/blob/master/backends/postgresql/lwt/session_postgresql_lwt.mli#L39 *)
-  run_sql "CREATE TABLE IF NOT EXISTS session (session_key CHAR(40), expire_date TIMESTAMP (2) WITH TIME ZONE, session_data TEXT)";
-  run_sql "CREATE INDEX IF NOT EXISTS session_key_idx ON \"session\" (session_key)";
-  run_sql "CREATE TABLE IF NOT EXISTS oplists (host VARCHAR(64), digest CHAR(32), data BYTEA, PRIMARY KEY (host, digest))";
+

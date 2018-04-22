@@ -8,7 +8,6 @@ type t = { id: int
          ; flag_context: RuntimeT.feature_flag
          }
 
-val init : unit -> unit
 val finalize : int -> status:[`OK | `Err ] -> unit
 
 (* note, neither of these currently obtains any locks so is wholly

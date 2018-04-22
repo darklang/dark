@@ -2,7 +2,6 @@ open Core
 open Types
 
 val conn : Postgresql.connection
-val init : unit -> unit
 val with_postgres : (unit -> 'b) -> 'b
 
 (* Low-level API *)
