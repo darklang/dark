@@ -209,5 +209,13 @@ RUN opam install session-postgresql-lwt.0.4.0
 RUN opam update
 RUN opam install lwt.3.3.0
 
+
+# New authentication for docker - not supported via apt-get
+user root
+RUN curl -L "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releases/download/v1.4.3/docker-credential-gcr_linux_amd64-1.4.3.tar.gz" | tar xz --to-stdout docker-credential-gcr > /usr/bin/docker-credential-gcr && chmod +x /usr/bin/docker-credential-gcr
+
+user dark
+RUN docker-credential-gcr config --token-source="gcloud"
+
 user dark
 CMD ["app", "scripts", "builder"]
