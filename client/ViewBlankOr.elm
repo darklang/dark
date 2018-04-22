@@ -92,14 +92,13 @@ withEditFn vs v =
       _ -> []
   else []
 
-getLiveValue : LVDict -> ID -> Maybe (Result String String)
+getLiveValue : LVDict -> ID -> Maybe (Result String LiveValue)
 getLiveValue lvs (ID id) =
   lvs
   |> Dict.get id
-  |> Maybe.map .value
-  |> Maybe.map (\v -> if Runtime.isError v
-                      then Err (Runtime.extractErrorMessage v)
-                      else Ok v)
+  |> Maybe.map (\lv -> if Runtime.isError lv
+                       then Err (Runtime.extractErrorMessage lv)
+                       else Ok lv)
 
 
 
@@ -150,9 +149,9 @@ div vs configs content =
       (computedValueClasses, computedValue) =
         case computedValueData of
           Nothing -> ([], [])
-          Just (Ok msg) ->
+          Just (Ok lv) ->
             ( ["computed-value"]
-            , [Attrs.attribute "computed-value" msg])
+            , [Attrs.attribute "computed-value" lv.value])
           Just (Err err) ->
             ( ["computed-value computed-value-error"]
             , [Attrs.attribute "computed-value" err])
@@ -160,7 +159,7 @@ div vs configs content =
       (valClasses, title) =
         case hoverdata of
           Nothing -> ([], [])
-          Just (Ok msg) -> ([], [Attrs.title msg])
+          Just (Ok lv) -> ([], [Attrs.title lv.value])
           Just (Err err) -> (["value-error"], [Attrs.title err])
 
       selected = thisID == selectedID
@@ -171,7 +170,7 @@ div vs configs content =
         case computedValueData of
           Nothing -> False
           Just (Err _) -> False
-          Just (Ok val) -> Runtime.isIncomplete val
+          Just (Ok lv) -> Runtime.isIncomplete lv
 
       idAttr = case thisID of
                  Just id -> ["blankOr", "id-" ++ toString (deID id)]
