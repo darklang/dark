@@ -382,9 +382,11 @@ type livevalue = { value: string
                  } [@@deriving to_yojson, show]
 
 let dval_to_livevalue (dv: dval) : livevalue =
-  { value = Dval.to_repr dv
+  { value = Dval.to_livevalue_repr dv
   ; tipe = Dval.tipename dv
-  ; json = dv |> Dval.dval_to_yojson |> Yojson.Safe.pretty_to_string
+  ; json = dv
+           |> Dval.dval_to_yojson ~livevalue:true
+           |> Yojson.Safe.pretty_to_string
   ; exc = None
   }
 

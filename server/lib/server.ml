@@ -148,7 +148,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
            if List.exists resp_headers ~f:(fun (name, value) ->
               String.lowercase name = "content-type"
               && String.lowercase value = "text/html")
-           then Dval.to_simple_repr "<" ">" value
+           then Dval.to_human_repr value
            (* TODO: only pretty print for a webbrowser *)
            else
              Dval.dval_to_pretty_json_string value

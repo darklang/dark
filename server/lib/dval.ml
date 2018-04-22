@@ -137,11 +137,8 @@ let sqlstring_of_date (d: Time.t) : string =
 let date_of_sqlstring (str: string) : Time.t =
   Time.parse str "%Y-%m-%d %H:%M:%S" Time.Zone.utc
 
-
-
-let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
-  let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
-  let wrap_string str = wrap ("\"" ^ str ^ "\"") in
+(* Returns the string within string-ish values, without adornment. *)
+let as_string (dv : dval) : string =
   match dv with
   | DInt i -> string_of_int i
   | DBool true -> "true"
@@ -150,30 +147,53 @@ let to_simple_repr (open_: string) (close_: string) (dv : dval) : string =
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
   | DNull -> "null"
-  | DID id -> wrap (Uuid.to_string id)
-  | DDate d -> d |> isostring_of_date |> wrap_string
-  | DTitle t -> wrap_string t
-  | DUrl url -> wrap_string url
-  | DDB db -> wrap db.display_name
-  | DError msg -> wrap msg
-  | _ -> open_
-         ^ (dv |> tipename)
-         ^ close_
+  | DID id -> Uuid.to_string id
+  | DDate d -> d |> isostring_of_date
+  | DTitle t -> t
+  | DUrl url -> url
+  | DDB db -> db.display_name
+  | DError msg -> msg
+  | _ -> "<" ^ (dv |> tipename) ^ ">"
 
-let to_repr ?(pp : bool = true) (dv : dval) : string =
+let as_literal (dv : dval) : string =
+  match dv with
+  | DStr s -> "\"" ^ s ^ "\""
+  | DChar _ -> "'" ^ as_string dv ^ "'"
+  | _ -> as_string dv
+
+let is_primitive (dv : dval) : bool =
+  match dv with
+  | DInt _ | DFloat _ | DBool _ | DNull | DStr _ -> true
+  |  _ -> false
+
+let is_stringable (dv : dval) : bool =
+  match dv with
+  | DBlock _ | DIncomplete | DError _
+  | DID _ | DDate _ | DTitle _ | DUrl _
+  | DDB _ -> true
+  |  _ -> is_primitive dv
+
+(* A simple representation, showing primitives as their expected literal
+ * syntax, and odd types get type info in a readable format. Compund
+ * types are listed as their type only *)
+let to_simple_repr ?(open_="<") ?(close_=">") (dv : dval) : string =
+  let wrap value = open_ ^ (dv |> tipename) ^ ": " ^ value ^ close_ in
+  match dv with
+  | dv when is_primitive dv -> as_literal dv
+  | dv when is_stringable dv -> wrap (as_string dv)
+  | _ -> open_ ^ (dv |> tipename) ^ close_
+
+(* A full representation, building on to_simple_repr, but including
+ * lists and objects. *)
+let rec to_repr ?(pp=true) ?(open_="<") ?(close_=">")
+    ?(reprfn:(dval -> string)=to_simple_repr ~open_ ~close_)
+    (dv : dval) : string =
   let rec to_repr_ (indent: int) (pp : bool) (dv : dval) : string =
     let nl = if pp then "\n" ^ (String.make indent ' ') else " " in
     let inl = if pp then "\n" ^ (String.make (indent + 2) ' ') else "" in
     let indent = indent + 2 in
     match dv with
-    | DInt _ | DFloat _ | DBool _ | DNull
-    | DBlock _ | DIncomplete | DError _
-    | DID _ | DDate _ | DTitle _ | DUrl _
-      ->
-      to_simple_repr "<" ">" dv
-
-    | DStr s -> "\"" ^ s ^ "\""
-    | DChar c -> "'" ^ (Char.to_string c) ^ "'"
+    | dv when is_stringable dv -> reprfn dv
     | DResp (h, hdv) -> (repr_of_dhttp h) ^ nl ^ (to_repr_ indent pp hdv)
     | DList l ->
         if List.is_empty l
@@ -192,43 +212,39 @@ let to_repr ?(pp : bool = true) (dv : dval) : string =
           "{ " ^ inl ^
           (String.concat ~sep:("," ^ inl) strs)
           ^ nl ^ "}"
-    | DDB db -> "<db>"
+    | _ -> failwith "should never happen"
     in to_repr_ 0 pp dv
 
+(* For livevalue representation in the frontend *)
+let rec to_livevalue_repr (dv : dval) : string =
+  match dv with
+  | dv when is_primitive dv -> as_literal dv
+  | dv when is_stringable dv -> as_string dv
+  | _ -> to_repr ~reprfn:to_livevalue_repr dv
+
+
 (* Not for external consumption *)
-let to_internal_repr (dv : dval) : string =
+let rec to_internal_repr (dv : dval) : string =
   match dv with
   | DDB db -> "<db: " ^ db.actual_name ^ ">"
-  | _ -> to_repr dv
+  | _ -> to_repr ~reprfn:to_internal_repr dv
 
 (* If someone returns a string or int, that's probably a web page. If
  * someone returns something else, show the structure so they can figure
  * out how to get it into a string. *)
-let to_human_repr (dv: dval) : string =
+let rec to_human_repr (dv: dval) : string =
   match dv with
-  | DStr str -> str
-  | DInt i ->  string_of_int i
+  | dv when is_stringable dv -> as_string dv
+  (* contents of lists and objs should still be quoted *)
   | _ -> to_repr dv
-
-
-
-
-let to_error_repr (dv : dval) : string =
-  (to_repr dv) ^ " (" ^ (tipename dv) ^ ")"
 
 let pp = Log.debug ~f:to_repr
 let pP = Log.debuG ~f:to_repr
 
-
+(* For putting into URLs as query params *)
 let rec to_url_string (dv : dval) : string =
   match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull
-  | DChar _ | DStr _
-  | DBlock _ | DIncomplete | DError _
-  | DDB _
-  | DID _ | DDate _ | DTitle _ | DUrl _
-    ->
-    to_simple_repr "" "" dv
+  | dv when is_stringable dv -> as_string dv
 
   | DResp (_, hdv) -> to_url_string hdv
   | DList l ->
@@ -238,6 +254,7 @@ let rec to_url_string (dv : dval) : string =
         ~init:[]
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_url_string data) :: l) in
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
+  | _ -> failwith "should never happen"
 
 
 
@@ -331,10 +348,15 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
 let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
   Result.Ok (dval_of_yojson_ json)
 
-let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
+let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
-  let wrap_user_type value = `Assoc [ ("type", tipe)
-                                    ; ("value", value)] in
+  let wrap_user_type value =
+    if livevalue
+    then value
+    else
+      `Assoc [ ("type", tipe)
+             ; ("value", value)]
+  in
   let wrap_user_str value = wrap_user_type (`String value) in
   match dv with
   (* basic types *)
@@ -351,9 +373,9 @@ let rec dval_to_yojson (dv : dval) : Yojson.Safe.json =
 
   (* opaque types *)
   | DBlock _ | DIncomplete ->
-    `String ("<" ^ (tipename dv) ^ ">")
+    wrap_user_type `Null
 
-  (* opaque types *)
+  (* user-ish types *)
   | DChar c -> wrap_user_str (Char.to_string c)
   | DError msg -> wrap_user_str msg
 
@@ -433,8 +455,8 @@ let dval_to_query (dv: dval) : ((string * string list) list) =
       |> List.map ~f:(fun (k,value) ->
                        match value with
                        | DNull -> (k,[])
-                       | DList l -> (k, List.map ~f:(to_simple_repr "" "") l)
-                       | _ -> (k, [to_simple_repr "" "" value]))
+                       | DList l -> (k, List.map ~f:to_url_string l)
+                       | _ -> (k, [to_url_string value]))
   | _ -> Exception.user "attempting to use non-object as query param"
 
 
