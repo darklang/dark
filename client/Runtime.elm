@@ -7,7 +7,6 @@ import Json.Decode as JSD
 
 -- dark
 import Types exposing (..)
-import Prelude exposing (..)
 import Util
 import JSON
 
@@ -35,13 +34,13 @@ isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s
 isNull : String -> Bool
 isNull s = String.toLower s == "null"
 
-isIncomplete : String -> Bool
-isIncomplete s = String.toLower s == "<incomplete>"
+isIncomplete : LiveValue -> Bool
+isIncomplete s =
+  s.tipe == TIncomplete
 
-isError : String -> Bool
+isError : LiveValue -> Bool
 isError s =
-  String.startsWith "<error:" s
-  && String.endsWith ">" s
+  s.tipe == TError
 
 
 
@@ -104,18 +103,6 @@ str2tipe t =
     else
       TBelongsTo other
 
-unwrapValue : String -> String
-unwrapValue v =
-  if String.startsWith "<" v && String.endsWith ">" v
-  then
-    v
-    |> String.dropRight 1
-    |> String.split ":"
-    |> List.tail
-    |> deMaybe "unwrapValue"
-    |> String.join ":"
-  else v
-
 tipeOf : String -> Tipe
 tipeOf s =
   if isInt s then TInt
@@ -123,7 +110,6 @@ tipeOf s =
   else if isString s then TStr
   else if isChar s then TChar
   else if isBool s then TBool
-  else if isError s then TError
   else
     TIncomplete
 
@@ -137,17 +123,16 @@ isLiteral s =
   || isNull s
 
 
-extractErrorMessage : String -> String
-extractErrorMessage str =
-  if isError str
+extractErrorMessage : LiveValue -> String
+extractErrorMessage lv =
+  if isError lv
   then
-    let value = unwrapValue str in
-      value
-      |> JSD.decodeString JSON.decodeException
-      |> Result.toMaybe
-      |> Maybe.map .short
-      |> Maybe.map toString
-      |> Maybe.withDefault value
-  else str
+    lv
+    |> .json
+    |> JSD.decodeString JSON.decodeException
+    |> Result.toMaybe
+    |> Maybe.map .short
+    |> Maybe.withDefault lv.value
+  else lv.value
 
 
