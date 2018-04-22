@@ -7,15 +7,18 @@ let init () =
   if !has_inited
   then ()
   else
+    (* Ocaml runtime stuff *)
     Log.level := Config.log_level;
     Printexc.record_backtrace true;
     Exn.initialize_module ();
     (* init the Random module, will be seeded from /dev/urandom on Linux *)
     Random.self_init ();
-    Db.init ();
-    Serialize.write_shape_data ();
-    Event_queue.init ();
     Httpclient.init ();
+
+    (* Dark-specific stuff *)
+    Migrations.init ();
+    Serialize.write_shape_data ();
+
     Log.infO "SYSTEM" "Initialization Complete";
     has_inited := true;
 
