@@ -91,10 +91,17 @@ closeThread expr =
       let newExprs = List.filter B.isF exprs
                      |> List.map closeThread
       in
-      case newExprs of
+      case exprs of
         [] -> Blank id
-        [e] -> e
-        _ -> F id (Thread newExprs)
+        [e] -> e -- if in first position, fncalls are already correct
+        _ ->
+          case newExprs of
+            [] -> Blank id
+            -- if an fncall moved into the first slot, we need to add a
+            -- blank in front.
+            [F id (FnCall name args)] ->
+              F id (FnCall name (B.new () :: args))
+            _ -> F id (Thread newExprs)
     _ -> traverse closeThread expr
 
 
