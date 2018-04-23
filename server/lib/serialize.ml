@@ -32,15 +32,29 @@ let full name digest suffix =
 let binary_save_filename name = full name digest "dark"
 let json_unversioned_filename name = full name "" "json"
 
-
-let current_filenames () : string list =
-  Util.lsdir ~root:Appdata ""
-  |> List.filter
+let current_hosts () : string list =
+  let json_hosts =
+    Util.lsdir ~root:Appdata ""
+    |> List.filter
+       ~f:(String.is_suffix ~suffix:".json")
+    |> List.map
+      ~f:(String.chop_suffix_exn ~suffix:".json")
+  in
+  let darkfile_hosts =
+    Util.lsdir ~root:Appdata ""
+    |> List.filter
        ~f:(fun f ->
-        String.is_substring ~substring:".dark" f
-          && String.is_substring ~substring:digest f
-          && (not (String.is_substring ~substring:"test_" f))
-      )
+        String.is_suffix ~suffix:".dark" f
+         && String.is_substring ~substring:digest f)
+    |> List.map
+      ~f:(String.chop_suffix_exn
+            ~suffix:("_" ^ digest ^ ".dark"))
+  in
+  let db_hosts =
+    Db.all_oplists digest
+  in
+  (json_hosts @ darkfile_hosts @ db_hosts)
+  |> List.dedup_and_sort
 
 let load_binary ~root (filename: string) : Op.oplist =
   (* We lost data here before!! We previously caught all exceptions and
