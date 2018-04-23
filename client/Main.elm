@@ -575,11 +575,11 @@ update_ msg m =
                     Just id -> Selection.enter m tlid id
                     Nothing -> Selection.selectDownLevel m tlid mId
               Key.Up -> -- NB: see `stopKeys` in ui.html
-                if event.ctrlKey
+                if event.shiftKey
                 then Selection.selectUpLevel m tlid mId
                 else Selection.moveUp m tlid mId
               Key.Down -> -- NB: see `stopKeys` in ui.html
-                if event.ctrlKey
+                if event.shiftKey
                 then Selection.selectDownLevel m tlid mId
                 else Selection.moveDown m tlid mId
               Key.Right ->
