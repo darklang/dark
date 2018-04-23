@@ -108,7 +108,10 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
        * if it wasn't there*)
       | Blank _ ->
         param
-      | _ -> DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
+      | _ ->
+        let _ = exe st exp in (* calculate the results inside this
+                                 regardless *)
+        DIncomplete (* partial w/ exception, full with dincomplete, or option dval? *)
     in
     trace exp result st;
     result
