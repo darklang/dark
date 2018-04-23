@@ -122,15 +122,36 @@ encodePointerData pd =
     PParamTipe msg ->
       ev "PParamTipe" [encodeBlankOr encodeTipe msg]
 
+tlidsOf : Op -> List TLID
+tlidsOf op =
+  case op of
+    SetHandler tlid _ _ -> [tlid]
+    CreateDB tlid _ _ -> [tlid]
+    AddDBCol tlid _ _ -> [tlid]
+    SetDBColName tlid _ _ -> [tlid]
+    ChangeDBColName tlid _ _ -> [tlid]
+    SetDBColType tlid _ _ -> [tlid]
+    ChangeDBColType tlid _ _ -> [tlid]
+    Savepoint tlids -> tlids
+    UndoTL tlid -> [tlid]
+    RedoTL tlid -> [tlid]
+    DeleteTL tlid -> [tlid]
+    MoveTL tlid _ -> [tlid]
+    SetFunction _ -> []
 
 encodeOps : List Op -> JSE.Value
 encodeOps ops =
   ops
-  |> (\cs -> if cs == [Undo]
-             || cs == [Redo]
-             || cs == []
-             then cs
-             else Savepoint :: cs)
+  |> (\cs ->
+        case cs of
+          [UndoTL _] -> cs
+          [RedoTL _] -> cs
+          [] -> cs
+          _ ->
+            let tlids = cs
+                        |> List.map tlidsOf
+                        |> List.concat in
+            Savepoint tlids :: cs)
   |> List.map encodeOp
   |> JSE.list
 
@@ -169,9 +190,10 @@ encodeOp call =
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
 
-      Savepoint -> ev "Savepoint" []
-      Undo -> ev "Undo" []
-      Redo -> ev "Redo" []
+      Savepoint tlids ->
+        ev "Savepoint" [JSE.list (List.map encodeTLID tlids)]
+      UndoTL tlid -> ev "UndoTL" [encodeTLID tlid]
+      RedoTL tlid -> ev "RedoTL" [encodeTLID tlid]
       DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid]
       MoveTL tlid pos -> ev "MoveTL" [encodeTLID tlid, encodePos pos]
       SetFunction uf -> ev "SetFunction" [encodeUserFunction uf]

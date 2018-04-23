@@ -83,9 +83,13 @@ let log_to_file ~(filename: string) (value: string)  : 'a =
 (* json *)
 (* ------------------- *)
 
-let readjsonfile ~root ~(conv: (Yojson.Safe.json -> ('a, string) result)) (filename: string) : 'a =
+let readjsonfile ~root
+    ?(stringconv : (string -> string) = ident)
+    ~(conv: (Yojson.Safe.json -> ('a, string) result))
+    (filename: string) : 'a =
   filename
   |> readfile ~root
+  |> stringconv
   |> Yojson.Safe.from_string
   |> conv
   |> Result.ok_or_failwith
