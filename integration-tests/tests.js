@@ -10,8 +10,8 @@ fixture `Integration Tests`
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
+      .expect(pageLoaded).ok("page timed out", {timeout: 100})
       .takeScreenshot()
-      .expect(pageLoaded).ok()
       ;
   })
   .afterEach( async t => {
