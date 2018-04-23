@@ -558,13 +558,43 @@ test('rename_db_type', async t => {
 
 test('paste_right_number_of_blanks', async t => {
   await t
-    .takeScreenshot()
     .click(Selector('.fnname').withText('-'))
-    .takeScreenshot()
     .pressKey("ctrl+c")
-    .takeScreenshot()
     .click(Selector('.fnname').withText('(+)'))
-    .takeScreenshot()
     .pressKey("ctrl+v")
-    .takeScreenshot()
+});
+
+
+test('paste_keeps_focus', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .pressKey("+")
+    .pressKey("enter")
+    .pressKey("3")
+    .pressKey("enter")
+    .pressKey("2")
+
+    .click(Selector('.fnname').withText('+'))
+    .pressKey("enter")
+    .pressKey("ctrl+c")
+    .pressKey("right")
+    .pressKey("ctrl+v")
+});
+
+test('nochange_for_failed_paste', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "let")
+    .pressKey("enter")
+    .pressKey("x")
+    .pressKey("enter")
+    .pressKey("2")
+    .pressKey("enter")
+
+    .click('.letrhs')
+    .pressKey("ctrl+c")
+    .pressKey("left")
+    .pressKey("ctrl+v")
 });
