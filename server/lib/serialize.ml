@@ -127,7 +127,10 @@ let deserialize_ordered
       | (None, []) -> (false, [])
       | (None, es) ->
         Log.erroR "deserialization" es;
-        Exception.internal ("storage error with " ^ host)
+        let msgs =
+          List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex)) es
+        in
+        Exception.internal ("storage errors with " ^ host) ~info:msgs
 
 let search_and_load (host: string) : (bool * Op.oplist) =
   let load_deprecated_undo_json = load_preprocessed_json
