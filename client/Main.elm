@@ -365,15 +365,17 @@ updateMod mod (m, cmd) =
         { m | integrationTestState = IntegrationTestFinished result } ! []
 
       MakeCmd cmd -> m ! [cmd]
+
       SetCursorState cursorState ->
-        let newM =
-            { m | cursorState = cursorState }
-        in
-            newM ! [Entry.focusEntry newM]
+        let newM = { m | cursorState = cursorState } in
+        newM ! [Entry.focusEntry newM]
 
       SetCurrentPage page ->
-        let newM = { m | currentPage = page, cursorState = Deselected }
-        in newM ! closeThreads newM
+        if m.currentPage == page
+        then m ! []
+        else
+          let newM = { m | currentPage = page, cursorState = Deselected }
+          in newM ! closeThreads newM
 
       Select tlid p ->
         let newM = { m | cursorState = Selecting tlid p } in
