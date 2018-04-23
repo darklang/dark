@@ -19,11 +19,23 @@ let exn_to_string (e: exn) : string =
   | _ ->
     "Unknown Err: " ^ Exn.to_string e
 
+let exn_to_info (e: exn) : string =
+  match e with
+  | Exception.DarkException e ->
+    e.info
+    |> List.map
+      ~f:(fun (l, r) -> "(" ^ l ^ ", " ^ r ^ ")")
+    |> String.concat
+      ~sep:", "
+    |> fun s -> "[" ^ s ^ "]"
+  | _ -> ""
+
 let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.json =
   let message =
     let interior =
       [("body", `String (exn_to_string e))
-      ;("raw_trace", `String (Backtrace.to_string bt))]
+      ;("raw_trace", `String (Backtrace.to_string bt))
+      ;("raw_info", `String (exn_to_info e))]
       |> fun b -> `Assoc b
     in
     `Assoc [("message", interior)]
