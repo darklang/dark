@@ -54,6 +54,13 @@ let save_binary ~root (filename: string) (ops: Op.oplist) : unit =
 let load_json ~root (filename:string) : Op.oplist =
   Util.readjsonfile ~root ~conv:Op.oplist_of_yojson filename
 
+let load_preprocessed_json ~root
+    ~(preprocess:(string -> string))
+    (filename:string) : Op.oplist =
+  Util.readjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
+
+
+
 let save_json ~root (filename: string) (ops: Op.oplist) : unit =
   ops
   |> Op.oplist_to_yojson
@@ -109,6 +116,14 @@ let deserialize_ordered
         Exception.internal ("storage error with " ^ host)
 
 let search_and_load (host: string) : (bool * Op.oplist) =
+  let load_deprecated_undo_json = load_preprocessed_json
+      ~preprocess:(fun str ->
+          str
+          |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
+          |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
+          |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\"")
+  in
+
   (* testfiles load and save from different directories *)
   if is_test host
   then
@@ -126,6 +141,6 @@ let search_and_load (host: string) : (bool * Op.oplist) =
     deserialize_ordered host
       [ (load_binary, root, bin, false)
       ; (load_json, root, json, false)
-      ; (Deserialize_b68219ec99d4a17c9a1d6524129da928.load_json, root, json, false)
+      ; (load_deprecated_undo_json, root, json, false)
       ]
 
