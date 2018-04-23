@@ -59,21 +59,18 @@ paste m tl id =
   case m.clipboard of
     Nothing -> NoChange
     Just pd ->
-      let cloned = TL.clonePointerData pd
-      in
-          case tl.data of
-            TLDB _ ->
-              NoChange
-            TLHandler h ->
-              let newAst = AST.replace (TL.findExn tl id) cloned h.ast
-              in
-                  RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
-                  , FocusNext tl.id (Just (P.toID cloned)))
-            TLFunc f ->
-              let newAst = AST.replace (TL.findExn tl id) cloned f.ast
-              in
-                  RPC ( [ SetFunction { f | ast = newAst } ]
-                  , FocusNext tl.id (Just (P.toID cloned)))
+      let cloned = TL.clonePointerData pd in
+      case tl.data of
+        TLDB _ ->
+          NoChange
+        TLHandler h ->
+          let newAst = AST.replace (TL.findExn tl id) cloned h.ast in
+          RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
+          , FocusExact tl.id (P.toID cloned))
+        TLFunc f ->
+          let newAst = AST.replace (TL.findExn tl id) cloned f.ast in
+          RPC ( [ SetFunction { f | ast = newAst } ]
+          , FocusExact tl.id (P.toID cloned))
 
 peek : Model -> Clipboard
 peek m =
