@@ -1087,9 +1087,6 @@ update_ msg m =
     -----------------
     -- Buttons
     -----------------
-    ClearGraph ->
-      Many [ RPC ([DeleteAll], FocusNothing), Deselect]
-
     ToggleSync ->
       TweakModel Sync.toggle
 

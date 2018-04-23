@@ -169,7 +169,6 @@ encodeOp call =
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
 
-      DeleteAll -> ev "DeleteAll" []
       Savepoint -> ev "Savepoint" []
       Undo -> ev "Undo" []
       Redo -> ev "Redo" []
