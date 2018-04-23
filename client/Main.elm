@@ -200,14 +200,15 @@ processFocus m focus =
             (Just tl, Just id) ->
                 if TL.isValidID tl id
                 then NoChange
-                else Deselect
+                else Select tlid Nothing
+            (Just tl, Nothing) -> Select tlid Nothing
             _ -> Deselect
         Entering (Filling tlid id) ->
           case TL.get m tlid of
             Just tl ->
               if TL.isValidID tl id
               then NoChange
-              else Deselect
+              else Select tlid Nothing
             _ -> Deselect
         _ -> NoChange
     FocusPageAndCursor page cs ->
