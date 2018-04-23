@@ -76,6 +76,18 @@ all =
                 then pass
                 else fail r
               _ -> fail result
+
+    , test "promoting a threaded FnCall by removing the Thread, re-adds the missing argument" <|
+        expectOk <|
+          let threaded = B.newF (
+                           Thread [ B.new ()
+                                  , B.new ()
+                                  , F (ID 6) (FnCall "+" [Blank (ID 5)])
+                                  , B.new ()])
+          in
+            case AST.closeThread threaded of
+              F (ID 6) (FnCall "+" [Blank _, Blank (ID 5)]) -> pass
+              r -> fail r
     ]
 
 
