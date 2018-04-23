@@ -46,6 +46,8 @@ trigger test_name =
     "rename_db_fields" -> rename_db_fields
     "rename_db_type" -> rename_db_type
     "paste_right_number_of_blanks" -> paste_right_number_of_blanks
+    "paste_keeps_focus" -> paste_keeps_focus
+    "nochange_for_failed_paste" -> nochange_for_failed_paste
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -434,3 +436,26 @@ paste_right_number_of_blanks m =
   |> RE.combine
   |> Result.map (\_ -> ())
 
+paste_keeps_focus : Model -> TestResult
+paste_keeps_focus m =
+  case onlyExpr m of
+    FnCall "+" [F _ (Value "3"), F id (Value "3")] as fn ->
+      case m.cursorState of
+        Selecting _ sid ->
+          if Just id == sid
+          then pass
+          else fail (fn, m.cursorState)
+        _ -> fail (fn, m.cursorState)
+    other -> fail other
+
+nochange_for_failed_paste : Model -> TestResult
+nochange_for_failed_paste m =
+  case onlyExpr m of
+    Let (F id "x") (F _ (Value "2")) _ ->
+      case m.cursorState of
+        Selecting _ sid ->
+          if Just id == sid
+          then pass
+          else fail m.cursorState
+        _ -> fail m.cursorState
+    other -> fail other
