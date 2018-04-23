@@ -37,6 +37,7 @@ WORKDIR /home/dark
 
 
 COPY . /home/dark
+RUN sudo chown -R dark:dark /home/dark
 
 ARG GIT_COMMIT
 ENV GIT_COMMIT ${GIT_COMMIT}

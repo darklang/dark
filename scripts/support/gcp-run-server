@@ -8,8 +8,8 @@ sudo chown dark $DARK_CONFIG_PERSIST_DIR
 ./scripts/support/setup-for-dev
 ./scripts/support/write-config-file
 ./scripts/support/create-app-directories
-./scripts/support/start-background-services cron 
-./scripts/support/wait-for-background-services cron 
+./scripts/support/start-background-services cron
+./scripts/support/wait-for-background-services cron
 
 echo "Starting server"
-sudo --preserve-env ./bin/main.exe
+./bin/main.exe
