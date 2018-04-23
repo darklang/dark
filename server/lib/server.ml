@@ -98,8 +98,15 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = Db.dbs_as_exe_env (dbs) in
-    (match (Handler.event_desc_for page) with
-    | Some desc -> Stored_event.store_event subdomain desc (PReq.to_dval input)
+    (match (Handler.module_for page, Handler.modifier_for page) with
+    | (Some m, Some mo) ->
+      (* Store the event with the input path not the event name, because we
+       * want to be able to
+       *    a) use this event if this particular handler changes
+       *    b) use the input url params in the analysis for this handler
+       *)
+      let desc = (m, Uri.path uri, mo) in
+      Stored_event.store_event subdomain desc (PReq.to_dval input)
     | _-> ());
     let env = Util.merge_left bound dbs_env in
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
