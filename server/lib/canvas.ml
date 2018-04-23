@@ -203,9 +203,19 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
     match dbs with
     | [] -> false
     | db :: [] ->
-      if Db.count db > 0
-      then true
-      else false
+      (try
+         if Db.count db > 0
+         then true
+         else false
+       with
+       | e ->
+         if String.is_substring ~substring:"conduit" db.host
+            || String.is_substring ~substring:"onecalendar" db.host
+         then
+           false
+         else
+           raise e
+      )
     | oops -> Exception.internal "Multiple DBs with same tlid"
   in
   if attempted_to_remove_db_with_data
