@@ -40,8 +40,15 @@ let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.jso
     match ctx with
     | Remote req ->
       let request =
+        let headers =
+          req
+          |> CRequest.headers
+          |> Cohttp.Header.to_list
+          |> List.Assoc.map ~f:(fun v -> `String v)
+        in
         [("url", `String ("https:" ^ (req |> CRequest.uri |> Uri.to_string)))
         ;("method", `String (req |> CRequest.meth |> Cohttp.Code.string_of_method))
+        ;("headers", `Assoc headers)
         ]
         |> fun r -> `Assoc r
       in
