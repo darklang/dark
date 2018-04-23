@@ -123,7 +123,6 @@ type Msg
     | LocationChange Navigation.Location
     | AddRandom
     | FinishIntegrationTest
-    | ClearGraph
     | SaveTestButton
     | ToggleSync
     | ExecuteFunctionButton TLID ID
@@ -168,7 +167,6 @@ type Op
     | SetDBColType TLID ID DBColType
     | DeleteTL TLID
     | MoveTL TLID Pos
-    | DeleteAll
     | Savepoint
     | Undo
     | Redo
