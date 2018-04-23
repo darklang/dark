@@ -65,12 +65,18 @@ paste m tl id =
           NoChange
         TLHandler h ->
           let newAst = AST.replace (TL.findExn tl id) cloned h.ast in
-          RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
-          , FocusExact tl.id (P.toID cloned))
+          if newAst == h.ast
+          then NoChange -- paste doesn't always make sense
+          else
+            RPC ( [ SetHandler tl.id tl.pos { h | ast = newAst } ]
+            , FocusExact tl.id (P.toID cloned))
         TLFunc f ->
           let newAst = AST.replace (TL.findExn tl id) cloned f.ast in
-          RPC ( [ SetFunction { f | ast = newAst } ]
-          , FocusExact tl.id (P.toID cloned))
+          if newAst == f.ast
+          then NoChange -- paste doesn't always make sense
+          else
+            RPC ( [ SetFunction { f | ast = newAst } ]
+            , FocusExact tl.id (P.toID cloned))
 
 peek : Model -> Clipboard
 peek m =
