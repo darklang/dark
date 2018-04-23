@@ -15,6 +15,7 @@ let fid = Util.create_id
 let v str = Filled (fid (), Value str)
 let b () = Types.Blank (fid ())
 let f a = Types.Filled (fid (), a)
+let tlid = 7
 
 let handle_exception e =
   (* Builtin testing doesnt seem to print exceptions *)
@@ -54,9 +55,9 @@ let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 
 let handler ast =
-  Op.SetHandler ( 7
+  Op.SetHandler ( tlid
                 , {x=5;y=6}
-                , { tlid = 7
+                , { tlid = tlid
                   ; ast = ast
                   ; spec = { module_ = b ()
                            ; name = b ()
@@ -70,41 +71,41 @@ let handler ast =
 (* ----------------------- *)
 
 let t_undo_fns () =
-  let n1 = Op.Savepoint in
+  let n1 = Op.Savepoint [tlid] in
   let n2 = handler (f (FnCall ("-", [b (); b ()]))) in
   let n3 = handler (f (FnCall ("-", [v "3"; b ()]))) in
   let n4 = handler (f (FnCall ("-", [v "3"; v "4"]))) in
-  let u = Op.Undo in
-  let r = Op.Redo in
+  let u = Op.UndoTL tlid in
+  let r = Op.RedoTL tlid in
 
   AT.check AT.int "undocount"
-  3 (C.undo_count !(ops2c "g" [n1; n1; n1; n1; n2; n3; n4; u; u; u]));
+  3 (C.undo_count !(ops2c "g" [n1; n1; n1; n1; n2; n3; n4; u; u; u]) tlid);
 
   AT.check AT.bool "redoable" true
-    (C.is_redoable !(ops2c "g" [n1; n2; n3; n4; u]));
+    (C.is_redoable !(ops2c "g" [n1; n2; n3; n4; u]) tlid);
   AT.check AT.bool "undoable" true
-    (C.is_undoable !(ops2c "g" [n1; n2; n3; n4]));
+    (C.is_undoable !(ops2c "g" [n1; n2; n3; n4]) tlid);
 
 
   AT.check AT.bool "not redoable" false
-    (C.is_redoable !(ops2c "g" [n1; n2; n3; n4; u; r]));
+    (C.is_redoable !(ops2c "g" [n1; n2; n3; n4; u; r]) tlid);
   AT.check AT.bool "not undoable" false
-    (C.is_undoable !(ops2c "g" [n1; n2; n3; n4; u]));
+    (C.is_undoable !(ops2c "g" [n1; n2; n3; n4; u]) tlid);
 
 
   let both = !(ops2c "g" [n1; n1; n2; n3; n4; u; r; u]) in
-  AT.check AT.bool "both_undo" true (C.is_undoable both);
-  AT.check AT.bool "both_redo" true (C.is_redoable both);
+  AT.check AT.bool "both_undo" true (C.is_undoable both tlid);
+  AT.check AT.bool "both_redo" true (C.is_redoable both tlid);
 
   let neither = !(ops2c "g" [n2; n3; n4]) in
-  AT.check AT.bool "neither_undo" false (C.is_undoable neither);
-  AT.check AT.bool "neither_redo" false (C.is_redoable neither)
+  AT.check AT.bool "neither_undo" false (C.is_undoable neither tlid);
+  AT.check AT.bool "neither_redo" false (C.is_redoable neither tlid)
 
 let t_undo () =
   let ha ast = handler ast in
-  let sp = Op.Savepoint in
-  let u = Op.Undo in
-  let r = Op.Redo in
+  let sp = Op.Savepoint [tlid] in
+  let u = Op.UndoTL tlid in
+  let r = Op.RedoTL tlid in
   let o1 = v "1" in
   let o2 = v "2" in
   let o3 = v "3" in
@@ -159,10 +160,10 @@ let t_derror_roundtrip () =
 
 let t_db_oplist_roundtrip () =
   let host = "test_db_oplist_roundtrip" in
-  let oplist = [ Op.Undo
-               ; Op.Redo
-               ; Op.Undo
-               ; Op.Redo] in
+  let oplist = [ Op.UndoTL tlid
+               ; Op.RedoTL tlid
+               ; Op.UndoTL tlid
+               ; Op.RedoTL tlid] in
   Serialize.save_in_db host oplist;
   match (Serialize.load_from_db host) with
   | Some ops ->

@@ -31,7 +31,10 @@ let cur_canvas : (canvas ref) option ref =
 (* Undo *)
 (* ------------------------- *)
 
-let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
+(* Undo's worked on the whole canvas before we realized that sucked. We
+ * keep the old ones because our "list of ops" DB format relies on us
+ * processing old ops correctly. *)
+let preprocess_deprecated (ops: (Op.op * bool) list) : (Op.op * bool) list =
   (* - The client can add undopoints when it chooses. *)
   (* - When we get an undo, we go back to the previous undopoint. *)
   (* - When we get a redo, we ignore the undo immediately preceding it. If there *)
@@ -52,38 +55,126 @@ let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
     match (op :: ops) with
     | [] -> []
     | [op] -> [op]
-    | (Op.Undo, _) :: (Op.Redo, _) :: rest -> rest
-    | (Op.Redo, a) :: (Op.Redo, b) :: rest -> (Op.Redo, a) :: (Op.Redo, b) :: rest
-    | _ :: (Op.Redo, _) :: rest -> (* Step 2: error on solo redos *)
+    | (Op.DeprecatedUndo, _) :: (Op.DeprecatedRedo, _) :: rest -> rest
+    | (Op.DeprecatedRedo, a) :: (Op.DeprecatedRedo, b) :: rest ->
+      (Op.DeprecatedRedo, a) :: (Op.DeprecatedRedo, b) :: rest
+    | _ :: (Op.DeprecatedRedo, _) :: rest -> (* Step 2: error on solo redos *)
         Exception.client "Already at latest redo"
     | ops -> ops)
   (* Step 3: remove undos and all the ops up to the savepoint. *)
   (* Go from the front and build the list up. If we hit an undo, drop back until *)
   (* the last favepoint. *)
   |> List.fold_left ~init:[] ~f:(fun ops op ->
-       if Tuple.T2.get1 op = Op.Undo
+       if Tuple.T2.get1 op = Op.DeprecatedUndo
        then
          ops
-         |> List.drop_while ~f:(fun (o, _) -> o <> Op.Savepoint)
+         |> List.drop_while ~f:(fun (o, _) -> o <> Op.DeprecatedSavepoint)
          |> (fun ops -> List.drop ops 1)   (* also drop the savepoint *)
        else
          op :: ops)
   |> List.rev (* previous step leaves the list reversed *)
 
-let undo_count (c: canvas) : int =
+
+let preprocess (ops: (Op.op * bool) list) : (Op.op * bool) list =
+
+  (* The client can add undopoints when it chooses. When we get an undo,
+   * we go back to the previous undopoint for that TL. *)
+
+  (* When we get a redo, we ignore the undo immediately preceding it.
+   * If there are multiple redos, they'll gradually eliminate the
+   * previous undos. *)
+
+  (* undo algorithm: *)
+
+  (*   - Step 1: go through the list and remove all undo-redo pairs.
+   *   After removing one pair, reprocess the list to remove others. *)
+
+  (*   - Step 2: A redo without an undo just before it is pointless, but
+   *   the client might allow it. Error. *)
+
+  (*   - Step 3: there should now only be undos. Going from the front,
+   *   each time there is an undo, drop the undo and all the ops going
+   *   back to the previous savepoint, including the savepoint. Use the
+   *   undos to go the the previous save point, dropping the ops between
+   *   the undo and the *)
+
+  ops
+  |> preprocess_deprecated (* Deal with old Redo/Undo/Savepoint format. *)
+
+  (* Step 1: remove undo-redo pairs. We do by processing from the back,
+   * adding each element onto the front *)
+
+  |> List.fold_right ~init:[] ~f:(fun op ops ->
+    match (op :: ops) with
+    | [] -> []
+    | [op] -> [op]
+    | (Op.UndoTL uid, _) :: (Op.RedoTL rid, _) :: rest when rid = uid ->
+      rest
+
+    (* Step 2: error on solo redos *)
+    | (Op.RedoTL id1, _) :: (Op.RedoTL id2, _) :: rest when id1 = id2 ->
+      op :: ops
+    | _ :: (Op.RedoTL _, _) :: rest ->
+        Exception.client "Already at latest redo"
+    | ops -> ops)
+
+  (* Step 3: remove undos and all the ops up to the savepoint. *)
+  (* Go from the front and build the list up. If we hit an undo, drop *)
+  (* back until the last favepoint. *)
+  |> List.fold_left ~init:[]
+     ~f:(fun ops op ->
+         match op with
+         | (Op.UndoTL tlid, _) ->
+           let not_savepoint (o, _) =
+             (match o with
+             | Op.Savepoint tlids when List.mem tlids tlid ~equal:(=) ->
+               false
+             | _ -> true)
+           in
+
+           let after = List.drop_while ~f:not_savepoint ops in
+           let before = List.take_while ~f:not_savepoint ops in
+           (* if the canvas is older than the new Savepoints, then its
+            * possible to undo to a point with no Savepoints anymore *)
+           let (savepoint, sp_bool) = match after with
+             | [] -> Exception.client "Cannot undo any more"
+             | a :: _  -> a in
+
+           let new_before = List.filter before
+             ~f:(fun (o, _) -> Op.tlidsOf o <> [tlid]) in
+           let new_savepoint =
+             savepoint
+             |> Op.tlidsOf
+             |> List.filter ~f:((<>) tlid)
+             |> fun tlids -> (Op.Savepoint tlids, sp_bool) in
+           (* drop savepoint *)
+           let new_after = after
+                           |> List.tl
+                           |> Option.value ~default:[] in
+
+           new_before @ [new_savepoint] @ new_after
+         | _ -> op :: ops
+      )
+
+  |> List.rev (* previous step leaves the list reversed *)
+
+
+let undo_count (c: canvas) (tlid: tlid) : int =
   c.ops
     |> List.rev
-    |> List.take_while ~f:((=) Op.Undo)
+    |> List.take_while ~f:((=) (Op.UndoTL tlid))
     |> List.length
 
-let is_undoable (c: canvas) : bool =
+let is_undoable (c: canvas) (tlid: tlid) : bool =
   c.ops
   |> List.map ~f:(fun op -> (op, false))
   |> preprocess
-  |> List.exists ~f:((=) (Op.Savepoint, false))
+  |> List.exists ~f:(function | (Op.Savepoint tlids, false) ->
+      List.mem ~equal:(=) tlids tlid
+                              | _ -> false)
 
-let is_redoable (c: canvas) : bool =
-  c.ops |> List.last |> (=) (Some Op.Undo)
+let is_redoable (c: canvas) (tlid: tlid) : bool =
+  c.ops |> List.last |> (=) (Some (Op.UndoTL tlid))
 
 (* ------------------------- *)
 (* Toplevel *)
@@ -179,10 +270,13 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       apply_to_db ~f:(Db.change_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
-    | Savepoint -> ident
+    | Savepoint _ -> ident
+    | DeprecatedSavepoint -> ident
     | SetFunction user_fn ->
       upsert_function user_fn
-    | DeleteAll | Undo | Redo ->
+    | DeprecatedDeleteAll
+    | DeprecatedUndo | DeprecatedRedo
+    | UndoTL _ | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
 let is_uninitialized_db_error (host: string) (e: Postgresql.error) : bool =
@@ -369,9 +463,7 @@ let to_frontend
      ; ("404s", `List (List.map ~f:SE.four_oh_four_to_yojson f404s))
      ; ("user_functions",
         `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
-     ; ("redoable", `Bool (is_redoable c))
-     ; ("undo_count", `Int (undo_count c))
-     ; ("undoable", `Bool (is_undoable c)) ]
+     ]
 
 let to_frontend_string (environments: RTT.env_map)
     (f404s : SE.four_oh_four list)

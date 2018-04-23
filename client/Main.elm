@@ -505,9 +505,12 @@ update_ msg m =
       let event = devent.standard in
       if event.metaKey && event.keyCode == Key.Z
       then
-        if event.shiftKey
-        then RPC ([Redo], FocusSame)
-        else RPC ([Undo], FocusSame)
+        case tlidOf m.cursorState of
+          Just tlid ->
+            if event.shiftKey
+            then RPC ([RedoTL tlid], FocusSame)
+            else RPC ([UndoTL tlid], FocusSame)
+          Nothing -> NoChange
       else
         case m.cursorState of
           Selecting tlid mId ->
