@@ -51,11 +51,6 @@ viewButtons m =
       , Attrs.class "specialButton"]
       [ Html.text "Random" ]
     , Html.a
-      [ eventNoPropagation "mouseup" (\_ -> ClearGraph)
-      , Attrs.src ""
-      , Attrs.class "specialButton"]
-      [ Html.text "Clear" ]
-    , Html.a
       [ eventNoPropagation "mouseup" (\_ -> SaveTestButton)
       , Attrs.src ""
       , Attrs.class "specialButton"]
