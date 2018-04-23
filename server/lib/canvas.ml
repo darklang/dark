@@ -215,10 +215,6 @@ let minimize (c : canvas) : canvas =
     |> List.map ~f:(fun op -> (op, false))
     |> preprocess
     |> List.map ~f:Tuple.T2.get1
-    |> List.fold_left ~init:[]
-        ~f:(fun ops op -> if op = Op.DeleteAll
-                          then []
-                          else (ops @ [op]))
     |> List.filter ~f:Op.has_effect
   in { c with ops = ops }
 
