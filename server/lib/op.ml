@@ -10,7 +10,7 @@ type op = SetHandler of tlid * pos * Handler.handler
         | DeleteTL of tlid
         | MoveTL of tlid * pos
         | Savepoint
-        | DeleteAll
+        | DeleteAll (* does nothing, but kept for binary compatibility *)
         | Undo
         | Redo
         | SetFunction of RuntimeT.user_fn
