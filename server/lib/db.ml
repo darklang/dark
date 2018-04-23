@@ -567,6 +567,8 @@ let load_oplists (host: string) (digest: string) : string option =
   |> Option.value_map ~default:None ~f:List.hd
   |> Option.map ~f:bytea_of_string_hex
 
-
-
+let all_oplists (digest: string) : string list =
+  "SELECT host FROM oplists WHERE digest = '%s'"
+  |> fetch_via_sql ~quiet:true
+  |> List.concat
 

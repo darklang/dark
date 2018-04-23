@@ -6,20 +6,26 @@ module TL = Toplevel
 module FF = Feature_flag
 
 let dequeue_and_evaluate_all () : string =
-  (* iterate all darkfiles *)
-  let current_file_ext = "_" ^ Serialize.digest ^ ".dark" in
-  let current_endpoints = Serialize.current_filenames ()
-                          |> List.map
-                            ~f:(fun f ->
-                                String.chop_suffix_exn
-                                  ~suffix:current_file_ext
-                                  f)
+  (* iterate all non-test canvases *)
+  let current_endpoints =
+    Serialize.current_hosts ()
+    |> List.filter ~f:(fun f -> not (Serialize.is_test f))
   in
   let execution_id = Util.create_id () in
   let results =
-    List.map current_endpoints
-      ~f:(fun endpoint ->
-          let c = C.load endpoint [] in
+    current_endpoints
+    |> List.filter_map
+      ~f:(fun endp ->
+          try
+            Some (endp, C.load endp []) (* serialization can fail, attempt first *)
+          with
+          | e ->
+            let bt = Backtrace.Exn.most_recent () in
+            Log.erroR ("Deserialization error for host: " ^ endp) e;
+            let _ = Rollbar.report e bt EventQueue in
+            None)
+    |> List.map
+      ~f:(fun (endpoint, c) ->
           try
             (* iterate all queues *)
             let queues = TL.bg_handlers !c.toplevels in
