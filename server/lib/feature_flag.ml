@@ -39,7 +39,10 @@ let to_session_string (ff: feature_flag) : string =
 
 let select (id: id) (setting : int) (l: 'a or_blank) (r: 'a or_blank) ff : 'a or_blank =
   match ff with
-  | Analysis -> l
+  | Analysis ->
+    if setting > 50
+    then r
+    else l
   | FromUser str ->
     let sum = str
               |> Batteries.String.to_list
