@@ -63,7 +63,7 @@ all =
     , test "replacing a function in a thread works" <|
         expectOk <|
           let replacement = B.newF (FnCall "+" [B.new (), B.new ()])
-              orig = B.new () |> Debug.log "orig"
+              orig = B.new ()
               result =
                 AST.replace
                  (PExpr orig)
