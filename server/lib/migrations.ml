@@ -87,30 +87,6 @@ let migrations =
        ADD COLUMN IF NOT EXISTS
          delay_until TIMESTAMP"
 
-  (* add not null constraints to all user DBs *)
-  ; "DO
-     $$
-     DECLARE
-       names RECORD;
-     BEGIN
-       FOR names IN
-         SELECT t.table_name, t.column_name
-         FROM information_schema.columns t
-         WHERE
-           t.table_schema = 'public'
-           AND t.table_name LIKE '%%\\_%%'
-           AND t.column_name <> 'id'
-       LOOP
-         EXECUTE FORMAT('DELETE FROM %I;
-                         ALTER TABLE %I
-                           ALTER COLUMN %I SET NOT NULL'
-                        , names.table_name
-                        , names.table_name
-                        , names.column_name
-                        );
-       END LOOP;
-     END;
-     $$"
   ]
 
 let run () : unit =
