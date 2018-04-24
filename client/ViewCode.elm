@@ -166,7 +166,14 @@ viewNExpr d id vs config e =
               _ -> a [wc "fnname"] (withP name)
           fn = vs.ac.functions
                     |> LE.find (\f -> f.name == name)
-                    |> deMaybe "vExpr fncall"
+                    |> Maybe.withDefault
+                      { name = "fnLookupError"
+                      , parameters = []
+                      , description = "default, fn error"
+                      , returnTipe = TError
+                      , previewExecutionSafe = True
+                      , infix = False
+                      }
 
           previous =
             case vs.tl.data of
