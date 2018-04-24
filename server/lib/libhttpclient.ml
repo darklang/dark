@@ -124,11 +124,13 @@ let fns : Lib.shortfn list = [
   { pns = ["HttpClient::form_content_type"]
   ; ins = []
   ; p = []
-  ; r = TStr
+  ; r = TObj
   ; d = ""
   ; f = InProcess
         (function
-        | (_, []) -> DStr "application/x-www-form-urlencoded"
+        | (_, []) ->
+          DObj (DvalMap.of_alist_exn
+                  [("Content-Type", DStr "application/x-www-form-urlencoded")])
         | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -139,11 +141,42 @@ let fns : Lib.shortfn list = [
   { pns = ["HttpClient::json_content_type"]
   ; ins = []
   ; p = []
-  ; r = TStr
+  ; r = TObj
   ; d = ""
   ; f = InProcess
         (function
-        | (_, []) -> DStr "application/json"
+        | (_, []) ->
+          DObj (DvalMap.of_alist_exn
+                  [("Content-Type", DStr "application/json")])
+        | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["HttpClient::basic_auth"]
+  ; ins = []
+  ; p = [par "username" TStr; par "password" TStr]
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | (_, [DStr u; DStr p]) ->
+            let auth_string =
+              let input =
+                if String.is_substring ~substring:"-" u
+                then
+                  raise_error "Username cannot contain a colon"
+                else
+                  u ^ ":" ^ p
+              in
+              let encoded =
+                B64.encode ~alphabet:B64.default_alphabet ~pad:false input
+              in
+              "Basic " ^ encoded
+            in
+            DObj (DvalMap.of_alist_exn
+                    [("Authorization", DStr auth_string)])
         | (_, args) -> fail args)
   ; pr = None
   ; ps = true
