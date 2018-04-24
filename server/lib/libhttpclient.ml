@@ -181,5 +181,22 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = true
   }
+  ;
+
+  { pns = ["HttpClient::bearer_token"]
+  ; ins = []
+  ; p = [par "token" TStr]
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | (_, [DStr token]) ->
+            let auth_string = "Bearer " ^ token in
+            DObj (DvalMap.of_alist_exn
+                    [("Authorization", DStr auth_string)])
+        | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
 ]
 
