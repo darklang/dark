@@ -154,6 +154,12 @@ let merge_left = Map.merge ~f:(fun ~key v ->
     | `Right v -> Some v
     | `Both (v1, v2) -> Some v1)
 
+let merge_right = Map.merge ~f:(fun ~key v ->
+    match v with
+    | `Left v -> Some v
+    | `Right v -> Some v
+    | `Both (v1, v2) -> Some v2)
+
 let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
   List.length (List.filter ~f l) > 0
 
