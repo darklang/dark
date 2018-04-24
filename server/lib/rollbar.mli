@@ -3,7 +3,7 @@ open Lwt
 module CRequest = Cohttp_lwt_unix.Request
 
 type result = [`Success | `Failure | `Disabled]
-type err_ctx = Remote of CRequest.t
+type err_ctx = Remote of CRequest.t * string
              | EventQueue
 
 
