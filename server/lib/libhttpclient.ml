@@ -171,7 +171,7 @@ let fns : Lib.shortfn list = [
                   u ^ ":" ^ p
               in
               let encoded =
-                B64.encode ~alphabet:B64.default_alphabet ~pad:false input
+                B64.encode ~alphabet:B64.default_alphabet ~pad:true input
               in
               "Basic " ^ encoded
             in
