@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+gcloud compute ssh --zone=us-west1-b ${@} instance-4 --command="bash -c 'docker images -q | xargs docker rmi'"
+
