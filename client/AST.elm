@@ -101,6 +101,8 @@ closeThread expr =
             -- blank in front.
             [F id (FnCall name args)] ->
               F id (FnCall name (B.new () :: args))
+
+            [e] -> e
             _ -> F id (Thread newExprs)
     _ -> traverse closeThread expr
 
