@@ -106,7 +106,7 @@ let http_call (url: string) (query_params : (string * string list) list)
     | Curl.CurlException (_, code, s) ->
       (code, s, Buffer.contents responsebuf)
   in
-  if code <> 200
+  if code < 200 || code >= 300
   then
     let info = [ "url", url
                ; "code", string_of_int code
