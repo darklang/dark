@@ -82,6 +82,21 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Object::merge"]
+  ; ins = []
+  ; p = [par "left" TObj; par "right" TObj]
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+          | (_, [DObj l; DObj r]) ->
+            DObj (Util.merge_right l r)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   { pns = ["assoc"]
   ; ins = []
   ; p = [par "obj" TObj; par "key" TStr; par "val" TAny]
