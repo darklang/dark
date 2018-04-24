@@ -19,6 +19,7 @@ val delete : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
 val delete_all : tables:(DbT.db list) -> DbT.db -> unit
 val update : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> unit
 val count : DbT.db -> int
+val drop : DbT.db -> unit
 
 (* DB schema modifications *)
 val create_new_db : DbT.db -> unit
