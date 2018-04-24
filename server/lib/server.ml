@@ -358,7 +358,8 @@ let server () =
       with
       | e ->
         let bt = Backtrace.Exn.most_recent () in
-        let body = (match e with
+        Rollbar.report_lwt e bt (Remote (req, body)) >>= fun _ ->
+        let err_body = (match e with
           | Exception.DarkException e ->
             e
             |> Exception.exception_data_to_yojson
@@ -370,8 +371,7 @@ let server () =
           | _ ->
             "Dark Internal Error: " ^ Exn.to_string e)
         in
-        Rollbar.report_lwt e bt (Remote req) >>= fun _ ->
-        Lwt_io.printl ("Error: " ^ body) >>= fun () ->
+        Lwt_io.printl ("Error: " ^ err_body) >>= fun () ->
         Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
         let headers = Cohttp.Header.of_list [cors] in
         respond ~headers `Internal_server_error body

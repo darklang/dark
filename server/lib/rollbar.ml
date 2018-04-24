@@ -5,7 +5,7 @@ module CRequest = Cohttp_lwt_unix.Request
 
 type result = [`Success | `Failure | `Disabled]
 
-type err_ctx = Remote of CRequest.t
+type err_ctx = Remote of CRequest.t * string
              | EventQueue
 
 let exn_to_string (e: exn) : string =
@@ -50,7 +50,7 @@ let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.jso
   let framework = `String "Cohttp" in
   let payload =
     match ctx with
-    | Remote req ->
+    | Remote (req, body) ->
       let request =
         let headers =
           req
@@ -61,6 +61,7 @@ let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.jso
         [("url", `String ("https:" ^ (req |> CRequest.uri |> Uri.to_string)))
         ;("method", `String (req |> CRequest.meth |> Cohttp.Code.string_of_method))
         ;("headers", `Assoc headers)
+        ;("body", `String body)
         ]
         |> fun r -> `Assoc r
       in
