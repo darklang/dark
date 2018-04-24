@@ -147,7 +147,7 @@ let fns : Lib.shortfn list = [
         (function
         | (_, []) ->
           DObj (DvalMap.of_alist_exn
-                  [("Content-Type", DStr "application/json")])
+                  [("Content-Type", DStr "application/json; charset=utf-8")])
         | (_, args) -> fail args)
   ; pr = None
   ; ps = true
