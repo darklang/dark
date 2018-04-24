@@ -24,11 +24,18 @@ let body_parser_type req =
     | None -> "unknown"
     | Some v -> v
   in
-  match content_type with
-  (* TODO: might just be a substring *)
-  | "application/json" -> Json
-  | "application/x-www-form-urlencoded" -> Form
-  | _ -> Unknown
+  if String.is_substring
+       ~substring:"application/json"
+       content_type
+  then
+    Json
+  else if String.is_substring
+      ~substring:"application/x-www-form-urlencoded"
+       content_type
+  then
+    Form
+  else
+    Unknown
 
 let parser_fn p =
   match p with
