@@ -220,7 +220,13 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
   in
   if attempted_to_remove_db_with_data
   then Exception.client "Cannot delete DBs with data"
-  else { c with toplevels = tls }
+  else
+    let _ =
+      removed
+      |> List.filter_map ~f:TL.as_db
+      |> List.iter ~f:Db.drop
+    in
+    { c with toplevels = tls }
 
 let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) =
   match List.find ~f:(fun t -> t.tlid = tlid) c.toplevels with

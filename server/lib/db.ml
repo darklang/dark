@@ -433,7 +433,18 @@ let unlocked (dbs: db list) : db list =
       ~f:(fun db ->
           List.mem ~equal:(=) empties [db.actual_name; "0"])
 
-
+(* TODO(ian): make single query *)
+let drop db =
+  if db_locked db
+  then
+    Printf.sprintf
+      "Attempted to drop table %s, but it has data"
+      db.actual_name
+    |> Exception.internal
+  else
+    Printf.sprintf "DROP TABLE \"%s\""
+      (escape db.actual_name)
+    |> run_sql
 
 (* ------------------------- *)
 (* DB schema *)
