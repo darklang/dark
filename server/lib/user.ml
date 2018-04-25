@@ -19,6 +19,7 @@ let users =
   ;["stefi"; "admin"; "made"]
   ;["zane"; "admin"; "me do"]
   ;["yuriy"; "cats"; "wDp,>{jEdvtnQYYhsKtKd6xw"]
+  ;["lee"; "lee"; "klma923wels92l{]as]"]
   ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"]
   ;["aoife"; "dogtreats"; "notarealdog"]
   ]
