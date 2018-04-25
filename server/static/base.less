@@ -887,17 +887,16 @@ body #grid * {
   }
 }
 
-.computed-value {
-  &:not(.incomplete):before {
-    .value-error & {
-      outline: 0.4px red dotted;
-    }
-    content: attr(computed-value);
-    outline: 0.4px @green dotted;
-    position: absolute;
-    right: calc(~"100% + 2px");
-    .default;
+.computed-value-value {
+  .value-error & {
+    outline: 0.4px red dotted;
   }
+  outline: 0.4px @green dotted;
+  position: absolute;
+  right: calc(~"100% + 2px");
+  .default;
+  max-width: 500px;
+  white-space: normal;
 }
 
 .feature-flag {

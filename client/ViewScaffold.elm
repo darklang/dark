@@ -78,8 +78,10 @@ viewError mMsg =
       Html.div [Attrs.id "status"] [Html.text "Dark"]
     Just msg ->
       case JSD.decodeString JSON.decodeException msg of
-        Err _ ->
-          Html.div [Attrs.id "status", Attrs.class "error"] [Html.text msg]
+        Err _ -> -- not json, just a regular string
+          Html.div
+            [Attrs.id "status", Attrs.class "error"]
+            [Html.text ("Error: " ++ msg)]
         Ok exc ->
           Html.div
             [ Attrs.id "status"
@@ -89,7 +91,7 @@ viewError mMsg =
                 [ Html.text ("Error: " ++ exc.short)]
             , Html.i
               [ Attrs.class "fa fa-info-circle"
-              , Attrs.title (toString exc)
+              , Attrs.title msg
               ]
               []
             ]
