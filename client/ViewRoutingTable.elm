@@ -120,7 +120,7 @@ viewRoutes m =
                      , Attrs.href source
                      , Attrs.target "_blank"
                      ]
-                     [fontAwesome "external-link"]
+                     [fontAwesome "external-link-alt"]
             Nothing ->
               Html.div [] []
         else
