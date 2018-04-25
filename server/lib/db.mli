@@ -30,6 +30,7 @@ val set_col_type : id -> RuntimeT.tipe -> bool ->  DbT.db -> DbT.db
 val change_col_name : id -> string -> bool -> DbT.db -> DbT.db
 val change_col_type : id -> RuntimeT.tipe -> bool -> DbT.db -> DbT.db
 val unlocked : DbT.db list -> DbT.db list
+val db_locked : DbT.db -> bool
 
 (* DBs as values for execution *)
 val dbs_as_env : DbT.db list -> RuntimeT.dval_map
