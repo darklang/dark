@@ -9,6 +9,17 @@ import Types exposing (..)
 import Pointer as P
 import Blank as B
 
+isHTTP : HandlerSpec -> Bool
+isHTTP hs =
+  case hs.module_ of
+    Blank _ -> True
+    Flagged _ _ _ _ _ as ff ->
+      case B.flattenFF ff of
+        F _ s -> String.toLower s == "http"
+        _ -> False
+    F _ s ->
+      String.toLower s == "http"
+
 replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventModifier search replacement hs =
   { hs | modifier = B.replace search replacement hs.modifier }
