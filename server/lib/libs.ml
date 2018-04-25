@@ -33,7 +33,7 @@ let static_fns : fnmap =
                  ; Libhttp.fns
                  ; Libhttpclient.fns
                  ; Libevent.fns
-                 (* ; Libtwitter.fns *)
+                 ; Libtwitter.fns
                  ])
 
 let fns (user_fns: RuntimeT.user_fn list) : fnmap =
