@@ -884,12 +884,9 @@ body #grid * {
 }
 
 .computed-value {
-  &:before {
+  &:not(.incomplete):before {
     .value-error & {
       outline: 0.4px red dotted;
-    }
-    .incomplete > & {
-      visibility: hidden;
     }
     content: attr(computed-value);
     outline: 0.4px @green dotted;
