@@ -95,16 +95,7 @@ isHTTPHandler : Toplevel -> Bool
 isHTTPHandler tl =
   case asHandler tl of
     Nothing -> False
-    Just h ->
-      case h.spec.module_ of
-        Blank _ -> True
-        Flagged _ _ _ _ _ as ff ->
-          case B.flattenFF ff of
-            F _ s -> String.toLower s == "http"
-            _ -> False
-
-        F _ s ->
-          String.toLower s == "http"
+    Just h -> SpecHeaders.isHTTP h.spec
 
 -------------------------
 -- Generic
