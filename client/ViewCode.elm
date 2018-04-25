@@ -14,7 +14,6 @@ import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
 import AST
-import Toplevel as TL
 import Blank as B
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
@@ -314,7 +313,7 @@ viewHandler vs h =
           , viewDarkType vs [] h.spec.types.output]
 
       modifier =
-        if TL.isHTTPHandler vs.tl
+        if vs.isHTTP
         then viewEventModifier vs [wc "modifier"] h.spec.modifier
         else Html.div [] []
       header =
