@@ -17,6 +17,9 @@ cp -f server/_build/default/bin/*.exe $DIR/bin/
 mkdir -p $DIR/webroot
 cp -Rf server/static $DIR/webroot/
 
+mkdir -p $DIR/swagger
+cp -Rf server/swagger/*  $DIR/swagger/
+
 mkdir -p $DIR/saved-apps
 cp -Rf saved-apps/* $DIR/saved-apps/
 
