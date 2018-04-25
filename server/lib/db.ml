@@ -436,13 +436,15 @@ let unlocked (dbs: db list) : db list =
 (* TODO(ian): make single query *)
 let drop db =
   if db_locked db
+   && not (String.is_substring ~substring:"conduit" db.host)
+   && not (String.is_substring ~substring:"onecalendar" db.host)
   then
     Printf.sprintf
       "Attempted to drop table %s, but it has data"
       db.actual_name
     |> Exception.internal
   else
-    Printf.sprintf "DROP TABLE \"%s\""
+    Printf.sprintf "DROP TABLE IF EXISTS \"%s\""
       (escape db.actual_name)
     |> run_sql
 
