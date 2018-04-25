@@ -23,6 +23,7 @@ import Runtime
 import Toplevel
 import ViewEntry
 import ViewUtils exposing (..)
+import ViewScaffold
 
 
 type HtmlConfig =
@@ -147,14 +148,24 @@ div vs configs content =
       hoverdata = Maybe.andThen value hoverAs
 
       (computedValueClasses, computedValue) =
-        case computedValueData of
-          Nothing -> ([], [])
-          Just (Ok lv) ->
-            ( ["computed-value"]
-            , [Attrs.attribute "computed-value" lv.value])
-          Just (Err err) ->
-            ( ["computed-value computed-value-error"]
-            , [Attrs.attribute "computed-value" err])
+        if incomplete
+        then
+          ([], [])
+        else
+          case computedValueData of
+            Nothing -> ([], [])
+            Just (Ok lv) ->
+              ( ["computed-value"]
+              , [ Html.div
+                    [Attrs.class "computed-value-value"]
+                    [Html.text lv.value]
+                ])
+            Just (Err err) ->
+              ( ["computed-value computed-value-error"]
+              , [ Html.div
+                    [Attrs.class "computed-value-value"]
+                    [ViewScaffold.viewError (Just err)]
+                ])
 
       (valClasses, title) =
         case hoverdata of
@@ -193,7 +204,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ title ++ computedValue ++ [classAttr]
+      attrs = events ++ title ++ [classAttr]
       featureFlag = if showFeatureFlag
                     then [viewFeatureFlag]
                     else []
@@ -201,7 +212,7 @@ div vs configs content =
                then [viewEditFn showFeatureFlag]
                else []
   in
-    Html.div attrs (content ++ featureFlag ++ editFn)
+    Html.div attrs (content ++ featureFlag ++ editFn ++ computedValue)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
