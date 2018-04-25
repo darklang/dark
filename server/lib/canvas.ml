@@ -198,27 +198,25 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
       ~f:(fun x -> if x.tlid <> tlid then `Fst x else `Snd x)
       c.toplevels
   in
-  let is_conduit_or_onecal host =
-    String.is_substring ~substring:"conduit" host
-    || String.is_substring ~substring:"onecalendar" host
-  in
-  let attempted_to_remove_db_with_data =
+  let drop_table_for_db_tl_exn () =
     let dbs = List.filter_map ~f:TL.as_db removed in
     match dbs with
-    | [] -> false
+    | [] -> ()
     | db :: [] ->
-       Db.db_locked db && not (is_conduit_or_onecal db.host)
+      (try
+         if Db.db_locked db
+         then
+           Exception.client "Cannot delete DBs with data"
+         else
+           Db.drop db
+       with
+       | e ->
+         ()
+      )
     | oops -> Exception.internal "Multiple DBs with same tlid"
   in
-  if attempted_to_remove_db_with_data
-  then Exception.client "Cannot delete DBs with data"
-  else
-    let _ =
-      removed
-      |> List.filter_map ~f:TL.as_db
-      |> List.iter ~f:Db.drop
-    in
-    { c with toplevels = tls }
+  drop_table_for_db_tl_exn ();
+  { c with toplevels = tls }
 
 let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) =
   match List.find ~f:(fun t -> t.tlid = tlid) c.toplevels with
