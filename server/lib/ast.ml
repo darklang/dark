@@ -197,7 +197,6 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
            | _ -> exe st ifbody))
 
      | Filled (id, Lambda (vars, body)) ->
-       (* TODO: this will errror if the number of args and vars arent equal *)
        (* Since we return a DBlock, it's contents may never be executed.
         * So first we execute with no context to get some live values.
         * *)
@@ -205,6 +204,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
                       (Symtable.singleton "var" DIncomplete)
                       st in
        let _ = exe fake_st body in
+       (* TODO: this will errror if the number of args and vars arent equal *)
        DBlock (fun args ->
            let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
            let new_st = Util.merge_left bindings st in
