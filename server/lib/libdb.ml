@@ -39,7 +39,7 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["DB::delete_all"]
+  { pns = ["DB::deleteAll"]
   ; ins = []
   ; p = [par "table" TDB]
   ; r = TNull
