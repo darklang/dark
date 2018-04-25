@@ -60,7 +60,8 @@ let parsed_headers req =
   |> Clu.Request.headers
   |> C.Header.to_list
   |> List.map ~f:(fun (k, v) -> (k, DStr v))
-  |> DvalMap.of_alist_exn
+  |> DvalMap.of_alist_reduce
+    ~f:(fun l r -> r)
   |> fun dm -> DObj dm
   |> fun dv -> Dval.to_dobj [("headers", dv)]
 

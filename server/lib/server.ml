@@ -309,7 +309,8 @@ let admin_handler ~(subdomain: string) ~(uri: Uri.t) ~stopper ~(body: string) (r
     admin_ui_handler () >>= fun body -> respond `OK body
   | "/admin/api/save_test" ->
     save_test_handler subdomain
-  | _ -> failwith "Not an admin route"
+  | _ ->
+    respond `Not_found "Not found"
 
 (* -------------------------------------------- *)
 (* The server *)
@@ -325,14 +326,16 @@ let server () =
 
   let callback (ch, conn) req body =
     let subdomain =
-      let host = req
-                 |> CRequest.uri
-                 |> Uri.host
-                 |> Option.value ~default:"" in
-      match String.split host '.' with
-      | ["localhost"] -> "localhost"
-      | a :: rest -> a
-      | _ -> failwith @@ "Unsupported subdomain: " ^ host
+      req
+      |> CRequest.uri
+      |> Uri.host
+      |> Option.bind
+        ~f:(fun host ->
+            match String.split host '.' with
+            | ["localhost"] -> Some "localhost"
+            | [_] -> None
+            | a :: rest -> Some a
+            | _ -> None)
     in
     let handler headers =
       try
@@ -340,7 +343,7 @@ let server () =
         let uri = req |> CRequest.uri in
 
         Log.infO "request"
-          ( subdomain
+          ( subdomain |> Option.value ~default:"Unsupported subdomain"
           , ip
           , req |> CRequest.meth |> Cohttp.Code.string_of_method
           , "http:" ^ Uri.to_string uri);
@@ -376,9 +379,13 @@ let server () =
         let headers = Cohttp.Header.of_list [cors] in
         respond ~headers `Internal_server_error err_body
     in
+    match subdomain with
     (* This seems like it should be moved closer to the admin handler,
      * but don't do that - that makes Lwt swallow our exceptions. *)
-    auth_then_handle req subdomain handler
+    | Some subdomain ->
+      auth_then_handle req subdomain handler
+    | None ->
+      respond `Not_found "Not found")
   in
   let cbwb conn req req_body =
     (* extract a string out of the body *)
