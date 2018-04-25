@@ -34,11 +34,9 @@ let param2param (sw: Swagger.parameter) : param =
 
 let fns =
   schema.apis
-  |> List.map
+  |> List.filter_map
     ~f:(fun (api: Swagger.api) ->
         api.operations
-        |> List.filter ~f:(fun (op: Swagger.operation) ->
-            op.httpMethod = "GET")
         |> List.hd
         |> Option.map ~f:(fun (get:Swagger.operation) ->
             { pns = ["Twitter::" ^ (twurl2name api.path)]
@@ -48,6 +46,8 @@ let fns =
             ; p = List.map ~f:param2param get.parameters
             ; d = Option.value ~default:"" get.summary
             ; pr = None
-            ; ps = true
+            (* TODO: gets could be preview safe, but we need to account
+             * for errors, rate-limiting, etc. We can't just run these
+             * every second! *)
+            ; ps = false
             }))
-  |> List.filter_map ~f:ident
