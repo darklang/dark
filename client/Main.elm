@@ -1185,7 +1185,7 @@ update_ msg m =
     -- plumbing
     ------------------------
     RPCCallback _ _ _ (Err (Http.BadStatus error)) ->
-      Error <| "Error: " ++ error.body
+      Error <| error.body
 
     RPCCallback _ _ _ (Err (Http.NetworkError)) ->
       Error <| "Network error: is the server running?"
