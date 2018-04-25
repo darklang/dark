@@ -43,6 +43,7 @@ import Blank as B
 import AST
 import Selection
 import Sync
+import DB
 import Runtime
 import Toplevel as TL
 import Util
@@ -510,9 +511,22 @@ update_ msg m =
       then
         case tlidOf m.cursorState of
           Just tlid ->
-            if event.shiftKey
-            then RPC ([RedoTL tlid], FocusSame)
-            else RPC ([UndoTL tlid], FocusSame)
+            let undo = if event.shiftKey
+                       then RPC ([RedoTL tlid], FocusSame)
+                       else RPC ([UndoTL tlid], FocusSame)
+            in
+            case TL.getTL m tlid |> TL.asDB of
+              Just db ->
+                if DB.isLocked m tlid
+                -- We could do it on the server but it's really hard
+                -- atm. To do it on the server, efficiently, we'd create
+                -- a canvas with almost all the ops, check if the tlid
+                -- is a DB, then recreate the canvas with all the ops
+                -- (such that preprocess with the DB works). That way we
+                -- load from disk/db once, but still check server side.
+                then Error "Cannot undo/redo in locked DBs"
+                else undo
+              Nothing -> undo
           Nothing -> NoChange
       else
         case m.cursorState of
