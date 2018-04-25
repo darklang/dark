@@ -5,10 +5,12 @@ module ViewScaffold exposing (..)
 -- lib
 import Html
 import Html.Attributes as Attrs
+import Json.Decode as JSD
 
 -- dark
 import Types exposing (..)
 import ViewUtils exposing (..)
+import JSON
 
 
 
@@ -70,10 +72,27 @@ viewButtons m =
     ] ++ integrationTestButton ++ returnButton)
 
 viewError : Maybe String -> Html.Html Msg
-viewError mMsg = case mMsg of
-  Just msg ->
-    Html.div [Attrs.id "status", Attrs.class "error"] [Html.text msg]
-  Nothing ->
-    Html.div [Attrs.id "status"] [Html.text "Dark"]
+viewError mMsg =
+  case mMsg of
+    Nothing ->
+      Html.div [Attrs.id "status"] [Html.text "Dark"]
+    Just msg ->
+      case JSD.decodeString JSON.decodeException msg of
+        Err _ ->
+          Html.div [Attrs.id "status", Attrs.class "error"] [Html.text msg]
+        Ok exc ->
+          Html.div
+            [ Attrs.id "status"
+            , Attrs.class "error" ]
+            [ Html.span
+                [ Attrs.class "message" ]
+                [ Html.text ("Error: " ++ exc.short)]
+            , Html.i
+              [ Attrs.class "fa fa-info-circle"
+              , Attrs.title (toString exc)
+              ]
+              []
+            ]
+
 
 
