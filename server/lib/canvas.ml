@@ -198,6 +198,10 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
       ~f:(fun x -> if x.tlid <> tlid then `Fst x else `Snd x)
       c.toplevels
   in
+  let is_conduit_or_onecal host =
+    String.is_substring ~substring:"conduit" host
+    || String.is_substring ~substring:"onecalendar" host
+  in
   let attempted_to_remove_db_with_data =
     let dbs = List.filter_map ~f:TL.as_db removed in
     match dbs with
@@ -209,8 +213,7 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
          else false
        with
        | e ->
-         if String.is_substring ~substring:"conduit" db.host
-            || String.is_substring ~substring:"onecalendar" db.host
+         if is_conduit_or_onecal db.host
          then
            false
          else
@@ -224,6 +227,7 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
     let _ =
       removed
       |> List.filter_map ~f:TL.as_db
+      |> List.filter ~f:(fun db -> not (is_conduit_or_onecal db.host))
       |> List.iter ~f:Db.drop
     in
     { c with toplevels = tls }
