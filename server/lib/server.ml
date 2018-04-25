@@ -374,7 +374,7 @@ let server () =
         Lwt_io.printl ("Error: " ^ err_body) >>= fun () ->
         Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
         let headers = Cohttp.Header.of_list [cors] in
-        respond ~headers `Internal_server_error body
+        respond ~headers `Internal_server_error err_body
     in
     (* This seems like it should be moved closer to the admin handler,
      * but don't do that - that makes Lwt swallow our exceptions. *)
