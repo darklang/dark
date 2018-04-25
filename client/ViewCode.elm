@@ -14,6 +14,7 @@ import Types exposing (..)
 import Prelude exposing (..)
 import Runtime as RT
 import AST
+import Toplevel as TL
 import Blank as B
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
@@ -312,11 +313,15 @@ viewHandler vs h =
           [ Html.span [Attrs.class "header"] [Html.text "Output:"]
           , viewDarkType vs [] h.spec.types.output]
 
+      modifier =
+        if TL.isHTTPHandler vs.tl
+        then viewEventModifier vs [wc "modifier"] h.spec.modifier
+        else Html.div [] []
       header =
         Html.div
           [Attrs.class "spec-header"]
           [ viewEventName vs [wc "name"] h.spec.name
           , (Html.div [] externalLink)
           , viewEventSpace vs [wc "module"] h.spec.module_
-          , viewEventModifier vs [wc "modifier"] h.spec.modifier]
+          , modifier]
   in [header, ast]
