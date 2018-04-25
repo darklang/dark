@@ -216,7 +216,6 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
     let _ =
       removed
       |> List.filter_map ~f:TL.as_db
-      |> List.filter ~f:(fun db -> not (is_conduit_or_onecal db.host))
       |> List.iter ~f:Db.drop
     in
     { c with toplevels = tls }
