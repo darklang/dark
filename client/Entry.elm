@@ -321,9 +321,17 @@ submit m cursor action value =
           let h = deMaybe "maybeH - eventspace" maybeH
               new = B.newF value
               replacement = SpecHeaders.replaceEventSpace id new h.spec
+              replacement2 =
+                if TL.isHTTPHandler tl
+                then replacement
+                else
+                  SpecHeaders.replaceEventModifier
+                   (B.toID h.spec.modifier)
+                   (B.newF "_")
+                   replacement
           in
           wrap
-            [SetHandler tlid tl.pos { h | spec = replacement }]
+            [SetHandler tlid tl.pos { h | spec = replacement2 }]
             (B.toID new)
         PField _ ->
           validate ".+" "fieldname"
