@@ -127,7 +127,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["to_form"]
+  { pns = ["toForm"]
   ; ins = []
   ; p = [par "obj" TObj; par "submit" TStr]
   ; r = TStr
@@ -361,7 +361,7 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
 
 
-  { pns = ["Float::ceiling"; "Float::round_up"]
+  { pns = ["Float::ceiling"; "Float::roundUp"]
   ; ins = []
   ; p = [par "a" TFloat]
   ; r = TInt
@@ -376,7 +376,7 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["Float::floor"; "Float::round_down"]
+  { pns = ["Float::floor"; "Float::roundDown"]
   ; ins = []
   ; p = [par "a" TFloat]
   ; r = TInt
@@ -939,7 +939,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["List::find_first"]
+  { pns = ["List::findFirst"]
   ; ins = []
   ; p = [par "l" TList; func ["val"]]
   ; r = TList
@@ -1070,7 +1070,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["List::is_empty"]
+  { pns = ["List::isEmpty"]
   ; ins = []
   ; p = [par "l" TList]
   ; r = TBool
@@ -1319,7 +1319,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["Date::less_than"]
+  { pns = ["Date::lessThan"]
   ; ins = ["Date::<"]
   ; p = [par "d1" TDate; par "d2" TDate]
   ; r = TBool

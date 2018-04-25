@@ -22,7 +22,7 @@ let fns : Lib.shortfn list = [
    * user code
    *)
 
-  { pns = ["Http::respond_with_headers"]
+  { pns = ["Http::respondWithHeaders"]
   ; ins = []
   ; p = [par "response" TAny; par "headers" TObj; par "code" TInt]
   ; r = TResp
@@ -54,7 +54,7 @@ let fns : Lib.shortfn list = [
 
   ;
 
-  { pns = ["Http::respond_with_html"]
+  { pns = ["Http::respondWithHtml"]
   ; ins = []
   ; p = [par "response" TAny; par "code" TInt]
   ; r = TResp
@@ -68,7 +68,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["Http::respond_with_json"]
+  { pns = ["Http::respondWithJson"]
   ; ins = []
   ; p = [par "response" TAny; par "code" TInt]
   ; r = TResp
@@ -82,7 +82,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["Http::redirect_to"]
+  { pns = ["Http::redirectTo"]
   ; ins = []
   ; p = [par "url" TStr]
   ; r = TResp
@@ -97,7 +97,7 @@ let fns : Lib.shortfn list = [
 
   ;
 
-  { pns = ["Http::bad_request"]
+  { pns = ["Http::badRequest"]
   ; ins = []
   ; p = [par "error" TStr]
   ; r = TResp
@@ -112,7 +112,7 @@ let fns : Lib.shortfn list = [
 
   ;
 
-  { pns = ["Http::not_found"]
+  { pns = ["Http::notFound"]
   ; ins = []
   ; p = []
   ; r = TResp
