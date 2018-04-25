@@ -121,7 +121,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["HttpClient::form_content_type"]
+  { pns = ["HttpClient::formContentType"]
   ; ins = []
   ; p = []
   ; r = TObj
@@ -138,7 +138,7 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["HttpClient::json_content_type"]
+  { pns = ["HttpClient::jsonContentType"]
   ; ins = []
   ; p = []
   ; r = TObj
@@ -154,7 +154,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["HttpClient::basic_auth"]
+  { pns = ["HttpClient::basicAuth"]
   ; ins = []
   ; p = [par "username" TStr; par "password" TStr]
   ; r = TObj
@@ -183,7 +183,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["HttpClient::bearer_token"]
+  { pns = ["HttpClient::bearerToken"]
   ; ins = []
   ; p = [par "token" TStr]
   ; r = TObj
