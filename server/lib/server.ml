@@ -355,9 +355,17 @@ let server () =
         | p when (String.is_prefix ~prefix:"/static/" p) ->
           static_handler uri
         | p when  (String.is_prefix ~prefix:"/admin/" p) ->
-          admin_handler ~subdomain ~uri ~body ~stopper req headers
+          (match subdomain with
+           | Some subdomain ->
+             admin_handler ~subdomain ~uri ~body ~stopper req headers
+           | None ->
+             respond `Not_found "Not found")
         | _ ->
-          user_page_handler ~subdomain ~ip ~uri ~body req
+          (match subdomain with
+           | Some subdomain ->
+             user_page_handler ~subdomain ~ip ~uri ~body req
+           | None ->
+             respond `Not_found "Not found")
       with
       | e ->
         let bt = Backtrace.Exn.most_recent () in
@@ -385,7 +393,7 @@ let server () =
     | Some subdomain ->
       auth_then_handle req subdomain handler
     | None ->
-      respond `Not_found "Not found")
+      respond `Not_found "Not found"
   in
   let cbwb conn req req_body =
     (* extract a string out of the body *)
