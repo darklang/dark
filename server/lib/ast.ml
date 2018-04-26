@@ -37,31 +37,41 @@ let exception_to_dval ~(log: bool) exc =
     if log then print_endline json else ();
     DError json
 
-  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds) as e) ->
+  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds)) ->
     (* go through a set of known errors and make them user-friendly *)
+
+    (* drop 2nd line which has the sql info on it, then trim different
+     * variations of Error from the front. *)
+    let msg = msg
+              |> String.split ~on:'\n'
+              |> List.hd
+              |> Option.value ~default:""
+              |> Util.maybe_chop_prefix ~prefix:"ERROR:"
+              |> String.lstrip
+    in
     let m regex : string list option =
       msg
-      |> String.split ~on:'\n'
-      |> List.hd
-      |> Option.value ~default:""
       |> Util.string_match ~regex
       |> Util.result_to_option
     in
 
+    let db_short_name db =
+      String.split ~on:'_' db
+      |> List.tl
+      |> Option.value ~default:[""]
+      |> List.hd_exn
+    in
+
     let result =
-      match m "ERROR:  column \"(.*)\" of relation \"(.*)\" does not exist" with
+      match m "column \"(.*)\" of relation \"(.*)\" does not exist" with
       | Some [field; db] ->
-        let short_name = String.split ~on:'_' db
-                         |> List.tl
-                         |> Option.value ~default:[""]
-                         |> List.hd_exn in
           ("Object has field "
           ^ field
           ^ ", but "
-          ^ short_name
+          ^ db_short_name db
           ^ " doesn't have that field")
       | Some other -> Exception.internal "wrong arg count"
-      | _ -> Postgresql.string_of_error e
+      | _ -> msg
     in
     DError result
 
