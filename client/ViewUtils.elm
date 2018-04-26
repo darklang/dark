@@ -21,6 +21,7 @@ import Analysis
 import DB
 import AST
 import Blank as B
+import Pointer as P
 
 type alias ViewState =
   { tl: Toplevel
@@ -41,7 +42,26 @@ createVS : Model -> Toplevel -> ViewState
 createVS m tl = { tl = tl
                 , cursorState = unwrapCursorState m.cursorState
                 , tlid = tl.id
-                , hovering = m.hovering |> List.head
+                , hovering =
+                  m.hovering
+                  |> List.head
+                  |> Maybe.andThen
+                    (\i ->
+                      case idOf m.cursorState of
+                        Just cur ->
+                          case TL.find tl i of
+                            Just (PExpr exp) ->
+                              let cursorSubsumedByHover =
+                                exp
+                                |> AST.allData
+                                |> List.map P.toID
+                                |> List.member cur
+                              in
+                                  if cursorSubsumedByHover
+                                  then Nothing
+                                  else Just i
+                            _ -> if cur == i then Nothing else Just i
+                        _ -> Nothing)
                 , ac = m.complete
                 , isHTTP = TL.isHTTPHandler tl
                 , lvs = Analysis.getLiveValuesDict m tl.id
