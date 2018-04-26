@@ -85,7 +85,6 @@ body #grid * {
   bottom: 0;
   left: 0px;
   position: absolute;
-  z-index: 20;
   width: 100%;
   background-color: @black1;
 
@@ -216,7 +215,6 @@ body #grid * {
   padding: 8px;
   position: relative;
   width: max-content;
-  z-index: 20;
 
   .header {
     width: 300px;
@@ -712,7 +710,6 @@ body #grid * {
         text-align: left;
         vertical-align: baseline;
         width: 100%;
-        z-index: 20;
       }
       #suggestionBox {
         color: rgb(84,84,84);
@@ -807,7 +804,6 @@ body #grid * {
     text-align: left;
     vertical-align: baseline;
     width: 100%;
-    z-index: 20;
   }
   textarea {
     color: @purple !important;
@@ -862,13 +858,6 @@ body #grid * {
 .sidebar-box {
   background: @black1;
   position: relative;
-  z-index: 10;
-  &.dragging {
-    z-index: 30;
-  }
-  &.selected {
-    z-index: 25;
-  }
 }
 
 .selected[title] {
@@ -975,4 +964,49 @@ body #grid * {
     }
   }
 
+}
+
+// ---------------------------
+// Z-Index
+// ---------------------------
+// [spec](https://trello.com/c/EDCiXGjq/732-z-indexing-part-2)
+// - buttons => 70
+// - entry box => 60
+// - dragging node => 50
+// - selected node => 40
+// - routing table => 35
+// - unselected node => 20
+
+#buttons {
+  z-index: 70;
+}
+
+.viewing-table {
+  z-index: 35;
+}
+
+.entry {
+  form {
+    #search-container {
+      #entry-box {
+        z-index: 60;
+      }
+    }
+  }
+}
+
+.string-entry {
+  #entry-box {
+    z-index: 60;
+  }
+}
+
+.sidebar-box {
+  z-index: 20;
+  &.dragging {
+    z-index: 50;
+  }
+  &.selected {
+    z-index: 40;
+  }
 }
