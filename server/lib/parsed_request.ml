@@ -107,14 +107,13 @@ let to_dval self =
   self
 
 let sample =
-  let open_record = DObj (DvalMap.empty) in
   let parts =
-    [ Dval.to_dobj [("body", open_record)]
-    ; Dval.to_dobj [("jsonBody", open_record)]
-    ; Dval.to_dobj [("formBody", open_record)]
-    ; Dval.to_dobj [("queryParams", open_record)]
-    ; Dval.to_dobj [("headers", open_record)]
-    ; Dval.to_dobj [("fullBody", DStr "")]
+    [ Dval.to_dobj [("body", DIncomplete)]
+    ; Dval.to_dobj [("jsonBody", DIncomplete)]
+    ; Dval.to_dobj [("formBody", DIncomplete)]
+    ; Dval.to_dobj [("queryParams", DIncomplete)]
+    ; Dval.to_dobj [("headers", DIncomplete)]
+    ; Dval.to_dobj [("fullBody", DIncomplete)]
     ]
   in
   List.fold_left

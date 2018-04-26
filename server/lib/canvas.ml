@@ -513,7 +513,7 @@ let create_environments (c: canvas) (host: string) :
   let dbs = TL.dbs c.toplevels in
   let initial_env = Db.dbs_as_env dbs in
   let sample_request = PReq.sample |> PReq.to_dval in
-  let sample_event = RTT.DObj (RTT.DvalMap.empty) in
+  let sample_event = RTT.DIncomplete in
   let default_env =
     initial_env
     |> RTT.DvalMap.set ~key:"request" ~data:sample_request
