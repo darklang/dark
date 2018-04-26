@@ -28,26 +28,58 @@ let to_tuple (expr: expr) : (id * expr) =
   (id, expr)
 
 
-let exception_to_dval ~(log: bool) e =
-  match e with
+let exception_to_dval ~(log: bool) exc =
+  match exc with
   | Exception.DarkException e ->
     let json = e
                |> Exception.exception_data_to_yojson
                |> Yojson.Safe.pretty_to_string in
     if log then print_endline json else ();
     DError json
-  | e ->
+
+  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds) as e) ->
+    (* go through a set of known errors and make them user-friendly *)
+    let m regex : string list option =
+      msg
+      |> String.split ~on:'\n'
+      |> List.hd
+      |> Option.value ~default:""
+      |> Util.string_match ~regex
+      |> Util.result_to_option
+    in
+
+    let result =
+      match m "ERROR:  column \"(.*)\" of relation \"(.*)\" does not exist" with
+      | Some [field; db] ->
+        let short_name = String.split ~on:'_' db
+                         |> List.tl
+                         |> Option.value ~default:[""]
+                         |> List.hd_exn in
+          ("Object has field "
+          ^ field
+          ^ ", but "
+          ^ short_name
+          ^ " doesn't have that field")
+      | Some other -> Exception.internal "wrong arg count"
+      | _ -> Postgresql.string_of_error e
+    in
+    DError result
+
+  | Postgresql.Error e ->
+    DError (Postgresql.string_of_error e)
+
+  | exc ->
     (* We do this split because it can be fragile grabbing the
      * Backtrace so we need to do that first *)
     if log
     then
       let bt = Backtrace.Exn.most_recent () in
-      let msg = Exn.to_string e in
+      let msg = Exn.to_string exc in
       print_endline (Backtrace.to_string bt);
       print_endline msg;
       DError msg
     else
-      let msg = Exn.to_string e in
+      let msg = Exn.to_string exc in
       DError msg
 
 

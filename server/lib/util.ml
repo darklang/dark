@@ -144,6 +144,17 @@ let random_string length =
     let gen _ = String.make 1 (char_of_int(gen())) in
     String.concat ~sep:"" (Array.to_list (Array.init length gen))
 
+(* Given ~regex, return Err if it doesn't match, or list of captures if
+ * it does. First elem of the list is the first capture, not the whole
+ * match. *)
+let string_match ~(regex: string) (str: string) : string list Or_error.t =
+  let reg = Re2.Regex.create_exn (regex) in
+  str
+  |> Re2.Regex.find_submatches reg
+  |> Result.map ~f:Array.to_list
+  |> Result.map ~f:List.tl_exn (* skip full match *)
+  |> Result.map ~f:(List.map ~f:(Option.value ~default:""))
+
 
 let list_repeat times item =
   List.init times ~f:(fun _ -> item)
@@ -170,3 +181,7 @@ let hash (input: string) : string =
   |> Cstruct.to_string
   |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
 
+let result_to_option (result : ('a, 'b) Result.t) : 'a option =
+  match result with
+  | Ok o -> Some o
+  | Error _ -> None

@@ -250,13 +250,8 @@ let run_sql ?(quiet=false) (sql: string) : unit =
     Log.infO "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
-
 let with_postgres fn =
-  try
-    fn ()
-  with
-  | PG.Error e ->
-    Exception.internal ("DB error with: " ^ (PG.string_of_error e))
+  fn ()
 
 let is_relation (valu: dval) : bool =
   match valu with
