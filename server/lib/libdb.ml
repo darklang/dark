@@ -14,7 +14,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj value; DDB db]) ->
-            let id = Db.with_postgres (fun _ -> Db.insert state.dbs db value) in
+            let id = Db.insert state.dbs db value in
             DObj (Map.set value "id" (DID id))
           | (_, args) -> fail args)
   ; pr = None
@@ -30,7 +30,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj vals; DDB db]) ->
-            Db.with_postgres (fun _ -> Db.delete state.dbs db vals);
+            Db.delete state.dbs db vals;
             DNull
           | (_, args) -> fail args)
   ; pr = None
@@ -47,7 +47,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            Db.with_postgres (fun _ -> Db.delete_all state.dbs db);
+            Db.delete_all state.dbs db;
             DNull
           | (_, args) -> fail args)
   ; pr = None
@@ -64,8 +64,8 @@ let fns : Lib.shortfn list = [
   ; d = "Update `table` value which has the same ID as `value`"
   ; f = InProcess
         (function
-          | (state, [DObj vals; DDB db] ) ->
-            Db.with_postgres (fun _ -> Db.update state.dbs db vals);
+          | (state, [DObj vals; DDB db]) ->
+            Db.update state.dbs db vals;
             DObj vals
           | (_, args) -> fail args)
   ; pr = None
@@ -80,8 +80,8 @@ let fns : Lib.shortfn list = [
   ; d = "Fetch the value in `table` whose field `field` is `value`"
   ; f = InProcess
         (function
-          | (state, [value; DStr field; DDB db] ) ->
-            Db.with_postgres (fun _ -> Db.fetch_by state.dbs db field value)
+          | (state, [value; DStr field; DDB db]) ->
+            Db.fetch_by state.dbs db field value
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -95,8 +95,8 @@ let fns : Lib.shortfn list = [
   ; d = "Fetch exactly one value in `table` whose field `field` is `value`"
   ; f = InProcess
         (function
-          | (state, [value; DStr field; DDB db] ) ->
-            let result = Db.with_postgres (fun _ -> Db.fetch_by state.dbs db field value) in
+          | (state, [value; DStr field; DDB db]) ->
+            let result = Db.fetch_by state.dbs db field value in
             (match result with
              | DList (x :: xs) -> x
                (* TODO(ian): Maybe/Option *)
@@ -115,7 +115,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            Db.with_postgres (fun _ -> Db.fetch_all state.dbs db)
+            Db.fetch_all state.dbs db
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
