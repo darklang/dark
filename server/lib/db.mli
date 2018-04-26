@@ -2,7 +2,6 @@ open Core
 open Types
 
 val conn : Postgresql.connection
-val with_postgres : (unit -> 'b) -> 'b
 
 (* Low-level API *)
 val run_sql : ?quiet:bool -> string -> unit

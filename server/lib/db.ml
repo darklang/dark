@@ -250,9 +250,6 @@ let run_sql ?(quiet=false) (sql: string) : unit =
     Log.infO "sql" sql ~stop:10000;
   ignore (conn#exec ~expect:[PG.Command_ok] sql)
 
-let with_postgres fn =
-  fn ()
-
 let is_relation (valu: dval) : bool =
   match valu with
   | DObj _ -> true
