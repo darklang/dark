@@ -136,12 +136,12 @@ viewNExpr d id vs config e =
       let lhsID = B.toID lhs
           bodyID = B.toID body
       in
-      n (wc "letexpr" :: ComputedValueAs lhsID :: all)
+      n (wc "letexpr" :: all)
         [ kw [] "let"
         , viewVarBind vs [wc "letvarname"] lhs
-        , a [wc "letbind"] "="
+        , a [wc "letbind", ComputedValueAs lhsID] "="
         , n [wc "letrhs", dv, cs] [vExpr d rhs]
-        , n [wc "letbody", ComputedValueAs bodyID] [vExpr d body]
+        , n [wc "letbody"] [vExpr d body]
         ]
 
     If cond ifbody elsebody ->
