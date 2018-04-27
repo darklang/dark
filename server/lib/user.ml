@@ -13,20 +13,31 @@ let construct ~username ~domain ~password =
   { username; domain; password }
 
 let users =
-  [["ian"; "admin"; "look"]
-  ;["paul";"admin"; "what"]
-  ;["ellen"; "admin"; "you"]
-  ;["stefi"; "admin"; "made"]
-  ;["zane"; "admin"; "me do"]
-  ;["yuriy"; "cats"; "wDp,>{jEdvtnQYYhsKtKd6xw"]
-  ;["lee"; "lee"; "klma923wels92l{]as]"]
-  ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"]
-  ;["aoife"; "dogtreats"; "notarealdog"]
-  ;["emma"; "emma"; "emmainterview"]
+  (* employees *)
+  [["ian"; "admin"; "look"; "ian@darklang.com"]
+  ;["paul";"admin"; "what"; "paul@darklang.com"]
+  ;["ellen"; "admin"; "you"; "ellen@darklang.com"]
+  ;["stefi"; "admin"; "made"; "stefi@darklang.com"]
+  ;["zane"; "admin"; "me do"; "zane@darklang.com"]
+
+  (* testing *)
+  ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"; ""]
+  ;["aoife"; "dogtreats"; "notarealdog"; "ian+dog@darklang.com"]
+
+  (* customers *)
+  ;["yuriy"; "cats"; "wDp,>{jEdvtnQYYhsKtKd6xw"; "yuriy@darklang.com"]
+
+  (* friends trying it out *)
+  ;["lee"; "lee"; "klma923wels92l{]as]"; "lee@ledwards.com"]
+  ;["alexey"; "alexey"; "sd][3[mlvkm9034j09"; "alexey@circleci.com"]
+
+  (* interviews *)
+  ;["emma"; "emma"; "emmainterview"; ""]
+
   ]
   |> List.map
        ~f:(function
-        | [username; domain; password] -> construct ~username ~domain ~password
+        | [username; domain; password; _] -> construct ~username ~domain ~password
         | _ -> failwith "Needs to be an array of length 3")
 
 let all_for_domain domain =
