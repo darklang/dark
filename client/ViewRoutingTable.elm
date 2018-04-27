@@ -148,10 +148,20 @@ header name list =
   , text "parens" ")"
   ]
 
+link : Html.Html Msg -> Msg -> Html.Html Msg
+link content handler =
+  Html.a
+    [ eventNoPropagation "mouseup" (\_ -> handler)
+    , Attrs.src ""
+    , Attrs.class "verb-link as-pointer"
+    ]
+    [ content ]
+
+
 viewGroup : Model -> (String, List Entry) -> Html.Html Msg
 viewGroup m (spacename, entries) =
   let def s = Maybe.withDefault "<no route yet>" s
-      link h =
+      externalLink h =
         if List.member "GET" (List.map Tuple.first h.verbs)
         then
           case h.name of
@@ -167,24 +177,18 @@ viewGroup m (spacename, entries) =
         else
           Html.div [] []
 
-      internalLinks e =
+      verbs e =
         e.verbs
         |> List.map
           (\(verb, pos) ->
-            Html.a
-            [ eventNoPropagation "mouseup"
-                (\_ -> (NavigateTo (Viewport.urlForPos pos)))
-            , Attrs.src ""
-            , Attrs.class "verb-link as-pointer"
-            ]
-            [ Html.text verb ])
+            link (Html.text verb) (NavigateTo (Viewport.urlForPos pos)))
         |> List.intersperse (Html.text ",")
       entryHtml e =
         div "handler" [ div "url"
                           (  List.map (text "prefix") e.prefix
                           ++ [text "name" (def e.name)])
-                      , link e
-                      , span "verbs" (internalLinks e)
+                      , externalLink e
+                      , span "verbs" (verbs e)
                       ]
       routes = div "routes" (List.map entryHtml entries)
   in
@@ -205,19 +209,13 @@ viewRoutes m =
 
 view404s : Model -> Html.Html Msg
 view404s m =
-  let link fof =
-        Html.a
-          [ eventNoPropagation "mouseup"
-          (\_ -> (CreateHandlerFrom404 fof))
-          , Attrs.src ""
-          , Attrs.class "verb-link as-pointer"
-          ]
-          [ fontAwesome "plus-circle" ]
+  let thelink fof =
+      link (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
 
       fofHtml (space, path, modifier, values) =
         div "fof"
           [ text "path" path
-          , link (space, path, modifier, values)
+          , thelink (space, path, modifier, values)
           , text "space" space
           , text "modifier" modifier
           ]
@@ -231,18 +229,12 @@ viewDBs m =
   let dbs = m.toplevels
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
-      link (pos, db) =
-        Html.a
-        [ eventNoPropagation "mouseup"
-            (\_ -> (NavigateTo (Viewport.urlForPos pos)))
-        , Attrs.src ""
-        , Attrs.class "as-pointer"
-        ]
-        [ Html.text db.name ]
+      thelink (pos, db) =
+        link (Html.text db.name) (NavigateTo (Viewport.urlForPos pos))
 
       dbHtml (pos, db) =
         div "db"
-          [ link (pos, db) ]
+          [ thelink (pos, db) ]
 
       routes = div ".routing-section" (List.map dbHtml dbs)
   in Html.div
