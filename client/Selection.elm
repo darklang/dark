@@ -347,12 +347,12 @@ enter m tlid id =
           ]
     in
     case pd of
-      PDBColName _ ->
-        if DB.isLocked m tlid
+      PDBColName d ->
+        if DB.isLocked m tlid && not (B.isBlank d)
         then NoChange
         else enterMods
-      PDBColType _ ->
-        if DB.isLocked m tlid
+      PDBColType d ->
+        if DB.isLocked m tlid && not (B.isBlank d)
         then NoChange
         else enterMods
       pd -> enterMods
