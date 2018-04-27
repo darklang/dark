@@ -220,7 +220,7 @@ no_request_global_in_non_http_space : Model -> TestResult
 no_request_global_in_non_http_space m =
   case onlyExpr m of
     -- this might change but this is the answer for now.
-    FnCall "Http::bad_request" _ -> pass
+    FnCall "Http::badRequest" _ -> pass
     -- Blank _ -> pass
     e -> fail e
 
