@@ -181,11 +181,6 @@ let hash (input: string) : string =
   |> Cstruct.to_string
   |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
 
-let result_to_option (result : ('a, 'b) Result.t) : 'a option =
-  match result with
-  | Ok o -> Some o
-  | Error _ -> None
-
 let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
   |> Option.value ~default:msg

@@ -52,7 +52,7 @@ let exception_to_dval ~(log: bool) exc =
     let m regex : string list option =
       msg
       |> Util.string_match ~regex
-      |> Util.result_to_option
+      |> Result.ok
     in
 
     let db_short_name db =
