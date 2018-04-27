@@ -196,14 +196,13 @@ viewGroup m (spacename, entries) =
     [ Attrs.class "routing-section"]
     [ header spacename entries, routes]
 
-viewRoutes : Model -> Html.Html Msg
+viewRoutes : Model -> List (Html.Html Msg)
 viewRoutes m =
-  let groups = m.toplevels
-               |> splitBySpace
-               |> List.map (T2.map collapseHandlers)
-               |> List.map (T2.map prefixify)
-               |> List.map (viewGroup m)
-  in div "groups" groups
+  m.toplevels
+  |> splitBySpace
+  |> List.map (T2.map collapseHandlers)
+  |> List.map (T2.map prefixify)
+  |> List.map (viewGroup m)
 
 
 
@@ -249,9 +248,10 @@ viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
   let html = Html.div
                [Attrs.class "viewing-table"]
-               [ viewRoutes m
-               , viewDBs m
-               , view404s m]
+               ( (viewRoutes m)
+                 ++ [viewDBs m]
+                 ++ [view404s m]
+               )
 
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
 
