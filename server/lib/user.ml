@@ -22,6 +22,7 @@ let users =
   ;["lee"; "lee"; "klma923wels92l{]as]"]
   ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"]
   ;["aoife"; "dogtreats"; "notarealdog"]
+  ;["emma"; "emma"; "emmainterview"]
   ]
   |> List.map
        ~f:(function
