@@ -27,6 +27,7 @@ fixture `Integration Tests`
 
     if (await signal.hasClass("failure")) {
       console.log("msg/mod logs for: " + t.testRun.test.name);
+      await t.takeScreenshot();
       for (var l of log) {
         console.log(l)
       }
@@ -237,12 +238,12 @@ test('no_request_global_in_non_http_space', async t => {
     .pressKey("enter")
     .click(".module")
     .pressKey("enter")
-    .typeText("#entry-box", "NOT_HTTP_SPACE")
+    .typeText("#entry-box", "NOT_HTTP_SPACE", slow)
     .pressKey("enter")
     .click(".ast")
     .pressKey("enter")
     .typeText("#entry-box", "req")
-    .expect(acHighlighted("Http::bad_request")).ok()
+    .expect(acHighlighted("Http::badRequest")).ok()
     .pressKey("enter")
 });
 
