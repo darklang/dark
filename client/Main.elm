@@ -777,11 +777,7 @@ update_ msg m =
                   if m.complete.value == "="
                   || AC.isStringEntry m.complete
                   then
-                    case devent.selectionStart of
-                      Just idx ->
-                        let newQ = SE.insertAt " " (idx + 1) m.complete.value in
-                        AutocompleteMod <| ACSetQuery newQ
-                      Nothing -> AutocompleteMod <| ACAppendQuery " "
+                    NoChange
                   else
                     let name = AC.getValue m.complete
                     in Entry.submit m cursor Entry.ContinueThread name
