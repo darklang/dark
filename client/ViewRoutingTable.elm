@@ -76,7 +76,7 @@ collapseHandlers tls =
          , verbs =
              case B.flattenFF h.spec.modifier of
                F _ s -> [(s, pos)]
-               Blank _ -> []
+               Blank _ -> [("_", pos)]
                Flagged _ _ _ _ _ ->
                  impossible ("FF in spec modifier", h.spec.modifier)
          })
