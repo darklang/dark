@@ -136,9 +136,9 @@ div vs configs content =
                                            WithClass c -> Just c
                                            _ -> Nothing)
       computedValueAs = getFirst (\a -> case a of
-                                  ComputedValueAs id -> Just id
-                                  ComputedValue -> thisID
-                                  _ -> Nothing)
+                                          ComputedValueAs id -> Just id
+                                          ComputedValue -> thisID
+                                          _ -> Nothing)
       showFeatureFlag = List.member WithFF configs
       showEditFn = List.member WithEditFn configs
 
