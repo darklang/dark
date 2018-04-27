@@ -139,10 +139,18 @@ text class msg = span class [Html.text msg]
 div : String -> List (Html.Html Msg) -> Html.Html Msg
 div class subs = Html.div [Attrs.class class] subs
 
+header : String -> List a -> Html.Html Msg
+header name list =
+  div "header"
+  [ text "title" name
+  , text "parens" "("
+  , text "count" (list |> List.length |> toString)
+  , text "parens" ")"
+  ]
+
 viewGroup : Model -> (String, List Entry) -> Html.Html Msg
 viewGroup m (spacename, entries) =
-  let handlerCount = List.length entries
-      def s = Maybe.withDefault "<no route yet>" s
+  let def s = Maybe.withDefault "<no route yet>" s
       link h =
         if List.member "GET" (List.map Tuple.first h.verbs)
         then
@@ -178,17 +186,11 @@ viewGroup m (spacename, entries) =
                       , link e
                       , span "verbs" (internalLinks e)
                       ]
-      header = div "header"
-                 [ text "title" spacename
-                 , text "parens" "("
-                 , text "count" (toString handlerCount)
-                 , text "parens" ")"
-                 ]
       routes = div "routes" (List.map entryHtml entries)
   in
   Html.div
     [ Attrs.class "routing-section"]
-    [ header, routes]
+    [ header spacename entries, routes]
 
 viewRoutes : Model -> Html.Html Msg
 viewRoutes m =
@@ -203,8 +205,7 @@ viewRoutes m =
 
 view404s : Model -> Html.Html Msg
 view404s m =
-  let count = List.length m.f404s
-      link fof =
+  let link fof =
         Html.a
           [ eventNoPropagation "mouseup"
           (\_ -> (CreateHandlerFrom404 fof))
@@ -220,23 +221,16 @@ view404s m =
           , text "space" space
           , text "modifier" modifier
           ]
-      header = div "header"
-                 [ text "title" "404s"
-                 , text "parens" "("
-                 , text "count" (toString count)
-                 , text "parens" ")"
-                 ]
       routes = div ".routing-section" (List.map fofHtml m.f404s)
   in Html.div
        [Attrs.class "fofs"]
-       [header, routes]
+       [header "404s" m.f404s, routes]
 
 viewDBs : Model -> Html.Html Msg
 viewDBs m =
   let dbs = m.toplevels
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
-      count = List.length dbs
       link (pos, db) =
         Html.a
         [ eventNoPropagation "mouseup"
@@ -249,16 +243,11 @@ viewDBs m =
       dbHtml (pos, db) =
         div "db"
           [ link (pos, db) ]
-      header = div "header"
-                 [ text "title" "DBs"
-                 , text "parens" "("
-                 , text "count" (toString count)
-                 , text "parens" ")"
-                 ]
+
       routes = div ".routing-section" (List.map dbHtml dbs)
   in Html.div
        [Attrs.class "dbs"]
-       [header, routes]
+       [header "DBs" dbs, routes]
 
 
 
