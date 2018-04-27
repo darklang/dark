@@ -42,6 +42,9 @@ fixture `Integration Tests`
 
 // If you're typing using .typeText, and the text is more than 3
 // characters, using { speed: 0.4 } to get testCafe to slow down a bit.
+// Elm has a bug where typing quickly jumps to the end of the input box,
+// and TestCafe types very quickly.
+// TODO: remove from the application?
 const slow = { speed: 0.4 };
 
 // Testcafe automatically waits for the next thing you've specified. So
@@ -222,7 +225,7 @@ test('editing_request_edits_request', async t => {
 test('autocomplete_highlights_on_partial_match', async t => {
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "nt::add")
+    .typeText("#entry-box", "nt::add", slow)
     .expect(acHighlighted("Int::add")).ok()
     .pressKey("enter")
     ;
@@ -258,7 +261,7 @@ test('hover_values_for_varnames', async t => {
 test('pressing_up_doesnt_return_to_start', async t => {
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "Char::")
+    .typeText("#entry-box", "Char::", slow)
     .expect(acHighlighted("Char::toASCIIChar")).ok()
     .pressKey("down")
     .pressKey("up")
@@ -282,7 +285,7 @@ test('right_number_of_blanks', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
-    .typeText("#entry-box", "assoc")
+    .typeText("#entry-box", "assoc", slow)
     .pressKey("enter")
 });
 
@@ -361,7 +364,7 @@ test('tabbing_through_let', async t => {
     .pressKey("tab")
     .typeText("#entry-box", "/route", slow)
     .pressKey("enter")
-    .typeText("#entry-box", "HTTP")
+    .typeText("#entry-box", "HTTP", slow)
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter")
@@ -383,7 +386,7 @@ test('tabbing_through_let', async t => {
     .pressKey("enter")
 
     // fill in the var
-    .typeText("#entry-box", "myvar")
+    .typeText("#entry-box", "myvar", slow)
     .pressKey("enter")
 });
 
@@ -470,7 +473,7 @@ test('dont_shift_focus_after_filling_last_blank', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "/")
     .pressKey("enter")
-    .typeText("#entry-box", "HTTP")
+    .typeText("#entry-box", "HTTP", slow)
     .pressKey("enter")
     .typeText("#entry-box", "GET")
     .pressKey("enter")
