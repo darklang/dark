@@ -183,9 +183,9 @@ viewGroup m (spacename, entries) =
             link (Html.text verb) (NavigateTo (Viewport.urlForPos pos)))
         |> List.intersperse (Html.text ",")
       entryHtml e =
-        div "handler" [ div "url"
+        div "handler" [ div "name"
                           (  List.map (text "prefix") e.prefix
-                          ++ [text "name" (def e.name)])
+                          ++ [Html.text (def e.name)])
                       , externalLink e
                       , span "verbs" (verbs e)
                       ]
@@ -217,9 +217,9 @@ view404s m =
           , text "space" space
           , text "modifier" modifier
           ]
-      routes = div ".routing-section" (List.map fofHtml m.f404s)
+      routes = div "404s" (List.map fofHtml m.f404s)
   in Html.div
-       [Attrs.class "fofs"]
+       [Attrs.class "routing-section"]
        [header "404s" m.f404s, routes]
 
 viewDBs : Model -> Html.Html Msg
@@ -232,11 +232,11 @@ viewDBs m =
 
       dbHtml (pos, db) =
         div "db-route"
-          [ thelink (pos, db) ]
+          [ span "name" [thelink (pos, db)] ]
 
-      routes = div ".routing-section" (List.map dbHtml dbs)
+      routes = div "dbs" (List.map dbHtml dbs)
   in Html.div
-       [Attrs.class "dbs"]
+       [Attrs.class "routing-section"]
        [header "DBs" dbs, routes]
 
 

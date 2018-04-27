@@ -204,20 +204,33 @@ body #grid * {
   position: relative;
   width: max-content;
 
-  .header {
-    width: 300px;
-    color: @orange;
+  .routing-section {
+    .header {
+      width: 300px;
+      color: @orange;
 
-    .title {
-      margin-right: 5px;
-      padding-bottom: 6px;
+      .title {
+        margin-right: 5px;
+        padding-bottom: 6px;
+      }
+      .count {
+        font-weight: bold;
+      }
     }
-    .count {
-      font-weight: bold;
-    }
-  }
 
-  .fofs {
+    .verb-link {
+      &:hover {
+        color: @orange;
+        text-decoration: underline;
+      }
+    }
+
+    .routes, .404s, .dbs {
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+      border-bottom: 1px @white1 solid;
+    }
+
     .fof {
       display: flex;
       flex-direction: row;
@@ -231,28 +244,13 @@ body #grid * {
         color: @grey2;
       }
     }
-  }
-
-  .verb-link {
-    &:hover {
-      color: @orange;
-      text-decoration: underline;
-    }
-  }
-
-  .routing-section {
-    .routes, .dbs {
-      padding-bottom: 8px;
-      margin-bottom: 8px;
-      border-bottom: 1px @white1 solid;
-    }
 
     .handler, .db-route {
       display: flex;
       flex-direction: row;
       justify-content: space-between;
 
-      .url{
+      .name {
         color: @white3;
         .prefix {
           color: @grey2;
