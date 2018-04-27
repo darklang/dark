@@ -66,7 +66,7 @@ collapseHandlers tls =
   |> List.map
        (\(pos, h) ->
          { name =
-             case B.flattenFF h.spec.name of
+             case h.spec.name of
                F _ s -> Just s
                Blank _ -> Nothing
                Flagged _ _ _ _ _ ->
@@ -74,7 +74,7 @@ collapseHandlers tls =
          , prefix = []
          , isHttp = SpecHeaders.isHTTP h.spec
          , verbs =
-             case B.flattenFF h.spec.modifier of
+             case h.spec.modifier of
                F _ s -> [(s, pos)]
                Blank _ -> [("_", pos)]
                Flagged _ _ _ _ _ ->
