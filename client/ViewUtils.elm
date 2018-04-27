@@ -61,7 +61,7 @@ createVS m tl = { tl = tl
                                   then Nothing
                                   else Just i
                             _ -> if cur == i then Nothing else Just i
-                        _ -> Nothing)
+                        _ -> Just i)
                 , ac = m.complete
                 , isHTTP = TL.isHTTPHandler tl
                 , lvs = Analysis.getLiveValuesDict m tl.id
