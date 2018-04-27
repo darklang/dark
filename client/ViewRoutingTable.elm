@@ -126,6 +126,10 @@ prefixify hs =
             Just (matched, unmatched) ->
               h :: (prefixify <| (List.map makePrefix matched) ++ unmatched)
 
+
+----------------------------------
+-- Html
+----------------------------------
 span : String -> List (Html.Html Msg) -> Html.Html Msg
 span class subs = Html.span [Attrs.class class] subs
 
@@ -200,7 +204,6 @@ viewRoutes m =
 view404s : Model -> Html.Html Msg
 view404s m =
   let count = List.length m.f404s
-
       link fof =
         Html.a
           [ eventNoPropagation "mouseup"
@@ -228,6 +231,37 @@ view404s m =
        [Attrs.class "fofs"]
        [header, routes]
 
+viewDBs : Model -> Html.Html Msg
+viewDBs m =
+  let dbs = m.toplevels
+            |> List.filter (\tl -> TL.asDB tl /= Nothing)
+            |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
+      count = List.length dbs
+      link (pos, db) =
+        Html.a
+        [ eventNoPropagation "mouseup"
+            (\_ -> (NavigateTo (Viewport.urlForPos pos)))
+        , Attrs.src ""
+        , Attrs.class "as-pointer"
+        ]
+        [ Html.text db.name ]
+
+      dbHtml (pos, db) =
+        div "db"
+          [ link (pos, db) ]
+      header = div "header"
+                 [ text "title" "DBs"
+                 , text "parens" "("
+                 , text "count" (toString count)
+                 , text "parens" ")"
+                 ]
+      routes = div ".routing-section" (List.map dbHtml dbs)
+  in Html.div
+       [Attrs.class "dbs"]
+       [header, routes]
+
+
+
 
 
 viewRoutingTable : Model -> Html.Html Msg
@@ -235,6 +269,7 @@ viewRoutingTable m =
   let html = Html.div
                [Attrs.class "viewing-table"]
                [ viewRoutes m
+               , viewDBs m
                , view404s m]
 
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
