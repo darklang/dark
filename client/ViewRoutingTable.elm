@@ -81,17 +81,16 @@ collapseHandlers tls =
                  impossible ("FF in spec modifier", h.spec.modifier)
          })
   |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
-  |> List.foldr (\curr list ->
+  |> LE.groupWhile (\a b -> a.name == b.name)
+  |> List.map (List.foldr (\curr list ->
                    case list of
                      [] -> [curr]
                      prev :: rest ->
-                       if prev.name == curr.name
-                       then
-                         let new = { prev | verbs = prev.verbs ++ curr.verbs }
-                         in new :: rest
-                       else
-                         curr :: prev :: rest
-                ) []
+                       let new =
+                             { prev | verbs = prev.verbs ++ curr.verbs }
+                       in new :: rest
+                ) [])
+  |> List.concat
 
 prefixify : List Entry -> List Entry
 prefixify hs =
