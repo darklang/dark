@@ -232,7 +232,7 @@ viewDBs m =
         link (Html.text db.name) (NavigateTo (Viewport.urlForPos pos))
 
       dbHtml (pos, db) =
-        div "db"
+        div "db-route"
           [ thelink (pos, db) ]
 
       routes = div ".routing-section" (List.map dbHtml dbs)
