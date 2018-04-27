@@ -24,10 +24,11 @@
 
     <script type="text/javascript">
       function stopKeys(event) {
-        if (
-            event.keyCode == 9 // Tab
-         || event.keyCode == 32 // Space
-         ) {
+        if (event.keyCode == 9) { // Tab
+           event.preventDefault();
+        }
+        if (event.keyCode == 32 // Space
+          && event.target.parentNode.className != "string-container") {
            event.preventDefault();
         }
         if (
