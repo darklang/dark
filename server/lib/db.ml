@@ -156,8 +156,9 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
     let id = sql |> Uuid.of_string |> DID in
     let db = find_db tables table in
     (match (fetch_by ~tables db "id" id) with
-    | DList l -> List.hd_exn l
-    | _ -> failwith "should never happen, fetch_by returns a DList")
+     | DList (a :: _) -> a
+     | DList _ -> DNull
+     | _ -> failwith "should never happen, fetch_by returns a DList")
   | THasMany table ->
     (* we get the string "{ foo, bar, baz }" back *)
     let split =
@@ -204,6 +205,7 @@ to_obj tables (names : string list) (types: tipe list) (db_strings : string list
   |> List.zip_exn names
   |> Dval.to_dobj
 
+
 let sql_tipe_for (tipe: tipe) : string =
   match tipe with
   | TAny -> failwith "todo sql type"
@@ -221,11 +223,32 @@ let sql_tipe_for (tipe: tipe) : string =
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
   | TID | TBelongsTo _ -> "UUID"
-  | THasMany _ -> "integer ARRAY"
+  | THasMany _ -> "uuid ARRAY"
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
   | TUrl -> "TEXT"
 
+let default_for (tipe: tipe) : string =
+  match tipe with
+  | TAny -> failwith "todo sql type"
+  | TInt -> "0"
+  | TFloat -> "0.0"
+  | TBool -> "FALSE"
+  | TNull -> failwith "todo sql type"
+  | TChar -> failwith "todo sql type"
+  | TStr -> "''"
+  | TList -> failwith "todo sql type"
+  | TObj -> failwith "todo sql type"
+  | TIncomplete -> failwith "todo sql type"
+  | TError -> failwith "todo sql type"
+  | TBlock -> failwith "todo sql type"
+  | TResp -> failwith "todo sql type"
+  | TDB -> failwith "todo sql type"
+  | TID | TBelongsTo _ -> "'00000000-0000-0000-0000-000000000000'::uuid"
+  | THasMany _ -> "{}"
+  | TDate -> "CURRENT_TIMESTAMP"
+  | TTitle -> "''"
+  | TUrl -> "''"
 
 (* ------------------------- *)
 (* frontend stuff *)
@@ -378,8 +401,8 @@ let create_table_sql (table_name: string) =
 
 let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
-    "ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s NOT NULL"
-    (escape table_name) (escape name) (sql_tipe_for tipe)
+    "ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s NOT NULL DEFAULT %s"
+    (escape table_name) (escape name) (sql_tipe_for tipe) (default_for tipe)
 
 let rename_col_sql (table_name: string) (oldname: string) (newname: string) : string =
   Printf.sprintf
