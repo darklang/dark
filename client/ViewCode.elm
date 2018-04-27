@@ -22,7 +22,7 @@ import Runtime
 
 viewFieldName : BlankViewer String
 viewFieldName vs c f =
-  let configs = idConfigs ++ c ++ withFeatureFlag vs f in
+  let configs = c ++ [ClickSelectAs (B.toID f)] ++ withFeatureFlag vs f in
   viewBlankOr (viewNFieldName vs) Field vs configs f
 
 viewVarBind : BlankViewer String
@@ -281,7 +281,13 @@ viewNExpr d id vs config e =
       n (wc "fieldaccessexpr" :: all)
         [ n [wc "fieldobject"] [vExpr 0 obj]
         , a [wc "fieldaccessop operator"] "."
-        , viewFieldName vs (wc "fieldname" :: atom :: []) field
+        , viewFieldName vs
+            [ wc "fieldname"
+            , atom
+            , DisplayValueOf id
+            , ComputedValueAs id
+            ]
+            field
         ]
 
 
