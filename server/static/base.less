@@ -168,9 +168,6 @@ body #grid * {
     left: 0px;
     position: absolute;
     width: 100%;
-    &.live-view-selection-active {
-      bottom: calc(~"100% + 22px");
-    }
     ul.request-cursor {
       bottom: 1em;
       float: left;
@@ -184,12 +181,10 @@ body #grid * {
           color: orange;
           &:before {
             background-color: @grey1;
-            bottom: calc(~"-100% + 3.5em");
+            bottom: calc(~"-100% + 37px");
             content: attr(data-content);
             display: block;
             font-size: 0.7em;
-            left: 0;
-            // max-height: 6em;
             max-width: 100%;
             overflow: auto;
             position: absolute;
@@ -864,7 +859,8 @@ body #grid * {
     .computed-value-error & {
       outline: 0.4px red solid;
     }
-    bottom: calc(~"100% + 2px");
+    // bottom: calc(~"100% + 0.5rem");
+    bottom: calc(~"100% + 22px");
     color: magenta;
     content: attr(title);
     display: block;
