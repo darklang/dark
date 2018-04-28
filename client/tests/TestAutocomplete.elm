@@ -181,7 +181,7 @@ all =
       |> setQuery "Twit"
       |> selectDown
       |> selectDown
-      |> setQuery "Twit1334xxx"
+      |> setQuery "Twit::1334xxx"
       |> .index
       |> (==) -1
 
@@ -247,14 +247,14 @@ all =
 
       -- alphabetical only #1
       , \_ -> create ()
-      |> setQuery "dbname1234"
+      |> setQuery "dbname1234::"
       |> selectDown
       |> highlighted
       |> (==) Nothing
 
       -- alphabetical only #2
       , \_ -> create ()
-      |> setQuery "db_name"
+      |> setQuery "db_name::"
       |> selectDown
       |> highlighted
       |> (==) Nothing
