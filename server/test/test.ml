@@ -16,6 +16,7 @@ let v str = Filled (fid (), Value str)
 let b () = Types.Blank (fid ())
 let f a = Types.Filled (fid (), a)
 let tlid = 7
+let pos = {x=0;y=0}
 
 let handle_exception e =
   (* Builtin testing doesnt seem to print exceptions *)
@@ -171,6 +172,31 @@ let t_db_oplist_roundtrip () =
   | None -> AT.fail "nothing in db"
 
 
+let t_case_insensitive_db_roundtrip () =
+  let colname = "cOlUmNnAmE" in
+  let value = DStr "some value" in
+  let oplist = [ Op.CreateDB (tlid, pos, "TestUnicode")
+               ; Op.AddDBCol (tlid, 11, 12)
+               ; Op.SetDBColName (tlid, 11, colname)
+               ; Op.SetDBColType (tlid, 12, "Str")
+               ] in
+  let c = ops2c "test_case_insensitive_db_roundtrip" oplist in
+  let dbs = TL.dbs !c.toplevels in
+  let db = dbs |> List.hd_exn in
+  let dval = DvalMap.singleton colname value in
+  let _ = Db.delete_all ~tables:dbs db in
+  let _ = Db.insert ~tables:dbs db dval in
+  let result = Db.fetch_all ~tables:dbs db in
+  match result with
+  | DList [DObj v] ->
+    AT.(check bool) "matched" true
+      (List.mem ~equal:(=) (DvalMap.data v) value)
+  | other ->
+    Log.pP "error" other;
+    AT.(check bool) "failed" true false
+
+
+
 
 
 let t_lambda_with_foreach () =
@@ -301,6 +327,7 @@ let suite =
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
+  ; "DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip
   ]
 
 let () =
