@@ -93,6 +93,7 @@ $FSWATCH | docker run \
              --env-file $ENV_FILE \
              --env HOST_PWD=$PWD \
              --env IN_DEV_CONTAINER=true \
+             --env CI=$CI \
              $POLL_FREQ \
              -v pgconf:/etc/postgresql \
              -v pglogs:/var/log/postgresql \
