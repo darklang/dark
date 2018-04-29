@@ -234,27 +234,28 @@ parseHTTPSpace s =
   String.contains (Debug.log "s" s) "HTTP" && String.length s > 0
   |> Debug.log "result"
 
-toDynamicItems : String -> List AutocompleteItem
-toDynamicItems query =
+toDynamicItems : Bool -> String -> List AutocompleteItem
+toDynamicItems isOmni query =
   let literal = parseLiteral query |> Maybe.map ACLiteral
       db = parseDBName query |> Maybe.map (\n -> ACOmniAction (NewDB n))
       http = if parseHTTPSpace query
              then Just (ACOmniAction NewHTTPSpace) |> Debug.log "http"
              else Nothing
+
+      always = [literal]
+      omni = if isOmni then [ db, http] else []
+      items = always ++ omni
   in
-  List.filterMap identity [ literal, db, http] |> Debug.log "omni"
+  List.filterMap identity items
 
 
 
 withDynamicItems : Maybe Target -> String -> List AutocompleteItem -> List AutocompleteItem
 withDynamicItems target query acis =
-  let new = toDynamicItems query
+  let new = toDynamicItems (target == Nothing) query
       withoutDynamic = List.filter isStaticItem acis
   in
-      case target of
-        Just _ -> acis
-        Nothing ->
-          new ++ withoutDynamic
+  new ++ withoutDynamic
 
 ------------------------------------
 -- Create the list
