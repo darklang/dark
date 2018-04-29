@@ -231,15 +231,14 @@ parseDBName s =
 
 parseHTTPSpace : String -> Bool
 parseHTTPSpace s =
-  String.contains (Debug.log "s" s) "HTTP" && String.length s > 0
-  |> Debug.log "result"
+  String.contains s "HTTP" && String.length s > 0
 
 toDynamicItems : Bool -> String -> List AutocompleteItem
 toDynamicItems isOmni query =
   let literal = parseLiteral query |> Maybe.map ACLiteral
       db = parseDBName query |> Maybe.map (\n -> ACOmniAction (NewDB n))
       http = if parseHTTPSpace query
-             then Just (ACOmniAction NewHTTPSpace) |> Debug.log "http"
+             then Just (ACOmniAction NewHTTPSpace)
              else Nothing
 
       always = [literal]
@@ -271,7 +270,6 @@ refilter : String -> Autocomplete -> Autocomplete
 refilter query old  =
   -- add or replace the literal the user is typing to the completions
   let fudgedCompletions = withDynamicItems old.target query old.allCompletions
-                          |> Debug.log "fudged"
 
       newCompletions = filter fudgedCompletions query
       newCount = newCompletions |> List.concat |> List.length
