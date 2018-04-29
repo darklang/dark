@@ -315,10 +315,12 @@ filter list query =
 
 
       -- split into different lists
+      (dynamic, candidates0) = List.partition isDynamicItem list
+
       candidates1 = List.filter (stringify
                                  >> String.toLower
                                  >> String.contains lcq
-                                 ) list
+                                 ) candidates0
 
       (startsWith, candidates2) =
         List.partition (stringify
@@ -337,7 +339,7 @@ filter list query =
                         ) candidates3
 
   in
-  [ startsWith, startsWithCI, substring, substringCI ]
+  [ dynamic, startsWith, startsWithCI, substring, substringCI ]
 
 
 
