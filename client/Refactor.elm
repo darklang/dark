@@ -73,6 +73,23 @@ wrap m tl p wl =
               ,focus)
     _ -> NoChange
 
+extractVariable : Model -> Toplevel -> PointerData -> Modification
+extractVariable m tl p =
+  case (p, TL.asHandler tl) of
+    (PExpr e, Just h) ->
+      let varname = "var" ++ toString (Util.random())
+          newAST = AST.replace p (PExpr (B.newF (Variable varname))) h.ast
+          newVar = B.newF varname
+          newLet = B.newF (Let newVar e newAST)
+          replacement = PExpr newLet
+          newHandler = { h | ast = newLet }
+      in
+      Many [ RPC ([SetHandler tl.id tl.pos newHandler]
+                 , FocusNoChange)
+           , Enter (Filling tl.id (B.toID newVar))
+           ]
+    _ -> NoChange
+
 extractFunction : Model -> Toplevel -> PointerData -> Modification
 extractFunction m tl p =
   if not (TL.isValidID tl (P.toID p))
