@@ -153,7 +153,7 @@ test('pipeline_let_equals', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "= value", slow)
+    .typeText("#entry-box", "=value", slow)
     .pressKey("enter")
     ;
 });
@@ -163,7 +163,7 @@ test('pipe_within_let', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("shift+enter")
-    .typeText("#entry-box", "= value", slow)
+    .typeText("#entry-box", "=value", slow)
     .pressKey("enter")
     .typeText("#entry-box", "value", slow)
     .pressKey("shift+enter")

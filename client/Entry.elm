@@ -169,14 +169,14 @@ submit m cursor action value =
                     TLDB _ -> impossible ("No expressions in DBs", tl.data)
                 (old, new) =
                   -- assign thread to variable
-                  if String.startsWith "= " value
+                  if Util.reExactly "=[a-zA-Z].*" value
                   then
                     case AST.threadAncestors id ast of
                       -- turn the current thread into a let-assignment to this
                       -- name, and close the thread
                       (F _ (Thread _) as thread) :: _ ->
                         let bindName = value
-                                       |> String.dropLeft 2
+                                       |> String.dropLeft 1
                                        |> String.trim
                         in
                           ( PExpr thread
