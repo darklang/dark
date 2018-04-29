@@ -1213,42 +1213,6 @@ let fns : Lib.shortfn list = [
   ;
 
 
-  { pns = ["true"]
-  ; ins = []
-  ; p = []
-  ; r = TBool
-  ; d = "The true value"
-  ; f = InProcess (fun _ -> failwith "True is a placeholer, we shouldn't be calling it")
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
-
-  { pns = ["false"]
-  ; ins = []
-  ; p = []
-  ; r = TBool
-  ; d = "The false value"
-  ; f = InProcess (fun _ -> failwith "False is a placeholer, we shouldn't be calling it" )
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
-
-  { pns = ["null"]
-  ; ins = []
-  ; p = []
-  ; r = TAny
-  ; d = "The null value"
-  ; f = InProcess (fun _ -> failwith "Null is a placeholer, we shouldn't be calling it")
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
-
   (* ====================================== *)
   (* Date *)
   (* ====================================== *)

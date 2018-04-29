@@ -218,13 +218,21 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  let int = s |> String.toInt in
-  case int of
-    Ok i ->
-      if i |> toFloat |> isNaN
-      then Nothing
-      else Just (ACLiteral i)
-    Err _ -> Nothing
+  if RT.isLiteral s
+  then Just (ACLiteral s)
+  else
+    -- isLiteral only works for the full word
+    if String.length s > 0
+    then
+      if String.startsWith s "null"
+      then Just (ACLiteral "null")
+      else if String.startsWith s "true"
+      then Just (ACLiteral "true")
+      else if String.startsWith s "false"
+      then Just (ACLiteral "false")
+      else Nothing
+    else Nothing
+
 
 qNewDB : String -> Maybe AutocompleteItem
 qNewDB s =
@@ -512,7 +520,7 @@ asName aci =
     ACField name -> name
     ACVariable name -> name
     ACExtra name -> name
-    ACLiteral lit -> toString lit
+    ACLiteral lit -> lit
     ACOmniAction ac ->
       case ac of
         NewDB name -> "Create new database: " ++ name
@@ -531,7 +539,9 @@ asTypeString item =
     ACField _ -> "field"
     ACVariable _ -> "variable"
     ACExtra _ -> ""
-    ACLiteral _ -> "int literal"
+    ACLiteral lit ->
+      let tipe = lit |> RT.tipeOf |> RT.tipe2str in
+      tipe ++ " literal"
     ACOmniAction _ -> ""
 
 asString : AutocompleteItem -> String

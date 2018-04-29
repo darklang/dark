@@ -191,7 +191,7 @@ type alias Autocomplete = { functions : List Function
                           , tipe : Maybe Tipe
                           }
 
-type alias Literal = Int
+type alias Literal = String
 type OmniAction = NewDB DBName
                 | NewHTTPSpace
                 | NewHTTPRoute String
