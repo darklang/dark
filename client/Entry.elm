@@ -82,11 +82,25 @@ submitOmniAction m pos action =
           tlid = gtlid ()
           spec = newHandlerSpec ()
           handler = { ast = B.new()
-                    , spec = { spec | module_ = B.newF "HTTP" }
+                    , spec = { spec | module_ = B.newF "HTTP"
+                                    , name = Blank next}
                     }
       in
           RPC ([ SetHandler tlid pos handler
                ] , FocusExact tlid next)
+    NewHTTPRoute route ->
+      let next = gid ()
+          tlid = gtlid ()
+          spec = newHandlerSpec ()
+          handler = { ast = B.new()
+                    , spec = { spec | name = B.newF route
+                                    , module_ = B.newF "HTTP"
+                                    , modifier = Blank next}
+                    }
+      in
+          RPC ([ SetHandler tlid pos handler
+               ] , FocusExact tlid next)
+
 
 
 
