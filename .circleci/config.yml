@@ -146,5 +146,7 @@ jobs:
 
       - store_artifacts:
           path: artifacts
+      - store_test_results:
+          path: artifacts/rundir1/integration_tests.xml
 
 
