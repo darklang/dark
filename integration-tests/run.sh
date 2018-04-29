@@ -51,6 +51,11 @@ sudo service dnsmasq --full-restart
 # TODO: if this makes tests less flaky, remove the hack in tests.js
 SPEED=0.4
 
+# Test reporters, mostly for CircleCI
+REPORTERS=spec
+REPORTERS+=,json:${DARK_CONFIG_RUN_DIR}/integration_tests.json
+REPORTERS+=,xunit:${DARK_CONFIG_RUN_DIR}/integration_tests.xml
+
 echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
 rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
@@ -84,7 +89,7 @@ TEST_HOST="integration-tests:$PORT" \
     --screenshots-on-fails \
     --screenshots ${DARK_CONFIG_RUN_DIR}/screenshots/ \
     --concurrency 4 \
-    --reporter spec,json:${DARK_CONFIG_RUN_DIR}/integration_tests.json \
+    --reporter $REPORTERS \
     --test-grep "$PATTERN" \
     "chrome:headless" \
     integration-tests/tests.js
