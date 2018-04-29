@@ -218,7 +218,13 @@ isStaticItem item = not (isDynamicItem item)
 
 qLiteral : String -> Maybe AutocompleteItem
 qLiteral s =
-  s |> String.toInt |> Result.toMaybe |> Maybe.map ACLiteral
+  let int = s |> String.toInt in
+  case int of
+    Ok i ->
+      if i |> toFloat |> isNaN
+      then Nothing
+      else Just (ACLiteral i)
+    Err _ -> Nothing
 
 qNewDB : String -> Maybe AutocompleteItem
 qNewDB s =

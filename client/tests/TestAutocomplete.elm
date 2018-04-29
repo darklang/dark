@@ -301,6 +301,13 @@ all =
       |> highlighted
       |> (==) (Just (ACOmniAction (NewHTTPRoute "/asasdasd")))
 
+      -- A specific bug where + is interpreted as an ACLiteral
+      , \_ -> create ()
+      |> setQuery "+"
+      |> highlighted
+      |> Maybe.map asName
+      |> (==) (Just "+")
+
 
       ]
     ]
