@@ -49,7 +49,10 @@ sudo service dnsmasq --full-restart
 # can change this on an individual action:
 # https://devexpress.github.io/testcafe/documentation/test-api/actions/action-options.html#basic-action-options
 # TODO: if this makes tests less flaky, remove the hack in tests.js
-SPEED=0.4
+SPEED=0.8
+if [[ -v CI ]]; then
+  SPEED=0.4
+fi
 
 # Test reporters, mostly for CircleCI
 REPORTERS=spec
