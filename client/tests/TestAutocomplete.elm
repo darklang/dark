@@ -290,6 +290,18 @@ all =
         |> setQuery "HTTP"
         |> highlighted
         |> (==) (highlighted old)
+
+      , \_ -> create ()
+      |> setQuery "/"
+      |> highlighted
+      |> (==) (Just (ACOmniAction (NewHTTPRoute "/")))
+
+      , \_ -> create ()
+      |> setQuery "/asasdasd"
+      |> highlighted
+      |> (==) (Just (ACOmniAction (NewHTTPRoute "/asasdasd")))
+
+
       ]
     ]
 

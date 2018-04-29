@@ -229,16 +229,24 @@ qNewDB s =
   then Just (ACOmniAction (NewDB s))
   else Nothing
 
-qHTTPHandler : String -> Maybe AutocompleteItem
-qHTTPHandler s =
+qHTTPSpace : String -> Maybe AutocompleteItem
+qHTTPSpace s =
   if String.contains s "HTTP" && String.length s > 0
   then Just (ACOmniAction NewHTTPSpace)
   else Nothing
 
+qHTTPRoute : String -> Maybe AutocompleteItem
+qHTTPRoute s =
+  if String.startsWith "/" s
+  then Just (ACOmniAction (NewHTTPRoute s))
+  else Nothing
+
+
+
 toDynamicItems : Bool -> String -> List AutocompleteItem
 toDynamicItems isOmni query =
   let always = [qLiteral]
-      omni = if isOmni then [ qNewDB, qHTTPHandler ] else []
+      omni = if isOmni then [ qNewDB, qHTTPSpace, qHTTPRoute ] else []
       items = always ++ omni
   in
   items
@@ -503,6 +511,7 @@ asName aci =
       case ac of
         NewDB name -> "Create new database: " ++ name
         NewHTTPSpace -> "Create new HTTP handler"
+        NewHTTPRoute name -> "Create new HTTP handler for " ++ name
 
 
 asTypeString : AutocompleteItem -> String
