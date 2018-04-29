@@ -216,36 +216,32 @@ isDynamicItem item =
 isStaticItem : AutocompleteItem -> Bool
 isStaticItem item = not (isDynamicItem item)
 
-parseLiteral : String -> Maybe Literal
-parseLiteral s =
-  s |> String.toInt |> Result.toMaybe
+qLiteral : String -> Maybe AutocompleteItem
+qLiteral s =
+  s |> String.toInt |> Result.toMaybe |> Maybe.map ACLiteral
 
-parseDBName : String -> Maybe DBName
-parseDBName s =
+qNewDB : String -> Maybe AutocompleteItem
+qNewDB s =
   if String.length s >= 4
       && Util.reExactly "[A-Za-z][a-zA-Z0-9_-]*" s
-  then
-    Just s
-  else
-    Nothing
+  then Just (ACOmniAction (NewDB s))
+  else Nothing
 
-parseHTTPSpace : String -> Bool
-parseHTTPSpace s =
-  String.contains s "HTTP" && String.length s > 0
+qHTTPHandler : String -> Maybe AutocompleteItem
+qHTTPHandler s =
+  if String.contains s "HTTP" && String.length s > 0
+  then Just (ACOmniAction NewHTTPSpace)
+  else Nothing
 
 toDynamicItems : Bool -> String -> List AutocompleteItem
 toDynamicItems isOmni query =
-  let literal = parseLiteral query |> Maybe.map ACLiteral
-      db = parseDBName query |> Maybe.map (\n -> ACOmniAction (NewDB n))
-      http = if parseHTTPSpace query
-             then Just (ACOmniAction NewHTTPSpace)
-             else Nothing
-
-      always = [literal]
-      omni = if isOmni then [ db, http] else []
+  let always = [qLiteral]
+      omni = if isOmni then [ qNewDB, qHTTPHandler ] else []
       items = always ++ omni
   in
-  List.filterMap identity items
+  items
+  |> List.map (\aci -> aci query)
+  |> List.filterMap identity
 
 
 
