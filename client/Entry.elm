@@ -77,6 +77,18 @@ submitOmniAction m pos action =
           RPC ([ CreateDB tlid pos dbname
                , AddDBCol tlid next (gid ())
                ] , FocusExact tlid next)
+    NewHTTPSpace ->
+      let next = gid ()
+          tlid = gtlid ()
+          spec = newHandlerSpec ()
+          handler = { ast = B.new()
+                    , spec = { spec | module_ = B.newF "HTTP" }
+                    }
+      in
+          RPC ([ SetHandler tlid pos handler
+               ] , FocusExact tlid next)
+
+
 
 type ThreadAction = StartThread | ContinueThread
 submit : Model -> EntryCursor -> ThreadAction -> String -> Modification
