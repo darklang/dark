@@ -202,7 +202,7 @@ editing_request_edits_request m =
   case onlyExpr m of
     FieldAccess (F id1 (Variable "request")) (Blank _) ->
       case m.complete.completions of
-        [cs, _, _, _] ->
+        [_, cs, _, _, _] ->
           case cs of
             [ACVariable "request"] -> pass
             _ -> fail cs
