@@ -34,56 +34,43 @@ type WrapLoc = WLetRHS
 
 wrap : Model -> Toplevel -> PointerData -> WrapLoc -> Modification
 wrap m tl p wl =
-  case TL.asHandler tl of
-    Just h ->
-      case p of
-        PExpr e ->
-          let (replacement, focus) =
-                case wl of
-                  WLetRHS ->
-                    let lhs =
-                          B.new ()
-                        replacement =
-                          PExpr (B.newF (Let lhs e (B.new ())))
-                    in
-                        (replacement, FocusExact tl.id (B.toID lhs))
-                  WLetBody ->
-                    let lhs =
-                          B.new ()
-                        replacement =
-                          PExpr (B.newF (Let lhs (B.new ()) e))
-                    in
-                        (replacement, FocusExact tl.id (B.toID lhs))
-                  WIfCond ->
-                    let thenBlank =
-                          B.new ()
-                        replacement =
-                          PExpr (B.newF (If e thenBlank (B.new ())))
-                    in
-                        (replacement, FocusExact tl.id (B.toID thenBlank))
-                  WIfThen ->
-                    let condBlank =
-                          B.new ()
-                        replacement =
-                          PExpr (B.newF (If condBlank e (B.new ())))
-                    in
-                        (replacement, FocusExact tl.id (B.toID condBlank))
-                  WIfElse ->
-                    let condBlank =
-                          B.new ()
-                        replacement =
-                          PExpr (B.newF (If condBlank (B.new ()) e))
-                    in
-                        (replacement, FocusExact tl.id (B.toID condBlank))
-              newH =
-                let newAst =
-                      AST.replace p replacement h.ast
+  case (p, TL.asHandler tl) of
+    (PExpr e, Just h) ->
+      let (replacement, focus) =
+            case wl of
+              WLetRHS ->
+                let lhs = B.new ()
+                    replacement = PExpr (B.newF (Let lhs e (B.new ())))
                 in
-                    { h | ast = newAst }
-          in
-              RPC ([SetHandler tl.id tl.pos newH]
-                  ,focus)
-        _ -> NoChange
+                    (replacement, FocusExact tl.id (B.toID lhs))
+              WLetBody ->
+                let lhs = B.new ()
+                    replacement = PExpr (B.newF (Let lhs (B.new ()) e))
+                in
+                    (replacement, FocusExact tl.id (B.toID lhs))
+              WIfCond ->
+                let thenBlank = B.new ()
+                    replacement =
+                      PExpr (B.newF (If e thenBlank (B.new ())))
+                in
+                    (replacement, FocusExact tl.id (B.toID thenBlank))
+              WIfThen ->
+                let condBlank = B.new ()
+                    replacement =
+                      PExpr (B.newF (If condBlank e (B.new ())))
+                in
+                    (replacement, FocusExact tl.id (B.toID condBlank))
+              WIfElse ->
+                let condBlank = B.new ()
+                    replacement =
+                      PExpr (B.newF (If condBlank (B.new ()) e))
+                in
+                    (replacement, FocusExact tl.id (B.toID condBlank))
+          newH =
+            { h | ast = AST.replace p replacement h.ast }
+      in
+          RPC ([SetHandler tl.id tl.pos newH]
+              ,focus)
     _ -> NoChange
 
 extractFunction : Model -> Toplevel -> PointerData -> Modification
