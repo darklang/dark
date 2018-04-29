@@ -229,46 +229,32 @@ parseDBName s =
   else
     Nothing
 
--- Note, this does the filterMap to keep the indices of the new
--- items the same.
-replaceDynamicItems : String -> List AutocompleteItem -> List AutocompleteItem
-replaceDynamicItems query acis =
-  List.filterMap
-    (\ai ->
-      case ai of
-        ACLiteral _ ->
-          parseLiteral query |> Maybe.map ACLiteral
-        ACOmniAction act ->
-          case act of
-            NewDB _ ->
-              parseDBName query |> Maybe.map (\n -> ACOmniAction (NewDB n))
-        _ -> Just ai)
-    acis
+parseHTTPSpace : String -> Bool
+parseHTTPSpace s =
+  String.contains (Debug.log "s" s) "HTTP" && String.length s > 0
+  |> Debug.log "result"
 
-addDynamicItems : Maybe Target -> String -> List AutocompleteItem -> List AutocompleteItem
-addDynamicItems target query acis =
-  let addOmnis acis  =
-        case target of
-          Nothing ->
-            acis
-            |> (\acis -> parseDBName query
-                         |> Maybe.andThen
-                           (\n ->
-                             if List.any (\a -> asName a == n) acis
-                             then
-                               Nothing
-                             else
-                               Just (ACOmniAction (NewDB n)))
-                         |> Maybe.map (\l -> l :: acis)
-                         |> Maybe.withDefault acis)
-          Just _ -> acis
+toDynamicItems : String -> List AutocompleteItem
+toDynamicItems query =
+  let literal = parseLiteral query |> Maybe.map ACLiteral
+      db = parseDBName query |> Maybe.map (\n -> ACOmniAction (NewDB n))
+      http = if parseHTTPSpace query
+             then Just (ACOmniAction NewHTTPSpace) |> Debug.log "http"
+             else Nothing
   in
-      acis
-      |> (\acis -> parseLiteral query
-                  |> Maybe.map ACLiteral
-                  |> Maybe.map (\l -> l :: acis)
-                  |> Maybe.withDefault acis)
-      |> addOmnis
+  List.filterMap identity [ literal, db, http] |> Debug.log "omni"
+
+
+
+withDynamicItems : Maybe Target -> String -> List AutocompleteItem -> List AutocompleteItem
+withDynamicItems target query acis =
+  let new = toDynamicItems query
+      withoutDynamic = List.filter isStaticItem acis
+  in
+      case target of
+        Just _ -> acis
+        Nothing ->
+          new ++ withoutDynamic
 
 ------------------------------------
 -- Create the list
@@ -283,12 +269,8 @@ regenerate m a =
 refilter : String -> Autocomplete -> Autocomplete
 refilter query old  =
   -- add or replace the literal the user is typing to the completions
-  let fudgedCompletions =
-        if List.any isDynamicItem old.allCompletions
-        then
-          replaceDynamicItems query old.allCompletions
-        else
-          addDynamicItems old.target query old.allCompletions
+  let fudgedCompletions = withDynamicItems old.target query old.allCompletions
+                          |> Debug.log "fudged"
 
       newCompletions = filter fudgedCompletions query
       newCount = newCompletions |> List.concat |> List.length
@@ -521,6 +503,7 @@ asName aci =
     ACOmniAction ac ->
       case ac of
         NewDB name -> "Create new database: " ++ name
+        NewHTTPSpace -> "Create new HTTP handler"
 
 
 asTypeString : AutocompleteItem -> String
