@@ -47,6 +47,10 @@ all =
           , ("withLower", TObj)
           , ("SomeModule::withLower", TObj)
           , ("SomeOtherModule::withlower", TObj)
+          , ("HTTP::post", TAny)
+          , ("HTTP::head", TAny)
+          , ("HTTP::get", TAny)
+          , ("HTTP::options", TAny)
           ]
       m = Defaults.defaultModel
       create () = init completes |> regenerate m
@@ -174,7 +178,7 @@ all =
       |> selectUp
       |> selectUp
       |> .index
-      |> (==) 9
+      |> (==) 13
 
       -- Don't highlight when the list is empty
       , \_ -> create ()
@@ -259,6 +263,33 @@ all =
       |> highlighted
       |> (==) Nothing
 
+      -- No HTTP handler in general
+      , \_ -> create ()
+      |> setQuery "asdkkasd"
+      |> .completions
+      |> List.concat
+      |> List.member (ACOmniAction NewHTTPSpace)
+      |> (==) False
+
+      -- HTTP handler
+      , \_ -> create ()
+      |> setQuery "HTT"
+      |> highlighted
+      |> (==) (Just (ACOmniAction NewHTTPSpace))
+
+      -- Adding a dynamic item doesnt mess with the previous selection
+      , \_ ->
+        let old = create ()
+                  |> setQuery "HTTP:"
+                  |> selectDown
+                  |> selectDown
+                  |> selectDown
+                  |> selectDown
+        in
+        old
+        |> setQuery "HTTP"
+        |> highlighted
+        |> (==) (highlighted old)
       ]
     ]
 
