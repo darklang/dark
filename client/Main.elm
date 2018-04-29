@@ -692,8 +692,16 @@ update_ msg m =
                 else
                   NoChange
               Key.L ->
-                if event.ctrlKey
+                if event.ctrlKey && event.shiftKey
                 then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id
+                      in
+                      Refactor.extractVariable m tl pd
+                else if event.ctrlKey then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
