@@ -194,6 +194,7 @@ type alias Autocomplete = { functions : List Function
 type alias Literal = Int
 type OmniAction = NewDB DBName
                 | NewHTTPSpace
+                | NewHTTPRoute String
 type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
