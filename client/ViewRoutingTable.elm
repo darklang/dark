@@ -38,7 +38,7 @@ splitBySpace tls =
                      |> Maybe.map .spec
                      |> Maybe.map .module_
                      |> Maybe.andThen B.toMaybe
-                     |> Maybe.withDefault "<no space yet>"
+                     |> Maybe.withDefault "<missing event space>"
   in
   tls
   |> List.sortBy spaceName
@@ -165,7 +165,7 @@ link content handler =
 
 viewGroup : Model -> (String, List Entry) -> Html.Html Msg
 viewGroup m (spacename, entries) =
-  let def s = Maybe.withDefault "<no route yet>" s
+  let def s = Maybe.withDefault "<missing route>" s
       externalLink h =
         if List.member "GET" (List.map Tuple.first h.verbs)
         then
