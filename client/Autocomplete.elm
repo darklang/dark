@@ -224,11 +224,11 @@ qLiteral s =
     -- isLiteral only works for the full word
     if String.length s > 0
     then
-      if String.startsWith s "null"
+      if String.startsWith (String.toLower s) "null"
       then Just (ACLiteral "null")
-      else if String.startsWith s "true"
+      else if String.startsWith (String.toLower s) "true"
       then Just (ACLiteral "true")
-      else if String.startsWith s "false"
+      else if String.startsWith (String.toLower s) "false"
       then Just (ACLiteral "false")
       else Nothing
     else Nothing
