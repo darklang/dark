@@ -502,7 +502,10 @@ let set_col_name id name (do_db_ops: bool) db =
     | (Blank hid, tipe) when hid = id ->
         maybe_add_to_actual_db db id (Filled (hid, name), tipe) do_db_ops
     | _ -> col in
-  { db with cols = List.map ~f:set db.cols }
+  let newcols = List.map ~f:set db.cols in
+  if db.cols = newcols && do_db_ops
+  then Exception.client "No change made to col type"
+  else { db with cols = newcols }
 
 let change_col_name id name (do_db_ops: bool) db =
   let change col =
@@ -534,7 +537,10 @@ let set_col_type id tipe (do_db_ops: bool) db =
     | (name, Blank hid) when hid = id ->
         maybe_add_to_actual_db db id (name, Filled (hid, tipe)) do_db_ops
     | _ -> col in
-  { db with cols = List.map ~f:set db.cols }
+  let newcols = List.map ~f:set db.cols in
+  if db.cols = newcols && do_db_ops
+  then Exception.client "No change made to col type"
+  else { db with cols = newcols }
 
 let change_col_type id newtipe (do_db_ops: bool) db =
   let change col =

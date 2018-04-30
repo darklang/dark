@@ -320,9 +320,9 @@ delete m tlid mId =
       in
       case P.typeOf pd of
         DBColType ->
-          RPC ([SetDBColType tlid id ""], focus)
+          NoChange
         DBColName ->
-          RPC ([SetDBColName tlid id ""], focus)
+          NoChange
         _ ->
           let newTL = TL.delete tl pd newID in
           case newTL.data of
