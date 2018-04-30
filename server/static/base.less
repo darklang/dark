@@ -434,8 +434,14 @@ body #grid * {
 }
 
 .string-style() {
-    color: @purple;
-    font-style: italic;
+  color: @purple;
+  font-style: italic;
+  &.short-strings {
+    max-width: 40ch;
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+  }
 }
 
 .blank-box-style() {

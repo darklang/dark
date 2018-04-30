@@ -36,6 +36,7 @@ type alias ViewState =
   , ufns: List UserFunction
   , results: List AResult
   , relatedBlankOrs: List ID
+  , tooWide: Bool
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -82,6 +83,7 @@ createVS m tl = { tl = tl
                             _ -> []
                         _ -> []
                     _ -> []
+                , tooWide = False
                 }
 
 fontAwesome : String -> Html.Html Msg

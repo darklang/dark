@@ -106,6 +106,9 @@ depthString n = "precedence-" ++ (toString n)
 viewNExpr : Int -> ID -> Viewer NExpr
 viewNExpr d id vs config e =
   let vExpr d = viewExpr d vs []
+      vExprTw d =
+        let vs2 = { vs | tooWide = True } in
+        viewExpr d vs2 []
       t = text vs
       n c = div vs (nested :: c)
       a c = text vs (atom :: c)
@@ -129,8 +132,11 @@ viewNExpr d id vs config e =
             if d == 0
             then [ComputedValue]
             else []
+          tooWide = if vs.tooWide
+                    then [wc "short-strings"]
+                    else []
       in
-      a (wc cssClass :: wc "value" :: all ++ computedValue) valu
+      a (wc cssClass :: wc "value" :: all ++ tooWide ++ computedValue) valu
 
     Variable name ->
       if List.member id vs.relatedBlankOrs
@@ -161,7 +167,11 @@ viewNExpr d id vs config e =
       ]
 
     FnCall name exprs ->
-      let fnname parens =
+      let width = approxNWidth e
+          ve = if width > 120
+               then vExprTw
+               else vExpr
+          fnname parens =
             let withP name = if parens then "(" ++ name ++ ")" else name in
             case String.split "::" name of
               [mod, justname] ->
@@ -253,13 +263,13 @@ viewNExpr d id vs config e =
       case (fn.infix, exprs) of
         (True, [first, second]) ->
           n (wc "fncall infix" :: wc (depthString d) :: all)
-          [ n [wc "lhs"] [vExpr incD first]
+          [ n [wc "lhs"] [ve incD first]
           , fnDiv False
-          , n [wc "rhs"] [vExpr incD second]
+          , n [wc "rhs"] [ve incD second]
           ]
         _ ->
           n (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv fn.infix :: List.map (vExpr incD) exprs)
+            (fnDiv fn.infix :: List.map (ve incD) exprs)
 
     Lambda vars expr ->
       let varname v = t [wc "lambdavarname", atom] v in
@@ -309,52 +319,55 @@ approxWidth e =
   case B.flattenFF e of
     Blank _ -> 6
     Flagged _ _ _ _ _ -> impossible "flat"
-    F _ ne ->
-      case ne of
-        Value v ->
-          toString v |> String.length
+    F _ ne -> approxNWidth ne
 
-        Variable name ->
-          String.length name
+approxNWidth : NExpr -> Int
+approxNWidth ne =
+  case ne of
+    Value v ->
+      toString v |> String.length
 
-        Let lhs rhs body ->
-          max
-            (blankOrLength lhs
-             + approxWidth rhs
-             + 4 -- "let "
-             + 3) -- " = "
-            (approxWidth body)
+    Variable name ->
+      String.length name
 
-        If cond ifbody elsebody ->
-          3 -- "if "
-          |> (+) (approxWidth cond)
-          |> max (approxWidth ifbody + 2) -- indent
-          |> max (approxWidth elsebody + 2) -- indent
+    Let lhs rhs body ->
+      max
+        (blankOrLength lhs
+         + approxWidth rhs
+         + 4 -- "let "
+         + 3) -- " = "
+        (approxWidth body)
 
-        FnCall name exprs ->
-          let sizes = exprs
-                      |> List.map approxWidth
-                      |> List.map ((+) 1) -- the space in between
-                      |> List.sum in
+    If cond ifbody elsebody ->
+      3 -- "if "
+      |> (+) (approxWidth cond)
+      |> max (approxWidth ifbody + 2) -- indent
+      |> max (approxWidth elsebody + 2) -- indent
 
-          String.length name + sizes
+    FnCall name exprs ->
+      let sizes = exprs
+                  |> List.map approxWidth
+                  |> List.map ((+) 1) -- the space in between
+                  |> List.sum in
 
-        Lambda vars expr ->
-          max
-            (approxWidth expr)
-            7 -- "| var -->" (only one var for now)
+      String.length name + sizes
 
-        Thread exprs ->
-          exprs
-          |> List.map approxWidth
-          |> List.maximum
-          |> Maybe.withDefault 2
-          |> (+) 1 -- the pipe
+    Lambda vars expr ->
+      max
+        (approxWidth expr)
+        7 -- "| var -->" (only one var for now)
 
-        FieldAccess obj field ->
-          approxWidth obj
-          + 1 -- '.'
-          + (blankOrLength field)
+    Thread exprs ->
+      exprs
+      |> List.map approxWidth
+      |> List.maximum
+      |> Maybe.withDefault 2
+      |> (+) 1 -- the pipe
+
+    FieldAccess obj field ->
+      approxWidth obj
+      + 1 -- '.'
+      + (blankOrLength field)
 
 
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)
