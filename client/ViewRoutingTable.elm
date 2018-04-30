@@ -148,6 +148,12 @@ header name list =
     , text "parens" ")"
     ]
 
+section : String -> List a -> Html.Html Msg -> Html.Html Msg
+section name entries routes =
+  Html.details
+    [ Attrs.class "routing-section"]
+    [ header name entries, routes]
+
 link : Html.Html Msg -> Msg -> Html.Html Msg
 link content handler =
   Html.a
@@ -156,7 +162,6 @@ link content handler =
     , Attrs.class "verb-link as-pointer"
     ]
     [ content ]
-
 
 viewGroup : Model -> (String, List Entry) -> Html.Html Msg
 viewGroup m (spacename, entries) =
@@ -192,9 +197,7 @@ viewGroup m (spacename, entries) =
                       ]
       routes = div "routes" (List.map entryHtml entries)
   in
-  Html.details
-    [ Attrs.class "routing-section"]
-    [ header spacename entries, routes]
+  section spacename entries routes
 
 viewRoutes : Model -> List (Html.Html Msg)
 viewRoutes m =
@@ -203,8 +206,6 @@ viewRoutes m =
   |> List.map (T2.map collapseHandlers)
   |> List.map (T2.map prefixify)
   |> List.map (viewGroup m)
-
-
 
 view404s : Model -> Html.Html Msg
 view404s m =
@@ -219,9 +220,7 @@ view404s m =
           , text "modifier" modifier
           ]
       routes = div "404s" (List.map fofHtml m.f404s)
-  in Html.details
-       [Attrs.class "routing-section"]
-       [header "404s" m.f404s, routes]
+  in section "404s" m.f404s routes
 
 viewDBs : Model -> Html.Html Msg
 viewDBs m =
@@ -236,11 +235,7 @@ viewDBs m =
           [ span "name" [thelink (pos, db)] ]
 
       routes = div "dbs" (List.map dbHtml dbs)
-  in Html.details
-       [Attrs.class "routing-section"]
-       [header "DBs" dbs, routes]
-
-
+  in section "DBs" dbs routes
 
 
 
