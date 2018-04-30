@@ -168,9 +168,15 @@ viewNExpr d id vs config e =
 
     FnCall name exprs ->
       let width = approxNWidth e
-          ve = if width > 120
-               then vExprTw
-               else vExpr
+          viewTooWideArg name d e =
+            Html.div
+              [ Attrs.attribute "param-name" name
+              ,  Attrs.class "arg-on-new-line"
+              ]
+              [ vExprTw d e ]
+          ve name = if width > 120
+                    then viewTooWideArg name
+                    else vExpr
           fnname parens =
             let withP name = if parens then "(" ++ name ++ ")" else name in
             case String.split "::" name of
@@ -206,7 +212,7 @@ viewNExpr d id vs config e =
                 impossible db
 
           -- buttons
-          allExprs = previous ++  exprs
+          allExprs = previous ++ exprs
           isComplete v =
             v
             |> getLiveValue vs.lvs
@@ -260,16 +266,22 @@ viewNExpr d id vs config e =
               [wc "op", wc name, ComputedValueAs id]
               (fnname parens :: button)
       in
-      case (fn.infix, exprs) of
-        (True, [first, second]) ->
+      case (fn.infix, exprs, fn.parameters) of
+        (True, [first, second], [p1, p2]) ->
           n (wc "fncall infix" :: wc (depthString d) :: all)
-          [ n [wc "lhs"] [ve incD first]
+          [ n [wc "lhs"] [ve p1.name incD first]
           , fnDiv False
-          , n [wc "rhs"] [ve incD second]
+          , n [wc "rhs"] [ve p2.name incD second]
           ]
         _ ->
+          let args = List.map2
+                       (\p e -> ve p.name incD e)
+                       fn.parameters
+                       exprs
+
+          in
           n (wc "fncall prefix" :: wc (depthString d) :: all)
-            (fnDiv fn.infix :: List.map (ve incD) exprs)
+            (fnDiv fn.infix :: args)
 
     Lambda vars expr ->
       let varname v = t [wc "lambdavarname", atom] v in
