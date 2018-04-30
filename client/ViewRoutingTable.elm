@@ -140,12 +140,13 @@ div class subs = Html.div [Attrs.class class] subs
 
 header : String -> List a -> Html.Html Msg
 header name list =
-  div "header"
-  [ text "title" name
-  , text "parens" "("
-  , text "count" (list |> List.length |> toString)
-  , text "parens" ")"
-  ]
+  Html.summary
+    [ Attrs.class "header" ]
+    [ text "title" name
+    , text "parens" "("
+    , text "count" (list |> List.length |> toString)
+    , text "parens" ")"
+    ]
 
 link : Html.Html Msg -> Msg -> Html.Html Msg
 link content handler =
@@ -191,7 +192,7 @@ viewGroup m (spacename, entries) =
                       ]
       routes = div "routes" (List.map entryHtml entries)
   in
-  Html.div
+  Html.details
     [ Attrs.class "routing-section"]
     [ header spacename entries, routes]
 
@@ -218,7 +219,7 @@ view404s m =
           , text "modifier" modifier
           ]
       routes = div "404s" (List.map fofHtml m.f404s)
-  in Html.div
+  in Html.details
        [Attrs.class "routing-section"]
        [header "404s" m.f404s, routes]
 
@@ -235,7 +236,7 @@ viewDBs m =
           [ span "name" [thelink (pos, db)] ]
 
       routes = div "dbs" (List.map dbHtml dbs)
-  in Html.div
+  in Html.details
        [Attrs.class "routing-section"]
        [header "DBs" dbs, routes]
 
@@ -245,12 +246,12 @@ viewDBs m =
 
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
-  let html = Html.div
-               [Attrs.class "viewing-table"]
-               ( (viewRoutes m)
+  let sections = viewRoutes m
                  ++ [viewDBs m]
                  ++ [view404s m]
-               )
+      html = Html.div
+               [Attrs.class "viewing-table"]
+               sections
 
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
 
