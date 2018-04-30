@@ -37,7 +37,14 @@ viewDarkType vs c dt =
 
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
-  let configs = idConfigs ++ c ++ withFeatureFlag vs e ++ withEditFn vs e
+  let width = approxWidth e
+      widthClass = [wc ("width-" ++ toString width)]
+                   ++ (if width > 120 then [wc "too-wide"] else [])
+      configs = idConfigs
+                ++ c
+                ++ withFeatureFlag vs e
+                ++ withEditFn vs e
+                ++ widthClass
       id = B.toID e
   in
   viewBlankOr (viewNExpr depth id vs) Expr vs configs e
@@ -289,6 +296,65 @@ viewNExpr d id vs config e =
             ]
             field
         ]
+
+blankOrLength : BlankOr String -> Int
+blankOrLength b =
+  case B.flattenFF b of
+    Blank _ -> 6
+    F _ str -> String.length str
+    _ -> impossible "flat"
+
+approxWidth : Expr -> Int
+approxWidth e =
+  case B.flattenFF e of
+    Blank _ -> 6
+    Flagged _ _ _ _ _ -> impossible "flat"
+    F _ ne ->
+      case ne of
+        Value v ->
+          toString v |> String.length
+
+        Variable name ->
+          String.length name
+
+        Let lhs rhs body ->
+          max
+            (blankOrLength lhs
+             + approxWidth rhs
+             + 4 -- "let "
+             + 3) -- " = "
+            (approxWidth body)
+
+        If cond ifbody elsebody ->
+          3 -- "if "
+          |> (+) (approxWidth cond)
+          |> max (approxWidth ifbody + 2) -- indent
+          |> max (approxWidth elsebody + 2) -- indent
+
+        FnCall name exprs ->
+          let sizes = exprs
+                      |> List.map approxWidth
+                      |> List.map ((+) 1) -- the space in between
+                      |> List.sum in
+
+          String.length name + sizes
+
+        Lambda vars expr ->
+          max
+            (approxWidth expr)
+            7 -- "| var -->" (only one var for now)
+
+        Thread exprs ->
+          exprs
+          |> List.map approxWidth
+          |> List.maximum
+          |> Maybe.withDefault 2
+          |> (+) 1 -- the pipe
+
+        FieldAccess obj field ->
+          approxWidth obj
+          + 1 -- '.'
+          + (blankOrLength field)
 
 
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)
