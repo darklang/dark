@@ -323,6 +323,12 @@ delete m tlid mId =
           NoChange
         DBColName ->
           NoChange
+        VarBind ->
+          let newTL = TL.replace pd (PVarBind (F newID "")) tl in
+          case newTL.data of
+            TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
+            TLFunc f -> RPC ([SetFunction f], focus)
+            TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
         _ ->
           let newTL = TL.delete tl pd newID in
           case newTL.data of
