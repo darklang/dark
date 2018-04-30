@@ -127,7 +127,7 @@ prefixify hs =
 
 ordering : String -> String -> Order
 ordering a b =
-  case (a, b) |> Debug.log "asd" of
+  case (a, b) of
     -- to the start
     ("HTTP", _) -> LT
     (_, "HTTP") -> GT
