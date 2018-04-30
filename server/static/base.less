@@ -218,7 +218,10 @@ body #grid * {
       }
     }
     &.empty .header {
-      color: @grey3;
+      &::before {
+        content: "- ";
+        font-weight: bold;
+      }
     }
 
     .verb-link {
