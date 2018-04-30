@@ -245,7 +245,9 @@ viewRoutingTable m =
                  ++ [viewDBs m]
                  ++ [view404s m]
       html = Html.div
-               [Attrs.class "viewing-table"]
+               [ Attrs.class "viewing-table"
+               , nothingMouseEvent "mouseup"
+               ]
                sections
 
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
