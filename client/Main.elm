@@ -832,7 +832,10 @@ update_ msg m =
                   && isFieldAccessDot m m.complete.value
                   then
                     let c = m.complete
-                        newC = { c | value = c.value ++ "." }
+                        -- big hack to for Entry.submit to see field
+                        -- access
+                        newC = { c | value = AC.getValue c ++ "."
+                                           , index = -1}
                         newM = { m | complete = newC }
                     in
                     Entry.submit newM cursor Entry.ContinueThread
