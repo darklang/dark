@@ -150,9 +150,15 @@ header name list =
 
 section : String -> List a -> Html.Html Msg -> Html.Html Msg
 section name entries routes =
-  Html.details
-    [ Attrs.class "routing-section"]
-    [ header name entries, routes]
+  if List.length entries == 0
+  then
+    Html.div
+      [ Attrs.class "routing-section empty"]
+      [ header name entries, routes]
+  else
+    Html.details
+      [ Attrs.class "routing-section"]
+      [ header name entries, routes]
 
 link : Html.Html Msg -> Msg -> Html.Html Msg
 link content handler =
