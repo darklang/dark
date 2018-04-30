@@ -125,6 +125,62 @@ prefixify hs =
             Just (matched, unmatched) ->
               h :: (prefixify <| (List.map makePrefix matched) ++ unmatched)
 
+ordering : String -> String -> Order
+ordering a b =
+  case (a, b) |> Debug.log "asd" of
+    -- to the start
+    ("HTTP", _) -> LT
+    (_, "HTTP") -> GT
+    -- to the end
+    ("<missing event space>", _) -> GT
+    (_, "<missing event space>") -> LT
+    _ -> compare a b
+
+viewGroup : Model -> (String, List Entry) -> Html.Html Msg
+viewGroup m (spacename, entries) =
+  let def s = Maybe.withDefault "<missing route>" s
+      externalLink h =
+        if List.member "GET" (List.map Tuple.first h.verbs)
+        then
+          case h.name of
+            Just n ->
+              let source = String.join "" (h.prefix ++ [n]) in
+              Html.a [ Attrs.class "external"
+                     , Attrs.href source
+                     , Attrs.target "_blank"
+                     ]
+                     [fontAwesome "external-link-alt"]
+            Nothing ->
+              Html.div [] []
+        else
+          Html.div [] []
+
+      verbs e =
+        e.verbs
+        |> List.map
+          (\(verb, pos) ->
+            link (Html.text verb) (NavigateTo (Viewport.urlForPos pos)))
+        |> List.intersperse (Html.text ",")
+      entryHtml e =
+        div "handler" [ div "name"
+                          (  List.map (text "prefix") e.prefix
+                          ++ [Html.text (def e.name)])
+                      , externalLink e
+                      , span "verbs" (verbs e)
+                      ]
+      routes = div "routes" (List.map entryHtml entries)
+  in
+  section spacename entries routes
+
+viewRoutes : Model -> List (Html.Html Msg)
+viewRoutes m =
+  m.toplevels
+  |> splitBySpace
+  |> List.sortWith (\(a,_) (b,_) -> ordering a b)
+  |> List.map (T2.map collapseHandlers)
+  |> List.map (T2.map prefixify)
+  |> List.map (viewGroup m)
+
 
 ----------------------------------
 -- Html
@@ -168,50 +224,6 @@ link content handler =
     , Attrs.class "verb-link as-pointer"
     ]
     [ content ]
-
-viewGroup : Model -> (String, List Entry) -> Html.Html Msg
-viewGroup m (spacename, entries) =
-  let def s = Maybe.withDefault "<missing route>" s
-      externalLink h =
-        if List.member "GET" (List.map Tuple.first h.verbs)
-        then
-          case h.name of
-            Just n ->
-              let source = String.join "" (h.prefix ++ [n]) in
-              Html.a [ Attrs.class "external"
-                     , Attrs.href source
-                     , Attrs.target "_blank"
-                     ]
-                     [fontAwesome "external-link-alt"]
-            Nothing ->
-              Html.div [] []
-        else
-          Html.div [] []
-
-      verbs e =
-        e.verbs
-        |> List.map
-          (\(verb, pos) ->
-            link (Html.text verb) (NavigateTo (Viewport.urlForPos pos)))
-        |> List.intersperse (Html.text ",")
-      entryHtml e =
-        div "handler" [ div "name"
-                          (  List.map (text "prefix") e.prefix
-                          ++ [Html.text (def e.name)])
-                      , externalLink e
-                      , span "verbs" (verbs e)
-                      ]
-      routes = div "routes" (List.map entryHtml entries)
-  in
-  section spacename entries routes
-
-viewRoutes : Model -> List (Html.Html Msg)
-viewRoutes m =
-  m.toplevels
-  |> splitBySpace
-  |> List.map (T2.map collapseHandlers)
-  |> List.map (T2.map prefixify)
-  |> List.map (viewGroup m)
 
 view404s : Model -> Html.Html Msg
 view404s m =
