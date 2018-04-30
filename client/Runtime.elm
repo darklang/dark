@@ -56,7 +56,7 @@ tipe2str t =
     TInt -> "Int"
     TFloat -> "Float"
     TBool -> "Bool"
-    TNull -> "Nothing"
+    TNull -> "Null"
     TChar -> "Char"
     TStr -> "Str"
     TList -> "List"
@@ -81,7 +81,7 @@ str2tipe t =
   "float" -> TFloat
   "bool" -> TBool
   "boolean" -> TBool
-  "nothing" -> TNull
+  "null" -> TNull
   "char" -> TChar
   "str" -> TStr
   "string" -> TStr
@@ -110,6 +110,7 @@ tipeOf s =
   else if isString s then TStr
   else if isChar s then TChar
   else if isBool s then TBool
+  else if isNull s then TNull
   else
     TIncomplete
 
