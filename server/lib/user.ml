@@ -32,8 +32,6 @@ let users =
   ;["alexey"; "alexey"; "sd][3[mlvkm9034j09"; "alexey@circleci.com"]
 
   (* interviews *)
-  ;["emma"; "emma"; "emmainterview"; ""]
-
   ]
   |> List.map
        ~f:(function
