@@ -27,6 +27,7 @@ import Pointer as P
 import SpecTypes
 import SpecHeaders
 import Blank as B
+import Autocomplete as AC
 
 
 createFindSpace : Model -> Modification
@@ -105,9 +106,9 @@ submitOmniAction m pos action =
 
 
 type ThreadAction = StartThread | ContinueThread
-submit : Model -> EntryCursor -> ThreadAction -> String -> Modification
-submit m cursor action value =
-  let
+submit : Model -> EntryCursor -> ThreadAction -> Modification
+submit m cursor action =
+  let value = AC.getValue m.complete
       parseAst str =
         let eid = gid ()
             b1 = B.new ()

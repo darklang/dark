@@ -745,7 +745,7 @@ update_ msg m =
                 Key.N -> AutocompleteMod ACSelectDown
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
-                  then Entry.submit m cursor Entry.ContinueThread m.complete.value
+                  then Entry.submit m cursor Entry.ContinueThread
                   else if AC.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
@@ -772,12 +772,10 @@ update_ msg m =
                   case tl.data of
                     TLDB _ -> NoChange
                     TLHandler h ->
-                      let name = AC.getValue m.complete
-                      in Entry.submit m cursor Entry.StartThread name
+                      Entry.submit m cursor Entry.StartThread
                     TLFunc f -> NoChange
                 Creating _ ->
-                  let name = AC.getValue m.complete
-                  in Entry.submit m cursor Entry.StartThread name
+                  Entry.submit m cursor Entry.StartThread
             else
               case event.keyCode of
                 Key.Spacebar ->  -- NB: see `stopKeys` in ui.html
@@ -787,8 +785,7 @@ update_ msg m =
                   then
                     NoChange
                   else
-                    let name = AC.getValue m.complete
-                    in Entry.submit m cursor Entry.ContinueThread name
+                    Entry.submit m cursor Entry.ContinueThread
 
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
@@ -800,11 +797,9 @@ update_ msg m =
                           Just (ACOmniAction action) ->
                             Entry.submitOmniAction m pos action
                           _ ->
-                            let name = AC.getValue m.complete
-                            in Entry.submit m cursor Entry.ContinueThread name
+                            Entry.submit m cursor Entry.ContinueThread
                       Filling _ _ ->
-                        let name = AC.getValue m.complete
-                        in Entry.submit m cursor Entry.ContinueThread name
+                        Entry.submit m cursor Entry.ContinueThread
                 Key.Tab ->  -- NB: see `stopKeys` in ui.html
                   case cursor of
                     Filling tlid p ->
@@ -828,18 +823,19 @@ update_ msg m =
                           else Selection.enterPrevBlank m tlid (Just p)
                         else
                           if hasContent
-                          then
-                            Entry.submit m cursor Entry.ContinueThread content
-                          else
-                            Selection.enterNextBlank m tlid (Just p)
+                          then Entry.submit m cursor Entry.ContinueThread
+                          else Selection.enterNextBlank m tlid (Just p)
                     Creating _ -> NoChange
 
                 Key.Unknown c ->
                   if event.key == Just "."
                   && isFieldAccessDot m m.complete.value
                   then
-                    let name = AC.getValue m.complete
-                    in Entry.submit m cursor Entry.ContinueThread (name ++ ".")
+                    let c = m.complete
+                        newC = { c | value = c.value ++ "." }
+                        newM = { m | complete = newC }
+                    in
+                    Entry.submit newM cursor Entry.ContinueThread
                   else NoChange
 
                 Key.Escape ->
@@ -953,7 +949,7 @@ update_ msg m =
     AutocompleteClick value ->
       case unwrapCursorState m.cursorState of
         Entering cursor ->
-          Entry.submit m cursor Entry.ContinueThread value
+          Entry.submit m cursor Entry.ContinueThread
         _ -> NoChange
 
 

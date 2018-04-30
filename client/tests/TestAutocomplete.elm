@@ -301,12 +301,38 @@ all =
       |> highlighted
       |> (==) (Just (ACOmniAction (NewHTTPRoute "/asasdasd")))
 
-      -- A specific bug where + is interpreted as an ACLiteral
       , \_ -> create ()
+      -- A specific bug where + is interpreted as an ACLiteral
       |> setQuery "+"
       |> highlighted
       |> Maybe.map asName
       |> (==) (Just "+")
+
+      -- A few different kinds of literals
+      , \_ -> create ()
+      |> setQuery "nu"
+      |> highlighted
+      |> (==) (Just (ACLiteral "null"))
+
+      , \_ -> create ()
+      |> setQuery "tr"
+      |> highlighted
+      |> (==) (Just (ACLiteral "true"))
+
+      , \_ -> create ()
+      |> setQuery "tR" -- case insensitive
+      |> highlighted
+      |> (==) (Just (ACLiteral "true"))
+
+      , \_ -> create ()
+      |> setQuery "false"
+      |> highlighted
+      |> (==) (Just (ACLiteral "false"))
+
+      , \_ -> create ()
+      |> setQuery "3.452"
+      |> highlighted
+      |> (==) (Just (ACLiteral "3.452"))
 
 
       ]
