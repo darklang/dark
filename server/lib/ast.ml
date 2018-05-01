@@ -116,7 +116,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       then argvals @ (List.init length_diff (fun _ -> DNull))
       else if length_diff = 0
       then argvals
-      else Exception.user ("Too many args in fncall to " ^ name) in
+      else Exception.internal ("Too many args in fncall to " ^ name) in
     let args =
       fn.parameters
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
