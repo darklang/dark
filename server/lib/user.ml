@@ -29,7 +29,7 @@ let users =
 
   (* friends trying it out *)
   ;["lee"; "lee"; "klma923wels92l{]as]"; "lee@ledwards.com"]
-  ;["alexey"; "alexey"; "sd][3[mlvkm9034j09"; "alexey@circleci.com"]
+  ;["alexey"; "alexey"; "sd][3[mlvkm9034j09"; "me@alexey.ch"]
 
   (* interviews *)
   ]
