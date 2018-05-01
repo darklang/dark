@@ -395,6 +395,7 @@ type alias Model = { center : Pos
                    , clipboard : Clipboard
                    , syncState : SyncState
                    , urlState : UrlState
+                   , computedValuesDisabled : Bool
                    }
 
 -- Values that we serialize
