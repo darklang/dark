@@ -878,6 +878,12 @@ update_ msg m =
             then NoChange
             else
             case event.keyCode of
+              Key.L ->
+                if event.ctrlKey
+                then
+                  TweakModel (\m -> { m | computedValuesDisabled = (not m.computedValuesDisabled)})
+                else
+                  NoChange
               Key.Enter -> Entry.createFindSpace m
 
               Key.A ->
