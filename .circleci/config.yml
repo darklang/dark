@@ -147,6 +147,6 @@ jobs:
       - store_artifacts:
           path: artifacts
       - store_test_results:
-          path: artifacts/rundir1/completed_tests
+          path: artifacts/rundir1/test_results
 
 
