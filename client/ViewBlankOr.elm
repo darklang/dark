@@ -148,7 +148,7 @@ div vs configs content =
       hoverdata = Maybe.andThen value hoverAs
 
       (computedValueClasses, computedValue) =
-        if incomplete
+        if incomplete || vs.computedValuesDisabled
         then
           ([], [])
         else

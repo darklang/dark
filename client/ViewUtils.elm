@@ -37,6 +37,7 @@ type alias ViewState =
   , results: List AResult
   , relatedBlankOrs: List ID
   , tooWide: Bool
+  , computedValuesDisabled: Bool
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -84,6 +85,8 @@ createVS m tl = { tl = tl
                         _ -> []
                     _ -> []
                 , tooWide = False
+                , computedValuesDisabled =
+                  m.computedValuesDisabled
                 }
 
 fontAwesome : String -> Html.Html Msg

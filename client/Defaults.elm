@@ -64,6 +64,7 @@ defaultModel = { error = Nothing
                -- partially saved in editor
                , syncState = defaultSyncState
                , urlState = defaultUrlState
+               , computedValuesDisabled = False
                -- saved in editor
                , clipboard = Nothing
                , cursorState = Deselected
