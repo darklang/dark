@@ -55,9 +55,11 @@ if [[ -v CI ]]; then
 fi
 
 # Test reporters, mostly for CircleCI
+TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results/"
+mkdir -p "${TEST_RESULTS_DIR}"
 REPORTERS=spec
-REPORTERS+=,json:${DARK_CONFIG_RUN_DIR}/integration_tests.json
-REPORTERS+=,xunit:${DARK_CONFIG_RUN_DIR}/integration_tests.xml
+REPORTERS+=,json:${TEST_RESULTS_DIR}/integration_tests.json
+REPORTERS+=,xunit:${TEST_RESULTS_DIR}/integration_tests.xml
 
 echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
