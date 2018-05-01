@@ -20,9 +20,6 @@ docker run \
   --env-file config/gcp-local \
   --mount type=bind,src=${HOST_PWD}/gcp-rundir,dst=/home/dark/gcp-rundir \
   --mount type=bind,src=${HOST_PWD}/gcp-persistdir,dst=/home/dark/gcp-persistdir \
-  -v gcp-pgconf:/etc/postgresql \
-  -v gcp-pglogs:/var/log/postgresql \
-  -v gcp-pgdata:/var/lib/postgresql \
   dark-gcp:latest \
   ${@}
 
