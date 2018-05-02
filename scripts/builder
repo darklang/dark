@@ -75,6 +75,10 @@ if [ -v POLL_FREQUENCY ]; then
   POLL_FREQ="--env POLL_FREQUENCY=$POLL_FREQUENCY"
 fi
 
+if [ ! -v CI ]; then
+  CI=
+fi
+
 ./scripts/support/create-dark-dev-network
 
 # --------------
