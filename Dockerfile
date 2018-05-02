@@ -217,5 +217,9 @@ RUN curl -L "https://github.com/GoogleCloudPlatform/docker-credential-gcr/releas
 user dark
 RUN docker-credential-gcr config --token-source="gcloud"
 
+RUN opam update
+RUN opam install junit_alcotest.2.0
+RUN opam install junit.2.0
+
 user dark
 CMD ["app", "scripts", "builder"]

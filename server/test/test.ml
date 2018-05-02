@@ -316,8 +316,6 @@ let t_hmac_signing _ =
 
 
 let suite =
-  Exn.initialize_module ();
-  Printexc.record_backtrace true;
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
   ; "undo_fns", `Quick, t_undo_fns
@@ -333,8 +331,15 @@ let suite =
 let () =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
-  AT.run "suite" [ "tests", suite ]
-
-
+  let (suite, exit) =
+    Junit_alcotest.run_and_report "suite" ["tests", suite] in
+  let report = Junit.make [suite] in
+  let dir = Sys.getenv "DARK_CONFIG_RUN_DIR"
+             |> Option.value ~default:"xxx"
+             |> fun x -> x ^ "/test_results" in
+  Unix.mkdir_p dir;
+  let file = dir ^ "/backend.xml" in
+  Junit.to_file report file;
+  exit ()
 
 

@@ -7,7 +7,7 @@
     (modules test)
     (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (dark alcotest))
+    (libraries (dark alcotest junit junit_alcotest))
   )
 )
 
