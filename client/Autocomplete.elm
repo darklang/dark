@@ -476,14 +476,28 @@ generateFromModel m a =
               EventSpace ->
                 ["HTTP"]
               DBColType ->
-                [ "String"
-                , "Int"
-                , "Boolean"
-                , "Float"
-                , "Title"
-                , "Url"
-                , "Date"
-                ]
+                let builtins =
+                  [ "String"
+                  , "Int"
+                  , "Boolean"
+                  , "Float"
+                  , "Title"
+                  , "Url"
+                  , "Date"
+                  ]
+                    dbs =
+                      m.toplevels
+                      |> TL.dbs
+                      |> List.map .name
+                    simple =
+                      builtins ++ dbs
+                    compound =
+                      List.map
+                        (\s -> "[" ++ s ++ "]")
+                        simple
+                in
+                    simple ++ compound
+
               DarkType ->
                 [ "Any"
                 , "Empty"

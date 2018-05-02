@@ -6,7 +6,6 @@ import Json.Encode as JSE
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 import Dict.Extra as DE
-import String.Extra as SE
 import Json.Encode.Extra as JSEE
 
 -- lib
@@ -252,6 +251,7 @@ encodeTipe t =
         TUrl -> ev "TUrl" []
         TBelongsTo s -> ev "TBelongsTo" [JSE.string s]
         THasMany s -> ev "THasMany" [JSE.string s]
+        TDbList a -> ev "TDbList" [encodeTipe a]
 
 encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
 encodeUserFunctionParameter p =
@@ -508,20 +508,8 @@ decodeHandler =
 
 decodeTipeString : JSD.Decoder String
 decodeTipeString =
-  let toTipeString l =
-        case l of
-          constructor :: arg :: [] ->
-            case constructor of
-              "THasMany" -> JSD.succeed ("[" ++ (SE.toTitleCase arg) ++ "]")
-              "TBelongsTo" -> JSD.succeed (SE.toTitleCase arg)
-              _ -> JSD.succeed (constructor ++ arg)
-          constructor :: [] ->
-            JSD.succeed (String.dropLeft 1 constructor)
-          _ ->
-            JSD.fail "error in tipeString"
-  in
-  JSD.list JSD.string
-  |> JSD.andThen toTipeString
+  decodeTipe
+  |> JSD.map (RT.tipe2str)
 
 decodeDB : JSD.Decoder DB
 decodeDB =
@@ -578,6 +566,7 @@ decodeTipe =
       ,("TUrl", dv0 TUrl)
       ,("TBelongsTo", dv1 TBelongsTo JSD.string)
       ,("THasMany", dv1 TBelongsTo JSD.string)
+      ,("TDbList", dv1 TDbList (JSD.lazy (\_ -> decodeTipe)))
       ]
 
 decodeUserFunctionParameter : JSD.Decoder UserFunctionParameter

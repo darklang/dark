@@ -29,6 +29,7 @@ type tipe_ =
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
+  | TDbList of tipe_
   [@@deriving eq, show, yojson, sexp, bin_io]
 
 
