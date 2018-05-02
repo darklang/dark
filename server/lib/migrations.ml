@@ -2,7 +2,8 @@ open Core
 
 let migrations =
   (* user DB migrations *)
-  [ "CREATE TABLE IF NOT EXISTS
+  [ `Global
+    "CREATE TABLE IF NOT EXISTS
        migrations
        ( id BIGINT
        , host TEXT
@@ -11,7 +12,8 @@ let migrations =
 
   (* user sessions *)
   (* https://github.com/inhabitedtype/ocaml-session/blob/master/backends/postgresql/lwt/session_postgresql_lwt.mli#L39 *)
-  ; "CREATE TABLE IF NOT EXISTS
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
        session
        ( session_key CHAR(40)
        , expire_date TIMESTAMP (2) WITH TIME ZONE
@@ -19,13 +21,15 @@ let migrations =
        )"
 
   (* user session indices *)
-  ; "CREATE INDEX IF NOT EXISTS
+  ; `Global
+    "CREATE INDEX IF NOT EXISTS
       session_key_idx
       ON \"session\"
       (session_key)"
 
   (* serialize canvases *)
-  ; "CREATE TABLE IF NOT EXISTS
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
       oplists
       ( host VARCHAR(64)
       , digest CHAR(32)
@@ -34,7 +38,8 @@ let migrations =
 
   (* type for queue state *)
     (* there's no CREATE TYPE IF NOT EXISTS :/ *)
-  ; "DO $$
+  ; `Global
+    "DO $$
        BEGIN
          IF NOT EXISTS
            (SELECT 1 FROM pg_type WHERE typname = 'queue_status')
@@ -46,7 +51,8 @@ let migrations =
 
   (* queue table *)
   (* ensure_queue_table_exists *)
-  ; "CREATE TABLE IF NOT EXISTS
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
       \"events\"
       (id SERIAL PRIMARY KEY
       , status queue_status
@@ -58,32 +64,37 @@ let migrations =
 
 
   (* queue index *)
-  ; "CREATE INDEX IF NOT EXISTS
+  ; `Global
+    "CREATE INDEX IF NOT EXISTS
        \"idx_dequeue\"
        ON \"events\"
        (space, name, canvas, status, id)"
 
 
   (* queue cleanup index *)
-  ; "CREATE INDEX IF NOT EXISTS \"idx_cleanup\"
+  ; `Global
+    "CREATE INDEX IF NOT EXISTS \"idx_cleanup\"
       ON \"events\"
       (dequeued_by)"
 
 
   (* event retries *)
-  ; "ALTER TABLE \"events\"
+  ; `Global
+    "ALTER TABLE \"events\"
       ADD COLUMN IF NOT EXISTS
         retries INTEGER DEFAULT 0 NOT NULL"
 
 
   (* event flag_context *)
-  ; "ALTER TABLE \"events\"
+  ; `Global
+    "ALTER TABLE \"events\"
         ADD COLUMN IF NOT EXISTS
           flag_context TEXT DEFAULT '' NOT NULL"
 
 
   (* event delays *)
-  ; "ALTER TABLE \"events\"
+  ; `Global
+    "ALTER TABLE \"events\"
        ADD COLUMN IF NOT EXISTS
          delay_until TIMESTAMP"
 
@@ -91,7 +102,12 @@ let migrations =
 
 let run () : unit =
   try
-    List.iter migrations ~f:Db.run_sql
+    List.iter migrations ~f:(fun m ->
+      match m with
+      | `Global sql -> Db.run_sql sql
+      | `EachCanvas sql ->
+          ())
+
   with
   | Postgresql.Error msg as e ->
     Log.erroR "sql error" msg;
