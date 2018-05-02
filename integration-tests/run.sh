@@ -53,6 +53,12 @@ SPEED=0.8
 if [[ -v CI ]]; then
   SPEED=0.4
 fi
+# Set up test reporters for CircleCI
+TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results/"
+mkdir -p "${TEST_RESULTS_DIR}"
+REPORTERS=spec
+REPORTERS+=,json:${TEST_RESULTS_DIR}/integration_tests.json
+REPORTERS+=,xunit:${TEST_RESULTS_DIR}/integration_tests.xml
 
 echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
@@ -77,13 +83,6 @@ exe "DELETE FROM migrations WHERE SUBSTRING(host, 0, 6) = 'test_';"
 echo "Clearing from oplists";
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
 
-
-# Set up test reporters for CircleCI
-TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results/"
-mkdir -p "${TEST_RESULTS_DIR}"
-REPORTERS=spec
-REPORTERS+=,json:${TEST_RESULTS_DIR}/integration_tests.json
-REPORTERS+=,xunit:${TEST_RESULTS_DIR}/integration_tests.xml
 
 
 TEST_HOST="integration-tests:$PORT" \
