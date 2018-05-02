@@ -19,7 +19,7 @@ let repr_of_dhttp (d: dhttp) : string =
 (* ------------------------- *)
 (* Types *)
 (* ------------------------- *)
-let tipe_to_string t : string =
+let rec tipe_to_string t : string =
   match t with
   | TAny -> "Any"
   | TInt -> "Int"
@@ -41,8 +41,9 @@ let tipe_to_string t : string =
   | TUrl -> "Url"
   | TBelongsTo s -> s
   | THasMany s -> "[" ^ s ^ "]"
+  | TDbList tipe -> "[" ^ (tipe_to_string tipe) ^ "]"
 
-let tipe_of_string str : tipe =
+let rec tipe_of_string str : tipe =
   match String.lowercase str with
   | "any" -> TAny
   | "int" -> TInt
@@ -70,9 +71,29 @@ let tipe_of_string str : tipe =
       other
       |> fun s -> String.drop_prefix s 1
       |> fun s -> String.drop_suffix s 1
-      |> THasMany
+      |> parse_list_tipe
     else
       TBelongsTo other
+and parse_list_tipe (list_tipe : string) : tipe =
+  match list_tipe with
+  | "str" -> TDbList TStr
+  | "string" -> TDbList TStr
+  | "int" -> TDbList TInt
+  | "integer" -> TDbList TInt
+  | "float" -> TDbList TFloat
+  | "bool" -> TDbList TBool
+  | "boolean" -> TDbList TBool
+  | "obj" -> Exception.internal "todo"
+  | "block" -> Exception.internal "todo"
+  | "incomplete" -> Exception.internal "todo"
+  | "error" -> Exception.internal "todo"
+  | "response" -> Exception.internal "todo"
+  | "datastore" -> Exception.internal "todo"
+  | "id" -> Exception.internal "todo"
+  | "date" -> Exception.internal "todo"
+  | "title" -> Exception.internal "todo"
+  | "url" -> Exception.internal "todo"
+  | table -> THasMany table
 
 let tipe_of (dv : dval) : tipe =
   match dv with

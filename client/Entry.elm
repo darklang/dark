@@ -278,12 +278,12 @@ submit m cursor action =
           then Select tlid (Just id)
           else if B.isBlank ct
           then
-            validate "[A-Z]\\w+" "DB type"
+            validate "\\[?[A-Z]\\w+\\]?" "DB type"
               <| wrap [ SetDBColType tlid id value
                       , AddDBCol tlid (gid ()) (gid ())]
                       id
           else
-            validate "[A-Z]\\w+" "DB type"
+            validate "\\[?[A-Z]\\w+\\]?" "DB type"
               <| wrap [ ChangeDBColType tlid id value] id
 
         PDBColName cn ->

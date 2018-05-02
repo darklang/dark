@@ -7,6 +7,7 @@ import Json.Decode as JSD
 
 -- dark
 import Types exposing (..)
+import Prelude exposing (..)
 import Util
 import JSON
 
@@ -72,9 +73,31 @@ tipe2str t =
     TUrl -> "Url"
     TBelongsTo s -> s
     THasMany s -> "[" ++ s ++ "]"
+    TDbList a -> "[" ++ (tipe2str a) ++ "]"
 
 str2tipe : String -> Tipe
 str2tipe t =
+  let parseListTipe lt =
+        case lt of
+          "str" -> TStr
+          "string" -> TStr
+          "int" -> TInt
+          "integer" -> TInt
+          "float" -> TFloat
+          "bool" -> TBool
+          "boolean" -> TBool
+          "null" -> todo "not implemented yet"
+          "any" -> todo "not implemented yet"
+          "list" -> todo "not implemented yet"
+          "obj" -> todo "not implemented yet"
+          "block" -> todo "not implemented yet"
+          "incomplete" -> todo "not implemented yet"
+          "response" -> todo "not implemented yet"
+          "datastore" -> todo "not implemented yet"
+          "date" -> todo "not implemented yet"
+          "error" -> todo "not implemented yet"
+          table -> THasMany table
+  in
   case String.toLower t of
   "any" -> TAny
   "int" -> TInt
@@ -99,7 +122,7 @@ str2tipe t =
       other
       |> String.dropLeft 1
       |> String.dropRight 1
-      |> THasMany
+      |> parseListTipe
     else
       TBelongsTo other
 
