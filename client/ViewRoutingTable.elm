@@ -25,6 +25,11 @@ type alias Entry = { name: Maybe String
                    , verbs: List (String, Pos)
                    , isHttp: Bool }
 
+missingEventSpaceDesc : String
+missingEventSpaceDesc = "<missing event space>"
+missingEventRouteDesc : String
+missingEventRouteDesc = "<missing route>"
+
 spaceName : Toplevel -> Maybe String
 spaceName tl =
   case tl.data of
@@ -38,7 +43,7 @@ splitBySpace tls =
                      |> Maybe.map .spec
                      |> Maybe.map .module_
                      |> Maybe.andThen B.toMaybe
-                     |> Maybe.withDefault "<missing event space>"
+                     |> Maybe.withDefault missingEventSpaceDesc
   in
   tls
   |> List.sortBy spaceName
@@ -83,12 +88,15 @@ collapseHandlers tls =
   |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   |> LE.groupWhile (\a b -> a.name == b.name)
   |> List.map (List.foldr (\curr list ->
-                   case list of
-                     [] -> [curr]
-                     prev :: rest ->
-                       let new =
-                             { prev | verbs = prev.verbs ++ curr.verbs }
-                       in new :: rest
+                   if curr.name == Nothing
+                   then curr :: list
+                   else
+                     case list of
+                       [] -> [curr]
+                       prev :: rest ->
+                         let new =
+                           { prev | verbs = prev.verbs ++ curr.verbs }
+                         in new :: rest
                 ) [])
   |> List.concat
 
@@ -132,13 +140,16 @@ ordering a b =
     ("HTTP", _) -> LT
     (_, "HTTP") -> GT
     -- to the end
-    ("<missing event space>", _) -> GT
-    (_, "<missing event space>") -> LT
-    _ -> compare a b
+    (a, b) ->
+      if a == missingEventRouteDesc
+      then GT
+      else if b == missingEventRouteDesc
+      then LT
+      else compare a b
 
 viewGroup : Model -> (String, List Entry) -> Html.Html Msg
 viewGroup m (spacename, entries) =
-  let def s = Maybe.withDefault "<missing route>" s
+  let def s = Maybe.withDefault missingEventRouteDesc s
       externalLink h =
         if List.member "GET" (List.map Tuple.first h.verbs)
         then
