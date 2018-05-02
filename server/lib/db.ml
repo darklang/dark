@@ -75,23 +75,26 @@ let bytea_of_string_hex str =
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
-let rec dval_to_sql (dv: dval) : string =
+let rec dval_to_sql ?quote:(quote="'") (dv: dval) : string =
   match dv with
   | DInt i -> string_of_int i
-  | DID i -> "'" ^ Uuid.to_string i ^ "'::uuid" (* needs a cast *)
+  | DID i -> quote ^ Uuid.to_string i ^ quote ^ "::uuid" (* needs a cast *)
   | DBool b -> if b then "TRUE" else "FALSE"
   | DChar c -> Char.to_string c
-  | DStr s -> "'" ^ (escape s) ^ "'"
+  | DStr s -> quote ^ (escape s) ^ quote
   | DFloat f -> string_of_float f
   | DNull -> "NULL"
   | DDate d ->
-    "TIMESTAMP WITH TIME ZONE '"
+    "TIMESTAMP WITH TIME ZONE "
+    ^ quote
     ^ Dval.sqlstring_of_date d
-    ^ "'"
+    ^ quote
   | DList l ->
-    "'{ "
-    ^ (String.concat ~sep:", " (List.map ~f:dval_to_sql l))
-    ^ " }'"
+    quote
+    ^ "{ "
+    ^ (String.concat ~sep:", " (List.map ~f:(dval_to_sql ~quote:"\"") l))
+    ^ " }"
+    ^ quote
   | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
 
 let escape_col (keyname: string) : string =
@@ -183,6 +186,14 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
            | _ -> failwith "should never happen, fetch_by returns a DList")
         ) ids
     |> DList
+  | TDbList tipe ->
+    sql
+    |> fun s -> String.drop_prefix s 1
+    |> fun s -> String.drop_suffix s 1
+    |> fun s -> String.split s ~on:','
+    |> List.filter ~f:(fun s -> not (String.is_empty s))
+    |> List.map ~f:(fun v -> sql_to_dval tables tipe v)
+    |> DList
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
 and
@@ -206,7 +217,7 @@ to_obj tables (names : string list) (types: tipe list) (db_strings : string list
   |> Dval.to_dobj
 
 
-let sql_tipe_for (tipe: tipe) : string =
+let rec sql_tipe_for (tipe: tipe) : string =
   match tipe with
   | TAny -> failwith "todo sql type"
   | TInt -> "INT"
@@ -227,6 +238,7 @@ let sql_tipe_for (tipe: tipe) : string =
   | TDate -> "TIMESTAMP WITH TIME ZONE"
   | TTitle -> "TEXT"
   | TUrl -> "TEXT"
+  | TDbList t -> (sql_tipe_for t) ^ " ARRAY"
 
 let default_for (tipe: tipe) : string =
   match tipe with
@@ -245,10 +257,11 @@ let default_for (tipe: tipe) : string =
   | TResp -> failwith "todo sql type"
   | TDB -> failwith "todo sql type"
   | TID | TBelongsTo _ -> "'00000000-0000-0000-0000-000000000000'::uuid"
-  | THasMany _ -> "{}"
+  | THasMany _ -> "'{}'"
   | TDate -> "CURRENT_TIMESTAMP"
   | TTitle -> "''"
   | TUrl -> "''"
+  | TDbList _ -> "'{}'"
 
 (* ------------------------- *)
 (* frontend stuff *)
