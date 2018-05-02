@@ -98,15 +98,26 @@ let migrations =
        ADD COLUMN IF NOT EXISTS
          delay_until TIMESTAMP"
 
+  (* make a namespace for each canvas *)
+  ; `EachCanvas
+      "CREATE SCHEMA IF NOT EXISTS \"dark_user_{TABLE}\""
   ]
+
+(* TODO: couldn't figure out format stirngs in timebox allocated *)
+let migrate_canvas (template: string) (canvas_name: string) =
+  Util.string_replace "{TABLE}" canvas_name template
+  |> Db.run_sql
+
 
 let run () : unit =
   try
     List.iter migrations ~f:(fun m ->
       match m with
       | `Global sql -> Db.run_sql sql
-      | `EachCanvas sql ->
-          ())
+      | `EachCanvas template ->
+        List.iter (Serialize.current_hosts ())
+          ~f:(migrate_canvas template)
+      )
 
   with
   | Postgresql.Error msg as e ->
