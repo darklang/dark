@@ -54,20 +54,14 @@ if [[ -v CI ]]; then
   SPEED=0.4
 fi
 
-# Test reporters, mostly for CircleCI
-TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results/"
-mkdir -p "${TEST_RESULTS_DIR}"
-REPORTERS=spec
-REPORTERS+=,json:${TEST_RESULTS_DIR}/integration_tests.json
-REPORTERS+=,xunit:${TEST_RESULTS_DIR}/integration_tests.xml
-
 echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
 rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
-rm -f ${DARK_CONFIG_RUN_DIR}/integration.json
+rm -f ${TEST_RESULTS_DIR}/integration_tests.*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/events/test_*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
 
+# Clear DBs
 function exe { psql -d proddb -c "$@"; }
 
 echo "Clearing test tables";
@@ -82,6 +76,14 @@ echo "Clearing from migrations";
 exe "DELETE FROM migrations WHERE SUBSTRING(host, 0, 6) = 'test_';"
 echo "Clearing from oplists";
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
+
+
+# Set up test reporters for CircleCI
+TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results/"
+mkdir -p "${TEST_RESULTS_DIR}"
+REPORTERS=spec
+REPORTERS+=,json:${TEST_RESULTS_DIR}/integration_tests.json
+REPORTERS+=,xunit:${TEST_RESULTS_DIR}/integration_tests.xml
 
 
 TEST_HOST="integration-tests:$PORT" \
