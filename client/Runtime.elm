@@ -59,7 +59,7 @@ tipe2str t =
     TBool -> "Bool"
     TNull -> "Null"
     TChar -> "Char"
-    TStr -> "Str"
+    TStr -> "String"
     TList -> "List"
     TObj -> "Obj"
     TBlock -> "Block"
