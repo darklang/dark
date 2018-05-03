@@ -477,7 +477,10 @@ test('rename_db_type', async t => {
 
   // rename
   await t
-    .doubleClick(Selector('.type').withText('Str'))
+    .doubleClick(Selector('.type').withText('String'))
+    .pressKey("backspace")
+    .pressKey("backspace")
+    .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
