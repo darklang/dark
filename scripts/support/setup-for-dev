@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-PEOPLE="paul ian zane ellen stefi aoife cats"
+PEOPLE="paul ian zane ellen stefi aoife steve"
 
 for i in $PEOPLE; do
   mkdir -p $DARK_CONFIG_PERSIST_DIR/appdata
