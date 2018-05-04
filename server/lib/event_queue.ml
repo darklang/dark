@@ -19,7 +19,10 @@ let status_to_enum status : string =
 
 let unlock_jobs (dequeuer: int) ~status : unit =
   Printf.sprintf
-    "UPDATE \"events\" SET status = %s WHERE dequeued_by = %s AND status = 'locked'"
+    "UPDATE \"events\"
+     SET status = %s
+       WHERE dequeued_by = %s
+         AND status = 'locked'"
     (status_to_enum status)
     (string_of_int dequeuer)
   |> Db.run_sql
@@ -36,14 +39,34 @@ let finalize (dequeuer: int) ~status : unit =
 let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
   let serialized_data = Dval.dval_to_json_string data in
   let column_names =
-    ["status"; "dequeued_by"; "canvas"; "space"; "name"; "value"; "delay_until"; "flag_context"]
+    [ "status"
+    ; "dequeued_by"
+    ; "canvas"
+    ; "space"
+    ; "name"
+    ; "value"
+    ; "delay_until"
+    ; "flag_context"
+    ]
     |> String.concat ~sep:", "
   in
   let column_values =
-    ["'new'"; "NULL"; wrap state.host; wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"; FF.to_sql state.ff]
+    [ "'new'"
+    ; "NULL"
+    ; wrap state.host
+    ; wrap space
+    ; wrap name
+    ; wrap serialized_data
+    ; "CURRENT_TIMESTAMP"
+    ; FF.to_sql state.ff
+    ]
     |> String.concat ~sep:", "
   in
-  (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
+  (Printf.sprintf
+     "INSERT INTO \"events\"
+     (%s)
+     VALUES (%s)"
+     column_names column_values)
   |> Db.run_sql
 
 (* This should soon enough do something like:
@@ -53,7 +76,15 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
 let dequeue (execution_id: int) (host: string) (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf
-      "SELECT id, value, retries, flag_context from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
+      "SELECT id, value, retries, flag_context from \"events\"
+      WHERE space = %s
+        AND name = %s
+        AND canvas = %s
+        AND status = 'new'
+        AND delay_until < CURRENT_TIMESTAMP
+      ORDER BY id DESC
+             , retries ASC
+      LIMIT 1"
       (wrap space)
       (wrap name)
       (wrap host)
@@ -63,32 +94,57 @@ let dequeue (execution_id: int) (host: string) (space: string) (name: string) : 
   match fetched with
   | None -> None
   | Some [id; value; retries; flag_context] ->
-    Db.run_sql (Printf.sprintf "UPDATE \"events\" SET status = 'locked', dequeued_by = %s WHERE id = %s"
-                  (string_of_int execution_id)
-                  id);
+    Db.run_sql
+      (Printf.sprintf
+         "UPDATE \"events\"
+         SET status = 'locked'
+           , dequeued_by = %s
+         WHERE id = %s"
+         (string_of_int execution_id)
+         id);
     Some { id = int_of_string id
          ; value = Dval.parse value
          ; retries = int_of_string retries
          ; flag_context = FF.from_sql flag_context
          }
-  | Some s -> Exception.internal ("Fetched seemingly impossible shape from Postgres" ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
+  | Some s ->
+    Exception.internal
+      ("Fetched seemingly impossible shape from Postgres"
+       ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
 let put_back (item: t) ~status : unit =
   let id = string_of_int item.id in
   let sql =
     match status with
     | `OK ->
-      Printf.sprintf "UPDATE \"events\" SET status = 'done' WHERE id = %s" id
+      Printf.sprintf
+        "UPDATE \"events\"
+        SET status = 'done'
+        WHERE id = %s"
+        id
     | `Err ->
       if item.retries < 2
       then
-        Printf.sprintf "UPDATE \"events\" SET status = 'new', retries = %s, delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes' WHERE id = %s"
+        Printf.sprintf
+          "UPDATE \"events\"
+          SET status = 'new'
+            , retries = %s
+            , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+          WHERE id = %s"
         (string_of_int (item.retries + 1))
         id
       else
-        Printf.sprintf "UPDATE \"events\" SET status = 'error' WHERE id = %s" id
+        Printf.sprintf
+          "UPDATE \"events\"
+          SET status = 'error'
+          WHERE id = %s"
+          id
     | `Incomplete ->
-      Printf.sprintf "UPDATE \"events\" SET status = 'new', delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes' WHERE id = %s" id
+      Printf.sprintf
+        "UPDATE \"events\"
+        SET status = 'new'
+          , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
+        WHERE id = %s" id
   in
   Db.run_sql sql
 
