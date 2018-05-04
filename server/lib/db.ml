@@ -42,19 +42,19 @@ let find_db tables table_name : DbT.db =
 
 
 let with_header ~(host:string option) (sql: string) : string =
-  let header =
-    match host with
-    | None ->
-      "SET LOCAL search_path TO public;\n"
-    | Some host ->
-      let schema = "dark_user_" ^ host in
-      Printf.sprintf
-        "CREATE SCHEMA IF NOT EXISTS \"%s\";
-         SET LOCAL search_path TO \"%s\";\n"
-        schema
-        schema
-  in
-  header ^ sql
+  match host with
+  | None ->
+    "SET search_path TO public;\n" ^ sql
+  | Some host ->
+    let schema = "dark_user_" ^ host in
+    Printf.sprintf
+      "CREATE SCHEMA IF NOT EXISTS \"%s\";
+       SET search_path TO \"%s\";\n
+       %s;\n
+       SET search_path TO public"
+      schema
+      schema
+      sql
 
 let fetch_via_sql ?(quiet=false) ?(host) (sql: string) : string list list =
   let sql = with_header ~host sql in

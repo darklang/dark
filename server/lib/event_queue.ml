@@ -17,7 +17,7 @@ let status_to_enum status : string =
   | `Err -> "'error'"
   | `Incomplete -> "'error'"
 
-let unlock_jobs (dequeuer: int) ~status : unit =
+let unlock_jobs ~(host:string) (dequeuer: int) ~status : unit =
   Printf.sprintf
     "UPDATE \"events\"
      SET status = %s
@@ -25,7 +25,7 @@ let unlock_jobs (dequeuer: int) ~status : unit =
          AND status = 'locked'"
     (status_to_enum status)
     (string_of_int dequeuer)
-  |> Db.run_sql
+  |> Db.run_sql ~host
 
 (* ------------------------- *)
 (* Public API *)
@@ -33,8 +33,8 @@ let unlock_jobs (dequeuer: int) ~status : unit =
 
 let wrap s = "'" ^ s ^ "'"
 
-let finalize (dequeuer: int) ~status : unit =
-  unlock_jobs ~status dequeuer
+let finalize ~(host:string)(dequeuer: int) ~status : unit =
+  unlock_jobs ~host ~status dequeuer
 
 let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
   let serialized_data = Dval.dval_to_json_string data in
@@ -67,13 +67,13 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
      (%s)
      VALUES (%s)"
      column_names column_values)
-  |> Db.run_sql
+  |> Db.run_sql ~host:state.hostname
 
 (* This should soon enough do something like:
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue (execution_id: int) (hostname: string) (space: string) (name: string) : t option =
+let dequeue ~(host:string) (execution_id: int) (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf
       "SELECT id, value, retries, flag_context from \"events\"
@@ -87,14 +87,14 @@ let dequeue (execution_id: int) (hostname: string) (space: string) (name: string
       LIMIT 1"
       (wrap space)
       (wrap name)
-      (wrap hostname)
-    |> Db.fetch_via_sql
+      (wrap host)
+    |> Db.fetch_via_sql ~host
     |> List.hd
   in
   match fetched with
   | None -> None
   | Some [id; value; retries; flag_context] ->
-    Db.run_sql 
+    Db.run_sql ~host
       (Printf.sprintf
          "UPDATE \"events\"
          SET status = 'locked'
@@ -112,7 +112,7 @@ let dequeue (execution_id: int) (hostname: string) (space: string) (name: string
       ("Fetched seemingly impossible shape from Postgres"
        ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
-let put_back (item: t) ~status : unit =
+let put_back ~(host:string) (item: t) ~status : unit =
   let id = string_of_int item.id in
   let sql =
     match status with
@@ -146,8 +146,8 @@ let put_back (item: t) ~status : unit =
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
         WHERE id = %s" id
   in
-  Db.run_sql sql
+  Db.run_sql ~host sql
 
-let finish (item: t) : unit =
-  put_back item ~status:`OK
+let finish ~(host:string) (item: t) : unit =
+  put_back ~host ~status:`OK item
 
