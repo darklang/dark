@@ -107,7 +107,7 @@ let schema_name host : string =
 (* Sets the namespace. Technically, this happens within the
  * transaction, but every pg query uses autocommit by default in pg
  * >9.5, so we're good. *)
-let in_schema ~(host:string) (sql: string) : string =
+let in_ns ~(host:string) (sql: string) : string =
   let schema = schema_name host in
   let sql = Util.string_replace "{SCHEMA}" schema sql in
   Printf.sprintf
@@ -117,9 +117,15 @@ let in_schema ~(host:string) (sql: string) : string =
     schema
     sql
 
-let run_sql_in_schema ?(quiet=false) ~host sql =
-  let sql = in_schema ~host sql in
+let fetch_via_sql_in_ns ?(quiet=false) ~host sql =
+  let sql = in_ns ~host sql in
+  fetch_via_sql ~quiet sql
+
+let run_sql_in_ns ?(quiet=false) ~host sql =
+  let sql = in_ns ~host sql in
   run_sql ~quiet sql
+
+
 
 let create_namespace host : unit =
   Printf.sprintf
