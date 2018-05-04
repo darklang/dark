@@ -42,7 +42,7 @@ val load_oplists : string -> string -> string option
 val all_oplists : string -> string list
 
 
-
 (* Per user pg_schemas *)
 val create_namespace : host -> unit
-val run_sql_in_schema : ?quiet: bool -> host:host -> string -> unit
+val run_sql_in_ns : ?quiet: bool -> host:host -> string -> unit
+val fetch_via_sql_in_ns : ?quiet:bool -> host:host -> string -> string list list
