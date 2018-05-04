@@ -41,6 +41,44 @@ let find_db tables table_name : DbT.db =
    | None -> failwith ("table not found: " ^ table_name)
 
 
+let with_header ~(host:string option) (sql: string) : string =
+  let header =
+    match host with
+    | None ->
+      "SET LOCAL search_path TO public;\n"
+    | Some host ->
+      let schema = "dark_user_" ^ host in
+      Printf.sprintf
+        "CREATE SCHEMA IF NOT EXISTS \"%s\";
+         SET LOCAL search_path TO \"%s\";\n"
+        schema
+        schema
+  in
+  header ^ sql
+
+let fetch_via_sql ?(quiet=false) ?(host) (sql: string) : string list list =
+  let sql = with_header ~host sql in
+  if quiet
+  then
+    ()
+  else
+    Log.infO "fetching via sql" sql;
+  sql
+  |> conn#exec ~expect:PG.[Tuples_ok]
+  |> (fun res -> res#get_all_lst)
+
+let run_sql ?(quiet=false) ?(host) (sql: string) : unit =
+  let sql = with_header ~host sql in
+
+  if quiet
+  then ()
+  else
+    Log.infO "sql" sql ~stop:10000;
+
+  ignore (conn#exec ~expect:[PG.Command_ok] sql)
+
+
+
 (* Hex converter stolen from PGOcaml, with modifications because our
  * string does not start with "\\x" *)
 let is_hex_digit = function '0'..'9' | 'a'..'f' | 'A'..'F' -> true
@@ -129,16 +167,6 @@ let cols_for (db: db) : (string * tipe) list =
     | _ ->
       None)
   |> fun l -> ("id", TID) :: l
-
-let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
-  if quiet
-  then
-    ()
-  else
-    Log.infO "fetching via sql" sql;
-  sql
-  |> conn#exec ~expect:PG.[Tuples_ok]
-  |> (fun res -> res#get_all_lst)
 
 (*
  * Dear god, OCaml this is the worst
@@ -277,15 +305,6 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 (* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)
-
-
-let run_sql ?(quiet=false) (sql: string) : unit =
-  if quiet
-  then ()
-  else
-    Log.infO "sql" sql ~stop:10000;
-  ignore (conn#exec ~expect:[PG.Command_ok] sql)
-
 let is_relation (valu: dval) : bool =
   match valu with
   | DObj _ -> true
@@ -615,7 +634,12 @@ let load_oplists (host: string) (digest: string) : string option =
   |> Option.map ~f:bytea_of_string_hex
 
 let all_oplists (digest: string) : string list =
-  "SELECT host FROM oplists WHERE digest = '%s'"
-  |> fetch_via_sql ~quiet:true
+  Printf.sprintf
+    "SELECT host FROM oplists WHERE digest = '%s'"
+    digest
+  |> fetch_via_sql
   |> List.concat
+  |> List.filter ~f:(fun h ->
+      Log.pP "host" h;
+      not (String.is_prefix ~prefix:"test_" h))
 
