@@ -173,7 +173,8 @@ let t_inserting_object_to_missing_col_gives_good_error () =
   let obj = f (Thread [v "{}"; fncall ("assoc", [v "\"col\""; v "{}"])]) in
   let insert = fncall ("DB::insert", [obj; f (Variable "TestDB")]) in
   let f = fun () -> execute_ops [createDB; handler insert] in
-  let check = fun (de: Exception.exception_data) -> de.short = "todo" in
+  let check = fun (de: Exception.exception_data) ->
+    de.short = "Trying to create a relation that doesn't exist" in
   check_exception "should get good error" ~check ~f
 
 
