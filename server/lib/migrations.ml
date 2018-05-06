@@ -98,15 +98,67 @@ let migrations =
        ADD COLUMN IF NOT EXISTS
          delay_until TIMESTAMP"
 
-  (* make a namespace for each canvas *)
   ; `EachCanvas
-      "CREATE SCHEMA IF NOT EXISTS \"dark_user_{TABLE}\""
+    (* https://stackoverflow.com/a/3703727 *)
+    (* create type if it isn't in the current schema *)
+    "DO $$
+       BEGIN
+         IF NOT EXISTS
+           (SELECT 1
+            FROM pg_type t
+            LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+            WHERE (t.typrelid = 0
+                   OR (SELECT c.relkind = 'c'
+                       FROM pg_catalog.pg_class c
+                       WHERE c.oid = t.typrelid))
+            AND NOT EXISTS (SELECT 1
+                            FROM pg_catalog.pg_type el
+                            WHERE el.oid = t.typelem
+                              AND el.typarray = t.oid)
+            AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+            AND t.typname = 'queue_status'
+            AND n.nspname <> '{SCHEMA}'
+            )
+         THEN
+           CREATE TYPE queue_status AS
+             ENUM ('new', 'locked', 'done', 'error');
+         END IF;
+       END$$;"
+
+  (* make an events table for each canvas *)
+  ; `EachCanvas
+      "CREATE TABLE IF NOT EXISTS
+        \"events\"
+        (id SERIAL PRIMARY KEY
+        , status queue_status
+        , dequeued_by INT
+        , canvas TEXT NOT NULL
+        , space TEXT NOT NULL
+        , name TEXT NOT NULL
+        , value TEXT NOT NULL
+        , retries INTEGER DEFAULT 0 NOT NULL
+        , flag_content TEXT DEFAULT '' NOT NULL
+        , delay_until TIMESTAMP
+        )"
+
+  ; `EachCanvas
+    "CREATE INDEX IF NOT EXISTS \"idx_dequeue\"
+       ON \"events\"
+       (space, name, canvas, status, id)"
+
+  ; `EachCanvas
+    "CREATE INDEX IF NOT EXISTS \"idx_cleanup\"
+      ON \"events\"
+      (dequeued_by)"
+
+
+
   ]
 
-(* TODO: couldn't figure out format stirngs in timebox allocated *)
 let migrate_canvas (template: string) (canvas_name: string) =
-  Util.string_replace "{TABLE}" canvas_name template
-  |> Db.run_sql
+  let schema_name = "dark_user_" ^ canvas_name in
+  Util.string_replace "{SCHEMA}" schema_name template
+  |> Db.run_sql ~host:canvas_name
 
 
 let run () : unit =

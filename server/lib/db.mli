@@ -4,8 +4,8 @@ open Types
 val conn : Postgresql.connection
 
 (* Low-level API *)
-val run_sql : ?quiet:bool -> string -> unit
-val fetch_via_sql : ?quiet:bool -> string -> string list list
+val run_sql : ?quiet:bool -> ?host:string -> string -> unit
+val fetch_via_sql : ?quiet:bool -> ?host:string -> string -> string list list
 
 (* DB struct functions *)
 val cols_for : DbT.db -> (string * RuntimeT.tipe) list

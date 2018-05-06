@@ -34,7 +34,8 @@ let dequeue_and_evaluate_all () : string =
                 ~f:(fun q ->
                     let space = Handler.module_for_exn q in
                     let name = Handler.event_name_for_exn q in
-                    (match Event_queue.dequeue execution_id endpoint space name with
+                    (match Event_queue.dequeue
+                             ~host:endpoint execution_id space name with
                      | None -> None
                      | Some event ->
                        (match Handler.event_desc_for q with
@@ -57,15 +58,17 @@ let dequeue_and_evaluate_all () : string =
                        let result = Handler.execute state q in
                        (match result with
                         | RTT.DIncomplete ->
-                          Event_queue.put_back event ~status:`Incomplete
+                          Event_queue.put_back
+                            ~host:endpoint event ~status:`Incomplete
                         | RTT.DError _ ->
-                          Event_queue.put_back event ~status:`Err
+                          Event_queue.put_back
+                            ~host:endpoint event ~status:`Err
                         | _ ->
-                          Event_queue.finish event);
+                          Event_queue.finish ~host:endpoint event);
                        Some result)
                   )
             in
-            Event_queue.finalize execution_id ~status:`OK;
+            Event_queue.finalize ~host:endpoint execution_id ~status:`OK;
             match results with
             | [] -> RTT.DIncomplete
             | l -> RTT.DList l
@@ -73,7 +76,7 @@ let dequeue_and_evaluate_all () : string =
           | e ->
             let bt = Backtrace.Exn.most_recent () in
             let _  = Rollbar.report e bt EventQueue in
-            Event_queue.finalize execution_id ~status:`Err;
+            Event_queue.finalize ~host:endpoint execution_id ~status:`Err;
             RTT.DError (Exn.to_string e)
         )
   in
