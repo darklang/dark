@@ -262,7 +262,7 @@ let t_stored_event_roundtrip () =
     (List.sort ~cmp:compare listed);
 
   let loaded1 = SE.load_events "host" desc1 in
-  AT.check at_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
+  AT.check at_dval_list "load GET events" [DStr "2"; DStr "1"] loaded1;
 
   let loaded2 = SE.load_events "host" desc3 in
   AT.check at_dval_list "load POST events" [DStr "3"] loaded2;
