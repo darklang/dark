@@ -123,6 +123,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       |> DvalMap.of_alist_exn
     in
     call_fn ~state ~ind:0 ~ctx name id fn args
+    (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
 
   (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
@@ -299,7 +300,10 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       with e ->
         exception_to_dval ~log:true e
   in
-  trace expr execed_value st; execed_value
+  trace expr execed_value st;
+  execed_value
+  (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
+  (*                                  Sexp.to_string) *)
 
 and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
