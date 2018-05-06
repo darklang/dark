@@ -44,6 +44,16 @@ let (/) = Filename.concat
 
 let root = Config.Events
 
+let name2num (name:string) : int =
+  name
+  |> String.chop_suffix_exn ~suffix:file_ext
+  |> int_of_string
+
+let num2name (num:int) : string =
+  num
+  |> string_of_int
+  |> fun index -> index ^ file_ext
+
 
 (* -------------------------- *)
 (* Dirs *)
@@ -88,7 +98,13 @@ let read_data (host: string) (desc: event_desc) : RTT.dval list =
   Util.mkdir ~root dir;
   dir
   |> Util.lsdir ~root
-  |> List.sort ~cmp:Pervasives.compare
+  |> List.map ~f:name2num
+  |> List.sort ~cmp:Int.descending
+
+  (* limit to 20 for now, show last 20 in reverse order *)
+  |> fun l -> List.take l 20
+  |> List.map ~f:num2name
+
   |> List.map ~f:(fun file ->
       dir / file
       |> Util.readjsonfile ~root ~conv:Dval.dval_of_yojson)
@@ -97,15 +113,15 @@ let next_data_filename (host: string) (desc : event_desc) : string =
   let dir = eventdata_dir host desc in
   Util.mkdir ~root dir;
   list_data_files host desc
-  |> List.map ~f:(String.chop_suffix_exn ~suffix:file_ext)
-  |> List.map ~f:int_of_string
+  |> List.map ~f:name2num
   |> List.fold_left
     ~f:(fun acc x -> max acc x) ~init:0
   |> (+) 1
-  |> fun index -> dir / (string_of_int index) ^ file_ext
+  |> num2name
+  |> fun file -> dir / file
 
 let save_data (host: string) (desc: event_desc) (dval : RTT.dval) =
-  let filename = next_data_filename host desc |> Log.pp "filename" in
+  let filename = next_data_filename host desc in
   Util.writejsonfile ~root ~conv:Dval.dval_to_yojson ~value:dval filename
 
 
