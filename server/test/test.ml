@@ -15,17 +15,9 @@ let fid = Util.create_id
 let v str = Filled (fid (), Value str)
 let b () = Types.Blank (fid ())
 let f a = Types.Filled (fid (), a)
+let fncall (a,b) = f (FnCall (a,b))
 let tlid = 7
 let pos = {x=0;y=0}
-
-let handle_exception e =
-  (* Builtin testing doesnt seem to print exceptions *)
-  let bt = Backtrace.Exn.most_recent () in
-  let msg = Exn.to_string e in
-  print_endline ("Exception: " ^ msg);
-  print_endline (Backtrace.to_string bt);
-  raise e (* still need to raise so the test doesn't pass *)
-
 
 let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
   let c = C.create name in
@@ -33,21 +25,26 @@ let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
   c
 
 let execute_ops (ops : Op.op list) : dval =
-  let c = ops2c "test" ops in
+  let c = ops2c "testing" ops in
+
   let h = !c.toplevels
           |> TL.handlers
           |> List.hd_exn in
+  let dbs = TL.dbs !c.toplevels in
+  let dbs_env = Db.dbs_as_exe_env dbs in
+  let env = dbs_env in (* enough env to test for now *)
   let state : exec_state =
-    { ff = FromUser "test"
+    { ff = FromUser !c.name
     ; tlid = h.tlid
     ; hostname = !c.name
     ; user_fns = !c.user_functions
-    ; exe_fn_ids = []
-    ; env = DvalMap.empty
+    ; exe_fn_ids = [] (* ctx is real, so unnecessary *)
+    ; env = env
     ; dbs = TL.dbs !c.toplevels
     ; id = Util.create_id ()
     } in
-  Ast.execute state DvalMap.empty h.ast
+  Ast.execute state env h.ast
+  |> Log.pp ~f:Types.RuntimeT.show_dval "excute_ops result"
 
 
 let at_dval = AT.of_pp pp_dval
@@ -66,6 +63,28 @@ let handler ast =
                            ; types = { input = b ()
                                      ; output = b () }}})
 
+let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
+  let e =
+    try
+      let r = f () in
+      Log.erroR "result was" r;
+      Some "no exception"
+    with
+    | Exception.DarkException ed ->
+      if check ed
+      then None
+      else
+        (Log.erroR "check failed" ed;
+        Some "Check failed")
+    | e ->
+      let bt = Backtrace.Exn.most_recent () in
+      let msg = Exn.to_string e in
+      print_endline (Backtrace.to_string bt);
+      Log.erroR "different exception" msg;
+      Some "different exception"
+  in AT.check (AT.option AT.string) msg None e
+
+
 
 (* ----------------------- *)
 (* The tests *)
@@ -73,9 +92,9 @@ let handler ast =
 
 let t_undo_fns () =
   let n1 = Op.Savepoint [tlid] in
-  let n2 = handler (f (FnCall ("-", [b (); b ()]))) in
-  let n3 = handler (f (FnCall ("-", [v "3"; b ()]))) in
-  let n4 = handler (f (FnCall ("-", [v "3"; v "4"]))) in
+  let n2 = handler (fncall ("-", [b (); b ()])) in
+  let n3 = handler (fncall ("-", [v "3"; b ()])) in
+  let n4 = handler (fncall ("-", [v "3"; v "4"])) in
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
 
@@ -145,9 +164,19 @@ let t_undo () =
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  let add = f (FnCall ("+", [v "5"; v "3"])) in
+  let add = fncall ("+", [v "5"; v "3"]) in
   let r = execute_ops [handler add] in
   check_dval "int_add" (DInt 8) r
+
+let t_inserting_object_to_missing_col_gives_good_error () =
+  let createDB = Op.CreateDB (89, pos, "TestDB") in
+  let obj = f (Thread [v "{}"; fncall ("assoc", [v "\"col\""; v "{}"])]) in
+  let insert = fncall ("DB::insert", [obj; f (Variable "TestDB")]) in
+  let f = fun () -> execute_ops [createDB; handler insert] in
+  let check = fun (de: Exception.exception_data) -> de.short = "todo" in
+  check_exception "should get good error" ~check ~f
+
+
 
 let t_derror_roundtrip () =
   let x = DError "test" in
@@ -200,11 +229,11 @@ let t_case_insensitive_db_roundtrip () =
 
 
 let t_lambda_with_foreach () =
-  let ast = f (FnCall ( "String::foreach"
+  let ast = fncall ( "String::foreach"
                    , [ v "\"some string\""
                      ; f (Lambda ( ["var"]
                               , f (FnCall ( "Char::toUppercase"
-                                          , [f (Variable "var")]))))]))
+                                          , [f (Variable "var")]))))])
   in
   let r = execute_ops [handler ast] in
   check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
@@ -250,16 +279,9 @@ let t_bad_ssl_cert _ =
                    , [ v "\"https://self-signed.badssl.com\""
                      ; v "{}"
                      ; v "{}"
-                     ; v "{}"]))
-  in
-  let v =
-    try
-      let _ = execute_ops [handler ast] in
-      Some "no exception"
-    with
-    | Exception.DarkException ed -> None
-    | _ -> Some "different exception"
-  in AT.check (AT.option AT.string) "should get bad_ssl" v None
+                     ; v "{}"])) in
+  check_exception "should get bad_ssl"
+    ~f:(fun () -> execute_ops [handler ast])
 
 
 
@@ -326,6 +348,8 @@ let suite =
   ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
   ; "DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip
+  ; "Good error when inserting badly", `Quick,
+    t_inserting_object_to_missing_col_gives_good_error
   ]
 
 let () =
