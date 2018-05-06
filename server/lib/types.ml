@@ -4,6 +4,8 @@ type pos = { x:int; y:int }[@@deriving eq, show, yojson, sexp, bin_io]
 
 type tlid = int [@@deriving eq, show, yojson, sexp, bin_io]
 
+type host = string [@@deriving eq, show, yojson, sexp, bin_io]
+
 (* READ FOR WEIRD SHIT, including the definitions of id and or_blank *)
 include Types_bin_io_hack
 
@@ -170,7 +172,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
   type exec_state = { ff: feature_flag
                     ; tlid: tlid
-                    ; hostname: string
+                    ; host: string
                     ; user_fns: user_fn list
                     ; exe_fn_ids: id list
                     ; env: symtable

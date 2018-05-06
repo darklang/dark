@@ -356,7 +356,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                             && not fn.preview_execution_safe
                             && List.mem ~equal:(=) state.exe_fn_ids id
       in
-      let sfr_state = (state.hostname, state.tlid, fnname, id) in
+      let sfr_state = (state.host, state.tlid, fnname, id) in
       let maybe_store_result result =
         if executingUnsafe
         then Stored_function_result.store sfr_state arglist result

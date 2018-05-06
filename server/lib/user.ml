@@ -1,16 +1,17 @@
 open Core
+open Types
 
 type t = { username: string
-         ; domain: string
+         ; host: host
          ; password: string
          }
 
 let username user = user.username
-let domain user = user.domain
+let host user = user.host
 let password user = user.password
 
-let construct ~username ~domain ~password =
-  { username; domain; password }
+let construct ~username ~host ~password =
+  { username; host; password }
 
 let users =
   (* employees *)
@@ -36,11 +37,11 @@ let users =
   ]
   |> List.map
        ~f:(function
-        | [username; domain; password; _email; _name] -> construct ~username ~domain ~password
+        | [username; host; password; _email; _name] -> construct ~username ~host ~password
         | _ -> failwith "Needs to be an array of length 3")
 
-let all_for_domain domain =
-  List.filter ~f:(fun u -> String.Caseless.equal u.domain domain) users
+let all_for_host host =
+  List.filter ~f:(fun u -> String.Caseless.equal u.host host) users
 
 let for_username username =
   List.find ~f:(fun u -> u.username = username) users

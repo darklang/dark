@@ -116,13 +116,13 @@ let readbinaryfile ~root ~(conv: 'a Core.Bin_prot.Read.reader) (f: string) : 'a 
 (* ------------------- *)
 (* spawning *)
 (* ------------------- *)
-let convert_bin_to_json ~root (domain: string) (outfile: string) =
+let convert_bin_to_json ~root (host: string) (outfile: string) =
   let outfile = check_filename ~root ~mode:`Write outfile in
 
   (* Goes through execve, so never hits the shell *)
   Spawn.spawn
     ~prog:(Config.dir Config.Bin_root ^ "darkfile_db_to_json_file.exe")
-    ~argv:[""; domain; outfile]
+    ~argv:[""; host; outfile]
     ()
 
 
