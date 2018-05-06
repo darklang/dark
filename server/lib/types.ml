@@ -35,13 +35,13 @@ type tipe_ =
 
 module DbT = struct
   type col = string or_blank * tipe_ or_blank
-            [@@deriving eq, show, yojson]
+            [@@deriving eq, show, yojson, sexp]
   type db = { tlid: tlid
             ; host: string
             ; display_name: string
             ; actual_name: string
             ; cols: col list
-            } [@@deriving eq, show, yojson]
+            } [@@deriving eq, show, yojson, sexp]
 end
 
 module SpecTypes = struct
@@ -80,7 +80,8 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
   (* Dvals*)
   (* ------------------------ *)
   type dhttp = Redirect of string
-             | Response of int * (string * string) list [@@deriving show, eq, yojson]
+             | Response of int * (string * string) list
+             [@@deriving show, eq, yojson, sexp]
 
   type feature_flag = Analysis
                     | FromUser of string
@@ -88,7 +89,9 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
 
 
   module DvalMap = String.Map
+  (* TODO: make these printable *)
   type dval_map = dval DvalMap.t [@opaque]
+  and uuid = Uuid.Stable.V1.t [@opaque]
   and dval =
     (* basic types  *)
     | DInt of int
@@ -107,11 +110,11 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of DbT.db
-    | DID of Uuid.t
+    | DID of uuid
     | DDate of Time.t
     | DTitle of string
     | DUrl of string
-    [@@deriving show]
+    [@@deriving show, sexp]
 
   type tipe = tipe_ [@@deriving eq, show, yojson, sexp, bin_io]
 
