@@ -198,7 +198,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
      | Filled (_, Variable name) ->
        (match Symtable.find st name with
         | None ->
-          DError ("There is no variables named: " ^ name)
+          DError ("There is no variable named: " ^ name)
         | Some result -> ignoreError result)
 
      | Filled (id, FnCall (name, exprs)) ->
