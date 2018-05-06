@@ -398,10 +398,10 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
           ~actual:DIncomplete
 
 (* default to no tracing *)
-let execute state env expr =
-  exec_
+let execute state env expr : dval =
+  exec_ env expr
     ~trace:empty_trace ~trace_blank:empty_trace ~ctx:Real ~state
-    env expr
+
 
 (* -------------------- *)
 (* Analysis *)
