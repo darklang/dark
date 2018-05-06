@@ -333,7 +333,13 @@ and update ~tables db (vals: dval_map) =
 and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
   let table_name =
-    let (cname, ctype) = List.find_exn cols ~f:(fun (n, t) -> n = relation) in
+    let (cname, ctype) =
+      try
+        List.find_exn cols ~f:(fun (n, t) -> n = relation)
+      with e -> RT.error "Trying to create a relation that doesn't exist"
+                  ~actual:(DStr relation)
+                  ~expected:("one of" ^ Batteries.dump cols)
+    in
     match ctype with
     | TBelongsTo t | THasMany t -> t
     | _ -> failwith ("Expected TBelongsTo/THasMany, got: " ^ (show_tipe_ ctype))
