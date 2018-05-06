@@ -765,7 +765,7 @@ let fns : Lib.shortfn list = [
           | (_, [DList l]) ->
               DStr (l |> List.map ~f:(function
                                       | DChar c -> c
-                                      | dv -> RT.raise_error ~actual:dv "expected a char")
+                                      | dv -> RT.error ~actual:dv "expected a char")
                       |> String.of_char_list)
           | (_, args) -> fail args)
   ; pr = None

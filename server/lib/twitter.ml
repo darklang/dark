@@ -102,7 +102,7 @@ let rec dvalmap2query (args: dval_map) : string =
     ~init:[]
     ~f:(fun ~key ~data l ->
         if data = RTT.DIncomplete
-        then RT.raise_error "Incorrect type" ~actual:data
+        then RT.error "Incorrect type" ~actual:data
         else if data = RTT.DNull then l
         else (key ^ "=" ^ (Dval.to_url_string data)) :: l)
   |> String.concat ~sep:"&"
