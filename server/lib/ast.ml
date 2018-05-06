@@ -313,7 +313,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
           | _ -> false)
   in
 
-  let raise_arglist_error args arglist : unit =
+  let raise_arglist_error bt args arglist : unit =
     Log.erroR ~name:"execution" ~ind "exception caught" args
                ~f:Dval.dvalmap_to_string;
     let all = List.zip_exn fn.parameters arglist in
@@ -326,7 +326,8 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     | [] -> ()
 
     | (p,a) :: _ ->
-       RT.raise_error
+       RT.error
+         ~bt:(Some bt)
          ~actual:a
          ~expected:(Dval.tipe_to_string p.tipe)
          (fnname ^ " was called with the wrong type to parameter: " ^ p.name)
@@ -367,9 +368,11 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                | _ -> DIncomplete)
          with
          | e ->
-           maybe_store_result (exception_to_dval ~log:false e);
-           raise_arglist_error args arglist;
-           raise e)
+           Exception.reraise_after e
+             (fun bt ->
+               maybe_store_result (exception_to_dval ~log:false e);
+               raise_arglist_error bt args arglist;
+             ))
       in
       maybe_store_result result;
       result
@@ -388,7 +391,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
           ^ " : "
           ^ (Dval.tipe_to_string param.tipe)
         in
-        RT.raise_error (fnname ^ " is missing a parameter")
+        RT.error (fnname ^ " is missing a parameter")
           ~expected:(fn.parameters
                      |> List.map ~f:param_to_string
                      |> String.concat ~sep:", ")

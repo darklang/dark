@@ -166,7 +166,7 @@ let fns : Lib.shortfn list = [
               let input =
                 if String.is_substring ~substring:"-" u
                 then
-                  raise_error "Username cannot contain a colon"
+                  error "Username cannot contain a colon"
                 else
                   u ^ ":" ^ p
               in
