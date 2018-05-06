@@ -15,7 +15,7 @@ type four_oh_four = (event_desc * Types.RuntimeT.dval list)
 
 (* for security and performance, and also because it's tricky to get
  * right otherwise, we store this in the following directory structure:
- * /hostname/
+ * /host/
  *   descriptors/
  *     {sha1s of event_desc} -> json with (path, space, modifier)
  *   events/

@@ -19,8 +19,8 @@ let fncall (a,b) = f (FnCall (a,b))
 let tlid = 7
 let pos = {x=0;y=0}
 
-let ops2c (name: string) (ops: Op.op list) : C.canvas ref =
-  let c = C.create name in
+let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
+  let c = C.create host in
   C.add_ops c [] ops;
   c
 
@@ -34,9 +34,9 @@ let execute_ops (ops : Op.op list) : dval =
   let dbs_env = Db.dbs_as_exe_env dbs in
   let env = dbs_env in (* enough env to test for now *)
   let state : exec_state =
-    { ff = FromUser !c.name
+    { ff = FromUser !c.host
     ; tlid = h.tlid
-    ; hostname = !c.name
+    ; host = !c.host
     ; user_fns = !c.user_functions
     ; exe_fn_ids = [] (* ctx is real, so unnecessary *)
     ; env = env

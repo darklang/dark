@@ -73,9 +73,9 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
   respond ~headers:(Cohttp.Header.of_list headers) `OK ""
 
 
-let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
+let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
-  let c = C.load subdomain [] in
+  let c = C.load host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let pages = C.pages_matching_route ~uri ~verb !c in
   let pages =
@@ -89,7 +89,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     options_handler !c req
   | [] ->
     let input = PReq.from_request req body in
-    Stored_event.store_event subdomain ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
+    Stored_event.store_event host ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
     let headers = Cohttp.Header.of_list [cors] in
     respond ~headers `Not_found "404: No page matches"
   | [page] ->
@@ -106,7 +106,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
        *    b) use the input url params in the analysis for this handler
        *)
       let desc = (m, Uri.path uri, mo) in
-      Stored_event.store_event subdomain desc (PReq.to_dval input)
+      Stored_event.store_event host desc (PReq.to_dval input)
     | _-> ());
     let env = Util.merge_left bound dbs_env in
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
@@ -117,7 +117,7 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
     let state : RTT.exec_state =
       { ff = ff
       ; tlid = page.tlid
-      ; hostname = !c.name
+      ; host = !c.host
       ; user_fns = !c.user_functions
       ; exe_fn_ids = []
       ; env = env
@@ -185,18 +185,18 @@ let user_page_handler ~(subdomain: string) ~(ip: string) ~(uri: Uri.t)
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
+let rec admin_rpc_handler body (host: string) : (Cohttp.Header.t * string) =
   let execution_id = Util.create_id () in
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load domain params.ops) in
+      (fun _ -> C.load host params.ops) in
 
     let (t3, (envs, f404s)) = time "3-create-envs"
       (fun _ ->
-        C.create_environments !c domain) in
+        C.create_environments !c host) in
 
     let (t4, result) = time "4-to-frontend"
       (fun _ -> C.to_frontend_string envs f404s execution_id params.executable_fns !c) in
@@ -213,9 +213,9 @@ let rec admin_rpc_handler body (domain: string) : (Cohttp.Header.t * string) =
   Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5], result)
   with
-  | Postgresql.Error e when C.is_uninitialized_db_error domain e ->
-    C.rerun_all_db_ops domain;
-    admin_rpc_handler body domain
+  | Postgresql.Error e when C.is_uninitialized_db_error host e ->
+    C.rerun_all_db_ops host;
+    admin_rpc_handler body host
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
     raise e
@@ -226,8 +226,8 @@ let admin_ui_handler () =
   >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
   >|= Util.string_replace "ROLLBARCONFIG" (Config.rollbar_js)
 
-let save_test_handler domain =
-  let g = C.load domain [] in
+let save_test_handler host =
+  let g = C.load host [] in
   let filename = C.save_test !g in
   respond `OK ("Saved as: " ^ filename)
 
@@ -259,7 +259,7 @@ let auth_then_handle req subdomain handler =
       else
         (match Auth.Session.user_for session with
          | Some user ->
-           if Auth.has_access ~domain:auth_domain ~user
+           if Auth.has_access ~host:auth_domain ~user
            then handler (Header.init ())
            else respond `Unauthorized "Unauthorized"
          | None ->
@@ -272,7 +272,7 @@ let auth_then_handle req subdomain handler =
       in
       match auth with
       | (Some (`Basic (user, pass))) ->
-        (match Auth.authenticate ~domain:auth_domain ~username:user ~password:pass with
+        (match Auth.authenticate ~host:auth_domain ~username:user ~password:pass with
          | Some user ->
            Auth.Session.new_for_user user >>=
            (fun session ->
@@ -285,10 +285,10 @@ let auth_then_handle req subdomain handler =
       | _ ->
         respond `Unauthorized "Invalid session"
 
-let admin_handler ~(subdomain: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
+let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
   let empty_body = "{ ops: [], executable_fns: []}" in
   let rpc ?(body=empty_body) () =
-    let (headers, response_body) = admin_rpc_handler body subdomain in
+    let (headers, response_body) = admin_rpc_handler body host in
     respond ~headers `OK response_body
   in
 
@@ -308,7 +308,7 @@ let admin_handler ~(subdomain: string) ~(uri: Uri.t) ~stopper ~(body: string) (r
   | "/admin/integration_test" ->
     admin_ui_handler () >>= fun body -> respond `OK body
   | "/admin/api/save_test" ->
-    save_test_handler subdomain
+    save_test_handler host
   | _ ->
     respond `Not_found "Not found"
 
@@ -325,7 +325,7 @@ let server () =
   let stop,stopper = Lwt.wait () in
 
   let callback (ch, conn) req body =
-    let subdomain =
+    let host =
       req
       |> CRequest.uri
       |> Uri.host
@@ -343,7 +343,7 @@ let server () =
         let uri = req |> CRequest.uri in
 
         Log.infO "request"
-          ( subdomain |> Option.value ~default:"Unsupported subdomain"
+          ( host |> Option.value ~default:"Unsupported host"
           , ip
           , req |> CRequest.meth |> Cohttp.Code.string_of_method
           , "http:" ^ Uri.to_string uri);
@@ -355,15 +355,15 @@ let server () =
         | p when (String.is_prefix ~prefix:"/static/" p) ->
           static_handler uri
         | p when  (String.is_prefix ~prefix:"/admin/" p) ->
-          (match subdomain with
-           | Some subdomain ->
-             admin_handler ~subdomain ~uri ~body ~stopper req headers
+          (match host with
+           | Some host ->
+             admin_handler ~host ~uri ~body ~stopper req headers
            | None ->
              respond `Not_found "Not found")
         | _ ->
-          (match subdomain with
-           | Some subdomain ->
-             user_page_handler ~subdomain ~ip ~uri ~body req
+          (match host with
+           | Some host ->
+             user_page_handler ~host ~ip ~uri ~body req
            | None ->
              respond `Not_found "Not found")
       with
@@ -387,11 +387,11 @@ let server () =
         let headers = Cohttp.Header.of_list [cors] in
         respond ~headers `Internal_server_error err_body
     in
-    match subdomain with
+    match host with
     (* This seems like it should be moved closer to the admin handler,
      * but don't do that - that makes Lwt swallow our exceptions. *)
-    | Some subdomain ->
-      auth_then_handle req subdomain handler
+    | Some host ->
+      auth_then_handle req host handler
     | None ->
       respond `Not_found "Not found"
   in

@@ -40,7 +40,7 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
     |> String.concat ~sep:", "
   in
   let column_values =
-    ["'new'"; "NULL"; wrap state.hostname; wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"; FF.to_sql state.ff]
+    ["'new'"; "NULL"; wrap state.host; wrap space; wrap name; wrap serialized_data; "CURRENT_TIMESTAMP"; FF.to_sql state.ff]
     |> String.concat ~sep:", "
   in
   (Printf.sprintf "INSERT INTO \"events\" (%s) VALUES (%s)" column_names column_values)
@@ -50,13 +50,13 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue (execution_id: int) (hostname: string) (space: string) (name: string) : t option =
+let dequeue (execution_id: int) (host: string) (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf
       "SELECT id, value, retries, flag_context from \"events\" WHERE space = %s AND name = %s AND canvas = %s AND status = 'new' AND delay_until < CURRENT_TIMESTAMP ORDER BY id DESC, retries ASC LIMIT 1"
       (wrap space)
       (wrap name)
-      (wrap hostname)
+      (wrap host)
     |> Db.fetch_via_sql
     |> List.hd
   in
