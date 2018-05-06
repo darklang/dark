@@ -15,12 +15,12 @@ module Session = struct
     User.for_username session.value
 end
 
-let has_access ~domain ~user : bool =
-  String.Caseless.equal domain (User.domain user)
-  || (User.domain user) = "admin"
+let has_access ~host ~user : bool =
+  String.Caseless.equal host (User.host user)
+  || (User.host user) = "admin"
 
-let authenticate ~domain ~username ~password : User.t option =
-  User.all_for_domain domain
-  |> List.append (User.all_for_domain "admin")
+let authenticate ~host ~username ~password : User.t option =
+  User.all_for_host host
+  |> List.append (User.all_for_host "admin")
   |> List.find
     ~f:(fun u -> (User.username u) = username && (User.password u) = password)

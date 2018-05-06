@@ -1,4 +1,5 @@
 open Core
+open Types
 
 module Session : sig
   module Backend = Session_postgresql_lwt
@@ -11,6 +12,6 @@ module Session : sig
   val user_for : t -> User.t option
 end
 
-val authenticate : domain:string -> username:string -> password:string -> User.t option
-val has_access : domain:string -> user:User.t -> bool
+val authenticate : host:host -> username:string -> password:string -> User.t option
+val has_access : host:host -> user:User.t -> bool
 

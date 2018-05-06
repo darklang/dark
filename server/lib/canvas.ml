@@ -10,14 +10,14 @@ module FF = Feature_flag
 module SE = Stored_event
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
-type canvas = { name : string
+type canvas = { host : string
               ; ops : Op.oplist
               ; toplevels: toplevellist
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
-let create (name : string) : canvas ref =
-  ref { name = name
+let create (host : string) : canvas ref =
+  ref { host = host
       ; ops = []
       ; toplevels = []
       ; user_functions = []
@@ -255,9 +255,9 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       then Exception.client ("DB must have a name")
       else
         let db : DbT.db = { tlid = tlid
-                          ; host = !c.name
+                          ; host = !c.host
                           ; display_name = Db.to_display_name name
-                          ; actual_name = (!c.name ^ "_" ^ name)
+                          ; actual_name = (!c.host ^ "_" ^ name)
                                           |> String.lowercase
                           ; cols = []} in
         if do_db_ops
@@ -293,12 +293,12 @@ let is_uninitialized_db_error (host: string) (e: Postgresql.error) : bool =
   String.is_substring str
     ~substring:"does not exist\nLINE 1:"
 
-let rerun_all_db_ops (domain : string) : unit =
-  Log.infO "Reruning all ops for" domain;
-  let (_, ops) = Serialize.search_and_load domain in
+let rerun_all_db_ops (host: string) : unit =
+  Log.infO "Reruning all ops for" host;
+  let (_, ops) = Serialize.search_and_load host in
   let op_pairs = List.map ~f:(fun op -> (op, true)) ops in
-  let reduced_ops = preprocess (op_pairs) in
-  let new_canvas = ref { !(create domain) with ops = ops } in
+  let reduced_ops = preprocess op_pairs in
+  let new_canvas = ref { !(create host) with ops = ops } in
   List.iter ~f:(fun (op, _) -> apply_op op true new_canvas) reduced_ops;
   ()
 
@@ -323,30 +323,30 @@ let minimize (c : canvas) : canvas =
 (* Serialization *)
 (* ------------------------- *)
 
-let load (name: string) (newops: Op.op list) : canvas ref =
-  let c = create name in
-  let (run_old_db_ops, oldops) = Serialize.search_and_load name in
+let load (host: string) (newops: Op.op list) : canvas ref =
+  let c = create host in
+  let (run_old_db_ops, oldops) = Serialize.search_and_load host in
   add_ops ~run_old_db_ops c oldops newops;
   c
 
 let save (c : canvas) : unit =
-  Serialize.save_in_db c.name c.ops;
-  let json = Serialize.json_unversioned_filename c.name in
-  let root = Serialize.root_of c.name in
-  ignore (Util.convert_bin_to_json ~root c.name json)
+  Serialize.save_in_db c.host c.ops;
+  let json = Serialize.json_unversioned_filename c.host in
+  let root = Serialize.root_of c.host in
+  ignore (Util.convert_bin_to_json ~root c.host json)
 
 
 let save_test (c: canvas) : string =
   let c = minimize c in
-  let name = "test_" ^ c.name in
-  let file = Serialize.json_unversioned_filename name in
-  let name = if Util.file_exists ~root:Testdata file
+  let host = "test_" ^ c.host in
+  let file = Serialize.json_unversioned_filename host in
+  let host = if Util.file_exists ~root:Testdata file
              then
-               name
+               host
                ^ "_"
                ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
-             else name in
-  let file = Serialize.json_unversioned_filename name in
+             else host in
+  let file = Serialize.json_unversioned_filename host in
   Serialize.save_json ~root:Testdata file c.ops;
   file
 
@@ -388,7 +388,7 @@ let to_frontend
           let state : RTT.exec_state =
             { ff = FF.analysis
             ; tlid = f.tlid
-            ; hostname = c.name
+            ; host = c.host
             ; user_fns = c.user_functions
             ; exe_fn_ids = fn_ids
             ; env = env
@@ -416,7 +416,7 @@ let to_frontend
           let state i env : RTT.exec_state =
             { ff = FF.analysis
             ; tlid = h.tlid
-            ; hostname = c.name
+            ; host = c.host
             ; user_fns = c.user_functions
             ; exe_fn_ids = fn_ids i
             ; env = env
