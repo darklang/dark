@@ -24,10 +24,7 @@ viewDBColName vs c v =
 
 viewDBColType : BlankViewer String
 viewDBColType vs c v =
-  let configs = if B.isBlank v || not vs.dbLocked
-                then idConfigs ++ c
-                else c
-  in
+  let configs = idConfigs ++ c in
   viewText DBColType vs configs v
 
 

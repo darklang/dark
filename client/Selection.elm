@@ -359,7 +359,8 @@ enter m tlid id =
         else enterMods
       PDBColType d ->
         if DB.isLocked m tlid && not (B.isBlank d)
-        then NoChange
+        then
+          DB.initFieldTypeMigration m tl d
         else enterMods
       pd -> enterMods
 
