@@ -661,7 +661,11 @@ let load_oplists (host: string) (digest: string) : string option =
   |> Option.map ~f:bytea_of_string_hex
 
 let all_oplists (digest: string) : string list =
-  "SELECT host FROM oplists WHERE digest = '%s'"
+  "SELECT host
+  FROM oplists
+  WHERE digest = '%s'"
   |> fetch_via_sql ~quiet:true
   |> List.concat
+  |> List.filter ~f:(fun h ->
+      not (String.is_prefix ~prefix:"test_" h))
 
