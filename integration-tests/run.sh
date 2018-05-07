@@ -70,13 +70,6 @@ rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
 # Clear DBs
 function exe { psql -d proddb -c "$@"; }
 
-echo "Clearing test tables";
-TESTDBS=$(psql -d proddb -q --command "SELECT table_name FROM information_schema.tables WHERE SUBSTRING(table_name, 0, 6) = 'test_';" | grep test_ || true)
-SCRIPT="" # concated into on script for speed
-for db in $TESTDBS; do
-  SCRIPT+="DROP TABLE \"${db}\";";
-done
-
 echo "Clearing test schemas";
 TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test_';" | grep test_ || true)
 for db in $TESTSCHEMAS; do
@@ -85,12 +78,8 @@ done
 
 exe "$SCRIPT"
 
-echo "Clearing from migrations";
-exe "DELETE FROM migrations WHERE SUBSTRING(host, 0, 6) = 'test_';"
-echo "Clearing from oplists";
+echo "Clearing oplists";
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
-echo "Clearing from events";
-exe "DELETE FROM events WHERE SUBSTRING(canvas, 0, 6) = 'test_';"
 
 
 
