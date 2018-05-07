@@ -174,6 +174,7 @@ type Op
     | SetFunction UserFunction
     | ChangeDBColName TLID ID DBColName
     | ChangeDBColType TLID ID DBColType
+    | InitDBMigration TLID ID DBMigrationKind
 
 type alias RPCParams = { ops : List Op
                        , executableFns : List (TLID, ID, Int)

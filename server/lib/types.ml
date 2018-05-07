@@ -71,7 +71,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
     type col = string or_blank * tipe_ or_blank
               [@@deriving eq, show, yojson, sexp]
     type migration_kind = ChangeColType
-                          [@@deriving eq, show, yojson, sexp]
+                          [@@deriving eq, show, yojson, sexp, bin_io]
     type db_migration = { starting_version : int
                         ; kind : migration_kind
                         ; rollforward : expr

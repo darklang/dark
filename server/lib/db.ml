@@ -2,6 +2,7 @@ open Core
 
 open Types
 open Types.RuntimeT
+open Types.RuntimeT.DbT
 
 module RT = Runtime
 
@@ -34,8 +35,8 @@ let escape (s: string) : string =
 let escapea (s: string) : string =
   conn#escape_bytea s
 
-let find_db tables table_name : DbT.db =
-  match List.find ~f:(fun (d : DbT.db) -> d.display_name = String.capitalize table_name) tables with
+let find_db tables table_name : db =
+  match List.find ~f:(fun (d : db) -> d.display_name = String.capitalize table_name) tables with
    | Some d -> d
    | None -> failwith ("table not found: " ^ table_name)
 
@@ -183,7 +184,7 @@ let val_names (vals: dval_map) : string =
 
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
-let cols_for (db: DbT.db) : (string * tipe) list =
+let cols_for (db: db) : (string * tipe) list =
   db.cols
   |> List.filter_map ~f:(fun c ->
     match c with
@@ -319,12 +320,12 @@ let default_for (tipe: tipe) : string =
 (* ------------------------- *)
 (* frontend stuff *)
 (* ------------------------- *)
-let dbs_as_env (dbs: DbT.db list) : dval_map =
+let dbs_as_env (dbs: db list) : dval_map =
   dbs
-  |> List.map ~f:(fun (db: DbT.db) -> (db.display_name, DDB db))
+  |> List.map ~f:(fun (db: db) -> (db.display_name, DDB db))
   |> DvalMap.of_alist_exn
 
-let dbs_as_exe_env (dbs: DbT.db list) : dval_map =
+let dbs_as_exe_env (dbs: db list) : dval_map =
   dbs_as_env dbs
 
 (* ------------------------- *)
@@ -337,7 +338,7 @@ let is_relation (valu: dval) : bool =
     List.for_all ~f:Dval.is_obj l
   | _ -> false
 
-let rec insert ~tables (db: DbT.db) (vals: dval_map) : Uuid.t =
+let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
   let id = Uuid.create () in
   let vals = DvalMap.set ~key:"id" ~data:(DID id) vals in
   (* split out complex objects *)
@@ -398,7 +399,7 @@ and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
     List.map ~f:(fun x -> upsert_dependent_object tables cols ~key:relation ~data:x) l |> DList
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
 
-let fetch_all ~tables (db: DbT.db) : dval =
+let fetch_all ~tables (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
   let colnames = col_names names in
   Printf.sprintf
@@ -408,20 +409,20 @@ let fetch_all ~tables (db: DbT.db) : dval =
   |> List.map ~f:(to_obj tables names types)
   |> DList
 
-let delete ~tables (db: DbT.db) (vals: dval_map) =
+let delete ~tables (db: db) (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
     (escape db.actual_name) (dval_to_sql id)
   |> run_sql_in_ns ~host:db.host
 
-let delete_all ~tables (db: DbT.db) =
+let delete_all ~tables (db: db) =
   Printf.sprintf "DELETE FROM \"%s\""
     (escape db.actual_name)
   |> run_sql_in_ns ~host:db.host
 
 
 
-let count (db: DbT.db) =
+let count (db: db) =
   Printf.sprintf "SELECT COUNT(*) AS c FROM \"%s\""
     (escape db.actual_name)
   |> fetch_via_sql_in_ns ~host:db.host
@@ -491,10 +492,10 @@ let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 
-let schema_qualified (db: DbT.db) =
+let schema_qualified (db: db) =
   ns_name (db.host) ^ "." ^ db.actual_name
 
-let db_locked (db: DbT.db) : bool =
+let db_locked (db: db) : bool =
   Printf.sprintf
     "SELECT n_live_tup
     FROM pg_catalog.pg_stat_all_tables
@@ -507,7 +508,7 @@ let db_locked (db: DbT.db) : bool =
   |> (<>) [["0"]]
 
 
-let unlocked (dbs: DbT.db list) : DbT.db list =
+let unlocked (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
@@ -529,7 +530,7 @@ let unlocked (dbs: DbT.db list) : DbT.db list =
           List.mem ~equal:(=) empties [db.actual_name; "0"])
 
 (* TODO(ian): make single query *)
-let drop (db: DbT.db) =
+let drop (db: db) =
   if db_locked db
    && not (String.is_substring ~substring:"conduit" db.host)
    && not (String.is_substring ~substring:"onecalendar" db.host)
@@ -556,7 +557,7 @@ let to_display_name (name: string) =
        |> String.capitalize
   else String.capitalize name
 
-let create (host:host) (name:string) (id: tlid) : DbT.db =
+let create (host:host) (name:string) (id: tlid) : db =
   { tlid = id
   ; host = host
   ; display_name = to_display_name name
@@ -567,12 +568,12 @@ let create (host:host) (name:string) (id: tlid) : DbT.db =
   ; active_migration = None
   }
 
-let init_storage (db: DbT.db) =
+let init_storage (db: db) =
   run_migration db.host db.tlid (create_table_sql db.actual_name)
 
 (* we only add this when it is complete, and we use the ID to mark the
    migration table to know whether it's been done before. *)
-let maybe_add_to_actual_db (db: DbT.db) (id: id) (col: DbT.col) (do_db_ops: bool) : DbT.col =
+let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col =
   if do_db_ops
   then
     (match col with
@@ -584,7 +585,7 @@ let maybe_add_to_actual_db (db: DbT.db) (id: id) (col: DbT.col) (do_db_ops: bool
   col
 
 
-let add_col colid typeid (db: DbT.db) =
+let add_col colid typeid (db: db) =
   { db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
 let set_col_name id name (do_db_ops: bool) db =
@@ -655,6 +656,23 @@ let change_col_type id newtipe (do_db_ops: bool) db =
 
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
+
+let initialize_migration id kind (db : db) =
+  if Option.is_some db.active_migration
+  then
+    Exception.internal
+      ("Attempted to init a migration for a table with an active one: " ^ db.display_name);
+  match kind with
+  | ChangeColType ->
+    let new_migration =
+      { starting_version = db.version
+      ; kind = kind
+      ; rollback = Blank (Util.create_id ())
+      ; rollforward = Blank (Util.create_id ())
+      ; target = id
+      }
+    in
+    { db with active_migration = Some new_migration }
 
 (* ------------------------- *)
 (* Serializing canvases *)
