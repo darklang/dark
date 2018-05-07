@@ -78,9 +78,9 @@ for db in $TESTDBS; do
 done
 
 echo "Clearing test schemas";
-TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 6) = 'test_';" | grep test_ || true)
+TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test_';" | grep test_ || true)
 for db in $TESTSCHEMAS; do
-  SCRIPT+="DROP SCHEMA \"${db}\";";
+  SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
 done
 
 exe "$SCRIPT"
