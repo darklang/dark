@@ -11,6 +11,7 @@ val fetch_via_sql : ?quiet:bool -> string -> string list list
 val cols_for : DbT.db -> (string * RuntimeT.tipe) list
 
 (* DB runtime functions *)
+val initialize_migrations : host -> unit
 val insert : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval_map -> Uuid.t
 val fetch_all : tables:(DbT.db list) -> DbT.db -> RuntimeT.dval
 val fetch_by : tables:(DbT.db list) -> DbT.db -> string -> RuntimeT.dval -> RuntimeT.dval
@@ -21,6 +22,7 @@ val count : DbT.db -> int
 val drop : DbT.db -> unit
 
 (* DB schema modifications *)
+val userdb : host -> string -> tlid -> DbT.db
 val create_new_db : DbT.db -> unit
 val to_display_name : string -> string
 val add_col : id -> id -> DbT.db -> DbT.db
