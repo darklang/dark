@@ -6,6 +6,7 @@ module DB exposing (..)
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
+import Blank as B
 
 allData : DB -> List PointerData
 allData db =
@@ -34,4 +35,5 @@ isLocked m tlid =
 
 initFieldTypeMigration : Model -> Toplevel -> (BlankOr String) -> Modification
 initFieldTypeMigration m tl tipe =
-  NoChange
+  RPC ([InitDBMigration tl.id (B.toID tipe) ChangeColType]
+      , FocusSame)
