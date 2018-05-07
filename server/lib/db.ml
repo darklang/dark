@@ -99,7 +99,7 @@ let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
 (* ------------------------- *)
 (* Postgres schemas (namespacing) *)
 (* ------------------------- *)
-let schema_name host : string =
+let ns_name host : string =
   Printf.sprintf
     "dark_user_%s"
     (escape host)
@@ -108,13 +108,12 @@ let schema_name host : string =
  * transaction, but every pg query uses autocommit by default in pg
  * >9.5, so we're good. *)
 let in_ns ~(host:string) (sql: string) : string =
-  let schema = schema_name host in
-  let sql = Util.string_replace "{SCHEMA}" schema sql in
+  let ns = ns_name host in
   Printf.sprintf
     " SET LOCAL search_path TO \"%s\";
        %s;
      "
-    schema
+    ns
     sql
 
 let fetch_via_sql_in_ns ?(quiet=false) ~host sql =
@@ -130,7 +129,7 @@ let run_sql_in_ns ?(quiet=false) ~host sql =
 let create_namespace host : unit =
   Printf.sprintf
     "CREATE SCHEMA IF NOT EXISTS \"%s\""
-    (schema_name host)
+    (ns_name host)
   |> run_sql
 
 

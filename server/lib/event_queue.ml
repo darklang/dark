@@ -154,7 +154,7 @@ let finish ~(host:string) (item: t) : unit =
 
 
 let create_queue_status_type host : unit =
-  Db.run_sql_in_ns ~host
+  Printf.sprintf
     "DO $$
      BEGIN
        IF NOT EXISTS
@@ -171,7 +171,7 @@ let create_queue_status_type host : unit =
                             AND el.typarray = t.oid)
           AND n.nspname NOT IN ('pg_catalog', 'information_schema')
           AND t.typname = 'queue_status'
-          AND n.nspname <> '{SCHEMA}'
+          AND n.nspname = '%s'
           )
        THEN
          CREATE TYPE queue_status AS
@@ -179,6 +179,8 @@ let create_queue_status_type host : unit =
        END IF;
      END $$;
     "
+    (Db.ns_name host)
+  |> Db.run_sql_in_ns ~host
 
 let create_events_table host =
   Db.run_sql_in_ns ~host
