@@ -131,6 +131,7 @@ tlidsOf op =
     ChangeDBColName tlid _ _ -> [tlid]
     SetDBColType tlid _ _ -> [tlid]
     ChangeDBColType tlid _ _ -> [tlid]
+    InitDBMigration tlid _ _ -> [tlid]
     Savepoint tlids -> tlids
     UndoTL tlid -> [tlid]
     RedoTL tlid -> [tlid]
@@ -188,6 +189,8 @@ encodeOp call =
 
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
+      InitDBMigration tlid id kind ->
+        ev "InitDBMigration" [encodeTLID tlid, encodeID id, encodeDBMigrationKind kind]
 
       Savepoint tlids ->
         ev "Savepoint" [JSE.list (List.map encodeTLID tlids)]
@@ -350,6 +353,12 @@ encodeCursorState cs =
                     ]
     Deselected ->
       ev "Deselected" []
+
+encodeDBMigrationKind : DBMigrationKind -> JSE.Value
+encodeDBMigrationKind k =
+  let ev = encodeVariant in
+  case k of
+    ChangeColType -> ev "ChangeColType" []
 
 encodeSerializableEditor : SerializableEditor -> JSE.Value
 encodeSerializableEditor se =

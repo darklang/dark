@@ -19,6 +19,7 @@ type op = SetHandler of tlid * pos * Handler.handler
         | UndoTL of tlid
         | RedoTL of tlid
         | Savepoint of tlid list
+        | InitDBMigration of tlid * id * RuntimeT.DbT.migration_kind
         [@@deriving eq, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
@@ -39,6 +40,7 @@ let tlidsOf (op: op) :  tlid list =
   | ChangeDBColName (tlid, _, _) -> [tlid]
   | SetDBColType (tlid, _, _) -> [tlid]
   | ChangeDBColType (tlid, _, _) -> [tlid]
+  | InitDBMigration (tlid, _, _) -> [tlid]
   | Savepoint tlids -> tlids
   | UndoTL tlid -> [tlid]
   | RedoTL tlid -> [tlid]
