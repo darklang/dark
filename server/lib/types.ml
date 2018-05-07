@@ -34,20 +34,6 @@ type tipe_ =
   | TDbList of tipe_
   [@@deriving eq, show, yojson, sexp, bin_io]
 
-
-module DbT = struct
-  type col = string or_blank * tipe_ or_blank
-            [@@deriving eq, show, yojson, sexp]
-
-  type db = { tlid: tlid
-            ; host: string
-            ; display_name: string
-            ; actual_name: string
-            ; cols: col list
-            ; version: int
-            } [@@deriving eq, show, yojson, sexp]
-end
-
 module SpecTypes = struct
   type n_dark_type = Empty
                    | Any
@@ -80,6 +66,30 @@ module RuntimeT = struct
              | FieldAccess of expr * field
   [@@deriving eq, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
+
+  module DbT = struct
+    type col = string or_blank * tipe_ or_blank
+              [@@deriving eq, show, yojson, sexp]
+    type migration_kind = ChangeColType
+                          [@@deriving eq, show, yojson, sexp]
+    type db_migration = { starting_version : int
+                        ; kind : migration_kind
+                        ; rollforward : expr
+                        ; rollback : expr
+                        ; target : id
+                        }
+                        [@@deriving eq, show, yojson, sexp]
+    type db = { tlid: tlid
+              ; host: string
+              ; display_name: string
+              ; actual_name: string
+              ; cols: col list
+              ; version: int
+              ; old_migrations : db_migration list
+              ; active_migration : db_migration option
+              } [@@deriving eq, show, yojson, sexp]
+  end
+
   (* ------------------------ *)
   (* Dvals*)
   (* ------------------------ *)
