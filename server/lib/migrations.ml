@@ -157,16 +157,62 @@ let migrations =
            END;
          END;
        $$"
+
+  ; `EachCanvas
+    "CREATE TABLE IF NOT EXISTS
+       migrations
+       ( id BIGINT
+       , sql TEXT
+       , PRIMARY KEY (id))"
+
+  ; `EachCanvas
+    "INSERT INTO migrations (id, sql)
+     SELECT id, sql
+     FROM public.migrations
+     WHERE host = '{HOST}'
+     ON CONFLICT DO NOTHING"
+
+  ; `ForEach ( "SELECT replace(table_name, '{HOST}_', '')
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                  AND table_name LIKE '{HOST}\\_%%'"
+             , "ALTER TABLE \"{HOST}_{VALUE}\"
+                  SET SCHEMA \"{NS}\";
+                ALTER TABLE \"{NS}\".\"{HOST}_{VALUE}\"
+                  RENAME TO \"user_{VALUE}\";
+                "
+             )
   ]
 
 let migrate_canvas (template: string) (host: string) =
-  Util.string_replace "{NS}" (Db.ns_name host) template
+  template
+  |> Util.string_replace "{NS}" (Db.ns_name host)
+  |> Util.string_replace "{HOST}" host
   |> Db.run_sql_in_ns ~host
 
 (* don't run in schema *)
 let migrate_canvas_raw (template: string) (host: string) =
-  Util.string_replace "{NS}" (Db.ns_name host) template
+  template
+  |> Util.string_replace "{NS}" (Db.ns_name host)
+  |> Util.string_replace "{HOST}" host
   |> Db.run_sql
+
+let migrate_foreach (search: string) (template: string) (host: string) =
+  let all = search
+            |> Util.string_replace "{NS}" (Db.ns_name host)
+            |> Util.string_replace "{HOST}" host
+            |> Db.fetch_via_sql
+            |> List.concat
+  in
+  List.iter all
+    ~f:(fun value ->
+          template
+          |> Util.string_replace "{NS}" (Db.ns_name host)
+          |> Util.string_replace "{HOST}" host
+          |> Util.string_replace "{VALUE}" value
+          |> Db.run_sql)
+
+
 
 let run () : unit =
   try
@@ -179,6 +225,9 @@ let run () : unit =
       | `EachCanvasRaw template ->
         List.iter (Serialize.current_hosts ())
           ~f:(migrate_canvas_raw template)
+      | `ForEach (search, template) ->
+        List.iter (Serialize.current_hosts ())
+          ~f:(migrate_foreach search template)
       )
 
   with
