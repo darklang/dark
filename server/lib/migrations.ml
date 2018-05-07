@@ -150,10 +150,9 @@ let migrations =
              ALTER TABLE \"events\"
                RENAME COLUMN flag_content TO flag_context;
            EXCEPTION
-             WHEN duplicate_column
+             WHEN OTHERS
              THEN
-               RAISE NOTICE
-                 'column <column_name> already exists in <table_name>.';
+               RAISE NOTICE 'ignoring error: %', SQLERRM;
            END;
          END;
        $$"
