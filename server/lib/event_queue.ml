@@ -151,3 +151,54 @@ let put_back (item: t) ~status : unit =
 let finish (item: t) : unit =
   put_back item ~status:`OK
 
+
+
+let create_queue_status_type host : unit =
+  Db.run_sql_in_schema ~host
+    "DO $$
+     BEGIN
+       IF NOT EXISTS
+         (SELECT 1
+          FROM pg_type t
+          LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+          WHERE (t.typrelid = 0
+                 OR (SELECT c.relkind = 'c'
+                     FROM pg_catalog.pg_class c
+                     WHERE c.oid = t.typrelid))
+          AND NOT EXISTS (SELECT 1
+                          FROM pg_catalog.pg_type el
+                          WHERE el.oid = t.typelem
+                            AND el.typarray = t.oid)
+          AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+          AND t.typname = 'queue_status'
+          AND n.nspname <> '{SCHEMA}'
+          )
+       THEN
+         CREATE TYPE queue_status AS
+           ENUM ('new', 'locked', 'done', 'error');
+       END IF;
+     END $$;
+    "
+
+let create_events_table host =
+  Db.run_sql_in_schema ~host
+    "CREATE TABLE IF NOT EXISTS
+          \"events\"
+          (id SERIAL PRIMARY KEY
+          , status queue_status
+          , dequeued_by INT
+          , canvas TEXT NOT NULL
+          , space TEXT NOT NULL
+          , name TEXT NOT NULL
+          , value TEXT NOT NULL
+          , retries INTEGER DEFAULT 0 NOT NULL
+          , flag_content TEXT DEFAULT '' NOT NULL
+          , delay_until TIMESTAMP
+          )
+          "
+let initialize_queue host : unit =
+  create_queue_status_type host;
+  create_events_table host;
+  ()
+
+

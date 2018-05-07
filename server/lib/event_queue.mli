@@ -16,3 +16,5 @@ val enqueue : RuntimeT.exec_state -> string -> string -> RuntimeT.dval -> unit
 val dequeue : int -> string -> string -> string -> t option
 val put_back : t -> status:[`OK | `Err | `Incomplete] -> unit
 val finish : t -> unit
+
+val initialize_queue : host -> unit

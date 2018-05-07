@@ -24,6 +24,9 @@ let reraise_after e (fn : Caml.Printexc.raw_backtrace -> unit) =
   fn bt;
   Caml.Printexc.raise_with_backtrace e bt
 
+let reraise e  =
+  let bt = Caml.Printexc.get_raw_backtrace () in
+  Caml.Printexc.raise_with_backtrace e bt
 
 let raise_
     (tipe: string)
