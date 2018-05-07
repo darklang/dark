@@ -203,6 +203,8 @@ let t_db_oplist_roundtrip () =
 
 
 let t_case_insensitive_db_roundtrip () =
+  let name = "test_case_insensitive_db_roundtrip" in
+  Db.run_sql ("DROP SCHEMA IF EXISTS dark_user_" ^ name ^ " CASCADE;");
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
   let oplist = [ Op.CreateDB (tlid, pos, "TestUnicode")
@@ -210,7 +212,7 @@ let t_case_insensitive_db_roundtrip () =
                ; Op.SetDBColName (tlid, 11, colname)
                ; Op.SetDBColType (tlid, 12, "Str")
                ] in
-  let c = ops2c "test_case_insensitive_db_roundtrip" oplist in
+  let c = ops2c name oplist in
   let dbs = TL.dbs !c.toplevels in
   let db = dbs |> List.hd_exn in
   let dval = DvalMap.singleton colname value in

@@ -257,7 +257,7 @@ fetch_by ~tables db (col: string) (dv: dval) : dval =
   Printf.sprintf
     "SELECT %s FROM \"%s\" WHERE %s = %s"
     colnames (escape db.actual_name) (escape_col col) (dval_to_sql dv)
-  |> fetch_via_sql
+  |> fetch_via_sql_in_ns ~host:db.host
   |> List.map ~f:(to_obj tables names types)
   |> DList
 and
@@ -353,7 +353,7 @@ let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
   let merged = Util.merge_left normal obj_id_map in
   let _ = Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
       (escape db.actual_name) (key_names merged) (val_names merged)
-          |> run_sql
+          |> run_sql_in_ns ~host:db.host
   in
     id
 and update ~tables db (vals: dval_map) =
@@ -374,7 +374,7 @@ and update ~tables db (vals: dval_map) =
            |> String.concat ~sep:", " in
   Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
     (escape db.actual_name) sets (dval_to_sql id)
-  |> run_sql
+  |> run_sql_in_ns ~host:db.host
 and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
   let table_name =
@@ -405,27 +405,27 @@ let fetch_all ~tables (db: db) : dval =
   Printf.sprintf
     "SELECT %s FROM \"%s\""
     colnames (escape db.actual_name)
-  |> fetch_via_sql
+  |> fetch_via_sql_in_ns ~host:db.host
   |> List.map ~f:(to_obj tables names types)
   |> DList
 
-let delete ~tables db (vals: dval_map) =
+let delete ~tables (db: db) (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
     (escape db.actual_name) (dval_to_sql id)
-  |> run_sql
+  |> run_sql_in_ns ~host:db.host
 
-let delete_all ~tables db =
+let delete_all ~tables (db: db) =
   Printf.sprintf "DELETE FROM \"%s\""
     (escape db.actual_name)
-  |> run_sql
+  |> run_sql_in_ns ~host:db.host
 
 
 
-let count db =
+let count (db: db) =
   Printf.sprintf "SELECT COUNT(*) AS c FROM \"%s\""
     (escape db.actual_name)
-  |> fetch_via_sql
+  |> fetch_via_sql_in_ns ~host:db.host
   |> List.hd_exn
   |> List.hd_exn
   |> int_of_string
@@ -433,24 +433,32 @@ let count db =
 (* ------------------------- *)
 (* run all db and schema changes as migrations *)
 (* ------------------------- *)
+
+let initialize_migrations host : unit =
+  "CREATE TABLE IF NOT EXISTS
+     migrations
+     ( id BIGINT
+     , sql TEXT
+     , PRIMARY KEY (id))"
+  |> run_sql_in_ns ~host
+
+
 let run_migration (host: string) (id: id) (sql:string) : unit =
-  let host = escape host in
-  Log.infO "sql" sql;
+  Log.infO "migration" sql;
   Printf.sprintf
     "DO
        $do$
          BEGIN
-           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d
-                                                  AND host = '%s') = 0)
+           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d) = 0)
            THEN
              %s;
-             INSERT INTO migrations (id, host, sql)
-               VALUES (%d, '%s', (quote_literal('%s')));
+             INSERT INTO migrations (id, sql)
+               VALUES (%d, (quote_literal('%s')));
            END IF;
          END
-       $do$;
-     COMMIT;" id host sql id host (escape sql)
-  |> run_sql
+       $do$"
+    id sql id (escape sql)
+  |> run_sql_in_ns ~host
 
 (* -------------------------
 (* SQL for DB *)
@@ -484,12 +492,18 @@ let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 
+let schema_qualified (db: db) =
+  ns_name (db.host) ^ "." ^ db.actual_name
+
 let db_locked (db: db) : bool =
   Printf.sprintf
     "SELECT n_live_tup
-    FROM pg_stat_all_tables
-    WHERE relname = '%s';"
+    FROM pg_catalog.pg_stat_all_tables
+    WHERE relname = '%s'
+      AND schemaname = '%s';
+    "
     (escape db.actual_name)
+    (escape (ns_name db.host))
   |> fetch_via_sql
   |> (<>) [["0"]]
 
@@ -502,9 +516,12 @@ let unlocked (dbs: db list) : db list =
     let empties =
       (Printf.sprintf
         "SELECT relname, n_live_tup
-        FROM pg_stat_all_tables
-        WHERE relname LIKE '%s_%%';"
-        (escape host))
+        FROM pg_catalog.pg_stat_all_tables
+        WHERE relname LIKE 'user_%%'
+          AND schemaname = '%s';
+        "
+        (escape (ns_name host))
+      )
       |> fetch_via_sql
     in
     dbs
@@ -525,7 +542,7 @@ let drop db =
   else
     Printf.sprintf "DROP TABLE IF EXISTS \"%s\""
       (escape db.actual_name)
-    |> run_sql
+    |> run_sql_in_ns ~host:db.host
 
 (* ------------------------- *)
 (* DB schema *)
@@ -539,6 +556,13 @@ let to_display_name (name: string) =
        |> String.lowercase
        |> String.capitalize
   else String.capitalize name
+
+let userdb (host:host) (name:string) (id: tlid) : DbT.db =
+  { tlid = id
+  ; host = host
+  ; display_name = to_display_name name
+  ; actual_name = "user_" ^ name (* there's a schema too *)
+  ; cols = []}
 
 let create_new_db (db: db) =
   run_migration db.host db.tlid (create_table_sql db.actual_name)
