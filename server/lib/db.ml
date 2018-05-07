@@ -557,14 +557,16 @@ let to_display_name (name: string) =
        |> String.capitalize
   else String.capitalize name
 
-let userdb (host:host) (name:string) (id: tlid) : DbT.db =
+let create (host:host) (name:string) (id: tlid) : DbT.db =
   { tlid = id
   ; host = host
   ; display_name = to_display_name name
   ; actual_name = "user_" ^ name (* there's a schema too *)
-  ; cols = []}
+  ; cols = []
+  ; version = 0
+  }
 
-let create_new_db (db: db) =
+let init_storage (db: db) =
   run_migration db.host db.tlid (create_table_sql db.actual_name)
 
 (* we only add this when it is complete, and we use the ID to mark the
