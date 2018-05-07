@@ -98,24 +98,8 @@ let migrations =
        ADD COLUMN IF NOT EXISTS
          delay_until TIMESTAMP"
 
-  ; `EachCanvas
-      "CREATE SCHEMA IF NOT EXISTS \"{SCHEMA}\""
-
-  ; `EachCanvas
-    "CREATE TABLE IF NOT EXISTS
-          \"events\"
-          (id SERIAL PRIMARY KEY
-          , status queue_status
-          , dequeued_by INT
-          , canvas TEXT NOT NULL
-          , space TEXT NOT NULL
-          , name TEXT NOT NULL
-          , value TEXT NOT NULL
-          , retries INTEGER DEFAULT 0 NOT NULL
-          , flag_content TEXT DEFAULT '' NOT NULL
-          , delay_until TIMESTAMP
-          )
-          "
+  ; `EachCanvasRaw
+      "CREATE SCHEMA IF NOT EXISTS \"{NS}\""
 
   ; `EachCanvas
     "DO $$
@@ -134,7 +118,7 @@ let migrations =
                             AND el.typarray = t.oid)
           AND n.nspname NOT IN ('pg_catalog', 'information_schema')
           AND t.typname = 'queue_status'
-          AND n.nspname <> '{SCHEMA}'
+          AND n.nspname = '{NS}'
           )
        THEN
          CREATE TYPE queue_status AS
@@ -143,12 +127,33 @@ let migrations =
      END $$;
     "
 
+  ; `EachCanvas
+    "CREATE TABLE IF NOT EXISTS
+          \"events\"
+          (id SERIAL PRIMARY KEY
+          , status queue_status
+          , dequeued_by INT
+          , canvas TEXT NOT NULL
+          , space TEXT NOT NULL
+          , name TEXT NOT NULL
+          , value TEXT NOT NULL
+          , retries INTEGER DEFAULT 0 NOT NULL
+          , flag_content TEXT DEFAULT '' NOT NULL
+          , delay_until TIMESTAMP
+          )
+          "
+
+
   ]
 
 let migrate_canvas (template: string) (host: string) =
-  Util.string_replace "{HOST}" host template
-  |> Db.run_sql
+  Util.string_replace "{NS}" (Db.ns_name host) template
+  |> Db.run_sql_in_ns ~host
 
+(* don't run in schema *)
+let migrate_canvas_raw (template: string) (host: string) =
+  Util.string_replace "{NS}" (Db.ns_name host) template
+  |> Db.run_sql
 
 let run () : unit =
   try
@@ -158,8 +163,9 @@ let run () : unit =
       | `EachCanvas template ->
         List.iter (Serialize.current_hosts ())
           ~f:(migrate_canvas template)
-      | `EachCanvasExe f ->
-        List.iter ~f (Serialize.current_hosts ())
+      | `EachCanvasRaw template ->
+        List.iter (Serialize.current_hosts ())
+          ~f:(migrate_canvas_raw template)
       )
 
   with
