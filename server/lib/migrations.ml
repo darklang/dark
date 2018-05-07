@@ -143,7 +143,20 @@ let migrations =
           )
           "
 
-
+  ; `EachCanvas
+      "DO $$
+         BEGIN
+           BEGIN
+             ALTER TABLE \"events\"
+               RENAME COLUMN flag_content TO flag_context;
+           EXCEPTION
+             WHEN duplicate_column
+             THEN
+               RAISE NOTICE
+                 'column <column_name> already exists in <table_name>.';
+           END;
+         END;
+       $$"
   ]
 
 let migrate_canvas (template: string) (host: string) =
