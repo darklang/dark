@@ -4,7 +4,7 @@ module RT = Runtime
 open Types
 
 type tldata = Handler of Handler.handler
-            | DB of DbT.db
+            | DB of RuntimeT.DbT.db
             [@@deriving eq, show, yojson]
 
 type toplevel = { tlid: id
@@ -19,7 +19,7 @@ let as_handler (tl: toplevel) : Handler.handler option =
   | Handler h -> Some h
   | _ -> None
 
-let as_db (tl: toplevel) : DbT.db option =
+let as_db (tl: toplevel) : RuntimeT.DbT.db option =
   match tl.data with
   | DB db -> Some db
   | _ -> None
@@ -38,6 +38,6 @@ let bg_handlers (tls: toplevel_list) : Handler.handler list =
   |> List.filter ~f:(fun x -> x |> Handler.is_http |> not)
   |> List.filter ~f:Handler.is_complete
 
-let dbs (tls: toplevel_list) : DbT.db list =
+let dbs (tls: toplevel_list) : RuntimeT.DbT.db list =
   List.filter_map ~f:as_db tls
 
