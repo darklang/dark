@@ -194,7 +194,7 @@ let create_events_table host =
           , name TEXT NOT NULL
           , value TEXT NOT NULL
           , retries INTEGER DEFAULT 0 NOT NULL
-          , flag_content TEXT DEFAULT '' NOT NULL
+          , flag_context TEXT DEFAULT '' NOT NULL
           , delay_until TIMESTAMP
           )
           "
