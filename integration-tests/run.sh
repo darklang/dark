@@ -76,12 +76,21 @@ SCRIPT="" # concated into on script for speed
 for db in $TESTDBS; do
   SCRIPT+="DROP TABLE \"${db}\";";
 done
+
+echo "Clearing test schemas";
+TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 6) = 'test_';" | grep test_ || true)
+for db in $TESTSCHEMAS; do
+  SCRIPT+="DROP SCHEMA \"${db}\";";
+done
+
 exe "$SCRIPT"
 
 echo "Clearing from migrations";
 exe "DELETE FROM migrations WHERE SUBSTRING(host, 0, 6) = 'test_';"
 echo "Clearing from oplists";
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
+echo "Clearing from events";
+exe "DELETE FROM events WHERE SUBSTRING(canvas, 0, 6) = 'test_';"
 
 
 

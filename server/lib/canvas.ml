@@ -303,13 +303,14 @@ let rerun_all_db_ops (host: string) : unit =
   ()
 
 let initialize_host (host:string) : unit =
+  Log.infO "Initializing host" host;
   Db.create_namespace host;
   Event_queue.initialize_queue host
   (* Db.create_oplist_storage host; *)
 
 
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
-  if oldops = [] && newops <> []
+  if oldops = [] || run_old_db_ops
   then initialize_host !c.host;
 
   let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
