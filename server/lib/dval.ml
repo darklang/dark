@@ -247,7 +247,7 @@ let rec to_livevalue_repr (dv : dval) : string =
 (* Not for external consumption *)
 let rec to_internal_repr (dv : dval) : string =
   match dv with
-  | DDB db -> "<db: " ^ db.actual_name ^ ">"
+  | DDB db -> "<db: " ^ db.display_name ^ ">"
   | dv when is_stringable dv -> to_simple_repr dv
   | _ -> to_repr ~reprfn:to_internal_repr dv
 

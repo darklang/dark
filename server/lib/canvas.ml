@@ -254,12 +254,7 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       if name = ""
       then Exception.client ("DB must have a name")
       else
-        let db : DbT.db = { tlid = tlid
-                          ; host = !c.host
-                          ; display_name = Db.to_display_name name
-                          ; actual_name = (!c.host ^ "_" ^ name)
-                                          |> String.lowercase
-                          ; cols = []} in
+        let db = Db.userdb !c.host name tlid in
         if do_db_ops
         then Db.create_new_db db
         else ();
@@ -305,8 +300,8 @@ let rerun_all_db_ops (host: string) : unit =
 let initialize_host (host:string) : unit =
   Log.infO "Initializing host" host;
   Db.create_namespace host;
-  Event_queue.initialize_queue host
-  (* Db.create_oplist_storage host; *)
+  Event_queue.initialize_queue host;
+  Db.initialize_migrations host
 
 
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
