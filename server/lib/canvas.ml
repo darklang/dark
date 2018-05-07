@@ -229,7 +229,7 @@ let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) 
 let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
   apply_to_toplevel ~f:(fun tl -> { tl with pos = pos }) tlid c
 
-let apply_to_db ~(f:(DbT.db -> DbT.db)) (tlid: tlid) (c:canvas) : canvas =
+let apply_to_db ~(f:(RTT.DbT.db -> RTT.DbT.db)) (tlid: tlid) (c:canvas) : canvas =
   let tlf (tl: TL.toplevel) =
     let data = match tl.data with
                | TL.DB db -> TL.DB (f db)
