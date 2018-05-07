@@ -71,6 +71,65 @@ let bytea_of_string_hex str =
   done;
   Buffer.contents buf
 
+let run_sql ?(quiet=false) (sql: string) : unit =
+  if quiet
+  then ()
+  else
+    Log.infO "sql" sql ~stop:10000;
+  try
+    ignore (conn#exec ~expect:[PG.Command_ok] sql)
+  with
+  | Postgresql.Error pge as e ->
+    Exception.reraise_after e
+      (fun _ -> Log.erroR "Postgres error" pge)
+  | e ->
+    Exception.reraise e
+
+
+let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
+  if quiet
+  then
+    ()
+  else
+    Log.infO "fetching via sql" sql;
+  sql
+  |> conn#exec ~expect:PG.[Tuples_ok]
+  |> (fun res -> res#get_all_lst)
+
+(* ------------------------- *)
+(* Postgres schemas (namespacing) *)
+(* ------------------------- *)
+let schema_name host : string =
+  Printf.sprintf
+    "dark_user_%s"
+    (escape host)
+
+(* Sets the namespace. Technically, this happens within the
+ * transaction, but every pg query uses autocommit by default in pg
+ * >9.5, so we're good. *)
+let in_schema ~(host:string) (sql: string) : string =
+  let schema = schema_name host in
+  let sql = Util.string_replace "{SCHEMA}" schema sql in
+  Printf.sprintf
+    " SET LOCAL search_path TO \"%s\";
+       %s;
+     "
+    schema
+    sql
+
+let run_sql_in_schema ?(quiet=false) ~host sql =
+  let sql = in_schema ~host sql in
+  run_sql ~quiet sql
+
+let create_namespace host : unit =
+  Printf.sprintf
+    "CREATE SCHEMA IF NOT EXISTS \"%s\""
+    (schema_name host)
+  |> run_sql
+
+
+
+
 
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
@@ -129,16 +188,6 @@ let cols_for (db: db) : (string * tipe) list =
     | _ ->
       None)
   |> fun l -> ("id", TID) :: l
-
-let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
-  if quiet
-  then
-    ()
-  else
-    Log.infO "fetching via sql" sql;
-  sql
-  |> conn#exec ~expect:PG.[Tuples_ok]
-  |> (fun res -> res#get_all_lst)
 
 (*
  * Dear god, OCaml this is the worst
@@ -277,15 +326,6 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 (* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)
-
-
-let run_sql ?(quiet=false) (sql: string) : unit =
-  if quiet
-  then ()
-  else
-    Log.infO "sql" sql ~stop:10000;
-  ignore (conn#exec ~expect:[PG.Command_ok] sql)
-
 let is_relation (valu: dval) : bool =
   match valu with
   | DObj _ -> true

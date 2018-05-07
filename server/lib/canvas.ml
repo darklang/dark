@@ -302,7 +302,16 @@ let rerun_all_db_ops (host: string) : unit =
   List.iter ~f:(fun (op, _) -> apply_op op true new_canvas) reduced_ops;
   ()
 
+let initialize_host (host:string) : unit =
+  Db.create_namespace host;
+  Event_queue.initialize_queue host
+  (* Db.create_oplist_storage host; *)
+
+
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
+  if oldops = [] && newops <> []
+  then initialize_host !c.host;
+
   let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
   let newpairs = List.map ~f:(fun o -> (o, true)) newops in
   let reduced_ops = preprocess (oldpairs @ newpairs) in
