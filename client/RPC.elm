@@ -511,10 +511,37 @@ decodeTipeString =
   decodeTipe
   |> JSD.map (RT.tipe2str)
 
+decodeDBMigrationKind : JSD.Decoder DBMigrationKind
+decodeDBMigrationKind =
+  decodeVariant0 ChangeColType
+
+
+decodeDBMigration : JSD.Decoder DBMigration
+decodeDBMigration =
+  let toDBM v kind rollf rollb target =
+        { startingVersion = v
+        , kind = kind
+        , rollforward = rollf
+        , rollback = rollb
+        , target = target
+        }
+  in
+  JSDP.decode toDBM
+  |> JSDP.required "starting_version" JSD.int
+  |> JSDP.required "kind" decodeDBMigrationKind
+  |> JSDP.required "rollforward" decodeExpr
+  |> JSDP.required "rollback" decodeExpr
+  |> JSDP.required "target" decodeID
+
 decodeDB : JSD.Decoder DB
 decodeDB =
-  let toDB name cols version =
-      {name = name, cols = cols, version = version}
+  let toDB name cols version old active =
+      {name = name
+      , cols = cols
+      , version = version
+      , oldMigrations = old
+      , activeMigration = active
+      }
   in
   JSDP.decode toDB
   |> JSDP.required "display_name" JSD.string
@@ -523,6 +550,8 @@ decodeDB =
                               (decodeBlankOr JSD.string)
                               (decodeBlankOr decodeTipeString)))
   |> JSDP.required "version" JSD.int
+  |> JSDP.required "old_migrations" (JSD.list decodeDBMigration)
+  |> JSDP.required "active_migration" (JSD.maybe decodeDBMigration)
 
 
 decodeToplevel : JSD.Decoder Toplevel

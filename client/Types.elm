@@ -325,9 +325,19 @@ type alias Handler = { ast : Expr
 type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
+type DBMigrationKind = ChangeColType
+type alias DBMigration = { startingVersion : Int
+                         , kind : DBMigrationKind
+                         , rollforward : Expr
+                         , rollback : Expr
+                         , target : ID
+                         }
+
 type alias DB = { name : DBName
                 , cols : List (BlankOr DBColName, BlankOr DBColType)
                 , version : Int
+                , oldMigrations : List DBMigration
+                , activeMigration : Maybe DBMigration
                 }
 
 type TLData = TLHandler Handler

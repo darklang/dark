@@ -33,4 +33,5 @@ isLocked m tlid =
   not (List.member tlid m.unlockedDBs)
 
 initFieldTypeMigration : Model -> Toplevel -> (BlankOr String) -> Modification
-initFieldTypeMigration m tl tipe = NoChange
+initFieldTypeMigration m tl tipe =
+  NoChange
