@@ -326,7 +326,9 @@ type alias DBName = String
 type alias DBColName = String
 type alias DBColType = String
 type alias DB = { name : DBName
-                , cols : List (BlankOr DBColName, BlankOr DBColType)}
+                , cols : List (BlankOr DBColName, BlankOr DBColType)
+                , version : Int
+                }
 
 type TLData = TLHandler Handler
             | TLDB DB
