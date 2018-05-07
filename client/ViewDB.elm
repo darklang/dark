@@ -39,7 +39,7 @@ viewDB vs db =
                else fontAwesome "unlock"
       namediv = Html.div
                  [ Attrs.class "dbname"]
-                 [ Html.text db.name]
+                 [ Html.text (db.name ++ ".v" ++ (toString db.version)) ]
       coldivs =
         db.cols
         |> List.map (\(n, t) ->

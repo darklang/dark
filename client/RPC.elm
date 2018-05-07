@@ -513,13 +513,16 @@ decodeTipeString =
 
 decodeDB : JSD.Decoder DB
 decodeDB =
-  let toDB name cols = {name = name, cols = cols} in
+  let toDB name cols version =
+      {name = name, cols = cols, version = version}
+  in
   JSDP.decode toDB
   |> JSDP.required "display_name" JSD.string
   |> JSDP.required "cols" (JSD.list
                             (decodePair
                               (decodeBlankOr JSD.string)
                               (decodeBlankOr decodeTipeString)))
+  |> JSDP.required "version" JSD.int
 
 
 decodeToplevel : JSD.Decoder Toplevel
