@@ -5,7 +5,7 @@ module ViewDB exposing (viewDB)
 -- lib
 import Html
 import Html.Attributes as Attrs
--- import String.Extra as SE
+import Maybe.Extra as ME
 -- import List.Extra as LE
 
 -- dark
@@ -27,6 +27,15 @@ viewDBColType vs c v =
   let configs = idConfigs ++ c in
   viewText DBColType vs configs v
 
+viewDBMigration : ViewState -> DBMigration -> Html.Html Msg
+viewDBMigration vs m =
+  Html.div
+    [ Attrs.class "migration-view" ]
+    [
+      Html.text ("new version: " ++ toString (m.startingVersion + 1))
+    -- , viewBlankOrExpr rollforward
+    -- , viewBlankOrExpr rollback
+    ]
 
 
 viewDB : ViewState -> DB -> List (Html.Html Msg)
@@ -40,16 +49,25 @@ viewDB vs db =
       coldivs =
         db.cols
         |> List.map (\(n, t) ->
-             Html.div
-               [ Attrs.class "col" ]
-               [ viewDBColName vs [wc "name"] n
-               , viewDBColType vs [wc "type"] t
-               ])
+          let migration =
+              db.activeMigration
+              |> Maybe.andThen
+                   (\am ->
+                     if am.target == B.toID n
+                     || am.target == B.toID t
+                     then Just (viewDBMigration vs am)
+                     else Nothing)
+              |> ME.toList
+          in
+          Html.div
+            [ Attrs.class "col" ]
+            ([ viewDBColName vs [wc "name"] n
+            , viewDBColType vs [wc "type"] t
+            ] ++ migration ))
   in
   [
     Html.div
       [ Attrs.class "db"]
       (locked :: namediv :: coldivs)
   ]
-
 
