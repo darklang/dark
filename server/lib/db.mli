@@ -40,3 +40,9 @@ val dbs_as_exe_env : DbT.db list -> RuntimeT.dval_map
 val save_oplists : string -> string -> string -> unit
 val load_oplists : string -> string -> string option
 val all_oplists : string -> string list
+
+
+
+(* Per user pg_schemas *)
+val create_namespace : host -> unit
+val run_sql_in_schema : ?quiet: bool -> host:host -> string -> unit
