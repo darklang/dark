@@ -181,6 +181,31 @@ let migrations =
                   RENAME TO \"user_{VALUE}\";
                 "
              )
+
+  ; `EachCanvas
+    "CREATE INDEX IF NOT EXISTS
+       \"idx_dequeue\"
+       ON \"events\"
+       (space, name, status, id)"
+
+
+  ; `EachCanvas
+    "CREATE INDEX IF NOT EXISTS \"idx_cleanup\"
+      ON \"events\"
+      (dequeued_by)"
+
+  (* no longer necessary, since they're per-host *)
+  ; `EachCanvas
+    "ALTER TABLE \"events\"
+       DROP COLUMN IF EXISTS \"canvas\""
+
+  (* moved to namespaces, cascade to clear the indexes *)
+  ; `Global
+    "DROP TABLE IF EXISTS \"events\" CASCADE"
+
+  (* moved to namespaces *)
+  ; `Global
+    "DROP TABLE IF EXISTS \"migrations\" CASCADE"
   ]
 
 let migrate_canvas (template: string) (host: string) =
