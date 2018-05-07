@@ -41,7 +41,6 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
   let column_names =
     [ "status"
     ; "dequeued_by"
-    ; "canvas"
     ; "space"
     ; "name"
     ; "value"
@@ -53,7 +52,6 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
   let column_values =
     [ "'new'"
     ; "NULL"
-    ; wrap state.host
     ; wrap space
     ; wrap name
     ; wrap serialized_data
@@ -79,7 +77,6 @@ let dequeue ~(host:string) (execution_id: int) (space: string) (name: string) : 
       "SELECT id, value, retries, flag_context from \"events\"
       WHERE space = %s
         AND name = %s
-        AND canvas = %s
         AND status = 'new'
         AND delay_until < CURRENT_TIMESTAMP
       ORDER BY id DESC
@@ -87,7 +84,6 @@ let dequeue ~(host:string) (execution_id: int) (space: string) (name: string) : 
       LIMIT 1"
       (wrap space)
       (wrap name)
-      (wrap host)
     |> Db.fetch_via_sql_in_ns ~host
     |> List.hd
   in
@@ -189,7 +185,6 @@ let create_events_table host =
           (id SERIAL PRIMARY KEY
           , status queue_status
           , dequeued_by INT
-          , canvas TEXT NOT NULL
           , space TEXT NOT NULL
           , name TEXT NOT NULL
           , value TEXT NOT NULL
