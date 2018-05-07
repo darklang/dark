@@ -38,11 +38,13 @@ type tipe_ =
 module DbT = struct
   type col = string or_blank * tipe_ or_blank
             [@@deriving eq, show, yojson, sexp]
+
   type db = { tlid: tlid
             ; host: string
             ; display_name: string
             ; actual_name: string
             ; cols: col list
+            ; version: int
             } [@@deriving eq, show, yojson, sexp]
 end
 
