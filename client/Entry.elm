@@ -418,10 +418,28 @@ submit m cursor action =
               else
                 NoChange
 
-            TLDB _ ->
-              NoChange
-              -- replaceExpr m tl.id am.ast e action value
-
+            TLDB db ->
+              case db.activeMigration of
+                Nothing -> NoChange
+                Just am ->
+                  if List.member pd (AST.allData am.rollback)
+                  then
+                    let new =
+                          replaceExpr m tl.id am.rollback e action value
+                        focus =
+                          FocusNext tl.id (Just (B.toID new))
+                    in
+                        RPC ([], focus)
+                  else if List.member pd (AST.allData am.rollforward)
+                  then
+                    let new =
+                          replaceExpr m tl.id am.rollforward e action value
+                        focus =
+                          FocusNext tl.id (Just (B.toID new))
+                    in
+                        RPC ([], focus)
+                  else
+                    NoChange
         PDarkType _ ->
           validate "(String|Int|Any|Empty|{)" "type"
             <|
