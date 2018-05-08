@@ -231,18 +231,28 @@ getParentOf tl p =
     TLFunc f ->
       AST.parentOf_ (P.toID p) f.ast
       |> Maybe.map PExpr
-    _ -> Nothing
+    TLDB db ->
+      db
+      |> DB.astsFor
+      |> List.map (AST.parentOf_ (P.toID p))
+      |> ME.values
+      |> List.head
+      |> Maybe.map PExpr
 
 getChildrenOf : Toplevel -> PointerData -> List PointerData
 getChildrenOf tl pd =
-  let astChildren () =
-        let ast =
-              case tl.data of
-                TLHandler h -> Just h.ast
-                TLFunc f -> Just f.ast
-                _ -> Nothing
-        in
-        AST.childrenOf (P.toID pd) (deMaybe "getChildrenOf - ast" ast)
+  let pid = P.toID pd
+      astChildren () =
+        case tl.data of
+          TLHandler h ->
+            AST.childrenOf pid h.ast
+          TLFunc f ->
+            AST.childrenOf pid f.ast
+          TLDB db ->
+            db
+            |> DB.astsFor
+            |> List.map (AST.childrenOf pid)
+            |> List.concat
       specChildren () =
         let h = asHandler tl |> deMaybe "getChildrenOf - spec" in
         SpecTypes.childrenOf (P.toID pd) h.spec.types.input
