@@ -9,12 +9,12 @@ module FF = Feature_flag
 let fns : Lib.shortfn list = [
   { pns = ["emit"]
   ; ins = []
-  ; p = [par "Space" TStr; par "Name" TStr; par "Data" TAny]
+  ; p = [par "Data" TAny; par "Space" TStr; par "Name" TStr]
   ; r = TAny
   ; d = "Emit event `name` in `space`, passing along `data` as a parameter"
   ; f = InProcess
         (function
-          | (state, [DStr space; DStr name; data]) ->
+          | (state, [data; DStr space; DStr name]) ->
             Event_queue.enqueue state space name data;
             data
           | (_, args) -> fail args)
