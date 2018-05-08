@@ -71,6 +71,7 @@ all =
       , \_ -> create ()
       |> selectDown
       |> selectDown
+      |> selectDown
       |> setQuery "T"
       |> highlighted
       |> Maybe.map asName
@@ -177,6 +178,7 @@ all =
       , \_ -> create ()
       |> selectUp
       |> selectUp
+      |> selectUp
       |> .index
       |> (==) 13
 
@@ -268,14 +270,14 @@ all =
       |> setQuery "asdkkasd"
       |> .completions
       |> List.concat
-      |> List.member (ACOmniAction NewHTTPSpace)
+      |> List.member (ACOmniAction NewHTTPHandler)
       |> (==) False
 
       -- HTTP handler
       , \_ -> create ()
       |> setQuery "HTT"
       |> highlighted
-      |> (==) (Just (ACOmniAction NewHTTPSpace))
+      |> (==) (Just (ACOmniAction (NewEventSpace "HTT")))
 
       -- Adding a dynamic item doesnt mess with the previous selection
       , \_ ->
