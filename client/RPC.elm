@@ -131,7 +131,7 @@ tlidsOf op =
     ChangeDBColName tlid _ _ -> [tlid]
     SetDBColType tlid _ _ -> [tlid]
     ChangeDBColType tlid _ _ -> [tlid]
-    InitDBMigration tlid _ _ -> [tlid]
+    InitDBMigration tlid _ _ _ _ -> [tlid]
     Savepoint tlids -> tlids
     UndoTL tlid -> [tlid]
     RedoTL tlid -> [tlid]
@@ -190,8 +190,13 @@ encodeOp call =
 
       ChangeDBColType tlid id name ->
         ev "ChangeDBColType" [encodeTLID tlid, encodeID id, JSE.string name]
-      InitDBMigration tlid id kind ->
-        ev "InitDBMigration" [encodeTLID tlid, encodeID id, encodeDBMigrationKind kind]
+      InitDBMigration tlid id rbid rfid kind ->
+        ev "InitDBMigration"
+          [ encodeTLID tlid
+          , encodeID id
+          , encodeID rbid
+          , encodeID rfid
+          , encodeDBMigrationKind kind]
 
       Savepoint tlids ->
         ev "Savepoint" [JSE.list (List.map encodeTLID tlids)]

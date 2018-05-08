@@ -55,5 +55,5 @@ isLocked m tlid =
 
 initFieldTypeMigration : Model -> Toplevel -> (BlankOr String) -> Modification
 initFieldTypeMigration m tl tipe =
-  RPC ([InitDBMigration tl.id (B.toID tipe) ChangeColType]
+  RPC ([InitDBMigration tl.id (B.toID tipe) (gid ()) (gid ()) ChangeColType]
       , FocusSame)

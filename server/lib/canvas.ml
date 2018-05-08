@@ -269,8 +269,8 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       apply_to_db ~f:(Db.set_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | ChangeDBColType (tlid, id, tipe) ->
       apply_to_db ~f:(Db.change_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
-    | InitDBMigration (tlid, id, kind) ->
-      apply_to_db ~f:(Db.initialize_migration id kind) tlid
+    | InitDBMigration (tlid, id, rbid, rfid, kind) ->
+      apply_to_db ~f:(Db.initialize_migration id rbid rfid kind) tlid
     | SetExpr (tlid, id, e) ->
       apply_to_toplevel ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid

@@ -657,7 +657,7 @@ let change_col_type id newtipe (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
-let initialize_migration id kind (db : db) =
+let initialize_migration id rbid rfid kind (db : db) =
   if Option.is_some db.active_migration
   then
     Exception.internal
@@ -667,8 +667,8 @@ let initialize_migration id kind (db : db) =
     let new_migration =
       { starting_version = db.version
       ; kind = kind
-      ; rollback = Blank (Util.create_id ())
-      ; rollforward = Blank (Util.create_id ())
+      ; rollback = Blank rbid
+      ; rollforward = Blank rfid
       ; target = id
       }
     in
