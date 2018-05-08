@@ -31,7 +31,7 @@ val set_col_name : id -> string -> bool -> DbT.db -> DbT.db
 val set_col_type : id -> tipe -> bool ->  DbT.db -> DbT.db
 val change_col_name : id -> string -> bool -> DbT.db -> DbT.db
 val change_col_type : id -> tipe -> bool -> DbT.db -> DbT.db
-val initialize_migration : id -> DbT.migration_kind -> DbT.db -> DbT.db
+val initialize_migration : id -> id -> id -> DbT.migration_kind -> DbT.db -> DbT.db
 val unlocked : DbT.db list -> DbT.db list
 val db_locked : DbT.db -> bool
 
