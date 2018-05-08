@@ -113,39 +113,112 @@ submitOmniAction m pos action =
           RPC ([ SetHandler tlid pos handler
                ] , FocusExact tlid next)
 
+replaceExpr : Model -> Toplevel -> PointerData -> ThreadAction -> String -> Modification
+replaceExpr m tl p action value =
+  let id = P.toID p
+      old_ = TL.findExn tl id
+      target = Just (tl.id, p)
+      ast =
+        case tl.data of
+          TLHandler h -> h.ast
+          TLFunc f -> f.ast
+          TLDB _ -> impossible ("No expressions in DBs", tl.data)
+
+      (old, new) =
+        -- assign thread to variable
+        if Util.reExactly "=[a-zA-Z].*" value
+        then
+          case AST.threadAncestors id ast of
+            -- turn the current thread into a let-assignment to this
+            -- name, and close the thread
+            (F _ (Thread _) as thread) :: _ ->
+              let bindName = value
+                             |> String.dropLeft 1
+                             |> String.trim
+              in
+                ( PExpr thread
+                , PExpr <|
+                    B.newF (
+                      Let
+                        (B.newF bindName)
+                        (AST.closeThread thread)
+                        (B.new ())))
+
+            _ ->
+              (old_, old_)
+
+        -- field access
+        else if String.endsWith "." value
+        then
+          ( old_
+          , PExpr <|
+              B.newF
+                (FieldAccess
+                  (B.newF (Variable (String.dropRight 1 value)))
+                  (B.new ())))
+
+        -- variables
+        else if List.member value (Analysis.varnamesFor m target)
+        then (old_, PExpr <| B.newF (Variable value))
+
+        -- parsed exprs
+        else
+          ( old_
+          , parseAst m value
+            |> Maybe.map PExpr
+            |> Maybe.withDefault old_)
 
 
+      ast1 = case action of
+        ContinueThread -> ast
+        StartThread ->
+          AST.wrapInThread id ast
+
+      ast2 = AST.replace old new ast1
+      ast3 = AST.maybeExtendThreadAt (P.toID new) ast2
+  in
+  if old == new
+  then NoChange
+  else
+    let focus = FocusNext tl.id (Just (P.toID new)) in
+    case tl.data of
+      TLHandler h ->
+       RPC ([SetHandler tl.id tl.pos { h | ast = ast3 }] , focus)
+      TLFunc f ->
+       RPC ([SetFunction { f | ast = ast3 }], focus)
+      TLDB _ -> impossible ("No expres in DBs", tl.data)
+
+parseAst : Model -> String -> Maybe Expr
+parseAst m str =
+  let eid = gid ()
+      b1 = B.new ()
+      b2 = B.new ()
+      b3 = B.new ()
+      firstWord = String.split " " str in
+  case firstWord of
+    ["if"] ->
+      Just <| F eid (If b1 b2 b3)
+    ["let"] ->
+      Just <| F eid (Let (B.new()) b2 b3)
+    ["lambda"] ->
+      Just <| F eid (Lambda ["var"] b2)
+    [""] ->
+      Just b1
+    ["[]"] ->
+      Just <| F eid (Value "[]")
+    ["{}"] ->
+      Just <| F eid (Value "{}")
+    ["null"] ->
+      Just <| F eid (Value "null")
+    _ ->
+      if not (RT.isLiteral str)
+      then createFunction m str
+      else Just <| F eid (Value str)
 
 type ThreadAction = StartThread | ContinueThread
 submit : Model -> EntryCursor -> ThreadAction -> Modification
 submit m cursor action =
   let value = AC.getValue m.complete
-      parseAst str =
-        let eid = gid ()
-            b1 = B.new ()
-            b2 = B.new ()
-            b3 = B.new ()
-            firstWord = String.split " " str in
-        case firstWord of
-          ["if"] ->
-            Just <| F eid (If b1 b2 b3)
-          ["let"] ->
-            Just <| F eid (Let (B.new()) b2 b3)
-          ["lambda"] ->
-            Just <| F eid (Lambda ["var"] b2)
-          [""] ->
-            Just b1
-          ["[]"] ->
-            Just <| F eid (Value "[]")
-          ["{}"] ->
-            Just <| F eid (Value "{}")
-          ["null"] ->
-            Just <| F eid (Value "null")
-          _ ->
-            if not (RT.isLiteral str)
-            then createFunction m value
-            else Just <| F eid (Value str)
-
   in
   case cursor of
     Creating pos ->
@@ -187,87 +260,13 @@ submit m cursor action =
 
       -- start new AST
       else
-        case parseAst value of
+        case parseAst m value of
           Nothing -> NoChange
           Just v -> wrapExpr v
 
     Filling tlid id ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
-
-          replaceExpr : Model -> Toplevel -> PointerData -> String -> Modification
-          replaceExpr m tl p value =
-            let id = P.toID p
-                old_ = TL.findExn tl id
-                target = Just (tl.id, p)
-                ast =
-                  case tl.data of
-                    TLHandler h -> h.ast
-                    TLFunc f -> f.ast
-                    TLDB _ -> impossible ("No expressions in DBs", tl.data)
-                (old, new) =
-                  -- assign thread to variable
-                  if Util.reExactly "=[a-zA-Z].*" value
-                  then
-                    case AST.threadAncestors id ast of
-                      -- turn the current thread into a let-assignment to this
-                      -- name, and close the thread
-                      (F _ (Thread _) as thread) :: _ ->
-                        let bindName = value
-                                       |> String.dropLeft 1
-                                       |> String.trim
-                        in
-                          ( PExpr thread
-                          , PExpr <|
-                              B.newF (
-                                Let
-                                  (B.newF bindName)
-                                  (AST.closeThread thread)
-                                  (B.new ())))
-
-                      _ ->
-                        (old_, old_)
-
-                  -- field access
-                  else if String.endsWith "." value
-                  then
-                    ( old_
-                    , PExpr <|
-                        B.newF
-                          (FieldAccess
-                            (B.newF (Variable (String.dropRight 1 value)))
-                            (B.new ())))
-
-                  -- variables
-                  else if List.member value (Analysis.varnamesFor m target)
-                  then (old_, PExpr <| B.newF (Variable value))
-
-                  -- parsed exprs
-                  else
-                    ( old_
-                    , parseAst value
-                      |> Maybe.map PExpr
-                      |> Maybe.withDefault old_)
-
-
-                ast1 = case action of
-                  ContinueThread -> ast
-                  StartThread ->
-                    AST.wrapInThread id ast
-
-                ast2 = AST.replace old new ast1
-                ast3 = AST.maybeExtendThreadAt (P.toID new) ast2
-            in
-            if old == new
-            then NoChange
-            else
-              let focus = FocusNext tlid (Just (P.toID new)) in
-              case tl.data of
-                TLHandler h ->
-                 RPC ([SetHandler tlid tl.pos { h | ast = ast3 }] , focus)
-                TLFunc f ->
-                 RPC ([SetFunction { f | ast = ast3 }], focus)
-                TLDB _ -> impossible ("No expres in DBs", tl.data)
 
       in
       if String.length value < 1
@@ -415,7 +414,7 @@ submit m cursor action =
                 TLDB _ -> impossible ("no fields in DBs", tl.data)
 
         PExpr _ ->
-          replaceExpr m tl pd value
+          replaceExpr m tl pd action value
         PDarkType _ ->
           validate "(String|Int|Any|Empty|{)" "type"
             <|
