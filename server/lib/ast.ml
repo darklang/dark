@@ -529,3 +529,6 @@ let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
              |> SymSet.to_list
              |> List.map ~f:(fun s -> `String s)))
 
+let set_expr ~(search: id) ~(replacement: expr) (ast: expr) : expr =
+  ast
+
