@@ -113,17 +113,11 @@ submitOmniAction m pos action =
           RPC ([ SetHandler tlid pos handler
                ] , FocusExact tlid next)
 
-replaceExpr : Model -> Toplevel -> PointerData -> ThreadAction -> String -> Modification
-replaceExpr m tl p action value =
-  let id = P.toID p
-      old_ = TL.findExn tl id
-      target = Just (tl.id, p)
-      ast =
-        case tl.data of
-          TLHandler h -> h.ast
-          TLFunc f -> f.ast
-          TLDB _ -> impossible ("No expressions in DBs", tl.data)
-
+-- Assumes PD is within AST
+replaceExpr : Model -> TLID -> Expr -> Expr -> ThreadAction -> String -> Expr
+replaceExpr m tlid ast old_ action value =
+  let id = B.toID old_
+      target = Just (tlid, PExpr old_)
       (old, new) =
         -- assign thread to variable
         if Util.reExactly "=[a-zA-Z].*" value
@@ -136,13 +130,12 @@ replaceExpr m tl p action value =
                              |> String.dropLeft 1
                              |> String.trim
               in
-                ( PExpr thread
-                , PExpr <|
-                    B.newF (
-                      Let
-                        (B.newF bindName)
-                        (AST.closeThread thread)
-                        (B.new ())))
+                ( thread
+                , B.newF (
+                    Let
+                      (B.newF bindName)
+                      (AST.closeThread thread)
+                      (B.new ())))
 
             _ ->
               (old_, old_)
@@ -151,21 +144,19 @@ replaceExpr m tl p action value =
         else if String.endsWith "." value
         then
           ( old_
-          , PExpr <|
-              B.newF
-                (FieldAccess
-                  (B.newF (Variable (String.dropRight 1 value)))
-                  (B.new ())))
+          , B.newF
+              (FieldAccess
+                (B.newF (Variable (String.dropRight 1 value)))
+                (B.new ())))
 
         -- variables
         else if List.member value (Analysis.varnamesFor m target)
-        then (old_, PExpr <| B.newF (Variable value))
+        then (old_, B.newF (Variable value))
 
         -- parsed exprs
         else
           ( old_
           , parseAst m value
-            |> Maybe.map PExpr
             |> Maybe.withDefault old_)
 
 
@@ -174,19 +165,10 @@ replaceExpr m tl p action value =
         StartThread ->
           AST.wrapInThread id ast
 
-      ast2 = AST.replace old new ast1
-      ast3 = AST.maybeExtendThreadAt (P.toID new) ast2
+      ast2 = AST.replace (PExpr old) (PExpr new) ast1
+      ast3 = AST.maybeExtendThreadAt (B.toID new) ast2
   in
-  if old == new
-  then NoChange
-  else
-    let focus = FocusNext tl.id (Just (P.toID new)) in
-    case tl.data of
-      TLHandler h ->
-       RPC ([SetHandler tl.id tl.pos { h | ast = ast3 }] , focus)
-      TLFunc f ->
-       RPC ([SetFunction { f | ast = ast3 }], focus)
-      TLDB _ -> impossible ("No expres in DBs", tl.data)
+  ast3
 
 parseAst : Model -> String -> Maybe Expr
 parseAst m str =
@@ -218,8 +200,9 @@ parseAst m str =
 type ThreadAction = StartThread | ContinueThread
 submit : Model -> EntryCursor -> ThreadAction -> Modification
 submit m cursor action =
-  let value = AC.getValue m.complete
-  in
+  -- TODO: replace parsing with taking the autocomplete suggestion and
+  -- doing what we're told with it.
+  let value = AC.getValue m.complete in
   case cursor of
     Creating pos ->
       let tlid = gtlid ()
@@ -413,8 +396,24 @@ submit m cursor action =
                   wrapPred [SetFunction { f | ast = newAst }]
                 TLDB _ -> impossible ("no fields in DBs", tl.data)
 
-        PExpr _ ->
-          replaceExpr m tl pd action value
+        PExpr e ->
+          case tl.data of
+            TLHandler h ->
+              let new = replaceExpr m tl.id h.ast e action value
+                  focus = FocusNext tl.id (Just (B.toID new))
+              in
+              RPC ([SetHandler tl.id tl.pos { h | ast = new }], focus )
+
+            TLFunc f ->
+              let new = replaceExpr m tl.id f.ast e action value
+                  focus = FocusNext tl.id (Just (B.toID new))
+              in
+              RPC ([SetFunction { f | ast = new}], focus)
+
+            TLDB _ ->
+              NoChange
+              -- replaceExpr m tl.id am.ast e action value
+
         PDarkType _ ->
           validate "(String|Int|Any|Empty|{)" "type"
             <|
