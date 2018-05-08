@@ -402,13 +402,21 @@ submit m cursor action =
               let new = replaceExpr m tl.id h.ast e action value
                   focus = FocusNext tl.id (Just (B.toID new))
               in
-              RPC ([SetHandler tl.id tl.pos { h | ast = new }], focus )
+              if new /= e
+              then
+                RPC ([SetHandler tl.id tl.pos { h | ast = new }], focus )
+              else
+                NoChange
 
             TLFunc f ->
               let new = replaceExpr m tl.id f.ast e action value
                   focus = FocusNext tl.id (Just (B.toID new))
               in
-              RPC ([SetFunction { f | ast = new}], focus)
+              if new /= e
+              then
+                RPC ([SetFunction { f | ast = new}], focus)
+              else
+                NoChange
 
             TLDB _ ->
               NoChange
