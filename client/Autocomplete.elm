@@ -243,10 +243,10 @@ qNewDB s =
   then Just (ACOmniAction (NewDB s))
   else Nothing
 
-qHTTPSpace : String -> Maybe AutocompleteItem
-qHTTPSpace s =
-  if String.contains s "HTTP" && String.length s > 0
-  then Just (ACOmniAction NewHTTPSpace)
+qHTTPHandler : String -> Maybe AutocompleteItem
+qHTTPHandler s =
+  if (String.length s) == 0
+  then Just (ACOmniAction NewHTTPHandler)
   else Nothing
 
 qHTTPRoute : String -> Maybe AutocompleteItem
@@ -255,19 +255,24 @@ qHTTPRoute s =
   then Just (ACOmniAction (NewHTTPRoute s))
   else Nothing
 
-
+qEventSpace : String -> Maybe AutocompleteItem
+qEventSpace s =
+  if Util.reExactly "[A-Z]*" s && String.length s > 0
+  then Just (ACOmniAction (NewEventSpace s))
+  else Nothing
 
 toDynamicItems : Bool -> String -> List AutocompleteItem
 toDynamicItems isOmni query =
   let always = [qLiteral]
-      omni = if isOmni then [ qNewDB, qHTTPSpace, qHTTPRoute ] else []
+      omni =
+        if isOmni
+        then [ qNewDB, qHTTPHandler, qHTTPRoute, qEventSpace ]
+        else []
       items = always ++ omni
   in
   items
   |> List.map (\aci -> aci query)
   |> List.filterMap identity
-
-
 
 withDynamicItems : Maybe Target -> String -> List AutocompleteItem -> List AutocompleteItem
 withDynamicItems target query acis =
@@ -538,8 +543,9 @@ asName aci =
     ACOmniAction ac ->
       case ac of
         NewDB name -> "Create new database: " ++ name
-        NewHTTPSpace -> "Create new HTTP handler"
+        NewHTTPHandler -> "Create new HTTP handler"
         NewHTTPRoute name -> "Create new HTTP handler for " ++ name
+        NewEventSpace name -> "Create new " ++ name ++ " handler"
 
 
 asTypeString : AutocompleteItem -> String
