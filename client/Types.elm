@@ -160,6 +160,8 @@ type Focus = FocusNothing -- deselect
 -----------------------------
 -- RPCs
 -----------------------------
+type alias RollbackID = ID
+type alias RollforwardID = ID
 type Op
     = SetHandler TLID Pos Handler
     | CreateDB TLID Pos DBName
@@ -174,7 +176,7 @@ type Op
     | SetFunction UserFunction
     | ChangeDBColName TLID ID DBColName
     | ChangeDBColType TLID ID DBColType
-    | InitDBMigration TLID ID DBMigrationKind
+    | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
 
 type alias RPCParams = { ops : List Op

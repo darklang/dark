@@ -524,6 +524,44 @@ let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
              |> SymSet.to_list
              |> List.map ~f:(fun s -> `String s)))
 
-let set_expr ~(search: id) ~(replacement: expr) (ast: expr) : expr =
-  ast
+let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
+  match expr with
+  | Blank _ -> expr
+  | Flagged (id, msg, setting, l, r) ->
+    Flagged (id, msg, setting, f l, f r)
+  | Filled (id, nexpr) ->
+    Filled (id,
+            (match nexpr with
+             | Value _ -> nexpr
+             | Variable _ -> nexpr
+
+             | Let (lhs, rhs, body) ->
+               Let (lhs, f rhs, f body)
+
+             | If (cond, ifbody, elsebody) ->
+               If (f cond, f ifbody, f elsebody)
+
+             | FnCall (name, exprs) ->
+               FnCall (name, List.map ~f exprs)
+
+             | Lambda (vars, lexpr) ->
+               Lambda (vars, f lexpr)
+
+             | Thread exprs ->
+               Thread (List.map ~f exprs)
+
+             | FieldAccess (obj, field) ->
+               FieldAccess (f obj, field)))
+
+
+
+
+let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
+  let replace = set_expr ~search ~replacement in
+  if search = to_id expr
+  then replacement
+  else
+    traverse ~f:replace expr
+
+
 
