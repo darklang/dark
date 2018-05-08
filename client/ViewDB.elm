@@ -13,6 +13,7 @@ import Blank as B
 import Types exposing (..)
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
+import ViewCode
 
 viewDBColName : BlankViewer String
 viewDBColName vs c v =
@@ -33,8 +34,8 @@ viewDBMigration vs m =
     [ Attrs.class "migration-view" ]
     [
       Html.text ("new version: " ++ toString (m.startingVersion + 1))
-    -- , viewBlankOrExpr rollforward
-    -- , viewBlankOrExpr rollback
+    , ViewCode.viewExpr 0 vs [] m.rollforward
+    , ViewCode.viewExpr 0 vs [] m.rollback
     ]
 
 
