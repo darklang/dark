@@ -23,11 +23,6 @@ let blank_to_id (bo : 'a or_blank) : id =
 let to_id (expr: expr) : id =
   blank_to_id expr
 
-let to_tuple (expr: expr) : (id * expr) =
-  let id = to_id expr in
-  (id, expr)
-
-
 let exception_to_dval ~(log: bool) exc =
   match exc with
   | Exception.DarkException e ->
