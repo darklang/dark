@@ -137,7 +137,8 @@ tlidsOf op =
     RedoTL tlid -> [tlid]
     DeleteTL tlid -> [tlid]
     MoveTL tlid _ -> [tlid]
-    SetFunction _ -> []
+    SetFunction f -> [f.tlid]
+    SetExpr tlid _ _ -> [tlid]
 
 encodeOps : List Op -> JSE.Value
 encodeOps ops =
@@ -199,6 +200,8 @@ encodeOp call =
       DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid]
       MoveTL tlid pos -> ev "MoveTL" [encodeTLID tlid, encodePos pos]
       SetFunction uf -> ev "SetFunction" [encodeUserFunction uf]
+      SetExpr tlid id e ->
+        ev "SetExpr" [encodeTLID tlid, encodeID id, encodeExpr e]
 
 encodeRPCParams : RPCParams -> JSE.Value
 encodeRPCParams params =

@@ -429,7 +429,7 @@ submit m cursor action =
                         focus =
                           FocusNext tl.id (Just (B.toID new))
                     in
-                        RPC ([], focus)
+                        RPC ([SetExpr tl.id id new], focus)
                   else if List.member pd (AST.allData am.rollforward)
                   then
                     let new =
@@ -437,7 +437,7 @@ submit m cursor action =
                         focus =
                           FocusNext tl.id (Just (B.toID new))
                     in
-                        RPC ([], focus)
+                        RPC ([SetExpr tl.id id new], focus)
                   else
                     NoChange
         PDarkType _ ->
