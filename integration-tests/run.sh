@@ -88,7 +88,7 @@ TEST_HOST="integration-tests:$PORT" \
     --selector-timeout 50 \
     --assertion-timeout 50 \
     --app-init-delay 0 \
-    --pageload-timeout 0 \
+    --pageload-timeout 200 \
     --speed $SPEED \
     --screenshots-on-fails \
     --screenshots ${DARK_CONFIG_RUN_DIR}/screenshots/ \
