@@ -63,6 +63,23 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Dict::get"]
+  ; ins = []
+  ; p = [par "dict" TObj; par "key" TStr]
+  ; r = TAny
+  ; d = "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
+  ; f = InProcess
+        (function
+          | (_, [DObj o; DStr s]) ->
+            (match DvalMap.find o s with
+             | Some d -> d
+             | None -> DNull)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   (* ====================================== *)
   (* Objects *)
   (* ====================================== *)
