@@ -38,7 +38,7 @@ start m =
       in
       RPC ([SetHandler tl.id tl.pos
                        (newTL |> TL.asHandler |> deMaybe "FF.start") ]
-           , FocusExact tl.id (P.toID newPd))
+           , FocusNext tl.id (Just (P.toID newPd)))
     _ -> NoChange
 
 end : Model -> ID -> Modification
