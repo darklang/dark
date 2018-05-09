@@ -26,6 +26,7 @@ let users =
   ;["aoife"; "dogtreats"; "notarealdog"; "ian+dog@darklang.com"; "Aoife Connolly"]
 
   (* customers *)
+  ;["daniel"; "dabblefox"; "alk92''[ponvhi4"; "daniel@dabblefox.com"; "Daniel Clayson"]
 
   (* friends trying it out *)
   ;["lee"; "lee"; "klma923wels92l{]as]"; "lee@ledwards.com"; "Lee Edwards"]
