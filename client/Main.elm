@@ -1096,11 +1096,7 @@ update_ msg m =
         Dragging _ _ _ origCursorState ->
           SetCursorState origCursorState
         Selecting selectingTLID _ ->
-          if targetTLID == selectingTLID
-          then
-            Deselect
-          else
-            Select targetTLID Nothing
+          Select targetTLID Nothing
         Deselected ->
           Select targetTLID Nothing
         Entering _ ->
