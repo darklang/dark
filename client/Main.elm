@@ -190,8 +190,9 @@ processFocus m focus =
         Nothing -> Select tlid pred
     FocusExact tlid id ->
       let tl = TL.getTL m tlid
-          pd = TL.findExn tl id in
-          if P.isBlank pd || P.toContent pd == ""
+          pd = TL.findExn tl id
+      in
+          if P.isBlank pd || P.toContent pd == Just ""
           then Enter (Filling tlid id)
           else Select tlid (Just id)
     FocusSame ->

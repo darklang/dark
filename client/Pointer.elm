@@ -91,31 +91,31 @@ isBlank pd =
     PParamTipe d -> B.isBlank d
 
 
-toContent : PointerData -> String
+toContent : PointerData -> Maybe String
 toContent pd =
-  let bs2s s = s |> B.toMaybe |> Maybe.withDefault "" in
+  let bs2s s = s |> B.toMaybe |> Maybe.withDefault "" |> Just in
   case pd of
     PVarBind v -> bs2s v
     PField f -> bs2s f
     PExpr e ->
       case e of
-        F _ (Value s) -> s
-        F _ (Variable v) -> v
+        F _ (Value s) -> Just s
+        F _ (Variable v) -> Just v
         Flagged _ _ _ _ _ ->
           toContent (PExpr (B.flattenFF e))
-        _ -> ""
+        _ -> Nothing
     PEventModifier d -> bs2s d
     PEventName d -> bs2s d
     PEventSpace d -> bs2s d
     PDBColName d -> bs2s d
     PDBColType d -> bs2s d
-    PDarkType _ -> ""
+    PDarkType _ -> Nothing
     PDarkTypeField d -> bs2s d
     PFFMsg d -> bs2s d
     PFnName d -> bs2s d
     PParamName d -> bs2s d
     PParamTipe d ->
-      d |> B.toMaybe |> Maybe.map Runtime.tipe2str |> Maybe.withDefault ""
+      d |> B.toMaybe |> Maybe.map Runtime.tipe2str |> Maybe.withDefault "" |> Just
 
 dtmap : (DarkType -> DarkType) -> PointerData -> PointerData
 dtmap fn pd =

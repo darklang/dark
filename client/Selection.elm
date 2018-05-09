@@ -349,7 +349,7 @@ enter m tlid id =
   else
     let enterMods =
           Many [ Enter (Filling tlid (P.toID flat))
-               , AutocompleteMod (ACSetQuery (P.toContent pd))
+               , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
           ]
     in
     case pd of
