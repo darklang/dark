@@ -239,10 +239,10 @@ all =
 
       -- typing db names works
       , \_ -> create ()
-      |> setQuery "mydbname"
+      |> setQuery "Mydbname"
       |> selectDown
       |> highlighted
-      |> (==) (Just (ACOmniAction (NewDB "mydbname")))
+      |> (==) (Just (ACOmniAction (NewDB "Mydbname")))
 
       -- db names can be multicase
       , \_ -> create ()
@@ -261,6 +261,13 @@ all =
       -- alphabetical only #2
       , \_ -> create ()
       |> setQuery "db_name::"
+      |> selectDown
+      |> highlighted
+      |> (==) Nothing
+
+      -- require capital
+      , \_ -> create ()
+      |> setQuery "mydbname"
       |> selectDown
       |> highlighted
       |> (==) Nothing
