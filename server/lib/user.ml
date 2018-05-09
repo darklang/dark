@@ -35,6 +35,7 @@ let users =
   ;["tom"; "tom"; "ksef[1=s;'dier]2"; "tmrudick@gmail.com"; "Tom Rudick"]
 
   (* interviews *)
+  ;["ravi"; "ravi"; "ksm934-s=-'34]s."; ""; ""]
   ]
   |> List.map
        ~f:(function
