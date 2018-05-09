@@ -237,7 +237,7 @@ qLiteral s =
 qNewDB : String -> Maybe AutocompleteItem
 qNewDB s =
   if String.length s >= 4
-      && Util.reExactly "[A-Za-z][a-zA-Z0-9_-]*" s
+      && Util.reExactly "[A-Z][a-zA-Z0-9_-]*" s
       -- annoying to offer a DB when looking for HTTP handler
       && s /= "HTTP"
   then Just (ACOmniAction (NewDB s))

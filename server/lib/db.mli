@@ -25,7 +25,6 @@ val drop : DbT.db -> unit
 (* DB schema modifications *)
 val create : host -> string -> tlid -> DbT.db
 val init_storage : DbT.db -> unit
-val to_display_name : string -> string
 val add_col : id -> id -> DbT.db -> DbT.db
 val set_col_name : id -> string -> bool -> DbT.db -> DbT.db
 val set_col_type : id -> tipe -> bool ->  DbT.db -> DbT.db

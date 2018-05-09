@@ -548,19 +548,10 @@ let drop (db: db) =
 (* DB schema *)
 (* ------------------------- *)
 
-let to_display_name (name: string) =
-  if name
-     |> String.to_list
-     |> List.for_all ~f:Char.is_uppercase
-  then name
-       |> String.lowercase
-       |> String.capitalize
-  else String.capitalize name
-
 let create (host:host) (name:string) (id: tlid) : db =
   { tlid = id
   ; host = host
-  ; display_name = to_display_name name
+  ; display_name = name
   ; actual_name = "user_" ^ name (* there's a schema too *)
   ; cols = []
   ; version = 0
