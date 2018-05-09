@@ -1097,8 +1097,8 @@ update_ msg m =
             Select targetTLID Nothing
         Deselected ->
           Select targetTLID Nothing
-        _ ->
-          NoChange
+        Entering _ ->
+          Select targetTLID Nothing
 
     ExecuteFunctionButton tlid id ->
       let tl = TL.getTL m tlid in
