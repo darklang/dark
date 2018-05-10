@@ -240,8 +240,6 @@ test('no_request_global_in_non_http_space', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "NOT_HTTP_SPACE", slow)
     .pressKey("enter")
-    .click(".ast")
-    .pressKey("enter")
     .typeText("#entry-box", "req")
     .expect(acHighlighted("Http::badRequest")).ok()
     .pressKey("enter")
