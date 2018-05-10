@@ -549,11 +549,12 @@ test('feature_flag_works', async t => {
   await t
     // Create an empty let
     .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
     .pressKey("var")
     .pressKey("enter")
+    .pressKey("esc")
+    .pressKey("shift+up")
 
     // Click feature name
     .click('.feature-flag .fa-flag')
