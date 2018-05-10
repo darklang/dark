@@ -6,6 +6,7 @@ set -euo pipefail
 
 PATTERN=".*"
 GCP=
+SCRIPT=
 
 for i in "$@"
 do
