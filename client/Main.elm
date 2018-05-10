@@ -296,6 +296,16 @@ updateMod mod (m, cmd) =
                       params = RPC.opsParams ops
                   -- call RPC on the new model
                   in [RPC.rpc newM FocusSame params]
+              TLFunc f ->
+                let replacement = AST.closeThread f.ast in
+                if replacement == f.ast
+                then []
+                else
+                  let newF = { f | ast = replacement }
+                      ops = [ SetFunction newF ]
+                      params = RPC.opsParams ops
+                  -- call RPC on the new model
+                  in [RPC.rpc newM FocusSame params]
               _ -> [])
         |> Maybe.withDefault []
         |> \rpc -> if tlidOf newM.cursorState == tlidOf m.cursorState
