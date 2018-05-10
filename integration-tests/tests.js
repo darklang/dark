@@ -551,3 +551,43 @@ test('nochange_for_failed_paste', async t => {
     .pressKey("left")
     .pressKey("ctrl+v")
 });
+
+test('feature_flag_works', async t => {
+  await t
+    // Create an empty let
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "let")
+    .pressKey("enter")
+    .pressKey("var")
+    .pressKey("enter")
+
+    // Click feature name
+    .click('.feature-flag .fa-flag')
+
+    // Name it
+    .typeText("#entry-box", "my flag", slow)
+
+    // Create the alternative
+    .pressKey("tab")
+    .typeText("#entry-box", "let")
+    .pressKey("tab")
+    .typeText("#entry-box", "v")
+    .pressKey("tab")
+    .typeText("#entry-box", "6")
+    .pressKey("tab")
+    .typeText("#entry-box", "v")
+    .pressKey("enter")
+
+    // should be selecting the last v now.
+    .expect(Selector('todo').hasClass("selected")).eql(true)
+
+    // move the slider to pick the other thing
+    .drag('.setting-slider > input', {dragOffsetX: 1000})
+
+    // Finish
+    .click('.feature-flag .fa-check')
+
+});
+
+

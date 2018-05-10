@@ -48,6 +48,7 @@ trigger test_name =
     "paste_right_number_of_blanks" -> paste_right_number_of_blanks
     "paste_keeps_focus" -> paste_keeps_focus
     "nochange_for_failed_paste" -> nochange_for_failed_paste
+    "feature_flag_works" -> feature_flag_works
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -459,3 +460,21 @@ nochange_for_failed_paste m =
           else fail m.cursorState
         _ -> fail m.cursorState
     other -> fail other
+
+feature_flag_works : Model -> TestResult
+feature_flag_works m =
+  let ast = onlyHandler m |> .ast in
+  case ast of
+    F id
+      (Let
+         (F _ "v")
+         (F _ (Value "6"))
+         (F _ (Variable "v"))) ->
+           case m.cursorState of
+             Selecting _ sid ->
+               if Just id == sid
+               then pass
+               else fail (ast, m.cursorState, id)
+             _ -> fail (ast, m.cursorState, id)
+    _ -> fail (ast, m.cursorState)
+
