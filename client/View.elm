@@ -21,6 +21,7 @@ import ViewCode
 import ViewDB
 import ViewData
 import ViewFunction
+import Autocomplete
 
 
 view : Model -> Html.Html Msg
@@ -71,6 +72,17 @@ viewCanvas m =
     in
         Html.div [Attrs.id "canvas"] allDivs
 
+
+
+getDescription: Autocomplete -> Maybe String
+getDescription ac =
+  case Autocomplete.highlighted ac of
+    Just (ACFunction f) ->
+      if String.length  f.description == 0
+      then Nothing
+      else Just f.description
+    _ -> Nothing
+
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let vs = createVS m tl
@@ -109,12 +121,24 @@ viewTL m tl =
         , "cursor-" ++ (toString tl.cursor)
         ]
         |> String.join " "
+
+      description : List (Html.Html msg)
+      description =
+        if Just tl.id == tlidOf m.cursorState
+          then
+            case getDescription m.complete of
+              Just desc -> [Html.div [Attrs.class "documentation-box"] [Html.p [] [Html.text (desc) ] ] ]
+              Nothing -> []
+        else
+          []
+
       html =
         Html.div
           [Attrs.class <| String.join " " (boxClasses ++ ["sidebar-box", selected])] -- see comment in css
           [Html.div
             (Attrs.class class :: events)
-            (body ++ data)
+            (body ++ data ++ description)
           ]
+
   in
       placeHtml m tl.pos html
