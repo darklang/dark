@@ -283,7 +283,6 @@ test('deleting_selects_the_blank', async t => {
 test('right_number_of_blanks', async t => {
   await t
     .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "assoc", slow)
     .pressKey("enter")
 });
@@ -398,14 +397,12 @@ test('focus_on_ast_in_new_empty_tl', async t => {
 test('focus_on_path_in_new_filled_tl', async t => {
   await t
     .pressKey("enter")
-    .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
 });
 
 test('focus_on_cond_in_new_tl_with_if', async t => {
   await t
-    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "if")
     .pressKey("enter")
@@ -519,7 +516,6 @@ test('paste_right_number_of_blanks', async t => {
 test('paste_keeps_focus', async t => {
   await t
     .pressKey("enter")
-    .pressKey("enter")
     .pressKey("+")
     .pressKey("enter")
     .pressKey("3")
@@ -535,7 +531,6 @@ test('paste_keeps_focus', async t => {
 
 test('nochange_for_failed_paste', async t => {
   await t
-    .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
