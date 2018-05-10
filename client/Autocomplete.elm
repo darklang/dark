@@ -185,6 +185,15 @@ appendQuery str a =
 highlighted : Autocomplete -> Maybe AutocompleteItem
 highlighted a = LE.getAt a.index (List.concat a.completions)
 
+documentationForItem : AutocompleteItem -> Maybe String
+documentationForItem aci =
+  case aci of
+    ACFunction f ->
+      if String.length f.description /= 0
+      then Just f.description
+      else Nothing
+    _ -> Nothing
+
 setTarget : Model -> Maybe (TLID, PointerData) -> Autocomplete -> Autocomplete
 setTarget m t a =
   { a | target = t }
