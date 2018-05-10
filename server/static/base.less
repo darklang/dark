@@ -880,28 +880,36 @@ body #grid * {
 }
 */
 
-// ---------------------------
-// Feature-flags
-// ---------------------------
-
-// This creates an ancestor for .feature-flag to be absolute positioned
-// against.
-
-.documentation-box {
-  position: absolute;
-  bottom: calc(~"100% + 5px");
-  left: 0;
-  font-size: 12px;
-  padding: 5px 10px;
-  background: @white3;
-  color: @blue;
-  border-radius: 13px;
-}
+// This creates an ancestor for the absolutely positioned elements around a handler to be positioned agains
+//
 .sidebar-box {
   background: @black1;
   position: relative;
 }
 
+.documentation-box {
+  position: absolute;
+  bottom: calc(~"100% + 5px");
+  left: 0;
+  font-size: 11px;
+  padding: 5px 10px;
+  background: @grey1;
+  color: @white3;
+  border-radius: 13px;
+}
+
+.feature-flag {
+  position: absolute;
+  right: -16px;
+  .default;
+}
+
+.edit-fn {
+  position: absolute;
+  .default;
+}
+
+// live data
 .selected[title] {
   &:after {
     outline: 0.4px @green solid;
@@ -933,19 +941,7 @@ body #grid * {
   word-wrap: break-word;
 }
 
-.feature-flag {
-  position: absolute;
-  right: -16px;
-  .default;
-}
-
-.edit-fn {
-  position: absolute;
-  .default;
-}
-
 .flagged {
-
   .fa-flag {
     color: @red;
     font-size: 8px;
