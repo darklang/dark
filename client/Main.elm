@@ -1120,8 +1120,8 @@ update_ msg m =
     -----------------
     -- Buttons
     -----------------
-    ToggleSync ->
-      TweakModel Sync.toggle
+    ToggleTimers ->
+      TweakModel toggleTimers
 
     SaveTestButton ->
       MakeCmd RPC.saveTestRPC
@@ -1140,10 +1140,10 @@ update_ msg m =
 
     SliderChange id ->
       Many [ FeatureFlags.commitSlider m id
-           , TweakModel Sync.enable ]
+           , TweakModel enableTimers ]
 
     SliderMoving id value ->
-      Many [ TweakModel Sync.disable
+      Many [ TweakModel disableTimers
            , FeatureFlags.updateSlider m id value
            ]
 
@@ -1186,7 +1186,7 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlocked)) ->
-      if m.syncState.enabled
+      if m.timersEnabled
       then
         Many [ TweakModel Sync.markResponseInModel
              , SetToplevels m.toplevels analysis globals m.userFunctions f404s unlocked False
@@ -1293,6 +1293,18 @@ update_ msg m =
       in
           RPC ([SetHandler anId aPos aHandler], FocusNothing)
 
+enableTimers : Model -> Model
+enableTimers m =
+  { m | timersEnabled = True }
+
+disableTimers : Model -> Model
+disableTimers m =
+  { m | timersEnabled = False }
+
+toggleTimers : Model -> Model
+toggleTimers m =
+  { m | timersEnabled = not m.timersEnabled }
+
 
 -----------------------
 -- SUBSCRIPTIONS
@@ -1316,12 +1328,15 @@ subscriptions m =
         case m.visibility of
           PageVisibility.Hidden -> []
           PageVisibility.Visible ->
-            if m.syncState.enabled
-            then [ Time.every Time.second (TimerFire RefreshAnalyses) ]
-            else []
+            [ Time.every Time.second (TimerFire RefreshAnalyses) ]
 
       urlTimer =
         [Time.every Time.second (TimerFire CheckUrlHashPosition)]
+
+      timers = if m.timersEnabled
+               then syncTimer ++ urlTimer
+               else []
+
 
       onError = [recordError JSError]
 
@@ -1336,8 +1351,7 @@ subscriptions m =
     (List.concat [ keySubs
                  , dragSubs
                  , resizes
-                 , syncTimer
-                 , urlTimer
+                 , timers
                  , visibility
                  , onError
                  , mousewheelSubs])
