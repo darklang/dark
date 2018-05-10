@@ -219,11 +219,11 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  viewBlankOr (text vs) pt vs c str
+  viewBlankOr (text vs) B.shallowWithinFn pt vs c str
 
 viewTipe : PointerType -> ViewState -> List HtmlConfig -> BlankOr Tipe -> Html.Html Msg
 viewTipe pt vs c str =
-  viewBlankOr (tipe vs) pt vs c str
+  viewBlankOr (tipe vs) B.shallowWithinFn pt vs c str
 
 placeHolderFor : ViewState -> ID -> PointerType -> String
 placeHolderFor vs id pt =
@@ -265,13 +265,19 @@ placeHolderFor vs id pt =
     ParamName -> "param name"
     ParamTipe -> "param type"
 
-viewBlankOr : (List HtmlConfig -> a -> Html.Html Msg) -> PointerType ->
-  ViewState -> List HtmlConfig -> BlankOr a -> Html.Html Msg
-viewBlankOr htmlFn pt vs c bo =
+viewBlankOr :
+    (List HtmlConfig -> a -> Html.Html Msg) ->
+    (a -> ID -> Bool) ->
+    PointerType ->
+    ViewState ->
+    List HtmlConfig ->
+    BlankOr a ->
+      Html.Html Msg
+viewBlankOr htmlFn isWithinFn pt vs c bo =
   let
       isSelectionWithin bo =
         idOf vs.cursorState
-        |> Maybe.map (B.within bo)
+        |> Maybe.map (B.within bo isWithinFn)
         |> Maybe.withDefault False
 
       wID id = [WithID id]
@@ -349,9 +355,9 @@ viewBlankOr htmlFn pt vs c bo =
               , drawSetting id setting
               , drawEndFeatureFlag setting id
               , div vs [wc "flag-left nested-flag"]
-                  [viewBlankOr htmlFn pt vs idConfigs l]
+                  [viewBlankOr htmlFn isWithinFn pt vs idConfigs l]
               , div vs [wc "flag-right nested-flag"]
-                  [viewBlankOr htmlFn pt vs idConfigs r]
+                  [viewBlankOr htmlFn isWithinFn pt vs idConfigs r]
               ])
         else
           Html.div

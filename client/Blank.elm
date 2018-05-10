@@ -91,13 +91,23 @@ replaceFFMsg search replacement bo =
           (replaceFFMsg search replacement r)
     _ -> bo
 
--- checks if the ID is in the blank. Does not recurse past the Blank
--- definitions (eg, it will find a deeply nested Flagged, but won't find
--- a node within the AST)
-within : BlankOr a -> ID -> Bool
-within bo id =
+-- checks if the ID is in the blank. You can go past the definition
+-- using the passed function.
+within : BlankOr a -> (a -> ID -> Bool) -> ID -> Bool
+within bo fn id =
   case bo of
     Flagged thisId msg setting l r ->
-      id == thisId || within l id || within r id || within msg id
+      id == thisId
+      || within l fn id
+      || within r fn id
+      || withinShallow msg id
     Blank thisId -> id == thisId
-    F thisId _ -> id == thisId
+    F thisId v -> id == thisId || fn v id
+
+shallowWithinFn : a -> ID -> Bool
+shallowWithinFn a _ = False
+
+withinShallow : BlankOr a -> ID -> Bool
+withinShallow bo id =
+  within bo shallowWithinFn id
+

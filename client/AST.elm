@@ -526,12 +526,21 @@ replace : PointerData -> PointerData -> Expr -> Expr
 replace search replacement expr =
   replace_ search replacement Nothing expr
 
+within : NExpr -> ID -> Bool
+within e id =
+  e
+  |> F (ID -1)
+  |> allData
+  |> List.map P.toID
+  |> List.member id
+
+
 replace_ : PointerData -> PointerData -> Maybe Expr -> Expr -> Expr
 replace_ search replacement parent expr =
   let r = replace_ search replacement (Just expr) -- expr is new parent
       sId = P.toID search
   in
-  if B.within expr sId
+  if B.withinShallow expr sId
   then
     case replacement of
       PExpr e ->
@@ -541,7 +550,7 @@ replace_ search replacement parent expr =
                 Just (F _ (Thread (first :: _))) ->
                   case e of
                     F id (FnCall fn (_ :: rest as args)) ->
-                      if B.within first sId
+                      if B.withinShallow first sId
                       then (F id (FnCall fn args))
                       else (F id (FnCall fn rest))
                     _ -> e
@@ -552,7 +561,7 @@ replace_ search replacement parent expr =
   else
     case (expr, replacement) of
       (F id (Let lhs rhs body), PVarBind replacement) ->
-        if B.within lhs sId
+        if B.withinShallow lhs sId
         then
           let replacementContent =
                 case replacement of
@@ -585,7 +594,7 @@ replace_ search replacement parent expr =
         else traverse r expr
 
       (F id (FieldAccess obj field), PField replacement) ->
-        if B.within field sId
+        if B.withinShallow field sId
         then F id (FieldAccess obj (B.replace sId replacement field))
         else traverse r expr
 
