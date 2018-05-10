@@ -75,15 +75,15 @@ createVS m tl = { tl = tl
                 , ufns = m.userFunctions
                 , results = Analysis.getAnalysisResults m tl.id
                 , relatedBlankOrs =
-                  case (unwrapCursorState m.cursorState, TL.asHandler tl) of
-                    (Entering (Filling _ id), Just h) ->
-                      case TL.find tl id of
-                        Just (PVarBind _) as pd ->
-                          case TL.getParentOf tl (deMaybe "impossible" pd)  of
-                            Just (PExpr e) -> e |> AST.usesOf |> List.map B.toID
-                            _ -> []
-                        _ -> []
-                    _ -> []
+                    case unwrapCursorState m.cursorState of
+                      Entering (Filling _ id) ->
+                        case TL.find tl id of
+                          Just (PVarBind _) as pd ->
+                            case TL.getParentOf tl (deMaybe "impossible" pd)  of
+                              Just (PExpr e) -> e |> AST.usesOf |> List.map B.toID
+                              _ -> []
+                          _ -> []
+                      _ -> []
                 , tooWide = False
                 , computedValuesDisabled =
                   m.computedValuesDisabled
