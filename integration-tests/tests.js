@@ -560,7 +560,7 @@ test('feature_flag_works', async t => {
     .click('.feature-flag .fa-flag')
 
     // Name it
-    .typeText("#entry-box", "my flag", slow)
+    .typeText("#entry-box", "my_flag", slow)
 
     // Create the alternative
     .pressKey("tab")
