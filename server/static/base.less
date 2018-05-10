@@ -139,6 +139,8 @@ body #grid * {
     outline: 0.4px darken(magenta, 25%) dotted;
   }
 
+
+
   .mouseovered {
     background-color: @grey1;
     &.blank {
@@ -884,6 +886,17 @@ body #grid * {
 
 // This creates an ancestor for .feature-flag to be absolute positioned
 // against.
+
+.documentation-box {
+  position: absolute;
+  bottom: calc(~"100% + 5px");
+  left: 0;
+  font-size: 12px;
+  padding: 5px 10px;
+  background: @white3;
+  color: @blue;
+  border-radius: 13px;
+}
 .sidebar-box {
   background: @black1;
   position: relative;

@@ -593,4 +593,3 @@ findParamByType : Function -> Tipe -> Maybe Parameter
 findParamByType {parameters} tipe =
   parameters
   |> LE.find (\p -> RT.isCompatible p.tipe tipe)
-
