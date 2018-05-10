@@ -372,7 +372,7 @@ encodeSerializableEditor : SerializableEditor -> JSE.Value
 encodeSerializableEditor se =
   JSE.object
     [ ("clipboard", JSEE.maybe encodePointerData se.clipboard)
-    , ("syncEnabled", JSE.bool se.syncEnabled)
+    , ("timersEnabled", JSE.bool se.timersEnabled)
     , ("cursorState", encodeCursorState se.cursorState)
     ]
 
@@ -383,7 +383,7 @@ decodeSerializableEditor =
   -- change the structure
   JSDP.decode SerializableEditor
   |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) Nothing
-  |> JSDP.optional "syncEnabled" JSD.bool True
+  |> JSDP.optional "timersEnabled" JSD.bool True
   |> JSDP.optional "cursorState" decodeCursorState Deselected
 
 

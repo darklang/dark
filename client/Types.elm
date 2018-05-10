@@ -125,7 +125,7 @@ type Msg
     | AddRandom
     | FinishIntegrationTest
     | SaveTestButton
-    | ToggleSync
+    | ToggleTimers
     | ExecuteFunctionButton TLID ID
     | Initialization
     | NavigateTo String
@@ -384,8 +384,7 @@ type CurrentPage = Toplevels
 
 type alias Clipboard = Maybe PointerData
 
-type alias SyncState = { enabled : Bool
-                       , inFlight : Bool
+type alias SyncState = { inFlight : Bool
                        , ticks : Int
                        }
 
@@ -413,12 +412,13 @@ type alias Model = { center : Pos
                    , clipboard : Clipboard
                    , syncState : SyncState
                    , urlState : UrlState
+                   , timersEnabled : Bool
                    , computedValuesDisabled : Bool
                    }
 
 -- Values that we serialize
 type alias SerializableEditor = { clipboard : Maybe PointerData
-                                , syncEnabled : Bool
+                                , timersEnabled : Bool
                                 , cursorState : CursorState
                                 }
 

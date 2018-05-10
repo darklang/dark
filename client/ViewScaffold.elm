@@ -58,11 +58,11 @@ viewButtons m =
       , Attrs.class "specialButton"]
       [ Html.text "SaveTest" ]
     , Html.a
-      [ eventNoPropagation "mouseup" (\_ -> ToggleSync)
+      [ eventNoPropagation "mouseup" (\_ -> ToggleTimers)
       , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text
-          (if m.syncState.enabled then "DisableSync" else "EnableSync") ]
+          (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
     , Html.span
       [ Attrs.class "specialButton"]
       [Html.text (toString m.center)]

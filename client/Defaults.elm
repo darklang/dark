@@ -29,13 +29,12 @@ pageWidth = 500
 
 defaultEditor : SerializableEditor
 defaultEditor = { clipboard = Nothing
-                , syncEnabled = True
+                , timersEnabled = True
                 , cursorState = Deselected
                 }
 
 defaultSyncState : SyncState
-defaultSyncState = { enabled = True
-                   , inFlight = False
+defaultSyncState = { inFlight = False
                    , ticks = 0
                    }
 
@@ -64,6 +63,7 @@ defaultModel = { error = Nothing
                -- partially saved in editor
                , syncState = defaultSyncState
                , urlState = defaultUrlState
+               , timersEnabled = True
                , computedValuesDisabled = False
                -- saved in editor
                , clipboard = Nothing

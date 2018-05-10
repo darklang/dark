@@ -4,27 +4,6 @@ module Sync exposing (..)
 import Types exposing (..)
 import RPC
 
-enable : Model -> Model
-enable m =
-  let oldSyncState = m.syncState
-  in
-      { m | syncState =
-        { oldSyncState | enabled = True } }
-
-disable : Model -> Model
-disable m =
-  let oldSyncState = m.syncState
-  in
-      { m | syncState =
-        { oldSyncState | enabled = False } }
-
-toggle : Model -> Model
-toggle m =
-  let oldSyncState = m.syncState
-  in
-      { m | syncState =
-        { oldSyncState | enabled = (not oldSyncState.enabled) } }
-
 markRequestInModel : Model -> Model
 markRequestInModel m =
   let oldSyncState = m.syncState
