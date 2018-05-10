@@ -85,7 +85,7 @@ replaceFnName search replacement uf =
   let metadata = uf.metadata
       sId = P.toID search
   in
-      if B.within metadata.name sId
+      if B.withinShallow metadata.name sId
       then
         let newMetadata =
               case replacement of
@@ -110,7 +110,7 @@ replaceParamName search replacement uf =
               PParamName n -> Just n
               _ -> Nothing)
   in
-      if List.any (\p -> B.within p sId) paramNames
+      if List.any (\p -> B.withinShallow p sId) paramNames
       then
         let newMetadata =
               case replacement of
@@ -163,7 +163,7 @@ replaceParamTipe search replacement uf =
               PParamTipe t -> Just t
               _ -> Nothing)
   in
-      if List.any (\p -> B.within p sId) paramTipes
+      if List.any (\p -> B.withinShallow p sId) paramTipes
       then
         let newMetadata =
               case replacement of
