@@ -320,6 +320,8 @@ updateMod mod (m, cmd) =
                 List.any (\c -> case c of
                                   SetHandler _ _ _ ->
                                     False
+                                  SetFunction _ ->
+                                    False
                                   _ -> True) params.ops
 
           in
@@ -337,6 +339,8 @@ updateMod mod (m, cmd) =
                           , data = TLHandler h
                           , cursor = 0
                           }
+                      SetFunction f ->
+                        Functions.upsert m f
                       _ -> m) m params.ops
 
                 (withFocus, wfCmd) =
@@ -432,7 +436,7 @@ updateMod mod (m, cmd) =
                        case tl.data of
                          TLDB _ -> TL.upsert m2 tl
                          TLHandler _ -> TL.upsert m2 tl
-                         TLFunc _ -> m2
+                         TLFunc f -> Functions.upsert m2 f
                    Nothing ->
                      m2
 

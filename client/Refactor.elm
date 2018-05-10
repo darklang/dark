@@ -34,61 +34,91 @@ type WrapLoc = WLetRHS
 
 wrap : Model -> Toplevel -> PointerData -> WrapLoc -> Modification
 wrap m tl p wl =
-  case (p, TL.asHandler tl) of
-    (PExpr e, Just h) ->
-      let (replacement, focus) =
-            case wl of
-              WLetRHS ->
-                let lhs = B.new ()
-                    replacement = PExpr (B.newF (Let lhs e (B.new ())))
-                in
-                    (replacement, FocusExact tl.id (B.toID lhs))
-              WLetBody ->
-                let lhs = B.new ()
-                    replacement = PExpr (B.newF (Let lhs (B.new ()) e))
-                in
-                    (replacement, FocusExact tl.id (B.toID lhs))
-              WIfCond ->
-                let thenBlank = B.new ()
-                    replacement =
-                      PExpr (B.newF (If e thenBlank (B.new ())))
-                in
-                    (replacement, FocusExact tl.id (B.toID thenBlank))
-              WIfThen ->
-                let condBlank = B.new ()
-                    replacement =
-                      PExpr (B.newF (If condBlank e (B.new ())))
-                in
-                    (replacement, FocusExact tl.id (B.toID condBlank))
-              WIfElse ->
-                let condBlank = B.new ()
-                    replacement =
-                      PExpr (B.newF (If condBlank (B.new ()) e))
-                in
-                    (replacement, FocusExact tl.id (B.toID condBlank))
-          newH =
-            { h | ast = AST.replace p replacement h.ast }
-      in
-          RPC ([SetHandler tl.id tl.pos newH]
-              ,focus)
-    _ -> NoChange
+  let wrapAst e ast wl =
+        let (replacement, focus) =
+          case wl of
+            WLetRHS ->
+              let lhs = B.new ()
+                  replacement = PExpr (B.newF (Let lhs e (B.new ())))
+              in
+                  (replacement, FocusExact tl.id (B.toID lhs))
+            WLetBody ->
+              let lhs = B.new ()
+                  replacement = PExpr (B.newF (Let lhs (B.new ()) e))
+              in
+                  (replacement, FocusExact tl.id (B.toID lhs))
+            WIfCond ->
+              let thenBlank = B.new ()
+                  replacement =
+                    PExpr (B.newF (If e thenBlank (B.new ())))
+              in
+                  (replacement, FocusExact tl.id (B.toID thenBlank))
+            WIfThen ->
+              let condBlank = B.new ()
+                  replacement =
+                    PExpr (B.newF (If condBlank e (B.new ())))
+              in
+                  (replacement, FocusExact tl.id (B.toID condBlank))
+            WIfElse ->
+              let condBlank = B.new ()
+                  replacement =
+                    PExpr (B.newF (If condBlank (B.new ()) e))
+              in
+                  (replacement, FocusExact tl.id (B.toID condBlank))
+        in
+            (AST.replace (PExpr e) replacement ast, focus)
+
+  in
+      case (p, tl.data) of
+        (PExpr e, TLHandler h) ->
+          let (newAst, focus) =
+                wrapAst e h.ast wl
+              newH =
+                { h | ast = newAst }
+          in
+              RPC ([SetHandler tl.id tl.pos newH]
+                  ,focus)
+        (PExpr e, TLFunc f) ->
+          let (newAst, focus) =
+                wrapAst e f.ast wl
+              newF =
+                { f | ast = newAst }
+          in
+              RPC ([SetFunction newF]
+                  ,focus)
+        _ -> NoChange
 
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
-  case (p, TL.asHandler tl) of
-    (PExpr e, Just h) ->
+  let extractVarInAst e ast  =
       let varname = "var" ++ toString (Util.random())
-          newAST = AST.replace p (PExpr (B.newF (Variable varname))) h.ast
+          newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
           newVar = B.newF varname
-          newLet = B.newF (Let newVar e newAST)
-          replacement = PExpr newLet
-          newHandler = { h | ast = newLet }
       in
-      Many [ RPC ([SetHandler tl.id tl.pos newHandler]
-                 , FocusNoChange)
-           , Enter (Filling tl.id (B.toID newVar))
-           ]
-    _ -> NoChange
+          (B.newF (Let newVar e newAST), B.toID newVar)
+  in
+      case (p, tl.data) of
+        (PExpr e, TLHandler h) ->
+          let (newAst, enterTarget) =
+                extractVarInAst e h.ast
+              newHandler =
+                { h | ast = newAst }
+          in
+              Many [ RPC ([SetHandler tl.id tl.pos newHandler]
+                         , FocusNoChange)
+                   , Enter (Filling tl.id enterTarget)
+                   ]
+        (PExpr e, TLFunc f) ->
+          let (newAst, enterTarget) =
+                extractVarInAst e f.ast
+              newF =
+                { f | ast = newAst }
+          in
+              Many [ RPC ([SetFunction newF]
+                         , FocusNoChange)
+                   , Enter (Filling tl.id enterTarget)
+                   ]
+        _ -> NoChange
 
 extractFunction : Model -> Toplevel -> PointerData -> Modification
 extractFunction m tl p =
