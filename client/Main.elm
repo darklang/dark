@@ -788,7 +788,8 @@ update_ msg m =
                     TLDB _ -> NoChange
                     TLHandler h ->
                       Entry.submit m cursor Entry.StartThread
-                    TLFunc f -> NoChange
+                    TLFunc f ->
+                      Entry.submit m cursor Entry.StartThread
                 Creating _ ->
                   Entry.submit m cursor Entry.StartThread
             else
