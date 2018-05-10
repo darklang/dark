@@ -42,6 +42,20 @@ find : Model -> TLID -> Maybe UserFunction
 find m id =
   LE.find (\f -> id == f.tlid) m.userFunctions
 
+upsert : Model -> UserFunction -> Model
+upsert m f =
+  case find m f.tlid of
+    Just old ->
+      { m | userFunctions =
+        m.userFunctions
+        |> List.filter (\uf -> uf.tlid /= old.tlid)
+        |> (::) f
+      }
+    Nothing ->
+      { m | userFunctions =
+        f :: m.userFunctions
+      }
+
 findExn : Model -> TLID -> UserFunction
 findExn m id =
   find m id |> deMaybe "Functions.findExn"
