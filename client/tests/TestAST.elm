@@ -74,8 +74,8 @@ all =
               F _ (Thread [r, _]) ->
                 if r == replacement
                 then pass
-                else fail r
-              _ -> fail result
+                else fail (orig, result)
+              _ -> fail (orig, result)
 
     , test "promoting a threaded FnCall by removing the Thread, re-adds the missing argument" <|
         expectOk <|
