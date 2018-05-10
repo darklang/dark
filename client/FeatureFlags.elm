@@ -7,12 +7,12 @@ import Toplevel as TL
 import Pointer as P
 import Blank as B
 
-toFlagged : BlankOr a -> BlankOr a
-toFlagged bo =
+toFlagged : ID -> BlankOr a -> BlankOr a
+toFlagged msgId bo =
   case bo of
     Flagged _ _ _ _ _ ->
       impossible ("cant convert flagged to flagged", bo)
-    _ -> Flagged (gid()) (B.new ()) 0 bo (B.new ())
+    _ -> Flagged (gid()) (Blank msgId) 0 bo (B.new ())
 
 fromFlagged : BlankOr a -> BlankOr a
 fromFlagged bo =
@@ -30,15 +30,16 @@ start m =
     Selecting tlid (Just id) ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
+          msgId = gid ()
           newPd = pd
-                  |> P.strmap (\_ a -> toFlagged a)
-                  |> P.dtmap toFlagged
-                  |> P.exprmap toFlagged
+                  |> P.strmap (\_ a -> toFlagged msgId a)
+                  |> P.dtmap (toFlagged msgId)
+                  |> P.exprmap (toFlagged msgId)
           newTL = TL.replace pd newPd tl
       in
       RPC ([SetHandler tl.id tl.pos
                        (newTL |> TL.asHandler |> deMaybe "FF.start") ]
-           , FocusNext tl.id (Just (P.toID newPd)))
+           , FocusExact tl.id msgId)
     _ -> NoChange
 
 end : Model -> ID -> Modification
