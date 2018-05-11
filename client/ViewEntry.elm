@@ -75,7 +75,7 @@ stringEntryHtml ac =
         Html.input [ Attrs.id Defaults.entryID
                    , Events.onInput (EntryInputMsg << transformFromStringEntry)
                    , nothingMouseEvent "mouseup"
-                   , nothingMouseEvent "mouseclick"
+                   , nothingMouseEvent "click"
                    , nothingMouseEvent "mousedown"
                    , Attrs.value value
                    , widthInCh length
@@ -94,7 +94,7 @@ stringEntryHtml ac =
                       , Attrs.spellcheck False
                       -- Stop other events firing
                       , nothingMouseEvent "mouseup"
-                      , nothingMouseEvent "mouseclick"
+                      , nothingMouseEvent "click"
                       , nothingMouseEvent "mousedown"
                       , Attrs.rows (1 + SE.countOccurrences "\n" value)
                       , widthInCh longestLineLength
