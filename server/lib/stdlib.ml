@@ -1344,6 +1344,25 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Date::toSeconds"]
+  ; ins = []
+  ; p = [par "date" TDate]
+  ; r = TInt
+  ; d = "Converts a Date `date` to an integer representing seconds since the Unix epoch"
+  ; f = InProcess
+        (function
+          | (_, [DDate d]) ->
+            d
+            |> Time.to_span_since_epoch
+            |> Time.Span.to_sec
+            |> Float.iround_exn
+            |> DInt
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
 
 
 
