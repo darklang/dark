@@ -40,13 +40,13 @@
       }
     </script>
     <script type="text/javascript" src="/static/bundle.js"> </script>
-    <script type="text/javascript" src="/static/elm.js"> </script>
+    <script type="text/javascript" src="/static/elm{ELMDEBUG}.js"> </script>
 
   </head>
   <body onKeyDown="stopKeys(event)" onKeyUp="stopKeys(event)">
    <script type="text/javascript">
-       window.Rollbar.configure(ROLLBARCONFIG);
-       complete = ALLFUNCTIONS;
+       window.Rollbar.configure({ROLLBARCONFIG});
+       complete = {ALLFUNCTIONS};
        elmapp = Elm.Main.fullscreen({
          editorState: window.localStorage.getItem('editorState'),
          complete: complete

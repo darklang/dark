@@ -12,6 +12,7 @@
 /server/profile.json
 /server/static/base.css
 /server/static/elm.js
+/server/static/elm-debug.js
 /tags
 /transaction.yaml
 client/DEBUG
