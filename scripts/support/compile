@@ -51,16 +51,17 @@ def elm_package():
 
 def elm_make():
   debug = ""
-  if Path("client/DEBUG").is_file():
-    debug = " --debug "
   start = time.time()
   # unbuffer makes elm think it's talking a terminal
   return run_frontend(start, \
           "cd client" \
           + " && unbuffer sysconfcpus -n 1 elm-make Main.elm" \
-          + debug \
-          + " --warn --yes --output" \
-          + " ../server/static/elm.js")
+          + " --warn --yes --debug --output" \
+          + " ../server/static/elm-debug.js" \
+          + " && cd ../server/static" \
+          + " && patch -p0 -R -u elm-debug.js" \
+          + " -i ../../scripts/support/debugless.patch" \
+          + " -o elm.js ")
 
 def elm_test():
   start = time.time()
@@ -193,6 +194,7 @@ def ignore(filename):
             , "server/profile.json"
             , "server/serialization/"
             , "server/static/base.css"
+            , "server/static/elm-debug.js"
             , "server/static/elm.js"
   ]
   for i in ignores:

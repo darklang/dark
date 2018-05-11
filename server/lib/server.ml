@@ -220,11 +220,14 @@ let rec admin_rpc_handler body (host: string) : (Cohttp.Header.t * string) =
     Event_queue.finalize ~host execution_id ~status:`Err;
     raise e
 
-let admin_ui_handler () =
+let admin_ui_handler ~(debug:bool) () =
   let template = Util.readfile_lwt ~root:Templates "ui.html" in
   template
-  >|= Util.string_replace "ALLFUNCTIONS" (Api.functions)
-  >|= Util.string_replace "ROLLBARCONFIG" (Config.rollbar_js)
+  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions)
+  >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
+  >|= Util.string_replace "{ELMDEBUG}" (if debug
+                                      then "-debug"
+                                      else "")
 
 let save_test_handler host =
   let g = C.load host [] in
@@ -303,10 +306,12 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: C
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond `OK "Disembowelment"
+  | "/admin/ui-debug" ->
+    admin_ui_handler ~debug:true () >>= fun body -> respond ~headers `OK body
   | "/admin/ui" ->
-    admin_ui_handler () >>= fun body -> respond ~headers `OK body
+    admin_ui_handler ~debug:false () >>= fun body -> respond ~headers `OK body
   | "/admin/integration_test" ->
-    admin_ui_handler () >>= fun body -> respond `OK body
+    admin_ui_handler ~debug:false () >>= fun body -> respond `OK body
   | "/admin/api/save_test" ->
     save_test_handler host
   | _ ->
