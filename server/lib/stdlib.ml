@@ -862,15 +862,46 @@ let fns : Lib.shortfn list = [
   ; p = [par "s" TStr]
   ; r = TStr
   ; d = "Take a string and hash it to a cryptographically-secure digest.
-  Uses SHA2. Don't rely on either the size or the algorithm."
+  Don't rely on either the size or the algorithm."
   ; f = InProcess
         (function
-          | (_, [DStr s]) -> DStr (Util.hash s)
+          | (_, [DStr s]) -> DStr (Util.digest384 s)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
   }
   ;
+
+  { pns = ["String::sha384"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TStr
+  ; d = "Take a string and hash it using SHA384."
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) -> DStr (Util.digest384 s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+  { pns = ["String::sha256"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TStr
+  ; d = "Take a string and hash it using SHA256."
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) -> DStr (Util.digest256 s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
 
 
   { pns = ["String::random"]
@@ -942,7 +973,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["List::push_back"]
+  { pns = ["List::pushBack"]
   ; ins = []
   ; p = [par "list" TList; par "val" TAny]
   ; r = TList
