@@ -174,12 +174,21 @@ let merge_right = Map.merge ~f:(fun ~key v ->
 let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
   List.length (List.filter ~f l) > 0
 
-let hash (input: string) : string =
+let sha (input: string) ~f : string =
   input
   |> Cstruct.of_string
-  |> Nocrypto.Hash.SHA384.digest
+  |> f
   |> Cstruct.to_string
   |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+
+let digest256 (input: string) : string =
+  sha ~f:Nocrypto.Hash.SHA256.digest input
+
+let digest384 (input: string) : string =
+  sha ~f:Nocrypto.Hash.SHA384.digest input
+
+let hash = digest384
+
 
 let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
