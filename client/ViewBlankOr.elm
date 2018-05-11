@@ -221,11 +221,11 @@ type alias BlankViewer a = Viewer (BlankOr a)
 
 viewText : PointerType -> ViewState -> List HtmlConfig -> BlankOr String -> Html.Html Msg
 viewText pt vs c str =
-  viewBlankOr (text vs) B.shallowWithinFn pt vs c str
+  viewBlankOr text B.shallowWithinFn pt vs c str
 
 viewTipe : PointerType -> ViewState -> List HtmlConfig -> BlankOr Tipe -> Html.Html Msg
 viewTipe pt vs c str =
-  viewBlankOr (tipe vs) B.shallowWithinFn pt vs c str
+  viewBlankOr tipe B.shallowWithinFn pt vs c str
 
 placeHolderFor : ViewState -> ID -> PointerType -> String
 placeHolderFor vs id pt =
@@ -268,7 +268,7 @@ placeHolderFor vs id pt =
     ParamTipe -> "param type"
 
 viewBlankOr :
-    (List HtmlConfig -> a -> Html.Html Msg) ->
+    (ViewState -> List HtmlConfig -> a -> Html.Html Msg) ->
     (a -> ID -> Bool) ->
     PointerType ->
     ViewState ->
@@ -290,20 +290,26 @@ viewBlankOr htmlFn isWithinFn pt vs c bo =
 
       drawFilled id fill =
         let configs = wID id ++ c
-        in htmlFn configs fill
+        in htmlFn vs configs fill
 
       drawFilledInsideFlag id fill =
-        htmlFn [] fill
+        -- This may be complex and have nested blanks which are
+        -- selected, even though this is not a blank, so showEntry is
+        -- important.
+        let vs2 = { vs | showEntry = False } in
+        htmlFn vs2 [] fill
 
       drawBlankInsideFlag id =
-        div vs
+        let vs2 = { vs | showEntry = False } in
+        div vs2
           ([WithClass "blank"])
           [Html.text (placeHolderFor vs id pt)]
 
       drawInFlag id bo =
+        let vs2 = { vs | showEntry = False } in
         case bo of
           F fid fill  ->
-            [div vs [ DisplayValueOf fid
+            [div vs2 [ DisplayValueOf fid
                     , ClickSelectAs id
                     , WithID id]
                [drawFilledInsideFlag id fill]]
@@ -391,7 +397,7 @@ viewBlankOr htmlFn isWithinFn pt vs c bo =
   case vs.cursorState of
     Entering (Filling _ thisID) ->
       let id = B.toID bo in
-      if id == thisID
+      if id == thisID && vs.showEntry
       then
         let allowStringEntry = pt == Expr
             placeholder = placeHolderFor vs id pt

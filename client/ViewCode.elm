@@ -23,19 +23,19 @@ import Runtime
 viewFieldName : BlankViewer String
 viewFieldName vs c f =
   let configs = c ++ [ClickSelectAs (B.toID f)] ++ withFeatureFlag vs f in
-  viewBlankOr (viewNFieldName vs) B.shallowWithinFn Field vs configs f
+  viewBlankOr viewNFieldName B.shallowWithinFn Field vs configs f
 
 viewVarBind : BlankViewer String
 viewVarBind vs c v =
   let configs = idConfigs ++ c in
-  viewBlankOr (viewNVarBind vs) B.shallowWithinFn VarBind vs configs v
+  viewBlankOr viewNVarBind B.shallowWithinFn VarBind vs configs v
 
 viewDarkType : BlankViewer NDarkType
 viewDarkType vs c dt =
   let configs = idConfigs ++ c
       withinFn = B.shallowWithinFn -- wrong but it'll do for now
   in
-  viewBlankOr (viewNDarkType vs) withinFn DarkType vs configs dt
+  viewBlankOr viewNDarkType withinFn DarkType vs configs dt
 
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
@@ -49,7 +49,7 @@ viewExpr depth vs c e =
                 ++ widthClass
       id = B.toID e
   in
-  viewBlankOr (viewNExpr depth id vs) AST.within Expr vs configs e
+  viewBlankOr (viewNExpr depth id) AST.within Expr vs configs e
 
 viewEventName : BlankViewer String
 viewEventName vs c v =
