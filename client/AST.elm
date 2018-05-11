@@ -12,6 +12,7 @@ import Prelude exposing (..)
 import Util
 import Pointer as P
 import Blank as B
+import Set
 
 
 -------------------------
@@ -634,4 +635,47 @@ clone expr =
           Value v -> Value v
           Variable name -> Variable name
   in B.clone cNExpr expr
+
+freeVariables : Expr -> List (ID, VarName)
+freeVariables ast =
+  let lets = ast
+             |> allData
+             |> List.filterMap
+               (\n ->
+                 case n of
+                   PExpr boe ->
+                     case B.flattenFF boe of
+                       Blank _ -> Nothing
+                       Flagged _ _ _ _ _ -> Nothing
+                       F id e as expr ->
+                         case e of
+                           Let lhs rhs body-> Just expr
+                           _ -> Nothing
+                   _ -> Nothing)
+      uses =
+        lets
+        |> List.map usesOf
+        |> List.concat
+        |> List.map (B.toID >> deID)
+        |> Set.fromList
+  in
+      ast
+      |> allData
+      |> List.filterMap
+        (\n ->
+          case n of
+            PExpr boe ->
+              case B.flattenFF boe of
+                Blank _ -> Nothing
+                Flagged _ _ _ _ _ -> Nothing
+                F id e ->
+                  case e of
+                    Variable name ->
+                      if Set.member (deID id) uses
+                      then Nothing
+                      else Just (id, name)
+                    _ -> Nothing
+            _ -> Nothing)
+      |> LE.uniqueBy
+        (\(_, name) -> name)
 

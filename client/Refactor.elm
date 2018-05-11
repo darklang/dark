@@ -1,9 +1,5 @@
 module Refactor exposing (..)
 
--- lib
-import List.Extra as LE
-import Set
-
 -- Dark
 import Types exposing (..)
 import Util
@@ -130,46 +126,8 @@ extractFunction m tl p =
       let pred = TL.getPrevBlank tl (Just p)
                |> Maybe.map P.toID
           name = generateFnName ()
-          lets = AST.allData body
-               |> List.filterMap
-                 (\n ->
-                   case n of
-                     PExpr boe ->
-                       case B.flattenFF boe of
-                         Blank _ -> Nothing
-                         Flagged _ _ _ _ _ -> Nothing
-                         F id e as expr ->
-                           case e of
-                             Let lhs rhs body-> Just expr
-                             _ -> Nothing
-                     _ -> Nothing)
-          uses =
-            lets
-            |> List.map AST.usesOf
-            |> List.concat
-            |> List.map (B.toID >> deID)
-            |> Set.fromList
-
           freeVars =
-            AST.allData body
-            |> List.filterMap
-              (\n ->
-                case n of
-                  PExpr boe ->
-                    case B.flattenFF boe of
-                      Blank _ -> Nothing
-                      Flagged _ _ _ _ _ -> Nothing
-                      F id e ->
-                        case e of
-                          Variable name ->
-                            if Set.member (deID id) uses
-                            then Nothing
-                            else Just (id, name)
-                          _ -> Nothing
-                  _ -> Nothing)
-            |> LE.uniqueBy
-              (\(_, name) -> name)
-
+            AST.freeVariables body
           paramExprs =
             List.map (\(_, name) -> F (gid ()) (Variable name)) freeVars
           replacement =
