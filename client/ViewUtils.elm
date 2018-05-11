@@ -30,9 +30,9 @@ type alias ViewState =
   , hovering: Maybe ID
   , ac: Autocomplete
   , isHTTP: Bool
+  , showEntry : Bool
   , lvs: LVDict
   , dbLocked : Bool
-  , ffDisabled : Bool
   , ufns: List UserFunction
   , results: List AResult
   , relatedBlankOrs: List ID
@@ -65,13 +65,10 @@ createVS m tl = { tl = tl
                             _ -> if cur == i then Nothing else Just i
                         _ -> Just i)
                 , ac = m.complete
+                , showEntry = True
                 , isHTTP = TL.isHTTPHandler tl
                 , lvs = Analysis.getLiveValuesDict m tl.id
                 , dbLocked = DB.isLocked m tl.id
-                , ffDisabled =
-                  case tl.data of
-                    TLHandler _ -> False
-                    _ -> True
                 , ufns = m.userFunctions
                 , results = Analysis.getAnalysisResults m tl.id
                 , relatedBlankOrs =
