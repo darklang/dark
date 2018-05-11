@@ -210,6 +210,43 @@ test('varbinds_are_editable', async t => {
     ;
 });
 
+test('editing_does_not_deselect', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+
+    // route
+    .pressKey("tab")
+    .typeText("#entry-box", "/zane", slow)
+    .pressKey("enter")
+
+    // space
+    .typeText("#entry-box", "H")
+    .pressKey("down")
+    .pressKey("enter")
+
+    // verb
+    .typeText("#entry-box", "g")
+    .pressKey("down")
+    .pressKey("enter")
+
+    // string
+    .typeText("#entry-box", "let", slow)
+    .pressKey("enter")
+
+    .typeText("#entry-box", "msg", slow)
+    .pressKey("enter")
+
+    .typeText("#entry-box", "\"hello zane", slow)
+    .pressKey("enter")
+
+    .typeText("#entry-box", "msg", slow)
+    .pressKey("enter")
+
+    .doubleClick(".ast > .blankOr > .letrhs > .blankOr")
+    .click("#entry-box")
+});
+
 test('editing_request_edits_request', async t => {
   await t
     .pressKey("enter")
