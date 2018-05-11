@@ -179,7 +179,7 @@ let sha (input: string) ~f : string =
   |> Cstruct.of_string
   |> f
   |> Cstruct.to_string
-  |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
+  |> B64.encode ~pad:true
 
 let digest256 (input: string) : string =
   sha ~f:Nocrypto.Hash.SHA256.digest input
@@ -187,7 +187,12 @@ let digest256 (input: string) : string =
 let digest384 (input: string) : string =
   sha ~f:Nocrypto.Hash.SHA384.digest input
 
-let hash = digest384
+let hash (input:string) : string =
+  input
+  |> Cstruct.of_string
+  |> Nocrypto.Hash.SHA384.digest
+  |> Cstruct.to_string
+  |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false
 
 
 let maybe_chop_prefix ~prefix msg =
