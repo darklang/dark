@@ -36,6 +36,7 @@ trigger test_name =
     "deleting_selects_the_blank" -> deleting_selects_the_blank
     "right_number_of_blanks" -> right_number_of_blanks
     "ellen_hello_world_demo" -> ellen_hello_world_demo
+    "editing_does_not_deselect" -> editing_does_not_deselect
     "editing_headers" -> editing_headers
     "tabbing_through_let" -> tabbing_through_let
     "case_sensitivity" -> case_sensitivity
@@ -266,6 +267,16 @@ ellen_hello_world_demo m =
     , F _ "GET"
     , Value "\"Hello world!\"") ->
       pass
+    other -> fail other
+
+editing_does_not_deselect : Model -> TestResult
+editing_does_not_deselect m =
+  case m.cursorState of
+    Entering (Filling tlid id) ->
+      let pd = TL.getTL m tlid |> \tl -> TL.find tl id in
+      case pd of
+        Just (PExpr (F _ (Value "\"hello zane\""))) -> pass
+        other -> fail other
     other -> fail other
 
 editing_headers : Model -> TestResult
