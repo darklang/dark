@@ -8,6 +8,7 @@ module ViewEntry exposing (viewEntry, entryHtml)
 import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
+import List
 import String.Extra as SE
 
 -- dark
@@ -60,6 +61,14 @@ stringEntryHtml ac =
       length = value
                |> String.length
                |> max 1 -- need this to be at least 1 for the cursor to blink?
+      longestLineLength = value
+                          |> String.split "\n"
+                          |> List.map (\line ->
+                            Util.replace "\t" "        " line -- replace tabs with 8 ch for ch counting
+                            |> String.length)
+                          |> List.foldr max 1
+                          -- |> (\n -> (-) n 2)
+                          -- |> max 1
 
 
       smallInput =
@@ -88,6 +97,7 @@ stringEntryHtml ac =
                       , nothingMouseEvent "mouseclick"
                       , nothingMouseEvent "mousedown"
                       , Attrs.rows (1 + SE.countOccurrences "\n" value)
+                      , widthInCh longestLineLength
                       , Attrs.autocomplete False
                       ] []
     in
