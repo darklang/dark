@@ -819,8 +819,18 @@ body #grid * {
     right: 0;
     width: 1.5ch;
   }
+  &.big-string-entry {
+    padding-left: 0;
+    padding-right: 0;
+    &::before {
+      width: 0;
+    }
+    &::after{
+      width: 0;
+    }
+  }
   .string-container {
-    display: inline-block;
+    display: block;
     margin: 0;
     padding: 0;
     position: relative;
@@ -839,9 +849,10 @@ body #grid * {
   }
   textarea {
     color: @purple !important;
+    display: block;
     overflow: hidden;
     resize: none;
-    text-indent: 1.5ch;
+    text-indent: 1ch;
   }
   #fluidWidthSpan {
     .string-style;
