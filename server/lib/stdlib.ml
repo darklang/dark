@@ -932,10 +932,24 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "list" TList; par "val" TAny]
   ; r = TList
-  ; d = ""
+  ; d = "Add element `val` to front of list `list`"
   ; f = InProcess
         (function
           | (_, [DList l; i]) -> DList (i :: l)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["List::push_back"]
+  ; ins = []
+  ; p = [par "list" TList; par "val" TAny]
+  ; r = TList
+  ; d = "Add element `val` to back of list `list`"
+  ; f = InProcess
+        (function
+          | (_, [DList l; i]) -> DList (l @ [i])
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
