@@ -18,6 +18,6 @@ gcloud logging read \
   | sed 's/\\\\\\//g' \
   | sed 's/\\\\//g' \
   | sed 's/\\//g' \
-  | sed 's/log"/log/'
+  | sed 's/log"/log/' \
   | sed 's/"log/log/'
 
