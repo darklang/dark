@@ -130,8 +130,6 @@ extractFunction m tl p =
       let pred = TL.getPrevBlank tl (Just p)
                |> Maybe.map P.toID
           name = generateFnName ()
-          -- TODO: do actual analysis to figure out
-          -- what vars are 'free'
           lets = AST.allData body
                |> List.filterMap
                  (\n ->
