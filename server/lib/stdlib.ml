@@ -178,6 +178,21 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Object::toJSON"]
+  ; ins = []
+  ; p = [par "obj" TObj]
+  ; r = TStr
+  ; d = "Dumps `obj` to a JSON string"
+  ; f = InProcess
+        (function
+          | (_, [DObj o]) ->
+            DStr (Dval.dval_to_json_string (DObj o))
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   (* ====================================== *)
   (* Int *)
   (* ====================================== *)
