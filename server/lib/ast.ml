@@ -152,7 +152,9 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
       | Blank _ ->
-        param
+        (match param with
+         | DError _ -> DIncomplete (* dont repeat errors in threads *)
+         | _ -> param)
       | _ ->
         let _ = exe st exp in (* calculate the results inside this
                                  regardless *)
