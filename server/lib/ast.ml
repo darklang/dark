@@ -143,7 +143,12 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
          | DBlock blk -> blk [param]
          | _ -> DIncomplete)
       | Filled (id, FnCall (name, exprs)) ->
-        call name id (param :: (List.map ~f:(exe st) exprs))
+        (try
+           call name id (param :: (List.map ~f:(exe st) exprs))
+         with e ->
+           (* making the error local looks better than making the whole
+            * thread fail. *)
+           exception_to_dval ~log:true e)
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
       | Blank _ ->
