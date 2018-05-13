@@ -557,7 +557,7 @@ test('feature_flag_works', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "let")
     .pressKey("enter")
-    .pressKey("var")
+    .typeText("#entry-box", "var")
     .pressKey("enter")
     .pressKey("esc")
     .pressKey("shift+up")
@@ -583,7 +583,7 @@ test('feature_flag_works', async t => {
     .expect(Selector('todo').hasClass("selected")).eql(true)
 
     // move the slider to pick the other thing
-    .drag('.setting-slider > input', {dragOffsetX: 1000})
+    .drag('.setting-slider > input', 1000, 0)
 
     // Finish
     .click('.feature-flag .fa-check')
