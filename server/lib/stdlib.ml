@@ -604,20 +604,24 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s; DBlock fn]) ->
-            s
-            |> String.to_list
-            |> List.map ~f:(fun c -> fn [(DChar c)])
-            |> list_coerce ~f:Dval.to_char
-            >>| String.of_char_list
-            >>| (fun x -> DStr x)
-            |> Result.map_error ~f:(fun (result, example_value) ->
-                RT.error
-                  ~actual:(DList result)
-                  ~result:(DList result)
-                  ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (Dval.to_repr example_value) ^ " is a " ^ (Dval.tipename example_value))
-                  ~expected:"every value to be a char"
-                  "Foreach expects you to return chars")
-            |> Result.ok_exn
+            let result = s
+                         |> String.to_list
+                         |> List.map ~f:(fun c -> fn [(DChar c)]) in
+            if List.exists ~f:((=) DIncomplete) result
+            then DIncomplete
+            else
+              result
+              |> list_coerce ~f:Dval.to_char
+              >>| String.of_char_list
+              >>| (fun x -> DStr x)
+              |> Result.map_error ~f:(fun (result, example_value) ->
+                  RT.error
+                    ~actual:(DList result)
+                    ~result:(DList result)
+                    ~long:("String::foreach needs to get chars back in order to reassemble them into a string. The values returned by your code are not chars, for example " ^ (Dval.to_repr example_value) ^ " is a " ^ (Dval.tipename example_value))
+                    ~expected:"every value to be a char"
+                    "Foreach expects you to return chars")
+              |> Result.ok_exn
           | (_, args) -> fail args)
   ; pr = Some
         (fun dv cursor ->
