@@ -233,7 +233,7 @@ let rec to_repr ?(pp=true) ?(open_="<") ?(close_=">")
           "{ " ^ inl ^
           (String.concat ~sep:("," ^ inl) strs)
           ^ nl ^ "}"
-    | _ -> failwith "should never happen"
+    | _ -> failwith ("printing an unprintable value:" ^ to_simple_repr dv)
     in to_repr_ 0 pp dv
 
 (* For livevalue representation in the frontend *)
@@ -276,7 +276,7 @@ let rec to_url_string (dv : dval) : string =
         ~init:[]
         ~f:(fun ~key ~data l -> (key ^ ": " ^ to_url_string data) :: l) in
     "{ " ^ (String.concat ~sep:", " strs) ^ " }"
-  | _ -> failwith "should never happen"
+  | _ -> failwith "to_url_string of unurlable value"
 
 
 
