@@ -184,7 +184,7 @@ let as_literal (dv : dval) : string =
 
 let is_primitive (dv : dval) : bool =
   match dv with
-  | DInt _ | DFloat _ | DBool _ | DNull | DStr _ -> true
+  | DInt _ | DFloat _ | DBool _ | DNull | DChar _ | DStr _ -> true
   |  _ -> false
 
 let is_stringable (dv : dval) : bool =
