@@ -120,17 +120,19 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
     call_fn ~state ~ind:0 ~ctx name id fn args
     (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
-
-  (* This is a super hacky way to inject params as the result of pipelining using the `Thread` construct
-   * -- it's definitely not a good thing to be doing, for a variety of reasons.
-   *     - We dump the passed dval to json to stick it into a Value
-   *     - More generally, we're mutating the ASTs exprs to inject dvals into them
+  (* This is a super hacky way to inject params as the result of
+   * pipelining using the `Thread` construct
    *
-   * `Thread` as a separate construct in the AST as opposed to just being a function application
-   * is probably the root cause of this. Right now, we don't have function application in the language
-   * as FnCall is the AST element that actually handles interacting with the OCaml runtime to do
-   * useful work. We're going to need to make this a functional language with functions-as-values
-   * and application as a first-class concept sooner rather than later.
+   * It's definitely not a good thing to be doing, as we're mutating
+   * the ASTs exprs to inject dvals into them
+   *
+   * `Thread` as a separate construct in the AST as opposed to just
+   * being a function application is probably the root cause of this.
+   * Right now, we don't have function application in the language as
+   * FnCall is the AST element that actually handles interacting with
+   * the OCaml runtime to do useful work. We're going to need to make
+   * this a functional language with functions-as-values and application
+   * as a first-class concept sooner rather than later.
    *)
   let inject_param_and_execute (st: symtable) (param: dval) (exp: expr) : dval =
     let result =
