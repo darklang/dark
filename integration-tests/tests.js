@@ -590,4 +590,14 @@ test('feature_flag_works', async t => {
 
 });
 
+test('simple_tab_ordering', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "let")
+    .pressKey("enter")
+    .pressKey("tab")
+    .pressKey("4")
+    .pressKey("enter")
+});
+
 
