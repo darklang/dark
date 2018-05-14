@@ -65,15 +65,15 @@ let rec tipe_of_string str : tipe =
   | "date" -> TDate
   | "title" -> TTitle
   | "url" -> TUrl
-  | other ->
-    if String.is_prefix other "["  && String.is_suffix other "]"
+  | _ -> (* otherwise *)
+    if String.is_prefix str "["  && String.is_suffix str "]"
     then
-      other
+      str
       |> fun s -> String.drop_prefix s 1
       |> fun s -> String.drop_suffix s 1
       |> parse_list_tipe
     else
-      TBelongsTo other
+      TBelongsTo str
 and parse_list_tipe (list_tipe : string) : tipe =
   match list_tipe with
   | "str" -> TDbList TStr
