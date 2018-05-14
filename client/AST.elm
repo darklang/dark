@@ -23,7 +23,7 @@ traverse fn expr =
   case expr of
     Blank _ -> expr
     Flagged id msg setting l r ->
-      Flagged id msg setting (traverse fn l) (traverse fn r)
+      Flagged id msg setting (fn l) (fn r)
     F id nexpr ->
       F id
         (case nexpr of
