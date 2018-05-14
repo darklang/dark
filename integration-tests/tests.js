@@ -580,7 +580,7 @@ test('feature_flag_works', async t => {
     .pressKey("enter")
 
     // should be selecting the last v now.
-    .expect(Selector('todo').hasClass("selected")).eql(true)
+    .expect(Selector('.flag-right .letbody .blankOr').hasClass("selected")).eql(true)
 
     // move the slider to pick the other thing
     .drag('.setting-slider > input', 1000, 0)
