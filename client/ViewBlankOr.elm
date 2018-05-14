@@ -352,6 +352,15 @@ viewBlankOr htmlFn isWithinFn pt vs c bo =
         , eventNoPropagation "click" (\_ -> EndFeatureFlag ffID)]
         [ fontAwesome icon ]
 
+      redFlag id =
+        Html.div
+          [ eventNoPropagation "click" (BlankOrClick vs.tlid id)
+          , eventNoPropagation "mousedown" (BlankOrClick vs.tlid id)
+          , eventNoPropagation "mouseup" (BlankOrClick vs.tlid id)
+          ]
+          [fontAwesome "flag"]
+
+
       drawFlagged id msg setting l r =
          if isSelectionWithin (Flagged id msg setting l r)
          then
@@ -370,7 +379,7 @@ viewBlankOr htmlFn isWithinFn pt vs c bo =
         else
           Html.div
             [Attrs.class "flagged hidden"]
-            (drawInFlag id (B.flattenFF bo) ++ [fontAwesome "flag"])
+            (drawInFlag id (B.flattenFF bo) ++ [redFlag id])
 
 
 
