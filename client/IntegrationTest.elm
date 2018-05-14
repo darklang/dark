@@ -50,6 +50,7 @@ trigger test_name =
     "paste_keeps_focus" -> paste_keeps_focus
     "nochange_for_failed_paste" -> nochange_for_failed_paste
     "feature_flag_works" -> feature_flag_works
+    "simple_tab_ordering" -> simple_tab_ordering
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -488,4 +489,22 @@ feature_flag_works m =
                else fail (ast, m.cursorState, id)
              _ -> fail (ast, m.cursorState, id)
     _ -> fail (ast, m.cursorState)
+
+simple_tab_ordering : Model -> TestResult
+simple_tab_ordering m =
+  let ast = onlyHandler m |> .ast in
+  case ast of
+    F _
+      (Let
+         (Blank _)
+         (F _ (Value "4"))
+         (Blank id)) ->
+           case m.cursorState of
+             Entering (Filling _ sid) ->
+               if id == sid
+               then pass
+               else fail (ast, m.cursorState, id)
+             _ -> fail (ast, m.cursorState, id)
+    _ -> fail (ast, m.cursorState)
+
 
