@@ -124,42 +124,52 @@ let run_sql_in_ns ?(quiet=false) ~host sql =
   let sql = in_ns ~host sql in
   run_sql ~quiet sql
 
-
-
 let create_namespace host : unit =
   Printf.sprintf
     "CREATE SCHEMA IF NOT EXISTS \"%s\""
     (ns_name host)
   |> run_sql
 
-
-
-
-
 (* ------------------------- *)
 (* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
 (* ------------------------- *)
-let rec dval_to_sql ?quote:(quote="'") (dv: dval) : string =
+let rec cast_expression_for (dv : dval) : string option =
   match dv with
-  | DInt i -> string_of_int i
-  | DID i -> quote ^ Uuid.to_string i ^ quote ^ "::uuid" (* needs a cast *)
-  | DBool b -> if b then "TRUE" else "FALSE"
-  | DChar c -> Char.to_string c
-  | DStr s -> quote ^ (escape s) ^ quote
-  | DFloat f -> string_of_float f
-  | DNull -> "NULL"
-  | DDate d ->
-    "TIMESTAMP WITH TIME ZONE "
-    ^ quote
-    ^ Dval.sqlstring_of_date d
-    ^ quote
+  | DID _ -> Some "uuid"
   | DList l ->
-    quote
-    ^ "{ "
-    ^ (String.concat ~sep:", " (List.map ~f:(dval_to_sql ~quote:"\"") l))
-    ^ " }"
-    ^ quote
-  | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
+    l
+    |> List.filter_map ~f:cast_expression_for
+    |> List.hd
+    |> Option.map ~f:(fun cast -> cast ^ "[]")
+  | _ -> None
+
+let rec dval_to_sql ?quote:(quote="'") ?cast:(cast=true) (dv: dval) : string =
+  let literal =
+    match dv with
+    | DInt i -> string_of_int i
+    | DID i ->
+      quote ^ Uuid.to_string i ^ quote
+    | DBool b -> if b then "TRUE" else "FALSE"
+    | DChar c -> Char.to_string c
+    | DStr s -> quote ^ (escape s) ^ quote
+    | DFloat f -> string_of_float f
+    | DNull -> "NULL"
+    | DDate d ->
+      "TIMESTAMP WITH TIME ZONE "
+      ^ quote
+      ^ Dval.sqlstring_of_date d
+      ^ quote
+    | DList l ->
+      quote
+      ^ "{ "
+      ^ (String.concat ~sep:", " (List.map ~f:(dval_to_sql ~quote:"\"" ~cast:false) l))
+      ^ " }"
+      ^ quote
+    | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
+  in
+  match cast_expression_for dv with
+  | Some e when cast = true -> literal ^ "::" ^ e
+  | _ ->  literal
 
 let escape_col (keyname: string) : string =
   keyname
