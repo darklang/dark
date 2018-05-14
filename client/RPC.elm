@@ -614,7 +614,7 @@ decodeTipe =
       ,("TTitle", dv0 TTitle)
       ,("TUrl", dv0 TUrl)
       ,("TBelongsTo", dv1 TBelongsTo JSD.string)
-      ,("THasMany", dv1 TBelongsTo JSD.string)
+      ,("THasMany", dv1 THasMany JSD.string)
       ,("TDbList", dv1 TDbList (JSD.lazy (\_ -> decodeTipe)))
       ]
 
