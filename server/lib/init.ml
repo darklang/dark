@@ -17,6 +17,7 @@ let init () =
 
     (* Dark-specific stuff *)
     Migrations.init ();
+    User.init ();
     Serialize.write_shape_data ();
 
     Log.infO "SYSTEM" "Initialization Complete";

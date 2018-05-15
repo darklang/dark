@@ -9,3 +9,5 @@ val password : t -> string
 
 val all_for_host : host -> t list
 val for_username : string -> t option
+
+val init : unit -> unit
