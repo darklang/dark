@@ -36,67 +36,6 @@ let migrations =
       , data BYTEA
       , PRIMARY KEY (host, digest))"
 
-  (* type for queue state *)
-    (* there's no CREATE TYPE IF NOT EXISTS :/ *)
-  ; `Global
-    "DO $$
-       BEGIN
-         IF NOT EXISTS
-           (SELECT 1 FROM pg_type WHERE typname = 'queue_status')
-         THEN
-           CREATE TYPE queue_status AS
-             ENUM ('new', 'locked', 'done', 'error');
-         END IF;
-       END$$;"
-
-  (* queue table *)
-  (* ensure_queue_table_exists *)
-  ; `Global
-    "CREATE TABLE IF NOT EXISTS
-      \"events\"
-      (id SERIAL PRIMARY KEY
-      , status queue_status
-      , dequeued_by INT
-      , canvas TEXT NOT NULL
-      , space TEXT NOT NULL
-      , name TEXT NOT NULL
-      , value TEXT NOT NULL)"
-
-
-  (* queue index *)
-  ; `Global
-    "CREATE INDEX IF NOT EXISTS
-       \"idx_dequeue\"
-       ON \"events\"
-       (space, name, canvas, status, id)"
-
-
-  (* queue cleanup index *)
-  ; `Global
-    "CREATE INDEX IF NOT EXISTS \"idx_cleanup\"
-      ON \"events\"
-      (dequeued_by)"
-
-
-  (* event retries *)
-  ; `Global
-    "ALTER TABLE \"events\"
-      ADD COLUMN IF NOT EXISTS
-        retries INTEGER DEFAULT 0 NOT NULL"
-
-
-  (* event flag_context *)
-  ; `Global
-    "ALTER TABLE \"events\"
-        ADD COLUMN IF NOT EXISTS
-          flag_context TEXT DEFAULT '' NOT NULL"
-
-
-  (* event delays *)
-  ; `Global
-    "ALTER TABLE \"events\"
-       ADD COLUMN IF NOT EXISTS
-         delay_until TIMESTAMP"
 
   ; `EachCanvasRaw
       "CREATE SCHEMA IF NOT EXISTS \"{NS}\""
@@ -199,14 +138,135 @@ let migrations =
     "ALTER TABLE \"events\"
        DROP COLUMN IF EXISTS \"canvas\""
 
-  (* moved to namespaces, cascade to clear the indexes *)
-  ; `Global
-    "DROP TABLE IF EXISTS \"events\" CASCADE"
-
   (* moved to namespaces *)
   ; `Global
     "DROP TABLE IF EXISTS \"migrations\" CASCADE"
-  ]
+
+  (* timestamp triggers *)
+  ; `Global
+    "CREATE OR REPLACE FUNCTION trigger_set_timestamp()
+     RETURNS TRIGGER AS $$
+     BEGIN
+       NEW.updated_at = NOW();
+       RETURN NEW;
+     END;
+     $$ LANGUAGE plpgsql;"
+
+  (* users *)
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
+     users
+     ( id UUID PRIMARY KEY
+     , username VARCHAR(255) NOT NULL
+     , name VARCHAR(255) NOT NULL
+     , email VARCHAR(255) NOT NULL
+     , password VARCHAR(255) NOT NULL
+     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
+     , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
+
+  ; `Global
+    "DROP TRIGGER IF EXISTS set_user_timestamp
+     ON users;
+     CREATE TRIGGER set_user_timestamp
+     BEFORE UPDATE ON users
+     FOR EACH ROW
+     EXECUTE PROCEDURE trigger_set_timestamp();"
+
+  (* orgs *)
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
+     orgs
+     ( id UUID PRIMARY KEY
+     , name VARCHAR(255) NOT NULL
+     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
+     , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
+
+  ; `Global
+    "DROP TRIGGER IF EXISTS set_org_timestamp
+     ON orgs;
+     CREATE TRIGGER set_org_timestamp
+     BEFORE UPDATE ON orgs
+     FOR EACH ROW
+     EXECUTE PROCEDURE trigger_set_timestamp();"
+
+  (* memberships *)
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
+     org_memberships
+     ( user_id UUID REFERENCES users(id)
+     , org_id UUID REFERENCES orgs(id)
+     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
+     , updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+     , PRIMARY KEY (user_id, org_id))"
+
+  ; `Global
+    "DROP TRIGGER IF EXISTS set_org_membership_timestamp
+     ON org_memberships;
+     CREATE TRIGGER set_org_membership_timestamp
+     BEFORE UPDATE ON org_memberships
+     FOR EACH ROW
+     EXECUTE PROCEDURE trigger_set_timestamp();"
+
+   ; `Global
+   "CREATE TABLE IF NOT EXISTS
+    canvases
+    ( id UUID PRIMARY KEY
+    , org_id UUID REFERENCES orgs(id) NOT NULL
+    , name VARCHAR(40) NOT NULL
+    , created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
+
+  ; `Global
+    "DROP TRIGGER IF EXISTS set_canvas_timestamp
+     ON canvases;
+     CREATE TRIGGER set_canvas_timestamp
+     BEFORE UPDATE ON canvases
+     FOR EACH ROW
+     EXECUTE PROCEDURE trigger_set_timestamp();"
+
+  (* events *)
+  ; `Global
+    "DO $$
+       BEGIN
+         IF NOT EXISTS
+           (SELECT 1 FROM pg_type WHERE typname = 'queue_status')
+         THEN
+           CREATE TYPE queue_status AS
+             ENUM ('new', 'locked', 'done', 'error');
+         END IF;
+       END$$;"
+
+  ; `Global
+    "CREATE TABLE IF NOT EXISTS
+     events
+     (id SERIAL PRIMARY KEY
+     , status queue_status NOT NULL
+     , dequeued_by INT
+     , canvas_id UUID REFERENCES canvases(id) NOT NULL
+     , org_id UUID REFERENCES orgs(id) NOT NULL
+     , space TEXT NOT NULL
+     , name TEXT NOT NULL
+     , value TEXT NOT NULL
+     , retries INTEGER DEFAULT 0 NOT NULL
+     , flag_context TEXT DEFAULT '' NOT NULL
+     , delay_until TIMESTAMP NOT NULL DEFAULT NOW()
+     )"
+
+  (* queue index *)
+  ; `Global
+    "CREATE INDEX IF NOT EXISTS
+       idx_dequeue
+       ON events
+       (org_id, canvas_id, space, name, status, delay_until, id)"
+
+
+  (* queue cleanup index *)
+  ; `Global
+    "CREATE INDEX IF NOT EXISTS idx_cleanup
+     ON events
+     (dequeued_by, status)"
+
+   ]
 
 let migrate_canvas (template: string) (host: string) =
   template
