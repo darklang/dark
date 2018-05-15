@@ -1,25 +1,17 @@
 open Core
 open Types
 
-type t = { username: string
-         ; host: host
-         ; password: string
-         }
+type username = string
 
-type t2 = { username: string
-          ; password: string
-          ; email : string
-          ; name : string
-          }
+type user = { username: string
+            ; password: string
+            ; email: string
+            ; name: string
+            }
 
-let username (user:t) = user.username
-let host (user:t) = user.host
-let password (user:t) = user.password
-
-let construct ~username ~host ~password : t =
-  { username; host; password }
-
-
+(************************)
+(* Adding *)
+(************************)
 let save_org (org: string) : unit =
   Printf.sprintf
     "INSERT INTO orgs
@@ -29,10 +21,10 @@ let save_org (org: string) : unit =
     ON CONFLICT (name) DO NOTHING
     "
     (Uuid.create () |> Uuid.to_string)
-    org
+    (Db.escape (String.lowercase org))
   |> Db.run_sql
 
-let upsert_user (user:t2) : unit =
+let upsert_user (user:user) : unit =
   Printf.sprintf
     "INSERT INTO users
     (id, username, name, email, admin, password)
@@ -44,13 +36,13 @@ let upsert_user (user:t2) : unit =
                   admin = false,
                   password = EXCLUDED.password"
     (Uuid.create () |> Uuid.to_string)
-    user.username
-    user.name
-    user.email
-    user.password
+    (Db.escape user.username)
+    (Db.escape user.name)
+    (Db.escape user.email)
+    (Db.escape user.password)
   |> Db.run_sql
 
-let upsert_admin (user:t2) : unit =
+let upsert_admin (user:user) : unit =
   Printf.sprintf
     "INSERT INTO users as u
     (id, username, name, email, admin, password)
@@ -62,10 +54,10 @@ let upsert_admin (user:t2) : unit =
                   admin = true,
                   password = EXCLUDED.password"
     (Uuid.create () |> Uuid.to_string)
-    user.username
-    user.name
-    user.email
-    user.password
+    (Db.escape user.username)
+    (Db.escape user.name)
+    (Db.escape user.email)
+    (Db.escape user.password)
   |> Db.run_sql
 
 let upsert_org_membership (user:string) (org:string) : unit =
@@ -76,36 +68,48 @@ let upsert_org_membership (user:string) (org:string) : unit =
       ( (select id from users where username = '%s')
       , (select id from orgs where name = '%s'))
     ON CONFLICT DO NOTHING"
-    user
-    org
+    (Db.escape user)
+    (Db.escape org)
   |> Db.run_sql
 
 
-let users =
-  (* employees *)
-  [["ian"; "admin"; "look"; "ian@darklang.com"; "Ian Connolly"]
-  ;["paul";"admin"; "what"; "paul@darklang.com"; "Paul Biggar"]
-  ;["ellen"; "admin"; "you"; "ellen@darklang.com"; "Ellen Chisa"]
-  ;["stefi"; "admin"; "made"; "stefi@darklang.com"; "Stefi Petit"]
-  ;["zane"; "admin"; "me do"; "zane@darklang.com"; "Zane Shannon"]
-  ;["tests"; "admin"; "fVm2CUePzGKCwoEQQdNJktUQ"; "ops@darklang.com"; "Test Account"]
-  ;["daniel"; "dabblefox"; "alk92''[ponvhi4"; "daniel@dabblefox.com"; "Daniel Clayson"]
-  ;["lee"; "lee"; "klma923wels92l{]as]"; "lee@ledwards.com"; "Lee Edwards"]
-  ;["alexey"; "alexey"; "sd][3[mlvkm9034j09"; "me@alexey.ch"; "Alexey Klochay"]
-  ;["steve"; "steve"; "';si83n']\\spr,3idk"; "steveykrouse@gmail.com"; "Steve Krouse"]
-  ;["tom"; "tom"; "ksef[1=s;'dier]2"; "tmrudick@gmail.com"; "Tom Rudick"]
+(************************)
+(* Check access *)
+(************************)
 
-  ]
-  |> List.map
-       ~f:(function
-        | [username; host; password; _email; _name] -> construct ~username ~host ~password
-        | _ -> failwith "Needs to be an array of length 3")
+let has_access ~host ~(username:username) : bool =
+  Printf.sprintf
+    "SELECT 1 from users, orgs, org_memberships, canvases
+      WHERE users.username = '%s'
+        AND
+          (canvases.name = '%s'
+           AND orgs.id = org_memberships.org_id
+           AND canvases.org_id = orgs.id
+           AND users.id = org_memberships.user_id)
+        OR users.admin = true
+        "
+    (Db.escape username)
+    (Db.escape (String.lowercase host))
+  |> Db.truth_via_sql ~quiet:false
 
-let all_for_host host =
-  List.filter ~f:(fun u -> String.Caseless.equal u.host host) users
 
-let for_username username =
-  List.find ~f:(fun u -> u.username = username) users
+let authenticate ~(host:string) ~(username:username) ~(password:string) : bool =
+  Printf.sprintf
+    "SELECT 1 from users, orgs, org_memberships, canvases
+      WHERE users.username = '%s'
+        AND users.password = '%s'
+        AND
+          (canvases.name = '%s'
+           AND orgs.id = org_memberships.org_id
+           AND canvases.org_id = orgs.id
+           AND users.id = org_memberships.user_id)
+        OR users.admin = true
+        "
+    (Db.escape username)
+    (Db.escape password)
+    (Db.escape (String.lowercase host))
+  |> Db.truth_via_sql ~quiet:false
+
 
 let init () : unit =
   save_org "dabblefox";

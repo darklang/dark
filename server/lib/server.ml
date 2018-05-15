@@ -260,13 +260,10 @@ let auth_then_handle req subdomain handler =
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
         S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
       else
-        (match Auth.Session.user_for session with
-         | Some user ->
-           if Auth.has_access ~host:auth_domain ~user
-           then handler (Header.init ())
-           else respond `Unauthorized "Unauthorized"
-         | None ->
-           respond `Unauthorized "Invalid Session")
+        (let username = Auth.Session.username_for session in
+         if User.has_access ~host:auth_domain ~username
+         then handler (Header.init ())
+         else respond `Unauthorized "Unauthorized")
     | _ ->
       let auth =
         req
@@ -274,14 +271,14 @@ let auth_then_handle req subdomain handler =
         |> Header.get_authorization
       in
       match auth with
-      | (Some (`Basic (user, pass))) ->
-        (match Auth.authenticate ~host:auth_domain ~username:user ~password:pass with
-         | Some user ->
-           Auth.Session.new_for_user user >>=
+      | (Some (`Basic (username, password))) ->
+        (if User.authenticate ~host:auth_domain ~username ~password
+         then
+           Auth.Session.new_for_username username >>=
            (fun session ->
               let headers = Header.of_list (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session) in
               handler headers)
-         | None ->
+         else
           respond `Unauthorized "Bad credentials")
       | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
@@ -396,7 +393,13 @@ let server () =
     (* This seems like it should be moved closer to the admin handler,
      * but don't do that - that makes Lwt swallow our exceptions. *)
     | Some host ->
-      auth_then_handle req host handler
+      (try
+         auth_then_handle req host handler
+       with
+       | Postgresql.Error e ->
+         Log.pP ("Postgres error: " ^ Postgresql.string_of_error e) e;
+         respond `Internal_server_error ""
+       | e -> respond `Internal_server_error "")
     | None ->
       respond `Not_found "Not found"
   in
