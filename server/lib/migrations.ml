@@ -157,9 +157,10 @@ let migrations =
     "CREATE TABLE IF NOT EXISTS
      users
      ( id UUID PRIMARY KEY
-     , username VARCHAR(255) NOT NULL
+     , username VARCHAR(255) UNIQUE NOT NULL
      , name VARCHAR(255) NOT NULL
      , email VARCHAR(255) NOT NULL
+     , admin BOOL NOT NULL DEFAULT FALSE
      , password VARCHAR(255) NOT NULL
      , created_at TIMESTAMP NOT NULL DEFAULT NOW()
      , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
@@ -177,7 +178,7 @@ let migrations =
     "CREATE TABLE IF NOT EXISTS
      orgs
      ( id UUID PRIMARY KEY
-     , name VARCHAR(255) NOT NULL
+     , name VARCHAR(255) UNIQUE NOT NULL
      , created_at TIMESTAMP NOT NULL DEFAULT NOW()
      , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
 
@@ -212,7 +213,7 @@ let migrations =
     canvases
     ( id UUID PRIMARY KEY
     , org_id UUID REFERENCES orgs(id) NOT NULL
-    , name VARCHAR(40) NOT NULL
+    , name VARCHAR(40) UNIQUE NOT NULL
     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
     , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
 
