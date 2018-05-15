@@ -1,13 +1,9 @@
 open Core
 open Types
 
-type t
+type username = string
 
-val username : t -> string
-val host : t -> host
-val password : t -> string
-
-val all_for_host : host -> t list
-val for_username : string -> t option
+val authenticate : host:host -> username:username -> password:string -> bool
+val has_access : host:host -> username:username  -> bool
 
 val init : unit -> unit
