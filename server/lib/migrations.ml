@@ -155,7 +155,7 @@ let migrations =
   (* users *)
   ; `Global
     "CREATE TABLE IF NOT EXISTS
-     users
+     accounts
      ( id UUID PRIMARY KEY
      , username VARCHAR(255) UNIQUE NOT NULL
      , name VARCHAR(255) NOT NULL
@@ -166,53 +166,19 @@ let migrations =
      , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
 
   ; `Global
-    "DROP TRIGGER IF EXISTS set_user_timestamp
-     ON users;
-     CREATE TRIGGER set_user_timestamp
-     BEFORE UPDATE ON users
+    "DROP TRIGGER IF EXISTS set_account_timestamp
+     ON accounts;
+     CREATE TRIGGER set_account_timestamp
+     BEFORE UPDATE ON accounts
      FOR EACH ROW
      EXECUTE PROCEDURE trigger_set_timestamp();"
 
-  (* orgs *)
-  ; `Global
-    "CREATE TABLE IF NOT EXISTS
-     orgs
-     ( id UUID PRIMARY KEY
-     , name VARCHAR(255) UNIQUE NOT NULL
-     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
-     , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
-
-  ; `Global
-    "DROP TRIGGER IF EXISTS set_org_timestamp
-     ON orgs;
-     CREATE TRIGGER set_org_timestamp
-     BEFORE UPDATE ON orgs
-     FOR EACH ROW
-     EXECUTE PROCEDURE trigger_set_timestamp();"
-
-  (* memberships *)
-  ; `Global
-    "CREATE TABLE IF NOT EXISTS
-     org_memberships
-     ( user_id UUID REFERENCES users(id)
-     , org_id UUID REFERENCES orgs(id)
-     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
-     , updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-     , PRIMARY KEY (user_id, org_id))"
-
-  ; `Global
-    "DROP TRIGGER IF EXISTS set_org_membership_timestamp
-     ON org_memberships;
-     CREATE TRIGGER set_org_membership_timestamp
-     BEFORE UPDATE ON org_memberships
-     FOR EACH ROW
-     EXECUTE PROCEDURE trigger_set_timestamp();"
-
+  (* canvas *)
    ; `Global
    "CREATE TABLE IF NOT EXISTS
     canvases
     ( id UUID PRIMARY KEY
-    , org_id UUID REFERENCES orgs(id) NOT NULL
+    , account_id UUID REFERENCES accounts(id) NOT NULL
     , name VARCHAR(40) UNIQUE NOT NULL
     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
     , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
@@ -244,7 +210,7 @@ let migrations =
      , status queue_status NOT NULL
      , dequeued_by INT
      , canvas_id UUID REFERENCES canvases(id) NOT NULL
-     , org_id UUID REFERENCES orgs(id) NOT NULL
+     , account_id UUID REFERENCES accounts(id) NOT NULL
      , space TEXT NOT NULL
      , name TEXT NOT NULL
      , value TEXT NOT NULL
@@ -253,19 +219,19 @@ let migrations =
      , delay_until TIMESTAMP NOT NULL DEFAULT NOW()
      )"
 
+  (* queue cleanup index *)
+  ; `Global
+    "CREATE INDEX IF NOT EXISTS
+     idx_cleanup
+     ON events
+     (dequeued_by, status)"
+
   (* queue index *)
   ; `Global
     "CREATE INDEX IF NOT EXISTS
-       idx_dequeue
-       ON events
-       (org_id, canvas_id, space, name, status, delay_until, id)"
-
-
-  (* queue cleanup index *)
-  ; `Global
-    "CREATE INDEX IF NOT EXISTS idx_cleanup
+     idx_dequeue
      ON events
-     (dequeued_by, status)"
+     (account_id, canvas_id, space, name, status, delay_until, id)"
 
    ]
 
