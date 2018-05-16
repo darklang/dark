@@ -55,11 +55,11 @@ saveTestRPC =
 
 emptyParams : RPCParams
 emptyParams =
-  { ops = [], executableFns = []}
+  { ops = [], executableFns = [], target = Nothing }
 
 opsParams : List Op -> RPCParams
 opsParams ops =
-  { ops = ops, executableFns = []}
+  { ops = ops, executableFns = [], target = Nothing }
 
 integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
