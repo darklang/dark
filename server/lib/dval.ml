@@ -50,6 +50,7 @@ let rec tipe_of_string str : tipe =
   | "integer" -> TInt
   | "float" -> TFloat
   | "bool" -> TBool
+  | "boolean" -> TBool
   | "nothing" -> TNull
   | "char" -> TChar
   | "str" -> TStr

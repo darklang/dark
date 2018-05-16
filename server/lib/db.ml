@@ -214,6 +214,11 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
   | TTitle -> sql |> DTitle
   | TUrl -> sql |> DUrl
   | TStr -> sql |> DStr
+  | TBool ->
+    (match sql with
+    | "f" -> DBool false
+    | "t" -> DBool true
+    | b -> failwith ("bool should be true or false: " ^ b))
   | TDate ->
     DDate (if sql = ""
            then Time.epoch
