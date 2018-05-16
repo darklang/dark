@@ -6,7 +6,6 @@ module Defaults exposing (..)
 -- dark
 import Types exposing (..)
 import PageVisibility
-import Autocomplete
 
 
 entryID : String
@@ -15,8 +14,11 @@ leftButton : Int
 leftButton = 0
 
 -- UI
-initialPos : VPos
-initialPos = {vx=475, vy=325}
+initialVPos : VPos
+initialVPos = {vx=475, vy=325}
+
+initialPos : Pos
+initialPos = {x=475, y=325}
 
 moveSize : Int
 moveSize = 50
@@ -46,11 +48,18 @@ defaultModel : Model
 defaultModel = { error = Nothing
                , lastMsg = Initialization
                , lastMod = NoChange
-               , center = {x=initialPos.vx, y=initialPos.vy}
-               , complete = Autocomplete.empty
+               -- this is awkward, but avoids circular deps
+               , complete = { functions = []
+                            , completions = [[],[],[],[]]
+                            , allCompletions = []
+                            , index = -1
+                            , value = ""
+                            , tipe = Nothing
+                            , target = Nothing
+                            }
                , userFunctions = []
                , builtInFunctions = []
-               , currentPage = Toplevels
+               , currentPage = Toplevels initialPos
                , hovering = []
                , tests = []
                , toplevels = []

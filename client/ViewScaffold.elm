@@ -11,6 +11,7 @@ import Json.Decode as JSD
 import Types exposing (..)
 import ViewUtils exposing (..)
 import JSON
+import Url
 
 
 
@@ -37,12 +38,10 @@ viewButtons m =
       returnButton =
         case m.currentPage of
           Fn _ ->
-            [ Html.a
-            [ eventNoPropagation "mouseup" (\_ -> ReturnToMainCanvas)
-            , Attrs.src ""
-            , Attrs.class "specialButton"]
-            [ Html.text "Return to Canvas"]
-            ]
+            [Url.linkFor
+              (Toplevels m.urlState.lastPos)
+              "specialButton"
+              [ Html.text "Return to Canvas"]]
           _ -> []
 
   in
@@ -65,7 +64,7 @@ viewButtons m =
           (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
     , Html.span
       [ Attrs.class "specialButton"]
-      [Html.text (toString m.center)]
+      [Html.text (toString m.currentPage)]
     , Html.span
       [ Attrs.class "specialButton"]
       [Html.text ("Active tests: " ++ toString m.tests)]

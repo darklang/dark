@@ -128,7 +128,6 @@ type Msg
     | ToggleTimers
     | ExecuteFunctionButton TLID ID
     | Initialization
-    | NavigateTo String
     | CreateHandlerFrom404 FourOhFour
     | WindowResize Int Int
     | TimerFire TimerAction Time
@@ -137,8 +136,6 @@ type Msg
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
     | EndFeatureFlag ID
-    | EditFunction
-    | ReturnToMainCanvas
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
     | BlankOrMouseEnter TLID ID MouseEvent
@@ -153,7 +150,7 @@ type alias Successor = Maybe PointerData
 type Focus = FocusNothing -- deselect
            | FocusExact TLID ID
            | FocusNext TLID (Maybe ID)
-           | FocusPageAndCursor CurrentPage CursorState
+           | FocusPageAndCursor Page CursorState
            | FocusSame -- unchanged
            | FocusNoChange -- unchanged
 
@@ -375,8 +372,8 @@ type alias FourOhFour = (String, String, String, List JSD.Value)
 
 
 type alias Name = String
-type CurrentPage = Toplevels
-                 | Fn TLID
+type Page = Toplevels Pos
+          | Fn TLID
 
 -----------------------------
 -- Model
@@ -391,8 +388,7 @@ type alias SyncState = { inFlight : Bool
 type alias UrlState = { lastPos : Pos
                       }
 
-type alias Model = { center : Pos
-                   , error : Maybe String
+type alias Model = { error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
                    , tests : List VariantTest
@@ -400,7 +396,7 @@ type alias Model = { center : Pos
                    , userFunctions : List UserFunction
                    , builtInFunctions : List Function
                    , cursorState : CursorState
-                   , currentPage : CurrentPage
+                   , currentPage : Page
                    , hovering : List ID
                    , toplevels : List Toplevel
                    , analysis : List TLAResult
@@ -454,7 +450,6 @@ type Modification = Error String
                   | RPCFull (RPCParams, Focus)
                   | RPC (List Op, Focus) -- shortcut for RPCFull
                   | GetAnalysisRPC
-                  | SetCenter Pos
                   | NoChange
                   | MakeCmd (Cmd Msg)
                   | AutocompleteMod AutocompleteMod
@@ -463,7 +458,7 @@ type Modification = Error String
                   | TriggerIntegrationTest String
                   | EndIntegrationTest
                   | SetCursorState CursorState
-                  | SetCurrentPage CurrentPage
+                  | SetPage Page
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   -- designed for one-off small changes
@@ -529,10 +524,4 @@ type alias FlagFunction = { name: String
                           , infix: Bool
                           }
 
------------------------------
--- URL Fragments
------------------------------
 
-type alias UrlFragmentData = { center: Maybe Pos
-                             , editedFn : Maybe TLID
-                             }

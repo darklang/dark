@@ -17,6 +17,7 @@ import Blank as B
 import Toplevel
 import ViewUtils exposing (..)
 import SpecHeaders
+import Url
 
 
 
@@ -169,8 +170,7 @@ viewGroup m (spacename, entries) =
       verbs e =
         e.verbs
         |> List.map
-          (\(verb, pos) ->
-            link (Html.text verb) (NavigateTo (Viewport.urlForPos pos)))
+          (\(verb, pos) -> newLink pos verb)
         |> List.intersperse (Html.text ",")
       entryHtml e =
         div "handler" [ div "name"
@@ -227,14 +227,24 @@ section name entries routes =
       [ Attrs.class "routing-section"]
       [ header name entries, routes]
 
+linkClass : String
+linkClass = "verb-link as-pointer"
+
 link : Html.Html Msg -> Msg -> Html.Html Msg
 link content handler =
   Html.a
     [ eventNoPropagation "mouseup" (\_ -> handler)
-    , Attrs.src ""
-    , Attrs.class "verb-link as-pointer"
+    , Attrs.href ""
+    , Attrs.class linkClass
     ]
     [ content ]
+
+newLink : Pos -> String -> Html.Html Msg
+newLink pos name =
+  Url.linkFor
+    (Toplevels pos)
+    linkClass
+    [Html.text name]
 
 view404s : Model -> Html.Html Msg
 view404s m =
@@ -256,12 +266,10 @@ viewDBs m =
   let dbs = m.toplevels
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
-      thelink (pos, db) =
-        link (Html.text db.name) (NavigateTo (Viewport.urlForPos pos))
 
       dbHtml (pos, db) =
         div "db-route"
-          [ span "name" [thelink (pos, db)] ]
+          [ span "name" [newLink pos db.name]]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs routes

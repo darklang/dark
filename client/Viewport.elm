@@ -1,20 +1,29 @@
 module Viewport exposing (..)
 
-import Navigation
-
 -- dark
 import Defaults
 import Types exposing (..)
 
 toViewport : Model -> Pos -> VPos
 toViewport m pos =
-  let d = Defaults.defaultModel |> .center in
-  { vx = d.x + pos.x - m.center.x, vy = d.y + pos.y - m.center.y}
+  let (default, center) =
+        case (Defaults.defaultModel |> .currentPage, m.currentPage) of
+          (Toplevels d, Toplevels c) -> (d,c)
+          _ -> ({x=0,y=0}, {x=0,y=0})
+  in
+  { vx = default.x + pos.x - center.x
+  , vy = default.y + pos.y - center.y}
 
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
-  let d = Defaults.defaultModel |> .center in
-  { x = pos.vx + m.center.x - d.x, y = pos.vy + m.center.y - d.y}
+  let (default, center) =
+        case (Defaults.defaultModel |> .currentPage, m.currentPage) of
+          (Toplevels d, Toplevels c) -> (d,c)
+          _ -> ({x=0,y=0}, {x=0,y=0})
+  in
+  { x = pos.vx + center.x - default.x
+  , y = pos.vy + center.y - default.y}
+
 
 pageUp : Pos -> Modification
 pageUp c =
@@ -54,23 +63,7 @@ moveRight c =
 
 moveTo : Pos -> Modification
 moveTo pos =
-  SetCenter pos
+  SetPage (Toplevels pos)
 
 
-maybeUpdateUrl : Model -> Modification
-maybeUpdateUrl m =
-  if m.urlState.lastPos /= m.center
-  then
-    Many [ TweakModel (\m -> { m | urlState = {lastPos = m.center}})
-         , MakeCmd (Navigation.modifyUrl (urlForPos m.center))
-         ]
-  else
-    NoChange
 
-urlForPos : Pos -> String
-urlForPos pos =
-  "/admin/ui#" ++ hashForPos pos
-
-hashForPos : Pos -> String
-hashForPos pos =
-  "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y

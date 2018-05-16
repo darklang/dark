@@ -53,7 +53,7 @@ viewCanvas m =
     let entry = ViewEntry.viewEntry m
         asts =
           case m.currentPage of
-            Toplevels -> List.map (viewTL m) m.toplevels
+            Toplevels _ -> List.map (viewTL m) m.toplevels
             Fn tlid ->
               case LE.find (\f -> f.tlid == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
@@ -62,11 +62,11 @@ viewCanvas m =
         xaxis = axisLine m {x=1, y=0}
         axes =
           case m.currentPage of
-            Toplevels -> [xaxis, yaxis]
+            Toplevels _ -> [xaxis, yaxis]
             Fn _ -> []
         routing =
           case m.currentPage of
-            Toplevels -> [ViewRoutingTable.viewRoutingTable m]
+            Toplevels _ -> [ViewRoutingTable.viewRoutingTable m]
             Fn _ -> []
         allDivs = axes ++ routing ++ asts ++ entry
     in
