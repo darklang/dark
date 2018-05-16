@@ -410,6 +410,7 @@ type alias Model = { error : Maybe String
                    , urlState : UrlState
                    , timersEnabled : Bool
                    , computedValuesDisabled : Bool
+                   , executingFunctions: List (TLID, ID)
                    }
 
 -- Values that we serialize
