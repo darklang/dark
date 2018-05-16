@@ -73,7 +73,7 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
   respond ~headers:(Cohttp.Header.of_list headers) `OK ""
 
 
-let user_page_handler ~(owner:Account.t) ~(host: string) ~(ip: string) ~(uri: Uri.t)
+let user_page_handler ~(owner:Uuid.t) ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
   let c = C.load host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
@@ -185,7 +185,7 @@ let user_page_handler ~(owner:Account.t) ~(host: string) ~(ip: string) ~(uri: Ur
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let rec admin_rpc_handler ~(owner: Account.t) ~(host: string) body : (Cohttp.Header.t * string) =
+let admin_rpc_handler ~(owner:Uuid.t) ~(host: string) body : (Cohttp.Header.t * string) =
   let execution_id = Util.create_id () in
   try
     let (t1, params) = time "1-read-api-ops"
@@ -213,9 +213,6 @@ let rec admin_rpc_handler ~(owner: Account.t) ~(host: string) body : (Cohttp.Hea
   Event_queue.finalize ~host execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5], result)
   with
-  | Postgresql.Error e when C.is_uninitialized_db_error host e ->
-    C.rerun_all_db_ops host;
-    admin_rpc_handler body ~owner ~host
   | e ->
     Event_queue.finalize ~host execution_id ~status:`Err;
     raise e
@@ -235,13 +232,9 @@ let save_test_handler host =
   respond `OK ("Saved as: " ^ filename)
 
 
-let auth_then_handle req subdomain handler =
+let auth_then_handle req host handler =
   let path = req |> CRequest.uri |> Uri.path in
-  let auth_domain =
-    match String.split subdomain '-' with
-    | d :: scratch -> d
-    | _ -> subdomain
-  in
+  let auth_domain = Account.auth_domain_for host in
   match Account.owner ~auth_domain with
   | None -> respond `Not_found "No canvas found"
   | Some owner ->
@@ -291,7 +284,7 @@ let auth_then_handle req subdomain handler =
         | _ ->
           respond `Unauthorized "Invalid session")
 
-let admin_handler ~(owner:Account.t) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
+let admin_handler ~(owner:Uuid.t) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
   let empty_body = "{ ops: [], executable_fns: []}" in
   let rpc ?(body=empty_body) () =
     let (headers, response_body) = admin_rpc_handler body ~owner ~host in
@@ -345,7 +338,7 @@ let server () =
             | a :: rest -> Some a
             | _ -> None)
     in
-    let handler ~(owner:Account.t) headers =
+    let handler ~(owner:Uuid.t) headers =
       try
         let ip = get_ip_address ch in
         let uri = req |> CRequest.uri in
