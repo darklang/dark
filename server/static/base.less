@@ -596,6 +596,7 @@ body #grid * {
         margin-top: -3px;
       }
       margin-left: -4px;
+      transition: color linear 0.1s;
       &.execution-button-unavailable {
         color: grey;
       }
@@ -604,6 +605,13 @@ body #grid * {
       }
       &.execution-button-repeat {
         color: green;
+      }
+      &.is-executing {
+        color: white;
+        transition: none;
+        i {
+          animation: a 0.75s infinite linear;
+        }
       }
     }
   }
