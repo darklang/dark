@@ -8,8 +8,8 @@ module Session : sig
   val backend : Backend.t
   val cookie_key : string
   val of_request : Cohttp_lwt_unix.Request.t -> (t option, S.error) result io
-  val new_for_username : User.username -> t io
-  val username_for : t -> User.username
+  val new_for_username : Account.username -> t io
+  val username_for : t -> Account.username
 end
 
 
