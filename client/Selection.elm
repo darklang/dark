@@ -15,8 +15,6 @@ import DB
 import Analysis
 import Pointer as P
 import Blank as B
-import Functions as Fns
-import Navigation
 import Util
 
 -------------------------------
@@ -365,21 +363,4 @@ enter m tlid id =
       pd -> enterMods
 
 
-startEditingFn : Model -> Modification
-startEditingFn m =
-  case unwrapCursorState m.cursorState of
-    Selecting tlid (Just id) ->
-      let tl = TL.getTL m tlid
-          pd = TL.findExn tl id
-      in
-          case pd of
-            PExpr (F _ (FnCall name _)) ->
-              editFunction (Fns.findByNameExn m name)
-            _ ->
-              impossible ("should only be called on an FnCall for a UserFunction", pd)
-    _ -> NoChange
-
-editFunction : UserFunction -> Modification
-editFunction uf =
-  MakeCmd (Navigation.modifyUrl (Fns.urlForFn uf))
 

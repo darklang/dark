@@ -21,6 +21,7 @@ import Runtime as RT
 import Blank as B
 import Runtime
 import Toplevel
+import Url
 import ViewEntry
 import ViewUtils exposing (..)
 import ViewScaffold
@@ -47,7 +48,7 @@ type HtmlConfig =
                 | ComputedValueAs ID
                 | ComputedValue
                 -- show an 'edit function' link
-                | WithEditFn
+                | WithEditFn TLID
 
 
 wc : String -> HtmlConfig
@@ -88,7 +89,7 @@ withEditFn vs v =
     case v of
       F _ (FnCall name _) ->
         case LE.find (Functions.sameName name) vs.ufns of
-          Just _ -> [WithEditFn]
+          Just fn -> [WithEditFn fn.tlid]
           _ -> []
       _ -> []
   else []
@@ -140,7 +141,10 @@ div vs configs content =
                                           ComputedValue -> thisID
                                           _ -> Nothing)
       showFeatureFlag = List.member WithFF configs
-      showEditFn = List.member WithEditFn configs
+      editFn = getFirst (\a -> case a of
+                                 WithEditFn id -> Just id
+                                 _ -> Nothing)
+
 
       value = getLiveValue vs.lvs
 
@@ -207,14 +211,15 @@ div vs configs content =
           _ -> []
 
       attrs = events ++ title ++ [classAttr]
-      featureFlag = if showFeatureFlag
-                    then [viewFeatureFlag]
-                    else []
-      editFn = if showEditFn
-               then [viewEditFn showFeatureFlag]
-               else []
+      featureFlagHtml = if showFeatureFlag
+                        then [viewFeatureFlag]
+                        else []
+      editFnHtml = case editFn of
+                     Just editFn ->
+                       [viewEditFn editFn showFeatureFlag]
+                     Nothing -> []
   in
-    Html.div attrs (content ++ featureFlag ++ editFn ++ computedValue)
+    Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ computedValue)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
@@ -424,15 +429,16 @@ viewFeatureFlag =
     [ fontAwesome "flag"]
 
 
-viewEditFn : Bool -> Html.Html Msg
-viewEditFn hasFlagAlso =
+viewEditFn : TLID -> Bool -> Html.Html Msg
+viewEditFn tlid hasFlagAlso =
   let rightOffset =
         if hasFlagAlso
         then "-32px"
         else "-16px"
   in
-  Html.div
+  Html.a
     [ Attrs.class "edit-fn"
     , Attrs.style [("right", rightOffset)]
-    , eventNoPropagation "click" (\_ -> EditFunction)]
+    , Attrs.href (Url.urlFor (Fn tlid))
+    ]
     [ fontAwesome "edit"]
