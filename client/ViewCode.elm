@@ -232,23 +232,24 @@ viewNExpr d id vs config e =
           buttonUnavailable = not paramsComplete
           showButton = not fn.previewExecutionSafe
           buttonNeeded = not resultHasValue
+          showExecuting = isExecuting vs id
 
-          event = eventNoPropagation "mouseup"
+          event = eventNoPropagation "click"
                     (\_ -> ExecuteFunctionButton vs.tl.id id)
           (bClass, bEvent, bTitle, bIcon) =
             if buttonUnavailable
-            then ("execution-button-unavailable"
+            then (if showExecuting then "execution-button-unavailable is-executing" else "execution-button-unavailable"
                  , []
                  , "Cannot run: some parameters are incomplete"
                  , "cog")
             else if buttonNeeded
             then
-              ( "execution-button-needed"
+              ( if showExecuting then "execution-button-needed is-executing" else "execution-button-needed"
               , [event]
               , "Click to execute function"
               , "cog")
             else
-              ( "execution-button-repeat"
+              ( if showExecuting then "execution-button-repeat is-executing" else "execution-button-repeat"
               , [event]
               , "Click to execute function again"
               , "redo")
@@ -382,6 +383,10 @@ approxNWidth ne =
       approxWidth obj
       + 1 -- '.'
       + (blankOrLength field)
+
+isExecuting : ViewState -> ID -> Bool
+isExecuting vs id =
+  List.member id vs.executingFunctions
 
 
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)

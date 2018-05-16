@@ -38,6 +38,7 @@ type alias ViewState =
   , relatedBlankOrs: List ID
   , tooWide: Bool
   , computedValuesDisabled: Bool
+  , executingFunctions: List ID
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -84,6 +85,8 @@ createVS m tl = { tl = tl
                 , tooWide = False
                 , computedValuesDisabled =
                   m.computedValuesDisabled
+                , executingFunctions = List.filter (\(tlid,id) -> tlid == tl.id) m.executingFunctions
+                                       |> List.map (\(tlid,id) -> id)
                 }
 
 fontAwesome : String -> Html.Html Msg
