@@ -179,7 +179,7 @@ let migrations =
     canvases
     ( id UUID PRIMARY KEY
     , account_id UUID REFERENCES accounts(id) NOT NULL
-    , name VARCHAR(40) UNIQUE NOT NULL
+    , name VARCHAR(64) UNIQUE NOT NULL
     , created_at TIMESTAMP NOT NULL DEFAULT NOW()
     , updated_at TIMESTAMP NOT NULL DEFAULT NOW())"
 

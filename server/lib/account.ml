@@ -89,7 +89,7 @@ let owner ~(auth_domain:string) : Uuid.t option =
   |> Option.map ~f:Uuid.of_string
 
 let auth_domain_for host : string =
-  match String.split host '-' with
+  match String.split host '_' with
   | d :: _ -> d
   | _ -> host
 
@@ -122,11 +122,6 @@ let init () : unit =
     ; password = "me do"
     ; email = "zane@darklang.com"
     ; name = "Zane Shannon"};
-  upsert_admin
-    { username = "tests"
-    ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "ops@darklang.com"
-    ; name = "Test Account"};
   upsert_account
     { username = "dabblefox"
     ; password = "alk92''[ponvhi4"
@@ -156,7 +151,7 @@ let init () : unit =
 
 let init_testing () : unit =
   upsert_account
-    { username = "testing"
+    { username = "test"
     ; password = "testingpw"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests"};

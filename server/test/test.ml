@@ -20,10 +20,11 @@ let tlid = 7
 let pos = {x=0;y=0}
 
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
-  C.load host ops
+  Db.delete_testdata ();
+  C.init host ops
 
 let execute_ops (ops : Op.op list) : dval =
-  let c = ops2c "testing" ops in
+  let c = ops2c "test" ops |> Log.pp "newc" ~f:(fun c -> C.show_canvas !c) in
 
   let h = !c.toplevels
           |> TL.handlers
@@ -100,25 +101,25 @@ let t_undo_fns () =
   let r = Op.RedoTL tlid in
 
   AT.check AT.int "undocount"
-  3 (C.undo_count !(ops2c "testing" [n1; n1; n1; n1; n2; n3; n4; u; u; u]) tlid);
+  3 (C.undo_count !(ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u]) tlid);
 
   AT.check AT.bool "redoable" true
-    (C.is_redoable !(ops2c "testing" [n1; n2; n3; n4; u]) tlid);
+    (C.is_redoable !(ops2c "test" [n1; n2; n3; n4; u]) tlid);
   AT.check AT.bool "undoable" true
-    (C.is_undoable !(ops2c "testing" [n1; n2; n3; n4]) tlid);
+    (C.is_undoable !(ops2c "test" [n1; n2; n3; n4]) tlid);
 
 
   AT.check AT.bool "not redoable" false
-    (C.is_redoable !(ops2c "testing" [n1; n2; n3; n4; u; r]) tlid);
+    (C.is_redoable !(ops2c "test" [n1; n2; n3; n4; u; r]) tlid);
   AT.check AT.bool "not undoable" false
-    (C.is_undoable !(ops2c "testing" [n1; n2; n3; n4; u]) tlid);
+    (C.is_undoable !(ops2c "test" [n1; n2; n3; n4; u]) tlid);
 
 
-  let both = !(ops2c "testing" [n1; n1; n2; n3; n4; u; r; u]) in
+  let both = !(ops2c "test" [n1; n1; n2; n3; n4; u; r; u]) in
   AT.check AT.bool "both_undo" true (C.is_undoable both tlid);
   AT.check AT.bool "both_redo" true (C.is_redoable both tlid);
 
-  let neither = !(ops2c "testing" [n2; n3; n4]) in
+  let neither = !(ops2c "test" [n2; n3; n4]) in
   AT.check AT.bool "neither_undo" false (C.is_undoable neither tlid);
   AT.check AT.bool "neither_redo" false (C.is_redoable neither tlid)
 
@@ -204,8 +205,7 @@ let t_db_oplist_roundtrip () =
 
 
 let t_case_insensitive_db_roundtrip () =
-  let name = "testing" in
-  Db.run_sql ("DROP SCHEMA IF EXISTS dark_user_" ^ name ^ " CASCADE;");
+  let name = "test" in
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
   let oplist = [ Op.CreateDB (tlid, pos, "TestUnicode")
@@ -351,7 +351,8 @@ let suite =
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
-  ; "DB case-insensitive roundtrip", `Quick, t_case_insensitive_db_roundtrip
+  ; "DB case-insensitive roundtrip", `Quick,
+    t_case_insensitive_db_roundtrip
   ; "Good error when inserting badly", `Quick,
     t_inserting_object_to_missing_col_gives_good_error
   ]
