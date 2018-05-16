@@ -77,4 +77,5 @@ defaultModel = { error = Nothing
                -- saved in editor
                , clipboard = Nothing
                , cursorState = Deselected
+               , executingFunctions = []
                }
