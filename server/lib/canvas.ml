@@ -297,7 +297,7 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
        (id, account_id, name)
        VALUES (_new_id, _account_id, _name)
        ON     CONFLICT (name) DO NOTHING
-       RETURNING t.id
+       RETURNING c.id
        INTO   _id;
 
        EXIT WHEN FOUND;
@@ -341,9 +341,12 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
-
-let load (host: string) (newops: Op.op list) : canvas ref =
-  let (run_old_db_ops, oldops) = Serialize.search_and_load host in
+let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
+  let (run_old_db_ops, oldops) =
+    if load
+    then Serialize.search_and_load host
+    else false, []
+  in
 
   if oldops = [] || run_old_db_ops
   then initialize_host host;
@@ -366,6 +369,9 @@ let load (host: string) (newops: Op.op list) : canvas ref =
   in
   add_ops ~run_old_db_ops c oldops newops;
   c
+
+let load = create ~load:true
+let init = create ~load:false
 
 let save (c : canvas) : unit =
   Serialize.save_in_db c.host c.ops;

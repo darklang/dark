@@ -52,3 +52,6 @@ val create_namespace : host -> unit
 val run_sql_in_ns : ?quiet: bool -> host:host -> string -> unit
 val fetch_via_sql_in_ns : ?quiet:bool -> host:host -> string -> string list list
 val ns_name : host -> string
+
+(* Misc *)
+val delete_testdata : unit -> unit
