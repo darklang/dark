@@ -178,6 +178,7 @@ type Op
 
 type alias RPCParams = { ops : List Op
                        , executableFns : List (TLID, ID, Int)
+                       , target: Maybe (TLID, ID)
                        }
 
 
@@ -462,6 +463,8 @@ type Modification = Error String
                   | SetPage Page
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
+                  | ExecutingFunctionBegan TLID ID
+                  | ExecutingFunctionComplete TLID ID
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

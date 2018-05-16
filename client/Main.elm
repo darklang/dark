@@ -424,6 +424,12 @@ updateMod mod (m, cmd) =
         { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
         { m | cursorState = Dragging tlid offset hasMoved state } ! []
+      ExecutingFunctionBegan tlid id ->
+        let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
+        { m | executingFunctions = nexecutingFunctions } ! []
+      ExecutingFunctionComplete tlid id ->
+        let nexecutingFunctions = List.filter (\fn -> fn /= (tlid, id)) m.executingFunctions in
+        { m | executingFunctions = nexecutingFunctions } ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -1093,11 +1099,16 @@ update_ msg m =
         Entering _ ->
           Select targetTLID Nothing
 
+
     ExecuteFunctionButton tlid id ->
       let tl = TL.getTL m tlid in
-      RPCFull ({ ops = []
-               , executableFns = [(tlid, id, tl.cursor)]
-               }, FocusNoChange)
+      Many [ ExecutingFunctionBegan tlid id
+           , RPCFull ({ ops = []
+                 , executableFns = [(tlid, id, tl.cursor)]
+                 , target = Just (tlid, id)
+                 }, FocusNoChange)
+           ]
+
 
     DataClick tlid idx _ ->
       let _ = Debug.log "dataclick" (tlid, idx) in
@@ -1142,11 +1153,16 @@ update_ msg m =
     -----------------
     RPCCallback focus extraMod calls
       (Ok (toplevels, analysis, globals, userFuncs, f404s, unlocked)) ->
+      let executingFunctionsCallback = case calls.target of
+        Just (tlid, id) -> ExecutingFunctionComplete tlid id
+        Nothing -> NoChange
+      in
       if focus == FocusNoChange
       then
         Many [ SetToplevels toplevels analysis globals userFuncs f404s unlocked False
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
+             , executingFunctionsCallback
              ]
       else
         let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
@@ -1158,6 +1174,7 @@ update_ msg m =
                 , ClearError
                 , newState
                 , extraMod -- for testing, maybe more
+                , executingFunctionsCallback
                 ]
 
     SaveTestRPCCallback (Ok msg) ->
