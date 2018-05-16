@@ -1,6 +1,7 @@
 open Core
 open Types
 
+type t = Uuid.t
 type username = string
 
 type account = { username: username
@@ -61,11 +62,6 @@ let is_admin ~username : bool =
     (Db.escape username)
   |> Db.truth_via_sql ~quiet:false
 
-let has_access ~(auth_domain:string) ~(username:username) : bool =
-  String.Caseless.equal username auth_domain
-  || is_admin ~username
-
-
 let valid_user ~(username:username) ~(password:string) : bool =
   Printf.sprintf
     "SELECT 1 from accounts
@@ -75,9 +71,24 @@ let valid_user ~(username:username) ~(password:string) : bool =
     (Db.escape password)
   |> Db.truth_via_sql ~quiet:true
 
-let authenticate ~(auth_domain:string) ~(username:username) ~(password:string) : bool =
+
+let can_edit ~(auth_domain:string) ~(username:username) : bool =
+  String.Caseless.equal username auth_domain
+  || is_admin ~username
+
+let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password
-  && has_access ~auth_domain ~username
+
+let owner ~(auth_domain:string) : t option =
+  Printf.sprintf
+    "SELECT id from accounts
+      WHERE accounts.username = '%s'"
+    (Db.escape (String.lowercase auth_domain))
+  |> Db.fetch_via_sql ~quiet:false
+  |> List.concat
+  |> List.hd
+  |> Option.map ~f:Uuid.of_string
+
 
 
 let init () : unit =
