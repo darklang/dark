@@ -20,9 +20,7 @@ let tlid = 7
 let pos = {x=0;y=0}
 
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
-  let c = C.create host in
-  C.add_ops c [] ops;
-  c
+  C.load host ops
 
 let execute_ops (ops : Op.op list) : dval =
   let c = ops2c "testing" ops in
@@ -76,6 +74,9 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
       else
         (Log.erroR "check failed" ed;
         Some "Check failed")
+    | Postgresql.Error e ->
+      Log.pP ("Postgres error: " ^ Postgresql.string_of_error e) e;
+      Some "postgres exception"
     | e ->
       let bt = Backtrace.Exn.most_recent () in
       let msg = Exn.to_string e in
@@ -99,25 +100,25 @@ let t_undo_fns () =
   let r = Op.RedoTL tlid in
 
   AT.check AT.int "undocount"
-  3 (C.undo_count !(ops2c "g" [n1; n1; n1; n1; n2; n3; n4; u; u; u]) tlid);
+  3 (C.undo_count !(ops2c "testing" [n1; n1; n1; n1; n2; n3; n4; u; u; u]) tlid);
 
   AT.check AT.bool "redoable" true
-    (C.is_redoable !(ops2c "g" [n1; n2; n3; n4; u]) tlid);
+    (C.is_redoable !(ops2c "testing" [n1; n2; n3; n4; u]) tlid);
   AT.check AT.bool "undoable" true
-    (C.is_undoable !(ops2c "g" [n1; n2; n3; n4]) tlid);
+    (C.is_undoable !(ops2c "testing" [n1; n2; n3; n4]) tlid);
 
 
   AT.check AT.bool "not redoable" false
-    (C.is_redoable !(ops2c "g" [n1; n2; n3; n4; u; r]) tlid);
+    (C.is_redoable !(ops2c "testing" [n1; n2; n3; n4; u; r]) tlid);
   AT.check AT.bool "not undoable" false
-    (C.is_undoable !(ops2c "g" [n1; n2; n3; n4; u]) tlid);
+    (C.is_undoable !(ops2c "testing" [n1; n2; n3; n4; u]) tlid);
 
 
-  let both = !(ops2c "g" [n1; n1; n2; n3; n4; u; r; u]) in
+  let both = !(ops2c "testing" [n1; n1; n2; n3; n4; u; r; u]) in
   AT.check AT.bool "both_undo" true (C.is_undoable both tlid);
   AT.check AT.bool "both_redo" true (C.is_redoable both tlid);
 
-  let neither = !(ops2c "g" [n2; n3; n4]) in
+  let neither = !(ops2c "testing" [n2; n3; n4]) in
   AT.check AT.bool "neither_undo" false (C.is_undoable neither tlid);
   AT.check AT.bool "neither_redo" false (C.is_redoable neither tlid)
 
@@ -203,7 +204,7 @@ let t_db_oplist_roundtrip () =
 
 
 let t_case_insensitive_db_roundtrip () =
-  let name = "test_case_insensitive_db_roundtrip" in
+  let name = "testing" in
   Db.run_sql ("DROP SCHEMA IF EXISTS dark_user_" ^ name ^ " CASCADE;");
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
@@ -358,6 +359,7 @@ let suite =
 let () =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
+  Account.init_testing ();
   let (suite, exit) =
     Junit_alcotest.run_and_report "suite" ["tests", suite] in
   let report = Junit.make [suite] in

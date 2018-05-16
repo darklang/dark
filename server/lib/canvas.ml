@@ -11,17 +11,12 @@ module SE = Stored_event
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
+              ; owner : Uuid.t
+              ; id : Uuid.t
               ; ops : Op.oplist
               ; toplevels: toplevellist
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
-
-let create (host : string) : canvas ref =
-  ref { host = host
-      ; ops = []
-      ; toplevels = []
-      ; user_functions = []
-      }
 
 (* forgive me simon peyton-jones *)
 let cur_canvas : (canvas ref) option ref =
@@ -284,22 +279,41 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | UndoTL _ | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
-let is_uninitialized_db_error (host: string) (e: Postgresql.error) : bool =
-  let str = Postgresql.string_of_error e in
-  String.is_prefix str
-      ~prefix: "Result status PGRES_FATAL_ERROR unexpected (expected status:PGRES_TUPLES_OK); ERROR:  relation"
-  &&
-  String.is_substring str
-    ~substring:"does not exist\nLINE 1:"
+(* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
+let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
+  Printf.sprintf
+    "CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
+     $func$
+     BEGIN
+     LOOP
+       SELECT id
+       FROM   canvases
+       WHERE  name = _name
+       INTO   _id;
 
-let rerun_all_db_ops (host: string) : unit =
-  Log.infO "Reruning all ops for" host;
-  let (_, ops) = Serialize.search_and_load host in
-  let op_pairs = List.map ~f:(fun op -> (op, true)) ops in
-  let reduced_ops = preprocess op_pairs in
-  let new_canvas = ref { !(create host) with ops = ops } in
-  List.iter ~f:(fun (op, _) -> apply_op op true new_canvas) reduced_ops;
-  ()
+       EXIT WHEN FOUND;
+
+       INSERT INTO canvases AS c
+       (id, account_id, name)
+       VALUES (_new_id, _account_id, _name)
+       ON     CONFLICT (name) DO NOTHING
+       RETURNING t.id
+       INTO   _id;
+
+       EXIT WHEN FOUND;
+     END LOOP;
+     END
+     $func$ LANGUAGE plpgsql;
+     SELECT canvas_id('%s'::uuid, '%s'::uuid, '%s'); "
+
+    (Uuid.create () |> Uuid.to_string |> Db.escape)
+    (owner |> Uuid.to_string |> Db.escape)
+    (Db.escape host)
+  |> Db.fetch_via_sql ~quiet:false
+  |> Log.pp "fetching canvas id"
+  |> List.concat
+  |> List.hd_exn
+  |> Uuid.of_string
 
 let initialize_host (host:string) : unit =
   Log.infO "Initializing host" host;
@@ -307,11 +321,7 @@ let initialize_host (host:string) : unit =
   Event_queue.initialize_queue host;
   Db.initialize_migrations host
 
-
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
-  if oldops = [] || run_old_db_ops
-  then initialize_host !c.host;
-
   let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
   let newpairs = List.map ~f:(fun o -> (o, true)) newops in
   let reduced_ops = preprocess (oldpairs @ newpairs) in
@@ -333,8 +343,27 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 
 let load (host: string) (newops: Op.op list) : canvas ref =
-  let c = create host in
   let (run_old_db_ops, oldops) = Serialize.search_and_load host in
+
+  if oldops = [] || run_old_db_ops
+  then initialize_host host;
+
+  let owner = host
+              |> Account.auth_domain_for
+              |> Account.owner
+              |> Option.value_exn
+  in
+
+  let id = fetch_canvas_id owner host in
+  let c =
+    ref { host = host
+        ; owner = owner
+        ; id = id
+        ; ops = []
+        ; toplevels = []
+        ; user_functions = []
+        }
+  in
   add_ops ~run_old_db_ops c oldops newops;
   c
 
