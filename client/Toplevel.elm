@@ -18,6 +18,7 @@ import Functions as Fns
 import SpecTypes
 import SpecHeaders
 import DB
+import Defaults
 
 -------------------------
 -- Toplevel manipulation
@@ -61,7 +62,7 @@ moveTL xOffset yOffset tl =
 ufToTL : Model -> UserFunction -> Toplevel
 ufToTL m uf = { id = uf.tlid
               , cursor = 0
-              , pos = m.center
+              , pos = Defaults.initialPos
               , data = TLFunc uf
               }
 

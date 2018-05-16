@@ -31,7 +31,7 @@ import Autocomplete as AC
 
 
 createFindSpace : Model -> Modification
-createFindSpace m = Enter (Creating (Viewport.toAbsolute m Defaults.initialPos))
+createFindSpace m = Enter (Creating (Viewport.toAbsolute m Defaults.initialVPos))
 
 ---------------------
 -- Focus

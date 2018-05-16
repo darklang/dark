@@ -11,7 +11,6 @@ import Keyboard.Key as Key
 import Navigation
 import Mouse
 import PageVisibility
-import Dict
 import String
 -- import List.Extra as LE
 import String.Extra as SE
@@ -47,6 +46,7 @@ import DB
 import Runtime
 import Toplevel as TL
 import Util
+import Url
 import IntegrationTest
 
 
@@ -65,35 +65,6 @@ main = Navigation.programWithFlags
 -----------------------
 -- MODEL
 -----------------------
-parseLocation : Navigation.Location -> UrlFragmentData
-parseLocation loc =
-  let unstructured = loc.hash
-                   |> String.dropLeft 1 -- remove "#"
-                   |> String.split "&"
-                   |> List.map (String.split "=")
-                   |> List.filterMap
-                      (\arr ->
-                        case arr of
-                          a :: b :: [] -> Just (String.toLower a, b)
-                          _ -> Nothing)
-                   |> Dict.fromList
-      center =
-        case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
-          (Just x, Just y) ->
-            case (String.toInt x, String.toInt y) of
-              (Ok x, Ok y) -> Just { x = x, y = y }
-              _  -> Nothing
-          _ -> Nothing
-      editedFn =
-        case (Dict.get "fn" unstructured) of
-          Just sid ->
-            case String.toInt sid of
-              Ok id -> Just <| TLID id
-              _ -> Nothing
-          _ -> Nothing
-  in
-      { center = center, editedFn = editedFn }
-
 flag2function : FlagFunction -> Function
 flag2function fn =
   { name = fn.name
@@ -114,27 +85,21 @@ init {editorState, complete} location =
   let savedEditor = Editor.fromString editorState
 
       m0 = Editor.editor2model savedEditor
+
+      -- these saved values may not be valid yet
       savedCursorState = m0.cursorState
       savedCurrentPage = m0.currentPage
-      m = { m0 | cursorState = Deselected, currentPage = Toplevels }
+      m = { m0 | cursorState = Deselected
+               , currentPage = Defaults.defaultModel |> .currentPage}
 
       tests =
         case parseVariantTestsFromQueryString location.search of
           Just t  -> t
           Nothing -> []
 
-      urlFragmentData =
-        parseLocation location
-
-      center =
-        case urlFragmentData.center of
-          Nothing -> m.center
-          Just c -> c
-
-      nextPage =
-        case urlFragmentData.editedFn of
-          Nothing -> savedCurrentPage
-          Just tlid -> Fn tlid
+      page =
+        Url.parseLocation m location
+        |> Maybe.withDefault m.currentPage
 
       visibilityTask =
         Task.perform PageVisibilityChange PageVisibility.visibility
@@ -158,13 +123,13 @@ init {editorState, complete} location =
                , complete = AC.init builtins
                , tests = tests
                , toplevels = []
-               , center = center
+               , currentPage = page
            }
 
   in
     if shouldRunIntegrationTest
     then m2 ! [RPC.integrationRPC m integrationTestName, visibilityTask]
-    else m2 ! [RPC.rpc m (FocusPageAndCursor nextPage savedCursorState) RPC.emptyParams, visibilityTask]
+    else m2 ! [RPC.rpc m (FocusPageAndCursor page savedCursorState) RPC.emptyParams, visibilityTask]
 
 
 -----------------------
@@ -219,7 +184,7 @@ processFocus m focus =
           target tuple = ACSetTarget (Just tuple)
           tlOnPage tl =
             case page of
-              Toplevels ->
+              Toplevels _ ->
                 case tl.data of
                   TLHandler _ -> True
                   TLDB _ -> True
@@ -252,7 +217,7 @@ processFocus m focus =
                   _ -> (Deselect, noTarget)
               _ -> (Deselect, noTarget)
       in
-          Many [ SetCurrentPage page
+          Many [ SetPage page
                , nextCursor
                , AutocompleteMod acTarget
                ]
@@ -386,7 +351,7 @@ updateMod mod (m, cmd) =
         let newM = { m | cursorState = cursorState } in
         newM ! [Entry.focusEntry newM]
 
-      SetCurrentPage page ->
+      SetPage page ->
         if m.currentPage == page
         then m ! []
         else
@@ -445,8 +410,6 @@ updateMod mod (m, cmd) =
         in
         { m3 | complete = complete } ! [acCmd]
 
-      SetCenter c ->
-        { m | center = c } ! []
       SetHover p ->
         let nhovering = (p :: m.hovering) in
         { m | hovering = nhovering } ! []
@@ -890,47 +853,47 @@ update_ msg m =
 
           Deselected ->
             -- Don't move viewport when editing fns
-            if not (m.currentPage == Toplevels)
-            then NoChange
-            else
-            case event.keyCode of
-              Key.L ->
-                if event.ctrlKey
-                then
-                  TweakModel (\m -> { m | computedValuesDisabled = (not m.computedValuesDisabled)})
-                else
-                  NoChange
-              Key.Enter -> Entry.createFindSpace m
+            case m.currentPage of
+              Fn _ -> NoChange
+              Toplevels center ->
+                case event.keyCode of
+                  Key.L ->
+                    if event.ctrlKey
+                    then
+                      TweakModel (\m -> { m | computedValuesDisabled = (not m.computedValuesDisabled)})
+                    else
+                      NoChange
+                  Key.Enter -> Entry.createFindSpace m
 
-              Key.A ->
-                if event.ctrlKey
-                then Viewport.pageLeft m.center
-                else NoChange
-              Key.E ->
-                if event.ctrlKey
-                then Viewport.pageRight m.center
-                else NoChange
-              Key.F ->
-                if event.ctrlKey
-                then Viewport.pageDown m.center
-                else NoChange
-              Key.B ->
-                if event.ctrlKey
-                then Viewport.pageUp m.center
-                else NoChange
+                  Key.A ->
+                    if event.ctrlKey
+                    then Viewport.pageLeft center
+                    else NoChange
+                  Key.E ->
+                    if event.ctrlKey
+                    then Viewport.pageRight center
+                    else NoChange
+                  Key.F ->
+                    if event.ctrlKey
+                    then Viewport.pageDown center
+                    else NoChange
+                  Key.B ->
+                    if event.ctrlKey
+                    then Viewport.pageUp center
+                    else NoChange
 
-              Key.PageUp -> Viewport.pageUp m.center
-              Key.PageDown -> Viewport.pageDown m.center
+                  Key.PageUp -> Viewport.pageUp center
+                  Key.PageDown -> Viewport.pageDown center
 
-              Key.Up -> Viewport.moveUp m.center -- NB: see `stopKeys` in ui.html
-              Key.Down -> Viewport.moveDown m.center -- NB: see `stopKeys` in ui.html
-              Key.Left -> Viewport.moveLeft m.center
-              Key.Right -> Viewport.moveRight m.center
+                  Key.Up -> Viewport.moveUp center -- NB: see `stopKeys` in ui.html
+                  Key.Down -> Viewport.moveDown center -- NB: see `stopKeys` in ui.html
+                  Key.Left -> Viewport.moveLeft center
+                  Key.Right -> Viewport.moveRight center
 
-              Key.Zero -> Viewport.moveTo { x=0, y=0 }
+                  Key.Zero -> Viewport.moveTo { x=0, y=0 }
 
-              Key.Tab -> Selection.selectNextToplevel m Nothing -- NB: see `stopKeys` in ui.html
-              _ -> NoChange
+                  Key.Tab -> Selection.selectNextToplevel m Nothing -- NB: see `stopKeys` in ui.html
+                  _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange
 
@@ -980,10 +943,13 @@ update_ msg m =
 
     GlobalClick event ->
       let _ = Debug.log "globalClick" event in
-      if event.button == Defaults.leftButton && m.currentPage == Toplevels
-      then Many [ AutocompleteMod ACReset
-                , Enter (Creating (Viewport.toAbsolute m event.pos))]
-      else NoChange
+      case m.currentPage of
+        Toplevels _ ->
+          if event.button == Defaults.leftButton
+          then Many [ AutocompleteMod ACReset
+                    , Enter (Creating (Viewport.toAbsolute m event.pos))]
+          else NoChange
+        _ -> NoChange
 
 
     BlankOrMouseEnter _ id _ ->
@@ -995,14 +961,15 @@ update_ msg m =
 
 
     MouseWheel deltaCoords ->
-      let delta = case deltaCoords of
-            x::y::_ -> { x=x, y=y }
-            _ -> { x=0, y=0 }
-          destination = { x= m.center.x + delta.x, y= m.center.y + delta.y }
-      in
-          case m.currentPage of
-            Toplevels -> Viewport.moveTo destination
-            Fn _ -> NoChange
+      case m.currentPage of
+        Toplevels center ->
+          let delta = case deltaCoords of
+                        x::y::_ -> { x=x, y=y }
+                        _ -> { x=0, y=0 }
+              dest = { x=center.x + delta.x, y=center.y + delta.y }
+          in
+          Viewport.moveTo dest
+        Fn _ -> NoChange
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx
@@ -1162,21 +1129,9 @@ update_ msg m =
            , FeatureFlags.updateSlider m id value
            ]
 
-    ------------------------
-    -- Functions
-    ------------------------
-    EditFunction ->
-      Selection.startEditingFn m
-
-    ReturnToMainCanvas ->
-      MakeCmd (Navigation.modifyUrl "/admin/ui")
-
     -----------------
-    -- URL stuff
+    -- RPCs stuff
     -----------------
-    NavigateTo url ->
-      MakeCmd (Navigation.newUrl url)
-
     RPCCallback focus extraMod calls
       (Ok (toplevels, analysis, globals, userFuncs, f404s, unlocked)) ->
       if focus == FocusNoChange
@@ -1252,31 +1207,14 @@ update_ msg m =
       NoChange
 
     LocationChange loc ->
-      let urlFragmentData = parseLocation loc
-          page =
-            case urlFragmentData.editedFn of
-              Just id ->
-                case Functions.find m id of
-                  Just uf -> [SetCurrentPage (Fn uf.tlid)]
-                  _ -> [SetCurrentPage Toplevels]
-              Nothing -> [SetCurrentPage Toplevels]
-          center =
-            case urlFragmentData.center of
-              Just pos ->
-                if pos /= m.center
-                then SetCenter pos
-                else NoChange
-              Nothing -> NoChange
-
-      in
-      Many (center :: page)
+      Url.changeLocation m loc
 
     TimerFire action time  ->
       case action of
         RefreshAnalyses ->
           GetAnalysisRPC
         CheckUrlHashPosition ->
-          Viewport.maybeUpdateUrl m
+          Url.maybeUpdateScrollUrl m
 
     Initialization ->
       NoChange
@@ -1291,8 +1229,11 @@ update_ msg m =
       TweakModel (\m -> { m | visibility = vis })
 
     CreateHandlerFrom404 (space, path, modifier, _) ->
-      let anId = gtlid ()
-          aPos = m.center
+      let center = case m.currentPage of
+                     Toplevels center -> center
+                     _ -> impossible ()
+          anId = gtlid ()
+          aPos = center
           aHandler =
             { ast = B.new ()
             , spec =

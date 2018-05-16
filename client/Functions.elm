@@ -76,10 +76,6 @@ findByNameExn : Model -> String -> UserFunction
 findByNameExn m s =
   findByName m s |> deMaybe "Functions.findByNameExn"
 
-urlForFn : UserFunction -> String
-urlForFn uf =
-  "/admin/ui#" ++ ("fn=" ++ (toString (deTLID uf.tlid)))
-
 paramData : UserFunctionParameter -> List PointerData
 paramData ufp =
   [(PParamName ufp.name), (PParamTipe ufp.tipe)]
