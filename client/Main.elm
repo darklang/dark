@@ -846,7 +846,15 @@ update_ msg m =
                   if sp == "" then NoChange
                   else
                     AutocompleteMod <| ACSetQuery sp
-
+                Key.Backspace ->
+                  case cursor of
+                    Filling tlid id ->
+                      if m.complete.value == "\"\""
+                      then
+                        AutocompleteMod <| ACSetQuery ""
+                      else
+                        NoChange
+                    _ -> NoChange
                 key ->
                   NoChange
 
