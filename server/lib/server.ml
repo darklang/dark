@@ -261,7 +261,7 @@ let auth_then_handle req subdomain handler =
         S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
       else
         (let username = Auth.Session.username_for session in
-         if User.has_access ~host:auth_domain ~username
+         if Account.has_access ~auth_domain ~username
          then handler (Header.init ())
          else respond `Unauthorized "Unauthorized")
     | _ ->
@@ -272,7 +272,7 @@ let auth_then_handle req subdomain handler =
       in
       match auth with
       | (Some (`Basic (username, password))) ->
-        (if User.authenticate ~host:auth_domain ~username ~password
+        (if Account.authenticate ~auth_domain ~username ~password
          then
            Auth.Session.new_for_username username >>=
            (fun session ->
