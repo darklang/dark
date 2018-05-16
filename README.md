@@ -125,15 +125,7 @@ You can also disable the polling (ans consequently the building):
 
 # Debugging elm
 
-By default, debugging in the client is disabled. This is because it is
-impossibly slow. However, it's a great debugger, so there's a simple way
-to enable it:
-
-- `scripts/start_client_debug`
-
-Stop debugging with
-
-- `scripts/stop_client_debug`
+Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
 # Versioning Dark files
 
