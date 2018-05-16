@@ -728,3 +728,32 @@ let all_oplists (digest: string) : string list =
   |> List.filter ~f:(fun h ->
       not (String.is_prefix ~prefix:"test_" h))
 
+let delete_test_oplists () : unit =
+  "DELETE FROM oplists
+  WHERE host like 'test\\_%%'"
+  |> run_sql ~quiet:false
+
+let all_schemas () : string list =
+  "SELECT schema_name
+   FROM information_schema.schemata
+   WHERE schema_name LIKE 'dark\\_user\\_%%'"
+  |> fetch_via_sql ~quiet:true
+  |> List.concat
+  |> List.map ~f:(String.chop_prefix_exn ~prefix:"dark_user_")
+
+let delete_schema (host:string) : unit =
+  Printf.sprintf
+    "DROP SCHEMA IF EXISTS \"%s\" CASCADE;"
+    (ns_name host)
+  |> run_sql ~quiet:false
+
+
+let delete_testdata () : unit =
+  all_schemas ()
+  |> List.filter ~f:(String.is_prefix ~prefix:"test_")
+  |> List.iter ~f:delete_schema
+  ;
+  delete_test_oplists ()
+
+
+
