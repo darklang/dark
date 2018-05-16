@@ -3,7 +3,7 @@
 - Install Docker for Mac
 - Run `brew install bash`
 - Run `brew install fswatch`
-- Run `scripts/builder --compile --watch --test`
+- Run `scripts/builder --compile --watch --test` (if don't have time to debug docker issues, `NEVER_REBUILD_DOCKER=1 scripts/builder --compile --watch --test` is your friend)
 - Wait til the terminal says "Finished initial compile" - this means the build server is ready
 - Open your browser to http://localhost:8000/admin/ui
 - Edit code normally - on each save in your filesystem, the app will be rebuilt and the browser will reload as necessary
