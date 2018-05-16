@@ -1,5 +1,8 @@
 module Refactor exposing (..)
 
+-- lib
+import List.Extra as LE
+import Set
 -- Dark
 import Types exposing (..)
 import Util
@@ -88,10 +91,46 @@ extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
   let extractVarInAst e ast  =
       let varname = "var" ++ toString (Util.random())
-          newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
+          freeVariables =
+            AST.freeVariables e
+            |> List.map Tuple.second
+            |> Set.fromList
+          ancestors =
+            AST.ancestors (B.toID e) ast
+          lastPlaceWithSameVarsAndValues =
+            ancestors
+            |> LE.takeWhile
+              (\elem ->
+                let id = B.toID elem
+                    availableVars =
+                      Analysis.getAvailableVarnames m tl.id id
+                      |> Set.fromList
+                    allRequiredVariablesAvailable =
+                      Set.diff freeVariables availableVars
+                      |> Set.isEmpty
+                    noVariablesAreRedefined =
+                       freeVariables
+                       |> Set.toList
+                       |> List.all (not << (\v -> AST.isDefinitionOf v elem))
+                in
+                    allRequiredVariablesAvailable
+                    && noVariablesAreRedefined)
+            |> LE.last
           newVar = B.newF varname
       in
-          (B.newF (Let newVar e newAST), B.toID newVar)
+          case lastPlaceWithSameVarsAndValues of
+            Just p ->
+              let nbody =
+                    AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) p
+                  nlet = B.newF (Let newVar e nbody)
+              in
+                  (AST.replace (PExpr p) (PExpr nlet) ast, B.toID newVar)
+            Nothing ->
+              -- something weird is happening because we couldn't find anywhere to
+              -- extract to, we can just wrap the entire AST in a Let
+              let newAST = AST.replace (PExpr e) (PExpr (B.newF (Variable varname))) ast
+              in
+                  (B.newF (Let newVar e newAST), B.toID newVar)
   in
       case (p, tl.data) of
         (PExpr e, TLHandler h) ->

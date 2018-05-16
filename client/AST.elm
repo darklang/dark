@@ -636,6 +636,21 @@ clone expr =
           Variable name -> Variable name
   in B.clone cNExpr expr
 
+isDefinitionOf : VarName -> Expr -> Bool
+isDefinitionOf var exp =
+  case B.flattenFF exp of
+    Blank _ -> False
+    Flagged _ _ _ _ _ -> False
+    F id e ->
+      case e of
+        Let b _ _ ->
+          case B.flattenFF b of
+            Blank _ -> False
+            Flagged _ _ _ _ _ -> False
+            F _ vb ->
+              vb == var
+        _ -> False
+
 freeVariables : Expr -> List (ID, VarName)
 freeVariables ast =
   let lets = ast
