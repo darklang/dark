@@ -1,7 +1,6 @@
 open Core
 open Types
 
-type t = Uuid.t
 type username = string
 
 type account = { username: username
@@ -79,7 +78,7 @@ let can_edit ~(auth_domain:string) ~(username:username) : bool =
 let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password
 
-let owner ~(auth_domain:string) : t option =
+let owner ~(auth_domain:string) : Uuid.t option =
   Printf.sprintf
     "SELECT id from accounts
       WHERE accounts.username = '%s'"
@@ -88,6 +87,12 @@ let owner ~(auth_domain:string) : t option =
   |> List.concat
   |> List.hd
   |> Option.map ~f:Uuid.of_string
+
+let auth_domain_for host : string =
+  match String.split host '-' with
+  | d :: _ -> d
+  | _ -> host
+
 
 
 
@@ -148,3 +153,10 @@ let init () : unit =
     ; email = "tmrudick@gmail.com"
     ; name = "Tom Rudick"};
   ()
+
+let init_testing () : unit =
+  upsert_account
+    { username = "testing"
+    ; password = "testingpw"
+    ; email = "test@darklang.com"
+    ; name = "Dark OCaml Tests"};
