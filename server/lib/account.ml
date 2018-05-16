@@ -66,17 +66,18 @@ let has_access ~(auth_domain:string) ~(username:username) : bool =
   || is_admin ~username
 
 
-
-let authenticate ~(auth_domain:string) ~(username:username) ~(password:string) : bool =
-  let valid =
-    Printf.sprintf
-      "SELECT 1 from accounts
+let valid_user ~(username:username) ~(password:string) : bool =
+  Printf.sprintf
+    "SELECT 1 from accounts
       WHERE accounts.username = '%s'
         AND accounts.password = '%s'"
-      (Db.escape username)
-      (Db.escape password)
-              |> Db.truth_via_sql ~quiet:false in
-  valid && has_access ~auth_domain ~username
+    (Db.escape username)
+    (Db.escape password)
+  |> Db.truth_via_sql ~quiet:true
+
+let authenticate ~(auth_domain:string) ~(username:username) ~(password:string) : bool =
+  valid_user ~username ~password
+  && has_access ~auth_domain ~username
 
 
 let init () : unit =
