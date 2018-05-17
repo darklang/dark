@@ -579,8 +579,13 @@ test('feature_flag_works', async t => {
     .typeText("#entry-box", "v")
     .pressKey("enter")
 
+    // go to the let-hole in the FF lhs
+    .pressKey("tab")
+    .pressKey("tab")
+    .pressKey("tab")
+
     // should be selecting the last v now.
-    .expect(Selector('.flag-right .letbody .blankOr').hasClass("selected")).eql(true)
+    .expect(Selector('.flag-left .letvarname .blankOr').hasClass("selected")).eql(true)
 
     // move the slider to pick the other thing
     .drag('.setting-slider > input', 1000, 0)
