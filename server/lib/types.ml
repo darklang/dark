@@ -61,7 +61,7 @@ module RuntimeT = struct
              | FnCall of fnname * expr list
              | Variable of varname
              | Let of varbinding * expr * expr
-             | Lambda of varname list * expr
+             | Lambda of varbinding list * expr
              | Value of string
              | FieldAccess of expr * field
   [@@deriving eq, yojson, show, sexp, bin_io]

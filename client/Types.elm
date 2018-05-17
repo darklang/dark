@@ -242,13 +242,14 @@ type alias FieldName = String
 
 type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
+type alias LambdaParameter = BlankOr VarName
 
 type alias Expr = BlankOr NExpr
 type NExpr = If Expr Expr Expr
            | FnCall FnName (List Expr)
            | Variable VarName
            | Let VarBind Expr Expr
-           | Lambda (List VarName) Expr
+           | Lambda (List LambdaParameter) Expr
            | Value String
            | Thread (List Expr)
            | FieldAccess Expr Field

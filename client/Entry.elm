@@ -184,7 +184,7 @@ parseAst m str =
     ["let"] ->
       Just <| F eid (Let (B.new()) b2 b3)
     ["lambda"] ->
-      Just <| F eid (Lambda ["var"] b2)
+      Just <| F eid (Lambda [B.newF "var"] b2)
     [""] ->
       Just b1
     ["[]"] ->
