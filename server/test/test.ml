@@ -235,7 +235,7 @@ let t_case_insensitive_db_roundtrip () =
 let t_lambda_with_foreach () =
   let ast = fncall ( "String::foreach"
                    , [ v "\"some string\""
-                     ; f (Lambda ( ["var"]
+                     ; f (Lambda ( [f "var"]
                               , f (FnCall ( "Char::toUppercase"
                                           , [f (Variable "var")]))))])
   in

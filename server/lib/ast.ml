@@ -20,6 +20,11 @@ let blank_to_id (bo : 'a or_blank) : id =
   | Blank (id) -> id
   | Flagged (id, _, _, _, _) -> id
 
+let blank_to_content (bo: 'a or_blank) : 'a option =
+  match bo with
+  | Filled (_, c) -> Some c
+  | _ -> None
+
 let to_id (expr: expr) : id =
   blank_to_id expr
 
@@ -257,7 +262,13 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
 
        (* TODO: this will errror if the number of args and vars arent equal *)
        DBlock (fun args ->
-           let bindings = Symtable.of_alist_exn (List.zip_exn vars args) in
+           let varnames =
+             vars
+             |> List.map
+               ~f:(fun v -> flatten_ff v state.ff)
+             |> List.filter_map ~f:blank_to_content
+           in
+           let bindings = Symtable.of_alist_exn (List.zip_exn varnames args) in
            let new_st = Util.merge_left bindings st in
            exe new_st body)
 
@@ -494,7 +505,13 @@ let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sy
          sexe st elsebody
 
        | Filled (_, Lambda (vars, body)) ->
-         let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) vars in
+         let varnames =
+           vars
+           |> List.map
+             ~f:(fun v -> flatten_ff v ff)
+           |> List.filter_map ~f:blank_to_content
+         in
+         let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) varnames in
          sexe new_st body
 
        | Filled (_, Thread (exprs)) ->

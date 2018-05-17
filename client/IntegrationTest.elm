@@ -334,7 +334,7 @@ case_sensitivity m =
                      [ F _ (Variable "TestUnicode")
                      , F _ (FnCall "DB::fetchAll" [])
                      , F _ (FnCall "List::head" [])
-                     , F _ (Lambda ["var"]
+                     , F _ (Lambda [F _ "var"]
                              (F _ (FieldAccess
                                      (F _ (Variable "var"))
                                      (F _ "cOlUmNnAmE"))))]) ->

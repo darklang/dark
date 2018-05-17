@@ -294,7 +294,7 @@ encodeNExpr expr =
                , e body]
 
     Lambda vars body ->
-      ev "Lambda" [ List.map JSE.string vars |> JSE.list
+      ev "Lambda" [ List.map (encodeBlankOr JSE.string) vars |> JSE.list
                   , e body]
 
     FieldAccess obj field ->
@@ -450,7 +450,7 @@ decodeNExpr =
     , ("Value", dv1 Value JSD.string)
     , ("If", dv3 If de de de)
     , ("FnCall", dv2 FnCall JSD.string (JSD.list de))
-    , ("Lambda", dv2 Lambda (JSD.list JSD.string) de)
+    , ("Lambda", dv2 Lambda (JSD.list (decodeBlankOr JSD.string)) de)
     , ("Variable", dv1 Variable JSD.string)
     , ("Thread", dv1 Thread (JSD.list de))
     , ("FieldAccess", dv2 FieldAccess de (decodeBlankOr JSD.string))

@@ -233,7 +233,7 @@ children expr =
         FnCall name exprs ->
           List.map PExpr exprs
         Lambda vars lexpr ->
-          [PExpr lexpr]
+          (List.map PVarBind vars) ++ [PExpr lexpr]
         Thread exprs ->
           List.map PExpr exprs
         FieldAccess obj field ->
@@ -305,7 +305,7 @@ uses var expr =
         FnCall name exprs ->
           exprs |> List.map u |> List.concat
         Lambda vars lexpr ->
-          if List.any (\v -> v == var) vars
+          if List.any is_rebinding vars
           then []
           else u lexpr
         Thread exprs ->
@@ -313,19 +313,6 @@ uses var expr =
         FieldAccess obj field ->
           u obj
 
-usesOf : Expr -> List Expr
-usesOf expr =
-  case expr of
-    Blank _ -> []
-    Flagged _ _ _ _ _ -> []
-    F _ nexpr ->
-      case nexpr of
-        Let lhs rhs body ->
-          case lhs of
-            Blank _ -> []
-            Flagged _ _ _ _ _ -> [] -- unsupported rn
-            F _ varname -> uses varname body
-        _ -> []
 
 allCallsToFn : String -> Expr -> List Expr
 allCallsToFn s e =
@@ -456,7 +443,7 @@ siblings p expr =
           List.map PExpr exprs
 
         F _ (Lambda vars lexpr) ->
-          [PExpr lexpr]
+          (List.map PVarBind vars) ++ [PExpr lexpr]
 
         F _ (Thread exprs) ->
           List.map PExpr exprs
@@ -514,7 +501,7 @@ allData expr =
           rl exprs
 
         Lambda vars body ->
-          allData body
+          (List.map PVarBind vars) ++ allData body
 
         Thread exprs ->
           rl exprs
@@ -575,7 +562,10 @@ replace_ search replacement parent expr =
                   Flagged _ _ _ _ _ -> Nothing
                   F _ var -> Just var
               newBody =
-                let uses = usesOf expr |> List.map PExpr
+                let usesOf =
+                    case orig of
+                      Just var -> uses var body |> List.map PExpr
+                      _ -> []
                     transformUse replacementContent old =
                       case old of
                         PExpr (F _ _) ->
@@ -588,11 +578,49 @@ replace_ search replacement parent expr =
                       (\use acc ->
                         replace_ use (transformUse r use) (Just expr) acc)
                       body
-                      uses
+                      usesOf
                   _ -> body
           in
               F id (Let (B.replace sId replacement lhs) rhs newBody)
         else traverse r expr
+      (F id (Lambda vars body), PVarBind replacement) ->
+        case LE.findIndex (\v -> B.withinShallow v sId) vars of
+          Nothing -> traverse r expr
+          Just i ->
+            let replacementContent =
+                    case replacement of
+                      Blank _ -> Nothing
+                      Flagged _ _ _ _ _ -> Nothing
+                      F _ var -> Just var
+                orig =
+                  case LE.getAt i vars |> deMaybe "we somehow lost it?" of
+                    Blank _ -> Nothing
+                    Flagged _ _ _ _ _ -> Nothing
+                    F _ var -> Just var
+                newBody =
+                  let usesInBody =
+                        case orig of
+                          Just v ->
+                            uses v body |> List.map PExpr
+                          Nothing -> []
+                      transformUse replacementContent old =
+                        case old of
+                          PExpr (F _ _) ->
+                            PExpr (F (gid ()) (Variable replacementContent))
+                          _ -> impossible old
+                  in
+                  case (orig, replacementContent) of
+                    (Just o, Just r) ->
+                      List.foldr
+                        (\use acc ->
+                          replace_ use (transformUse r use) (Just expr) acc)
+                        body
+                        usesInBody
+                    _ -> body
+                newVars =
+                  LE.updateAt i (\old  -> B.replace sId replacement old) vars
+            in
+                F id (Lambda newVars newBody)
 
       (F id (FieldAccess obj field), PField replacement) ->
         if B.withinShallow field sId
@@ -629,7 +657,7 @@ clone expr =
           Let lhs rhs body -> Let (cString lhs) (c rhs) (c body)
           If cond ifbody elsebody -> If (c cond) (c ifbody) (c elsebody)
           FnCall name exprs -> FnCall name (cl exprs)
-          Lambda vars body -> Lambda vars (c body)
+          Lambda vars body -> Lambda (List.map cString vars) (c body)
           Thread exprs -> Thread (cl exprs)
           FieldAccess obj field -> FieldAccess (c obj) (cString field)
           Value v -> Value v
@@ -649,31 +677,39 @@ isDefinitionOf var exp =
             Flagged _ _ _ _ _ -> False
             F _ vb ->
               vb == var
+        Lambda vars _ ->
+          vars
+          |> List.map B.flattenFF
+          |> List.any
+            (\v ->
+              case v of
+                Blank _ -> False
+                Flagged _ _ _ _ _ -> False
+                F _ vb ->
+                  vb == var)
         _ -> False
 
 freeVariables : Expr -> List (ID, VarName)
 freeVariables ast =
-  let lets = ast
-             |> allData
-             |> List.filterMap
-               (\n ->
-                 case n of
-                   PExpr boe ->
-                     case B.flattenFF boe of
-                       Blank _ -> Nothing
-                       Flagged _ _ _ _ _ -> Nothing
-                       F id e as expr ->
-                         case e of
-                           Let lhs rhs body-> Just expr
-                           _ -> Nothing
-                   _ -> Nothing)
-      uses =
-        lets
-        |> List.map usesOf
-        |> List.concat
-        |> List.map (B.toID >> deID)
-        |> Set.fromList
-  in
+  let definedAndUsed = ast
+                       |> allData
+                       |> List.filterMap
+                         (\n ->
+                           case n of
+                             PExpr boe ->
+                               case B.flattenFF boe of
+                                 Blank _ -> Nothing
+                                 Flagged _ _ _ _ _ -> Nothing
+                                 F id e as expr ->
+                                   case e of
+                                     Let (F _ lhs) rhs body->
+                                       Just (uses lhs body)
+                                     _ -> Nothing
+                             _ -> Nothing)
+                       |> List.concat
+                       |> List.map (B.toID >> deID)
+                       |> Set.fromList
+   in
       ast
       |> allData
       |> List.filterMap
@@ -686,7 +722,7 @@ freeVariables ast =
                 F id e ->
                   case e of
                     Variable name ->
-                      if Set.member (deID id) uses
+                      if Set.member (deID id) definedAndUsed
                       then Nothing
                       else Just (id, name)
                     _ -> Nothing

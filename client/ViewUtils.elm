@@ -76,9 +76,16 @@ createVS m tl = { tl = tl
                     case unwrapCursorState m.cursorState of
                       Entering (Filling _ id) ->
                         case TL.find tl id of
-                          Just (PVarBind _) as pd ->
+                          Just (PVarBind (F _ var)) as pd ->
                             case TL.getParentOf tl (deMaybe "impossible" pd)  of
-                              Just (PExpr e) -> e |> AST.usesOf |> List.map B.toID
+                              Just (PExpr e) ->
+                                case e of
+                                  F _ (Let _ _ body) ->
+                                    AST.uses var body |> List.map B.toID
+                                  F _ (Lambda _ body) ->
+                                    AST.uses var body |> List.map B.toID
+                                  _ -> []
+
                               _ -> []
                           _ -> []
                       _ -> []
