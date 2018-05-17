@@ -1,0 +1,491 @@
+[
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Blank", 3612948562 ],
+          [ "Blank", 4130595833 ],
+          [ "Blank", 1921474076 ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Blank", 4130595833 ],
+          [ "Blank", 1921474076 ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [ "Blank", 1921474076 ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Blank", 3769131432 ],
+              [ "Blank", 2266048443 ],
+              [ "Blank", 3869802585 ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Blank", 2266048443 ],
+              [ "Blank", 3869802585 ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [ "Blank", 3869802585 ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [
+                "Filled",
+                1582275098,
+                [
+                  "Let",
+                  [ "Blank", 3731812168 ],
+                  [ "Blank", 2180470079 ],
+                  [ "Blank", 3180441056 ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [
+                "Filled",
+                1582275098,
+                [
+                  "Let",
+                  [ "Filled", 1084620256, "baz" ],
+                  [ "Blank", 2180470079 ],
+                  [ "Blank", 3180441056 ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [
+                "Filled",
+                1582275098,
+                [
+                  "Let",
+                  [ "Filled", 1084620256, "baz" ],
+                  [ "Filled", 1513636298, [ "Value", "5" ] ],
+                  [ "Blank", 3180441056 ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [
+                "Filled",
+                1582275098,
+                [
+                  "Let",
+                  [ "Filled", 1084620256, "baz" ],
+                  [ "Filled", 1513636298, [ "Value", "5" ] ],
+                  [
+                    "Filled",
+                    482833718,
+                    [
+                      "FnCall",
+                      "+",
+                      [ [ "Blank", 1699406226 ], [ "Blank", 3822700263 ] ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [
+                "Filled",
+                1582275098,
+                [
+                  "Let",
+                  [ "Filled", 1084620256, "baz" ],
+                  [ "Filled", 1513636298, [ "Value", "5" ] ],
+                  [
+                    "Filled",
+                    482833718,
+                    [
+                      "FnCall",
+                      "+",
+                      [
+                        [ "Filled", 3618664244, [ "Variable", "foo" ] ],
+                        [ "Blank", 3822700263 ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [
+    "SetHandler",
+    1760300455,
+    { "x": 533, "y": 212 },
+    {
+      "tlid": 1760300455,
+      "ast": [
+        "Filled",
+        2012725865,
+        [
+          "Let",
+          [ "Filled", 1202765487, "foo" ],
+          [ "Filled", 1040370379, [ "Value", "1" ] ],
+          [
+            "Filled",
+            1327273004,
+            [
+              "Let",
+              [ "Filled", 2548241186, "bar" ],
+              [ "Filled", 2797081385, [ "Value", "2" ] ],
+              [
+                "Filled",
+                1582275098,
+                [
+                  "Let",
+                  [ "Filled", 1084620256, "baz" ],
+                  [ "Filled", 1513636298, [ "Value", "5" ] ],
+                  [
+                    "Filled",
+                    482833718,
+                    [
+                      "FnCall",
+                      "+",
+                      [
+                        [ "Filled", 3618664244, [ "Variable", "foo" ] ],
+                        [ "Filled", 1909850983, [ "Variable", "bar" ] ]
+                      ]
+                    ]
+                  ]
+                ]
+              ]
+            ]
+          ]
+        ]
+      ],
+      "spec": {
+        "module": [ "Blank", 2902715028 ],
+        "name": [ "Blank", 564603214 ],
+        "modifier": [ "Blank", 3842249056 ],
+        "types": {
+          "input": [ "Filled", 3051109331, [ "Any" ] ],
+          "output": [ "Filled", 3911767253, [ "Any" ] ]
+        }
+      }
+    }
+  ]
+]
