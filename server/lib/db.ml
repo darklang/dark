@@ -96,7 +96,7 @@ let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
   |> conn#exec ~expect:PG.[Tuples_ok]
   |> (fun res -> res#get_all_lst)
 
-let truth_via_sql ?(quiet=false) (sql: string) : bool =
+let exists_via_sql ?(quiet=false) (sql: string) : bool =
   fetch_via_sql ~quiet sql = [["1"]]
 
 (* ------------------------- *)
