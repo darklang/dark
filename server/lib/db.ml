@@ -727,9 +727,15 @@ let all_oplists (digest: string) : string list =
   |> fetch_via_sql ~quiet:true
   |> List.concat
   |> List.filter ~f:(fun h ->
-      not (String.is_prefix ~prefix:"test_" h))
+      not (String.is_prefix ~prefix:"test-" h))
 
 let delete_test_oplists () : unit =
+  "DELETE FROM oplists
+  WHERE host like 'test-%%'"
+  |> run_sql ~quiet:false
+
+
+let delete_underscore_test_oplists () : unit =
   "DELETE FROM oplists
   WHERE host like 'test\\_%%'"
   |> run_sql ~quiet:false
@@ -748,12 +754,20 @@ let delete_schema (host:string) : unit =
     (ns_name host)
   |> run_sql ~quiet:false
 
-
-let delete_testdata () : unit =
+let delete_underscope_testdata () : unit =
   all_schemas ()
   |> List.filter ~f:(String.is_prefix ~prefix:"test_")
   |> List.iter ~f:delete_schema
+
+
+
+let delete_testdata () : unit =
+  all_schemas ()
+  |> List.filter ~f:(String.is_prefix ~prefix:"test-")
+  |> List.iter ~f:delete_schema
   ;
+  delete_test_oplists ();
+  delete_underscore_test_oplists ();
   delete_test_oplists ()
 
 

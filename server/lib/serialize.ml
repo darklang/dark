@@ -16,6 +16,7 @@ let write_shape_data () =
 
 let is_test (name: string) : bool =
   String.is_prefix ~prefix:"test_" name
+  || String.is_prefix ~prefix:"test-" name
 
 let root_of (name: string): Config.root =
   if is_test name

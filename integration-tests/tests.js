@@ -6,7 +6,7 @@ fixture `Integration Tests`
   .beforeEach( async t => {
     const testname = t.testRun.test.name;
     const host = process.env.TEST_HOST
-    const url = "http://test_" + testname + "." + host + "/admin/integration_test";
+    const url = "http://test-" + testname + "." + host + "/admin/integration_test";
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
