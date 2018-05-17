@@ -136,6 +136,7 @@ type Msg
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
     | EndFeatureFlag ID
+    | DeleteUserFunctionParameter UserFunction UserFunctionParameter
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
     | BlankOrMouseEnter TLID ID MouseEvent

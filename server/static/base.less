@@ -920,6 +920,31 @@ body #grid * {
   .default;
 }
 
+.parameter-btn {
+  font-size: 75%;
+
+  &.allowed {
+    &:hover {
+      color: @green;
+      cursor: pointer;
+    }
+  }
+
+  &.disallowed {
+    color: lighten(@grey1, 20%);
+
+    &:hover {
+      &:after {
+        content: attr(title);
+        position: absolute;
+        left: 100% + 10px;
+        color: @red;
+        width: max-content;
+      }
+    }
+  }
+}
+
 .edit-fn {
   position: absolute;
   .default;

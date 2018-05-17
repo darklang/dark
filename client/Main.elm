@@ -1148,6 +1148,15 @@ update_ msg m =
            , FeatureFlags.updateSlider m id value
            ]
 
+    -------------------------
+    -- Function Management
+    ------------------------
+    DeleteUserFunctionParameter uf upf ->
+      let replacement = Functions.removeParameter uf upf
+          newCalls = Refactor.removeFunctionParameter m uf upf
+      in
+          RPC ([SetFunction replacement] ++ newCalls, FocusNext uf.tlid Nothing)
+
     -----------------
     -- RPCs stuff
     -----------------

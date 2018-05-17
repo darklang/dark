@@ -212,5 +212,14 @@ extend uf =
       { uf | metadata = newMetadata }
 
 
+removeParameter : UserFunction -> UserFunctionParameter -> UserFunction
+removeParameter uf ufp =
+  let metadata = uf.metadata
+      params =
+        List.filter (\p -> p /= ufp) metadata.parameters
+      newM =
+        { metadata | parameters = params }
+  in
+      { uf | metadata = newM }
 
 
