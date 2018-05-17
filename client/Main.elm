@@ -428,7 +428,7 @@ updateMod mod (m, cmd) =
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         { m | executingFunctions = nexecutingFunctions } ! []
       ExecutingFunctionComplete tlid id ->
-        let nexecutingFunctions = List.filter (\fn -> fn /= (tlid, id)) m.executingFunctions in
+        let nexecutingFunctions = List.filter ((/=) (tlid, id)) m.executingFunctions in
         { m | executingFunctions = nexecutingFunctions } ! []
       TweakModel fn ->
         fn m ! []
@@ -1104,9 +1104,9 @@ update_ msg m =
       let tl = TL.getTL m tlid in
       Many [ ExecutingFunctionBegan tlid id
            , RPCFull ({ ops = []
-                 , executableFns = [(tlid, id, tl.cursor)]
-                 , target = Just (tlid, id)
-                 }, FocusNoChange)
+                      , executableFns = [(tlid, id, tl.cursor)]
+                      , target = Just (tlid, id)
+                      }, FocusNoChange)
            ]
 
 
@@ -1153,9 +1153,10 @@ update_ msg m =
     -----------------
     RPCCallback focus extraMod calls
       (Ok (toplevels, analysis, globals, userFuncs, f404s, unlocked)) ->
-      let executingFunctionsCallback = case calls.target of
-        Just (tlid, id) -> ExecutingFunctionComplete tlid id
-        Nothing -> NoChange
+      let executingFunctionsCallback =
+        case calls.target of
+          Just (tlid, id) -> ExecutingFunctionComplete tlid id
+          Nothing -> NoChange
       in
       if focus == FocusNoChange
       then
