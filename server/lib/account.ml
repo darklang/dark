@@ -89,7 +89,7 @@ let owner ~(auth_domain:string) : Uuid.t option =
   |> Option.map ~f:Uuid.of_string
 
 let auth_domain_for host : string =
-  match String.split host '_' with
+  match String.split host '-' with
   | d :: _ -> d
   | _ -> host
 
