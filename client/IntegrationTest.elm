@@ -51,6 +51,7 @@ trigger test_name =
     "nochange_for_failed_paste" -> nochange_for_failed_paste
     "feature_flag_works" -> feature_flag_works
     "simple_tab_ordering" -> simple_tab_ordering
+    "variable_extraction" -> variable_extraction
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -506,5 +507,37 @@ simple_tab_ordering m =
                else fail (ast, m.cursorState, id)
              _ -> fail (ast, m.cursorState, id)
     _ -> fail (ast, m.cursorState)
+
+variable_extraction : Model -> TestResult
+variable_extraction m =
+  let ast = onlyHandler m |> .ast in
+  case ast of
+    F _
+      (Let
+        (F _ "foo")
+        (F _ (Value "1"))
+        (F _
+          (Let
+            (F _ "bar")
+            (F _ (Value "2"))
+            (F _
+              (Let
+                (F _ "new_variable")
+                (F _ (FnCall "+"
+                        ([F _ (Variable "foo"), F _ (Variable "bar")])))
+                (F _
+                  (Let
+                    (F _ "baz")
+                    (F _ (Value "5"))
+                    (F _ (Variable "new_variable"))
+                  )
+                )
+              )
+            )
+          )
+        )
+      ) -> pass
+    _ -> fail (ast, m.cursorState)
+
 
 
