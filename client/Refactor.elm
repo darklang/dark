@@ -270,14 +270,14 @@ renameFunction m old new =
       in
           newHandlers ++ newFunctions
 
-addNewFunctionParameter : Model -> UserFunction -> List Op
-addNewFunctionParameter m old =
-  let extendFnCalls ast old =
+transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
+transformFnCalls m uf f =
+  let transformCallsInAst f ast old =
         let transformCall old =
               let transformExpr old =
                     case old of
                       F id (FnCall name params) ->
-                        F id (FnCall name (params ++ [B.new ()]))
+                        F id (f (FnCall name params))
                       _ ->
                         old
               in
@@ -307,7 +307,7 @@ addNewFunctionParameter m old =
                 case TL.asHandler tl of
                   Nothing -> Nothing
                   Just h ->
-                    let newAst = extendFnCalls h.ast old
+                    let newAst = transformCallsInAst f h.ast uf
                     in
                         if newAst /= h.ast
                         then
@@ -317,7 +317,7 @@ addNewFunctionParameter m old =
               m.userFunctions
               |> List.filterMap
                 (\uf ->
-                  let newAst = extendFnCalls uf.ast old
+                  let newAst = transformCallsInAst f uf.ast uf
                   in
                       if newAst /= uf.ast
                       then
@@ -325,4 +325,27 @@ addNewFunctionParameter m old =
                       else Nothing)
       in
           newHandlers ++ newFunctions
+
+addNewFunctionParameter : Model -> UserFunction -> List Op
+addNewFunctionParameter m old =
+  let fn e =
+        case e of
+          FnCall name params ->
+            FnCall name (params ++ [B.new ()])
+          _ -> e
+  in
+      transformFnCalls m old fn
+
+removeFunctionParameter : Model -> UserFunction -> UserFunctionParameter -> List Op
+removeFunctionParameter m uf ufp =
+  let indexInList =
+        LE.findIndex (\p -> p == ufp) uf.metadata.parameters
+        |> deMaybe "tried to remove parameter that does not exist in function"
+      fn e =
+        case e of
+          FnCall name params ->
+            FnCall name (LE.removeAt indexInList params)
+          _ -> e
+  in
+      transformFnCalls m uf fn
 
