@@ -59,7 +59,7 @@ let is_admin ~username : bool =
      WHERE accounts.username = '%s'
        AND accounts.admin = true "
     (Db.escape username)
-  |> Db.truth_via_sql ~quiet:false
+  |> Db.exists_via_sql ~quiet:false
 
 let valid_user ~(username:username) ~(password:string) : bool =
   Printf.sprintf
@@ -68,7 +68,7 @@ let valid_user ~(username:username) ~(password:string) : bool =
         AND accounts.password = '%s'"
     (Db.escape username)
     (Db.escape password)
-  |> Db.truth_via_sql ~quiet:true
+  |> Db.exists_via_sql ~quiet:true
 
 
 let can_edit ~(auth_domain:string) ~(username:username) : bool =
