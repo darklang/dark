@@ -267,7 +267,7 @@ qHTTPRoute s =
 
 qEventSpace : String -> Maybe AutocompleteItem
 qEventSpace s =
-  if Util.reExactly "[A-Z]*" s && String.length s > 0
+  if Util.reExactly "[A-Z]+" s
   then Just (ACOmniAction (NewEventSpace s))
   else Nothing
 
