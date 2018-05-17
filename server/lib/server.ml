@@ -73,7 +73,7 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
   respond ~headers:(Cohttp.Header.of_list headers) `OK ""
 
 
-let user_page_handler ~(owner:Uuid.t) ~(host: string) ~(ip: string) ~(uri: Uri.t)
+let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
   let c = C.load host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
@@ -185,7 +185,7 @@ let user_page_handler ~(owner:Uuid.t) ~(host: string) ~(ip: string) ~(uri: Uri.t
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let admin_rpc_handler ~(owner:Uuid.t) ~(host: string) body : (Cohttp.Header.t * string) =
+let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
   let execution_id = Util.create_id () in
   try
     let (t1, params) = time "1-read-api-ops"
@@ -235,59 +235,56 @@ let save_test_handler host =
 let auth_then_handle req host handler =
   let path = req |> CRequest.uri |> Uri.path in
   let auth_domain = Account.auth_domain_for host in
-  match Account.owner ~auth_domain with
-  | None -> respond `Not_found "No canvas found"
-  | Some owner ->
-    if not (String.is_prefix ~prefix:"/admin" path)
-    then
-      handler ~owner (Header.init ())
-    else
-      (* only handle auth for admin routes *)
-      (* let users use their domain as a prefix for scratch work *)
-      Auth.Session.of_request req
-      >>= (function
-      | Ok (Some session) ->
-        if path = "/admin/logout"
-        then
-          Auth.Session.clear Auth.Session.backend session
-          >>= fun _ ->
-          let headers =
-            (Header.of_list
-               (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-          S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
-        else
-          (let username = Auth.Session.username_for session in
-           if Account.can_edit ~auth_domain ~username
-           then
-             handler ~owner (Header.init ())
-           else
-             respond `Unauthorized "Unauthorized")
+  if not (String.is_prefix ~prefix:"/admin" path)
+  then
+    handler (Header.init ())
+  else
+    (* only handle auth for admin routes *)
+    (* let users use their domain as a prefix for scratch work *)
+    Auth.Session.of_request req
+    >>= (function
+    | Ok (Some session) ->
+      if path = "/admin/logout"
+      then
+        Auth.Session.clear Auth.Session.backend session
+        >>= fun _ ->
+        let headers =
+          (Header.of_list
+             (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
+        S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
+      else
+        (let username = Auth.Session.username_for session in
+         if Account.can_edit ~auth_domain ~username
+         then
+           handler (Header.init ())
+         else
+           respond `Unauthorized "Unauthorized")
+    | _ ->
+      let auth =
+        req
+        |> CRequest.headers
+        |> Header.get_authorization
+      in
+      match auth with
+      | (Some (`Basic (username, password))) ->
+        (if Account.authenticate ~username ~password
+            && Account.can_edit ~auth_domain ~username
+         then
+           Auth.Session.new_for_username username >>=
+           (fun session ->
+              let headers = Header.of_list (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session) in
+              handler headers)
+         else
+          respond `Unauthorized "Bad credentials")
+      | None ->
+        S.respond_need_auth ~auth:(`Basic "dark") ()
       | _ ->
-        let auth =
-          req
-          |> CRequest.headers
-          |> Header.get_authorization
-        in
-        match auth with
-        | (Some (`Basic (username, password))) ->
-          (if Account.authenticate ~username ~password
-              && Account.can_edit ~auth_domain ~username
-           then
-             Auth.Session.new_for_username username >>=
-             (fun session ->
-                let headers = Header.of_list (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session) in
-                handler ~owner headers)
-           else
-            respond `Unauthorized "Bad credentials")
-        | None ->
-          S.respond_need_auth ~auth:(`Basic "dark") ()
-        | _ ->
-          respond `Unauthorized "Invalid session")
+        respond `Unauthorized "Invalid session")
 
-let admin_handler ~(owner:Uuid.t) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
+let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
   let empty_body = "{ ops: [], executable_fns: []}" in
   let rpc ?(body=empty_body) () =
-    let (headers, response_body) = admin_rpc_handler body ~owner ~host in
+    let (headers, response_body) = admin_rpc_handler body ~host in
     respond ~headers `OK response_body
   in
 
@@ -338,7 +335,7 @@ let server () =
             | a :: rest -> Some a
             | _ -> None)
     in
-    let handler ~(owner:Uuid.t) headers =
+    let handler headers =
       try
         let ip = get_ip_address ch in
         let uri = req |> CRequest.uri in
@@ -361,13 +358,13 @@ let server () =
              (* if we've gotten this far, the owner must be the user.
               * It's also possible it's an admin, in which case we
               * should pretend to be the user. *)
-             admin_handler ~owner ~host ~uri ~body ~stopper req headers
+             admin_handler ~host ~uri ~body ~stopper req headers
            | _ ->
              respond `Not_found "Not found")
         | _ ->
           (match host with
            | Some host ->
-             user_page_handler ~owner ~host ~ip ~uri ~body req
+             user_page_handler ~host ~ip ~uri ~body req
            | None ->
              respond `Not_found "Not found")
       with
