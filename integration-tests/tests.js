@@ -600,4 +600,12 @@ test('simple_tab_ordering', async t => {
     .pressKey("enter")
 });
 
+test('variable_extraction', async t => {
+  await t
+    .click(Selector('.fnname').withText('+'))
+    .pressKey("ctrl+shift+l")
+    .typeText("#entry-box", "new_variable")
+    .pressKey("enter")
+})
+
 
