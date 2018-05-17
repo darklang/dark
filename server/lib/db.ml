@@ -214,6 +214,7 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
   match tipe with
   | TID -> sql |> Uuid.of_string |> DID
   | TInt -> sql |> int_of_string |> DInt
+  | TFloat -> sql |> float_of_string |> DFloat
   | TTitle -> sql |> DTitle
   | TUrl -> sql |> DUrl
   | TStr -> sql |> DStr
