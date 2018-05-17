@@ -238,27 +238,27 @@ viewNExpr d id vs config e =
                     (\_ -> ExecuteFunctionButton vs.tl.id id)
           (bClass, bEvent, bTitle, bIcon) =
             if buttonUnavailable
-            then (if showExecuting then "execution-button-unavailable is-executing" else "execution-button-unavailable"
+            then ("execution-button-unavailable"
                  , []
                  , "Cannot run: some parameters are incomplete"
                  , "cog")
             else if buttonNeeded
-            then
-              ( if showExecuting then "execution-button-needed is-executing" else "execution-button-needed"
-              , [event]
-              , "Click to execute function"
-              , "cog")
+            then ("execution-button-needed"
+                  , [event]
+                  , "Click to execute function"
+                  , "cog")
             else
-              ( if showExecuting then "execution-button-repeat is-executing" else "execution-button-repeat"
+              ("execution-button-repeat"
               , [event]
               , "Click to execute function again"
               , "redo")
+          executingClass = if showExecuting then " is-executing" else ""
           button =
             if not showButton
             then []
             else
               [ Html.div
-                ([ Attrs.class ("execution-button " ++ bClass)
+                ([ Attrs.class ("execution-button " ++ bClass ++ executingClass)
                  , Attrs.title bTitle
                  ] ++ bEvent)
                 [fontAwesome bIcon]
