@@ -67,6 +67,7 @@ rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${TEST_RESULTS_DIR}/integration_tests.*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/events/test_*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
+rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test-*
 
 # Clear DBs
 function exe { psql -d proddb -c "$@"; }
@@ -77,10 +78,17 @@ for db in $TESTSCHEMAS; do
   SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
 done
 
+TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test-';" | grep test- || true)
+for db in $TESTSCHEMAS; do
+  SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
+done
+
+
 exe "$SCRIPT"
 
 echo "Clearing oplists";
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
+exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';"
 
 
 

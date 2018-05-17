@@ -385,7 +385,7 @@ let save (c : canvas) : unit =
 
 let save_test (c: canvas) : string =
   let c = minimize c in
-  let host = "test_" ^ c.host in
+  let host = "test-" ^ c.host in
   let file = Serialize.json_unversioned_filename host in
   let host = if Util.file_exists ~root:Testdata file
              then
