@@ -132,6 +132,18 @@ addThreadBlank id expr =
 
       _ -> traverse atb expr
 
+addLambdaBlank : ID -> Expr -> Expr
+addLambdaBlank id expr =
+  case parentOf_ id expr of
+    Just (F lid (Lambda vars body)) as old ->
+      let r =
+          F lid (Lambda (vars ++ [B.new ()]) body)
+      in
+          replace
+            (old |> deMaybe "impossible" |> PExpr)
+            (PExpr r)
+            expr
+    _ -> expr
 
 -- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> Expr -> Expr
