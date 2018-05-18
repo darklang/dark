@@ -266,26 +266,19 @@ let migrate_foreach (search: string) (template: string) (host: string) =
 
 
 let run () : unit =
-  try
-    List.iter migrations ~f:(fun m ->
-      match m with
-      | `Global sql -> Db.run_sql sql
-      | `EachCanvas template ->
-        List.iter (Serialize.current_hosts ())
-          ~f:(migrate_canvas template)
-      | `EachCanvasRaw template ->
-        List.iter (Serialize.current_hosts ())
-          ~f:(migrate_canvas_raw template)
-      | `ForEach (search, template) ->
-        List.iter (Serialize.current_hosts ())
-          ~f:(migrate_foreach search template)
-      )
-
-  with
-  | Postgresql.Error msg as e ->
-    Log.erroR "sql error" msg;
-    raise e
-
+  List.iter migrations ~f:(fun m ->
+    match m with
+    | `Global sql -> Db.run_sql sql
+    | `EachCanvas template ->
+      List.iter (Serialize.current_hosts ())
+        ~f:(migrate_canvas template)
+    | `EachCanvasRaw template ->
+      List.iter (Serialize.current_hosts ())
+        ~f:(migrate_canvas_raw template)
+    | `ForEach (search, template) ->
+      List.iter (Serialize.current_hosts ())
+        ~f:(migrate_foreach search template)
+    )
 
 
 (* ------------------------- *)

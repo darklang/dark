@@ -75,9 +75,6 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
       else
         (Log.erroR "check failed" ed;
         Some "Check failed")
-    | Postgresql.Error e ->
-      Log.pP ("Postgres error: " ^ Postgresql.string_of_error e) e;
-      Some "postgres exception"
     | e ->
       let bt = Backtrace.Exn.most_recent () in
       let msg = Exn.to_string e in
