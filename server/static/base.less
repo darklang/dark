@@ -174,6 +174,7 @@ body #grid * {
         float: left;
         &.mouseovered {
           color: orange;
+          cursor: pointer;
           &:before {
             background-color: @grey1;
             bottom: calc(~"-100% + 37px");
@@ -603,6 +604,7 @@ body #grid * {
         font-weight: strong;
         margin-left: -6px;
         margin-top: -3px;
+        cursor: pointer;
       }
       margin-left: -4px;
       transition: color linear 0.1s;
@@ -923,10 +925,21 @@ body #grid * {
   border-radius: 13px;
 }
 
+.right-button {
+  margin: 0;
+  padding: 0;
+  color: @grey3;
+
+  &:hover {
+    color: lighten(@grey3, 15%);
+    cursor: pointer;
+  }
+}
+
 .feature-flag {
   position: absolute;
   right: -16px;
-  .default;
+  .right-button;
 }
 
 .parameter-btn {
@@ -956,7 +969,7 @@ body #grid * {
 
 .edit-fn {
   position: absolute;
-  .default;
+  .right-button;
 }
 
 // live data
@@ -1015,6 +1028,11 @@ body #grid * {
     margin-top: -9px;
     &.valid-action {
       color: @green;
+
+      &:hover {
+        color: lighten(@green, 15%);
+        cursor: pointer;
+      }
     }
     &.invalid-action {
       color: @red;
