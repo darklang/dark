@@ -20,9 +20,9 @@ let dequeue_and_evaluate_all () : string =
             Some (endp, C.load endp []) (* serialization can fail, attempt first *)
           with
           | e ->
-            (* let bt = Backtrace.Exn.most_recent () in *)
+            let bt = Backtrace.Exn.most_recent () in
             Log.erroR ("Deserialization error for host: " ^ endp) e;
-            (* let _ = Rollbar.report e bt EventQueue in *)
+            let _ = Rollbar.report e bt EventQueue in
             None)
     |> List.map
       ~f:(fun (endpoint, c) ->
