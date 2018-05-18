@@ -11,6 +11,7 @@ let init () =
     Log.level := Config.log_level;
     Printexc.record_backtrace true;
     Exn.initialize_module ();
+    Util.init ();
     (* init the Random module, will be seeded from /dev/urandom on Linux *)
     Random.self_init ();
     Httpclient.init ();
