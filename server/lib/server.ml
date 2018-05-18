@@ -349,27 +349,20 @@ let server () =
           , req |> CRequest.meth |> Cohttp.Code.string_of_method
           , "http:" ^ Uri.to_string uri);
 
-        match (Uri.path uri) with
-        | "/sitemap.xml"
-        | "/favicon.ico" ->
+        match (Uri.path uri, host) with
+        | ("/sitemap.xml", _)
+        | ("/favicon.ico", _) ->
          respond `OK ""
-        | p when (String.is_prefix ~prefix:"/static/" p) ->
+        | (p, _) when (String.is_prefix ~prefix:"/static/" p) ->
           static_handler uri
-        | p when (String.is_prefix ~prefix:"/admin/" p) ->
-          (match host with
-           | Some host ->
-             (* if we've gotten this far, the owner must be the user.
-              * It's also possible it's an admin, in which case we
-              * should pretend to be the user. *)
-             admin_handler ~host ~uri ~body ~stopper req headers
-           | _ ->
-             respond `Not_found "Not found")
-        | _ ->
-          (match host with
-           | Some host ->
-             user_page_handler ~host ~ip ~uri ~body req
-           | None ->
-             respond `Not_found "Not found")
+        | (_, None) ->
+          respond `Not_found "Not found"
+        | (p, Some host) ->
+          if String.is_prefix ~prefix:"/admin/" p
+          then
+            admin_handler ~host ~uri ~body ~stopper req headers
+          else
+            user_page_handler ~host ~ip ~uri ~body req
       with
       | e ->
         let bt = Backtrace.Exn.most_recent () in
