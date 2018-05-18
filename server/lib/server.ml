@@ -331,8 +331,11 @@ let server () =
         ~f:(fun host ->
             match String.split host '.' with
             | ["localhost"] -> Some "localhost"
+            | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
             | [_] -> None
-            | a :: rest -> Some a
+            | a :: _ when int_of_string_opt a = None ->
+              (* only for letters (ignore ip addresses) *)
+              Some a
             | _ -> None)
     in
     let handler headers =
