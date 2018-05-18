@@ -198,3 +198,12 @@ let hash (input:string) : string =
 let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
   |> Option.value ~default:msg
+
+
+let init () =
+  (* Spawn creates lots of child processes. When they finish, the OS
+   * asks the dark executable what to do. This tells it to ignore them
+   * in such a way that the OS will clean them up. (I thought this was
+   * the default, but this appears to fix the problem). *)
+  Signal.ignore Signal.chld;
+
