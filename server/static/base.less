@@ -23,6 +23,7 @@ html {
 @selected-background: lighten(@black1, 5%);
 @top-border: lighten(@black1, 5%) 2px dotted;
 @blank-underline: 1px dashed @grey2;
+@code-font-size: 13.3333px;
 
 ::-webkit-scrollbar {
   -webkit-appearance: none;
@@ -798,6 +799,7 @@ body #grid * {
 
 .omnibox {
   // honestly couldnt tell you where this magic number comes from
+  font-size: @code-font-size;
   margin-top: -9px;
   .string-entry {
     margin-top: -21px;
@@ -811,7 +813,7 @@ body #grid * {
 .string-entry {
   background: @selected-background;
   border: 0;
-  font-size: 13.333px;
+  font-size: @code-font-size;
   margin: 0;
   margin-left: 0.5ch;
   padding-left: 1ch;
