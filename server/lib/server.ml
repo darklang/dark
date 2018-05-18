@@ -234,13 +234,13 @@ let save_test_handler host =
 
 let auth_then_handle req host handler =
   let path = req |> CRequest.uri |> Uri.path in
-  let auth_domain = Account.auth_domain_for host in
   if not (String.is_prefix ~prefix:"/admin" path)
   then
     handler (Header.init ())
   else
     (* only handle auth for admin routes *)
     (* let users use their domain as a prefix for scratch work *)
+    let auth_domain = Account.auth_domain_for host in
     Auth.Session.of_request req
     >>= (function
     | Ok (Some session) ->
