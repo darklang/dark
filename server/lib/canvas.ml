@@ -357,7 +357,7 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
               |> fun o ->
                    match o with
                    | Some owner -> owner
-                   | None -> Exception.client "No Canvas found"
+                   | None -> Exception.client ("No Canvas found for host " ^ host)
   in
 
   let id = fetch_canvas_id owner host in
