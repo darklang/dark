@@ -433,7 +433,7 @@ viewEditFn : TLID -> Bool -> Html.Html Msg
 viewEditFn tlid hasFlagAlso =
   let rightOffset =
         if hasFlagAlso
-        then "-32px"
+        then "-34px"
         else "-16px"
   in
   Html.a
