@@ -92,9 +92,18 @@ let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
     ()
   else
     Log.infO "fetching via sql" sql;
-  sql
-  |> conn#exec ~expect:PG.[Tuples_ok]
-  |> (fun res -> res#get_all_lst)
+  try
+    sql
+    |> conn#exec ~expect:PG.[Tuples_ok]
+    |> (fun res -> res#get_all_lst)
+  with
+  | Postgresql.Error pge as e ->
+    Exception.reraise_after e
+      (fun _ -> Log.erroR "Postgres error" pge)
+  | e ->
+    Exception.reraise e
+
+
 
 let exists_via_sql ?(quiet=false) (sql: string) : bool =
   fetch_via_sql ~quiet sql = [["1"]]
