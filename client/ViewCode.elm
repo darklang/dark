@@ -289,7 +289,7 @@ viewNExpr d id vs config e =
     Lambda vars expr ->
       let varname v = t [wc "lambdavarname", atom] v in
       n (wc "lambdaexpr" :: all)
-        [ n [wc "lambdabinding"] (List.map (viewVarBind vs [wc "lambdabind"]) vars)
+        [ n [wc "lambdabinding"] (List.map (viewVarBind vs [atom]) vars)
         , a [wc "arrow"] "->"
         , n [wc "lambdabody"] [vExpr 0 expr]
         ]

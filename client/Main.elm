@@ -544,9 +544,23 @@ update_ msg m =
                     TLHandler h ->
                       case mId of
                         Just id ->
-                          let replacement = AST.addThreadBlank id h.ast in
-                          RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
-                              , FocusNext tlid (Just id))
+                          case (TL.findExn tl id) of
+                            PExpr _ ->
+                              let replacement = AST.addThreadBlank id h.ast in
+                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                  , FocusNext tlid (Just id))
+                            PVarBind _ ->
+                              case AST.parentOf_ id h.ast of
+                                Just (F _ (Lambda _ _)) ->
+                                  let replacement = AST.addLambdaBlank id h.ast
+                                  in
+                                      RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                          , FocusNext tlid (Just id))
+                                _ ->
+                                  NoChange
+                            _ ->
+                              NoChange
+
                         Nothing -> NoChange
                     TLFunc f ->
                       case mId of
