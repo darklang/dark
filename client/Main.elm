@@ -355,8 +355,14 @@ updateMod mod (m, cmd) =
         if m.currentPage == page
         then m ! []
         else
-          let newM = { m | currentPage = page, cursorState = Deselected }
-          in newM ! closeThreads newM
+          case (page, m.currentPage) of
+            (Toplevels pos1, Toplevels pos2) ->
+              -- scrolling
+              { m | currentPage = page} ! []
+            _ ->
+              let newM = { m | currentPage = page
+                         , cursorState = Deselected }
+              in newM ! closeThreads newM
 
       Select tlid p ->
         let newM = { m | cursorState = Selecting tlid p } in
