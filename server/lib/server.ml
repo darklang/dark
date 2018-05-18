@@ -391,9 +391,6 @@ let server () =
       (try
          auth_then_handle req host handler
        with
-       | Postgresql.Error e ->
-         Log.pP ("Postgres error: " ^ Postgresql.string_of_error e) e;
-         respond `Internal_server_error ""
        | e -> respond `Internal_server_error "")
     | None ->
       respond `Not_found "Not found"
