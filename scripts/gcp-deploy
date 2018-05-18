@@ -72,7 +72,7 @@ if [[ "$OLDIMAGE" != "$IMAGE" || "$FORCE" ]]; then
   echo "Image $IMAGE deployed"
 
   echo "Waiting for deploy to be up"
-  until $(curl --output /dev/null --silent --head --fail http://${IP}:80/static/elm.js); do
+  until $(curl --output /dev/null --silent --head --fail https://darksingleinstance.com/); do
     echo -n '.'
     sleep 1
   done
