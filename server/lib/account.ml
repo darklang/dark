@@ -147,6 +147,12 @@ let init () : unit =
     ; password = "ksef[1=s;dier]2"
     ; email = "tmrudick@gmail.com"
     ; name = "Tom Rudick"};
+  upsert_account
+    { username = "darksingleinstance"
+    ; password = "jas902ksd]23dl49v"
+    ; email = "ops@darklang.com"
+    ; name = "Dark Single Instance"};
+
   ()
 
 let init_testing () : unit =
