@@ -367,13 +367,14 @@ let server () =
       | e ->
         let bt = Backtrace.Exn.most_recent () in
         Rollbar.report_lwt e bt (Remote (req, body)) >>= fun _ ->
-        let err_body = (match e with
+        let err_body =
+          (match e with
           | Exception.DarkException e ->
             e
             |> Exception.exception_data_to_yojson
             |> Yojson.Safe.pretty_to_string
           | Yojson.Json_error msg ->
-            "Not a value: " ^ msg
+            "Not a valid JSON value: '" ^ msg ^ "'"
           | Postgresql.Error e ->
             "Postgres error: " ^ Postgresql.string_of_error e
           | _ ->
