@@ -14,7 +14,8 @@ else
 fi
 
 
-# Stop the server
+# Stop the server (note that this makes the old main.exe into a zombie.
+# Doesn't matter though, as this only runs in dev).
 (ps aux | pgrep 'ocamlrun' | xargs kill -9 > /dev/null 2>&1) || true
 (ps aux | pgrep main.exe | xargs kill -9 > /dev/null 2>&1) || true
 
