@@ -348,17 +348,18 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
     else false, []
   in
 
+  let owner =
+    host
+    |> Account.auth_domain_for
+    |> Account.owner
+    |> fun o ->
+         match o with
+         | Some owner -> owner
+         | None -> Exception.client ("No Canvas found for host " ^ host)
+  in
+
   if oldops = [] || run_old_db_ops
   then initialize_host host;
-
-  let owner = host
-              |> Account.auth_domain_for
-              |> Account.owner
-              |> fun o ->
-                   match o with
-                   | Some owner -> owner
-                   | None -> Exception.client ("No Canvas found for host " ^ host)
-  in
 
   let id = fetch_canvas_id owner host in
   let c =
