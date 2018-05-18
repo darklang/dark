@@ -456,7 +456,7 @@ let parse (str : string) : dval =
       |> Yojson.Safe.from_string
       |> dval_of_yojson_
     with Yojson.Json_error e ->
-      Exception.user ~actual:str ("Not a valid value: '" ^ str ^ "'")
+      Exception.user ~actual:str ("Invalid json: '" ^ str ^ "'")
 
 let query_to_dval (query: (string * string list) list) : dval =
   query
