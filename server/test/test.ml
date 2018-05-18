@@ -24,7 +24,7 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
 let execute_ops (ops : Op.op list) : dval =
-  let c = ops2c "test" ops |> Log.pp "newc" ~f:(fun c -> C.show_canvas !c) in
+  let c = ops2c "test" ops in
 
   let h = !c.toplevels
           |> TL.handlers
