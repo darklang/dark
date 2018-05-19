@@ -113,9 +113,9 @@ submitOmniAction m pos action =
           RPC ([ SetHandler tlid pos handler
                ] , FocusExact tlid next)
 
--- Assumes PD is within AST
+-- Assumes PD is within AST. Returns (new AST, new Expr)
 replaceExpr : Model -> TLID -> Expr -> Expr -> ThreadAction -> String ->
-  (Expr, ID)
+  (Expr, Expr)
 replaceExpr m tlid ast old_ action value =
   let id = B.toID old_
       target = Just (tlid, PExpr old_)
@@ -169,7 +169,7 @@ replaceExpr m tlid ast old_ action value =
       ast2 = AST.replace (PExpr old) (PExpr new) ast1
       ast3 = AST.maybeExtendThreadAt (B.toID new) ast2
   in
-  (ast3, B.toID new)
+  (ast3, new)
 
 parseAst : Model -> String -> Maybe Expr
 parseAst m str =
@@ -400,22 +400,24 @@ submit m cursor action =
         PExpr e ->
           case tl.data of
             TLHandler h ->
-              let (new, newid) = replaceExpr m tl.id h.ast e action value
+              let (newast, newexpr) = replaceExpr m tl.id h.ast e action value
+                  newid = B.toID newexpr
                   focus = FocusNext tl.id (Just newid)
               in
-              if new /= e
+              if newexpr /= e
               then
-                RPC ([SetHandler tl.id tl.pos { h | ast = new }], focus )
+                RPC ([SetHandler tl.id tl.pos { h | ast = newast }], focus )
               else
                 NoChange
 
             TLFunc f ->
-              let (new, newid) = replaceExpr m tl.id f.ast e action value
+              let (newast, newexpr) = replaceExpr m tl.id f.ast e action value
+                  newid = B.toID newexpr
                   focus = FocusNext tl.id (Just newid)
               in
-              if new /= e
+              if newexpr /= e
               then
-                RPC ([SetFunction { f | ast = new}], focus)
+                RPC ([SetFunction { f | ast = newast }], focus)
               else
                 NoChange
 
@@ -425,20 +427,22 @@ submit m cursor action =
                 Just am ->
                   if List.member pd (AST.allData am.rollback)
                   then
-                    let (new, newid) =
+                    let (newast, newexpr) =
                           replaceExpr m tl.id am.rollback e action value
+                        newid = B.toID newexpr
                         focus =
                           FocusNext tl.id (Just newid)
                     in
-                        RPC ([SetExpr tl.id id new], focus)
+                        RPC ([SetExpr tl.id id newast], focus)
                   else if List.member pd (AST.allData am.rollforward)
                   then
-                    let (new, newid) =
+                    let (newast, newexpr) =
                           replaceExpr m tl.id am.rollforward e action value
+                        newid = B.toID newexpr
                         focus =
                           FocusNext tl.id (Just newid)
                     in
-                        RPC ([SetExpr tl.id id new], focus)
+                        RPC ([SetExpr tl.id id newast], focus)
                   else
                     NoChange
         PDarkType _ ->
