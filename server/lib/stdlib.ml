@@ -452,6 +452,20 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Float::divide"]
+  ; ins = ["/"]
+  ; p = [par "a" TFloat; par "b" TFloat]
+  ; r = TFloat
+  ; d = "Divides two floats"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DFloat (a /. b)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
 
   { pns = ["Int::sum"]
   ; ins = []
