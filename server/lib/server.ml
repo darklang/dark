@@ -323,23 +323,65 @@ let server () =
   let stop,stopper = Lwt.wait () in
 
   let callback (ch, conn) req body =
-    let host =
-      req
-      |> CRequest.uri
-      |> Uri.host
-      |> Option.bind
-        ~f:(fun host ->
-            match String.split host '.' with
-            | ["localhost"] -> Some "localhost"
-            | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
-            | [_] -> None
-            | a :: _ when int_of_string_opt a = None ->
-              (* only for letters (ignore ip addresses) *)
-              Some a
-            | _ -> None)
+    let handle_error ~(include_internals:bool) (e:exn) =
+      let bt = Backtrace.Exn.most_recent () in
+      (* TODO: if this raises an error we're hosed *)
+      let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) in
+      let real_err =
+        try
+          match e with
+           | Exception.DarkException e ->
+             e
+             |> Exception.exception_data_to_yojson
+             |> Yojson.Safe.pretty_to_string
+           | Yojson.Json_error msg ->
+             "Not a valid JSON value: '" ^ msg ^ "'"
+           | Postgresql.Error e ->
+             "Postgres error: " ^ Postgresql.string_of_error e
+           | _ ->
+             "Dark Internal Error: " ^ Exn.to_string e
+        with _ -> "ERROR FETCHING ERROR" (* TODO: monitor this *)
+      in
+      let user_err =
+        try
+          match e with
+           | Exception.DarkException e ->
+             real_err
+           | Yojson.Json_error msg ->
+             real_err
+           | Postgresql.Error e when include_internals ->
+             real_err
+           | _ ->
+             if include_internals
+             then real_err
+             else "Dark Internal Error"
+        with _ -> "Error fetching error"
+      in
+      Lwt_io.printl ("Error: " ^ real_err);%lwt
+      Lwt_io.printl (Backtrace.to_string bt);%lwt
+      let headers = Cohttp.Header.of_list [cors] in
+      respond ~headers `Internal_server_error user_err
     in
-    let handler headers =
-      try
+
+
+    try
+      let host =
+        req
+        |> CRequest.uri
+        |> Uri.host
+        |> Option.bind
+          ~f:(fun host ->
+              match String.split host '.' with
+              | ["localhost"] -> Some "localhost"
+              | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
+              | [_] -> None
+              | a :: _ when int_of_string_opt a = None ->
+                (* only for letters (ignore ip addresses) *)
+                Some a
+              | _ -> None)
+      in
+
+      let handler headers =
         let ip = get_ip_address ch in
         let uri = req |> CRequest.uri in
 
@@ -360,41 +402,22 @@ let server () =
         | (p, Some host) ->
           if String.is_prefix ~prefix:"/admin/" p
           then
-            admin_handler ~host ~uri ~body ~stopper req headers
+            try
+              admin_handler ~host ~uri ~body ~stopper req headers
+            with e -> handle_error ~include_internals:true e
           else
             user_page_handler ~host ~ip ~uri ~body req
-      with
-      | e ->
-        let bt = Backtrace.Exn.most_recent () in
-        Rollbar.report_lwt e bt (Remote (req, body)) >>= fun _ ->
-        let err_body =
-          (match e with
-          | Exception.DarkException e ->
-            e
-            |> Exception.exception_data_to_yojson
-            |> Yojson.Safe.pretty_to_string
-          | Yojson.Json_error msg ->
-            "Not a valid JSON value: '" ^ msg ^ "'"
-          | Postgresql.Error e ->
-            "Postgres error: " ^ Postgresql.string_of_error e
-          | _ ->
-            "Dark Internal Error: " ^ Exn.to_string e)
-        in
-        Lwt_io.printl ("Error: " ^ err_body) >>= fun () ->
-        Lwt_io.printl (Backtrace.to_string bt) >>= fun () ->
-        let headers = Cohttp.Header.of_list [cors] in
-        respond ~headers `Internal_server_error err_body
-    in
-    match host with
-    (* This seems like it should be moved closer to the admin handler,
-     * but don't do that - that makes Lwt swallow our exceptions. *)
-    | Some host ->
-      (try
+      in
+
+      match host with
+      (* This seems like it should be moved closer to the admin handler,
+       * but don't do that - that makes Lwt swallow our exceptions. *)
+      | Some host ->
          auth_then_handle req host handler
-       with
-       | e -> respond `Internal_server_error "")
-    | None ->
-      respond `Not_found "Not found"
+      | None ->
+        respond `Not_found "Not found"
+    with e -> handle_error ~include_internals:false e
+
   in
   let cbwb conn req req_body =
     (* extract a string out of the body *)
