@@ -153,7 +153,6 @@ div vs configs content =
 
       (computedValueClasses, computedValue) =
         if incomplete
-          || vs.computedValuesDisabled
           || (Just vs.tlid) /= tlidOf vs.cursorState
         then
           ([], [])

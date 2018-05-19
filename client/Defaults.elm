@@ -73,7 +73,6 @@ defaultModel = { error = Nothing
                , syncState = defaultSyncState
                , urlState = defaultUrlState
                , timersEnabled = True
-               , computedValuesDisabled = False
                -- saved in editor
                , clipboard = Nothing
                , cursorState = Deselected
