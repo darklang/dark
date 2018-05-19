@@ -1165,6 +1165,26 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["List::uniqueBy"]
+  ; ins = []
+  ; p = [par "l" TList; par "f" TBlock]
+  ; r = TList
+  ; d = "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. The first of each value will be returned, but the key order will not be maintained"
+  ; f = InProcess
+        (function
+          | (_, [DList l; DBlock fn]) ->
+              DList (List.dedup_and_sort l ~compare:(fun a b ->
+                if Dval.equal_dval (fn [a]) (fn [b])
+                then 0
+                else 1
+              ))
+
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   { pns = ["List::isEmpty"]
   ; ins = []
   ; p = [par "l" TList]
