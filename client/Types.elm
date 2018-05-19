@@ -412,7 +412,6 @@ type alias Model = { error : Maybe String
                    , syncState : SyncState
                    , urlState : UrlState
                    , timersEnabled : Bool
-                   , computedValuesDisabled : Bool
                    , executingFunctions: List (TLID, ID)
                    }
 
