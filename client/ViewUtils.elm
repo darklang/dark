@@ -37,7 +37,6 @@ type alias ViewState =
   , results: List AResult
   , relatedBlankOrs: List ID
   , tooWide: Bool
-  , computedValuesDisabled: Bool
   , executingFunctions: List ID
   }
 
@@ -90,8 +89,6 @@ createVS m tl = { tl = tl
                           _ -> []
                       _ -> []
                 , tooWide = False
-                , computedValuesDisabled =
-                  m.computedValuesDisabled
                 , executingFunctions = List.filter (\(tlid,id) -> tlid == tl.id) m.executingFunctions
                                        |> List.map (\(tlid,id) -> id)
                 }
