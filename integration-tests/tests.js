@@ -613,4 +613,12 @@ test('variable_extraction', async t => {
     .pressKey("enter")
 })
 
+test('invalid_syntax', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "in:valid")
+    .pressKey("enter")
+})
+
 

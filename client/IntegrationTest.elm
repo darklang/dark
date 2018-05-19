@@ -52,6 +52,7 @@ trigger test_name =
     "feature_flag_works" -> feature_flag_works
     "simple_tab_ordering" -> simple_tab_ordering
     "variable_extraction" -> variable_extraction
+    "invalid_syntax" -> invalid_syntax
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -539,5 +540,17 @@ variable_extraction m =
       ) -> pass
     _ -> fail (ast, m.cursorState)
 
+
+invalid_syntax : Model -> TestResult
+invalid_syntax m =
+  case onlyHandler m |> .ast of
+    Blank id ->
+      case m.cursorState of
+        Entering (Filling _ sid) ->
+          if id == sid
+          then pass
+          else fail m.cursorState
+        _ -> fail m.cursorState
+    other -> fail other
 
 
