@@ -153,6 +153,11 @@ let init () : unit =
     ; email = "justinc474@gmail.com"
     ; name = "Justin Cowperthwaite"};
   upsert_account
+    { username = "jakub"
+    ; password = "239a,we[weefjfie"
+    ; email = "jakub.jurovych@gmail.com"
+    ; name = "Jakub Jurovych"};
+  upsert_account
     { username = "darksingleinstance"
     ; password = "jas902ksd]23dl49v"
     ; email = "ops@darklang.com"
