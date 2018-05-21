@@ -299,8 +299,8 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
              (match e with
               | Filled (_, Variable "request")
                 when ctx = Preview
-                  && Dval.equal_dval obj
-                       (Parsed_request.to_dval Parsed_request.sample) ->
+                  && equal_dval obj
+                     (Parsed_request.to_dval Parsed_request.sample) ->
                 DIncomplete
               | _ ->
                 (match Map.find o f with

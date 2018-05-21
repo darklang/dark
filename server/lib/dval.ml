@@ -120,27 +120,6 @@ let tipe_of (dv : dval) : tipe =
 let tipename (dv: dval) : string =
   dv |> tipe_of |> tipe_to_string |> String.lowercase
 
-let rec equal_dval (a: dval) (b: dval) =
-  match (a,b) with
-  | DInt i1, DInt i2 -> i1 = i2
-  | DFloat f1, DFloat f2 -> f1 = f2
-  | DBool b1, DBool b2 -> b1 = b2
-  | DNull, DNull -> true
-  | DChar c1, DChar c2 -> c1 = c2
-  | DStr s1, DStr s2 -> s1 = s2
-  | DList l1, DList l2 -> List.equal ~equal:equal_dval l1 l2
-  | DObj o1, DObj o2 -> DvalMap.equal equal_dval o1 o2
-  | DIncomplete, DIncomplete -> true
-  | DBlock _, _ -> false
-  | DResp (h1, dv1), DResp (h2, dv2) -> h1 = h2 && (equal_dval dv1 dv2)
-  | DDB db1, DDB db2 -> db1 = db2
-  | DID d1, DID d2 -> d1 = d2
-  | DDate d1, DDate d2 -> d1 = d2
-  | DTitle t1, DTitle t2 -> t1 = t2
-  | DUrl u1, DUrl u2 -> u1 = u2
-  | _, _ -> false
-
-
 
 (* ------------------------- *)
 (* Representation *)
