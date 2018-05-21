@@ -1,10 +1,10 @@
 open Core
 
-type pos = { x:int; y:int }[@@deriving eq, show, yojson, sexp, bin_io]
+type pos = { x:int; y:int }[@@deriving eq, compare, show, yojson, sexp, bin_io]
 
-type tlid = int [@@deriving eq, show, yojson, sexp, bin_io]
+type tlid = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
-type host = string [@@deriving eq, show, yojson, sexp, bin_io]
+type host = string [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
 (* READ FOR WEIRD SHIT, including the definitions of id and or_blank *)
 include Types_bin_io_hack
@@ -32,7 +32,7 @@ type tipe_ =
   | TBelongsTo of string
   | THasMany of string
   | TDbList of tipe_
-  [@@deriving eq, show, yojson, sexp, bin_io]
+  [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
 module SpecTypes = struct
   type n_dark_type = Empty
@@ -40,21 +40,21 @@ module SpecTypes = struct
                    | String
                    | Int
                    | Obj of (string or_blank * dark_type ) list
-                   [@@deriving eq, show, yojson, sexp, bin_io]
+                   [@@deriving eq, compare, show, yojson, sexp, bin_io]
   and dark_type = n_dark_type or_blank
-                  [@@deriving eq, show, yojson, sexp, bin_io]
+                  [@@deriving eq, compare, show, yojson, sexp, bin_io]
 end
 
 module RuntimeT = struct
-  type fnname = string [@@deriving eq, yojson, show, sexp, bin_io]
-  type fieldname = string [@@deriving eq, yojson, show, sexp, bin_io]
-  type varname = string [@@deriving eq, yojson, show, sexp, bin_io]
+  type fnname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
+  type fieldname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
+  type varname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type varbinding = varname or_blank
-  [@@deriving eq, yojson, show, sexp, bin_io]
+  [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type field = fieldname or_blank
-  [@@deriving eq, yojson, show, sexp, bin_io]
+  [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type nexpr = If of expr * expr * expr
              | Thread of expr list
@@ -64,21 +64,21 @@ module RuntimeT = struct
              | Lambda of varbinding list * expr
              | Value of string
              | FieldAccess of expr * field
-  [@@deriving eq, yojson, show, sexp, bin_io]
-and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
+  [@@deriving eq, compare, yojson, show, sexp, bin_io]
+and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   module DbT = struct
     type col = string or_blank * tipe_ or_blank
-              [@@deriving eq, show, yojson, sexp]
+              [@@deriving eq, compare, show, yojson, sexp, bin_io]
     type migration_kind = ChangeColType
-                          [@@deriving eq, show, yojson, sexp, bin_io]
+                          [@@deriving eq, compare, show, yojson, sexp, bin_io]
     type db_migration = { starting_version : int
                         ; kind : migration_kind
                         ; rollforward : expr
                         ; rollback : expr
                         ; target : id
                         }
-                        [@@deriving eq, show, yojson, sexp]
+                        [@@deriving eq, compare, show, yojson, sexp, bin_io]
     type db = { tlid: tlid
               ; host: string
               ; display_name: string
@@ -87,7 +87,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
               ; version: int
               ; old_migrations : db_migration list
               ; active_migration : db_migration option
-              } [@@deriving eq, show, yojson, sexp]
+              } [@@deriving eq, compare, show, yojson, sexp, bin_io]
   end
 
   (* ------------------------ *)
@@ -95,17 +95,24 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
   (* ------------------------ *)
   type dhttp = Redirect of string
              | Response of int * (string * string) list
-             [@@deriving show, eq, yojson, sexp]
+             [@@deriving show, eq, yojson, sexp, eq, compare]
 
   type feature_flag = Analysis
                     | FromUser of string
                     [@@deriving yojson]
 
 
+  type 'a block = 'a list -> 'a [@opaque][@@deriving show, sexp]
+  let equal_block _ _ _ = false
+  let compare_block _ _ _ = -1
+
+  type uuid = Uuid.Stable.V1.t [@opaque][@@deriving show, compare, sexp]
+  let equal_uuid a b = Uuid.Stable.V1.compare a b = 0
+
+
   module DvalMap = String.Map
   (* TODO: make these printable *)
   type dval_map = dval DvalMap.t [@opaque]
-  and uuid = Uuid.Stable.V1.t [@opaque]
   and dval =
     (* basic types  *)
     | DInt of int
@@ -120,7 +127,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
     (* special types *)
     | DIncomplete
     | DError of string
-    | DBlock of (dval list -> dval)
+    | DBlock of dval block
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of DbT.db
@@ -128,7 +135,7 @@ and expr = nexpr or_blank [@@deriving eq, yojson, show, sexp, bin_io]
     | DDate of Time.t
     | DTitle of string
     | DUrl of string
-    [@@deriving show, sexp]
+    [@@deriving show, sexp, eq, compare]
 
   type tipe = tipe_ [@@deriving eq, show, yojson, sexp, bin_io]
 
