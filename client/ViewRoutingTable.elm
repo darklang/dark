@@ -170,7 +170,7 @@ viewGroup m (spacename, entries) =
       verbs e =
         e.verbs
         |> List.map
-          (\(verb, pos) -> newLink pos verb)
+          (\(verb, pos) -> newLink pos "verb-link" verb)
         |> List.intersperse (Html.text ",")
       entryHtml e =
         div "handler" [ div "name"
@@ -227,23 +227,20 @@ section name entries routes =
       [ Attrs.class "routing-section"]
       [ header name entries, routes]
 
-linkClass : String
-linkClass = "verb-link as-pointer"
-
 link : Html.Html Msg -> Msg -> Html.Html Msg
 link content handler =
   Html.a
     [ eventNoPropagation "mouseup" (\_ -> handler)
     , Attrs.href ""
-    , Attrs.class linkClass
+    , Attrs.class "verb-link"
     ]
     [ content ]
 
-newLink : Pos -> String -> Html.Html Msg
-newLink pos name =
+newLink : Pos -> String -> String -> Html.Html Msg
+newLink pos classes name =
   Url.linkFor
     (Toplevels pos)
-    linkClass
+    classes
     [Html.text name]
 
 view404s : Model -> Html.Html Msg
@@ -268,11 +265,35 @@ viewDBs m =
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
 
       dbHtml (pos, db) =
-        div "db-route"
-          [ span "name" [newLink pos db.name]]
+        div "simple-route"
+          [ span "name" [newLink pos "default-link" db.name]]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs routes
+
+
+viewUserFunctions : Model -> Html.Html Msg
+viewUserFunctions m =
+  let fns = m.userFunctions
+            |> List.filter
+              (\fn -> B.isF fn.metadata.name)
+
+      fnLink fn =
+        Url.linkFor
+          (Fn fn.tlid)
+          "default-link"
+          [Html.text (fn.metadata.name
+                      |> B.asF
+                      |> deMaybe "should be filtered by here")]
+      fnHtml fn =
+        div "simple-route"
+          [ span "name"
+            [ fnLink fn]
+          ]
+
+      routes = div "fns" (List.map fnHtml fns)
+  in
+      section "Functions" fns routes
 
 
 
@@ -281,6 +302,7 @@ viewRoutingTable m =
   let sections = viewRoutes m
                  ++ [viewDBs m]
                  ++ [view404s m]
+                 ++ [viewUserFunctions m]
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
