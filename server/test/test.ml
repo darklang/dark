@@ -176,6 +176,53 @@ let t_inserting_object_to_missing_col_gives_good_error () =
     de.short = "Trying to create a relation that doesn't exist" in
   check_exception "should get good error" ~check ~f
 
+let rec runnable_to_ast (sexp : Sexp.t) : expr =
+  match sexp with
+  (* fncall *)
+  | Sexp.List (Sexp.Atom fnname :: args)
+    when String.is_substring ~substring:"::" fnname ->
+    f (FnCall (fnname, (List.map args ~f:runnable_to_ast)))
+
+  (* blocks *)
+  | Sexp.List (Sexp.Atom fnname :: Sexp.Atom "->" :: [body])
+    when String.is_prefix ~prefix:"\\" fnname ->
+    let var = String.lstrip ~drop:((=) '\\') fnname in
+    f (Lambda ([f var], (runnable_to_ast body)))
+
+  (* lists *)
+  | Sexp.List args ->
+    let init = f (FnCall ("List::empty", [])) in
+    List.fold_right args ~init
+      ~f:(fun newv init ->
+          f (FnCall ("List::push", [init; runnable_to_ast newv])))
+
+  (* literals / variables *)
+  | Sexp.Atom value ->
+    if int_of_string_opt value = None
+    &&   float_of_string_opt value = None
+    && not (String.is_prefix ~prefix:"\"" value)
+    then
+      f (Variable value)
+    else
+      f (Value value)
+
+let execute (prog: string) : dval =
+  prog
+  |> Sexp.of_string
+  |> runnable_to_ast
+  (* |> Log.pp ~f:show_expr *)
+  |> fun expr -> [handler expr]
+  |> execute_ops
+
+
+let t_stdlib_works () =
+  check_dval "uniqueBy"
+    (execute "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
+    (DList [DInt 1; DInt 3; DInt 4]);
+  check_dval "uniqueBy"
+    (execute "(List::uniqueBy (1 2 3 4) (\\x -> x))")
+    (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
+  ()
 
 
 let t_derror_roundtrip () =
@@ -352,6 +399,7 @@ let suite =
     t_case_insensitive_db_roundtrip
   ; "Good error when inserting badly", `Quick,
     t_inserting_object_to_missing_col_gives_good_error
+  ; "Stdlib works", `Quick, t_stdlib_works
   ]
 
 let () =
