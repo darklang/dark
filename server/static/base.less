@@ -46,6 +46,22 @@ body {
   height: 100%;
 }
 
+.default-link {
+  text-decoration: none;
+  &:link {
+    color: @white1;
+  }
+  &:visited {
+    color: @white1;
+  }
+  &:hover {
+    color: @yellow;
+  }
+  &:active {
+    color: @yellow;
+  }
+}
+
 /********************
  * Top level
  ********************/
@@ -229,9 +245,12 @@ body #grid * {
     }
 
     .verb-link {
+      .default-link;
+      &:link {
+        color: @grey2;
+      }
       &:hover {
-        color: @orange;
-        text-decoration: underline;
+        color: @yellow;
       }
     }
 
@@ -255,7 +274,7 @@ body #grid * {
       }
     }
 
-    .handler, .db-route {
+    .handler, .simple-route {
       display: flex;
       flex-direction: row;
       justify-content: space-between;
@@ -269,6 +288,9 @@ body #grid * {
 
       .external {
         color: @orange;
+        &:hover {
+          color: @yellow;
+        }
       }
 
       .verbs {

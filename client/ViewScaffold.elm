@@ -40,7 +40,7 @@ viewButtons m =
           Fn _ ->
             [Url.linkFor
               (Toplevels m.urlState.lastPos)
-              "specialButton"
+              "specialButton default-link"
               [ Html.text "Return to Canvas"]]
           _ -> []
 
