@@ -519,7 +519,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are equal"
   ; f = InProcess
         (function
-          | (_, [a; b]) -> DBool (Dval.equal_dval a b)
+          | (_, [a; b]) -> DBool (equal_dval a b)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -534,7 +534,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns true if the two value are not equal"
   ; f = InProcess
         (function
-          | (_, [a; b]) -> DBool (not (Dval.equal_dval a b))
+          | (_, [a; b]) -> DBool (not (equal_dval a b))
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -1061,7 +1061,7 @@ let fns : Lib.shortfn list = [
   ; d = "Returns if the value is in the list"
   ; f = InProcess
         (function
-          | (_, [DList l; i]) -> DBool (List.mem ~equal:Dval.equal_dval l i)
+          | (_, [DList l; i]) -> DBool (List.mem ~equal:equal_dval l i)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -1169,14 +1169,12 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "l" TList; par "f" TBlock]
   ; r = TList
-  ; d = "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. The first of each value will be returned, but the key order will not be maintained"
+  ; d = "Returns the passed list, with only unique values, where uniqueness is based on the result of `f`. Only one of each value will be returned, but the order will not be maintained"
   ; f = InProcess
         (function
           | (_, [DList l; DBlock fn]) ->
               DList (List.dedup_and_sort l ~compare:(fun a b ->
-                if Dval.equal_dval (fn [a]) (fn [b])
-                then 0
-                else 1
+                compare_dval (fn [a]) (fn [b])
               ))
 
           | (_, args) -> fail args)
