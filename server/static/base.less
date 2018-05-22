@@ -564,6 +564,31 @@ body #grid * {
 
   .value.tstr {
     .string-style;
+    background: @selected-background;
+    border: 0;
+    font-size: @code-font-size;
+    margin: 0;
+    padding-left: 1.5ch;
+    padding-right: 1.5ch;
+    position: relative;
+    &::before {
+      content: "“";
+      .string-style;
+      display: inline-block;
+      left: 0;
+      position: absolute;
+      top: 0;
+      width: 1.5ch;
+    }
+    &::after{
+      content: "”";
+      .string-style;
+      bottom: 0;
+      display: inline-block;
+      position: absolute;
+      right: 0;
+      width: 1.5ch;
+    }
   }
 
   .related-change {
@@ -837,8 +862,7 @@ body #grid * {
   border: 0;
   font-size: @code-font-size;
   margin: 0;
-  margin-left: 0.5ch;
-  padding-left: 1ch;
+  padding-left: 1.5ch;
   padding-right: 1.5ch;
   position: relative;
   &::before {
