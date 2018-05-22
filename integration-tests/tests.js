@@ -26,10 +26,10 @@ fixture `Integration Tests`
 
 
     if (await signal.hasClass("failure")) {
-      console.log("msg/mod logs for: " + t.testRun.test.name);
+      console.error("msg/mod logs for: " + t.testRun.test.name);
       await t.takeScreenshot();
       for (var l of log) {
-        console.log(l)
+        console.error(l)
       }
       await t.expect("test state").eql(await signal.textContent);
     }
