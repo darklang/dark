@@ -89,6 +89,24 @@ all =
               F (ID 6) (FnCall "+" [Blank _, Blank (ID 5)]) -> pass
               r -> fail r
 
+    , test "don't readd the argument if it was already in the right place" <|
+      expectOk <|
+        let fn = B.newF
+                   (FnCall "+"
+                     [ B.newF (Value "3")
+                     , B.newF (Value "5")])
+            open = B.newF
+                     (Thread
+                       [ fn
+                       , B.new ()])
+            closed = AST.closeThread open
+        in
+        if closed == fn
+        then pass
+        else fail ({open=open, fn=fn, closed=closed})
+
+
+
     , test "simple thread is closed properly" <|
       expectOk <|
         let open = (B.newF (Thread [ B.newF (Value "3"), B.new ()]))
@@ -97,6 +115,7 @@ all =
         case closed of
           F _ (Value "3") -> pass
           _ -> fail (open, closed)
+
     ]
 
 
