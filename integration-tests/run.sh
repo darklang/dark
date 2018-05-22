@@ -70,7 +70,7 @@ rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test-*
 
 # Clear DBs
-function exe { psql -d proddb -c "$@"; }
+function exe { psql -d proddb -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }
 
 echo "Clearing test schemas";
 TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test_';" | grep test_ || true)
