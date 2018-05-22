@@ -54,40 +54,29 @@ transformFromStringEntry s =
 stringEntryHtml : Autocomplete -> Html.Html Msg
 stringEntryHtml ac =
   let
-      -- stick with the overlapping things for now, just ignore the back
-      -- one
+      maxWidthChars = 40 -- max-width: 40ch rule from CSS
       value = transformToStringEntry ac.value
-      -- NB: if the letter spacing isn't normal, need to adjust the length here for that
-      length = value
-               |> String.length
-               |> max 1 -- need this to be at least 1 for the cursor to blink?
+      visualStringLength = \string ->
+                              string
+                              |> Util.replace "\t" "        " -- replace tabs with 8 ch for ch counting
+                              |> String.length
       longestLineLength = value
                           |> String.split "\n"
-                          |> List.map (\line ->
-                            Util.replace "\t" "        " line -- replace tabs with 8 ch for ch counting
-                            |> String.length)
+                          |> List.map visualStringLength
                           |> List.foldr max 1
-                          -- |> (\n -> (-) n 2)
-                          -- |> max 1
-
-
-      smallInput =
-        Html.input [ Attrs.id Defaults.entryID
-                   , Events.onInput (EntryInputMsg << transformFromStringEntry)
-                   , nothingMouseEvent "mouseup"
-                   , nothingMouseEvent "click"
-                   , nothingMouseEvent "mousedown"
-                   , Attrs.value value
-                   , widthInCh length
-                   , Attrs.spellcheck False
-                   , Attrs.autocomplete False
-                   ] []
-      fluidWidthSpan = Html.span [ Attrs.id "fluidWidthSpan"
-                                 , Attrs.attribute "contentEditable" ""
-                                 ] [Html.text value]
-
-
-      largeInput =
+                          |> min maxWidthChars
+      rowCount = value
+                 |> String.split "\n"
+                 |> List.map (\line ->
+                                line
+                                |> visualStringLength
+                                |> toFloat
+                                |> (*) (1.0 / toFloat longestLineLength)
+                                |> ceiling
+                                |> max 1
+                    )
+                 |> List.sum
+      input =
         Html.textarea [ Attrs.id Defaults.entryID
                       , Events.onInput (EntryInputMsg << transformFromStringEntry)
                       , Attrs.value value
@@ -96,32 +85,22 @@ stringEntryHtml ac =
                       , nothingMouseEvent "mouseup"
                       , nothingMouseEvent "click"
                       , nothingMouseEvent "mousedown"
-                      , Attrs.rows (1 + SE.countOccurrences "\n" value)
+                      , Attrs.rows rowCount
                       , widthInCh longestLineLength
                       , Attrs.autocomplete False
                       ] []
+
+      sizeClass = if Autocomplete.isSmallStringEntry ac then "small-string" else "large-string"
     in
-    if Autocomplete.isSmallStringEntry ac
-    then
-      Html.div
-      [ Attrs.class "string-entry small-string-entry" ]
-      [
-        Html.form
+    Html.div
+    [ Attrs.class "string-entry" ]
+    [
+      Html.form
         [ Events.onSubmit (EntrySubmitMsg)
-        , Attrs.class "string-container"
+        , Attrs.class ("string-container " ++ sizeClass)
         ]
-        [ smallInput, fluidWidthSpan ]
-      ]
-    else
-       Html.div
-      [ Attrs.class "string-entry big-string-entry" ]
-      [
-        Html.form
-        [ Events.onSubmit (EntrySubmitMsg)
-        , Attrs.class "string-container"
-        ]
-        [ largeInput ]
-      ]
+      [ input ]
+    ]
 
 
 normalEntryHtml : String -> Autocomplete -> Html.Html Msg
