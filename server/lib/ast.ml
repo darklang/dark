@@ -110,13 +110,17 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
   let call (name: string) (id: id) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
-    let length_diff = List.length fn.parameters - List.length argvals in
+    let expected_length = List.length fn.parameters in
+    let actual_length = List.length argvals in
     let argvals =
-      if length_diff > 0
-      then argvals @ (List.init length_diff (fun _ -> DNull))
-      else if length_diff = 0
+      if expected_length = actual_length
       then argvals
-      else Exception.internal ("Too many args in fncall to " ^ name) in
+      else
+        let actual = Printf.sprintf "%d arguments" actual_length in
+        let expected = Printf.sprintf "%d arguments" expected_length in
+        Exception.internal ~actual ~expected
+            ("Incorrect number of args in fncall to " ^ name)
+    in
     let args =
       fn.parameters
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
