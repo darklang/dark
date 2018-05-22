@@ -129,7 +129,7 @@ viewNExpr d id vs config e =
           valu =
             -- TODO: remove
             if RT.isString v
-            then "“" ++ (SE.unquote v) ++ "”"
+            then SE.unquote v
             else v
           computedValue =
             if d == 0
