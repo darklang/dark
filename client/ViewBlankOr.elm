@@ -172,12 +172,6 @@ div vs configs content =
                     [ViewScaffold.viewError (Just err)]
                 ])
 
-      (valClasses, title) =
-        case hoverdata of
-          Nothing -> ([], [])
-          Just (Ok lv) -> ([], [Attrs.title lv.value])
-          Just (Err err) -> (["value-error"], [Attrs.title err])
-
       selected = thisID == selectedID
                  && ME.isJust thisID
       mouseover = mouseoverAs == vs.hovering
@@ -194,7 +188,6 @@ div vs configs content =
       allClasses = classes
                   ++ idAttr
                   ++ computedValueClasses
-                  ++ valClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
                   ++ (if incomplete then ["incomplete"] else [])
@@ -209,7 +202,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ title ++ [classAttr]
+      attrs = events ++ [classAttr]
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
