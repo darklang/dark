@@ -200,10 +200,7 @@ decodeVPos =
 
 decodeException : JSD.Decoder Exception
 decodeException =
-  let toExc : String -> String -> String -> String -> String ->
-              String -> String -> String -> Dict String String ->
-              List String -> Exception
-      toExc short long tipe actual actualType result resultType expected info workarounds =
+  let toExc short long tipe actual actualType result resultType expected info workarounds =
         { short=short
         , long=long
         , tipe=tipe
@@ -217,13 +214,13 @@ decodeException =
   in
   JSDP.decode toExc
     |> JSDP.required "short" JSD.string
-    |> JSDP.required "long" JSD.string
+    |> JSDP.required "long" (JSD.maybe JSD.string)
     |> JSDP.required "tipe" JSD.string
-    |> JSDP.required "actual" JSD.string
-    |> JSDP.required "actual_tipe" JSD.string
-    |> JSDP.required "result" JSD.string
-    |> JSDP.required "result_tipe" JSD.string
-    |> JSDP.required "expected" JSD.string
+    |> JSDP.required "actual" (JSD.maybe JSD.string)
+    |> JSDP.required "actual_tipe" (JSD.maybe JSD.string)
+    |> JSDP.required "result" (JSD.maybe JSD.string)
+    |> JSDP.required "result_tipe" (JSD.maybe JSD.string)
+    |> JSDP.required "expected" (JSD.maybe JSD.string)
     |> JSDP.required "info" (JSD.dict JSD.string)
     |> JSDP.required "workarounds" (JSD.list JSD.string)
 

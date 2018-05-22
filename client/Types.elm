@@ -15,13 +15,13 @@ import Keyboard.Event exposing (KeyboardEvent)
 
 type alias Exception =
   { short : String
-  , long : String
+  , long : Maybe String
   , tipe : String
-  , actual : String
-  , actualType : String
-  , result : String
-  , resultType : String
-  , expected : String
+  , actual : Maybe String
+  , actualType : Maybe String
+  , result : Maybe String
+  , resultType : Maybe String
+  , expected : Maybe String
   , info : Dict String String
   , workarounds : List String }
 
