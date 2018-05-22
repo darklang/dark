@@ -750,7 +750,7 @@ update_ msg m =
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
                   then
-                    Entry.submit m cursor Entry.ContinueThread Entry.StayHere
+                    Entry.submit m cursor Entry.StayHere
                   else if AC.isSmallStringEntry m.complete
                   then
                     Many [ AutocompleteMod (ACAppendQuery "\n")
@@ -777,11 +777,11 @@ update_ msg m =
                   case tl.data of
                     TLDB _ -> NoChange
                     TLHandler h ->
-                      Entry.submit m cursor Entry.StartThread  Entry.StayHere
+                      Entry.submit m cursor Entry.StartThread
                     TLFunc f ->
-                      Entry.submit m cursor Entry.StartThread Entry.StayHere
+                      Entry.submit m cursor Entry.StartThread
                 Creating _ ->
-                  Entry.submit m cursor Entry.StartThread Entry.StayHere
+                  Entry.submit m cursor Entry.StartThread
             else
               case event.keyCode of
                 Key.Spacebar ->  -- NB: see `stopKeys` in ui.html
@@ -791,7 +791,7 @@ update_ msg m =
                   then
                     NoChange
                   else
-                    Entry.submit m cursor Entry.ContinueThread Entry.GotoNext
+                    Entry.submit m cursor Entry.GotoNext
 
                 Key.Enter ->
                   if AC.isLargeStringEntry m.complete
@@ -803,9 +803,9 @@ update_ msg m =
                           Just (ACOmniAction action) ->
                             Entry.submitOmniAction m pos action
                           _ ->
-                            Entry.submit m cursor Entry.ContinueThread Entry.StayHere
+                            Entry.submit m cursor Entry.StayHere
                       Filling _ _ ->
-                        Entry.submit m cursor Entry.ContinueThread Entry.StayHere
+                        Entry.submit m cursor Entry.StayHere
                 Key.Tab ->  -- NB: see `stopKeys` in ui.html
                   case cursor of
                     Filling tlid p ->
@@ -829,7 +829,7 @@ update_ msg m =
                           else Selection.enterPrevBlank m tlid (Just p)
                         else
                           if hasContent
-                          then Entry.submit m cursor Entry.ContinueThread Entry.GotoNext
+                          then Entry.submit m cursor Entry.GotoNext
                           else Selection.enterNextBlank m tlid (Just p)
                     Creating _ -> NoChange
 
@@ -844,7 +844,7 @@ update_ msg m =
                                            , index = -1}
                         newM = { m | complete = newC }
                     in
-                    Entry.submit newM cursor Entry.ContinueThread Entry.GotoNext
+                    Entry.submit newM cursor Entry.GotoNext
                   else NoChange
 
                 Key.Escape ->
@@ -966,7 +966,7 @@ update_ msg m =
     AutocompleteClick value ->
       case unwrapCursorState m.cursorState of
         Entering cursor ->
-          Entry.submit m cursor Entry.ContinueThread Entry.StayHere
+          Entry.submit m cursor Entry.StayHere
         _ -> NoChange
 
 

@@ -114,7 +114,7 @@ submitOmniAction m pos action =
                ] , FocusExact tlid next)
 
 -- Assumes PD is within AST. Returns (new AST, new Expr)
-replaceExpr : Model -> TLID -> Expr -> Expr -> ThreadAction -> String ->
+replaceExpr : Model -> TLID -> Expr -> Expr -> NextAction -> String ->
   (Expr, Expr)
 replaceExpr m tlid ast old_ action value =
   let id = B.toID old_
@@ -162,9 +162,11 @@ replaceExpr m tlid ast old_ action value =
 
 
       ast1 = case action of
-        ContinueThread -> ast
         StartThread ->
           AST.wrapInThread id ast
+        GotoNext -> ast
+        StayHere -> ast
+
 
       ast2 = AST.replace (PExpr old) (PExpr new) ast1
       ast3 = AST.maybeExtendThreadAt (B.toID new) ast2
@@ -198,10 +200,9 @@ parseAst m str =
       then createFunction m str
       else Just <| F eid (Value str)
 
-type ThreadAction = StartThread | ContinueThread
-type MoveOn = StayHere | GotoNext
-submit : Model -> EntryCursor -> ThreadAction -> MoveOn -> Modification
-submit m cursor action move =
+type NextAction = StartThread | StayHere | GotoNext
+submit : Model -> EntryCursor -> NextAction -> Modification
+submit m cursor action =
   -- TODO: replace parsing with taking the autocomplete suggestion and
   -- doing what we're told with it.
   let value = AC.getValue m.complete in
@@ -210,10 +211,12 @@ submit m cursor action move =
       let tlid = gtlid ()
           threadIt expr =
             case action of
-              ContinueThread ->
-                expr
               StartThread ->
                 B.newF (Thread [expr, B.new ()])
+              GotoNext ->
+                expr
+              StayHere ->
+                expr
           wrapExpr expr =
             let newAst = threadIt expr
                 focus = newAst
@@ -261,12 +264,13 @@ submit m cursor action move =
           db = TL.asDB tl
           wrap ops next =
             let wasEditing = P.isBlank pd |> not
-                focus = if wasEditing && move == StayHere
+                focus = if wasEditing && action == StayHere
                         then
                           case next of
                             Nothing -> FocusSame
                             Just nextID -> FocusExact tl.id nextID
-                        else FocusNext tl.id next
+                        else
+                          FocusNext tl.id next
             in
             RPC (ops, focus)
           wrapID ops = wrap ops (Just id)
@@ -421,13 +425,13 @@ submit m cursor action move =
             in
             case tl.data of
               TLHandler h ->
-                RPC
-                  ([SetHandler tlid tl.pos { h | ast = newAst }]
-                  , FocusNext tl.id (Just (P.toID newexpr)))
+                wrapNew
+                  [SetHandler tlid tl.pos { h | ast = newAst }]
+                  newexpr
               TLFunc f ->
-                RPC
-                  ([SetFunction { f | ast = newAst }]
-                  , FocusNext tl.id (Just (P.toID newexpr)))
+                wrapNew
+                  [SetFunction { f | ast = newAst }]
+                  newexpr
               TLDB _ -> impossible ("no fields in DBs", tl.data)
           else
             -- Changing a field
