@@ -28,7 +28,11 @@
            event.preventDefault();
         }
         if (event.keyCode == 32 // Space
-          && event.target.parentNode.className != "string-container") {
+          && !event.target.parentNode.className.includes("string-container")) {
+           event.preventDefault();
+        }
+        if (event.keyCode == 13 // Enter
+          && !event.target.parentNode.className.includes("large-string")) {
            event.preventDefault();
         }
         if (
