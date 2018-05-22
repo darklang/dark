@@ -180,6 +180,19 @@ body #grid * {
     left: 0px;
     position: absolute;
     width: 100%;
+    .selected-value {
+      background: @black2;
+      color: magenta;
+      display: block;
+      font-size: 0.8333em;
+      max-width: 100%;
+      outline: 0.4px @green solid;
+
+      width: max-content;
+      word-break: break-all;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
     ul.request-cursor {
       bottom: 1em;
       float: left;
@@ -1020,35 +1033,22 @@ body #grid * {
   .right-button;
 }
 
-// live data
-.selected[title] {
-  &:after {
-    outline: 0.4px @green solid;
-    .computed-value-error & {
-      outline: 0.4px red solid;
-    }
-    // bottom: calc(~"100% + 0.5rem");
-    bottom: calc(~"100% + 22px");
-    color: magenta;
-    content: attr(title);
-    display: block;
-    left: 0;
-    position: absolute;
-    background: @black2;
-  }
+.computed-value {
+  // position: relative;
 }
 
 .computed-value-value {
   .value-error & {
     outline: 0.4px red dotted;
   }
+  max-width: 100%;
   outline: 0.4px @green dotted;
   position: absolute;
-  right: calc(~"100% + 2px");
+  right: calc(~"100% + 20px");
   .default;
-  max-width: 500px;
+  white-space: pre-wrap;
   width: max-content;
-  white-space: normal;
+  word-break: break-all;
   word-wrap: break-word;
 }
 
