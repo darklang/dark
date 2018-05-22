@@ -49,21 +49,29 @@ viewRequests vs h =
 viewHandler : ViewState -> Handler -> List (Html.Html Msg)
 viewHandler vs h =
   let requestEls = viewRequests vs h
-      isSelecting =
+      selectedValue =
         case vs.cursorState of
           Selecting tlid (Just (ID id)) ->
-            Dict.get id vs.lvs /= Nothing
-            && tlid == vs.tl.id
-          _ -> False
-      classes = if isSelecting
-                then
-                  [Attrs.class "view-data live-view-selection-active"]
-                else [Attrs.class "view-data"]
+            Dict.get id vs.lvs
+          _ -> Nothing
   in
-  [ Html.div
-      classes
-      [ Html.ul
-          [Attrs.class "request-cursor"]
-          requestEls
+  case selectedValue of
+    Just selectedValue ->
+      [ Html.div
+          [Attrs.class "view-data live-view-selection-active"]
+          [ Html.div
+              [Attrs.class "selected-value"]
+              [Html.text selectedValue.value]
+          , Html.ul
+              [Attrs.class "request-cursor"]
+              requestEls
+          ]
       ]
-  ]
+    Nothing ->
+      [ Html.div
+          [Attrs.class "view-data"]
+          [ Html.ul
+              [Attrs.class "request-cursor"]
+              requestEls
+          ]
+      ]
