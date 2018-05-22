@@ -105,4 +105,4 @@ TEST_HOST="integration-tests:$PORT" \
     --reporter $REPORTERS \
     --test-grep "$PATTERN" \
     "chrome:headless" \
-    integration-tests/tests.js
+    integration-tests/tests.js 2> ${DARK_CONFIG_RUN_DIR}/integration_error.log
