@@ -24,13 +24,13 @@ let should_log (et: exception_tipe) : bool =
   | Unknown -> true
 
 type exception_data = { short : string
-                      ; long : string
+                      ; long : string option
                       ; tipe : exception_tipe
-                      ; actual : string
-                      ; actual_tipe : string
-                      ; expected : string (* might refer to result or actual *)
-                      ; result : string
-                      ; result_tipe : string
+                      ; actual : string option
+                      ; actual_tipe : string option
+                      ; expected : string option (* might refer to result or actual *)
+                      ; result : string option
+                      ; result_tipe : string option
                       ; info : exception_info
                       ; workarounds : string list
                       } [@@deriving yojson, show][@@deriving_inline sexp][@@@deriving.end]
@@ -49,14 +49,14 @@ let reraise e  =
 let raise_
     (tipe: exception_tipe)
     ?(bt:Caml.Printexc.raw_backtrace option=None)
-    ?(actual="")
-    ?(actual_tipe="unknown tipe")
-    ?(expected="")
-    ?(result_tipe="unknown tipe")
-    ?(result="")
+    ?(actual:string option)
+    ?(actual_tipe:string option)
+    ?(expected:string option)
+    ?(result_tipe:string option)
+    ?(result:string option)
     ?(info=[])
     ?(workarounds=[])
-    ?(long="")
+    ?(long:string option)
     (short: string) =
   let e = { short
           ; long
