@@ -498,12 +498,10 @@ body #grid * {
 .string-style() {
   color: @purple;
   font-style: italic;
-  &.short-strings {
-    max-width: 40ch;
-    white-space: pre-wrap;
-    word-break: break-all;
-    word-wrap: break-word;
-  }
+  max-width: 40ch;
+  white-space: pre-wrap;
+  word-break: break-all;
+  word-wrap: break-word;
 }
 
 .blank-box-style() {
@@ -922,14 +920,16 @@ body #grid * {
     position: relative;
     text-align: left;
     vertical-align: baseline;
+    white-space: pre-wrap;
     width: 100%;
+    word-break: break-all;
+    word-wrap: break-word;
   }
   textarea {
     color: @purple !important;
     display: block;
     overflow: hidden;
     resize: none;
-    text-indent: 1ch;
   }
   #fluidWidthSpan {
     .string-style;
@@ -939,6 +939,10 @@ body #grid * {
     position: absolute;
     top: 0;
     width: 100%;
+  }
+  & + .feature-flag {
+    right: -2px;
+    top: inherit;
   }
 }
 
@@ -1001,6 +1005,10 @@ body #grid * {
   position: absolute;
   right: -16px;
   .right-button;
+}
+
+.tstr .feature-flag {
+  top: 0;
 }
 
 .parameter-btn {
