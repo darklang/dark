@@ -442,7 +442,7 @@ test('rename_db_fields', async t => {
     .doubleClick(Selector('.name').withText('field1'))
     .pressKey("backspace")
     .pressKey("6")
-    .pressKey("enter")
+    .pressKey("tab")
     .pressKey("esc")
     ;
 
@@ -487,7 +487,6 @@ test('rename_db_type', async t => {
     .pressKey("backspace")
     .typeText("#entry-box", "Int")
     .pressKey("enter")
-    .pressKey("esc")
     ;
 
 
@@ -505,7 +504,7 @@ test('rename_db_type', async t => {
 
   await t
     .pressKey("up")
-    .pressKey("up")
+    .pressKey("left")
     .pressKey("enter")
     ;
 });
@@ -613,12 +612,39 @@ test('variable_extraction', async t => {
     .pressKey("enter")
 })
 
+// Entering text with invalid syntax leaves things the same
 test('invalid_syntax', async t => {
   await t
     .pressKey("enter")
     .pressKey("enter")
     .typeText("#entry-box", "in:valid", slow)
     .pressKey("enter")
+})
+
+
+// When you edit, stay in the same place after pressing Enter
+test('editing_stays_in_same_place_with_enter', async t => {
+  await t
+    .doubleClick(Selector('.letvarname'))
+    .pressKey("2")
+    .pressKey("enter")
+})
+
+// When you edit, go to the next blank after pressing Tab
+test('editing_goes_to_next_with_tab', async t => {
+  await t
+    .doubleClick(Selector('.letvarname'))
+    .pressKey("2")
+    .pressKey("tab")
+})
+
+
+// When you press shift+enter, start a thread
+test('editing_starts_a_thread_with_shift_enter', async t => {
+  await t
+    .doubleClick(Selector('.letrhs'))
+    .pressKey("2")
+    .pressKey("shift+enter")
 })
 
 
