@@ -551,49 +551,49 @@ test('nochange_for_failed_paste', async t => {
     .pressKey("ctrl+v")
 });
 
-test('feature_flag_works', async t => {
-  await t
-    // Create an empty let
-    .pressKey("enter")
-    .typeText("#entry-box", "let")
-    .pressKey("enter")
-    .typeText("#entry-box", "var")
-    .pressKey("enter")
-    .pressKey("esc")
-    .pressKey("shift+up")
+// test('feature_flag_works', async t => {
+//   await t
+//     // Create an empty let
+//     .pressKey("enter")
+//     .typeText("#entry-box", "let")
+//     .pressKey("enter")
+//     .typeText("#entry-box", "var")
+//     .pressKey("enter")
+//     .pressKey("esc")
+//     .pressKey("shift+up")
 
-    // Click feature name
-    .click('.feature-flag .fa-flag')
+//     // Click feature name
+//     .click('.feature-flag .fa-flag')
 
-    // Name it
-    .typeText("#entry-box", "my_flag", slow)
+//     // Name it
+//     .typeText("#entry-box", "my_flag", slow)
 
-    // Create the alternative
-    .pressKey("tab")
-    .typeText("#entry-box", "let")
-    .pressKey("tab")
-    .typeText("#entry-box", "v")
-    .pressKey("tab")
-    .typeText("#entry-box", "6")
-    .pressKey("tab")
-    .typeText("#entry-box", "v")
-    .pressKey("enter")
+//     // Create the alternative
+//     .pressKey("tab")
+//     .typeText("#entry-box", "let")
+//     .pressKey("tab")
+//     .typeText("#entry-box", "v")
+//     .pressKey("tab")
+//     .typeText("#entry-box", "6")
+//     .pressKey("tab")
+//     .typeText("#entry-box", "v")
+//     .pressKey("enter")
 
-    // go to the let-hole in the FF lhs
-    .pressKey("tab")
-    .pressKey("tab")
-    .pressKey("tab")
+//     // go to the let-hole in the FF lhs
+//     .pressKey("tab")
+//     .pressKey("tab")
+//     .pressKey("tab")
 
-    // should be selecting the last v now.
-    .expect(Selector('.flag-left .letvarname .blankOr').hasClass("selected")).eql(true)
+//     // should be selecting the last v now.
+//     .expect(Selector('.flag-left .letvarname .blankOr').hasClass("selected")).eql(true)
 
-    // move the slider to pick the other thing
-    .drag('.setting-slider > input', 1000, 0)
+//     // move the slider to pick the other thing
+//     .drag('.setting-slider > input', 1000, 0)
 
-    // Finish
-    .click('.feature-flag .fa-check')
+//     // Finish
+//     .click('.feature-flag .fa-check')
 
-});
+// });
 
 test('simple_tab_ordering', async t => {
   await t
