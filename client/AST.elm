@@ -655,16 +655,6 @@ deleteExpr p expr id =
   let replacement = P.emptyD_ id (P.typeOf p)
   in replace p replacement expr
 
-replaceVarBind : PointerData -> VarName -> Expr -> Expr
-replaceVarBind p replacement expr =
-  replace p (PVarBind (B.newF replacement)) expr
-
-
-replaceField : PointerData -> FieldName -> Expr -> Expr
-replaceField p replacement expr =
-  replace p (PField (B.newF replacement)) expr
-
-
 clone : Expr -> Expr
 clone expr =
   let nid = gid ()

@@ -199,8 +199,9 @@ parseAst m str =
       else Just <| F eid (Value str)
 
 type ThreadAction = StartThread | ContinueThread
-submit : Model -> EntryCursor -> ThreadAction -> Modification
-submit m cursor action =
+type MoveOn = StayHere | GotoNext
+submit : Model -> EntryCursor -> ThreadAction -> MoveOn -> Modification
+submit m cursor action move =
   -- TODO: replace parsing with taking the autocomplete suggestion and
   -- doing what we're told with it.
   let value = AC.getValue m.complete in
@@ -258,9 +259,19 @@ submit m cursor action =
       else
       let maybeH = TL.asHandler tl
           db = TL.asDB tl
-          predecessor = TL.getPrevBlank tl (Just pd) |> Maybe.map P.toID
-          wrapPred ops = RPC (ops, FocusNext tlid predecessor)
-          wrap ops new = RPC (ops, FocusNext tlid (Just new))
+          wrap ops next =
+            let wasEditing = P.isBlank pd |> not
+                focus = if wasEditing && move == StayHere
+                        then
+                          case next of
+                            Nothing -> FocusSame
+                            Just nextID -> FocusExact tl.id nextID
+                        else FocusNext tl.id next
+            in
+            RPC (ops, focus)
+          wrapID ops = wrap ops (Just id)
+          wrapNewB ops new = wrap ops (Just (B.toID new))
+          wrapNew ops new = wrap ops (Just (P.toID new))
           validate pattern name success =
             if Util.reExactly pattern value
             then success
@@ -273,12 +284,11 @@ submit m cursor action =
           else if B.isBlank ct
           then
             validate "\\[?[A-Z]\\w+\\]?" "DB type"
-              <| wrap [ SetDBColType tlid id value
-                      , AddDBCol tlid (gid ()) (gid ())]
-                      id
+              <| wrapID [ SetDBColType tlid id value
+                        , AddDBCol tlid (gid ()) (gid ())]
           else
             validate "\\[?[A-Z]\\w+\\]?" "DB type"
-              <| wrap [ ChangeDBColType tlid id value] id
+              <| wrapID [ ChangeDBColType tlid id value]
 
         PDBColName cn ->
           if value == "id"
@@ -290,21 +300,28 @@ submit m cursor action =
           else if B.isBlank cn
           then
             validate "\\w+" "DB column name"
-              <| wrap [SetDBColName tlid id value] id
+              <| wrapID [SetDBColName tlid id value]
           else
             validate "\\w+" "DB column name"
-              <| wrap [ChangeDBColName tlid id value] id
+              <| wrapID [ChangeDBColName tlid id value]
         PVarBind _ ->
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
             <|
               case tl.data of
                 TLHandler h ->
-                  let replacement = AST.replaceVarBind pd value h.ast in
-                  wrapPred
+                  let new = PVarBind (B.newF value)
+                      replacement = AST.replace pd new h.ast
+                  in
+                  wrapNew
                     [SetHandler tlid tl.pos { h | ast = replacement }]
+                    new
                 TLFunc f ->
-                  let replacement = AST.replaceVarBind pd value f.ast in
-                  wrapPred [SetFunction { f | ast = replacement }]
+                  let new = PVarBind (B.newF value)
+                      replacement = AST.replace pd new f.ast
+                  in
+                  wrapNew
+                    [SetFunction { f | ast = replacement }]
+                    new
                 TLDB _ -> impossible ("no vars in DBs", tl.data)
 
         PEventName _ ->
@@ -320,9 +337,9 @@ submit m cursor action =
               new = B.newF value
               replacement = SpecHeaders.replaceEventName id new h.spec
           in
-          wrap
+          wrapNewB
             [SetHandler tlid tl.pos { h | spec = replacement }]
-            (B.toID new)
+            new
         PEventModifier _ ->
           let eventModifierValidation =
                 if TL.isHTTPHandler tl
@@ -334,9 +351,9 @@ submit m cursor action =
           let h = deMaybe "maybeH - eventmodifier" maybeH
               new = B.newF value
               replacement = SpecHeaders.replaceEventModifier id new h.spec in
-          wrap
+          wrapNewB
             [SetHandler tlid tl.pos { h | spec = replacement }]
-            (B.toID new)
+            new
         PEventSpace _ ->
           validate "[A-Z_]+" "event space"
             <|
@@ -352,9 +369,9 @@ submit m cursor action =
                    (B.newF "_")
                    replacement
           in
-          wrap
+          wrapNewB
             [SetHandler tlid tl.pos { h | spec = replacement2 }]
-            (B.toID new)
+            new
         PField _ ->
           validate ".+" "fieldname"
             <|
@@ -364,61 +381,89 @@ submit m cursor action =
                   TLFunc f -> f.ast
                   TLDB _ -> impossible ("No fields in DBs", tl.data)
               parent = AST.parentOf id ast
-              newAst =
-                if String.endsWith "." value
-                then
-                  let fieldname = String.dropRight 1 value
-                  -- wrap the field access with another field access
-                  -- get the parent ID from the old AST, cause it has the
-                  -- blank. Then get the parent structure from the new I
-                      wrapped =
-                        case parent of
-                          F id (FieldAccess lhs rhs) ->
-                            B.newF (
-                              FieldAccess
-                                (F id (FieldAccess lhs (B.newF fieldname)))
-                                (B.new ()))
-                          _ -> impossible ("should be a field", parent)
-                  in
-                  AST.replace (PExpr parent) (PExpr wrapped) ast
-                else
-                  let replacement = AST.replaceField pd value ast in
-                  case action of
-                    ContinueThread -> replacement
-                    StartThread ->
-                      -- id is not in the replacement, so search for the
-                      -- parent in the old ast
-                      let parentID = AST.parentOf id ast |> B.toID in
-                      AST.wrapInThread parentID replacement
           in
-              case tl.data of
-                TLHandler h ->
-                  wrapPred [SetHandler tlid tl.pos { h | ast = newAst }]
-                TLFunc f ->
-                  wrapPred [SetFunction { f | ast = newAst }]
-                TLDB _ -> impossible ("no fields in DBs", tl.data)
+          -- Nested field?
+          if String.endsWith "." value
+          then
+            let fieldname = String.dropRight 1 value
+                -- wrap the field access with another field access
+                -- get the parent ID from the old AST, cause it has the
+                -- blank. Then get the parent structure from the new ID
+                wrapped =
+                  case parent of
+                    F id (FieldAccess lhs rhs) ->
+                      B.newF (
+                        FieldAccess
+                          (F id (FieldAccess lhs (B.newF fieldname)))
+                          (B.new ()))
+                    _ -> impossible ("should be a field", parent)
+                newexpr = PExpr wrapped
+                newAst = AST.replace (PExpr parent) newexpr ast
+            in
+            case tl.data of
+              TLHandler h ->
+                wrapNew
+                  [SetHandler tlid tl.pos { h | ast = newAst }]
+                  newexpr
+              TLFunc f ->
+                wrapNew
+                  [SetFunction { f | ast = newAst }]
+                  newexpr
+              TLDB _ -> impossible ("no fields in DBs", tl.data)
+
+          else if action == StartThread
+          then
+            -- Starting a new thread from the field
+            let new = PField (B.newF value)
+                replacement = AST.replace pd new ast
+                newAst = AST.wrapInThread (B.toID parent) replacement
+                newexpr = PExpr parent
+            in
+            case tl.data of
+              TLHandler h ->
+                RPC
+                  ([SetHandler tlid tl.pos { h | ast = newAst }]
+                  , FocusNext tl.id (Just (P.toID newexpr)))
+              TLFunc f ->
+                RPC
+                  ([SetFunction { f | ast = newAst }]
+                  , FocusNext tl.id (Just (P.toID newexpr)))
+              TLDB _ -> impossible ("no fields in DBs", tl.data)
+          else
+            -- Changing a field
+            let newexpr = PField (B.newF value)
+                newAst = AST.replace pd newexpr ast
+            in
+            case tl.data of
+              TLHandler h ->
+                wrapNew
+                  [SetHandler tlid tl.pos { h | ast = newAst }]
+                  newexpr
+              TLFunc f ->
+                wrapNew
+                  [SetFunction { f | ast = newAst }]
+                  newexpr
+              TLDB _ -> impossible ("no fields in DBs", tl.data)
 
         PExpr e ->
           case tl.data of
             TLHandler h ->
               let (newast, newexpr) = replaceExpr m tl.id h.ast e action value
-                  newid = B.toID newexpr
-                  focus = FocusNext tl.id (Just newid)
               in
               if newexpr /= e
               then
-                RPC ([SetHandler tl.id tl.pos { h | ast = newast }], focus )
+                wrapNewB
+                  [SetHandler tl.id tl.pos { h | ast = newast }]
+                  newexpr
               else
                 NoChange
 
             TLFunc f ->
               let (newast, newexpr) = replaceExpr m tl.id f.ast e action value
-                  newid = B.toID newexpr
-                  focus = FocusNext tl.id (Just newid)
               in
               if newexpr /= e
               then
-                RPC ([SetFunction { f | ast = newast }], focus)
+                wrapNewB [SetFunction { f | ast = newast }] newexpr
               else
                 NoChange
 
@@ -430,20 +475,14 @@ submit m cursor action =
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollback e action value
-                        newid = B.toID newexpr
-                        focus =
-                          FocusNext tl.id (Just newid)
                     in
-                        RPC ([SetExpr tl.id id newast], focus)
+                        wrapNewB [SetExpr tl.id id newast] newexpr
                   else if List.member pd (AST.allData am.rollforward)
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollforward e action value
-                        newid = B.toID newexpr
-                        focus =
-                          FocusNext tl.id (Just newid)
                     in
-                        RPC ([SetExpr tl.id id newast], focus)
+                        wrapNewB [SetExpr tl.id id newast] newexpr
                   else
                     NoChange
         PDarkType _ ->
@@ -461,24 +500,24 @@ submit m cursor action =
               newPD = PDarkType (B.newF specType)
               replacement = SpecTypes.replace pd newPD h.spec
           in
-          wrap
+          wrapNew
             [SetHandler tlid tl.pos { h | spec = replacement }]
-            (P.toID newPD)
+            newPD
 
         PDarkTypeField _ ->
           let h = deMaybe "maybeH - expr" maybeH
               newPD = PDarkTypeField (B.newF value)
               replacement = SpecTypes.replace pd newPD h.spec
           in
-          wrap
+          wrapNew
             [SetHandler tlid tl.pos { h | spec = replacement }]
-            (P.toID newPD)
+            newPD
         PFFMsg _ ->
           let newPD = PFFMsg (B.newF value)
               newTL = TL.replace pd newPD tl
               h = TL.asHandler newTL |> deMaybe "must be handler"
           in
-          wrap [SetHandler tlid tl.pos h] (P.toID newPD)
+          wrapNew [SetHandler tlid tl.pos h] newPD
         PFnName _ ->
           let newPD = PFnName (B.newF value)
               newTL = TL.replace pd newPD tl
@@ -487,18 +526,18 @@ submit m cursor action =
                     new = TL.asUserFunction newTL |> deMaybe "new userFn"
                 in Refactor.renameFunction m old new
           in
-          wrap
+          wrapNew
             (SetFunction (TL.asUserFunction newTL |> deMaybe "must be function")
             :: changedNames)
-            (P.toID newPD)
+            newPD
         PParamName _ ->
           let newPD = PParamName (B.newF value)
               newTL = TL.replace pd newPD tl
               newFn = TL.asUserFunction newTL |> deMaybe "param fn"
           in
-          wrap
+          wrapNew
             [SetFunction newFn]
-            (P.toID newPD)
+            newPD
         PParamTipe _ ->
           validate "[A-Z][a-z]*" "param tipe"
           <|
@@ -506,7 +545,7 @@ submit m cursor action =
               newTL = TL.replace pd newPD tl
               newFn = TL.asUserFunction newTL |> deMaybe "tipe fn"
           in
-          wrap [SetFunction newFn] (P.toID newPD)
+          wrapNew [SetFunction newFn] newPD
 
 
 

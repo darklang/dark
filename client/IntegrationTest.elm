@@ -53,6 +53,9 @@ trigger test_name =
     "simple_tab_ordering" -> simple_tab_ordering
     "variable_extraction" -> variable_extraction
     "invalid_syntax" -> invalid_syntax
+    "editing_stays_in_same_place_with_enter" -> editing_stays_in_same_place_with_enter
+    "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
+    "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -553,4 +556,35 @@ invalid_syntax m =
         _ -> fail m.cursorState
     other -> fail other
 
+editing_stays_in_same_place_with_enter : Model -> TestResult
+editing_stays_in_same_place_with_enter m =
+  case (m.cursorState, onlyExpr m) of
+    (Selecting _ id1, Let (F id2 "v2") _ _) ->
+      if id1 == Just id2
+      then pass
+      else fail (m.cursorState, onlyExpr m)
+    other -> fail other
 
+
+editing_goes_to_next_with_tab : Model -> TestResult
+editing_goes_to_next_with_tab m =
+  case (m.cursorState, onlyExpr m) of
+    (Entering (Filling _ id1), Let (F _ "v2") (Blank id2) _) ->
+      if id1 == id2
+      then pass
+      else fail (m.cursorState, onlyExpr m)
+    other -> fail other
+
+editing_starts_a_thread_with_shift_enter : Model -> TestResult
+editing_starts_a_thread_with_shift_enter m =
+  case (m.cursorState, onlyExpr m) of
+    ( Entering (Filling _ id1)
+    , Let _ (F _ (Thread [ F _ (Value "5")
+                           , Blank id2
+                           ]))
+            _
+    ) ->
+      if id1 == id2
+      then pass
+      else fail (m.cursorState, onlyExpr m)
+    other -> fail other
