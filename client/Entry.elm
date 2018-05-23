@@ -183,7 +183,7 @@ parseAst m str =
     ["if"] ->
       Just <| F eid (If b1 b2 b3)
     ["let"] ->
-      Just <| F eid (Let (B.new()) b2 b3)
+      Just <| F eid (Let b1 b2 b3)
     ["lambda"] ->
       Just <| F eid (Lambda [B.newF "var"] b2)
     [""] ->
@@ -192,8 +192,6 @@ parseAst m str =
       Just <| F eid (Value "[]")
     ["{}"] ->
       Just <| F eid (Value "{}")
-    ["null"] ->
-      Just <| F eid (Value "null")
     _ ->
       if not (RT.isLiteral str)
       then createFunction m str
