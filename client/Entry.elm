@@ -321,9 +321,7 @@ submit m cursor action =
             wrapID [ ChangeDBColType tlid id value]
 
         PDBColName cn ->
-          if value == "id"
-          then Error ("id's are automatic and implicit, no need to add them")
-          else if B.asF cn == Just value
+          if B.asF cn == Just value
           then Select tlid (Just id)
           else if DB.hasCol (db |> deMaybe "db") value
           then Error ("Can't have two DB fields with the same name: " ++ value)
@@ -473,7 +471,9 @@ validate tl pd value =
     PDBColType ct ->
       v "\\[?[A-Z]\\w+\\]?" "DB type"
     PDBColName cn ->
-      v "\\w+" "DB column name"
+      if value == "id"
+      then Just "id's are automatic and implicit, no need to add them"
+      else v "\\w+" "DB column name"
     PVarBind _ ->
       v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
     PEventName _ ->
