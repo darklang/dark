@@ -262,6 +262,7 @@ submit m cursor action =
       else
       let maybeH = TL.asHandler tl
           db = TL.asDB tl
+
           wrap ops next =
             let wasEditing = P.isBlank pd |> not
                 focus = if wasEditing && action == StayHere
@@ -276,6 +277,16 @@ submit m cursor action =
           wrapID ops = wrap ops (Just id)
           wrapNewB ops new = wrap ops (Just (B.toID new))
           wrapNew ops new = wrap ops (Just (P.toID new))
+          replace new =
+            let replacement = TL.replace pd new tl in
+            case replacement.data of
+              TLHandler h ->
+                wrapNew [SetHandler tlid tl.pos h] new
+              TLFunc f ->
+                wrapNew [SetFunction f] new
+              TLDB _ -> impossible ("no vars in DBs", tl.data)
+
+
           validate pattern name success =
             if Util.reExactly pattern value
             then success
@@ -310,23 +321,7 @@ submit m cursor action =
               <| wrapID [ChangeDBColName tlid id value]
         PVarBind _ ->
           validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
-            <|
-              case tl.data of
-                TLHandler h ->
-                  let new = PVarBind (B.newF value)
-                      replacement = AST.replace pd new h.ast
-                  in
-                  wrapNew
-                    [SetHandler tlid tl.pos { h | ast = replacement }]
-                    new
-                TLFunc f ->
-                  let new = PVarBind (B.newF value)
-                      replacement = AST.replace pd new f.ast
-                  in
-                  wrapNew
-                    [SetFunction { f | ast = replacement }]
-                    new
-                TLDB _ -> impossible ("no vars in DBs", tl.data)
+            <| replace (PVarBind (B.newF value))
 
         PEventName _ ->
           let allowableCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" -- url safe characters
@@ -336,14 +331,8 @@ submit m cursor action =
                 else allowableCharacters ++ "+" -- at least one
           in
           validate eventNameValidation "event name"
-          <|
-          let h = deMaybe "maybeH - eventname" maybeH
-              new = B.newF value
-              replacement = SpecHeaders.replaceEventName id new h.spec
-          in
-          wrapNewB
-            [SetHandler tlid tl.pos { h | spec = replacement }]
-            new
+          <| replace (PEventName (B.newF value))
+
         PEventModifier _ ->
           let eventModifierValidation =
                 if TL.isHTTPHandler tl
@@ -351,13 +340,8 @@ submit m cursor action =
                 else "[a-zA-Z_][a-zA-Z0-9_]*"
           in
           validate eventModifierValidation "event modifier"
-          <|
-          let h = deMaybe "maybeH - eventmodifier" maybeH
-              new = B.newF value
-              replacement = SpecHeaders.replaceEventModifier id new h.spec in
-          wrapNewB
-            [SetHandler tlid tl.pos { h | spec = replacement }]
-            new
+          <| replace (PEventModifier (B.newF value))
+
         PEventSpace _ ->
           validate "[A-Z_]+" "event space"
             <|
@@ -509,19 +493,9 @@ submit m cursor action =
             newPD
 
         PDarkTypeField _ ->
-          let h = deMaybe "maybeH - expr" maybeH
-              newPD = PDarkTypeField (B.newF value)
-              replacement = SpecTypes.replace pd newPD h.spec
-          in
-          wrapNew
-            [SetHandler tlid tl.pos { h | spec = replacement }]
-            newPD
+          replace (PDarkTypeField (B.newF value))
         PFFMsg _ ->
-          let newPD = PFFMsg (B.newF value)
-              newTL = TL.replace pd newPD tl
-              h = TL.asHandler newTL |> deMaybe "must be handler"
-          in
-          wrapNew [SetHandler tlid tl.pos h] newPD
+          replace (PFFMsg (B.newF value))
         PFnName _ ->
           let newPD = PFnName (B.newF value)
               newTL = TL.replace pd newPD tl
