@@ -498,10 +498,16 @@ body #grid * {
 .string-style() {
   color: @purple;
   font-style: italic;
-  max-width: 40ch;
+  max-width: 120ch;
   white-space: pre-wrap;
   word-break: break-all;
   word-wrap: break-word;
+  &.short-strings {
+    max-width: 40ch;
+    white-space: pre-wrap;
+    word-break: break-all;
+    word-wrap: break-word;
+  }
 }
 
 .blank-box-style() {
