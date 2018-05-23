@@ -282,14 +282,28 @@ submit m cursor action =
           wrapID ops = wrap ops (Just id)
           wrapNewB ops new = wrap ops (Just (B.toID new))
           wrapNew ops new = wrap ops (Just (P.toID new))
-          replace new =
-            let replacement = TL.replace pd new tl in
-            case replacement.data of
+          save tl next =
+            case tl.data of
               TLHandler h ->
-                wrapNew [SetHandler tlid tl.pos h] new
+                wrapNew [SetHandler tlid tl.pos h] next
               TLFunc f ->
-                wrapNew [SetFunction f] new
+                wrapNew [SetFunction f] next
               TLDB _ -> impossible ("no vars in DBs", tl.data)
+
+          saveAst ast next =
+            case tl.data of
+              TLHandler h ->
+                save ({ tl | data = TLHandler { h | ast = ast}}) next
+              TLFunc f ->
+                save ({ tl | data = TLFunc { f | ast = ast}}) next
+              TLDB _ -> impossible ("no vars in DBs", tl.data)
+
+
+
+          replace new =
+            tl
+            |> TL.replace pd new
+            |> \tl -> save tl new
       in
       case pd of
         PDBColType ct ->
@@ -362,12 +376,7 @@ submit m cursor action =
             in
             let new = PExpr wrapped
                 replacement = TL.replace (PExpr parent) new tl in
-            case replacement.data of
-              TLHandler h ->
-                wrapNew [SetHandler tlid tl.pos h] new
-              TLFunc f ->
-                wrapNew [SetFunction f] new
-              TLDB _ -> impossible ("no vars in DBs", tl.data)
+            save replacement new
 
           else if action == StartThread
           then
@@ -377,16 +386,7 @@ submit m cursor action =
                 newAst = AST.wrapInThread (B.toID parent) replacement
                 newexpr = PExpr parent
             in
-            case tl.data of
-              TLHandler h ->
-                wrapNew
-                  [SetHandler tlid tl.pos { h | ast = newAst }]
-                  newexpr
-              TLFunc f ->
-                wrapNew
-                  [SetFunction { f | ast = newAst }]
-                  newexpr
-              TLDB _ -> impossible ("no fields in DBs", tl.data)
+            saveAst newAst newexpr
           else
             -- Changing a field
             replace (PField (B.newF value))
