@@ -184,7 +184,8 @@ RUN docker-credential-gcr config --token-source="gcloud"
 USER dark
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
-RUN opam init --comp 4.06.0 --auto-setup
+# disabling sandboxing as it breaks and isn't necessary cause Docker
+RUN opam init --comp 4.06.0 --auto-setup --disable-sandboxing
 ENV PATH "/home/dark/.opam/4.06.0/bin:$PATH"
 ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.0/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/4.06.0/man:"
