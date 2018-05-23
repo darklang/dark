@@ -9,7 +9,6 @@ import Html
 import Html.Attributes as Attrs
 import Html.Events as Events
 import List
-import String.Extra as SE
 
 -- dark
 import Types exposing (..)
