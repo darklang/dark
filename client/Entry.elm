@@ -387,7 +387,14 @@ submit m cursor action =
                           (B.new ()))
                     _ -> impossible ("should be a field", parent)
             in
-            replace (PExpr wrapped)
+            let new = PExpr wrapped
+                replacement = TL.replace (PExpr parent) new tl in
+            case replacement.data of
+              TLHandler h ->
+                wrapNew [SetHandler tlid tl.pos h] new
+              TLFunc f ->
+                wrapNew [SetFunction f] new
+              TLDB _ -> impossible ("no vars in DBs", tl.data)
 
           else if action == StartThread
           then
