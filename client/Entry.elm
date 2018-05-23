@@ -24,7 +24,6 @@ import Toplevel as TL
 import Runtime as RT
 import Refactor
 import Pointer as P
-import SpecTypes
 import SpecHeaders
 import Blank as B
 import Autocomplete as AC
@@ -255,7 +254,6 @@ submit m cursor action =
     Filling tlid id ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
-
       in
       if String.length value < 1
       then NoChange
@@ -385,19 +383,8 @@ submit m cursor action =
                           (F id (FieldAccess lhs (B.newF fieldname)))
                           (B.new ()))
                     _ -> impossible ("should be a field", parent)
-                newexpr = PExpr wrapped
-                newAst = AST.replace (PExpr parent) newexpr ast
             in
-            case tl.data of
-              TLHandler h ->
-                wrapNew
-                  [SetHandler tlid tl.pos { h | ast = newAst }]
-                  newexpr
-              TLFunc f ->
-                wrapNew
-                  [SetFunction { f | ast = newAst }]
-                  newexpr
-              TLDB _ -> impossible ("no fields in DBs", tl.data)
+            replace (PExpr wrapped)
 
           else if action == StartThread
           then
@@ -419,19 +406,7 @@ submit m cursor action =
               TLDB _ -> impossible ("no fields in DBs", tl.data)
           else
             -- Changing a field
-            let newexpr = PField (B.newF value)
-                newAst = AST.replace pd newexpr ast
-            in
-            case tl.data of
-              TLHandler h ->
-                wrapNew
-                  [SetHandler tlid tl.pos { h | ast = newAst }]
-                  newexpr
-              TLFunc f ->
-                wrapNew
-                  [SetFunction { f | ast = newAst }]
-                  newexpr
-              TLDB _ -> impossible ("no fields in DBs", tl.data)
+            replace (PField (B.newF value))
 
         PExpr e ->
           case tl.data of
@@ -484,13 +459,8 @@ submit m cursor action =
                   "Empty" -> DTEmpty
                   "{" -> DTObj [(B.new (), B.new ())]
                   _ -> todo "disallowed value"
-              h = deMaybe "maybeH - httpverb" maybeH
-              newPD = PDarkType (B.newF specType)
-              replacement = SpecTypes.replace pd newPD h.spec
           in
-          wrapNew
-            [SetHandler tlid tl.pos { h | spec = replacement }]
-            newPD
+          replace (PDarkType (B.newF specType))
 
         PDarkTypeField _ ->
           replace (PDarkTypeField (B.newF value))
