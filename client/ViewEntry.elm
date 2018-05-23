@@ -26,7 +26,7 @@ viewEntry m =
       let html =
             Html.div
               [Attrs.class "omnibox"]
-              [entryHtml True "" m.complete]
+              [entryHtml StringEntryAllowed StringEntryNormalWidth "" m.complete]
       in [placeHtml m pos html]
     _ ->
       []
@@ -51,15 +51,13 @@ transformFromStringEntry s =
   in
   "\"" ++ s2 ++ "\""
 
-stringEntryHtml : Autocomplete -> Html.Html Msg
-stringEntryHtml ac =
-  let
-      maxWidthChars = 40 -- max-width: 40ch rule from CSS
+stringEntryHtml : Autocomplete -> StringEntryWidth -> Html.Html Msg
+stringEntryHtml ac width =
+  let maxWidthChars =
+      case width of -- max-width rules from CSS
+        StringEntryNormalWidth -> 120
+        StringEntryShortWidth -> 40
       value = transformToStringEntry ac.value
-      visualStringLength = \string ->
-                              string
-                              |> Util.replace "\t" "        " -- replace tabs with 8 ch for ch counting
-                              |> String.length
       longestLineLength = value
                           |> String.split "\n"
                           |> List.map visualStringLength
@@ -175,8 +173,11 @@ normalEntryHtml placeholder ac =
                 [ viewForm ]
   in wrapper
 
-entryHtml : Bool -> String -> Autocomplete -> Html.Html Msg
-entryHtml allowStringEntry placeholder ac =
-  if allowStringEntry && Autocomplete.isStringEntry ac
-  then stringEntryHtml ac
-  else normalEntryHtml placeholder ac
+entryHtml : StringEntryPermission -> StringEntryWidth -> String -> Autocomplete -> Html.Html Msg
+entryHtml permission width placeholder ac =
+  case permission of
+    StringEntryAllowed ->
+      if Autocomplete.isStringEntry ac
+      then stringEntryHtml ac width
+      else normalEntryHtml placeholder ac
+    StringEntryNotAllowed -> normalEntryHtml placeholder ac
