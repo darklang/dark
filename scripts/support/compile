@@ -62,7 +62,7 @@ def elm_make():
           + " && patch -p0 -R -u elm-debug.js" \
           + " -i ../../scripts/support/debugless.patch" \
           + " -o elm.js"
-          + " && sed -i elm.js -e 's/\\(_user$project$Main$main(Elm\\['\\''Main'\\''\], '\\''Main'\\'', \\).*/\\1undefined);/g'")
+          + " && perl -i -pe 's/(_user\$project\$Main\$main\(Elm\[.Main.\], .Main.,).*/\\1 undefined\);/g' elm.js")
 
 def elm_test():
   start = time.time()
