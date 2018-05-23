@@ -1037,17 +1037,22 @@ body #grid * {
   }
 }
 
-[data-docs] {
+.has-documentation {
   position: relative;
+  .documentation {
+    background: @black2;
+    bottom: calc(~"100% + 2px");
+    color: yellow;
+    content: attr(data-docs);
+    display: none;
+    font-style: normal;
+    left: 0;
+    position: absolute;
+    width: max-content;
+  }
   &:hover, &.selected {
-    &:after {
-      background: @black2;
-      color: yellow;
-      content: attr(data-docs);
-      font-style: normal;
-      left: 0;
-      bottom: calc(~"100% + 2px");
-      position: absolute;
+    & > .documentation {
+      display: block;
     }
   }
 }
