@@ -281,7 +281,6 @@ submit m cursor action =
 
             RPC (ops, focus)
           wrapID ops = wrap ops (Just id)
-          wrapNewB ops new = wrap ops (Just (B.toID new))
           wrapNew ops new = wrap ops (Just (P.toID new))
           save newtl next =
             if newtl == tl
@@ -294,15 +293,16 @@ submit m cursor action =
                   wrapNew [SetFunction f] next
                 TLDB _ -> impossible ("no vars in DBs", tl.data)
 
+          saveH h next =
+            save ({ tl | data = TLHandler h }) next
+
           saveAst ast next =
             case tl.data of
               TLHandler h ->
-                save ({ tl | data = TLHandler { h | ast = ast}}) next
+                saveH { h | ast = ast} next
               TLFunc f ->
                 save ({ tl | data = TLFunc { f | ast = ast}}) next
               TLDB _ -> impossible ("no vars in DBs", tl.data)
-
-
 
           replace new =
             tl
@@ -349,9 +349,7 @@ submit m cursor action =
                    (B.newF "_")
                    replacement
           in
-          wrapNewB
-            [SetHandler tlid tl.pos { h | spec = replacement2 }]
-            new
+          saveH {h | spec = replacement2 } (PEventSpace new)
         PField _ ->
           let ast =
                 case tl.data of
@@ -416,13 +414,13 @@ submit m cursor action =
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollback e action value
                     in
-                        wrapNewB [SetExpr tl.id id newast] newexpr
+                    wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else if List.member pd (AST.allData am.rollforward)
                   then
                     let (newast, newexpr) =
                           replaceExpr m tl.id am.rollforward e action value
                     in
-                        wrapNewB [SetExpr tl.id id newast] newexpr
+                    wrapNew [SetExpr tl.id id newast] (PExpr newexpr)
                   else
                     NoChange
         PDarkType _ ->
