@@ -193,9 +193,14 @@ div vs configs content =
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
                   ++ (if incomplete then ["incomplete"] else [])
+                  ++ (if not (ME.isNothing documentation) then ["has-documentation"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
-      docsAttr = case documentation of
-        Just docs -> [Attrs.attribute "data-docs" docs]
+      docsHtml = case documentation of
+        Just docs ->
+          [Html.div
+            [Attrs.class "documentation"]
+            [Html.text docs]
+          ]
         Nothing -> []
       events =
         case clickAs of
@@ -207,7 +212,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ docsAttr ++ [classAttr]
+      attrs = events ++ [classAttr]
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
@@ -216,7 +221,7 @@ div vs configs content =
                        [viewEditFn editFn showFeatureFlag]
                      Nothing -> []
   in
-    Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ computedValue)
+    Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ computedValue ++ docsHtml)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
