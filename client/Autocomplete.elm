@@ -407,7 +407,7 @@ generateFromModel m a =
               _ -> []
           Nothing -> []
 
-      showFunctions =
+      isExpression =
         case a.target of
           Just (_, p) -> P.typeOf p == Expr
           Nothing -> True
@@ -447,7 +447,7 @@ generateFromModel m a =
                 |> Maybe.map .tipe)
 
       -- functions
-      funcList = if showFunctions then a.functions else []
+      funcList = if isExpression then a.functions else []
       functions =
         funcList
         |> List.filter
@@ -536,9 +536,16 @@ generateFromModel m a =
           _ -> []
 
       varnames = Analysis.varnamesFor m a.target
+      keywords =
+        if isExpression
+        then
+          List.map ACKeyword [KLet, KIf, KLambda]
+        else
+          []
     in
     List.map ACExtra extras
     ++ List.map ACVariable varnames
+    ++ keywords
     ++ functions
     ++ fields
 
@@ -556,6 +563,11 @@ asName aci =
         NewHTTPHandler -> "Create new HTTP handler"
         NewHTTPRoute name -> "Create new HTTP handler for " ++ name
         NewEventSpace name -> "Create new " ++ name ++ " handler"
+    ACKeyword k ->
+      case k of
+        KLet -> "let"
+        KIf -> "if"
+        KLambda -> "lambda"
 
 
 asTypeString : AutocompleteItem -> String
@@ -573,6 +585,7 @@ asTypeString item =
       let tipe = lit |> RT.tipeOf |> RT.tipe2str in
       tipe ++ " literal"
     ACOmniAction _ -> ""
+    ACKeyword _ -> "keyword"
 
 asString : AutocompleteItem -> String
 asString aci =
