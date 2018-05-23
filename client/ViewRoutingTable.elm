@@ -16,7 +16,6 @@ import Toplevel as TL
 import Blank as B
 import Toplevel
 import ViewUtils exposing (..)
-import SpecHeaders
 import Url
 
 
@@ -24,7 +23,7 @@ import Url
 type alias Entry = { name: Maybe String
                    , prefix: List String
                    , verbs: List (String, Pos)
-                   , isHttp: Bool }
+                   }
 
 missingEventSpaceDesc : String
 missingEventSpaceDesc = "<missing event space>"
@@ -78,7 +77,6 @@ collapseHandlers tls =
                Flagged _ _ _ _ _ ->
                  impossible ("FF in spec name", h.spec.name)
          , prefix = []
-         , isHttp = SpecHeaders.isHTTP h.spec
          , verbs =
              case h.spec.modifier of
                F _ s -> [(s, pos)]

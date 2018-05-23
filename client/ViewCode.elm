@@ -18,6 +18,7 @@ import Blank as B
 import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
 import Runtime
+import SpecHeaders
 
 
 viewFieldName : BlankViewer String
@@ -417,7 +418,7 @@ viewHandler vs h =
           , viewDarkType vs [] h.spec.types.output]
 
       modifier =
-        if vs.isHTTP
+        if SpecHeaders.visibleModifier h.spec
         then viewEventModifier vs [wc "modifier"] h.spec.modifier
         else Html.div [] []
       header =

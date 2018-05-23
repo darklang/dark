@@ -29,7 +29,7 @@ type alias ViewState =
   , tlid: TLID
   , hovering: Maybe ID
   , ac: Autocomplete
-  , isHTTP: Bool
+  , handlerSpace: HandlerSpace
   , showEntry : Bool
   , lvs: LVDict
   , dbLocked : Bool
@@ -66,7 +66,8 @@ createVS m tl = { tl = tl
                         _ -> Just i)
                 , ac = m.complete
                 , showEntry = True
-                , isHTTP = TL.isHTTPHandler tl
+                , handlerSpace = TL.spaceOf tl
+                               |> Maybe.withDefault HSOther
                 , lvs = Analysis.getLiveValuesDict m tl.id
                 , dbLocked = DB.isLocked m tl.id
                 , ufns = m.userFunctions

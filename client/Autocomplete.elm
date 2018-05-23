@@ -489,7 +489,9 @@ generateFromModel m a =
                 else
                   []
               EventSpace ->
-                ["HTTP"]
+                ["HTTP"
+                ,"CRON"
+                ]
               DBColType ->
                 let builtins =
                   [ "String"

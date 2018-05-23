@@ -329,6 +329,10 @@ type alias HandlerSpec = { module_ : BlankOr String
                          , types : SpecTypes
                          }
 
+type HandlerSpace = HSHTTP
+                  | HSCron
+                  | HSOther
+
 type alias Handler = { ast : Expr
                      , spec : HandlerSpec
                      }
