@@ -9,16 +9,33 @@ import Types exposing (..)
 import Pointer as P
 import Blank as B
 
-isHTTP : HandlerSpec -> Bool
-isHTTP hs =
-  case hs.module_ of
-    Blank _ -> True
-    Flagged _ _ _ _ _ as ff ->
-      case B.flattenFF ff of
-        F _ s -> String.toLower s == "http"
-        _ -> False
-    F _ s ->
-      String.toLower s == "http"
+spaceOf : HandlerSpec -> HandlerSpace
+spaceOf hs =
+  let spaceOfStr s =
+        let lwr =
+            String.toLower s
+        in
+            if lwr == "http"
+            then HSHTTP
+            else if lwr == "cron"
+            then HSCron
+            else HSOther
+  in
+    case hs.module_ of
+      Blank _ -> HSOther
+      Flagged _ _ _ _ _ as ff ->
+        case B.flattenFF ff of
+          F _ s -> spaceOfStr s
+          _ -> HSOther
+      F _ s ->
+        spaceOfStr s
+
+visibleModifier : HandlerSpec -> Bool
+visibleModifier hs =
+  case spaceOf hs of
+    HSHTTP -> True
+    HSCron -> True
+    HSOther -> False
 
 replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventModifier search replacement hs =

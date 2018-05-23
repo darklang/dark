@@ -343,7 +343,7 @@ submit m cursor action =
               new = B.newF value
               replacement = SpecHeaders.replaceEventSpace id new h.spec
               replacement2 =
-                if SpecHeaders.isHTTP replacement
+                if SpecHeaders.visibleModifier replacement
                 then replacement
                 else
                   SpecHeaders.replaceEventModifier
