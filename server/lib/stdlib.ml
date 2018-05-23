@@ -1286,47 +1286,6 @@ let fns : Lib.shortfn list = [
 
 
   (* ====================================== *)
-  (* Hacks for autocomplete*)
-  (* ====================================== *)
-
-
-  { pns = ["if"]
-  ; ins = []
-  ; p = [par "cond" TBool]
-  ; r = TAny
-  ; d = "If cond is true, executes the `then` expression. Otherwise runs the `else` expression."
-  ; f = InProcess (fun _ -> failwith "If is a placeholer, we shouldn't be calling it")
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
-
-  { pns = ["lambda"]
-  ; ins = []
-  ; p = [par "vars" TList; par "body" TAny]
-  ; r = TAny
-  ; d = "Creates an anonymous function, useful for iterating through foreach"
-  ; f = InProcess (fun _ -> failwith "Lambda is a placeholer, we shouldn't be calling it" )
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
-
-  { pns = ["let"]
-  ; ins = []
-  ; p = [par "bindings" TList; par "body" TAny]
-  ; r = TAny
-  ; d = "Execute and bind the variables in binding, and then execute body, possibly using those expressions. Execution is strict."
-  ; f = InProcess (fun _ -> failwith "Let is a placeholer, we shouldn't be calling it")
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
-
-  (* ====================================== *)
   (* Date *)
   (* ====================================== *)
   (* Different format than we use in postgres, this was useful for twitter *)

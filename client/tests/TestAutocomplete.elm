@@ -72,6 +72,9 @@ all =
       |> selectDown
       |> selectDown
       |> selectDown
+      |> selectDown
+      |> selectDown
+      |> selectDown
       |> setQuery "T"
       |> highlighted
       |> Maybe.map asName
@@ -176,6 +179,9 @@ all =
 
       -- Scrolling backward works if we haven't searched yet
       , \_ -> create ()
+      |> selectUp
+      |> selectUp
+      |> selectUp
       |> selectUp
       |> selectUp
       |> selectUp
@@ -342,6 +348,22 @@ all =
       |> setQuery "3.452"
       |> highlighted
       |> (==) (Just (ACLiteral "3.452"))
+
+      -- keywords appear in autocomplete
+      , \_ -> create ()
+      |> setQuery "if"
+      |> highlighted
+      |> (==) (Just (ACKeyword KIf))
+
+      , \_ -> create ()
+      |> setQuery "let"
+      |> highlighted
+      |> (==) (Just (ACKeyword KLet))
+
+      , \_ -> create ()
+      |> setQuery "lambda"
+      |> highlighted
+      |> (==) (Just (ACKeyword KLambda))
 
 
       ]
