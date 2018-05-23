@@ -168,6 +168,6 @@ let init () : unit =
 let init_testing () : unit =
   upsert_account
     { username = "test"
-    ; password = "testingpw"
+    ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests"};
