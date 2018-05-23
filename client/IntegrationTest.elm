@@ -579,7 +579,7 @@ editing_starts_a_thread_with_shift_enter : Model -> TestResult
 editing_starts_a_thread_with_shift_enter m =
   case (m.cursorState, onlyExpr m) of
     ( Entering (Filling _ id1)
-    , Let _ (F _ (Thread [ F _ (Value "5")
+    , Let _ (F _ (Thread [ F _ (Value "52")
                            , Blank id2
                            ]))
             _

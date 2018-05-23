@@ -160,17 +160,18 @@ replaceExpr m tlid ast old_ action value =
             |> Maybe.withDefault old_)
 
 
-      ast1 = case action of
-        StartThread ->
-          AST.wrapInThread id ast
-        GotoNext -> ast
-        StayHere -> ast
-
-
-      ast2 = AST.replace (PExpr old) (PExpr new) ast1
-      ast3 = AST.maybeExtendThreadAt (B.toID new) ast2
+      newAst =
+        case action of
+          StartThread ->
+            ast
+            |> AST.replace (PExpr old) (PExpr new)
+            |> AST.wrapInThread (B.toID new)
+          _ ->
+            ast
+            |> AST.replace (PExpr old) (PExpr new)
+            |> AST.maybeExtendThreadAt (B.toID new)
   in
-  (ast3, new)
+  (newAst, new)
 
 parseAst : Model -> String -> Maybe Expr
 parseAst m str =
