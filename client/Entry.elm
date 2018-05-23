@@ -278,17 +278,21 @@ submit m cursor action =
                         else
                           FocusNext tl.id next
             in
+
             RPC (ops, focus)
           wrapID ops = wrap ops (Just id)
           wrapNewB ops new = wrap ops (Just (B.toID new))
           wrapNew ops new = wrap ops (Just (P.toID new))
-          save tl next =
-            case tl.data of
-              TLHandler h ->
-                wrapNew [SetHandler tlid tl.pos h] next
-              TLFunc f ->
-                wrapNew [SetFunction f] next
-              TLDB _ -> impossible ("no vars in DBs", tl.data)
+          save newtl next =
+            if newtl == tl
+            then NoChange
+            else
+              case newtl.data of
+                TLHandler h ->
+                  wrapNew [SetHandler tlid tl.pos h] next
+                TLFunc f ->
+                  wrapNew [SetFunction f] next
+                TLDB _ -> impossible ("no vars in DBs", tl.data)
 
           saveAst ast next =
             case tl.data of
@@ -394,24 +398,16 @@ submit m cursor action =
         PExpr e ->
           case tl.data of
             TLHandler h ->
-              let (newast, newexpr) = replaceExpr m tl.id h.ast e action value
+              let (newast, newexpr) =
+                    replaceExpr m tl.id h.ast e action value
               in
-              if newexpr /= e
-              then
-                wrapNewB
-                  [SetHandler tl.id tl.pos { h | ast = newast }]
-                  newexpr
-              else
-                NoChange
+              saveAst newast (PExpr newexpr)
 
             TLFunc f ->
-              let (newast, newexpr) = replaceExpr m tl.id f.ast e action value
+              let (newast, newexpr) =
+                    replaceExpr m tl.id f.ast e action value
               in
-              if newexpr /= e
-              then
-                wrapNewB [SetFunction { f | ast = newast }] newexpr
-              else
-                NoChange
+              saveAst newast (PExpr newexpr)
 
             TLDB db ->
               case db.activeMigration of
@@ -460,20 +456,9 @@ submit m cursor action =
             :: changedNames)
             newPD
         PParamName _ ->
-          let newPD = PParamName (B.newF value)
-              newTL = TL.replace pd newPD tl
-              newFn = TL.asUserFunction newTL |> deMaybe "param fn"
-          in
-          wrapNew
-            [SetFunction newFn]
-            newPD
+          replace (PParamName (B.newF value))
         PParamTipe _ ->
-          let newPD = PParamTipe (B.newF (RT.str2tipe value))
-              newTL = TL.replace pd newPD tl
-              newFn = TL.asUserFunction newTL |> deMaybe "tipe fn"
-          in
-          wrapNew [SetFunction newFn] newPD
-
+          replace (PParamTipe (B.newF (RT.str2tipe value)))
 
 
 
