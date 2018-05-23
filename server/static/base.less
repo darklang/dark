@@ -1057,7 +1057,7 @@ body #grid * {
     width: max-content;
   }
   &:hover, &.selected {
-    & > .documentation {
+    &:not(.blank) > .documentation {
       display: block;
     }
   }
