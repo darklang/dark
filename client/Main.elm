@@ -1055,9 +1055,17 @@ update_ msg m =
               let tl = TL.getTL m draggingTLID in
               -- We've been updating tl.pos as mouse moves,
               -- now want to report last pos to server
-              -- NB: do *not* stop dragging here because we're using
-              --     the dragging state in `ToplevelClick` coming up next
-              RPC ([MoveTL draggingTLID tl.pos], FocusNoChange)
+
+              -- the SetCursorState here isn't always necessary
+              -- because in the happy case we'll also receive
+              -- a ToplevelClick event, but it seems that sometimes
+              -- we don't, perhaps due to overlapping click handlers
+              -- There doesn't seem to be any harm in stopping dragging
+              -- here though
+              Many [
+                SetCursorState origCursorState
+                , RPC ([MoveTL draggingTLID tl.pos], FocusNoChange)
+                ]
             else
               SetCursorState origCursorState
           _ ->
