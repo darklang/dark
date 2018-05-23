@@ -200,12 +200,18 @@ type OmniAction = NewDB DBName
                 | NewHTTPHandler
                 | NewHTTPRoute String
                 | NewEventSpace String
+
+type Keyword = KLet
+             | KIf
+             | KLambda
+
 type AutocompleteItem = ACFunction Function
                       | ACField String
                       | ACVariable VarName
                       | ACExtra String
                       | ACLiteral Literal
                       | ACOmniAction OmniAction
+                      | ACKeyword Keyword
 
 type alias Target = (TLID, PointerData)
 type AutocompleteMod = ACSetQuery String
