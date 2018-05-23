@@ -373,20 +373,17 @@ submit m cursor action =
                           (F id (FieldAccess lhs (B.newF fieldname)))
                           (B.new ()))
                     _ -> impossible ("should be a field", parent)
-            in
-            let new = PExpr wrapped
+                new = PExpr wrapped
                 replacement = TL.replace (PExpr parent) new tl in
             save replacement new
 
           else if action == StartThread
           then
             -- Starting a new thread from the field
-            let new = PField (B.newF value)
-                replacement = AST.replace pd new ast
+            let replacement = AST.replace pd (PField (B.newF value)) ast
                 newAst = AST.wrapInThread (B.toID parent) replacement
-                newexpr = PExpr parent
             in
-            saveAst newAst newexpr
+            saveAst newAst (PExpr parent)
           else
             -- Changing a field
             replace (PField (B.newF value))
