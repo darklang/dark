@@ -195,6 +195,12 @@ type alias Autocomplete = { functions : List Function
                           , tipe : Maybe Tipe
                           }
 
+type StringEntryPermission = StringEntryAllowed
+                           | StringEntryNotAllowed
+
+type StringEntryWidth = StringEntryNormalWidth
+                      | StringEntryShortWidth
+
 type alias Literal = String
 type OmniAction = NewDB DBName
                 | NewHTTPHandler
