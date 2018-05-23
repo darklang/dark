@@ -257,9 +257,13 @@ submit m cursor action =
     Filling tlid id ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
+          result = validate tl pd value
       in
       if String.length value < 1
       then NoChange
+      else if result /= Nothing
+      then
+        Error <| deMaybe "checked above" result
       else
       let maybeH = TL.asHandler tl
           db = TL.asDB tl
@@ -286,12 +290,6 @@ submit m cursor action =
               TLFunc f ->
                 wrapNew [SetFunction f] new
               TLDB _ -> impossible ("no vars in DBs", tl.data)
-
-
-          validate pattern name success =
-            if Util.reExactly pattern value
-            then success
-            else Error (name ++ " must match /" ++ pattern ++ "/")
       in
       case pd of
         PDBColType ct ->
@@ -299,12 +297,10 @@ submit m cursor action =
           then Select tlid (Just id)
           else if B.isBlank ct
           then
-            validate "\\[?[A-Z]\\w+\\]?" "DB type"
-              <| wrapID [ SetDBColType tlid id value
-                        , AddDBCol tlid (gid ()) (gid ())]
+            wrapID [ SetDBColType tlid id value
+                   , AddDBCol tlid (gid ()) (gid ())]
           else
-            validate "\\[?[A-Z]\\w+\\]?" "DB type"
-              <| wrapID [ ChangeDBColType tlid id value]
+            wrapID [ ChangeDBColType tlid id value]
 
         PDBColName cn ->
           if value == "id"
@@ -315,37 +311,16 @@ submit m cursor action =
           then Error ("Can't have two DB fields with the same name: " ++ value)
           else if B.isBlank cn
           then
-            validate "\\w+" "DB column name"
-              <| wrapID [SetDBColName tlid id value]
+            wrapID [SetDBColName tlid id value]
           else
-            validate "\\w+" "DB column name"
-              <| wrapID [ChangeDBColName tlid id value]
+            wrapID [ChangeDBColName tlid id value]
         PVarBind _ ->
-          validate "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
-            <| replace (PVarBind (B.newF value))
-
+          replace (PVarBind (B.newF value))
         PEventName _ ->
-          let allowableCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" -- url safe characters
-              eventNameValidation =
-                if TL.isHTTPHandler tl
-                then "/(" ++ allowableCharacters ++ "*)" -- preceding slash
-                else allowableCharacters ++ "+" -- at least one
-          in
-          validate eventNameValidation "event name"
-          <| replace (PEventName (B.newF value))
-
+          replace (PEventName (B.newF value))
         PEventModifier _ ->
-          let eventModifierValidation =
-                if TL.isHTTPHandler tl
-                then "[A-Z]+"
-                else "[a-zA-Z_][a-zA-Z0-9_]*"
-          in
-          validate eventModifierValidation "event modifier"
-          <| replace (PEventModifier (B.newF value))
-
+          replace (PEventModifier (B.newF value))
         PEventSpace _ ->
-          validate "[A-Z_]+" "event space"
-            <|
           let h = deMaybe "maybeH - eventspace" maybeH
               new = B.newF value
               replacement = SpecHeaders.replaceEventSpace id new h.spec
@@ -362,8 +337,6 @@ submit m cursor action =
             [SetHandler tlid tl.pos { h | spec = replacement2 }]
             new
         PField _ ->
-          validate ".+" "fieldname"
-            <|
           let ast =
                 case tl.data of
                   TLHandler h -> h.ast
@@ -459,8 +432,6 @@ submit m cursor action =
                   else
                     NoChange
         PDarkType _ ->
-          validate "(String|Int|Any|Empty|{)" "type"
-            <|
           let specType =
                 case value of
                   "String" -> DTString
@@ -497,8 +468,6 @@ submit m cursor action =
             [SetFunction newFn]
             newPD
         PParamTipe _ ->
-          validate "[A-Z][a-z]*" "param tipe"
-          <|
           let newPD = PParamTipe (B.newF (RT.str2tipe value))
               newTL = TL.replace pd newPD tl
               newFn = TL.asUserFunction newTL |> deMaybe "tipe fn"
@@ -506,4 +475,50 @@ submit m cursor action =
           wrapNew [SetFunction newFn] newPD
 
 
+
+
+validate : Toplevel -> PointerData -> String -> Maybe String
+validate tl pd value =
+  let v pattern name =
+        if Util.reExactly pattern value
+        then Nothing
+        else Just (name ++ " must match /" ++ pattern ++ "/")
+  in
+  case pd of
+    PDBColType ct ->
+      v "\\[?[A-Z]\\w+\\]?" "DB type"
+    PDBColName cn ->
+      v "\\w+" "DB column name"
+    PVarBind _ ->
+      v "[a-zA-Z_][a-zA-Z0-9_]*" "variable name"
+    PEventName _ ->
+      let urlSafeCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]"
+          http = "/(" ++ urlSafeCharacters ++ "*)" -- preceding slash
+          event = urlSafeCharacters ++ "+" -- at least one
+      in
+      if TL.isHTTPHandler tl
+      then v http "route name"
+      else v event "event name"
+    PEventModifier _ ->
+      if TL.isHTTPHandler tl
+      then v "[A-Z]+" "verb"
+      else v "[a-zA-Z_][a-zA-Z0-9_]*" "event modifier"
+    PEventSpace _ ->
+      v "[A-Z_]+" "event space"
+    PField _ ->
+      v ".+" "fieldname"
+    PExpr e ->
+      Nothing -- done elsewhere
+    PDarkType _ ->
+      v "(String|Int|Any|Empty|{)" "type"
+    PDarkTypeField _ ->
+      Nothing
+    PFFMsg _ ->
+      Nothing
+    PFnName _ ->
+      Nothing
+    PParamName _ ->
+      Nothing
+    PParamTipe _ ->
+      v "[A-Z][a-z]*" "param type"
 
