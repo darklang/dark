@@ -28,7 +28,7 @@ viewRequest tlid idx value isActive isHover =
 viewRequests : ViewState -> Handler -> List (Html.Html Msg)
 viewRequests vs h =
   let resultToHtml idx result =
-    let value = if vs.isHTTP
+    let value = if vs.handlerSpace == HSHTTP
                 then
                   case (Dict.get "request" result.inputValues) of
                     Just v -> v.value

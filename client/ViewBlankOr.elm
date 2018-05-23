@@ -252,13 +252,15 @@ placeHolderFor vs id pt =
   case pt of
     VarBind -> "varname"
     EventName ->
-      if vs.isHTTP
-      then "route"
-      else "event name"
+      case vs.handlerSpace of
+        HSHTTP -> "route"
+        HSCron -> "event name"
+        HSOther -> "event name"
     EventModifier ->
-      if vs.isHTTP
-      then "verb"
-      else "event modifier"
+      case vs.handlerSpace of
+        HSHTTP -> "verb"
+        HSCron -> "event interval"
+        HSOther -> "event modifier"
     EventSpace -> "event space"
     Expr -> paramPlaceholder
     Field -> "fieldname"

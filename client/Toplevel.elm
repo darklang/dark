@@ -92,11 +92,21 @@ dbs : List Toplevel -> List DB
 dbs tls =
   List.filterMap asDB tls
 
+spaceOfHandler : Handler -> HandlerSpace
+spaceOfHandler h =
+  SpecHeaders.spaceOf h.spec
+
+spaceOf : Toplevel -> Maybe HandlerSpace
+spaceOf tl =
+  tl
+  |> asHandler
+  |> Maybe.map spaceOfHandler
+
 isHTTPHandler : Toplevel -> Bool
 isHTTPHandler tl =
-  case asHandler tl of
-    Nothing -> False
-    Just h -> SpecHeaders.isHTTP h.spec
+  tl
+  |> spaceOf
+  |> (==) (Just HSHTTP)
 
 -------------------------
 -- Generic
