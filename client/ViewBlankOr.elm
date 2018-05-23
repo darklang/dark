@@ -119,7 +119,9 @@ div vs configs content =
       thisID = getFirst (\a -> case a of
                                  WithID id -> Just id
                                  _ -> Nothing)
-
+      documentation = case thisID of
+        Just id -> Just <| placeHolderFor vs id Expr
+        Nothing -> Nothing
       clickAs = getFirst (\a -> case a of
                                   ClickSelectAs id -> Just id
                                   ClickSelect -> thisID
@@ -192,6 +194,9 @@ div vs configs content =
                   ++ (if mouseover then ["mouseovered"] else [])
                   ++ (if incomplete then ["incomplete"] else [])
       classAttr = Attrs.class (String.join " " allClasses)
+      docsAttr = case documentation of
+        Just docs -> [Attrs.attribute "data-docs" docs]
+        Nothing -> []
       events =
         case clickAs of
           Just id ->
@@ -202,7 +207,7 @@ div vs configs content =
             ]
           _ -> []
 
-      attrs = events ++ [classAttr]
+      attrs = events ++ docsAttr ++ [classAttr]
       featureFlagHtml = if showFeatureFlag
                         then [viewFeatureFlag]
                         else []
