@@ -1039,14 +1039,14 @@ body #grid * {
 
 [data-docs] {
   position: relative;
-  &:hover { // TODO: remove 2nd `&` for just mouseover view
+  &:hover, &.selected {
     &:after {
-      background: @black1;
+      background: @black2;
       color: yellow;
       content: attr(data-docs);
       font-style: normal;
       left: 0;
-      bottom: 100%;
+      bottom: calc(~"100% + 2px");
       position: absolute;
     }
   }
