@@ -14,7 +14,13 @@ let is_browser headers : bool =
 let session_name = "dark_session"
 
 let make (str : string) : feature_flag =
-  FromUser str
+  RealKey str
+
+(* note, this should be safe to put in a cookie *)
+let generate () : feature_flag =
+  Util.random_string 42
+  |> B64.encode
+  |> make
 
 let to_sql (ff: feature_flag) : string =
   ff
@@ -35,7 +41,7 @@ let analysis : feature_flag =
 let to_session_string (ff: feature_flag) : string =
   match ff with
   | Analysis -> ""
-  | FromUser str -> str
+  | RealKey str -> str
 
 let select (id: id) (setting : int) (l: 'a or_blank) (r: 'a or_blank) ff : 'a or_blank =
   match ff with
@@ -43,7 +49,7 @@ let select (id: id) (setting : int) (l: 'a or_blank) (r: 'a or_blank) ff : 'a or
     if setting > 50
     then r
     else l
-  | FromUser str ->
+  | RealKey str ->
     let sum = str
               |> Batteries.String.to_list
               |> List.map ~f:Char.to_int
@@ -84,7 +90,7 @@ let fingerprint_user ip headers : feature_flag =
     in
     match session with
     | Some (_, value) -> value |> make
-    | None -> Util.random_string 42 |> B64.encode |> make
+    | None -> generate ()
 
   else
     (* If they're an API user, fingerprint off as many stable headers as
