@@ -66,7 +66,7 @@ nested = wc "nested"
 
 text : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 text vs c str =
-  div vs c [Html.text str]
+  div vs c <| [Html.div [Attrs.class "quote quote-start"] []] ++ [Html.text str] ++ [Html.div [Attrs.class "quote quote-end"] []]
 
 keyword : ViewState -> List HtmlConfig -> String -> Html.Html Msg
 keyword vs c name =
