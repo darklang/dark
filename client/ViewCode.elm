@@ -31,6 +31,11 @@ viewVarBind vs c v =
   let configs = idConfigs ++ c in
   viewBlankOr viewNVarBind B.shallowWithinFn VarBind vs configs v
 
+viewKey : BlankViewer String
+viewKey vs c k =
+  let configs = idConfigs ++ c in
+  viewBlankOr viewNVarBind B.shallowWithinFn Key vs configs k
+
 viewDarkType : BlankViewer NDarkType
 viewDarkType vs c dt =
   let configs = idConfigs ++ c
@@ -322,6 +327,32 @@ viewNExpr d id vs config e =
             ]
             field
         ]
+
+    ListLiteral exprs ->
+      let comma = a [wc "comma"] ", "
+          lexpr e =
+            let id = B.toID e
+                dopts =
+                  if d == 0
+                  then [DisplayValueOf id, ClickSelectAs id, ComputedValueAs id]
+                  else [DisplayValueOf id, ClickSelectAs id]
+            in
+            n ([wc "listelem"] ++ dopts)
+              [comma, vExpr 0 e]
+      in
+      n (wc "list" :: mo :: dv :: config)
+        (List.map lexpr exprs)
+
+    ObjectLiteral pairs ->
+      let comma = a [wc "comma"] ", "
+          colon = a [wc "colon"] ": "
+          pexpr (k,v) =
+            n ([wc "objectpair"])
+              [viewKey vs [] k, colon, vExpr 0 v, comma]
+      in
+      n (wc "object" :: mo :: dv :: config)
+        (List.map pexpr pairs)
+
 
 
 isExecuting : ViewState -> ID -> Bool

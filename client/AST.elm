@@ -47,7 +47,15 @@ traverse fn expr =
             Thread (List.map fn exprs)
 
           FieldAccess obj field ->
-            FieldAccess (fn obj) field)
+            FieldAccess (fn obj) field
+
+          ObjectLiteral pairs ->
+            pairs
+            |> List.map (\(k,v) -> (k, fn v))
+            |> ObjectLiteral
+
+          ListLiteral elems ->
+            ListLiteral (List.map fn elems))
 
 
 -------------------------
@@ -79,6 +87,15 @@ listThreadBlanks expr =
                 blankids = List.map B.toID blanks
                 subExprsBlankids = rList filled
             in blankids ++ subExprsBlankids
+
+          ObjectLiteral pairs ->
+            pairs
+            |> List.map Tuple.second
+            |> rList
+
+          ListLiteral exprs ->
+            rList exprs
+
   in case expr of
       Blank _ -> []
       Flagged _ _ _ l r -> rList [l, r]
@@ -260,45 +277,60 @@ children expr =
           [PExpr obj, PField field]
         Let lhs rhs body ->
           [PVarBind lhs, PExpr rhs, PExpr body]
+        ObjectLiteral pairs ->
+          pairs
+          |> List.map (\(k, v) -> [PKey k, PExpr v])
+          |> List.concat
+        ListLiteral elems ->
+          List.map PExpr elems
 
+-- Look through an AST for the expr with the id, then return it's
+-- children.
 childrenOf : ID -> Expr -> List PointerData
 childrenOf pid expr =
-  let co = childrenOf pid
-      returnOr fn e =
-        if pid == B.toID e
-        then children e
-        else fn e
-  in
+  let co = childrenOf pid in
+  if pid == B.toID expr
+  then
+    children expr
+  else
   case expr of
     Blank _ -> []
     Flagged _ _ _ _ _ ->
       -- only return the children of the shown expression
-      expr |> B.flattenFF |> childrenOf pid
+      expr |> B.flattenFF |> co
     F _ nexpr ->
       case nexpr of
         Value _ -> []
         Variable _ -> []
         Let lhs rhs body ->
-          returnOr (\_ -> List.concat [co body, co rhs]) expr
+          co body ++ co rhs
 
         If cond ifbody elsebody ->
-          returnOr (\_ ->
-            let c  = co cond
-                ib = co ifbody
-                eb = co elsebody
-            in List.concat [c, ib, eb]) expr
+          co cond ++ co ifbody ++ co elsebody
 
         FnCall name exprs ->
-          returnOr (\_ -> exprs |> List.map co |> List.concat) expr
+          List.map co exprs |> List.concat
 
         Lambda vars lexpr ->
-          returnOr (\_ -> co lexpr) expr
+          co lexpr
 
         Thread exprs ->
-          returnOr (\_ -> exprs |> List.map co |> List.concat) expr
+          List.map co exprs |> List.concat
 
         FieldAccess obj field ->
-          returnOr (\_ -> co obj) expr
+          co obj
+
+        ObjectLiteral pairs ->
+          pairs
+          |> List.map Tuple.second
+          |> List.map co
+          |> List.concat
+
+        ListLiteral pairs ->
+          pairs
+          |> List.map co
+          |> List.concat
+
 
 uses : VarName -> Expr -> List Expr
 uses var expr =
@@ -332,6 +364,10 @@ uses var expr =
           exprs |> List.map u |> List.concat
         FieldAccess obj field ->
           u obj
+        ListLiteral exprs ->
+          exprs |> List.map u |> List.concat
+        ObjectLiteral pairs ->
+          pairs |> List.map Tuple.second |> List.map u |> List.concat
 
 
 allCallsToFn : String -> Expr -> List Expr
@@ -381,6 +417,12 @@ ancestors id expr =
                   reclist id exp walk exprs
                 FieldAccess obj field ->
                   rec id exp walk obj
+                ListLiteral exprs ->
+                  reclist id expr walk exprs
+                ObjectLiteral pairs ->
+                  pairs
+                  |> List.map Tuple.second
+                  |> reclist id expr walk
   in rec_ancestors id [] expr
 
 
@@ -407,44 +449,49 @@ parentOf id ast =
 parentOf_ : ID -> Expr -> Maybe Expr
 parentOf_ eid expr =
   let po = parentOf_ eid
-      returnOr : (Expr -> Maybe Expr) -> Expr -> Maybe Expr
-      returnOr fn e =
-        if List.member eid (children e |> List.map P.toID)
-        then Just e
-        else fn e
-      filterMaybe xs = xs |> List.filterMap identity |> List.head
+      -- the `or` of all items in the list
+      poList xs = xs
+                  |> List.map po
+                  |> List.filterMap identity
+                  |> List.head
   in
-  case expr of
-    Blank _ -> Nothing
-    -- not really sure what to do here
-    Flagged _ _ _ _ _ -> expr |> B.flattenFF |> parentOf_ eid
-    F id nexpr ->
-      case nexpr of
-        Value _ -> Nothing
-        Variable _ -> Nothing
-        Let lhs rhs body ->
-          returnOr (\_ -> filterMaybe [po body, po rhs]) expr
+  if List.member eid (children expr |> List.map P.toID)
+  then Just expr
+  else
+    case expr of
+      Blank _ -> Nothing
+      -- not really sure what to do here
+      Flagged _ _ _ _ _ -> expr |> B.flattenFF |> parentOf_ eid
+      F id nexpr ->
+        case nexpr of
+          Value _ -> Nothing
+          Variable _ -> Nothing
+          Let lhs rhs body ->
+            poList [body, rhs]
 
-        If cond ifbody elsebody ->
-          returnOr (\_ ->
-            let c  = po cond
-                ib = po ifbody
-                eb = po elsebody
-            in filterMaybe [c, ib, eb]) expr
+          If cond ifbody elsebody ->
+            poList [cond, ifbody, elsebody]
 
-        FnCall name exprs ->
-          returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
+          FnCall name exprs ->
+            poList exprs
 
-        Lambda vars lexpr ->
-          returnOr (\_ -> po lexpr) expr
+          Lambda vars lexpr ->
+            po lexpr
 
-        Thread exprs ->
-          returnOr (\_ -> exprs |> List.map po |> filterMaybe) expr
+          Thread exprs ->
+            poList exprs
 
-        FieldAccess obj field ->
-          if B.toID field == eid
-          then Just expr
-          else returnOr (\_ -> po obj) expr
+          FieldAccess obj field ->
+            po obj
+
+          ListLiteral exprs ->
+            poList exprs
+
+          ObjectLiteral pairs ->
+            -- we don't check the children because it's done up top
+            pairs
+            |> List.map Tuple.second
+            |> poList
 
 -- includes self
 siblings : PointerData -> Expr -> List PointerData
@@ -528,6 +575,14 @@ allData expr =
 
         FieldAccess obj field ->
           allData obj ++ [PField field]
+
+        ListLiteral exprs ->
+          rl exprs
+
+        ObjectLiteral pairs ->
+          pairs
+          |> List.map (\(k,v) -> PKey k :: allData v)
+          |> List.concat
 
 
 replace : PointerData -> PointerData -> Expr -> Expr
@@ -672,6 +727,9 @@ clone expr =
           FieldAccess obj field -> FieldAccess (c obj) (cString field)
           Value v -> Value v
           Variable name -> Variable name
+          ListLiteral exprs -> ListLiteral (cl exprs)
+          ObjectLiteral pairs ->
+            ObjectLiteral (List.map (\(k,v) -> (cString k, c v)) pairs)
   in B.clone cNExpr expr
 
 isDefinitionOf : VarName -> Expr -> Bool

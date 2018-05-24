@@ -116,6 +116,16 @@ all =
           F _ (Value "3") -> pass
           _ -> fail (open, closed)
 
+    , test "parent of a field is the expr" <|
+      expectOk <|
+        let obj = B.newF (Variable "obj")
+            fieldname = B.newF "field"
+            expr = B.newF (FieldAccess obj fieldname)
+            parent = AST.parentOf (B.toID fieldname) expr
+        in
+            if parent == expr
+            then pass
+            else fail (parent, expr)
     ]
 
 

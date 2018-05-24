@@ -190,9 +190,13 @@ parseAst m str =
     [""] ->
       Just b1
     ["[]"] ->
-      Just <| F eid (Value "[]")
+      Just <| F eid (ListLiteral [])
     ["{}"] ->
-      Just <| F eid (Value "{}")
+      Just <| F eid (ObjectLiteral [])
+    ["{"] ->
+      Just <| F eid (ObjectLiteral [])
+    ["["] ->
+      Just <| F eid (ListLiteral [])
     _ ->
       if not (RT.isLiteral str)
       then createFunction m str
@@ -388,6 +392,8 @@ submit m cursor action =
             -- Changing a field
             replace (PField (B.newF value))
 
+        PKey k ->
+          replace (PKey (B.newF value))
         PExpr e ->
           case tl.data of
             TLHandler h ->
@@ -487,6 +493,8 @@ validate tl pd value =
       v "[A-Z_]+" "event space"
     PField _ ->
       v ".+" "fieldname"
+    PKey _ ->
+      v ".+" "keyname"
     PExpr e ->
       Nothing -- done elsewhere
     PDarkType _ ->
