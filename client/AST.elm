@@ -702,6 +702,18 @@ replace_ search replacement parent expr =
         then F id (FieldAccess obj (B.replace sId replacement field))
         else traverse r expr
 
+      (F id (ObjectLiteral pairs), PKey replacement) ->
+        pairs
+        |> List.map (\(k,v) ->
+          let newK =
+                if B.withinShallow k sId
+                then replacement
+                else k
+          in
+              (newK, r v))
+        |> ObjectLiteral
+        |> F id
+
       _ -> traverse r expr
 
 
