@@ -49,11 +49,15 @@ module RuntimeT = struct
   type fnname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type fieldname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type varname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
+  type keyname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type varbinding = varname or_blank
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type field = fieldname or_blank
+  [@@deriving eq, compare, yojson, show, sexp, bin_io]
+
+  type key = keyname or_blank
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type nexpr = If of expr * expr * expr
@@ -64,6 +68,8 @@ module RuntimeT = struct
              | Lambda of varbinding list * expr
              | Value of string
              | FieldAccess of expr * field
+             | ObjectLiteral of (key * expr) list
+             | ListLiteral of expr list
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
