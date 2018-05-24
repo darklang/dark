@@ -521,6 +521,7 @@ update_ msg m =
       else
         case m.cursorState of
           Selecting tlid mId ->
+            let tl = TL.getTL m tlid in
             case event.keyCode of
               Key.Delete -> Selection.delete m tlid mId
               Key.Backspace -> Selection.delete m tlid mId
@@ -536,7 +537,6 @@ update_ msg m =
               Key.Enter ->
                 if event.shiftKey
                 then
-                  let tl = TL.getTL m tlid in
                   case tl.data of
                     TLDB _ ->
                       RPC ([ AddDBCol tlid (gid ()) (gid ())]
@@ -571,17 +571,15 @@ update_ msg m =
                         Just id ->
                           case (TL.findExn tl id) of
                             PExpr _ ->
-                              let replacement = AST.addThreadBlank id f.ast
-                              in
-                                  RPC ( [ SetFunction { f | ast = replacement}]
-                                      , FocusNext tlid (Just id))
+                              let replacement = AST.addThreadBlank id f.ast in
+                              RPC ( [ SetFunction { f | ast = replacement}]
+                                  , FocusNext tlid (Just id))
                             PVarBind _ ->
                               case AST.parentOf_ id f.ast of
                                 Just (F _ (Lambda _ _)) ->
-                                  let replacement = AST.addLambdaBlank id f.ast
-                                  in
-                                      RPC ( [ SetFunction { f | ast = replacement}]
-                                          , FocusNext tlid (Just id))
+                                  let replacement = AST.addLambdaBlank id f.ast in
+                                  RPC ( [ SetFunction { f | ast = replacement}]
+                                      , FocusNext tlid (Just id))
                                 _ ->
                                   NoChange
                             PKey _ ->
@@ -650,25 +648,20 @@ update_ msg m =
               Key.C ->
                 if event.ctrlKey
                 then
-                  let tl = TL.getTL m tlid
-                      mPd = Maybe.map (TL.findExn tl) mId
-                  in
+                  let mPd = Maybe.map (TL.findExn tl) mId in
                   Clipboard.copy m tl mPd
                 else if False
                 then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WIfCond
                 else
                   NoChange
               Key.V ->
                 if event.ctrlKey
                 then
-                  let tl = TL.getTL m tlid in
                   case mId of
                     Nothing ->
                       case TL.rootOf tl of
@@ -683,9 +676,7 @@ update_ msg m =
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Clipboard.cut m tl pd
                 else NoChange
               Key.F ->
@@ -694,9 +685,7 @@ update_ msg m =
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.extractFunction m tl pd
                 else
                   NoChange
@@ -706,9 +695,7 @@ update_ msg m =
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WLetBody
                 else
                   NoChange
@@ -718,17 +705,13 @@ update_ msg m =
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.extractVariable m tl pd
                 else if event.ctrlKey then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WLetRHS
                 else
                   NoChange
@@ -738,9 +721,7 @@ update_ msg m =
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WIfThen
                 else
                   NoChange
@@ -750,9 +731,7 @@ update_ msg m =
                   case mId of
                     Nothing -> NoChange
                     Just id ->
-                      let tl = TL.getTL m tlid
-                          pd = TL.findExn tl id
-                      in
+                      let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WIfElse
                 else
                   NoChange
