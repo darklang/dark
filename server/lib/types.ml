@@ -104,7 +104,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
              [@@deriving show, eq, yojson, sexp, eq, compare]
 
   type feature_flag = Analysis
-                    | FromUser of string
+                    | RealKey of string
                     [@@deriving yojson]
 
 
