@@ -664,8 +664,11 @@ test('object_literals_work', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "3")
     .pressKey("tab")
+    .typeText("#entry-box", "k4") // Check that this opens a new row
+    .pressKey("tab") // Skip the new stuff
     .pressKey("tab")
-    .pressKey("tab") // End somewhere else
+    .pressKey("tab")
+    .pressKey("tab") // End right after it
 })
 
 
