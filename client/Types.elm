@@ -251,9 +251,11 @@ type alias Class = String
 type alias VarName = String
 type alias FnName = String
 type alias FieldName = String
+type alias KeyName = String
 
 type alias VarBind = BlankOr VarName
 type alias Field = BlankOr FieldName
+type alias Key = BlankOr KeyName
 type alias LambdaParameter = BlankOr VarName
 
 type alias Expr = BlankOr NExpr
@@ -263,6 +265,8 @@ type NExpr = If Expr Expr Expr
            | Let VarBind Expr Expr
            | Lambda (List LambdaParameter) Expr
            | Value String
+           | ObjectLiteral (List (Key, Expr))
+           | ListLiteral (List Expr)
            | Thread (List Expr)
            | FieldAccess Expr Field
 
@@ -276,6 +280,7 @@ type PointerData = PVarBind VarBind
                  | PEventSpace (BlankOr String)
                  | PExpr Expr
                  | PField Field
+                 | PKey (BlankOr String)
                  | PDBColName (BlankOr String)
                  | PDBColType (BlankOr String)
                  | PDarkType DarkType
@@ -292,6 +297,7 @@ type PointerType = VarBind
                  | EventModifier
                  | Expr
                  | Field
+                 | Key
                  | DBColName
                  | DBColType
                  | DarkType

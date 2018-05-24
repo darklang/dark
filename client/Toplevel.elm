@@ -130,6 +130,8 @@ clonePointerData pd =
       PExpr (AST.clone expr)
     PField f ->
       PField (B.clone identity f)
+    PKey k ->
+      PKey (B.clone identity k)
     PDBColName cn -> pd
     PDBColType ct -> pd
     PDarkType dt -> todo ("clonePointerData", pd)
@@ -272,6 +274,7 @@ getChildrenOf tl pd =
   case pd of
     PVarBind _ -> []
     PField d -> []
+    PKey d -> []
     PExpr _ -> astChildren ()
     PEventModifier d -> []
     PEventName d -> []
@@ -337,6 +340,7 @@ replace p replacement tl =
   case replacement of
     PVarBind vb -> astReplace ()
     PField _ -> astReplace ()
+    PKey _ -> astReplace ()
     PExpr _ -> astReplace ()
     PEventName en -> specHeaderReplace en
     PEventModifier em -> specHeaderReplace em

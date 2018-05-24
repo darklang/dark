@@ -20,6 +20,7 @@ emptyD_ id pt =
     EventName -> PEventName (Blank id)
     EventSpace -> PEventSpace (Blank id)
     Expr -> PExpr (Blank id)
+    Key -> PKey (Blank id)
     Field -> PField (Blank id)
     DBColName -> PDBColName (Blank id)
     DBColType -> PDBColType (Blank id)
@@ -39,6 +40,7 @@ typeOf pd =
     PEventSpace _ -> EventSpace
     PExpr _ -> Expr
     PField _ -> Field
+    PKey _ -> Key
     PDBColName _ -> DBColName
     PDBColType _ -> DBColType
     PDarkType _ -> DarkType
@@ -58,6 +60,7 @@ toID pd =
   case pd of
     PVarBind d -> B.toID d
     PField d -> B.toID d
+    PKey d -> B.toID d
     PExpr d -> B.toID d
     PEventModifier d -> B.toID d
     PEventName d -> B.toID d
@@ -77,6 +80,7 @@ isBlank pd =
   case pd of
     PVarBind d -> B.isBlank d
     PField d -> B.isBlank d
+    PKey d -> B.isBlank d
     PExpr d -> B.isBlank d
     PEventModifier d -> B.isBlank d
     PEventName d -> B.isBlank d
@@ -97,6 +101,7 @@ toContent pd =
   case pd of
     PVarBind v -> bs2s v
     PField f -> bs2s f
+    PKey f -> bs2s f
     PExpr e ->
       case e of
         F _ (Value s) -> Just s
@@ -140,6 +145,7 @@ strmap fn pd =
   case pd of
     PVarBind d -> PVarBind (fn VarBind d)
     PField d -> PField (fn Field d)
+    PKey d -> PKey (fn Key d)
     PExpr _ -> pd
     PEventModifier d -> PEventModifier (fn EventModifier d)
     PEventName d -> PEventName (fn EventName d)
