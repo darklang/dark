@@ -330,6 +330,8 @@ viewNExpr d id vs config e =
 
     ListLiteral exprs ->
       let comma = a [wc "comma"] ", "
+          open = a [wc "openbracket"] "["
+          close = a [wc "closebracket"] "]"
           lexpr e =
             let id = B.toID e
                 dopts =
@@ -341,17 +343,19 @@ viewNExpr d id vs config e =
               [comma, vExpr 0 e]
       in
       n (wc "list" :: mo :: dv :: config)
-        (List.map lexpr exprs)
+        ([open] ++ List.map lexpr exprs ++ [close])
 
     ObjectLiteral pairs ->
-      let comma = a [wc "comma"] ", "
-          colon = a [wc "colon"] ": "
+      let comma = a [wc "comma"] ","
+          colon = a [wc "colon"] ":"
+          open = a [wc "openbrace"] "{"
+          close = a [wc "closebrace"] "}"
           pexpr (k,v) =
             n ([wc "objectpair"])
               [viewKey vs [] k, colon, vExpr 0 v, comma]
       in
       n (wc "object" :: mo :: dv :: config)
-        (List.map pexpr pairs)
+        ([open] ++ List.map pexpr pairs ++ [close])
 
 
 
