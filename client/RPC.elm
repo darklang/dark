@@ -461,6 +461,11 @@ decodeNExpr =
     , ("Variable", dv1 Variable JSD.string)
     , ("Thread", dv1 Thread (JSD.list de))
     , ("FieldAccess", dv2 FieldAccess de (decodeBlankOr JSD.string))
+    , ("ListLiteral", dv1 ListLiteral (JSD.list de))
+    , ("ObjectLiteral", dv1 ObjectLiteral
+                            (JSD.list (decodePair
+                                         (decodeBlankOr JSD.string)
+                                         de)))
     ]
 
 decodeLiveValue : JSD.Decoder LiveValue
