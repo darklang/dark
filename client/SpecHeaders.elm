@@ -22,7 +22,7 @@ spaceOf hs =
             else HSOther
   in
     case hs.module_ of
-      Blank _ -> HSOther
+      Blank _ -> HSEmpty
       Flagged _ _ _ _ _ as ff ->
         case B.flattenFF ff of
           F _ s -> spaceOfStr s
@@ -36,6 +36,7 @@ visibleModifier hs =
     HSHTTP -> True
     HSCron -> True
     HSOther -> False
+    HSEmpty -> True
 
 replaceEventModifier : ID -> BlankOr String -> HandlerSpec -> HandlerSpec
 replaceEventModifier search replacement hs =

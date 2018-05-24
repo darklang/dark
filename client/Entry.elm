@@ -308,10 +308,11 @@ submit m cursor action =
                 TLDB _ -> impossible ("no vars in DBs", tl.data)
 
         PEventName _ ->
-          let eventNameValidation =
+          let allowableCharacters = "[-a-zA-Z0-9@:%_+.~#?&/=]" -- url safe characters
+              eventNameValidation =
                 if TL.isHTTPHandler tl
-                then "/([-a-zA-Z0-9@:%_+.~#?&/=]*)"
-                else "[a-zA-Z_][a-zA-Z0-9_]*"
+                then "/(" ++ allowableCharacters ++ "*)" -- preceding slash
+                else allowableCharacters ++ "+" -- at least one
           in
           validate eventNameValidation "event name"
           <|

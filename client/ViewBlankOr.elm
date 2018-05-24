@@ -249,11 +249,13 @@ placeHolderFor vs id pt =
         HSHTTP -> "route"
         HSCron -> "event name"
         HSOther -> "event name"
+        HSEmpty -> "event name"
     EventModifier ->
       case vs.handlerSpace of
         HSHTTP -> "verb"
         HSCron -> "event interval"
         HSOther -> "event modifier"
+        HSEmpty -> "event modifier"
     EventSpace -> "event space"
     Expr -> paramPlaceholder
     Field -> "fieldname"
