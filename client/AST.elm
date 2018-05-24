@@ -170,6 +170,27 @@ addLambdaBlank id expr =
             expr
     _ -> expr
 
+addObjectLiteralBlanks : ID -> Expr -> (ID, ID, Expr)
+addObjectLiteralBlanks id expr =
+  case findExn id expr of
+    PKey key ->
+      case parentOf id expr of
+        F olid (ObjectLiteral pairs) as old ->
+          let newKey = B.new ()
+              newExpr = B.new ()
+              newPairs = pairs ++ [(newKey, newExpr)]
+              new = F olid (ObjectLiteral newPairs)
+              replacement = replace
+                              (PExpr old)
+                              (PExpr new)
+                              expr
+          in
+          (B.toID newKey, B.toID newExpr, replacement)
+        _ -> impossible ("key parent must be object", id, expr)
+    _ -> impossible ("must add to key", id, expr)
+
+
+
 -- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> Expr -> Expr
 wrapInThread id expr =
@@ -499,7 +520,7 @@ siblings p expr =
   case parentOf_ (P.toID p) expr of
     Nothing -> [p]
     Just parent ->
-      case parent of
+      case B.flattenFF parent of
         F _ (If cond ifbody elsebody) ->
           List.map PExpr [cond, ifbody, elsebody]
 
@@ -518,7 +539,15 @@ siblings p expr =
         F _ (FieldAccess obj field) ->
           [PExpr obj, PField field]
 
-        _ -> [p]
+        F _ (Value _) -> [p]
+        F _ (Variable _) -> [p]
+        F _ (ObjectLiteral pairs) ->
+          pairs
+          |> List.map (\(k,v) -> [PKey k, PExpr v])
+          |> List.concat
+        F _ (ListLiteral exprs) -> List.map PExpr exprs
+        Blank _ -> [p]
+        Flagged _ _ _ _ _ -> [p]
 
 getValueParent : PointerData -> Expr -> Maybe PointerData
 getValueParent p expr =
@@ -583,6 +612,20 @@ allData expr =
           pairs
           |> List.map (\(k,v) -> PKey k :: allData v)
           |> List.concat
+
+findExn : ID -> Expr -> PointerData
+findExn id expr =
+  expr
+  |> find id
+  |> deMaybe "findExn"
+
+find : ID -> Expr -> Maybe PointerData
+find id expr =
+  expr
+  |> allData
+  |> List.filter (\d -> id == P.toID d)
+  |> assert (\r -> List.length r <= 1) -- guard against dups
+  |> List.head
 
 
 replace : PointerData -> PointerData -> Expr -> Expr

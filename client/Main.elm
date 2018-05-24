@@ -558,6 +558,10 @@ update_ msg m =
                                           , FocusNext tlid (Just id))
                                 _ ->
                                   NoChange
+                            PKey _ ->
+                              let (nextid, _, replacement) = AST.addObjectLiteralBlanks id h.ast in
+                              RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
+                                  , FocusExact tlid nextid)
                             _ ->
                               NoChange
 
@@ -571,6 +575,19 @@ update_ msg m =
                               in
                                   RPC ( [ SetFunction { f | ast = replacement}]
                                       , FocusNext tlid (Just id))
+                            PVarBind _ ->
+                              case AST.parentOf_ id f.ast of
+                                Just (F _ (Lambda _ _)) ->
+                                  let replacement = AST.addLambdaBlank id f.ast
+                                  in
+                                      RPC ( [ SetFunction { f | ast = replacement}]
+                                          , FocusNext tlid (Just id))
+                                _ ->
+                                  NoChange
+                            PKey _ ->
+                              let (nextid, _, replacement) = AST.addObjectLiteralBlanks id f.ast in
+                              RPC ( [ SetFunction { f | ast = replacement}]
+                                  , FocusExact tlid nextid)
                             PParamTipe _ ->
                               let replacement = Functions.extend f
                                   newCalls = Refactor.addNewFunctionParameter m f
