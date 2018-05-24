@@ -5,7 +5,6 @@ module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
 -- lib
 import Html
 import Html.Attributes as Attrs
-import String.Extra as SE
 import List.Extra as LE
 import Maybe.Extra as ME
 
