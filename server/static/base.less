@@ -805,6 +805,8 @@ body #grid * {
   cursor: default;
   background: @black2;
   color: @white3;
+  margin-left: 4px;
+  margin-right: 4px;
   width: auto;
 
   /* width: 96px; // keeps autocomplete appearing when Creating */
@@ -826,7 +828,6 @@ body #grid * {
       background: @selected-background;
       border: 0;
       margin: 0;
-      min-width: 8ch;
       padding: 0;
       position: relative;
       #entry-box {
@@ -875,12 +876,22 @@ body #grid * {
   }
 }
 
+.letvarname, .fieldname {
+  & > .entry {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 .omnibox {
   // honestly couldnt tell you where this magic number comes from
   font-size: @code-font-size;
   margin-top: -9px;
   .string-entry {
     margin-top: -21px;
+  }
+  .entry form #search-container {
+    min-width: 8ch;
   }
 }
 
