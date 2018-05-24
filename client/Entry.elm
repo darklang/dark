@@ -488,7 +488,7 @@ validate tl pd value =
     PEventModifier _ ->
       if TL.isHTTPHandler tl
       then v "[A-Z]+" "verb"
-      else v "[a-zA-Z_][a-zA-Z0-9_]*" "event modifier"
+      else v "[a-zA-Z_][\\sa-zA-Z0-9_]*" "event modifier"
     PEventSpace _ ->
       v "[A-Z_]+" "event space"
     PField _ ->
