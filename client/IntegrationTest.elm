@@ -56,6 +56,7 @@ trigger test_name =
     "editing_stays_in_same_place_with_enter" -> editing_stays_in_same_place_with_enter
     "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
     "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
+    "object_literals_work" -> object_literals_work
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -588,3 +589,20 @@ editing_starts_a_thread_with_shift_enter m =
       then pass
       else fail (m.cursorState, onlyExpr m)
     other -> fail other
+
+
+object_literals_work : Model -> TestResult
+object_literals_work m =
+  case (m.cursorState, onlyExpr m) of
+    (Entering (Filling tlid id)
+    , ObjectLiteral [ (F _ "k1", Blank _)
+                    , (F _ "k2", F _ (Value "2"))
+                    , (F _ "k3", F _ (Value "3"))]) ->
+      let tl = TL.getTL m tlid
+          target = TL.findExn tl id
+      in
+          case target of
+            PEventName _ -> pass
+            other -> fail (m.cursorState, other)
+    other -> fail other
+

@@ -648,4 +648,24 @@ test('editing_starts_a_thread_with_shift_enter', async t => {
     .pressKey("shift+enter")
 })
 
+test('object_literals_work', async t => {
+  await t
+    .pressKey("enter")
+    .typeText("#entry-box", "{")
+    .pressKey("enter")
+    .typeText("#entry-box", "k1")
+    .pressKey("tab")
+    .pressKey("tab")
+    .typeText("#entry-box", "k2")
+    .pressKey("enter")
+    .typeText("#entry-box", "2")
+    .pressKey("tab")
+    .typeText("#entry-box", "k3")
+    .pressKey("enter")
+    .typeText("#entry-box", "3")
+    .pressKey("tab")
+    .pressKey("tab")
+    .pressKey("tab") // End somewhere else
+})
+
 
