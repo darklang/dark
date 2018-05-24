@@ -104,6 +104,8 @@ encodePointerData pd =
       ev "PExpr" [encodeExpr expr]
     PField field ->
       ev "PField" [encodeBlankOr JSE.string field]
+    PKey key ->
+      ev "PKey" [encodeBlankOr JSE.string key]
     PDBColName colname ->
       ev "PDBColName" [encodeBlankOr JSE.string colname]
     PDBColType coltype ->
@@ -304,6 +306,11 @@ encodeNExpr expr =
     Variable v -> ev "Variable" [ JSE.string v]
     Value v -> ev "Value" [ JSE.string v]
     Thread exprs -> ev "Thread" [JSE.list (List.map e exprs)]
+    ObjectLiteral pairs ->
+      let encoder = JSON.encodePair (encodeBlankOr JSE.string) e in
+      ev "ObjectLiteral" [(List.map encoder pairs) |> JSE.list ]
+    ListLiteral elems ->
+      ev "ListLiteral" [JSE.list (List.map e elems)]
 
 
 

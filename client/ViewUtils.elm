@@ -233,3 +233,19 @@ approxNWidth ne =
       approxWidth obj
       + 1 -- '.'
       + (blankOrLength field)
+
+    ListLiteral exprs ->
+      exprs
+      |> List.map approxWidth
+      |> List.map ((+) 2) -- ', '
+      |> List.sum
+      |> (+) 4 -- [  ]
+
+    ObjectLiteral pairs ->
+      pairs
+      |> List.map (\(k,v) -> blankOrLength k + approxWidth v)
+      |> List.map ((+) 2) -- ': '
+      |> List.map ((+) 2) -- ', '
+      |> List.sum
+      |> (+) 4 -- {  }
+

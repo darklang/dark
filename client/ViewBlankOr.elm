@@ -269,6 +269,7 @@ placeHolderFor vs id pt =
     EventSpace -> "event space"
     Expr -> paramPlaceholder
     Field -> "fieldname"
+    Key -> "keyname"
     DBColName -> "db field name"
     DBColType -> "db type"
     DarkType -> "type"
