@@ -478,16 +478,24 @@ generateFromModel m a =
               -- autocomplete HTTP verbs if the handler is in the HTTP
               -- event space
               EventModifier ->
-                if TL.isHTTPHandler (TL.getTL m tlid)
-                then
-                  [ "GET"
-                  , "POST"
-                  , "PUT"
-                  , "DELETE"
-                  , "PATCH"
-                  ]
-                else
-                  []
+                case TL.spaceOf (TL.getTL m tlid) of
+                  Just HSHTTP ->
+                    [ "GET"
+                    , "POST"
+                    , "PUT"
+                    , "DELETE"
+                    , "PATCH"
+                    ]
+                  Just HSCron ->
+                    [ "Daily"
+                    , "Weekly"
+                    , "Fortnightly"
+                    , "Every 1hr"
+                    , "Every 12hrs"
+                    ]
+                  Just HSOther -> []
+                  Just HSEmpty -> []
+                  Nothing -> []
               EventSpace ->
                 ["HTTP"
                 ,"CRON"
