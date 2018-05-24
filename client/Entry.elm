@@ -494,7 +494,7 @@ validate tl pd value =
     PField _ ->
       v ".+" "fieldname"
     PKey _ ->
-      v ".+" "keyname"
+      v ".+" "key"
     PExpr e ->
       Nothing -- done elsewhere
     PDarkType _ ->
