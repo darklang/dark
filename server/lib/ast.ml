@@ -209,6 +209,22 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
      | Filled (_, Value s) ->
        Dval.parse s
 
+     | Filled (_, ListLiteral exprs) ->
+       exprs
+       |> List.map ~f:(exe st)
+       |> DList
+
+     | Filled (_, ObjectLiteral pairs) ->
+       pairs
+       |> List.filter_map
+         ~f:(function
+             | (Filled (_, k), v) ->
+               let expr = exe st v in
+               Some (k, expr)
+             | _ -> None
+           )
+       |> Dval.to_dobj
+
      | Filled (_, Variable name) ->
        (match Symtable.find st name with
         | None ->
@@ -501,7 +517,8 @@ let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sy
            | Blank _ -> st
          in sexe bound body
 
-       | Filled (_, FnCall (name, exprs)) -> List.iter ~f:(sexe st) exprs
+       | Filled (_, FnCall (name, exprs)) ->
+         List.iter ~f:(sexe st) exprs
 
        | Filled (_, If (cond, ifbody, elsebody)) ->
          sexe st cond;
@@ -519,10 +536,18 @@ let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sy
          sexe new_st body
 
        | Filled (_, Thread (exprs)) ->
-         List.iter ~f:(fun expr -> sexe st expr) exprs
+         List.iter ~f:(sexe st) exprs
 
        | Filled (_, FieldAccess (obj, field)) ->
-         sexe st obj)
+         sexe st obj
+
+       | Filled (_, ListLiteral exprs) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, ObjectLiteral exprs) ->
+         exprs
+         |> List.map ~f:Tuple.T2.get2
+         |> List.iter ~f:(sexe st))
     in
     trace expr st
   with
@@ -581,7 +606,14 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
                Thread (List.map ~f exprs)
 
              | FieldAccess (obj, field) ->
-               FieldAccess (f obj, field)))
+               FieldAccess (f obj, field)
+
+             | ListLiteral exprs ->
+               ListLiteral (List.map ~f exprs)
+
+             | ObjectLiteral pairs ->
+               ObjectLiteral (List.map ~f:(fun (k, v) -> (k, f v)) pairs)
+           ))
 
 
 
