@@ -586,26 +586,28 @@ body #grid * {
     border: 0;
     font-size: @code-font-size;
     margin: 0;
-    padding-left: 1.5ch;
-    padding-right: 1.5ch;
-    position: relative;
-    &::before {
-      content: "“";
-      .string-style;
+    .quote {
       display: inline-block;
-      left: 0;
-      position: absolute;
-      top: 0;
-      width: 1.5ch;
     }
-    &::after{
-      content: "”";
-      .string-style;
+  }
+
+  .quote {
+    .string-style;
+    display: none;
+    width: 1.5ch;
+    &.quote-start {
+      left: 0;
+      top: 0;
+      &:before {
+        content: "“";
+      }
+    }
+    &.quote-end {
       bottom: 0;
-      display: inline-block;
-      position: absolute;
       right: 0;
-      width: 1.5ch;
+      &:before {
+        content: "”";
+      }
     }
   }
 
@@ -947,10 +949,6 @@ body #grid * {
     top: 0;
     width: 100%;
   }
-  & + .feature-flag {
-    right: -2px;
-    top: inherit;
-  }
 }
 
 
@@ -1012,10 +1010,6 @@ body #grid * {
   position: absolute;
   right: -16px;
   .right-button;
-}
-
-.tstr .feature-flag {
-  top: 0;
 }
 
 .parameter-btn {
