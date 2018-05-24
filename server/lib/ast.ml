@@ -221,7 +221,9 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
              | (Filled (_, k), v) ->
                let expr = exe st v in
                Some (k, expr)
-             | _ -> None
+             | (_, v) ->
+               let _ = exe st v in
+               None
            )
        |> Dval.to_dobj
 
