@@ -194,9 +194,9 @@ parseAst m str =
     ["{}"] ->
       Just <| F eid (ObjectLiteral [])
     ["{"] ->
-      Just <| F eid (ObjectLiteral [])
+      Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     ["["] ->
-      Just <| F eid (ListLiteral [])
+      Just <| F eid (ListLiteral [B.new ()])
     _ ->
       if not (RT.isLiteral str)
       then createFunction m str
