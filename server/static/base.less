@@ -1078,11 +1078,12 @@ body #grid * {
   .value-error & {
     outline: 0.4px red dotted;
   }
+  .default;
+  bottom: 30px;
   max-width: 100%;
   outline: 0.4px @green dotted;
   position: absolute;
   right: calc(~"100% + 20px");
-  .default;
   white-space: pre-wrap;
   width: max-content;
   word-break: break-all;
@@ -1150,15 +1151,6 @@ body #grid * {
     }
     &.flag-right {
       margin-top: 50px;
-    }
-    .computed-value {
-      &:before {
-        left: 100%;
-        right: auto;
-      }
-      &.selected[title]:after {
-        left: -100%;
-      }
     }
   }
 
