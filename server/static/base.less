@@ -48,16 +48,10 @@ body {
 
 .default-link {
   text-decoration: none;
-  &:link {
+  &:link, &:visited {
     color: @white1;
   }
-  &:visited {
-    color: @white1;
-  }
-  &:hover {
-    color: @yellow;
-  }
-  &:active {
+  &:hover, &:active {
     color: @yellow;
   }
 }
@@ -259,7 +253,7 @@ body #grid * {
 
     .verb-link {
       .default-link;
-      &:link {
+      &:link, &:visited {
         color: @grey2;
       }
       &:hover {
