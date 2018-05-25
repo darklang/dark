@@ -1043,26 +1043,6 @@ body #grid * {
   }
 }
 
-.has-documentation {
-  position: relative;
-  .documentation {
-    background: @black2;
-    bottom: calc(~"100% + 2px");
-    color: yellow;
-    content: attr(data-docs);
-    display: none;
-    font-style: normal;
-    left: 0;
-    position: absolute;
-    width: max-content;
-  }
-  &:hover, &.selected {
-    &:not(.blank) > .documentation {
-      display: block;
-    }
-  }
-}
-
 .edit-fn {
   position: absolute;
   .right-button;
