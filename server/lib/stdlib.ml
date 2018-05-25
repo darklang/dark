@@ -522,6 +522,20 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a string representation of `v`"
   ; f = InProcess
         (function
+          | (_, [a]) -> DStr (Dval.as_string a)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["toRepr"]
+  ; ins = []
+  ; p = [par "v" TAny]
+  ; r = TStr
+  ; d = "Returns an adorned string representation of `v`"
+  ; f = InProcess
+        (function
           | (_, [a]) -> DStr (Dval.to_repr a)
           | (_, args) -> fail args)
   ; pr = None
