@@ -46,6 +46,21 @@ let reraise e  =
   let bt = Caml.Printexc.get_raw_backtrace () in
   Caml.Printexc.raise_with_backtrace e bt
 
+let to_string ?(log=false) e =
+  let bt = Backtrace.Exn.most_recent () in
+  let msg = Exn.to_string e in
+  if log
+  then
+    (Log.print_endline (Backtrace.to_string bt);
+     Log.print_endline msg);
+  msg
+
+let log e =
+  let bt = Backtrace.Exn.most_recent () in
+  let msg = Exn.to_string e in
+  Log.print_endline (Backtrace.to_string bt);
+  Log.print_endline msg
+
 let raise_
     (tipe: exception_tipe)
     ?(bt:Caml.Printexc.raw_backtrace option=None)
