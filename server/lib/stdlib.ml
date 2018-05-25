@@ -80,6 +80,24 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Dict::foreach"]
+  ; ins = []
+  ; p = [par "dict" TObj; func ["value"]]
+  ; r = TObj
+  ; d = "Iterates each `value` in object `dict` and mutates it according to the provided lambda"
+  ; f = InProcess
+        (function
+          | (_, [DObj o; DBlock fn]) ->
+            let f (dv: dval) : dval = fn [dv]
+            in
+            DObj (Map.map ~f o)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
   (* ====================================== *)
   (* Objects *)
   (* ====================================== *)
