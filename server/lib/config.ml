@@ -107,6 +107,13 @@ let port : int =
   |> Option.value ~default:"8000"
   |> int_of_string
 
+let should_use_stackdriver_logging : bool =
+  match Sys.getenv "DARK_CONFIG_LOGGING_FORMAT" with
+  | Some format when String.lowercase format = "stackdriver" -> true
+  | _ -> false
+
+
+
 let allow_server_shutdown : bool =
   Sys.getenv "DARK_CONFIG_ALLOW_SERVER_SHUTDOWN"
   |> Option.value ~default:"N"
