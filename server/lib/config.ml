@@ -3,19 +3,19 @@ open Core
 let run_dir : string =
   let dir = Sys.getenv_exn "DARK_CONFIG_RUN_DIR" in
   if not (Filename.is_absolute dir)
-  then Exception.internal "FAIL: DARK_CONFIG_RUN_DIR is not absolute"
+  then failwith "FAIL: DARK_CONFIG_RUN_DIR is not absolute"
   else dir ^ "/"
 
 let persist_dir : string =
   let dir = Sys.getenv_exn "DARK_CONFIG_PERSIST_DIR" in
   if not (Filename.is_absolute dir)
-  then Exception.internal "FAIL: DARK_CONFIG_PERSIST_DIR is not absolute"
+  then failwith "FAIL: DARK_CONFIG_PERSIST_DIR is not absolute"
   else dir ^ "/"
 
 let root_dir : string =
   let dir = Sys.getenv_exn "DARK_CONFIG_ROOT_DIR" in
   if not (Filename.is_absolute dir)
-  then Exception.internal "FAIL: DARK_CONFIG_ROOT_DIR is not absolute"
+  then failwith "FAIL: DARK_CONFIG_ROOT_DIR is not absolute"
   else dir ^ "/"
 
 let server_dir : string =
