@@ -182,6 +182,7 @@ RUN docker-credential-gcr config --token-source="gcloud"
 # Ocaml
 ############################
 USER dark
+ENV FORCE_OCAML_BUILD 4
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
@@ -191,7 +192,6 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.0/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/4.06.0/man:"
 ENV PERL5LIB "/home/dark/.opam/4.06.0/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.0/lib/toplevel"
-ENV FORCE_OCAML_BUILD 3
 RUN opam update
 
 #ENV OPAMDEBUG true
