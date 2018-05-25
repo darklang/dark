@@ -34,10 +34,11 @@ let exception_to_dval ~(log: bool) exc =
     let json = e
                |> Exception.exception_data_to_yojson
                |> Yojson.Safe.pretty_to_string in
-    if log then print_endline json else ();
+    if log then Log.print_endline json else ();
     DError json
 
-  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds)) ->
+  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds)) as e ->
+    if log then Exception.log e;
     (* go through a set of known errors and make them user-friendly *)
 
     (* drop 2nd line which has the sql info on it, then trim different
@@ -75,23 +76,14 @@ let exception_to_dval ~(log: bool) exc =
     in
     DError result
 
-  | Postgresql.Error e ->
-    DError (Postgresql.string_of_error e)
+  | Postgresql.Error exc as e->
+    if log then Exception.log e;
+    DError (Postgresql.string_of_error exc)
 
-  | exc ->
-    (* We do this split because it can be fragile grabbing the
-     * Backtrace so we need to do that first *)
-    if log
-    then
-      let bt = Backtrace.Exn.most_recent () in
-      let msg = Exn.to_string exc in
-      print_endline (Backtrace.to_string bt);
-      print_endline msg;
-      DError msg
-    else
-      let msg = Exn.to_string exc in
-      DError msg
-
+  | e ->
+    e
+    |> Exception.to_string ~log
+    |> DError
 
 (* -------------------- *)
 (* Execution *)
@@ -557,10 +549,7 @@ let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sy
     trace expr st
   with
   | e ->
-    let bt = Backtrace.Exn.most_recent () in
-    let msg = Exn.to_string e in
-    print_endline (Backtrace.to_string bt);
-    print_endline msg;
+    Exception.log e
 
 type sym_store = sym_set Int.Table.t
 

@@ -8,6 +8,9 @@ let level : level ref =
 let quiet name =
   name = "execution"
 
+let print_endline =
+  Caml.print_endline
+
 let should_log (user_level : level) : bool =
   match user_level with
   | `Off -> false
