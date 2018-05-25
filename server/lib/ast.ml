@@ -389,13 +389,16 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     if paramsIncomplete arglist
     then DIncomplete
     else
-      let executingUnsafe = ctx = Preview
-                            && not fn.preview_execution_safe
-                            && List.mem ~equal:(=) state.exe_fn_ids id
+      let executingUnsafe = not fn.preview_execution_safe
+                            && (List.mem ~equal:(=) state.exe_fn_ids id
+                                || ctx = Real)
       in
       let sfr_state = (state.host, state.tlid, fnname, id) in
       let maybe_store_result result =
         if executingUnsafe
+          (* TODO: add an execution ID here so that multiple requests
+           * with the same parameter (from a user) don't pollute old
+           * requests. *)
         then Stored_function_result.store sfr_state arglist result
         else ();
       in
@@ -411,7 +414,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
              else
                (match Stored_function_result.load sfr_state arglist with
                 | Some result -> result
-               | _ -> DIncomplete)
+                | _ -> DIncomplete)
          with
          | e ->
            Exception.reraise_after e
