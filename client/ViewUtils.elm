@@ -246,6 +246,7 @@ approxNWidth ne =
       |> List.map (\(k,v) -> blankOrLength k + approxWidth v)
       |> List.map ((+) 2) -- ': '
       |> List.map ((+) 2) -- ', '
-      |> List.sum
+      |> List.maximum
+      |> Maybe.withDefault 0
       |> (+) 4 -- {  }
 
