@@ -134,7 +134,7 @@ replaceExpr m tlid ast old_ action value =
                 , B.newF (
                     Let
                       (B.newF bindName)
-                      (AST.closeThread thread)
+                      (AST.closeThreads thread)
                       (B.new ())))
 
             _ ->
