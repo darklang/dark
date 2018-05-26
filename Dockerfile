@@ -240,7 +240,8 @@ ENV TERM=xterm-256color
 
 RUN sudo apt-get update && sudo apt-get install -y ruby
 RUN git clone https://github.com/NoRedInk/elm-ops-tooling
-
+RUN yarn add \
+  elm-test@0.18.13-beta
 
 ############################
 # Finish
