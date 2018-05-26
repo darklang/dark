@@ -101,8 +101,8 @@ listThreadBlanks expr =
       Flagged _ _ _ l r -> rList [l, r]
       F _ f -> rn f
 
-closeThread : Expr -> Expr
-closeThread expr =
+closeThreads : Expr -> Expr
+closeThreads expr =
   -- Close all threads
   case expr of
     F id (Thread exprs) ->
@@ -113,7 +113,7 @@ closeThread expr =
               (F _ (FnCall _ _ ) :: _) -> False
               _ -> True
           newExprs = List.filter B.isF exprs
-                     |> List.map closeThread
+                     |> List.map closeThreads
           adjusted =
             case newExprs of
               -- if an fncall moved into the first slot, we need to add a
@@ -130,7 +130,27 @@ closeThread expr =
         [] -> Blank id
         [e] -> e
         _ -> F id (Thread adjusted)
-    _ -> traverse closeThread expr
+    _ -> traverse closeThreads expr
+
+closeObjectLiterals : Expr -> Expr
+closeObjectLiterals expr =
+  case expr of
+    F id (ObjectLiteral pairs) ->
+      pairs
+      |> List.filterMap (\(k,v) ->
+                          if B.isBlank k && B.isBlank v
+                          then Nothing
+                          else Just (k, (closeObjectLiterals v)))
+      |> (\l -> if l /= [] then l else [(B.new (), B.new ())])
+      |> ObjectLiteral
+      |> F id
+    _ -> traverse closeObjectLiterals expr
+
+closeBlanks : Expr -> Expr
+closeBlanks expr =
+  expr
+  |> closeThreads
+  |> closeObjectLiterals
 
 
 -- take an expression, and if

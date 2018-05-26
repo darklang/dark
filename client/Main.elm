@@ -244,7 +244,7 @@ updateMod mod (m, cmd) =
   let _ = if m.integrationTestState /= NoIntegrationTest
           then Debug.log "mod update" mod
           else mod
-      closeThreads newM =
+      closeBlanks newM =
         -- close open threads in the previous TL
         m.cursorState
         |> tlidOf
@@ -252,7 +252,7 @@ updateMod mod (m, cmd) =
         |> Maybe.map (\tl ->
             case tl.data of
               TLHandler h ->
-                let replacement = AST.closeThread h.ast in
+                let replacement = AST.closeBlanks h.ast in
                 if replacement == h.ast
                 then []
                 else
@@ -262,7 +262,7 @@ updateMod mod (m, cmd) =
                   -- call RPC on the new model
                   in [RPC.rpc newM FocusSame params]
               TLFunc f ->
-                let replacement = AST.closeThread f.ast in
+                let replacement = AST.closeBlanks f.ast in
                 if replacement == f.ast
                 then []
                 else
@@ -362,15 +362,15 @@ updateMod mod (m, cmd) =
             _ ->
               let newM = { m | currentPage = page
                          , cursorState = Deselected }
-              in newM ! closeThreads newM
+              in newM ! closeBlanks newM
 
       Select tlid p ->
         let newM = { m | cursorState = Selecting tlid p } in
-        newM ! closeThreads newM
+        newM ! closeBlanks newM
 
       Deselect ->
         let newM = { m | cursorState = Deselected }
-        in newM ! (closeThreads newM)
+        in newM ! (closeBlanks newM)
 
       Enter entry ->
         let target =
@@ -386,7 +386,7 @@ updateMod mod (m, cmd) =
               processAutocompleteMods m [ ACSetTarget target ]
             newM = { m | cursorState = Entering entry, complete = complete }
         in
-        newM ! (closeThreads newM ++ [acCmd, Entry.focusEntry newM])
+        newM ! (closeBlanks newM ++ [acCmd, Entry.focusEntry newM])
 
 
       SetToplevels tls tlars globals userFuncs f404s unlocked updateCurrentTL ->
@@ -850,7 +850,7 @@ update_ msg m =
                       let tl = TL.getTL m tlid in
                         case tl.data of
                           TLHandler h ->
-                            let replacement = AST.closeThread h.ast in
+                            let replacement = AST.closeBlanks h.ast in
                             if replacement == h.ast
                             then
                               Many [ Select tlid (Just p)

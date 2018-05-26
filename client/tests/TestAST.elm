@@ -85,7 +85,7 @@ all =
                                   , F (ID 6) (FnCall "+" [Blank (ID 5)])
                                   , B.new ()])
           in
-            case AST.closeThread threaded of
+            case AST.closeThreads threaded of
               F (ID 6) (FnCall "+" [Blank _, Blank (ID 5)]) -> pass
               r -> fail r
 
@@ -99,7 +99,7 @@ all =
                      (Thread
                        [ fn
                        , B.new ()])
-            closed = AST.closeThread open
+            closed = AST.closeThreads open
         in
         if closed == fn
         then pass
@@ -110,7 +110,7 @@ all =
     , test "simple thread is closed properly" <|
       expectOk <|
         let open = (B.newF (Thread [ B.newF (Value "3"), B.new ()]))
-            closed = AST.closeThread open
+            closed = AST.closeThreads open
         in
         case closed of
           F _ (Value "3") -> pass
