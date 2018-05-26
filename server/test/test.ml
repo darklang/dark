@@ -108,27 +108,27 @@ let t_undo_fns () =
   let r = Op.RedoTL tlid in
 
   AT.check AT.int "undocount"
-  3 (C.undo_count !(ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u]) tlid);
+  3 (Undo.undo_count !(ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u]).ops tlid);
 
   AT.check AT.bool "redoable" true
-    (C.is_redoable !(ops2c "test" [n1; n2; n3; n4; u]) tlid);
+    (Undo.is_redoable !(ops2c "test" [n1; n2; n3; n4; u]).ops tlid);
   AT.check AT.bool "undoable" true
-    (C.is_undoable !(ops2c "test" [n1; n2; n3; n4]) tlid);
+    (Undo.is_undoable !(ops2c "test" [n1; n2; n3; n4]).ops tlid);
 
 
   AT.check AT.bool "not redoable" false
-    (C.is_redoable !(ops2c "test" [n1; n2; n3; n4; u; r]) tlid);
+    (Undo.is_redoable !(ops2c "test" [n1; n2; n3; n4; u; r]).ops tlid);
   AT.check AT.bool "not undoable" false
-    (C.is_undoable !(ops2c "test" [n1; n2; n3; n4; u]) tlid);
+    (Undo.is_undoable !(ops2c "test" [n1; n2; n3; n4; u]).ops tlid);
 
 
-  let both = !(ops2c "test" [n1; n1; n2; n3; n4; u; r; u]) in
-  AT.check AT.bool "both_undo" true (C.is_undoable both tlid);
-  AT.check AT.bool "both_redo" true (C.is_redoable both tlid);
+  let both = !(ops2c "test" [n1; n1; n2; n3; n4; u; r; u]).ops in
+  AT.check AT.bool "both_undo" true (Undo.is_undoable both tlid);
+  AT.check AT.bool "both_redo" true (Undo.is_redoable both tlid);
 
-  let neither = !(ops2c "test" [n2; n3; n4]) in
-  AT.check AT.bool "neither_undo" false (C.is_undoable neither tlid);
-  AT.check AT.bool "neither_redo" false (C.is_redoable neither tlid)
+  let neither = !(ops2c "test" [n2; n3; n4]).ops in
+  AT.check AT.bool "neither_undo" false (Undo.is_undoable neither tlid);
+  AT.check AT.bool "neither_redo" false (Undo.is_redoable neither tlid)
 
 let t_undo () =
   let ha ast = handler ast in
