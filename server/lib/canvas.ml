@@ -318,7 +318,6 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
 let initialize_host (host:string) : unit =
   Log.infO "Initializing host" host;
   Db.create_namespace host;
-  Event_queue.initialize_queue host;
   Db.initialize_migrations host
 
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
