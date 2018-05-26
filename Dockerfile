@@ -238,6 +238,8 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+RUN sudo apt-get update && sudo apt-get install -y ruby
+RUN git clone https://github.com/NoRedInk/elm-ops-tooling
 
 
 ############################
