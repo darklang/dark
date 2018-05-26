@@ -598,7 +598,8 @@ object_literals_work m =
     , ObjectLiteral [ (F _ "k1", Blank _)
                     , (F _ "k2", F _ (Value "2"))
                     , (F _ "k3", F _ (Value "3"))
-                    , (F _ "k4", Blank _ )]) ->
+                    , (F _ "k4", Blank _ )
+                    , (Blank _, Blank _)]) ->
       let tl = TL.getTL m tlid
           target = TL.findExn tl id
       in
