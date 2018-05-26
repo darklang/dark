@@ -62,7 +62,6 @@ def elm_make():
           "cd client" \
           + " && unbuffer" \
           + " sysconfcpus -n 1" \
-          + " ~/elm-ops-tooling/with_retry.rb" \
           + " elm-make Main.elm" \
           + " --warn --yes --debug --output" \
           + " ../server/static/elm-debug.js" \
@@ -75,10 +74,15 @@ def elm_make():
 def elm_test():
   start = time.time()
   return run_test(start, \
-          "cd client" \
+          "cd client/tests" \
           + " && unbuffer" \
           + " sysconfcpus -n 1" \
           + " ~/elm-ops-tooling/with_retry.rb" \
+          + " elm-package install --yes"
+
+          + " && cd .." \
+          + " && unbuffer" \
+          + " sysconfcpus -n 1" \
           + " elm-test")
 
 def less_compile():
