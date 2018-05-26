@@ -47,7 +47,12 @@ def run_test(start, bash):
 
 def elm_package():
   start = time.time()
-  return run_frontend(start, "cd client && elm-package install --yes")
+  return run_frontend(start, \
+          "cd client" \
+          + " && unbuffer" \
+          + " sysconfcpus -n 1" \
+          + " ~/elm-ops-tooling/with_retry.rb" \
+          + " elm-package install --yes")
 
 def elm_make():
   debug = ""
@@ -55,7 +60,10 @@ def elm_make():
   # unbuffer makes elm think it's talking a terminal
   return run_frontend(start, \
           "cd client" \
-          + " && unbuffer sysconfcpus -n 1 elm-make Main.elm" \
+          + " && unbuffer" \
+          + " sysconfcpus -n 1" \
+          + " ~/elm-ops-tooling/with_retry.rb" \
+          + " elm-make Main.elm" \
           + " --warn --yes --debug --output" \
           + " ../server/static/elm-debug.js" \
           + " && cd ../server/static" \
@@ -66,7 +74,12 @@ def elm_make():
 
 def elm_test():
   start = time.time()
-  return run_test(start, "cd client && unbuffer sysconfcpus -n 1 elm-test")
+  return run_test(start, \
+          "cd client" \
+          + " && unbuffer" \
+          + " sysconfcpus -n 1" \
+          + " ~/elm-ops-tooling/with_retry.rb" \
+          + " elm-test")
 
 def less_compile():
   start = time.time()
