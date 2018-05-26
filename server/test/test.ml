@@ -341,18 +341,12 @@ let t_event_queue_roundtrip () =
   let c = ops2c "test-event_queue" [] in
   let state = state_for c in
   EQ.enqueue state space name dval;
-  let v1 =
-    EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name
-    |> fun x -> Option.value_exn x
-  in
-  EQ.put_back ~status:`Incomplete v1;
-  let v2 =
+  let v =
     EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name
     |> fun x -> Option.value_exn x
   in
 
-  AT.check at_dval "v1" v1.value dval;
-  AT.check at_dval "v2" v2.value dval;
+  AT.check at_dval "v" v.value dval;
 
   ()
 
