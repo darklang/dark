@@ -331,6 +331,7 @@ viewNExpr d id vs config e =
     ListLiteral exprs ->
       let open = a [wc "openbracket"] "["
           close = a [wc "closebracket"] "]"
+          comma = a [wc "comma"] ","
           lexpr e =
             let id = B.toID e
                 dopts =
@@ -340,9 +341,11 @@ viewNExpr d id vs config e =
             in
             n ([wc "listelem"] ++ dopts)
               [vExpr 0 e]
+          new = List.map lexpr exprs
+                |> List.intersperse comma
       in
       n (wc "list" :: mo :: dv :: config)
-        ([open] ++ List.map lexpr exprs ++ [close])
+        ([open] ++ new ++ [close])
 
     ObjectLiteral pairs ->
       let colon = a [wc "colon"] ":"
