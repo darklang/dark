@@ -17,7 +17,7 @@ let status_to_enum status : string =
   | `Err -> "'error'"
   | `Incomplete -> "'error'"
 
-let unlock_jobs ~(host:string) (dequeuer: int) ~status : unit =
+let unlock_jobs (dequeuer: int) ~status : unit =
   Printf.sprintf
     "UPDATE \"events\"
      SET status = %s
@@ -25,7 +25,7 @@ let unlock_jobs ~(host:string) (dequeuer: int) ~status : unit =
          AND status = 'locked'"
     (status_to_enum status)
     (string_of_int dequeuer)
-  |> Db.run_sql_in_ns ~host
+  |> Db.run_sql
 
 (* ------------------------- *)
 (* Public API *)
@@ -34,8 +34,8 @@ let unlock_jobs ~(host:string) (dequeuer: int) ~status : unit =
 let wrap s = "'" ^ s ^ "'"
 let wrap_uuid u = "'" ^ Uuid.to_string u ^ "'::uuid"
 
-let finalize ~(host:string)(dequeuer: int) ~status : unit =
-  unlock_jobs ~host ~status dequeuer
+let finalize (dequeuer: int) ~status : unit =
+  unlock_jobs ~status dequeuer
 
 let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
   let serialized_data = Dval.dval_to_json_string data in
@@ -117,7 +117,7 @@ let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: strin
       ("Fetched seemingly impossible shape from Postgres"
        ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
-let put_back ~(host:string) (item: t) ~status : unit =
+let put_back (item: t) ~status : unit =
   let id = string_of_int item.id in
   let sql =
     match status with
@@ -151,60 +151,10 @@ let put_back ~(host:string) (item: t) ~status : unit =
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
         WHERE id = %s" id
   in
-  Db.run_sql_in_ns ~host sql
+  Db.run_sql sql
 
-let finish ~(host:string) (item: t) : unit =
-  put_back ~host ~status:`OK item
+let finish (item: t) : unit =
+  put_back ~status:`OK item
 
-
-
-let create_queue_status_type host : unit =
-  Printf.sprintf
-    "DO $$
-     BEGIN
-       IF NOT EXISTS
-         (SELECT 1
-          FROM pg_type t
-          LEFT JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
-          WHERE (t.typrelid = 0
-                 OR (SELECT c.relkind = 'c'
-                     FROM pg_catalog.pg_class c
-                     WHERE c.oid = t.typrelid))
-          AND NOT EXISTS (SELECT 1
-                          FROM pg_catalog.pg_type el
-                          WHERE el.oid = t.typelem
-                            AND el.typarray = t.oid)
-          AND n.nspname NOT IN ('pg_catalog', 'information_schema')
-          AND t.typname = 'queue_status'
-          AND n.nspname = '%s'
-          )
-       THEN
-         CREATE TYPE queue_status AS
-           ENUM ('new', 'locked', 'done', 'error');
-       END IF;
-     END $$;
-    "
-    (Db.ns_name host)
-  |> Db.run_sql_in_ns ~host
-
-let create_events_table host =
-  Db.run_sql_in_ns ~host
-    "CREATE TABLE IF NOT EXISTS
-          \"events\"
-          (id SERIAL PRIMARY KEY
-          , status queue_status
-          , dequeued_by INT
-          , space TEXT NOT NULL
-          , name TEXT NOT NULL
-          , value TEXT NOT NULL
-          , retries INTEGER DEFAULT 0 NOT NULL
-          , flag_context TEXT DEFAULT '' NOT NULL
-          , delay_until TIMESTAMP
-          )
-          "
-let initialize_queue host : unit =
-  create_queue_status_type host;
-  create_events_table host;
-  ()
 
 

@@ -150,7 +150,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     | DResp (http, value) ->
       (match http with
        | Redirect url ->
-         Event_queue.finalize ~host state.id ~status:`OK;
+         Event_queue.finalize state.id ~status:`OK;
          S.respond_redirect (Uri.of_string url) ()
        | Response (code, resp_headers) ->
          let body =
@@ -165,13 +165,13 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          let resp_headers =
            maybe_infer_headers resp_headers value
          in
-         Event_queue.finalize ~host state.id ~status:`OK;
+         Event_queue.finalize state.id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
          let headers = Cohttp.Header.of_list
                         ([cors] @ resp_headers @ session_headers) in
          respond ~headers status body)
     | _ ->
-      Event_queue.finalize ~host state.id ~status:`OK;
+      Event_queue.finalize state.id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let ct_headers =
         maybe_infer_headers [] result
@@ -212,11 +212,11 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
         else ()
       ) in
 
-  Event_queue.finalize ~host execution_id ~status:`OK;
+  Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5], result)
   with
   | e ->
-    Event_queue.finalize ~host execution_id ~status:`Err;
+    Event_queue.finalize execution_id ~status:`Err;
     raise e
 
 let admin_ui_handler ~(debug:bool) () =

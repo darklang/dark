@@ -23,28 +23,36 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   Db.delete_testdata ();
   C.init host ops
 
-let execute_ops (ops : Op.op list) : dval =
-  let c = ops2c "test" ops in
-
-  let h = !c.toplevels
-          |> TL.handlers
-          |> List.hd_exn in
+let state_for (c:Canvas.canvas ref) =
+  let tlid = !c.toplevels
+             |> TL.handlers
+             |> List.hd
+             |> Option.map ~f:(fun (h: Handler.handler) -> h.tlid)
+             |> Option.value ~default:10
+  in
   let dbs = TL.dbs !c.toplevels in
   let dbs_env = Db.dbs_as_exe_env dbs in
   let env = dbs_env in (* enough env to test for now *)
-  let state : exec_state =
-    { ff = RealKey !c.host
-    ; tlid = h.tlid
-    ; host = !c.host
-    ; account_id = !c.owner
-    ; canvas_id = !c.id
-    ; user_fns = !c.user_functions
-    ; exe_fn_ids = [] (* ctx is real, so unnecessary *)
-    ; env = env
-    ; dbs = TL.dbs !c.toplevels
-    ; id = Util.create_id ()
-    } in
-  Ast.execute state env h.ast
+  { ff = RealKey !c.host
+  ; tlid = tlid
+  ; host = !c.host
+  ; account_id = !c.owner
+  ; canvas_id = !c.id
+  ; user_fns = !c.user_functions
+  ; exe_fn_ids = [] (* ctx is real, so unnecessary *)
+  ; env = env
+  ; dbs = TL.dbs !c.toplevels
+  ; id = Util.create_id ()
+  }
+
+
+let execute_ops (ops : Op.op list) : dval =
+  let c = ops2c "test" ops in
+  let h = !c.toplevels
+          |> TL.handlers
+          |> List.hd_exn in
+  let state = state_for c in
+  Ast.execute state state.env h.ast
   |> Log.pp ~f:Types.RuntimeT.show_dval "excute_ops result"
 
 
@@ -324,6 +332,30 @@ let t_stored_event_roundtrip () =
 
   ()
 
+module EQ = Event_queue
+let t_event_queue_roundtrip () =
+  let dval = DInt 345 in
+  let exec_id = 147 in
+  let space = "TEST_SPACE" in
+  let name = "test_name" in
+  let c = ops2c "test-event_queue" [] in
+  let state = state_for c in
+  EQ.enqueue state space name dval;
+  let v1 =
+    EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name
+    |> fun x -> Option.value_exn x
+  in
+  EQ.put_back ~status:`Incomplete v1;
+  let v2 =
+    EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name
+    |> fun x -> Option.value_exn x
+  in
+
+  AT.check at_dval "v1" v1.value dval;
+  AT.check at_dval "v2" v2.value dval;
+
+  ()
+
 let t_bad_ssl_cert _ =
   let ast = f (FnCall ( "HttpClient::get"
                    , [ v "\"https://self-signed.badssl.com\""
@@ -394,6 +426,7 @@ let suite =
   ; "int_add_works", `Quick, t_int_add_works
   ; "lambda_with_foreach", `Quick, t_lambda_with_foreach
   ; "stored_events", `Quick, t_stored_event_roundtrip
+  ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
