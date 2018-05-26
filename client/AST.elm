@@ -146,11 +146,22 @@ closeObjectLiterals expr =
       |> F id
     _ -> traverse closeObjectLiterals expr
 
+closeListLiterals : Expr -> Expr
+closeListLiterals expr =
+  case expr of
+    F id (ListLiteral exprs) ->
+      let exprs2 = List.map closeListLiterals exprs
+          exprs3 = List.filter B.isF exprs2
+      in
+      F id (ListLiteral (exprs3 ++ [B.new ()]))
+    _ -> traverse closeObjectLiterals expr
+
 closeBlanks : Expr -> Expr
 closeBlanks expr =
   expr
   |> closeThreads
   |> closeObjectLiterals
+  |> closeListLiterals
 
 
 -- take an expression, and if
@@ -228,6 +239,45 @@ maybeExtendObjectLiteralAt pd expr =
             replacement
           else expr
         _ -> expr
+    _ -> expr
+
+addListLiteralBlanks : ID -> Expr -> Expr
+addListLiteralBlanks id expr =
+  let new1 = B.new ()
+      new2 = B.new ()
+      parent = parentOf id expr
+  in
+  case parent of
+    F lid (ListLiteral exprs) ->
+      let newExprs = exprs
+                     |> List.reverse
+                     |> LE.dropWhile B.isBlank
+                     |> (++) [new1]
+                     |> List.reverse
+      in
+      replace
+        (PExpr parent)
+        (PExpr (F lid (ListLiteral newExprs)))
+        expr
+    _ -> expr
+
+
+
+-- Extend the object literal automatically, only if it's the last key in
+-- the object.
+maybeExtendListLiteralAt : PointerData -> Expr -> Expr
+maybeExtendListLiteralAt pd expr =
+  let id = P.toID pd in
+  case parentOf_ id expr of
+    Just (F lid (ListLiteral exprs)) ->
+      if exprs
+         |> List.filter B.isBlank
+         |> List.length
+         |> \l -> l <= 1
+      then
+        let replacement = addListLiteralBlanks id expr in
+        replacement
+      else expr
     _ -> expr
 
 

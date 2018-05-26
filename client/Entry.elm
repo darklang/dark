@@ -170,6 +170,7 @@ replaceExpr m tlid ast old_ action value =
             ast
             |> AST.replace (PExpr old) (PExpr new)
             |> AST.maybeExtendThreadAt (B.toID new)
+            |> AST.maybeExtendListLiteralAt (PExpr new)
   in
   (newAst, new)
 
@@ -190,13 +191,13 @@ parseAst m str =
     [""] ->
       Just b1
     ["[]"] ->
-      Just <| F eid (ListLiteral [])
-    ["{}"] ->
-      Just <| F eid (ObjectLiteral [])
-    ["{"] ->
-      Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
+      Just <| F eid (ListLiteral [B.new ()])
     ["["] ->
       Just <| F eid (ListLiteral [B.new ()])
+    ["{}"] ->
+      Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
+    ["{"] ->
+      Just <| F eid (ObjectLiteral [(B.new (), B.new ())])
     _ ->
       if not (RT.isLiteral str)
       then createFunction m str
