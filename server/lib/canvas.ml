@@ -46,11 +46,11 @@ let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
     | [] -> ()
     | db :: [] ->
       (try
-         if Db.db_locked db
+         if User_db.db_locked db
          then
            Exception.client "Cannot delete DBs with data"
          else
-           Db.drop db
+           User_db.drop db
        with
        | e ->
          ()
@@ -96,23 +96,23 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       if name = ""
       then Exception.client ("DB must have a name")
       else
-        let db = Db.create !c.host name tlid in
+        let db = User_db.create !c.host name tlid in
         if do_db_ops
         then
-          Db.init_storage db;
+          User_db.init_storage db;
         upsert_toplevel tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
-      apply_to_db ~f:(Db.add_col colid typeid) tlid
+      apply_to_db ~f:(User_db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
-      apply_to_db ~f:(Db.set_col_name id name do_db_ops) tlid
+      apply_to_db ~f:(User_db.set_col_name id name do_db_ops) tlid
     | ChangeDBColName (tlid, id, name) ->
-      apply_to_db ~f:(Db.change_col_name id name do_db_ops) tlid
+      apply_to_db ~f:(User_db.change_col_name id name do_db_ops) tlid
     | SetDBColType (tlid, id, tipe) ->
-      apply_to_db ~f:(Db.set_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
+      apply_to_db ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | ChangeDBColType (tlid, id, tipe) ->
-      apply_to_db ~f:(Db.change_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
+      apply_to_db ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
     | InitDBMigration (tlid, id, rbid, rfid, kind) ->
-      apply_to_db ~f:(Db.initialize_migration id rbid rfid kind) tlid
+      apply_to_db ~f:(User_db.initialize_migration id rbid rfid kind) tlid
     | SetExpr (tlid, id, e) ->
       apply_to_toplevel ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
@@ -165,7 +165,7 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
 let initialize_host (host:string) : unit =
   Log.infO "Initializing host" host;
   Db.create_namespace host;
-  Db.initialize_migrations host
+  User_db.initialize_migrations host
 
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
   let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
@@ -261,7 +261,7 @@ let to_frontend
   let unlocked =
     c.toplevels
     |> TL.dbs
-    |> Db.unlocked
+    |> User_db.unlocked
     |> List.map ~f:(fun x -> x.tlid)
     |> List.map ~f:tlid_to_yojson
     |> fun x -> `List x
@@ -409,7 +409,7 @@ let create_environments (c: canvas) (host: string) :
   (RTT.env_map * SE.four_oh_four list) =
 
   let dbs = TL.dbs c.toplevels in
-  let initial_env = Db.dbs_as_env dbs in
+  let initial_env = User_db.dbs_as_env dbs in
   let sample_request = PReq.sample |> PReq.to_dval in
   let sample_event = RTT.DIncomplete in
   let default_env =

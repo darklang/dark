@@ -97,7 +97,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     let input = PReq.from_request req body in
     let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
     let dbs = TL.dbs !c.toplevels in
-    let dbs_env = Db.dbs_as_exe_env (dbs) in
+    let dbs_env = User_db.dbs_as_exe_env (dbs) in
     (match (Handler.module_for page, Handler.modifier_for page) with
     | (Some m, Some mo) ->
       (* Store the event with the input path not the event name, because we

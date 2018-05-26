@@ -44,7 +44,7 @@ let dequeue_and_evaluate_all () : string =
                          Stored_event.store_event endpoint desc event.value
                        | None -> ());
                        let dbs = TL.dbs !c.toplevels in
-                       let dbs_env = Db.dbs_as_exe_env (dbs) in
+                       let dbs_env = User_db.dbs_as_exe_env (dbs) in
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
                        let state : RTT.exec_state =
                              { ff = event.flag_context
