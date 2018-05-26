@@ -18,10 +18,6 @@ type canvas = { host : string
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
-(* forgive me simon peyton-jones *)
-let cur_canvas : (canvas ref) option ref =
-  ref None
-
 (* ------------------------- *)
 (* Undo *)
 (* ------------------------- *)
