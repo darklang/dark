@@ -25,6 +25,12 @@ let blank_to_content (bo: 'a or_blank) : 'a option =
   | Filled (_, c) -> Some c
   | _ -> None
 
+let is_blank (bo: 'a or_blank) : bool =
+  match bo with
+  | Blank _ -> true
+  | _ -> false
+
+
 let to_id (expr: expr) : id =
   blank_to_id expr
 
@@ -203,7 +209,11 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
 
      | Filled (_, ListLiteral exprs) ->
        exprs
-       |> List.map ~f:(exe st)
+       |> List.filter_map
+         ~f:(function
+             | Blank _ -> None
+             | v -> Some (exe st v)
+            )
        |> DList
 
      | Filled (_, ObjectLiteral pairs) ->
