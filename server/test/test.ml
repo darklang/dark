@@ -31,7 +31,7 @@ let state_for (c:Canvas.canvas ref) =
              |> Option.value ~default:10
   in
   let dbs = TL.dbs !c.toplevels in
-  let dbs_env = Db.dbs_as_exe_env dbs in
+  let dbs_env = User_db.dbs_as_exe_env dbs in
   let env = dbs_env in (* enough env to test for now *)
   { ff = RealKey !c.host
   ; tlid = tlid
@@ -271,9 +271,9 @@ let t_case_insensitive_db_roundtrip () =
   let dbs = TL.dbs !c.toplevels in
   let db = dbs |> List.hd_exn in
   let dval = DvalMap.singleton colname value in
-  let _ = Db.delete_all ~tables:dbs db in
-  let _ = Db.insert ~tables:dbs db dval in
-  let result = Db.fetch_all ~tables:dbs db in
+  let _ = User_db.delete_all ~tables:dbs db in
+  let _ = User_db.insert ~tables:dbs db dval in
+  let result = User_db.fetch_all ~tables:dbs db in
   match result with
   | DList [DObj v] ->
     AT.(check bool) "matched" true
