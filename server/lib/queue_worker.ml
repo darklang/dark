@@ -35,7 +35,8 @@ let dequeue_and_evaluate_all () : string =
                     let space = Handler.module_for_exn q in
                     let name = Handler.event_name_for_exn q in
                     (match Event_queue.dequeue
-                             ~host:endpoint execution_id space name with
+                             ~canvas:!c.id ~account:!c.owner
+                             execution_id space name with
                      | None -> None
                      | Some event ->
                        (match Handler.event_desc_for q with

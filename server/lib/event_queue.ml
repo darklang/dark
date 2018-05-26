@@ -32,6 +32,7 @@ let unlock_jobs ~(host:string) (dequeuer: int) ~status : unit =
 (* ------------------------- *)
 
 let wrap s = "'" ^ s ^ "'"
+let wrap_uuid u = "'" ^ Uuid.to_string u ^ "'::uuid"
 
 let finalize ~(host:string)(dequeuer: int) ~status : unit =
   unlock_jobs ~host ~status dequeuer
@@ -41,6 +42,8 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
   let column_names =
     [ "status"
     ; "dequeued_by"
+    ; "canvas_id"
+    ; "account_id"
     ; "space"
     ; "name"
     ; "value"
@@ -52,6 +55,8 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
   let column_values =
     [ "'new'"
     ; "NULL"
+    ; wrap_uuid state.canvas_id
+    ; wrap_uuid state.account_id
     ; wrap space
     ; wrap name
     ; wrap serialized_data
@@ -65,13 +70,13 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
      (%s)
      VALUES (%s)"
      column_names column_values)
-  |> Db.run_sql_in_ns ~host:state.host
+  |> Db.run_sql ~quiet:false
 
 (* This should soon enough do something like:
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue ~(host:string) (execution_id: int) (space: string) (name: string) : t option =
+let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf
       "SELECT id, value, retries, flag_context from \"events\"
@@ -79,18 +84,22 @@ let dequeue ~(host:string) (execution_id: int) (space: string) (name: string) : 
         AND name = %s
         AND status = 'new'
         AND delay_until < CURRENT_TIMESTAMP
+        AND canvas_id = %s
+        AND account_id = %s
       ORDER BY id DESC
              , retries ASC
       LIMIT 1"
       (wrap space)
       (wrap name)
-    |> Db.fetch_via_sql_in_ns ~host
+      (wrap_uuid canvas)
+      (wrap_uuid account)
+    |> Db.fetch_via_sql
     |> List.hd
   in
   match fetched with
   | None -> None
   | Some [id; value; retries; flag_context] ->
-    Db.run_sql_in_ns ~host
+    Db.run_sql
       (Printf.sprintf
          "UPDATE \"events\"
          SET status = 'locked'
