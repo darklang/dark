@@ -393,7 +393,17 @@ submit m cursor action =
             replace (PField (B.newF value))
 
         PKey k ->
-          replace (PKey (B.newF value))
+          let new = PKey (B.newF value)
+              ast =
+                case tl.data of
+                  TLHandler h -> h.ast
+                  TLFunc f -> f.ast
+                  TLDB _ -> impossible ("No fields in DBs", tl.data)
+          in
+          ast
+          |> AST.replace pd new
+          |> AST.maybeExtendObjectLiteralAt new
+          |> \ast -> saveAst ast new
         PExpr e ->
           case tl.data of
             TLHandler h ->
