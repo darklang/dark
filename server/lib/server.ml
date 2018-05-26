@@ -118,6 +118,8 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
       { ff = ff
       ; tlid = page.tlid
       ; host = !c.host
+      ; account_id = !c.owner
+      ; canvas_id = !c.id
       ; user_fns = !c.user_functions
       ; exe_fn_ids = []
       ; env = env
