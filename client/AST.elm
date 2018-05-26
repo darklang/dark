@@ -210,6 +210,27 @@ addObjectLiteralBlanks id expr =
     _ -> impossible ("must add to key", id, expr)
 
 
+-- Extend the object literal automatically, only if it's the last key in
+-- the object.
+maybeExtendObjectLiteralAt : PointerData -> Expr -> Expr
+maybeExtendObjectLiteralAt pd expr =
+  let id = P.toID pd in
+  case pd of
+    PKey key ->
+      case parentOf id expr of
+        F olid (ObjectLiteral pairs) ->
+          if pairs
+             |> LE.last
+             |> Maybe.map Tuple.first
+             |> (==) (Just key)
+          then
+            let (_, _, replacement) = addObjectLiteralBlanks id expr in
+            replacement
+          else expr
+        _ -> expr
+    _ -> expr
+
+
 
 -- takes an ID of an expr in the AST to wrap in a thread
 wrapInThread : ID -> Expr -> Expr
