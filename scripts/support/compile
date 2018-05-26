@@ -54,8 +54,16 @@ def elm_package():
           + " ~/elm-ops-tooling/with_retry.rb" \
           + " elm-package install --yes")
 
+def elm_test_package():
+  start = time.time()
+  return run_frontend(start, \
+          "cd client/tests" \
+          + " && unbuffer" \
+          + " sysconfcpus -n 1" \
+          + " ~/elm-ops-tooling/with_retry.rb" \
+          + " elm-package install --yes")
+
 def elm_make():
-  debug = ""
   start = time.time()
   # unbuffer makes elm think it's talking a terminal
   return run_frontend(start, \
@@ -74,13 +82,7 @@ def elm_make():
 def elm_test():
   start = time.time()
   return run_test(start, \
-          "cd client/tests" \
-          + " && unbuffer" \
-          + " sysconfcpus -n 1" \
-          + " ~/elm-ops-tooling/with_retry.rb" \
-          + " elm-package install --yes"
-
-          + " && cd .." \
+          "cd client" \
           + " && unbuffer" \
           + " sysconfcpus -n 1" \
           + " elm-test")
@@ -130,6 +132,7 @@ class Should:
     self.ocaml_build = False
     self.ocaml_test = False
     self.elm_package = False
+    self.elm_test_package = False
     self.elm_make = False
     self.elm_test = False
     self.less_compile = False
@@ -152,17 +155,25 @@ def execute(should):
 
   should.ocaml_test |= ob
   ot = should.ocaml_test and ocaml_test()
+
+  should.elm_test_package |= ep
+  etp = should.elm_test_package and elm_test_package()
+
+  should.elm_test |= etp
   should.elm_test |= em
   et = should.elm_test and elm_test()
-  return ob and rs and ep and em and lc and rb and ot and et
+
+  return ob and rs and ep and em and lc and rb and ot and etp and et
 
 
 
 
 def mark(should, f):
   # Frontend
-  if "elm-package.json" in f:
+  if "client/elm-package.json" in f:
     should.elm_package = True
+  if "client/tests/elm-package.json" in f:
+    should.elm_test_package = True
   elif "client/tests" in f:
     should.elm_test = True
   elif ".elm" in f or ".js" in f or "client/DEBUG" in f:
