@@ -437,6 +437,8 @@ let to_frontend
             { ff = FF.analysis
             ; tlid = f.tlid
             ; host = c.host
+            ; account_id = c.owner
+            ; canvas_id = c.id
             ; user_fns = c.user_functions
             ; exe_fn_ids = fn_ids
             ; env = env
@@ -465,6 +467,8 @@ let to_frontend
             { ff = FF.analysis
             ; tlid = h.tlid
             ; host = c.host
+            ; account_id = c.owner
+            ; canvas_id = c.id
             ; user_fns = c.user_functions
             ; exe_fn_ids = fn_ids i
             ; env = env

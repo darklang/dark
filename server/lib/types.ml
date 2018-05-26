@@ -197,6 +197,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type exec_state = { ff: feature_flag
                     ; tlid: tlid
+                    ; canvas_id : Uuid.t
+                    ; account_id : Uuid.t
                     ; host: string
                     ; user_fns: user_fn list
                     ; exe_fn_ids: id list
