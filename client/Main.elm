@@ -497,7 +497,7 @@ update_ msg m =
 
     GlobalKeyPress devent ->
       let event = devent.standard in
-      if event.metaKey && event.keyCode == Key.Z
+      if (event.metaKey || event.ctrlKey) && event.keyCode == Key.Z
       then
         case tlidOf m.cursorState of
           Just tlid ->
