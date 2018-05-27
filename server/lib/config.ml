@@ -27,6 +27,9 @@ let appdata_dir : string =
 let testdata_dir : string =
   server_dir ^ "test_appdata/"
 
+let migrations_dir : string =
+  server_dir ^ "migrations/"
+
 let swagger_dir : string =
   server_dir ^ "swagger/"
 
@@ -82,6 +85,7 @@ type root = Events
           | Bin_root
           | Appdata
           | Swagger
+          | Migrations
           | No_check
 
 
@@ -99,6 +103,7 @@ let dir root =
   | Appdata -> appdata_dir
   | Swagger -> swagger_dir
   | Testdata -> testdata_dir
+  | Migrations -> migrations_dir
   | No_check -> ""
 
 
