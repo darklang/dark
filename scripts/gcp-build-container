@@ -20,6 +20,9 @@ cp -Rf server/static $DIR/webroot/
 mkdir -p $DIR/swagger
 cp -Rf server/swagger/*  $DIR/swagger/
 
+mkdir -p $DIR/migrations
+cp -Rf server/migrations/* $DIR/migrations/
+
 mkdir -p $DIR/saved-apps
 cp -Rf saved-apps/* $DIR/saved-apps/
 

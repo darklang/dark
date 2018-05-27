@@ -27,12 +27,6 @@ let appdata_dir : string =
 let testdata_dir : string =
   server_dir ^ "test_appdata/"
 
-let migrations_dir : string =
-  server_dir ^ "migrations/"
-
-let swagger_dir : string =
-  server_dir ^ "swagger/"
-
 let events_dir : string =
   persist_dir ^ "events/"
 
@@ -63,6 +57,10 @@ let swagger_dir : string =
   |> Option.value ~default:(server_dir ^ "swagger")
   |> fun x -> x ^ "/"
 
+let migrations_dir : string =
+  Sys.getenv "DARK_CONFIG_MIGRATIONS_DIR"
+  |> Option.value ~default:(server_dir ^ "migrations")
+  |> fun x -> x ^ "/"
 
 
 let bin_root_dir : string =
