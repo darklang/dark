@@ -133,49 +133,11 @@ let migrations =
 
    ]
 
-let migrate_canvas (template: string) (host: string) =
-  template
-  |> Util.string_replace "{NS}" (Db.ns_name host)
-  |> Util.string_replace "{HOST}" host
-  |> Db.run_sql_in_ns ~host
-
-(* don't run in schema *)
-let migrate_canvas_raw (template: string) (host: string) =
-  template
-  |> Util.string_replace "{NS}" (Db.ns_name host)
-  |> Util.string_replace "{HOST}" host
-  |> Db.run_sql
-
-let migrate_foreach (search: string) (template: string) (host: string) =
-  let all = search
-            |> Util.string_replace "{NS}" (Db.ns_name host)
-            |> Util.string_replace "{HOST}" host
-            |> Db.fetch_via_sql
-            |> List.concat
-  in
-  List.iter all
-    ~f:(fun value ->
-          template
-          |> Util.string_replace "{NS}" (Db.ns_name host)
-          |> Util.string_replace "{HOST}" host
-          |> Util.string_replace "{VALUE}" value
-          |> Db.run_sql)
-
-
 
 let run () : unit =
   List.iter migrations ~f:(fun m ->
     match m with
     | `Global sql -> Db.run_sql sql
-    | `EachCanvas template ->
-      List.iter (Serialize.current_hosts ())
-        ~f:(migrate_canvas template)
-    | `EachCanvasRaw template ->
-      List.iter (Serialize.current_hosts ())
-        ~f:(migrate_canvas_raw template)
-    | `ForEach (search, template) ->
-      List.iter (Serialize.current_hosts ())
-        ~f:(migrate_foreach search template)
     )
 
 
