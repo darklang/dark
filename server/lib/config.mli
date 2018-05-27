@@ -11,6 +11,7 @@ type root = Events
           | Bin_root
           | Appdata
           | Swagger
+          | Migrations
           | No_check
 
 type postgres_config = { host: string
