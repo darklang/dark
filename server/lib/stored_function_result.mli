@@ -2,11 +2,12 @@ open Core
 
 
 val store :
-  string * Types.tlid * string * Types.id ->
+  Uuid.t * string * Types.tlid * string * Types.id ->
   Types.RuntimeT.dval list ->
   Types.RuntimeT.dval ->
   unit
 
 val load :
-  string * Types.tlid * string * Types.id -> Types.RuntimeT.dval list ->
+  Uuid.t * string * Types.tlid * string * Types.id ->
+  Types.RuntimeT.dval list ->
   (Types.RuntimeT.dval * Time.t) option

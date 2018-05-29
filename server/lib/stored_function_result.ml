@@ -39,12 +39,12 @@ let filename (host, tlid, fnname, id) arglist =
 (* External *)
 (* ------------------------- *)
 
-let store_old (host, tlid, fnname, id) arglist result =
+let store_old (_, host, tlid, fnname, id) arglist result =
   mkdir host tlid;
   let filename = filename (host, tlid, fnname, id) arglist in
   Util.writejsonfile ~root ~conv:Dval.dval_to_yojson ~value:result filename
 
-let load_old (host, tlid, fnname, id) arglist =
+let load_old (_, host, tlid, fnname, id) arglist =
   let fn = filename (host, tlid, fnname, id) arglist in
   if Util.file_exists ~root fn
   then
@@ -54,13 +54,13 @@ let load_old (host, tlid, fnname, id) arglist =
     |> fun x -> Some (x, Time.now ())
   else None
 
-let store_new (canvas_id, tlid, fnname, id) arglist result =
+let store_new (canvas_id, _, tlid, fnname, id) arglist result =
   let sql =
     Printf.sprintf
       "INSERT INTO function_results
       (canvas_id, tlid, fnname, id, hash, timestamp, value)
-      VALUES ('%s':uuid, %d, '%s', %d, '%s', CURRENT_TIMESTAMP, '%s')"
-      (Db.escape canvas_id)
+      VALUES ('%s'::uuid, %d, '%s', %d, '%s', CURRENT_TIMESTAMP, '%s')"
+      (Db.escape (Uuid.to_string canvas_id))
       tlid
       (Db.escape fnname)
       id
@@ -69,18 +69,18 @@ let store_new (canvas_id, tlid, fnname, id) arglist result =
   in
   Db.run_sql sql
 
-let load_new (canvas_id, tlid, fnname, id) arglist
+let load_new (canvas_id, _, tlid, fnname, id) arglist
   : (RTT.dval * Time.t) option =
   let sql =
     Printf.sprintf
-      "SELECT timestamp, value
+      "SELECT value, timestamp
       FROM function_results
-      WHERE ( canvas_id = '%s':uuid
-            , tlid = %d
-            , fnname = '%s'
-            , id = %d
-            , hash = '%s')"
-      (Db.escape canvas_id)
+      WHERE canvas_id = '%s'::uuid
+        AND tlid = %d
+        AND fnname = '%s'
+        AND id = %d
+        AND hash = '%s'"
+      (Db.escape (Uuid.to_string canvas_id))
       tlid
       (Db.escape fnname)
       id
@@ -91,9 +91,14 @@ let load_new (canvas_id, tlid, fnname, id) arglist
   |> List.hd
   |> Option.map ~f:(function
       | [dval; ts] ->
-        (Dval.dval_of_json_string dval, Time.of_string ts)
+        (Dval.dval_of_json_string dval, Dval.date_of_sqlstring ts)
       | _ -> Exception.internal "Bad DB format for stored_functions")
+
+let load_both (canvas_id, host, tlid, fnname, id) arglist =
+  let old = load_old (canvas_id, host, tlid, fnname, id) arglist in
+  let new_ = load_new (canvas_id, host, tlid, fnname, id) arglist in
+  Option.first_some old new_
 
 
 let store = store_old
-let load = load_old
+let load = load_both

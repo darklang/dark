@@ -395,7 +395,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                             && (List.mem ~equal:(=) state.exe_fn_ids id
                                 || ctx = Real)
       in
-      let sfr_state = (state.host, state.tlid, fnname, id) in
+      let sfr_state = (state.canvas_id, state.host, state.tlid, fnname, id) in
       let maybe_store_result result =
         if executingUnsafe
           (* TODO: add an execution ID here so that multiple requests
