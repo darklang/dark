@@ -415,7 +415,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
              then f (state, arglist)
              else
                (match Stored_function_result.load sfr_state arglist with
-                | Some result -> result
+                | Some (result, _ts) -> result
                 | _ -> DIncomplete)
          with
          | e ->

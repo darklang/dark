@@ -393,6 +393,12 @@ let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string
 
+let dval_of_json_string (s: string) : dval =
+  s
+  |> Yojson.Safe.from_string
+  |> dval_of_yojson
+  |> Result.ok_or_failwith
+
 let dval_to_pretty_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.pretty_to_string
 
