@@ -41,8 +41,8 @@ let get_ip_address ch : string =
   | `TCP (ip, port) -> Ipaddr.to_string ip
   | _ -> assert false
 
-let respond ?(headers=Header.init ()) status (body: string) =
-  S.respond_string ~status ~body ~headers ()
+let respond ?(resp_headers=Header.init ()) status (body: string) =
+  S.respond_string ~status ~body ~headers:resp_headers ()
 
 
 (* ------------------------------- *)
@@ -66,11 +66,14 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
     | Some h -> h
     | None -> "*"
   in
-  let headers = [( "Access-Control-Allow-Methods"
-                 , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS")
-                ; ("Access-Control-Allow-Origin", "*")
-                ; ("Access-Control-Allow-Headers", allow_headers)] in
-  respond ~headers:(Cohttp.Header.of_list headers) `OK ""
+  let resp_headers = [( "Access-Control-Allow-Methods"
+                      , "GET,PUT,POST,DELETE,PATCH,HEAD,OPTIONS")
+                     ; ("Access-Control-Allow-Origin"
+                       , "*")
+                     ; ("Access-Control-Allow-Headers"
+                       , allow_headers)]
+  in
+  respond ~resp_headers:(Cohttp.Header.of_list resp_headers) `OK ""
 
 
 let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
@@ -90,8 +93,8 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
   | [] ->
     let input = PReq.from_request req body in
     Stored_event.store_event host ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
-    let headers = Cohttp.Header.of_list [cors] in
-    respond ~headers `Not_found "404: No page matches"
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond ~resp_headers `Not_found "404: No page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request req body in
@@ -111,9 +114,9 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     let env = Util.merge_left bound dbs_env in
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
-    let headers = CRequest.headers req in
-    let ff = FF.fingerprint_user ip headers in
-    let session_headers = FF.session_headers headers ff in
+    let resp_headers = CRequest.headers req in
+    let ff = FF.fingerprint_user ip resp_headers in
+    let session_headers = FF.session_headers resp_headers ff in
     let state : RTT.exec_state =
       { ff = ff
       ; tlid = page.tlid
@@ -127,24 +130,24 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
       ; id = Util.create_id ()
       } in
     let result = Handler.execute state page in
-    let maybe_infer_headers headers value =
-      if List.Assoc.mem headers ~equal:(=) "Content-Type"
+    let maybe_infer_headers resp_headers value =
+      if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
-        headers
+        resp_headers
       else
         match value with
         | RTT.DObj _ | RTT.DList _ ->
           List.Assoc.add
-            headers
+            resp_headers
             ~equal:(=)
             "Content-Type"
-            "application/json"
+            "application/json; charset=utf-8"
         | _ ->
           List.Assoc.add
-            headers
+            resp_headers
             ~equal:(=)
             "Content-Type"
-            "text/plain"
+            "text/plain; charset=utf-8"
     in
     (match result with
     | DResp (http, value) ->
@@ -156,7 +159,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          let body =
            if List.exists resp_headers ~f:(fun (name, value) ->
               String.lowercase name = "content-type"
-              && String.lowercase value = "text/html")
+              && String.is_prefix value ~prefix:"text/html")
            then Dval.to_human_repr value
            (* TODO: only pretty print for a webbrowser *)
            else
@@ -167,22 +170,25 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          in
          Event_queue.finalize state.id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
-         let headers = Cohttp.Header.of_list
-                        ([cors] @ resp_headers @ session_headers) in
-         respond ~headers status body)
+         let resp_headers = Cohttp.Header.of_list ([cors]
+                                                   @ resp_headers
+                                                   @ session_headers)
+         in
+         respond ~resp_headers status body)
     | _ ->
       Event_queue.finalize state.id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let ct_headers =
         maybe_infer_headers [] result
       in
-      let headers = Cohttp.Header.of_list ([cors] @ ct_headers @session_headers) in
+      let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers @session_headers) in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
-      respond ~headers `OK body)
+      respond ~resp_headers `OK body)
   | _ ->
-    let headers = Cohttp.Header.of_list [cors] in
-    respond `Internal_server_error ~headers "500: More than one page matches"
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond `Internal_server_error ~resp_headers
+      "500: More than one page matches"
 
 (* -------------------------------------------- *)
 (* Admin server *)
@@ -283,11 +289,17 @@ let auth_then_handle req host handler =
       | _ ->
         respond `Unauthorized "Invalid session")
 
-let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: CRequest.t) headers =
+let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
+    (req: CRequest.t) req_headers =
   let empty_body = "{ ops: [], executable_fns: []}" in
   let rpc ?(body=empty_body) () =
-    let (headers, response_body) = admin_rpc_handler body ~host in
-    respond ~headers `OK response_body
+    let (resp_headers, response_body) = admin_rpc_handler body ~host in
+    let utf8 = "application/json; charset=utf-8" in
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers `OK response_body
+  in
+  let text_plain_resp_headers =
+    Header.init_with "Content-type" "text/html; charset=utf-8"
   in
 
   match Uri.path uri with
@@ -302,11 +314,14 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string) (req: C
     Lwt.wakeup stopper ();
     respond `OK "Disembowelment"
   | "/admin/ui-debug" ->
-    admin_ui_handler ~debug:true () >>= fun body -> respond ~headers `OK body
+    admin_ui_handler ~debug:true () >>=
+    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/ui" ->
-    admin_ui_handler ~debug:false () >>= fun body -> respond ~headers `OK body
+    admin_ui_handler ~debug:false () >>=
+    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/integration_test" ->
-    admin_ui_handler ~debug:false () >>= fun body -> respond `OK body
+    admin_ui_handler  ~debug:false () >>=
+    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/api/save_test" ->
     save_test_handler host
   | _ ->
@@ -361,8 +376,8 @@ let server () =
       in
       Lwt_io.printl ("Error: " ^ real_err);%lwt
       Lwt_io.printl (Backtrace.to_string bt);%lwt
-      let headers = Cohttp.Header.of_list [cors] in
-      respond ~headers `Internal_server_error user_err
+      let resp_headers = Cohttp.Header.of_list [cors] in
+      respond ~resp_headers `Internal_server_error user_err
     in
 
 
@@ -383,7 +398,7 @@ let server () =
               | _ -> None)
       in
 
-      let handler headers =
+      let handler req_headers =
         let ip = get_ip_address ch in
         let uri = req |> CRequest.uri in
 
@@ -405,7 +420,7 @@ let server () =
           if String.is_prefix ~prefix:"/admin/" p
           then
             try
-              admin_handler ~host ~uri ~body ~stopper req headers
+              admin_handler ~host ~uri ~body ~stopper req req_headers
             with e -> handle_error ~include_internals:true e
           else
             user_page_handler ~host ~ip ~uri ~body req
