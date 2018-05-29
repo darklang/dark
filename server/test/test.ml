@@ -434,6 +434,7 @@ let suite =
 let () =
   Exn.initialize_module ();
   Printexc.record_backtrace true;
+  Migrations.init ();
   Account.init_testing ();
   let (suite, exit) =
     Junit_alcotest.run_and_report "suite" ["tests", suite] in
