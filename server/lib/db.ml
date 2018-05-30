@@ -1,64 +1,16 @@
 open Core
 
 module PG = Postgresql
+open Dbprim
 
-(* globals *)
-let rec rec_con depth =
-  try
-    let db = Config.postgres_settings in
-    let c = new PG.connection ~host:db.host ~dbname:db.dbname
-      ~user:db.user ~password:db.password ()  in
-    c#set_notice_processor (Log.infO "postgres");
-    c
-  with
-  | e ->
-      Log.infO "Couldn't connect to postgres, attempt " depth;
-      if depth < 10
-      then
-        (Unix.sleep 1;
-         rec_con (depth+1))
-      else
-        raise e
+(* ------------------------- *)
+(* Low-level API *)
+(* ------------------------- *)
 
+let escape = Dbprim.escape
+let escapea = Dbprim.escapea
 
-let conn = rec_con 0
-
-let escape (s: string) : string =
-  conn#escape_string s
-
-let escapea (s: string) : string =
-  conn#escape_bytea s
-
-
-(* Hex converter stolen from PGOcaml, with modifications because our
- * string does not start with "\\x" *)
-let is_hex_digit = function '0'..'9' | 'a'..'f' | 'A'..'F' -> true
-                                     | _ -> false
-
-let hex_val c =
-  let offset = match c with
-    | '0'..'9' -> 0x30
-    | 'a'..'f' -> 0x57
-    | 'A'..'F' -> 0x37
-    | _	       -> failwith "hex_val"
-  in Char.to_int c - offset
-
-(* Deserialiser for the new 'hex' format introduced in PostgreSQL 9.0. *)
-let bytea_of_string_hex str =
-  let len = String.length str in
-  let buf = Buffer.create ((len)/2) in
-  let i = ref 1 in
-  while !i < len do
-    let hi_nibble = str.[!i-1] in
-    let lo_nibble = str.[!i] in
-    i := !i+2;
-    if is_hex_digit hi_nibble && is_hex_digit lo_nibble
-    then begin
-      let byte = ((hex_val hi_nibble) lsl 4) + (hex_val lo_nibble) in
-      Buffer.add_char buf (Char.of_int_exn byte)
-    end
-  done;
-  Buffer.contents buf
+let conn = Dbconnection.conn
 
 let literal_of_uuid (u: Uuid.t) : string =
   "'" ^ Uuid.to_string u ^ "'::uuid"
@@ -100,6 +52,7 @@ let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
 let exists_via_sql ?(quiet=false) (sql: string) : bool =
   fetch_via_sql ~quiet sql = [["1"]]
 
+
 (* ------------------------- *)
 (* Postgres schemas (namespacing) *)
 (* ------------------------- *)
@@ -128,14 +81,42 @@ let run_sql_in_ns ?(quiet=false) ~host sql =
   let sql = in_ns ~host sql in
   run_sql ~quiet sql
 
+
+(* ------------------------- *)
+(* Schemas *)
+(* ------------------------- *)
 let create_namespace host : unit =
   Printf.sprintf
     "CREATE SCHEMA IF NOT EXISTS \"%s\""
     (ns_name host)
   |> run_sql
 
+let all_schemas () : string list =
+  "SELECT schema_name
+   FROM information_schema.schemata
+   WHERE schema_name LIKE 'dark\\_user\\_%%'"
+  |> fetch_via_sql ~quiet:true
+  |> List.concat
+  |> List.map ~f:(String.chop_prefix_exn ~prefix:"dark_user_")
+
+let delete_schema (host:string) : unit =
+  Printf.sprintf
+    "DROP SCHEMA IF EXISTS \"%s\" CASCADE;"
+    (ns_name host)
+  |> run_sql ~quiet:false
+
+let delete_underscore_testdata () : unit =
+  all_schemas ()
+  |> List.filter ~f:(String.is_prefix ~prefix:"test_")
+  |> List.iter ~f:delete_schema
+
+let delete_hyphen_testdata () : unit =
+  all_schemas ()
+  |> List.filter ~f:(String.is_prefix ~prefix:"test_")
+  |> List.iter ~f:delete_schema
+
 (* ------------------------- *)
-(* Serializing canvases *)
+(* Schemas *)
 (* ------------------------- *)
 let save_oplists (host: string) (digest: string) (data: string) : unit =
   let data = escapea data in
@@ -179,7 +160,7 @@ let all_oplists (digest: string) : string list =
   |> List.filter ~f:(fun h ->
       not (String.is_prefix ~prefix:"test-" h))
 
-let delete_test_oplists () : unit =
+let delete_hyphen_test_oplists () : unit =
   "DELETE FROM oplists
   WHERE host like 'test-%%'"
   |> run_sql ~quiet:false
@@ -190,35 +171,13 @@ let delete_underscore_test_oplists () : unit =
   WHERE host like 'test\\_%%'"
   |> run_sql ~quiet:false
 
-let all_schemas () : string list =
-  "SELECT schema_name
-   FROM information_schema.schemata
-   WHERE schema_name LIKE 'dark\\_user\\_%%'"
-  |> fetch_via_sql ~quiet:true
-  |> List.concat
-  |> List.map ~f:(String.chop_prefix_exn ~prefix:"dark_user_")
-
-let delete_schema (host:string) : unit =
-  Printf.sprintf
-    "DROP SCHEMA IF EXISTS \"%s\" CASCADE;"
-    (ns_name host)
-  |> run_sql ~quiet:false
-
-let delete_underscope_testdata () : unit =
-  all_schemas ()
-  |> List.filter ~f:(String.is_prefix ~prefix:"test_")
-  |> List.iter ~f:delete_schema
-
 
 
 let delete_testdata () : unit =
-  all_schemas ()
-  |> List.filter ~f:(String.is_prefix ~prefix:"test-")
-  |> List.iter ~f:delete_schema
-  ;
-  delete_test_oplists ();
+  delete_underscore_testdata ();
+  delete_hyphen_testdata ();
+  delete_hyphen_test_oplists ();
   delete_underscore_test_oplists ();
-  delete_test_oplists ()
 
 
 
