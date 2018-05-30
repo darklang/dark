@@ -50,8 +50,7 @@ let load_old (_, host, tlid, fnname, id) arglist =
   then
     fn
     |> Util.readjsonfile ~root ~conv:Dval.dval_of_yojson
-    (* only do enough to satisfy the interface for now *)
-    |> fun x -> Some (x, Time.now ())
+    |> fun x -> Some (x, Time.epoch)
   else None
 
 let store_new (canvas_id, _, tlid, fnname, id) arglist result =
