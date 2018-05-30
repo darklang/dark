@@ -23,3 +23,4 @@ val ns_name : host -> string
 
 (* Misc *)
 val delete_testdata : unit -> unit
+val literal_of_uuid : Uuid.t -> string

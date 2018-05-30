@@ -60,6 +60,9 @@ let bytea_of_string_hex str =
   done;
   Buffer.contents buf
 
+let literal_of_uuid (u: Uuid.t) : string =
+  "'" ^ Uuid.to_string u ^ "'::uuid"
+
 let run_sql ?(quiet=false) (sql: string) : unit =
   if quiet
   then ()
