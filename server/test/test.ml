@@ -53,7 +53,6 @@ let execute_ops (ops : Op.op list) : dval =
           |> List.hd_exn in
   let state = state_for c in
   Ast.execute state state.env h.ast
-  |> Log.pp ~f:Types.RuntimeT.show_dval "excute_ops result"
 
 
 let at_dval = AT.of_pp pp_dval

@@ -209,12 +209,10 @@ let charset (headers: (string * string) list)
   headers
   |> List.map ~f:(Tuple.T2.map_fst ~f:canonicalize)
   |> List.map ~f:(Tuple.T2.map_snd ~f:canonicalize)
-  |> Log.pp "headers"
   |> List.filter_map
     ~f:(function
         | ("content-type",v) ->
-          (match string_match ~regex:".*;\\s*charset=(.*)$" v |> Log.pp
-           "mtch" with
+          (match string_match ~regex:".*;\\s*charset=(.*)$" v with
            | Result.Ok (["utf-8"]) -> Some `Utf8
            | Result.Ok (["utf8"]) -> Some `Utf8
            | Result.Ok (["us-ascii"]) -> Some `Latin1 (* should work *)
