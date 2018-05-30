@@ -154,6 +154,41 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["HttpClient::plainTextContentType"]
+  ; ins = []
+  ; p = []
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+        | (_, []) ->
+          DObj (DvalMap.of_alist_exn
+                  [("Content-Type", DStr "text/plain; charset=utf-8")])
+        | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["HttpClient::htmlContentType"]
+  ; ins = []
+  ; p = []
+  ; r = TObj
+  ; d = ""
+  ; f = InProcess
+        (function
+        | (_, []) ->
+          DObj (DvalMap.of_alist_exn
+                  [("Content-Type", DStr "text/html; charset=utf-8")])
+        | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+
+
   { pns = ["HttpClient::basicAuth"]
   ; ins = []
   ; p = [par "username" TStr; par "password" TStr]
