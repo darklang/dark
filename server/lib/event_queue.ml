@@ -32,7 +32,6 @@ let unlock_jobs (dequeuer: int) ~status : unit =
 (* ------------------------- *)
 
 let wrap s = "'" ^ s ^ "'"
-let wrap_uuid u = "'" ^ Uuid.to_string u ^ "'::uuid"
 
 let finalize (dequeuer: int) ~status : unit =
   unlock_jobs ~status dequeuer
@@ -55,8 +54,8 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
   let column_values =
     [ "'new'"
     ; "NULL"
-    ; wrap_uuid state.canvas_id
-    ; wrap_uuid state.account_id
+    ; Db.literal_of_uuid state.canvas_id
+    ; Db.literal_of_uuid state.account_id
     ; wrap space
     ; wrap name
     ; wrap serialized_data
@@ -91,8 +90,8 @@ let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: strin
       LIMIT 1"
       (wrap space)
       (wrap name)
-      (wrap_uuid canvas)
-      (wrap_uuid account)
+      (Db.literal_of_uuid canvas)
+      (Db.literal_of_uuid account)
     |> Db.fetch_via_sql
     |> List.hd
   in

@@ -71,6 +71,18 @@ let handler ast =
                            ; types = { input = b ()
                                      ; output = b () }}})
 
+let daily_cron ast =
+  Op.SetHandler ( tlid
+                , {x=5;y=6}
+                , { tlid = tlid
+                  ; ast = ast
+                  ; spec = { module_ = f "CRON"
+                           ; name = f "test"
+                           ; modifier = f "Daily"
+                           ; types = { input = b ()
+                                     ; output = b () }}})
+
+
 let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
   let e =
     try
@@ -411,6 +423,31 @@ let t_hmac_signing _ =
       args in
   AT.check AT.string "hmac_signing_2" expected_header actual
 
+let t_cron_sanity () =
+  let add = fncall ("+", [v "5"; v "3"]) in
+  let h_op = daily_cron add in
+  let c = ops2c "test-cron_works" [h_op] in
+  let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
+  let should_run =
+    Cron.should_execute !c.id handler
+  in
+  AT.check AT.bool "should_run should be true" should_run true;
+  ()
+
+(* needs DB cleanup to work *)
+
+(* let t_cron_just_ran () = *)
+(*   let add = fncall ("+", [v "5"; v "3"]) in *)
+(*   let h_op = daily_cron add in *)
+(*   let c = ops2c "test-cron_works" [h_op] in *)
+(*   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in *)
+(*   Cron.record_execution !c.id handler; *)
+(*   let should_run = *)
+(*     Cron.should_execute !c.id handler *)
+(*   in *)
+(*   AT.check AT.bool "should_run should be false" should_run false; *)
+(*   () *)
+
 
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
@@ -428,6 +465,9 @@ let suite =
   ; "Good error when inserting badly", `Quick,
     t_inserting_object_to_missing_col_gives_good_error
   ; "Stdlib works", `Quick, t_stdlib_works
+  ; "Cron should run sanity", `Quick, t_cron_sanity
+    (* needs DB cleanup to work *)
+  (* ; "Cron just ran", `Quick, t_cron_just_ran *)
   ]
 
 let () =
