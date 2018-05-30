@@ -199,6 +199,33 @@ let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
   |> Option.value ~default:msg
 
+let charset (headers: (string * string) list)
+  : [> `Latin1 | `Other | `Utf8] =
+  let canonicalize s =
+    s
+    |> String.strip
+    |> String.lowercase
+  in
+  headers
+  |> List.map ~f:(Tuple.T2.map_fst ~f:canonicalize)
+  |> List.map ~f:(Tuple.T2.map_snd ~f:canonicalize)
+  |> Log.pp "headers"
+  |> List.filter_map
+    ~f:(function
+        | ("content-type",v) ->
+          (match string_match ~regex:".*;\\s*charset=(.*)$" v |> Log.pp
+           "mtch" with
+           | Result.Ok (["utf-8"]) -> Some `Utf8
+           | Result.Ok (["utf8"]) -> Some `Utf8
+           | Result.Ok (["us-ascii"]) -> Some `Latin1 (* should work *)
+           | Result.Ok (["iso-8859-1"]) -> Some `Latin1
+           | Result.Ok (["iso_8859-1"]) -> Some `Latin1
+           | Result.Ok (["latin1"]) -> Some `Latin1
+           | _ -> None)
+        | _ -> None)
+  |> List.hd
+  |> Option.value ~default:`Other
+
 
 let init () =
   (* Spawn creates lots of child processes. When they finish, the OS

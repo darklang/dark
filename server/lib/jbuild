@@ -42,6 +42,7 @@
                 session-postgresql-lwt
                 session-cohttp-lwt
                 threads
+                uutf
                 yojson
                 ))
   )

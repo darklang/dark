@@ -5,6 +5,26 @@ module C = Curl
 type verb = GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS [@@deriving show]
 type headers = string list [@@deriving show]
 
+(* Servers should default to ISO-8859-1 (aka Latin-1) if nothing
+ * provided. We ask for UTF-8, but might not get it. If we get
+ * ISO-8859-1 we can transcode it using Uutf. Uutf supports more recent
+ * unicode than camomile (10, vs 3.2). However, camomile supports many
+ * more transcoding formats. So we should default to Uutf, and fallback
+ * to camomile if needs be. *)
+let recode_latin1 (src:string) =
+  let recodebuf = Buffer.create 16384 in
+  let rec loop d e =
+    match Uutf.decode d with
+    | `Uchar _ as u -> ignore (Uutf.encode e u); loop d e
+    | `End -> ignore (Uutf.encode e `End)
+    | `Malformed _ -> ignore (Uutf.encode e (`Uchar Uutf.u_rep)); loop d e
+    | `Await -> assert false
+  in
+  let d = Uutf.decoder ~encoding:`ISO_8859_1 (`String src) in
+  let e = Uutf.encoder `UTF_8 (`Buffer recodebuf) in
+  loop d e;
+  Buffer.contents recodebuf
+
 let http_call (url: string) (query_params : (string * string list) list)
     (verb: verb) (headers: (string * string) list) (body: string)
   : (string * (string * string) list) =
@@ -49,6 +69,7 @@ let http_call (url: string) (query_params : (string * string list) list)
   (* headers *)
   let result_headers = ref [] in
   let headerfn (h: string) : int =
+      (* See comment bout responsebody below before changing this. *)
       let split = String.lsplit2 ~on:':' h in
       match split with
       | Some (l, r) ->
@@ -97,8 +118,22 @@ let http_call (url: string) (query_params : (string * string list) list)
       (* Actually do the request *)
       C.perform c;
 
+      (* If we get a redirect back, then we may see the content-type
+       * header twice. Fortunately, because we push headers to the front
+       * above, and take the first in Util.charset, we get the right
+       * answer. Whew. To do this correctly, we'd have to implement our
+       * own follow logic which would clear the header ref, which seems
+       * straightforward in theory but likely not practice.
+       * Alternatively, we could clear the headers ref when we receive a
+       * new `ok` header. *)
+      let responsebody =
+        if (Util.charset !result_headers = `Latin1)
+        then recode_latin1 (Buffer.contents responsebuf)
+        else Buffer.contents responsebuf
+      in
+
       let response =
-        (C.get_responsecode c, !errorbuf, Buffer.contents responsebuf)
+        (C.get_responsecode c, !errorbuf, responsebody)
       in
       C.cleanup c;
       response
