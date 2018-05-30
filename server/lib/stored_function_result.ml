@@ -97,8 +97,9 @@ let load_new (canvas_id, _, tlid, fnname, id) arglist
 let load_both (canvas_id, host, tlid, fnname, id) arglist =
   let old = load_old (canvas_id, host, tlid, fnname, id) arglist in
   let new_ = load_new (canvas_id, host, tlid, fnname, id) arglist in
-  Option.first_some old new_
+  Option.first_some new_ old
 
-
-let store = store_old
+(* Rather than write a migration, at some point we'll change to load_new
+ * and just forget the old ones. *)
+let store = store_new
 let load = load_both
