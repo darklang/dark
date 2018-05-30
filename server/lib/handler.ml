@@ -30,7 +30,12 @@ let is_complete (h: handler) : bool =
 let is_http (h: handler) : bool =
   match h.spec.module_ with
   | Filled (_, m) -> String.Caseless.equal "http" m
-  | _ -> true
+  | _ -> true (* default to true, because http is generally what we want *)
+
+let is_cron (h: handler) : bool =
+  match h.spec.module_ with
+  | Filled (_, m) -> String.Caseless.equal "cron" m
+  | _ -> false (* default to false, because http takes precedence *)
 
 let module_for (h: handler) : string option =
   match h.spec.module_ with

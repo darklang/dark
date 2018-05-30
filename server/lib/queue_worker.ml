@@ -28,8 +28,44 @@ let dequeue_and_evaluate_all () : string =
       ~f:(fun (endpoint, c) ->
           try
             (* iterate all queues *)
-            let queues = TL.bg_handlers !c.toplevels in
-            let results =
+            let crons, queues =
+              !c.toplevels
+              |> TL.bg_handlers
+              |> List.partition_tf ~f:Handler.is_cron
+            in
+            let cron_results =
+              List.filter_map crons
+               ~f:(fun cr ->
+                    try
+                      if Cron.should_execute !c.id cr
+                      then
+                        let dbs = TL.dbs !c.toplevels in
+                        let env = User_db.dbs_as_exe_env dbs in
+                        let state : RTT.exec_state =
+                              { ff = Feature_flag.generate ()
+                              ; tlid = cr.tlid
+                              ; host = !c.host
+                              ; user_fns = !c.user_functions
+                              ; account_id = !c.owner
+                              ; canvas_id = !c.id
+                              ; exe_fn_ids = []
+                              ; env = env
+                              ; dbs = dbs
+                              ; id = execution_id
+                              }
+                        in
+                        Cron.record_execution !c.id cr;
+                        let result = Handler.execute state cr in
+                        Some result
+                      else
+                        None
+                    with
+                    | e ->
+                      let bt = Backtrace.Exn.most_recent () in
+                      let _  = Rollbar.report e bt EventQueue in
+                      None)
+            in
+            let queue_results =
               List.filter_map queues
                 ~f:(fun q ->
                     let space = Handler.module_for_exn q in
@@ -68,6 +104,9 @@ let dequeue_and_evaluate_all () : string =
                           Event_queue.finish event);
                        Some result)
                   )
+            in
+            let results =
+              cron_results @ queue_results
             in
             Event_queue.finalize execution_id ~status:`OK;
             match results with
