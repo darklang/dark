@@ -157,7 +157,6 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
     (owner |> Uuid.to_string |> Db.escape)
     (Db.escape host)
   |> Db.fetch_via_sql ~quiet:false
-  |> Log.pp "fetching canvas id"
   |> List.concat
   |> List.hd_exn
   |> Uuid.of_string
