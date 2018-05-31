@@ -36,29 +36,11 @@ let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
   { c with user_functions = fns @ [user_fn] }
 
 let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
-  let tls, removed =
-    List.partition_map
-      ~f:(fun x -> if x.tlid <> tlid then `Fst x else `Snd x)
+  let tls =
+    List.filter
+      ~f:(fun x -> x.tlid <> tlid)
       c.toplevels
   in
-  let drop_table_for_db_tl_exn () =
-    let dbs = List.filter_map ~f:TL.as_db removed in
-    match dbs with
-    | [] -> ()
-    | db :: [] ->
-      (try
-         if User_db.db_locked db
-         then
-           Exception.client "Cannot delete DBs with data"
-         else
-           User_db.drop db
-       with
-       | e ->
-         ()
-      )
-    | oops -> Exception.internal "Multiple DBs with same tlid"
-  in
-  drop_table_for_db_tl_exn ();
   { c with toplevels = tls }
 
 let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) =
@@ -98,9 +80,6 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
       then Exception.client ("DB must have a name")
       else
         let db = User_db.create !c.host name tlid in
-        if do_db_ops
-        then
-          User_db.init_storage db;
         upsert_toplevel tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(User_db.add_col colid typeid) tlid
