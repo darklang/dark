@@ -108,7 +108,7 @@ fetch_by ~tables db (col: string) (dv: dval) : dval =
     (Dbp.table db.actual_name)
     (Dbp.col col)
     (Dbp.dval dv)
-  |> fetch_via_sql_in_ns ~host:db.host
+  |> fetch_via_sql
   |> List.map ~f:(to_obj tables names types)
   |> DList
 and
@@ -163,7 +163,7 @@ let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
     (Dbp.table db.actual_name)
     (key_names merged)
     (val_names merged)
-  |> run_sql_in_ns ~host:db.host;
+  |> run_sql;
   id
 and update ~tables db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
@@ -191,7 +191,7 @@ and update ~tables db (vals: dval_map) =
     (Dbp.table db.actual_name)
     sets
     (Dbp.dval id)
-  |> run_sql_in_ns ~host:db.host
+  |> run_sql
 and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
   let table_name =
@@ -222,7 +222,7 @@ let fetch_all ~tables (db: db) : dval =
     "SELECT %s FROM %s"
     (Dbp.cols names)
     (Dbp.table db.actual_name)
-  |> fetch_via_sql_in_ns ~host:db.host
+  |> fetch_via_sql
   |> List.map ~f:(to_obj tables names types)
   |> DList
 
@@ -233,37 +233,23 @@ let delete ~tables (db: db) (vals: dval_map) =
     WHERE id = %s"
     (Dbp.table db.actual_name)
     (Dbp.dval id)
-  |> run_sql_in_ns ~host:db.host
+  |> run_sql
 
 let delete_all ~tables (db: db) =
   Printf.sprintf
     "DELETE FROM %s"
     (Dbp.table db.actual_name)
-  |> run_sql_in_ns ~host:db.host
-
+  |> run_sql
 
 
 let count (db: db) =
   Printf.sprintf
     "SELECT COUNT(*) AS c FROM %s"
     (Dbp.table db.actual_name)
-  |> fetch_via_sql_in_ns ~host:db.host
+  |> fetch_via_sql
   |> List.hd_exn
   |> List.hd_exn
   |> int_of_string
-
-(* ------------------------- *)
-(* run all db and schema changes as migrations *)
-(* ------------------------- *)
-
-let initialize_migrations host : unit =
-  "CREATE TABLE IF NOT EXISTS
-     migrations
-     ( id BIGINT
-     , sql TEXT
-     , PRIMARY KEY (id))"
-  |> run_sql_in_ns ~host
-
 
 (* -------------------------
 (* SQL for DB *)
@@ -313,10 +299,8 @@ let db_locked (db: db) : bool =
     "SELECT n_live_tup
     FROM pg_catalog.pg_stat_all_tables
     WHERE relname = %s
-      AND schemaname = %s;
     "
     (Dbp.string db.actual_name)
-    (Dbp.string (ns_name db.host))
   |> fetch_via_sql
   |> (<>) [["0"]]
 
@@ -325,16 +309,11 @@ let unlocked (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
-    let host = db.host in
     let empties =
-      (Printf.sprintf
-        "SELECT relname, n_live_tup
-        FROM pg_catalog.pg_stat_all_tables
-        WHERE relname LIKE 'user_%%'
-          AND schemaname = %s;
-        "
-        (Dbp.string (ns_name host))
-      )
+      "SELECT relname, n_live_tup
+      FROM pg_catalog.pg_stat_all_tables
+      WHERE relname LIKE 'user_%%'
+      "
       |> fetch_via_sql
     in
     dbs

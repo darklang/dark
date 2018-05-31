@@ -6,7 +6,6 @@ open Types.RuntimeT
 val cols_for : DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
-val initialize_migrations : host -> unit
 val insert : tables:(DbT.db list) -> DbT.db -> dval_map -> Uuid.t
 val fetch_all : tables:(DbT.db list) -> DbT.db -> dval
 val fetch_by : tables:(DbT.db list) -> DbT.db -> string -> dval -> dval
