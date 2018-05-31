@@ -77,7 +77,7 @@ let dequeue_and_evaluate_all () : string =
                      | Some event ->
                        (match Handler.event_desc_for q with
                        | Some desc ->
-                         Stored_event.store_event endpoint desc event.value
+                         Stored_event.store_event !c.id endpoint desc event.value
                        | None -> ());
                        let dbs = TL.dbs !c.toplevels in
                        let dbs_env = User_db.dbs_as_exe_env (dbs) in

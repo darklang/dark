@@ -418,7 +418,7 @@ let create_environments (c: canvas) (host: string) :
     |> RTT.DvalMap.set ~key:"event" ~data:sample_event
   in
 
-  let descs = SE.list_events host in
+  let descs = SE.list_events c.id host in
   let match_desc h d : bool =
     let (space, path, modifier) = d in
     match Handler.event_desc_for h with
@@ -451,7 +451,7 @@ let create_environments (c: canvas) (host: string) :
          *)
         descs
         |> List.filter ~f:(match_desc h)
-        |> List.map ~f:(fun d -> (Some d, SE.load_events host d))
+        |> List.map ~f:(fun d -> (Some d, SE.load_events c.id host d))
         |> List.fold_left
              ~f:(fun acc (desc, events) ->
                 List.fold_left
@@ -494,7 +494,7 @@ let create_environments (c: canvas) (host: string) :
       ~f:(fun d ->
           not (List.exists (TL.handlers c.toplevels)
                  ~f:(fun h -> match_desc h d)))
-    |> List.map ~f:(fun d -> (d, SE.load_events host d))
+    |> List.map ~f:(fun d -> (d, SE.load_events c.id host d))
 
   in
 

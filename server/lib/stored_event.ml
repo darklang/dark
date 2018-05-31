@@ -2,6 +2,8 @@ open Core
 
 module RTT = Types.RuntimeT
 
+module Dbp = Dbprim
+
 type event_desc = string * string * string
                 [@@deriving show, yojson]
 type four_oh_four = (event_desc * Types.RuntimeT.dval list)
@@ -124,28 +126,90 @@ let save_data (host: string) (desc: event_desc) (dval : RTT.dval) =
   let filename = next_data_filename host desc in
   Util.writejsonfile ~root ~conv:Dval.dval_to_yojson ~value:dval filename
 
+(* ------------------------- *)
+(* New *)
+(* ------------------------- *)
+let store_event_new (canvas_id: Uuid.t) _  ((module_, path, modifier): event_desc) (event: RTT.dval) : unit =
+  Printf.sprintf
+    "INSERT INTO stored_events
+    (canvas_id, module, path, modifier, timestamp, value)
+    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, %s)"
+    (Dbp.uuid canvas_id)
+    (Dbp.string module_)
+    (Dbp.string path)
+    (Dbp.string modifier)
+    (Dbp.dvaljson event)
+  |> Db.run_sql
+
+let list_events_new (canvas_id: Uuid.t) _  : event_desc list =
+  Printf.sprintf
+    "SELECT module, path, modifier FROM stored_events
+     WHERE canvas_id = %s"
+    (Dbp.uuid canvas_id)
+  |> Db.fetch_via_sql
+  |> List.map ~f:(function
+      | [module_; path; modifier] -> (module_, path, modifier)
+      | _ -> Exception.internal "Bad DB format for stored_events")
+
+let load_events_new (canvas_id: Uuid.t) _ ((module_, path, modifier): event_desc) : RTT.dval list =
+  Printf.sprintf
+    "SELECT value, timestamp FROM stored_events
+    WHERE canvas_id = %s
+      AND module = %s
+      AND path = %s
+      AND modifier = %s"
+    (Dbp.uuid canvas_id)
+    (Dbp.string module_)
+    (Dbp.string path)
+    (Dbp.string modifier)
+  |> Db.fetch_via_sql
+  |> List.map ~f:(function
+      | [dval; _ts] -> Dval.dval_of_json_string dval
+      | _ -> Exception.internal "Bad DB format for stored_events")
+
+let clear_events_new (canvas_id: Uuid.t) _ : unit =
+   Printf.sprintf
+    "DELETE FROM stored_events
+     WHERE canvas_id = %s"
+    (Dbp.uuid canvas_id)
+  |> Db.run_sql
 
 
 (* ------------------------- *)
-(* Exported *)
+(* Old *)
 (* ------------------------- *)
 
-let store_event (host : string) (desc : event_desc) (event: RTT.dval)
+let store_event_old _ (host : string) (desc : event_desc) (event: RTT.dval)
   : unit =
   save_descriptor host desc;
   save_data host desc event;
   ()
 
-let list_events (host: string) : event_desc list =
+let list_events_old _ (host: string) : event_desc list =
   list_descriptors host
   |> List.map ~f:(read_descriptor host)
 
-let load_events (host: string) (desc : event_desc) : RTT.dval list =
+let load_events_old _ (host: string) (desc : event_desc) : RTT.dval list =
   read_data host desc
 
-let clear_events (host: string) : unit =
+let clear_events_old _ (host: string) : unit =
   Util.rmRF ~root host
 
+
+(* ------------------------- *)
+(* Both *)
+(* ------------------------- *)
+
+let list_events_both canvas (host: string) : event_desc list =
+  list_events_new canvas host @ list_events_old canvas host
+
+let load_events_both canvas (host: string) (desc : event_desc) : RTT.dval list =
+  load_events_new canvas host desc @ load_events_old canvas host desc
+
+let clear_events_both canvas (host: string) : unit =
+  clear_events_old canvas host;
+  clear_events_new canvas host;
+  ()
 
 let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Yojson.Safe.json =
   `List [ `String space
@@ -154,3 +218,7 @@ let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Y
         ; `List (List.map ~f:Dval.dval_to_yojson dvals)
         ]
 
+let store_event = store_event_new
+let load_events = load_events_both
+let list_events = list_events_both
+let clear_events = clear_events_both
