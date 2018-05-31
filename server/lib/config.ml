@@ -1,5 +1,9 @@
 open Core
 
+(* ------------------------- *)
+(* Root directories *)
+(* ------------------------- *)
+
 let run_dir : string =
   let dir = Sys.getenv_exn "DARK_CONFIG_RUN_DIR" in
   if not (Filename.is_absolute dir)
@@ -42,6 +46,9 @@ let serialization_dir: string =
 let completed_test_dir : string =
   run_dir ^ "completed_tests/"
 
+(* ------------------------- *)
+(* Important dirs *)
+(* ------------------------- *)
 let templates_dir : string =
   Sys.getenv "DARK_CONFIG_TEMPLATES_DIR"
   |> Option.value ~default:(server_dir ^ "templates")
@@ -67,7 +74,7 @@ let bin_root_dir : string =
   |> Option.value ~default:(server_dir ^ "_build/default/bin")
   |> fun x -> x ^ "/"
 
-let bin_scripts_dir : string =
+let __unused_bin_scripts_dir : string =
   Sys.getenv "DARK_CONFIG_SCRIPTS_DIR"
   |> Option.value ~default:"todo"
   |> fun x -> x ^ "/"
@@ -75,9 +82,8 @@ let bin_scripts_dir : string =
 
 
 (* -------------------- *)
-(* external *)
+(* For use in Util *)
 (* -------------------- *)
-
 type root = Events
           | Function_results
           | Log
@@ -91,7 +97,6 @@ type root = Events
           | Swagger
           | Migrations
           | No_check
-
 
 
 let dir root =
@@ -111,6 +116,9 @@ let dir root =
   | No_check -> ""
 
 
+(* ------------------------- *)
+(* Running the server *)
+(* ------------------------- *)
 let port : int =
   Sys.getenv "DARK_CONFIG_HTTP_PORT"
   |> Option.value ~default:"8000"
@@ -121,10 +129,19 @@ let allow_server_shutdown : bool =
   |> Option.value ~default:"N"
   |> (=) "Y"
 
+let __unused_trigger_queue_workers : bool =
+  Sys.getenv "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
+  |> Option.value ~default:"N"
+  |> (=) "Y"
+
+(* ------------------------- *)
+(* Logs *)
+(* ------------------------- *)
 let should_use_stackdriver_logging : bool =
   match Sys.getenv "DARK_CONFIG_LOGGING_FORMAT" with
   | Some format when String.lowercase format = "stackdriver" -> true
   | _ -> false
+
 
 let log_level : Log.level =
   let level = Sys.getenv "DARK_CONFIG_LOGLEVEL"
@@ -141,8 +158,13 @@ let log_level : Log.level =
   | "ALL" -> `All
   | _ -> `All
 
+
 let should_write_shape_data =
   Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
+
+(* ------------------------- *)
+(* Rollbar *)
+(* ------------------------- *)
 
 let rollbar_url =
   "https://api.rollbar.com/api/1/item/"
