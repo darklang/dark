@@ -97,25 +97,25 @@ let load_binary_from_db (host: string) : Op.oplist option =
 
 let deserialize_ordered
     (host : string)
-    (descs : ((string -> Op.oplist option) * bool) list)
-    : (bool * Op.oplist) =
+    (descs : (string -> Op.oplist option) list)
+    : Op.oplist =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
   let (result, errors) =
     List.fold descs ~init:(None, [])
-      ~f:(fun (prev, errors) (fn, rerun) ->
+      ~f:(fun (prev, errors) fn ->
           match prev with
           | Some r -> (prev, errors)
           | None ->
             (try
                match fn host with
-               | Some oplist -> (Some (rerun, oplist), errors)
+               | Some oplist -> (Some oplist, errors)
                | None -> (prev, errors)
              with
              | e -> (None, (errors @ [e])))) in
   match (result, errors) with
   | (Some r, _) -> r
-  | (None, []) -> (false, [])
+  | (None, []) -> []
   | (None, es) ->
     Log.erroR "deserialization" es;
     let msgs =
@@ -151,22 +151,51 @@ let load_deprecated_undo_json_from_disk =
         |> transform_lambda
       )
 
-let search_and_load (host: string) : (bool * Op.oplist) =
-  (* testfiles load and save from different places *)
+let search_and_load (host: string) : Op.oplist =
+  let load_deprecated_undo_json_from_disk =
+    load_preprocessed_json_from_disk
+      ~preprocess:(fun str ->
+          (* this mutates all lambdas in the source to
+           * the new format as of 53f3fb82
+           *
+           * Safe because there's no other way [ "var" ] can
+           * appear in the source (as of now).
+           *)
+          let transform_lambda s =
+            let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
+            Re2.Regex.replace
+              ~f:(fun _ ->
+                  Printf.sprintf
+                    "[ [\"Filled\", %i, \"var\"] ]"
+                    (Util.create_id ()))
+              regex
+              s
+            |> Result.ok
+            |> Option.value ~default:str
+          in
+          str
+          |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
+          |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
+          |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
+          |> transform_lambda
+        )
+  in
+
+  (* testfiles load and save from different directories *)
   if is_test host
   then
     (* when there are no oplists, read from disk. The test harnesses
      * clean up old oplists before running. *)
     deserialize_ordered host
-      [ (load_binary_from_db, false)
-      ; (load_json_from_disk ~root:Testdata, true)
+      [ load_binary_from_db
+      ; load_json_from_disk ~root:Testdata
       ]
   else
     let root = root_of host in
     deserialize_ordered host
-      [ (load_binary_from_db, false)
-      ; (load_json_from_db, false)
-      ; (load_json_from_disk ~root, false)
-      ; (load_deprecated_undo_json_from_disk ~root, false)
+      [ load_binary_from_db
+      ; load_json_from_db
+      ; load_json_from_disk ~root
+      ; load_deprecated_undo_json_from_disk ~root
       ]
 

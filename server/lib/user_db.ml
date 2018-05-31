@@ -301,18 +301,16 @@ let create (host:host) (name:string) (id: tlid) : db =
 let add_col colid typeid (db: db) =
   { db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
-let set_col_name id name (do_db_ops: bool) db =
+let set_col_name id name db =
   let set col =
     match col with
     | (Blank hid, tipe) when hid = id ->
       (Filled (hid, name), tipe)
     | _ -> col in
   let newcols = List.map ~f:set db.cols in
-  if db.cols = newcols && do_db_ops
-  then Exception.client "No change made to col type"
-  else { db with cols = newcols }
+  { db with cols = newcols }
 
-let change_col_name id name (do_db_ops: bool) db =
+let change_col_name id name db =
   let change col =
     match col with
     | (Filled (hid, oldname), Filled (tipeid, tipename)) when hid = id ->
@@ -320,18 +318,16 @@ let change_col_name id name (do_db_ops: bool) db =
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
-let set_col_type id tipe (do_db_ops: bool) db =
+let set_col_type id tipe  db =
   let set col =
     match col with
     | (name, Blank hid) when hid = id ->
       (name, Filled (hid, tipe))
     | _ -> col in
   let newcols = List.map ~f:set db.cols in
-  if db.cols = newcols && do_db_ops
-  then Exception.client "No change made to col type"
-  else { db with cols = newcols }
+  { db with cols = newcols }
 
-let change_col_type id newtipe (do_db_ops: bool) db =
+let change_col_type id newtipe db =
   let change col =
     match col with
     | (Filled (nameid, name), Filled (tipeid, oldtipe)) when tipeid = id ->
