@@ -39,13 +39,13 @@ let log_dir : string =
 let serialization_dir: string =
   server_dir ^ "serialization/"
 
+let completed_test_dir : string =
+  run_dir ^ "completed_tests/"
+
 let templates_dir : string =
   Sys.getenv "DARK_CONFIG_TEMPLATES_DIR"
   |> Option.value ~default:(server_dir ^ "templates")
   |> fun x -> x ^ "/"
-
-let completed_test_dir : string =
-  run_dir ^ "completed_tests/"
 
 let webroot_dir : string =
   Sys.getenv "DARK_CONFIG_WEBROOT_DIR"
@@ -62,11 +62,17 @@ let migrations_dir : string =
   |> Option.value ~default:(server_dir ^ "migrations")
   |> fun x -> x ^ "/"
 
-
 let bin_root_dir : string =
   Sys.getenv "DARK_CONFIG_BIN_ROOT_DIR"
   |> Option.value ~default:(server_dir ^ "_build/default/bin")
   |> fun x -> x ^ "/"
+
+let bin_scripts_dir : string =
+  Sys.getenv "DARK_CONFIG_SCRIPTS_DIR"
+  |> Option.value ~default:"todo"
+  |> fun x -> x ^ "/"
+
+
 
 (* -------------------- *)
 (* external *)
@@ -110,19 +116,15 @@ let port : int =
   |> Option.value ~default:"8000"
   |> int_of_string
 
-let should_use_stackdriver_logging : bool =
-  match Sys.getenv "DARK_CONFIG_LOGGING_FORMAT" with
-  | Some format when String.lowercase format = "stackdriver" -> true
-  | _ -> false
-
-
-
 let allow_server_shutdown : bool =
   Sys.getenv "DARK_CONFIG_ALLOW_SERVER_SHUTDOWN"
   |> Option.value ~default:"N"
   |> (=) "Y"
 
-
+let should_use_stackdriver_logging : bool =
+  match Sys.getenv "DARK_CONFIG_LOGGING_FORMAT" with
+  | Some format when String.lowercase format = "stackdriver" -> true
+  | _ -> false
 
 let log_level : Log.level =
   let level = Sys.getenv "DARK_CONFIG_LOGLEVEL"
