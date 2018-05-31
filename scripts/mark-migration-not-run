@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+./scripts/support/assert-in-container $0 $@
+
+NAME=$1
+
+psql -d proddb -c "DELETE FROM system_migrations WHERE name LIKE '%$NAME.sql';"
+
