@@ -111,7 +111,21 @@ def ocaml_test():
   start = time.time()
   ci = "--verbose" if os.environ.get("CI") else "--quick"
   rundir = os.environ.get("DARK_CONFIG_RUN_DIR")
-  return run_test(start, "unbuffer jbuilder build --root server test/test.exe && cd " + rundir + " && unbuffer ../server/_build/default/test/test.exe --show-errors " + ci + " 2>&1")
+  host = "DARK_CONFIG_DB_HOST=localhost"
+  dbname = "DARK_CONFIG_DB_DBNAME=testdb"
+  user = "DARK_CONFIG_DB_USER=dark"
+  password = "DARK_CONFIG_DB_PASSWORD=eapnsdc"
+  dbenv = host + " " + dbname + " " + user + " " + password
+  return run_test(start,
+          "unbuffer jbuilder build --root server test/test.exe"
+          + " && dropdb --if-exists testdb"
+          + " && createdb testdb"
+          + " && cd " + rundir
+          + " && " + dbenv
+          + " unbuffer ../server/_build/default/test/test.exe"
+          + " --show-errors "
+          + ci
+          + " 2>&1")
 
 def reload_server():
   start = time.time()
