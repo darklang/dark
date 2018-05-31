@@ -1,6 +1,8 @@
 open Core
 open Types
 
+module Dbp = Dbprim
+
 type username = string
 
 type account = { username: username
@@ -17,17 +19,17 @@ let upsert_account (account:account) : unit =
     "INSERT INTO accounts
     (id, username, name, email, admin, password)
     VALUES
-    ('%s'::uuid, '%s', '%s', '%s', false, '%s')
+    (%s, %s, %s, %s, false, %s)
     ON CONFLICT (username)
     DO UPDATE SET name = EXCLUDED.name,
                   email = EXCLUDED.email,
                   admin = false,
                   password = EXCLUDED.password"
-    (Uuid.create () |> Uuid.to_string)
-    (Db.escape account.username)
-    (Db.escape account.name)
-    (Db.escape account.email)
-    (Db.escape account.password)
+    (Dbp.uuid (Uuid.create ()))
+    (Dbp.string account.username)
+    (Dbp.string account.name)
+    (Dbp.string account.email)
+    (Dbp.string account.password)
   |> Db.run_sql
 
 let upsert_admin (account:account) : unit =
@@ -35,17 +37,17 @@ let upsert_admin (account:account) : unit =
     "INSERT INTO accounts as u
     (id, username, name, email, admin, password)
     VALUES
-    ('%s'::uuid, '%s', '%s', '%s', true, '%s')
+    (%s, %s, %s, %s, true, %s)
     ON CONFLICT (username)
     DO UPDATE SET name = EXCLUDED.name,
                   email = EXCLUDED.email,
                   admin = true,
                   password = EXCLUDED.password"
-    (Uuid.create () |> Uuid.to_string)
-    (Db.escape account.username)
-    (Db.escape account.name)
-    (Db.escape account.email)
-    (Db.escape account.password)
+    (Dbp.uuid (Uuid.create ()))
+    (Dbp.string account.username)
+    (Dbp.string account.name)
+    (Dbp.string account.email)
+    (Dbp.string account.password)
   |> Db.run_sql
 
 
@@ -56,18 +58,18 @@ let upsert_admin (account:account) : unit =
 let is_admin ~username : bool =
   Printf.sprintf
     "SELECT 1 from accounts
-     WHERE accounts.username = '%s'
-       AND accounts.admin = true "
-    (Db.escape username)
+     WHERE accounts.username = %s
+       AND accounts.admin = true"
+    (Dbp.string username)
   |> Db.exists_via_sql ~quiet:false
 
 let valid_user ~(username:username) ~(password:string) : bool =
   Printf.sprintf
     "SELECT 1 from accounts
-      WHERE accounts.username = '%s'
-        AND accounts.password = '%s'"
-    (Db.escape username)
-    (Db.escape password)
+      WHERE accounts.username = %s
+        AND accounts.password = %s"
+    (Dbp.string username)
+    (Dbp.string password)
   |> Db.exists_via_sql ~quiet:true
 
 
@@ -81,8 +83,8 @@ let authenticate ~(username:username) ~(password:string) : bool =
 let owner ~(auth_domain:string) : Uuid.t option =
   Printf.sprintf
     "SELECT id from accounts
-      WHERE accounts.username = '%s'"
-    (Db.escape (String.lowercase auth_domain))
+      WHERE accounts.username = %s"
+    (Dbp.string (String.lowercase auth_domain))
   |> Db.fetch_via_sql ~quiet:false
   |> List.concat
   |> List.hd

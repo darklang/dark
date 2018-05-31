@@ -18,10 +18,6 @@ val run_sql_in_ns : ?quiet: bool -> host:host -> string -> unit
 val fetch_via_sql_in_ns : ?quiet:bool -> host:host -> string -> string list list
 val ns_name : host -> string
 
-(* TODO: Remove these soon *)
-val escape : string -> string
-val escapea : string -> string
-
 (* Misc *)
 val delete_testdata : unit -> unit
 val literal_of_uuid : Uuid.t -> string
