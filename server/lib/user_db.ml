@@ -6,6 +6,8 @@ open Types.RuntimeT.DbT
 
 module RT = Runtime
 
+module Dbp = Dbprim
+
 open Db
 
 let find_db tables table_name : db =
@@ -13,68 +15,15 @@ let find_db tables table_name : db =
    | Some d -> d
    | None -> failwith ("table not found: " ^ table_name)
 
-(* ------------------------- *)
-(* SQL Type Conversions; here placed to avoid OCaml circular dep issues *)
-(* ------------------------- *)
-
-let rec cast_expression_for (dv : dval) : string option =
-  match dv with
-  | DID _ -> Some "uuid"
-  | DList l ->
-    l
-    |> List.filter_map ~f:cast_expression_for
-    |> List.hd
-    |> Option.map ~f:(fun cast -> cast ^ "[]")
-  | _ -> None
-
-let rec dval_to_sql ?quote:(quote="'") ?cast:(cast=true) (dv: dval) : string =
-  let literal =
-    match dv with
-    | DInt i -> string_of_int i
-    | DID i ->
-      quote ^ Uuid.to_string i ^ quote
-    | DBool b -> if b then "TRUE" else "FALSE"
-    | DChar c -> Char.to_string c
-    | DStr s -> quote ^ (escape s) ^ quote
-    | DFloat f -> string_of_float f
-    | DNull -> "NULL"
-    | DDate d ->
-      "TIMESTAMP WITH TIME ZONE "
-      ^ quote
-      ^ Dval.sqlstring_of_date d
-      ^ quote
-    | DList l ->
-      quote
-      ^ "{ "
-      ^ (String.concat ~sep:", " (List.map ~f:(dval_to_sql ~quote:"\"" ~cast:false) l))
-      ^ " }"
-      ^ quote
-    | _ -> Exception.client ("We don't know how to convert a " ^ Dval.tipename dv ^ " into the DB format")
-  in
-  match cast_expression_for dv with
-  | Some e when cast = true -> literal ^ "::" ^ e
-  | _ ->  literal
-
-let escape_col (keyname: string) : string =
-  keyname
-  |> escape
-  |> fun name -> "\"" ^ name ^ "\""
-
-let col_names names : string =
-  names
-  |> List.map ~f:escape_col
-  |> String.concat ~sep:", "
-
 let key_names (vals: dval_map) : string =
   vals
   |> DvalMap.keys
-  |> col_names
+  |> Dbp.cols
 
 let val_names (vals: dval_map) : string =
   vals
   |> DvalMap.data
-  |> List.map ~f:dval_to_sql
-  |> String.concat ~sep:", "
+  |> Dbp.dvals
 
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
@@ -153,10 +102,12 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
 and
 fetch_by ~tables db (col: string) (dv: dval) : dval =
   let (names, types) = cols_for db |> List.unzip in
-  let colnames = col_names names in
   Printf.sprintf
-    "SELECT %s FROM \"%s\" WHERE %s = %s"
-    colnames (escape db.actual_name) (escape_col col) (dval_to_sql dv)
+    "SELECT %s FROM %s WHERE %s = %s"
+    (Dbp.cols names)
+    (Dbp.table db.actual_name)
+    (Dbp.col col)
+    (Dbp.dval dv)
   |> fetch_via_sql_in_ns ~host:db.host
   |> List.map ~f:(to_obj tables names types)
   |> DList
@@ -170,52 +121,6 @@ to_obj tables (names : string list) (types: tipe list) (db_strings : string list
   |> List.zip_exn names
   |> Dval.to_dobj
 
-
-let rec sql_tipe_for (tipe: tipe) : string =
-  match tipe with
-  | TAny -> failwith "todo sql type"
-  | TInt -> "INT"
-  | TFloat -> "REAL"
-  | TBool -> "BOOLEAN"
-  | TNull -> failwith "todo sql type"
-  | TChar -> failwith "todo sql type"
-  | TStr -> "TEXT"
-  | TList -> failwith "todo sql type"
-  | TObj -> failwith "todo sql type"
-  | TIncomplete -> failwith "todo sql type"
-  | TError -> failwith "todo sql type"
-  | TBlock -> failwith "todo sql type"
-  | TResp -> failwith "todo sql type"
-  | TDB -> failwith "todo sql type"
-  | TID | TBelongsTo _ -> "UUID"
-  | THasMany _ -> "uuid ARRAY"
-  | TDate -> "TIMESTAMP WITH TIME ZONE"
-  | TTitle -> "TEXT"
-  | TUrl -> "TEXT"
-  | TDbList t -> (sql_tipe_for t) ^ " ARRAY"
-
-let default_for (tipe: tipe) : string =
-  match tipe with
-  | TAny -> failwith "todo sql type"
-  | TInt -> "0"
-  | TFloat -> "0.0"
-  | TBool -> "FALSE"
-  | TNull -> failwith "todo sql type"
-  | TChar -> failwith "todo sql type"
-  | TStr -> "''"
-  | TList -> failwith "todo sql type"
-  | TObj -> failwith "todo sql type"
-  | TIncomplete -> failwith "todo sql type"
-  | TError -> failwith "todo sql type"
-  | TBlock -> failwith "todo sql type"
-  | TResp -> failwith "todo sql type"
-  | TDB -> failwith "todo sql type"
-  | TID | TBelongsTo _ -> "'00000000-0000-0000-0000-000000000000'::uuid"
-  | THasMany _ -> "'{}'"
-  | TDate -> "CURRENT_TIMESTAMP"
-  | TTitle -> "''"
-  | TUrl -> "''"
-  | TDbList _ -> "'{}'"
 
 (* ------------------------- *)
 (* frontend stuff *)
@@ -251,11 +156,15 @@ let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
   let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
   (* merge the maps *)
   let merged = Util.merge_left normal obj_id_map in
-  let _ = Printf.sprintf "INSERT into \"%s\" (%s) VALUES (%s)"
-      (escape db.actual_name) (key_names merged) (val_names merged)
-          |> run_sql_in_ns ~host:db.host
-  in
-    id
+  Printf.sprintf
+    "INSERT into %s
+     (%s)
+     VALUES (%s)"
+    (Dbp.table db.actual_name)
+    (key_names merged)
+    (val_names merged)
+  |> run_sql_in_ns ~host:db.host;
+  id
 and update ~tables db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   (* split out complex objects *)
@@ -270,10 +179,18 @@ and update ~tables db (vals: dval_map) =
   let sets = merged
            |> DvalMap.to_alist
            |> List.map ~f:(fun (k,v) ->
-               (escape_col k) ^ " = " ^ dval_to_sql v)
+               Printf.sprintf
+                 "%s = %s"
+                 (Dbp.col k)
+                 (Dbp.dval v))
            |> String.concat ~sep:", " in
-  Printf.sprintf "UPDATE \"%s\" SET %s WHERE id = %s"
-    (escape db.actual_name) sets (dval_to_sql id)
+  Printf.sprintf
+    "UPDATE %s
+    SET %s
+    WHERE id = %s"
+    (Dbp.table db.actual_name)
+    sets
+    (Dbp.dval id)
   |> run_sql_in_ns ~host:db.host
 and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
@@ -301,30 +218,35 @@ and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
 
 let fetch_all ~tables (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
-  let colnames = col_names names in
   Printf.sprintf
-    "SELECT %s FROM \"%s\""
-    colnames (escape db.actual_name)
+    "SELECT %s FROM %s"
+    (Dbp.cols names)
+    (Dbp.table db.actual_name)
   |> fetch_via_sql_in_ns ~host:db.host
   |> List.map ~f:(to_obj tables names types)
   |> DList
 
 let delete ~tables (db: db) (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
-  Printf.sprintf "DELETE FROM \"%s\" WHERE id = %s"
-    (escape db.actual_name) (dval_to_sql id)
+  Printf.sprintf
+    "DELETE FROM %s
+    WHERE id = %s"
+    (Dbp.table db.actual_name)
+    (Dbp.dval id)
   |> run_sql_in_ns ~host:db.host
 
 let delete_all ~tables (db: db) =
-  Printf.sprintf "DELETE FROM \"%s\""
-    (escape db.actual_name)
+  Printf.sprintf
+    "DELETE FROM %s"
+    (Dbp.table db.actual_name)
   |> run_sql_in_ns ~host:db.host
 
 
 
 let count (db: db) =
-  Printf.sprintf "SELECT COUNT(*) AS c FROM \"%s\""
-    (escape db.actual_name)
+  Printf.sprintf
+    "SELECT COUNT(*) AS c FROM %s"
+    (Dbp.table db.actual_name)
   |> fetch_via_sql_in_ns ~host:db.host
   |> List.hd_exn
   |> List.hd_exn
@@ -349,15 +271,18 @@ let run_migration (host: string) (id: id) (sql:string) : unit =
     "DO
        $do$
          BEGIN
-           IF ((SELECT COUNT(*) FROM migrations WHERE id = %d) = 0)
+           IF ((SELECT COUNT(*) FROM migrations WHERE id = %s) = 0)
            THEN
              %s;
              INSERT INTO migrations (id, sql)
-               VALUES (%d, (quote_literal('%s')));
+             VALUES (%s, %s);
            END IF;
          END
        $do$"
-    id sql id (escape sql)
+    (Dbp.id id)
+    sql
+    (Dbp.id id)
+    (Dbp.sql sql)
   |> run_sql_in_ns ~host
 
 (* -------------------------
@@ -368,23 +293,34 @@ let run_migration (host: string) (id: id) (sql:string) : unit =
 
 let create_table_sql (table_name: string) =
   Printf.sprintf
-    "CREATE TABLE IF NOT EXISTS \"%s\" (id UUID PRIMARY KEY)"
-    (escape table_name)
+    "CREATE TABLE IF NOT EXISTS %s
+    (id UUID PRIMARY KEY)"
+    (Dbp.table table_name)
 
-let add_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
+let add_col_sql (table_name: string) (colname: string) (tipe: tipe) : string =
   Printf.sprintf
-    "ALTER TABLE \"%s\" ADD COLUMN \"%s\" %s NOT NULL DEFAULT %s"
-    (escape table_name) (escape name) (sql_tipe_for tipe) (default_for tipe)
+    "ALTER TABLE %s
+     ADD COLUMN %s %s NOT NULL DEFAULT %s"
+    (Dbp.table table_name)
+    (Dbp.col colname)
+    (Dbp.tipe tipe)
+    (Dbp.tipe_default tipe)
 
 let rename_col_sql (table_name: string) (oldname: string) (newname: string) : string =
   Printf.sprintf
-    "ALTER TABLE \"%s\" RENAME \"%s\" TO \"%s\""
-    (escape table_name) (escape oldname) (escape newname)
+    "ALTER TABLE %s
+     RENAME %s TO %s"
+    (Dbp.table table_name)
+    (Dbp.col oldname)
+    (Dbp.col newname)
 
 let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
   Printf.sprintf
-    "ALTER TABLE \"%s\" ALTER COLUMN \"%s\" TYPE %s"
-    (escape table_name) (escape name) (sql_tipe_for tipe)
+    "ALTER TABLE %s
+     ALTER COLUMN %s TYPE %s"
+    (Dbp.table table_name)
+    (Dbp.col name)
+    (Dbp.tipe tipe)
 
 
 
@@ -399,11 +335,11 @@ let db_locked (db: db) : bool =
   Printf.sprintf
     "SELECT n_live_tup
     FROM pg_catalog.pg_stat_all_tables
-    WHERE relname = '%s'
-      AND schemaname = '%s';
+    WHERE relname = %s
+      AND schemaname = %s;
     "
-    (escape db.actual_name)
-    (escape (ns_name db.host))
+    (Dbp.string db.actual_name)
+    (Dbp.string (ns_name db.host))
   |> fetch_via_sql
   |> (<>) [["0"]]
 
@@ -418,9 +354,9 @@ let unlocked (dbs: db list) : db list =
         "SELECT relname, n_live_tup
         FROM pg_catalog.pg_stat_all_tables
         WHERE relname LIKE 'user_%%'
-          AND schemaname = '%s';
+          AND schemaname = %s;
         "
-        (escape (ns_name host))
+        (Dbp.string (ns_name host))
       )
       |> fetch_via_sql
     in
@@ -440,8 +376,9 @@ let drop (db: db) =
       db.actual_name
     |> Exception.internal
   else
-    Printf.sprintf "DROP TABLE IF EXISTS \"%s\""
-      (escape db.actual_name)
+    Printf.sprintf
+      "DROP TABLE IF EXISTS %s"
+      (Dbp.table db.actual_name)
     |> run_sql_in_ns ~host:db.host
 
 (* ------------------------- *)

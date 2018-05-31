@@ -1,16 +1,14 @@
 open Core
 
 module PG = Postgresql
-open Dbprim
+module Dbp = Dbprim
 
 (* ------------------------- *)
 (* Low-level API *)
 (* ------------------------- *)
 
-let escape = Dbprim.escape
-let escapea = Dbprim.escapea
-
 let conn = Dbconnection.conn
+let escape = conn#escape_string
 
 let literal_of_uuid (u: Uuid.t) : string =
   "'" ^ Uuid.to_string u ^ "'::uuid"
@@ -65,12 +63,10 @@ let ns_name host : string =
  * transaction, but every pg query uses autocommit by default in pg
  * >9.5, so we're good. *)
 let in_ns ~(host:string) (sql: string) : string =
-  let ns = ns_name host in
   Printf.sprintf
-    " SET LOCAL search_path TO \"%s\";
-       %s;
-     "
-    ns
+    "SET LOCAL search_path TO \"%s\";
+     %s;"
+    (ns_name host)
     sql
 
 let fetch_via_sql_in_ns ?(quiet=false) ~host sql =
@@ -119,15 +115,16 @@ let delete_hyphen_testdata () : unit =
 (* Schemas *)
 (* ------------------------- *)
 let save_oplists (host: string) (digest: string) (data: string) : unit =
-  let data = escapea data in
+  let data = Dbp.binary data in
   Printf.sprintf
     (* this is an upsert *)
     "INSERT INTO oplists
-    (host, digest, data) VALUES ('%s', '%s', '%s')
+    (host, digest, data)
+    VALUES (%s, %s, %s)
     ON CONFLICT (host, digest) DO UPDATE
-    SET data = '%s';"
-    (escape host)
-    digest
+    SET data = %s;"
+    (Dbp.host host)
+    (Dbp.string digest)
     data
     data
   |> run_sql ~quiet:true
@@ -142,19 +139,21 @@ let load_oplists (host: string) (digest: string) : string option =
    * as well, which is approx twice as slow. *)
   Printf.sprintf
     "SELECT encode(data, 'hex') FROM oplists
-     WHERE host = '%s'
-     AND digest = '%s';"
-    (escape host)
-    digest
+     WHERE host = %s
+     AND digest = %s;"
+    (Dbp.host host)
+    (Dbp.string digest)
   |> fetch_via_sql ~quiet:true
   |> List.hd
   |> Option.value_map ~default:None ~f:List.hd
-  |> Option.map ~f:bytea_of_string_hex
+  |> Option.map ~f:Dbp.binary_to_string
 
 let all_oplists (digest: string) : string list =
-  "SELECT host
-  FROM oplists
-  WHERE digest = '%s'"
+  Printf.sprintf
+    "SELECT host
+    FROM oplists
+    WHERE digest = '%s'"
+    (Dbp.string digest)
   |> fetch_via_sql ~quiet:true
   |> List.concat
   |> List.filter ~f:(fun h ->
