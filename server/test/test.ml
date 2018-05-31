@@ -20,7 +20,6 @@ let tlid = 7
 let pos = {x=0;y=0}
 
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
-  Db.delete_testdata ();
   C.init host ops
 
 let state_for (c:Canvas.canvas ref) =

@@ -141,11 +141,6 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
   |> List.hd_exn
   |> Uuid.of_string
 
-let initialize_host (host:string) : unit =
-  Log.infO "Initializing host" host;
-  Db.create_namespace host;
-  User_db.initialize_migrations host
-
 let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
   let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
   let newpairs = List.map ~f:(fun o -> (o, true)) newops in
@@ -182,9 +177,6 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
          | Some owner -> owner
          | None -> Exception.client ("No Canvas found for host " ^ host)
   in
-
-  if oldops = [] || run_old_db_ops
-  then initialize_host host;
 
   let id = fetch_canvas_id owner host in
   let c =
