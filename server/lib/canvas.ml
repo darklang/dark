@@ -66,10 +66,7 @@ let apply_to_db ~(f:(RTT.DbT.db -> RTT.DbT.db)) (tlid: tlid) (c:canvas) : canvas
 (* Build *)
 (* ------------------------- *)
 
-let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
-  (* uncomment if you've cleared the DB for an existing canvas and want
-   * to rebuild it *)
-  (* let do_db_ops = true in *)
+let apply_op (op : Op.op) (c : canvas ref) : unit =
   c :=
     !c |>
     match op with
@@ -84,13 +81,13 @@ let apply_op (op : Op.op) (do_db_ops: bool) (c : canvas ref) : unit =
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(User_db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
-      apply_to_db ~f:(User_db.set_col_name id name do_db_ops) tlid
+      apply_to_db ~f:(User_db.set_col_name id name) tlid
     | ChangeDBColName (tlid, id, name) ->
-      apply_to_db ~f:(User_db.change_col_name id name do_db_ops) tlid
+      apply_to_db ~f:(User_db.change_col_name id name) tlid
     | SetDBColType (tlid, id, tipe) ->
-      apply_to_db ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
+      apply_to_db ~f:(User_db.set_col_type id (Dval.tipe_of_string tipe)) tlid
     | ChangeDBColType (tlid, id, tipe) ->
-      apply_to_db ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe) do_db_ops) tlid
+      apply_to_db ~f:(User_db.change_col_type id (Dval.tipe_of_string tipe)) tlid
     | InitDBMigration (tlid, id, rbid, rfid, kind) ->
       apply_to_db ~f:(User_db.initialize_migration id rbid rfid kind) tlid
     | SetExpr (tlid, id, e) ->
@@ -141,19 +138,15 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
   |> List.hd_exn
   |> Uuid.of_string
 
-let add_ops (c: canvas ref) ?(run_old_db_ops=false) (oldops: Op.op list) (newops: Op.op list) : unit =
-  let oldpairs = List.map ~f:(fun o -> (o, run_old_db_ops)) oldops in
-  let newpairs = List.map ~f:(fun o -> (o, true)) newops in
-  let reduced_ops = Undo.preprocess (oldpairs @ newpairs) in
-  List.iter ~f:(fun (op, do_db_ops) -> apply_op op do_db_ops c) reduced_ops;
+let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
+  let reduced_ops = Undo.preprocess (oldops @ newops) in
+  List.iter ~f:(fun op -> apply_op op c) reduced_ops;
   c := { !c with ops = oldops @ newops }
 
 let minimize (c : canvas) : canvas =
   let ops =
     c.ops
-    |> List.map ~f:(fun op -> (op, false))
     |> Undo.preprocess
-    |> List.map ~f:Tuple.T2.get1
     |> List.filter ~f:Op.has_effect
   in { c with ops = ops }
 
@@ -162,10 +155,10 @@ let minimize (c : canvas) : canvas =
 (* Serialization *)
 (* ------------------------- *)
 let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
-  let (run_old_db_ops, oldops) =
+  let oldops =
     if load
     then Serialize.search_and_load host
-    else false, []
+    else []
   in
 
   let owner =
@@ -188,7 +181,7 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
         ; user_functions = []
         }
   in
-  add_ops ~run_old_db_ops c oldops newops;
+  add_ops c oldops newops;
   c
 
 let load = create ~load:true
@@ -479,6 +472,4 @@ let create_environments (c: canvas) (host: string) :
    * later *)
   let envs = RTT.EnvMap.set tls_map 0 [default_env] in
   (envs, unused_descs)
-
-
 
