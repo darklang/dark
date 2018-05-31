@@ -75,7 +75,7 @@ let host = string
 
 let sql s =
   (* not sure about this but it was working before *)
-  Printf.sprintf "(quote_literal('%s'))" s
+  Printf.sprintf "'%s'" (escape s)
 
 (* ------------------------- *)
 (* Dvals *)
