@@ -251,44 +251,6 @@ let count (db: db) =
   |> List.hd_exn
   |> int_of_string
 
-(* -------------------------
-(* SQL for DB *)
- * TODO: all of the SQL here is very very easily SQL injectable.
- * This MUST be fixed before we go to production
- * ------------------------- *)
-
-let create_table_sql (table_name: string) =
-  Printf.sprintf
-    "CREATE TABLE IF NOT EXISTS %s
-    (id UUID PRIMARY KEY)"
-    (Dbp.table table_name)
-
-let add_col_sql (table_name: string) (colname: string) (tipe: tipe) : string =
-  Printf.sprintf
-    "ALTER TABLE %s
-     ADD COLUMN %s %s NOT NULL DEFAULT %s"
-    (Dbp.table table_name)
-    (Dbp.col colname)
-    (Dbp.tipe tipe)
-    (Dbp.tipe_default tipe)
-
-let rename_col_sql (table_name: string) (oldname: string) (newname: string) : string =
-  Printf.sprintf
-    "ALTER TABLE %s
-     RENAME %s TO %s"
-    (Dbp.table table_name)
-    (Dbp.col oldname)
-    (Dbp.col newname)
-
-let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
-  Printf.sprintf
-    "ALTER TABLE %s
-     ALTER COLUMN %s TYPE %s"
-    (Dbp.table table_name)
-    (Dbp.col name)
-    (Dbp.tipe tipe)
-
-
 
 (* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
