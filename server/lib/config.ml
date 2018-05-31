@@ -211,25 +211,16 @@ type postgres_config = { host: string
                        ; password: string
                        }
 
-let default_pg = { host = "localhost"
-                 ; dbname = "proddb"
-                 ; user = "dark"
-                 ; password = "eapnsdc"
-                 }
-
-
-
 let postgres_settings : postgres_config =
   let host = Sys.getenv "DARK_CONFIG_DB_HOST" in
   let dbname = Sys.getenv "DARK_CONFIG_DB_DBNAME" in
   let user = Sys.getenv "DARK_CONFIG_DB_USER" in
   let password = Sys.getenv "DARK_CONFIG_DB_PASSWORD" in
   match (host, dbname, user, password) with
-  | (None, None, None, None) -> default_pg
   | (Some host, Some dbname, Some user, Some password) ->
     { host = host
     ; dbname = dbname
     ; user = user
     ; password = password
     }
-  | _ -> failwith "Inconsistent DB setup, so refusing to start. Either set all DB configs, or none."
+  | _ -> failwith "Mission DB config options"
