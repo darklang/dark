@@ -3,6 +3,8 @@ open Core
 open Types
 module RTT = Types.RuntimeT
 
+module Dbp = Dbprim
+
 (* ------------------------- *)
 (* Internal *)
 (* ------------------------- *)
@@ -58,13 +60,13 @@ let store_new (canvas_id, _, tlid, fnname, id) arglist result =
     Printf.sprintf
       "INSERT INTO function_results
       (canvas_id, tlid, fnname, id, hash, timestamp, value)
-      VALUES ('%s'::uuid, %d, '%s', %d, '%s', CURRENT_TIMESTAMP, '%s')"
-      (Db.escape (Uuid.to_string canvas_id))
-      tlid
-      (Db.escape fnname)
-      id
-      (Db.escape (hash arglist))
-      (Db.escape (Dval.dval_to_json_string result))
+      VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s)"
+      (Dbp.uuid canvas_id)
+      (Dbp.tlid tlid)
+      (Dbp.string fnname)
+      (Dbp.id id)
+      (Dbp.string (hash arglist))
+      (Dbp.dvaljson result)
   in
   Db.run_sql sql
 
@@ -74,16 +76,16 @@ let load_new (canvas_id, _, tlid, fnname, id) arglist
     Printf.sprintf
       "SELECT value, timestamp
       FROM function_results
-      WHERE canvas_id = '%s'::uuid
-        AND tlid = %d
-        AND fnname = '%s'
-        AND id = %d
-        AND hash = '%s'"
-      (Db.escape (Uuid.to_string canvas_id))
-      tlid
-      (Db.escape fnname)
-      id
-      (Db.escape (hash arglist))
+      WHERE canvas_id = %s
+        AND tlid = %s
+        AND fnname = %s
+        AND id = %s
+        AND hash = %s"
+      (Dbp.uuid canvas_id)
+      (Dbp.tlid tlid)
+      (Dbp.string fnname)
+      (Dbp.id id)
+      (Dbp.string (hash arglist))
   in
   sql
   |> Db.fetch_via_sql

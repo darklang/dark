@@ -1,5 +1,7 @@
 open Core
 
+module Dbp = Dbprim
+
 let is_initialized () =
   let sql = "SELECT 1
              FROM pg_class
@@ -21,8 +23,8 @@ let initialize_migrations_table () =
 let is_already_run (name) : bool =
   Printf.sprintf
     "SELECT 1 from system_migrations
-     WHERE name = '%s'"
-    (Db.escape name )
+     WHERE name = %s"
+    (Dbp.string name)
   |> Db.exists_via_sql ~quiet:true
 
 
@@ -39,14 +41,14 @@ let run_system_migration (name: string) (sql:string) : unit =
              INSERT INTO system_migrations
              (name, execution_date, sql)
              VALUES
-             ('%s', CURRENT_TIMESTAMP, (quote_literal('%s')));
+             ('%s', CURRENT_TIMESTAMP, %s);
            END IF;
          END
        $do$"
-    (Db.escape name)
+    (Dbp.string name)
     sql
-    (Db.escape name)
-    (Db.escape sql)
+    (Dbp.string name)
+    (Dbp.sql sql)
 
   |> Db.run_sql ~quiet:false
 
