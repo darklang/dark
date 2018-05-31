@@ -265,26 +265,6 @@ let initialize_migrations host : unit =
   |> run_sql_in_ns ~host
 
 
-let run_migration (host: string) (id: id) (sql:string) : unit =
-  Log.infO "migration" sql;
-  Printf.sprintf
-    "DO
-       $do$
-         BEGIN
-           IF ((SELECT COUNT(*) FROM migrations WHERE id = %s) = 0)
-           THEN
-             %s;
-             INSERT INTO migrations (id, sql)
-             VALUES (%s, %s);
-           END IF;
-         END
-       $do$"
-    (Dbp.id id)
-    sql
-    (Dbp.id id)
-    (Dbp.sql sql)
-  |> run_sql_in_ns ~host
-
 (* -------------------------
 (* SQL for DB *)
  * TODO: all of the SQL here is very very easily SQL injectable.
@@ -328,9 +308,6 @@ let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 
-let schema_qualified (db: db) =
-  ns_name (db.host) ^ "." ^ db.actual_name
-
 let db_locked (db: db) : bool =
   Printf.sprintf
     "SELECT n_live_tup
@@ -365,22 +342,6 @@ let unlocked (dbs: db list) : db list =
       ~f:(fun db ->
           List.mem ~equal:(=) empties [db.actual_name; "0"])
 
-(* TODO(ian): make single query *)
-let drop (db: db) =
-  if db_locked db
-   && not (String.is_substring ~substring:"conduit" db.host)
-   && not (String.is_substring ~substring:"onecalendar" db.host)
-  then
-    Printf.sprintf
-      "Attempted to drop table %s, but it has data"
-      db.actual_name
-    |> Exception.internal
-  else
-    Printf.sprintf
-      "DROP TABLE IF EXISTS %s"
-      (Dbp.table db.actual_name)
-    |> run_sql_in_ns ~host:db.host
-
 (* ------------------------- *)
 (* DB schema *)
 (* ------------------------- *)
@@ -396,23 +357,6 @@ let create (host:host) (name:string) (id: tlid) : db =
   ; active_migration = None
   }
 
-let init_storage (db: db) =
-  run_migration db.host db.tlid (create_table_sql db.actual_name)
-
-(* we only add this when it is complete, and we use the ID to mark the
-   migration table to know whether it's been done before. *)
-let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col =
-  if do_db_ops
-  then
-    (match col with
-    | Filled (_, name), Filled (_, tipe) ->
-      run_migration db.host id (add_col_sql db.actual_name name tipe)
-    | _ ->
-      ())
-  else ();
-  col
-
-
 let add_col colid typeid (db: db) =
   { db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
@@ -420,7 +364,7 @@ let set_col_name id name (do_db_ops: bool) db =
   let set col =
     match col with
     | (Blank hid, tipe) when hid = id ->
-        maybe_add_to_actual_db db id (Filled (hid, name), tipe) do_db_ops
+      (Filled (hid, name), tipe)
     | _ -> col in
   let newcols = List.map ~f:set db.cols in
   if db.cols = newcols && do_db_ops
@@ -430,32 +374,16 @@ let set_col_name id name (do_db_ops: bool) db =
 let change_col_name id name (do_db_ops: bool) db =
   let change col =
     match col with
-    | (Filled (hid, oldname), Filled (tipeid, tipename))
-      when hid = id ->
-      if do_db_ops
-      then
-        if db_locked db
-        then
-          (* change_col_name is called every time we build the canvas
-           * (eg every API call).  However, db_locked is an transitory
-           * state - so only fail if we're really trying to execute the
-           * change, rather than just building the canvas. *)
-          Exception.client ("Can't edit a locked DB: " ^ db.display_name)
-        else
-          run_migration db.host id
-            (rename_col_sql db.actual_name oldname name)
-      else ();
+    | (Filled (hid, oldname), Filled (tipeid, tipename)) when hid = id ->
       (Filled (hid, name), Filled (tipeid, tipename))
-
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
-
 
 let set_col_type id tipe (do_db_ops: bool) db =
   let set col =
     match col with
     | (name, Blank hid) when hid = id ->
-        maybe_add_to_actual_db db id (name, Filled (hid, tipe)) do_db_ops
+      (name, Filled (hid, tipe))
     | _ -> col in
   let newcols = List.map ~f:set db.cols in
   if db.cols = newcols && do_db_ops
@@ -465,23 +393,8 @@ let set_col_type id tipe (do_db_ops: bool) db =
 let change_col_type id newtipe (do_db_ops: bool) db =
   let change col =
     match col with
-    | (Filled (nameid, name), Filled (tipeid, oldtipe))
-      when tipeid = id ->
-      if do_db_ops
-      then
-        if db_locked db
-        then
-          (* change_col_name is called every time we build the canvas
-           * (eg every API call).  However, db_locked is an transitory
-           * state - so only fail if we're really trying to execute the
-           * change, rather than just building the canvas. *)
-          Exception.client ("Can't edit a locked DB: " ^ db.display_name)
-        else
-          run_migration db.host id
-            (retype_col_sql db.actual_name name newtipe)
-      else ();
+    | (Filled (nameid, name), Filled (tipeid, oldtipe)) when tipeid = id ->
       (Filled (nameid, name), Filled (tipeid, newtipe))
-
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
@@ -501,5 +414,4 @@ let initialize_migration id rbid rfid kind (db : db) =
       }
     in
     { db with active_migration = Some new_migration }
-
 
