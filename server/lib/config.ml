@@ -1,84 +1,85 @@
 open Core
 
 (* ------------------------- *)
+(* Envvar parsers *)
+(* ------------------------- *)
+let absolute_dir name : string =
+  let dir = Sys.getenv_exn name in
+  if not (Filename.is_absolute dir)
+  then failwith ("FAIL: " ^ name ^ " is not absolute")
+  else dir ^ "/"
+
+let int name : int =
+  Sys.getenv_exn name
+  |> int_of_string
+
+let bool name : bool =
+  let v = Sys.getenv_exn name in
+  match v with
+  | "y" -> true
+  | "n" -> false
+  | _ ->
+    failwith ("Invalid env var value for "
+              ^ name
+              ^ "="
+              ^ v
+              ^ ". Allowed values are 'n' and 'y'.")
+
+let lowercase name v =
+  if v = String.lowercase v
+  then v
+  else
+    failwith ("Env vars must be lowercased but "
+              ^ name
+              ^ "="
+              ^ v
+              ^ " is not")
+
+let string name : string =
+  Sys.getenv_exn name
+  |> lowercase name
+
+let string_option name (options: string list) : string =
+  let v = Sys.getenv_exn name |> lowercase name in
+  if List.mem ~equal:(=) options v
+  then v
+  else
+    failwith ("Envvar is not a valid option: '"
+              ^ name
+              ^ "' not in ["
+              ^ (String.concat ~sep:", " options)
+              ^ " is not")
+
+let password name : string =
+  Sys.getenv_exn name
+
+
+(* ------------------------- *)
 (* Root directories *)
 (* ------------------------- *)
 
-let run_dir : string =
-  let dir = Sys.getenv_exn "DARK_CONFIG_RUN_DIR" in
-  if not (Filename.is_absolute dir)
-  then failwith "FAIL: DARK_CONFIG_RUN_DIR is not absolute"
-  else dir ^ "/"
+let run_dir = absolute_dir "DARK_CONFIG_RUN_DIR"
+let persist_dir = absolute_dir "DARK_CONFIG_PERSIST_DIR"
+let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 
-let persist_dir : string =
-  let dir = Sys.getenv_exn "DARK_CONFIG_PERSIST_DIR" in
-  if not (Filename.is_absolute dir)
-  then failwith "FAIL: DARK_CONFIG_PERSIST_DIR is not absolute"
-  else dir ^ "/"
-
-let root_dir : string =
-  let dir = Sys.getenv_exn "DARK_CONFIG_ROOT_DIR" in
-  if not (Filename.is_absolute dir)
-  then failwith "FAIL: DARK_CONFIG_ROOT_DIR is not absolute"
-  else dir ^ "/"
-
-let server_dir : string =
-  root_dir ^ "server/"
-
-let appdata_dir : string =
-  persist_dir ^ "appdata/"
-
-let testdata_dir : string =
-  server_dir ^ "test_appdata/"
-
-let events_dir : string =
-  persist_dir ^ "events/"
-
-let function_results_dir : string =
-  persist_dir ^ "function_results/"
-
-let log_dir : string =
-  run_dir ^ "logs/"
-
-let serialization_dir: string =
-  server_dir ^ "serialization/"
-
-let completed_test_dir : string =
-  run_dir ^ "completed_tests/"
+let server_dir = root_dir ^ "server/"
+let appdata_dir = persist_dir ^ "appdata/"
+let testdata_dir = server_dir ^ "test_appdata/"
+let events_dir = persist_dir ^ "events/"
+let function_results_dir = persist_dir ^ "function_results/"
+let log_dir = run_dir ^ "logs/"
+let serialization_dir = server_dir ^ "serialization/"
+let completed_test_dir = run_dir ^ "completed_tests/"
 
 (* ------------------------- *)
-(* Important dirs *)
+(* Configurable dirs *)
 (* ------------------------- *)
-let templates_dir : string =
-  Sys.getenv "DARK_CONFIG_TEMPLATES_DIR"
-  |> Option.value ~default:(server_dir ^ "templates")
-  |> fun x -> x ^ "/"
-
-let webroot_dir : string =
-  Sys.getenv "DARK_CONFIG_WEBROOT_DIR"
-  |> Option.value ~default:server_dir
-  |> fun x -> x ^ "/"
-
-let swagger_dir : string =
-  Sys.getenv "DARK_CONFIG_SWAGGER_DIR"
-  |> Option.value ~default:(server_dir ^ "swagger")
-  |> fun x -> x ^ "/"
-
-let migrations_dir : string =
-  Sys.getenv "DARK_CONFIG_MIGRATIONS_DIR"
-  |> Option.value ~default:(server_dir ^ "migrations")
-  |> fun x -> x ^ "/"
-
-let bin_root_dir : string =
-  Sys.getenv "DARK_CONFIG_BIN_ROOT_DIR"
-  |> Option.value ~default:(server_dir ^ "_build/default/bin")
-  |> fun x -> x ^ "/"
-
-let __unused_bin_scripts_dir : string =
-  Sys.getenv "DARK_CONFIG_SCRIPTS_DIR"
-  |> Option.value ~default:"todo"
-  |> fun x -> x ^ "/"
-
+let templates_dir = absolute_dir "DARK_CONFIG_TEMPLATES_DIR"
+let webroot_dir = absolute_dir "DARK_CONFIG_WEBROOT_DIR"
+let swagger_dir = absolute_dir "DARK_CONFIG_SWAGGER_DIR"
+let migrations_dir = absolute_dir "DARK_CONFIG_MIGRATIONS_DIR"
+let bin_root_dir = absolute_dir "DARK_CONFIG_BIN_ROOT_DIR"
+let __unused_bin_scripts_dir = absolute_dir "DARK_CONFIG_SCRIPTS_DIR"
 
 
 (* -------------------- *)
@@ -119,44 +120,35 @@ let dir root =
 (* ------------------------- *)
 (* Running the server *)
 (* ------------------------- *)
-let port : int =
-  Sys.getenv "DARK_CONFIG_HTTP_PORT"
-  |> Option.value ~default:"8000"
-  |> int_of_string
+let port = int "DARK_CONFIG_HTTP_PORT"
 
-let allow_server_shutdown : bool =
-  Sys.getenv "DARK_CONFIG_ALLOW_SERVER_SHUTDOWN"
-  |> Option.value ~default:"N"
-  |> (=) "Y"
-
-let __unused_trigger_queue_workers : bool =
-  Sys.getenv "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
-  |> Option.value ~default:"N"
-  |> (=) "Y"
+let allow_server_shutdown = bool "DARK_CONFIG_ALLOW_SERVER_SHUTDOWN"
+let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let should_use_stackdriver_logging : bool =
-  match Sys.getenv "DARK_CONFIG_LOGGING_FORMAT" with
-  | Some format when String.lowercase format = "stackdriver" -> true
-  | _ -> false
+let logging_driver =
+  string_option "DARK_CONFIG_LOGGING_FORMAT" ["stackdriver"; "regular"]
 
+let should_use_stackdriver_logging : bool =
+  logging_driver = "stackdriver"
 
 let log_level : Log.level =
-  let level = Sys.getenv "DARK_CONFIG_LOGLEVEL"
-              |> Option.value ~default:"all"
-              |> String.uppercase
+  let level =
+    string_option
+      "DARK_CONFIG_LOGLEVEL"
+      ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
   in
   match level with
-  | "OFF" -> `Off
-  | "FATAL" -> `Fatal
-  | "ERROR" -> `Error
-  | "WARN" -> `Warn
-  | "INFO" -> `Info
-  | "DEBUG" -> `Debug
-  | "ALL" -> `All
-  | _ -> `All
+  | "off" -> `Off
+  | "fatal" -> `Fatal
+  | "error" -> `Error
+  | "warn" -> `Warn
+  | "info" -> `Info
+  | "debug" -> `Debug
+  | "all" -> `All
+  | _ -> failwith "Envvars should have failed before now in loglevel"
 
 
 let should_write_shape_data =
@@ -169,25 +161,17 @@ let should_write_shape_data =
 let rollbar_url =
   "https://api.rollbar.com/api/1/item/"
 
-let rollbar_enabled =
-  Sys.getenv "DARK_CONFIG_ROLLBAR_ENABLED"
-  |> Option.value ~default:"N"
-  |> String.uppercase
-  |> (=) "Y"
-
-let rollbar_environment =
-  Sys.getenv "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
-  |> Option.value ~default:"development"
-  |> String.lowercase
-
+let rollbar_enabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
+let rollbar_environment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 let rollbar_client_access_token =
-  Sys.getenv "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM"
+  (* This is what the rollbar UI calls it *)
+  match string "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
+  | "none" -> None
+  | item -> Some item
 
 let rollbar_server_access_token =
-  let tok = Sys.getenv "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM" in
-  if rollbar_enabled
-  then Option.value_exn tok
-  else Option.value ~default:"unused" tok
+  (* This is what the rollbar UI calls it *)
+  string "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
 
 let rollbar_js =
   match rollbar_client_access_token with
@@ -211,16 +195,14 @@ type postgres_config = { host: string
                        ; password: string
                        }
 
+let pghost = string "DARK_CONFIG_DB_HOST"
+let pgdbname = string "DARK_CONFIG_DB_DBNAME"
+let pguser = string "DARK_CONFIG_DB_USER"
+let pgpassword = password "DARK_CONFIG_DB_PASSWORD"
+
 let postgres_settings : postgres_config =
-  let host = Sys.getenv "DARK_CONFIG_DB_HOST" in
-  let dbname = Sys.getenv "DARK_CONFIG_DB_DBNAME" in
-  let user = Sys.getenv "DARK_CONFIG_DB_USER" in
-  let password = Sys.getenv "DARK_CONFIG_DB_PASSWORD" in
-  match (host, dbname, user, password) with
-  | (Some host, Some dbname, Some user, Some password) ->
-    { host = host
-    ; dbname = dbname
-    ; user = user
-    ; password = password
-    }
-  | _ -> failwith "Mission DB config options"
+  { host = pghost
+  ; dbname = pgdbname
+  ; user = pguser
+  ; password = pgpassword
+  }
