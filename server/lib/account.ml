@@ -96,9 +96,15 @@ let auth_domain_for host : string =
   | _ -> host
 
 
-
+let init_testing () : unit =
+  upsert_account
+    { username = "test"
+    ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; email = "test@darklang.com"
+    ; name = "Dark OCaml Tests"}
 
 let init () : unit =
+  init_testing ();
   upsert_admin
     { username = "ian"
     ; password = "look"
@@ -164,12 +170,5 @@ let init () : unit =
     ; password = "jas902ksd]23dl49v"
     ; email = "ops@darklang.com"
     ; name = "Dark Single Instance"};
-
   ()
 
-let init_testing () : unit =
-  upsert_account
-    { username = "test"
-    ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
-    ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"};
