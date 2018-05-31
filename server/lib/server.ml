@@ -92,7 +92,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     options_handler !c req
   | [] ->
     let input = PReq.from_request req body in
-    Stored_event.store_event host ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
+    Stored_event.store_event !c.id host ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers `Not_found "404: No page matches"
   | [page] ->
@@ -109,7 +109,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
        *    b) use the input url params in the analysis for this handler
        *)
       let desc = (m, Uri.path uri, mo) in
-      Stored_event.store_event host desc (PReq.to_dval input)
+      Stored_event.store_event !c.id host desc (PReq.to_dval input)
     | _-> ());
     let env = Util.merge_left bound dbs_env in
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
