@@ -35,13 +35,13 @@ let run_system_migration (name: string) (sql:string) : unit =
          BEGIN
            IF ((SELECT COUNT(*)
                 FROM system_migrations
-                WHERE name = '%s') = 0)
+                WHERE name = %s) = 0)
            THEN
              %s;
              INSERT INTO system_migrations
              (name, execution_date, sql)
              VALUES
-             ('%s', CURRENT_TIMESTAMP, %s);
+             (%s, CURRENT_TIMESTAMP, %s);
            END IF;
          END
        $do$"
