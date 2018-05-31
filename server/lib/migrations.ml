@@ -50,7 +50,7 @@ let run_system_migration (name: string) (sql:string) : unit =
     (Dbp.string name)
     (Dbp.sql sql)
 
-  |> Db.run_sql ~quiet:false
+  |> Db.run_sql ~quiet:true
 
 let names () =
   Util.lsdir ~root:Migrations ""
