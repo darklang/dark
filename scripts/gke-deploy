@@ -5,8 +5,13 @@ set -euo pipefail
 
 set -x
 
+IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
+IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
+
+gcloud container clusters get-credentials darkcluster0
+
 # env vars
 kubectl create configmap gke-dark-prod --from-env-file config/gcp-prod -o yaml --dry-run | kubectl replace -f -
 
 # deploy
-kubectl apply -f builtwithdark.yaml
+kubectl apply -f scripts/support/builtwithdark.yaml
