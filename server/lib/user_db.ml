@@ -10,6 +10,17 @@ module Dbp = Dbprim
 
 open Db
 
+let user_data_table = "user_data"
+
+(* bump this if you make a breaking change to
+ * the underlying data format, and are migrating
+ * user data to the new version
+ *
+ * ! you should definitely notify the entire engineering
+ * ! team about this
+ *)
+let current_dark_version = 0
+
 let find_db tables table_name : db =
   match List.find ~f:(fun (d : db) -> d.display_name = String.capitalize table_name) tables with
    | Some d -> d
@@ -228,60 +239,86 @@ let fetch_all ~tables (db: db) : dval =
 
 let delete ~tables (db: db) (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
+  (* covered by composite PK index *)
   Printf.sprintf
-    "DELETE FROM %s
-    WHERE id = %s"
-    (Dbp.table db.actual_name)
+    "DELETE
+     FROM %s
+     WHERE id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
     (Dbp.dval id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
   |> run_sql
 
 let delete_all ~tables (db: db) =
+  (* covered by idx_user_data_current_data_for_tlid *)
   Printf.sprintf
-    "DELETE FROM %s"
-    (Dbp.table db.actual_name)
+    "DELETE
+     FROM %s
+     WHERE table_tlid = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
   |> run_sql
 
-
 let count (db: db) =
+  (* covered by idx_user_data_current_data_for_tlid *)
   Printf.sprintf
-    "SELECT COUNT(*) AS c FROM %s"
-    (Dbp.table db.actual_name)
+    "SELECT COUNT(*) AS c
+     FROM %s
+     WHERE table_tlid = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
   |> fetch_via_sql
   |> List.hd_exn
   |> List.hd_exn
   |> int_of_string
-
 
 (* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 
 let db_locked (db: db) : bool =
-  Printf.sprintf
-    "SELECT n_live_tup
-    FROM pg_catalog.pg_stat_all_tables
-    WHERE relname = %s
-    "
-    (Dbp.string db.actual_name)
-  |> fetch_via_sql
-  |> (<>) [["0"]]
-
+  (count db) <> 0
 
 let unlocked (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
     let empties =
-      "SELECT relname, n_live_tup
-      FROM pg_catalog.pg_stat_all_tables
-      WHERE relname LIKE 'user_%%'
-      "
+      (* covered by idx_user_data_current_data_for_tlid
+       *
+       * this is a little non-obvious, but this query
+       * is the reason the index is ordered as
+       * (user_version, dark_version, table_tlid)
+       * as the `WHERE` is executed before the GROUP BY
+       * and this allows the index to cover the full query
+       * *)
+      Printf.sprintf
+        "SELECT table_tlid
+         FROM %s
+         WHERE user_version = %s
+         AND dark_version = %s
+         GROUP BY table_tlid
+         HAVING COUNT(*) = 0"
+        (Dbp.table user_data_table)
+        (Dbp.int db.version)
+        (Dbp.int current_dark_version)
       |> fetch_via_sql
     in
     dbs
     |> List.filter
       ~f:(fun db ->
-          List.mem ~equal:(=) empties [db.actual_name; "0"])
+          List.mem ~equal:(=) empties [db.tlid |> string_of_int])
 
 (* ------------------------- *)
 (* DB schema *)
