@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: builtwithdark
+spec:
+  selector:
+    matchLabels:
+      app: builtwithdark
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: builtwithdark
+    spec:
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: gke-dark-prod
+          name: builtwithdark
+          image: "gcr.io/balmy-ground-195100/dark-prod:e35274e571ec"
+          ports:
+            - name: backend
+              containerPort: 80
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: builtwithdark
+spec:
+  selector:
+    app: builtwithdark
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: backend
+  type: LoadBalancer
+
+
+
