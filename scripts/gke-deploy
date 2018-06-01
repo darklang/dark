@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+./scripts/support/assert-in-container $0
+
+set -x
+
+# env vars
+kubectl create configmap gke-dark-prod --from-env-file config/gcp-prod -o yaml --dry-run | kubectl replace -f -
+
+# deploy
+kubectl apply -f builtwithdark.yaml
