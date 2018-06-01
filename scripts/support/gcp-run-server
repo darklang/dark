@@ -2,14 +2,19 @@
 
 set -euo pipefail
 
+if [[ -v DARK_CONFIG_RUNNING_IN_GKE ]]; then
+  sudo mkdir -p $DARK_CONFIG_RUN_DIR
+  sudo mkdir -p $DARK_CONFIG_PERSIST_DIR
+fi
+
 sudo chown dark $DARK_CONFIG_RUN_DIR
 sudo chown dark $DARK_CONFIG_PERSIST_DIR
 
 ./scripts/support/setup-for-dev
 ./scripts/support/write-config-file
 ./scripts/support/create-app-directories
-./scripts/support/start-background-services cron 
-./scripts/support/wait-for-background-services cron 
+./scripts/support/start-background-services cron
+./scripts/support/wait-for-background-services cron
 
 echo "Starting server"
 sudo --preserve-env ./bin/main.exe
