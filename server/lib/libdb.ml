@@ -14,7 +14,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj value; DDB db]) ->
-            let id = User_db.insert state.dbs db value in
+            let id = User_db.insert state db value in
             DObj (Map.set value "id" (DID id))
           | (_, args) -> fail args)
   ; pr = None
@@ -30,7 +30,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj vals; DDB db]) ->
-            User_db.delete state.dbs db vals;
+            User_db.delete state db vals;
             DNull
           | (_, args) -> fail args)
   ; pr = None
@@ -47,7 +47,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            User_db.delete_all state.dbs db;
+            User_db.delete_all state db;
             DNull
           | (_, args) -> fail args)
   ; pr = None
@@ -65,7 +65,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj vals; DDB db]) ->
-            User_db.update state.dbs db vals;
+            User_db.update state db vals;
             DObj vals
           | (_, args) -> fail args)
   ; pr = None
@@ -81,7 +81,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
-            User_db.fetch_by state.dbs db field value
+            User_db.fetch_by state db field value
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -96,7 +96,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
-            let result = User_db.fetch_by state.dbs db field value in
+            let result = User_db.fetch_by state db field value in
             (match result with
              | DList (x :: xs) -> x
                (* TODO(ian): Maybe/Option *)
@@ -115,7 +115,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            User_db.fetch_all state.dbs db
+            User_db.fetch_all state db
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true

@@ -6,12 +6,12 @@ open Types.RuntimeT
 val cols_for : DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
-val insert : tables:(DbT.db list) -> DbT.db -> dval_map -> Uuid.t
-val fetch_all : tables:(DbT.db list) -> DbT.db -> dval
-val fetch_by : tables:(DbT.db list) -> DbT.db -> string -> dval -> dval
-val delete : tables:(DbT.db list) -> DbT.db -> dval_map -> unit
-val delete_all : tables:(DbT.db list) -> DbT.db -> unit
-val update : tables:(DbT.db list) -> DbT.db -> dval_map -> unit
+val insert : exec_state -> DbT.db -> dval_map -> Uuid.t
+val fetch_all : exec_state -> DbT.db -> dval
+val fetch_by : exec_state -> DbT.db -> string -> dval -> dval
+val delete : exec_state -> DbT.db -> dval_map -> unit
+val delete_all : exec_state -> DbT.db -> unit
+val update : exec_state -> DbT.db -> dval_map -> unit
 val count : DbT.db -> int
 
 (* DB schema modifications *)

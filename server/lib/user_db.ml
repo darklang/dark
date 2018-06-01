@@ -22,9 +22,10 @@ let user_data_table = "user_data"
 let current_dark_version = 0
 
 let find_db tables table_name : db =
-  match List.find ~f:(fun (d : db) -> d.display_name = String.capitalize table_name) tables with
-   | Some d -> d
-   | None -> failwith ("table not found: " ^ table_name)
+  tables
+  |> List.find
+    ~f:(fun (d : db) -> d.display_name = String.capitalize table_name)
+  |> Option.value_exn ~message:("table not found " ^ table_name)
 
 let key_names (vals: dval_map) : string =
   vals
@@ -51,7 +52,7 @@ let cols_for (db: db) : (string * tipe) list =
 (*
  * Dear god, OCaml this is the worst
  * *)
-let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
+let rec sql_to_dval exec_state (tipe: tipe) (sql: string) : dval =
   match tipe with
   | TID -> sql |> Uuid.of_string |> DID
   | TInt -> sql |> int_of_string |> DInt
@@ -71,8 +72,8 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
   | TBelongsTo table ->
     (* fetch here for now *)
     let id = sql |> Uuid.of_string |> DID in
-    let db = find_db tables table in
-    (match (fetch_by ~tables db "id" id) with
+    let db = find_db exec_state.dbs table in
+    (match (fetch_by exec_state db "id" id) with
      | DList (a :: _) -> a
      | DList _ -> DNull
      | _ -> failwith "should never happen, fetch_by returns a DList")
@@ -91,11 +92,11 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
         split
         |> List.map ~f:(fun s -> s |> String.strip |> Uuid.of_string |> DID)
     in
-    let db = find_db tables table in
+    let db = find_db exec_state.dbs table in
     (* TODO(ian): fix the N+1 here *)
     List.map
       ~f:(fun i ->
-          (match (fetch_by ~tables db "id" i) with
+          (match (fetch_by exec_state db "id" i) with
            | DList l -> List.hd_exn l
            | _ -> failwith "should never happen, fetch_by returns a DList")
         ) ids
@@ -106,29 +107,36 @@ let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
     |> fun s -> String.drop_suffix s 1
     |> fun s -> String.split s ~on:','
     |> List.filter ~f:(fun s -> not (String.is_empty s))
-    |> List.map ~f:(fun v -> sql_to_dval tables tipe v)
+    |> List.map ~f:(fun v -> sql_to_dval exec_state tipe v)
     |> DList
   | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
                    (Dval.tipe_to_string tipe))
 and
-fetch_by ~tables db (col: string) (dv: dval) : dval =
+fetch_by exec_state db (col: string) (dv: dval) : dval =
   let (names, types) = cols_for db |> List.unzip in
   Printf.sprintf
-    "SELECT %s FROM %s WHERE %s = %s"
-    (Dbp.cols names)
-    (Dbp.table db.actual_name)
+    "SELECT id, data
+     FROM %s
+     WHERE table_tlid = %s
+     AND user_version = %s
+     AND dark_version = %s
+     AND data->>%s = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
     (Dbp.col col)
     (Dbp.dval dv)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj tables names types)
+  |> List.map ~f:(to_obj exec_state names types)
   |> DList
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-to_obj tables (names : string list) (types: tipe list) (db_strings : string list)
+to_obj exec_state (names : string list) (types: tipe list) (db_strings : string list)
   : dval =
   db_strings
-  |> List.map2_exn ~f:(sql_to_dval tables) types
+  |> List.map2_exn ~f:(sql_to_dval exec_state) types
   |> List.zip_exn names
   |> Dval.to_dobj
 
@@ -154,7 +162,7 @@ let is_relation (valu: dval) : bool =
     List.for_all ~f:Dval.is_obj l
   | _ -> false
 
-let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
+let rec insert exec_state (db: db) (vals: dval_map) : Uuid.t =
   let id = Uuid.create () in
   let vals = DvalMap.set ~key:"id" ~data:(DID id) vals in
   (* split out complex objects *)
@@ -164,7 +172,7 @@ let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
   in
   let cols = cols_for db in
   (* insert complex objects into their own table, return the inserted ids *)
-  let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
+  let obj_id_map = Map.mapi ~f:(upsert_dependent_object exec_state cols) objs in
   (* merge the maps *)
   let merged = Util.merge_left normal obj_id_map in
   Printf.sprintf
@@ -176,7 +184,7 @@ let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
     (val_names merged)
   |> run_sql;
   id
-and update ~tables db (vals: dval_map) =
+and update exec_state db (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   (* split out complex objects *)
   let objs, normal =
@@ -185,7 +193,7 @@ and update ~tables db (vals: dval_map) =
   in
   let cols = cols_for db in
   (* update complex objects *)
-  let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
+  let obj_id_map = Map.mapi ~f:(upsert_dependent_object exec_state cols) objs in
   let merged = Util.merge_left normal obj_id_map in
   let sets = merged
            |> DvalMap.to_alist
@@ -203,7 +211,7 @@ and update ~tables db (vals: dval_map) =
     sets
     (Dbp.dval id)
   |> run_sql
-and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
+and upsert_dependent_object exec_state cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
   let table_name =
     let (cname, ctype) =
@@ -217,27 +225,37 @@ and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
     | TBelongsTo t | THasMany t -> t
     | _ -> failwith ("Expected TBelongsTo/THasMany, got: " ^ (show_tipe_ ctype))
   in
-  let db_obj = find_db tables table_name in
+  let db_obj = find_db exec_state table_name in
   match obj with
   | DObj m ->
     (match DvalMap.find m "id" with
-     | Some existing -> update ~tables db_obj m; existing
-     | None -> insert ~tables db_obj m |> DID)
+     | Some existing -> update exec_state db_obj m; existing
+     | None -> insert exec_state db_obj m |> DID)
   | DList l ->
-    List.map ~f:(fun x -> upsert_dependent_object tables cols ~key:relation ~data:x) l |> DList
+    List.map ~f:(fun x -> upsert_dependent_object exec_state cols ~key:relation ~data:x) l |> DList
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
 
-let fetch_all ~tables (db: db) : dval =
+let fetch_all exec_state (db: db) : dval =
   let (names, types) = cols_for db |> List.unzip in
   Printf.sprintf
-    "SELECT %s FROM %s"
-    (Dbp.cols names)
-    (Dbp.table db.actual_name)
+    "SELECT id, data
+     FROM %s
+     WHERE table_tlid = %s
+     AND account_id = %s
+     AND canvas_id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.uuid exec_state.account_id)
+    (Dbp.uuid exec_state.canvas_id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj tables names types)
+  |> List.map ~f:(to_obj exec_state names types)
   |> DList
 
-let delete ~tables (db: db) (vals: dval_map) =
+let delete exec_state (db: db) (vals: dval_map) =
   let id = DvalMap.find_exn vals "id" in
   (* covered by composite PK index *)
   Printf.sprintf
@@ -252,16 +270,20 @@ let delete ~tables (db: db) (vals: dval_map) =
     (Dbp.int current_dark_version)
   |> run_sql
 
-let delete_all ~tables (db: db) =
+let delete_all exec_state (db: db) =
   (* covered by idx_user_data_current_data_for_tlid *)
   Printf.sprintf
     "DELETE
      FROM %s
      WHERE table_tlid = %s
+     AND account_id = %s
+     AND canvas_id = %s
      AND user_version = %s
      AND dark_version = %s"
     (Dbp.table user_data_table)
     (Dbp.tlid db.tlid)
+    (Dbp.uuid exec_state.account_id)
+    (Dbp.uuid exec_state.canvas_id)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
   |> run_sql
@@ -285,6 +307,7 @@ let count (db: db) =
 
 (* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
+(* TODO: parameterize this by account_id + canvas_id *)
 (* ------------------------- *)
 
 let db_locked (db: db) : bool =
