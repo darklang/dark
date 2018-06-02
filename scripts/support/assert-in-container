@@ -3,7 +3,6 @@
 set -euo pipefail
 
 if [[ ! -v IN_DEV_CONTAINER ]]; then
-  echo -e "${@} should be run inside the dev container. Try this:\n\n  ./scripts/run-in-docker ${@}\n"
-  exit -1
+  scripts/run-in-docker ${@}
 fi
 
