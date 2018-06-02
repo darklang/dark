@@ -152,7 +152,7 @@ let log_level : Log.level =
 
 
 let should_write_shape_data =
-  Sys.getenv "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST" <> None
+  bool "DARK_CONFIG_SAVE_SERIALIZATION_DIGEST"
 
 (* ------------------------- *)
 (* Rollbar *)
