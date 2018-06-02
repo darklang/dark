@@ -25,7 +25,7 @@ docker push $IMAGE
 #########################
 
 # env vars
-kubectl create configmap gke-dark-prod --from-env-file config/gcp-prod -o yaml --dry-run | kubectl replace -f -
+kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -
 
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/builtwithdark.yaml
