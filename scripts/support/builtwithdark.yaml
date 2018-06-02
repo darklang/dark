@@ -13,17 +13,57 @@ spec:
         app: builtwithdark
     spec:
       containers:
-        - envFrom:
-            - configMapRef:
-                name: gke-dark-prod
-          name: builtwithdark
+        - name: builtwithdark
           image: "gcr.io/balmy-ground-195100/dark-prod:latest"
           ports:
             - name: backend
               containerPort: 80
+          envFrom:
+            - configMapRef:
+                name: gke-dark-prod
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
               value: "true"
+
+#########################
+# Postgres proxy config
+# To connect to postgres from kubernetes, we need to add a proxy. See
+# https://cloud.google.com/sql/docs/postgres/connect-kubernetes-engine.
+# Note in particular that we needed to create a service account and a
+# set of GKE secrets, listed below, to manage this.
+#########################
+            # connect to sql proxy in the same pod
+            - name: DARK_CONFIG_DB_HOST
+              value: 127.0.0.1
+            - name: DARK_CONFIG_DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: username
+            - name: DARK_CONFIG_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cloudsql-db-credentials
+                  key: password
+
+        - name: cloudsql-proxy
+          image: gcr.io/cloudsql-docker/gce-proxy:1.11
+          command: ["/cloud_sql_proxy",
+                    "-instances=balmy-ground-195100:us-west1:dark-west=tcp:5432",
+                    "-credential_file=/secrets/cloudsql/credentials.json"]
+          volumeMounts:
+            - name: cloudsql-instance-credentials
+              mountPath: /secrets/cloudsql
+              readOnly: true
+
+      volumes:
+        - name: cloudsql-instance-credentials
+          secret:
+            secretName: cloudsql-instance-credentials
+
+#########################
+# End postgres proxy config
+#########################
 ---
 kind: Service
 apiVersion: v1
@@ -37,6 +77,5 @@ spec:
       port: 80
       targetPort: backend
   type: LoadBalancer
-
 
 
