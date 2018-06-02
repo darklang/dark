@@ -5,6 +5,7 @@ module PG = Postgresql
 let rec rec_con depth =
   try
     let db = Config.postgres_settings in
+    Log.infO "Connecting to postgres" (db.host, db.dbname, db.user);
     let c = new PG.connection ~host:db.host ~dbname:db.dbname
       ~user:db.user ~password:db.password ()  in
     c#set_notice_processor (Log.infO "postgres");
