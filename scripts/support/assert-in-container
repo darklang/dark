@@ -4,5 +4,6 @@ set -euo pipefail
 
 if [[ ! -v IN_DEV_CONTAINER ]]; then
   scripts/run-in-docker ${@}
+  exit $?
 fi
 
