@@ -17,13 +17,13 @@ spec:
             - configMapRef:
                 name: gke-dark-prod
           name: builtwithdark
-          image: "gcr.io/balmy-ground-195100/dark-prod:e35274e571ec"
+          image: "gcr.io/balmy-ground-195100/dark-prod:latest"
           ports:
             - name: backend
               containerPort: 80
           env:
             - name: DARK_CONFIG_RUNNING_IN_GKE
-            - value: true
+              value: "true"
 ---
 kind: Service
 apiVersion: v1
