@@ -23,8 +23,10 @@ docker push $IMAGE
 # Tell Kubernetes what to do
 #########################
 
-# env vars
-kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -
+# env vars (replace existing configmap or make a new one)
+(kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
+
+
 
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/builtwithdark.yaml
