@@ -268,6 +268,20 @@ let t_db_oplist_roundtrip () =
     check_oplist "db_oplist roundtrip" oplist ops
   | None -> AT.fail "nothing in db"
 
+let t_db_json_oplist_roundtrip () =
+  let host = "test_db_json_oplist_roundtrip" in
+  let oplist = [ Op.UndoTL tlid
+               ; Op.RedoTL tlid
+               ; Op.UndoTL tlid
+               ; Op.RedoTL tlid] in
+  Serialize.save_json_to_db host oplist;
+  match (Serialize.load_json_from_db host) with
+  | Some ops ->
+    check_oplist "db_oplist roundtrip" oplist ops
+  | None -> AT.fail "nothing in db"
+
+
+
 
 let t_case_insensitive_db_roundtrip () =
   let name = "test" in
@@ -462,7 +476,8 @@ let suite =
   ; "stored_events", `Quick, t_stored_event_roundtrip
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
-  ; "db oplist roundtrip", `Quick, t_db_oplist_roundtrip
+  ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
+  ; "db json oplist roundtrip", `Quick, t_db_json_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
   ; "DB case-insensitive roundtrip", `Quick,
     t_case_insensitive_db_roundtrip
