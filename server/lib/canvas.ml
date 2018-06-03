@@ -224,7 +224,7 @@ let load = create ~load:true
 let init = create ~load:false
 
 let save (c : canvas) : unit =
-  Serialize.save_in_db c.host c.ops;
+  Serialize.save_binary_to_db c.host c.ops;
   let json = Serialize.json_unversioned_filename c.host in
   let root = Serialize.root_of c.host in
   ignore (Util.convert_bin_to_json ~root c.host json)
@@ -241,7 +241,7 @@ let save_test (c: canvas) : string =
                ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else host in
   let file = Serialize.json_unversioned_filename host in
-  Serialize.save_json ~root:Testdata file c.ops;
+  Serialize.save_json_to_disk ~root:Testdata file c.ops;
   file
 
 (* ------------------------- *)
