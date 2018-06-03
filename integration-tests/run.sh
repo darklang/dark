@@ -86,9 +86,10 @@ done
 
 exe "$SCRIPT"
 
-echo "Clearing oplists";
+echo "Clearing test oplists";
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
 exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';"
+exe "DELETE FROM json_oplists WHERE SUBSTRING(host, 0, 6) = 'test-';"
 
 
 
