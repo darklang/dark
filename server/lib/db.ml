@@ -190,6 +190,13 @@ let delete_hyphen_test_oplists () : unit =
   WHERE host like 'test-%%'"
   |> run_sql ~quiet:false
 
+let delete_hyphen_test_json_oplists () : unit =
+  "DELETE FROM json_oplists
+  WHERE host like 'test-%%'"
+  |> run_sql ~quiet:false
+
+
+
 
 let delete_underscore_test_oplists () : unit =
   "DELETE FROM oplists
@@ -202,6 +209,7 @@ let delete_testdata () : unit =
   delete_underscore_testdata ();
   delete_hyphen_testdata ();
   delete_hyphen_test_oplists ();
+  delete_hyphen_test_json_oplists ();
   delete_underscore_test_oplists ();
 
 
