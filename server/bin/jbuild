@@ -24,28 +24,6 @@
 
 (executable
   (
-    (name darkfile_bin_to_json)
-    (public_name darkfile_bin_to_json)
-    (modules darkfile_bin_to_json)
-    (modes (native))
-    (flags (-warn-error (+A)))
-    (libraries (dark))
-  )
-)
-
-(executable
-  (
-    (name darkfile_json_to_bin)
-    (public_name darkfile_json_to_bin)
-    (modules darkfile_json_to_bin)
-    (modes (native))
-    (flags (-warn-error (+A)))
-    (libraries (dark))
-  )
-)
-
-(executable
-  (
     (name darkfile_db_to_json_file)
     (public_name darkfile_db_to_json_file)
     (modules darkfile_db_to_json_file)
