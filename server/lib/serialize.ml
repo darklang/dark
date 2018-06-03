@@ -30,7 +30,6 @@ let full name digest suffix =
   else
     name ^ "_" ^ digest ^ "." ^ suffix
 
-let binary_save_filename name = full name digest "dark"
 let json_unversioned_filename name = full name "" "json"
 
 let current_hosts () : string list =
@@ -56,15 +55,6 @@ let current_hosts () : string list =
   in
   (json_hosts @ darkfile_hosts @ db_hosts)
   |> List.dedup_and_sort
-
-let load_binary ~root (filename: string) : Op.oplist =
-  (* We lost data here before!! We previously caught all exceptions and
-   * used a default value of []. Which means we wiped out our old Dark
-   * code on deserialization errors *facepalm*. So be careful here *)
-  Util.readbinaryfile ~root ~conv:Op.bin_read_oplist filename
-
-let save_binary ~root (filename: string) (ops: Op.oplist) : unit =
-  Util.writebinaryfile ~root ~conv:Op.bin_writer_oplist ~value:ops filename
 
 let load_json ~root (filename:string) : Op.oplist =
   Util.readjsonfile ~root ~conv:Op.oplist_of_yojson filename
@@ -169,16 +159,13 @@ let search_and_load (host: string) : (bool * Op.oplist) =
      * steps in the test use the altered file. The test harness cleans
      * them first *)
     deserialize_ordered host
-      [ (load_binary, Completed_test, full host digest "dark", false)
-      ; (load_json, Testdata, full host "" "json", true)
+      [ (load_json, Testdata, full host "" "json", true)
       ]
   else
     let root = root_of host in
     let json = json_unversioned_filename host in
-    let bin = binary_save_filename host in
     deserialize_ordered host
-      [ (load_binary, root, bin, false)
-      ; (load_json, root, json, false)
+      [ (load_json, root, json, false)
       ; (load_deprecated_undo_json, root, json, false)
       ]
 
