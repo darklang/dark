@@ -23,14 +23,8 @@ let root_of (name: string): Config.root =
   then Completed_test
   else Appdata
 
-let full name digest suffix =
-  if digest = ""
-  then
-    name ^ "." ^ suffix
-  else
-    name ^ "_" ^ digest ^ "." ^ suffix
-
-let json_unversioned_filename name = full name "" "json"
+let json_unversioned_filename name =
+  name ^ "." ^ "json"
 
 let current_hosts () : string list =
   let json_hosts =
@@ -159,7 +153,7 @@ let search_and_load (host: string) : (bool * Op.oplist) =
      * steps in the test use the altered file. The test harness cleans
      * them first *)
     deserialize_ordered host
-      [ (load_json, Testdata, full host "" "json", true)
+      [ (load_json, Testdata, json_unversioned_filename host, true)
       ]
   else
     let root = root_of host in
