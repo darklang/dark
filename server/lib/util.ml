@@ -102,18 +102,6 @@ let writejsonfile ~root ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
   |> writefile ~root filename
 
 (* ------------------- *)
-(* binary *)
-(* ------------------- *)
-let writebinaryfile ~root ~(conv: 'a Bin_prot__Type_class.writer)
-    ~(value: 'a) f : unit =
-  let f = check_filename ~root ~mode:`Write f in
-  Core_extended.Bin_io_utils.save f conv value
-
-let readbinaryfile ~root ~(conv: 'a Core.Bin_prot.Read.reader) (f: string) : 'a =
-  let f = check_filename ~root ~mode:`Read f in
-  Core_extended.Bin_io_utils.load f conv
-
-(* ------------------- *)
 (* spawning *)
 (* ------------------- *)
 let convert_bin_to_json ~root (host: string) (outfile: string) =
