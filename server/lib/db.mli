@@ -8,9 +8,11 @@ val fetch_via_sql : ?quiet:bool -> string -> string list list
 val exists_via_sql : ?quiet:bool -> string -> bool
 
 (* Saving canvases to the DB *)
-val save_oplists : string -> string -> string -> unit
-val load_oplists : string -> string -> string option
-val all_oplists : string -> string list
+val save_oplists : host:string -> digest:string -> string -> unit
+val load_oplists : host:string -> digest:string -> string option
+val load_json_oplists : host:string -> string option
+val save_json_oplists : host:string -> digest:string -> string -> unit
+val all_oplists : digest:string -> string list
 
 (* Per user pg_schemas *)
 val create_namespace : host -> unit
