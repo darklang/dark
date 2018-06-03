@@ -114,7 +114,7 @@ let delete_hyphen_testdata () : unit =
 (* ------------------------- *)
 (* Schemas *)
 (* ------------------------- *)
-let save_oplists (host: string) (digest: string) (data: string) : unit =
+let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
   let data = Dbp.binary data in
   Printf.sprintf
     (* this is an upsert *)
@@ -129,7 +129,7 @@ let save_oplists (host: string) (digest: string) (data: string) : unit =
     data
   |> run_sql ~quiet:true
 
-let load_oplists (host: string) (digest: string) : string option =
+let load_oplists ~(host: string) ~(digest: string) : string option =
   (* It's quite a bit of work to make a binary bytea go into the DB and
    * come out in the same shape:
    *
@@ -148,7 +148,33 @@ let load_oplists (host: string) (digest: string) : string option =
   |> Option.value_map ~default:None ~f:List.hd
   |> Option.map ~f:Dbp.binary_to_string
 
-let all_oplists (digest: string) : string list =
+let load_json_oplists ~(host: string) : string option =
+  Printf.sprintf
+    "SELECT data FROM json_oplists
+     WHERE host = %s"
+    (Dbp.host host)
+  |> fetch_via_sql ~quiet:true
+  |> List.hd
+  |> Option.value_map ~default:None ~f:List.hd
+
+let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
+  Printf.sprintf
+    (* this is an upsert *)
+    "INSERT INTO json_oplists
+    (host, digest, data)
+    VALUES (%s, %s, %s)
+    ON CONFLICT (host) DO UPDATE
+    SET data = %s;"
+    (Dbp.host host)
+    (Dbp.string digest)
+    (Dbp.string data)
+    (Dbp.string data)
+  |> run_sql ~quiet:true
+
+
+
+
+let all_oplists ~(digest: string) : string list =
   Printf.sprintf
     "SELECT host
     FROM oplists

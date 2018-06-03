@@ -66,6 +66,22 @@ let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
   |> Bigstring.to_string
   |> Db.save_oplists host digest
 
+let load_json_from_db (host:string) : Op.oplist option =
+  host
+  |> Db.load_json_oplists
+  |> Option.map ~f:(fun ops_string ->
+      ops_string
+      |> Yojson.Safe.from_string
+      |> Op.oplist_of_yojson
+      |> Result.ok_or_failwith)
+
+let save_json_to_db (host: string) (ops: Op.oplist) : unit =
+  ops
+  |> Op.oplist_to_yojson
+  |> Yojson.Safe.to_string
+  |> Db.save_json_oplists ~host ~digest
+
+
 
 let load_binary_from_db (host: string) : Op.oplist option =
   Db.load_oplists host digest
@@ -146,6 +162,7 @@ let search_and_load (host: string) : (bool * Op.oplist) =
     let root = root_of host in
     deserialize_ordered host
       [ (load_binary_from_db, false)
+      ; (load_json_from_db, false)
       ; (load_json_from_disk ~root, false)
       ; (load_deprecated_undo_json_from_disk ~root, false)
       ]
