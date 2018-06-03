@@ -262,8 +262,8 @@ let t_db_oplist_roundtrip () =
                ; Op.RedoTL tlid
                ; Op.UndoTL tlid
                ; Op.RedoTL tlid] in
-  Serialize.save_in_db host oplist;
-  match (Serialize.load_from_db host) with
+  Serialize.save_binary_to_db host oplist;
+  match (Serialize.load_binary_from_db host) with
   | Some ops ->
     check_oplist "db_oplist roundtrip" oplist ops
   | None -> AT.fail "nothing in db"

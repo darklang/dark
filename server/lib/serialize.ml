@@ -34,37 +34,38 @@ let current_hosts () : string list =
     |> List.map
       ~f:(String.chop_suffix_exn ~suffix:".json")
   in
+  (* TODO: add json oplists here *)
   let db_hosts =
     Db.all_oplists digest
   in
   (json_hosts @ db_hosts)
   |> List.dedup_and_sort
 
-let load_json ~root (filename:string) : Op.oplist =
+let load_json_from_disk ~root (filename:string) : Op.oplist =
   Util.readjsonfile ~root ~conv:Op.oplist_of_yojson filename
 
-let load_preprocessed_json ~root
+let load_preprocessed_json_from_disk ~root
     ~(preprocess:(string -> string))
     (filename:string) : Op.oplist =
   Util.readjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
 
 
 
-let save_json ~root (filename: string) (ops: Op.oplist) : unit =
+let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
   ops
   |> Op.oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> Util.writefile ~root filename
 
-let save_in_db (host: string) (ops: Op.oplist) : unit =
+let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
   ops
   |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
   |> Bigstring.to_string
   |> Db.save_oplists host digest
 
 
-let load_from_db (host: string) : Op.oplist option =
+let load_binary_from_db (host: string) : Op.oplist option =
   Db.load_oplists host digest
   |> Option.map
     ~f:(fun x ->
@@ -81,7 +82,7 @@ let deserialize_ordered
     : (bool * Op.oplist) =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
-  match load_from_db host with
+  match load_binary_from_db host with
   | Some ops -> (false, ops)
   | None ->
       let (result, errors) =
@@ -107,49 +108,48 @@ let deserialize_ordered
         in
         Exception.internal ~info:msgs ("storage errors with " ^ host)
 
-let search_and_load (host: string) : (bool * Op.oplist) =
-  let load_deprecated_undo_json = load_preprocessed_json
-      ~preprocess:(fun str ->
-          (* this mutates all lambdas in the source to
-           * the new format as of 53f3fb82
-           *
-           * Safe because there's no other way [ "var" ] can
-           * appear in the source (as of now).
-           *)
-          let transform_lambda s =
-            let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
-            Re2.Regex.replace
-              ~f:(fun _ ->
-                  Printf.sprintf
-                    "[ [\"Filled\", %i, \"var\"] ]"
-                    (Util.create_id ()))
-              regex
-              s
-            |> Result.ok
-            |> Option.value ~default:str
-          in
-          str
-          |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
-          |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
-          |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
-          |> transform_lambda
-        )
-  in
+let load_deprecated_undo_json_from_disk =
+  load_preprocessed_json_from_disk
+    ~preprocess:(fun str ->
+        (* this mutates all lambdas in the source to
+         * the new format as of 53f3fb82
+         *
+         * Safe because there's no other way [ "var" ] can
+         * appear in the source (as of now).
+         *)
+        let transform_lambda s =
+          let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
+          Re2.Regex.replace
+            ~f:(fun _ ->
+                Printf.sprintf
+                  "[ [\"Filled\", %i, \"var\"] ]"
+                  (Util.create_id ()))
+            regex
+            s
+          |> Result.ok
+          |> Option.value ~default:str
+        in
+        str
+        |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
+        |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
+        |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
+        |> transform_lambda
+      )
 
-  (* testfiles load and save from different directories *)
+let search_and_load (host: string) : (bool * Op.oplist) =
+  (* testfiles load and save from different places *)
   if is_test host
   then
-    (* we allow loading from the Completed_test dir so that subsequent
-     * steps in the test use the altered file. The test harness cleans
-     * them first *)
+    (* when there are no oplists, read from disk. The test harnesses
+     * clean this up old oplists. *)
     deserialize_ordered host
-      [ (load_json, Testdata, json_unversioned_filename host, true)
+      [ (load_json_from_disk, Testdata, json_unversioned_filename host, true)
       ]
   else
     let root = root_of host in
     let json = json_unversioned_filename host in
     deserialize_ordered host
-      [ (load_json, root, json, false)
-      ; (load_deprecated_undo_json, root, json, false)
+      [ (load_json_from_disk, root, json, false)
+      ; (load_deprecated_undo_json_from_disk, root, json, false)
       ]
 
