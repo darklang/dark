@@ -41,13 +41,15 @@ let current_hosts () : string list =
   (json_hosts @ db_hosts)
   |> List.dedup_and_sort
 
-let load_json_from_disk ~root (filename:string) : Op.oplist =
-  Util.readjsonfile ~root ~conv:Op.oplist_of_yojson filename
+let load_json_from_disk ~root (host:string) : Op.oplist option =
+  let filename = json_unversioned_filename host in
+  Util.maybereadjsonfile ~root ~conv:Op.oplist_of_yojson filename
 
 let load_preprocessed_json_from_disk ~root
     ~(preprocess:(string -> string))
-    (filename:string) : Op.oplist =
-  Util.readjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
+    (host:string) : Op.oplist option =
+  let filename = json_unversioned_filename host in
+  Util.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
 
 
 
@@ -76,37 +78,31 @@ let load_binary_from_db (host: string) : Op.oplist option =
 
 let deserialize_ordered
     (host : string)
-    (descs : ((root:Config.root -> string -> Op.oplist)
-              * Config.root * string * bool)
-             list)
+    (descs : ((string -> Op.oplist option) * bool) list)
     : (bool * Op.oplist) =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
-  match load_binary_from_db host with
-  | Some ops -> (false, ops)
-  | None ->
-      let (result, errors) =
-        List.fold descs ~init:(None, [])
-          ~f:(fun (result, errors) (fn, root, filename, rerun) ->
-              match result with
-              | Some r -> (result, errors)
-              | None ->
-                if not (Util.file_exists ~root filename)
-                then (None, errors)
-                else
-                  (try
-                     (Some (rerun, fn ~root filename), errors)
-                   with
-                   | e -> (None, (errors @ [e])))) in
-      match (result, errors) with
-      | (Some r, _) -> r
-      | (None, []) -> (false, [])
-      | (None, es) ->
-        Log.erroR "deserialization" es;
-        let msgs =
-          List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex)) es
-        in
-        Exception.internal ~info:msgs ("storage errors with " ^ host)
+  let (result, errors) =
+    List.fold descs ~init:(None, [])
+      ~f:(fun (prev, errors) (fn, rerun) ->
+          match prev with
+          | Some r -> (prev, errors)
+          | None ->
+            (try
+               match fn host with
+               | Some oplist -> (Some (rerun, oplist), errors)
+               | None -> (prev, errors)
+             with
+             | e -> (None, (errors @ [e])))) in
+  match (result, errors) with
+  | (Some r, _) -> r
+  | (None, []) -> (false, [])
+  | (None, es) ->
+    Log.erroR "deserialization" es;
+    let msgs =
+      List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex)) es
+    in
+    Exception.internal ~info:msgs ("storage errors with " ^ host)
 
 let load_deprecated_undo_json_from_disk =
   load_preprocessed_json_from_disk
@@ -141,15 +137,16 @@ let search_and_load (host: string) : (bool * Op.oplist) =
   if is_test host
   then
     (* when there are no oplists, read from disk. The test harnesses
-     * clean this up old oplists. *)
+     * clean up old oplists before running. *)
     deserialize_ordered host
-      [ (load_json_from_disk, Testdata, json_unversioned_filename host, true)
+      [ (load_binary_from_db, false)
+      ; (load_json_from_disk ~root:Testdata, true)
       ]
   else
     let root = root_of host in
-    let json = json_unversioned_filename host in
     deserialize_ordered host
-      [ (load_json_from_disk, root, json, false)
-      ; (load_deprecated_undo_json_from_disk, root, json, false)
+      [ (load_binary_from_db, false)
+      ; (load_json_from_disk ~root, false)
+      ; (load_deprecated_undo_json_from_disk ~root, false)
       ]
 

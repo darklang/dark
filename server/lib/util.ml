@@ -94,6 +94,15 @@ let readjsonfile ~root
   |> conv
   |> Result.ok_or_failwith
 
+let maybereadjsonfile ~root
+    ?(stringconv : (string -> string) = ident)
+    ~(conv: (Yojson.Safe.json -> ('a, string) result))
+    (filename: string) : 'a option =
+  if (file_exists ~root filename)
+  then Some (readjsonfile ~root ~stringconv ~conv filename)
+  else None
+
+
 let writejsonfile ~root ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
   : unit =
   value
