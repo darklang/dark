@@ -8,7 +8,7 @@ let init () =
   then ()
   else
     (* Ocaml runtime stuff *)
-    Log.level := Config.log_level;
+    Log.set_level Config.log_level;
     Printexc.record_backtrace true;
     Exn.initialize_module ();
     Util.init ();

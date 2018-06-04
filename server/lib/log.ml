@@ -5,6 +5,29 @@ type level = [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
 let level : level ref =
   ref `All
 
+let set_level (levelname: string) : unit =
+  level :=
+    match levelname with
+    | "off" -> `Off
+    | "fatal" -> `Fatal
+    | "error" -> `Error
+    | "warn" -> `Warn
+    | "info" -> `Info
+    | "debug" -> `Debug
+    | "all" -> `All
+    | _ -> failwith ("Invalid level name:" ^ levelname)
+
+let level_to_string (level: level) : string =
+  match level with
+  | `Off -> "off"
+  | `Fatal -> "fatal"
+  | `Error -> "error"
+  | `Warn -> "warn"
+  | `Info -> "info"
+  | `Debug -> "debug"
+  | `All -> "all"
+
+
 let quiet name =
   name = "execution"
 
@@ -62,12 +85,19 @@ let pP ?(f=Batteries.dump)
     let black = "\x1b[6;30m" in
     let reset = "\x1b[0m" in
     let indentStr = String.make ind '>' in
-    let prefix = black ^ "log " ^ reset ^ indentStr ^ " " ^ red ^ msg ^ ": " ^ reset in
+    let prefix =
+      if Config.log_decorate
+      then black ^ "log "
+           ^ reset ^ indentStr
+           ^ " " ^ red ^ msg ^ ": "
+           ^ reset
+      else "log " ^ msg ^ ": "
+    in
     x
     |> f
     |> (fun s ->
-    let last = String.length s in
-      String.slice s (min start last) (min stop last))
+        let last = String.length s in
+        String.slice s (min start last) (min stop last))
     |> (^) prefix
     |> print_endline
 
