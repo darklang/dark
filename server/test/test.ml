@@ -292,12 +292,12 @@ let t_case_insensitive_db_roundtrip () =
                ; Op.SetDBColType (tlid, 12, "Str")
                ] in
   let c = ops2c name oplist in
-  let dbs = TL.dbs !c.toplevels in
-  let db = dbs |> List.hd_exn in
+  let exec_st = state_for c in
+  let db = !c.toplevels |> TL.dbs |> List.hd_exn in
   let dval = DvalMap.singleton colname value in
-  let _ = User_db.delete_all ~tables:dbs db in
-  let _ = User_db.insert ~tables:dbs db dval in
-  let result = User_db.fetch_all ~tables:dbs db in
+  let _ = User_db.delete_all exec_st db in
+  let _ = User_db.insert exec_st db dval in
+  let result = User_db.fetch_all exec_st db in
   match result with
   | DList [DObj v] ->
     AT.(check bool) "matched" true
