@@ -225,7 +225,7 @@ and upsert_dependent_object exec_state cols ~key:relation ~data:obj : dval =
     | TBelongsTo t | THasMany t -> t
     | _ -> failwith ("Expected TBelongsTo/THasMany, got: " ^ (show_tipe_ ctype))
   in
-  let db_obj = find_db exec_state table_name in
+  let db_obj = find_db exec_state.dbs table_name in
   match obj with
   | DObj m ->
     (match DvalMap.find m "id" with
