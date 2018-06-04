@@ -452,19 +452,17 @@ let t_cron_sanity () =
   AT.check AT.bool "should_run should be true" should_run true;
   ()
 
-(* needs DB cleanup to work *)
-
-(* let t_cron_just_ran () = *)
-(*   let add = fncall ("+", [v "5"; v "3"]) in *)
-(*   let h_op = daily_cron add in *)
-(*   let c = ops2c "test-cron_works" [h_op] in *)
-(*   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in *)
-(*   Cron.record_execution !c.id handler; *)
-(*   let should_run = *)
-(*     Cron.should_execute !c.id handler *)
-(*   in *)
-(*   AT.check AT.bool "should_run should be false" should_run false; *)
-(*   () *)
+let t_cron_just_ran () =
+  let add = fncall ("+", [v "5"; v "3"]) in
+  let h_op = daily_cron add in
+  let c = ops2c "test-cron_works" [h_op] in
+  let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
+  Cron.record_execution !c.id handler;
+  let should_run =
+    Cron.should_execute !c.id handler
+  in
+  AT.check AT.bool "should_run should be false" should_run false;
+  ()
 
 
 let suite =
@@ -485,8 +483,7 @@ let suite =
     t_inserting_object_to_missing_col_gives_good_error
   ; "Stdlib works", `Quick, t_stdlib_works
   ; "Cron should run sanity", `Quick, t_cron_sanity
-    (* needs DB cleanup to work *)
-  (* ; "Cron just ran", `Quick, t_cron_just_ran *)
+  ; "Cron just ran", `Quick, t_cron_just_ran
   ]
 
 let () =
