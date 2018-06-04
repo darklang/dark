@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       app: builtwithdark
-  replicas: 1
+  replicas: 10
   template:
     metadata:
       labels:
