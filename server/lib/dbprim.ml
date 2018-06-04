@@ -71,6 +71,9 @@ let tlid tlid =
 let id id =
   string_of_int id
 
+let int id =
+  string_of_int id
+
 let host = string
 
 let sql s =
