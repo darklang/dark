@@ -74,6 +74,29 @@ let run () : unit =
 
   ()
 
+let move_json_oplist_into_db () : unit =
+  let hosts = Serialize.json_file_hosts () in
+  List.iter hosts
+    ~f:(fun host ->
+        try
+          let ops =
+            (try
+              (Serialize.load_json_from_disk ~root:Appdata host)
+            with e ->
+              (Serialize.load_deprecated_undo_json_from_disk
+                         ~root:Appdata host))
+          in
+          match ops with
+          | None ->
+            Log.erroR "Found a host but couldn't load it" host;
+          | Some o ->
+            Serialize.save_json_to_db host o;
+            let filename = Serialize.json_unversioned_filename host in
+            Util.rm ~root:Appdata filename
+        with e ->
+          ("Dark Internal Error: (" ^ host ^ ") :" ^ Exn.to_string e)
+          |> Log.erroR "Found an error while moving the oplist into the DB")
+
 
 
 (* ------------------------- *)
@@ -81,5 +104,7 @@ let run () : unit =
 (* ------------------------- *)
 
 let init () : unit  =
+  if Config.postgres_settings.dbname <> "testdb"
+  then move_json_oplist_into_db ();
   run ()
 
