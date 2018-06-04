@@ -1,6 +1,12 @@
 open Core
 
 (* ------------------------- *)
+(* Note: if you add an env-var in development, you'll probably need to
+ * restart the dev container. *)
+(* ------------------------- *)
+
+
+(* ------------------------- *)
 (* Envvar parsers *)
 (* ------------------------- *)
 let absolute_dir name : string =
@@ -134,21 +140,14 @@ let logging_driver =
 let should_use_stackdriver_logging : bool =
   logging_driver = "stackdriver"
 
-let log_level : Log.level =
-  let level =
-    string_option
-      "DARK_CONFIG_LOGLEVEL"
-      ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
-  in
-  match level with
-  | "off" -> `Off
-  | "fatal" -> `Fatal
-  | "error" -> `Error
-  | "warn" -> `Warn
-  | "info" -> `Info
-  | "debug" -> `Debug
-  | "all" -> `All
-  | _ -> failwith "Envvars should have failed before now in loglevel"
+let log_level : string =
+  string_option
+    "DARK_CONFIG_LOGLEVEL"
+    ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
+
+let log_decorate : bool =
+  (* Add colors and indentation, etc, to logs *)
+  bool "DARK_CONFIG_LOG_DECORATE"
 
 
 let should_write_shape_data =
