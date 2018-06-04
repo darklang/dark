@@ -4,6 +4,7 @@ open Core
 val host : Types.host -> string
 val uuid : Uuid.t -> string
 val string : string -> string
+val int : int -> string
 val sql : string -> string
 val tlid : Types.tlid -> string
 val id : Types.id -> string

@@ -4,6 +4,7 @@ open Types
 open Types.RuntimeT
 
 module FF = Feature_flag
+module Dbp = Dbprim
 
 type t = { id: int
          ; value: dval
@@ -21,23 +22,20 @@ let unlock_jobs (dequeuer: int) ~status : unit =
   Printf.sprintf
     "UPDATE \"events\"
      SET status = %s
-       WHERE dequeued_by = %s
-         AND status = 'locked'"
+     WHERE dequeued_by = %s
+       AND status = 'locked'"
     (status_to_enum status)
-    (string_of_int dequeuer)
+    (Dbp.int dequeuer)
   |> Db.run_sql
 
 (* ------------------------- *)
 (* Public API *)
 (* ------------------------- *)
 
-let wrap s = "'" ^ s ^ "'"
-
 let finalize (dequeuer: int) ~status : unit =
   unlock_jobs ~status dequeuer
 
 let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
-  let serialized_data = Dval.dval_to_json_string data in
   let column_names =
     [ "status"
     ; "dequeued_by"
@@ -54,11 +52,11 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
   let column_values =
     [ "'new'"
     ; "NULL"
-    ; Db.literal_of_uuid state.canvas_id
-    ; Db.literal_of_uuid state.account_id
-    ; wrap space
-    ; wrap name
-    ; wrap serialized_data
+    ; Dbp.uuid state.canvas_id
+    ; Dbp.uuid state.account_id
+    ; Dbp.string space
+    ; Dbp.string name
+    ; Dbp.dval data
     ; "CURRENT_TIMESTAMP"
     ; FF.to_sql state.ff
     ]
@@ -88,10 +86,10 @@ let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: strin
       ORDER BY id DESC
              , retries ASC
       LIMIT 1"
-      (wrap space)
-      (wrap name)
-      (Db.literal_of_uuid canvas)
-      (Db.literal_of_uuid account)
+      (Dbp.string space)
+      (Dbp.string name)
+      (Dbp.uuid canvas)
+      (Dbp.uuid account)
     |> Db.fetch_via_sql
     |> List.hd
   in
@@ -104,7 +102,7 @@ let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: strin
          SET status = 'locked'
            , dequeued_by = %s
          WHERE id = %s"
-         (string_of_int execution_id)
+         (Dbp.int execution_id)
          id);
     Some { id = int_of_string id
          ; value = Dval.parse value
@@ -117,7 +115,6 @@ let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: strin
        ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
 let put_back (item: t) ~status : unit =
-  let id = string_of_int item.id in
   let sql =
     match status with
     | `OK ->
@@ -125,7 +122,7 @@ let put_back (item: t) ~status : unit =
         "UPDATE \"events\"
         SET status = 'done'
         WHERE id = %s"
-        id
+        (Dbp.int item.id)
     | `Err ->
       if item.retries < 2
       then
@@ -135,20 +132,21 @@ let put_back (item: t) ~status : unit =
             , retries = %s
             , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
           WHERE id = %s"
-        (string_of_int (item.retries + 1))
-        id
+        (Dbp.int (item.retries + 1))
+        (Dbp.int item.id)
       else
         Printf.sprintf
           "UPDATE \"events\"
           SET status = 'error'
           WHERE id = %s"
-          id
+          (Dbp.int item.id)
     | `Incomplete ->
       Printf.sprintf
         "UPDATE \"events\"
         SET status = 'new'
           , delay_until = CURRENT_TIMESTAMP + INTERVAL '5 minutes'
-        WHERE id = %s" id
+        WHERE id = %s"
+        (Dbp.int item.id)
   in
   Db.run_sql sql
 
