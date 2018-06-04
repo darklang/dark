@@ -51,6 +51,10 @@ let rmRF ~root dir : unit =
   let dir = check_filename ~root ~mode:`Dir dir in
   Core_extended.Shell.rm ~r:() ~f:() dir
 
+let rm ~root file : unit =
+  let file = check_filename ~root ~mode:`Write file in
+  Core_extended.Shell.rm ~f:() file
+
 let readfile ~root f : string =
   let f = check_filename ~root ~mode:`Read f in
   let ic = Caml.open_in f in
