@@ -70,28 +70,36 @@ rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
 rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test-*
 
 # Clear DBs
-function exe { psql -d proddb -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }
+function run_sql { psql -d proddb -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }
+
+function fetch_sql { psql -d proddb -t -c "$@"; }
 
 echo "Clearing test schemas";
-TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test_';" | grep test_ || true)
+TESTSCHEMAS=$(fetch_sql "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test_';")
 for db in $TESTSCHEMAS; do
   SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
 done
 
-TESTSCHEMAS=$(psql -d proddb -q --command "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test-';" | grep test- || true)
+TESTSCHEMAS=$(fetch_sql "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test-';")
 for db in $TESTSCHEMAS; do
   SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
 done
 
+CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
+= 'test-';")
+for cid in $CANVASES; do
+  SCRIPT+="DELETE FROM events where canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM stored_events where canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM function_results where canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM canvases where id = '$cid';";
+done
 
-exe "$SCRIPT"
+run_sql "$SCRIPT";
 
-echo "Clearing test oplists";
-exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';"
-exe "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';"
-exe "DELETE FROM json_oplists WHERE SUBSTRING(host, 0, 6) = 'test-';"
-
-
+echo "Clearing test data";
+run_sql "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';";
+run_sql "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
+run_sql "DELETE FROM json_oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
 
 TEST_HOST="integration-tests:$PORT" \
   testcafe \
