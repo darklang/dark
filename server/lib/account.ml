@@ -170,5 +170,11 @@ let init () : unit =
     ; password = "jas902ksd]23dl49v"
     ; email = "ops@darklang.com"
     ; name = "Dark Single Instance"};
+  upsert_account
+    { username = "builtwithdark"
+    ; password = "jas902ksd]23dl49v"
+    ; email = "ops@darklang.com"
+    ; name = "Built with Dark "};
+
   ()
 
