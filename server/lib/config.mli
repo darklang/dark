@@ -27,8 +27,8 @@ val dir : root -> string
 val port : int
 
 val should_use_stackdriver_logging : bool
-
-val log_level : Log.level
+val log_level : string
+val log_decorate : bool
 
 val should_write_shape_data : bool
 
