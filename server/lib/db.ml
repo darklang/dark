@@ -10,9 +10,6 @@ module Dbp = Dbprim
 let conn = Dbconnection.conn
 let escape = conn#escape_string
 
-let literal_of_uuid (u: Uuid.t) : string =
-  "'" ^ Uuid.to_string u ^ "'::uuid"
-
 let run_sql ?(quiet=false) (sql: string) : unit =
   if quiet
   then ()

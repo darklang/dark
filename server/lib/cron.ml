@@ -1,5 +1,7 @@
 open Core
 
+module Dbp = Dbprim
+
 let last_ran_at (canvas_id: Uuid.t) (h: Handler.handler) : Time.t option =
   let open Option in
   let fetched =
@@ -10,8 +12,8 @@ let last_ran_at (canvas_id: Uuid.t) (h: Handler.handler) : Time.t option =
        AND canvas_id = %s
        ORDER BY id DESC
        LIMIT 1"
-       (h.tlid |> string_of_int)
-       (canvas_id |> Db.literal_of_uuid)
+       (Dbp.tlid h.tlid)
+       (Dbp.uuid canvas_id)
     |> Db.fetch_via_sql
     |> List.hd
   in
@@ -74,15 +76,11 @@ let should_execute (canvas_id: Uuid.t) (h: Handler.handler) : bool =
       now >= should_run_after)
 
 let record_execution (canvas_id: Uuid.t) (h: Handler.handler) : unit =
-  let values =
-    [ h.tlid |> string_of_int
-    ; canvas_id |> Db.literal_of_uuid
-    ]
-  in
   Printf.sprintf
     "INSERT INTO \"cron_records\"
     (tlid, canvas_id)
-    VALUES (%s)"
-    (values |> String.concat ~sep:", ")
+    VALUES (%s, %s)"
+    (Dbp.tlid h.tlid)
+    (Dbp.uuid canvas_id)
   |> Db.run_sql ~quiet:true
 
