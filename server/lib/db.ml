@@ -11,10 +11,7 @@ let conn = Dbconnection.conn
 let escape = conn#escape_string
 
 let run_sql ?(quiet=false) (sql: string) : unit =
-  if quiet
-  then ()
-  else
-    Log.infO "sql" sql ~stop:10000;
+  let start = Unix.gettimeofday () in
   try
     ignore (conn#exec ~expect:[PG.Command_ok] sql)
   with
@@ -22,19 +19,31 @@ let run_sql ?(quiet=false) (sql: string) : unit =
     Exception.reraise_after e
       (fun _ -> Log.erroR "Postgres error" pge)
   | e ->
-    Exception.reraise e
+    ignore (Exception.reraise e);
+
+  let finish = Unix.gettimeofday () in
+  let time = (finish -. start) *. 1000.0 in
+  Log.infO "sql" sql ~time ~stop:10000
+
 
 
 let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
+  let start = Unix.gettimeofday () in
   if quiet
   then
     ()
   else
     Log.infO "fetching via sql" sql;
   try
-    sql
-    |> conn#exec ~expect:PG.[Tuples_ok]
-    |> (fun res -> res#get_all_lst)
+    let result =
+      sql
+      |> conn#exec ~expect:PG.[Tuples_ok]
+      |> (fun res -> res#get_all_lst)
+    in
+    let finish = Unix.gettimeofday () in
+    let time = (finish -. start) *. 1000.0 in
+    Log.infO "fsql" sql ~time ~stop:10000;
+    result
   with
   | Postgresql.Error pge as e ->
     Exception.reraise_after e
