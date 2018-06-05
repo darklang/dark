@@ -27,16 +27,6 @@ let find_db tables table_name : db =
     ~f:(fun (d : db) -> d.display_name = String.capitalize table_name)
   |> Option.value_exn ~message:("table not found " ^ table_name)
 
-let key_names (vals: dval_map) : string =
-  vals
-  |> DvalMap.keys
-  |> Dbp.cols
-
-let val_names (vals: dval_map) : string =
-  vals
-  |> DvalMap.data
-  |> Dbp.dvals
-
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
 let cols_for (db: db) : (string * tipe) list =
@@ -49,97 +39,94 @@ let cols_for (db: db) : (string * tipe) list =
       None)
   |> fun l -> ("id", TID) :: l
 
-(*
- * Dear god, OCaml this is the worst
- * *)
-let rec sql_to_dval exec_state (tipe: tipe) (sql: string) : dval =
-  match tipe with
-  | TID -> sql |> Uuid.of_string |> DID
-  | TInt -> sql |> int_of_string |> DInt
-  | TFloat -> sql |> float_of_string |> DFloat
-  | TTitle -> sql |> DTitle
-  | TUrl -> sql |> DUrl
-  | TStr -> sql |> DStr
-  | TBool ->
-    (match sql with
-    | "f" -> DBool false
-    | "t" -> DBool true
-    | b -> failwith ("bool should be true or false: " ^ b))
-  | TDate ->
-    DDate (if sql = ""
-           then Time.epoch
-           else Dval.date_of_sqlstring sql)
-  | TBelongsTo table ->
-    (* fetch here for now *)
-    let id = sql |> Uuid.of_string |> DID in
-    let db = find_db exec_state.dbs table in
-    (match (fetch_by exec_state db "id" id) with
-     | DList (a :: _) -> a
-     | DList _ -> DNull
-     | _ -> failwith "should never happen, fetch_by returns a DList")
-  | THasMany table ->
-    (* we get the string "{ foo, bar, baz }" back *)
-    let split =
-      sql
-      |> fun s -> String.drop_prefix s 1
-      |> fun s -> String.drop_suffix s 1
-      |> fun s -> String.split s ~on:','
-    in
-    let ids =
-      if split = [""]
-      then []
-      else
-        split
-        |> List.map ~f:(fun s -> s |> String.strip |> Uuid.of_string |> DID)
-    in
-    let db = find_db exec_state.dbs table in
-    (* TODO(ian): fix the N+1 here *)
-    List.map
-      ~f:(fun i ->
-          (match (fetch_by exec_state db "id" i) with
-           | DList l -> List.hd_exn l
-           | _ -> failwith "should never happen, fetch_by returns a DList")
-        ) ids
-    |> DList
-  | TDbList tipe ->
-    sql
-    |> fun s -> String.drop_prefix s 1
-    |> fun s -> String.drop_suffix s 1
-    |> fun s -> String.split s ~on:','
-    |> List.filter ~f:(fun s -> not (String.is_empty s))
-    |> List.map ~f:(fun v -> sql_to_dval exec_state tipe v)
-    |> DList
-  | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
-                   (Dval.tipe_to_string tipe))
-and
-fetch_by exec_state db (col: string) (dv: dval) : dval =
-  let (names, types) = cols_for db |> List.unzip in
+let rec fetch_by exec_state db (col: string) (dv: dval) : dval =
   Printf.sprintf
     "SELECT id, data
      FROM %s
      WHERE table_tlid = %s
      AND user_version = %s
      AND dark_version = %s
-     AND data->>%s = %s"
+     AND (data->>%s)%s = %s"
     (Dbp.table user_data_table)
     (Dbp.tlid db.tlid)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
-    (Dbp.col col)
-    (Dbp.dval dv)
+    (Dbp.string col)
+    (Dbp.cast_expression_for dv
+     |> Option.map ~f:(fun v -> "::" ^ v)
+     |> Option.value ~default:"")
+    (Dbp.dvaljson dv)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj exec_state names types)
+  |> List.map ~f:(to_obj exec_state db)
   |> DList
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-to_obj exec_state (names : string list) (types: tipe list) (db_strings : string list)
+to_obj exec_state db (db_strings : string list)
   : dval =
-  db_strings
-  |> List.map2_exn ~f:(sql_to_dval exec_state) types
-  |> List.zip_exn names
-  |> Dval.to_dobj
-
+  match db_strings with
+  | [id; obj] ->
+    let p_id =
+      id |> Uuid.of_string |> DID
+    in
+    let p_obj =
+      match Dval.dval_of_json_string obj with
+      | DObj o -> o
+      | x -> Exception.internal ("failed format, expected DObj got: " ^ (obj))
+    in
+    let merged =
+      Map.set ~key:"id" ~data:p_id p_obj
+    in
+    let type_checked =
+      type_check_and_fetch_dependents exec_state db merged
+    in
+    DObj type_checked
+  | _ -> Exception.internal "Got bad format from db fetch"
+and type_check_and_fetch_dependents exec_state (db: db) (obj: dval_map) : dval_map =
+  let cols = cols_for db |> TipeMap.of_alist_exn in
+  let same_keys =
+    let tipe_keys = TipeMap.keys cols |> String.Set.of_list in
+    let obj_keys = DvalMap.keys obj |> String.Set.of_list in
+    String.Set.equal tipe_keys obj_keys
+  in
+  if same_keys
+  then
+    DvalMap.mapi
+      ~f:(fun ~key ~data ->
+          match (TipeMap.find_exn cols key, data) with
+          | (TID, DID _) -> data
+          | (TInt, DInt _) -> data
+          | (TFloat, DFloat _) -> data
+          | (TTitle, DTitle _) -> data
+          | (TTitle, DStr s) -> DTitle s
+          | (TUrl, DUrl _) -> data
+          | (TUrl, DStr s) -> DUrl s
+          | (TStr, DStr _) -> data
+          | (TBool, DBool _) -> data
+          | (TDate, DDate _) -> data
+          | (TList, DList _) -> data
+          | (TDbList _, DList _) -> data
+          | (TBelongsTo table, DID id) ->
+            let dep_table = find_db exec_state.dbs table in
+            (match (fetch_by exec_state dep_table "id" (DID id)) with
+            | DList (a :: _) -> a
+            | DList _ -> DNull
+            | _ -> failwith "should never happen, fetch_by returns a DList")
+          | (THasMany table, DList ids) ->
+            let dep_table = find_db exec_state.dbs table in
+            (* TODO(ian): fix the N+1 here *)
+            List.map
+              ~f:(fun i ->
+                  (match (fetch_by exec_state dep_table "id" i) with
+                  | DList l -> List.hd_exn l
+                  | _ -> failwith "should never happen, fetch_by returns a DList")
+                ) ids
+            |> DList
+          | (_, error) -> failwith (Dval.dval_to_json_string error) (* TODO(ian) *)
+        )
+      obj
+  else
+    failwith "TODO(ian) missing key"
 
 (* ------------------------- *)
 (* frontend stuff *)
@@ -164,7 +151,6 @@ let is_relation (valu: dval) : bool =
 
 let rec insert exec_state (db: db) (vals: dval_map) : Uuid.t =
   let id = Uuid.create () in
-  let vals = DvalMap.set ~key:"id" ~data:(DID id) vals in
   (* split out complex objects *)
   let objs, normal =
     Map.partition_map
@@ -177,15 +163,24 @@ let rec insert exec_state (db: db) (vals: dval_map) : Uuid.t =
   let merged = Util.merge_left normal obj_id_map in
   Printf.sprintf
     "INSERT into %s
-     (%s)
-     VALUES (%s)"
-    (Dbp.table db.actual_name)
-    (key_names merged)
-    (val_names merged)
+     (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
+     VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    (Dbp.table user_data_table)
+    (Dbp.uuid id)
+    (Dbp.uuid exec_state.account_id)
+    (Dbp.uuid exec_state.canvas_id)
+    (Dbp.int db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+    (Dbp.dvalmap_jsonb merged)
   |> run_sql;
   id
 and update exec_state db (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" in
+  let id =
+    match DvalMap.find_exn vals "id" with
+    | DID uuid -> uuid
+    | _ -> Exception.client "error, id should be a uuid"
+  in
   (* split out complex objects *)
   let objs, normal =
     Map.partition_map
@@ -195,21 +190,17 @@ and update exec_state db (vals: dval_map) =
   (* update complex objects *)
   let obj_id_map = Map.mapi ~f:(upsert_dependent_object exec_state cols) objs in
   let merged = Util.merge_left normal obj_id_map in
-  let sets = merged
-           |> DvalMap.to_alist
-           |> List.map ~f:(fun (k,v) ->
-               Printf.sprintf
-                 "%s = %s"
-                 (Dbp.col k)
-                 (Dbp.dval v))
-           |> String.concat ~sep:", " in
   Printf.sprintf
     "UPDATE %s
-    SET %s
-    WHERE id = %s"
-    (Dbp.table db.actual_name)
-    sets
-    (Dbp.dval id)
+     SET data = %s
+     WHERE id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.dvalmap_jsonb merged)
+    (Dbp.uuid id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
   |> run_sql
 and upsert_dependent_object exec_state cols ~key:relation ~data:obj : dval =
   (* find table via coltype *)
@@ -236,7 +227,6 @@ and upsert_dependent_object exec_state cols ~key:relation ~data:obj : dval =
   | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
 
 let fetch_all exec_state (db: db) : dval =
-  let (names, types) = cols_for db |> List.unzip in
   Printf.sprintf
     "SELECT id, data
      FROM %s
@@ -252,11 +242,15 @@ let fetch_all exec_state (db: db) : dval =
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj exec_state names types)
+  |> List.map ~f:(to_obj exec_state db)
   |> DList
 
 let delete exec_state (db: db) (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" in
+  let id =
+    match DvalMap.find_exn vals "id" with
+    | DID uuid -> uuid
+    | _ -> Exception.client "error, id should be a uuid"
+  in
   (* covered by composite PK index *)
   Printf.sprintf
     "DELETE
@@ -265,7 +259,7 @@ let delete exec_state (db: db) (vals: dval_map) =
      AND user_version = %s
      AND dark_version = %s"
     (Dbp.table user_data_table)
-    (Dbp.dval id)
+    (Dbp.uuid id)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
   |> run_sql

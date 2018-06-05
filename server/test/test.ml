@@ -300,6 +300,7 @@ let t_case_insensitive_db_roundtrip () =
   let result = User_db.fetch_all exec_st db in
   match result with
   | DList [DObj v] ->
+    Log.pP "info" v;
     AT.(check bool) "matched" true
       (List.mem ~equal:(=) (DvalMap.data v) value)
   | other ->
