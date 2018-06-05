@@ -295,7 +295,6 @@ let t_case_insensitive_db_roundtrip () =
   let exec_st = state_for c in
   let db = !c.toplevels |> TL.dbs |> List.hd_exn in
   let dval = DvalMap.singleton colname value in
-  let _ = User_db.delete_all exec_st db in
   let _ = User_db.insert exec_st db dval in
   let result = User_db.fetch_all exec_st db in
   match result with
