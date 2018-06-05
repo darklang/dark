@@ -76,7 +76,7 @@ let rec tipe_of_string str : tipe =
     else
       TBelongsTo str
 and parse_list_tipe (list_tipe : string) : tipe =
-  match list_tipe with
+  match String.lowercase list_tipe with
   | "str" -> TDbList TStr
   | "string" -> TDbList TStr
   | "int" -> TDbList TInt
