@@ -69,11 +69,51 @@ let should_log (user_level : level) : bool =
      | _ -> true)
   | `All -> true
 
+let timestr time =
+  if Float.is_nan time
+  then ""
+  else "(" ^ (time |> int_of_float |> string_of_int) ^ "ms)"
+
+
+let print_console_log ~ind ~msg ~start ~stop ~time ~f x : unit =
+  let red = "\x1b[6;31m" in
+  let black = "\x1b[6;30m" in
+  let reset = "\x1b[0m" in
+  let indentStr = String.make ind '>' in
+  let prefix =
+    if Config.log_decorate
+    then black ^ "log "
+         ^ reset ^ indentStr
+         ^ " " ^ red ^ msg ^ " "
+         ^ reset
+         ^ timestr time
+         ^ ": "
+    else "log " ^ msg ^ " " ^ timestr time ^ ": "
+  in
+  x
+  |> f
+  |> (fun s ->
+      let last = String.length s in
+      String.slice s (min start last) (min stop last))
+  |> (^) prefix
+  |> print_endline
+
+let print_stackdriver_log ~msg ~start ~stop ~f ~time x : unit =
+  let prefix = msg ^ " " ^ timestr time ^ ": " in
+  x
+  |> f
+  |> (fun s ->
+      let last = String.length s in
+      String.slice s (min start last) (min stop last))
+  |> (^) prefix
+  |> print_endline
+
 
 let pP ?(f=Batteries.dump)
        ?(start=0)
        ?(stop=0)
        ?(show:bool=true)
+       ?(time:float=Float.nan)
        ?(ind=0)
        ?(name:string="")
        (msg : string)
@@ -81,166 +121,161 @@ let pP ?(f=Batteries.dump)
        : unit =
   if show && (not (quiet name)) && (not (!level = `Off))
   then
-    let red = "\x1b[6;31m" in
-    let black = "\x1b[6;30m" in
-    let reset = "\x1b[0m" in
-    let indentStr = String.make ind '>' in
-    let prefix =
-      if Config.log_decorate
-      then black ^ "log "
-           ^ reset ^ indentStr
-           ^ " " ^ red ^ msg ^ ": "
-           ^ reset
-      else "log " ^ msg ^ ": "
-    in
-    x
-    |> f
-    |> (fun s ->
-        let last = String.length s in
-        String.slice s (min start last) (min stop last))
-    |> (^) prefix
-    |> print_endline
+    if Config.should_use_stackdriver_logging
+    then print_stackdriver_log ~msg ~start ~stop ~time ~f x
+    else print_console_log ~ind ~msg ~start ~stop ~time ~f x
 
 let pp ?(f=Batteries.dump)
        ?(start=0)
        ?(stop=0)
        ?(show:bool=true)
+       ?(time:float=Float.nan)
        ?(ind=0)
        ?(name:string="")
        (msg : string)
        (x : 'a)
        : 'a =
-  pP ~f ~name ~start ~stop ~show ~ind msg x;
+  pP ~f ~name ~start ~stop ~show ~time ~ind msg x;
   x
 
 let debuG ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : unit =
   if should_log `Debug
-  then pP ~f ~name ~start ~stop ~show ~ind msg x
+  then pP ~f ~name ~start ~stop ~show ~time ~ind msg x
   else ()
 
 let debug ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : 'a =
   if should_log `Debug
-  then pp ~f ~name ~start ~stop ~show ~ind msg x
+  then pp ~f ~name ~start ~stop ~show ~time ~ind msg x
   else x
 
 let infO ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : unit =
   if should_log `Info
-  then pP ~f ~name ~start ~stop ~show ~ind msg x
+  then pP ~f ~name ~start ~stop ~time ~show ~ind msg x
   else ()
 
 let info ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : 'a =
   if should_log `Info
-  then pp ~f ~name ~start ~stop ~show ~ind msg x
+  then pp ~f ~name ~start ~stop ~show ~time ~ind msg x
   else x
 
 let warN ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : unit =
   if should_log `Warn
-  then pP ~f ~name ~start ~stop ~show ~ind msg x
+  then pP ~f ~name ~start ~stop ~show ~time ~ind msg x
   else ()
 
 let warn ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : 'a =
   if should_log `Warn
-  then pp ~f ~name ~start ~stop ~show ~ind msg x
+  then pp ~f ~name ~start ~stop ~show ~time ~ind msg x
   else x
 
 let erroR ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : unit =
   if should_log `Error
-  then pP ~f ~name ~start ~stop ~show ~ind msg x
+  then pP ~f ~name ~start ~stop ~show ~time ~ind msg x
   else ()
 
 let error ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : 'a =
   if should_log `Error
-  then pp ~f ~name ~start ~stop ~show ~ind msg x
+  then pp ~f ~name ~start ~stop ~show ~time ~ind msg x
   else x
 
 let fataL ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : unit =
   if should_log `Fatal
-  then pP ~f ~name ~start ~stop ~show ~ind msg x
+  then pP ~f ~name ~start ~stop ~show ~time ~ind msg x
   else ()
 
 let fatal ?(f=Batteries.dump)
           ?(start=0)
           ?(stop=0)
           ?(show:bool=true)
+          ?(time:float=Float.nan)
           ?(ind=0)
           ?(name:string="")
           (msg : string)
           (x : 'a)
           : 'a =
   if should_log `Fatal
-  then pp ~f ~name ~start ~stop ~show ~ind msg x
+  then pp ~f ~name ~start ~stop ~show ~time ~ind msg x
   else x
 
 
