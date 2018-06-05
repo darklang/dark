@@ -301,7 +301,6 @@ let count (db: db) =
 
 (* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
-(* TODO: parameterize this by account_id + canvas_id *)
 (* ------------------------- *)
 
 let db_locked (db: db) : bool =
@@ -311,31 +310,25 @@ let unlocked (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
-    let empties =
-      (* covered by idx_user_data_current_data_for_tlid
-       *
-       * this is a little non-obvious, but this query
-       * is the reason the index is ordered as
-       * (user_version, dark_version, table_tlid)
-       * as the `WHERE` is executed before the GROUP BY
-       * and this allows the index to cover the full query
-       * *)
+    let existing = List.map ~f:(fun db -> db.tlid) dbs in
+    let non_empties =
       Printf.sprintf
         "SELECT table_tlid
          FROM %s
          WHERE user_version = %s
          AND dark_version = %s
-         GROUP BY table_tlid
-         HAVING COUNT(*) = 0"
+         AND table_tlid IN (%s)"
         (Dbp.table user_data_table)
         (Dbp.int db.version)
         (Dbp.int current_dark_version)
+        (existing |> List.map ~f:Dbp.tlid |> String.concat ~sep:", ")
       |> fetch_via_sql
+      |> List.concat
     in
     dbs
     |> List.filter
       ~f:(fun db ->
-          List.mem ~equal:(=) empties [db.tlid |> string_of_int])
+          not (List.mem ~equal:(=) non_empties (db.tlid |> string_of_int)))
 
 (* ------------------------- *)
 (* DB schema *)
