@@ -74,6 +74,11 @@ let id id =
 let int id =
   string_of_int id
 
+let list ~serializer xs =
+  xs
+  |> List.map ~f:serializer
+  |> String.concat ~sep:", "
+
 let host = string
 
 let sql s =
@@ -84,10 +89,15 @@ let sql s =
 (* Dvals *)
 (* ------------------------- *)
 
-let rec cast_expression_for (dv : RTT.dval) : string option =
-  if Dval.is_primitive dv
+let cast_type_for (dv : RTT.dval) : string option =
+  if Dval.is_json_primitive dv
   then None
   else Some "jsonb"
+
+let cast_expression_for (dv: RTT.dval) : string option =
+  dv
+  |> cast_type_for
+  |> Option.map ~f:(fun exp -> "::" ^ exp)
 
 let dvaljson dv =
   Dval.dval_to_json_string dv
