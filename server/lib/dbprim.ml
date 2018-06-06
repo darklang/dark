@@ -60,8 +60,6 @@ let string s =
   |> escape
   |> single_quote
 
-let int i = string_of_int i
-
 let binary s =
   s
   |> escapea
