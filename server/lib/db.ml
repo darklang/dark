@@ -123,21 +123,6 @@ let all_oplists ~(digest: string) : string list =
   |> List.filter ~f:(fun h ->
       not (String.is_prefix ~prefix:"test-" h))
 
-let delete_test_oplists () : unit =
-  "DELETE FROM oplists
-  WHERE host like 'test-%%'"
-  |> run_sql ~quiet:false
-
-let delete_test_json_oplists () : unit =
-  "DELETE FROM json_oplists
-  WHERE host like 'test-%%'"
-  |> run_sql ~quiet:false
-
-let delete_testdata () : unit =
-  delete_test_oplists ();
-  delete_test_json_oplists ();
-  ()
-
 let delete_benchmarking_data () : unit =
   "DELETE FROM oplists
   WHERE host like 'benchmarking\\_%%'"

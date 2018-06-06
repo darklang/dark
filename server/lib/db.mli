@@ -15,5 +15,4 @@ val save_json_oplists : host:string -> digest:string -> string -> unit
 val all_oplists : digest:string -> string list
 
 (* Misc *)
-val delete_testdata : unit -> unit
 val delete_benchmarking_data : unit -> unit
