@@ -2,6 +2,9 @@
 
 import requests
 import time
+import random
+import logging
+import http.client
 
 # Start with a large project
 
@@ -17,10 +20,24 @@ import time
 # First test them all in sequence
 # Then fire them all off at once and see how long it takes.
 
+
+def enable_logging():
+  http.client.HTTPConnection.debuglevel = 1
+  logging.basicConfig()
+  logging.getLogger().setLevel(logging.DEBUG)
+  requests_log = logging.getLogger("requests.packages.urllib3")
+  requests_log.setLevel(logging.DEBUG)
+  requests_log.propagate = True
+
+
 root = 'https://benchmarking-conduit.builtwithdark.com'
 #  root = 'http://benchmarking-conduit.localhost:8000'
 auth = ('benchmarking', 'lkas;30mfa]]3f]')
 
+def get(path, **kwargs):
+  return requests.get(root + path, auth=auth, **kwargs)
+def post(path, **kwargs):
+  return requests.post(root + path, auth=auth, **kwargs)
 
 class Tracker:
   def __init__(self):
@@ -28,11 +45,12 @@ class Tracker:
     self.success = True
     self.start_time = None
     self.stop_time = None
+    self.data = None
 
   def print(self):
     print("Data transfered: " + str(self.datalen))
     print("Success: " + str(self.success))
-    print("Time: " + str(self.stop_time - self.start_time))
+    print("Time: " + str(self.time()))
 
   def start(self):
     self.start_time = time.time()
@@ -40,34 +58,82 @@ class Tracker:
   def stop(self):
     self.stop_time = time.time()
 
+  def time(self):
+    return self.stop_time - self.start_time
+
   def record_data(self, data):
+    self.data = data
     self.datalen = len(data)
 
   def fail(self):
+    print("\nFail")
+    print(self.data[:300])
     self.success = False
 
+class Analysis:
+  def __init__(self):
+    self.trackers = []
+
+  def report(self):
+    datalen = sum([t.datalen for t in self.trackers])
+    success = all([t.success for t in self.trackers])
+    time = sum([t.time() for t in self.trackers])
+    print()
+    print("Data transfered: " + str(datalen))
+    print("Success: " + str(success))
+    print("Time: " + str(time) + "s")
+
+  def record(self, t):
+    print(".", end="")
+    self.trackers.append(t)
+
+def createDB():
+  id = random.randint(0, 10000)
+  return \
+    { "ops": [["CreateDB", id, {"x":0, "y":0}, "x_" + str(id)]]
+    , "executable_fns": []
+    }
+
 def initialize():
+  print("Initializing")
+  random.seed(0)
   # The benchmarks read from disk, so add an op first so that it
   # moves to the DB.
-  requests.get(root + '/admin/api/clear-benchmarking-data' , auth=auth)
-  requests.get(root + '/admin/api/rpc', auth=auth, json="[CreateDB 5]")
+  get('/admin/api/clear-benchmarking-data')
+  post('/admin/api/rpc', json=createDB())
 
 # Starting point, just do 10 analysis requests and see what we get.
 def call_analysis():
   tracker = Tracker()
   tracker.start()
-  r = requests.get(root + '/admin/api/get_analysis', auth=auth)
+  r = get('/admin/api/get_analysis')
   tracker.stop()
   tracker.record_data(r.text)
   if r.status_code != 200:
     tracker.fail()
-  tracker.print()
+  return tracker
+
+def make_change():
+  tracker = Tracker()
+  tracker.start()
+  id = random.randint(0, 1000000000)
+  r = post('/admin/api/rpc', json=createDB())
+  tracker.stop()
+  tracker.record_data(r.text)
+  if r.status_code != 200:
+    tracker.fail()
+  return tracker
 
 
 def main():
+  #  enable_logging()
   initialize()
   print("Starting analysis")
-  call_analysis()
+  a = Analysis()
+  for _ in range(5):
+    a.record(call_analysis())
+    a.record(make_change())
+  a.report()
 
 main()
 

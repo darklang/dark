@@ -315,6 +315,7 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     respond `OK "Disembowelment"
   | "/admin/api/clear-benchmarking-data" ->
     Db.delete_benchmarking_data ();
+    Canvas.initialize_host "benchmarking-conduit";
     respond `OK "Cleared"
   | "/admin/ui-debug" ->
     admin_ui_handler ~debug:true () >>=
