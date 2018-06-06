@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+# Start with a large project, probably dabblefox-shelf
+
+# Intersperse:
+#  - analysis requests
+#  - users looking up something in a DB
+#  - quite static pages
+#  - inserts
+#  - 5-6 op updates
