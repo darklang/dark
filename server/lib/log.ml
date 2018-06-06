@@ -72,7 +72,11 @@ let should_log (user_level : level) : bool =
 let timestr time =
   if Float.is_nan time
   then ""
-  else "(" ^ (time |> int_of_float |> string_of_int) ^ "ms)"
+  else
+    let result = "(" ^ (time |> int_of_float |> string_of_int) ^ "ms)" in
+    if int_of_float time > 100
+    then result ^ "(SLOW REQUEST)"
+    else result
 
 
 let print_console_log ~ind ~msg ~start ~stop ~time ~f x : unit =
