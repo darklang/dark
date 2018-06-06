@@ -59,7 +59,7 @@ let cols_for (db: db) : (string * tipe) list =
       None)
   |> fun l -> ("id", TID) :: l
 
-let rec fetch_by exec_state db (col: string) (dv: dval) : dval =
+let rec fetch_by ~state db (col: string) (dv: dval) : dval =
   Printf.sprintf
     "SELECT id, data
      FROM %s
@@ -76,10 +76,10 @@ let rec fetch_by exec_state db (col: string) (dv: dval) : dval =
      |> Option.value ~default:"")
     (Dbp.dvaljson dv)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj exec_state db)
+  |> List.map ~f:(to_obj ~state db)
   |> DList
 and
-find exec_state db id  =
+find ~state db id  =
   Printf.sprintf
     "SELECT DISTINCT id, data
      FROM %s
@@ -92,9 +92,9 @@ find exec_state db id  =
     (Dbp.int current_dark_version)
   |> fetch_via_sql
   |> List.concat
-  |> to_obj exec_state db
+  |> to_obj ~state db
 and
-find_many exec_state db ids =
+find_many ~state db ids =
   Printf.sprintf
     "SELECT DISTINCT id, data
      FROM %s
@@ -106,12 +106,12 @@ find_many exec_state db ids =
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj exec_state db)
+  |> List.map ~f:(to_obj ~state db)
   |> DList
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
-to_obj exec_state db (db_strings : string list)
+to_obj ~state db (db_strings : string list)
   : dval =
   match db_strings with
   | [id; obj] ->
@@ -127,11 +127,11 @@ to_obj exec_state db (db_strings : string list)
       Map.set ~key:"id" ~data:p_id p_obj
     in
     let type_checked =
-      type_check_and_fetch_dependents exec_state db merged
+      type_check_and_fetch_dependents ~state db merged
     in
     DObj type_checked
   | _ -> Exception.internal "Got bad format from db fetch"
-and type_check_and_map_dependents ~belongs_to ~has_many exec_state (db: db) (obj: dval_map) : dval_map =
+and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dval_map) : dval_map =
   let cols = cols_for db |> TipeMap.of_alist_exn in
   let tipe_keys = TipeMap.keys cols |> List.filter ~f:(fun k -> not (String.Caseless.equal k "id")) |> String.Set.of_list in
   let obj_keys = DvalMap.keys obj |> List.filter ~f:(fun k -> not (String.Caseless.equal k "id")) |> String.Set.of_list in
@@ -182,16 +182,16 @@ and type_check_and_map_dependents ~belongs_to ~has_many exec_state (db: db) (obj
     | (true, true) ->
       Exception.internal
         "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
-and type_check_and_fetch_dependents exec_state db obj : dval_map =
+and type_check_and_fetch_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
-        let dep_table = find_db exec_state.dbs table in
+        let dep_table = find_db state.dbs table in
         (match dv with
          | DID id ->
-           find exec_state dep_table id
+           find ~state dep_table id
          | err -> Exception.client (type_error_msg TID err)))
     ~has_many:(fun table ids ->
-        let dep_table = find_db exec_state.dbs table in
+        let dep_table = find_db state.dbs table in
         let uuids =
           List.map
             ~f:(fun id ->
@@ -200,52 +200,52 @@ and type_check_and_fetch_dependents exec_state db obj : dval_map =
                   | err -> Exception.client (type_error_msg TID err)))
             ids
         in
-        find_many exec_state dep_table uuids)
-    exec_state db obj
-and type_check_and_upsert_dependents exec_state db obj : dval_map =
+        find_many ~state dep_table uuids)
+    ~state db obj
+and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
-      let dep_table = find_db exec_state.dbs table in
+      let dep_table = find_db state.dbs table in
       (match dv with
        | DObj m ->
          (match DvalMap.find m "id" with
-          | Some existing -> update exec_state dep_table m; existing
-          | None -> insert exec_state dep_table m |> DID)
+          | Some existing -> update ~state dep_table m; existing
+          | None -> insert ~state dep_table m |> DID)
        | err -> Exception.client (type_error_msg TObj err)))
    ~has_many:(fun table dlist ->
-        let dep_table = find_db exec_state.dbs table in
+        let dep_table = find_db state.dbs table in
         dlist
         |> List.map
           ~f:(fun o ->
               (match o with
-               | DObj m -> type_check_and_upsert_dependents exec_state dep_table m |> DObj
+               | DObj m -> type_check_and_upsert_dependents ~state dep_table m |> DObj
                | err -> Exception.client (type_error_msg TObj err)))
         |> DList)
-    exec_state db obj
-and insert exec_state (db: db) (vals: dval_map) : Uuid.t =
+    ~state db obj
+and insert ~state (db: db) (vals: dval_map) : Uuid.t =
   let id = Uuid.create () in
-  let merged = type_check_and_upsert_dependents exec_state db vals in
+  let merged = type_check_and_upsert_dependents ~state db vals in
   Printf.sprintf
     "INSERT into %s
      (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
      VALUES (%s, %s, %s, %s, %s, %s, %s)"
     (Dbp.table user_data_table)
     (Dbp.uuid id)
-    (Dbp.uuid exec_state.account_id)
-    (Dbp.uuid exec_state.canvas_id)
+    (Dbp.uuid state.account_id)
+    (Dbp.uuid state.canvas_id)
     (Dbp.int db.tlid)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
     (Dbp.dvalmap_jsonb merged)
   |> run_sql;
   id
-and update exec_state db (vals: dval_map) =
+and update ~state db (vals: dval_map) =
   let id =
     match DvalMap.find_exn vals "id" with
     | DID uuid -> uuid
     | _ -> Exception.client "error, id should be a uuid"
   in
-  let merged = type_check_and_upsert_dependents exec_state db vals in
+  let merged = type_check_and_upsert_dependents ~state db vals in
   Printf.sprintf
     "UPDATE %s
      SET data = %s
@@ -259,7 +259,7 @@ and update exec_state db (vals: dval_map) =
     (Dbp.int current_dark_version)
   |> run_sql
 
-let fetch_all exec_state (db: db) : dval =
+let fetch_all ~state (db: db) : dval =
   Printf.sprintf
     "SELECT id, data
      FROM %s
@@ -270,15 +270,15 @@ let fetch_all exec_state (db: db) : dval =
      AND dark_version = %s"
     (Dbp.table user_data_table)
     (Dbp.tlid db.tlid)
-    (Dbp.uuid exec_state.account_id)
-    (Dbp.uuid exec_state.canvas_id)
+    (Dbp.uuid state.account_id)
+    (Dbp.uuid state.canvas_id)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
   |> fetch_via_sql
-  |> List.map ~f:(to_obj exec_state db)
+  |> List.map ~f:(to_obj ~state db)
   |> DList
 
-let delete exec_state (db: db) (vals: dval_map) =
+let delete ~state (db: db) (vals: dval_map) =
   let id =
     match DvalMap.find_exn vals "id" with
     | DID uuid -> uuid
@@ -297,7 +297,7 @@ let delete exec_state (db: db) (vals: dval_map) =
     (Dbp.int current_dark_version)
   |> run_sql
 
-let delete_all exec_state (db: db) =
+let delete_all ~state (db: db) =
   (* covered by idx_user_data_current_data_for_tlid *)
   Printf.sprintf
     "DELETE
@@ -309,8 +309,8 @@ let delete_all exec_state (db: db) =
      AND dark_version = %s"
     (Dbp.table user_data_table)
     (Dbp.tlid db.tlid)
-    (Dbp.uuid exec_state.account_id)
-    (Dbp.uuid exec_state.canvas_id)
+    (Dbp.uuid state.account_id)
+    (Dbp.uuid state.canvas_id)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
   |> run_sql
