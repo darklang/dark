@@ -193,7 +193,7 @@ let t_inserting_object_to_missing_col_gives_good_error () =
   let insert = fncall ("DB::insert", [obj; f (Variable "TestDB")]) in
   let f = fun () -> execute_ops [createDB; handler insert] in
   let check = fun (de: Exception.exception_data) ->
-    de.short = "Trying to create a relation that doesn't exist" in
+    de.short = "Found but did not expect: [col]" in
   check_exception "should get good error" ~check ~f
 
 let rec runnable_to_ast (sexp : Sexp.t) : expr =
