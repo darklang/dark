@@ -152,35 +152,6 @@ let load_deprecated_undo_json_from_disk =
       )
 
 let search_and_load (host: string) : Op.oplist =
-  let load_deprecated_undo_json_from_disk =
-    load_preprocessed_json_from_disk
-      ~preprocess:(fun str ->
-          (* this mutates all lambdas in the source to
-           * the new format as of 53f3fb82
-           *
-           * Safe because there's no other way [ "var" ] can
-           * appear in the source (as of now).
-           *)
-          let transform_lambda s =
-            let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
-            Re2.Regex.replace
-              ~f:(fun _ ->
-                  Printf.sprintf
-                    "[ [\"Filled\", %i, \"var\"] ]"
-                    (Util.create_id ()))
-              regex
-              s
-            |> Result.ok
-            |> Option.value ~default:str
-          in
-          str
-          |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
-          |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
-          |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
-          |> transform_lambda
-        )
-  in
-
   (* testfiles load and save from different directories *)
   if is_test host
   then
