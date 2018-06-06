@@ -3,7 +3,7 @@
 import requests
 import time
 
-# Start with a large project, probably dabblefox-shelf
+# Start with a large project
 
 # Intersperse:
 # o analysis requests - 1000
@@ -16,6 +16,11 @@ import time
 
 # First test them all in sequence
 # Then fire them all off at once and see how long it takes.
+
+root = 'https://benchmarking-conduit.builtwithdark.com'
+#  root = 'http://benchmarking-conduit.localhost:8000'
+auth = ('benchmarking', 'lkas;30mfa]]3f]')
+
 
 class Tracker:
   def __init__(self):
@@ -41,12 +46,15 @@ class Tracker:
   def fail(self):
     self.success = False
 
+def initialize():
+  # The benchmarks read from disk, so add an op first so that it
+  # moves to the DB.
+  requests.get(root + '/admin/api/clear-benchmarking-data' , auth=auth)
+  requests.get(root + '/admin/api/rpc', auth=auth, json="[CreateDB 5]")
+
 # Starting point, just do 10 analysis requests and see what we get.
 def call_analysis():
-  print("Starting analysis")
   tracker = Tracker()
-  root = 'https://benchmarking-onecalendar.builtwithdark.com'
-  auth = ('benchmarking', 'lkas;30mfa]]3f]')
   tracker.start()
   r = requests.get(root + '/admin/api/get_analysis', auth=auth)
   tracker.stop()
@@ -57,8 +65,8 @@ def call_analysis():
 
 
 def main():
-  # TODO: onecalendar reads from disk, so add an op first so that it
-  # moves to the DB.
+  initialize()
+  print("Starting analysis")
   call_analysis()
 
 main()
