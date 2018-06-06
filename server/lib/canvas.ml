@@ -225,7 +225,7 @@ let to_frontend
   let unlocked =
     c.toplevels
     |> TL.dbs
-    |> User_db.unlocked
+    |> User_db.unlocked c.id c.owner
     |> List.map ~f:(fun x -> x.tlid)
     |> List.map ~f:tlid_to_yojson
     |> fun x -> `List x

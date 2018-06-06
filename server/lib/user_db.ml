@@ -339,22 +339,23 @@ let count (db: db) =
 let db_locked (db: db) : bool =
   (count db) <> 0
 
-let unlocked (dbs: db list) : db list =
+let unlocked canvas_id account_id (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
-    let existing = List.map ~f:(fun db -> db.tlid) dbs in
     let non_empties =
       Printf.sprintf
         "SELECT DISTINCT table_tlid
          FROM %s
          WHERE user_version = %s
          AND dark_version = %s
-         AND table_tlid IN (%s)"
+         AND canvas_id = %s
+         AND account_id = %s"
         (Dbp.table user_data_table)
         (Dbp.int db.version)
         (Dbp.int current_dark_version)
-        (existing |> List.map ~f:Dbp.tlid |> String.concat ~sep:", ")
+        (Dbp.uuid canvas_id)
+        (Dbp.uuid account_id)
       |> fetch_via_sql
       |> List.concat
     in
