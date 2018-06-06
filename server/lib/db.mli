@@ -22,3 +22,4 @@ val ns_name : host -> string
 
 (* Misc *)
 val delete_testdata : unit -> unit
+val delete_benchmarking_data : unit -> unit

@@ -313,6 +313,9 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond `OK "Disembowelment"
+  | "/admin/api/clear-benchmarking-data" ->
+    Db.delete_benchmarking_data ();
+    respond `OK "Cleared"
   | "/admin/ui-debug" ->
     admin_ui_handler ~debug:true () >>=
     fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
