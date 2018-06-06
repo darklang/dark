@@ -40,31 +40,19 @@ let current_hosts () : string list =
   |> List.dedup_and_sort
 
 let load_json_from_disk ~root (host:string) : Op.oplist option =
+  Log.infO "SERIALIZATION: Loading from disk" host;
   let filename = json_unversioned_filename host in
   Util.maybereadjsonfile ~root ~conv:Op.oplist_of_yojson filename
 
 let load_preprocessed_json_from_disk ~root
     ~(preprocess:(string -> string))
     (host:string) : Op.oplist option =
+  Log.infO "SERIALIZATION: Loading preprocessed json from disk" host;
   let filename = json_unversioned_filename host in
   Util.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
 
-
-
-let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
-  ops
-  |> Op.oplist_to_yojson
-  |> Yojson.Safe.pretty_to_string
-  |> (fun s -> s ^ "\n")
-  |> Util.writefile ~root filename
-
-let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
-  ops
-  |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
-  |> Bigstring.to_string
-  |> Db.save_oplists host digest
-
 let load_json_from_db (host:string) : Op.oplist option =
+  Log.infO "SERIALIZATION: Loading json from db" host;
   host
   |> Db.load_json_oplists
   |> Option.map ~f:(fun ops_string ->
@@ -73,15 +61,32 @@ let load_json_from_db (host:string) : Op.oplist option =
       |> Op.oplist_of_yojson
       |> Result.ok_or_failwith)
 
+
+
+let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
+  Log.infO "SERIALIZATION: Saving json to disk" filename;
+  ops
+  |> Op.oplist_to_yojson
+  |> Yojson.Safe.pretty_to_string
+  |> (fun s -> s ^ "\n")
+  |> Util.writefile ~root filename
+
 let save_json_to_db (host: string) (ops: Op.oplist) : unit =
+  Log.infO "SERIALIZATION: Saving json to db" host;
   ops
   |> Op.oplist_to_yojson
   |> Yojson.Safe.to_string
   |> Db.save_json_oplists ~host ~digest
 
-
+let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
+  Log.infO "SERIALIZATION: Saving binary to db" host;
+  ops
+  |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
+  |> Bigstring.to_string
+  |> Db.save_oplists host digest
 
 let load_binary_from_db (host: string) : Op.oplist option =
+  Log.infO "SERIALIZATION: Loading binary from db" host;
   Db.load_oplists host digest
   |> Option.map
     ~f:(fun x ->
