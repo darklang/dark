@@ -53,9 +53,38 @@ let rec fetch_by exec_state db (col: string) (dv: dval) : dval =
     (Dbp.int current_dark_version)
     (Dbp.string col)
     (Dbp.cast_expression_for dv
-     |> Option.map ~f:(fun v -> "::" ^ v)
      |> Option.value ~default:"")
     (Dbp.dvaljson dv)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj exec_state db)
+  |> DList
+and
+find exec_state db id  =
+  Printf.sprintf
+    "SELECT DISTINCT id, data
+     FROM %s
+     WHERE id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.uuid id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> fetch_via_sql
+  |> List.concat
+  |> to_obj exec_state db
+and
+find_many exec_state db ids =
+  Printf.sprintf
+    "SELECT DISTINCT id, data
+     FROM %s
+     WHERE id IN (%s)
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.list ~serializer:Dbp.uuid ids)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
   |> fetch_via_sql
   |> List.map ~f:(to_obj exec_state db)
   |> DList

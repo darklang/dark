@@ -390,6 +390,12 @@ let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
   | DTitle title -> wrap_user_str title
   | DDate date -> wrap_user_str (isostring_of_date date)
 
+let is_json_primitive (dv: dval) : bool =
+  match dv with
+  | DInt _ | DFloat _ | DBool _ | DNull | DStr _  -> true
+  (* everything else is a list, an actual object, or a wrapped object *)
+  | _ -> false
+
 let dval_to_json_string (v: dval) : string =
   v |> dval_to_yojson |> Yojson.Safe.to_string
 
