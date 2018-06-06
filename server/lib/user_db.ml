@@ -342,7 +342,7 @@ let unlocked (dbs: db list) : db list =
     let existing = List.map ~f:(fun db -> db.tlid) dbs in
     let non_empties =
       Printf.sprintf
-        "SELECT table_tlid
+        "SELECT DISTINCT table_tlid
          FROM %s
          WHERE user_version = %s
          AND dark_version = %s
