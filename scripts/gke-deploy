@@ -4,7 +4,7 @@
 set -euo pipefail
 
 set -x
-gcloud container clusters get-credentials darkcluster1
+gcloud container clusters get-credentials projects/balmy-ground-195100/zones/us-west1/clusters/darkcluster1
 
 
 #########################
