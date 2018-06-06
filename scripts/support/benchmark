@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+import requests
+import time
+
+# Start with a large project, probably dabblefox-shelf
+
+# Intersperse:
+# o analysis requests - 1000
+# o users looking up something in a DB - 10000 of them
+# o quite static pages - 10000 of them
+# o inserts - 50 of them
+# o 5-6 op updates, to different tlids.
+# o 10 updates to a new tlid
+# o fetch the admin page
+
+# First test them all in sequence
+# Then fire them all off at once and see how long it takes.
+
+class Tracker:
+  def __init__(self):
+    self.datalen = 0
+    self.success = True
+    self.start_time = None
+    self.stop_time = None
+
+  def print(self):
+    print("Data transfered: " + str(self.datalen))
+    print("Success: " + str(self.success))
+    print("Time: " + str(self.stop_time - self.start_time))
+
+  def start(self):
+    self.start_time = time.time()
+
+  def stop(self):
+    self.stop_time = time.time()
+
+  def record_data(self, data):
+    self.datalen = len(data)
+
+  def fail(self):
+    self.success = False
+
+# Starting point, just do 10 analysis requests and see what we get.
+def call_analysis():
+  print("Starting analysis")
+  tracker = Tracker()
+  root = 'https://benchmarking-onecalendar.builtwithdark.com'
+  auth = ('benchmarking', 'lkas;30mfa]]3f]')
+  tracker.start()
+  r = requests.get(root + '/admin/api/get_analysis', auth=auth)
+  tracker.stop()
+  tracker.record_data(r.text)
+  if r.status_code != 200:
+    tracker.fail()
+  tracker.print()
+
+
+def main():
+  # TODO: onecalendar reads from disk, so add an op first so that it
+  # moves to the DB.
+  call_analysis()
+
+main()
+
+

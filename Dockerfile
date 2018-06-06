@@ -244,6 +244,9 @@ RUN yarn add \
   elm-test@0.18.13-beta
 
 RUN sudo apt-get update && sudo apt-get install -y kubectl
+RUN sudo apt-get update && sudo apt-get install -y python3-pip
+
+RUN pip3 install requests
 
 
 ############################
