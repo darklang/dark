@@ -219,4 +219,15 @@ let delete_testdata () : unit =
   delete_underscore_test_oplists ();
 
 
+  ()
+
+let delete_benchmarking_data () : unit =
+  "DELETE FROM oplists
+  WHERE host like 'benchmarking\\_%%'"
+  |> run_sql ~quiet:false;
+  "DELETE FROM json_oplists
+  WHERE host like 'benchmarking\\_%%'"
+  |> run_sql ~quiet:false;
+  ()
+
 
