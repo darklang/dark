@@ -11,7 +11,7 @@ fixture `Integration Tests`
     const pageLoaded = Selector('#finishIntegrationTest').exists;
     await t
       .navigateTo(url)
-      .expect(pageLoaded).ok("page timed out", {timeout: 200})
+      .expect(pageLoaded).ok("page timed out", {timeout: 1500})
       .takeScreenshot()
       ;
   })
@@ -479,14 +479,14 @@ test('rename_db_type', async t => {
 
   // rename
   await t
-    .doubleClick(Selector('.type').withText('String'))
+    .doubleClick(Selector('.type').withText('Int'))
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
     .pressKey("backspace")
-    .typeText("#entry-box", "Int")
+    .typeText("#entry-box", "String")
     .pressKey("enter")
     ;
 

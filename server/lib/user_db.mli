@@ -6,26 +6,25 @@ open Types.RuntimeT
 val cols_for : DbT.db -> (string * tipe) list
 
 (* DB runtime functions *)
-val initialize_migrations : host -> unit
-val insert : tables:(DbT.db list) -> DbT.db -> dval_map -> Uuid.t
-val fetch_all : tables:(DbT.db list) -> DbT.db -> dval
-val fetch_by : tables:(DbT.db list) -> DbT.db -> string -> dval -> dval
-val delete : tables:(DbT.db list) -> DbT.db -> dval_map -> unit
-val delete_all : tables:(DbT.db list) -> DbT.db -> unit
-val update : tables:(DbT.db list) -> DbT.db -> dval_map -> unit
+val insert : state:exec_state -> DbT.db -> dval_map -> Uuid.t
+val fetch_all : state:exec_state -> DbT.db -> dval
+val fetch_by : state:exec_state -> DbT.db -> string -> dval -> dval
+val find : state:exec_state -> DbT.db -> Uuid.t -> dval
+val find_many : state:exec_state -> DbT.db -> Uuid.t list -> dval
+val delete : state:exec_state -> DbT.db -> dval_map -> unit
+val delete_all : state:exec_state -> DbT.db -> unit
+val update : state:exec_state -> DbT.db -> dval_map -> unit
 val count : DbT.db -> int
-val drop : DbT.db -> unit
 
 (* DB schema modifications *)
 val create : host -> string -> tlid -> DbT.db
-val init_storage : DbT.db -> unit
 val add_col : id -> id -> DbT.db -> DbT.db
-val set_col_name : id -> string -> bool -> DbT.db -> DbT.db
-val set_col_type : id -> tipe -> bool ->  DbT.db -> DbT.db
-val change_col_name : id -> string -> bool -> DbT.db -> DbT.db
-val change_col_type : id -> tipe -> bool -> DbT.db -> DbT.db
+val set_col_name : id -> string -> DbT.db -> DbT.db
+val set_col_type : id -> tipe -> DbT.db -> DbT.db
+val change_col_name : id -> string -> DbT.db -> DbT.db
+val change_col_type : id -> tipe -> DbT.db -> DbT.db
 val initialize_migration : id -> id -> id -> DbT.migration_kind -> DbT.db -> DbT.db
-val unlocked : DbT.db list -> DbT.db list
+val unlocked : Uuid.t -> Uuid.t -> DbT.db list -> DbT.db list
 val db_locked : DbT.db -> bool
 
 (* DBs as values for execution *)

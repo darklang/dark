@@ -14,12 +14,5 @@ val load_json_oplists : host:string -> string option
 val save_json_oplists : host:string -> digest:string -> string -> unit
 val all_oplists : digest:string -> string list
 
-(* Per user pg_schemas *)
-val create_namespace : host -> unit
-val run_sql_in_ns : ?quiet: bool -> host:host -> string -> unit
-val fetch_via_sql_in_ns : ?quiet:bool -> host:host -> string -> string list list
-val ns_name : host -> string
-
 (* Misc *)
-val delete_testdata : unit -> unit
 val delete_benchmarking_data : unit -> unit

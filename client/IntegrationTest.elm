@@ -425,7 +425,7 @@ rename_db_type m =
     case tl.data of
       TLDB {name, cols} ->
         case cols of
-          [ (F id "field1", F _ "Int")
+          [ (F id "field1", F _ "String")
           , (F _ "field2", F _ "Int")
           , (Blank _, Blank _)] ->
             case m.cursorState of
