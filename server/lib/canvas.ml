@@ -154,6 +154,16 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
+let owner (host:string) : Uuid.t =
+  host
+  |> Account.auth_domain_for
+  |> Account.owner
+  |> fun o ->
+       match o with
+       | Some owner -> owner
+       | None -> Exception.client ("No Canvas found for host " ^ host)
+
+
 let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
   let oldops =
     if load
@@ -161,15 +171,7 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
     else []
   in
 
-  let owner =
-    host
-    |> Account.auth_domain_for
-    |> Account.owner
-    |> fun o ->
-         match o with
-         | Some owner -> owner
-         | None -> Exception.client ("No Canvas found for host " ^ host)
-  in
+  let owner = owner host in
 
   let id = fetch_canvas_id owner host in
   let c =
