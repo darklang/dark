@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
 
 set -euo pipefail
 
-run-in-docker gcloud sql connect dark-west --user=postgres
+gcloud sql connect dark-west --user=postgres
