@@ -97,25 +97,25 @@ let load_binary_from_db (host: string) : Op.oplist option =
 
 let deserialize_ordered
     (host : string)
-    (descs : ((string -> Op.oplist option) * bool) list)
-    : (bool * Op.oplist) =
+    (descs : (string -> Op.oplist option) list)
+    : Op.oplist =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
   let (result, errors) =
     List.fold descs ~init:(None, [])
-      ~f:(fun (prev, errors) (fn, rerun) ->
+      ~f:(fun (prev, errors) fn ->
           match prev with
           | Some r -> (prev, errors)
           | None ->
             (try
                match fn host with
-               | Some oplist -> (Some (rerun, oplist), errors)
+               | Some oplist -> (Some oplist, errors)
                | None -> (prev, errors)
              with
              | e -> (None, (errors @ [e])))) in
   match (result, errors) with
   | (Some r, _) -> r
-  | (None, []) -> (false, [])
+  | (None, []) -> []
   | (None, es) ->
     Log.erroR "deserialization" es;
     let msgs =
@@ -151,22 +151,22 @@ let load_deprecated_undo_json_from_disk =
         |> transform_lambda
       )
 
-let search_and_load (host: string) : (bool * Op.oplist) =
-  (* testfiles load and save from different places *)
+let search_and_load (host: string) : Op.oplist =
+  (* testfiles load and save from different directories *)
   if is_test host
   then
     (* when there are no oplists, read from disk. The test harnesses
      * clean up old oplists before running. *)
     deserialize_ordered host
-      [ (load_binary_from_db, false)
-      ; (load_json_from_disk ~root:Testdata, true)
+      [ load_binary_from_db
+      ; load_json_from_disk ~root:Testdata
       ]
   else
     let root = root_of host in
     deserialize_ordered host
-      [ (load_binary_from_db, false)
-      ; (load_json_from_db, false)
-      ; (load_json_from_disk ~root, false)
-      ; (load_deprecated_undo_json_from_disk ~root, false)
+      [ load_binary_from_db
+      ; load_json_from_db
+      ; load_json_from_disk ~root
+      ; load_deprecated_undo_json_from_disk ~root
       ]
 

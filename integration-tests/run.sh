@@ -91,6 +91,7 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM events where canvas_id = '$cid';";
   SCRIPT+="DELETE FROM stored_events where canvas_id = '$cid';";
   SCRIPT+="DELETE FROM function_results where canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases where id = '$cid';";
 done
 

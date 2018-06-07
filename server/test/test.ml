@@ -20,7 +20,6 @@ let tlid = 7
 let pos = {x=0;y=0}
 
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
-  Db.delete_testdata ();
   C.init host ops
 
 let state_for (c:Canvas.canvas ref) =
@@ -194,7 +193,7 @@ let t_inserting_object_to_missing_col_gives_good_error () =
   let insert = fncall ("DB::insert", [obj; f (Variable "TestDB")]) in
   let f = fun () -> execute_ops [createDB; handler insert] in
   let check = fun (de: Exception.exception_data) ->
-    de.short = "Trying to create a relation that doesn't exist" in
+    de.short = "Found but did not expect: [col]" in
   check_exception "should get good error" ~check ~f
 
 let rec runnable_to_ast (sexp : Sexp.t) : expr =
@@ -293,12 +292,11 @@ let t_case_insensitive_db_roundtrip () =
                ; Op.SetDBColType (tlid, 12, "Str")
                ] in
   let c = ops2c name oplist in
-  let dbs = TL.dbs !c.toplevels in
-  let db = dbs |> List.hd_exn in
+  let exec_st = state_for c in
+  let db = !c.toplevels |> TL.dbs |> List.hd_exn in
   let dval = DvalMap.singleton colname value in
-  let _ = User_db.delete_all ~tables:dbs db in
-  let _ = User_db.insert ~tables:dbs db dval in
-  let result = User_db.fetch_all ~tables:dbs db in
+  let _ = User_db.insert exec_st db dval in
+  let result = User_db.fetch_all exec_st db in
   match result with
   | DList [DObj v] ->
     AT.(check bool) "matched" true

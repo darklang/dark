@@ -10,117 +10,22 @@ module Dbp = Dbprim
 
 open Db
 
+let user_data_table = "user_data"
+
+(* bump this if you make a breaking change to
+ * the underlying data format, and are migrating
+ * user data to the new version
+ *
+ * ! you should definitely notify the entire engineering
+ * ! team about this
+ *)
+let current_dark_version = 0
+
 let find_db tables table_name : db =
-  match List.find ~f:(fun (d : db) -> d.display_name = String.capitalize table_name) tables with
-   | Some d -> d
-   | None -> failwith ("table not found: " ^ table_name)
-
-let key_names (vals: dval_map) : string =
-  vals
-  |> DvalMap.keys
-  |> Dbp.cols
-
-let val_names (vals: dval_map) : string =
-  vals
-  |> DvalMap.data
-  |> Dbp.dvals
-
-(* Turn db rows into list of string/type pairs - removes elements with
- * holes, as they won't have been put in the DB yet *)
-let cols_for (db: db) : (string * tipe) list =
-  db.cols
-  |> List.filter_map ~f:(fun c ->
-    match c with
-    | Filled (_, name), Filled (_, tipe) ->
-      Some (name, tipe)
-    | _ ->
-      None)
-  |> fun l -> ("id", TID) :: l
-
-(*
- * Dear god, OCaml this is the worst
- * *)
-let rec sql_to_dval tables (tipe: tipe) (sql: string) : dval =
-  match tipe with
-  | TID -> sql |> Uuid.of_string |> DID
-  | TInt -> sql |> int_of_string |> DInt
-  | TFloat -> sql |> float_of_string |> DFloat
-  | TTitle -> sql |> DTitle
-  | TUrl -> sql |> DUrl
-  | TStr -> sql |> DStr
-  | TBool ->
-    (match sql with
-    | "f" -> DBool false
-    | "t" -> DBool true
-    | b -> failwith ("bool should be true or false: " ^ b))
-  | TDate ->
-    DDate (if sql = ""
-           then Time.epoch
-           else Dval.date_of_sqlstring sql)
-  | TBelongsTo table ->
-    (* fetch here for now *)
-    let id = sql |> Uuid.of_string |> DID in
-    let db = find_db tables table in
-    (match (fetch_by ~tables db "id" id) with
-     | DList (a :: _) -> a
-     | DList _ -> DNull
-     | _ -> failwith "should never happen, fetch_by returns a DList")
-  | THasMany table ->
-    (* we get the string "{ foo, bar, baz }" back *)
-    let split =
-      sql
-      |> fun s -> String.drop_prefix s 1
-      |> fun s -> String.drop_suffix s 1
-      |> fun s -> String.split s ~on:','
-    in
-    let ids =
-      if split = [""]
-      then []
-      else
-        split
-        |> List.map ~f:(fun s -> s |> String.strip |> Uuid.of_string |> DID)
-    in
-    let db = find_db tables table in
-    (* TODO(ian): fix the N+1 here *)
-    List.map
-      ~f:(fun i ->
-          (match (fetch_by ~tables db "id" i) with
-           | DList l -> List.hd_exn l
-           | _ -> failwith "should never happen, fetch_by returns a DList")
-        ) ids
-    |> DList
-  | TDbList tipe ->
-    sql
-    |> fun s -> String.drop_prefix s 1
-    |> fun s -> String.drop_suffix s 1
-    |> fun s -> String.split s ~on:','
-    |> List.filter ~f:(fun s -> not (String.is_empty s))
-    |> List.map ~f:(fun v -> sql_to_dval tables tipe v)
-    |> DList
-  | _ -> failwith ("type not yet converted from SQL: " ^ sql ^
-                   (Dval.tipe_to_string tipe))
-and
-fetch_by ~tables db (col: string) (dv: dval) : dval =
-  let (names, types) = cols_for db |> List.unzip in
-  Printf.sprintf
-    "SELECT %s FROM %s WHERE %s = %s"
-    (Dbp.cols names)
-    (Dbp.table db.actual_name)
-    (Dbp.col col)
-    (Dbp.dval dv)
-  |> fetch_via_sql_in_ns ~host:db.host
-  |> List.map ~f:(to_obj tables names types)
-  |> DList
-and
-(* PG returns lists of strings. This converts them to types using the
- * row info provided *)
-to_obj tables (names : string list) (types: tipe list) (db_strings : string list)
-  : dval =
-  db_strings
-  |> List.map2_exn ~f:(sql_to_dval tables) types
-  |> List.zip_exn names
-  |> Dval.to_dobj
-
+  tables
+  |> List.find
+    ~f:(fun (d : db) -> d.display_name = String.capitalize table_name)
+  |> Option.value_exn ~message:("table not found " ^ table_name)
 
 (* ------------------------- *)
 (* frontend stuff *)
@@ -136,250 +41,328 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 (* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)
-let is_relation (valu: dval) : bool =
-  match valu with
-  | DObj _ -> true
-  | DList l ->
-    List.for_all ~f:Dval.is_obj l
-  | _ -> false
+let type_error_msg tipe dv : string =
+  "Expected a value of type "
+  ^ (Dval.tipe_to_string tipe)
+  ^ " but got a "
+  ^ (Dval.tipename dv)
 
-let rec insert ~tables (db: db) (vals: dval_map) : Uuid.t =
+(* Turn db rows into list of string/type pairs - removes elements with
+ * holes, as they won't have been put in the DB yet *)
+let cols_for (db: db) : (string * tipe) list =
+  db.cols
+  |> List.filter_map ~f:(fun c ->
+    match c with
+    | Filled (_, name), Filled (_, tipe) ->
+      Some (name, tipe)
+    | _ ->
+      None)
+  |> fun l -> ("id", TID) :: l
+
+let rec fetch_by ~state db (col: string) (dv: dval) : dval =
+  Printf.sprintf
+    "SELECT id, data
+     FROM %s
+     WHERE table_tlid = %s
+     AND user_version = %s
+     AND dark_version = %s
+     AND (data->>%s)%s = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+    (Dbp.string col)
+    (Dbp.cast_expression_for dv
+     |> Option.value ~default:"")
+    (Dbp.dvaljson dv)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj ~state db)
+  |> DList
+and
+find ~state db id  =
+  Printf.sprintf
+    "SELECT DISTINCT id, data
+     FROM %s
+     WHERE id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.uuid id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> fetch_via_sql
+  |> List.concat
+  |> to_obj ~state db
+and
+find_many ~state db ids =
+  Printf.sprintf
+    "SELECT DISTINCT id, data
+     FROM %s
+     WHERE id IN (%s)
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.list ~serializer:Dbp.uuid ids)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj ~state db)
+  |> DList
+and
+(* PG returns lists of strings. This converts them to types using the
+ * row info provided *)
+to_obj ~state db (db_strings : string list)
+  : dval =
+  match db_strings with
+  | [id; obj] ->
+    let p_id =
+      id |> Uuid.of_string |> DID
+    in
+    let p_obj =
+      match Dval.dval_of_json_string obj with
+      | DObj o -> o
+      | x -> Exception.internal ("failed format, expected DObj got: " ^ (obj))
+    in
+    let merged =
+      Map.set ~key:"id" ~data:p_id p_obj
+    in
+    let type_checked =
+      type_check_and_fetch_dependents ~state db merged
+    in
+    DObj type_checked
+  | _ -> Exception.internal "Got bad format from db fetch"
+and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dval_map) : dval_map =
+  let cols = cols_for db |> TipeMap.of_alist_exn in
+  let tipe_keys = TipeMap.keys cols |> List.filter ~f:(fun k -> not (String.Caseless.equal k "id")) |> String.Set.of_list in
+  let obj_keys = DvalMap.keys obj |> List.filter ~f:(fun k -> not (String.Caseless.equal k "id")) |> String.Set.of_list in
+  let same_keys = String.Set.equal tipe_keys obj_keys in
+  if same_keys
+  then
+    DvalMap.mapi
+      ~f:(fun ~key ~data ->
+          match (TipeMap.find_exn cols key, data) with
+          | (TID, DID _) -> data
+          | (TInt, DInt _) -> data
+          | (TFloat, DFloat _) -> data
+          | (TTitle, DTitle _) -> data
+          | (TUrl, DUrl _) -> data
+          | (TStr, DStr _) -> data
+          | (TBool, DBool _) -> data
+          | (TDate, DDate _) -> data
+          | (TList, DList _) -> data
+          | (TDbList _, DList _) -> data
+          | (TBelongsTo table, any_dval) ->
+            (* the belongs_to function needs to type check any_dval *)
+            belongs_to table any_dval
+          | (THasMany table, DList any_list) ->
+            (* the has_many function needs to type check any_list *)
+            has_many table any_list
+          | (expected_type, value_of_actual_type) ->
+            Exception.client (type_error_msg expected_type value_of_actual_type)
+        )
+      obj
+  else
+    let missing_keys = String.Set.diff tipe_keys obj_keys in
+    let missing_msg = "Expected but did not find: ["
+                      ^ (missing_keys |> String.Set.to_list |> String.concat ~sep:", ")
+                      ^ "]"
+    in
+    let extra_keys  = String.Set.diff obj_keys tipe_keys in
+    let extra_msg = "Found but did not expect: ["
+                      ^ (extra_keys |> String.Set.to_list |> String.concat ~sep:", ")
+                      ^ "]"
+    in
+    match (String.Set.is_empty missing_keys, String.Set.is_empty extra_keys) with
+    | (false, false) ->
+      Exception.client (missing_msg ^ " & " ^ extra_msg)
+    | (false, true) ->
+      Exception.client missing_msg
+    | (true, false) ->
+      Exception.client extra_msg
+    | (true, true) ->
+      Exception.internal
+        "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
+and type_check_and_fetch_dependents ~state db obj : dval_map =
+  type_check_and_map_dependents
+    ~belongs_to:(fun table dv ->
+        let dep_table = find_db state.dbs table in
+        (match dv with
+         | DID id ->
+           find ~state dep_table id
+         | err -> Exception.client (type_error_msg TID err)))
+    ~has_many:(fun table ids ->
+        let dep_table = find_db state.dbs table in
+        let uuids =
+          List.map
+            ~f:(fun id ->
+                (match id with
+                  | DID i -> i
+                  | err -> Exception.client (type_error_msg TID err)))
+            ids
+        in
+        find_many ~state dep_table uuids)
+    ~state db obj
+and type_check_and_upsert_dependents ~state db obj : dval_map =
+  type_check_and_map_dependents
+    ~belongs_to:(fun table dv ->
+      let dep_table = find_db state.dbs table in
+      (match dv with
+       | DObj m ->
+         (match DvalMap.find m "id" with
+          | Some existing -> update ~state dep_table m; existing
+          | None -> insert ~state dep_table m |> DID)
+       | err -> Exception.client (type_error_msg TObj err)))
+   ~has_many:(fun table dlist ->
+        let dep_table = find_db state.dbs table in
+        dlist
+        |> List.map
+          ~f:(fun o ->
+              (match o with
+               | DObj m -> type_check_and_upsert_dependents ~state dep_table m |> DObj
+               | err -> Exception.client (type_error_msg TObj err)))
+        |> DList)
+    ~state db obj
+and insert ~state (db: db) (vals: dval_map) : Uuid.t =
   let id = Uuid.create () in
-  let vals = DvalMap.set ~key:"id" ~data:(DID id) vals in
-  (* split out complex objects *)
-  let objs, normal =
-    Map.partition_map
-      ~f:(fun v -> if is_relation v then `Fst v else `Snd v) vals
-  in
-  let cols = cols_for db in
-  (* insert complex objects into their own table, return the inserted ids *)
-  let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
-  (* merge the maps *)
-  let merged = Util.merge_left normal obj_id_map in
+  let merged = type_check_and_upsert_dependents ~state db vals in
   Printf.sprintf
     "INSERT into %s
-     (%s)
-     VALUES (%s)"
-    (Dbp.table db.actual_name)
-    (key_names merged)
-    (val_names merged)
-  |> run_sql_in_ns ~host:db.host;
+     (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
+     VALUES (%s, %s, %s, %s, %s, %s, %s)"
+    (Dbp.table user_data_table)
+    (Dbp.uuid id)
+    (Dbp.uuid state.account_id)
+    (Dbp.uuid state.canvas_id)
+    (Dbp.int db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+    (Dbp.dvalmap_jsonb merged)
+  |> run_sql;
   id
-and update ~tables db (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" in
-  (* split out complex objects *)
-  let objs, normal =
-    Map.partition_map
-      ~f:(fun v -> if is_relation v then `Fst v else `Snd v) vals
+and update ~state db (vals: dval_map) =
+  let id =
+    match DvalMap.find_exn vals "id" with
+    | DID uuid -> uuid
+    | _ -> Exception.client "error, id should be a uuid"
   in
-  let cols = cols_for db in
-  (* update complex objects *)
-  let obj_id_map = Map.mapi ~f:(upsert_dependent_object tables cols) objs in
-  let merged = Util.merge_left normal obj_id_map in
-  let sets = merged
-           |> DvalMap.to_alist
-           |> List.map ~f:(fun (k,v) ->
-               Printf.sprintf
-                 "%s = %s"
-                 (Dbp.col k)
-                 (Dbp.dval v))
-           |> String.concat ~sep:", " in
+  let merged = type_check_and_upsert_dependents ~state db vals in
   Printf.sprintf
     "UPDATE %s
-    SET %s
-    WHERE id = %s"
-    (Dbp.table db.actual_name)
-    sets
-    (Dbp.dval id)
-  |> run_sql_in_ns ~host:db.host
-and upsert_dependent_object tables cols ~key:relation ~data:obj : dval =
-  (* find table via coltype *)
-  let table_name =
-    let (cname, ctype) =
-      try
-        List.find_exn cols ~f:(fun (n, t) -> n = relation)
-      with e -> RT.error "Trying to create a relation that doesn't exist"
-                  ~actual:(DStr relation)
-                  ~expected:("one of" ^ Batteries.dump cols)
-    in
-    match ctype with
-    | TBelongsTo t | THasMany t -> t
-    | _ -> failwith ("Expected TBelongsTo/THasMany, got: " ^ (show_tipe_ ctype))
-  in
-  let db_obj = find_db tables table_name in
-  match obj with
-  | DObj m ->
-    (match DvalMap.find m "id" with
-     | Some existing -> update ~tables db_obj m; existing
-     | None -> insert ~tables db_obj m |> DID)
-  | DList l ->
-    List.map ~f:(fun x -> upsert_dependent_object tables cols ~key:relation ~data:x) l |> DList
-  | _ -> failwith ("Expected complex object (DObj), got: " ^ (Dval.to_repr obj))
+     SET data = %s
+     WHERE id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.dvalmap_jsonb merged)
+    (Dbp.uuid id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> run_sql
 
-let fetch_all ~tables (db: db) : dval =
-  let (names, types) = cols_for db |> List.unzip in
+let fetch_all ~state (db: db) : dval =
   Printf.sprintf
-    "SELECT %s FROM %s"
-    (Dbp.cols names)
-    (Dbp.table db.actual_name)
-  |> fetch_via_sql_in_ns ~host:db.host
-  |> List.map ~f:(to_obj tables names types)
+    "SELECT id, data
+     FROM %s
+     WHERE table_tlid = %s
+     AND account_id = %s
+     AND canvas_id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.uuid state.account_id)
+    (Dbp.uuid state.canvas_id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj ~state db)
   |> DList
 
-let delete ~tables (db: db) (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" in
+let delete ~state (db: db) (vals: dval_map) =
+  let id =
+    match DvalMap.find_exn vals "id" with
+    | DID uuid -> uuid
+    | _ -> Exception.client "error, id should be a uuid"
+  in
+  (* covered by composite PK index *)
   Printf.sprintf
-    "DELETE FROM %s
-    WHERE id = %s"
-    (Dbp.table db.actual_name)
-    (Dbp.dval id)
-  |> run_sql_in_ns ~host:db.host
+    "DELETE
+     FROM %s
+     WHERE id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.uuid id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> run_sql
 
-let delete_all ~tables (db: db) =
+let delete_all ~state (db: db) =
+  (* covered by idx_user_data_current_data_for_tlid *)
   Printf.sprintf
-    "DELETE FROM %s"
-    (Dbp.table db.actual_name)
-  |> run_sql_in_ns ~host:db.host
-
-
+    "DELETE
+     FROM %s
+     WHERE table_tlid = %s
+     AND account_id = %s
+     AND canvas_id = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.uuid state.account_id)
+    (Dbp.uuid state.canvas_id)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> run_sql
 
 let count (db: db) =
+  (* covered by idx_user_data_current_data_for_tlid *)
   Printf.sprintf
-    "SELECT COUNT(*) AS c FROM %s"
-    (Dbp.table db.actual_name)
-  |> fetch_via_sql_in_ns ~host:db.host
+    "SELECT COUNT(*) AS c
+     FROM %s
+     WHERE table_tlid = %s
+     AND user_version = %s
+     AND dark_version = %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+  |> fetch_via_sql
   |> List.hd_exn
   |> List.hd_exn
   |> int_of_string
 
 (* ------------------------- *)
-(* run all db and schema changes as migrations *)
-(* ------------------------- *)
-
-let initialize_migrations host : unit =
-  "CREATE TABLE IF NOT EXISTS
-     migrations
-     ( id BIGINT
-     , sql TEXT
-     , PRIMARY KEY (id))"
-  |> run_sql_in_ns ~host
-
-
-let run_migration (host: string) (id: id) (sql:string) : unit =
-  Log.infO "migration" sql;
-  Printf.sprintf
-    "DO
-       $do$
-         BEGIN
-           IF ((SELECT COUNT(*) FROM migrations WHERE id = %s) = 0)
-           THEN
-             %s;
-             INSERT INTO migrations (id, sql)
-             VALUES (%s, %s);
-           END IF;
-         END
-       $do$"
-    (Dbp.id id)
-    sql
-    (Dbp.id id)
-    (Dbp.sql sql)
-  |> run_sql_in_ns ~host
-
-(* -------------------------
-(* SQL for DB *)
- * TODO: all of the SQL here is very very easily SQL injectable.
- * This MUST be fixed before we go to production
- * ------------------------- *)
-
-let create_table_sql (table_name: string) =
-  Printf.sprintf
-    "CREATE TABLE IF NOT EXISTS %s
-    (id UUID PRIMARY KEY)"
-    (Dbp.table table_name)
-
-let add_col_sql (table_name: string) (colname: string) (tipe: tipe) : string =
-  Printf.sprintf
-    "ALTER TABLE %s
-     ADD COLUMN %s %s NOT NULL DEFAULT %s"
-    (Dbp.table table_name)
-    (Dbp.col colname)
-    (Dbp.tipe tipe)
-    (Dbp.tipe_default tipe)
-
-let rename_col_sql (table_name: string) (oldname: string) (newname: string) : string =
-  Printf.sprintf
-    "ALTER TABLE %s
-     RENAME %s TO %s"
-    (Dbp.table table_name)
-    (Dbp.col oldname)
-    (Dbp.col newname)
-
-let retype_col_sql (table_name: string) (name: string) (tipe: tipe) : string =
-  Printf.sprintf
-    "ALTER TABLE %s
-     ALTER COLUMN %s TYPE %s"
-    (Dbp.table table_name)
-    (Dbp.col name)
-    (Dbp.tipe tipe)
-
-
-
-(* ------------------------- *)
 (* locked/unlocked (not _locking_) *)
 (* ------------------------- *)
 
-let schema_qualified (db: db) =
-  ns_name (db.host) ^ "." ^ db.actual_name
-
 let db_locked (db: db) : bool =
-  Printf.sprintf
-    "SELECT n_live_tup
-    FROM pg_catalog.pg_stat_all_tables
-    WHERE relname = %s
-      AND schemaname = %s;
-    "
-    (Dbp.string db.actual_name)
-    (Dbp.string (ns_name db.host))
-  |> fetch_via_sql
-  |> (<>) [["0"]]
+  (count db) <> 0
 
-
-let unlocked (dbs: db list) : db list =
+let unlocked canvas_id account_id (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
-    let host = db.host in
-    let empties =
-      (Printf.sprintf
-        "SELECT relname, n_live_tup
-        FROM pg_catalog.pg_stat_all_tables
-        WHERE relname LIKE 'user_%%'
-          AND schemaname = %s;
-        "
-        (Dbp.string (ns_name host))
-      )
+    let non_empties =
+      Printf.sprintf
+        "SELECT DISTINCT table_tlid
+         FROM %s
+         WHERE user_version = %s
+         AND dark_version = %s
+         AND canvas_id = %s
+         AND account_id = %s"
+        (Dbp.table user_data_table)
+        (Dbp.int db.version)
+        (Dbp.int current_dark_version)
+        (Dbp.uuid canvas_id)
+        (Dbp.uuid account_id)
       |> fetch_via_sql
+      |> List.concat
     in
     dbs
     |> List.filter
       ~f:(fun db ->
-          List.mem ~equal:(=) empties [db.actual_name; "0"])
-
-(* TODO(ian): make single query *)
-let drop (db: db) =
-  if db_locked db
-   && not (String.is_substring ~substring:"conduit" db.host)
-   && not (String.is_substring ~substring:"onecalendar" db.host)
-  then
-    Printf.sprintf
-      "Attempted to drop table %s, but it has data"
-      db.actual_name
-    |> Exception.internal
-  else
-    Printf.sprintf
-      "DROP TABLE IF EXISTS %s"
-      (Dbp.table db.actual_name)
-    |> run_sql_in_ns ~host:db.host
+          not (List.mem ~equal:(=) non_empties (db.tlid |> string_of_int)))
 
 (* ------------------------- *)
 (* DB schema *)
@@ -396,92 +379,40 @@ let create (host:host) (name:string) (id: tlid) : db =
   ; active_migration = None
   }
 
-let init_storage (db: db) =
-  run_migration db.host db.tlid (create_table_sql db.actual_name)
-
-(* we only add this when it is complete, and we use the ID to mark the
-   migration table to know whether it's been done before. *)
-let maybe_add_to_actual_db (db: db) (id: id) (col: col) (do_db_ops: bool) : col =
-  if do_db_ops
-  then
-    (match col with
-    | Filled (_, name), Filled (_, tipe) ->
-      run_migration db.host id (add_col_sql db.actual_name name tipe)
-    | _ ->
-      ())
-  else ();
-  col
-
-
 let add_col colid typeid (db: db) =
   { db with cols = db.cols @ [(Blank colid, Blank typeid)]}
 
-let set_col_name id name (do_db_ops: bool) db =
+let set_col_name id name db =
   let set col =
     match col with
     | (Blank hid, tipe) when hid = id ->
-        maybe_add_to_actual_db db id (Filled (hid, name), tipe) do_db_ops
+      (Filled (hid, name), tipe)
     | _ -> col in
   let newcols = List.map ~f:set db.cols in
-  if db.cols = newcols && do_db_ops
-  then Exception.client "No change made to col type"
-  else { db with cols = newcols }
+  { db with cols = newcols }
 
-let change_col_name id name (do_db_ops: bool) db =
+let change_col_name id name db =
   let change col =
     match col with
-    | (Filled (hid, oldname), Filled (tipeid, tipename))
-      when hid = id ->
-      if do_db_ops
-      then
-        if db_locked db
-        then
-          (* change_col_name is called every time we build the canvas
-           * (eg every API call).  However, db_locked is an transitory
-           * state - so only fail if we're really trying to execute the
-           * change, rather than just building the canvas. *)
-          Exception.client ("Can't edit a locked DB: " ^ db.display_name)
-        else
-          run_migration db.host id
-            (rename_col_sql db.actual_name oldname name)
-      else ();
+    | (Filled (hid, oldname), Filled (tipeid, tipename)) when hid = id ->
       (Filled (hid, name), Filled (tipeid, tipename))
-
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
-
-let set_col_type id tipe (do_db_ops: bool) db =
+let set_col_type id tipe  db =
   let set col =
     match col with
     | (name, Blank hid) when hid = id ->
-        maybe_add_to_actual_db db id (name, Filled (hid, tipe)) do_db_ops
+      (name, Filled (hid, tipe))
     | _ -> col in
   let newcols = List.map ~f:set db.cols in
-  if db.cols = newcols && do_db_ops
-  then Exception.client "No change made to col type"
-  else { db with cols = newcols }
+  { db with cols = newcols }
 
-let change_col_type id newtipe (do_db_ops: bool) db =
+let change_col_type id newtipe db =
   let change col =
     match col with
-    | (Filled (nameid, name), Filled (tipeid, oldtipe))
-      when tipeid = id ->
-      if do_db_ops
-      then
-        if db_locked db
-        then
-          (* change_col_name is called every time we build the canvas
-           * (eg every API call).  However, db_locked is an transitory
-           * state - so only fail if we're really trying to execute the
-           * change, rather than just building the canvas. *)
-          Exception.client ("Can't edit a locked DB: " ^ db.display_name)
-        else
-          run_migration db.host id
-            (retype_col_sql db.actual_name name newtipe)
-      else ();
+    | (Filled (nameid, name), Filled (tipeid, oldtipe)) when tipeid = id ->
       (Filled (nameid, name), Filled (tipeid, newtipe))
-
     | _ -> col in
   { db with cols = List.map ~f:change db.cols }
 
@@ -501,5 +432,4 @@ let initialize_migration id rbid rfid kind (db : db) =
       }
     in
     { db with active_migration = Some new_migration }
-
 
