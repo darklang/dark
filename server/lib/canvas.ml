@@ -8,7 +8,7 @@ module TL = Toplevel
 module PReq = Parsed_request
 module FF = Feature_flag
 module SE = Stored_event
-module DBP = Dbprim
+module Dbp = Dbprim
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
@@ -130,9 +130,9 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
      $func$ LANGUAGE plpgsql;
      SELECT canvas_id(%s, %s, %s); "
 
-    (Uuid.create () |> DBP.uuid)
-    (owner |> DBP.uuid)
-    (host |> DBP.host)
+    (Uuid.create () |> Dbp.uuid)
+    (owner |> Dbp.uuid)
+    (host |> Dbp.host)
   |> Db.fetch_via_sql ~quiet:false
   |> List.concat
   |> List.hd_exn
