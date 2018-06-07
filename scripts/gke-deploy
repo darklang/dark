@@ -40,7 +40,7 @@ gcloud container clusters get-credentials projects/balmy-ground-195100/zones/us-
 kubectl apply -f scripts/support/builtwithdark.yaml
 
 # deploy the image
-kubectl set image deployment/builtwithdark builtwithdark=$IMAGE
+kubectl set image deployment/bwd-deployment bwd-ctr=$IMAGE
 
 #########################
 # Tell everyone else what's going on

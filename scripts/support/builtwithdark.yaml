@@ -2,22 +2,22 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: builtwithdark
+  name: bwd-deployment
 spec:
   selector:
     matchLabels:
-      app: builtwithdark
+      app: bwd-app
   replicas: 10
   template:
     metadata:
       labels:
-        app: builtwithdark
+        app: bwd-app
     spec:
       containers:
-        - name: builtwithdark
+        - name: bwd-ctr
           image: "gcr.io/balmy-ground-195100/dark-prod:latest"
           ports:
-            - name: backend
+            - name: bwd-ctr-port
               containerPort: 80
           envFrom:
             - configMapRef:
@@ -69,12 +69,24 @@ spec:
 kind: Service
 apiVersion: v1
 metadata:
-  name: builtwithdark
+  name: bwd-nodeport
 spec:
+  type: NodePort
   selector:
-    app: builtwithdark
+    app: bwd-app
   ports:
-    - protocol: TCP
+    - name: bwd-nodeport-port
+      protocol: TCP
       port: 80
-      targetPort: backend
-  type: LoadBalancer
+      targetPort: bwd-ctr-port
+
+
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: bwd-ingress
+spec:
+  backend:
+    serviceName: bwd-nodeport
+    servicePort: 80
