@@ -170,3 +170,9 @@ let search_and_load (host: string) : Op.oplist =
       ; load_deprecated_undo_json_from_disk ~root
       ]
 
+let fetch_as_json (host:string) : string =
+  host
+  |> search_and_load
+  |> Op.oplist_to_yojson
+  |> Yojson.Safe.pretty_to_string
+
