@@ -56,7 +56,7 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
     ; Dbp.uuid state.account_id
     ; Dbp.string space
     ; Dbp.string name
-    ; Dbp.dval data
+    ; Dbp.dvaljson data
     ; "CURRENT_TIMESTAMP"
     ; FF.to_sql state.ff
     ]
@@ -105,7 +105,7 @@ let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: strin
          (Dbp.int execution_id)
          id);
     Some { id = int_of_string id
-         ; value = Dval.parse value
+         ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
          ; flag_context = FF.from_sql flag_context
          }

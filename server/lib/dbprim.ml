@@ -74,6 +74,11 @@ let id id =
 let int id =
   string_of_int id
 
+let list ~serializer xs =
+  xs
+  |> List.map ~f:serializer
+  |> String.concat ~sep:", "
+
 let host = string
 
 let sql s =
@@ -84,126 +89,38 @@ let sql s =
 (* Dvals *)
 (* ------------------------- *)
 
-let rec sql_tipe_for (tipe: RTT.tipe) : string =
-  match tipe with
-  | TAny -> failwith "todo sql type"
-  | TInt -> "INT"
-  | TFloat -> "REAL"
-  | TBool -> "BOOLEAN"
-  | TNull -> failwith "todo sql type"
-  | TChar -> failwith "todo sql type"
-  | TStr -> "TEXT"
-  | TList -> failwith "todo sql type"
-  | TObj -> failwith "todo sql type"
-  | TIncomplete -> failwith "todo sql type"
-  | TError -> failwith "todo sql type"
-  | TBlock -> failwith "todo sql type"
-  | TResp -> failwith "todo sql type"
-  | TDB -> failwith "todo sql type"
-  | TID | TBelongsTo _ -> "UUID"
-  | THasMany _ -> "uuid ARRAY"
-  | TDate -> "TIMESTAMP WITH TIME ZONE"
-  | TTitle -> "TEXT"
-  | TUrl -> "TEXT"
-  | TDbList t -> (sql_tipe_for t) ^ " ARRAY"
+let cast_type_for (dv : RTT.dval) : string option =
+  if Dval.is_json_primitive dv
+  then None
+  else Some "jsonb"
 
-let tipe = sql_tipe_for
-
-let tipe_default (tipe: RTT.tipe) : string =
-  match tipe with
-  | TAny -> failwith "todo sql type"
-  | TInt -> "0"
-  | TFloat -> "0.0"
-  | TBool -> "FALSE"
-  | TNull -> failwith "todo sql type"
-  | TChar -> failwith "todo sql type"
-  | TStr -> "''"
-  | TList -> failwith "todo sql type"
-  | TObj -> failwith "todo sql type"
-  | TIncomplete -> failwith "todo sql type"
-  | TError -> failwith "todo sql type"
-  | TBlock -> failwith "todo sql type"
-  | TResp -> failwith "todo sql type"
-  | TDB -> failwith "todo sql type"
-  | TID | TBelongsTo _ -> "'00000000-0000-0000-0000-000000000000'::uuid"
-  | THasMany _ -> "'{}'"
-  | TDate -> "CURRENT_TIMESTAMP"
-  | TTitle -> "''"
-  | TUrl -> "''"
-  | TDbList _ -> "'{}'"
-
-
-
-let rec cast_expression_for (dv : RTT.dval) : string option =
-  match dv with
-  | DID _ -> Some "uuid"
-  | DList l ->
-    l
-    |> List.filter_map ~f:cast_expression_for
-    |> List.hd
-    |> Option.map ~f:(fun cast -> cast ^ "[]")
-  | _ -> None
-
-let rec dval_to_sql ~quote ~cast (dv: RTT.dval) : string =
-  let literal =
-    match dv with
-    | DInt i -> string_of_int i
-    | DID i ->
-      quote ^ Uuid.to_string i ^ quote
-    | DBool b -> if b then "TRUE" else "FALSE"
-    | DChar c -> Char.to_string c
-    | DStr s -> quote ^ (escape s) ^ quote
-    | DFloat f -> string_of_float f
-    | DNull -> "NULL"
-    | DDate d ->
-      "TIMESTAMP WITH TIME ZONE "
-      ^ quote
-      ^ Dval.sqlstring_of_date d
-      ^ quote
-    | DList l ->
-      quote
-      ^ "{ "
-      ^ (String.concat ~sep:", " (List.map ~f:(dval_to_sql ~quote:"\"" ~cast:false) l))
-      ^ " }"
-      ^ quote
-    | _ -> Exception.client ("We don't know how to convert this into the DB: " ^ (Dval.dval_to_json_string dv))
-  in
-  match cast_expression_for dv with
-  | Some e when cast = true -> literal ^ "::" ^ e
-  | _ ->  literal
-
-let dval = dval_to_sql ~cast:true ~quote:"'"
-
-let dvals (dvals : RTT.dval list) : string =
-  dvals
-  |> List.map ~f:dval
-  |> String.concat ~sep:", "
+let cast_expression_for (dv: RTT.dval) : string option =
+  dv
+  |> cast_type_for
+  |> Option.map ~f:(fun exp -> "::" ^ exp)
 
 let dvaljson dv =
   Dval.dval_to_json_string dv
   |> escape
   |> single_quote
 
+let dvals (dvals : RTT.dval list) : string =
+  dvals
+  |> List.map ~f:dvaljson
+  |> String.concat ~sep:", "
+
+let dvalmap_jsonb dv =
+  Dval.dvalmap_to_string dv
+  |> escape
+  |> single_quote
+  |> fun s -> s ^ "::jsonb"
 
 (* ------------------------- *)
 (* DB plumbing *)
 (* ------------------------- *)
-let col (name: string) : string =
-  name
-  |> escape
-  |> double_quote
-
-let cols (names : string list) : string =
-  names
-  |> List.map ~f:col
-  |> String.concat ~sep:", "
-
 let table name : string =
   name
   |> escape
   |> double_quote
-
-
-
 
 
