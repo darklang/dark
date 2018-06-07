@@ -437,12 +437,14 @@ let server () =
             user_page_handler ~host ~ip ~uri ~body req
       in
 
-      match host with
+      match (req |> CRequest.uri |> Uri.path, host) with
       (* This seems like it should be moved closer to the admin handler,
        * but don't do that - that makes Lwt swallow our exceptions. *)
-      | Some host ->
+      | (_, Some host) ->
          auth_then_handle req host handler
-      | None ->
+      | ("/", None) -> (* for GKE health check *)
+        respond `OK "Hello internal overlord"
+      | (_, None) -> (* for GKE health check *)
         respond `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
 
