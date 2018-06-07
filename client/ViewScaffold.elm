@@ -48,17 +48,18 @@ viewButtons m =
   Html.div [Attrs.id "buttons"]
     ([ Html.a
       [ eventNoPropagation "mouseup" (\_ -> AddRandom)
-      , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "Random" ]
     , Html.a
       [ eventNoPropagation "mouseup" (\_ -> SaveTestButton)
-      , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text "SaveTest" ]
     , Html.a
+      [ Attrs.href "/admin/download-canvas-json"
+      , Attrs.class "specialButton"]
+      [ Html.text "DLJSON" ]
+    , Html.a
       [ eventNoPropagation "mouseup" (\_ -> ToggleTimers)
-      , Attrs.src ""
       , Attrs.class "specialButton"]
       [ Html.text
           (if m.timersEnabled then "DisableTimers" else "EnableTimers") ]
