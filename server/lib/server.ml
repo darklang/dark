@@ -203,13 +203,23 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
       (fun _ -> C.load host params.ops) in
 
     let (t3, (envs, f404s)) = time "3-create-envs"
+      (fun _ -> C.create_environments !c host) in
+
+    let (t4, unlocked) = time "4-analyze-unlocked-dbs"
+      (fun _ -> C.unlocked !c) in
+
+    let (t5, fvals) = time "5-function-values"
       (fun _ ->
-        C.create_environments !c host) in
+        C.function_values !c params.executable_fns execution_id) in
 
-    let (t4, result) = time "4-to-frontend"
-      (fun _ -> C.to_frontend_string envs f404s execution_id params.executable_fns !c) in
+    let (t6, tlvals) = time "6-toplevel-values"
+      (fun _ ->
+        C.toplevel_values !c envs params.executable_fns execution_id) in
 
-    let (t5, _) = time "5-save-to-disk"
+    let (t7, result) = time "7-to-frontend"
+      (fun _ -> C.to_frontend tlvals fvals unlocked envs f404s !c) in
+
+    let (t8, _) = time "8-save-to-disk"
       (fun _ ->
         (* work out the result before we save it, incase it has a
          stackoverflow or other crashing bug *)
@@ -219,7 +229,7 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
       ) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t1; t2; t3; t4; t5], result)
+  (server_timing [t1; t2; t3; t4; t5; t6; t7; t8], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
