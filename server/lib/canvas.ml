@@ -396,7 +396,7 @@ let create_environments (c: canvas) (host: string) :
   in
 
 
-  let env_map acc (h : Handler.handler) =
+  let env_map (h : Handler.handler) =
     let h_envs : (Stored_event.event_desc option * RTT.dval) list =
       let default =
         if Handler.is_http h
@@ -451,7 +451,7 @@ let create_environments (c: canvas) (host: string) :
                | None -> with_r)
             else RTT.DvalMap.set initial_env "event" e)
     in
-    RTT.EnvMap.set acc h.tlid new_envs
+    (h.tlid, new_envs)
   in
 
   let unused_descs =
@@ -464,14 +464,10 @@ let create_environments (c: canvas) (host: string) :
 
   in
 
-  let tls_map =
-    List.fold_left ~init:RTT.EnvMap.empty ~f:env_map
-      (TL.handlers c.toplevels)
-  in
-
+  let tlenvs = List.map ~f:env_map (TL.handlers c.toplevels) in
 
   (* TODO(ian): using 0 as a default, come up with better idea
    * later *)
-  let envs = RTT.EnvMap.set tls_map 0 [default_env] in
+  let envs = RTT.EnvMap.of_alist_exn ((0, [default_env]) :: tlenvs) in
   (envs, unused_descs)
 
