@@ -374,16 +374,60 @@ let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Han
 let create_environments (c: canvas) (host: string) :
   (RTT.env_map * SE.four_oh_four list) =
 
+  (* make an initial env of of the dbs *)
+  (* These envs are maps of (varname,dval) *)
   let dbs = TL.dbs c.toplevels in
   let initial_env = User_db.dbs_as_env dbs in
   let sample_request = PReq.sample |> PReq.to_dval in
   let sample_event = RTT.DIncomplete in
+
   let default_env =
     initial_env
     |> RTT.DvalMap.set ~key:"request" ~data:sample_request
     |> RTT.DvalMap.set ~key:"event" ~data:sample_event
   in
 
+  let create_env_map (h : Handler.handler) : (tlid * RTT.dval_map list) =
+    (* TODO: N+1 query situation here *)
+    let envs =
+      match Handler.event_desc_for h with
+      | Some (space, path, modifier as d) ->
+        let events = SE.load_events c.id host d in
+        List.map events
+          ~f:(fun e ->
+              match Handler.module_type h with
+              | `Http ->
+                let with_r = RTT.DvalMap.set initial_env "request" e in
+                let name = Handler.event_name_for_exn h in
+                let bound = Http.bind_route_params_exn path name in
+                Util.merge_left with_r bound
+              | `Event ->
+                RTT.DvalMap.set initial_env "event" e
+              | `Cron  -> initial_env
+              | `Unknown -> initial_env (* can't happen *)
+            )
+      | None ->
+        (match Handler.module_type h with
+        | `Http ->
+          [RTT.DvalMap.set initial_env "request" sample_request]
+        | `Event ->
+          [RTT.DvalMap.set initial_env "event" sample_event]
+        | `Cron -> [initial_env]
+        | `Unknown -> [default_env])
+    in
+    (h.tlid, envs)
+  in
+
+  let tlenvs = List.map ~f:create_env_map (TL.handlers c.toplevels) in
+
+  (* TODO(ian): using 0 as a default, come up with better idea
+   * later *)
+  let with_default = (0, [default_env]) :: tlenvs in
+  let envs = RTT.EnvMap.of_alist_exn with_default in
+
+  (* --------------
+   * get the unused descs for 404s
+   -------------- *)
   let descs = SE.list_events c.id host in
   let match_desc h d : bool =
     let (space, path, modifier) = d in
@@ -395,65 +439,6 @@ let create_environments (c: canvas) (host: string) :
     | None -> false
   in
 
-
-  let env_map (h : Handler.handler) =
-    let h_envs : (Stored_event.event_desc option * RTT.dval) list =
-      let default =
-        if Handler.is_http h
-        then [sample_request]
-        else [sample_event] in
-      try
-        (* super sorry about this, this is how we go from
-         * "here are all the matching event descs for this handler"
-         * to a list of input values to the handler tupled with
-         * (potentially, if it exists) the event_desc that describes
-         * the event that produced that input value
-         *
-         *
-         * The nested fold does this transformation:
-         *
-         * (event_desc option, dval list) list
-         * -> (event_desc option, dval) list
-         *)
-        descs
-        |> List.filter ~f:(match_desc h)
-        |> List.map ~f:(fun d -> (Some d, SE.load_events c.id host d))
-        |> List.fold_left
-             ~f:(fun acc (desc, events) ->
-                List.fold_left
-                ~f:(fun nacc e ->
-                     (desc, e) :: nacc)
-                ~init:acc
-                events)
-             ~init:[]
-        |> fun ds ->
-            if List.is_empty ds
-            then List.map ~f:(fun d -> (None, d)) default
-            else ds
-      with _ ->
-        List.map ~f:(fun d -> (None, d)) default
-    in
-    let new_envs =
-      List.map
-        h_envs
-        ~f:(fun (maybe_desc, e) ->
-            if Handler.is_http h
-            then
-              let with_r = RTT.DvalMap.set initial_env "request" e in
-              (match maybe_desc with
-               | Some (space, path, modifier) ->
-                 let bound =
-                    Http.bind_route_params_exn
-                      path
-                      (Handler.event_name_for_exn h)
-                 in
-                 Util.merge_left with_r bound
-               | None -> with_r)
-            else RTT.DvalMap.set initial_env "event" e)
-    in
-    (h.tlid, new_envs)
-  in
-
   let unused_descs =
     descs
     |> List.filter
@@ -461,13 +446,8 @@ let create_environments (c: canvas) (host: string) :
           not (List.exists (TL.handlers c.toplevels)
                  ~f:(fun h -> match_desc h d)))
     |> List.map ~f:(fun d -> (d, SE.load_events c.id host d))
-
   in
 
-  let tlenvs = List.map ~f:env_map (TL.handlers c.toplevels) in
 
-  (* TODO(ian): using 0 as a default, come up with better idea
-   * later *)
-  let envs = RTT.EnvMap.of_alist_exn ((0, [default_env]) :: tlenvs) in
   (envs, unused_descs)
 
