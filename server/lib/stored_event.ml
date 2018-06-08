@@ -143,7 +143,7 @@ let store_event_new (canvas_id: Uuid.t) _  ((module_, path, modifier): event_des
 
 let list_events_new (canvas_id: Uuid.t) _  : event_desc list =
   Printf.sprintf
-    "SELECT module, path, modifier FROM stored_events
+    "SELECT DISTINCT module, path, modifier FROM stored_events
      WHERE canvas_id = %s"
     (Dbp.uuid canvas_id)
   |> Db.fetch_via_sql
@@ -157,7 +157,8 @@ let load_events_new (canvas_id: Uuid.t) _ ((module_, path, modifier): event_desc
     WHERE canvas_id = %s
       AND module = %s
       AND path = %s
-      AND modifier = %s"
+      AND modifier = %s
+    LIMIT 20"
     (Dbp.uuid canvas_id)
     (Dbp.string module_)
     (Dbp.string path)
