@@ -42,6 +42,13 @@ let module_for (h: handler) : string option =
   | Filled (_, m) -> Some m
   | _ -> None
 
+let module_type (h: handler) =
+  match h.spec.module_ with
+  | Filled (_, m) when String.Caseless.equal "http" m -> `Http
+  | Filled (_, m) when String.Caseless.equal "cron" m -> `Cron
+  | Filled (_, m) -> `Event
+  | _ -> `Unknown
+
 let module_for_exn (h: handler) : string =
   match (module_for h) with
   | Some s -> s
