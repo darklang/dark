@@ -80,7 +80,10 @@ let load_new (canvas_id, _, tlid, fnname, id) arglist
         AND tlid = %s
         AND fnname = %s
         AND id = %s
-        AND hash = %s"
+        AND hash = %s
+        LIMIT 1
+        "
+      (* TODO: sort by timestamp *)
       (Dbp.uuid canvas_id)
       (Dbp.tlid tlid)
       (Dbp.string fnname)
