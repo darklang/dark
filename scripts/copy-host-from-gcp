@@ -7,8 +7,6 @@ HOST=$1
 PASSWORD=$(cat config/gcp-prod | grep PASS | sed 's/.*=//')
 export PGPASSWORD=$PASSWORD; # for psql auth
 
-set -x
-
 echo "If the script pauses here, run gcp-psql to whitelist your IP. No need to enter the password, you can Ctrl-C there and try this script again"
 
 # Now use pql directly
@@ -17,69 +15,110 @@ r="psql -d postgres -U postgres -h 35.203.144.131 -t -c "
 
 function clean {
   # convert from remote IDs to local IDs
-  cat \
-    | sed "s/${ACCOUNTID}/${LOCALACC}/" \
-    | sed "s/${CANVASID}/${LOCALCAN}/";
+  sed "s/${ACCOUNTID}/${LOCALACC}/";
 }
 
 function trim {
-  echo -e "$1" | tr -d '[:space:]';
+  tr -d '[:space:]';
+}
+
+function rcopy_uuid {
+  name=$1;
+  field=$2;
+  val=$3;
+  echo "Remote fetch: $name ($field=$val)"
+  $r "COPY (SELECT * from $name WHERE $field = '$val'::uuid) to STDOUT" > $name.sql;
+}
+
+function rcopy_string {
+  name=$1;
+  field=$2;
+  val=$3;
+  echo "Remote fetch: $name ($field=$val)"
+  $r "COPY (SELECT * from $name WHERE $field = '$val') to STDOUT" > $name.sql;
+}
+
+function lcopy {
+  name=$1;
+  echo "Local copy: $name"
+  cat $name.sql | clean | $l "COPY $name from STDIN";
+}
+
+function ldelete_uuid {
+  name=$1;
+  field=$2;
+  val=$3;
+  echo "Local delete: $name ($field=$val)"
+  $l "DELETE FROM $name WHERE $field = '$val'::uuid";
+}
+
+function ldelete_string {
+  name=$1;
+  field=$2;
+  val=$3;
+  echo "Local delete: $name ($field=$val)"
+  $l "DELETE FROM $name WHERE $field = '$val'";
 }
 
 ###########################
-# Get necessary IDs
+echo "Fetching IDs for $HOST"
 ###########################
-CANVASID=$($r "select id from canvases where name = '$HOST'");
-CANVASID=$(trim $CANVASID)
-ACCOUNTID=$($r "select account_id from canvases where name = '$HOST'");
-ACCOUNTID=$(trim $ACCOUNTID)
-USERNAME=$($r "select username from accounts where id = '$ACCOUNTID'");
-USERNAME=$(trim $USERNAME)
+
+CANVASID=$($r "select id from canvases where name = '$HOST'" | trim);
+ACCOUNTID=$($r "select account_id from canvases where name = '$HOST'" | trim);
+USERNAME=$($r "select username from accounts where id = '$ACCOUNTID'" | trim);
 
 # we need to convert both the account_id and canvas_id to the local
 # version (see `clean`)
-LOCALACC=$($l "select id from accounts where username = '$USERNAME'");
-LOCALACC=$(trim $LOCALACC)
-LOCALCAN=$($l "select id from canvases where name = '$HOST'");
-LOCALCAN=$(trim $LOCALCAN)
+LOCALACC=$($l "select id from accounts where username = '$USERNAME'" | trim);
+LOCALCAN=$($l "select id from canvases where name = '$HOST'" | trim);
 if [[ "$LOCALCAN" = "" ]]; then
+  echo "No local canvas"
   LOCALCAN=$CANVASID;
 fi
 
-###########################
-# Fetch all the data from the server
-###########################
-$r "COPY (SELECT * from canvases WHERE id = '${CANVASID}'::uuid) to STDOUT" > canvases.sql
-
-$r "COPY (SELECT * from cron_records WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT" > cron_records.sql
-
-$r "COPY (SELECT * from events WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > events.sql
-
-$r "COPY (SELECT * from function_results WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > function_results.sql
-
-$r "COPY (SELECT * from json_oplists WHERE host = '${HOST}') to STDOUT;" > json_oplists.sql
-
-$r "COPY (SELECT * from oplists WHERE host = '${HOST}') to STDOUT;" > oplists.sql
-
-$r "COPY (SELECT * from stored_events WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > stored_events.sql
-
-$r "COPY (SELECT * from user_data WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > user_data.sql
-
+echo "Remote Canvas ID: $CANVASID"
+echo "Local Canvas ID: $LOCALCAN"
+echo "Remote account ID: $ACCOUNTID"
+echo "Local account ID: $LOCALACC"
+echo "Username: $USERNAME"
 
 ###########################
-# insert the data locally
+echo "Fetching server data for $HOST, $CANVASID"
 ###########################
 
-# We don't insert accounts because the account will already exist
-# locally, just with a different id (hence `clean`). The canvas might
-# not exist, in which case we'll insert it. If it does exist, don't
-# error out.
-(cat canvases.sql | clean | $l "COPY canvases from STDIN") || true
-cat events.sql | clean | $l "COPY events from STDIN"
-cat oplists.sql | clean | $l "COPY oplists from STDIN"
-cat json_oplists.sql | clean | $l "COPY json_oplists from STDIN"
-cat cron_records.sql | clean | $l "COPY cron_records from STDIN"
-cat function_results.sql | clean | $l "COPY function_results from STDIN"
-cat user_data.sql | clean | $l "COPY user_data from STDIN"
+rcopy_uuid canvases id $CANVASID
+rcopy_uuid cron_records canvas_id $CANVASID
+rcopy_uuid events canvas_id $CANVASID
+rcopy_uuid function_results canvas_id $CANVASID
+rcopy_string json_oplists host $HOST
+rcopy_string oplists host $HOST
+rcopy_uuid stored_events canvas_id $CANVASID
+rcopy_uuid user_data canvas_id $CANVASID
+
+###########################
+echo "Delete local data for $HOST, $LOCALCAN"
+###########################
+ldelete_uuid cron_records canvas_id $LOCALCAN
+ldelete_uuid events canvas_id $LOCALCAN
+ldelete_uuid function_results canvas_id $LOCALCAN
+ldelete_string json_oplists host $HOST
+ldelete_string oplists host $HOST
+ldelete_uuid stored_events canvas_id $LOCALCAN
+ldelete_uuid user_data canvas_id $LOCALCAN
+ldelete_uuid canvases id $LOCALCAN
+
+###########################
+echo "Loading the data into local DB for $HOST, $LOCALCAN, $LOCALACC"
+###########################
+lcopy canvases
+lcopy cron_records
+lcopy events
+lcopy function_results
+lcopy json_oplists
+lcopy oplists
+lcopy stored_events
+lcopy user_data
 
 
+echo "Done"
