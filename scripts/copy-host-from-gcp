@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+HOST=$1
+PASSWORD=$(cat config/gcp-prod | grep PASS | sed 's/.*=//')
+export PGPASSWORD=$PASSWORD; # for psql auth
+
+set -x
+
+echo "If the script pauses here, run gcp-psql to whitelist your IP. No need to enter the password, you can Ctrl-C there and try this script again"
+
+# Now use pql directly
+l="psql -d proddb -t -c "
+r="psql -d postgres -U postgres -h 35.203.144.131 -t -c "
+
+function clean {
+  # convert from remote IDs to local IDs
+  cat \
+    | sed "s/${ACCOUNTID}/${LOCALACC}/" \
+    | sed "s/${CANVASID}/${LOCALCAN}/";
+}
+
+function trim {
+  echo -e "$1" | tr -d '[:space:]';
+}
+
+###########################
+# Get necessary IDs
+###########################
+CANVASID=$($r "select id from canvases where name = '$HOST'");
+CANVASID=$(trim $CANVASID)
+ACCOUNTID=$($r "select account_id from canvases where name = '$HOST'");
+ACCOUNTID=$(trim $ACCOUNTID)
+USERNAME=$($r "select username from accounts where id = '$ACCOUNTID'");
+USERNAME=$(trim $USERNAME)
+
+# we need to convert both the account_id and canvas_id to the local
+# version (see `clean`)
+LOCALACC=$($l "select id from accounts where username = '$USERNAME'");
+LOCALACC=$(trim $LOCALACC)
+LOCALCAN=$($l "select id from canvases where name = '$HOST'");
+LOCALCAN=$(trim $LOCALCAN)
+if [[ "$LOCALCAN" = "" ]]; then
+  LOCALCAN=$CANVASID;
+fi
+
+###########################
+# Fetch all the data from the server
+###########################
+$r "COPY (SELECT * from canvases WHERE id = '${CANVASID}'::uuid) to STDOUT" > canvases.sql
+
+$r "COPY (SELECT * from cron_records WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT" > cron_records.sql
+
+$r "COPY (SELECT * from events WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > events.sql
+
+$r "COPY (SELECT * from function_results WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > function_results.sql
+
+$r "COPY (SELECT * from json_oplists WHERE host = '${HOST}') to STDOUT;" > json_oplists.sql
+
+$r "COPY (SELECT * from oplists WHERE host = '${HOST}') to STDOUT;" > oplists.sql
+
+$r "COPY (SELECT * from stored_events WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > stored_events.sql
+
+$r "COPY (SELECT * from user_data WHERE canvas_id = '${CANVASID}'::uuid) to STDOUT;" > user_data.sql
+
+
+###########################
+# insert the data locally
+###########################
+
+# We don't insert accounts because the account will already exist
+# locally, just with a different id (hence `clean`). The canvas might
+# not exist, in which case we'll insert it. If it does exist, don't
+# error out.
+(cat canvases.sql | clean | $l "COPY canvases from STDIN") || true
+cat events.sql | clean | $l "COPY events from STDIN"
+cat oplists.sql | clean | $l "COPY oplists from STDIN"
+cat json_oplists.sql | clean | $l "COPY json_oplists from STDIN"
+cat cron_records.sql | clean | $l "COPY cron_records from STDIN"
+cat function_results.sql | clean | $l "COPY function_results from STDIN"
+cat user_data.sql | clean | $l "COPY user_data from STDIN"
+
+
