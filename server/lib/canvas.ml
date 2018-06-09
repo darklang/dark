@@ -319,14 +319,13 @@ let create_environments (c: canvas) (host: string) :
     |> List.map ~f:(fun d -> (d, SE.load_events c.id host d))
   in
 
-
   (envs, unused_descs)
 
 (* ------------------------- *)
 (* Execution *)
 (* ------------------------- *)
-type analysis_result =
-  (tlid * (RTT.dval*Ast.dval_store*Ast.sym_store*RTT.symtable) list)
+type analysis_result = tlid * Ast.analysis list
+                       [@@deriving to_yojson]
 type executable_fn_id = (tlid * id * int)
 
 let unlocked (c: canvas) : tlid list =
@@ -408,32 +407,30 @@ let toplevel_values (c: canvas) (environments: RTT.env_map)
         in
         (h.tlid, values))
 
+type frontend =
+  { analyses: analysis_result list
+  ; global_varnames : string list
+  ; toplevels : TL.toplevel_list
+  ; unlocked_dbs : tlid list
+  (* ; fofs : SE.four_oh_four list [@key "404s"] *)
+  ; user_functions : RTT.user_fn list
+  } [@@deriving to_yojson]
+
+
 
 let to_frontend (tlvals : analysis_result list)
       (fvals : analysis_result list) (unlocked : tlid list)
       (environments: RTT.env_map) (f404s: SE.four_oh_four list)
       (c : canvas)
   : string =
-  let livevalue_dval_to_yojson v = v
-                                   |> Ast.dval_to_livevalue
-                                   |> Ast.livevalue_to_yojson
-  in
   let analyses =
     List.map (tlvals @ fvals)
       ~f:(fun (id, results) ->
         let to_result (v, ds, syms, inputs) =
-          `Assoc [ ("ast_value"
-                   , v
-                     |> Ast.dval_to_livevalue
-                     |> Ast.livevalue_to_yojson)
+          `Assoc [ ("ast_value" , Ast.livevalue_to_yojson v)
                  ; ("live_values", Ast.dval_store_to_yojson ds)
                  ; ("available_varnames", Ast.sym_store_to_yojson syms)
-                 ; ("input_values",
-                    inputs
-                    |> Map.to_alist
-                    |> List.map ~f:(Tuple.T2.map_snd
-                                      ~f:livevalue_dval_to_yojson)
-                   |> fun is -> `Assoc is)
+                 ; ("input_values", Ast.sym_list_to_yojson inputs)
                  ]
         in
         `Assoc [ ("id", `Int id)

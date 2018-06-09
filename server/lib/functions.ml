@@ -16,10 +16,13 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
     filled
 
 let execute_for_analysis (state : exec_state) (f : user_fn) :
-    (dval * Ast.dval_store * Ast.sym_store * symtable) =
+    Ast.analysis =
   let traced_symbols =
     Ast.symbolic_execute state.ff state.env f.ast in
   let (ast_value, traced_values) =
     Ast.execute_saving_intermediates state f.ast in
-  (ast_value, traced_values, traced_symbols, state.env)
+  ( Ast.dval_to_livevalue ast_value
+  , traced_values
+  , traced_symbols
+  , Ast.symtable_to_sym_list state.env)
 
