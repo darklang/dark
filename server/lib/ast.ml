@@ -514,9 +514,16 @@ let symtable_to_sym_list (st : symtable) : sym_list =
                     ~f:dval_to_livevalue)
 
 
-type analysis = (livevalue * dval_store * sym_store * sym_list)
-                [@@deriving to_yojson]
+type analysis =
+  { ast_value: livevalue
+  ; live_values : dval_store
+  ; available_varnames : sym_store
+  ; input_values : sym_list
+  } [@@deriving to_yojson]
 
+
+type analysis_list = analysis list
+                     [@@deriving to_yojson]
 
 (* -------------------- *)
 (* Analysis *)
