@@ -455,12 +455,72 @@ let execute state env expr : dval =
 
 
 (* -------------------- *)
-(* Analysis *)
+(* Types for Analysis *)
 (* -------------------- *)
-
 
 type dval_store = dval Int.Table.t
 
+type livevalue = { value: string
+                 ; tipe: string [@key "type"]
+                 ; json: string
+                 ; exc: Exception.exception_data option
+                 } [@@deriving to_yojson, show]
+
+module SymSet = Set.Make(String)
+type sym_set = SymSet.t
+type sym_store = sym_set Int.Table.t
+
+let dval_to_livevalue (dv: dval) : livevalue =
+  { value = Dval.to_livevalue_repr dv
+  ; tipe = Dval.tipename dv
+  ; json = dv
+           |> Dval.dval_to_yojson ~livevalue:true
+           |> Yojson.Safe.pretty_to_string
+  ; exc = None
+  }
+
+let livevalue_dval_to_yojson v = v
+                                 |> dval_to_livevalue
+                                 |> livevalue_to_yojson
+
+let ht_to_json_dict ds ~f =
+  let alist = Hashtbl.to_alist ds in
+  `Assoc (
+    List.map ~f:(fun (id, v) ->
+        (string_of_int id, f v))
+      alist)
+
+let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
+
+let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
+  ht_to_json_dict st ~f:(fun syms ->
+      `List (syms
+             |> SymSet.to_list
+             |> List.map ~f:(fun s -> `String s)))
+
+type sym_list = (string * livevalue) list
+                [@@deriving to_yojson]
+
+let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
+  `Assoc (sl
+          |> List.map ~f:(Tuple.T2.map_snd
+                           ~f:livevalue_to_yojson))
+
+let symtable_to_sym_list (st : symtable) : sym_list =
+  st
+  |> Map.to_alist
+  |> List.map ~f:(Tuple.T2.map_snd
+                    ~f:dval_to_livevalue)
+
+
+type analysis = (livevalue * dval_store * sym_store * sym_list)
+                [@@deriving to_yojson]
+
+
+(* -------------------- *)
+(* Analysis *)
+(* -------------------- *)
 
 let execute_saving_intermediates (state : exec_state) (ast: expr)
   : (dval * dval_store) =
@@ -474,34 +534,6 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
   in
   (exec_ ~trace ~trace_blank ~ctx:Preview ~state state.env ast, value_store)
 
-let ht_to_json_dict ds ~f =
-  let alist = Hashtbl.to_alist ds in
-  `Assoc (
-    List.map ~f:(fun (id, v) ->
-        (string_of_int id, f v))
-      alist)
-
-type livevalue = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving to_yojson, show]
-
-let dval_to_livevalue (dv: dval) : livevalue =
-  { value = Dval.to_livevalue_repr dv
-  ; tipe = Dval.tipename dv
-  ; json = dv
-           |> Dval.dval_to_yojson ~livevalue:true
-           |> Yojson.Safe.pretty_to_string
-  ; exc = None
-  }
-
-let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
-  ht_to_json_dict ds ~f:(fun dv -> dv |> dval_to_livevalue |> livevalue_to_yojson)
-
-
-module SymSet = Set.Make(String)
-type sym_set = SymSet.t
 
 let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
   let sexe = sym_exec ~trace ~ff in
@@ -561,7 +593,6 @@ let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sy
   | e ->
     Exception.log e
 
-type sym_store = sym_set Int.Table.t
 
 let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
   let sym_store = Int.Table.create () in
@@ -576,12 +607,6 @@ let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store
       (Symtable.keys init)
   in
   sym_exec ~trace ~ff init_set ast; sym_store
-
-let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
-  ht_to_json_dict st ~f:(fun syms ->
-      `List (syms
-             |> SymSet.to_list
-             |> List.map ~f:(fun s -> `String s)))
 
 let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
   match expr with
@@ -618,9 +643,6 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
              | ObjectLiteral pairs ->
                ObjectLiteral (List.map ~f:(fun (k, v) -> (k, f v)) pairs)
            ))
-
-
-
 
 let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
   let replace = set_expr ~search ~replacement in
