@@ -325,8 +325,12 @@ let create_environments (c: canvas) (host: string) :
 (* Execution *)
 (* ------------------------- *)
 type analysis_result = tlid * Ast.analysis list
-                       [@@deriving to_yojson]
 type executable_fn_id = (tlid * id * int)
+
+let analysis_result_to_yojson (id, results) =
+  `Assoc [ ("id", `Int id)
+         ; ("results", Ast.analysis_list_to_yojson results)
+         ]
 
 let unlocked (c: canvas) : tlid list =
   c.toplevels
@@ -412,45 +416,24 @@ type frontend =
   ; global_varnames : string list
   ; toplevels : TL.toplevel_list
   ; unlocked_dbs : tlid list
-  (* ; fofs : SE.four_oh_four list [@key "404s"] *)
+  ; fofs : SE.four_oh_four list [@key "404s"]
   ; user_functions : RTT.user_fn list
   } [@@deriving to_yojson]
-
-
 
 let to_frontend (tlvals : analysis_result list)
       (fvals : analysis_result list) (unlocked : tlid list)
       (environments: RTT.env_map) (f404s: SE.four_oh_four list)
-      (c : canvas)
-  : string =
-  let analyses =
-    List.map (tlvals @ fvals)
-      ~f:(fun (id, results) ->
-        let to_result (v, ds, syms, inputs) =
-          `Assoc [ ("ast_value" , Ast.livevalue_to_yojson v)
-                 ; ("live_values", Ast.dval_store_to_yojson ds)
-                 ; ("available_varnames", Ast.sym_store_to_yojson syms)
-                 ; ("input_values", Ast.sym_list_to_yojson inputs)
-                 ]
-        in
-        `Assoc [ ("id", `Int id)
-               ; ("results", `List (List.map ~f:to_result results))
-               ])
-  in
-  `Assoc
-    [ ("analyses", `List analyses)
-    ; ("global_varnames",
-       (* TODO(ian) *)
-       `List (RTT.EnvMap.find_exn environments 0
-              |> List.hd_exn
-              |> RTT.DvalMap.keys
-              |> List.map ~f:(fun s -> `String s)))
-    ; ("toplevels", TL.toplevel_list_to_yojson c.toplevels)
-    ; ("unlocked_dbs", `List (List.map ~f:tlid_to_yojson unlocked))
-    ; ("404s", `List (List.map ~f:SE.four_oh_four_to_yojson f404s))
-    ; ("user_functions",
-       `List (List.map ~f:RTT.user_fn_to_yojson c.user_functions))
-    ]
+      (c : canvas) : string =
+  { analyses = tlvals @ fvals
+  ; global_varnames = RTT.EnvMap.find_exn environments 0
+                      |> List.hd_exn
+                      |> RTT.DvalMap.keys
+  ; toplevels = c.toplevels
+  ; unlocked_dbs = unlocked
+  ; fofs = f404s
+  ; user_functions = c.user_functions
+  }
+  |> frontend_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
 
