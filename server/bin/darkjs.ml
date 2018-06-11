@@ -1,3 +1,4 @@
 let () =
-  print_endline "hello world";
+  print_endline "hello world ";
+  Libanalysis.Analysis.init ();
   ()
