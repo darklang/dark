@@ -1,0 +1,42 @@
+(jbuild_version 1)
+
+(library
+  (
+    (name libbase)
+    (modes (native))
+    (flags (-warn-error (+A)))
+    (preprocess (pps (
+                      landmarks.ppx
+                      lwt.ppx
+                      ppx_bin_prot
+                      ppx_compare
+                      ppx_deriving.std
+                      ppx_deriving_yojson
+                      ppx_fields_conv
+                      ppx_type_conv
+                      ppx_sexp_conv
+                      ppx_pipebang
+                      )))
+    (libraries (
+                batteries
+                core
+                cstruct
+                lwt
+                nocrypto
+                nocrypto.lwt
+                ppx_bin_prot
+                ppx_derivers
+                ppx_deriving.std
+                ppx_deriving_yojson
+                ppx_deriving_yojson.runtime
+                ppx_type_conv
+                ppx_sexp_conv
+                re2
+                threads
+                uutf
+                yojson
+                ))
+  )
+)
+
+
