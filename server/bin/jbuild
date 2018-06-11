@@ -13,6 +13,24 @@
 
 (executable
   (
+    (name darkjs)
+    (public_name darkjs)
+    (modules darkjs)
+    (libraries (js_of_ocaml-lwt dark))
+    (flags (-g))
+    (preprocess (pps (js_of_ocaml-ppx)))
+  )
+)
+
+(alias
+ (
+  (name darkjs)
+  (deps (darkjs.bc.js))
+  (action (system "cp darkjs.bc.js ../../../static/"))))
+
+
+(executable
+  (
     (name darkfile_to_rpc)
     (public_name darkfile_to_rpc)
     (modules darkfile_to_rpc)
