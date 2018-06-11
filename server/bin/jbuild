@@ -7,7 +7,7 @@
     (modules main)
     (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (dark))
+    (libraries (backend))
   )
 )
 
@@ -16,7 +16,7 @@
     (name darkjs)
     (public_name darkjs)
     (modules darkjs)
-    (libraries (js_of_ocaml-lwt dark))
+    (libraries (js_of_ocaml-lwt analysis))
     (flags (-g))
     (preprocess (pps (js_of_ocaml-ppx)))
   )
@@ -36,7 +36,7 @@
     (modules darkfile_to_rpc)
     (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (dark))
+    (libraries (backend))
   )
 )
 
@@ -47,7 +47,7 @@
     (modules darkfile_db_to_json_file)
     (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (dark))
+    (libraries (backend))
   )
 )
 
@@ -58,6 +58,6 @@
     (modules trigger_queue_workers)
     (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (dark))
+    (libraries (backend))
   )
 )
