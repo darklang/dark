@@ -1,5 +1,5 @@
 open Core
-open Dark
+open Libbackend
 open Types
 open Types.RuntimeT
 open Ast
@@ -180,13 +180,6 @@ let t_undo () =
   execute_ops (List.concat [ops; [u;u;r;r;u;r]])
   |> check_dval "t_undo_8" (DInt 5)
 
-
-let t_int_add_works () =
-  (* Couldn't call Int::add *)
-  let add = fncall ("+", [v "5"; v "3"]) in
-  let r = execute_ops [handler add] in
-  check_dval "int_add" (DInt 8) r
-
 let t_inserting_object_to_missing_col_gives_good_error () =
   let createDB = Op.CreateDB (89, pos, "TestDB") in
   let obj = f (ObjectLiteral [(f "col", f (ObjectLiteral []))]) in
@@ -196,30 +189,30 @@ let t_inserting_object_to_missing_col_gives_good_error () =
     de.short = "Found but did not expect: [col]" in
   check_exception "should get good error" ~check ~f
 
-let rec runnable_to_ast (sexp : Sexp.t) : expr =
+let rec ast_for (sexp : Sexp.t) : expr =
   match sexp with
   (* fncall *)
   | Sexp.List (Sexp.Atom fnname :: args)
     when String.is_substring ~substring:"::" fnname ->
-    f (FnCall (fnname, (List.map args ~f:runnable_to_ast)))
+    f (FnCall (fnname, (List.map args ~f:ast_for)))
 
   (* blocks *)
   | Sexp.List (Sexp.Atom fnname :: Sexp.Atom "->" :: [body])
     when String.is_prefix ~prefix:"\\" fnname ->
     let var = String.lstrip ~drop:((=) '\\') fnname in
-    f (Lambda ([f var], (runnable_to_ast body)))
+    f (Lambda ([f var], (ast_for body)))
 
   (* lists *)
   | Sexp.List args ->
     let init = f (FnCall ("List::empty", [])) in
     List.fold_right args ~init
       ~f:(fun newv init ->
-          f (FnCall ("List::push", [init; runnable_to_ast newv])))
+          f (FnCall ("List::push", [init; ast_for newv])))
 
   (* literals / variables *)
   | Sexp.Atom value ->
     if int_of_string_opt value = None
-    &&   float_of_string_opt value = None
+    && float_of_string_opt value = None
     && not (String.is_prefix ~prefix:"\"" value)
     then
       f (Variable value)
@@ -229,11 +222,15 @@ let rec runnable_to_ast (sexp : Sexp.t) : expr =
 let execute (prog: string) : dval =
   prog
   |> Sexp.of_string
-  |> runnable_to_ast
+  |> ast_for
   (* |> Log.pp ~f:show_expr *)
   |> fun expr -> [handler expr]
   |> execute_ops
 
+
+let t_int_add_works () =
+  (* Couldn't call Int::add *)
+  check_dval "int_add" (DInt 8) (execute "(Int::add 5 3)")
 
 let t_stdlib_works () =
   check_dval "uniqueBy"
