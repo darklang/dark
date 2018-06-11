@@ -2,47 +2,13 @@
 
 (library
   (
-    (name analysis)
-    (modes (native))
+    (name libanalysis)
     (flags (-warn-error (+A)))
     (preprocess (pps (
-                      landmarks.ppx
-                      lwt.ppx
-                      ppx_bin_prot
-                      ppx_compare
-                      ppx_deriving.std
-                      ppx_deriving_yojson
-                      ppx_fields_conv
-                      ppx_type_conv
-                      ppx_sexp_conv
-                      ppx_pipebang
                       )))
     (libraries (
-                batteries
-                cohttp.lwt
-                core
-                core_extended
-                cstruct
-                curl
-                curl.lwt
-                lwt
-                nocrypto
-                nocrypto.lwt
-                postgresql
-                ppx_bin_prot
-                ppx_derivers
-                ppx_deriving.std
-                ppx_deriving_yojson
-                ppx_deriving_yojson.runtime
-                ppx_type_conv
-                ppx_sexp_conv
-                re2
-                session
-                session-postgresql-lwt
-                session-cohttp-lwt
-                threads
-                uutf
-                yojson
+                base
+                libbase
                 ))
   )
 )
