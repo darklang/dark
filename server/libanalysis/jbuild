@@ -2,8 +2,7 @@
 
 (library
   (
-    (name dark)
-    (public_name dark)
+    (name analysis)
     (modes (native))
     (flags (-warn-error (+A)))
     (preprocess (pps (
