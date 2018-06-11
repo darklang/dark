@@ -17,3 +17,4 @@
 /transaction.yaml
 client/DEBUG
 node_modules
+/server/static/darkjs.bc.js
