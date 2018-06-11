@@ -2,7 +2,7 @@
 
 (library
   (
-    (name backend)
+    (name libbackend)
     (modes (native))
     (flags (-warn-error (+A)))
     (preprocess (pps (
