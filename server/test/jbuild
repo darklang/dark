@@ -3,11 +3,8 @@
 (executable
   (
     (name test)
-    (public_name test)
-    (modules test)
-    (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (dark alcotest junit junit_alcotest))
+    (libraries (libbackend alcotest junit junit_alcotest))
   )
 )
 
