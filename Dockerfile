@@ -224,7 +224,10 @@ RUN opam install -y \
   session-postgresql.0.4.0 \
   session-postgresql-lwt.0.4.0 \
   junit_alcotest.2.0 \
-  junit.2.0
+  junit.2.0 \
+  js_of_ocaml.3.1.0 \
+  js_of_ocaml-ppx.3.1.0 \
+  js_of_ocaml-lwt.3.1.0
 
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 
@@ -246,8 +249,8 @@ RUN yarn add \
 RUN sudo apt-get update && sudo apt-get install -y kubectl
 RUN sudo apt-get update && sudo apt-get install -y python3-pip
 
+# For the benchmark
 RUN pip3 install requests
-
 
 ############################
 # Finish
