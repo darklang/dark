@@ -629,14 +629,15 @@ update_ msg m =
                 if event.shiftKey
                 then Selection.selectPrevBlank m tlid mId
                 else Selection.selectNextBlank m tlid mId
-              Key.O ->
-                if event.ctrlKey
-                then Selection.selectUpLevel m tlid mId
-                else NoChange
-              Key.I ->
-                if event.ctrlKey
-                then Selection.selectDownLevel m tlid mId
-                else NoChange
+              -- Disabled to make room for Windows keyboards
+              -- Key.O ->
+              --   if event.ctrlKey
+              --   then Selection.selectUpLevel m tlid mId
+              --   else NoChange
+              -- Key.I ->
+              --   if event.ctrlKey
+              --   then Selection.selectDownLevel m tlid mId
+              --   else NoChange
               Key.N ->
                 if event.ctrlKey
                 then Selection.selectNextSibling m tlid mId
@@ -646,17 +647,18 @@ update_ msg m =
                 then Selection.selectPreviousSibling m tlid mId
                 else NoChange
               Key.C ->
-                if event.ctrlKey
-                then
-                  let mPd = Maybe.map (TL.findExn tl) mId in
-                  Clipboard.copy m tl mPd
-                else if False
+                if event.ctrlKey && event.altKey
                 then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WIfCond
+                else if event.ctrlKey
+                then
+                  let mPd = Maybe.map (TL.findExn tl) mId in
+                  Clipboard.copy m tl mPd
+
                 else
                   NoChange
               Key.V ->
@@ -715,24 +717,21 @@ update_ msg m =
                       Refactor.wrap m tl pd WLetRHS
                 else
                   NoChange
-              Key.T ->
-                if event.ctrlKey
-                then
-                  case mId of
-                    Nothing -> NoChange
-                    Just id ->
-                      let pd = TL.findExn tl id in
-                      Refactor.wrap m tl pd WIfThen
-                else
-                  NoChange
-              Key.E ->
-                if event.ctrlKey
+              Key.I ->
+                if event.ctrlKey && event.altKey
                 then
                   case mId of
                     Nothing -> NoChange
                     Just id ->
                       let pd = TL.findExn tl id in
                       Refactor.wrap m tl pd WIfElse
+                else if event.ctrlKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let pd = TL.findExn tl id in
+                      Refactor.wrap m tl pd WIfThen
                 else
                   NoChange
               _ -> NoChange
