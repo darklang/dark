@@ -23,7 +23,7 @@ let run_sql ?(quiet=false) (sql: string) : unit =
 
   let finish = Unix.gettimeofday () in
   let time = (finish -. start) *. 1000.0 in
-  Log.infO "sql" sql ~time ~stop:10000
+  Log.infO ("sql: " ^ sql) "" ~time ~stop:10000
 
 
 
@@ -33,7 +33,7 @@ let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
   then
     ()
   else
-    Log.infO "fetching via sql" sql;
+    Log.infO ("fetching via sql: " ^ sql) "";
   try
     let result =
       sql
