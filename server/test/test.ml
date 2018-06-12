@@ -101,7 +101,73 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
       print_endline (Backtrace.to_string bt);
       Log.erroR "different exception" msg;
       Some "different exception"
-  in AT.check (AT.option AT.string) msg None e
+  in
+  AT.check (AT.option AT.string) msg None e
+
+let is_fn name =
+  (* quick hack *)
+  name = "+"
+  || name = "-"
+  || String.is_substring ~substring:"::" name
+
+let rec ast_for_ (sexp : Sexp.t) : expr =
+  match sexp with
+  (* fncall *)
+  | Sexp.List (Sexp.Atom fnname :: args) when is_fn fnname ->
+    f (FnCall (fnname, (List.map args ~f:ast_for_)))
+
+  (* blocks *)
+  | Sexp.List (Sexp.Atom fnname :: Sexp.Atom "->" :: [body])
+    when String.is_prefix ~prefix:"\\" fnname ->
+    let var = String.lstrip ~drop:((=) '\\') fnname in
+    f (Lambda ([f var], (ast_for_ body)))
+
+  (* lists *)
+  | Sexp.List args ->
+    let init = f (FnCall ("List::empty", [])) in
+    List.fold_right args ~init
+      ~f:(fun newv init ->
+          f (FnCall ("List::push", [init; ast_for_ newv])))
+
+  (* blanks *)
+  | Sexp.Atom "_" -> b()
+
+  (* literals / variables *)
+  | Sexp.Atom value ->
+    Log.pP "value" value;
+    if int_of_string_opt value = None
+    && float_of_string_opt value = None
+    && value <> "{}"
+    && value <> "[]"
+    && not (String.is_prefix ~prefix:"\"" value)
+    then
+      f (Variable value)
+    else
+      f (Value value)
+
+let ast_for (ast: string) : expr =
+  let quotes = (Re2.Regex.create_exn "'(.*)'") in
+  ast
+  |> (fun s ->
+    (* dunno whether it's a bug or just annoying, but we need to specify
+     * quotes as \"\\\", so let's "'" instead. (The ocaml parser demands
+     * we insert a " here smdh) *)
+      Re2.Regex.replace_exn quotes s
+        ~f:(fun m ->
+            "\"\\\""
+            ^ (Re2.Regex.Match.get_exn ~sub:(`Index 1) m)
+            ^ "\\\"\""))
+  |> Sexp.of_string
+  (* |> Log.pp ~f:Sexp.to_string "sexp" *)
+  |> ast_for_
+  (* |> Log.pp ~f:show_expr "expr" *)
+
+let execute (prog: string) : dval =
+  prog
+  |> ast_for
+  (* |> Log.pp ~f:show_expr *)
+  |> fun expr -> [handler expr]
+  |> execute_ops
 
 
 
@@ -111,9 +177,9 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
 
 let t_undo_fns () =
   let n1 = Op.Savepoint [tlid] in
-  let n2 = handler (fncall ("-", [b (); b ()])) in
-  let n3 = handler (fncall ("-", [v "3"; b ()])) in
-  let n4 = handler (fncall ("-", [v "3"; v "4"])) in
+  let n2 = handler (ast_for "(- _ _)") in
+  let n3 = handler (ast_for "(- 3 _)") in
+  let n4 = handler (ast_for "(- 3 4)") in
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
 
@@ -189,48 +255,9 @@ let t_inserting_object_to_missing_col_gives_good_error () =
     de.short = "Found but did not expect: [col]" in
   check_exception "should get good error" ~check ~f
 
-let rec ast_for (sexp : Sexp.t) : expr =
-  match sexp with
-  (* fncall *)
-  | Sexp.List (Sexp.Atom fnname :: args)
-    when String.is_substring ~substring:"::" fnname ->
-    f (FnCall (fnname, (List.map args ~f:ast_for)))
-
-  (* blocks *)
-  | Sexp.List (Sexp.Atom fnname :: Sexp.Atom "->" :: [body])
-    when String.is_prefix ~prefix:"\\" fnname ->
-    let var = String.lstrip ~drop:((=) '\\') fnname in
-    f (Lambda ([f var], (ast_for body)))
-
-  (* lists *)
-  | Sexp.List args ->
-    let init = f (FnCall ("List::empty", [])) in
-    List.fold_right args ~init
-      ~f:(fun newv init ->
-          f (FnCall ("List::push", [init; ast_for newv])))
-
-  (* literals / variables *)
-  | Sexp.Atom value ->
-    if int_of_string_opt value = None
-    && float_of_string_opt value = None
-    && not (String.is_prefix ~prefix:"\"" value)
-    then
-      f (Variable value)
-    else
-      f (Value value)
-
-let execute (prog: string) : dval =
-  prog
-  |> Sexp.of_string
-  |> ast_for
-  (* |> Log.pp ~f:show_expr *)
-  |> fun expr -> [handler expr]
-  |> execute_ops
-
-
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  check_dval "int_add" (DInt 8) (execute "(Int::add 5 3)")
+  check_dval "int_add" (DInt 8) (execute "(+ 5 3)")
 
 let t_stdlib_works () =
   check_dval "uniqueBy"
@@ -303,17 +330,11 @@ let t_case_insensitive_db_roundtrip () =
     AT.(check bool) "failed" true false
 
 
-
-
-
 let t_lambda_with_foreach () =
-  let ast = fncall ( "String::foreach"
-                   , [ v "\"some string\""
-                     ; f (Lambda ( [f "var"]
-                              , f (FnCall ( "Char::toUppercase"
-                                          , [f (Variable "var")]))))])
+  let r = execute
+      "(String::foreach 'some string'
+         (\\var -> (Char::toUppercase var)))"
   in
-  let r = execute_ops [handler ast] in
   check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
 
 module SE = Stored_event
@@ -375,15 +396,10 @@ let t_event_queue_roundtrip () =
   ()
 
 let t_bad_ssl_cert _ =
-  let ast = f (FnCall ( "HttpClient::get"
-                   , [ v "\"https://self-signed.badssl.com\""
-                     ; v "{}"
-                     ; v "{}"
-                     ; v "{}"])) in
   check_exception "should get bad_ssl"
-    ~f:(fun () -> execute_ops [handler ast])
-
-
+    ~f:(fun () ->
+        execute
+          "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
 
 
 let t_hmac_signing _ =
@@ -437,8 +453,7 @@ let t_hmac_signing _ =
   AT.check AT.string "hmac_signing_2" expected_header actual
 
 let t_cron_sanity () =
-  let add = fncall ("+", [v "5"; v "3"]) in
-  let h_op = daily_cron add in
+  let h_op = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c "test-cron_works" [h_op] in
   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
   let should_run =
@@ -448,8 +463,7 @@ let t_cron_sanity () =
   ()
 
 let t_cron_just_ran () =
-  let add = fncall ("+", [v "5"; v "3"]) in
-  let h_op = daily_cron add in
+  let h_op = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c "test-cron_works" [h_op] in
   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler;
@@ -460,15 +474,26 @@ let t_cron_just_ran () =
   ()
 
 
+let t_roundtrip_user_data () =
+  check_dval "uniqueBy"
+    (execute "(let x = {\"a\"=5, \"b\"=6}List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
+    (DList [DInt 1; DInt 3; DInt 4]);
+  check_dval "uniqueBy"
+    (execute "(List::uniqueBy (1 2 3 4) (\\x -> x))")
+    (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
+  ()
+
+
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
   ; "undo_fns", `Quick, t_undo_fns
   ; "int_add_works", `Quick, t_int_add_works
   ; "lambda_with_foreach", `Quick, t_lambda_with_foreach
-  ; "stored_events", `Quick, t_stored_event_roundtrip
+  (* ; "stored_events", `Quick, t_stored_event_roundtrip *)
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
-  ; "bad ssl cert", `Slow, t_bad_ssl_cert
+  ; "bad ssl cert", `Quick, t_bad_ssl_cert (* TODO *)
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "db json oplist roundtrip", `Quick, t_db_json_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
@@ -479,6 +504,7 @@ let suite =
   ; "Stdlib works", `Quick, t_stdlib_works
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
+  (* ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data *)
   ]
 
 let () =
