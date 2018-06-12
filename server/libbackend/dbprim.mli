@@ -22,3 +22,6 @@ val dvalmap_jsonb : Types.RuntimeT.dval_map -> string
 (* DB plumbing *)
 val table : string -> string
 
+(* exposed to test it *)
+val escape_single : string -> string
+val escape_double : string -> string
