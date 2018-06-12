@@ -9,6 +9,7 @@ val cols_for : DbT.db -> (string * tipe) list
 val insert : state:exec_state -> DbT.db -> dval_map -> Uuid.t
 val fetch_all : state:exec_state -> DbT.db -> dval
 val fetch_by : state:exec_state -> DbT.db -> string -> dval -> dval
+val fetch_by_many : state:exec_state -> DbT.db -> (string * dval) list -> dval
 val find : state:exec_state -> DbT.db -> Uuid.t -> dval
 val find_many : state:exec_state -> DbT.db -> Uuid.t list -> dval
 val delete : state:exec_state -> DbT.db -> dval_map -> unit
