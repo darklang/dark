@@ -124,6 +124,23 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* lists *)
   | Sexp.List args ->
+  (* let *)
+  | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
+    f (Let (f var, ast_for_ value, ast_for_ body))
+
+  (* objects *)
+  | Sexp.List (Sexp.Atom "obj" :: rest) ->
+    (let to_pair pair =
+       match pair with
+       | Sexp.List [Sexp.Atom key; value] ->
+         (f key, ast_for_ value )
+       | x ->
+         Log.pP "pair" pair;
+         failwith "invalid"
+     in
+     let args = List.map ~f:to_pair rest in
+     f (ObjectLiteral args))
+
     let init = f (FnCall ("List::empty", [])) in
     List.fold_right args ~init
       ~f:(fun newv init ->
