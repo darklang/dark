@@ -77,7 +77,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TList
-  ; d = "Fetch the value in `table` whose field `field` is `value`"
+  ; d = "Fetch all the values in `table` whose `field` is `value`"
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
@@ -92,7 +92,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TAny
-  ; d = "Fetch exactly one value in `table` whose field `field` is `value`"
+  ; d = "Fetch exactly one value in `table` whose `field` is `value`"
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
@@ -106,6 +106,46 @@ let fns : Lib.shortfn list = [
   ; ps = true
   }
   ;
+
+  { pns = ["DB::fetchByMany"]
+  ; ins = []
+  ; p = [par "spec" TObj; par "table" TDB]
+  ; r = TList
+  ; d = "Fetch all the values from `table` which have the same fields and values that `spec` has"
+  ; f = InProcess
+        (function
+          | (state, [DObj map; DDB db]) ->
+            map
+            |> DvalMap.to_alist
+            |> User_db.fetch_by_many state db
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["DB::fetchOneByMany"]
+  ; ins = []
+  ; p = [par "spec" TObj; par "table" TDB]
+  ; r = TAny
+  ; d = "Fetch exactly one value from `table`, which have the samea fields and values that `spec` has"
+  ; f = InProcess
+        (function
+          | (state, [DObj map; DDB db]) ->
+            let result =
+              User_db.fetch_by_many state db (DvalMap.to_alist map)
+            in
+            (match result with
+             | DList (x :: xs) -> x
+               (* TODO(ian): Maybe/Option *)
+             | _ -> DNull)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
 
   { pns = ["DB::fetchAll"]
   ; ins = []
