@@ -58,7 +58,13 @@ let cols_for (db: db) : (string * tipe) list =
     | _ ->
       None)
   |> fun l -> ("id", TID) :: l
-
+let query_for (col: string) (dv: dval) : string =
+  Printf.sprintf
+    "AND (data->%s)%s = %s" (* compare against json in a string *)
+    (Dbp.string col)
+    (Dbp.cast_expression_for dv
+     |> Option.value ~default:"")
+    (Dbp.dvaljson dv)
 let rec fetch_by ~state db (col: string) (dv: dval) : dval =
   Printf.sprintf
     "SELECT id, data
@@ -66,15 +72,34 @@ let rec fetch_by ~state db (col: string) (dv: dval) : dval =
      WHERE table_tlid = %s
      AND user_version = %s
      AND dark_version = %s
-     AND (data->%s)%s = %s" (* compare against json in a string *)
+     %s"
     (Dbp.table user_data_table)
     (Dbp.tlid db.tlid)
     (Dbp.int db.version)
     (Dbp.int current_dark_version)
-    (Dbp.string col)
-    (Dbp.cast_expression_for dv
-     |> Option.value ~default:"")
-    (Dbp.dvaljson dv)
+    (query_for col dv)
+  |> fetch_via_sql
+  |> List.map ~f:(to_obj ~state db)
+  |> DList
+and
+fetch_by_many ~state db (pairs:(string*dval) list) : dval =
+  let conds =
+    pairs
+    |> List.map ~f:(fun (k,v) -> query_for k v)
+    |> String.concat ~sep:"\n     "
+  in
+  Printf.sprintf
+    "SELECT id, data
+     FROM %s
+     WHERE table_tlid = %s
+     AND user_version = %s
+     AND dark_version = %s
+     %s"
+    (Dbp.table user_data_table)
+    (Dbp.tlid db.tlid)
+    (Dbp.int db.version)
+    (Dbp.int current_dark_version)
+    conds
   |> fetch_via_sql
   |> List.map ~f:(to_obj ~state db)
   |> DList
