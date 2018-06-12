@@ -66,7 +66,7 @@ let rec fetch_by ~state db (col: string) (dv: dval) : dval =
      WHERE table_tlid = %s
      AND user_version = %s
      AND dark_version = %s
-     AND (data->>%s)%s = %s"
+     AND (data->%s)%s = %s" (* compare against json in a string *)
     (Dbp.table user_data_table)
     (Dbp.tlid db.tlid)
     (Dbp.int db.version)

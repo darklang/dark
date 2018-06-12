@@ -4,8 +4,11 @@ module RTT = Types.RuntimeT
 
 let conn = Dbconnection.conn
 
-let escape (s: string) : string =
+let escape_single (s: string) : string =
   conn#escape_string s
+
+let escape_double (s: string) : string =
+  Util.string_replace "\"" "\\\"" s
 
 let escapea (s: string) : string =
   conn#escape_bytea s
@@ -52,12 +55,12 @@ let double_quote v = "\"" ^ v ^ "\""
 let uuid uuid =
   uuid
   |> Uuid.to_string
-  |> escape
+  |> escape_single
   |> fun u -> "'" ^ u ^ "'::uuid"
 
 let string s =
   s
-  |> escape
+  |> escape_single
   |> single_quote
 
 let binary s =
@@ -83,7 +86,7 @@ let host = string
 
 let sql s =
   (* not sure about this but it was working before *)
-  Printf.sprintf "'%s'" (escape s)
+  Printf.sprintf "'%s'" (escape_single s)
 
 (* ------------------------- *)
 (* Dvals *)
@@ -101,7 +104,7 @@ let cast_expression_for (dv: RTT.dval) : string option =
 
 let dvaljson dv =
   Dval.dval_to_json_string dv
-  |> escape
+  |> escape_single
   |> single_quote
 
 let dvals (dvals : RTT.dval list) : string =
@@ -111,7 +114,7 @@ let dvals (dvals : RTT.dval list) : string =
 
 let dvalmap_jsonb dv =
   Dval.dvalmap_to_string dv
-  |> escape
+  |> escape_single
   |> single_quote
   |> fun s -> s ^ "::jsonb"
 
@@ -120,7 +123,6 @@ let dvalmap_jsonb dv =
 (* ------------------------- *)
 let table name : string =
   name
-  |> escape
   |> double_quote
 
 
