@@ -149,7 +149,6 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* literals / variables *)
   | Sexp.Atom value ->
-    Log.pP "value" value;
     if int_of_string_opt value = None
     && float_of_string_opt value = None
     && value <> "{}"
@@ -173,7 +172,12 @@ let ast_for (ast: string) : expr =
             ^ (Re2.Regex.Match.get_exn ~sub:(`Index 1) m)
             ^ "\\\"\""))
   |> Sexp.of_string
-  (* |> Log.pp ~f:Sexp.to_string "sexp" *)
+  |> (fun s ->
+        let b = Buffer.create 16000 in
+        Sexp.to_buffer_hum b s;
+        Log.pP "buf:" (Buffer.contents b);
+        s
+     )
   |> ast_for_
   |> Log.pp ~f:show_expr "expr"
 
@@ -507,7 +511,7 @@ let suite =
   ; "lambda_with_foreach", `Quick, t_lambda_with_foreach
   (* ; "stored_events", `Quick, t_stored_event_roundtrip *)
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
-  ; "bad ssl cert", `Quick, t_bad_ssl_cert (* TODO *)
+  ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "db json oplist roundtrip", `Quick, t_db_json_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
