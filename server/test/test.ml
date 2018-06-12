@@ -122,8 +122,6 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
     let var = String.lstrip ~drop:((=) '\\') fnname in
     f (Lambda ([f var], (ast_for_ body)))
 
-  (* lists *)
-  | Sexp.List args ->
   (* let *)
   | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
     f (Let (f var, ast_for_ value, ast_for_ body))
@@ -141,10 +139,9 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
      let args = List.map ~f:to_pair rest in
      f (ObjectLiteral args))
 
-    let init = f (FnCall ("List::empty", [])) in
-    List.fold_right args ~init
-      ~f:(fun newv init ->
-          f (FnCall ("List::push", [init; ast_for_ newv])))
+  (* lists *)
+  | Sexp.List args ->
+    f (ListLiteral (List.map ~f:ast_for_ args))
 
   (* blanks *)
   | Sexp.Atom "_" -> b()
