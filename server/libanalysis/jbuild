@@ -4,12 +4,8 @@
   (
     (name libanalysis)
     (flags (-warn-error (+A)))
-    (preprocess (pps (
-                      )))
-    (libraries (
-                base
-                libbase
-                ))
+    (preprocess (pps ()))
+    (libraries (libbase))
   )
 )
 
