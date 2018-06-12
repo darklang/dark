@@ -17,6 +17,7 @@ let b () = Types.Blank (fid ())
 let f a = Types.Filled (fid (), a)
 let fncall (a,b) = f (FnCall (a,b))
 let tlid = 7
+let dbid = 89
 let pos = {x=0;y=0}
 
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
@@ -174,7 +175,7 @@ let ast_for (ast: string) : expr =
   |> Sexp.of_string
   (* |> Log.pp ~f:Sexp.to_string "sexp" *)
   |> ast_for_
-  (* |> Log.pp ~f:show_expr "expr" *)
+  |> Log.pp ~f:show_expr "expr"
 
 let execute (prog: string) : dval =
   prog
@@ -261,9 +262,8 @@ let t_undo () =
   |> check_dval "t_undo_8" (DInt 5)
 
 let t_inserting_object_to_missing_col_gives_good_error () =
-  let createDB = Op.CreateDB (89, pos, "TestDB") in
-  let obj = f (ObjectLiteral [(f "col", f (ObjectLiteral []))]) in
-  let insert = fncall ("DB::insert", [obj; f (Variable "TestDB")]) in
+  let createDB = Op.CreateDB (dbid, pos, "TestDB") in
+  let insert = ast_for "(DB::insert (obj (col (obj))) TestDB)" in
   let f = fun () -> execute_ops [createDB; handler insert] in
   let check = fun (de: Exception.exception_data) ->
     de.short = "Found but did not expect: [col]" in
@@ -321,26 +321,26 @@ let t_db_json_oplist_roundtrip () =
 
 
 let t_case_insensitive_db_roundtrip () =
-  let name = "test" in
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
-  let oplist = [ Op.CreateDB (tlid, pos, "TestUnicode")
-               ; Op.AddDBCol (tlid, 11, 12)
-               ; Op.SetDBColName (tlid, 11, colname)
-               ; Op.SetDBColType (tlid, 12, "Str")
-               ] in
-  let c = ops2c name oplist in
-  let exec_st = state_for c in
-  let db = !c.toplevels |> TL.dbs |> List.hd_exn in
-  let dval = DvalMap.singleton colname value in
-  let _ = User_db.insert exec_st db dval in
-  let result = User_db.fetch_all exec_st db in
-  match result with
+  let ast =
+    ast_for
+      "(let _
+            (DB::insert (obj (cOlUmNnAmE 'some value')) TestUnicode)
+            (DB::fetchAll TestUnicode))"
+  in
+  let oplist = [ Op.CreateDB (dbid, pos, "TestUnicode")
+               ; Op.AddDBCol (dbid, 11, 12)
+               ; Op.SetDBColName (dbid, 11, colname)
+               ; Op.SetDBColType (dbid, 12, "Str")
+               ; handler ast ]
+  in
+  match execute_ops oplist with
   | DList [DObj v] ->
     AT.(check bool) "matched" true
       (List.mem ~equal:(=) (DvalMap.data v) value)
   | other ->
-    Log.pP "error" other;
+    Log.pP "error" ~f:show_dval other;
     AT.(check bool) "failed" true false
 
 
