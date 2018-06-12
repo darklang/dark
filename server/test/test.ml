@@ -109,6 +109,7 @@ let is_fn name =
   (* quick hack *)
   name = "+"
   || name = "-"
+  || name = "=="
   || String.is_substring ~substring:"::" name
 
 let rec ast_for_ (sexp : Sexp.t) : expr =
@@ -493,12 +494,29 @@ let t_cron_just_ran () =
 
 
 let t_roundtrip_user_data () =
-  check_dval "uniqueBy"
-    (execute "(let x = {\"a\"=5, \"b\"=6}List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
-    (DList [DInt 1; DInt 3; DInt 4]);
-  check_dval "uniqueBy"
-    (execute "(List::uniqueBy (1 2 3 4) (\\x -> x))")
-    (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
+  let ast =
+    ast_for "(let v 'lasd;04mr'
+        (let old (DB::insert (obj (x v)) MyDB)
+        (let new (DB::fetchOneBy v 'x' MyDB)
+        (== old new))))"
+  in
+  let oplist = [ Op.CreateDB (dbid, pos, "MyDB")
+               ; Op.AddDBCol (dbid, 11, 12)
+               ; Op.SetDBColName (dbid, 11, "x")
+               ; Op.SetDBColType (dbid, 12, "Str")
+               ; handler ast
+               ] in
+  check_dval "equal_after_roundtrip"
+    (execute_ops oplist)
+    (DBool true)
+
+let t_escape_pg_escaping () =
+  AT.check AT.string "no quotes" "asdd" (Dbprim.escape_single "asdd");
+  AT.check AT.string "single" "as''dd" (Dbprim.escape_single "as'dd");
+  AT.check AT.string "double" "as\"dd" (Dbprim.escape_single "as\"dd");
+  AT.check AT.string "no quotes" "asdd" (Dbprim.escape_double "asdd");
+  AT.check AT.string "single" "as'dd" (Dbprim.escape_double "as'dd");
+  AT.check AT.string "double" "as\\\"dd" (Dbprim.escape_double "as\"dd");
   ()
 
 
@@ -522,7 +540,8 @@ let suite =
   ; "Stdlib works", `Quick, t_stdlib_works
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
-  (* ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data *)
+  ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
+    ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ]
 
 let () =
