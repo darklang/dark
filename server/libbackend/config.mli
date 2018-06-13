@@ -1,7 +1,6 @@
 open Core
 
-type root = Events
-          | Function_results
+type root = Function_results
           | Log
           | Serialization
           | Templates
