@@ -65,9 +65,6 @@ echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
 rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${TEST_RESULTS_DIR}/integration_tests.*
-rm -Rf ${DARK_CONFIG_PERSIST_DIR}/events/test_*
-rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test_*
-rm -Rf ${DARK_CONFIG_PERSIST_DIR}/function_results/test-*
 
 # Clear DBs
 function run_sql { psql -d proddb -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }

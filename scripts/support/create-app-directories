@@ -12,7 +12,6 @@ mkdir -p "$RUNDIR/logs"
 mkdir -p "$RUNDIR/cache"
 mkdir -p "$RUNDIR/completed_tests"
 mkdir -p "$PERSISTDIR/appdata"
-mkdir -p "$PERSISTDIR/events"
 
 
 
