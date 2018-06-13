@@ -325,7 +325,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `String s -> DStr s
   | `List l -> DList (List.map ~f:dval_of_yojson_ l)
   | `Variant v -> Exception.client "We dont use variants"
-  | `Intlit v -> Exception.client "We dont use intlits"
+  | `Intlit v -> DStr v
   | `Tuple v -> Exception.client "We dont use tuples"
   | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
     DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
