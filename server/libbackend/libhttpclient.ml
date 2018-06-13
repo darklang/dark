@@ -21,6 +21,13 @@ let has_json_header (headers: headers) : bool =
          |> String.lowercase
          |> String.is_substring ~substring:"application/json")
 
+let read_json (json: string) : dval =
+  try
+    Dval.parse json
+  with e ->
+    Dval.exception_to_dval ~log:false e
+
+
 (* TODO: integrate with dark_request *)
 let call verb =
   InProcess
@@ -40,7 +47,7 @@ let call verb =
           if has_form_header headers
           then Dval.from_form_encoding result
           else if has_json_header headers
-          then Dval.parse result
+          then read_json result
           else DStr result
         in
         let parsed_headers =
@@ -50,7 +57,9 @@ let call verb =
           |> DvalMap.of_alist_fold ~init:(DStr "") ~f:(fun old neww -> neww)
           |> fun dm -> DObj dm
         in
-        Dval.to_dobj [("body", parsed_result); ("headers", parsed_headers)]
+        Dval.to_dobj [ ("body", parsed_result)
+                     ; ("headers", parsed_headers)
+                     ; ("raw", DStr result)]
     | (_, args) -> fail args)
 
 

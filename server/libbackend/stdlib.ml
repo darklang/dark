@@ -543,6 +543,22 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["JSON::read"]
+  ; ins = []
+  ; p = [par "json" TStr]
+  ; r = TAny
+  ; d = "Parses a json string and returns its value"
+  ; f = InProcess
+        (function
+          | (_, [DStr json]) -> Dval.parse json
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+
 
   { pns = ["equals"]
   ; ins = ["=="]
