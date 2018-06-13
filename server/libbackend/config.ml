@@ -71,7 +71,6 @@ let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 let server_dir = root_dir ^ "server/"
 let appdata_dir = persist_dir ^ "appdata/"
 let testdata_dir = server_dir ^ "test_appdata/"
-let events_dir = persist_dir ^ "events/"
 let function_results_dir = persist_dir ^ "function_results/"
 let log_dir = run_dir ^ "logs/"
 let serialization_dir = server_dir ^ "serialization/"
@@ -91,8 +90,7 @@ let __unused_bin_scripts_dir = absolute_dir "DARK_CONFIG_SCRIPTS_DIR"
 (* -------------------- *)
 (* For use in Util *)
 (* -------------------- *)
-type root = Events
-          | Function_results
+type root = Function_results
           | Log
           | Serialization
           | Templates
@@ -108,7 +106,6 @@ type root = Events
 
 let dir root =
   match root with
-  | Events -> events_dir
   | Function_results -> function_results_dir
   | Log -> log_dir
   | Serialization -> serialization_dir
