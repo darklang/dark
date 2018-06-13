@@ -1,7 +1,6 @@
 open Core
 
-type root = Function_results
-          | Log
+type root = Log
           | Serialization
           | Templates
           | Webroot
