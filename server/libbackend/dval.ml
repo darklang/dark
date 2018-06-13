@@ -485,4 +485,60 @@ let from_form_encoding (f: string) : dval =
   f |> Uri.query_of_encoded |> query_to_dval
 
 
+let exception_to_dval ~(log: bool) exc =
+  match exc with
+  | Exception.DarkException e ->
+    let json = e
+               |> Exception.exception_data_to_yojson
+               |> Yojson.Safe.pretty_to_string in
+    if log then Log.print_endline json else ();
+    DError json
+
+  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds)) as e ->
+    if log then Exception.log e;
+    (* go through a set of known errors and make them user-friendly *)
+
+    (* drop 2nd line which has the sql info on it, then trim different
+     * variations of Error from the front. *)
+    let msg = msg
+              |> String.split ~on:'\n'
+              |> List.hd
+              |> Option.value ~default:""
+              |> Util.maybe_chop_prefix ~prefix:"ERROR:"
+              |> String.lstrip
+    in
+    let m regex : string list option =
+      msg
+      |> Util.string_match ~regex
+      |> Result.ok
+    in
+
+    let db_short_name db =
+      String.split ~on:'_' db
+      |> List.tl
+      |> Option.value ~default:[""]
+      |> List.hd_exn
+    in
+
+    let result =
+      match m "column \"(.*)\" of relation \"(.*)\" does not exist" with
+      | Some [field; db] ->
+          ("Object has field "
+          ^ field
+          ^ ", but "
+          ^ db_short_name db
+          ^ " doesn't have that field")
+      | Some other -> Exception.internal "wrong arg count"
+      | _ -> msg
+    in
+    DError result
+
+  | Postgresql.Error exc as e->
+    if log then Exception.log e;
+    DError (Postgresql.string_of_error exc)
+
+  | e ->
+    e
+    |> Exception.to_string ~log
+    |> DError
 
