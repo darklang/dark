@@ -4,10 +4,6 @@ module RTT = Types.RuntimeT
 module RT = Runtime
 
 
-(* We don't want to hit API limits, so we'll cache everything on disk
-   permanently. *)
-(* If we ever call it again, we'll use the on-disk version first *)
-
 type dval = RTT.dval
 type dval_map = RTT.dval_map
 module DvalMap = RTT.DvalMap
@@ -94,7 +90,6 @@ let oauth_header secret url verb (args: dval_map) : string =
 
 let authorization_header url verb (args: dval_map) : (string * string) =
   ("Authorization", oauth_header Secret.twitter url verb args)
-
 
 let rec dvalmap2query (args: dval_map) : string =
   args
