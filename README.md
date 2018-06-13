@@ -127,23 +127,14 @@ You can also disable the polling (ans consequently the building):
 
 Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
-# Versioning Dark files
+# Versioning oplists
 
-Dark files are versioned by the hash of the "shape" of their structure.
+Oplists are versioned by the hash of the "shape" of their structure.
 If you change the structure of an Op (including the nested structure),
 then the binary version will no longer load.
 
-By default, the server will also save a json version. You can manually
-edit this to the new version. Check out server/serialize.ml to see how it
-all works.
+By default, the server will also save a json version in json_oplists. You can migrate this to the new version. Check out server/serialize.ml to see how it all works.
 
-
-# Backing up darkfiles
-
-Darkfiles are backed up daily, so long as the build container is running
-at 4pm. They are backed up to persistdir/backup_appdata.
-
-TODO: this doesnt work
 
 # Debugging ppx stuff
 
