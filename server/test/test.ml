@@ -363,36 +363,36 @@ let t_stored_event_roundtrip () =
                        |> fun x -> Option.value_exn x in
   let id1 = Canvas.fetch_canvas_id owner "host" in
   let id2 = Canvas.fetch_canvas_id owner "host2" in
-  SE.clear_events id1 "host";
-  SE.clear_events id2 "host2";
+  SE.clear_events id1;
+  SE.clear_events id2;
   let desc1 = ("HTTP", "/path", "GET") in
   let desc2 = ("HTTP", "/path2", "GET") in
   let desc3 = ("HTTP", "/path", "POST") in
-  SE.store_event id1 "host" desc1 (DStr "1");
-  SE.store_event id1 "host" desc1 (DStr "2");
-  SE.store_event id1 "host" desc3 (DStr "3");
-  SE.store_event id1 "host" desc2 (DStr "3");
-  SE.store_event id2 "host2" desc2 (DStr "3");
+  SE.store_event id1 desc1 (DStr "1");
+  SE.store_event id1 desc1 (DStr "2");
+  SE.store_event id1 desc3 (DStr "3");
+  SE.store_event id1 desc2 (DStr "3");
+  SE.store_event id2 desc2 (DStr "3");
 
   let at_desc = AT.of_pp SE.pp_event_desc in
   let at_dval_list = AT.list at_dval in
 
-  let listed = SE.list_events id1 "host" in
+  let listed = SE.list_events id1 in
   AT.check
     (AT.list at_desc) "list host events"
     (List.sort ~cmp:compare [desc1; desc1; desc2; desc3])
     (List.sort ~cmp:compare listed);
 
-  let loaded1 = SE.load_events id1 "host" desc1 in
+  let loaded1 = SE.load_events id1 desc1 in
   AT.check at_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
 
-  let loaded2 = SE.load_events id1 "host" desc3 in
+  let loaded2 = SE.load_events id1 desc3 in
   AT.check at_dval_list "load POST events" [DStr "3"] loaded2;
 
-  let loaded3 = SE.load_events id2 "host2" desc3 in
+  let loaded3 = SE.load_events id2 desc3 in
   AT.check at_dval_list "load no host2 events" [] loaded3;
 
-  let loaded4 = SE.load_events id2 "host2" desc2 in
+  let loaded4 = SE.load_events id2 desc2 in
   AT.check at_dval_list "load host2 events" [DStr "3"] loaded4;
 
   ()

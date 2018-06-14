@@ -12,7 +12,7 @@ type four_oh_four = (event_desc * Types.RuntimeT.dval list)
 (* ------------------------- *)
 (* Event data *)
 (* ------------------------- *)
-let store_event (canvas_id: Uuid.t) _  ((module_, path, modifier): event_desc) (event: RTT.dval) : unit =
+let store_event (canvas_id: Uuid.t) ((module_, path, modifier): event_desc) (event: RTT.dval) : unit =
   Printf.sprintf
     "INSERT INTO stored_events
     (canvas_id, module, path, modifier, timestamp, value)
@@ -24,7 +24,7 @@ let store_event (canvas_id: Uuid.t) _  ((module_, path, modifier): event_desc) (
     (Dbp.dvaljson event)
   |> Db.run_sql
 
-let list_events (canvas_id: Uuid.t) _  : event_desc list =
+let list_events (canvas_id: Uuid.t) : event_desc list =
   Printf.sprintf
     "SELECT DISTINCT module, path, modifier FROM stored_events
      WHERE canvas_id = %s"
@@ -34,7 +34,7 @@ let list_events (canvas_id: Uuid.t) _  : event_desc list =
       | [module_; path; modifier] -> (module_, path, modifier)
       | _ -> Exception.internal "Bad DB format for stored_events")
 
-let load_events (canvas_id: Uuid.t) _ ((module_, path, modifier): event_desc) : RTT.dval list =
+let load_events (canvas_id: Uuid.t) ((module_, path, modifier): event_desc) : RTT.dval list =
   Printf.sprintf
     "SELECT value, timestamp FROM stored_events
     WHERE canvas_id = %s
@@ -51,7 +51,7 @@ let load_events (canvas_id: Uuid.t) _ ((module_, path, modifier): event_desc) : 
       | [dval; _ts] -> Dval.dval_of_json_string dval
       | _ -> Exception.internal "Bad DB format for stored_events")
 
-let clear_events (canvas_id: Uuid.t) _ : unit =
+let clear_events (canvas_id: Uuid.t) : unit =
    Printf.sprintf
     "DELETE FROM stored_events
      WHERE canvas_id = %s"

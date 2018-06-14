@@ -243,7 +243,7 @@ let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Han
 (* Events *)
 (* ------------------------- *)
 
-let create_environments (c: canvas) (host: string) :
+let create_environments (c: canvas) :
   (RTT.env_map * SE.four_oh_four list) =
 
   (* make an initial env of of the dbs *)
@@ -311,12 +311,12 @@ let create_environments (c: canvas) (host: string) :
   in
 
   let unused_descs =
-    SE.list_events c.id host
+    SE.list_events c.id
     |> List.filter
       ~f:(fun d ->
           not (List.exists (TL.handlers c.toplevels)
                  ~f:(fun h -> match_desc h d)))
-    |> List.map ~f:(fun d -> (d, SE.load_events c.id host d))
+    |> List.map ~f:(fun d -> (d, SE.load_events c.id d))
   in
 
   (envs, unused_descs)
