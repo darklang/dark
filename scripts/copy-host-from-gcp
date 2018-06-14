@@ -7,8 +7,6 @@ HOST=$1
 PASSWORD=$(cat config/gcp-prod | grep PASS | sed 's/.*=//')
 export PGPASSWORD=$PASSWORD; # for psql auth
 
-echo "If the script pauses here, run gcp-psql to whitelist your IP. No need to enter the password, you can Ctrl-C there and try this script again"
-
 # Now use pql directly
 l="psql -d proddb -t -c "
 r="psql -d postgres -U postgres -h 35.203.144.131 -t -c "
@@ -63,6 +61,8 @@ function ldelete_string {
 ###########################
 echo "Fetching IDs for $HOST"
 ###########################
+
+echo "If the script pauses here, run gcp-psql briefly in another terminal to whitelist your IP. You don't need to restart this command, nor to enter your password or actually connect to the server using gcp-psql."
 
 CANVASID=$($r "select id from canvases where name = '$HOST'" | trim);
 ACCOUNTID=$($r "select account_id from canvases where name = '$HOST'" | trim);
