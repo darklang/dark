@@ -182,6 +182,7 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
           | (THasMany table, DList any_list) ->
             (* the has_many function needs to type check any_list *)
             has_many table any_list
+          | (_, DNull) -> data (* allow nulls for now *)
           | (expected_type, value_of_actual_type) ->
             Exception.client (type_error_msg expected_type value_of_actual_type)
         )

@@ -154,6 +154,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
     && float_of_string_opt value = None
     && value <> "{}"
     && value <> "[]"
+    && not (String.Caseless.equal value "null")
     && not (String.is_prefix ~prefix:"\"" value)
     then
       f (Variable value)
@@ -519,6 +520,22 @@ let t_escape_pg_escaping () =
   AT.check AT.string "double" "as\\\"dd" (Dbprim.escape_double "as\"dd");
   ()
 
+let t_nulls_allowed_in_db () =
+  let ast =
+    ast_for "(let old (DB::insert (obj (x null)) MyDB)
+               (let new (DB::fetchOneBy null 'x' MyDB)
+                 (== old new)))"
+  in
+  let oplist = [ Op.CreateDB (dbid, pos, "MyDB")
+               ; Op.AddDBCol (dbid, 11, 12)
+               ; Op.SetDBColName (dbid, 11, "x")
+               ; Op.SetDBColType (dbid, 12, "Str")
+               ; handler ast
+               ] in
+  check_dval "equal_after_roundtrip"
+    (execute_ops oplist)
+    (DBool true)
+
 
 
 let suite =
@@ -541,7 +558,8 @@ let suite =
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
   ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
-    ; "Test postgres escaping", `Quick, t_escape_pg_escaping
+  ; "Test postgres escaping", `Quick, t_escape_pg_escaping
+  ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ]
 
 let () =
