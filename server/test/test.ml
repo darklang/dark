@@ -62,7 +62,7 @@ let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 
 let handler ast =
   Op.SetHandler ( tlid
-                , {x=5;y=6}
+                , pos
                 , { tlid = tlid
                   ; ast = ast
                   ; spec = { module_ = b ()
@@ -73,7 +73,7 @@ let handler ast =
 
 let daily_cron ast =
   Op.SetHandler ( tlid
-                , {x=5;y=6}
+                , pos
                 , { tlid = tlid
                   ; ast = ast
                   ; spec = { module_ = f "CRON"
