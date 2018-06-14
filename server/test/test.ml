@@ -71,6 +71,19 @@ let handler ast =
                            ; types = { input = b ()
                                      ; output = b () }}})
 
+let http_handler ast =
+  Op.SetHandler ( tlid
+                , pos
+                , { tlid = tlid
+                  ; ast = ast
+                  ; spec = { module_ = f "HTTP"
+                           ; name = f "/test"
+                           ; modifier = f "GET"
+                           ; types = { input = b ()
+                                     ; output = b () }}})
+
+
+
 let daily_cron ast =
   Op.SetHandler ( tlid
                 , pos
@@ -536,6 +549,14 @@ let t_nulls_allowed_in_db () =
     (execute_ops oplist)
     (DBool true)
 
+let t_analysis_not_empty () =
+  (* in a filled-in HTTP env, there wasn't a default environment, so we
+   * got no variables in the analysis. *)
+  let c = ops2c "test" [ http_handler (ast_for "_")] in
+  let (envs,_) = Canvas.create_environments !c in
+  AT.check (AT.list AT.string) "equal_after_roundtrip"
+    ["request"]
+    (EnvMap.find_exn envs tlid |> List.hd_exn |> DvalMap.keys)
 
 
 let suite =
@@ -560,6 +581,7 @@ let suite =
   ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
   ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
+  ; "Analysis not empty", `Quick, t_analysis_not_empty
   ]
 
 let () =

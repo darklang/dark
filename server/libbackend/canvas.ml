@@ -261,31 +261,36 @@ let create_environments (c: canvas) :
 
   let create_env_map (h : Handler.handler) : (tlid * RTT.dval_map list) =
     (* TODO: N+1 query situation here *)
+    let default =
+        (match Handler.module_type h with
+        | `Http ->
+          RTT.DvalMap.set initial_env "request" sample_request
+        | `Event ->
+          RTT.DvalMap.set initial_env "event" sample_event
+        | `Cron -> initial_env
+        | `Unknown -> default_env)
+    in
     let envs =
       match Handler.event_desc_for h with
       | Some (space, path, modifier as d) ->
-        let events = SE.load_events c.id host d in
-        List.map events
-          ~f:(fun e ->
-              match Handler.module_type h with
-              | `Http ->
-                let with_r = RTT.DvalMap.set initial_env "request" e in
-                let name = Handler.event_name_for_exn h in
-                let bound = Http.bind_route_params_exn path name in
-                Util.merge_left with_r bound
-              | `Event ->
-                RTT.DvalMap.set initial_env "event" e
-              | `Cron  -> initial_env
-              | `Unknown -> initial_env (* can't happen *)
+        let events = SE.load_events c.id d in
+        if events = []
+        then [default]
+        else
+          List.map events
+            ~f:(fun e ->
+                match Handler.module_type h with
+                | `Http ->
+                  let with_r = RTT.DvalMap.set initial_env "request" e in
+                  let name = Handler.event_name_for_exn h in
+                  let bound = Http.bind_route_params_exn path name in
+                  Util.merge_left with_r bound
+                | `Event ->
+                  RTT.DvalMap.set initial_env "event" e
+                | `Cron  -> initial_env
+                | `Unknown -> initial_env (* can't happen *)
             )
-      | None ->
-        (match Handler.module_type h with
-        | `Http ->
-          [RTT.DvalMap.set initial_env "request" sample_request]
-        | `Event ->
-          [RTT.DvalMap.set initial_env "event" sample_event]
-        | `Cron -> [initial_env]
-        | `Unknown -> [default_env])
+      | None -> [default]
     in
     (h.tlid, envs)
   in
