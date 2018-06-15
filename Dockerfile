@@ -186,12 +186,12 @@ ENV FORCE_OCAML_BUILD 4
 RUN curl -sSL https://raw.githubusercontent.com/ocaml/opam/master/shell/install.sh | bash
 ENV OPAMJOBS 4
 # disabling sandboxing as it breaks and isn't necessary cause Docker
-RUN opam init --comp 4.06.0 --auto-setup --disable-sandboxing
-ENV PATH "/home/dark/.opam/4.06.0/bin:$PATH"
-ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.0/lib/stublibs"
-ENV MANPATH "/home/dark/.opam/4.06.0/man:"
-ENV PERL5LIB "/home/dark/.opam/4.06.0/lib/perl5"
-ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.0/lib/toplevel"
+RUN opam init --comp 4.06.1 --auto-setup --disable-sandboxing
+ENV PATH "/home/dark/.opam/4.06.1/bin:$PATH"
+ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.1/lib/stublibs"
+ENV MANPATH "/home/dark/.opam/4.06.1/man:"
+ENV PERL5LIB "/home/dark/.opam/4.06.1/lib/perl5"
+ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.1/lib/toplevel"
 RUN opam update
 
 #ENV OPAMDEBUG true
