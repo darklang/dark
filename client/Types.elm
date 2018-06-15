@@ -94,13 +94,11 @@ type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
                        , List TLAResult
                        , List GlobalVariable
-                       , List UserFunction
-                       , List FourOhFour
-                       , List TLID)
-type alias GetAnalysisRPCResult = ( List TLAResult
-                                  , List GlobalVariable
-                                  , List FourOhFour
-                                  , List TLID)
+                       , List UserFunction)
+type alias GetAnalysisResult = ( List TLAResult
+                               , List GlobalVariable
+                               , List FourOhFour
+                               , List TLID)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
@@ -120,7 +118,7 @@ type Msg
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallback Focus Modification RPCParams (Result Http.Error RPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
-    | GetAnalysisRPCCallback (Result Http.Error GetAnalysisRPCResult)
+    | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
     | LocationChange Navigation.Location
     | AddRandom
     | FinishIntegrationTest
@@ -469,9 +467,12 @@ type Modification = Error String
                       (List TLAResult)
                       (List GlobalVariable)
                       (List UserFunction)
+                      Bool
+                  | SetAnalysisResults
+                      (List TLAResult)
+                      (List GlobalVariable)
                       (List FourOhFour)
                       (List TLID)
-                      Bool
                   | Enter EntryCursor
                   | RPCFull (RPCParams, Focus)
                   | RPC (List Op, Focus) -- shortcut for RPCFull
