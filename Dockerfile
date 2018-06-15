@@ -217,17 +217,17 @@ RUN opam install -y \
   conf-libev \
   lwt.3.3.0 \
   yojson.1.4.0 \
-  postgresql.4.0.1 \
+  postgresql.4.3.0 \
   ppx_deriving_yojson.3.1 \
-  cohttp-lwt-unix.1.0.0 \
-  ocurl.0.8.0 \
-  alcotest.0.8.1 \
+  cohttp-lwt-unix.1.0.2 \
+  ocurl.0.8.1 \
+  alcotest.0.8.3 \
   merlin.3.0.5 \
   utop.2.0.2 \
   ocp-indent.1.6.1 \
   batteries.2.8.0 \
   landmarks.1.1 \
-  cstruct.3.2.0 \
+  cstruct.3.2.1 \
   nocrypto.0.5.4 \
   session.0.4.0 \
   session-cohttp.0.4.0 \
