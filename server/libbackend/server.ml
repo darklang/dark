@@ -202,11 +202,15 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host params.ops) in
 
-    let (t3, (envs, f404s)) = time "3-create-envs"
+    (* let tlids = params.ops *)
+    (*             |> List.map ~f:Op.tlidsOf *)
+    (*             |> List.concat *)
+    (* in *)
+    let (t3a, envs) = time "3-create-envs"
       (fun _ -> C.create_environments !c) in
 
-    let (t4, unlocked) = time "4-analyze-unlocked-dbs"
-      (fun _ -> C.unlocked !c) in
+    let (t3b, f404s) = time "3-get-404s"
+      (fun _ -> C.get_404s !c) in
 
     let (t5, fvals) = time "5-function-values"
       (fun _ ->
@@ -217,7 +221,7 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
         C.toplevel_values !c envs params.executable_fns execution_id) in
 
     let (t7, result) = time "7-to-frontend"
-      (fun _ -> C.to_frontend tlvals fvals unlocked envs f404s !c) in
+      (fun _ -> C.to_rpc_response_frontend tlvals fvals envs !c) in
 
     let (t8, _) = time "8-save-to-disk"
       (fun _ ->
@@ -229,7 +233,7 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
       ) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t1; t2; t3; t4; t5; t6; t7; t8], result)
+  (server_timing [t1; t2; t3a; t3b; t5; t6; t7; t8], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
@@ -241,8 +245,11 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host []) in
 
-    let (t3, (envs, f404s)) = time "3-create-envs"
+    let (t3a, envs) = time "3-create-envs"
       (fun _ -> C.create_environments !c) in
+
+    let (t3b, f404s) = time "3-get-404s"
+      (fun _ -> C.get_404s !c) in
 
     let (t4, unlocked) = time "4-analyze-unlocked-dbs"
       (fun _ -> C.unlocked !c) in
@@ -256,10 +263,10 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
         C.toplevel_values !c envs [] execution_id) in
 
     let (t7, result) = time "7-to-frontend"
-      (fun _ -> C.to_frontend tlvals fvals unlocked envs f404s !c) in
+      (fun _ -> C.to_get_analysis_frontend tlvals fvals unlocked envs f404s !c) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t2; t3; t4; t5; t6; t7], result)
+  (server_timing [t2; t3a; t3b; t4; t5; t6; t7], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
