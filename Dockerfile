@@ -70,9 +70,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       pkg-config=0.29.1-0ubuntu2 \
       libcurl4-gnutls-dev=7.55.1-1ubuntu2.5 \
       python-software-properties=0.96.24.17 \
-      libpq-dev=9.6.8-0ubuntu0.17.10 \
-      postgresql-9.6=9.6.8-0ubuntu0.17.10 \
-      postgresql-client-9.6=9.6.8-0ubuntu0.17.10 \
+      libpq-dev=9.6.9-0ubuntu0.17.10 \
+      postgresql-9.6=9.6.9-0ubuntu0.17.10 \
+      postgresql-client-9.6=9.6.9-0ubuntu0.17.10 \
       chromium-browser \
       firefox \
       gnupg \
@@ -87,6 +87,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       docker-ce \
       unzip \
       build-essential \
+      ruby \
+      kubectl \
+      python3-pip \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -119,11 +122,13 @@ RUN npm install -g yarn
 USER dark
 RUN yarn add \
   elm@0.18.0 \
-  elm-test@0.18.12 \
+  elm-test@0.18.13-beta \
   elm-oracle@1.1.1 \
   elm-live@2.7.5 \
   less@2.7.3 \
   testcafe@0.19.0
+
+RUN git clone https://github.com/NoRedInk/elm-ops-tooling
 
 ENV PATH "$PATH:/home/dark/node_modules/.bin"
 
@@ -164,6 +169,12 @@ RUN sudo chown postgres:postgres -R /var/lib/postgresql
 ############################
 USER root
 RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
+
+############################
+# benchmarking
+############################
+RUN pip3 install requests
+
 
 ############################
 # Google cloud
@@ -241,16 +252,6 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
-RUN sudo apt-get update && sudo apt-get install -y ruby
-RUN git clone https://github.com/NoRedInk/elm-ops-tooling
-RUN yarn add \
-  elm-test@0.18.13-beta
-
-RUN sudo apt-get update && sudo apt-get install -y kubectl
-RUN sudo apt-get update && sudo apt-get install -y python3-pip
-
-# For the benchmark
-RUN pip3 install requests
 
 ############################
 # Finish
