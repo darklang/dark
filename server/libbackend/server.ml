@@ -336,11 +336,6 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
   let text_plain_resp_headers =
     Header.init_with "Content-type" "text/html; charset=utf-8"
   in
-  let jsondownload_resp_headers =
-    Header.of_list
-      [ ("Content-type", "application-json; charset=utf-8")
-      ; ("Content-disposition", "attachment; filename=" ^ host ^ ".json")]
-  in
 
   match Uri.path uri with
   | "/admin/api/rpc" ->
@@ -359,12 +354,9 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
   | "/admin/api/clear-benchmarking-data" ->
     Db.delete_benchmarking_data ();
     respond `OK "Cleared"
-  | "/admin/download-canvas-json" ->
-    let body = Serialize.fetch_as_json host in
-    respond ~resp_headers:jsondownload_resp_headers `OK body
   | "/admin/ui-debug" ->
-    let%lwt body = admin_ui_handler ~debug:true () in
-    respond ~resp_headers:text_plain_resp_headers `OK body
+    admin_ui_handler ~debug:true () >>=
+    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/ui" ->
     admin_ui_handler ~debug:false () >>=
     fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
