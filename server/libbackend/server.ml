@@ -235,6 +235,38 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     Event_queue.finalize execution_id ~status:`Err;
     raise e
 
+let get_analysis (host: string) : (Cohttp.Header.t * string) =
+  let execution_id = Util.create_id () in
+  try
+    let (t2, c) = time "2-load-saved-ops"
+      (fun _ -> C.load host []) in
+
+    let (t3, (envs, f404s)) = time "3-create-envs"
+      (fun _ -> C.create_environments !c) in
+
+    let (t4, unlocked) = time "4-analyze-unlocked-dbs"
+      (fun _ -> C.unlocked !c) in
+
+    let (t5, fvals) = time "5-function-values"
+      (fun _ ->
+        C.function_values !c [] execution_id) in
+
+    let (t6, tlvals) = time "6-toplevel-values"
+      (fun _ ->
+        C.toplevel_values !c envs [] execution_id) in
+
+    let (t7, result) = time "7-to-frontend"
+      (fun _ -> C.to_frontend tlvals fvals unlocked envs f404s !c) in
+
+  Event_queue.finalize execution_id ~status:`OK;
+  (server_timing [t2; t3; t4; t5; t6; t7], result)
+  with
+  | e ->
+    Event_queue.finalize execution_id ~status:`Err;
+    raise e
+
+
+
 let admin_ui_handler ~(debug:bool) () =
   let template = Util.readfile_lwt ~root:Templates "ui.html" in
   template
@@ -301,13 +333,6 @@ let auth_then_handle req host handler =
 
 let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     (req: CRequest.t) req_headers =
-  let empty_body = "{ ops: [], executable_fns: []}" in
-  let rpc ?(body=empty_body) () =
-    let (resp_headers, response_body) = admin_rpc_handler body ~host in
-    let utf8 = "application/json; charset=utf-8" in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
-    respond ~resp_headers `OK response_body
-  in
   let text_plain_resp_headers =
     Header.init_with "Content-type" "text/html; charset=utf-8"
   in
@@ -318,13 +343,16 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
   in
 
   match Uri.path uri with
-  | "/admin/api/rpc" -> rpc ~body ()
+  | "/admin/api/rpc" ->
+    let (resp_headers, response_body) = admin_rpc_handler host body in
+    let utf8 = "application/json; charset=utf-8" in
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers `OK response_body
   | "/admin/api/get_analysis" ->
-    (* Reuse the RPC handler because it basically does the same
-     * thing. It shouldn't save because there are no ops sent.
-     * It also sends too much data back, but we just ignore it
-     * in the client. *)
-    rpc ()
+    let (resp_headers, response_body) = get_analysis host in
+    let utf8 = "application/json; charset=utf-8" in
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers `OK response_body
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond `OK "Disembowelment"
