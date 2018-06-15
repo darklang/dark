@@ -291,17 +291,15 @@ let auth_then_handle req host handler =
     (* only handle auth for admin routes *)
     (* let users use their domain as a prefix for scratch work *)
     let auth_domain = Account.auth_domain_for host in
-    Auth.Session.of_request req
-    >>= (function
+    match%lwt Auth.Session.of_request req with
     | Ok (Some session) ->
       if path = "/admin/logout"
       then
-        Auth.Session.clear Auth.Session.backend session
-        >>= fun _ ->
+        (Auth.Session.clear Auth.Session.backend session;%lwt
         let headers =
           (Header.of_list
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
-        S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ()
+        S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ())
       else
         (let username = Auth.Session.username_for session in
          if Account.can_edit ~auth_domain ~username
@@ -320,32 +318,33 @@ let auth_then_handle req host handler =
         (if Account.authenticate ~username ~password
             && Account.can_edit ~auth_domain ~username
          then
-           Auth.Session.new_for_username username >>=
-           (fun session ->
-              let headers = Header.of_list (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session) in
-              handler headers)
+           let%lwt session = Auth.Session.new_for_username username in
+           let headers =
+             Header.of_list
+               (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session)
+           in
+           handler headers
          else
           respond `Unauthorized "Bad credentials")
       | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
       | _ ->
-        respond `Unauthorized "Invalid session")
+        respond `Unauthorized "Invalid session"
 
 let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     (req: CRequest.t) req_headers =
   let text_plain_resp_headers =
     Header.init_with "Content-type" "text/html; charset=utf-8"
   in
+  let utf8 = "application/json; charset=utf-8" in
 
   match Uri.path uri with
   | "/admin/api/rpc" ->
     let (resp_headers, response_body) = admin_rpc_handler host body in
-    let utf8 = "application/json; charset=utf-8" in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers `OK response_body
   | "/admin/api/get_analysis" ->
     let (resp_headers, response_body) = get_analysis host in
-    let utf8 = "application/json; charset=utf-8" in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers `OK response_body
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
@@ -355,14 +354,14 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     Db.delete_benchmarking_data ();
     respond `OK "Cleared"
   | "/admin/ui-debug" ->
-    admin_ui_handler ~debug:true () >>=
-    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
+    let%lwt body = admin_ui_handler ~debug:true () in
+    respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/ui" ->
-    admin_ui_handler ~debug:false () >>=
-    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
+    let%lwt body = admin_ui_handler ~debug:false () in
+    respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/integration_test" ->
-    admin_ui_handler  ~debug:false () >>=
-    fun body -> respond ~resp_headers:text_plain_resp_headers `OK body
+    let%lwt body = admin_ui_handler ~debug:false () in
+    respond ~resp_headers:text_plain_resp_headers `OK body
   | "/admin/api/save_test" ->
     save_test_handler host
   | _ ->
@@ -480,8 +479,8 @@ let server () =
 
   in
   let cbwb conn req req_body =
-    (* extract a string out of the body *)
-    req_body |> Cohttp_lwt__Body.to_string >>= callback conn req in
+    let%lwt body_string = Cohttp_lwt__Body.to_string req_body in
+    callback conn req body_string in
   S.create ~stop ~mode:(`TCP (`Port Config.port)) (S.make ~callback:cbwb ())
 
 let run () =
