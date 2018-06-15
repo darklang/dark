@@ -243,8 +243,7 @@ let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Han
 (* Events *)
 (* ------------------------- *)
 
-let create_environments (c: canvas) :
-  (RTT.env_map * SE.four_oh_four list) =
+let create_environments (c: canvas) : RTT.env_map =
 
   (* make an initial env of of the dbs *)
   (* These envs are maps of (varname,dval) *)
@@ -301,10 +300,9 @@ let create_environments (c: canvas) :
    * later *)
   let with_default = (0, [default_env]) :: tlenvs in
   let envs = RTT.EnvMap.of_alist_exn with_default in
+  envs
 
-  (* --------------
-   * get the unused descs for 404s
-   -------------- *)
+let get_404s (c: canvas) : SE.four_oh_four list =
   let match_desc h d : bool =
     let (space, path, modifier) = d in
     match Handler.event_desc_for h with
@@ -324,7 +322,8 @@ let create_environments (c: canvas) :
     |> List.map ~f:(fun d -> (d, SE.load_events c.id d))
   in
 
-  (envs, unused_descs)
+  unused_descs
+
 
 (* ------------------------- *)
 (* Execution *)
@@ -416,16 +415,24 @@ let toplevel_values (c: canvas) (environments: RTT.env_map)
         in
         (h.tlid, values))
 
-type frontend =
+(* The full response with everything *)
+type get_analysis_response =
   { analyses: analysis_result list
   ; global_varnames : string list
-  ; toplevels : TL.toplevel_list
   ; unlocked_dbs : tlid list
   ; fofs : SE.four_oh_four list [@key "404s"]
-  ; user_functions : RTT.user_fn list
   } [@@deriving to_yojson]
 
-let to_frontend (tlvals : analysis_result list)
+(* A subset of responses to be merged in *)
+type rpc_response =
+  { analyses: analysis_result list (* overwrite existing analyses *)
+  ; global_varnames : string list (* merge - these are new only *)
+  ; toplevels : TL.toplevel_list (* overwrite - updates only *)
+  ; user_functions : RTT.user_fn list (* overwrite - updates only *)
+  } [@@deriving to_yojson]
+
+
+let to_get_analysis_frontend (tlvals : analysis_result list)
       (fvals : analysis_result list) (unlocked : tlid list)
       (environments: RTT.env_map) (f404s: SE.four_oh_four list)
       (c : canvas) : string =
@@ -433,13 +440,24 @@ let to_frontend (tlvals : analysis_result list)
   ; global_varnames = RTT.EnvMap.find_exn environments 0
                       |> List.hd_exn
                       |> RTT.DvalMap.keys
-  ; toplevels = c.toplevels
   ; unlocked_dbs = unlocked
   ; fofs = f404s
-  ; user_functions = c.user_functions
   }
-  |> frontend_to_yojson
+  |> get_analysis_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
+
+let to_rpc_response_frontend (tlvals : analysis_result list)
+      (fvals : analysis_result list) (environments: RTT.env_map)
+      (c : canvas) : string =
+  { analyses = tlvals @ fvals
+  ; global_varnames = RTT.EnvMap.find_exn environments 0
+                      |> List.hd_exn
+                      |> RTT.DvalMap.keys
+  ; toplevels = c.toplevels
+  ; user_functions = c.user_functions
+  }
+  |> rpc_response_to_yojson
+  |> Yojson.Safe.to_string ~std:true
 
 

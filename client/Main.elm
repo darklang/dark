@@ -128,8 +128,10 @@ init {editorState, complete} location =
 
   in
     if shouldRunIntegrationTest
-    then m2 ! [RPC.integrationRPC m integrationTestName, visibilityTask]
-    else m2 ! [RPC.rpc m (FocusPageAndCursor page savedCursorState) RPC.emptyParams, visibilityTask]
+    then m2 ! [ RPC.integrationRPC m integrationTestName
+              , visibilityTask]
+    else m2 ! [ RPC.rpc m (FocusPageAndCursor page savedCursorState) RPC.emptyParams
+              , visibilityTask]
 
 
 -----------------------
@@ -389,13 +391,11 @@ updateMod mod (m, cmd) =
         newM ! (closeBlanks newM ++ [acCmd, Entry.focusEntry newM])
 
 
-      SetToplevels tls tlars globals userFuncs f404s unlocked updateCurrentTL ->
+      SetToplevels tls tlars globals userFuncs updateCurrentTL ->
         let m2 = { m | toplevels = tls
                      , analysis = tlars
                      , globals = globals
                      , userFunctions = userFuncs
-                     , f404s = f404s
-                     , unlockedDBs = unlocked
                  }
             -- If the server is slow, we don't a jittery experience.
             m3 = case tlidOf m.cursorState of
@@ -415,6 +415,16 @@ updateMod mod (m, cmd) =
               processAutocompleteMods m3 [ ACRegenerate ]
         in
         { m3 | complete = complete } ! [acCmd]
+      SetAnalysisResults tlars globals f404s unlocked ->
+        let m2 = { m | analysis = tlars
+                     , globals = globals
+                     , f404s = f404s
+                     , unlockedDBs = unlocked
+                 }
+            (complete, acCmd) =
+              processAutocompleteMods m2 [ ACRegenerate ]
+        in
+        { m2 | complete = complete } ! [acCmd]
 
       SetHover p ->
         let nhovering = (p :: m.hovering) in
@@ -1016,8 +1026,6 @@ update_ msg m =
                    m2.analysis
                    m2.globals
                    m2.userFunctions
-                   m2.f404s
-                   m2.unlockedDBs
                    True
                , Drag
                    draggingTLID
@@ -1179,7 +1187,7 @@ update_ msg m =
     -- RPCs stuff
     -----------------
     RPCCallback focus extraMod calls
-      (Ok (toplevels, analysis, globals, userFuncs, f404s, unlocked)) ->
+      (Ok (toplevels, analysis, globals, userFuncs)) ->
       let executingFunctionsCallback =
         case calls.target of
           Just (tlid, id) -> ExecutingFunctionComplete tlid id
@@ -1187,7 +1195,7 @@ update_ msg m =
       in
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels analysis globals userFuncs f404s unlocked False
+        Many [ SetToplevels toplevels analysis globals userFuncs False
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              , executingFunctionsCallback
@@ -1197,7 +1205,7 @@ update_ msg m =
             newState = processFocus m2 focus
         -- TODO: can make this much faster by only receiving things that have
         -- been updated
-        in Many [ SetToplevels toplevels analysis globals userFuncs f404s unlocked True
+        in Many [ SetToplevels toplevels analysis globals userFuncs True
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -1212,7 +1220,7 @@ update_ msg m =
       if m.timersEnabled
       then
         Many [ TweakModel Sync.markResponseInModel
-             , SetToplevels m.toplevels analysis globals m.userFunctions f404s unlocked False
+             , SetAnalysisResults analysis globals f404s unlocked
              ]
       else
         NoChange
