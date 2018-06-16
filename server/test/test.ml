@@ -60,41 +60,37 @@ let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 
-let handler ast =
-  Op.SetHandler ( tlid
-                , pos
-                , { tlid = tlid
-                  ; ast = ast
-                  ; spec = { module_ = b ()
-                           ; name = b ()
-                           ; modifier = b ()
-                           ; types = { input = b ()
-                                     ; output = b () }}})
+let handler ast : Handler.handler =
+  { tlid = tlid
+  ; ast = ast
+  ; spec = { module_ = b ()
+           ; name = b ()
+           ; modifier = b ()
+           ; types = { input = b ()
+                     ; output = b () }}}
 
-let http_handler ast =
-  Op.SetHandler ( tlid
-                , pos
-                , { tlid = tlid
-                  ; ast = ast
-                  ; spec = { module_ = f "HTTP"
-                           ; name = f "/test"
-                           ; modifier = f "GET"
-                           ; types = { input = b ()
-                                     ; output = b () }}})
+let http_handler ast : Handler.handler =
+  { tlid = tlid
+  ; ast = ast
+  ; spec = { module_ = f "HTTP"
+           ; name = f "/test"
+           ; modifier = f "GET"
+           ; types = { input = b ()
+                     ; output = b () }}}
 
 
 
-let daily_cron ast =
-  Op.SetHandler ( tlid
-                , pos
-                , { tlid = tlid
-                  ; ast = ast
-                  ; spec = { module_ = f "CRON"
-                           ; name = f "test"
-                           ; modifier = f "Daily"
-                           ; types = { input = b ()
-                                     ; output = b () }}})
+let daily_cron ast : Handler.handler =
+  { tlid = tlid
+  ; ast = ast
+  ; spec = { module_ = f "CRON"
+           ; name = f "test"
+           ; modifier = f "Daily"
+           ; types = { input = b ()
+                     ; output = b () }}}
 
+let hop h =
+  Op.SetHandler (tlid, pos, h)
 
 let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
   let e =
@@ -200,8 +196,9 @@ let execute (prog: string) : dval =
   prog
   |> ast_for
   (* |> Log.pp ~f:show_expr *)
-  |> fun expr -> [handler expr]
-  |> execute_ops
+  |> handler
+  |> hop
+  |> fun h -> execute_ops [h]
 
 
 
@@ -211,9 +208,9 @@ let execute (prog: string) : dval =
 
 let t_undo_fns () =
   let n1 = Op.Savepoint [tlid] in
-  let n2 = handler (ast_for "(- _ _)") in
-  let n3 = handler (ast_for "(- 3 _)") in
-  let n4 = handler (ast_for "(- 3 4)") in
+  let n2 = hop (handler (ast_for "(- _ _)")) in
+  let n3 = hop (handler (ast_for "(- 3 _)")) in
+  let n4 = hop (handler (ast_for "(- 3 4)")) in
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
 
@@ -241,7 +238,7 @@ let t_undo_fns () =
   AT.check AT.bool "neither_redo" false (Undo.is_redoable neither tlid)
 
 let t_undo () =
-  let ha ast = handler ast in
+  let ha ast = hop (handler ast) in
   let sp = Op.Savepoint [tlid] in
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
@@ -283,7 +280,7 @@ let t_undo () =
 let t_inserting_object_to_missing_col_gives_good_error () =
   let createDB = Op.CreateDB (dbid, pos, "TestDB") in
   let insert = ast_for "(DB::insert (obj (col (obj))) TestDB)" in
-  let f = fun () -> execute_ops [createDB; handler insert] in
+  let f = fun () -> execute_ops [createDB; hop (handler insert)] in
   let check = fun (de: Exception.exception_data) ->
     de.short = "Found but did not expect: [col]" in
   check_exception "should get good error" ~check ~f
@@ -352,7 +349,7 @@ let t_case_insensitive_db_roundtrip () =
                ; Op.AddDBCol (dbid, 11, 12)
                ; Op.SetDBColName (dbid, 11, colname)
                ; Op.SetDBColType (dbid, 12, "Str")
-               ; handler ast ]
+               ; hop (handler ast) ]
   in
   match execute_ops oplist with
   | DList [DObj v] ->
@@ -486,8 +483,8 @@ let t_hmac_signing _ =
   AT.check AT.string "hmac_signing_2" expected_header actual
 
 let t_cron_sanity () =
-  let h_op = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c "test-cron_works" [h_op] in
+  let h = daily_cron (ast_for "(+ 5 3)") in
+  let c = ops2c "test-cron_works" [hop h] in
   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
   let should_run =
     Cron.should_execute !c.id handler
@@ -496,8 +493,8 @@ let t_cron_sanity () =
   ()
 
 let t_cron_just_ran () =
-  let h_op = daily_cron (ast_for "(+ 5 3)") in
-  let c = ops2c "test-cron_works" [h_op] in
+  let h = daily_cron (ast_for "(+ 5 3)") in
+  let c = ops2c "test-cron_works" [hop h] in
   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler;
   let should_run =
@@ -518,7 +515,7 @@ let t_roundtrip_user_data () =
                ; Op.AddDBCol (dbid, 11, 12)
                ; Op.SetDBColName (dbid, 11, "x")
                ; Op.SetDBColType (dbid, 12, "Str")
-               ; handler ast
+               ; hop (handler ast)
                ] in
   check_dval "equal_after_roundtrip"
     (execute_ops oplist)
@@ -543,7 +540,7 @@ let t_nulls_allowed_in_db () =
                ; Op.AddDBCol (dbid, 11, 12)
                ; Op.SetDBColName (dbid, 11, "x")
                ; Op.SetDBColType (dbid, 12, "Str")
-               ; handler ast
+               ; hop (handler ast)
                ] in
   check_dval "equal_after_roundtrip"
     (execute_ops oplist)
