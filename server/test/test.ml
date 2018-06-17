@@ -549,11 +549,12 @@ let t_nulls_allowed_in_db () =
 let t_analysis_not_empty () =
   (* in a filled-in HTTP env, there wasn't a default environment, so we
    * got no variables in the analysis. *)
-  let c = ops2c "test" [ http_handler (ast_for "_")] in
-  let envs = Canvas.create_environments !c in
-  AT.check (AT.list AT.string) "equal_after_roundtrip"
-    ["request"]
-    (EnvMap.find_exn envs tlid |> List.hd_exn |> DvalMap.keys)
+  let h = http_handler (ast_for "_") in
+  let c = ops2c "test" [ hop h ] in
+  AT.check AT.int "equal_after_roundtrip" 1
+    (C.handler_value ~exe_fn_ids:[] ~execution_id:3455 !c h
+     |> Tuple.T2.get2
+     |> List.length)
 
 
 let suite =
