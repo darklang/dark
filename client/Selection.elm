@@ -21,18 +21,20 @@ import Util
 -- Cursors
 -------------------------------
 moveCursorBackInTime : Model -> TLID -> Modification
-moveCursorBackInTime m selected =
-  let maxCursor = List.length (Analysis.getAnalysisResults m selected) - 1
+moveCursorBackInTime m tlid =
+  let maxCursor = List.length (Analysis.getAnalysisResults m tlid) - 1
+      current = Analysis.cursor m tlid
+      newCursor = max 0 (min (current + 1) maxCursor)
   in
-    selected
-    |> TL.getTL m
-    |> (\tl -> SetCursor tl.id (min (tl.cursor + 1) maxCursor))
+      SetCursor tlid newCursor
 
 moveCursorForwardInTime : Model -> TLID -> Modification
-moveCursorForwardInTime m selected =
-  selected
-  |> TL.getTL m
-  |> (\tl -> SetCursor tl.id (max (tl.cursor - 1) 0))
+moveCursorForwardInTime m tlid =
+  let maxCursor = List.length (Analysis.getAnalysisResults m tlid) - 1
+      current = Analysis.cursor m tlid
+      newCursor = max 0 (min (current - 1) maxCursor)
+  in
+      SetCursor tlid newCursor
 
 -------------------------------
 -- Toplevels

@@ -2,6 +2,7 @@ module Defaults exposing (..)
 
 -- builtin
 -- lib
+import Dict
 
 -- dark
 import Types exposing (..)
@@ -77,4 +78,5 @@ defaultModel = { error = Nothing
                , clipboard = Nothing
                , cursorState = Deselected
                , executingFunctions = []
+               , tlCursors = Dict.empty
                }

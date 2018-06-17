@@ -9,6 +9,7 @@ import Html.Events as Events
 import List.Extra as LE
 
 -- dark
+import Analysis
 import Types exposing (..)
 import Prelude exposing (..)
 import Util
@@ -107,7 +108,7 @@ viewTL m tl =
         [ selected
         , toString (deTLID tl.id)
         , "toplevel"
-        , "cursor-" ++ (toString tl.cursor)
+        , "cursor-" ++ (toString (Analysis.cursor m tl.id))
         ]
         |> String.join " "
 

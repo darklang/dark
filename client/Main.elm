@@ -131,7 +131,11 @@ init {editorState, complete} location =
     if shouldRunIntegrationTest
     then m2 ! [ RPC.integrationRPC m integrationTestName
               , visibilityTask]
-    else m2 ! [ RPC.rpc m (FocusPageAndCursor page savedCursorState) RPC.emptyParams
+    else m2 ! [ RPC.rpc m
+                  (FocusPageAndCursor page savedCursorState)
+                  RPC.emptyParams
+              -- load the analysis even if the timers are off
+              , RPC.getAnalysisRPC
               , visibilityTask]
 
 
@@ -305,7 +309,6 @@ updateMod mod (m, cmd) =
                           { id = tlid
                           , pos = pos
                           , data = TLHandler h
-                          , cursor = 0
                           }
                       SetFunction f ->
                         Functions.upsert m f
@@ -408,6 +411,7 @@ updateMod mod (m, cmd) =
                        case tl.data of
                          TLDB _ -> TL.upsert m2 tl
                          TLHandler _ -> TL.upsert m2 tl
+                                        |> Debug.log "upserting"
                          TLFunc f -> m2
                    Nothing ->
                      m2
@@ -455,9 +459,8 @@ updateMod mod (m, cmd) =
         let nhovering = List.filter (\m -> m /= p) m.hovering in
         { m | hovering = nhovering } ! []
       SetCursor tlid cur ->
-        let newM = TL.update m tlid (\tl -> { tl | cursor = cur })
-        in
-            newM ! []
+        let m2 = Analysis.setCursor m tlid cur in
+        m2 ! []
       CopyToClipboard clipboard ->
         { m | clipboard = clipboard } ! []
       Drag tlid offset hasMoved state ->
@@ -1145,7 +1148,8 @@ update_ msg m =
       let tl = TL.getTL m tlid in
       Many [ ExecutingFunctionBegan tlid id
            , RPCFull ({ ops = []
-                      , executableFns = [(tlid, id, tl.cursor)]
+                      , executableFns =
+                          [(tlid, id, Analysis.cursor m tl.id)]
                       , target = Just (tlid, id)
                       }, FocusNoChange)
            ]
@@ -1240,16 +1244,12 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
-      if m.timersEnabled
-      then
-        Many [ TweakModel Sync.markResponseInModel
-             , SetAnalysis analysis
-             , SetGlobalVariables globals
-             , Set404s f404s
-             , SetUnlockedDBs unlockedDBs
-             ]
-      else
-        NoChange
+      Many [ TweakModel Sync.markResponseInModel
+           , SetAnalysis analysis
+           , SetGlobalVariables globals
+           , Set404s f404s
+           , SetUnlockedDBs unlockedDBs
+           ]
 
     ------------------------
     -- plumbing
