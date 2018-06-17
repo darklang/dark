@@ -87,6 +87,18 @@ sharedPrefix a =
   |> List.map asName
   |> sharedPrefixList
 
+containsOrdered : String -> String -> Bool
+containsOrdered needle haystack =
+  case String.uncons needle of
+    Just (c, newneedle) ->
+      let char = String.fromChar c in
+      String.contains char haystack
+        && containsOrdered newneedle (haystack
+                                        |> String.split char
+                                        |> List.drop 1
+                                        |> String.join char)
+    Nothing -> True
+
 -- returns (indent, suggestion, search), where:
 --  - indent is the string that occurs before the match
 --  - suggestion is the match rewritten with the search
@@ -354,10 +366,11 @@ filter list query =
       -- split into different lists
       (dynamic, candidates0) = List.partition isDynamicItem list
 
-      candidates1 = List.filter (stringify
-                                 >> String.toLower
-                                 >> String.contains lcq
-                                 ) candidates0
+      (candidates1, notSubstring) =
+        List.partition (stringify
+                        >> String.toLower
+                        >> String.contains lcq
+                       ) candidates0
 
       (startsWith, candidates2) =
         List.partition (stringify
@@ -375,8 +388,17 @@ filter list query =
                         >> String.contains query
                         ) candidates3
 
+      stringMatch =
+        List.filter (asName
+                     >> String.toLower
+                     >> containsOrdered lcq)
+          notSubstring
+
   in
-  [ dynamic, startsWith, startsWithCI, substring, substringCI ]
+  [ dynamic
+  , startsWith, startsWithCI
+  , substring, substringCI
+  , stringMatch ]
 
 
 

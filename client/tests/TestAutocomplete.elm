@@ -54,7 +54,11 @@ all =
           ]
       m = Defaults.defaultModel
       create () = init completes |> regenerate m
+      debug msg ac =
+        let _ = Debug.log "10" (highlighted ac) in
+        ac
   in
+
   describe "autocomplete"
     [ d "sharedPrefix"
       [ \_ -> sharedPrefixList ["aaaab", "aab", "aaxb"] == "aa"
@@ -150,8 +154,7 @@ all =
 
       -- Scrolling loops one way
       , \_ -> create ()
-      |> setQuery "Twit"
-      |> selectDown
+      |> setQuery "Twit:"
       |> selectDown
       |> selectDown
       |> selectDown
@@ -160,9 +163,8 @@ all =
 
       -- Scrolling loops the other way
       , \_ -> create ()
-      |> setQuery "Twit"
+      |> setQuery "Twit:"
       |> selectDown
-      |> selectUp
       |> selectUp
       |> selectUp
       |> .index
@@ -170,8 +172,7 @@ all =
 
       -- Scrolling loops the other way without going forward first
       , \_ -> create ()
-      |> setQuery "Twit"
-      |> selectUp
+      |> setQuery "Twit:"
       |> selectUp
       |> selectUp
       |> .index
