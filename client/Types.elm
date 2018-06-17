@@ -238,10 +238,7 @@ type VariantTest = StubVariant
 -----------------------------
 -- View
 -----------------------------
-type DivSelected = DivSelected | DivUnselected
-type MouseOverDiv = MouseOverDiv | MouseNotOverDiv
 type alias Class = String
-
 
 -----------------------------
 -- AST
