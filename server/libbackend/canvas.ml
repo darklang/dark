@@ -211,11 +211,6 @@ let save_test (c: canvas) : string =
   file
 
 (* ------------------------- *)
-(* To Frontend JSON *)
-(* ------------------------- *)
-
-
-(* ------------------------- *)
 (* Routing *)
 (* ------------------------- *)
 
@@ -243,64 +238,61 @@ let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Han
 (* Events *)
 (* ------------------------- *)
 
-let create_environments (c: canvas) : RTT.env_map =
+let all_tlids (c: canvas) : tlid list =
+  List.map ~f:(fun tl -> tl.tlid) c.toplevels
 
-  (* make an initial env of of the dbs *)
-  (* These envs are maps of (varname,dval) *)
-  let dbs = TL.dbs c.toplevels in
-  let initial_env = User_db.dbs_as_env dbs in
-  let sample_request = PReq.sample |> PReq.to_dval in
-  let sample_event = RTT.DIncomplete in
+let initial_dval_map (c: canvas) : RTT.dval_map =
+  c.toplevels
+  |> TL.dbs
+  |> User_db.dbs_as_env
 
-  let default_env =
-    initial_env
-    |> RTT.DvalMap.set ~key:"request" ~data:sample_request
-    |> RTT.DvalMap.set ~key:"event" ~data:sample_event
+let global_vars (c: canvas) : string list =
+  RTT.DvalMap.keys (initial_dval_map c)
+
+let sample_request =
+  PReq.to_dval PReq.sample
+
+let sample_event =
+  RTT.DIncomplete
+
+let default_env (c: canvas) : RTT.dval_map =
+  initial_dval_map c
+  |> RTT.DvalMap.set ~key:"request" ~data:sample_request
+  |> RTT.DvalMap.set ~key:"event" ~data:sample_event
+
+let initial_envs (c: canvas) (h: Handler.handler)
+  : RTT.dval_map list =
+  let initial_env = initial_dval_map c in
+  let default =
+     match Handler.module_type h with
+     | `Http ->
+       RTT.DvalMap.set initial_env "request" sample_request
+     | `Event ->
+       RTT.DvalMap.set initial_env "event" sample_event
+     | `Cron -> initial_env
+     | `Unknown -> default_env c
   in
+  (match Handler.event_desc_for h with
+  | None -> [default]
+  | Some (space, path, modifier as d) ->
+    let events = SE.load_events c.id d in
+    if events = []
+    then [default]
+    else
+      List.map events
+        ~f:(fun e ->
+            match Handler.module_type h with
+            | `Http ->
+              let with_r = RTT.DvalMap.set initial_env "request" e in
+              let name = Handler.event_name_for_exn h in
+              let bound = Http.bind_route_params_exn path name in
+              Util.merge_left with_r bound
+            | `Event ->
+              RTT.DvalMap.set initial_env "event" e
+            | `Cron  -> initial_env
+            | `Unknown -> initial_env (* can't happen *)
+        ))
 
-  let create_env_map (h : Handler.handler) : (tlid * RTT.dval_map list) =
-    (* TODO: N+1 query situation here *)
-    let default =
-        (match Handler.module_type h with
-        | `Http ->
-          RTT.DvalMap.set initial_env "request" sample_request
-        | `Event ->
-          RTT.DvalMap.set initial_env "event" sample_event
-        | `Cron -> initial_env
-        | `Unknown -> default_env)
-    in
-    let envs =
-      match Handler.event_desc_for h with
-      | Some (space, path, modifier as d) ->
-        let events = SE.load_events c.id d in
-        if events = []
-        then [default]
-        else
-          List.map events
-            ~f:(fun e ->
-                match Handler.module_type h with
-                | `Http ->
-                  let with_r = RTT.DvalMap.set initial_env "request" e in
-                  let name = Handler.event_name_for_exn h in
-                  let bound = Http.bind_route_params_exn path name in
-                  Util.merge_left with_r bound
-                | `Event ->
-                  RTT.DvalMap.set initial_env "event" e
-                | `Cron  -> initial_env
-                | `Unknown -> initial_env (* can't happen *)
-            )
-      | None -> [default]
-    in
-    (h.tlid, envs)
-  in
-
-  let tlenvs = List.map ~f:create_env_map (TL.handlers c.toplevels) in
-
-  (* TODO(ian): using 0 as a default, come up with better idea
-   * later *)
-  let with_default = (0, [default_env]) :: tlenvs in
-  let envs = RTT.EnvMap.of_alist_exn with_default in
-  envs
 
 let get_404s (c: canvas) : SE.four_oh_four list =
   let match_desc h d : bool =
@@ -342,78 +334,71 @@ let unlocked (c: canvas) : tlid list =
   |> User_db.unlocked c.id c.owner
   |> List.map ~f:(fun x -> x.tlid)
 
-let function_values (c: canvas) (exe_fn_ids:executable_fn_id list)
-    (execution_id: id) : analysis_result list =
-  List.map
-    c.user_functions
-    ~f:(fun f ->
-        let fn_ids =
-          exe_fn_ids
-          |> List.filter_map
-            ~f:(fun (tlid, id, cursor) ->
-                if tlid = f.tlid && cursor = 0
-                then Some id
-                else None)
-        in
-        let env = Functions.environment_for_user_fn f in
-        let state : RTT.exec_state =
-          { ff = FF.analysis
-          ; tlid = f.tlid
-          ; host = c.host
-          ; account_id = c.owner
-          ; canvas_id = c.id
-          ; user_fns = c.user_functions
-          ; exe_fn_ids = fn_ids
-          ; env = env
-          ; dbs = TL.dbs c.toplevels
-          ; id = execution_id
-          }
-        in
-        let value = Functions.execute_for_analysis state f in
-        (f.tlid, [value]))
-
-
-let toplevel_values (c: canvas) (environments: RTT.env_map)
-    (exe_fn_ids : executable_fn_id list)
-    (execution_id: id) : analysis_result list
-   =
-  let available_reqs id =
-    match RTT.EnvMap.find environments id with
-    | Some e -> e
-    | None -> RTT.EnvMap.find_exn environments 0
+let function_value
+    ~(exe_fn_ids: executable_fn_id list)
+    ~(execution_id: id)
+    (c: canvas)
+    (f: RTT.user_fn)
+  : analysis_result =
+  let fn_ids =
+    exe_fn_ids
+    |> List.filter_map
+      ~f:(fun (tlid, id, cursor) ->
+          if tlid = f.tlid && cursor = 0
+          then Some id
+          else None)
   in
-  c.toplevels
-  |> TL.handlers
-  |> List.map
-    ~f:(fun h ->
-        let envs = available_reqs h.tlid in
-        let fn_ids i =
-          List.filter_map exe_fn_ids
-            ~f:(fun (tlid, id, cursor) ->
-                if tlid = h.tlid && i = cursor
-                then Some id
-                else None)
-        in
-        let state i env : RTT.exec_state =
-          { ff = FF.analysis
-          ; tlid = h.tlid
-          ; host = c.host
-          ; account_id = c.owner
-          ; canvas_id = c.id
-          ; user_fns = c.user_functions
-          ; exe_fn_ids = fn_ids i
-          ; env = env
-          ; dbs = TL.dbs c.toplevels
-          ; id = execution_id
-          }
-        in
-        let values =
-          List.mapi
-            ~f:(fun i env ->
-                Handler.execute_for_analysis (state i env) h)
-            envs
-        in
-        (h.tlid, values))
+  let env = Functions.environment_for_user_fn f in
+  let state : RTT.exec_state =
+    { ff = FF.analysis
+    ; tlid = f.tlid
+    ; host = c.host
+    ; account_id = c.owner
+    ; canvas_id = c.id
+    ; user_fns = c.user_functions
+    ; exe_fn_ids = fn_ids
+    ; env = env
+    ; dbs = TL.dbs c.toplevels
+    ; id = execution_id
+    }
+  in
+  (f.tlid, [Functions.execute_for_analysis state f])
+
+let handler_value
+    ~(exe_fn_ids : executable_fn_id list)
+    ~(execution_id: id)
+    (c: canvas)
+    (h : Handler.handler)
+  : analysis_result
+   =
+  let fn_ids i =
+    List.filter_map exe_fn_ids
+      ~f:(fun (tlid, id, cursor) ->
+          if tlid = h.tlid && i = cursor
+          then Some id
+          else None)
+  in
+  let state i env : RTT.exec_state =
+    { ff = FF.analysis
+    ; tlid = h.tlid
+    ; host = c.host
+    ; account_id = c.owner
+    ; canvas_id = c.id
+    ; user_fns = c.user_functions
+    ; exe_fn_ids = fn_ids i
+    ; env = env
+    ; dbs = TL.dbs c.toplevels
+    ; id = execution_id
+    }
+  in
+  let envs = initial_envs c h in
+  let values =
+    List.mapi
+      ~f:(fun i env ->
+          Handler.execute_for_analysis (state i env) h)
+      envs
+  in
+  (h.tlid, values)
 
 (* The full response with everything *)
 type get_analysis_response =
@@ -425,21 +410,20 @@ type get_analysis_response =
 
 (* A subset of responses to be merged in *)
 type rpc_response =
-  { analyses: analysis_result list (* overwrite existing analyses *)
-  ; global_varnames : string list (* merge - these are new only *)
-  ; toplevels : TL.toplevel_list (* overwrite - updates only *)
-  ; user_functions : RTT.user_fn list (* overwrite - updates only *)
+  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
+  ; global_varnames : string list (* replace *)
+  ; toplevels : TL.toplevel_list (* replace *)
+  ; user_functions : RTT.user_fn list (* replace *)
+  ; unlocked_dbs : tlid list (* replace *)
   } [@@deriving to_yojson]
 
 
-let to_get_analysis_frontend (tlvals : analysis_result list)
-      (fvals : analysis_result list) (unlocked : tlid list)
-      (environments: RTT.env_map) (f404s: SE.four_oh_four list)
+let to_get_analysis_frontend (vals : analysis_result list)
+      (unlocked : tlid list)
+      (f404s: SE.four_oh_four list)
       (c : canvas) : string =
-  { analyses = tlvals @ fvals
-  ; global_varnames = RTT.EnvMap.find_exn environments 0
-                      |> List.hd_exn
-                      |> RTT.DvalMap.keys
+  { analyses = vals
+  ; global_varnames = global_vars c
   ; unlocked_dbs = unlocked
   ; fofs = f404s
   }
@@ -447,15 +431,14 @@ let to_get_analysis_frontend (tlvals : analysis_result list)
   |> Yojson.Safe.to_string ~std:true
 
 
-let to_rpc_response_frontend (tlvals : analysis_result list)
-      (fvals : analysis_result list) (environments: RTT.env_map)
-      (c : canvas) : string =
-  { analyses = tlvals @ fvals
-  ; global_varnames = RTT.EnvMap.find_exn environments 0
-                      |> List.hd_exn
-                      |> RTT.DvalMap.keys
+let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
+    (unlocked : tlid list)
+  : string =
+  { new_analyses = vals
+  ; global_varnames = global_vars c
   ; toplevels = c.toplevels
   ; user_functions = c.user_functions
+  ; unlocked_dbs = unlocked
   }
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
