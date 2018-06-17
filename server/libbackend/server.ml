@@ -199,31 +199,40 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
 
+    let tlids = params.ops
+                |> List.map ~f:Op.tlidsOf
+                |> List.concat
+    in
+    let to_be_analyzed id = List.mem ~equal:(=) tlids id in
+    let exe_fn_ids = params.executable_fns in
+
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host params.ops) in
 
-    (* let tlids = params.ops *)
-    (*             |> List.map ~f:Op.tlidsOf *)
-    (*             |> List.concat *)
-    (* in *)
-    let (t3a, envs) = time "3-create-envs"
-      (fun _ -> C.create_environments !c) in
-
-    let (t3b, f404s) = time "3-get-404s"
-      (fun _ -> C.get_404s !c) in
-
-    let (t5, fvals) = time "5-function-values"
+    let (t3, hvals) = time "3-handler-values"
       (fun _ ->
-        C.function_values !c params.executable_fns execution_id) in
+         !c.toplevels
+         |> List.filter_map ~f:TL.as_handler
+         |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
+         |> List.map
+           ~f:(C.handler_value ~exe_fn_ids ~execution_id !c))
+    in
 
-    let (t6, tlvals) = time "6-toplevel-values"
+    let (t4, fvals) = time "4-function-values"
       (fun _ ->
-        C.toplevel_values !c envs params.executable_fns execution_id) in
+        !c.user_functions
+        |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
+        |> List.map
+          ~f:(C.function_value ~exe_fn_ids ~execution_id !c))
+    in
+    let (t5, unlocked) = time "5-analyze-unlocked-dbs"
+      (fun _ -> C.unlocked !c) in
 
-    let (t7, result) = time "7-to-frontend"
-      (fun _ -> C.to_rpc_response_frontend tlvals fvals envs !c) in
 
-    let (t8, _) = time "8-save-to-disk"
+    let (t6, result) = time "6-to-frontend"
+      (fun _ -> C.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
+
+    let (t7, _) = time "7-save-to-disk"
       (fun _ ->
         (* work out the result before we save it, incase it has a
          stackoverflow or other crashing bug *)
@@ -233,7 +242,7 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
       ) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t1; t2; t3a; t3b; t5; t6; t7; t8], result)
+  (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
@@ -242,31 +251,35 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
 let get_analysis (host: string) : (Cohttp.Header.t * string) =
   let execution_id = Util.create_id () in
   try
-    let (t2, c) = time "2-load-saved-ops"
+    let (t1, c) = time "1-load-saved-ops"
       (fun _ -> C.load host []) in
 
-    let (t3a, envs) = time "3-create-envs"
-      (fun _ -> C.create_environments !c) in
-
-    let (t3b, f404s) = time "3-get-404s"
+    let (t2, f404s) = time "2-get-404s"
       (fun _ -> C.get_404s !c) in
 
-    let (t4, unlocked) = time "4-analyze-unlocked-dbs"
+    let (t3, hvals) = time "3-handler-values"
+      (fun _ ->
+         !c.toplevels
+         |> List.filter_map ~f:TL.as_handler
+         |> List.map
+           ~f:(C.handler_value ~exe_fn_ids:[] ~execution_id !c))
+    in
+
+    let (t4, fvals) = time "4-function-values"
+      (fun _ ->
+        !c.user_functions
+        |> List.map
+          ~f:(C.function_value ~exe_fn_ids:[] ~execution_id !c))
+    in
+
+    let (t5, unlocked) = time "5-analyze-unlocked-dbs"
       (fun _ -> C.unlocked !c) in
 
-    let (t5, fvals) = time "5-function-values"
-      (fun _ ->
-        C.function_values !c [] execution_id) in
-
-    let (t6, tlvals) = time "6-toplevel-values"
-      (fun _ ->
-        C.toplevel_values !c envs [] execution_id) in
-
-    let (t7, result) = time "7-to-frontend"
-      (fun _ -> C.to_get_analysis_frontend tlvals fvals unlocked envs f404s !c) in
+    let (t6, result) = time "6-to-frontend"
+      (fun _ -> C.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t2; t3a; t3b; t4; t5; t6; t7], result)
+  (server_timing [t1; t2; t3; t4; t5; t6], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
