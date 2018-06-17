@@ -246,9 +246,6 @@ let initial_dval_map (c: canvas) : RTT.dval_map =
   |> TL.dbs
   |> User_db.dbs_as_env
 
-let global_vars (c: canvas) : string list =
-  RTT.DvalMap.keys (initial_dval_map c)
-
 let sample_request =
   PReq.to_dval PReq.sample
 
@@ -259,6 +256,9 @@ let default_env (c: canvas) : RTT.dval_map =
   initial_dval_map c
   |> RTT.DvalMap.set ~key:"request" ~data:sample_request
   |> RTT.DvalMap.set ~key:"event" ~data:sample_event
+
+let global_vars (c: canvas) : string list =
+  RTT.DvalMap.keys (default_env c)
 
 let initial_envs (c: canvas) (h: Handler.handler)
   : RTT.dval_map list =
