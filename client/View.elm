@@ -76,8 +76,12 @@ viewCanvas m =
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
   let recalc = \_ -> viewTL_ m tl.id
+      -- Allow the DB locked status to update
+      isDB = case tl.data of
+              TLDB _ -> True
+              _ -> False
       html =
-        if Just tl.id == tlidOf m.cursorState
+        if Just tl.id == tlidOf m.cursorState || isDB
         then recalc ()
         else
           case Util.cacheGet (deTLID tl.id) of
