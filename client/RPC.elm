@@ -587,7 +587,6 @@ decodeToplevel : JSD.Decoder Toplevel
 decodeToplevel =
   let toToplevel id x y data =
         { id = id
-        , cursor = 0
         , pos = { x=x, y=y }
         , data = data }
       variant = decodeVariants

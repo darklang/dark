@@ -11,6 +11,7 @@ import Html.Attributes as Attrs
 import Types exposing (..)
 import Prelude exposing (..)
 import ViewUtils exposing (..)
+import Analysis
 
 viewRequest : TLID -> Int -> String -> Bool -> Bool -> Html.Html Msg
 viewRequest tlid idx value isActive isHover =
@@ -37,7 +38,9 @@ viewRequests vs h =
                   case (Dict.get "event" result.inputValues) of
                     Just v -> v.value
                     _ -> ""
-        isActive = vs.tl.cursor == idx
+        -- Note: the following tlCursors are very different things.
+        isActive = (Analysis.cursor_ vs.tlCursors vs.tl.id) == idx
+        -- Note: this is not the same tlCursor as above
         hoverID = tlCursorID vs.tl.id idx
         isHover = vs.hovering == Just hoverID
     in
