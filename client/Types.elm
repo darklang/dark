@@ -87,14 +87,15 @@ type CursorState = Selecting TLID (Maybe ID)
 -- Msg
 -- main Elm Architecture bus type
 -----------------------------
-type TimerAction = RefreshAnalyses
+type TimerAction = RefreshAnalysis
                  | CheckUrlHashPosition
 
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
                        , List TLAResult
                        , List GlobalVariable
-                       , List UserFunction)
+                       , List UserFunction
+                       , List TLID)
 type alias GetAnalysisResult = ( List TLAResult
                                , List GlobalVariable
                                , List FourOhFour
@@ -462,17 +463,13 @@ type Modification = Error String
                   | SetHover ID
                   | ClearHover ID
                   | Deselect
-                  | SetToplevels
-                      (List Toplevel)
-                      (List TLAResult)
-                      (List GlobalVariable)
-                      (List UserFunction)
-                      Bool
-                  | SetAnalysisResults
-                      (List TLAResult)
-                      (List GlobalVariable)
-                      (List FourOhFour)
-                      (List TLID)
+                  | SetToplevels (List Toplevel) Bool
+                  | SetAnalysis (List TLAResult)
+                  | SetSomeAnalysis (List TLAResult)
+                  | SetGlobalVariables (List GlobalVariable)
+                  | SetUserFunctions (List UserFunction) Bool
+                  | SetUnlockedDBs (List TLID)
+                  | Set404s (List FourOhFour)
                   | Enter EntryCursor
                   | RPCFull (RPCParams, Focus)
                   | RPC (List Op, Focus) -- shortcut for RPCFull

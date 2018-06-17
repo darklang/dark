@@ -5,8 +5,9 @@ import Dict
 import List.Extra as LE
 
 -- dark
-import Toplevel as TL
+import Prelude exposing (..)
 import Types exposing (..)
+import Toplevel as TL
 import Pointer as P
 
 varnamesFor : Model -> Maybe (TLID, PointerData) -> List VarName
@@ -35,6 +36,11 @@ getAnalysisResults m tlid =
                         , availableVarnames = Dict.empty
                         , inputValues = Dict.empty
                         }]
+
+replace : List TLAResult -> List TLAResult -> List TLAResult
+replace old new =
+  LE.uniqueBy (\tlar -> deTLID tlar.id) (new ++ old)
+
 
 cursor : Model -> TLID -> Int
 cursor m tlid =

@@ -19,6 +19,7 @@ import Task
 import Window
 
 -- dark
+import Analysis
 import RPC
 import Types exposing (..)
 import Prelude exposing (..)
@@ -384,47 +385,68 @@ updateMod mod (m, cmd) =
                   in
                   Just (tlid, pd)
 
-            (complete, acCmd) =
+            (m2, acCmd) =
               processAutocompleteMods m [ ACSetTarget target ]
-            newM = { m | cursorState = Entering entry, complete = complete }
+            m3 = { m2 | cursorState = Entering entry }
         in
-        newM ! (closeBlanks newM ++ [acCmd, Entry.focusEntry newM])
+        m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
 
+      SetGlobalVariables globals ->
+        let m2 = { m | globals = globals } in
+        processAutocompleteMods m2 [ ACRegenerate ]
 
-      SetToplevels tls tlars globals userFuncs updateCurrentTL ->
-        let m2 = { m | toplevels = tls
-                     , analysis = tlars
-                     , globals = globals
-                     , userFunctions = userFuncs
-                 }
-            -- If the server is slow, we don't a jittery experience.
+      SetToplevels tls updateCurrent ->
+        let m2 = { m | toplevels = tls }
+            -- Bring back the TL being edited, so we don't lose work
+            -- done since the API call.
             m3 = case tlidOf m.cursorState of
                    Just tlid ->
-                     if updateCurrentTL
+                     if updateCurrent
                      then m2
                      else
                        let tl = TL.getTL m tlid in
                        case tl.data of
                          TLDB _ -> TL.upsert m2 tl
                          TLHandler _ -> TL.upsert m2 tl
-                         TLFunc f -> Functions.upsert m2 f
+                         TLFunc f -> m2
                    Nothing ->
                      m2
+        in
+        processAutocompleteMods m3 [ ACRegenerate ]
 
-            (complete, acCmd) =
-              processAutocompleteMods m3 [ ACRegenerate ]
+      SetAnalysis tlars ->
+        let m2 = { m | analysis = tlars } in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+      SetSomeAnalysis tlars ->
+        let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+      SetUserFunctions userFuncs updateCurrent ->
+        let m2 = { m | userFunctions = userFuncs }
+            -- Bring back the TL being edited, so we don't lose work
+            -- done since the API call.
+            m3 = case tlidOf m.cursorState of
+                   Just tlid ->
+                     if updateCurrent
+                     then m2
+                     else
+                       let tl = TL.getTL m tlid in
+                       case tl.data of
+                         TLFunc f -> Functions.upsert m2 f
+                         TLDB _ -> m2
+                         TLHandler _ -> m2
+                   Nothing ->
+                     m2
         in
-        { m3 | complete = complete } ! [acCmd]
-      SetAnalysisResults tlars globals f404s unlocked ->
-        let m2 = { m | analysis = tlars
-                     , globals = globals
-                     , f404s = f404s
-                     , unlockedDBs = unlocked
-                 }
-            (complete, acCmd) =
-              processAutocompleteMods m2 [ ACRegenerate ]
-        in
-        { m2 | complete = complete } ! [acCmd]
+        processAutocompleteMods m3 [ ACRegenerate ]
+
+
+      SetUnlockedDBs unlockedDBs ->
+        { m | unlockedDBs = unlockedDBs } ! []
+
+      Set404s f404s ->
+        { m | f404s = f404s } ! []
 
       SetHover p ->
         let nhovering = (p :: m.hovering) in
@@ -449,15 +471,13 @@ updateMod mod (m, cmd) =
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
-        let (complete, cmd) = processAutocompleteMods m [mod]
-        in ({ m | complete = complete }
-            , cmd)
+        processAutocompleteMods m [mod]
       -- applied from left to right
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
   in
     (newm, Cmd.batch [cmd, newcmd])
 
-processAutocompleteMods : Model -> List AutocompleteMod -> (Autocomplete, Cmd Msg)
+processAutocompleteMods : Model -> List AutocompleteMod -> (Model, Cmd Msg)
 processAutocompleteMods m mods =
   let _ = if m.integrationTestState /= NoIntegrationTest
           then Debug.log "autocompletemod update" mods
@@ -476,7 +496,7 @@ processAutocompleteMods m mods =
             in Debug.log "autocompletemod result: "
                 (toString complete.index ++ " => " ++ val)
           else ""
-  in (complete, focus)
+  in ({m | complete = complete}, focus)
 
 -- Figure out from the string and the state whether this '.' means field
 -- access.
@@ -1021,12 +1041,7 @@ update_ msg m =
           let xDiff = mousePos.x-startVPos.vx
               yDiff = mousePos.y-startVPos.vy
               m2 = TL.move draggingTLID xDiff yDiff m in
-          Many [ SetToplevels
-                   m2.toplevels
-                   m2.analysis
-                   m2.globals
-                   m2.userFunctions
-                   True
+          Many [ SetToplevels m2.toplevels True
                , Drag
                    draggingTLID
                    { vx=mousePos.x
@@ -1187,7 +1202,7 @@ update_ msg m =
     -- RPCs stuff
     -----------------
     RPCCallback focus extraMod calls
-      (Ok (toplevels, analysis, globals, userFuncs)) ->
+      (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
       let executingFunctionsCallback =
         case calls.target of
           Just (tlid, id) -> ExecutingFunctionComplete tlid id
@@ -1195,7 +1210,11 @@ update_ msg m =
       in
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels analysis globals userFuncs False
+        Many [ SetToplevels toplevels False
+             , SetSomeAnalysis new_analysis
+             , SetGlobalVariables globals
+             , SetUserFunctions userFuncs False
+             , SetUnlockedDBs unlockedDBs
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              , executingFunctionsCallback
@@ -1203,9 +1222,13 @@ update_ msg m =
       else
         let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
             newState = processFocus m2 focus
-        -- TODO: can make this much faster by only receiving things that have
-        -- been updated
-        in Many [ SetToplevels toplevels analysis globals userFuncs True
+        -- TODO: can make this much faster by only receiving things that
+        -- have been updated
+        in Many [ SetToplevels toplevels True
+                , SetSomeAnalysis new_analysis
+                , SetGlobalVariables globals
+                , SetUserFunctions userFuncs True
+                , SetUnlockedDBs unlockedDBs
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
@@ -1216,11 +1239,14 @@ update_ msg m =
     SaveTestRPCCallback (Ok msg) ->
       Error <| "Success! " ++ msg
 
-    GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlocked)) ->
+    GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
       if m.timersEnabled
       then
         Many [ TweakModel Sync.markResponseInModel
-             , SetAnalysisResults analysis globals f404s unlocked
+             , SetAnalysis analysis
+             , SetGlobalVariables globals
+             , Set404s f404s
+             , SetUnlockedDBs unlockedDBs
              ]
       else
         NoChange
@@ -1272,7 +1298,7 @@ update_ msg m =
 
     TimerFire action time  ->
       case action of
-        RefreshAnalyses ->
+        RefreshAnalysis ->
           GetAnalysisRPC
         CheckUrlHashPosition ->
           Url.maybeUpdateScrollUrl m
@@ -1345,7 +1371,7 @@ subscriptions m =
         case m.visibility of
           PageVisibility.Hidden -> []
           PageVisibility.Visible ->
-            [ Time.every Time.second (TimerFire RefreshAnalyses) ]
+            [ Time.every Time.second (TimerFire RefreshAnalysis) ]
 
       urlTimer =
         [Time.every Time.second (TimerFire CheckUrlHashPosition)]
