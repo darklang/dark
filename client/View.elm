@@ -75,7 +75,24 @@ viewCanvas m =
 
 viewTL : Model -> Toplevel -> Html.Html Msg
 viewTL m tl =
-  let vs = createVS m tl
+  let recalc = \_ -> viewTL_ m tl.id
+      html =
+        if Just tl.id == tlidOf m.cursorState
+        then recalc ()
+        else
+          case Util.cacheGet (deTLID tl.id) of
+            Just html -> html
+            Nothing ->
+              let result = recalc ()
+                  _ = Util.cacheSet (deTLID tl.id) result in
+              result
+   in
+   placeHtml m tl.pos html
+
+viewTL_ : Model -> TLID -> Html.Html Msg
+viewTL_ m tlid =
+  let tl = TL.getTL m tlid
+      vs = createVS m tl
       (body, data) =
         case tl.data of
           TLHandler h ->
@@ -142,4 +159,4 @@ viewTL m tl =
           ]
 
   in
-      placeHtml m tl.pos html
+      html
