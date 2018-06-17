@@ -12,6 +12,7 @@ import Maybe.Extra as ME
 import Native.Window
 import Native.Random
 import Native.Size
+import Native.Cache
 
 windowSize : () -> (Int, Int)
 windowSize a = let size = Native.Window.size a
@@ -130,4 +131,12 @@ listNextWrap a l =
   |> listNext a
   |> ME.orElse (List.head l)
 
+cacheSet : k -> v -> Maybe v
+cacheSet k v =
+  Native.Cache.set k v
+  -- |> Debug.log "cacheset"
 
+cacheGet : k -> v
+cacheGet k =
+  Native.Cache.get k
+  -- |> Debug.log "cacheget"
