@@ -7,7 +7,6 @@ import List.Extra as LE
 -- dark
 import Prelude exposing (..)
 import Types exposing (..)
-import Toplevel as TL
 import Pointer as P
 
 varnamesFor : Model -> Maybe (TLID, PointerData) -> List VarName
@@ -41,14 +40,22 @@ replace : List TLAResult -> List TLAResult -> List TLAResult
 replace old new =
   LE.uniqueBy (\tlar -> deTLID tlar.id) (new ++ old)
 
-
 cursor : Model -> TLID -> Int
 cursor m tlid =
+  cursor_ m.tlCursors tlid
+
+cursor_ : TLCursors -> TLID -> Int
+cursor_ cursors tlid =
   -- We briefly do analysis on a toplevel which does not have an
   -- analysis available, so be careful here.
-  TL.get m tlid
-  |> Maybe.map .cursor
+  Dict.get (deTLID tlid) cursors
   |> Maybe.withDefault 0
+
+setCursor : Model -> TLID -> Int -> Model
+setCursor m tlid cursor =
+  let newCursors = Dict.insert (deTLID tlid) cursor m.tlCursors in
+  { m | tlCursors =  newCursors}
+
 
 getLiveValuesDict : Model -> TLID -> LVDict
 getLiveValuesDict m tlid =

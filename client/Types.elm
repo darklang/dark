@@ -372,7 +372,6 @@ type TLData = TLHandler Handler
             | TLFunc UserFunction
 
 type alias Toplevel = { id : TLID
-                      , cursor: Int
                       , pos : Pos
                       , data : TLData
                       }
@@ -412,7 +411,7 @@ type alias SyncState = { inFlight : Bool
 
 type alias UrlState = { lastPos : Pos
                       }
-
+type alias TLCursors = Dict Int Int
 type alias Model = { error : Maybe String
                    , lastMsg : Msg
                    , lastMod : Modification
@@ -435,6 +434,11 @@ type alias Model = { error : Maybe String
                    , urlState : UrlState
                    , timersEnabled : Bool
                    , executingFunctions: List (TLID, ID)
+                   -- This is TLID id to cursor index (the cursor being
+                   -- the input to the toplevel currently used, not to
+                   -- be condused with cursorState, which is the code
+                   -- that is currently selected.)
+                   , tlCursors: TLCursors
                    }
 
 -- Values that we serialize
