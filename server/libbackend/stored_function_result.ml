@@ -12,7 +12,7 @@ let hash (arglist : RTT.dval list) : string =
   arglist
   |> List.map ~f:Dval.to_internal_repr
   |> String.concat
-  |> Util.hash
+  |> Crypto.hash
 
 (* ------------------------- *)
 (* External *)
