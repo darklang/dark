@@ -12,7 +12,14 @@ let init () =
     Exn.initialize_module ();
 
     (* libexecution *)
-    Libexecution.Init.init Config.log_level;
+    Libexecution.Init.init
+      Config.log_level
+      ( Libdb.fns
+      @ Libevent.fns
+      @ Libhttp.fns
+      @ Libhttpclient.fns
+      (* @ Libtwitter.fns  *)
+      );
 
     (* init the Random module, will be seeded from /dev/urandom on Linux *)
     Random.self_init ();

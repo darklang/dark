@@ -42,10 +42,9 @@ type function_metadata = { name: string
                          ; preview_execution_safe: bool
                          } [@@deriving yojson]
 
-let functions =
-  (* Libs.static_fns *) (*TODO SPLIT *)
-  (* |> String.Map.to_alist *)
-  []
+let functions () =
+  !Libs.static_fns
+  |> String.Map.to_alist
   |> List.map
     ~f:(fun (k,(v: RuntimeT.fn))
          -> { name = k
