@@ -1247,6 +1247,42 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { pns = ["List::sort"]
+  ; ins = []
+  ; p = [par "list" TList]
+  ; r = TList
+  ; d = "Returns `list` sorted in ascending order"
+  ; f = InProcess
+        (function
+          | (_, [DList list]) ->
+            list
+            |> List.sort ~cmp:compare_dval
+            |> DList
+          | (_, args) -> fail args)
+  ; pr = Some list_preview
+  ; ps = true
+  }
+  ;
+
+
+  { pns = ["List::sortBy"]
+  ; ins = []
+  ; p = [par "list" TList; par "f" TBlock]
+  ; r = TList
+  ; d = "Returns `list`, sorted using the results of `f`"
+  ; f = InProcess
+        (function
+          | (_, [DList list; DBlock fn]) ->
+            list
+            |> List.sort ~cmp:(fun a b -> compare_dval (fn [a]) (fn [b]))
+            |> DList
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
   { pns = ["List::append"]
   ; ins = []
   ; p = [par "l1" TList; par "l2" TList]
