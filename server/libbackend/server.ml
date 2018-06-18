@@ -348,7 +348,7 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
 let admin_ui_handler ~(debug:bool) () =
   let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
-  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions)
+  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{ELMDEBUG}" (if debug
                                       then "-debug"

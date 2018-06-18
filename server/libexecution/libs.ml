@@ -14,35 +14,27 @@ let add_fn (m : fnmap) (f : RuntimeT.fn) : fnmap =
     ~init:m
     (f.prefix_names @ f.infix_names)
 
-let static_fns : fnmap =
-  let add_short_fn (m : fnmap) (s : shortfn) : fnmap =
-    let (def: RuntimeT.fn) = { prefix_names = s.pns
-                             ; infix_names = s.ins
-                             ; return_type = s.r
-                             ; parameters = s.p
-                             ; description = s.d
-                             ; func = s.f
-                             ; preview = s.pr
-                             ; preview_execution_safe = s.ps
-                             } in
-    add_fn m def
-  in
-  List.fold_left ~f:add_short_fn ~init:FnMap.empty
-    (List.concat [ Libstd.fns
-                     (* TODO SPLIT *)
-                 (* ; Libdb.fns *)
-                 (* ; Libhttp.fns *)
-                 (* ; Libhttpclient.fns *)
-                 (* ; Libevent.fns *)
-                 (* ; Libtwitter.fns *)
-                 ])
+let static_fns : fnmap ref =
+  ref FnMap.empty
+
+let add_short_fn (s : shortfn) : unit =
+  let (def: RuntimeT.fn) = { prefix_names = s.pns
+                           ; infix_names = s.ins
+                           ; return_type = s.r
+                           ; parameters = s.p
+                           ; description = s.d
+                           ; func = s.f
+                           ; preview = s.pr
+                           ; preview_execution_safe = s.ps
+                           } in
+  static_fns := add_fn !static_fns def
 
 let fns (user_fns: RuntimeT.user_fn list) : fnmap =
   user_fns
   |> List.filter_map
     ~f:RuntimeT.user_fn_to_fn
   |> List.fold_left
-    ~init:static_fns
+    ~init:!static_fns
     ~f:(fun map uf -> add_fn map uf)
 
 (* Give access to other modules *)
@@ -53,4 +45,7 @@ let get_fn_exn ~(user_fns: RuntimeT.user_fn list) (name : string) : RuntimeT.fn 
   match get_fn ~user_fns name with
   | Some fn -> fn
   | None -> RT.error ("No function named '" ^ name ^ "' exists")
+
+let init libs =
+  List.iter ~f:add_short_fn (Libstd.fns @ libs)
 
