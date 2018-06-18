@@ -33,6 +33,19 @@ get m id =
   let tls = (List.map (ufToTL m) m.userFunctions) ++ m.toplevels in
   LE.find (\tl -> tl.id == id) tls
 
+name : Toplevel -> String
+name tl =
+  case tl.data of
+    TLHandler h ->
+      "H: "
+      ++ (h.spec.name |> B.toMaybe |> Maybe.withDefault "")
+    TLDB db ->
+      "DB: "
+      ++ db.name
+    TLFunc f ->
+      "Func: "
+      ++ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
+
 
 upsert : Model -> Toplevel -> Model
 upsert m tl =
