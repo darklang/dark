@@ -1061,6 +1061,7 @@ let fns : Lib.shortfn list = [
   ; d = ""
   ; f = InProcess
         (function
+          | (_, [DList []]) -> DNull
           | (_, [DList l]) -> List.last_exn l
           | (_, args) -> fail args)
   ; pr = None
