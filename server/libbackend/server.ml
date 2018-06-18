@@ -198,13 +198,14 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
+    let exe_fn_ids = params.executable_fns in
 
     let tlids = params.ops
                 |> List.map ~f:Op.tlidsOf
                 |> List.concat
+                |> (@) (List.map exe_fn_ids ~f:Tuple.T3.get1)
     in
     let to_be_analyzed id = List.mem ~equal:(=) tlids id in
-    let exe_fn_ids = params.executable_fns in
 
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host params.ops) in
