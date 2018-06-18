@@ -168,13 +168,13 @@ let init () : unit =
   upsert_account
     { username = "pvh"
     ; password = "skli93df;fl4is,"
-    ; email = ""
-    ; name = ""};
+    ; email = "pvh@pvh.ca"
+    ; name = "Peter Van Hardenberg"};
    upsert_account
     { username = "mmcgrana"
     ; password = "sjklmdvn4;s;[s;2[d"
-    ; email = ""
-    ; name = ""};
+    ; email = "mmcgrana@gmail.com"
+    ; name = "Mark McGranaghan"};
   upsert_account
     { username = "darksingleinstance"
     ; password = "jas902ksd]23dl49v"
