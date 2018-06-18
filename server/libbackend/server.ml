@@ -453,10 +453,10 @@ let server () =
               match String.split host '.' with
               | ["localhost"] -> Some "localhost"
               | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
-              | [_] -> None
-              | a :: _ when int_of_string_opt a = None ->
-                (* only for letters (ignore ip addresses) *)
-                Some a
+              | ["builtwithdark"; "com"] -> Some "builtwithdark"
+              | [a; "localhost"] -> Some a
+              | [a; "darksingleinstance"; "com"] -> Some a
+              | [a; "builtwithdark"; "com"] -> Some a
               | _ -> None)
       in
 
@@ -471,13 +471,13 @@ let server () =
           , "http:" ^ Uri.to_string uri);
 
         match (Uri.path uri, host) with
+        | (_, None) ->
+          respond `Not_found "Not found"
         | ("/sitemap.xml", _)
         | ("/favicon.ico", _) ->
          respond `OK ""
         | (p, _) when (String.is_prefix ~prefix:"/static/" p) ->
           static_handler uri
-        | (_, None) ->
-          respond `Not_found "Not found"
         | (p, Some host) ->
           if String.is_prefix ~prefix:"/admin/" p
           then
