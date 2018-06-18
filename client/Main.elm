@@ -411,7 +411,6 @@ updateMod mod (m, cmd) =
                        case tl.data of
                          TLDB _ -> TL.upsert m2 tl
                          TLHandler _ -> TL.upsert m2 tl
-                                        |> Debug.log "upserting"
                          TLFunc f -> m2
                    Nothing ->
                      m2
