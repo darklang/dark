@@ -1002,8 +1002,12 @@ update_ msg m =
       case m.currentPage of
         Toplevels _ ->
           if event.button == Defaults.leftButton
-          then Many [ AutocompleteMod ACReset
-                    , Enter (Creating (Viewport.toAbsolute m event.pos))]
+          then
+            case unwrapCursorState m.cursorState of
+              Deselected ->
+                Many [ AutocompleteMod ACReset
+                     , Enter (Creating (Viewport.toAbsolute m event.pos))]
+              _ -> Deselect
           else NoChange
         _ -> NoChange
 
