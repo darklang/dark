@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 open Types
 open Types.RuntimeT
@@ -82,38 +82,10 @@ let modifier_for_exn (h: handler) : string =
     Exception.internal
       "Called modifier_for_exn on a toplevel without a `modifier` param"
 
-let event_desc_for (h: handler) : Stored_event.event_desc option =
+let event_desc_for (h: handler) : (string * string * string) option =
+    (* Stored_event.event_desc  *)
   match (module_for h, event_name_for h, modifier_for h) with
   | (Some m, Some en, Some mo) -> Some (m, en, mo)
   | _ -> None
 
-let default_env (h: handler) : dval_map =
-  let init = DvalMap.empty in
-  match event_name_for h with
-  | Some n ->
-    List.fold_left
-      ~init
-      ~f:(fun acc v ->
-          DvalMap.set ~key:v ~data:DIncomplete acc)
-      (Http.route_variables n)
-  | None -> init
 
-let with_defaults (h: handler) (env: symtable) : symtable =
-  Util.merge_left env (default_env h)
-
-let execute (state: exec_state) (h: handler) : dval =
-  Ast.execute state (with_defaults h state.env) h.ast
-
-let execute_for_analysis (state : exec_state) (h : handler) :
-    Ast.analysis =
-  let default_env = with_defaults h state.env in
-  let state = { state with env = default_env } in
-  let traced_symbols =
-    Ast.symbolic_execute state.ff state.env h.ast in
-  let (ast_value, traced_values) =
-    Ast.execute_saving_intermediates state h.ast in
-  { ast_value = Ast.dval_to_livevalue ast_value
-  ; live_values = traced_values
-  ; available_varnames = traced_symbols
-  ; input_values = Ast.symtable_to_sym_list state.env
-  }

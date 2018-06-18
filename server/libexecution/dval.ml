@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+
 open Types
 open Types.RuntimeT
 
@@ -127,16 +128,24 @@ let tipename (dv: dval) : string =
 
 let isostring_of_date (d: Time.t) : string =
   (* for conduit tests. May do something different later *)
-  Time.format d "%FT%TZ" Time.Zone.utc
+  ""
+    (* TODO SPLIT *)
+  (* Time.format d "%FT%TZ" Time.Zone.utc *)
 
 let date_of_isostring (str: string) : Time.t =
-  Time.parse str "%FT%TZ" Time.Zone.utc
+  Time.now ()
+    (* TODO SPLIT *)
+  (* Time.parse str "%FT%TZ" Time.Zone.utc *)
 
 let sqlstring_of_date (d: Time.t) : string =
-  Time.format d "%Y-%m-%d %H:%M:%S" Time.Zone.utc
+  ""
+    (* TODO SPLIT *)
+  (* Time.format d "%Y-%m-%d %H:%M:%S" Time.Zone.utc *)
 
 let date_of_sqlstring (str: string) : Time.t =
-  Time.parse str "%Y-%m-%d %H:%M:%S" Time.Zone.utc
+  Time.now ()
+    (* TODO SPLIT *)
+  (* Time.parse str "%Y-%m-%d %H:%M:%S" Time.Zone.utc *)
 
 (* Returns the string within string-ish values, without adornment. *)
 let as_string (dv : dval) : string =
@@ -148,7 +157,7 @@ let as_string (dv : dval) : string =
   | DFloat f -> string_of_float f
   | DChar c -> Char.to_string c
   | DNull -> "null"
-  | DID id -> Uuid.to_string id
+  | DID id -> Uuidm.to_string id
   | DDate d -> d |> isostring_of_date
   | DTitle t -> t
   | DUrl url -> url
@@ -332,7 +341,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
     (match tipe with
     | "date" -> DDate (date_of_isostring v)
-    | "id" -> DID (Uuid.of_string v)
+    | "id" -> DID (Uuidm.of_string v |> Option.value_exn)
     | "title" -> DTitle v
     | "url" -> DUrl v
     | "error" -> DError v
@@ -385,7 +394,7 @@ let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
 
   | DDB db -> wrap_user_str db.display_name
-  | DID id -> wrap_user_str (Uuid.to_string id)
+  | DID id -> wrap_user_str (Uuidm.to_string id)
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title
   | DDate date -> wrap_user_str (isostring_of_date date)
@@ -474,17 +483,6 @@ let dval_to_query (dv: dval) : ((string * string list) list) =
   | _ -> Exception.user "attempting to use non-object as query param"
 
 
-let to_form_encoding (dv: dval) : string =
-  dv
-  |> to_string_pairs
-  (* TODO: forms are allowed take string lists as the value, not just strings *)
-  |> List.map ~f:(fun (k,v) -> (k, [v]))
-  |> Uri.encoded_of_query
-
-let from_form_encoding (f: string) : dval =
-  f |> Uri.query_of_encoded |> query_to_dval
-
-
 let exception_to_dval ~(log: bool) exc =
   match exc with
   | Exception.DarkException e ->
@@ -493,49 +491,49 @@ let exception_to_dval ~(log: bool) exc =
                |> Yojson.Safe.pretty_to_string in
     if log then Log.print_endline json else ();
     DError json
-
-  | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds)) as e ->
-    if log then Exception.log e;
-    (* go through a set of known errors and make them user-friendly *)
+(* TODO SPLIT *)
+  (* | Postgresql.Error (Unexpected_status (_actual, msg, _expecteds)) as e -> *)
+  (*   if log then Exception.log e; *)
+  (*   (* go through a set of known errors and make them user-friendly *) *)
 
     (* drop 2nd line which has the sql info on it, then trim different
      * variations of Error from the front. *)
-    let msg = msg
-              |> String.split ~on:'\n'
-              |> List.hd
-              |> Option.value ~default:""
-              |> Util.maybe_chop_prefix ~prefix:"ERROR:"
-              |> String.lstrip
-    in
-    let m regex : string list option =
-      msg
-      |> Util.string_match ~regex
-      |> Result.ok
-    in
+  (*   let msg = msg *)
+  (*             |> String.split ~on:'\n' *)
+  (*             |> List.hd *)
+  (*             |> Option.value ~default:"" *)
+  (*             |> Util.maybe_chop_prefix ~prefix:"ERROR:" *)
+  (*             |> String.lstrip *)
+  (*   in *)
+  (*   let m regex : string list option = *)
+  (*     msg *)
+  (*     |> Util.string_match ~regex *)
+  (*     |> Result.ok *)
+  (*   in *)
 
-    let db_short_name db =
-      String.split ~on:'_' db
-      |> List.tl
-      |> Option.value ~default:[""]
-      |> List.hd_exn
-    in
+  (*   let db_short_name db = *)
+  (*     String.split ~on:'_' db *)
+  (*     |> List.tl *)
+  (*     |> Option.value ~default:[""] *)
+  (*     |> List.hd_exn *)
+  (*   in *)
 
-    let result =
-      match m "column \"(.*)\" of relation \"(.*)\" does not exist" with
-      | Some [field; db] ->
-          ("Object has field "
-          ^ field
-          ^ ", but "
-          ^ db_short_name db
-          ^ " doesn't have that field")
-      | Some other -> Exception.internal "wrong arg count"
-      | _ -> msg
-    in
-    DError result
+  (*   let result = *)
+  (*     match m "column \"(.* )\" of relation \"(.* )\" does not exist" with *)
+  (*     | Some [field; db] -> *)
+  (*         ("Object has field " *)
+  (*         ^ field *)
+  (*         ^ ", but " *)
+  (*         ^ db_short_name db *)
+  (*         ^ " doesn't have that field") *)
+  (*     | Some other -> Exception.internal "wrong arg count" *)
+  (*     | _ -> msg *)
+  (*   in *)
+  (*   DError result *)
 
-  | Postgresql.Error exc as e->
-    if log then Exception.log e;
-    DError (Postgresql.string_of_error exc)
+  (* | Postgresql.Error exc as e-> *)
+  (*   if log then Exception.log e; *)
+  (*   DError (Postgresql.string_of_error exc) *)
 
   | e ->
     e

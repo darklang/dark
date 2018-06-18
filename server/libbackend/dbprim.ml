@@ -1,4 +1,6 @@
-open Core
+open Core_kernel
+open Libexecution
+
 module PG = Postgresql
 module RTT = Types.RuntimeT
 
@@ -54,7 +56,7 @@ let double_quote v = "\"" ^ v ^ "\""
 
 let uuid uuid =
   uuid
-  |> Uuid.to_string
+  |> Uuidm.to_string
   |> escape_single
   |> fun u -> "'" ^ u ^ "'::uuid"
 

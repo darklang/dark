@@ -1,0 +1,30 @@
+(jbuild_version 1)
+
+(library
+  (
+    (name libexecution)
+    (flags (-warn-error (+A)))
+    (preprocess (pps (ppx_bin_prot
+                      ppx_compare
+                      ppx_deriving.std
+                      ppx_deriving_yojson
+                      ppx_fields_conv
+                      ppx_type_conv
+                      ppx_sexp_conv
+                      ppx_pipebang)))
+    (libraries (batteries
+                core_kernel
+                uuidm
+                re2
+                base64
+                ppx_bin_prot
+                ppx_derivers
+                ppx_deriving.std
+                ppx_deriving_yojson
+                ppx_deriving_yojson.runtime
+                ppx_type_conv
+                ppx_sexp_conv))
+  )
+)
+
+

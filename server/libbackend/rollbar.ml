@@ -1,6 +1,7 @@
-open Core
+open Core_kernel
 open Lwt
 
+open Libexecution
 module CRequest = Cohttp_lwt_unix.Request
 
 type result = [`Success | `Failure | `Disabled]

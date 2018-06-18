@@ -1,6 +1,6 @@
-open Core
-open Lib
+open Core_kernel
 
+open Lib
 open Types.RuntimeT
 module RT = Runtime
 

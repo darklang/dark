@@ -1,5 +1,7 @@
-open Core
+open Core_kernel
+open Libexecution
 open Libbackend
+
 open Types
 open Types.RuntimeT
 open Ast
@@ -52,7 +54,7 @@ let execute_ops (ops : Op.op list) : dval =
           |> TL.handlers
           |> List.hd_exn in
   let state = state_for c in
-  Ast.execute state state.env h.ast
+  Analysis.execute_handler state h
 
 
 let at_dval = AT.of_pp pp_dval
@@ -369,7 +371,7 @@ let t_lambda_with_foreach () =
 
 module SE = Stored_event
 let t_stored_event_roundtrip () =
-  let owner : Uuid.t = Account.owner ~auth_domain:"test"
+  let owner : Uuidm.t = Account.owner ~auth_domain:"test"
                        |> fun x -> Option.value_exn x in
   let id1 = Canvas.fetch_canvas_id owner "host" in
   let id2 = Canvas.fetch_canvas_id owner "host2" in
@@ -590,11 +592,8 @@ let () =
   let (suite, exit) =
     Junit_alcotest.run_and_report "suite" ["tests", suite] in
   let report = Junit.make [suite] in
-  let dir = Sys.getenv "DARK_CONFIG_RUN_DIR"
-             |> Option.value ~default:"xxx"
-             |> fun x -> x ^ "/test_results" in
-  Unix.mkdir_p dir;
-  let file = dir ^ "/backend.xml" in
+  File.mkdir ~root:Testresults "";
+  let file = File.check_filename ~mode:`Write ~root:Testresults "backend.xml" in
   Junit.to_file report file;
   exit ()
 

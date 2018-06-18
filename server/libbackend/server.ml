@@ -1,16 +1,71 @@
-open Core
+open Core_kernel
 open Lwt
+open Libexecution
 
 module Clu = Cohttp_lwt_unix
 module S = Clu.Server
 module CRequest = Clu.Request
 module Header = Cohttp.Header
+module Cookie = Cohttp.Cookie
 module C = Canvas
 module RT = Runtime
 module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 module FF = Feature_flag
+
+(* ------------------------------- *)
+(* feature flags *)
+(* ------------------------------- *)
+
+let is_browser headers : bool =
+  headers
+  |> fun hs -> Cohttp.Header.get hs "user-agent"
+  |> Option.value ~default:""
+  |> String.is_substring ~substring:"Mozilla"
+
+let session_headers headers (ff: RTT.feature_flag) : Cookie.cookie list =
+  if is_browser headers
+  then
+    (FF.session_name, FF.to_session_string ff)
+    |> Cookie.Set_cookie_hdr.make
+    |> Cookie.Set_cookie_hdr.serialize
+    |> fun x -> [x]
+  else
+    []
+
+let fingerprint_user ip headers : RTT.feature_flag =
+  (* We want to do the absolute minimal fingerprinting to allow users
+   * get roughly the same set of feature flags on each request, while
+   * preserving user privacy. *)
+
+  if is_browser headers
+  then
+    (* If they're a browser user, just use a session, and if they dont
+     * have one, create a new one. *)
+    let session = headers
+                |> Cookie.Cookie_hdr.extract
+                |> List.find ~f:(fun (n,_) -> n = FF.session_name)
+    in
+    match session with
+    | Some (_, value) -> value |> FF.make
+    | None -> FF.generate ()
+
+  else
+    (* If they're an API user, fingerprint off as many stable headers as
+     * possible (ignore things with dates, urls, etc). In the future,
+     * give them a header with an ID that they can opt into as well. *)
+    let usable = ["user-agent"; "accept-encoding"; "accept-language";
+                  "keep-alive"; "connection"; "accept"] in
+    headers
+    |> Cohttp.Header.to_list
+    |> List.filter ~f:(fun (k,v) -> List.mem ~equal:(=) usable k)
+    |> List.map ~f:Tuple.T2.get2
+    |> (@) [ip]
+    |> String.concat
+    |> Util.hash
+    |> FF.make
+
 
 
 (* ------------------------------- *)
@@ -80,6 +135,8 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
   let c = C.load host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
+  let headers = req |> CRequest.headers |> Header.to_list in
+  let query = req |> CRequest.uri |> Uri.query in
   let pages = C.pages_matching_route ~uri ~verb !c in
   let pages =
     if List.length pages > 1
@@ -91,13 +148,13 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler !c req
   | [] ->
-    let input = PReq.from_request req body in
+    let input = PReq.from_request headers query body in
     Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers `Not_found "404: No page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
-    let input = PReq.from_request req body in
+    let input = PReq.from_request headers query body in
     let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = User_db.dbs_as_exe_env (dbs) in
@@ -115,8 +172,8 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
     let resp_headers = CRequest.headers req in
-    let ff = FF.fingerprint_user ip resp_headers in
-    let session_headers = FF.session_headers resp_headers ff in
+    let ff = fingerprint_user ip resp_headers in
+    let session_headers = session_headers resp_headers ff in
     let state : RTT.exec_state =
       { ff = ff
       ; tlid = page.tlid
@@ -129,7 +186,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
       ; dbs = dbs
       ; id = Util.create_id ()
       } in
-    let result = Handler.execute state page in
+    let result = Analysis.execute_handler state page in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
@@ -289,7 +346,7 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
 
 
 let admin_ui_handler ~(debug:bool) () =
-  let template = Util.readfile_lwt ~root:Templates "ui.html" in
+  let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
   >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions)
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)

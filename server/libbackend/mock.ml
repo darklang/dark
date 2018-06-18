@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 module StringMap = String.Map
 type string_map = string StringMap.t

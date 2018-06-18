@@ -1,5 +1,4 @@
 open Core
-
 (* ------------------------- *)
 (* Note: if you add an env-var in development, you'll probably need to
  * restart the dev container. *)
@@ -71,6 +70,7 @@ let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 let server_dir = root_dir ^ "server/"
 let appdata_dir = persist_dir ^ "appdata/"
 let testdata_dir = server_dir ^ "test_appdata/"
+let testresult_dir = run_dir ^ "test_results/"
 let log_dir = run_dir ^ "logs/"
 let serialization_dir = server_dir ^ "serialization/"
 let completed_test_dir = run_dir ^ "completed_tests/"
@@ -95,6 +95,7 @@ type root = Log
           | Webroot
           | Completed_test
           | Testdata
+          | Testresults
           | Bin_root
           | Appdata
           | Swagger
@@ -113,6 +114,7 @@ let dir root =
   | Appdata -> appdata_dir
   | Swagger -> swagger_dir
   | Testdata -> testdata_dir
+  | Testresults -> testresult_dir
   | Migrations -> migrations_dir
   | No_check -> ""
 
