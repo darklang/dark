@@ -1,7 +1,7 @@
-open Core
+open Core_kernel
+
 open Types
 open Lib
-
 module RT = Runtime
 
 module FnMap = String.Map
@@ -28,11 +28,12 @@ let static_fns : fnmap =
     add_fn m def
   in
   List.fold_left ~f:add_short_fn ~init:FnMap.empty
-    (List.concat [ Stdlib.fns
-                 ; Libdb.fns
-                 ; Libhttp.fns
-                 ; Libhttpclient.fns
-                 ; Libevent.fns
+    (List.concat [ Libstd.fns
+                     (* TODO SPLIT *)
+                 (* ; Libdb.fns *)
+                 (* ; Libhttp.fns *)
+                 (* ; Libhttpclient.fns *)
+                 (* ; Libevent.fns *)
                  (* ; Libtwitter.fns *)
                  ])
 

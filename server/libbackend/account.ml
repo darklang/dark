@@ -1,4 +1,6 @@
-open Core
+open Core_kernel
+open Libexecution
+
 open Types
 
 module Dbp = Dbprim
@@ -25,7 +27,7 @@ let upsert_account (account:account) : unit =
                   email = EXCLUDED.email,
                   admin = false,
                   password = EXCLUDED.password"
-    (Dbp.uuid (Uuid.create ()))
+    (Dbp.uuid (Util.create_uuid ()))
     (Dbp.string account.username)
     (Dbp.string account.name)
     (Dbp.string account.email)
@@ -43,7 +45,7 @@ let upsert_admin (account:account) : unit =
                   email = EXCLUDED.email,
                   admin = true,
                   password = EXCLUDED.password"
-    (Dbp.uuid (Uuid.create ()))
+    (Dbp.uuid (Util.create_uuid ()))
     (Dbp.string account.username)
     (Dbp.string account.name)
     (Dbp.string account.email)
@@ -80,7 +82,7 @@ let can_edit ~(auth_domain:string) ~(username:username) : bool =
 let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password
 
-let owner ~(auth_domain:string) : Uuid.t option =
+let owner ~(auth_domain:string) : Uuidm.t option =
   Printf.sprintf
     "SELECT id from accounts
       WHERE accounts.username = %s"
@@ -88,7 +90,7 @@ let owner ~(auth_domain:string) : Uuid.t option =
   |> Db.fetch_via_sql ~quiet:false
   |> List.concat
   |> List.hd
-  |> Option.map ~f:Uuid.of_string
+  |> Option.bind ~f:Uuidm.of_string
 
 let auth_domain_for host : string =
   match String.split host '-' with

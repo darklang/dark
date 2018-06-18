@@ -1,4 +1,4 @@
-open Core
+open Base
 
 type root = Log
           | Serialization
@@ -6,6 +6,7 @@ type root = Log
           | Webroot
           | Completed_test
           | Testdata
+          | Testresults
           | Bin_root
           | Appdata
           | Swagger

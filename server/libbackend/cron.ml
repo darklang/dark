@@ -1,8 +1,9 @@
-open Core
+open Core_kernel
+open Libexecution
 
 module Dbp = Dbprim
 
-let last_ran_at (canvas_id: Uuid.t) (h: Handler.handler) : Time.t option =
+let last_ran_at (canvas_id: Uuidm.t) (h: Handler.handler) : Time.t option =
   let open Option in
   let fetched =
     Printf.sprintf
@@ -47,7 +48,7 @@ let parse_interval (h: Handler.handler) : Time.Span.t option =
     |> Some
   | _ -> None
 
-let should_execute (canvas_id: Uuid.t) (h: Handler.handler) : bool =
+let should_execute (canvas_id: Uuidm.t) (h: Handler.handler) : bool =
   let open Option in
   match last_ran_at canvas_id h with
   | None -> true (* we should always run if we've never run before *)
@@ -75,7 +76,7 @@ let should_execute (canvas_id: Uuid.t) (h: Handler.handler) : bool =
       let should_run_after = Time.add lrt interval in
       now >= should_run_after)
 
-let record_execution (canvas_id: Uuid.t) (h: Handler.handler) : unit =
+let record_execution (canvas_id: Uuidm.t) (h: Handler.handler) : unit =
   Printf.sprintf
     "INSERT INTO \"cron_records\"
     (tlid, canvas_id)

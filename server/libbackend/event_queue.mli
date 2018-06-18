@@ -1,4 +1,5 @@
 open Core
+open Libexecution
 open Types
 
 module FF = Feature_flag
@@ -15,6 +16,6 @@ val finalize : int -> status:[`OK | `Err ] -> unit
  * unsafe for actual use. should be fine for development though *)
 val enqueue : RuntimeT.exec_state -> string -> string -> RuntimeT.dval -> unit
 
-val dequeue : canvas:Uuid.t -> account:Uuid.t -> int -> string -> string -> t option
+val dequeue : canvas:Uuidm.t -> account:Uuidm.t -> int -> string -> string -> t option
 val put_back : t -> status:[`OK | `Err | `Incomplete] -> unit
 val finish : t -> unit

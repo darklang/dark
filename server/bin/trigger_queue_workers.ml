@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 let _ =
   Libbackend.Init.init ();

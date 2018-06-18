@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 
 open Types
 open Types.RuntimeT
@@ -73,7 +74,7 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
  * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
  * but multiple queries will do fine for now
  *)
-let dequeue ~(canvas:Uuid.t) ~(account:Uuid.t) (execution_id: int) (space: string) (name: string) : t option =
+let dequeue ~(canvas:Uuidm.t) ~(account:Uuidm.t) (execution_id: int) (space: string) (name: string) : t option =
   let fetched =
     Printf.sprintf
       "SELECT id, value, retries, flag_context from \"events\"

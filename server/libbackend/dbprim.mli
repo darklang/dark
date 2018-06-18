@@ -1,8 +1,9 @@
 open Core
+open Libexecution
 
 (* High-level DB serializers *)
 val host : Types.host -> string
-val uuid : Uuid.t -> string
+val uuid : Uuidm.t -> string
 val string : string -> string
 val int : int -> string
 val sql : string -> string

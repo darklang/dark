@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 
 module RTT = Types.RuntimeT
 module C = Canvas
@@ -55,7 +56,7 @@ let dequeue_and_evaluate_all () : string =
                               }
                         in
                         Cron.record_execution !c.id cr;
-                        let result = Handler.execute state cr in
+                        let result = Analysis.execute_handler state cr in
                         Some result
                       else
                         None
@@ -94,7 +95,7 @@ let dequeue_and_evaluate_all () : string =
                              ; dbs = dbs
                              ; id = execution_id
                              } in
-                       let result = Handler.execute state q in
+                       let result = Analysis.execute_handler state q in
                        (match result with
                         | RTT.DIncomplete ->
                           Event_queue.put_back event ~status:`Incomplete

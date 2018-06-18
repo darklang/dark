@@ -1,10 +1,14 @@
-open Core
+open Core_kernel
 
 open Types
 open Types.RuntimeT
+
 module RT = Runtime
 module FF = Feature_flag
 
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
   | Flagged (id, msg, setting, l, r) ->
@@ -14,30 +18,11 @@ let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
 let should_be_flat () =
   Exception.internal "This blank_or should have been flattened"
 
-let blank_to_id (bo : 'a or_blank) : id =
-  match bo with
-  | Filled (id, _) -> id
-  | Blank (id) -> id
-  | Flagged (id, _, _, _, _) -> id
-
 let blank_to_content (bo: 'a or_blank) : 'a option =
   match bo with
   | Filled (_, c) -> Some c
   | _ -> None
 
-let is_blank (bo: 'a or_blank) : bool =
-  match bo with
-  | Blank _ -> true
-  | _ -> false
-
-
-let to_id (expr: expr) : id =
-  blank_to_id expr
-
-
-(* -------------------- *)
-(* Execution *)
-(* -------------------- *)
 
 type exec_trace = (expr -> dval -> symtable -> unit)
 type exec_trace_blank = (string or_blank -> dval -> symtable -> unit)
@@ -339,13 +324,14 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                             && (List.mem ~equal:(=) state.exe_fn_ids id
                                 || ctx = Real)
       in
-      let sfr_state = (state.canvas_id, state.host, state.tlid, fnname, id) in
+      (* let sfr_state = (state.canvas_id, state.host, state.tlid, fnname, id) in *)
       let maybe_store_result result =
         if executingUnsafe
           (* TODO: add an execution ID here so that multiple requests
            * with the same parameter (from a user) don't pollute old
            * requests. *)
-        then Stored_function_result.store sfr_state arglist result
+        then ()
+        (* TODO: SPLIT Stored_function_result.store sfr_state arglist result *)
         else ();
       in
 
@@ -357,10 +343,11 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
            | Preview ->
              if fn.preview_execution_safe || executingUnsafe
              then f (state, arglist)
-             else
-               (match Stored_function_result.load sfr_state arglist with
-                | Some (result, _ts) -> result
-                | _ -> DIncomplete)
+             else DIncomplete
+               (* TODO: SPLIT *)
+               (* (match Stored_function_result.load sfr_state arglist with *)
+               (*  | Some (result, _ts) -> result *)
+               (*  | _ -> DIncomplete) *)
          with
          | e ->
            (* After the rethrow, this gets eventually caught then shown
@@ -483,10 +470,10 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
 
   let value_store = Int.Table.create () in
   let trace expr dval st =
-    Hashtbl.set value_store ~key:(to_id expr) ~data:dval
+    Hashtbl.set value_store ~key:(Ast.to_id expr) ~data:dval
   in
   let trace_blank blank dval st =
-    Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
+    Hashtbl.set value_store ~key:(Ast.blank_to_id blank) ~data:dval
   in
   (exec_ ~trace ~trace_blank ~ctx:Preview ~state state.env ast, value_store)
 
@@ -553,7 +540,7 @@ let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sy
 let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
   let sym_store = Int.Table.create () in
   let trace expr st =
-    Hashtbl.set sym_store ~key:(to_id expr) ~data:st
+    Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
   in
   let init_set =
     List.fold_left
@@ -564,48 +551,68 @@ let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store
   in
   sym_exec ~trace ~ff init_set ast; sym_store
 
-let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
-  match expr with
-  | Blank _ -> expr
-  | Flagged (id, msg, setting, l, r) ->
-    Flagged (id, msg, setting, f l, f r)
-  | Filled (id, nexpr) ->
-    Filled (id,
-            (match nexpr with
-             | Value _ -> nexpr
-             | Variable _ -> nexpr
+let handler_default_env (h: Handler.handler) : dval_map =
+  let init = DvalMap.empty in
+  match Handler.event_name_for h with
+  | Some n ->
+    List.fold_left
+      ~init
+      ~f:(fun acc v ->
+          DvalMap.set ~key:v ~data:DIncomplete acc)
+      (Http.route_variables n)
+  | None -> init
 
-             | Let (lhs, rhs, body) ->
-               Let (lhs, f rhs, f body)
-
-             | If (cond, ifbody, elsebody) ->
-               If (f cond, f ifbody, f elsebody)
-
-             | FnCall (name, exprs) ->
-               FnCall (name, List.map ~f exprs)
-
-             | Lambda (vars, lexpr) ->
-               Lambda (vars, f lexpr)
-
-             | Thread exprs ->
-               Thread (List.map ~f exprs)
-
-             | FieldAccess (obj, field) ->
-               FieldAccess (f obj, field)
-
-             | ListLiteral exprs ->
-               ListLiteral (List.map ~f exprs)
-
-             | ObjectLiteral pairs ->
-               ObjectLiteral (List.map ~f:(fun (k, v) -> (k, f v)) pairs)
-           ))
-
-let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
-  let replace = set_expr ~search ~replacement in
-  if search = to_id expr
-  then replacement
-  else
-    traverse ~f:replace expr
+let environment_for_user_fn (ufn: user_fn) : dval_map =
+  let filled =
+    List.filter_map ~f:ufn_param_to_param ufn.metadata.parameters
+  in
+  let param_to_dval (p: param) : dval =
+    DIncomplete (* TODO(ian): we should trace these correctly *)
+  in
+  List.fold_left
+    ~f:(fun acc f ->
+        Map.set ~key:f.name ~data:(param_to_dval f) acc)
+    ~init:DvalMap.empty
+    filled
 
 
+
+let with_defaults (h: Handler.handler) (env: symtable) : symtable =
+  Util.merge_left env (handler_default_env h)
+
+let execute_handler (state: exec_state) (h: Handler.handler) : dval =
+  execute state (with_defaults h state.env) h.ast
+
+let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
+    analysis =
+  let default_env = with_defaults h state.env in
+  let state = { state with env = default_env } in
+  let traced_symbols =
+    symbolic_execute state.ff state.env h.ast in
+  let (ast_value, traced_values) =
+    execute_saving_intermediates state h.ast in
+  { ast_value = dval_to_livevalue ast_value
+  ; live_values = traced_values
+  ; available_varnames = traced_symbols
+  ; input_values = symtable_to_sym_list state.env
+  }
+
+let execute_function_for_analysis (state : exec_state) (f : user_fn) :
+    analysis =
+  let traced_symbols =
+    symbolic_execute state.ff state.env f.ast in
+  let (ast_value, traced_values) =
+    execute_saving_intermediates state f.ast in
+  { ast_value = dval_to_livevalue ast_value
+  ; live_values = traced_values
+  ; available_varnames = traced_symbols
+  ; input_values = symtable_to_sym_list state.env
+  }
+
+
+
+
+
+let init () =
+  ()
 
