@@ -53,30 +53,6 @@ let merge_right = Map.merge ~f:(fun ~key v ->
 let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
   List.length (List.filter ~f l) > 0
 
-let sha (input: string) ~f : string =
-  failwith "sha TODO SPLIT"
-  (* input *)
-  (* |> Cstruct.of_string *)
-  (* |> f *)
-  (* |> Cstruct.to_string *)
-  (* |> B64.encode ~pad:true *)
-
-let digest256 (input: string) : string =
-  failwith "digest256 TODO SPLIT"
-  (* sha ~f:Nocrypto.Hash.SHA256.digest input *)
-
-let digest384 (input: string) : string =
-  failwith "digest384 TODO SPLIT"
-  (* sha ~f:Nocrypto.Hash.SHA384.digest input *)
-
-let hash (input:string) : string =
-  failwith "hash TODO SPLIT"
-  (* input *)
-  (* |> Cstruct.of_string *)
-  (* |> Nocrypto.Hash.SHA384.digest *)
-  (* |> Cstruct.to_string *)
-  (* |> B64.encode ~alphabet:B64.uri_safe_alphabet ~pad:false *)
-
 
 let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
