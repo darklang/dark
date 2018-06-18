@@ -63,7 +63,7 @@ let fingerprint_user ip headers : RTT.feature_flag =
     |> List.map ~f:Tuple.T2.get2
     |> (@) [ip]
     |> String.concat
-    |> Util.hash
+    |> Crypto.hash
     |> FF.make
 
 
