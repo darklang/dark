@@ -269,7 +269,6 @@ let rec to_url_string (dv : dval) : string =
 
 
 
-
 (* ------------------------- *)
 (* Conversion Functions *)
 (* ------------------------- *)
@@ -481,6 +480,16 @@ let dval_to_query (dv: dval) : ((string * string list) list) =
                        | DList l -> (k, List.map ~f:to_url_string l)
                        | _ -> (k, [to_url_string value]))
   | _ -> Exception.user "attempting to use non-object as query param"
+
+let to_form_encoding (dv: dval) : string =
+  dv
+  |> to_string_pairs
+  (* TODO: forms are allowed take string lists as the value, not just strings *)
+  |> List.map ~f:(fun (k,v) -> (k, [v]))
+  |> Uri.encoded_of_query
+
+let from_form_encoding (f: string) : dval =
+  f |> Uri.query_of_encoded |> query_to_dval
 
 
 let exception_to_dval ~(log: bool) exc =
