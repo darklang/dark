@@ -455,6 +455,7 @@ let server () =
               | ["localhost"] -> Some "localhost"
               | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
               | ["builtwithdark"; "com"] -> Some "builtwithdark"
+              | [a; "integration-tests"] -> Some a
               | [a; "localhost"] -> Some a
               | [a; "darksingleinstance"; "com"] -> Some a
               | [a; "builtwithdark"; "com"] -> Some a
