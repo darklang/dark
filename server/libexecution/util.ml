@@ -8,7 +8,6 @@ let create_id  () : int =
   Random.int (Int.pow 2 29)
 
 let create_uuid () : Uuidm.t =
-  (* TODO SPLIT need to initialize? *)
   (Uuidm.v `V4)
 
 
