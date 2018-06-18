@@ -7,6 +7,11 @@ var _user$project$Native_Cache = {
     return _elm_lang$core$Maybe$Nothing;
   }),
 
+  clear: function(key) {
+    delete store[key];
+    return _elm_lang$core$Maybe$Nothing;
+  },
+
   get : function(key) {
     let result = store[key];
     if (result == null) {

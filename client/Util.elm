@@ -133,10 +133,15 @@ listNextWrap a l =
 
 cacheSet : k -> v -> Maybe v
 cacheSet k v =
+  -- let _ = Debug.log "setting cache" k in
   Native.Cache.set k v
-  -- |> Debug.log "cacheset"
 
 cacheGet : k -> v
 cacheGet k =
+  -- let _ = Debug.log "reading cache" k in
   Native.Cache.get k
-  -- |> Debug.log "cacheget"
+
+cacheClear : k -> ()
+cacheClear k =
+  -- let _ = Debug.log "clearing cache" k in
+  Native.Cache.clear k
