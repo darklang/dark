@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 module Session = struct
   module Backend = Session_postgresql_lwt

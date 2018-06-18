@@ -1,4 +1,6 @@
-open Core
+open Core_kernel
+open Libexecution
+
 open Util
 open Types
 
@@ -12,8 +14,8 @@ module Dbp = Dbprim
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
-              ; owner : Uuid.t
-              ; id : Uuid.t
+              ; owner : Uuidm.t
+              ; id : Uuidm.t
               ; ops : Op.oplist
               ; toplevels: toplevellist
               ; user_functions: RTT.user_fn list
@@ -104,7 +106,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
-let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
+let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   Printf.sprintf
     "CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
      $func$
@@ -129,14 +131,14 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
      END
      $func$ LANGUAGE plpgsql;
      SELECT canvas_id(%s, %s, %s); "
-
-    (Uuid.create () |> Dbp.uuid)
-    (owner |> Dbp.uuid)
-    (host |> Dbp.host)
+    (Dbp.uuid (Util.create_uuid ()))
+    (Dbp.uuid owner)
+    (Dbp.host host)
   |> Db.fetch_via_sql ~quiet:false
   |> List.concat
   |> List.hd_exn
-  |> Uuid.of_string
+  |> Uuidm.of_string
+  |> Option.value_exn
 
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let reduced_ops = Undo.preprocess (oldops @ newops) in
@@ -154,7 +156,7 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
-let owner (host:string) : Uuid.t =
+let owner (host:string) : Uuidm.t =
   host
   |> Account.auth_domain_for
   |> Account.owner
@@ -193,14 +195,14 @@ let save (c : canvas) : unit =
   Serialize.save_binary_to_db c.host c.ops;
   let json = Serialize.json_unversioned_filename c.host in
   let root = Serialize.root_of c.host in
-  ignore (Util.convert_bin_to_json ~root c.host json)
+  ignore (File.convert_bin_to_json ~root c.host json)
 
 
 let save_test (c: canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
   let file = Serialize.json_unversioned_filename host in
-  let host = if Util.file_exists ~root:Testdata file
+  let host = if File.file_exists ~root:Testdata file
              then
                host
                ^ "_"
@@ -320,12 +322,12 @@ let get_404s (c: canvas) : SE.four_oh_four list =
 (* ------------------------- *)
 (* Execution *)
 (* ------------------------- *)
-type analysis_result = tlid * Ast.analysis list
+type analysis_result = tlid * Analysis.analysis list
 type executable_fn_id = (tlid * id * int)
 
 let analysis_result_to_yojson (id, results) =
   `Assoc [ ("id", `Int id)
-         ; ("results", Ast.analysis_list_to_yojson results)
+         ; ("results", Analysis.analysis_list_to_yojson results)
          ]
 
 let unlocked (c: canvas) : tlid list =
@@ -348,7 +350,7 @@ let function_value
           then Some id
           else None)
   in
-  let env = Functions.environment_for_user_fn f in
+  let env = Analysis.environment_for_user_fn f in
   let state : RTT.exec_state =
     { ff = FF.analysis
     ; tlid = f.tlid
@@ -362,7 +364,7 @@ let function_value
     ; id = execution_id
     }
   in
-  (f.tlid, [Functions.execute_for_analysis state f])
+  (f.tlid, [Analysis.execute_function_for_analysis state f])
 
 let handler_value
     ~(exe_fn_ids : executable_fn_id list)
@@ -395,7 +397,7 @@ let handler_value
   let values =
     List.mapi
       ~f:(fun i env ->
-          Handler.execute_for_analysis (state i env) h)
+          Analysis.execute_handler_for_analysis (state i env) h)
       envs
   in
   (h.tlid, values)

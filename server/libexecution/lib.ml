@@ -1,8 +1,8 @@
-open Core
+open Core_kernel
 
 open Types.RuntimeT
 
-let par ?(d:string = "") ?(args=[]) ?(opt=false)  name tipe : param =
+let par ?(d:string = "") ?(args=[]) ?(opt=false) name tipe : param =
   { name = name
   ; tipe = tipe
   ; optional = opt

@@ -1,4 +1,7 @@
-open Core
+open Core_kernel
+open Libexecution
+open Libexecution
+
 open Runtime
 open Lib
 open Types.RuntimeT
@@ -27,6 +30,19 @@ let read_json (json: string) : dval =
   with e ->
     Dval.exception_to_dval ~log:false e
 
+let to_form_encoding (dv: dval) : string =
+  dv
+  |> Dval.to_string_pairs
+  (* TODO: forms are allowed take string lists as the value, not just strings *)
+  |> List.map ~f:(fun (k,v) -> (k, [v]))
+  |> Uri.encoded_of_query
+
+let from_form_encoding (f: string) : dval =
+  f |> Uri.query_of_encoded |> Dval.query_to_dval
+
+
+
+
 
 (* TODO: integrate with dark_request *)
 let call verb =
@@ -39,13 +55,13 @@ let call verb =
           match body with
           | DObj obj ->
               if has_form_header headers
-              then Dval.to_form_encoding body
+              then to_form_encoding body
               else Dval.dval_to_json_string body
           | _ -> Dval.to_repr body in
         let (result, headers) = Httpclient.http_call uri query verb headers body in
         let parsed_result =
           if has_form_header headers
-          then Dval.from_form_encoding result
+          then from_form_encoding result
           else if has_json_header headers
           then read_json result
           else DStr result

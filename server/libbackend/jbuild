@@ -17,8 +17,7 @@
                       ppx_sexp_conv
                       ppx_pipebang
                       )))
-    (libraries (
-                libbase
+    (libraries (libexecution
                 batteries
                 cohttp.lwt
                 core

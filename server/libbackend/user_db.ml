@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 
 open Types
 open Types.RuntimeT
@@ -141,7 +142,7 @@ to_obj ~state db (db_strings : string list)
   match db_strings with
   | [id; obj] ->
     let p_id =
-      id |> Uuid.of_string |> DID
+      id |> Uuidm.of_string |> Option.value_exn |> DID
     in
     let p_obj =
       match Dval.dval_of_json_string obj with
@@ -248,8 +249,8 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
                | err -> Exception.client (type_error_msg TObj err)))
         |> DList)
     ~state db obj
-and insert ~state (db: db) (vals: dval_map) : Uuid.t =
-  let id = Uuid.create () in
+and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
+  let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Printf.sprintf
     "INSERT into %s

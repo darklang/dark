@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 type level = [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
 
@@ -28,8 +28,10 @@ let level_to_string (level: level) : string =
   | `All -> "all"
 
 
-let quiet name =
-  name = "execution"
+let quiet (name:string) : bool =
+  false
+    (* TODO SPLIT *)
+  (* name = "execution" *)
 
 let print_endline =
   Caml.print_endline
@@ -73,8 +75,8 @@ let timestr time =
   if Float.is_nan time
   then ""
   else
-    let result = "(" ^ (time |> int_of_float |> string_of_int) ^ "ms)" in
-    if int_of_float time > 100
+    let result = "(" ^ (time |> Float.to_int |> Int.to_string) ^ "ms)" in
+    if Float.to_int time > 100
     then result ^ "(SLOW REQUEST)"
     else result
 
@@ -85,7 +87,9 @@ let print_console_log ~ind ~msg ~start ~stop ~time ~f x : unit =
   let reset = "\x1b[0m" in
   let indentStr = String.make ind '>' in
   let prefix =
-    if Config.log_decorate
+    if false
+      (* TODO: SPLIT *)
+      (* Config.log_decorate *)
     then black ^ "log "
          ^ reset ^ indentStr
          ^ " " ^ red ^ msg ^ " "
@@ -125,7 +129,9 @@ let pP ?(f=Batteries.dump)
        : unit =
   if show && (not (quiet name)) && (not (!level = `Off))
   then
-    if Config.should_use_stackdriver_logging
+    if false
+      (* TODO SPLIT *)
+        (* Config.should_use_stackdriver_logging *)
     then print_stackdriver_log ~msg ~start ~stop ~time ~f x
     else print_console_log ~ind ~msg ~start ~stop ~time ~f x
 
