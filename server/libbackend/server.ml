@@ -423,6 +423,8 @@ let server () =
         try
           match e with
            | Exception.DarkException e ->
+             (* TODO: do we really want to expose this? There could be
+              * parameters in it. *)
              real_err
            | Yojson.Json_error msg ->
              real_err
