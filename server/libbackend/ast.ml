@@ -363,6 +363,11 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                 | _ -> DIncomplete)
          with
          | e ->
+           (* After the rethrow, this gets eventually caught then shown
+            * to the user as a Dark Internal Exception. It's an internal
+            * exception because we didn't anticipate the problem, give
+            * it a nice error message, etc. It'll appear in Rollbar as
+            * "Unknown Err".  *)
            Exception.reraise_after e
              (fun bt ->
                maybe_store_result (Dval.exception_to_dval ~log:false e);
