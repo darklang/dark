@@ -3,14 +3,14 @@ open Core_kernel
 let has_inited : bool ref =
   ref false
 
-let init log_level libs =
+let init log_level log_format libs =
   if !has_inited
   then ()
   else
     Printexc.record_backtrace true;
     Exn.initialize_module ();
 
-    Log.set_level log_level;
+    Log.init ~level:log_level ~format:log_format ();
     Libs.init libs;
 
     Log.infO "Libexecution" "Initialization Complete";
