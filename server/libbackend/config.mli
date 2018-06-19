@@ -1,4 +1,4 @@
-open Base
+open Core_kernel
 
 type root = Log
           | Serialization
@@ -25,8 +25,8 @@ val dir : root -> string
 
 val port : int
 
-val should_use_stackdriver_logging : bool
-val log_level : string
+val log_format : [`Stackdriver | `Regular ]
+val log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
 val log_decorate : bool
 
 val should_write_shape_data : bool
