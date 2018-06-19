@@ -130,16 +130,33 @@ let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let logging_driver =
-  string_option "DARK_CONFIG_LOGGING_FORMAT" ["stackdriver"; "regular"]
+let log_format : [ `Stackdriver | `Regular ] =
+  let as_str =
+    string_option "DARK_CONFIG_LOGGING_FORMAT" ["stackdriver"; "regular"]
+  in
+  match as_str with
+  | "stackdriver" -> `Stackdriver
+  | "regular" -> `Regular
+  | _ -> failwith ("Invalid logging format: " ^ as_str)
 
-let should_use_stackdriver_logging : bool =
-  logging_driver = "stackdriver"
 
-let log_level : string =
-  string_option
-    "DARK_CONFIG_LOGLEVEL"
-    ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
+let log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ] =
+  let as_str =
+    string_option
+      "DARK_CONFIG_LOGLEVEL"
+      ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
+  in
+  match as_str with
+  | "off" -> `Off
+  | "fatal" -> `Fatal
+  | "error" -> `Error
+  | "warn" -> `Warn
+  | "info" -> `Info
+  | "debug" -> `Debug
+  | "all" -> `All
+  | _ -> failwith ("Invalid level name:" ^ as_str)
+
+
 
 let log_decorate : bool =
   (* Add colors and indentation, etc, to logs *)
