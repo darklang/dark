@@ -130,13 +130,15 @@ let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let log_format : [ `Stackdriver | `Regular ] =
+let log_format : [ `Stackdriver | `Regular | `Decorated ] =
   let as_str =
-    string_option "DARK_CONFIG_LOGGING_FORMAT" ["stackdriver"; "regular"]
+    string_option "DARK_CONFIG_LOGGING_FORMAT"
+      ["stackdriver"; "regular"; "decorated"]
   in
   match as_str with
   | "stackdriver" -> `Stackdriver
   | "regular" -> `Regular
+  | "decorated" -> `Decorated
   | _ -> failwith ("Invalid logging format: " ^ as_str)
 
 
@@ -155,12 +157,6 @@ let log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ] =
   | "debug" -> `Debug
   | "all" -> `All
   | _ -> failwith ("Invalid level name:" ^ as_str)
-
-
-
-let log_decorate : bool =
-  (* Add colors and indentation, etc, to logs *)
-  bool "DARK_CONFIG_LOG_DECORATE"
 
 
 let should_write_shape_data =
