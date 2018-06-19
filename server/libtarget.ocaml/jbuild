@@ -1,0 +1,6 @@
+(library
+ ((name libtarget_ocaml)
+  (wrapped false)
+  (flags (:standard -no-keep-locs))))
+
+(rule (copy# ${lib:libtarget:libtarget.mli} libtarget.mli))
