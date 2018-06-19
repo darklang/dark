@@ -1,0 +1,5 @@
+(library
+ ((name libtarget)
+  (wrapped false)
+  (flags (:standard -no-keep-locs))
+  (modules_without_implementation libtarget)))
