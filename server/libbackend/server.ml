@@ -148,8 +148,9 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler !c req
   | [] ->
-    let input = PReq.from_request headers query body in
-    Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
+    PReq.from_request headers query body
+    |> PReq.to_dval
+    |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers `Not_found "404: No page matches"
   | [page] ->
