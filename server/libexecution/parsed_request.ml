@@ -30,9 +30,7 @@ let body_parser_type headers =
 let parser_fn p =
   match p with
   | Json -> Dval.parse
-  | Form -> fun _ -> DIncomplete
-    (* TODO SPLIT *)
-    (*           Libhttpclient.from_form_encoding *)
+  | Form -> Dval.from_form_encoding
   | Unknown -> Dval.parse
 
 let parsed_body headers reqbody =
@@ -98,7 +96,7 @@ let from_request (headers: header list) (query:query_val list) rbody =
 let to_dval self =
   self
 
-let sample =
+let sample_request =
   let parts =
     [ Dval.to_dobj [("body", DIncomplete)]
     ; Dval.to_dobj [("jsonBody", DIncomplete)]
@@ -112,3 +110,5 @@ let sample =
     ~init:Dval.empty_dobj
     ~f:(fun acc p -> Dval.obj_merge acc p)
     parts
+
+

@@ -249,7 +249,7 @@ let initial_dval_map (c: canvas) : RTT.dval_map =
   |> User_db.dbs_as_env
 
 let sample_request =
-  PReq.to_dval PReq.sample
+  PReq.to_dval PReq.sample_request
 
 let sample_event =
   RTT.DIncomplete

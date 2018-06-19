@@ -5,10 +5,13 @@ open Types.RuntimeT
 
 module RT = Runtime
 module FF = Feature_flag
+module PReq = Parsed_request
 
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
+
+
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
   | Flagged (id, msg, setting, l, r) ->
@@ -252,8 +255,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
              (match e with
               | Filled (_, Variable "request")
                 when ctx = Preview
-                  && equal_dval obj
-                     (Parsed_request.to_dval Parsed_request.sample) ->
+                  && equal_dval obj (PReq.to_dval PReq.sample_request) ->
                 DIncomplete
               | _ ->
                 (match Map.find o f with
