@@ -127,25 +127,16 @@ let tipename (dv: dval) : string =
 (* ------------------------- *)
 
 let isostring_of_date (d: Time.t) : string =
-  (* for conduit tests. May do something different later *)
-  ""
-    (* TODO SPLIT *)
-  (* Time.format d "%FT%TZ" Time.Zone.utc *)
+  Libtarget.date_to_isostring d
 
 let date_of_isostring (str: string) : Time.t =
-  Time.now ()
-    (* TODO SPLIT *)
-  (* Time.parse str "%FT%TZ" Time.Zone.utc *)
+  Libtarget.date_of_isostring str
 
 let sqlstring_of_date (d: Time.t) : string =
-  ""
-    (* TODO SPLIT *)
-  (* Time.format d "%Y-%m-%d %H:%M:%S" Time.Zone.utc *)
+  Libtarget.date_to_sqlstring d
 
 let date_of_sqlstring (str: string) : Time.t =
-  Time.now ()
-    (* TODO SPLIT *)
-  (* Time.parse str "%Y-%m-%d %H:%M:%S" Time.Zone.utc *)
+  Libtarget.date_of_sqlstring str
 
 (* Returns the string within string-ish values, without adornment. *)
 let as_string (dv : dval) : string =
