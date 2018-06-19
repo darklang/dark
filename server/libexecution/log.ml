@@ -66,7 +66,7 @@ let print_endline =
 (* ----------------- *)
 (* format *)
 (* ----------------- *)
-type format = [`Stackdriver | `Regular ]
+type format = [`Stackdriver | `Regular | `Decorated ]
 
 let format : format ref =
   ref `Stackdriver
@@ -85,15 +85,13 @@ let timestr time =
     else result
 
 
-let print_console_log ~ind ~msg ~start ~stop ~time ~f x : unit =
+let print_console_log ~decorate ~ind ~msg ~start ~stop ~time ~f x : unit =
   let red = "\x1b[6;31m" in
   let black = "\x1b[6;30m" in
   let reset = "\x1b[0m" in
   let indentStr = String.make ind '>' in
   let prefix =
-    if false
-      (* TODO: SPLIT *)
-      (* Config.log_decorate *)
+    if decorate
     then black ^ "log "
          ^ reset ^ indentStr
          ^ " " ^ red ^ msg ^ " "
@@ -136,9 +134,13 @@ let pP ?(f=Batteries.dump)
        : unit =
   if show && (not (!level = `Off))
   then
-    if !format = `Stackdriver
-    then print_stackdriver_log ~msg ~start ~stop ~time ~f x
-    else print_console_log ~ind ~msg ~start ~stop ~time ~f x
+    match !format with
+    | `Stackdriver ->
+      print_stackdriver_log ~msg ~start ~stop ~time ~f x
+    | `Regular ->
+      print_console_log ~decorate:false ~ind ~msg ~start ~stop ~time ~f x
+    | `Decorated ->
+      print_console_log ~decorate:true ~ind ~msg ~start ~stop ~time ~f x
 
 let pp ?(f=Batteries.dump)
        ?(start=0)
