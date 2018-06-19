@@ -12,7 +12,10 @@
                       ppx_type_conv
                       ppx_sexp_conv
                       ppx_pipebang)))
-    (libraries (batteries
+    (libraries (
+                ; note that libtarget.{ocaml,js} are not included here
+                libtarget
+                batteries
                 core_kernel
                 uuidm
                 re2
