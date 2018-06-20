@@ -269,7 +269,7 @@ let rec exec_ ~(engine: engine)
     ) in
   (* Only catch if we're tracing *)
   let execed_value =
-    if ctx = Preview
+    if ctx = Real
     then value ()
     else
       try
