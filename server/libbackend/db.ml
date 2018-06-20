@@ -11,50 +11,62 @@ module Dbp = Dbprim
 let conn = Dbconnection.conn
 let escape = conn#escape_string
 
-let run_sql ?(quiet=false) (sql: string) : unit =
+let execute ~op ~quiet ~f sql =
   let start = Unix.gettimeofday () in
+  let time () =
+    let finish = Unix.gettimeofday () in
+    (finish -. start) *. 1000.0
+  in
+  let log msg =
+    let t = time () in
+    if quiet && t < 100.0
+    then
+      Log.infO
+        ("sql (" ^ op ^ ", " ^ msg ^ "): " ^ sql)
+        "" ~time:t ~stop:10000
+  in
+
   try
-    ignore (conn#exec ~expect:[PG.Command_ok] sql)
-  with
-  | Postgresql.Error pge as e ->
-    Exception.reraise_after e
-      (fun _ -> Log.erroR "Postgres error" pge)
-  | e ->
-    ignore (Exception.reraise e);
+    let result = f sql in
+    log "success";
+    result
 
-  let finish = Unix.gettimeofday () in
-  let time = (finish -. start) *. 1000.0 in
-  Log.infO ("sql: " ^ sql) "" ~time ~stop:10000
+  with e  ->
+    let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
+    log "fail";
+
+    let msg =
+      match e with
+      | Postgresql.Error (Unexpected_status (_, msg, _)) -> msg
+      | Postgresql.Error pge -> Postgresql.string_of_error pge
+      | pge -> (Exn.to_string pge)
+    in
+      Exception.storage
+        msg
+        ~bt
+        ~info:[("sql", sql); ("time", time () |> string_of_float)]
 
 
+
+let run_sql ?(quiet=false) (sql: string) : unit =
+  ignore
+    (execute sql ~op:"run" ~quiet
+       ~f:(conn#exec ~expect:[PG.Command_ok]))
 
 let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
-  let start = Unix.gettimeofday () in
-  if quiet
-  then
-    ()
-  else
-    Log.infO ("fetching via sql: " ^ sql) "";
-  try
-    let result =
-      sql
-      |> conn#exec ~expect:PG.[Tuples_ok]
-      |> (fun res -> res#get_all_lst)
-    in
-    let finish = Unix.gettimeofday () in
-    let time = (finish -. start) *. 1000.0 in
-    Log.infO "fsql" sql ~time ~stop:10000;
-    result
-  with
-  | Postgresql.Error pge as e ->
-    Exception.reraise_after e
-      (fun _ -> Log.erroR "Postgres error" pge)
-  | e ->
-    Exception.reraise e
+  sql
+  |> execute ~op:"fetch" ~quiet ~f:(conn#exec ~expect:PG.[Tuples_ok])
+  |> fun res -> res#get_all_lst
 
 let exists_via_sql ?(quiet=false) (sql: string) : bool =
-  fetch_via_sql ~quiet sql = [["1"]]
+  sql
+  |> execute ~op:"exists" ~quiet ~f:(conn#exec ~expect:PG.[Tuples_ok])
+  |> fun res -> res#get_all_lst
+  |> (=) [["1"]]
 
+(* ------------------------- *)
+(* oplists *)
+(* ------------------------- *)
 let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
   let data = Dbp.binary data in
   Printf.sprintf
@@ -112,7 +124,7 @@ let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
     (Dbp.string data)
   |> run_sql ~quiet:true
 
-
+(* TODO: this doesn't have json oplists *)
 let all_oplists ~(digest: string) : string list =
   Printf.sprintf
     "SELECT host

@@ -15,8 +15,6 @@ let exn_to_string (e: exn) : string =
     "Dark Err: " ^ e.short
   | Yojson.Json_error msg ->
     "Json Err: " ^ msg
-  | Postgresql.Error e ->
-    "Postgres Err: " ^ Postgresql.string_of_error e
   | _ ->
     "Unknown Err: " ^ Exn.to_string e
 
