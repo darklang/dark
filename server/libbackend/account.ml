@@ -63,7 +63,7 @@ let is_admin ~username : bool =
      WHERE accounts.username = %s
        AND accounts.admin = true"
     (Dbp.string username)
-  |> Db.exists_via_sql ~quiet:false
+  |> Db.exists_via_sql ~quiet:true
 
 let valid_user ~(username:username) ~(password:string) : bool =
   Printf.sprintf
