@@ -110,7 +110,9 @@ normalEntryHtml placeholder ac =
                   name = Autocomplete.asName item
               in Html.li
                 [ Attrs.class <| "autocomplete-item" ++ hlClass
-                , eventNoPropagation "mouseup"
+                , nothingMouseEvent "mouseup"
+                , nothingMouseEvent "mousedown"
+                , eventNoPropagation "click"
                     (\_ -> AutocompleteClick name)
                 ]
                 [ Html.text name
