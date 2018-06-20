@@ -29,16 +29,14 @@ let blank_to_content (bo: 'a or_blank) : 'a option =
 type engine =
   { trace : expr -> dval -> symtable -> unit
   ; trace_blank : string or_blank -> dval -> symtable -> unit
-  ; load : (Uuidm.t * tlid * string * id) -> dval list -> (dval * Time.t) option
-  ; store : (Uuidm.t * tlid * string * id) -> dval list -> dval -> unit
-  ; context : context
+  ; ctx : context
 }
 
 let rec exec_ ~(engine: engine)
               ~(state: exec_state)
               (st: symtable) (expr: expr) : dval =
   let exe = exec_ ~engine ~state in
-  let ctx = engine.context in
+  let ctx = engine.ctx in
   let trace = engine.trace in
   let trace_blank = engine.trace_blank in
   let call (name: string) (id: id) (argvals: dval list) : dval =
@@ -60,7 +58,7 @@ let rec exec_ ~(engine: engine)
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn
     in
-    call_fn ~engine ~state ~ind:0 ~ctx name id fn args
+    call_fn ~engine ~state ~ind:0 name id fn args
     (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
   (* This is a super hacky way to inject params as the result of
@@ -284,7 +282,7 @@ let rec exec_ ~(engine: engine)
   (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
   (*                                  Sexp.to_string) *)
 
-and call_fn ?(ind=0) ~(engine:engine) ~(ctx: context) ~(state: exec_state)
+and call_fn ?(ind=0) ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
   let paramsIncomplete args =
@@ -328,28 +326,28 @@ and call_fn ?(ind=0) ~(engine:engine) ~(ctx: context) ~(state: exec_state)
     else
       let executingUnsafe = not fn.preview_execution_safe
                             && (List.mem ~equal:(=) state.exe_fn_ids id
-                                || ctx = Real)
+                                || engine.ctx = Real)
       in
-      let sfr_state = (state.canvas_id, state.tlid, fnname, id) in
+      let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
       let maybe_store_result result =
         if executingUnsafe
           (* TODO: add an execution ID here so that multiple requests
            * with the same parameter (from a user) don't pollute old
            * requests. *)
-        then engine.store sfr_state arglist result
+        then state.store_fn_result sfr_desc arglist result
         else ();
       in
 
       let result =
         (try
-           match ctx with
+           match engine.ctx with
            | Real ->
              f (state, arglist)
            | Preview ->
              if fn.preview_execution_safe || executingUnsafe
              then f (state, arglist)
              else
-               (match engine.load sfr_state arglist with
+               (match state.load_fn_result sfr_desc arglist with
                 | Some (result, _ts) -> result
                 | _ -> DIncomplete)
          with
@@ -389,17 +387,13 @@ and call_fn ?(ind=0) ~(engine:engine) ~(ctx: context) ~(state: exec_state)
           ~actual:DIncomplete
 
 let empty_trace _ _ _ = ()
-let empty_load _ _ = None
-let empty_store _ _ _ = ()
 
 (* default to no tracing *)
 let server_execution_engine : engine =
   { trace = empty_trace
   ; trace_blank = empty_trace
-  ; load = empty_load
-  ; store = empty_store
   (* TODO: split Stored_function_result.store *)
-  ; context = Real
+  ; ctx = Real
   }
 
 
@@ -484,6 +478,10 @@ type analysis_list = analysis list
 (* Analysis *)
 (* -------------------- *)
 
+
+let load_nothing _ _ = None
+let store_nothing _ _ _ = ()
+
 (* default to no tracing *)
 let analysis_engine value_store : engine =
   let trace expr dval st =
@@ -494,10 +492,7 @@ let analysis_engine value_store : engine =
   in
   { trace = trace
   ; trace_blank = trace_blank
-  ; load = (fun _ _ -> None)
-  (* TODO: split Stored_function_result.load *)
-  ; store = (fun _ _ _ -> ())
-  ; context = Preview
+  ; ctx = Preview
   }
 
 
