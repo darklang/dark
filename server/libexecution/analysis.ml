@@ -598,11 +598,9 @@ let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store
     Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
   in
   let init_set =
-    List.fold_left
-      ~init:SymSet.empty
-      ~f:(fun acc s ->
-          SymSet.add acc s)
-      (Symtable.keys init)
+    init
+    |> Symtable.keys
+    |> SymSet.of_list
   in
   sym_exec ~trace ~ff init_set ast; sym_store
 
