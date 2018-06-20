@@ -53,6 +53,8 @@ let dequeue_and_evaluate_all () : string =
                               ; env = env
                               ; dbs = dbs
                               ; id = execution_id
+                              ; store_fn_result = Stored_function_result.store
+                              ; load_fn_result = Analysis.load_nothing
                               }
                         in
                         Cron.record_execution !c.id cr;
@@ -94,6 +96,8 @@ let dequeue_and_evaluate_all () : string =
                              ; env = env
                              ; dbs = dbs
                              ; id = execution_id
+                              ; store_fn_result = Stored_function_result.store
+                              ; load_fn_result = Analysis.load_nothing
                              } in
                        let result = Analysis.execute_handler state q in
                        (match result with
