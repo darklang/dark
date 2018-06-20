@@ -8,6 +8,92 @@ module FF = Feature_flag
 module PReq = Parsed_request
 
 
+(* -------------------- *)
+(* Types for Analysis *)
+(* -------------------- *)
+
+(* Live values *)
+type livevalue = { value: string
+                 ; tipe: string [@key "type"]
+                 ; json: string
+                 ; exc: Exception.exception_data option
+                 } [@@deriving to_yojson, show]
+
+let dval_to_livevalue (dv: dval) : livevalue =
+  { value = Dval.to_livevalue_repr dv
+  ; tipe = Dval.tipename dv
+  ; json = dv
+           |> Dval.dval_to_yojson ~livevalue:true
+           |> Yojson.Safe.pretty_to_string
+  ; exc = None
+  }
+
+let livevalue_dval_to_yojson v = v
+                                 |> dval_to_livevalue
+                                 |> livevalue_to_yojson
+
+
+(* Dval store - save per-tl analysis results *)
+let ht_to_json_dict ds ~f =
+  let alist = Hashtbl.to_alist ds in
+  `Assoc (
+    List.map ~f:(fun (id, v) ->
+        (string_of_int id, f v))
+      alist)
+
+type dval_store = dval Int.Table.t
+
+let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
+
+
+(* Symstore - save available varnames at each point *)
+module SymSet = String.Set
+type sym_set = SymSet.t
+type sym_store = sym_set Int.Table.t
+
+let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
+  ht_to_json_dict st ~f:(fun syms ->
+      `List (syms
+             |> SymSet.to_list
+             |> List.map ~f:(fun s -> `String s)))
+
+
+
+
+(* Sym lists - list of the input values *)
+type sym_list = (string * livevalue) list
+                [@@deriving to_yojson]
+
+let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
+  `Assoc (sl
+          |> List.map ~f:(Tuple.T2.map_snd
+                           ~f:livevalue_to_yojson))
+
+let symtable_to_sym_list (st : symtable) : sym_list =
+  st
+  |> Map.to_alist
+  |> List.map ~f:(Tuple.T2.map_snd
+                    ~f:dval_to_livevalue)
+
+
+(* Analysis result *)
+type analysis =
+  { ast_value: livevalue
+  ; live_values : dval_store
+  ; available_varnames : sym_store
+  ; input_values : sym_list
+  } [@@deriving to_yojson]
+
+
+type analysis_list = analysis list
+                     [@@deriving to_yojson]
+
+
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
+
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
   | Flagged (id, msg, setting, l, r) ->
@@ -22,9 +108,9 @@ let blank_to_content (bo: 'a or_blank) : 'a option =
   | Filled (_, c) -> Some c
   | _ -> None
 
-(* -------------------- *)
-(* Execution *)
-(* -------------------- *)
+(* For exec_state *)
+let load_nothing _ _ = None
+let store_nothing _ _ _ = ()
 
 type engine =
   { trace : expr -> dval -> symtable -> unit
@@ -32,10 +118,10 @@ type engine =
   ; ctx : context
 }
 
-let rec exec_ ~(engine: engine)
+let rec exec ~(engine: engine)
               ~(state: exec_state)
               (st: symtable) (expr: expr) : dval =
-  let exe = exec_ ~engine ~state in
+  let exe = exec ~engine ~state in
   let ctx = engine.ctx in
   let trace = engine.trace in
   let trace_blank = engine.trace_blank in
@@ -368,7 +454,7 @@ and call_fn ?(ind=0) ~(engine:engine) ~(state: exec_state)
 
 
   | UserCreated body ->
-    exec_ ~engine ~state args body
+    exec ~engine ~state args body
   | API f ->
       try
         f args
@@ -386,103 +472,12 @@ and call_fn ?(ind=0) ~(engine:engine) ~(state: exec_state)
                      |> String.concat ~sep:", ")
           ~actual:DIncomplete
 
-let empty_trace _ _ _ = ()
-
-(* default to no tracing *)
-let server_execution_engine : engine =
-  { trace = empty_trace
-  ; trace_blank = empty_trace
-  (* TODO: split Stored_function_result.store *)
-  ; ctx = Real
-  }
-
-
-let execute state env expr : dval =
-  exec_ env expr
-    ~engine:server_execution_engine
-    ~state
-
-
-(* -------------------- *)
-(* Types for Analysis *)
-(* -------------------- *)
-
-type dval_store = dval Int.Table.t
-
-type livevalue = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving to_yojson, show]
-
-module SymSet = String.Set
-type sym_set = SymSet.t
-type sym_store = sym_set Int.Table.t
-
-let dval_to_livevalue (dv: dval) : livevalue =
-  { value = Dval.to_livevalue_repr dv
-  ; tipe = Dval.tipename dv
-  ; json = dv
-           |> Dval.dval_to_yojson ~livevalue:true
-           |> Yojson.Safe.pretty_to_string
-  ; exc = None
-  }
-
-let livevalue_dval_to_yojson v = v
-                                 |> dval_to_livevalue
-                                 |> livevalue_to_yojson
-
-let ht_to_json_dict ds ~f =
-  let alist = Hashtbl.to_alist ds in
-  `Assoc (
-    List.map ~f:(fun (id, v) ->
-        (string_of_int id, f v))
-      alist)
-
-let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
-  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
-
-let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
-  ht_to_json_dict st ~f:(fun syms ->
-      `List (syms
-             |> SymSet.to_list
-             |> List.map ~f:(fun s -> `String s)))
-
-type sym_list = (string * livevalue) list
-                [@@deriving to_yojson]
-
-let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
-  `Assoc (sl
-          |> List.map ~f:(Tuple.T2.map_snd
-                           ~f:livevalue_to_yojson))
-
-let symtable_to_sym_list (st : symtable) : sym_list =
-  st
-  |> Map.to_alist
-  |> List.map ~f:(Tuple.T2.map_snd
-                    ~f:dval_to_livevalue)
-
-
-type analysis =
-  { ast_value: livevalue
-  ; live_values : dval_store
-  ; available_varnames : sym_store
-  ; input_values : sym_list
-  } [@@deriving to_yojson]
-
-
-type analysis_list = analysis list
-                     [@@deriving to_yojson]
 
 (* -------------------- *)
 (* Analysis *)
 (* -------------------- *)
 
-
-let load_nothing _ _ = None
-let store_nothing _ _ _ = ()
-
-(* default to no tracing *)
+(* Trace everything and save it *)
 let analysis_engine value_store : engine =
   let trace expr dval st =
     Hashtbl.set value_store ~key:(Ast.to_id expr) ~data:dval
@@ -495,14 +490,50 @@ let analysis_engine value_store : engine =
   ; ctx = Preview
   }
 
-
-
 let execute_saving_intermediates (state : exec_state) (ast: expr)
   : (dval * dval_store) =
   let value_store = Int.Table.create () in
   let engine = analysis_engine value_store in
-  (exec_ ~engine ~state state.env ast, value_store)
+  (exec ~engine ~state state.env ast, value_store)
 
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
+
+(* no tracing when running in prod *)
+let server_execution_engine : engine =
+  let empty_trace _ _ _ = () in
+  { trace = empty_trace
+  ; trace_blank = empty_trace
+  ; ctx = Real
+  }
+
+let execute state env expr : dval =
+  exec env expr
+    ~engine:server_execution_engine
+    ~state
+
+let handler_default_env (h: Handler.handler) : dval_map =
+  let init = DvalMap.empty in
+  match Handler.event_name_for h with
+  | Some n ->
+    List.fold_left
+      ~init
+      ~f:(fun acc v ->
+          DvalMap.set ~key:v ~data:DIncomplete acc)
+      (Http.route_variables n)
+  | None -> init
+
+let with_defaults (h: Handler.handler) (env: symtable) : symtable =
+  Util.merge_left env (handler_default_env h)
+
+let execute_handler (state: exec_state) (h: Handler.handler) : dval =
+  execute state (with_defaults h state.env) h.ast
+
+
+(* -------------------- *)
+(* Symbolically gather varnames *)
+(* -------------------- *)
 
 let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
   let sexe = sym_exec ~trace ~ff in
@@ -577,16 +608,7 @@ let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store
   in
   sym_exec ~trace ~ff init_set ast; sym_store
 
-let handler_default_env (h: Handler.handler) : dval_map =
-  let init = DvalMap.empty in
-  match Handler.event_name_for h with
-  | Some n ->
-    List.fold_left
-      ~init
-      ~f:(fun acc v ->
-          DvalMap.set ~key:v ~data:DIncomplete acc)
-      (Http.route_variables n)
-  | None -> init
+
 
 let environment_for_user_fn (ufn: user_fn) : dval_map =
   let filled =
@@ -602,12 +624,9 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
     filled
 
 
-
-let with_defaults (h: Handler.handler) (env: symtable) : symtable =
-  Util.merge_left env (handler_default_env h)
-
-let execute_handler (state: exec_state) (h: Handler.handler) : dval =
-  execute state (with_defaults h state.env) h.ast
+(* -------------------- *)
+(* Run full analyses *)
+(* -------------------- *)
 
 let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
     analysis =
@@ -634,11 +653,4 @@ let execute_function_for_analysis (state : exec_state) (f : user_fn) :
   ; available_varnames = traced_symbols
   ; input_values = symtable_to_sym_list state.env
   }
-
-
-
-
-
-let init () =
-  ()
 
