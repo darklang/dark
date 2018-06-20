@@ -66,7 +66,3 @@ let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Y
         ; `List (List.map ~f:Dval.dval_to_yojson dvals)
         ]
 
-let store_event = store_event
-let load_events = load_events
-let list_events = list_events
-let clear_events = clear_events
