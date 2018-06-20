@@ -7,6 +7,7 @@ let init log_level log_format libs =
   if !has_inited
   then ()
   else
+    Caml.print_endline "Libexecution Initialization Begins";
     Printexc.record_backtrace true;
     Exn.initialize_module ();
 
