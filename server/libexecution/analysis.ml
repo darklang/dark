@@ -7,10 +7,6 @@ module RT = Runtime
 module FF = Feature_flag
 module PReq = Parsed_request
 
-(* -------------------- *)
-(* Execution *)
-(* -------------------- *)
-
 
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
@@ -26,17 +22,25 @@ let blank_to_content (bo: 'a or_blank) : 'a option =
   | Filled (_, c) -> Some c
   | _ -> None
 
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
 
-type exec_trace = (expr -> dval -> symtable -> unit)
-type exec_trace_blank = (string or_blank -> dval -> symtable -> unit)
-let empty_trace _ _ _ = ()
+type engine =
+  { trace : expr -> dval -> symtable -> unit
+  ; trace_blank : string or_blank -> dval -> symtable -> unit
+  ; load : (Uuidm.t * tlid * string * id) -> dval list -> (dval * Time.t) option
+  ; store : (Uuidm.t * tlid * string * id) -> dval list -> dval -> unit
+  ; context : context
+}
 
-let rec exec_ ?(trace: exec_trace=empty_trace)
-              ?(trace_blank: exec_trace_blank=empty_trace)
-              ~(ctx: context)
+let rec exec_ ~(engine: engine)
               ~(state: exec_state)
               (st: symtable) (expr: expr) : dval =
-  let exe = exec_ ~trace ~trace_blank ~ctx ~state in
+  let exe = exec_ ~engine ~state in
+  let ctx = engine.context in
+  let trace = engine.trace in
+  let trace_blank = engine.trace_blank in
   let call (name: string) (id: id) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
@@ -56,7 +60,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn
     in
-    call_fn ~state ~ind:0 ~ctx name id fn args
+    call_fn ~engine ~state ~ind:0 ~ctx name id fn args
     (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
   (* This is a super hacky way to inject params as the result of
@@ -267,7 +271,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
     ) in
   (* Only catch if we're tracing *)
   let execed_value =
-    if phys_equal trace empty_trace (* only way to compare functions *)
+    if ctx = Preview
     then value ()
     else
       try
@@ -280,7 +284,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
   (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
   (*                                  Sexp.to_string) *)
 
-and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
+and call_fn ?(ind=0) ~(engine:engine) ~(ctx: context) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
   let paramsIncomplete args =
@@ -326,14 +330,13 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                             && (List.mem ~equal:(=) state.exe_fn_ids id
                                 || ctx = Real)
       in
-      (* let sfr_state = (state.canvas_id, state.host, state.tlid, fnname, id) in *)
+      let sfr_state = (state.canvas_id, state.tlid, fnname, id) in
       let maybe_store_result result =
         if executingUnsafe
           (* TODO: add an execution ID here so that multiple requests
            * with the same parameter (from a user) don't pollute old
            * requests. *)
-        then ()
-        (* TODO: SPLIT Stored_function_result.store sfr_state arglist result *)
+        then engine.store sfr_state arglist result
         else ();
       in
 
@@ -345,11 +348,10 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
            | Preview ->
              if fn.preview_execution_safe || executingUnsafe
              then f (state, arglist)
-             else DIncomplete
-               (* TODO: SPLIT *)
-               (* (match Stored_function_result.load sfr_state arglist with *)
-               (*  | Some (result, _ts) -> result *)
-               (*  | _ -> DIncomplete) *)
+             else
+               (match engine.load sfr_state arglist with
+                | Some (result, _ts) -> result
+                | _ -> DIncomplete)
          with
          | e ->
            (* After the rethrow, this gets eventually caught then shown
@@ -368,7 +370,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
 
 
   | UserCreated body ->
-    exec_ ~trace:empty_trace ~ctx ~state args body
+    exec_ ~engine ~state args body
   | API f ->
       try
         f args
@@ -386,10 +388,25 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                      |> String.concat ~sep:", ")
           ~actual:DIncomplete
 
+let empty_trace _ _ _ = ()
+let empty_load _ _ = None
+let empty_store _ _ _ = ()
+
 (* default to no tracing *)
+let server_execution_engine : engine =
+  { trace = empty_trace
+  ; trace_blank = empty_trace
+  ; load = empty_load
+  ; store = empty_store
+  (* TODO: split Stored_function_result.store *)
+  ; context = Real
+  }
+
+
 let execute state env expr : dval =
   exec_ env expr
-    ~trace:empty_trace ~trace_blank:empty_trace ~ctx:Real ~state
+    ~engine:server_execution_engine
+    ~state
 
 
 (* -------------------- *)
@@ -404,7 +421,7 @@ type livevalue = { value: string
                  ; exc: Exception.exception_data option
                  } [@@deriving to_yojson, show]
 
-module SymSet = Set.Make(String)
+module SymSet = String.Set
 type sym_set = SymSet.t
 type sym_store = sym_set Int.Table.t
 
@@ -467,17 +484,29 @@ type analysis_list = analysis list
 (* Analysis *)
 (* -------------------- *)
 
-let execute_saving_intermediates (state : exec_state) (ast: expr)
-  : (dval * dval_store) =
-
-  let value_store = Int.Table.create () in
+(* default to no tracing *)
+let analysis_engine value_store : engine =
   let trace expr dval st =
     Hashtbl.set value_store ~key:(Ast.to_id expr) ~data:dval
   in
   let trace_blank blank dval st =
     Hashtbl.set value_store ~key:(Ast.blank_to_id blank) ~data:dval
   in
-  (exec_ ~trace ~trace_blank ~ctx:Preview ~state state.env ast, value_store)
+  { trace = trace
+  ; trace_blank = trace_blank
+  ; load = (fun _ _ -> None)
+  (* TODO: split Stored_function_result.load *)
+  ; store = (fun _ _ _ -> ())
+  ; context = Preview
+  }
+
+
+
+let execute_saving_intermediates (state : exec_state) (ast: expr)
+  : (dval * dval_store) =
+  let value_store = Int.Table.create () in
+  let engine = analysis_engine value_store in
+  (exec_ ~engine ~state state.env ast, value_store)
 
 
 let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
