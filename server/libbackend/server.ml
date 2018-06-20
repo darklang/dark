@@ -1,18 +1,21 @@
 open Core_kernel
-open Lwt
-open Libexecution
 
+open Lwt
 module Clu = Cohttp_lwt_unix
 module S = Clu.Server
 module CRequest = Clu.Request
 module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
+
 module C = Canvas
-module RT = Runtime
-module RTT = Types.RuntimeT
-module TL = Toplevel
+module BE = Backend_analysis
+
+open Libexecution
 module PReq = Parsed_request
+module RTT = Types.RuntimeT
 module FF = Feature_flag
+module Handler = Handler
+module TL = Toplevel
 
 (* ------------------------------- *)
 (* feature flags *)
@@ -186,8 +189,10 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
       ; env = env
       ; dbs = dbs
       ; id = Util.create_id ()
+      ; load_fn_result = Libexecution.Analysis.load_nothing
+      ; store_fn_result = Stored_function_result.store
       } in
-    let result = Analysis.execute_handler state page in
+    let result = Libexecution.Analysis.execute_handler state page in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
@@ -268,28 +273,28 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host params.ops) in
 
-    let (t3, hvals) = time "3-handler-values"
+    let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.toplevels
          |> List.filter_map ~f:TL.as_handler
          |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
-           ~f:(C.handler_value ~exe_fn_ids ~execution_id !c))
+           ~f:(BE.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-values"
+    let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
         |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
         |> List.map
-          ~f:(C.function_value ~exe_fn_ids ~execution_id !c))
+          ~f:(BE.function_analysis ~exe_fn_ids ~execution_id !c))
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
-      (fun _ -> C.unlocked !c) in
+      (fun _ -> BE.unlocked !c) in
 
 
     let (t6, result) = time "6-to-frontend"
-      (fun _ -> C.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
+      (fun _ -> BE.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
 
     let (t7, _) = time "7-save-to-disk"
       (fun _ ->
@@ -314,28 +319,28 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
       (fun _ -> C.load host []) in
 
     let (t2, f404s) = time "2-get-404s"
-      (fun _ -> C.get_404s !c) in
+      (fun _ -> BE.get_404s !c) in
 
-    let (t3, hvals) = time "3-handler-values"
+    let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.toplevels
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(C.handler_value ~exe_fn_ids:[] ~execution_id !c))
+           ~f:(BE.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-values"
+    let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
         |> List.map
-          ~f:(C.function_value ~exe_fn_ids:[] ~execution_id !c))
+          ~f:(BE.function_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
-      (fun _ -> C.unlocked !c) in
+      (fun _ -> BE.unlocked !c) in
 
     let (t6, result) = time "6-to-frontend"
-      (fun _ -> C.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
+      (fun _ -> BE.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
   Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5; t6], result)

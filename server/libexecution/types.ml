@@ -203,6 +203,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                  ; ast:  expr
                  } [@@deriving eq, show, yojson, sexp, bin_io]
 
+  type function_desc = Uuidm.t * tlid * string * id
+
   type exec_state = { ff: feature_flag
                     ; tlid: tlid
                     ; canvas_id : Uuidm.t
@@ -213,7 +215,15 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                     ; env: symtable
                     ; dbs: DbT.db list
                     ; id: int
+                    ; load_fn_result :
+                        function_desc -> dval list -> (dval * Time.t) option
+                    ; store_fn_result :
+                        function_desc ->
+                        dval list ->
+                        dval ->
+                        unit
                     }
+
 
   type funcimpl = InProcess of (exec_state * dval list -> dval)
                 | API of (dval_map -> dval)
