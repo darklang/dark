@@ -240,8 +240,12 @@ viewNExpr d id vs config e =
           buttonNeeded = not resultHasValue
           showExecuting = isExecuting vs id
 
-          event = eventNoPropagation "click"
-                    (\_ -> ExecuteFunctionButton vs.tl.id id)
+          events = [ eventNoPropagation "click"
+                     (\_ -> ExecuteFunctionButton vs.tl.id id)
+                   , nothingMouseEvent "mouseup"
+                   , nothingMouseEvent "mousedown"
+                   , nothingMouseEvent "dblclick"
+                   ]
           (bClass, bEvent, bTitle, bIcon) =
             if buttonUnavailable
             then ("execution-button-unavailable"
@@ -250,12 +254,12 @@ viewNExpr d id vs config e =
                  , "cog")
             else if buttonNeeded
             then ("execution-button-needed"
-                  , [event]
+                  , events
                   , "Click to execute function"
                   , "cog")
             else
               ("execution-button-repeat"
-              , [event]
+              , events
               , "Click to execute function again"
               , "redo")
           executingClass = if showExecuting then " is-executing" else ""
