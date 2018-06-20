@@ -472,8 +472,6 @@ let server () =
              |> Yojson.Safe.pretty_to_string
            | Yojson.Json_error msg ->
              "Not a valid JSON value: '" ^ msg ^ "'"
-           | Postgresql.Error e ->
-             "Postgres error: " ^ Postgresql.string_of_error e
            | _ ->
              "Dark Internal Error: " ^ Exn.to_string e
         with _ -> "ERROR FETCHING ERROR" (* TODO: monitor this *)
@@ -486,8 +484,6 @@ let server () =
               * parameters in it. *)
              real_err
            | Yojson.Json_error msg ->
-             real_err
-           | Postgresql.Error e when include_internals ->
              real_err
            | _ ->
              if include_internals
