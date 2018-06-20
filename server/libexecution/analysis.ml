@@ -514,15 +514,13 @@ let execute state env expr : dval =
     ~state
 
 let handler_default_env (h: Handler.handler) : dval_map =
-  let init = DvalMap.empty in
   match Handler.event_name_for h with
   | Some n ->
-    List.fold_left
-      ~init
-      ~f:(fun acc v ->
-          DvalMap.set ~key:v ~data:DIncomplete acc)
-      (Http.route_variables n)
-  | None -> init
+    n
+    |> Http.route_variables
+    |> List.map ~f:(fun k -> (k, DIncomplete))
+    |> DvalMap.of_alist_exn
+  | None -> DvalMap.empty
 
 let with_defaults (h: Handler.handler) (env: symtable) : symtable =
   Util.merge_left env (handler_default_env h)
