@@ -8,6 +8,7 @@ let init () =
   then ()
   else
     (* Ocaml runtime stuff *)
+    Caml.print_endline "Libbackend Initialization Begins";
     Printexc.record_backtrace true;
     Exn.initialize_module ();
 
