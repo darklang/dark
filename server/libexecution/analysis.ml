@@ -526,7 +526,8 @@ let with_defaults (h: Handler.handler) (env: symtable) : symtable =
   Util.merge_left env (handler_default_env h)
 
 let execute_handler (state: exec_state) (h: Handler.handler) : dval =
-  execute state (with_defaults h state.env) h.ast
+  let env = with_defaults h state.env in
+  execute state env h.ast
 
 
 (* -------------------- *)
