@@ -8,7 +8,6 @@ module Header = Cohttp.Header
 module Cookie = Cohttp.Cookie
 
 module C = Canvas
-module BE = Backend_analysis
 
 open Libexecution
 module PReq = Parsed_request
@@ -178,21 +177,9 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     let resp_headers = CRequest.headers req in
     let ff = fingerprint_user ip resp_headers in
     let session_headers = session_headers resp_headers ff in
-    let state : RTT.exec_state =
-      { ff = ff
-      ; tlid = page.tlid
-      ; host = !c.host
-      ; account_id = !c.owner
-      ; canvas_id = !c.id
-      ; user_fns = !c.user_functions
-      ; exe_fn_ids = []
-      ; env = env
-      ; dbs = dbs
-      ; id = Util.create_id ()
-      ; load_fn_result = Libexecution.Analysis.load_nothing
-      ; store_fn_result = Stored_function_result.store
-      } in
-    let result = Libexecution.Analysis.execute_handler state page in
+    let state = Execution.state_for_execution ~c:!c
+        ~execution_id:(Util.create_id ()) ~env page.tlid in
+    let result = Libexecution.Ast_analysis.execute_handler state page in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
@@ -216,7 +203,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     | DResp (http, value) ->
       (match http with
        | Redirect url ->
-         Event_queue.finalize state.id ~status:`OK;
+         Event_queue.finalize state.execution_id ~status:`OK;
          S.respond_redirect (Uri.of_string url) ()
        | Response (code, resp_headers) ->
          let body =
@@ -231,7 +218,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          let resp_headers =
            maybe_infer_headers resp_headers value
          in
-         Event_queue.finalize state.id ~status:`OK;
+         Event_queue.finalize state.execution_id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
          let resp_headers = Cohttp.Header.of_list ([cors]
                                                    @ resp_headers
@@ -239,7 +226,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          in
          respond ~resp_headers status body)
     | _ ->
-      Event_queue.finalize state.id ~status:`OK;
+      Event_queue.finalize state.execution_id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let ct_headers =
         maybe_infer_headers [] result
@@ -279,7 +266,7 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
          |> List.filter_map ~f:TL.as_handler
          |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
-           ~f:(BE.handler_analysis ~exe_fn_ids ~execution_id !c))
+           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
 
     let (t4, fvals) = time "4-function-analyses"
@@ -287,14 +274,14 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
         !c.user_functions
         |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
         |> List.map
-          ~f:(BE.function_analysis ~exe_fn_ids ~execution_id !c))
+          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
-      (fun _ -> BE.unlocked !c) in
+      (fun _ -> Analysis.unlocked !c) in
 
 
     let (t6, result) = time "6-to-frontend"
-      (fun _ -> BE.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
+      (fun _ -> Analysis.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
 
     let (t7, _) = time "7-save-to-disk"
       (fun _ ->
@@ -319,28 +306,28 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
       (fun _ -> C.load host []) in
 
     let (t2, f404s) = time "2-get-404s"
-      (fun _ -> BE.get_404s !c) in
+      (fun _ -> Analysis.get_404s !c) in
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.toplevels
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(BE.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
+           ~f:(Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
     let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
         |> List.map
-          ~f:(BE.function_analysis ~exe_fn_ids:[] ~execution_id !c))
+          ~f:(Analysis.function_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
-      (fun _ -> BE.unlocked !c) in
+      (fun _ -> Analysis.unlocked !c) in
 
     let (t6, result) = time "6-to-frontend"
-      (fun _ -> BE.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
+      (fun _ -> Analysis.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
   Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5; t6], result)
