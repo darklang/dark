@@ -21,40 +21,22 @@ let fncall (a,b) = f (FnCall (a,b))
 let tlid = 7
 let dbid = 89
 let pos = {x=0;y=0}
+let execution_id = 6543
 
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
-let state_for (c:Canvas.canvas ref) =
-  let tlid = !c.toplevels
-             |> TL.handlers
-             |> List.hd
-             |> Option.map ~f:(fun (h: Handler.handler) -> h.tlid)
-             |> Option.value ~default:10
-  in
-  let dbs = TL.dbs !c.toplevels in
-  let dbs_env = User_db.dbs_as_exe_env dbs in
-  let env = dbs_env in (* enough env to test for now *)
-  { ff = RealKey !c.host
-  ; tlid = tlid
-  ; host = !c.host
-  ; account_id = !c.owner
-  ; canvas_id = !c.id
-  ; user_fns = !c.user_functions
-  ; exe_fn_ids = [] (* ctx is real, so unnecessary *)
-  ; env = env
-  ; dbs = TL.dbs !c.toplevels
-  ; id = Util.create_id ()
-  }
-
-
 let execute_ops (ops : Op.op list) : dval =
   let c = ops2c "test" ops in
+  let dbs = TL.dbs !c.toplevels in
+  let env = User_db.dbs_as_exe_env dbs in
   let h = !c.toplevels
           |> TL.handlers
           |> List.hd_exn in
-  let state = state_for c in
-  Analysis.execute_handler state h
+  let state = Execution.state_for_execution ~c:!c h.tlid
+      ~execution_id ~env
+  in
+  Ast_analysis.execute_handler state h
 
 
 let at_dval = AT.of_pp pp_dval
@@ -416,7 +398,9 @@ let t_event_queue_roundtrip () =
   let space = "TEST_SPACE" in
   let name = "test_name" in
   let c = ops2c "test-event_queue" [] in
-  let state = state_for c in
+  let state = Execution.state_for_execution ~c:!c tlid
+      ~execution_id ~env:DvalMap.empty
+  in
   EQ.enqueue state space name dval;
   let v =
     EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name
@@ -554,7 +538,7 @@ let t_analysis_not_empty () =
   let h = http_handler (ast_for "_") in
   let c = ops2c "test" [ hop h ] in
   AT.check AT.int "equal_after_roundtrip" 1
-    (C.handler_value ~exe_fn_ids:[] ~execution_id:3455 !c h
+    (Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c h
      |> Tuple.T2.get2
      |> List.length)
 
