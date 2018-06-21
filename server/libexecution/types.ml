@@ -214,7 +214,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                     ; exe_fn_ids: id list
                     ; env: symtable
                     ; dbs: DbT.db list
-                    ; id: int
+                    ; execution_id: int
                     ; load_fn_result :
                         function_desc -> dval list -> (dval * Time.t) option
                     ; store_fn_result :

@@ -16,58 +16,25 @@ type canvas = Canvas.canvas
 let all_tlids (c: canvas) : tlid list =
   List.map ~f:(fun tl -> tl.tlid) c.toplevels
 
-let initial_dval_map (c: canvas) : RTT.dval_map =
+(* ------------------------- *)
+(* Execution/analysis *)
+(* ------------------------- *)
+
+type executable_fn_id = (tlid * id * int)
+type analysis_result = tlid * Ast_analysis.analysis list
+
+let analysis_result_to_yojson (id, results) =
+  `Assoc [ ("id", `Int id)
+         ; ("results", Ast_analysis.analysis_list_to_yojson results)
+         ]
+let global_vars (c: canvas) : string list =
+  RTT.DvalMap.keys (Execution.default_env c)
+
+let unlocked (c: canvas) : tlid list =
   c.toplevels
   |> TL.dbs
-  |> User_db.dbs_as_env
-
-let sample_request =
-  PReq.to_dval PReq.sample_request
-
-let sample_event =
-  RTT.DIncomplete
-
-let default_env (c: canvas) : RTT.dval_map =
-  initial_dval_map c
-  |> RTT.DvalMap.set ~key:"request" ~data:sample_request
-  |> RTT.DvalMap.set ~key:"event" ~data:sample_event
-
-let global_vars (c: canvas) : string list =
-  RTT.DvalMap.keys (default_env c)
-
-let initial_envs (c: canvas) (h: Handler.handler)
-  : RTT.dval_map list =
-  let initial_env = initial_dval_map c in
-  let default =
-     match Handler.module_type h with
-     | `Http ->
-       RTT.DvalMap.set initial_env "request" sample_request
-     | `Event ->
-       RTT.DvalMap.set initial_env "event" sample_event
-     | `Cron -> initial_env
-     | `Unknown -> default_env c
-  in
-  (match Handler.event_desc_for h with
-  | None -> [default]
-  | Some (space, path, modifier as d) ->
-    let events = SE.load_events c.id d in
-    if events = []
-    then [default]
-    else
-      List.map events
-        ~f:(fun e ->
-            match Handler.module_type h with
-            | `Http ->
-              let with_r = RTT.DvalMap.set initial_env "request" e in
-              let name = Handler.event_name_for_exn h in
-              let bound = Http.bind_route_params_exn path name in
-              Util.merge_left with_r bound
-            | `Event ->
-              RTT.DvalMap.set initial_env "event" e
-            | `Cron  -> initial_env
-            | `Unknown -> initial_env (* can't happen *)
-        ))
-
+  |> User_db.unlocked c.id c.owner
+  |> List.map ~f:(fun x -> x.tlid)
 
 let get_404s (c: canvas) : SE.four_oh_four list =
   let match_desc h d : bool =
@@ -88,30 +55,7 @@ let get_404s (c: canvas) : SE.four_oh_four list =
                  ~f:(fun h -> match_desc h d)))
     |> List.map ~f:(fun d -> (d, SE.load_events c.id d))
   in
-
   unused_descs
-
-
-
-
-(* ------------------------- *)
-(* Execution/analysis *)
-(* ------------------------- *)
-
-
-type analysis_result = tlid * Analysis.analysis list
-type executable_fn_id = (tlid * id * int)
-
-let analysis_result_to_yojson (id, results) =
-  `Assoc [ ("id", `Int id)
-         ; ("results", Analysis.analysis_list_to_yojson results)
-         ]
-
-let unlocked (c: canvas) : tlid list =
-  c.toplevels
-  |> TL.dbs
-  |> User_db.unlocked c.id c.owner
-  |> List.map ~f:(fun x -> x.tlid)
 
 let function_analysis
     ~(exe_fn_ids: executable_fn_id list)
@@ -127,24 +71,12 @@ let function_analysis
           then Some id
           else None)
   in
-  let env = Analysis.environment_for_user_fn f in
-  let state : RTT.exec_state =
-    { ff = FF.analysis
-    ; tlid = f.tlid
-    ; host = c.host
-    ; account_id = c.owner
-    ; canvas_id = c.id
-    ; user_fns = c.user_functions
-    ; exe_fn_ids = fn_ids
-    ; env = env
-    ; dbs = TL.dbs c.toplevels
-    ; id = execution_id
-    ; load_fn_result = Stored_function_result.load
-    ; store_fn_result = Analysis.store_nothing
-    ;
-    }
+  let env = Ast_analysis.environment_for_user_fn f in
+  let state =
+    Execution.state_for_analysis f.tlid
+      ~c ~execution_id ~exe_fn_ids:fn_ids ~env
   in
-  (f.tlid, [Analysis.execute_function_for_analysis state f])
+  (f.tlid, [Ast_analysis.execute_function_for_analysis state f])
 
 let handler_analysis
     ~(exe_fn_ids : executable_fn_id list)
@@ -161,28 +93,23 @@ let handler_analysis
           else None)
   in
   let state i env : RTT.exec_state =
-    { ff = FF.analysis
-    ; tlid = h.tlid
-    ; host = c.host
-    ; account_id = c.owner
-    ; canvas_id = c.id
-    ; user_fns = c.user_functions
-    ; exe_fn_ids = fn_ids i
-    ; env = env
-    ; dbs = TL.dbs c.toplevels
-    ; id = execution_id
-    ; load_fn_result = Stored_function_result.load
-    ; store_fn_result = Analysis.store_nothing
-    }
+    Execution.state_for_analysis h.tlid
+      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
-  let envs = initial_envs c h in
+  let envs = Execution.initial_envs c h in
   let values =
     List.mapi
       ~f:(fun i env ->
-          Analysis.execute_handler_for_analysis (state i env) h)
+          Ast_analysis.execute_handler_for_analysis (state i env) h)
       envs
   in
   (h.tlid, values)
+
+
+
+(* --------------------- *)
+(* JSONable response *)
+(* --------------------- *)
 
 (* The full response with everything *)
 type get_analysis_response =
