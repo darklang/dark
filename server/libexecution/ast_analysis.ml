@@ -1,9 +1,97 @@
-open Core
+open Core_kernel
 
 open Types
 open Types.RuntimeT
+
 module RT = Runtime
 module FF = Feature_flag
+module PReq = Parsed_request
+
+
+(* -------------------- *)
+(* Types for Analysis *)
+(* -------------------- *)
+
+(* Live values *)
+type livevalue = { value: string
+                 ; tipe: string [@key "type"]
+                 ; json: string
+                 ; exc: Exception.exception_data option
+                 } [@@deriving to_yojson, show]
+
+let dval_to_livevalue (dv: dval) : livevalue =
+  { value = Dval.to_livevalue_repr dv
+  ; tipe = Dval.tipename dv
+  ; json = dv
+           |> Dval.dval_to_yojson ~livevalue:true
+           |> Yojson.Safe.pretty_to_string
+  ; exc = None
+  }
+
+let livevalue_dval_to_yojson v = v
+                                 |> dval_to_livevalue
+                                 |> livevalue_to_yojson
+
+
+(* Dval store - save per-tl analysis results *)
+let ht_to_json_dict ds ~f =
+  let alist = Hashtbl.to_alist ds in
+  `Assoc (
+    List.map ~f:(fun (id, v) ->
+        (string_of_int id, f v))
+      alist)
+
+type dval_store = dval Int.Table.t
+
+let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
+  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
+
+
+(* Symstore - save available varnames at each point *)
+module SymSet = String.Set
+type sym_set = SymSet.t
+type sym_store = sym_set Int.Table.t
+
+let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
+  ht_to_json_dict st ~f:(fun syms ->
+      `List (syms
+             |> SymSet.to_list
+             |> List.map ~f:(fun s -> `String s)))
+
+
+
+
+(* Sym lists - list of the input values *)
+type sym_list = (string * livevalue) list
+                [@@deriving to_yojson]
+
+let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
+  `Assoc (sl
+          |> List.map ~f:(Tuple.T2.map_snd
+                           ~f:livevalue_to_yojson))
+
+let symtable_to_sym_list (st : symtable) : sym_list =
+  st
+  |> Map.to_alist
+  |> List.map ~f:(Tuple.T2.map_snd
+                    ~f:dval_to_livevalue)
+
+
+(* Analysis result *)
+type analysis =
+  { ast_value: livevalue
+  ; live_values : dval_store
+  ; available_varnames : sym_store
+  ; input_values : sym_list
+  } [@@deriving to_yojson]
+
+
+type analysis_list = analysis list
+                     [@@deriving to_yojson]
+
+(* -------------------- *)
+(* Symbolically gather varnames *)
+(* -------------------- *)
 
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
   match bo with
@@ -14,41 +102,113 @@ let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
 let should_be_flat () =
   Exception.internal "This blank_or should have been flattened"
 
-let blank_to_id (bo : 'a or_blank) : id =
-  match bo with
-  | Filled (id, _) -> id
-  | Blank (id) -> id
-  | Flagged (id, _, _, _, _) -> id
-
 let blank_to_content (bo: 'a or_blank) : 'a option =
   match bo with
   | Filled (_, c) -> Some c
   | _ -> None
 
-let is_blank (bo: 'a or_blank) : bool =
-  match bo with
-  | Blank _ -> true
-  | _ -> false
+
+let rec sym_exec
+    ~(ff: feature_flag)
+    ~(trace: (expr -> sym_set -> unit))
+    (st: sym_set)
+    (expr: expr)
+  : unit =
+  let sexe = sym_exec ~trace ~ff in
+  try
+    let _ =
+      (match expr with
+       | Blank _ -> ()
+       | Flagged (id, _, _, l, r) ->
+         sexe st l;
+         sexe st r;
+         sexe st (flatten_ff expr ff)
+
+       | Filled (_, Value s) -> ()
+       | Filled (_, Variable name) -> ()
+
+       | Filled (_, Let (lhs, rhs, body)) ->
+         let bound = match lhs with
+           | Flagged _ -> should_be_flat ()
+           | Filled (_, name) ->
+             sexe st rhs;
+             SymSet.add st name
+           | Blank _ -> st
+         in sexe bound body
+
+       | Filled (_, FnCall (name, exprs)) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, If (cond, ifbody, elsebody)) ->
+         sexe st cond;
+         sexe st ifbody;
+         sexe st elsebody
+
+       | Filled (_, Lambda (vars, body)) ->
+         let new_st =
+           vars
+           |> List.map
+             ~f:(fun v -> flatten_ff v ff)
+           |> List.filter_map ~f:blank_to_content
+           |> SymSet.of_list
+         in
+         sexe new_st body
+
+       | Filled (_, Thread (exprs)) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, FieldAccess (obj, field)) ->
+         sexe st obj
+
+       | Filled (_, ListLiteral exprs) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, ObjectLiteral exprs) ->
+         exprs
+         |> List.map ~f:Tuple.T2.get2
+         |> List.iter ~f:(sexe st))
+    in
+    trace expr st
+  with
+  | e ->
+    Exception.log e
 
 
-let to_id (expr: expr) : id =
-  blank_to_id expr
+let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
+  let sym_store = Int.Table.create () in
+  let trace expr st =
+    Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
+  in
+  let init_set =
+    init
+    |> Symtable.keys
+    |> SymSet.of_list
+  in
+  sym_exec ~trace ~ff init_set ast;
+  sym_store
 
 
 (* -------------------- *)
 (* Execution *)
 (* -------------------- *)
 
-type exec_trace = (expr -> dval -> symtable -> unit)
-type exec_trace_blank = (string or_blank -> dval -> symtable -> unit)
-let empty_trace _ _ _ = ()
+(* For exec_state *)
+let load_nothing _ _ = None
+let store_nothing _ _ _ = ()
 
-let rec exec_ ?(trace: exec_trace=empty_trace)
-              ?(trace_blank: exec_trace_blank=empty_trace)
-              ~(ctx: context)
+type engine =
+  { trace : expr -> dval -> symtable -> unit
+  ; trace_blank : string or_blank -> dval -> symtable -> unit
+  ; ctx : context
+}
+
+let rec exec ~(engine: engine)
               ~(state: exec_state)
               (st: symtable) (expr: expr) : dval =
-  let exe = exec_ ~trace ~trace_blank ~ctx ~state in
+  let exe = exec ~engine ~state in
+  let ctx = engine.ctx in
+  let trace = engine.trace in
+  let trace_blank = engine.trace_blank in
   let call (name: string) (id: id) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
@@ -68,7 +228,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn
     in
-    call_fn ~state ~ind:0 ~ctx name id fn args
+    call_fn ~engine ~state ~ind:0 name id fn args
     (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
   (* This is a super hacky way to inject params as the result of
@@ -267,8 +427,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
              (match e with
               | Filled (_, Variable "request")
                 when ctx = Preview
-                  && equal_dval obj
-                     (Parsed_request.to_dval Parsed_request.sample) ->
+                  && equal_dval obj (PReq.to_dval PReq.sample_request) ->
                 DIncomplete
               | _ ->
                 (match Map.find o f with
@@ -280,7 +439,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
     ) in
   (* Only catch if we're tracing *)
   let execed_value =
-    if phys_equal trace empty_trace (* only way to compare functions *)
+    if ctx = Real
     then value ()
     else
       try
@@ -293,7 +452,7 @@ let rec exec_ ?(trace: exec_trace=empty_trace)
   (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
   (*                                  Sexp.to_string) *)
 
-and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
+and call_fn ?(ind=0) ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
   let paramsIncomplete args =
@@ -337,28 +496,28 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
     else
       let executingUnsafe = not fn.preview_execution_safe
                             && (List.mem ~equal:(=) state.exe_fn_ids id
-                                || ctx = Real)
+                                || engine.ctx = Real)
       in
-      let sfr_state = (state.canvas_id, state.host, state.tlid, fnname, id) in
+      let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
       let maybe_store_result result =
         if executingUnsafe
           (* TODO: add an execution ID here so that multiple requests
            * with the same parameter (from a user) don't pollute old
            * requests. *)
-        then Stored_function_result.store sfr_state arglist result
+        then state.store_fn_result sfr_desc arglist result
         else ();
       in
 
       let result =
         (try
-           match ctx with
+           match engine.ctx with
            | Real ->
              f (state, arglist)
            | Preview ->
              if fn.preview_execution_safe || executingUnsafe
              then f (state, arglist)
              else
-               (match Stored_function_result.load sfr_state arglist with
+               (match state.load_fn_result sfr_desc arglist with
                 | Some (result, _ts) -> result
                 | _ -> DIncomplete)
          with
@@ -379,7 +538,7 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
 
 
   | UserCreated body ->
-    exec_ ~trace:empty_trace ~ctx ~state args body
+    exec ~engine ~state args body
   | API f ->
       try
         f args
@@ -397,215 +556,101 @@ and call_fn ?(ind=0) ~(ctx: context) ~(state: exec_state)
                      |> String.concat ~sep:", ")
           ~actual:DIncomplete
 
-(* default to no tracing *)
-let execute state env expr : dval =
-  exec_ env expr
-    ~trace:empty_trace ~trace_blank:empty_trace ~ctx:Real ~state
-
-
-(* -------------------- *)
-(* Types for Analysis *)
-(* -------------------- *)
-
-type dval_store = dval Int.Table.t
-
-type livevalue = { value: string
-                 ; tipe: string [@key "type"]
-                 ; json: string
-                 ; exc: Exception.exception_data option
-                 } [@@deriving to_yojson, show]
-
-module SymSet = Set.Make(String)
-type sym_set = SymSet.t
-type sym_store = sym_set Int.Table.t
-
-let dval_to_livevalue (dv: dval) : livevalue =
-  { value = Dval.to_livevalue_repr dv
-  ; tipe = Dval.tipename dv
-  ; json = dv
-           |> Dval.dval_to_yojson ~livevalue:true
-           |> Yojson.Safe.pretty_to_string
-  ; exc = None
-  }
-
-let livevalue_dval_to_yojson v = v
-                                 |> dval_to_livevalue
-                                 |> livevalue_to_yojson
-
-let ht_to_json_dict ds ~f =
-  let alist = Hashtbl.to_alist ds in
-  `Assoc (
-    List.map ~f:(fun (id, v) ->
-        (string_of_int id, f v))
-      alist)
-
-let dval_store_to_yojson (ds : dval_store) : Yojson.Safe.json =
-  ht_to_json_dict ds ~f:livevalue_dval_to_yojson
-
-let sym_store_to_yojson (st : sym_store) : Yojson.Safe.json =
-  ht_to_json_dict st ~f:(fun syms ->
-      `List (syms
-             |> SymSet.to_list
-             |> List.map ~f:(fun s -> `String s)))
-
-type sym_list = (string * livevalue) list
-                [@@deriving to_yojson]
-
-let sym_list_to_yojson (sl : sym_list) : Yojson.Safe.json =
-  `Assoc (sl
-          |> List.map ~f:(Tuple.T2.map_snd
-                           ~f:livevalue_to_yojson))
-
-let symtable_to_sym_list (st : symtable) : sym_list =
-  st
-  |> Map.to_alist
-  |> List.map ~f:(Tuple.T2.map_snd
-                    ~f:dval_to_livevalue)
-
-
-type analysis =
-  { ast_value: livevalue
-  ; live_values : dval_store
-  ; available_varnames : sym_store
-  ; input_values : sym_list
-  } [@@deriving to_yojson]
-
-
-type analysis_list = analysis list
-                     [@@deriving to_yojson]
 
 (* -------------------- *)
 (* Analysis *)
 (* -------------------- *)
 
-let execute_saving_intermediates (state : exec_state) (ast: expr)
-  : (dval * dval_store) =
-
-  let value_store = Int.Table.create () in
+(* Trace everything and save it *)
+let analysis_engine value_store : engine =
   let trace expr dval st =
-    Hashtbl.set value_store ~key:(to_id expr) ~data:dval
+    Hashtbl.set value_store ~key:(Ast.to_id expr) ~data:dval
   in
   let trace_blank blank dval st =
-    Hashtbl.set value_store ~key:(blank_to_id blank) ~data:dval
+    Hashtbl.set value_store ~key:(Ast.blank_to_id blank) ~data:dval
   in
-  (exec_ ~trace ~trace_blank ~ctx:Preview ~state state.env ast, value_store)
+  { trace = trace
+  ; trace_blank = trace_blank
+  ; ctx = Preview
+  }
 
+let execute_saving_intermediates (state : exec_state) (ast: expr)
+  : (dval * dval_store) =
+  let value_store = Int.Table.create () in
+  let engine = analysis_engine value_store in
+  (exec ~engine ~state state.env ast, value_store)
 
-let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
-  let sexe = sym_exec ~trace ~ff in
-  try
-    let _ =
-      (match expr with
-       | Blank _ -> ()
-       | Flagged (id, _, _, l, r) ->
-         sexe st l;
-         sexe st r;
-         sexe st (flatten_ff expr ff)
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
 
-       | Filled (_, Value s) -> ()
-       | Filled (_, Variable name) -> ()
+(* no tracing when running in prod *)
+let server_execution_engine : engine =
+  let empty_trace _ _ _ = () in
+  { trace = empty_trace
+  ; trace_blank = empty_trace
+  ; ctx = Real
+  }
 
-       | Filled (_, Let (lhs, rhs, body)) ->
-         let bound = match lhs with
-           | Flagged _ -> should_be_flat ()
-           | Filled (_, name) -> sexe st rhs; SymSet.add st name
-           | Blank _ -> st
-         in sexe bound body
+let execute state env expr : dval =
+  exec env expr
+    ~engine:server_execution_engine
+    ~state
 
-       | Filled (_, FnCall (name, exprs)) ->
-         List.iter ~f:(sexe st) exprs
+let handler_default_env (h: Handler.handler) : dval_map =
+  match Handler.event_name_for h with
+  | Some n ->
+    n
+    |> Http.route_variables
+    |> List.map ~f:(fun k -> (k, DIncomplete))
+    |> DvalMap.of_alist_exn
+  | None -> DvalMap.empty
 
-       | Filled (_, If (cond, ifbody, elsebody)) ->
-         sexe st cond;
-         sexe st ifbody;
-         sexe st elsebody
+let with_defaults (h: Handler.handler) (env: symtable) : symtable =
+  Util.merge_left env (handler_default_env h)
 
-       | Filled (_, Lambda (vars, body)) ->
-         let varnames =
-           vars
-           |> List.map
-             ~f:(fun v -> flatten_ff v ff)
-           |> List.filter_map ~f:blank_to_content
-         in
-         let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) varnames in
-         sexe new_st body
+let execute_handler (state: exec_state) (h: Handler.handler) : dval =
+  let env = with_defaults h state.env in
+  execute state env h.ast
 
-       | Filled (_, Thread (exprs)) ->
-         List.iter ~f:(sexe st) exprs
-
-       | Filled (_, FieldAccess (obj, field)) ->
-         sexe st obj
-
-       | Filled (_, ListLiteral exprs) ->
-         List.iter ~f:(sexe st) exprs
-
-       | Filled (_, ObjectLiteral exprs) ->
-         exprs
-         |> List.map ~f:Tuple.T2.get2
-         |> List.iter ~f:(sexe st))
-    in
-    trace expr st
-  with
-  | e ->
-    Exception.log e
-
-
-let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
-  let sym_store = Int.Table.create () in
-  let trace expr st =
-    Hashtbl.set sym_store ~key:(to_id expr) ~data:st
+let environment_for_user_fn (ufn: user_fn) : dval_map =
+  let param_to_dval (p: param) : dval =
+    DIncomplete (* TODO(ian): we should trace these correctly *)
   in
-  let init_set =
-    List.fold_left
-      ~init:SymSet.empty
-      ~f:(fun acc s ->
-          SymSet.add acc s)
-      (Symtable.keys init)
-  in
-  sym_exec ~trace ~ff init_set ast; sym_store
-
-let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
-  match expr with
-  | Blank _ -> expr
-  | Flagged (id, msg, setting, l, r) ->
-    Flagged (id, msg, setting, f l, f r)
-  | Filled (id, nexpr) ->
-    Filled (id,
-            (match nexpr with
-             | Value _ -> nexpr
-             | Variable _ -> nexpr
-
-             | Let (lhs, rhs, body) ->
-               Let (lhs, f rhs, f body)
-
-             | If (cond, ifbody, elsebody) ->
-               If (f cond, f ifbody, f elsebody)
-
-             | FnCall (name, exprs) ->
-               FnCall (name, List.map ~f exprs)
-
-             | Lambda (vars, lexpr) ->
-               Lambda (vars, f lexpr)
-
-             | Thread exprs ->
-               Thread (List.map ~f exprs)
-
-             | FieldAccess (obj, field) ->
-               FieldAccess (f obj, field)
-
-             | ListLiteral exprs ->
-               ListLiteral (List.map ~f exprs)
-
-             | ObjectLiteral pairs ->
-               ObjectLiteral (List.map ~f:(fun (k, v) -> (k, f v)) pairs)
-           ))
-
-let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
-  let replace = set_expr ~search ~replacement in
-  if search = to_id expr
-  then replacement
-  else
-    traverse ~f:replace expr
+  ufn.metadata.parameters
+  |> List.filter_map ~f:ufn_param_to_param
+  |> List.map ~f:(fun f -> (f.name, param_to_dval f))
+  |> DvalMap.of_alist_exn
 
 
+
+(* -------------------- *)
+(* Run full analyses *)
+(* -------------------- *)
+
+let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
+    analysis =
+  let default_env = with_defaults h state.env in
+  let state = { state with env = default_env } in
+  let traced_symbols =
+    symbolic_execute state.ff state.env h.ast in
+  let (ast_value, traced_values) =
+    execute_saving_intermediates state h.ast in
+  { ast_value = dval_to_livevalue ast_value
+  ; live_values = traced_values
+  ; available_varnames = traced_symbols
+  ; input_values = symtable_to_sym_list state.env
+  }
+
+let execute_function_for_analysis (state : exec_state) (f : user_fn) :
+    analysis =
+  let traced_symbols =
+    symbolic_execute state.ff state.env f.ast in
+  let (ast_value, traced_values) =
+    execute_saving_intermediates state f.ast in
+  { ast_value = dval_to_livevalue ast_value
+  ; live_values = traced_values
+  ; available_varnames = traced_symbols
+  ; input_values = symtable_to_sym_list state.env
+  }
 

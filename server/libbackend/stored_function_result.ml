@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 
 open Types
 module RTT = Types.RuntimeT
@@ -11,13 +12,13 @@ let hash (arglist : RTT.dval list) : string =
   arglist
   |> List.map ~f:Dval.to_internal_repr
   |> String.concat
-  |> Util.hash
+  |> Crypto.hash
 
 (* ------------------------- *)
 (* External *)
 (* ------------------------- *)
 
-let store (canvas_id, _, tlid, fnname, id) arglist result =
+let store (canvas_id, tlid, fnname, id) arglist result =
   Printf.sprintf
     "INSERT INTO function_results
     (canvas_id, tlid, fnname, id, hash, timestamp, value)
@@ -30,7 +31,7 @@ let store (canvas_id, _, tlid, fnname, id) arglist result =
     (Dbp.dvaljson result)
   |> Db.run_sql
 
-let load (canvas_id, _, tlid, fnname, id) arglist
+let load (canvas_id, tlid, fnname, id) arglist
   : (RTT.dval * Time.t) option =
   Printf.sprintf
     "SELECT value, timestamp

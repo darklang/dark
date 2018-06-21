@@ -1,21 +1,16 @@
-open Core
+open Core_kernel
+
+(* ----------------- *)
+(* levels *)
+(* ----------------- *)
 
 type level = [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
 
 let level : level ref =
   ref `All
 
-let set_level (levelname: string) : unit =
-  level :=
-    match levelname with
-    | "off" -> `Off
-    | "fatal" -> `Fatal
-    | "error" -> `Error
-    | "warn" -> `Warn
-    | "info" -> `Info
-    | "debug" -> `Debug
-    | "all" -> `All
-    | _ -> failwith ("Invalid level name:" ^ levelname)
+let set_level (newlevel: level) : unit =
+  level := newlevel
 
 let level_to_string (level: level) : string =
   match level with
@@ -27,12 +22,8 @@ let level_to_string (level: level) : string =
   | `Debug -> "debug"
   | `All -> "all"
 
-
-let quiet name =
-  name = "execution"
-
-let print_endline =
-  Caml.print_endline
+let level : level ref =
+  ref `All
 
 let should_log (user_level : level) : bool =
   match user_level with
@@ -69,23 +60,38 @@ let should_log (user_level : level) : bool =
      | _ -> true)
   | `All -> true
 
+let print_endline =
+  Caml.print_endline
+
+(* ----------------- *)
+(* format *)
+(* ----------------- *)
+type format = [`Stackdriver | `Regular | `Decorated ]
+
+let format : format ref =
+  ref `Stackdriver
+
+let set_format (newformat:format) =
+  format := newformat
+
+
 let timestr time =
   if Float.is_nan time
   then ""
   else
-    let result = "(" ^ (time |> int_of_float |> string_of_int) ^ "ms)" in
-    if int_of_float time > 100
+    let result = "(" ^ (time |> Float.to_int |> Int.to_string) ^ "ms)" in
+    if Float.to_int time > 100
     then result ^ "(SLOW REQUEST)"
     else result
 
 
-let print_console_log ~ind ~msg ~start ~stop ~time ~f x : unit =
+let print_console_log ~decorate ~ind ~msg ~start ~stop ~time ~f x : unit =
   let red = "\x1b[6;31m" in
   let black = "\x1b[6;30m" in
   let reset = "\x1b[0m" in
   let indentStr = String.make ind '>' in
   let prefix =
-    if Config.log_decorate
+    if decorate
     then black ^ "log "
          ^ reset ^ indentStr
          ^ " " ^ red ^ msg ^ " "
@@ -113,6 +119,9 @@ let print_stackdriver_log ~msg ~start ~stop ~f ~time x : unit =
   |> print_endline
 
 
+(* ----------------- *)
+(* logging *)
+(* ----------------- *)
 let pP ?(f=Batteries.dump)
        ?(start=0)
        ?(stop=0)
@@ -123,11 +132,15 @@ let pP ?(f=Batteries.dump)
        (msg : string)
        (x : 'a)
        : unit =
-  if show && (not (quiet name)) && (not (!level = `Off))
+  if show && (not (!level = `Off))
   then
-    if Config.should_use_stackdriver_logging
-    then print_stackdriver_log ~msg ~start ~stop ~time ~f x
-    else print_console_log ~ind ~msg ~start ~stop ~time ~f x
+    match !format with
+    | `Stackdriver ->
+      print_stackdriver_log ~msg ~start ~stop ~time ~f x
+    | `Regular ->
+      print_console_log ~decorate:false ~ind ~msg ~start ~stop ~time ~f x
+    | `Decorated ->
+      print_console_log ~decorate:true ~ind ~msg ~start ~stop ~time ~f x
 
 let pp ?(f=Batteries.dump)
        ?(start=0)
@@ -282,19 +295,11 @@ let fatal ?(f=Batteries.dump)
   then pp ~f ~name ~start ~stop ~show ~time ~ind msg x
   else x
 
+(* ----------------- *)
+(* init *)
+(* ----------------- *)
 
-(* TODO: make this properly respect log levels *)
-
-let tS (msg : string) : unit =
-  let time = Float.mod_float (1000.0 *. Unix.gettimeofday ()) 10000.0 in
-  let ts = string_of_float time in
-  let red = "\x1b[6;31m" in
-  let reset = "\x1b[0m" in
-  red ^ "ts: " ^ msg ^ " (" ^ ts ^ "): " ^ reset
-  |> print_endline
-
-let ts (msg : string) (x : 'a) : 'a =
-  tS msg;
-  x
-
-
+let init ~(level: level) ~(format: format) () =
+  set_level level;
+  set_format format;
+  ()

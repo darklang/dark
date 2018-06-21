@@ -1,6 +1,4 @@
 open Core
-open Types
-open Types.RuntimeT
 
 (* Low-level API *)
 val run_sql : ?quiet:bool -> string -> unit

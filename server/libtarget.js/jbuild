@@ -1,0 +1,5 @@
+(jbuild_version 1)
+
+(library
+ ((name libtarget_js)
+  (js_of_ocaml ((javascript_files (libtarget.js))))))

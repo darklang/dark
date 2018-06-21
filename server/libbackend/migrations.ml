@@ -1,5 +1,6 @@
-open Core
+open Core_kernel
 
+open Libexecution
 module Dbp = Dbprim
 
 let is_initialized () =
@@ -53,7 +54,7 @@ let run_system_migration (name: string) (sql:string) : unit =
   |> Db.run_sql ~quiet:true
 
 let names () =
-  Util.lsdir ~root:Migrations ""
+  File.lsdir ~root:Migrations ""
   |> List.sort ~cmp:compare
 
 let run () : unit =
@@ -68,7 +69,7 @@ let run () : unit =
           Log.infO "migration already run" name
         else
           (Log.infO "new migration" name;
-           let sql = Util.readfile ~root:Migrations name in
+           let sql = File.readfile ~root:Migrations name in
            run_system_migration name sql
           ));
 
@@ -92,7 +93,7 @@ let move_json_oplist_into_db () : unit =
           | Some o ->
             Serialize.save_json_to_db host o;
             let filename = Serialize.json_unversioned_filename host in
-            Util.rm ~root:Appdata filename
+            File.rm ~root:Appdata filename
         with e ->
           ("Dark Internal Error: (" ^ host ^ ") :" ^ Exn.to_string e)
           |> Log.erroR "Found an error while moving the oplist into the DB")

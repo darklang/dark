@@ -1,4 +1,7 @@
-open Core
+open Core_kernel
+open Libexecution
+
+
 open Types
 
 type oplist = Op.op list [@@deriving yojson]
@@ -39,8 +42,8 @@ type function_metadata = { name: string
                          ; preview_execution_safe: bool
                          } [@@deriving yojson]
 
-let functions =
-  Libs.static_fns
+let functions () =
+  !Libs.static_fns
   |> String.Map.to_alist
   |> List.map
     ~f:(fun (k,(v: RuntimeT.fn))
