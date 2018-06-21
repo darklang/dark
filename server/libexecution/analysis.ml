@@ -89,9 +89,8 @@ type analysis =
 type analysis_list = analysis list
                      [@@deriving to_yojson]
 
-
 (* -------------------- *)
-(* Execution *)
+(* Symbolically gather varnames *)
 (* -------------------- *)
 
 let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
@@ -107,6 +106,91 @@ let blank_to_content (bo: 'a or_blank) : 'a option =
   match bo with
   | Filled (_, c) -> Some c
   | _ -> None
+
+
+let rec sym_exec
+    ~(ff: feature_flag)
+    ~(trace: (expr -> sym_set -> unit))
+    (st: sym_set)
+    (expr: expr)
+  : unit =
+  let sexe = sym_exec ~trace ~ff in
+  try
+    let _ =
+      (match expr with
+       | Blank _ -> ()
+       | Flagged (id, _, _, l, r) ->
+         sexe st l;
+         sexe st r;
+         sexe st (flatten_ff expr ff)
+
+       | Filled (_, Value s) -> ()
+       | Filled (_, Variable name) -> ()
+
+       | Filled (_, Let (lhs, rhs, body)) ->
+         let bound = match lhs with
+           | Flagged _ -> should_be_flat ()
+           | Filled (_, name) ->
+             sexe st rhs;
+             SymSet.add st name
+           | Blank _ -> st
+         in sexe bound body
+
+       | Filled (_, FnCall (name, exprs)) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, If (cond, ifbody, elsebody)) ->
+         sexe st cond;
+         sexe st ifbody;
+         sexe st elsebody
+
+       | Filled (_, Lambda (vars, body)) ->
+         let new_st =
+           vars
+           |> List.map
+             ~f:(fun v -> flatten_ff v ff)
+           |> List.filter_map ~f:blank_to_content
+           |> SymSet.of_list
+         in
+         sexe new_st body
+
+       | Filled (_, Thread (exprs)) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, FieldAccess (obj, field)) ->
+         sexe st obj
+
+       | Filled (_, ListLiteral exprs) ->
+         List.iter ~f:(sexe st) exprs
+
+       | Filled (_, ObjectLiteral exprs) ->
+         exprs
+         |> List.map ~f:Tuple.T2.get2
+         |> List.iter ~f:(sexe st))
+    in
+    trace expr st
+  with
+  | e ->
+    Exception.log e
+
+
+let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
+  let sym_store = Int.Table.create () in
+  let trace expr st =
+    Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
+  in
+  let init_set =
+    init
+    |> Symtable.keys
+    |> SymSet.of_list
+  in
+  sym_exec ~trace ~ff init_set ast;
+  sym_store
+
+
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
 
 (* For exec_state *)
 let load_nothing _ _ = None
@@ -528,84 +612,6 @@ let with_defaults (h: Handler.handler) (env: symtable) : symtable =
 let execute_handler (state: exec_state) (h: Handler.handler) : dval =
   let env = with_defaults h state.env in
   execute state env h.ast
-
-
-(* -------------------- *)
-(* Symbolically gather varnames *)
-(* -------------------- *)
-
-let rec sym_exec ~(ff: feature_flag) ~(trace: (expr -> sym_set -> unit)) (st: sym_set) (expr: expr) : unit =
-  let sexe = sym_exec ~trace ~ff in
-  try
-    let _ =
-      (match expr with
-       | Blank _ -> ()
-       | Flagged (id, _, _, l, r) ->
-         sexe st l;
-         sexe st r;
-         sexe st (flatten_ff expr ff)
-
-       | Filled (_, Value s) -> ()
-       | Filled (_, Variable name) -> ()
-
-       | Filled (_, Let (lhs, rhs, body)) ->
-         let bound = match lhs with
-           | Flagged _ -> should_be_flat ()
-           | Filled (_, name) -> sexe st rhs; SymSet.add st name
-           | Blank _ -> st
-         in sexe bound body
-
-       | Filled (_, FnCall (name, exprs)) ->
-         List.iter ~f:(sexe st) exprs
-
-       | Filled (_, If (cond, ifbody, elsebody)) ->
-         sexe st cond;
-         sexe st ifbody;
-         sexe st elsebody
-
-       | Filled (_, Lambda (vars, body)) ->
-         let varnames =
-           vars
-           |> List.map
-             ~f:(fun v -> flatten_ff v ff)
-           |> List.filter_map ~f:blank_to_content
-         in
-         let new_st = List.fold_left ~init:st ~f:(fun st v -> SymSet.add st v) varnames in
-         sexe new_st body
-
-       | Filled (_, Thread (exprs)) ->
-         List.iter ~f:(sexe st) exprs
-
-       | Filled (_, FieldAccess (obj, field)) ->
-         sexe st obj
-
-       | Filled (_, ListLiteral exprs) ->
-         List.iter ~f:(sexe st) exprs
-
-       | Filled (_, ObjectLiteral exprs) ->
-         exprs
-         |> List.map ~f:Tuple.T2.get2
-         |> List.iter ~f:(sexe st))
-    in
-    trace expr st
-  with
-  | e ->
-    Exception.log e
-
-
-let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
-  let sym_store = Int.Table.create () in
-  let trace expr st =
-    Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
-  in
-  let init_set =
-    init
-    |> Symtable.keys
-    |> SymSet.of_list
-  in
-  sym_exec ~trace ~ff init_set ast; sym_store
-
-
 
 let environment_for_user_fn (ufn: user_fn) : dval_map =
   let filled =
