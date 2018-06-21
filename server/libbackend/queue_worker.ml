@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 
 module RTT = Types.RuntimeT
 module C = Canvas
@@ -41,21 +42,11 @@ let dequeue_and_evaluate_all () : string =
                       then
                         let dbs = TL.dbs !c.toplevels in
                         let env = User_db.dbs_as_exe_env dbs in
-                        let state : RTT.exec_state =
-                              { ff = Feature_flag.generate ()
-                              ; tlid = cr.tlid
-                              ; host = !c.host
-                              ; user_fns = !c.user_functions
-                              ; account_id = !c.owner
-                              ; canvas_id = !c.id
-                              ; exe_fn_ids = []
-                              ; env = env
-                              ; dbs = dbs
-                              ; id = execution_id
-                              }
+                        let state = Execution.state_for_execution ~c:!c cr.tlid
+                            ~env ~execution_id
                         in
                         Cron.record_execution !c.id cr;
-                        let result = Handler.execute state cr in
+                        let result = Ast_analysis.execute_handler state cr in
                         Some result
                       else
                         None
@@ -82,19 +73,9 @@ let dequeue_and_evaluate_all () : string =
                        let dbs = TL.dbs !c.toplevels in
                        let dbs_env = User_db.dbs_as_exe_env (dbs) in
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
-                       let state : RTT.exec_state =
-                             { ff = event.flag_context
-                             ; tlid = q.tlid
-                             ; host = !c.host
-                             ; account_id = !c.owner
-                             ; canvas_id = !c.id
-                             ; user_fns = !c.user_functions
-                             ; exe_fn_ids = []
-                             ; env = env
-                             ; dbs = dbs
-                             ; id = execution_id
-                             } in
-                       let result = Handler.execute state q in
+                       let state = Execution.state_for_execution q.tlid
+                           ~c:!c ~execution_id ~env in
+                       let result = Ast_analysis.execute_handler state q in
                        (match result with
                         | RTT.DIncomplete ->
                           Event_queue.put_back event ~status:`Incomplete

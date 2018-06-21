@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 
 let digest = Op.bin_shape_oplist
              |> Bin_prot.Shape.eval_to_digest_string
@@ -10,7 +11,7 @@ let write_shape_data () =
                      |> Bin_prot.Shape.eval
                      |> Bin_prot.Shape.Canonical.to_string_hum
     in
-    Util.writefile ~root:Serialization digest shape_string
+    File.writefile ~root:Serialization digest shape_string
   else
     ()
 
@@ -27,7 +28,7 @@ let json_unversioned_filename name =
   name ^ "." ^ "json"
 
 let json_file_hosts () : string list =
-  Util.lsdir ~root:Appdata ""
+  File.lsdir ~root:Appdata ""
   |> List.filter
     ~f:(String.is_suffix ~suffix:".json")
   |> List.map
@@ -42,14 +43,14 @@ let current_hosts () : string list =
 let load_json_from_disk ~root (host:string) : Op.oplist option =
   Log.infO "SERIALIZATION: Loading from disk" host;
   let filename = json_unversioned_filename host in
-  Util.maybereadjsonfile ~root ~conv:Op.oplist_of_yojson filename
+  File.maybereadjsonfile ~root ~conv:Op.oplist_of_yojson filename
 
 let load_preprocessed_json_from_disk ~root
     ~(preprocess:(string -> string))
     (host:string) : Op.oplist option =
   Log.infO "SERIALIZATION: Loading preprocessed json from disk" host;
   let filename = json_unversioned_filename host in
-  Util.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
+  File.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
 
 let load_json_from_db (host:string) : Op.oplist option =
   Log.infO "SERIALIZATION: Loading json from db" host;
@@ -69,7 +70,7 @@ let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
   |> Op.oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
-  |> Util.writefile ~root filename
+  |> File.writefile ~root filename
 
 let save_json_to_db (host: string) (ops: Op.oplist) : unit =
   Log.infO "SERIALIZATION: Saving json to db" host;

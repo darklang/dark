@@ -1,4 +1,5 @@
-open Core
+open Core_kernel
+open Libexecution
 open Types
 
 (* ------------------------- *)

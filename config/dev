@@ -1,3 +1,7 @@
+######################################
+# XXX: Changes won't take effect until you restart script/builder
+######################################
+
 # Root directories
 DARK_CONFIG_RUN_DIR=/home/dark/app/rundir
 DARK_CONFIG_PERSIST_DIR=/home/dark/app/persistdir
@@ -17,9 +21,8 @@ DARK_CONFIG_ALLOW_SERVER_SHUTDOWN=y
 DARK_CONFIG_TRIGGER_QUEUE_WORKERS=y
 
 # Logging
-DARK_CONFIG_LOGGING_FORMAT=regular
+DARK_CONFIG_LOGGING_FORMAT=decorated
 DARK_CONFIG_LOGLEVEL=debug
-DARK_CONFIG_LOG_DECORATE=y
 DARK_CONFIG_SAVE_SERIALIZATION_DIGEST=y
 
 # Rollbar
@@ -34,3 +37,6 @@ DARK_CONFIG_DB_DBNAME=proddb
 DARK_CONFIG_DB_USER=dark
 DARK_CONFIG_DB_PASSWORD=eapnsdc
 
+######################################
+# XXX: Changes won't take effect until you restart script/builder
+######################################

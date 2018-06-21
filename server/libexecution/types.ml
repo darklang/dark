@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 type pos = { x:int; y:int }[@@deriving eq, compare, show, yojson, sexp, bin_io]
 
@@ -112,12 +112,17 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   let equal_block _ _ _ = false
   let compare_block _ _ _ = -1
 
-  type uuid = Uuid.Stable.V1.t [@opaque][@@deriving show, compare, sexp]
-  let equal_uuid a b = Uuid.Stable.V1.compare a b = 0
+  (* TODO SPLIT: what is the format vs Core's Uuid.Stable.V1 *)
+  type uuid = Uuidm.t [@opaque][@@deriving show, eq, compare]
+  let uuid_of_sexp s = failwith "TODO"
+  let sexp_of_uuid s = failwith "TODO"
+  type time = Time.Stable.With_utc_sexp.V2.t
+              [@opaque]
+              [@@deriving compare, sexp, show]
+  let equal_time t1 t2 = t1 = t2
 
 
   module DvalMap = String.Map
-  (* TODO: make these printable *)
   type dval_map = dval DvalMap.t [@opaque]
   and dval =
     (* basic types  *)
@@ -138,7 +143,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DResp of (dhttp * dval)
     | DDB of DbT.db
     | DID of uuid
-    | DDate of Time.t
+    | DDate of time
     | DTitle of string
     | DUrl of string
     [@@deriving show, sexp, eq, compare]
@@ -198,17 +203,27 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                  ; ast:  expr
                  } [@@deriving eq, show, yojson, sexp, bin_io]
 
+  type function_desc = Uuidm.t * tlid * string * id
+
   type exec_state = { ff: feature_flag
                     ; tlid: tlid
-                    ; canvas_id : Uuid.t
-                    ; account_id : Uuid.t
+                    ; canvas_id : Uuidm.t
+                    ; account_id : Uuidm.t
                     ; host: string
                     ; user_fns: user_fn list
                     ; exe_fn_ids: id list
                     ; env: symtable
                     ; dbs: DbT.db list
-                    ; id: int
+                    ; execution_id: int
+                    ; load_fn_result :
+                        function_desc -> dval list -> (dval * Time.t) option
+                    ; store_fn_result :
+                        function_desc ->
+                        dval list ->
+                        dval ->
+                        unit
                     }
+
 
   type funcimpl = InProcess of (exec_state * dval list -> dval)
                 | API of (dval_map -> dval)

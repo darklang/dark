@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 open Types
 open Types.RuntimeT
 

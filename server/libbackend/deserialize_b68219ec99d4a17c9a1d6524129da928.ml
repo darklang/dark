@@ -3,7 +3,7 @@
  * complicated. This is kept as a template in case we need to do it
  * again. *)
 
-(* open Core *)
+(* open Core_kernel *)
 
 
 (* module T = Types *)

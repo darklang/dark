@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 type root = Log
           | Serialization
@@ -6,6 +6,7 @@ type root = Log
           | Webroot
           | Completed_test
           | Testdata
+          | Testresults
           | Bin_root
           | Appdata
           | Swagger
@@ -24,9 +25,8 @@ val dir : root -> string
 
 val port : int
 
-val should_use_stackdriver_logging : bool
-val log_level : string
-val log_decorate : bool
+val log_format : [`Stackdriver | `Regular | `Decorated ]
+val log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
 
 val should_write_shape_data : bool
 

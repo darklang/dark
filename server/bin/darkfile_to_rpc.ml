@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 module C = Dark.Canvas
 module PReq = Dark.Parsed_request

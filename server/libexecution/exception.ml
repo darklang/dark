@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 type exception_info = (string * string) list [@@deriving yojson, show]
 
@@ -6,6 +6,7 @@ let exception_info_to_yojson info =
   `Assoc (List.map ~f:(fun (k,v) -> (k, `String v)) info)
 
 type exception_tipe = DarkServer
+                    | DarkStorage
                     | DarkClient
                     | DarkRuntime
                     | Dependency
@@ -16,6 +17,7 @@ type exception_tipe = DarkServer
 let should_log (et: exception_tipe) : bool =
   match et with
   | DarkServer -> true
+  | DarkStorage -> true
   | DarkClient -> true
   | DarkRuntime -> true
   | Dependency -> true
@@ -96,5 +98,6 @@ let internal = raise_ DarkServer
 let client = raise_ DarkClient
 let user = raise_ UserCode
 let api = raise_ ExternalService
+let storage = raise_ DarkStorage
 
 
