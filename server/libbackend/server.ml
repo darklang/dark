@@ -1,16 +1,73 @@
-open Core
-open Lwt
+open Core_kernel
 
+open Lwt
 module Clu = Cohttp_lwt_unix
 module S = Clu.Server
 module CRequest = Clu.Request
 module Header = Cohttp.Header
+module Cookie = Cohttp.Cookie
+
 module C = Canvas
-module RT = Runtime
-module RTT = Types.RuntimeT
-module TL = Toplevel
+
+open Libexecution
 module PReq = Parsed_request
+module RTT = Types.RuntimeT
 module FF = Feature_flag
+module Handler = Handler
+module TL = Toplevel
+
+(* ------------------------------- *)
+(* feature flags *)
+(* ------------------------------- *)
+
+let is_browser headers : bool =
+  headers
+  |> fun hs -> Cohttp.Header.get hs "user-agent"
+  |> Option.value ~default:""
+  |> String.is_substring ~substring:"Mozilla"
+
+let session_headers headers (ff: RTT.feature_flag) : Cookie.cookie list =
+  if is_browser headers
+  then
+    (FF.session_name, FF.to_session_string ff)
+    |> Cookie.Set_cookie_hdr.make
+    |> Cookie.Set_cookie_hdr.serialize
+    |> fun x -> [x]
+  else
+    []
+
+let fingerprint_user ip headers : RTT.feature_flag =
+  (* We want to do the absolute minimal fingerprinting to allow users
+   * get roughly the same set of feature flags on each request, while
+   * preserving user privacy. *)
+
+  if is_browser headers
+  then
+    (* If they're a browser user, just use a session, and if they dont
+     * have one, create a new one. *)
+    let session = headers
+                |> Cookie.Cookie_hdr.extract
+                |> List.find ~f:(fun (n,_) -> n = FF.session_name)
+    in
+    match session with
+    | Some (_, value) -> value |> FF.make
+    | None -> FF.generate ()
+
+  else
+    (* If they're an API user, fingerprint off as many stable headers as
+     * possible (ignore things with dates, urls, etc). In the future,
+     * give them a header with an ID that they can opt into as well. *)
+    let usable = ["user-agent"; "accept-encoding"; "accept-language";
+                  "keep-alive"; "connection"; "accept"] in
+    headers
+    |> Cohttp.Header.to_list
+    |> List.filter ~f:(fun (k,v) -> List.mem ~equal:(=) usable k)
+    |> List.map ~f:Tuple.T2.get2
+    |> (@) [ip]
+    |> String.concat
+    |> Crypto.hash
+    |> FF.make
+
 
 
 (* ------------------------------- *)
@@ -80,6 +137,8 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
   let c = C.load host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
+  let headers = req |> CRequest.headers |> Header.to_list in
+  let query = req |> CRequest.uri |> Uri.query in
   let pages = C.pages_matching_route ~uri ~verb !c in
   let pages =
     if List.length pages > 1
@@ -91,13 +150,14 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
   | [] when String.Caseless.equal verb "OPTIONS" ->
     options_handler !c req
   | [] ->
-    let input = PReq.from_request req body in
-    Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) (PReq.to_dval input);
+    PReq.from_request headers query body
+    |> PReq.to_dval
+    |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers `Not_found "404: No page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
-    let input = PReq.from_request req body in
+    let input = PReq.from_request headers query body in
     let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
     let dbs = TL.dbs !c.toplevels in
     let dbs_env = User_db.dbs_as_exe_env (dbs) in
@@ -115,21 +175,11 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
     let resp_headers = CRequest.headers req in
-    let ff = FF.fingerprint_user ip resp_headers in
-    let session_headers = FF.session_headers resp_headers ff in
-    let state : RTT.exec_state =
-      { ff = ff
-      ; tlid = page.tlid
-      ; host = !c.host
-      ; account_id = !c.owner
-      ; canvas_id = !c.id
-      ; user_fns = !c.user_functions
-      ; exe_fn_ids = []
-      ; env = env
-      ; dbs = dbs
-      ; id = Util.create_id ()
-      } in
-    let result = Handler.execute state page in
+    let ff = fingerprint_user ip resp_headers in
+    let session_headers = session_headers resp_headers ff in
+    let state = Execution.state_for_execution ~c:!c
+        ~execution_id:(Util.create_id ()) ~env page.tlid in
+    let result = Libexecution.Ast_analysis.execute_handler state page in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
       then
@@ -153,7 +203,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     | DResp (http, value) ->
       (match http with
        | Redirect url ->
-         Event_queue.finalize state.id ~status:`OK;
+         Event_queue.finalize state.execution_id ~status:`OK;
          S.respond_redirect (Uri.of_string url) ()
        | Response (code, resp_headers) ->
          let body =
@@ -168,7 +218,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          let resp_headers =
            maybe_infer_headers resp_headers value
          in
-         Event_queue.finalize state.id ~status:`OK;
+         Event_queue.finalize state.execution_id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
          let resp_headers = Cohttp.Header.of_list ([cors]
                                                    @ resp_headers
@@ -176,7 +226,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          in
          respond ~resp_headers status body)
     | _ ->
-      Event_queue.finalize state.id ~status:`OK;
+      Event_queue.finalize state.execution_id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let ct_headers =
         maybe_infer_headers [] result
@@ -210,28 +260,28 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host params.ops) in
 
-    let (t3, hvals) = time "3-handler-values"
+    let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.toplevels
          |> List.filter_map ~f:TL.as_handler
          |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
-           ~f:(C.handler_value ~exe_fn_ids ~execution_id !c))
+           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-values"
+    let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
         |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
         |> List.map
-          ~f:(C.function_value ~exe_fn_ids ~execution_id !c))
+          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
-      (fun _ -> C.unlocked !c) in
+      (fun _ -> Analysis.unlocked !c) in
 
 
     let (t6, result) = time "6-to-frontend"
-      (fun _ -> C.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
+      (fun _ -> Analysis.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
 
     let (t7, _) = time "7-save-to-disk"
       (fun _ ->
@@ -256,28 +306,28 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
       (fun _ -> C.load host []) in
 
     let (t2, f404s) = time "2-get-404s"
-      (fun _ -> C.get_404s !c) in
+      (fun _ -> Analysis.get_404s !c) in
 
-    let (t3, hvals) = time "3-handler-values"
+    let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.toplevels
          |> List.filter_map ~f:TL.as_handler
          |> List.map
-           ~f:(C.handler_value ~exe_fn_ids:[] ~execution_id !c))
+           ~f:(Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-values"
+    let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
         |> List.map
-          ~f:(C.function_value ~exe_fn_ids:[] ~execution_id !c))
+          ~f:(Analysis.function_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
-      (fun _ -> C.unlocked !c) in
+      (fun _ -> Analysis.unlocked !c) in
 
     let (t6, result) = time "6-to-frontend"
-      (fun _ -> C.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
+      (fun _ -> Analysis.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
   Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5; t6], result)
@@ -289,9 +339,9 @@ let get_analysis (host: string) : (Cohttp.Header.t * string) =
 
 
 let admin_ui_handler ~(debug:bool) () =
-  let template = Util.readfile_lwt ~root:Templates "ui.html" in
+  let template = File.readfile_lwt ~root:Templates "ui.html" in
   template
-  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions)
+  >|= Util.string_replace "{ALLFUNCTIONS}" (Api.functions ())
   >|= Util.string_replace "{ROLLBARCONFIG}" (Config.rollbar_js)
   >|= Util.string_replace "{ELMDEBUG}" (if debug
                                       then "-debug"
@@ -414,8 +464,6 @@ let server () =
              |> Yojson.Safe.pretty_to_string
            | Yojson.Json_error msg ->
              "Not a valid JSON value: '" ^ msg ^ "'"
-           | Postgresql.Error e ->
-             "Postgres error: " ^ Postgresql.string_of_error e
            | _ ->
              "Dark Internal Error: " ^ Exn.to_string e
         with _ -> "ERROR FETCHING ERROR" (* TODO: monitor this *)
@@ -428,8 +476,6 @@ let server () =
               * parameters in it. *)
              real_err
            | Yojson.Json_error msg ->
-             real_err
-           | Postgresql.Error e when include_internals ->
              real_err
            | _ ->
              if include_internals
@@ -455,6 +501,7 @@ let server () =
               | ["localhost"] -> Some "localhost"
               | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
               | ["builtwithdark"; "com"] -> Some "builtwithdark"
+              | [a; "integration-tests"] -> Some a
               | [a; "localhost"] -> Some a
               | [a; "darksingleinstance"; "com"] -> Some a
               | [a; "builtwithdark"; "com"] -> Some a

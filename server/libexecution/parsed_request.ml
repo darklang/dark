@@ -1,10 +1,6 @@
-open Core
+open Core_kernel
 
 module RT = Runtime
-module Clu = Cohttp_lwt_unix
-module C = Cohttp
-module CRequest = Clu.Request
-
 open Types.RuntimeT
 
 (* Internal invariant, _must_ be a DObj *)
@@ -18,24 +14,18 @@ type parser = Json
             | Form
             | Unknown
 
-let body_parser_type req =
-  let content_type =
-    match C.Header.get (Clu.Request.headers req) "content-type" with
-    | None -> "unknown"
-    | Some v -> v
+let body_parser_type headers =
+  let ct_is ct =
+      List.exists headers
+      ~f:(fun (k, v) ->
+            String.Caseless.equal k "content-type"
+            && String.is_substring ~substring:ct v)
   in
-  if String.is_substring
-       ~substring:"application/json"
-       content_type
-  then
-    Json
-  else if String.is_substring
-      ~substring:"application/x-www-form-urlencoded"
-       content_type
-  then
-    Form
-  else
-    Unknown
+  if ct_is "application/json"
+  then Json
+  else if ct_is "application/x-www-form-urlencoded"
+  then Form
+  else Unknown
 
 let parser_fn p =
   match p with
@@ -43,22 +33,20 @@ let parser_fn p =
   | Form -> Dval.from_form_encoding
   | Unknown -> Dval.parse
 
-let parsed_body req reqbody =
+let parsed_body headers reqbody =
   let bdval =
     if reqbody = ""
     then DNull
-    else reqbody |> parser_fn (body_parser_type req)
+    else reqbody |> parser_fn (body_parser_type headers)
   in
   Dval.to_dobj [("body", bdval)]
 
-let parsed_query_string uri =
-  let dval = Dval.query_to_dval (Uri.query uri) in
+let parsed_query_string (queryvals:(string * string list) list)  =
+  let dval = Dval.query_to_dval queryvals in
   Dval.to_dobj [("queryParams", dval)]
 
-let parsed_headers req =
-  req
-  |> Clu.Request.headers
-  |> C.Header.to_list
+let parsed_headers (headers: (string * string) list) =
+  headers
   |> List.map ~f:(fun (k, v) -> (k, DStr v))
   |> DvalMap.of_alist_reduce
     ~f:(fun l r -> r)
@@ -69,9 +57,9 @@ let unparsed_body rb =
   let dval = DStr rb in
   Dval.to_dobj [("fullBody", dval)]
 
-let body_of_fmt ~fmt ~key req rbody =
+let body_of_fmt ~fmt ~key headers rbody =
   let dval =
-    match (body_parser_type req, rbody) with
+    match (body_parser_type headers, rbody) with
     | (fmt, content) when String.length content > 0 ->
       parser_fn fmt content
     | _  -> DNull
@@ -87,14 +75,16 @@ let form_body =
 (* ------------------------- *)
 (* Exported *)
 (* ------------------------- *)
+type header = string * string
+type query_val = string * string list
 
-let from_request req rbody =
+let from_request (headers: header list) (query:query_val list) rbody =
   let parts =
-    [ parsed_body req rbody
-    ; json_body req rbody
-    ; form_body req rbody
-    ; parsed_query_string (CRequest.uri req)
-    ; parsed_headers req
+    [ parsed_body headers rbody
+    ; json_body headers rbody
+    ; form_body headers rbody
+    ; parsed_query_string query
+    ; parsed_headers headers
     ; unparsed_body rbody
     ]
   in
@@ -106,7 +96,7 @@ let from_request req rbody =
 let to_dval self =
   self
 
-let sample =
+let sample_request =
   let parts =
     [ Dval.to_dobj [("body", DIncomplete)]
     ; Dval.to_dobj [("jsonBody", DIncomplete)]
@@ -120,3 +110,5 @@ let sample =
     ~init:Dval.empty_dobj
     ~f:(fun acc p -> Dval.obj_merge acc p)
     parts
+
+

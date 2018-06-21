@@ -1,0 +1,23 @@
+(library
+  (
+    (name libtarget_ocaml)
+    (modes (native))
+    (flags (-warn-error (+A)))
+    (wrapped false)
+    (flags (:standard -no-keep-locs))
+    (preprocess (pps (ppx_bin_prot
+                      ppx_compare
+                      ppx_deriving.std
+                      ppx_deriving_yojson
+                      ppx_fields_conv
+                      ppx_type_conv
+                      ppx_sexp_conv
+                      ppx_pipebang
+                      )))
+
+    (libraries (nocrypto
+                cstruct
+                base64
+                core))))
+
+(rule (copy# ${lib:libtarget:libtarget.mli} libtarget.mli))

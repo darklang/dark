@@ -229,6 +229,7 @@ RUN opam install -y \
   landmarks.1.1 \
   cstruct.3.2.1 \
   nocrypto.0.5.4 \
+  uuidm.0.9.6 \
   session.0.4.0 \
   session-cohttp.0.4.0 \
   session-cohttp-lwt.0.4.0 \

@@ -1,19 +1,18 @@
-open Core
+open Core_kernel
+open Libexecution
+
 open Util
 open Types
 
 module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
-module PReq = Parsed_request
-module FF = Feature_flag
-module SE = Stored_event
 module Dbp = Dbprim
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
-              ; owner : Uuid.t
-              ; id : Uuid.t
+              ; owner : Uuidm.t
+              ; id : Uuidm.t
               ; ops : Op.oplist
               ; toplevels: toplevellist
               ; user_functions: RTT.user_fn list
@@ -104,7 +103,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
-let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
+let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   Printf.sprintf
     "CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
      $func$
@@ -129,14 +128,14 @@ let fetch_canvas_id (owner:Uuid.t) (host:string) : Uuid.t =
      END
      $func$ LANGUAGE plpgsql;
      SELECT canvas_id(%s, %s, %s); "
-
-    (Uuid.create () |> Dbp.uuid)
-    (owner |> Dbp.uuid)
-    (host |> Dbp.host)
+    (Dbp.uuid (Util.create_uuid ()))
+    (Dbp.uuid owner)
+    (Dbp.host host)
   |> Db.fetch_via_sql ~quiet:false
   |> List.concat
   |> List.hd_exn
-  |> Uuid.of_string
+  |> Uuidm.of_string
+  |> Option.value_exn
 
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let reduced_ops = Undo.preprocess (oldops @ newops) in
@@ -154,7 +153,7 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
-let owner (host:string) : Uuid.t =
+let owner (host:string) : Uuidm.t =
   host
   |> Account.auth_domain_for
   |> Account.owner
@@ -193,14 +192,14 @@ let save (c : canvas) : unit =
   Serialize.save_binary_to_db c.host c.ops;
   let json = Serialize.json_unversioned_filename c.host in
   let root = Serialize.root_of c.host in
-  ignore (Util.convert_bin_to_json ~root c.host json)
+  ignore (File.convert_bin_to_json ~root c.host json)
 
 
 let save_test (c: canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
   let file = Serialize.json_unversioned_filename host in
-  let host = if Util.file_exists ~root:Testdata file
+  let host = if File.file_exists ~root:Testdata file
              then
                host
                ^ "_"
@@ -234,213 +233,5 @@ let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.
 let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   matching_routes ~uri ~verb c
 
-(* ------------------------- *)
-(* Events *)
-(* ------------------------- *)
-
-let all_tlids (c: canvas) : tlid list =
-  List.map ~f:(fun tl -> tl.tlid) c.toplevels
-
-let initial_dval_map (c: canvas) : RTT.dval_map =
-  c.toplevels
-  |> TL.dbs
-  |> User_db.dbs_as_env
-
-let sample_request =
-  PReq.to_dval PReq.sample
-
-let sample_event =
-  RTT.DIncomplete
-
-let default_env (c: canvas) : RTT.dval_map =
-  initial_dval_map c
-  |> RTT.DvalMap.set ~key:"request" ~data:sample_request
-  |> RTT.DvalMap.set ~key:"event" ~data:sample_event
-
-let global_vars (c: canvas) : string list =
-  RTT.DvalMap.keys (default_env c)
-
-let initial_envs (c: canvas) (h: Handler.handler)
-  : RTT.dval_map list =
-  let initial_env = initial_dval_map c in
-  let default =
-     match Handler.module_type h with
-     | `Http ->
-       RTT.DvalMap.set initial_env "request" sample_request
-     | `Event ->
-       RTT.DvalMap.set initial_env "event" sample_event
-     | `Cron -> initial_env
-     | `Unknown -> default_env c
-  in
-  (match Handler.event_desc_for h with
-  | None -> [default]
-  | Some (space, path, modifier as d) ->
-    let events = SE.load_events c.id d in
-    if events = []
-    then [default]
-    else
-      List.map events
-        ~f:(fun e ->
-            match Handler.module_type h with
-            | `Http ->
-              let with_r = RTT.DvalMap.set initial_env "request" e in
-              let name = Handler.event_name_for_exn h in
-              let bound = Http.bind_route_params_exn path name in
-              Util.merge_left with_r bound
-            | `Event ->
-              RTT.DvalMap.set initial_env "event" e
-            | `Cron  -> initial_env
-            | `Unknown -> initial_env (* can't happen *)
-        ))
-
-
-let get_404s (c: canvas) : SE.four_oh_four list =
-  let match_desc h d : bool =
-    let (space, path, modifier) = d in
-    match Handler.event_desc_for h with
-    | Some (h_space, h_path, h_modifier) ->
-      Http.path_matches_route ~path h_path
-      && h_modifier = modifier
-      && h_space = space
-    | None -> false
-  in
-
-  let unused_descs =
-    SE.list_events c.id
-    |> List.filter
-      ~f:(fun d ->
-          not (List.exists (TL.handlers c.toplevels)
-                 ~f:(fun h -> match_desc h d)))
-    |> List.map ~f:(fun d -> (d, SE.load_events c.id d))
-  in
-
-  unused_descs
-
-
-(* ------------------------- *)
-(* Execution *)
-(* ------------------------- *)
-type analysis_result = tlid * Ast.analysis list
-type executable_fn_id = (tlid * id * int)
-
-let analysis_result_to_yojson (id, results) =
-  `Assoc [ ("id", `Int id)
-         ; ("results", Ast.analysis_list_to_yojson results)
-         ]
-
-let unlocked (c: canvas) : tlid list =
-  c.toplevels
-  |> TL.dbs
-  |> User_db.unlocked c.id c.owner
-  |> List.map ~f:(fun x -> x.tlid)
-
-let function_value
-    ~(exe_fn_ids: executable_fn_id list)
-    ~(execution_id: id)
-    (c: canvas)
-    (f: RTT.user_fn)
-  : analysis_result =
-  let fn_ids =
-    exe_fn_ids
-    |> List.filter_map
-      ~f:(fun (tlid, id, cursor) ->
-          if tlid = f.tlid && cursor = 0
-          then Some id
-          else None)
-  in
-  let env = Functions.environment_for_user_fn f in
-  let state : RTT.exec_state =
-    { ff = FF.analysis
-    ; tlid = f.tlid
-    ; host = c.host
-    ; account_id = c.owner
-    ; canvas_id = c.id
-    ; user_fns = c.user_functions
-    ; exe_fn_ids = fn_ids
-    ; env = env
-    ; dbs = TL.dbs c.toplevels
-    ; id = execution_id
-    }
-  in
-  (f.tlid, [Functions.execute_for_analysis state f])
-
-let handler_value
-    ~(exe_fn_ids : executable_fn_id list)
-    ~(execution_id: id)
-    (c: canvas)
-    (h : Handler.handler)
-  : analysis_result
-   =
-  let fn_ids i =
-    List.filter_map exe_fn_ids
-      ~f:(fun (tlid, id, cursor) ->
-          if tlid = h.tlid && i = cursor
-          then Some id
-          else None)
-  in
-  let state i env : RTT.exec_state =
-    { ff = FF.analysis
-    ; tlid = h.tlid
-    ; host = c.host
-    ; account_id = c.owner
-    ; canvas_id = c.id
-    ; user_fns = c.user_functions
-    ; exe_fn_ids = fn_ids i
-    ; env = env
-    ; dbs = TL.dbs c.toplevels
-    ; id = execution_id
-    }
-  in
-  let envs = initial_envs c h in
-  let values =
-    List.mapi
-      ~f:(fun i env ->
-          Handler.execute_for_analysis (state i env) h)
-      envs
-  in
-  (h.tlid, values)
-
-(* The full response with everything *)
-type get_analysis_response =
-  { analyses: analysis_result list
-  ; global_varnames : string list
-  ; unlocked_dbs : tlid list
-  ; fofs : SE.four_oh_four list [@key "404s"]
-  } [@@deriving to_yojson]
-
-(* A subset of responses to be merged in *)
-type rpc_response =
-  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
-  ; global_varnames : string list (* replace *)
-  ; toplevels : TL.toplevel_list (* replace *)
-  ; user_functions : RTT.user_fn list (* replace *)
-  ; unlocked_dbs : tlid list (* replace *)
-  } [@@deriving to_yojson]
-
-
-let to_get_analysis_frontend (vals : analysis_result list)
-      (unlocked : tlid list)
-      (f404s: SE.four_oh_four list)
-      (c : canvas) : string =
-  { analyses = vals
-  ; global_varnames = global_vars c
-  ; unlocked_dbs = unlocked
-  ; fofs = f404s
-  }
-  |> get_analysis_response_to_yojson
-  |> Yojson.Safe.to_string ~std:true
-
-
-let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
-    (unlocked : tlid list)
-  : string =
-  { new_analyses = vals
-  ; global_varnames = global_vars c
-  ; toplevels = c.toplevels
-  ; user_functions = c.user_functions
-  ; unlocked_dbs = unlocked
-  }
-  |> rpc_response_to_yojson
-  |> Yojson.Safe.to_string ~std:true
 
 

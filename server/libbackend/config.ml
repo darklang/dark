@@ -1,5 +1,4 @@
 open Core
-
 (* ------------------------- *)
 (* Note: if you add an env-var in development, you'll probably need to
  * restart the dev container. *)
@@ -71,6 +70,7 @@ let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 let server_dir = root_dir ^ "server/"
 let appdata_dir = persist_dir ^ "appdata/"
 let testdata_dir = server_dir ^ "test_appdata/"
+let testresult_dir = run_dir ^ "test_results/"
 let log_dir = run_dir ^ "logs/"
 let serialization_dir = server_dir ^ "serialization/"
 let completed_test_dir = run_dir ^ "completed_tests/"
@@ -95,6 +95,7 @@ type root = Log
           | Webroot
           | Completed_test
           | Testdata
+          | Testresults
           | Bin_root
           | Appdata
           | Swagger
@@ -113,6 +114,7 @@ let dir root =
   | Appdata -> appdata_dir
   | Swagger -> swagger_dir
   | Testdata -> testdata_dir
+  | Testresults -> testresult_dir
   | Migrations -> migrations_dir
   | No_check -> ""
 
@@ -128,20 +130,33 @@ let __unused_trigger_queue_workers = bool "DARK_CONFIG_TRIGGER_QUEUE_WORKERS"
 (* ------------------------- *)
 (* Logs *)
 (* ------------------------- *)
-let logging_driver =
-  string_option "DARK_CONFIG_LOGGING_FORMAT" ["stackdriver"; "regular"]
+let log_format : [ `Stackdriver | `Regular | `Decorated ] =
+  let as_str =
+    string_option "DARK_CONFIG_LOGGING_FORMAT"
+      ["stackdriver"; "regular"; "decorated"]
+  in
+  match as_str with
+  | "stackdriver" -> `Stackdriver
+  | "regular" -> `Regular
+  | "decorated" -> `Decorated
+  | _ -> failwith ("Invalid logging format: " ^ as_str)
 
-let should_use_stackdriver_logging : bool =
-  logging_driver = "stackdriver"
 
-let log_level : string =
-  string_option
-    "DARK_CONFIG_LOGLEVEL"
-    ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
-
-let log_decorate : bool =
-  (* Add colors and indentation, etc, to logs *)
-  bool "DARK_CONFIG_LOG_DECORATE"
+let log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ] =
+  let as_str =
+    string_option
+      "DARK_CONFIG_LOGLEVEL"
+      ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
+  in
+  match as_str with
+  | "off" -> `Off
+  | "fatal" -> `Fatal
+  | "error" -> `Error
+  | "warn" -> `Warn
+  | "info" -> `Info
+  | "debug" -> `Debug
+  | "all" -> `All
+  | _ -> failwith ("Invalid level name:" ^ as_str)
 
 
 let should_write_shape_data =

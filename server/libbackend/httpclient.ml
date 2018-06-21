@@ -1,6 +1,8 @@
 (* Amazingly, the standard ocaml stuff for a http client is so shit we have to make our own shitty version *)
-open Core
+open Core_kernel
+open Libexecution
 module C = Curl
+
 
 type verb = GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS [@@deriving show]
 type headers = string list [@@deriving show]

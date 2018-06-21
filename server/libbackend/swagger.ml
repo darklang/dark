@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 (* Not taken from  *)
 (* https://github.com/natebrennand/swagger/blob/master/schema.mli *)
@@ -31,4 +31,4 @@ type schema = { basePath: string
               } [@@deriving yojson]
 
 let parse (filename: string) : schema =
-  Util.readjsonfile ~root:Swagger ~conv:schema_of_yojson filename
+  File.readjsonfile ~root:Swagger ~conv:schema_of_yojson filename

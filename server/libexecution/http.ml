@@ -1,4 +1,4 @@
-open Core
+open Core_kernel
 
 module RT = Types.RuntimeT
 

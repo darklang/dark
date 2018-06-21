@@ -1,6 +1,6 @@
-open Core
-open Lib
+open Core_kernel
 
+open Lib
 open Types.RuntimeT
 module RT = Runtime
 
@@ -931,7 +931,7 @@ let fns : Lib.shortfn list = [
   Don't rely on either the size or the algorithm."
   ; f = InProcess
         (function
-          | (_, [DStr s]) -> DStr (Util.digest384 s)
+          | (_, [DStr s]) -> DStr (Libtarget.digest384 s)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -945,7 +945,7 @@ let fns : Lib.shortfn list = [
   ; d = "Take a string and hash it using SHA384."
   ; f = InProcess
         (function
-          | (_, [DStr s]) -> DStr (Util.digest384 s)
+          | (_, [DStr s]) -> DStr (Libtarget.digest384 s)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
@@ -960,7 +960,7 @@ let fns : Lib.shortfn list = [
   ; d = "Take a string and hash it using SHA256."
   ; f = InProcess
         (function
-          | (_, [DStr s]) -> DStr (Util.digest256 s)
+          | (_, [DStr s]) -> DStr (Libtarget.digest256 s)
           | (_, args) -> fail args)
   ; pr = None
   ; ps = true
