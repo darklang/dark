@@ -614,17 +614,14 @@ let execute_handler (state: exec_state) (h: Handler.handler) : dval =
   execute state env h.ast
 
 let environment_for_user_fn (ufn: user_fn) : dval_map =
-  let filled =
-    List.filter_map ~f:ufn_param_to_param ufn.metadata.parameters
-  in
   let param_to_dval (p: param) : dval =
     DIncomplete (* TODO(ian): we should trace these correctly *)
   in
-  List.fold_left
-    ~f:(fun acc f ->
-        Map.set ~key:f.name ~data:(param_to_dval f) acc)
-    ~init:DvalMap.empty
-    filled
+  ufn.metadata.parameters
+  |> List.filter_map ~f:ufn_param_to_param
+  |> List.map ~f:(fun f -> (f.name, param_to_dval f))
+  |> DvalMap.of_alist_exn
+
 
 
 (* -------------------- *)
