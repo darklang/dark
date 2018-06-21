@@ -46,12 +46,109 @@ let execute ~op ~quiet ~f sql =
         ~bt
         ~info:[("sql", sql); ("time", time () |> string_of_float)]
 
+type sql = Int of int
+         | String of string
+         | Uuid of Uuidm.t
+         | Binary of string
+         | Secret of string
+         | DvalJson of Types.RuntimeT.dval
+         | Null
+
+let to_binary_bool sql : bool =
+  match sql with
+  | Binary _ -> true
+  | _ -> false
+
+let to_param sql : string =
+  match sql with
+  | Int i -> string_of_int i
+  | String str -> str
+  | Uuid uuid -> Uuidm.to_string uuid
+  | Binary str -> str (* the to_binary_bool handled this *)
+  | Secret str -> str
+  | DvalJson dv -> Dval.dval_to_json_string dv
+  | Null -> "null"
+
+let to_log sql : string =
+  let abbrev s =
+    if String.length s > 30
+    then (String.slice s 0 30) ^ "..."
+    else s
+  in
+  match sql with
+  | Int i -> string_of_int i
+  | String str -> abbrev str
+  | Uuid uuid -> Uuidm.to_string uuid
+  | Binary str -> "<binary>"
+  | Secret str -> "<secret>"
+  | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
+  | Null -> "null"
+
+let execute2 ~name ~op  ~params sql
+    ~(f: ?params: string array ->
+      ?binary_params : bool array ->
+      string -> Postgresql.result) =
+  let start = Unix.gettimeofday () in
+  let time () =
+    let finish = Unix.gettimeofday () in
+    (finish -. start) *. 1000.0
+  in
+  let binary_params =
+    params
+    |> List.map ~f:to_binary_bool
+    |> Array.of_list
+  in
+  let string_params =
+    params
+    |> List.map ~f:to_param
+    |> Array.of_list
+  in
+  let log_string =
+    params
+    |> List.map ~f:to_log
+    |> String.concat ~sep:", "
+  in
+  let log cond =
+    let t = time () in
+    Log.infO
+      ("sql (" ^ op ^ ": " ^ name ^ "): [" ^ log_string ^ "]") cond ~time:t;
+    Log.debuG name ("[" ^ log_string ^ "]") ~stop:1000;
+  in
+  try
+    let result = f sql ~binary_params ~params:string_params in
+    log "success";
+    result
+
+  with e  ->
+    let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
+    log "fail";
+
+    let msg =
+      match e with
+      | Postgresql.Error (Unexpected_status (_, msg, _)) -> msg
+      | Postgresql.Error pge -> Postgresql.string_of_error pge
+      | pge -> (Exn.to_string pge)
+    in
+      Exception.storage
+        msg
+        ~bt
+        ~info:[("time", time () |> string_of_float)]
+
+
+
 
 
 let run_sql ?(quiet=false) (sql: string) : unit =
   ignore
     (execute sql ~op:"run" ~quiet
        ~f:(conn#exec ~expect:[PG.Command_ok]))
+
+
+let run_sql2 (sql: string) ~(params: sql list) ~(name:string) : unit =
+  ignore
+    (execute2 ~op:"run" ~params ~name
+       ~f:(conn#exec ~expect:[PG.Command_ok]) sql )
+
 
 let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
   sql
@@ -68,19 +165,16 @@ let exists_via_sql ?(quiet=false) (sql: string) : bool =
 (* oplists *)
 (* ------------------------- *)
 let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  let data = Dbp.binary data in
-  Printf.sprintf
-    (* this is an upsert *)
+  run_sql2
+    ~name:"save_oplists"
     "INSERT INTO oplists
     (host, digest, data)
-    VALUES (%s, %s, %s)
+    VALUES ($1, $2, $3)
     ON CONFLICT (host, digest) DO UPDATE
-    SET data = %s;"
-    (Dbp.host host)
-    (Dbp.string digest)
-    data
-    data
-  |> run_sql ~quiet:true
+    SET data = $3;"
+    ~params:[String host; String digest; Binary data]
+
+
 
 let load_oplists ~(host: string) ~(digest: string) : string option =
   (* It's quite a bit of work to make a binary bytea go into the DB and
