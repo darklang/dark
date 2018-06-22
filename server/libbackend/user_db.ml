@@ -59,31 +59,30 @@ let cols_for (db: db) : (string * tipe) list =
     | _ ->
       None)
   |> fun l -> ("id", TID) :: l
+
 let query_for (col: string) (dv: dval) : string =
-  Printf.sprintf
-    "AND (data->%s)%s = %s" (* compare against json in a string *)
-    (Dbp.string col)
-    (Dbp.cast_expression_for dv
-     |> Option.value ~default:"")
-    (Dbp.dvaljson dv)
-let rec fetch_by ~state db (col: string) (dv: dval) : dval =
-  Printf.sprintf
-    "SELECT id, data
-     FROM %s
-     WHERE table_tlid = %s
-     AND user_version = %s
-     AND dark_version = %s
-     %s"
-    (Dbp.table user_data_table)
-    (Dbp.tlid db.tlid)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-    (query_for col dv)
-  |> fetch_via_sql
-  |> List.map ~f:(to_obj ~state db)
-  |> DList
-and
-fetch_by_many ~state db (pairs:(string*dval) list) : dval =
+  if col = "id" (* the id is not stored in the jsonb *)
+  then
+    match dv with
+    | DID id ->
+      Printf.sprintf
+        "AND id = %s"
+        (Dbp.uuid id)
+    | DStr str -> (* This is what you get for accidentally
+                     implementating a dynamic language *)
+      Printf.sprintf
+        "AND id = %s"
+        (Dbp.uuid (Uuidm.of_string str |> Option.value_exn))
+    | _ -> Exception.client "Invalid id type"
+  else
+    Printf.sprintf
+      "AND (data->%s)%s = %s" (* compare against json in a string *)
+      (Dbp.string col)
+      (Dbp.cast_expression_for dv
+       |> Option.value ~default:"")
+      (Dbp.dvaljson dv)
+
+let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   let conds =
     pairs
     |> List.map ~f:(fun (k,v) -> query_for k v)
@@ -104,6 +103,9 @@ fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   |> fetch_via_sql
   |> List.map ~f:(to_obj ~state db)
   |> DList
+and
+fetch_by ~state db (col: string) (dv: dval) : dval =
+  fetch_by_many ~state db [(col, dv)]
 and
 find ~state db id  =
   Printf.sprintf
@@ -250,6 +252,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
         |> DList)
     ~state db obj
 and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
+  (* TODO: what if it has an id already *)
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Printf.sprintf
