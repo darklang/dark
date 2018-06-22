@@ -116,8 +116,8 @@ let execute2 ~name ~op ~params sql
     Log.debuG sql (name ^ ": [" ^ log_string ^ "]") ~stop:1000;
   in
   try
-    let result = f ~binary_params ~params:string_params (Log.pp "sql"
-                                                           sql) in
+    let result = f ~binary_params ~params:string_params
+        (Log.debug "sql" sql) in
     log "success";
     result
 
