@@ -374,7 +374,7 @@ let t_stored_event_roundtrip () =
   let listed = SE.list_events id1 in
   AT.check
     (AT.list at_desc) "list host events"
-    (List.sort ~cmp:compare [desc1; desc1; desc2; desc3])
+    (List.sort ~cmp:compare [desc1; desc2; desc3])
     (List.sort ~cmp:compare listed);
 
   let loaded1 = SE.load_events id1 desc1 in
@@ -549,7 +549,7 @@ let suite =
   ; "undo_fns", `Quick, t_undo_fns
   ; "int_add_works", `Quick, t_int_add_works
   ; "lambda_with_foreach", `Quick, t_lambda_with_foreach
-  (* ; "stored_events", `Quick, t_stored_event_roundtrip *)
+  ; "stored_events", `Quick, t_stored_event_roundtrip
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
