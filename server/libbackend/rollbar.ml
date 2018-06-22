@@ -116,10 +116,10 @@ let report_lwt (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result Lwt.t =
     >|= function
     | CURLE_OK -> `Success
     | other ->
-        Log.erroR "Rollbar err" (Curl.strerror other);
+        Log.erroR "Rollbar err" ~data:(Curl.strerror other);
         `Failure
   with err ->
-    Log.erroR "Rollbar err" err;
+    Log.erroR "Rollbar err" ~data:(Log.dump err);
     Lwt.fail err
   end[%lwt.finally Curl.cleanup c; return ()]
 

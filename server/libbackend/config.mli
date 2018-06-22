@@ -26,7 +26,7 @@ val dir : root -> string
 val port : int
 
 val log_format : [`Stackdriver | `Regular | `Decorated ]
-val log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
+val log_level : Libexecution.Log.level
 
 val should_write_shape_data : bool
 

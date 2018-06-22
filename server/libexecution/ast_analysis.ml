@@ -465,8 +465,7 @@ and call_fn ~(engine:engine) ~(state: exec_state)
   in
 
   let raise_arglist_error bt args arglist : unit =
-    Log.erroR ~name:"execution" "exception caught" args
-               ~f:Dval.dvalmap_to_string;
+    Log.erroR "execution exception" ~data:(Dval.dvalmap_to_string args);
     let all = List.zip_exn fn.parameters arglist in
     let invalid =
       List.filter all

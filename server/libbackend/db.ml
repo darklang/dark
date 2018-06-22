@@ -21,7 +21,10 @@ let execute ~op ~quiet ~f sql =
     let t = time () in
     if quiet && t < 100.0
     then
-      Log.infO ("sql (" ^ op ^ ", " ^ msg ^ ")") sql
+      Log.infO "sql" ~params:[ "op", op
+                             ; "sql", sql
+                             ; "msg", msg
+                             ; "time", string_of_float t]
   in
 
   try
@@ -83,10 +86,11 @@ let to_log sql : string =
   | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
   | Null -> "null"
 
-let execute2 ~name ~op ~params sql
+let execute2 ~name ~op ~params
     ~(f: params: string array ->
       binary_params : bool array ->
-      string -> Postgresql.result) =
+      string -> Postgresql.result)
+    (sql : string) : Postgresql.result =
   let start = Unix.gettimeofday () in
   let time () =
     let finish = Unix.gettimeofday () in
@@ -107,21 +111,15 @@ let execute2 ~name ~op ~params sql
     |> List.map ~f:to_log
     |> String.concat ~sep:", "
   in
-  let log cond =
-    (* let t = time () in *)
-    Log.infO
-      cond ("sql (" ^ op ^ ": " ^ name ^ "): [" ^ log_string ^ "]");
-    Log.debuG sql (name ^ ": [" ^ log_string ^ "]");
-  in
   try
-    let result = f ~binary_params ~params:string_params
-        (Log.debug "sql" sql) in
-    log "success";
+    let result = f ~binary_params ~params:string_params sql in
+    Log.succesS "sql" ~params:["op", op; "name", name];
     result
 
   with e  ->
     let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
-    log "fail";
+    Log.erroR "sql" ~params:[ "op", op; "name", name
+                            ; "params", log_string; "sql", sql];
 
     let msg =
       match e with

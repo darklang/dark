@@ -32,6 +32,6 @@ let init () =
     Account.init ();
     Serialize.write_shape_data ();
 
-    Libexecution.Log.infO "Libbackend" "Initialization Complete";
+    Libexecution.Log.infO "Libbackend" ~data:"Initialization Complete";
     has_inited := true;
 
