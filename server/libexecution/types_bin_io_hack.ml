@@ -23,6 +23,7 @@ open Core_kernel
 
 
 type id = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
+type id_list = id list [@@deriving eq, compare, show, yojson, sexp, bin_io]
 type 'a or_blank = Blank of id
                  | Filled of id * 'a
                  | Flagged of id * (string or_blank) * int * ('a or_blank) * ('a or_blank)

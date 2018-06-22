@@ -203,8 +203,10 @@ type engine =
 }
 
 let rec exec ~(engine: engine)
-              ~(state: exec_state)
-              (st: symtable) (expr: expr) : dval =
+             ~(state: exec_state)
+             (st: symtable)
+             (expr: expr)
+  : dval =
   let exe = exec ~engine ~state in
   let ctx = engine.ctx in
   let trace = engine.trace in
@@ -493,13 +495,19 @@ and call_fn ~(engine:engine) ~(state: exec_state)
     if paramsIncomplete arglist
     then DIncomplete
     else
-      let executingUnsafe = not fn.preview_execution_safe
-                            && (List.mem ~equal:(=) state.exe_fn_ids id
-                                || engine.ctx = Real)
+      let executing_unsafe = not fn.preview_execution_safe
+                             && (List.mem ~equal:(=) state.exe_fn_ids id
+                                 || engine.ctx = Real)
       in
+      if executing_unsafe
+      then
+        Log.infO "executing unsafe result" ~params:[ "fn", fnname
+                                                   ; "ctx", Log.dump engine.ctx
+                                                   ; "id", Log.dump id];
+
       let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
       let maybe_store_result result =
-        if executingUnsafe
+        if executing_unsafe
           (* TODO: add an execution ID here so that multiple requests
            * with the same parameter (from a user) don't pollute old
            * requests. *)
@@ -513,7 +521,7 @@ and call_fn ~(engine:engine) ~(state: exec_state)
            | Real ->
              f (state, arglist)
            | Preview ->
-             if fn.preview_execution_safe || executingUnsafe
+             if fn.preview_execution_safe || executing_unsafe
              then f (state, arglist)
              else
                (match state.load_fn_result sfr_desc arglist with
@@ -575,6 +583,9 @@ let analysis_engine value_store : engine =
 
 let execute_saving_intermediates (state : exec_state) (ast: expr)
   : (dval * dval_store) =
+  Log.infO "Executing for intermediates"
+    ~params:[ "tlid", show_tlid state.tlid
+            ; "exe_fn_ids", Log.dump state.exe_fn_ids ];
   let value_store = Int.Table.create () in
   let engine = analysis_engine value_store in
   (exec ~engine ~state state.env ast, value_store)
@@ -592,6 +603,7 @@ let server_execution_engine : engine =
   }
 
 let execute state env expr : dval =
+  Log.infO "Executing for real" ~params:[ "tlid", show_tlid state.tlid ];
   exec env expr
     ~engine:server_execution_engine
     ~state
@@ -629,6 +641,7 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
 
 let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
     analysis =
+  Log.infO "Handler for analysis" ~data:(show_tlid state.tlid);
   let default_env = with_defaults h state.env in
   let state = { state with env = default_env } in
   let traced_symbols =
@@ -643,6 +656,7 @@ let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
 
 let execute_function_for_analysis (state : exec_state) (f : user_fn) :
     analysis =
+  Log.infO "Function for analysis" ~data:(show_tlid state.tlid);
   let traced_symbols =
     symbolic_execute state.ff state.env f.ast in
   let (ast_value, traced_values) =
