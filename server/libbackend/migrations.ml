@@ -30,28 +30,30 @@ let is_already_run (name) : bool =
 
 
 let run_system_migration (name: string) (sql:string) : unit =
-  Printf.sprintf
-    "DO
-       $do$
-         BEGIN
-           IF ((SELECT COUNT(*)
-                FROM system_migrations
-                WHERE name = %s) = 0)
-           THEN
-             %s;
-             INSERT INTO system_migrations
-             (name, execution_date, sql)
-             VALUES
-             (%s, CURRENT_TIMESTAMP, %s);
-           END IF;
-         END
-       $do$"
-    (Dbp.string name)
-    sql
-    (Dbp.string name)
-    (Dbp.sql sql)
-
-  |> Db.run_sql ~quiet:true
+  (* use printf since passing params seems not to work *)
+  let fullsql =
+    Printf.sprintf
+      "DO
+         $do$
+           BEGIN
+             IF ((SELECT COUNT(*)
+                  FROM system_migrations
+                  WHERE name = %s) = 0)
+             THEN
+               %s;
+               INSERT INTO system_migrations
+               (name, execution_date, sql)
+               VALUES
+               (%s, CURRENT_TIMESTAMP, %s);
+             END IF;
+           END
+         $do$"
+      (Dbp.string name)
+      sql
+      (Dbp.string name)
+      (Dbp.sql sql)
+  in
+  Db.run_sql2 ~params:[] fullsql ~name:"run_system_migration"
 
 let names () =
   File.lsdir ~root:Migrations ""
