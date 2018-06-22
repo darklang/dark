@@ -402,7 +402,6 @@ let create (host:host) (name:string) (id: tlid) : db =
   { tlid = id
   ; host = host
   ; display_name = name
-  ; actual_name = "user_" ^ name (* there's a schema too *)
   ; cols = []
   ; version = 0
   ; old_migrations = []
