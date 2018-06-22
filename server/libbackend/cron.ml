@@ -77,11 +77,10 @@ let should_execute (canvas_id: Uuidm.t) (h: Handler.handler) : bool =
       now >= should_run_after)
 
 let record_execution (canvas_id: Uuidm.t) (h: Handler.handler) : unit =
-  Printf.sprintf
-    "INSERT INTO \"cron_records\"
+  Db.run_sql2
+    "INSERT INTO cron_records
     (tlid, canvas_id)
-    VALUES (%s, %s)"
-    (Dbp.tlid h.tlid)
-    (Dbp.uuid canvas_id)
-  |> Db.run_sql ~quiet:true
+    VALUES ($1, $2)"
+    ~params:[Int h.tlid; Uuid canvas_id]
+    ~name:"Cron.record_execution"
 
