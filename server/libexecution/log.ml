@@ -14,23 +14,24 @@ let set_level (newlevel: level) : unit =
 
 let level_to_string (level: level) : string =
   match level with
-  | `Off -> "off"
-  | `Fatal -> "fatal"
-  | `Error -> "error"
-  | `Warn -> "warn"
-  | `Info -> "info"
-  | `Debug -> "debug"
-  | `All -> "all"
+  | `Off -> "OFF"
+  | `Fatal -> "FATAL"
+  | `Error -> "ERROR"
+  | `Warn -> "WARN"
+  | `Info -> "INFO"
+  | `Debug -> "DEBUG"
+  | `All -> "ALL"
 
 let level_to_color (level: level) : string =
+  (* https://misc.flogisoft.com/bash/tip_colors_and_formatting *)
   match level with
-  | `Off -> "off"
-  | `Fatal -> "fatal"
-  | `Error -> "error"
-  | `Warn -> "warn"
-  | `Info -> "info"
-  | `Debug -> "debug"
-  | `All -> "all"
+  | `Off -> ""
+  | `Fatal -> "\027[38;5;196m"
+  | `Error -> "\027[38;5;165m"
+  | `Warn -> "\027[38;5;108m"
+  | `Info -> "\027[38;5;38m"
+  | `Debug -> "\027[38;5;221m"
+  | `All -> ""
 
 
 
@@ -69,9 +70,6 @@ let should_log (user_level : level) : bool =
      | _ -> true)
   | `All -> true
 
-let print_endline =
-  Caml.print_endline
-
 (* ----------------- *)
 (* format *)
 (* ----------------- *)
@@ -83,7 +81,6 @@ let format : format ref =
 let set_format (newformat:format) =
   format := newformat
 
-
 let timestr time =
   if Float.is_nan time
   then ""
@@ -93,37 +90,34 @@ let timestr time =
     then result ^ "(SLOW REQUEST)"
     else result
 
-
-let print_console_log ~decorate ~level ~msg ~f x : unit =
-  let red = "\x1b[6;31m" in
-  let black = "\x1b[6;30m" in
-  let reset = "\x1b[0m" in
-  let prefix =
-    if decorate
-    then black ^ level_to_string level
-         ^ reset
-         ^ " " ^ red ^ msg ^ " "
-         ^ reset
-    else "log " ^ msg ^ ": "
+let format_string (s: string) =
+  let last = String.length s in
+  let str = String.slice s 0 (min 50 last) in
+  let str = Util.string_replace "\n" "\\n" str in
+  let str =
+    if String.contains str ' '
+    then "\"" ^ str ^ "\""
+    else str
   in
-  x
-  |> f
-  |> (fun s ->
-      let last = String.length s in
-      String.slice s 0 (min 1000 last))
-  |> (^) prefix
-  |> print_endline
+  str
 
-let print_stackdriver_log ~level ~msg ~f x : unit =
-  let prefix = msg ^ " " ^ ": " in
-  x
-  |> f
-  |> (fun s ->
-      let last = String.length s in
-      String.slice s 0 (min 1000 last))
-  |> (^) prefix
-  |> print_endline
-
+let print_console_log ~decorate ~level params : unit =
+  let color = if decorate then level_to_color level else "" in
+  let reset = if decorate then "\x1b[0m" else "" in
+  let paramstr = params
+                 |> List.map ~f:(fun (k,v) ->
+                     color ^ k ^ reset ^ "=" ^ format_string v)
+                 |> String.concat ~sep:" "
+  in
+  let msg =
+    color
+    ^ "log "
+    ^ "level=" ^ level_to_string level
+    ^ reset
+    ^ " "
+    ^ paramstr
+  in
+  Caml.print_endline msg
 
 let pP ?(f=Batteries.dump)
        ?(name:string="")
@@ -133,14 +127,23 @@ let pP ?(f=Batteries.dump)
        : unit =
   if should_log level
   then
+    let params = [ "name", name
+                 ; "msg", msg
+                 ; "data", f x
+                (* operation time *)
+                (* timestamp *)
+                (* slow request *)
+                (* ip address *)
+                 ]
+    in
+
     match !format with
     | `Stackdriver ->
-      print_console_log ~decorate:false ~level ~msg ~f x
-      (* print_stackdriver_log ~level ~msg ~f x *)
+      print_console_log ~decorate:false ~level params
     | `Regular ->
-      print_console_log ~decorate:false ~level ~msg ~f x
+      print_console_log ~decorate:false ~level params
     | `Decorated ->
-      print_console_log ~decorate:true ~level ~msg ~f x
+      print_console_log ~decorate:true ~level params
 
 let pp ?(f=Batteries.dump)
        ?(name:string="")
