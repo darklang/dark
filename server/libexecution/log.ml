@@ -82,14 +82,14 @@ let timestr time =
     else result
 
 
-let print_console_log ~decorate ~ind ~msg ~start ~stop ~time ~f x : unit =
+let print_console_log ~decorate ~level ~ind ~msg ~start ~stop ~time ~f x : unit =
   let red = "\x1b[6;31m" in
   let black = "\x1b[6;30m" in
   let reset = "\x1b[0m" in
   let indentStr = String.make ind '>' in
   let prefix =
     if decorate
-    then black ^ "log "
+    then black ^ level_to_string level
          ^ reset ^ indentStr
          ^ " " ^ red ^ msg ^ " "
          ^ reset
@@ -105,7 +105,7 @@ let print_console_log ~decorate ~ind ~msg ~start ~stop ~time ~f x : unit =
   |> (^) prefix
   |> print_endline
 
-let print_stackdriver_log ~msg ~start ~stop ~f ~time x : unit =
+let print_stackdriver_log ~level ~msg ~start ~stop ~f ~time x : unit =
   let prefix = msg ^ " " ^ timestr time ^ ": " in
   x
   |> f
@@ -127,15 +127,15 @@ let pP ?(f=Batteries.dump)
        (msg : string)
        (x : 'a)
        : unit =
-  if show && should_log level && (not (!loglevel = `Off))
+  if show && should_log level
   then
     match !format with
     | `Stackdriver ->
-      print_stackdriver_log ~msg ~start ~stop ~time ~f x
+      print_stackdriver_log ~level ~msg ~start ~stop ~time ~f x
     | `Regular ->
-      print_console_log ~decorate:false ~ind ~msg ~start ~stop ~time ~f x
+      print_console_log ~decorate:false ~level ~ind ~msg ~start ~stop ~time ~f x
     | `Decorated ->
-      print_console_log ~decorate:true ~ind ~msg ~start ~stop ~time ~f x
+      print_console_log ~decorate:true ~level ~ind ~msg ~start ~stop ~time ~f x
 
 let pp ?(f=Batteries.dump)
        ?(start=0)
