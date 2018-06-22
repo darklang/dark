@@ -155,7 +155,10 @@ let http_call (url: string) (query_params : (string * string list) list)
     (body, !result_headers)
 
 let call (url: string) (verb: verb) (headers: (string * string) list) (body: string) : string =
-  Log.debuG "HTTP" ((show_verb verb) ^ " (" ^ (body |> String.length |> string_of_int) ^ "): " ^ url) ;
+  Log.debuG "HTTP" ~params:[ "verb", show_verb verb
+                           ; "url", url
+                           ; "body", body |> String.length |> string_of_int
+                           ] ;
   let (results, _) = http_call url [] verb headers body  in
   results
 

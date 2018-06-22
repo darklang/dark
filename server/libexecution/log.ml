@@ -4,7 +4,9 @@ open Core_kernel
 (* levels *)
 (* ----------------- *)
 
-type level = [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ]
+type level = [`Off
+             | `Inspect | `Fatal | `Error | `Warn | `Info |
+              `Success | `Debug | `All ]
 
 let loglevel : level ref =
   ref `All
@@ -15,21 +17,25 @@ let set_level (newlevel: level) : unit =
 let level_to_string (level: level) : string =
   match level with
   | `Off -> "OFF"
+  | `Inspect -> "INSPECT"
   | `Fatal -> "FATAL"
   | `Error -> "ERROR"
   | `Warn -> "WARN"
   | `Info -> "INFO"
   | `Debug -> "DEBUG"
+  | `Success -> "SUCCESS"
   | `All -> "ALL"
 
 let level_to_color (level: level) : string =
   (* https://misc.flogisoft.com/bash/tip_colors_and_formatting *)
   match level with
   | `Off -> ""
+  | `Inspect -> "\027[38;5;196m"
   | `Fatal -> "\027[38;5;196m"
   | `Error -> "\027[38;5;165m"
   | `Warn -> "\027[38;5;108m"
   | `Info -> "\027[38;5;38m"
+  | `Success -> "\027[38;5;221m"
   | `Debug -> "\027[38;5;221m"
   | `All -> ""
 
@@ -38,35 +44,54 @@ let level_to_color (level: level) : string =
 let should_log (user_level : level) : bool =
   match user_level with
   | `Off -> false
+  | `Inspect ->
+    (match !loglevel with
+     | `Off -> false
+     | _ -> true)
   | `Fatal ->
     (match !loglevel with
      | `Off -> false
+     | `Inspect -> false
      | _ -> true)
   | `Error ->
     (match !loglevel with
      | `Off -> false
+     | `Inspect -> false
      | `Fatal -> false
      | _ -> true)
   | `Warn ->
     (match !loglevel with
      | `Off -> false
+     | `Inspect -> false
      | `Fatal -> false
      | `Error -> false
      | _ -> true)
   | `Info ->
     (match !loglevel with
      | `Off -> false
+     | `Inspect -> false
      | `Fatal -> false
      | `Error -> false
      | `Warn -> false
      | _ -> true)
-  | `Debug ->
+  | `Success ->
     (match !loglevel with
      | `Off -> false
+     | `Inspect -> false
      | `Fatal -> false
      | `Error -> false
      | `Warn -> false
      | `Info -> false
+     | _ -> true)
+  | `Debug ->
+    (match !loglevel with
+     | `Off -> false
+     | `Inspect -> false
+     | `Fatal -> false
+     | `Error -> false
+     | `Warn -> false
+     | `Info -> false
+     | `Success -> false
      | _ -> true)
   | `All -> true
 
@@ -119,22 +144,27 @@ let print_console_log ~decorate ~level params : unit =
   in
   Caml.print_endline msg
 
-let pP ?(f=Batteries.dump)
-       ?(name:string="")
+let dump (value:'a) : string =
+  Batteries.dump value
+
+let pP ?(data)
+       ?(params:((string * string) list)=[])
        ~(level:level)
-       (msg : string)
-       (x : 'a)
+       (name: string)
        : unit =
   if should_log level
   then
-    let params = [ "name", name
-                 ; "msg", msg
-                 ; "data", f x
+    let data_param =
+      match data with
+      | None -> []
+      | Some data -> ["data", data]
+    in
+    let params = [ "name", (Util.string_replace " " "_" name)
                 (* operation time *)
                 (* timestamp *)
                 (* slow request *)
                 (* ip address *)
-                 ]
+                 ] @ data_param @ params
     in
 
     match !format with
@@ -145,25 +175,27 @@ let pP ?(f=Batteries.dump)
     | `Decorated ->
       print_console_log ~decorate:true ~level params
 
-let pp ?(f=Batteries.dump)
-       ?(name:string="")
-       ~(level:level)
-       (msg : string)
-       (x : 'a)
-       : 'a =
-  pP ~level ~f ~name msg x;
+let inspecT
+    ?(f=Batteries.dump)
+    (name: string)
+    (x : 'a)
+  : unit =
+  pP ~level:`Inspect name ~params:["data", f x]
+
+let inspect
+    ?(f=Batteries.dump)
+    (name: string)
+    (x : 'a)
+  : 'a =
+  inspecT ~f name x;
   x
 
 let debuG = pP ~level:`Debug
-let debug = pp ~level:`Debug
 let infO = pP ~level:`Info
-let info = pp ~level:`Info
 let warN = pP ~level:`Warn
-let warn = pp ~level:`Warn
 let erroR = pP ~level:`Error
-let error = pp ~level:`Error
 let fataL = pP ~level:`Fatal
-let fatal = pp ~level:`Fatal
+let succesS = pP ~level:`Success
 
 (* ----------------- *)
 (* init *)

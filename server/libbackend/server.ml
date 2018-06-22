@@ -451,6 +451,7 @@ let server () =
   let stop,stopper = Lwt.wait () in
 
   let callback (ch, conn) req body =
+
     let handle_error ~(include_internals:bool) (e:exn) =
       let bt = Backtrace.Exn.most_recent () in
       (* TODO: if this raises an error we're hosed *)
@@ -513,10 +514,13 @@ let server () =
         let uri = req |> CRequest.uri in
 
         Log.infO "request"
-          ( host |> Option.value ~default:"Unsupported host"
-          , ip
-          , req |> CRequest.meth |> Cohttp.Code.string_of_method
-          , "http:" ^ Uri.to_string uri);
+          ~params:[ "host", Option.value ~default:"none" host
+                  ; "ip", ip
+                  ; "method", req
+                              |> CRequest.meth
+                              |> Cohttp.Code.string_of_method
+                  ; "uri", Uri.to_string uri
+                  ];
 
         match (Uri.path uri, host) with
         | (_, None) ->

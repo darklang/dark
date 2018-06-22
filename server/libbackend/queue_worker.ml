@@ -22,7 +22,9 @@ let dequeue_and_evaluate_all () : string =
           with
           | e ->
             let bt = Backtrace.Exn.most_recent () in
-            Log.erroR ("Deserialization error for host: " ^ endp) e;
+            Log.erroR "Deserialization error" ~params:[ "host", endp
+                                                      ; "exn", Log.dump e
+                                                      ];
             let _ = Rollbar.report e bt EventQueue in
             None)
     |> List.map

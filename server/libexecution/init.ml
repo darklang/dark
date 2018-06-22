@@ -14,6 +14,6 @@ let init log_level log_format libs =
     Log.init ~level:log_level ~format:log_format ();
     Libs.init libs;
 
-    Log.infO "Libexecution" "Initialization Complete";
+    Log.infO "Libexecution" ~data:"Initialization Complete";
     has_inited := true
 
