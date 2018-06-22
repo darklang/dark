@@ -21,9 +21,7 @@ let execute ~op ~quiet ~f sql =
     let t = time () in
     if quiet && t < 100.0
     then
-      Log.infO
-        ("sql (" ^ op ^ ", " ^ msg ^ "): " ^ sql)
-        "" ~time:t ~stop:1000
+      Log.infO ("sql (" ^ op ^ ", " ^ msg ^ ")") sql
   in
 
   try
@@ -110,10 +108,10 @@ let execute2 ~name ~op ~params sql
     |> String.concat ~sep:", "
   in
   let log cond =
-    let t = time () in
+    (* let t = time () in *)
     Log.infO
-      cond ("sql (" ^ op ^ ": " ^ name ^ "): [" ^ log_string ^ "]") ~time:t;
-    Log.debuG sql (name ^ ": [" ^ log_string ^ "]") ~stop:1000;
+      cond ("sql (" ^ op ^ ": " ^ name ^ "): [" ^ log_string ^ "]");
+    Log.debuG sql (name ^ ": [" ^ log_string ^ "]");
   in
   try
     let result = f ~binary_params ~params:string_params
