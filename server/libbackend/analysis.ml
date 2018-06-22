@@ -89,6 +89,7 @@ let handler_analysis
     ~params:[ "handler", show_tlid h.tlid
             ; "host", c.host
             ; "execution_id", show_id execution_id
+            ; "exe_fn_ids", Log.dump exe_fn_ids
             ];
   let fn_ids i =
     List.filter_map exe_fn_ids
@@ -99,7 +100,7 @@ let handler_analysis
   in
   let state i env : RTT.exec_state =
     Execution.state_for_analysis h.tlid
-      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
+      ~c ~exe_fn_ids:(fn_ids i |> Log.inspect "ids") ~execution_id ~env
   in
   let envs = Execution.initial_envs c h in
   let values =

@@ -68,15 +68,15 @@ let state_for
     (tlid: tlid)
   : RTT.exec_state =
   { ff = FF.analysis
-  ; tlid = tlid
+  ; tlid
   ; host = c.host
   ; account_id = c.owner
   ; canvas_id = c.id
   ; user_fns = c.user_functions
-  ; exe_fn_ids = []
-  ; env = env
+  ; exe_fn_ids
+  ; env
   ; dbs = TL.dbs c.toplevels
-  ; execution_id = execution_id
+  ; execution_id
   ; load_fn_result = Ast_analysis.load_nothing
   ; store_fn_result = Ast_analysis.store_nothing
   ;
