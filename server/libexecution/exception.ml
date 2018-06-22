@@ -53,15 +53,16 @@ let to_string ?(log=false) e =
   let msg = Exn.to_string e in
   if log
   then
-    (Log.print_endline (Backtrace.to_string bt);
-     Log.print_endline msg);
+    (Caml.print_endline (Backtrace.to_string bt);
+     Caml.print_endline msg);
   msg
 
 let log e =
+  (* TODO LOGGING *)
   let bt = Backtrace.Exn.most_recent () in
   let msg = Exn.to_string e in
-  Log.print_endline (Backtrace.to_string bt);
-  Log.print_endline msg
+  Caml.print_endline (Backtrace.to_string bt);
+  Caml.print_endline msg
 
 let raise_
     (tipe: exception_tipe)
