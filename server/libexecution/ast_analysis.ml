@@ -228,7 +228,7 @@ let rec exec ~(engine: engine)
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn
     in
-    call_fn ~engine ~state ~ind:0 name id fn args
+    call_fn ~engine ~state name id fn args
     (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
   (* This is a super hacky way to inject params as the result of
@@ -452,7 +452,7 @@ let rec exec ~(engine: engine)
   (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
   (*                                  Sexp.to_string) *)
 
-and call_fn ?(ind=0) ~(engine:engine) ~(state: exec_state)
+and call_fn ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
   let paramsIncomplete args =
@@ -465,7 +465,7 @@ and call_fn ?(ind=0) ~(engine:engine) ~(state: exec_state)
   in
 
   let raise_arglist_error bt args arglist : unit =
-    Log.erroR ~name:"execution" ~ind "exception caught" args
+    Log.erroR ~name:"execution" "exception caught" args
                ~f:Dval.dvalmap_to_string;
     let all = List.zip_exn fn.parameters arglist in
     let invalid =
