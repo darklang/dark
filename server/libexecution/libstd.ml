@@ -744,6 +744,55 @@ let fns : Lib.shortfn list = [
   ;
 
 
+  { pns = ["String::toFloat"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TFloat
+  ; d = "Returns the float value of the string"
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) ->
+              DFloat (float_of_string s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["String::toUppercase"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TList
+  ; d = "Returns the string, uppercased"
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) ->
+              DStr (String.uppercase s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+  { pns = ["String::toLowercase"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TList
+  ; d = "Returns the string, lowercased"
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) ->
+              DStr (String.lowercase s)
+          | (_, args) -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+
+
+
   { pns = ["String::length"]
   ; ins = []
   ; p = [par "s" TStr]
