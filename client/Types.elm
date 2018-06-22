@@ -488,6 +488,7 @@ type Modification = Error String
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   | ExecutingFunctionBegan TLID ID
+                  | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete TLID ID
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
