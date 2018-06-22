@@ -10,12 +10,10 @@ let check_filename ~(root:Config.root) ~mode f =
   let dir = Config.dir root in
   let f = dir ^ f in
 
-  let debug str value =
+  let debug name value =
     if false
-    then
-      Log.debug str value
-    else
-      value
+    then Log.debuG name ~data:(string_of_bool value);
+    value
   in
 
   if root <> No_check
@@ -32,7 +30,7 @@ let check_filename ~(root:Config.root) ~mode f =
       || (mode = `Read
           && not (Sys.is_file f = `Yes))) |> debug "irreg"
   then
-    (Log.erroR "SECURITY_VIOLATION" f;
+    (Log.erroR "SECURITY_VIOLATION" ~data:f;
     Exception.client "")
   else
     f

@@ -41,19 +41,25 @@ let current_hosts () : string list =
   |> List.dedup_and_sort
 
 let load_json_from_disk ~root (host:string) : Op.oplist option =
-  Log.infO "SERIALIZATION: Loading from disk" host;
+  Log.infO "SERIALIZATION" ~params:[ "load", "disk"
+                                   ; "format", "json"
+                                   ; "host", host];
   let filename = json_unversioned_filename host in
   File.maybereadjsonfile ~root ~conv:Op.oplist_of_yojson filename
 
 let load_preprocessed_json_from_disk ~root
     ~(preprocess:(string -> string))
     (host:string) : Op.oplist option =
-  Log.infO "SERIALIZATION: Loading preprocessed json from disk" host;
+  Log.infO "SERIALIZATION" ~params:[ "load_from", "disk"
+                                   ; "format", "preprocessed_json"
+                                   ; "host", host];
   let filename = json_unversioned_filename host in
   File.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
 
 let load_json_from_db (host:string) : Op.oplist option =
-  Log.infO "SERIALIZATION: Loading json from db" host;
+  Log.infO "SERIALIZATION" ~params:[ "load_from", "db"
+                                   ; "format", "json"
+                                   ; "host", host];
   host
   |> Db.load_json_oplists
   |> Option.map ~f:(fun ops_string ->
@@ -62,10 +68,10 @@ let load_json_from_db (host:string) : Op.oplist option =
       |> Op.oplist_of_yojson
       |> Result.ok_or_failwith)
 
-
-
 let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
-  Log.infO "SERIALIZATION: Saving json to disk" filename;
+  Log.infO "SERIALIZATION" ~params:[ "save_to", "disk"
+                                   ; "format", "json"
+                                   ; "filename", filename];
   ops
   |> Op.oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
@@ -73,21 +79,27 @@ let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
   |> File.writefile ~root filename
 
 let save_json_to_db (host: string) (ops: Op.oplist) : unit =
-  Log.infO "SERIALIZATION: Saving json to db" host;
+  Log.infO "SERIALIZATION" ~params:[ "save_to", "db"
+                                   ; "format", "json"
+                                   ; "host", host];
   ops
   |> Op.oplist_to_yojson
   |> Yojson.Safe.to_string
   |> Db.save_json_oplists ~host ~digest
 
 let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
-  Log.infO "SERIALIZATION: Saving binary to db" host;
+  Log.infO "SERIALIZATION" ~params:[ "save_to", "db"
+                                   ; "format", "disk"
+                                   ; "host", host];
   ops
   |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
   |> Bigstring.to_string
   |> Db.save_oplists host digest
 
 let load_binary_from_db (host: string) : Op.oplist option =
-  Log.infO "SERIALIZATION: Loading binary from db" host;
+  Log.infO "SERIALIZATION" ~params:[ "load_from", "db"
+                                   ; "format", "binary"
+                                   ; "host", host];
   Db.load_oplists host digest
   |> Option.map
     ~f:(fun x ->
@@ -118,10 +130,11 @@ let deserialize_ordered
   | (Some r, _) -> r
   | (None, []) -> []
   | (None, es) ->
-    Log.erroR "deserialization" es;
     let msgs =
-      List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex)) es
+      List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex))
+        es
     in
+    Log.erroR "deserialization" ~params:msgs;
     Exception.internal ~info:msgs ("storage errors with " ^ host)
 
 let load_deprecated_undo_json_from_disk =
@@ -130,7 +143,7 @@ let load_deprecated_undo_json_from_disk =
         (* this mutates all lambdas in the source to
          * the new format as of 53f3fb82
          *
-         * Safe because there's no other way [ "var" ] can
+          Safe because there's no other way [ "var" ] can
          * appear in the source (as of now).
          *)
         let transform_lambda s =

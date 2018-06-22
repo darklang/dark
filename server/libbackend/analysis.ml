@@ -85,6 +85,11 @@ let handler_analysis
     (h : Handler.handler)
   : analysis_result
    =
+  Log.infO "handler_analysis"
+    ~params:[ "handler", show_tlid h.tlid
+            ; "host", c.host
+            ; "execution_id", show_id execution_id
+            ];
   let fn_ids i =
     List.filter_map exe_fn_ids
       ~f:(fun (tlid, id, cursor) ->

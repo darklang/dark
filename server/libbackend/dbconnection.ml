@@ -7,14 +7,18 @@ module PG = Postgresql
 let rec rec_con depth =
   try
     let db = Config.postgres_settings in
-    Log.infO "Connecting to postgres" (db.host, db.dbname, db.user);
+    Log.infO "Connecting to postgres" ~params:[ "host", db.host
+                                              ; "dbname", db.dbname
+                                              ; "user", db.user];
     let c = new PG.connection ~host:db.host ~dbname:db.dbname
       ~user:db.user ~password:db.password ()  in
-    c#set_notice_processor (Log.infO "postgres");
+    c#set_notice_processor
+      (fun notice -> Log.infO "postgres notice" ~data:notice);
     c
   with
   | e ->
-      Log.infO "Couldn't connect to postgres, attempt " depth;
+      Log.infO "Couldn't connect to postgres"
+        ~params:["attempt", string_of_int depth];
       if depth < 10
       then
         (Unix.sleep 1;

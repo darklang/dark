@@ -142,18 +142,21 @@ let log_format : [ `Stackdriver | `Regular | `Decorated ] =
   | _ -> failwith ("Invalid logging format: " ^ as_str)
 
 
-let log_level : [`Off | `Fatal | `Error | `Warn | `Info | `Debug | `All ] =
+let log_level =
   let as_str =
     string_option
       "DARK_CONFIG_LOGLEVEL"
-      ["off"; "fatal"; "error"; "warn"; "info"; "debug"; "all"]
+      [ "off"; "inspect"; "fatal"; "error"
+       ; "warn"; "info"; "success"; "debug"; "all"]
   in
   match as_str with
   | "off" -> `Off
+  | "inspect" -> `Inspect
   | "fatal" -> `Fatal
   | "error" -> `Error
   | "warn" -> `Warn
   | "info" -> `Info
+  | "success" -> `Success
   | "debug" -> `Debug
   | "all" -> `All
   | _ -> failwith ("Invalid level name:" ^ as_str)

@@ -240,9 +240,6 @@ let rec to_human_repr (dv: dval) : string =
   (* contents of lists and objs should still be quoted *)
   | _ -> to_repr dv
 
-let pp = Log.debug ~f:to_repr
-let pP = Log.debuG ~f:to_repr
-
 (* For putting into URLs as query params *)
 let rec to_url_string (dv : dval) : string =
   match dv with

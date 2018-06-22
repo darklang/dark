@@ -76,24 +76,24 @@ let daily_cron ast : Handler.handler =
 let hop h =
   Op.SetHandler (tlid, pos, h)
 
-let check_exception ?(check=(fun _ -> true)) ~(f:unit -> 'a) msg =
+let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
   let e =
     try
       let r = f () in
-      Log.erroR "result was" r;
+      Log.erroR "result" ~data:(show_dval r);
       Some "no exception"
     with
     | Exception.DarkException ed ->
       if check ed
       then None
       else
-        (Log.erroR "check failed" ed;
+        (Log.erroR "check failed" ~data:(Log.dump ed);
         Some "Check failed")
     | e ->
       let bt = Backtrace.Exn.most_recent () in
       let msg = Exn.to_string e in
       print_endline (Backtrace.to_string bt);
-      Log.erroR "different exception" msg;
+      Log.erroR "different exception" ~data:msg;
       Some "different exception"
   in
   AT.check (AT.option AT.string) msg None e
@@ -128,7 +128,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
        | Sexp.List [Sexp.Atom key; value] ->
          (f key, ast_for_ value )
        | x ->
-         Log.infO "pair" pair;
+         Log.infO "pair" ~data:(Log.dump pair);
          failwith "invalid"
      in
      let args = List.map ~f:to_pair rest in
@@ -340,7 +340,7 @@ let t_case_insensitive_db_roundtrip () =
     AT.(check bool) "matched" true
       (List.mem ~equal:(=) (DvalMap.data v) value)
   | other ->
-    Log.erroR "error" ~f:show_dval other;
+    Log.erroR "error" ~data:(show_dval other);
     AT.(check bool) "failed" true false
 
 

@@ -68,9 +68,9 @@ let run () : unit =
     ~f:(fun name ->
         if is_already_run name
         then
-          Log.infO "migration already run" name
+          Log.infO "migration already run" ~data:name
         else
-          (Log.infO "new migration" name;
+          (Log.infO "new migration" ~data:name;
            let sql = File.readfile ~root:Migrations name in
            run_system_migration name sql
           ));
@@ -91,14 +91,15 @@ let move_json_oplist_into_db () : unit =
           in
           match ops with
           | None ->
-            Log.erroR "Found a host but couldn't load it" host;
+            Log.erroR "Found a host but couldn't load it" ~data:host;
           | Some o ->
             Serialize.save_json_to_db host o;
             let filename = Serialize.json_unversioned_filename host in
             File.rm ~root:Appdata filename
         with e ->
-          ("Dark Internal Error: (" ^ host ^ ") :" ^ Exn.to_string e)
-          |> Log.erroR "Found an error while moving the oplist into the DB")
+          Log.erroR "Found an error while moving the oplist into the DB"
+            ~params:["host", host; "exn", Exn.to_string e])
+
 
 
 
