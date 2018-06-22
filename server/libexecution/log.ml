@@ -135,7 +135,8 @@ let pP ?(f=Batteries.dump)
   then
     match !format with
     | `Stackdriver ->
-      print_stackdriver_log ~level ~msg ~f x
+      print_console_log ~decorate:false ~level ~msg ~f x
+      (* print_stackdriver_log ~level ~msg ~f x *)
     | `Regular ->
       print_console_log ~decorate:false ~level ~msg ~f x
     | `Decorated ->
