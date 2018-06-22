@@ -489,7 +489,8 @@ let exception_to_dval ~(log: bool) exc =
     let json = e
                |> Exception.exception_data_to_yojson
                |> Yojson.Safe.pretty_to_string in
-    if log then Log.print_endline json else ();
+    (* TODO LOGGING *)
+    if log then Caml.print_endline json else ();
     DError json
   | e ->
     e
