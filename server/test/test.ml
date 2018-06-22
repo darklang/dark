@@ -128,7 +128,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
        | Sexp.List [Sexp.Atom key; value] ->
          (f key, ast_for_ value )
        | x ->
-         Log.pP "pair" pair;
+         Log.infO "pair" pair;
          failwith "invalid"
      in
      let args = List.map ~f:to_pair rest in
@@ -167,14 +167,14 @@ let ast_for (ast: string) : expr =
             ^ (Re2.Regex.Match.get_exn ~sub:(`Index 1) m)
             ^ "\\\"\""))
   |> Sexp.of_string
-  |> (fun s ->
-        let b = Buffer.create 16000 in
-        Sexp.to_buffer_hum b s;
-        Log.pP "buf:" (Buffer.contents b);
-        s
-     )
+  (* |> (fun s -> *)
+  (*       let b = Buffer.create 16000 in *)
+  (*       Sexp.to_buffer_hum b s; *)
+  (*       Log.pP "buf:" (Buffer.contents b); *)
+  (*       s *)
+     (* ) *)
   |> ast_for_
-  |> Log.pp ~f:show_expr "expr"
+  (* |> Log.pp ~f:show_expr "expr" *)
 
 let execute (prog: string) : dval =
   prog
@@ -340,7 +340,7 @@ let t_case_insensitive_db_roundtrip () =
     AT.(check bool) "matched" true
       (List.mem ~equal:(=) (DvalMap.data v) value)
   | other ->
-    Log.pP "error" ~f:show_dval other;
+    Log.erroR "error" ~f:show_dval other;
     AT.(check bool) "failed" true false
 
 
