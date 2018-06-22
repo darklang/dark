@@ -463,6 +463,32 @@ updateMod mod (m, cmd) =
       ExecutingFunctionBegan tlid id ->
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         { m | executingFunctions = nexecutingFunctions } ! []
+      ExecutingFunctionRPC tlid id ->
+        let (params, focus) = ({ ops = []
+                   , executableFns =
+                       [(tlid, id, Analysis.cursor m tlid)]
+                   , target = Just (tlid, id)
+                   }, FocusNoChange)
+            localM =
+              List.foldl (\call m ->
+                case call of
+                  SetHandler tlid pos h ->
+                    TL.upsert m
+                      { id = tlid
+                      , pos = pos
+                      , data = TLHandler h
+                      }
+                  SetFunction f ->
+                    Functions.upsert m f
+                  _ -> m) m params.ops
+
+            (withFocus, wfCmd) =
+              updateMod (Many [ AutocompleteMod ACReset
+                              , processFocus localM focus
+                              ])
+                        (localM, Cmd.none)
+        in
+        withFocus ! [wfCmd, RPC.rpc withFocus FocusNoChange params]
       ExecutingFunctionComplete tlid id ->
         let nexecutingFunctions = List.filter ((/=) (tlid, id)) m.executingFunctions in
         { m | executingFunctions = nexecutingFunctions } ! []
@@ -1146,11 +1172,7 @@ update_ msg m =
     ExecuteFunctionButton tlid id ->
       let tl = TL.getTL m tlid in
       Many [ ExecutingFunctionBegan tlid id
-           , RPCFull ({ ops = []
-                      , executableFns =
-                          [(tlid, id, Analysis.cursor m tl.id)]
-                      , target = Just (tlid, id)
-                      }, FocusNoChange)
+           , ExecutingFunctionRPC tlid id
            ]
 
 
