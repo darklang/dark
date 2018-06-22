@@ -1,9 +1,22 @@
 open Core
+open Libexecution
 
 (* Low-level API *)
 val run_sql : ?quiet:bool -> string -> unit
 val fetch_via_sql : ?quiet:bool -> string -> string list list
 val exists_via_sql : ?quiet:bool -> string -> bool
+
+type sql = Int of int
+         | String of string
+         | Uuid of Uuidm.t
+         | Binary of string
+         | Secret of string
+         | DvalJson of Types.RuntimeT.dval
+         | Null
+
+val run_sql2 : params: sql list -> name:string -> string -> unit
+(* val fetch_via_sql2 : ?quiet:bool -> string -> string list list *)
+(* val exists_via_sql2 : ?quiet:bool -> string -> bool *)
 
 (* Saving canvases to the DB *)
 val save_oplists : host:string -> digest:string -> string -> unit
