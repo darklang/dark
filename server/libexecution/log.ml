@@ -22,6 +22,18 @@ let level_to_string (level: level) : string =
   | `Debug -> "debug"
   | `All -> "all"
 
+let level_to_color (level: level) : string =
+  match level with
+  | `Off -> "off"
+  | `Fatal -> "fatal"
+  | `Error -> "error"
+  | `Warn -> "warn"
+  | `Info -> "info"
+  | `Debug -> "debug"
+  | `All -> "all"
+
+
+
 let should_log (user_level : level) : bool =
   match user_level with
   | `Off -> false
@@ -82,7 +94,7 @@ let timestr time =
     else result
 
 
-let print_console_log ~decorate ~level ~msg ~start ~stop ~time ~f x : unit =
+let print_console_log ~decorate ~level ~msg ~f x : unit =
   let red = "\x1b[6;31m" in
   let black = "\x1b[6;30m" in
   let reset = "\x1b[0m" in
@@ -92,33 +104,28 @@ let print_console_log ~decorate ~level ~msg ~start ~stop ~time ~f x : unit =
          ^ reset
          ^ " " ^ red ^ msg ^ " "
          ^ reset
-         ^ timestr time
-         ^ ": "
-    else "log " ^ msg ^ " " ^ timestr time ^ ": "
+    else "log " ^ msg ^ ": "
   in
   x
   |> f
   |> (fun s ->
       let last = String.length s in
-      String.slice s (min start last) (min stop last))
+      String.slice s 0 (min 1000 last))
   |> (^) prefix
   |> print_endline
 
-let print_stackdriver_log ~level ~msg ~start ~stop ~f ~time x : unit =
-  let prefix = msg ^ " " ^ timestr time ^ ": " in
+let print_stackdriver_log ~level ~msg ~f x : unit =
+  let prefix = msg ^ " " ^ ": " in
   x
   |> f
   |> (fun s ->
       let last = String.length s in
-      String.slice s (min start last) (min stop last))
+      String.slice s 0 (min 1000 last))
   |> (^) prefix
   |> print_endline
 
 
 let pP ?(f=Batteries.dump)
-       ?(start=0)
-       ?(stop=0)
-       ?(time:float=Float.nan)
        ?(name:string="")
        ~(level:level)
        (msg : string)
@@ -128,24 +135,19 @@ let pP ?(f=Batteries.dump)
   then
     match !format with
     | `Stackdriver ->
-      print_stackdriver_log ~level ~msg ~start ~stop ~time ~f x
+      print_stackdriver_log ~level ~msg ~f x
     | `Regular ->
-      print_console_log ~decorate:false ~level ~msg ~start ~stop ~time ~f x
+      print_console_log ~decorate:false ~level ~msg ~f x
     | `Decorated ->
-      print_console_log ~decorate:true ~level ~msg ~start ~stop ~time ~f x
+      print_console_log ~decorate:true ~level ~msg ~f x
 
 let pp ?(f=Batteries.dump)
-       ?(start=0)
-       ?(stop=0)
-       ?(show:bool=true)
-       ?(time:float=Float.nan)
-       ?(ind=0)
        ?(name:string="")
        ~(level:level)
        (msg : string)
        (x : 'a)
        : 'a =
-  pP ~level ~f ~name ~start ~stop ~time msg x;
+  pP ~level ~f ~name msg x;
   x
 
 let debuG = pP ~level:`Debug
