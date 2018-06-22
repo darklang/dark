@@ -23,7 +23,7 @@ let execute ~op ~quiet ~f sql =
     then
       Log.infO
         ("sql (" ^ op ^ ", " ^ msg ^ "): " ^ sql)
-        "" ~time:t ~stop:10000
+        "" ~time:t ~stop:1000
   in
 
   try
@@ -70,9 +70,10 @@ let to_param sql : string =
   | Null -> "null"
 
 let to_log sql : string =
+  let max_length = 600 in
   let abbrev s =
-    if String.length s > 30
-    then (String.slice s 0 30) ^ "..."
+    if String.length s > max_length
+    then (String.slice s 0 max_length) ^ "..."
     else s
   in
   match sql with
@@ -84,9 +85,9 @@ let to_log sql : string =
   | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
   | Null -> "null"
 
-let execute2 ~name ~op  ~params sql
-    ~(f: ?params: string array ->
-      ?binary_params : bool array ->
+let execute2 ~name ~op ~params sql
+    ~(f: params: string array ->
+      binary_params : bool array ->
       string -> Postgresql.result) =
   let start = Unix.gettimeofday () in
   let time () =
@@ -111,11 +112,12 @@ let execute2 ~name ~op  ~params sql
   let log cond =
     let t = time () in
     Log.infO
-      ("sql (" ^ op ^ ": " ^ name ^ "): [" ^ log_string ^ "]") cond ~time:t;
-    Log.debuG name ("[" ^ log_string ^ "]") ~stop:1000;
+      cond ("sql (" ^ op ^ ": " ^ name ^ "): [" ^ log_string ^ "]") ~time:t;
+    Log.debuG sql (name ^ ": [" ^ log_string ^ "]") ~stop:1000;
   in
   try
-    let result = f sql ~binary_params ~params:string_params in
+    let result = f ~binary_params ~params:string_params (Log.pp "sql"
+                                                           sql) in
     log "success";
     result
 
@@ -144,10 +146,11 @@ let run_sql ?(quiet=false) (sql: string) : unit =
        ~f:(conn#exec ~expect:[PG.Command_ok]))
 
 
-let run_sql2 (sql: string) ~(params: sql list) ~(name:string) : unit =
+let run_sql2 ~(params: sql list) ~(name:string) (sql: string) : unit =
   ignore
-    (execute2 ~op:"run" ~params ~name
-       ~f:(conn#exec ~expect:[PG.Command_ok]) sql )
+    (execute2 ~op:"run" ~params ~name sql
+       ~f:(fun ~params ~binary_params sql ->
+           conn#exec ~expect:[PG.Command_ok] ~params ~binary_params sql))
 
 
 let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
