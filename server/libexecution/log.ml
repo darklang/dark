@@ -117,7 +117,7 @@ let timestr time =
 
 let format_string (str: string) =
   let len = String.length str in
-  let max_length  = 500 in
+  let max_length = 50 in
   let str =
     if len >= max_length
     then (String.slice str 0 max_length) ^ "..."
