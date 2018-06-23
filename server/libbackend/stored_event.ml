@@ -14,7 +14,7 @@ type four_oh_four = (event_desc * Types.RuntimeT.dval list)
 (* Event data *)
 (* ------------------------- *)
 let store_event (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) (event: RTT.dval) : unit =
-  Db.run_sql2
+  Db.run
     ~name:"stored_event.store_event"
     "INSERT INTO stored_events
      (canvas_id, module, path, modifier, timestamp, value)
@@ -53,7 +53,7 @@ let load_events (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : R
       | _ -> Exception.internal "Bad DB format for stored_events")
 
 let clear_events (canvas_id: Uuidm.t) : unit =
-  Db.run_sql2
+  Db.run
     ~name:"stored_event.clear_events"
     "DELETE FROM stored_events
      WHERE canvas_id = $1"

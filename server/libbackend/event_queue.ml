@@ -20,7 +20,7 @@ let status_to_enum status : string =
   | `Incomplete -> "error"
 
 let unlock_jobs (dequeuer: int) ~status : unit =
-  Db.run_sql2
+  Db.run
     ~name:"unlock_jobs"
     "UPDATE \"events\"
      SET status = $1
@@ -36,7 +36,7 @@ let finalize (dequeuer: int) ~status : unit =
   unlock_jobs ~status dequeuer
 
 let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
-  Db.run_sql2
+  Db.run
     ~name:"enqueue"
      "INSERT INTO events
      (status, dequeued_by, canvas_id, account_id,
@@ -76,7 +76,7 @@ let dequeue ~(canvas:Uuidm.t) ~(account:Uuidm.t) (execution_id: int) (space: str
   match fetched with
   | None -> None
   | Some [id; value; retries; flag_context] ->
-    Db.run_sql2
+    Db.run
       ~name:"dequeue_update"
       "UPDATE events
       SET status = 'locked'
@@ -96,7 +96,7 @@ let dequeue ~(canvas:Uuidm.t) ~(account:Uuidm.t) (execution_id: int) (space: str
 let put_back (item: t) ~status : unit =
   match status with
   | `OK ->
-    Db.run_sql2
+    Db.run
       ~name:"put_back_OK"
       "UPDATE \"events\"
       SET status = 'done'
@@ -105,7 +105,7 @@ let put_back (item: t) ~status : unit =
   | `Err ->
     if item.retries < 2
     then
-      Db.run_sql2
+      Db.run
         ~name:"put_back_Err<2"
         "UPDATE events
         SET status = 'new'
@@ -114,14 +114,14 @@ let put_back (item: t) ~status : unit =
         WHERE id = $2"
         ~params:[Int (item.retries + 1); Int item.id]
     else
-      Db.run_sql2
+      Db.run
         ~name:"put_back_Err>=2"
         "UPDATE events
         SET status = 'error'
         WHERE id = $2"
         ~params:[Int item.id]
   | `Incomplete ->
-      Db.run_sql2
+      Db.run
         ~name:"put_back_Incomplete"
         "UPDATE events
         SET status = 'new'

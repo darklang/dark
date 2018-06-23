@@ -17,7 +17,7 @@ type account = { username: username
 (* Adding *)
 (************************)
 let upsert_account (account:account) : unit =
-  Db.run_sql2
+  Db.run
     ~name:"upsert_account"
     "INSERT INTO accounts
     (id, username, name, email, admin, password)
@@ -35,7 +35,7 @@ let upsert_account (account:account) : unit =
             ; String account.password]
 
 let upsert_admin (account:account) : unit =
-  Db.run_sql2
+  Db.run
     ~name:"upsert_admin"
     "INSERT INTO accounts as u
     (id, username, name, email, admin, password)

@@ -27,15 +27,15 @@ let execution_id = 6543
 let clear_test_data () : unit =
   let owner = Canvas.owner "test" in
   let canvas = Canvas.fetch_canvas_id owner "test" in
-  Db.run_sql2 ~params:[Uuid canvas] ~name:"clear_events_test_data"
+  Db.run ~params:[Uuid canvas] ~name:"clear_events_test_data"
     "DELETE FROM events where canvas_id = $1";
-  Db.run_sql2 ~params:[Uuid canvas] ~name:"clear_stored_events_test_data"
+  Db.run ~params:[Uuid canvas] ~name:"clear_stored_events_test_data"
     "DELETE FROM stored_events where canvas_id = $1";
-  Db.run_sql2 ~params:[Uuid canvas] ~name:"clear_function_results_test_data"
+  Db.run ~params:[Uuid canvas] ~name:"clear_function_results_test_data"
     "DELETE FROM function_results where canvas_id = $1";
-  Db.run_sql2 ~params:[Uuid canvas] ~name:"clear_user_data_test_data"
+  Db.run ~params:[Uuid canvas] ~name:"clear_user_data_test_data"
     "DELETE FROM user_data WHERE canvas_id = $1";
-  Db.run_sql2 ~params:[Uuid canvas] ~name:"clear_canvases_test_data"
+  Db.run ~params:[Uuid canvas] ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = $1";
   ()
 

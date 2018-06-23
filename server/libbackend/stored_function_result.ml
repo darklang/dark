@@ -19,7 +19,7 @@ let hash (arglist : RTT.dval list) : string =
 (* ------------------------- *)
 
 let store (canvas_id, tlid, fnname, id) arglist result =
-  Db.run_sql2
+  Db.run
     ~name:"stored_function_result.store"
     "INSERT INTO function_results
      (canvas_id, tlid, fnname, id, hash, timestamp, value)
