@@ -47,7 +47,7 @@ let execute ~op ~quiet ~f sql =
         ~bt
         ~info:[("sql", sql); ("time", time () |> string_of_float)]
 
-type sql = Int of int
+type param = Int of int
          | String of string
          | Uuid of Uuidm.t
          | Binary of string
@@ -56,13 +56,13 @@ type sql = Int of int
          | DvalmapJsonb of Types.RuntimeT.dval_map
          | Null
 
-let to_binary_bool sql : bool =
-  match sql with
+let to_binary_bool param : bool =
+  match param with
   | Binary _ -> true
   | _ -> false
 
-let to_param sql : string =
-  match sql with
+let to_sql param : string =
+  match param with
   | Int i -> string_of_int i
   | String str -> str
   | Uuid uuid -> Uuidm.to_string uuid
@@ -72,14 +72,14 @@ let to_param sql : string =
   | DvalmapJsonb dvm -> Dval.dvalmap_to_string dvm
   | Null -> Postgresql.null
 
-let to_log sql : string =
+let to_log param : string =
   let max_length = 600 in
   let abbrev s =
     if String.length s > max_length
     then (String.slice s 0 max_length) ^ "..."
     else s
   in
-  match sql with
+  match param with
   | Int i -> string_of_int i
   | String str -> abbrev str
   | Uuid uuid -> Uuidm.to_string uuid
@@ -106,7 +106,7 @@ let execute2 ~name ~op ~params
   in
   let string_params =
     params
-    |> List.map ~f:to_param
+    |> List.map ~f:to_sql
     |> Array.of_list
   in
   let log_string =
@@ -135,13 +135,13 @@ let execute2 ~name ~op ~params
         ~info:[("time", time () |> string_of_float)]
 
 
-let run ~(params: sql list) ~(name:string) (sql: string) : unit =
+let run ~(params: param list) ~(name:string) (sql: string) : unit =
   ignore
     (execute2 ~op:"run" ~params ~name sql
        ~f:(fun ~params ~binary_params sql ->
            conn#exec ~expect:[PG.Command_ok] ~params ~binary_params sql))
 
-let fetch ~(params: sql list) ~(name:string) (sql: string)
+let fetch ~(params: param list) ~(name:string) (sql: string)
   : string list list =
   sql
   |> (execute2 ~op:"fetch" ~params ~name
@@ -149,7 +149,7 @@ let fetch ~(params: sql list) ~(name:string) (sql: string)
           conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql))
   |> fun res -> res#get_all_lst
 
-let fetch_one ~(params: sql list) ~(name:string) (sql: string)
+let fetch_one ~(params: param list) ~(name:string) (sql: string)
   : string list =
   sql
   |> execute2 ~op:"fetch_one" ~params ~name
@@ -161,7 +161,7 @@ let fetch_one ~(params: sql list) ~(name:string) (sql: string)
      | [] -> Exception.storage "Expected one result, got none"
      | _ -> Exception.storage "Expected exactly one result, got many"
 
-let fetch_one_option ~(params: sql list) ~(name:string) (sql: string)
+let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
   : string list option =
   sql
   |> execute2 ~op:"fetch_one_option" ~params ~name
