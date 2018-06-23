@@ -116,13 +116,12 @@ let execute2 ~name ~op ~params
   in
   try
     let result = f ~binary_params ~params:string_params sql in
-    Log.succesS "sql" ~params:["op", op; "name", name];
+    Log.succesS name ~params:["sql", op];
     result
 
   with e  ->
     let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
-    Log.erroR "sql" ~params:[ "op", op; "name", name
-                            ; "params", log_string; "sql", sql];
+    Log.erroR name ~params:[ "sql", op ; "params", log_string; "query", sql];
 
     let msg =
       match e with
