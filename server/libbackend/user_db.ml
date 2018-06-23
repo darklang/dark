@@ -88,19 +88,22 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
     |> List.map ~f:(fun (k,v) -> query_for k v)
     |> String.concat ~sep:"\n     "
   in
-  Printf.sprintf
-    "SELECT id, data
-     FROM %s
-     WHERE table_tlid = %s
-     AND user_version = %s
-     AND dark_version = %s
-     %s"
-    (Dbp.table user_data_table)
-    (Dbp.tlid db.tlid)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-    conds
-  |> fetch_via_sql
+  let sql =
+    Printf.sprintf
+      "SELECT id, data
+       FROM user_data
+       WHERE table_tlid = $1
+       AND user_version = $2
+       AND dark_version = $3
+       %s"
+      conds
+  in
+  Db.fetch
+    ~name:"fetch_by"
+    sql
+    ~params:[ Int db.tlid
+            ; Int db.version
+            ; Int current_dark_version]
   |> List.map ~f:(to_obj ~state db)
   |> DList
 and
@@ -108,32 +111,33 @@ fetch_by ~state db (col: string) (dv: dval) : dval =
   fetch_by_many ~state db [(col, dv)]
 and
 find ~state db id  =
-  Printf.sprintf
+  Db.fetch_one
+    ~name:"find"
     "SELECT DISTINCT id, data
-     FROM %s
-     WHERE id = %s
-     AND user_version = %s
-     AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.uuid id)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> fetch_via_sql
-  |> List.concat
+     FROM user_data
+     WHERE id = $1
+     AND user_version = $2
+     AND dark_version = $3"
+    ~params:[ Uuid id
+            ; Int db.version
+            ; Int current_dark_version]
   |> to_obj ~state db
 and
 find_many ~state db ids =
-  Printf.sprintf
-    "SELECT DISTINCT id, data
-     FROM %s
-     WHERE id IN (%s)
-     AND user_version = %s
-     AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.list ~serializer:Dbp.uuid ids)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> fetch_via_sql
+  let sql =
+    Printf.sprintf
+      "SELECT DISTINCT id, data
+       FROM user_data
+       WHERE id IN (%s)
+       AND user_version = $1
+       AND dark_version = $2"
+      (Dbp.list ~serializer:Dbp.uuid ids)
+  in
+  Db.fetch
+    ~name:"find_many"
+    sql
+    ~params:[ Int db.version
+            ; Int current_dark_version]
   |> List.map ~f:(to_obj ~state db)
   |> DList
 and
@@ -316,21 +320,20 @@ and update ~state db (vals: dval_map) =
             ; Int current_dark_version]
 
 let fetch_all ~state (db: db) : dval =
-  Printf.sprintf
+  Db.fetch
+    ~name:"fetch_all"
     "SELECT id, data
-     FROM %s
-     WHERE table_tlid = %s
-     AND account_id = %s
-     AND canvas_id = %s
-     AND user_version = %s
-     AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.tlid db.tlid)
-    (Dbp.uuid state.account_id)
-    (Dbp.uuid state.canvas_id)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> fetch_via_sql
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5"
+    ~params:[ Int db.tlid
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.version
+            ; Int current_dark_version]
   |> List.map ~f:(to_obj ~state db)
   |> DList
 
@@ -376,18 +379,16 @@ let delete_all ~state (db: db) =
 
 let count (db: db) =
   (* covered by idx_user_data_current_data_for_tlid *)
-  Printf.sprintf
+  Db.fetch_one
+    ~name:"count"
     "SELECT COUNT(*) AS c
-     FROM %s
-     WHERE table_tlid = %s
-     AND user_version = %s
-     AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.tlid db.tlid)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> fetch_via_sql
-  |> List.hd_exn
+     FROM user_data
+     WHERE table_tlid = $1
+     AND user_version = $2
+     AND dark_version = $3"
+    ~params:[ Int db.tlid
+            ; Int db.version
+            ; Int current_dark_version]
   |> List.hd_exn
   |> int_of_string
 
@@ -402,26 +403,26 @@ let unlocked canvas_id account_id (dbs: db list) : db list =
   match dbs with
   | [] -> []
   | db :: _ ->
-    let non_empties =
-      Printf.sprintf
+    (* this will need to be fixed when we allow migrations *)
+    let locked =
+      Db.fetch
+        ~name:"unlocked"
         "SELECT DISTINCT table_tlid
-         FROM %s
-         WHERE user_version = %s
-         AND dark_version = %s
-         AND canvas_id = %s
-         AND account_id = %s"
-        (Dbp.table user_data_table)
-        (Dbp.int db.version)
-        (Dbp.int current_dark_version)
-        (Dbp.uuid canvas_id)
-        (Dbp.uuid account_id)
-      |> fetch_via_sql
+         FROM user_data
+         WHERE user_version = $1
+         AND dark_version = $2
+         AND canvas_id = $3
+         AND account_id = $4"
+        ~params:[ Int db.version
+                ; Int current_dark_version
+                ; Uuid canvas_id
+                ; Uuid account_id]
       |> List.concat
+      |> List.map ~f:int_of_string
     in
-    dbs
-    |> List.filter
+    List.filter dbs
       ~f:(fun db ->
-          not (List.mem ~equal:(=) non_empties (db.tlid |> string_of_int)))
+          not (List.mem ~equal:(=) locked db.tlid))
 
 (* ------------------------- *)
 (* DB schema *)

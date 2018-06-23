@@ -142,10 +142,39 @@ let run_sql2 ~(params: sql list) ~(name:string) (sql: string) : unit =
        ~f:(fun ~params ~binary_params sql ->
            conn#exec ~expect:[PG.Command_ok] ~params ~binary_params sql))
 
-let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
+let fetch ~(params: sql list) ~(name:string) (sql: string)
+  : string list list =
   sql
-  |> execute ~op:"fetch" ~quiet ~f:(conn#exec ~expect:PG.[Tuples_ok])
+  |> (execute2 ~op:"fetch" ~params ~name
+      ~f:(fun ~params ~binary_params sql ->
+          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql))
   |> fun res -> res#get_all_lst
+
+let fetch_one ~(params: sql list) ~(name:string) (sql: string)
+  : string list =
+  sql
+  |> execute2 ~op:"fetch_one" ~params ~name
+      ~f:(fun ~params ~binary_params sql ->
+          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
+  |> fun res ->
+     match res#get_all_lst with
+     | [single_result] -> single_result
+     | [] -> Exception.storage "Expected one result, got none"
+     | _ -> Exception.storage "Expected exactly one result, got many"
+
+let fetch_one_option ~(params: sql list) ~(name:string) (sql: string)
+  : string list option =
+  sql
+  |> execute2 ~op:"fetch_one_option" ~params ~name
+      ~f:(fun ~params ~binary_params sql ->
+          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
+  |> fun res ->
+     match res#get_all_lst with
+     | [single_result] -> Some single_result
+     | [] -> None
+     | _ -> Exception.storage "Expected exactly one result, got many"
+
+
 
 let exists_via_sql ?(quiet=false) (sql: string) : bool =
   sql
@@ -171,25 +200,22 @@ let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
 let load_oplists ~(host: string) ~(digest: string) : string option =
   (* https://www.postgresql.org/docs/9.6/static/datatype-binary.html
    * Postgres advices us to parse the hex format. *)
-  Printf.sprintf
+  fetch_one_option
+    ~name:"load_oplists"
     "SELECT data FROM oplists
-     WHERE host = %s
-     AND digest = %s;"
-    (Dbp.host host)
-    (Dbp.string digest)
-  |> fetch_via_sql ~quiet:true
-  |> List.hd
-  |> Option.value_map ~default:None ~f:List.hd
+     WHERE host = $1
+     AND digest = $2;"
+    ~params:[String host; String digest]
+  |> Option.map ~f:List.hd_exn
   |> Option.map ~f:Dbp.binary_to_string (* slow but what alternative? *)
 
 let load_json_oplists ~(host: string) : string option =
-  Printf.sprintf
+  fetch_one_option
+    ~name:"load_json_oplists"
     "SELECT data FROM json_oplists
-     WHERE host = %s"
-    (Dbp.host host)
-  |> fetch_via_sql ~quiet:true
-  |> List.hd
-  |> Option.value_map ~default:None ~f:List.hd
+     WHERE host = $1"
+    ~params:[String host]
+  |> Option.map ~f:List.hd_exn
 
 let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
     (* this is an upsert *)
@@ -204,12 +230,12 @@ let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
 
 (* TODO: this doesn't have json oplists *)
 let all_oplists ~(digest: string) : string list =
-  Printf.sprintf
+  fetch
+    ~name:"all_oplists"
     "SELECT host
     FROM oplists
-    WHERE digest = '%s'"
-    (Dbp.string digest)
-  |> fetch_via_sql ~quiet:true
+    WHERE digest = $1"
+    ~params:[String digest]
   |> List.concat
   |> List.filter ~f:(fun h ->
       not (String.is_prefix ~prefix:"test-" h))

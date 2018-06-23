@@ -33,24 +33,22 @@ let store (canvas_id, tlid, fnname, id) arglist result =
 
 let load (canvas_id, tlid, fnname, id) arglist
   : (RTT.dval * Time.t) option =
-  Printf.sprintf
+  (* TODO: sort by timestamp *)
+  Db.fetch_one_option
+    ~name:"sfr_load"
     "SELECT value, timestamp
-    FROM function_results
-    WHERE canvas_id = %s
-      AND tlid = %s
-      AND fnname = %s
-      AND id = %s
-      AND hash = %s
-      LIMIT 1
-      "
-    (* TODO: sort by timestamp *)
-    (Dbp.uuid canvas_id)
-    (Dbp.tlid tlid)
-    (Dbp.string fnname)
-    (Dbp.id id)
-    (Dbp.string (hash arglist))
-  |> Db.fetch_via_sql
-  |> List.hd
+     FROM function_results
+     WHERE canvas_id = $1
+       AND tlid = $2
+       AND fnname = $3
+       AND id = $4
+       AND hash = $5
+       LIMIT 1"
+    ~params:[ Db.Uuid canvas_id
+            ; Db.Int tlid
+            ; Db.String fnname
+            ; Db.Int id
+            ; Db.String (hash arglist)]
   |> Option.map ~f:(function
       | [dval; ts] ->
         (Dval.dval_of_json_string dval, Dval.date_of_sqlstring ts)
