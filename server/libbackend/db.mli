@@ -14,7 +14,10 @@ type sql = Int of int
          | DvalmapJsonb of Types.RuntimeT.dval_map
          | Null
 
+(* NOTE: run_sql2 is not allowed to receive multiple commands. If you
+ * want multiple statements, put a BEGIN/END around them. *)
 val run_sql2 : params: sql list -> name:string -> string -> unit
+
 (* val fetch_via_sql2 : ?quiet:bool -> string -> string list list *)
 (* val exists_via_sql2 : ?quiet:bool -> string -> bool *)
 
