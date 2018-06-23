@@ -14,16 +14,16 @@ type four_oh_four = (event_desc * Types.RuntimeT.dval list)
 (* Event data *)
 (* ------------------------- *)
 let store_event (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) (event: RTT.dval) : unit =
-  Printf.sprintf
+  Db.run_sql2
+    ~name:"stored_event.store_event"
     "INSERT INTO stored_events
-    (canvas_id, module, path, modifier, timestamp, value)
-    VALUES (%s, %s, %s, %s, CURRENT_TIMESTAMP, %s)"
-    (Dbp.uuid canvas_id)
-    (Dbp.string module_)
-    (Dbp.string path)
-    (Dbp.string modifier)
-    (Dbp.dvaljson event)
-  |> Db.run_sql
+     (canvas_id, module, path, modifier, timestamp, value)
+     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, $5)"
+    ~params:[ Uuid canvas_id
+            ; String module_
+            ; String path
+            ; String modifier
+            ; DvalJson event]
 
 let list_events (canvas_id: Uuidm.t) : event_desc list =
   Printf.sprintf
@@ -53,11 +53,11 @@ let load_events (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : R
       | _ -> Exception.internal "Bad DB format for stored_events")
 
 let clear_events (canvas_id: Uuidm.t) : unit =
-   Printf.sprintf
+  Db.run_sql2
+    ~name:"stored_event.clear_events"
     "DELETE FROM stored_events
-     WHERE canvas_id = %s"
-    (Dbp.uuid canvas_id)
-  |> Db.run_sql
+     WHERE canvas_id = $1"
+    ~params:[ Uuid canvas_id]
 
 let four_oh_four_to_yojson (((space, path, modifier), dvals) : four_oh_four) : Yojson.Safe.json =
   `List [ `String space
