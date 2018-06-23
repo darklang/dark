@@ -84,7 +84,7 @@ let to_log param : string =
   | DvalmapJsonb dvm -> abbrev (Dval.dvalmap_to_string dvm)
   | Null -> "NULL"
 
-let execute2 ~name ~op ~params
+let execute ~name ~op ~params
     ~(f: params: string array ->
       binary_params : bool array ->
       string -> Postgresql.result)
@@ -132,14 +132,14 @@ let execute2 ~name ~op ~params
 
 let run ~(params: param list) ~(name:string) (sql: string) : unit =
   ignore
-    (execute2 ~op:"run" ~params ~name sql
+    (execute ~op:"run" ~params ~name sql
        ~f:(fun ~params ~binary_params sql ->
            conn#exec ~expect:[PG.Command_ok] ~params ~binary_params sql))
 
 let fetch ~(params: param list) ~(name:string) (sql: string)
   : string list list =
   sql
-  |> (execute2 ~op:"fetch" ~params ~name
+  |> (execute ~op:"fetch" ~params ~name
       ~f:(fun ~params ~binary_params sql ->
           conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql))
   |> fun res -> res#get_all_lst
@@ -147,7 +147,7 @@ let fetch ~(params: param list) ~(name:string) (sql: string)
 let fetch_one ~(params: param list) ~(name:string) (sql: string)
   : string list =
   sql
-  |> execute2 ~op:"fetch_one" ~params ~name
+  |> execute ~op:"fetch_one" ~params ~name
       ~f:(fun ~params ~binary_params sql ->
           conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
   |> fun res ->
@@ -159,7 +159,7 @@ let fetch_one ~(params: param list) ~(name:string) (sql: string)
 let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
   : string list option =
   sql
-  |> execute2 ~op:"fetch_one_option" ~params ~name
+  |> execute ~op:"fetch_one_option" ~params ~name
       ~f:(fun ~params ~binary_params sql ->
           conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
   |> fun res ->
@@ -172,7 +172,7 @@ let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
 let exists ~(params: param list) ~(name:string) (sql: string)
   : bool =
   sql
-  |> execute2 ~op:"exists" ~params ~name
+  |> execute ~op:"exists" ~params ~name
       ~f:(fun ~params ~binary_params sql ->
           conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
   |> fun res ->
