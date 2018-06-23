@@ -4,12 +4,12 @@ open Libexecution
 module Dbp = Dbprim
 
 let is_initialized () =
-  let sql = "SELECT 1
-             FROM pg_class
-             WHERE relname = 'system_migrations';"
-  in
-  sql
-  |> Db.exists_via_sql ~quiet:true
+  Db.exists
+    ~name:"migrations_initialized"
+    "SELECT 1
+    FROM pg_class
+    WHERE relname = 'system_migrations';"
+    ~params:[]
 
 let initialize_migrations_table () =
   Db.run
@@ -22,11 +22,11 @@ let initialize_migrations_table () =
     ~params:[]
 
 let is_already_run (name) : bool =
-  Printf.sprintf
+  Db.exists
+    ~name:"migration.is_already_run"
     "SELECT 1 from system_migrations
-     WHERE name = %s"
-    (Dbp.string name)
-  |> Db.exists_via_sql ~quiet:true
+     WHERE name = $1"
+    ~params:[String name]
 
 
 let run_system_migration (name: string) (sql:string) : unit =

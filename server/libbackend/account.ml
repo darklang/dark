@@ -58,21 +58,20 @@ let upsert_admin (account:account) : unit =
 (************************)
 
 let is_admin ~username : bool =
-  Printf.sprintf
+  Db.exists
+    ~name:"is_admin"
     "SELECT 1 from accounts
-     WHERE accounts.username = %s
+     WHERE accounts.username = $1
        AND accounts.admin = true"
-    (Dbp.string username)
-  |> Db.exists_via_sql ~quiet:true
+    ~params:[String username]
 
 let valid_user ~(username:username) ~(password:string) : bool =
-  Printf.sprintf
+  Db.exists
+    ~name:"valid user"
     "SELECT 1 from accounts
-      WHERE accounts.username = %s
-        AND accounts.password = %s"
-    (Dbp.string username)
-    (Dbp.string password)
-  |> Db.exists_via_sql ~quiet:true
+      WHERE accounts.username = $1
+        AND accounts.password = $2"
+    ~params:[String username; Secret password]
 
 
 let can_edit ~(auth_domain:string) ~(username:username) : bool =
