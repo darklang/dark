@@ -12,6 +12,7 @@ type sql = Int of int
          | Binary of string
          | Secret of string
          | DvalJson of Types.RuntimeT.dval
+         | DvalmapJsonb of Types.RuntimeT.dval_map
          | Null
 
 val run_sql2 : params: sql list -> name:string -> string -> unit
