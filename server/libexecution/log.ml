@@ -117,7 +117,7 @@ let timestr time =
 
 let format_string ~level (str: string) =
   let len = String.length str in
-  let max_length = if level = `Error then 500 else 50 in
+  let max_length = if level = `Error then 1000 else 50 in
   let str =
     if len >= max_length
     then (String.slice str 0 max_length) ^ "..."
