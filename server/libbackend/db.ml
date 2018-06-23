@@ -32,7 +32,7 @@ let execute ~op ~quiet ~f sql =
     log "success";
     result
 
-  with e  ->
+  with e ->
     let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
     log "fail";
 
@@ -136,21 +136,11 @@ let execute2 ~name ~op ~params
         ~info:[("time", time () |> string_of_float)]
 
 
-
-
-
-let run_sql ?(quiet=false) (sql: string) : unit =
-  ignore
-    (execute sql ~op:"run" ~quiet
-       ~f:(conn#exec ~expect:[PG.Command_ok]))
-
-
 let run_sql2 ~(params: sql list) ~(name:string) (sql: string) : unit =
   ignore
     (execute2 ~op:"run" ~params ~name sql
        ~f:(fun ~params ~binary_params sql ->
            conn#exec ~expect:[PG.Command_ok] ~params ~binary_params sql))
-
 
 let fetch_via_sql ?(quiet=false) (sql: string) : string list list =
   sql

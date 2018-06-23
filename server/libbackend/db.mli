@@ -2,7 +2,6 @@ open Core
 open Libexecution
 
 (* Low-level API *)
-val run_sql : ?quiet:bool -> string -> unit
 val fetch_via_sql : ?quiet:bool -> string -> string list list
 val exists_via_sql : ?quiet:bool -> string -> bool
 

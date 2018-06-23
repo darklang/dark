@@ -77,14 +77,13 @@ let dequeue ~(canvas:Uuidm.t) ~(account:Uuidm.t) (execution_id: int) (space: str
   match fetched with
   | None -> None
   | Some [id; value; retries; flag_context] ->
-    Db.run_sql
-      (Printf.sprintf
-         "UPDATE \"events\"
-         SET status = 'locked'
-           , dequeued_by = %s
-         WHERE id = %s"
-         (Dbp.int execution_id)
-         id);
+    Db.run_sql2
+      ~name:"dequeue"
+      "UPDATE events
+      SET status = 'locked'
+        , dequeued_by = $1
+      WHERE id = $2"
+      ~params:[Int execution_id; String id];
     Some { id = int_of_string id
          ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
