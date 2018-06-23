@@ -100,7 +100,7 @@ let handler_analysis
   in
   let state i env : RTT.exec_state =
     Execution.state_for_analysis h.tlid
-      ~c ~exe_fn_ids:(fn_ids i |> Log.inspect "ids") ~execution_id ~env
+      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
   let envs = Execution.initial_envs c h in
   let values =
