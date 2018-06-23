@@ -65,20 +65,20 @@ let query_for (col: string) (dv: dval) : string =
     | DID id ->
       Printf.sprintf
         "AND id = %s"
-        (Dbp.uuid id)
+        (Db.escape (Uuid id))
     | DStr str -> (* This is what you get for accidentally
                      implementating a dynamic language *)
       Printf.sprintf
         "AND id = %s"
-        (Dbp.uuid (Uuidm.of_string str |> Option.value_exn))
+        (Db.escape (Uuid (Uuidm.of_string str |> Option.value_exn)))
     | _ -> Exception.client "Invalid id type"
   else
     Printf.sprintf
       "AND (data->%s)%s = %s" (* compare against json in a string *)
-      (Dbp.string col)
+      (Db.escape (String col))
       (Dbp.cast_expression_for dv
        |> Option.value ~default:"")
-      (Dbp.dvaljson dv)
+      (Db.escape (DvalJson dv))
 
 let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   let conds =

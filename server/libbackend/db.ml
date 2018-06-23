@@ -2,7 +2,6 @@ open Core_kernel
 open Libexecution
 
 module PG = Postgresql
-module Dbp = Dbprim
 
 (* ------------------------- *)
 (* Low-level API *)
@@ -206,7 +205,7 @@ let load_oplists ~(host: string) ~(digest: string) : string option =
      AND digest = $2;"
     ~params:[String host; String digest]
   |> Option.map ~f:List.hd_exn
-  |> Option.map ~f:Dbp.binary_to_string (* slow but what alternative? *)
+  |> Option.map ~f:Postgresql.unescape_bytea (* slow but what alternative? *)
 
 let load_json_oplists ~(host: string) : string option =
   fetch_one_option
