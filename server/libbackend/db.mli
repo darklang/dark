@@ -2,7 +2,6 @@ open Core
 open Libexecution
 
 (* Low-level API *)
-val exists_via_sql : ?quiet:bool -> string -> bool
 
 type param = Int of int
            | String of string
@@ -23,7 +22,8 @@ val fetch_one : params: param list -> name:string -> string ->
   string list
 val fetch_one_option : params: param list -> name:string -> string ->
   string list option
-(* val exists_via_sql2 : ?quiet:bool -> string -> bool *)
+val exists : params: param list -> name:string -> string ->
+  bool
 
 (* Saving canvases to the DB *)
 val save_oplists : host:string -> digest:string -> string -> unit

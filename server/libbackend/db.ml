@@ -11,42 +11,6 @@ module Dbp = Dbprim
 let conn = Dbconnection.conn
 let escape = conn#escape_string
 
-let execute ~op ~quiet ~f sql =
-  let start = Unix.gettimeofday () in
-  let time () =
-    let finish = Unix.gettimeofday () in
-    (finish -. start) *. 1000.0
-  in
-  let log msg =
-    let t = time () in
-    if quiet && t < 100.0
-    then
-      Log.infO "sql" ~params:[ "op", op
-                             ; "sql", sql
-                             ; "msg", msg
-                             ; "time", string_of_float t]
-  in
-
-  try
-    let result = f sql in
-    log "success";
-    result
-
-  with e ->
-    let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
-    log "fail";
-
-    let msg =
-      match e with
-      | Postgresql.Error (Unexpected_status (_, msg, _)) -> msg
-      | Postgresql.Error pge -> Postgresql.string_of_error pge
-      | pge -> (Exn.to_string pge)
-    in
-      Exception.storage
-        msg
-        ~bt
-        ~info:[("sql", sql); ("time", time () |> string_of_float)]
-
 type param = Int of int
          | String of string
          | Uuid of Uuidm.t
@@ -174,12 +138,17 @@ let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
      | _ -> Exception.storage "Expected exactly one result, got many"
 
 
-
-let exists_via_sql ?(quiet=false) (sql: string) : bool =
+let exists ~(params: param list) ~(name:string) (sql: string)
+  : bool =
   sql
-  |> execute ~op:"exists" ~quiet ~f:(conn#exec ~expect:PG.[Tuples_ok])
-  |> fun res -> res#get_all_lst
-  |> (=) [["1"]]
+  |> execute2 ~op:"exists" ~params ~name
+      ~f:(fun ~params ~binary_params sql ->
+          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
+  |> fun res ->
+     match res#get_all_lst with
+     | [["1"]] -> true
+     | [] -> false
+     | _ -> Exception.storage "Unexpected result"
 
 (* ------------------------- *)
 (* oplists *)
