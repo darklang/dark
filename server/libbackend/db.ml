@@ -68,7 +68,7 @@ let to_param sql : string =
   | Binary str -> str (* the to_binary_bool handled this *)
   | Secret str -> str
   | DvalJson dv -> Dval.dval_to_json_string dv
-  | Null -> "null"
+  | Null -> "NULL"
 
 let to_log sql : string =
   let max_length = 600 in
@@ -84,7 +84,7 @@ let to_log sql : string =
   | Binary str -> "<binary>"
   | Secret str -> "<secret>"
   | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
-  | Null -> "null"
+  | Null -> "NULL"
 
 let execute2 ~name ~op ~params
     ~(f: params: string array ->
@@ -204,18 +204,15 @@ let load_json_oplists ~(host: string) : string option =
   |> Option.value_map ~default:None ~f:List.hd
 
 let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  Printf.sprintf
     (* this is an upsert *)
+  run_sql2
+    ~name:"save_json_oplists"
     "INSERT INTO json_oplists
     (host, digest, data)
-    VALUES (%s, %s, %s)
+    VALUES ($1, $2, $3)
     ON CONFLICT (host) DO UPDATE
-    SET data = %s;"
-    (Dbp.host host)
-    (Dbp.string digest)
-    (Dbp.string data)
-    (Dbp.string data)
-  |> run_sql ~quiet:true
+    SET data = $3;"
+    ~params:[String host; String digest; String data]
 
 (* TODO: this doesn't have json oplists *)
 let all_oplists ~(digest: string) : string list =
@@ -230,11 +227,9 @@ let all_oplists ~(digest: string) : string list =
       not (String.is_prefix ~prefix:"test-" h))
 
 let delete_benchmarking_data () : unit =
-  "DELETE FROM oplists
-  WHERE host like 'benchmarking\\_%%'"
-  |> run_sql ~quiet:false;
-  "DELETE FROM json_oplists
-  WHERE host like 'benchmarking\\_%%'"
-  |> run_sql ~quiet:false;
-  ()
+  run_sql2
+    ~name:"delete_benchmarking_data"
+    "DELETE FROM oplists WHERE host like 'benchmarking\\_%%';
+     DELETE FROM json_oplists WHERE host like 'benchmarking\\_%%';"
+    ~params:[]
 
