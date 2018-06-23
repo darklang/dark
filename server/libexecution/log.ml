@@ -115,9 +115,9 @@ let timestr time =
     then result ^ "(SLOW REQUEST)"
     else result
 
-let format_string (str: string) =
+let format_string ~level (str: string) =
   let len = String.length str in
-  let max_length = 50 in
+  let max_length = if level = `Error then 500 else 50 in
   let str =
     if len >= max_length
     then (String.slice str 0 max_length) ^ "..."
@@ -149,7 +149,7 @@ let print_console_log
   let reset = if decorate then "\x1b[0m" else "" in
   let paramstr = params @ bt_param
                  |> List.map ~f:(fun (k,v) ->
-                     color ^ k ^ reset ^ "=" ^ format_string v)
+                     color ^ k ^ reset ^ "=" ^ format_string ~level v)
                  |> String.concat ~sep:" "
   in
   let msg =
