@@ -9,21 +9,52 @@ module Dbp = Dbprim
 (* ------------------------- *)
 
 let conn = Dbconnection.conn
-let escape = conn#escape_string
+
+let escape_single s = conn#escape_string s
+let escape_double s = Util.string_replace "\"" "\\\"" s
+let single_quote v = "'" ^ v ^ "'"
+let double_quote v = "\"" ^ v ^ "\""
+let cast_to ~tipe v = v ^ "::" ^ tipe
 
 type param = Int of int
-         | String of string
-         | Uuid of Uuidm.t
-         | Binary of string
-         | Secret of string
-         | DvalJson of Types.RuntimeT.dval
-         | DvalmapJsonb of Types.RuntimeT.dval_map
-         | Null
+           | String of string
+           | Uuid of Uuidm.t
+           | Binary of string
+           | Secret of string
+           | DvalJson of Types.RuntimeT.dval
+           | DvalmapJsonb of Types.RuntimeT.dval_map
+           | Null
 
 let to_binary_bool param : bool =
   match param with
   | Binary _ -> true
   | _ -> false
+
+let escape (param: param) : string =
+  match param with
+  | Int i -> string_of_int i
+  | String str -> str
+                  |> escape_single
+                  |> single_quote
+  | Uuid uuid -> uuid
+                 |> Uuidm.to_string
+                 |> escape_single
+                 |> single_quote
+                 |> cast_to ~tipe:"uuid"
+  | Binary str -> Exception.internal "Prefer not to escape binary data"
+  | Secret str -> str
+                  |> escape_single
+                  |> single_quote
+  | DvalJson dv -> dv
+                   |> Dval.dval_to_json_string
+                   |> escape_single
+                   |> single_quote
+  | DvalmapJsonb dvm -> dvm
+                        |> Dval.dvalmap_to_string
+                        |> escape_single
+                        |> single_quote
+                        |> cast_to ~tipe:"jsonb"
+  | Null -> "NULL"
 
 let to_sql param : string =
   match param with

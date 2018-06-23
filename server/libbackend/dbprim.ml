@@ -39,15 +39,6 @@ let binary s =
   |> escapea
   |> single_quote
 
-let tlid tlid =
-  string_of_int tlid
-
-let id id =
-  string_of_int id
-
-let int id =
-  string_of_int id
-
 let list ~serializer xs =
   xs
   |> List.map ~f:serializer
