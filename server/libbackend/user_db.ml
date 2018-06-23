@@ -154,6 +154,18 @@ to_obj ~state db (db_strings : string list)
     let merged =
       Map.set ~key:"id" ~data:p_id p_obj
     in
+    (* <HACK>: because it's hard to migrate at the moment, we need to
+     * have default values when someone adds a col. We can remove this
+     * when the migrations work properly. Structured like this so that
+     * hopefully we only have to remove this small part. *)
+    let default_keys =
+        cols_for db
+        |> List.map ~f:(fun (k, _) -> (k, DNull))
+        |> DvalMap.of_alist_exn
+    in
+    let merged = Util.merge_left merged default_keys in
+    (* </HACK> *)
+
     let type_checked =
       type_check_and_fetch_dependents ~state db merged
     in
