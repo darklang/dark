@@ -102,10 +102,11 @@ let rec to_log param : string =
 (* All commands go through here, does logging and such *)
 (* ------------------------- *)
 let execute ~name ~op ~params
-    ~(f: params: string array ->
-      binary_params : bool array ->
+    ~(f: ?params: string array ->
+      ?binary_params : bool array ->
       string -> Postgresql.result)
-    (sql : string) : Postgresql.result =
+    ~(r: Postgresql.result -> string * 'a)
+    (sql : string) : 'a =
   let start = Unix.gettimeofday () in
   let time () =
     let finish = Unix.gettimeofday () in
@@ -127,8 +128,11 @@ let execute ~name ~op ~params
     |> String.concat ~sep:", "
   in
   try
-    let result = f ~binary_params ~params:string_params sql in
-    Log.succesS name ~params:["sql", op];
+    let res = f ~binary_params ~params:string_params sql in
+    (* Transform and log the result *)
+    let (logr, result) = r res in
+    let result_log = if logr ="" then [] else ["result", logr] in
+    Log.succesS name ~params:(["sql", op] @ result_log);
     result
 
   with e  ->
@@ -151,55 +155,57 @@ let execute ~name ~op ~params
 (* SQL Commands *)
 (* ------------------------- *)
 let run ~(params: param list) ~(name:string) (sql: string) : unit =
-  ignore
-    (execute ~op:"run" ~params ~name sql
-       ~f:(fun ~params ~binary_params sql ->
-           conn#exec ~expect:[PG.Command_ok] ~params ~binary_params sql))
+  execute ~op:"run" ~params ~name sql
+    ~f:(conn#exec ~expect:[PG.Command_ok])
+    ~r:(fun r -> ("", ()))
+  |> ignore
 
 let fetch ~(params: param list) ~(name:string) (sql: string)
   : string list list =
-  sql
-  |> (execute ~op:"fetch" ~params ~name
-      ~f:(fun ~params ~binary_params sql ->
-          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql))
-  |> fun res -> res#get_all_lst
+  execute ~op:"fetch" ~params ~name sql
+    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~r:(fun res ->
+          let result = res#get_all_lst in
+          let length = List.length result |> string_of_int in
+          (length ^ " cols", result))
+
 
 let fetch_one ~(params: param list) ~(name:string) (sql: string)
   : string list =
-  sql
-  |> execute ~op:"fetch_one" ~params ~name
-      ~f:(fun ~params ~binary_params sql ->
-          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
-  |> fun res ->
-     match res#get_all_lst with
-     | [single_result] -> single_result
-     | [] -> Exception.storage "Expected one result, got none"
-     | _ -> Exception.storage "Expected exactly one result, got many"
+  execute ~op:"fetch_one" ~params ~name sql
+    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~r:(fun res ->
+         match res#get_all_lst with
+         | [single_result] ->
+           let lengths = List.map ~f:String.length single_result in
+           let sum = Util.int_sum lengths |> string_of_int in
+           (sum ^ "bytes", single_result)
+         | [] -> Exception.storage "Expected one result, got none"
+         | _ -> Exception.storage "Expected exactly one result, got many")
 
 let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
   : string list option =
-  sql
-  |> execute ~op:"fetch_one_option" ~params ~name
-      ~f:(fun ~params ~binary_params sql ->
-          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
-  |> fun res ->
-     match res#get_all_lst with
-     | [single_result] -> Some single_result
-     | [] -> None
-     | _ -> Exception.storage "Expected exactly one result, got many"
+  execute ~op:"fetch_one_option" ~params ~name sql
+    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~r:(fun res ->
+          match res#get_all_lst with
+          | [single_result] ->
+            let lengths = List.map ~f:String.length single_result in
+            let sum = Util.int_sum lengths |> string_of_int in
+            (sum ^ "bytes", Some single_result)
+          | [] -> ("none", None)
+          | _ -> Exception.storage "Expected exactly one result, got many")
 
 
 let exists ~(params: param list) ~(name:string) (sql: string)
   : bool =
-  sql
-  |> execute ~op:"exists" ~params ~name
-      ~f:(fun ~params ~binary_params sql ->
-          conn#exec ~expect:[PG.Tuples_ok] ~params ~binary_params sql)
-  |> fun res ->
-     match res#get_all_lst with
-     | [["1"]] -> true
-     | [] -> false
-     | _ -> Exception.storage "Unexpected result"
+  execute ~op:"exists" ~params ~name sql
+    ~f:(conn#exec ~expect:[PG.Tuples_ok])
+    ~r:(fun res ->
+         match res#get_all_lst with
+         | [["1"]] -> ("true", true)
+         | [] -> ("false", false)
+         | _ -> Exception.storage "Unexpected result")
 
 (* ------------------------- *)
 (* oplists *)
