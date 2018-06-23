@@ -466,8 +466,8 @@ and call_fn ~(engine:engine) ~(state: exec_state)
           | _ -> false)
   in
 
-  let raise_arglist_error bt args arglist : unit =
-    Log.erroR "execution exception" ~data:(Dval.dvalmap_to_string args);
+  let raise_arglist_error ?bt args arglist : unit =
+    Log.erroR "execution_exception" ~bt ~data:(Dval.dvalmap_to_string args);
     let all = List.zip_exn fn.parameters arglist in
     let invalid =
       List.filter all
@@ -479,7 +479,7 @@ and call_fn ~(engine:engine) ~(state: exec_state)
 
     | (p,a) :: _ ->
        RT.error
-         ~bt:(Some bt)
+         ~bt
          ~actual:a
          ~expected:(Dval.tipe_to_string p.tipe)
          (fnname ^ " was called with the wrong type to parameter: " ^ p.name)
@@ -537,7 +537,7 @@ and call_fn ~(engine:engine) ~(state: exec_state)
            Exception.reraise_after e
              (fun bt ->
                maybe_store_result (Dval.exception_to_dval ~log:false e);
-               raise_arglist_error bt args arglist;
+               raise_arglist_error ~bt args arglist;
              ))
       in
       maybe_store_result result;
