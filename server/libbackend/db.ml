@@ -169,15 +169,10 @@ let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
 
 
 let load_oplists ~(host: string) ~(digest: string) : string option =
-  (* It's quite a bit of work to make a binary bytea go into the DB and
-   * come out in the same shape:
-   *
-   * https://www.postgresql.org/docs/9.6/static/datatype-binary.html
-   *
-   * Postgres advices us to parse the hex format, above. We tried base64
-   * as well, which is approx twice as slow. *)
+  (* https://www.postgresql.org/docs/9.6/static/datatype-binary.html
+   * Postgres advices us to parse the hex format, above. *)
   Printf.sprintf
-    "SELECT encode(data, 'hex') FROM oplists
+    "SELECT data FROM oplists
      WHERE host = %s
      AND digest = %s;"
     (Dbp.host host)
@@ -185,7 +180,7 @@ let load_oplists ~(host: string) ~(digest: string) : string option =
   |> fetch_via_sql ~quiet:true
   |> List.hd
   |> Option.value_map ~default:None ~f:List.hd
-  |> Option.map ~f:Dbp.binary_to_string
+  |> Option.map ~f:Dbp.binary_to_string (* slow but what alternative? *)
 
 let load_json_oplists ~(host: string) : string option =
   Printf.sprintf
