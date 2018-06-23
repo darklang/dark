@@ -13,7 +13,7 @@ let rec rec_con depth =
     let c = new PG.connection ~host:db.host ~dbname:db.dbname
       ~user:db.user ~password:db.password ()  in
     c#set_notice_processor
-      (fun notice -> Log.infO "postgres notice" ~data:notice);
+      (fun notice -> Log.warN "postgres_notice" ~data:notice);
     c
   with
   | e ->
