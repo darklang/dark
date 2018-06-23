@@ -495,7 +495,7 @@ let fns : Lib.shortfn list = [
           | (_, [DList l]) ->
             l
             |> list_coerce ~f:Dval.to_int
-            >>| List.fold_left ~f:(+) ~init:0
+            >>| Util.int_sum
             >>| (fun x -> DInt x)
             |> Result.map_error ~f:(fun (result, example_value) ->
                 RT.error
