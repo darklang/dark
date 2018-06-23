@@ -297,18 +297,23 @@ and update ~state db (vals: dval_map) =
     | _ -> Exception.client "error, id should be a uuid"
   in
   let merged = type_check_and_upsert_dependents ~state db vals in
-  Printf.sprintf
-    "UPDATE %s
-     SET data = %s
-     WHERE id = %s
-     AND user_version = %s
-     AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.dvalmap_jsonb merged)
-    (Dbp.uuid id)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> run_sql
+  Db.run_sql2
+    ~name:"user_update"
+    "UPDATE user_data
+     SET data = $1
+     WHERE id = $2
+     AND account_id = $3
+     AND canvas_id = $4
+     AND table_tlid = $5
+     AND user_version = $6
+     AND dark_version = $7"
+    ~params:[ DvalmapJsonb merged
+            ; Uuid id
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.tlid
+            ; Int db.version
+            ; Int current_dark_version]
 
 let fetch_all ~state (db: db) : dval =
   Printf.sprintf
@@ -336,35 +341,38 @@ let delete ~state (db: db) (vals: dval_map) =
     | _ -> Exception.client "error, id should be a uuid"
   in
   (* covered by composite PK index *)
-  Printf.sprintf
-    "DELETE
-     FROM %s
-     WHERE id = %s
-     AND user_version = %s
-     AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.uuid id)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> run_sql
+  Db.run_sql2
+    ~name:"user_delete"
+    "DELETE FROM user_data
+     WHERE id = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND table_tlid = $4
+     AND user_version = $5
+     AND dark_version = $6"
+    ~params:[ Uuid id
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.tlid
+            ; Int db.version
+            ; Int current_dark_version]
+
 
 let delete_all ~state (db: db) =
   (* covered by idx_user_data_current_data_for_tlid *)
-  Printf.sprintf
-    "DELETE
-     FROM %s
-     WHERE table_tlid = %s
-     AND account_id = %s
+  Db.run_sql2
+    ~name:"user_delete_all"
+    "DELETE FROM user_data
+     WHERE account_id = %s
      AND canvas_id = %s
+     AND table_tlid = %s
      AND user_version = %s
      AND dark_version = %s"
-    (Dbp.table user_data_table)
-    (Dbp.tlid db.tlid)
-    (Dbp.uuid state.account_id)
-    (Dbp.uuid state.canvas_id)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-  |> run_sql
+    ~params:[ Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.tlid
+            ; Int db.version
+            ; Int current_dark_version]
 
 let count (db: db) =
   (* covered by idx_user_data_current_data_for_tlid *)
