@@ -6,11 +6,12 @@ open Libexecution
 type param = Int of int
            | String of string
            | Uuid of Uuidm.t
-           | Binary of string
+           | Binary of string (* only works for passed params *)
            | Secret of string
            | DvalJson of Types.RuntimeT.dval
            | DvalmapJsonb of Types.RuntimeT.dval_map
            | Null
+           | List of param list (* only works for in-script params *)
 
 (* NOTE: run is not allowed to receive multiple commands. If you
  * want multiple statements, put a BEGIN/END around them. *)
@@ -29,6 +30,9 @@ val exists : params: param list -> name:string -> string ->
  * things in a single sql statement and then the above statements don't
  * work, so we need to escape manually *)
 val escape : param -> string
+val cast_expression_for : Types.RuntimeT.dval -> string option
+
+
 
 (* Saving canvases to the DB *)
 val save_oplists : host:string -> digest:string -> string -> unit

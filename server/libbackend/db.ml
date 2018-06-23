@@ -4,7 +4,7 @@ open Libexecution
 module PG = Postgresql
 
 (* ------------------------- *)
-(* Low-level API *)
+(* Escaping and such *)
 (* ------------------------- *)
 
 let conn = Dbconnection.conn
@@ -18,18 +18,19 @@ let cast_to ~tipe v = v ^ "::" ^ tipe
 type param = Int of int
            | String of string
            | Uuid of Uuidm.t
-           | Binary of string
+           | Binary of string (* only works for passed params *)
            | Secret of string
            | DvalJson of Types.RuntimeT.dval
            | DvalmapJsonb of Types.RuntimeT.dval_map
            | Null
+           | List of param list (* only works for in-script params *)
 
 let to_binary_bool param : bool =
   match param with
   | Binary _ -> true
   | _ -> false
 
-let escape (param: param) : string =
+let rec escape (param: param) : string =
   match param with
   | Int i -> string_of_int i
   | String str -> str
@@ -54,6 +55,15 @@ let escape (param: param) : string =
                         |> single_quote
                         |> cast_to ~tipe:"jsonb"
   | Null -> "NULL"
+  | List params -> params
+                   |> List.map ~f:escape
+                   |> String.concat ~sep:", "
+
+let cast_expression_for (dv: Types.RuntimeT.dval) : string option =
+  if Dval.is_json_primitive dv
+  then None
+  else Some "::jsonb"
+
 
 let to_sql param : string =
   match param with
@@ -65,8 +75,9 @@ let to_sql param : string =
   | DvalJson dv -> Dval.dval_to_json_string dv
   | DvalmapJsonb dvm -> Dval.dvalmap_to_string dvm
   | Null -> Postgresql.null
+  | List _ -> Exception.internal "Cannot pass List to be escaped"
 
-let to_log param : string =
+let rec to_log param : string =
   let max_length = 600 in
   let abbrev s =
     if String.length s > max_length
@@ -82,7 +93,14 @@ let to_log param : string =
   | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
   | DvalmapJsonb dvm -> abbrev (Dval.dvalmap_to_string dvm)
   | Null -> "NULL"
+  | List params -> params
+                   |> List.map ~f:to_log
+                   |> String.concat ~sep:", "
+                   |> fun s -> "[" ^ s ^ "]"
 
+(* ------------------------- *)
+(* All commands go through here, does logging and such *)
+(* ------------------------- *)
 let execute ~name ~op ~params
     ~(f: params: string array ->
       binary_params : bool array ->
@@ -129,6 +147,9 @@ let execute ~name ~op ~params
         ~info:[("time", time () |> string_of_float)]
 
 
+(* ------------------------- *)
+(* SQL Commands *)
+(* ------------------------- *)
 let run ~(params: param list) ~(name:string) (sql: string) : unit =
   ignore
     (execute ~op:"run" ~params ~name sql
