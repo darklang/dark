@@ -14,6 +14,20 @@ let loglevel : level ref =
 let set_level (newlevel: level) : unit =
   loglevel := newlevel
 
+let level_to_length (level: level) : int =
+  match level with
+  | `Off -> 0
+  | `Inspect -> 10000
+  | `Fatal -> 1000
+  | `Error -> 1000
+  | `Warn -> 1000
+  | `Info -> 100
+  | `Debug -> 1000
+  | `Success -> 50
+  | `All -> 50
+
+
+
 let level_to_string (level: level) : string =
   match level with
   | `Off -> "OFF"
@@ -117,21 +131,25 @@ let timestr time =
 
 let format_string ~level (str: string) =
   let len = String.length str in
-  let max_length = if level = `Error then 1000 else 50 in
+  let max_length = level_to_length level in
+  (* shorten and add elipses *)
   let str =
     if len >= max_length
     then (String.slice str 0 max_length) ^ "..."
     else str
   in
+  (* escape newlines *)
   let str = Util.string_replace "\n" "\\n" str in
-  let str =
-    if String.contains str ' '
-    then "\"" ^ str ^ "\""
-    else str
-  in
+  (* escape quotes *)
   let str =
     if String.contains str '"'
     then Util.string_replace "\"" "\\\"" str
+    else str
+  in
+  (* wrap in quotes *)
+  let str =
+    if String.contains str ' '
+    then "\"" ^ str ^ "\""
     else str
   in
   str
