@@ -161,8 +161,18 @@ to_obj ~state db (db_strings : string list)
   | _ -> Exception.internal "Got bad format from db fetch"
 and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dval_map) : dval_map =
   let cols = cols_for db |> TipeMap.of_alist_exn in
-  let tipe_keys = TipeMap.keys cols |> List.filter ~f:(fun k -> not (String.Caseless.equal k "id")) |> String.Set.of_list in
-  let obj_keys = DvalMap.keys obj |> List.filter ~f:(fun k -> not (String.Caseless.equal k "id")) |> String.Set.of_list in
+  let tipe_keys = cols
+                  |> TipeMap.keys
+                  |> List.filter
+                    ~f:(fun k -> not (String.Caseless.equal k "id"))
+                  |> String.Set.of_list
+  in
+  let obj_keys = obj
+                 |> DvalMap.keys
+                 |> List.filter
+                   ~f:(fun k -> not (String.Caseless.equal k "id"))
+                 |> String.Set.of_list
+  in
   let same_keys = String.Set.equal tipe_keys obj_keys in
   if same_keys
   then
