@@ -71,17 +71,6 @@ function run_sql { psql -d proddb -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_
 
 function fetch_sql { psql -d proddb -t -c "$@"; }
 
-echo "Clearing test schemas";
-TESTSCHEMAS=$(fetch_sql "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test_';")
-for db in $TESTSCHEMAS; do
-  SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
-done
-
-TESTSCHEMAS=$(fetch_sql "SELECT nspname FROM pg_catalog.pg_namespace WHERE SUBSTRING(nspname, 0, 16) = 'dark_user_test-';")
-for db in $TESTSCHEMAS; do
-  SCRIPT+="DROP SCHEMA \"${db}\" CASCADE;";
-done
-
 CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
 for cid in $CANVASES; do
@@ -95,7 +84,6 @@ done
 run_sql "$SCRIPT";
 
 echo "Clearing test data";
-run_sql "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test_';";
 run_sql "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
 run_sql "DELETE FROM json_oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
 
