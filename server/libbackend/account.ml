@@ -83,13 +83,12 @@ let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password
 
 let owner ~(auth_domain:string) : Uuidm.t option =
-  Printf.sprintf
+  Db.fetch_one_option
+    ~name:"owner"
     "SELECT id from accounts
-      WHERE accounts.username = %s"
-    (Dbp.string (String.lowercase auth_domain))
-  |> Db.fetch_via_sql ~quiet:false
-  |> List.concat
-  |> List.hd
+     WHERE accounts.username = $1"
+    ~params:[ String (String.lowercase auth_domain)]
+  |> Option.map ~f:List.hd_exn
   |> Option.bind ~f:Uuidm.of_string
 
 let auth_domain_for host : string =
