@@ -115,21 +115,39 @@ let timestr time =
     then result ^ "(SLOW REQUEST)"
     else result
 
-let format_string (s: string) =
-  let last = String.length s in
-  let str = String.slice s 0 (min 50 last) in
+let format_string (str: string) =
+  let len = String.length str in
+  let max_length  = 500 in
+  let str =
+    if len >= max_length
+    then (String.slice str 0 max_length) ^ "..."
+    else str
+  in
   let str = Util.string_replace "\n" "\\n" str in
   let str =
     if String.contains str ' '
     then "\"" ^ str ^ "\""
     else str
   in
+  let str =
+    if String.contains str '"'
+    then Util.string_replace "\"" "\\\"" str
+    else str
+  in
   str
 
-let print_console_log ~decorate ~level params : unit =
+let print_console_log
+       ?(bt:Caml.Printexc.raw_backtrace option=None)
+       ~decorate ~level params : unit =
+  let bt_param =
+    match bt with
+    | Some bt when not decorate ->
+      ["backtrace", Caml.Printexc.raw_backtrace_to_string bt]
+    | _ -> []
+  in
   let color = if decorate then level_to_color level else "" in
   let reset = if decorate then "\x1b[0m" else "" in
-  let paramstr = params
+  let paramstr = params @ bt_param
                  |> List.map ~f:(fun (k,v) ->
                      color ^ k ^ reset ^ "=" ^ format_string v)
                  |> String.concat ~sep:" "
@@ -142,13 +160,19 @@ let print_console_log ~decorate ~level params : unit =
     ^ " "
     ^ paramstr
   in
-  Caml.print_endline msg
+  Caml.print_endline msg;
+  match bt with
+  | Some bt when decorate ->
+    Caml.print_endline (Caml.Printexc.raw_backtrace_to_string bt)
+  | _ -> ()
+
 
 let dump (value:'a) : string =
   Batteries.dump value
 
 let pP ?(data)
        ?(params:((string * string) list)=[])
+       ?(bt:Caml.Printexc.raw_backtrace option=None)
        ~(level:level)
        (name: string)
        : unit =
@@ -159,6 +183,7 @@ let pP ?(data)
       | None -> []
       | Some data -> ["data", data]
     in
+
     let params = [ "name", (Util.string_replace " " "_" name)
                 (* operation time *)
                 (* timestamp *)
@@ -169,11 +194,11 @@ let pP ?(data)
 
     match !format with
     | `Stackdriver ->
-      print_console_log ~decorate:false ~level params
+      print_console_log ~bt ~decorate:false ~level params
     | `Regular ->
-      print_console_log ~decorate:false ~level params
+      print_console_log ~bt ~decorate:false ~level params
     | `Decorated ->
-      print_console_log ~decorate:true ~level params
+      print_console_log ~bt ~decorate:true ~level params
 
 let inspecT
     ?(f=Batteries.dump)
