@@ -12,14 +12,14 @@ let is_initialized () =
   |> Db.exists_via_sql ~quiet:true
 
 let initialize_migrations_table () =
-  let sql = "CREATE TABLE IF NOT EXISTS
-             system_migrations
-             ( name TEXT PRIMARY KEY
-             , execution_date TIMESTAMPTZ NOT NULL
-             , sql TEXT NOT NULL)"
-  in
-  sql
-  |> Db.run_sql ~quiet:false
+  Db.run_sql2
+    ~name:"initialize_migrations_table"
+    "CREATE TABLE IF NOT EXISTS
+               system_migrations
+               ( name TEXT PRIMARY KEY
+               , execution_date TIMESTAMPTZ NOT NULL
+               , sql TEXT NOT NULL)"
+    ~params:[]
 
 let is_already_run (name) : bool =
   Printf.sprintf
