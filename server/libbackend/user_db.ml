@@ -11,8 +11,6 @@ module Dbp = Dbprim
 
 open Db
 
-let user_data_table = "user_data"
-
 (* bump this if you make a breaking change to
  * the underlying data format, and are migrating
  * user data to the new version

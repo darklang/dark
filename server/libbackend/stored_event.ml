@@ -3,8 +3,6 @@ open Libexecution
 
 module RTT = Types.RuntimeT
 
-module Dbp = Dbprim
-
 type event_desc = string * string * string
                 [@@deriving show, yojson]
 type four_oh_four = (event_desc * Types.RuntimeT.dval list)
