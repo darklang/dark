@@ -35,9 +35,7 @@ let json_file_hosts () : string list =
     ~f:(String.chop_suffix_exn ~suffix:".json")
 
 let current_hosts () : string list =
-  (* TODO: add json oplists here *)
-  (* TODO: why only the latest digest? We're probably dropping some *)
-  (json_file_hosts () @ Db.all_oplists digest)
+  (json_file_hosts () @ Db.all_oplists ())
   |> List.dedup_and_sort
 
 let load_json_from_disk ~root (host:string) : Op.oplist option =

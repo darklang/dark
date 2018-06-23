@@ -237,7 +237,7 @@ let load_json_oplists ~(host: string) : string option =
   |> Option.map ~f:List.hd_exn
 
 let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-    (* this is an upsert *)
+  (* this is an upsert *)
   run
     ~name:"save_json_oplists"
     "INSERT INTO json_oplists
@@ -247,15 +247,14 @@ let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
     SET data = $3;"
     ~params:[String host; String digest; String data]
 
-(* TODO: this doesn't have json oplists *)
-let all_oplists ~(digest: string) : string list =
+let all_oplists () : string list =
   fetch
-    ~name:"all_oplists"
-    "SELECT host
-    FROM oplists
-    WHERE digest = $1"
-    ~params:[String digest]
-  |> List.concat
+    ~name:"oplists"
+    "SELECT DISTINCT host FROM oplists
+     UNION
+     SELECT DISTINCT host FROM json_oplists"
+    ~params:[]
+  |> List.map ~f:List.hd_exn
   |> List.filter ~f:(fun h ->
       not (String.is_prefix ~prefix:"test-" h))
 
