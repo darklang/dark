@@ -4,8 +4,6 @@ open Libexecution
 open Types
 module RTT = Types.RuntimeT
 
-module Dbp = Dbprim
-
 (* By hashing the filename, it's cheap to know if anything has changed,
  * without security implication of saving passwords to disk *)
 let hash (arglist : RTT.dval list) : string =

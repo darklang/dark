@@ -12,7 +12,6 @@ module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
-module Dbp = Dbprim
 
 let fid = Util.create_id
 let v str = Filled (fid (), Value str)

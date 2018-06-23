@@ -1,8 +1,6 @@
 open Core_kernel
 open Libexecution
 
-module Dbp = Dbprim
-
 let last_ran_at (canvas_id: Uuidm.t) (h: Handler.handler) : Time.t option =
   Db.fetch_one_option
     ~name:"last_ran_at"
