@@ -70,7 +70,7 @@ let to_param sql : string =
   | Secret str -> str
   | DvalJson dv -> Dval.dval_to_json_string dv
   | DvalmapJsonb dvm -> Dval.dvalmap_to_string dvm
-  | Null -> "NULL"
+  | Null -> Postgresql.null
 
 let to_log sql : string =
   let max_length = 600 in
