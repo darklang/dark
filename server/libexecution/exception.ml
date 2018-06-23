@@ -90,7 +90,7 @@ let raise_
   in
   if should_log e.tipe
   then
-    Log.erroR "exception" ~data:(show_exception_data e);
+    Log.erroR "exception" ~bt ~data:(show_exception_data e);
   match bt with
   | None -> raise (DarkException e)
   | Some bt -> Caml.Printexc.raise_with_backtrace (DarkException e) bt
