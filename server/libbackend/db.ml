@@ -170,7 +170,7 @@ let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
 
 let load_oplists ~(host: string) ~(digest: string) : string option =
   (* https://www.postgresql.org/docs/9.6/static/datatype-binary.html
-   * Postgres advices us to parse the hex format, above. *)
+   * Postgres advices us to parse the hex format. *)
   Printf.sprintf
     "SELECT data FROM oplists
      WHERE host = %s
