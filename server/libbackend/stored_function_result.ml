@@ -19,17 +19,17 @@ let hash (arglist : RTT.dval list) : string =
 (* ------------------------- *)
 
 let store (canvas_id, tlid, fnname, id) arglist result =
-  Printf.sprintf
+  Db.run_sql2
+    ~name:"stored_function_result.store"
     "INSERT INTO function_results
-    (canvas_id, tlid, fnname, id, hash, timestamp, value)
-    VALUES (%s, %s, %s, %s, %s, CURRENT_TIMESTAMP, %s)"
-    (Dbp.uuid canvas_id)
-    (Dbp.tlid tlid)
-    (Dbp.string fnname)
-    (Dbp.id id)
-    (Dbp.string (hash arglist))
-    (Dbp.dvaljson result)
-  |> Db.run_sql
+     (canvas_id, tlid, fnname, id, hash, timestamp, value)
+     VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)"
+    ~params:[ Uuid canvas_id
+            ; Int tlid
+            ; String fnname
+            ; Int id
+            ; String (hash arglist)
+            ; DvalJson result]
 
 let load (canvas_id, tlid, fnname, id) arglist
   : (RTT.dval * Time.t) option =

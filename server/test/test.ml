@@ -38,7 +38,7 @@ let clear_test_data () : unit =
     (Dbp.uuid canvas)
     (Dbp.uuid canvas)
     (Dbp.uuid canvas)
-|> Db.run_sql
+  |> Db.run_sql2 ~params:[] ~name:"clear_test_data"
 
 
 

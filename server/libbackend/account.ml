@@ -17,40 +17,40 @@ type account = { username: username
 (* Adding *)
 (************************)
 let upsert_account (account:account) : unit =
-  Printf.sprintf
+  Db.run_sql2
+    ~name:"upsert_account"
     "INSERT INTO accounts
     (id, username, name, email, admin, password)
     VALUES
-    (%s, %s, %s, %s, false, %s)
+    ($1, $2, $3, $4, false, $5)
     ON CONFLICT (username)
     DO UPDATE SET name = EXCLUDED.name,
                   email = EXCLUDED.email,
                   admin = false,
                   password = EXCLUDED.password"
-    (Dbp.uuid (Util.create_uuid ()))
-    (Dbp.string account.username)
-    (Dbp.string account.name)
-    (Dbp.string account.email)
-    (Dbp.string account.password)
-  |> Db.run_sql
+    ~params:[ Uuid (Util.create_uuid ())
+            ; String account.username
+            ; String account.name
+            ; String account.email
+            ; String account.password]
 
 let upsert_admin (account:account) : unit =
-  Printf.sprintf
+  Db.run_sql2
+    ~name:"upsert_admin"
     "INSERT INTO accounts as u
     (id, username, name, email, admin, password)
     VALUES
-    (%s, %s, %s, %s, true, %s)
+    ($1, $2, $3, $4, true, $5)
     ON CONFLICT (username)
     DO UPDATE SET name = EXCLUDED.name,
                   email = EXCLUDED.email,
                   admin = true,
                   password = EXCLUDED.password"
-    (Dbp.uuid (Util.create_uuid ()))
-    (Dbp.string account.username)
-    (Dbp.string account.name)
-    (Dbp.string account.email)
-    (Dbp.string account.password)
-  |> Db.run_sql
+    ~params:[ Uuid (Util.create_uuid ())
+            ; String account.username
+            ; String account.name
+            ; String account.email
+            ; String account.password]
 
 
 (************************)
