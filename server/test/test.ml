@@ -12,6 +12,7 @@ module RT = Runtime
 module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
+module Dbp = Dbprim
 
 let fid = Util.create_id
 let v str = Filled (fid (), Value str)
@@ -57,7 +58,9 @@ let execute_ops (ops : Op.op list) : dval =
   Ast_analysis.execute_handler state h
 
 
-let at_dval = AT.of_pp pp_dval
+let at_dval = AT.testable
+    (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
+    (fun a b -> compare_dval a b = 0)
 let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
@@ -98,7 +101,7 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
   let e =
     try
       let r = f () in
-      Log.erroR "result" ~data:(show_dval r);
+      Log.erroR "result" ~data:(Dval.to_repr r);
       Some "no exception"
     with
     | Exception.DarkException ed ->
@@ -121,6 +124,8 @@ let is_fn name =
   name = "+"
   || name = "-"
   || name = "=="
+  || name = "dissoc"
+  || name = "assoc"
   || String.is_substring ~substring:"::" name
 
 let rec ast_for_ (sexp : Sexp.t) : expr =
@@ -363,7 +368,7 @@ let t_case_insensitive_db_roundtrip () =
     AT.(check bool) "matched" true
       (List.mem ~equal:(=) (DvalMap.data v) value)
   | other ->
-    Log.erroR "error" ~data:(show_dval other);
+    Log.erroR "error" ~data:(Dval.to_repr other);
     AT.(check bool) "failed" true false
 
 
@@ -560,7 +565,29 @@ let t_nulls_allowed_in_db () =
     (execute_ops oplist)
     (DBool true)
 
+let t_nulls_added_to_missing_column () =
+  (* Test for the hack that columns get null in all rows to start *)
+  clear_test_data ();
+  let ast = ast_for "(DB::insert (obj (x 'v')) MyDB)"
+  in
+  let oplist = [ Op.CreateDB (dbid, pos, "MyDB")
+               ; Op.AddDBCol (dbid, 11, 12)
+               ; Op.SetDBColName (dbid, 11, "x")
+               ; Op.SetDBColType (dbid, 12, "Str")
+               ; hop (handler ast)
+               ] in
+  ignore (execute_ops oplist);
+  let ast = ast_for "(dissoc (List::head (DB::fetchAll MyDB)) 'id')" in
+  let oplist = oplist @ [ Op.AddDBCol (dbid, 13, 14)
+                        ; Op.SetDBColName (dbid, 13, "y")
+                        ; Op.SetDBColType (dbid, 14, "Str")
+                        ; hop (handler ast) ] in
+
+  check_dval "equal_after_fetchall" (execute_ops oplist)
+    (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))
+
 let t_analysis_not_empty () =
+  clear_test_data ();
   (* in a filled-in HTTP env, there wasn't a default environment, so we
    * got no variables in the analysis. *)
   let h = http_handler (ast_for "_") in
@@ -591,9 +618,9 @@ let suite =
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
   ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
-  clear_test_data ();
   ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
+  ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
   ; "Analysis not empty", `Quick, t_analysis_not_empty
   ]
 
