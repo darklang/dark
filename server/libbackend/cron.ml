@@ -4,28 +4,17 @@ open Libexecution
 module Dbp = Dbprim
 
 let last_ran_at (canvas_id: Uuidm.t) (h: Handler.handler) : Time.t option =
-  let open Option in
-  let fetched =
-    Printf.sprintf
+  Db.fetch_one_option
+    ~name:"last_ran_at"
       "SELECT ran_at
-       FROM \"cron_records\"
-       WHERE tlid = %s
-       AND canvas_id = %s
+       FROM cron_records
+       WHERE tlid = $1
+       AND canvas_id = $2
        ORDER BY id DESC
        LIMIT 1"
-       (Dbp.tlid h.tlid)
-       (Dbp.uuid canvas_id)
-    |> Db.fetch_via_sql
-    |> List.hd
-  in
-  fetched >>= fun l ->
-  match l with
-  | [lrt] ->
-    let time =
-      Dval.date_of_sqlstring lrt
-    in
-    Some time
-  | _ -> None
+    ~params:[Int h.tlid; Uuid canvas_id]
+  |> Option.map ~f:List.hd_exn
+  |> Option.map ~f:Dval.date_of_sqlstring
 
 let parse_interval (h: Handler.handler) : Time.Span.t option =
   let open Option in

@@ -104,35 +104,39 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
 let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
-  Printf.sprintf
-    "CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
-     $func$
-     BEGIN
-     LOOP
-       SELECT id
-       FROM   canvases
-       WHERE  name = _name
-       INTO   _id;
+  let sql =
+    Printf.sprintf
+      "CREATE OR REPLACE FUNCTION canvas_id(_new_id uuid, _account_id uuid, _name VARCHAR(40), OUT _id uuid) AS
+       $func$
+       BEGIN
+       LOOP
+         SELECT id
+         FROM   canvases
+         WHERE  name = _name
+         INTO   _id;
 
-       EXIT WHEN FOUND;
+         EXIT WHEN FOUND;
 
-       INSERT INTO canvases AS c
-       (id, account_id, name)
-       VALUES (_new_id, _account_id, _name)
-       ON     CONFLICT (name) DO NOTHING
-       RETURNING c.id
-       INTO   _id;
+         INSERT INTO canvases AS c
+         (id, account_id, name)
+         VALUES (_new_id, _account_id, _name)
+         ON     CONFLICT (name) DO NOTHING
+         RETURNING c.id
+         INTO   _id;
 
-       EXIT WHEN FOUND;
-     END LOOP;
-     END
-     $func$ LANGUAGE plpgsql;
-     SELECT canvas_id(%s, %s, %s); "
-    (Dbp.uuid (Util.create_uuid ()))
-    (Dbp.uuid owner)
-    (Dbp.host host)
-  |> Db.fetch_via_sql ~quiet:false
-  |> List.concat
+         EXIT WHEN FOUND;
+       END LOOP;
+       END
+       $func$ LANGUAGE plpgsql;
+       SELECT canvas_id(%s, %s, %s);"
+      (Dbp.uuid (Util.create_uuid ()))
+      (Dbp.uuid owner)
+      (Dbp.host host)
+  in
+  Db.fetch_one
+    ~name:"fetch_canvas_id"
+    sql
+    ~params:[]
   |> List.hd_exn
   |> Uuidm.of_string
   |> Option.value_exn

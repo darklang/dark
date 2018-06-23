@@ -26,28 +26,28 @@ let store_event (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) (ev
             ; DvalJson event]
 
 let list_events (canvas_id: Uuidm.t) : event_desc list =
-  Printf.sprintf
+  Db.fetch
+    ~name:"list_events"
     "SELECT DISTINCT module, path, modifier FROM stored_events
-     WHERE canvas_id = %s"
-    (Dbp.uuid canvas_id)
-  |> Db.fetch_via_sql
+     WHERE canvas_id = $1"
+    ~params:[Db.Uuid canvas_id]
   |> List.map ~f:(function
       | [module_; path; modifier] -> (module_, path, modifier)
       | _ -> Exception.internal "Bad DB format for stored_events")
 
 let load_events (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : RTT.dval list =
-  Printf.sprintf
+  Db.fetch
+    ~name:"load_events"
     "SELECT value, timestamp FROM stored_events
-    WHERE canvas_id = %s
-      AND module = %s
-      AND path = %s
-      AND modifier = %s
+    WHERE canvas_id = $1
+      AND module = $2
+      AND path = $3
+      AND modifier = $4
     LIMIT 20"
-    (Dbp.uuid canvas_id)
-    (Dbp.string module_)
-    (Dbp.string path)
-    (Dbp.string modifier)
-  |> Db.fetch_via_sql
+    ~params:[ Uuid canvas_id
+            ; String module_
+            ; String path
+            ; String modifier]
   |> List.map ~f:(function
       | [dval; _ts] -> Dval.dval_of_json_string dval
       | _ -> Exception.internal "Bad DB format for stored_events")

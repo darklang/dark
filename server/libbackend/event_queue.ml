@@ -56,29 +56,28 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
  *)
 let dequeue ~(canvas:Uuidm.t) ~(account:Uuidm.t) (execution_id: int) (space: string) (name: string) : t option =
   let fetched =
-    Printf.sprintf
-      "SELECT id, value, retries, flag_context from events
-      WHERE space = %s
-        AND name = %s
-        AND status = 'new'
-        AND delay_until < CURRENT_TIMESTAMP
-        AND canvas_id = %s
-        AND account_id = %s
-      ORDER BY id DESC
-             , retries ASC
-      LIMIT 1"
-      (Dbp.string space)
-      (Dbp.string name)
-      (Dbp.uuid canvas)
-      (Dbp.uuid account)
-    |> Db.fetch_via_sql
-    |> List.hd
+    Db.fetch_one_option
+      ~name:"dequeue_fetch"
+      "SELECT id, value, retries, flag_context FROM events
+       WHERE space = $1
+         AND name = $2
+         AND status = 'new'
+         AND delay_until < CURRENT_TIMESTAMP
+         AND canvas_id = $3
+         AND account_id = $4
+       ORDER BY id DESC
+              , retries ASC
+       LIMIT 1"
+      ~params:[ Db.String space
+              ; Db.String name
+              ; Db.Uuid canvas
+              ; Db.Uuid account]
   in
   match fetched with
   | None -> None
   | Some [id; value; retries; flag_context] ->
     Db.run_sql2
-      ~name:"dequeue"
+      ~name:"dequeue_update"
       "UPDATE events
       SET status = 'locked'
         , dequeued_by = $1
