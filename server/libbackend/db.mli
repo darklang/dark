@@ -39,3 +39,7 @@ val all_oplists : digest:string -> string list
 
 (* Misc *)
 val delete_benchmarking_data : unit -> unit
+
+(* exposed to test it *)
+val escape_single : string -> string
+val escape_double : string -> string

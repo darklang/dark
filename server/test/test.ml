@@ -539,12 +539,12 @@ let t_roundtrip_user_data () =
     (DBool true)
 
 let t_escape_pg_escaping () =
-  AT.check AT.string "no quotes" "asdd" (Dbprim.escape_single "asdd");
-  AT.check AT.string "single" "as''dd" (Dbprim.escape_single "as'dd");
-  AT.check AT.string "double" "as\"dd" (Dbprim.escape_single "as\"dd");
-  AT.check AT.string "no quotes" "asdd" (Dbprim.escape_double "asdd");
-  AT.check AT.string "single" "as'dd" (Dbprim.escape_double "as'dd");
-  AT.check AT.string "double" "as\\\"dd" (Dbprim.escape_double "as\"dd");
+  AT.check AT.string "no quotes" "asdd" (Db.escape_single "asdd");
+  AT.check AT.string "single" "as''dd" (Db.escape_single "as'dd");
+  AT.check AT.string "double" "as\"dd" (Db.escape_single "as\"dd");
+  AT.check AT.string "no quotes" "asdd" (Db.escape_double "asdd");
+  AT.check AT.string "single" "as'dd" (Db.escape_double "as'dd");
+  AT.check AT.string "double" "as\\\"dd" (Db.escape_double "as\"dd");
   ()
 
 let t_nulls_allowed_in_db () =
