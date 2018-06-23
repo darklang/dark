@@ -7,8 +7,6 @@ open Types.RuntimeT.DbT
 
 module RT = Runtime
 
-module Dbp = Dbprim
-
 open Db
 
 (* bump this if you make a breaking change to
@@ -76,7 +74,7 @@ let query_for (col: string) (dv: dval) : string =
     Printf.sprintf
       "AND (data->%s)%s = %s" (* compare against json in a string *)
       (Db.escape (String col))
-      (Dbp.cast_expression_for dv
+      (Db.cast_expression_for dv
        |> Option.value ~default:"")
       (Db.escape (DvalJson dv))
 
@@ -129,7 +127,7 @@ find_many ~state db ids =
        WHERE id IN (%s)
        AND user_version = $1
        AND dark_version = $2"
-      (Dbp.list ~serializer:Dbp.uuid ids)
+      (Db.escape (List (List.map ~f:(fun u -> Uuid u) ids)))
   in
   Db.fetch
     ~name:"find_many"
