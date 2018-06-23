@@ -25,6 +25,11 @@ val fetch_one_option : params: param list -> name:string -> string ->
 val exists : params: param list -> name:string -> string ->
   bool
 
+(* Occasionally, we're trying to do something dynamic, or maybe multiple
+ * things in a single sql statement and then the above statements don't
+ * work, so we need to escape manually *)
+val escape : param -> string
+
 (* Saving canvases to the DB *)
 val save_oplists : host:string -> digest:string -> string -> unit
 val load_oplists : host:string -> digest:string -> string option

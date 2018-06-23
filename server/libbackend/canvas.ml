@@ -7,7 +7,6 @@ open Types
 module RTT = Types.RuntimeT
 module RT = Runtime
 module TL = Toplevel
-module Dbp = Dbprim
 
 type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
@@ -129,9 +128,9 @@ let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
        END
        $func$ LANGUAGE plpgsql;
        SELECT canvas_id(%s, %s, %s);"
-      (Dbp.uuid (Util.create_uuid ()))
-      (Dbp.uuid owner)
-      (Dbp.host host)
+      (Db.escape (Uuid (Util.create_uuid ())))
+      (Db.escape (Uuid owner))
+      (Db.escape (String host))
   in
   Db.fetch_one
     ~name:"fetch_canvas_id"
