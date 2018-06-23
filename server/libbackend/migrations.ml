@@ -12,7 +12,7 @@ let is_initialized () =
   |> Db.exists_via_sql ~quiet:true
 
 let initialize_migrations_table () =
-  Db.run_sql2
+  Db.run
     ~name:"initialize_migrations_table"
     "CREATE TABLE IF NOT EXISTS
                system_migrations
@@ -53,7 +53,7 @@ let run_system_migration (name: string) (sql:string) : unit =
       (Dbp.string name)
       (Dbp.sql sql)
   in
-  Db.run_sql2 ~params:[] fullsql ~name:"run_system_migration"
+  Db.run ~params:[] fullsql ~name:"run_system_migration"
 
 let names () =
   File.lsdir ~root:Migrations ""

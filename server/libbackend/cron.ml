@@ -66,7 +66,7 @@ let should_execute (canvas_id: Uuidm.t) (h: Handler.handler) : bool =
       now >= should_run_after)
 
 let record_execution (canvas_id: Uuidm.t) (h: Handler.handler) : unit =
-  Db.run_sql2
+  Db.run
     "INSERT INTO cron_records
     (tlid, canvas_id)
     VALUES ($1, $2)"

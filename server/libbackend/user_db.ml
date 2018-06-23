@@ -281,7 +281,7 @@ and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
   (* TODO: what if it has an id already *)
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
-  Db.run_sql2
+  Db.run
     ~name:"user_insert"
     "INSERT into user_data
      (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
@@ -301,7 +301,7 @@ and update ~state db (vals: dval_map) =
     | _ -> Exception.client "error, id should be a uuid"
   in
   let merged = type_check_and_upsert_dependents ~state db vals in
-  Db.run_sql2
+  Db.run
     ~name:"user_update"
     "UPDATE user_data
      SET data = $1
@@ -344,7 +344,7 @@ let delete ~state (db: db) (vals: dval_map) =
     | _ -> Exception.client "error, id should be a uuid"
   in
   (* covered by composite PK index *)
-  Db.run_sql2
+  Db.run
     ~name:"user_delete"
     "DELETE FROM user_data
      WHERE id = $1
@@ -363,7 +363,7 @@ let delete ~state (db: db) (vals: dval_map) =
 
 let delete_all ~state (db: db) =
   (* covered by idx_user_data_current_data_for_tlid *)
-  Db.run_sql2
+  Db.run
     ~name:"user_delete_all"
     "DELETE FROM user_data
      WHERE account_id = %s

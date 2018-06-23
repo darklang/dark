@@ -135,7 +135,7 @@ let execute2 ~name ~op ~params
         ~info:[("time", time () |> string_of_float)]
 
 
-let run_sql2 ~(params: sql list) ~(name:string) (sql: string) : unit =
+let run ~(params: sql list) ~(name:string) (sql: string) : unit =
   ignore
     (execute2 ~op:"run" ~params ~name sql
        ~f:(fun ~params ~binary_params sql ->
@@ -185,7 +185,7 @@ let exists_via_sql ?(quiet=false) (sql: string) : bool =
 (* oplists *)
 (* ------------------------- *)
 let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  run_sql2
+  run
     ~name:"save_oplists"
     "INSERT INTO oplists
     (host, digest, data)
@@ -218,7 +218,7 @@ let load_json_oplists ~(host: string) : string option =
 
 let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
     (* this is an upsert *)
-  run_sql2
+  run
     ~name:"save_json_oplists"
     "INSERT INTO json_oplists
     (host, digest, data)
@@ -240,7 +240,7 @@ let all_oplists ~(digest: string) : string list =
       not (String.is_prefix ~prefix:"test-" h))
 
 let delete_benchmarking_data () : unit =
-  run_sql2
+  run
     ~name:"delete_benchmarking_data"
     "DELETE FROM oplists WHERE host like 'benchmarking\\_%%';
      DELETE FROM json_oplists WHERE host like 'benchmarking\\_%%';"
