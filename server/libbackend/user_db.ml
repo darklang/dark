@@ -277,19 +277,18 @@ and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
   (* TODO: what if it has an id already *)
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
-  Printf.sprintf
-    "INSERT into %s
+  Db.run_sql2
+    ~name:"user_insert"
+    "INSERT into user_data
      (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
-     VALUES (%s, %s, %s, %s, %s, %s, %s)"
-    (Dbp.table user_data_table)
-    (Dbp.uuid id)
-    (Dbp.uuid state.account_id)
-    (Dbp.uuid state.canvas_id)
-    (Dbp.int db.tlid)
-    (Dbp.int db.version)
-    (Dbp.int current_dark_version)
-    (Dbp.dvalmap_jsonb merged)
-  |> run_sql;
+     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)"
+    ~params:[ Uuid id
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.tlid
+            ; Int db.version
+            ; Int current_dark_version
+            ; DvalmapJsonb merged];
   id
 and update ~state db (vals: dval_map) =
   let id =

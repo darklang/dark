@@ -53,6 +53,7 @@ type sql = Int of int
          | Binary of string
          | Secret of string
          | DvalJson of Types.RuntimeT.dval
+         | DvalmapJsonb of Types.RuntimeT.dval_map
          | Null
 
 let to_binary_bool sql : bool =
@@ -68,6 +69,7 @@ let to_param sql : string =
   | Binary str -> str (* the to_binary_bool handled this *)
   | Secret str -> str
   | DvalJson dv -> Dval.dval_to_json_string dv
+  | DvalmapJsonb dvm -> Dval.dvalmap_to_string dvm
   | Null -> "NULL"
 
 let to_log sql : string =
@@ -84,6 +86,7 @@ let to_log sql : string =
   | Binary str -> "<binary>"
   | Secret str -> "<secret>"
   | DvalJson dv -> abbrev (Dval.dval_to_json_string dv)
+  | DvalmapJsonb dvm -> abbrev (Dval.dvalmap_to_string dvm)
   | Null -> "NULL"
 
 let execute2 ~name ~op ~params
