@@ -23,6 +23,24 @@ let dbid = 89
 let pos = {x=0;y=0}
 let execution_id = 6543
 
+let clear_test_data () : unit =
+  let owner = Canvas.owner "test" in
+  let canvas = Canvas.fetch_canvas_id owner "test" in
+  Printf.sprintf
+    "DELETE FROM events where canvas_id = %s;
+     DELETE FROM stored_events where canvas_id = %s;
+     DELETE FROM function_results where canvas_id = %s;
+     DELETE FROM user_data WHERE canvas_id = %s;
+     DELETE FROM canvases where id = %s;"
+    (Dbp.uuid canvas)
+    (Dbp.uuid canvas)
+    (Dbp.uuid canvas)
+    (Dbp.uuid canvas)
+    (Dbp.uuid canvas)
+|> Db.run_sql
+
+
+
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
@@ -191,6 +209,7 @@ let execute (prog: string) : dval =
 (* ----------------------- *)
 
 let t_undo_fns () =
+  clear_test_data ();
   let n1 = Op.Savepoint [tlid] in
   let n2 = hop (handler (ast_for "(- _ _)")) in
   let n3 = hop (handler (ast_for "(- 3 _)")) in
@@ -222,6 +241,7 @@ let t_undo_fns () =
   AT.check AT.bool "neither_redo" false (Undo.is_redoable neither tlid)
 
 let t_undo () =
+  clear_test_data ();
   let ha ast = hop (handler ast) in
   let sp = Op.Savepoint [tlid] in
   let u = Op.UndoTL tlid in
@@ -262,6 +282,7 @@ let t_undo () =
   |> check_dval "t_undo_8" (DInt 5)
 
 let t_inserting_object_to_missing_col_gives_good_error () =
+  clear_test_data ();
   let createDB = Op.CreateDB (dbid, pos, "TestDB") in
   let insert = ast_for "(DB::insert (obj (col (obj))) TestDB)" in
   let f = fun () -> execute_ops [createDB; hop (handler insert)] in
@@ -294,6 +315,7 @@ let t_derror_roundtrip () =
 
 
 let t_db_oplist_roundtrip () =
+  clear_test_data ();
   let host = "test_db_oplist_roundtrip" in
   let oplist = [ Op.UndoTL tlid
                ; Op.RedoTL tlid
@@ -321,6 +343,7 @@ let t_db_json_oplist_roundtrip () =
 
 
 let t_case_insensitive_db_roundtrip () =
+  clear_test_data ();
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
   let ast =
@@ -353,6 +376,7 @@ let t_lambda_with_foreach () =
 
 module SE = Stored_event
 let t_stored_event_roundtrip () =
+  clear_test_data ();
   let owner : Uuidm.t = Account.owner ~auth_domain:"test"
                        |> fun x -> Option.value_exn x in
   let id1 = Canvas.fetch_canvas_id owner "host" in
@@ -393,6 +417,7 @@ let t_stored_event_roundtrip () =
 
 module EQ = Event_queue
 let t_event_queue_roundtrip () =
+  clear_test_data ();
   let dval = DInt 345 in
   let exec_id = 147 in
   let space = "TEST_SPACE" in
@@ -469,6 +494,7 @@ let t_hmac_signing _ =
   AT.check AT.string "hmac_signing_2" expected_header actual
 
 let t_cron_sanity () =
+  clear_test_data ();
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c "test-cron_works" [hop h] in
   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
@@ -479,6 +505,7 @@ let t_cron_sanity () =
   ()
 
 let t_cron_just_ran () =
+  clear_test_data ();
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c "test-cron_works" [hop h] in
   let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
@@ -491,6 +518,7 @@ let t_cron_just_ran () =
 
 
 let t_roundtrip_user_data () =
+  clear_test_data ();
   let ast =
     ast_for "(let v 'lasd;04mr'
         (let old (DB::insert (obj (x v)) MyDB)
@@ -563,6 +591,7 @@ let suite =
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
   ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
+  clear_test_data ();
   ; "Test postgres escaping", `Quick, t_escape_pg_escaping
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Analysis not empty", `Quick, t_analysis_not_empty
