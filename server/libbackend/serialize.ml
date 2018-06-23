@@ -39,7 +39,7 @@ let current_hosts () : string list =
   |> List.dedup_and_sort
 
 let load_json_from_disk ~root (host:string) : Op.oplist option =
-  Log.infO "SERIALIZATION" ~params:[ "load", "disk"
+  Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
                                    ; "host", host];
   let filename = json_unversioned_filename host in
@@ -48,14 +48,14 @@ let load_json_from_disk ~root (host:string) : Op.oplist option =
 let load_preprocessed_json_from_disk ~root
     ~(preprocess:(string -> string))
     (host:string) : Op.oplist option =
-  Log.infO "SERIALIZATION" ~params:[ "load_from", "disk"
+  Log.infO "serialization" ~params:[ "load_from", "disk"
                                    ; "format", "preprocessed_json"
                                    ; "host", host];
   let filename = json_unversioned_filename host in
   File.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
 
 let load_json_from_db (host:string) : Op.oplist option =
-  Log.infO "SERIALIZATION" ~params:[ "load_from", "db"
+  Log.infO "serialization" ~params:[ "load_from", "db"
                                    ; "format", "json"
                                    ; "host", host];
   host
