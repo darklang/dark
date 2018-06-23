@@ -2,7 +2,6 @@ open Core
 open Libexecution
 
 (* Low-level API *)
-(* val fetch_via_sql : ?quiet:bool -> string -> string list list *)
 val exists_via_sql : ?quiet:bool -> string -> bool
 
 type sql = Int of int
@@ -14,9 +13,9 @@ type sql = Int of int
          | DvalmapJsonb of Types.RuntimeT.dval_map
          | Null
 
-(* NOTE: run_sql2 is not allowed to receive multiple commands. If you
+(* NOTE: run is not allowed to receive multiple commands. If you
  * want multiple statements, put a BEGIN/END around them. *)
-val run_sql2 : params: sql list -> name:string -> string ->
+val run : params: sql list -> name:string -> string ->
   unit
 val fetch : params: sql list -> name:string -> string ->
   string list list
