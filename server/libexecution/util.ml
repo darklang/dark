@@ -52,6 +52,9 @@ let merge_right = Map.merge ~f:(fun ~key v ->
 let list_any ~(f: 'a -> 'b) (l: 'a list) : bool =
   List.length (List.filter ~f l) > 0
 
+let int_sum (l: int list) : int =
+  List.fold_left ~f:(+) ~init:0 l
+
 
 let maybe_chop_prefix ~prefix msg =
   String.chop_prefix ~prefix msg
