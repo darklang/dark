@@ -3,8 +3,6 @@ open Libexecution
 
 open Types
 
-module Dbp = Dbprim
-
 type username = string
 
 type account = { username: username
