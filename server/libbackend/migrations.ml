@@ -1,7 +1,6 @@
 open Core_kernel
 
 open Libexecution
-module Dbp = Dbprim
 
 let is_initialized () =
   Db.exists
@@ -48,10 +47,10 @@ let run_system_migration (name: string) (sql:string) : unit =
              END IF;
            END
          $do$"
-      (Dbp.string name)
+      (Db.escape (String name))
       sql
-      (Dbp.string name)
-      (Dbp.sql sql)
+      (Db.escape (String name))
+      (Db.escape (String sql))
   in
   Db.run ~params:[] fullsql ~name:"run_system_migration"
 

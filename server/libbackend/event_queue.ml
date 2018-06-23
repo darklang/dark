@@ -5,7 +5,6 @@ open Types
 open Types.RuntimeT
 
 module FF = Feature_flag
-module Dbp = Dbprim
 
 type t = { id: int
          ; value: dval
