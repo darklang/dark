@@ -1,6 +1,7 @@
 # How to build and run
 
 - Install Docker for Mac
+- Install Homebrew for Mac from https://brew.sh/
 - Run `brew install bash`
 - Run `brew install fswatch`
 - Run `scripts/builder --compile --watch --test` (if don't have time to debug docker issues, `NEVER_REBUILD_DOCKER=1 scripts/builder --compile --watch --test` is your friend)
