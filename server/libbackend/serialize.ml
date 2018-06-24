@@ -67,7 +67,7 @@ let load_json_from_db (host:string) : Op.oplist option =
       |> Result.ok_or_failwith)
 
 let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
-  Log.infO "SERIALIZATION" ~params:[ "save_to", "disk"
+  Log.infO "serialization" ~params:[ "save_to", "disk"
                                    ; "format", "json"
                                    ; "filename", filename];
   ops
@@ -77,7 +77,7 @@ let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
   |> File.writefile ~root filename
 
 let save_json_to_db (host: string) (ops: Op.oplist) : unit =
-  Log.infO "SERIALIZATION" ~params:[ "save_to", "db"
+  Log.infO "serialization" ~params:[ "save_to", "db"
                                    ; "format", "json"
                                    ; "host", host];
   ops
@@ -86,7 +86,7 @@ let save_json_to_db (host: string) (ops: Op.oplist) : unit =
   |> Db.save_json_oplists ~host ~digest
 
 let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
-  Log.infO "SERIALIZATION" ~params:[ "save_to", "db"
+  Log.infO "serialization" ~params:[ "save_to", "db"
                                    ; "format", "disk"
                                    ; "host", host];
   ops
@@ -95,7 +95,7 @@ let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
   |> Db.save_oplists host digest
 
 let load_binary_from_db (host: string) : Op.oplist option =
-  Log.infO "SERIALIZATION" ~params:[ "load_from", "db"
+  Log.infO "serialization" ~params:[ "load_from", "db"
                                    ; "format", "binary"
                                    ; "host", host];
   Db.load_oplists host digest
