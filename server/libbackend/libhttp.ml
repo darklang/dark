@@ -13,7 +13,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [dv; DInt code]) -> DResp (Response (code, []), dv)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -34,7 +34,7 @@ let fns : Lib.shortfn list = [
           | (_, [dv; DObj _ as obj; DInt code]) ->
             let pairs = Dval.to_string_pairs obj in
             DResp (Response (code, pairs), dv)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -49,7 +49,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [dv]) -> DResp (Response (200, []), dv)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -64,7 +64,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [dv; DInt code]) -> DResp (Response (code, ["Content-Type", "text/html"]), dv)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -78,7 +78,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [dv; DInt code]) -> DResp (Response (code, ["Content-Type", "application/json"]), dv)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -92,7 +92,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr url]) -> DResp (Redirect url, DNull)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -107,7 +107,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr msg]) -> DResp (Response (400, []), DStr msg)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -122,7 +122,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, []) -> DResp (Response (404, []), DNull)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -137,7 +137,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, []) -> DResp (Response (401, []), DNull)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -152,7 +152,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, []) -> DResp (Response (403, []), DNull)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }

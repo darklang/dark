@@ -19,7 +19,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj value; DDB db]) ->
             let id = User_db.insert state db value in
             DObj (Map.set value "id" (DID id))
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = false
   }
@@ -35,7 +35,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj vals; DDB db]) ->
             User_db.delete state db vals;
             DNull
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = false
   }
@@ -52,7 +52,7 @@ let fns : Lib.shortfn list = [
           | (state, [DDB db]) ->
             User_db.delete_all state db;
             DNull
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = false
   }
@@ -70,7 +70,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj vals; DDB db]) ->
             User_db.update state db vals;
             DObj vals
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = false
   }
@@ -85,7 +85,7 @@ let fns : Lib.shortfn list = [
         (function
           | (state, [value; DStr field; DDB db]) ->
             User_db.fetch_by state db field value
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -104,7 +104,7 @@ let fns : Lib.shortfn list = [
              | DList (x :: xs) -> x
                (* TODO(ian): Maybe/Option *)
              | _ -> DNull)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -121,7 +121,7 @@ let fns : Lib.shortfn list = [
             map
             |> DvalMap.to_alist
             |> User_db.fetch_by_many state db
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -142,7 +142,7 @@ let fns : Lib.shortfn list = [
              | DList (x :: xs) -> x
                (* TODO(ian): Maybe/Option *)
              | _ -> DNull)
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -159,7 +159,7 @@ let fns : Lib.shortfn list = [
         (function
           | (state, [DDB db]) ->
             User_db.fetch_all state db
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -176,7 +176,7 @@ let fns : Lib.shortfn list = [
             User_db.cols_for db
             |> List.map ~f:(fun (k,v) -> DStr k)
             |> DList
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -193,7 +193,7 @@ let fns : Lib.shortfn list = [
             User_db.cols_for db
             |> List.map ~f:(fun (k,v) -> (k, DStr (Dval.tipe_to_string v)))
             |> Dval.to_dobj
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = true
   }

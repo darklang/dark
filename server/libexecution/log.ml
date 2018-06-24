@@ -190,7 +190,7 @@ let dump (value:'a) : string =
 
 let pP ?(data)
        ?(params:((string * string) list)=[])
-       ?(bt:Caml.Printexc.raw_backtrace option=None)
+       ?(bt:Caml.Printexc.raw_backtrace option)
        ~(level:level)
        (name: string)
        : unit =

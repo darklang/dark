@@ -19,7 +19,7 @@ let fns : Lib.shortfn list = [
           | (state, [data; DStr space; DStr name]) ->
             Event_queue.enqueue state space name data;
             data
-          | (_, args) -> fail args)
+          | args -> fail args)
   ; pr = None
   ; ps = false
   }
