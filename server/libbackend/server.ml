@@ -150,6 +150,10 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
     |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
     let resp_headers = Cohttp.Header.of_list [cors] in
     respond ~resp_headers `Not_found "404: No page matches"
+  | a :: b :: _ ->
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond `Internal_server_error ~resp_headers
+      "500: More than one page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request headers query body in
@@ -230,11 +234,6 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
       respond ~resp_headers `OK body)
-  | _ ->
-    let resp_headers = Cohttp.Header.of_list [cors] in
-    respond `Internal_server_error ~resp_headers
-      "500: More than one page matches"
-
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
