@@ -1,5 +1,30 @@
 open Core_kernel
 
+(* -------------------- *)
+(* Backtraces *)
+(* -------------------- *)
+
+type backtrace = Caml.Printexc.raw_backtrace
+
+let get_backtrace () : backtrace =
+  Caml.Printexc.get_raw_backtrace ()
+
+let backtrace_to_string (bt: backtrace) : string =
+  Caml.Printexc.raw_backtrace_to_string bt
+
+let reraise_after e (fn : backtrace -> unit) =
+  let bt = get_backtrace () in
+  fn bt;
+  Caml.Printexc.raise_with_backtrace e bt
+
+let reraise e  =
+  let bt = get_backtrace () in
+  Caml.Printexc.raise_with_backtrace e bt
+
+
+(* -------------------- *)
+(* Dark exceptions *)
+(* -------------------- *)
 type exception_info = (string * string) list [@@deriving yojson, show]
 
 let exception_info_to_yojson info =
@@ -39,18 +64,6 @@ type exception_data = { short : string
 
 exception DarkException of exception_data [@@deriving show][@@deriving_inline sexp][@@@deriving.end]
 
-let get_backtrace () =
-  Caml.Printexc.get_raw_backtrace ()
-
-let reraise_after e (fn : Caml.Printexc.raw_backtrace -> unit) =
-  let bt = get_backtrace () in
-  fn bt;
-  Caml.Printexc.raise_with_backtrace e bt
-
-let reraise e  =
-  let bt = get_backtrace () in
-  Caml.Printexc.raise_with_backtrace e bt
-
 let to_string exc =
   match exc with
   | DarkException e ->
@@ -58,16 +71,7 @@ let to_string exc =
     |> exception_data_to_yojson
     |> Yojson.Safe.pretty_to_string
   | e ->
-    Log.inspecT "exception" e;
     Exn.to_string e
-
-let log ?bt name e =
-  let backtrace =
-    match bt with
-    | Some bt -> bt
-    | None -> get_backtrace ()
-  in
-  Log.erroR ~bt:backtrace name ~params:["exception", to_string e]
 
 
 let raise_
@@ -94,9 +98,6 @@ let raise_
           ; workarounds
           }
   in
-  if should_log e.tipe
-  then
-    Log.erroR "exception" ?bt ~data:(show_exception_data e);
   match bt with
   | None -> raise (DarkException e)
   | Some bt -> Caml.Printexc.raise_with_backtrace (DarkException e) bt

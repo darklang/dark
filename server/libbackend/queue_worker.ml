@@ -21,10 +21,10 @@ let dequeue_and_evaluate_all () : string =
             Some (endp, C.load endp []) (* serialization can fail, attempt first *)
           with
           | e ->
-            let bt = Backtrace.Exn.most_recent () in
-            Log.erroR "Deserialization error" ~params:[ "host", endp
-                                                      ; "exn", Log.dump e
-                                                      ];
+            let bt = Exception.get_backtrace () in
+            Log.erroR "Deserialization error" ~bt ~params:[ "host", endp
+                                                          ; "exn", Log.dump e
+                                                          ];
             let _ = Rollbar.report e bt EventQueue in
             None)
     |> List.map
@@ -54,7 +54,7 @@ let dequeue_and_evaluate_all () : string =
                         None
                     with
                     | e ->
-                      let bt = Backtrace.Exn.most_recent () in
+                      let bt = Exception.get_backtrace () in
                       let _  = Rollbar.report e bt EventQueue in
                       None)
             in
@@ -97,7 +97,7 @@ let dequeue_and_evaluate_all () : string =
             | l -> RTT.DList l
           with
           | e ->
-            let bt = Backtrace.Exn.most_recent () in
+            let bt = Exception.get_backtrace () in
             let _  = Rollbar.report e bt EventQueue in
             Event_queue.finalize execution_id ~status:`Err;
             RTT.DError (Exn.to_string e)
