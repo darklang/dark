@@ -31,7 +31,7 @@ let check_filename ~(root:Config.root) ~mode f =
           && not (Sys.is_file f = `Yes))) |> debug "irreg"
   then
     (Log.erroR "SECURITY_VIOLATION" ~data:f;
-    Exception.client "")
+     Exception.internal "FILE SECURITY VIOLATION")
   else
     f
 
