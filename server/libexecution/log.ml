@@ -194,29 +194,33 @@ let pP ?(data)
        ~(level:level)
        (name: string)
        : unit =
-  if should_log level
-  then
-    let data_param =
-      match data with
-      | None -> []
-      | Some data -> ["data", data]
-    in
+  try
+    if should_log level
+    then
+      let data_param =
+        match data with
+        | None -> []
+        | Some data -> ["data", data]
+      in
 
-    let params = [ "name", (Util.string_replace " " "_" name)
-                (* operation time *)
-                (* timestamp *)
-                (* slow request *)
-                (* ip address *)
-                 ] @ data_param @ params
-    in
+      let params = [ "name", (Util.string_replace " " "_" name)
+                  (* operation time *)
+                  (* timestamp *)
+                  (* slow request *)
+                  (* ip address *)
+                   ] @ data_param @ params
+      in
 
-    match !format with
-    | `Stackdriver ->
-      print_console_log ~bt ~decorate:false ~level params
-    | `Regular ->
-      print_console_log ~bt ~decorate:false ~level params
-    | `Decorated ->
-      print_console_log ~bt ~decorate:true ~level params
+      match !format with
+      | `Stackdriver ->
+        print_console_log ~bt ~decorate:false ~level params
+      | `Regular ->
+        print_console_log ~bt ~decorate:false ~level params
+      | `Decorated ->
+        print_console_log ~bt ~decorate:true ~level params
+    with e ->
+      Caml.print_endline "ERROR HANDLING ERROR: log.pP"
+
 
 let inspecT
     ?(f=Batteries.dump)
