@@ -36,5 +36,5 @@ let init () =
       Libexecution.Log.infO "Libbackend" ~data:"Initialization Complete";
       has_inited := true;
   with e ->
-    Caml.print_endline "UNHANDLED ERROR: backend initialization"
+    Rollbar.last_ditch e "backend initialization"
 
