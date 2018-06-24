@@ -8,6 +8,7 @@ type result = [`Success | `Failure | `Disabled]
 
 type err_ctx = Remote of CRequest.t * string
              | EventQueue
+             | Other of string
 
 let exn_to_string (e: exn) : string =
   match e with
@@ -39,6 +40,7 @@ let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx)
     match ctx with
     | Remote _ -> `String "server"
     | EventQueue -> `String "event queue worker"
+    | Other str -> `String str
   in
   let env = `String Config.rollbar_environment in
   let language = `String "OCaml" in
@@ -72,6 +74,7 @@ let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx)
       ;("language", language)
       ;("framework", framework)
       ;("context", context)]
+    | Other str -> []
   in
   payload
   |> fun p -> `Assoc p
@@ -144,3 +147,8 @@ let report (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result =
     Caml.print_endline "UNHANDLED ERROR: rollbar.report";
     `Failure
 
+let last_ditch (e: exn) (name: string) : unit =
+  (* Before anything else, get this flushed to logs *)
+  Caml.print_endline ("UNHANDLED ERROR: " ^ name);
+  let bt = Exception.get_backtrace () in
+  ignore (report e bt (Other "main"))

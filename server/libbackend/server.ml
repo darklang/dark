@@ -453,40 +453,34 @@ let server () =
   let callback (ch, conn) req body =
 
     let handle_error ~(include_internals:bool) (e:exn) =
-      let bt = Exception.get_backtrace () in
-      (* TODO: if this raises an error we're hosed *)
-      let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) in
-      let real_err =
-        try
-          match e with
-           | Exception.DarkException e ->
-             e
-             |> Exception.exception_data_to_yojson
-             |> Yojson.Safe.pretty_to_string
-           | Yojson.Json_error msg ->
-             "Not a valid JSON value: '" ^ msg ^ "'"
-           | _ ->
-             "Dark Internal Error: " ^ Exn.to_string e
-        with _ -> "UNHANDLED ERROR: real_err" (* TODO: monitor this *)
-      in
-      let user_err =
-        try
-          match e with
-           | Exception.DarkException de when de.tipe <> DarkServer ->
-             (* TODO: do we really want to expose this? There could be
-              * parameters in it. *)
-             real_err
-           | Yojson.Json_error msg ->
-             real_err
-           | _ ->
-             if include_internals
-             then real_err
-             else "Dark Internal Error"
-        with _ -> "Error fetching error"
-      in
-      Log.erroR real_err ~bt;
-      let resp_headers = Cohttp.Header.of_list [cors] in
-      respond ~resp_headers `Internal_server_error user_err
+      try
+        let bt = Exception.get_backtrace () in
+        let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) in
+        let real_err =
+          try
+            match e with
+             | Exception.DarkException e ->
+               e
+               |> Exception.exception_data_to_yojson
+               |> Yojson.Safe.pretty_to_string
+             | Yojson.Json_error msg ->
+               "Not a valid JSON value: '" ^ msg ^ "'"
+             | _ ->
+               "Dark Internal Error: " ^ Exn.to_string e
+          with _ -> "UNHANDLED ERROR: real_err"
+        in
+        Log.erroR real_err ~bt;
+
+        let user_err =
+          if include_internals
+          then real_err
+          else "Dark Internal Error"
+        in
+        let resp_headers = Cohttp.Header.of_list [cors] in
+        respond ~resp_headers `Internal_server_error user_err
+      with e ->
+        Rollbar.last_ditch e "handle_error";
+        respond `Internal_server_error "unhandled error"
     in
 
 
@@ -536,6 +530,7 @@ let server () =
               admin_handler ~host ~uri ~body ~stopper req req_headers
             with e -> handle_error ~include_internals:true e
           else
+            (* caught by a handle_error a bit lower *)
             user_page_handler ~host ~ip ~uri ~body req
       in
 
