@@ -641,7 +641,9 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
 
 let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
     analysis =
-  Log.infO "Handler for analysis" ~data:(show_tlid state.tlid);
+  Log.infO "Handler for analysis"
+    ~params:[ "tlid", show_tlid state.tlid
+            ; "input", string_of_int state.input_cursor];
   let default_env = with_defaults h state.env in
   let state = { state with env = default_env } in
   let traced_symbols =
