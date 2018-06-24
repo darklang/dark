@@ -24,11 +24,12 @@ let exn_to_info (e: exn) : Yojson.Safe.json =
     Exception.exception_data_to_yojson e
   | _ -> `Null
 
-let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.json =
+let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx)
+  : Yojson.Safe.json =
   let message =
     let interior =
       [("body", `String (exn_to_string e))
-      ;("raw_trace", `String (Backtrace.to_string bt))
+      ;("raw_trace", `String (Exception.backtrace_to_string bt))
       ;("raw_info", exn_to_info e)]
       |> fun b -> `Assoc b
     in
@@ -75,7 +76,7 @@ let error_to_payload (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Yojson.Safe.jso
   payload
   |> fun p -> `Assoc p
 
-let create_request (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : Curl.t =
+let create_request (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : Curl.t =
   let body =
     [("access_token", `String Config.rollbar_server_access_token)
     ;("data", error_to_payload e bt ctx)
@@ -108,7 +109,7 @@ let code_to_result (code: int) : result =
 (* Exported *)
 (* ------------------------- *)
 
-let report_lwt (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result Lwt.t =
+let report_lwt (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result Lwt.t =
   begin try%lwt
     if (not Config.rollbar_enabled) then return `Disabled else
     let c = create_request e bt ctx in
@@ -124,11 +125,11 @@ let report_lwt (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result Lwt.t =
       Lwt.fail err
     end[%lwt.finally Curl.cleanup c; return ()]
   with err ->
-    Caml.print_endline "ERROR HANDLING ERROR: rollbar.report_lwt";
+    Caml.print_endline "UNHANDLED ERROR: rollbar.report_lwt";
     Lwt.fail err
   end
 
-let report (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result =
+let report (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result =
   try
     if (not Config.rollbar_enabled) then `Disabled else
     let c = create_request e bt ctx in
@@ -140,6 +141,6 @@ let report (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result =
     Curl.cleanup c;
     result
   with err ->
-    Caml.print_endline "ERROR HANDLING ERROR: rollbar.report";
+    Caml.print_endline "UNHANDLED ERROR: rollbar.report";
     `Failure
 

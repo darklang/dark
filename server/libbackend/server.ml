@@ -453,7 +453,7 @@ let server () =
   let callback (ch, conn) req body =
 
     let handle_error ~(include_internals:bool) (e:exn) =
-      let bt = Backtrace.Exn.most_recent () in
+      let bt = Exception.get_backtrace () in
       (* TODO: if this raises an error we're hosed *)
       let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) in
       let real_err =
@@ -467,12 +467,12 @@ let server () =
              "Not a valid JSON value: '" ^ msg ^ "'"
            | _ ->
              "Dark Internal Error: " ^ Exn.to_string e
-        with _ -> "ERROR HANDLING ERROR" (* TODO: monitor this *)
+        with _ -> "UNHANDLED ERROR: real_err" (* TODO: monitor this *)
       in
       let user_err =
         try
           match e with
-           | Exception.DarkException e ->
+           | Exception.DarkException de when de.tipe <> DarkServer ->
              (* TODO: do we really want to expose this? There could be
               * parameters in it. *)
              real_err
@@ -484,8 +484,7 @@ let server () =
              else "Dark Internal Error"
         with _ -> "Error fetching error"
       in
-      Lwt_io.printl ("Error: " ^ real_err);%lwt
-      Lwt_io.printl (Backtrace.to_string bt);%lwt
+      Log.erroR real_err ~bt;
       let resp_headers = Cohttp.Header.of_list [cors] in
       respond ~resp_headers `Internal_server_error user_err
     in
