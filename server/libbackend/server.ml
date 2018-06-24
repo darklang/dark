@@ -101,11 +101,6 @@ let get_ip_address ch : string =
 let respond ?(resp_headers=Header.init ()) status (body: string) =
   S.respond_string ~status ~body ~headers:resp_headers ()
 
-
-(* ------------------------------- *)
-(* handlers for dark developers *)
-(* ------------------------------- *)
-
 (* -------------------------------------------- *)
 (* handlers for end users *)
 (* -------------------------------------------- *)
