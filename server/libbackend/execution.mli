@@ -16,6 +16,7 @@ val initial_envs : canvas -> Handler.handler -> RTT.dval_map list
 
 val state_for_analysis :
   c : canvas ->
+  input_cursor : int ->
   execution_id : int ->
   exe_fn_ids : int list ->
   env: RTT.dval_map ->
