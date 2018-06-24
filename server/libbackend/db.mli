@@ -15,16 +15,16 @@ type param = Int of int
 
 (* NOTE: run is not allowed to receive multiple commands. If you
  * want multiple statements, put a BEGIN/END around them. *)
-val run : params: param list -> name:string -> string ->
-  unit
-val fetch : params: param list -> name:string -> string ->
-  string list list
-val fetch_one : params: param list -> name:string -> string ->
-  string list
-val fetch_one_option : params: param list -> name:string -> string ->
-  string list option
-val exists : params: param list -> name:string -> string ->
-  bool
+val run : params: param list -> name:string ->  ?subject:string ->
+  string -> unit
+val fetch : params: param list -> name:string ->  ?subject:string ->
+  string -> string list list
+val fetch_one : params: param list -> name:string ->  ?subject:string ->
+  string -> string list
+val fetch_one_option : params: param list -> name:string -> ?subject:string ->
+  string -> string list option
+val exists : params: param list -> name:string -> ?subject:string ->
+  string -> bool
 
 (* Occasionally, we're trying to do something dynamic, or maybe multiple
  * things in a single sql statement and then the above statements don't
