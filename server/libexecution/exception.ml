@@ -39,34 +39,40 @@ type exception_data = { short : string
 
 exception DarkException of exception_data [@@deriving show][@@deriving_inline sexp][@@@deriving.end]
 
+let get_backtrace () =
+  Caml.Printexc.get_raw_backtrace ()
+
 let reraise_after e (fn : Caml.Printexc.raw_backtrace -> unit) =
-  let bt = Caml.Printexc.get_raw_backtrace () in
+  let bt = get_backtrace () in
   fn bt;
   Caml.Printexc.raise_with_backtrace e bt
 
 let reraise e  =
-  let bt = Caml.Printexc.get_raw_backtrace () in
+  let bt = get_backtrace () in
   Caml.Printexc.raise_with_backtrace e bt
 
-let to_string ?(log=false) e =
-  let bt = Backtrace.Exn.most_recent () in
-  let msg = Exn.to_string e in
-  if log
-  then
-    (Caml.print_endline (Backtrace.to_string bt);
-     Caml.print_endline msg);
-  msg
+let to_string exc =
+  match exc with
+  | DarkException e ->
+    e
+    |> exception_data_to_yojson
+    |> Yojson.Safe.pretty_to_string
+  | e ->
+    Log.inspecT "exception" e;
+    Exn.to_string e
 
-let log e =
-  (* TODO LOGGING *)
-  let bt = Backtrace.Exn.most_recent () in
-  let msg = Exn.to_string e in
-  Caml.print_endline (Backtrace.to_string bt);
-  Caml.print_endline msg
+let log ?bt e =
+  let backtrace =
+    match bt with
+    | Some bt -> bt
+    | None -> get_backtrace ()
+  in
+  Log.erroR ~bt:backtrace "exec_exception" ~params:["exception", to_string e]
+
 
 let raise_
     (tipe: exception_tipe)
-    ?(bt:Caml.Printexc.raw_backtrace option=None)
+    ?(bt:Caml.Printexc.raw_backtrace option)
     ?(actual:string option)
     ?(actual_tipe:string option)
     ?(expected:string option)
@@ -90,7 +96,7 @@ let raise_
   in
   if should_log e.tipe
   then
-    Log.erroR "exception" ~bt ~data:(show_exception_data e);
+    Log.erroR "exception" ?bt ~data:(show_exception_data e);
   match bt with
   | None -> raise (DarkException e)
   | Some bt -> Caml.Printexc.raise_with_backtrace (DarkException e) bt
