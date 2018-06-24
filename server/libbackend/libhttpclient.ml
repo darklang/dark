@@ -62,7 +62,7 @@ let call verb =
         Dval.to_dobj [ ("body", parsed_result)
                      ; ("headers", parsed_headers)
                      ; ("raw", DStr result)]
-    | (_, args) -> fail args)
+    | args -> fail args)
 
 
 let fns : Lib.shortfn list = [
@@ -142,7 +142,7 @@ let fns : Lib.shortfn list = [
         | (_, []) ->
           DObj (DvalMap.of_alist_exn
                   [("Content-Type", DStr "application/x-www-form-urlencoded")])
-        | (_, args) -> fail args)
+        | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -159,7 +159,7 @@ let fns : Lib.shortfn list = [
         | (_, []) ->
           DObj (DvalMap.of_alist_exn
                   [("Content-Type", DStr "application/json; charset=utf-8")])
-        | (_, args) -> fail args)
+        | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -175,7 +175,7 @@ let fns : Lib.shortfn list = [
         | (_, []) ->
           DObj (DvalMap.of_alist_exn
                   [("Content-Type", DStr "text/plain; charset=utf-8")])
-        | (_, args) -> fail args)
+        | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -191,7 +191,7 @@ let fns : Lib.shortfn list = [
         | (_, []) ->
           DObj (DvalMap.of_alist_exn
                   [("Content-Type", DStr "text/html; charset=utf-8")])
-        | (_, args) -> fail args)
+        | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -223,7 +223,7 @@ let fns : Lib.shortfn list = [
             in
             DObj (DvalMap.of_alist_exn
                     [("Authorization", DStr auth_string)])
-        | (_, args) -> fail args)
+        | args -> fail args)
   ; pr = None
   ; ps = true
   }
@@ -240,7 +240,7 @@ let fns : Lib.shortfn list = [
             let auth_string = "Bearer " ^ token in
             DObj (DvalMap.of_alist_exn
                     [("Authorization", DStr auth_string)])
-        | (_, args) -> fail args)
+        | args -> fail args)
   ; pr = None
   ; ps = true
   }
