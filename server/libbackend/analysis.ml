@@ -74,7 +74,7 @@ let function_analysis
   let env = Ast_analysis.environment_for_user_fn f in
   let state =
     Execution.state_for_analysis f.tlid
-      ~c ~execution_id ~exe_fn_ids:fn_ids ~env
+      ~c ~input_cursor:0 ~execution_id ~exe_fn_ids:fn_ids ~env
   in
   (f.tlid, [Ast_analysis.execute_function_for_analysis state f])
 
@@ -100,7 +100,7 @@ let handler_analysis
   in
   let state i env : RTT.exec_state =
     Execution.state_for_analysis h.tlid
-      ~c ~exe_fn_ids:(fn_ids i) ~execution_id ~env
+      ~c ~input_cursor:i ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
   let envs = Execution.initial_envs c h in
   let values =

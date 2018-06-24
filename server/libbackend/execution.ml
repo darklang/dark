@@ -62,7 +62,8 @@ let initial_envs (c: canvas) (h: Handler.handler)
 
 let state_for
     ~(c: canvas)
-    ~execution_id
+    ~(execution_id: int)
+    ~(input_cursor: int )
     ~(exe_fn_ids : int list)
     ~(env: RTT.dval_map)
     (tlid: tlid)
@@ -75,6 +76,7 @@ let state_for
   ; user_fns = c.user_functions
   ; exe_fn_ids
   ; env
+  ; input_cursor
   ; dbs = TL.dbs c.toplevels
   ; execution_id
   ; load_fn_result = Ast_analysis.load_nothing
@@ -84,12 +86,13 @@ let state_for
 
 let state_for_analysis
     ~(c: canvas)
+    ~(input_cursor: int )
     ~(execution_id: int)
     ~(exe_fn_ids: int list)
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
-  let s = state_for ~c ~execution_id ~exe_fn_ids ~env tlid in
+  let s = state_for ~c ~input_cursor ~execution_id ~exe_fn_ids ~env tlid in
   { s with load_fn_result = Stored_function_result.load }
 
 let state_for_execution
@@ -98,6 +101,6 @@ let state_for_execution
     ~(env: RTT.dval_map)
     (tlid: tlid)
   : RTT.exec_state =
-  let s = state_for ~c ~execution_id ~exe_fn_ids:[] ~env tlid in
+  let s = state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env tlid in
   { s with store_fn_result = Stored_function_result.store }
 
