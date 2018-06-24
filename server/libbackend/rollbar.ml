@@ -109,28 +109,37 @@ let code_to_result (code: int) : result =
 (* ------------------------- *)
 
 let report_lwt (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result Lwt.t =
-  if (not Config.rollbar_enabled) then return `Disabled else
-  let c = create_request e bt ctx in
   begin try%lwt
-    Curl_lwt.perform c
-    >|= function
-    | CURLE_OK -> `Success
-    | other ->
-        Log.erroR "Rollbar err" ~data:(Curl.strerror other);
-        `Failure
+    if (not Config.rollbar_enabled) then return `Disabled else
+    let c = create_request e bt ctx in
+    begin try%lwt
+      Curl_lwt.perform c
+      >|= function
+      | CURLE_OK -> `Success
+      | other ->
+          Log.erroR "Rollbar err" ~data:(Curl.strerror other);
+          `Failure
+    with err ->
+      Log.erroR "Rollbar err" ~data:(Log.dump err);
+      Lwt.fail err
+    end[%lwt.finally Curl.cleanup c; return ()]
   with err ->
-    Log.erroR "Rollbar err" ~data:(Log.dump err);
+    Caml.print_endline "ERROR HANDLING ERROR: rollbar.report_lwt";
     Lwt.fail err
-  end[%lwt.finally Curl.cleanup c; return ()]
+  end
 
 let report (e: exn) (bt: Backtrace.t) (ctx: err_ctx) : result =
-  if (not Config.rollbar_enabled) then `Disabled else
-  let c = create_request e bt ctx in
-  Curl.perform c;
-  let result = c
-             |> Curl.get_responsecode
-             |> code_to_result
-  in
-  Curl.cleanup c;
-  result
+  try
+    if (not Config.rollbar_enabled) then `Disabled else
+    let c = create_request e bt ctx in
+    Curl.perform c;
+    let result = c
+               |> Curl.get_responsecode
+               |> code_to_result
+    in
+    Curl.cleanup c;
+    result
+  with err ->
+    Caml.print_endline "ERROR HANDLING ERROR: rollbar.report";
+    `Failure
 
