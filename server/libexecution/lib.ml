@@ -41,7 +41,8 @@ let fail_fn (fnname: string) (fn:fn) (args:dval list) ?msg () : dval =
        RT.error
          ~bt
          str
-     | None -> DNull)
+     | None ->
+       Exception.internal ~bt ("unknown error calling " ^ fnname))
 
   | (p,a) :: _ ->
     RT.error
