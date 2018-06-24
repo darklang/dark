@@ -479,18 +479,6 @@ let to_form_encoding (dv: dval) : string =
 let from_form_encoding (f: string) : dval =
   f |> Uri.query_of_encoded |> query_to_dval
 
-
-let exception_to_dval ~(log: bool) exc =
-  match exc with
-  | Exception.DarkException e ->
-    let json = e
-               |> Exception.exception_data_to_yojson
-               |> Yojson.Safe.pretty_to_string in
-    (* TODO LOGGING *)
-    if log then Caml.print_endline json else ();
-    DError json
-  | e ->
-    e
-    |> Exception.to_string ~log
-    |> DError
+let exception_to_dval exc =
+  DError (Exception.to_string exc)
 

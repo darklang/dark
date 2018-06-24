@@ -171,7 +171,9 @@ let rec sym_exec
     trace expr st
   with
   | e ->
-    Exception.log e
+    let bt = Exception.get_backtrace () in
+    Log.erroR "exception_during_symexec" ~bt
+      ~params:["exception", Exception.to_string e]
 
 
 let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
@@ -211,6 +213,7 @@ let rec exec ~(engine: engine)
   let ctx = engine.ctx in
   let trace = engine.trace in
   let trace_blank = engine.trace_blank in
+
   let call (name: string) (id: id) (argvals: dval list) : dval =
     let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
@@ -261,7 +264,8 @@ let rec exec ~(engine: engine)
          with e ->
            (* making the error local looks better than making the whole
             * thread fail. *)
-           Dval.exception_to_dval ~log:true e)
+           Exception.log e;
+           Dval.exception_to_dval e)
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
       | Blank _ ->
@@ -447,7 +451,8 @@ let rec exec ~(engine: engine)
       try
         value ()
       with e ->
-        Dval.exception_to_dval ~log:true e
+        Exception.log e;
+        Dval.exception_to_dval e
   in
   trace expr execed_value st;
   execed_value

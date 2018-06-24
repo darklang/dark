@@ -27,7 +27,7 @@ let read_json (json: string) : dval =
   try
     Dval.parse json
   with e ->
-    Dval.exception_to_dval ~log:false e
+    Dval.exception_to_dval e
 
 
 (* TODO: integrate with dark_request *)

@@ -142,7 +142,7 @@ let execute ~name ~op ~params ?subject
     result
 
   with e  ->
-    let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
+    let bt = Exception.get_backtrace () in
     let log_string =
       params
       |> List.map ~f:to_log
