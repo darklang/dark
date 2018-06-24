@@ -471,26 +471,6 @@ and call_fn ~(engine:engine) ~(state: exec_state)
           | _ -> false)
   in
 
-  let raise_arglist_error ?bt args arglist : unit =
-    Log.erroR "execution_exception" ~bt ~data:(Dval.dvalmap_to_string args);
-    let all = List.zip_exn fn.parameters arglist in
-    let invalid =
-      List.filter all
-        ~f:(fun (p,a) ->
-            Dval.tipe_of a <> p.tipe && p.tipe <> TAny)
-    in
-    match invalid with
-    | [] -> ()
-
-    | (p,a) :: _ ->
-       RT.error
-         ~bt
-         ~actual:a
-         ~expected:(Dval.tipe_to_string p.tipe)
-         (fnname ^ " was called with the wrong type to parameter: " ^ p.name)
-
-  in
-
   match fn.func with
   | InProcess f ->
     let arglist = fn.parameters
@@ -520,6 +500,10 @@ and call_fn ~(engine:engine) ~(state: exec_state)
         else ();
       in
 
+      let state =
+        { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
+      in
+
       let result =
         (try
            match engine.ctx with
@@ -541,8 +525,7 @@ and call_fn ~(engine:engine) ~(state: exec_state)
             * "Unknown Err".  *)
            Exception.reraise_after e
              (fun bt ->
-               maybe_store_result (Dval.exception_to_dval ~log:false e);
-               raise_arglist_error ~bt args arglist;
+               maybe_store_result (Dval.exception_to_dval e);
              ))
       in
       maybe_store_result result;
@@ -552,21 +535,19 @@ and call_fn ~(engine:engine) ~(state: exec_state)
   | UserCreated body ->
     exec ~engine ~state args body
   | API f ->
-      try
-        f args
-      with
-      | TypeError args ->
-        let param_to_string (param: param) : string =
-          param.name
-          ^ (if param.optional then "?" else "")
-          ^ " : "
-          ^ (Dval.tipe_to_string param.tipe)
-        in
-        RT.error (fnname ^ " is missing a parameter")
-          ~expected:(fn.parameters
-                     |> List.map ~f:param_to_string
-                     |> String.concat ~sep:", ")
-          ~actual:DIncomplete
+      f args
+      (* | TypeError args -> *)
+      (*   let param_to_string (param: param) : string = *)
+      (*     param.name *)
+      (*     ^ (if param.optional then "?" else "") *)
+      (*     ^ " : " *)
+      (*     ^ (Dval.tipe_to_string param.tipe) *)
+      (*   in *)
+      (*   RT.error (fnname ^ " is missing a parameter") *)
+      (*     ~expected:(fn.parameters *)
+      (*                |> List.map ~f:param_to_string *)
+      (*                |> String.concat ~sep:", ") *)
+      (*     ~actual:DIncomplete *)
 
 
 (* -------------------- *)

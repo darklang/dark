@@ -76,6 +76,7 @@ let state_for
   ; user_fns = c.user_functions
   ; exe_fn_ids
   ; env
+  ; fail_fn = None
   ; input_cursor
   ; dbs = TL.dbs c.toplevels
   ; execution_id

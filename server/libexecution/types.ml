@@ -164,8 +164,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type context = Preview
                | Real [@@deriving eq, show, yojson]
 
-  exception TypeError of dval list
-
   type param = { name: string
                ; tipe: tipe
                ; block_args : string list
@@ -223,6 +221,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                         dval list ->
                         dval ->
                         unit
+                    ; fail_fn : (?msg : string -> unit -> dval) option
                     }
 
 
