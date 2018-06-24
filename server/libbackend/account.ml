@@ -17,6 +17,7 @@ type account = { username: username
 let upsert_account (account:account) : unit =
   Db.run
     ~name:"upsert_account"
+    ~subject:account.username
     "INSERT INTO accounts
     (id, username, name, email, admin, password)
     VALUES
@@ -35,6 +36,7 @@ let upsert_account (account:account) : unit =
 let upsert_admin (account:account) : unit =
   Db.run
     ~name:"upsert_admin"
+    ~subject:account.username
     "INSERT INTO accounts as u
     (id, username, name, email, admin, password)
     VALUES
@@ -57,6 +59,7 @@ let upsert_admin (account:account) : unit =
 
 let is_admin ~username : bool =
   Db.exists
+    ~subject:username
     ~name:"is_admin"
     "SELECT 1 from accounts
      WHERE accounts.username = $1
@@ -65,7 +68,8 @@ let is_admin ~username : bool =
 
 let valid_user ~(username:username) ~(password:string) : bool =
   Db.exists
-    ~name:"valid user"
+    ~name:"valid_user"
+    ~subject:username
     "SELECT 1 from accounts
       WHERE accounts.username = $1
         AND accounts.password = $2"
@@ -82,6 +86,7 @@ let authenticate ~(username:username) ~(password:string) : bool =
 let owner ~(auth_domain:string) : Uuidm.t option =
   Db.fetch_one_option
     ~name:"owner"
+    ~subject:auth_domain
     "SELECT id from accounts
      WHERE accounts.username = $1"
     ~params:[ String (String.lowercase auth_domain)]

@@ -101,7 +101,7 @@ let rec to_log param : string =
 (* ------------------------- *)
 (* All commands go through here, does logging and such *)
 (* ------------------------- *)
-let execute ~name ~op ~params
+let execute ~name ~op ~params ?subject
     ~(f: ?params: string array ->
       ?binary_params : bool array ->
       string -> Postgresql.result)
@@ -122,22 +122,35 @@ let execute ~name ~op ~params
     |> List.map ~f:to_sql
     |> Array.of_list
   in
-  let log_string =
-    params
-    |> List.map ~f:to_log
-    |> String.concat ~sep:", "
+  let subject_log =
+    match subject with
+    | Some str -> ["subject", str]
+    | None -> []
   in
   try
     let res = f ~binary_params ~params:string_params sql in
     (* Transform and log the result *)
     let (logr, result) = r res in
-    let result_log = if logr ="" then [] else ["result", logr] in
-    Log.succesS name ~params:(["sql", op] @ result_log);
+    let result_log =
+      if logr = ""
+      then []
+      else ["result", logr]
+    in
+    Log.succesS name ~params:(["op", op]
+                              @ result_log
+                              @ subject_log );
     result
 
   with e  ->
     let bt = Some (Caml.Printexc.get_raw_backtrace ()) in
-    Log.erroR name ~params:[ "sql", op ; "params", log_string; "query", sql];
+    let log_string =
+      params
+      |> List.map ~f:to_log
+      |> String.concat ~sep:", "
+    in
+    Log.erroR name ~params:[ "op", op
+                           ; "params", log_string
+                           ; "query", sql];
 
     let msg =
       match e with
@@ -154,15 +167,15 @@ let execute ~name ~op ~params
 (* ------------------------- *)
 (* SQL Commands *)
 (* ------------------------- *)
-let run ~(params: param list) ~(name:string) (sql: string) : unit =
-  execute ~op:"run" ~params ~name sql
+let run ~(params: param list) ~(name:string) ?subject (sql: string) : unit =
+  execute ~op:"run" ~params ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Command_ok])
     ~r:(fun r -> ("", ()))
   |> ignore
 
-let fetch ~(params: param list) ~(name:string) (sql: string)
+let fetch ~(params: param list) ~(name:string) ?subject (sql: string)
   : string list list =
-  execute ~op:"fetch" ~params ~name sql
+  execute ~op:"fetch" ~params ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
           let result = res#get_all_lst in
@@ -170,9 +183,9 @@ let fetch ~(params: param list) ~(name:string) (sql: string)
           (length ^ " cols", result))
 
 
-let fetch_one ~(params: param list) ~(name:string) (sql: string)
+let fetch_one ~(params: param list) ~(name:string) ?subject (sql: string)
   : string list =
-  execute ~op:"fetch_one" ~params ~name sql
+  execute ~op:"fetch_one" ~params ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
          match res#get_all_lst with
@@ -183,9 +196,9 @@ let fetch_one ~(params: param list) ~(name:string) (sql: string)
          | [] -> Exception.storage "Expected one result, got none"
          | _ -> Exception.storage "Expected exactly one result, got many")
 
-let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
+let fetch_one_option ~(params: param list) ~(name:string) ?subject (sql: string)
   : string list option =
-  execute ~op:"fetch_one_option" ~params ~name sql
+  execute ~op:"fetch_one_option" ~params ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
           match res#get_all_lst with
@@ -197,9 +210,9 @@ let fetch_one_option ~(params: param list) ~(name:string) (sql: string)
           | _ -> Exception.storage "Expected exactly one result, got many")
 
 
-let exists ~(params: param list) ~(name:string) (sql: string)
+let exists ~(params: param list) ~(name:string) ?subject (sql: string)
   : bool =
-  execute ~op:"exists" ~params ~name sql
+  execute ~op:"exists" ~params ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
          match res#get_all_lst with
