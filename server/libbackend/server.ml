@@ -467,7 +467,7 @@ let server () =
              "Not a valid JSON value: '" ^ msg ^ "'"
            | _ ->
              "Dark Internal Error: " ^ Exn.to_string e
-        with _ -> "ERROR FETCHING ERROR" (* TODO: monitor this *)
+        with _ -> "ERROR HANDLING ERROR" (* TODO: monitor this *)
       in
       let user_err =
         try
