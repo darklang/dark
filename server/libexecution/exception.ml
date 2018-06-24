@@ -61,13 +61,13 @@ let to_string exc =
     Log.inspecT "exception" e;
     Exn.to_string e
 
-let log ?bt e =
+let log ?bt name e =
   let backtrace =
     match bt with
     | Some bt -> bt
     | None -> get_backtrace ()
   in
-  Log.erroR ~bt:backtrace "exec_exception" ~params:["exception", to_string e]
+  Log.erroR ~bt:backtrace name ~params:["exception", to_string e]
 
 
 let raise_
