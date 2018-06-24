@@ -12,7 +12,7 @@ type err_ctx = Remote of CRequest.t * string
 let exn_to_string (e: exn) : string =
   match e with
   | Exception.DarkException e ->
-    "Dark Err: " ^ e.short
+    "Dark " ^ (Exception.show_exception_tipe e.tipe) ^ " Err: " ^ e.short
   | Yojson.Json_error msg ->
     "Json Err: " ^ msg
   | _ ->
