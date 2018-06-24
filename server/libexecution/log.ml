@@ -155,12 +155,12 @@ let format_string ~level (str: string) =
   str
 
 let print_console_log
-       ?(bt:Caml.Printexc.raw_backtrace option=None)
+       ?(bt:Exception.backtrace option=None)
        ~decorate ~level params : unit =
   let bt_param =
     match bt with
     | Some bt when not decorate ->
-      ["backtrace", Caml.Printexc.raw_backtrace_to_string bt]
+      ["backtrace", Exception.backtrace_to_string  bt]
     | _ -> []
   in
   let color = if decorate then level_to_color level else "" in
@@ -219,7 +219,7 @@ let pP ?(data)
       | `Decorated ->
         print_console_log ~bt ~decorate:true ~level params
     with e ->
-      Caml.print_endline "ERROR HANDLING ERROR: log.pP"
+      Caml.print_endline "UNHANDLED ERROR: log.pP"
 
 
 let inspecT
@@ -243,6 +243,16 @@ let warN = pP ~level:`Warn
 let erroR = pP ~level:`Error
 let fataL = pP ~level:`Fatal
 let succesS = pP ~level:`Success
+
+let log_exception ?bt (name: string) (e: exn) =
+  let backtrace =
+    match bt with
+    | Some bt -> bt
+    | None -> Exception.get_backtrace ()
+  in
+  erroR ~bt:backtrace name ~params:["exception", Exception.to_string e]
+
+
 
 (* ----------------- *)
 (* init *)

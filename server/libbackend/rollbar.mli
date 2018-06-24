@@ -8,6 +8,6 @@ type err_ctx = Remote of CRequest.t * string
 
 
 (* Reports an exn with a backtrace to Rollbar asynchronously *)
-val report_lwt : exn -> Backtrace.t -> err_ctx -> result Lwt.t
-val report : exn -> Backtrace.t -> err_ctx -> result
+val report_lwt : exn -> Libexecution.Exception.backtrace -> err_ctx -> result Lwt.t
+val report : exn -> Libexecution.Exception.backtrace -> err_ctx -> result
 
