@@ -88,15 +88,6 @@ let should_log (user_level : level) : bool =
      | `Error -> false
      | `Warn -> false
      | _ -> true)
-  | `Success ->
-    (match !loglevel with
-     | `Off -> false
-     | `Inspect -> false
-     | `Fatal -> false
-     | `Error -> false
-     | `Warn -> false
-     | `Info -> false
-     | _ -> true)
   | `Debug ->
     (match !loglevel with
      | `Off -> false
@@ -105,7 +96,16 @@ let should_log (user_level : level) : bool =
      | `Error -> false
      | `Warn -> false
      | `Info -> false
-     | `Success -> false
+     | _ -> true)
+  | `Success ->
+    (match !loglevel with
+     | `Off -> false
+     | `Inspect -> false
+     | `Fatal -> false
+     | `Error -> false
+     | `Warn -> false
+     | `Info -> false
+     | `Debug -> false
      | _ -> true)
   | `All -> true
 

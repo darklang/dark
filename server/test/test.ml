@@ -624,6 +624,7 @@ let suite =
 
 let () =
   Libbackend.Init.init ();
+  Log.set_level `All;
   Account.init_testing ();
 
   let (suite, exit) =
