@@ -178,10 +178,8 @@ type Op
     | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
 
-type alias RPCParams = { ops : List Op
-                       , executableFns : List (TLID, ID, Int)
-                       , target: Maybe (TLID, ID)
-                       }
+type alias RPCParams = { ops : List Op }
+
 type alias ExecuteFunctionRPCParams = { function: (TLID, ID, Int) }
 
 type alias AnalysisParams = List TLID

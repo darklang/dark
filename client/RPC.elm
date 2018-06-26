@@ -65,11 +65,11 @@ saveTestRPC =
 
 emptyParams : RPCParams
 emptyParams =
-  { ops = [], executableFns = [], target = Nothing }
+  { ops = [] }
 
 opsParams : List Op -> RPCParams
 opsParams ops =
-  { ops = ops, executableFns = [], target = Nothing }
+  { ops = ops }
 
 integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
@@ -223,11 +223,8 @@ encodeOp call =
 encodeRPCParams : RPCParams -> JSE.Value
 encodeRPCParams params =
   JSE.object
-    [ ("ops", encodeOps params.ops)
-    , ("executable_fns"
-      , params.executableFns
-        |> List.map (encodeTriple encodeTLID encodeID JSE.int)
-        |> JSE.list
+    [ ("ops", encodeOps params.ops) ]
+
 encodeExecuteFunctionRPCParams : ExecuteFunctionRPCParams -> JSE.Value
 encodeExecuteFunctionRPCParams params =
   let fns = [params.function] in
