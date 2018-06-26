@@ -293,6 +293,50 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     Event_queue.finalize execution_id ~status:`Err;
     raise e
 
+let execute_function ~(host: string) body : (Cohttp.Header.t * string) =
+  let execution_id = Util.create_id () in
+  try
+    let (t1, params) = time "1-read-api-ops"
+      (fun _ -> Api.to_execute_function_params body) in
+    let exe_fn_ids = params.executable_fns in
+    let tlids = []
+                |> List.map ~f:Op.tlidsOf
+                |> List.concat
+                |> (@) (List.map exe_fn_ids ~f:Tuple.T3.get1)
+    in
+    let to_be_analyzed id = List.mem ~equal:(=) tlids id in
+
+    let (t2, c) = time "2-load-saved-ops"
+      (fun _ -> C.load host []) in
+
+    let (t3, hvals) = time "3-handler-analyses"
+      (fun _ ->
+         !c.toplevels
+         |> List.filter_map ~f:TL.as_handler
+         |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
+         |> List.map
+           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
+    in
+
+    let (t4, fvals) = time "4-function-analyses"
+      (fun _ ->
+        !c.user_functions
+        |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
+        |> List.map
+          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
+    in
+
+    let (t5, result) = time "5-to-frontend"
+      (fun _ ->
+        Analysis.to_execute_function_response_frontend exe_fn_ids (hvals @ fvals)) in
+
+  Event_queue.finalize execution_id ~status:`OK;
+  (server_timing [t1; t2; t3; t4; t5], result)
+  with
+  | e ->
+    Event_queue.finalize execution_id ~status:`Err;
+    raise e
+
 let get_analysis (host: string) (body: string) : (Cohttp.Header.t * string) =
   let execution_id = Util.create_id () in
   try
@@ -415,6 +459,10 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
   match Uri.path uri with
   | "/admin/api/rpc" ->
     let (resp_headers, response_body) = admin_rpc_handler host body in
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers `OK response_body
+  | "/admin/api/execute_function" ->
+    let (resp_headers, response_body) = execute_function host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers `OK response_body
   | "/admin/api/get_analysis" ->
