@@ -135,7 +135,7 @@ init {editorState, complete} location =
                   (FocusPageAndCursor page savedCursorState)
                   RPC.emptyParams
               -- load the analysis even if the timers are off
-              , RPC.getAnalysisRPC
+              , RPC.getAnalysisRPC []
               , visibilityTask]
 
 
@@ -417,11 +417,7 @@ updateMod mod (m, cmd) =
         in
         processAutocompleteMods m3 [ ACRegenerate ]
 
-      SetAnalysis tlars ->
-        let m2 = { m | analysis = tlars } in
-        processAutocompleteMods m2 [ ACRegenerate ]
-
-      SetSomeAnalysis tlars ->
+      UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
@@ -1218,7 +1214,7 @@ update_ msg m =
       if focus == FocusNoChange
       then
         Many [ SetToplevels toplevels False
-             , SetSomeAnalysis new_analysis
+             , UpdateAnalysis new_analysis
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
@@ -1232,7 +1228,7 @@ update_ msg m =
         -- TODO: can make this much faster by only receiving things that
         -- have been updated
         in Many [ SetToplevels toplevels True
-                , SetSomeAnalysis new_analysis
+                , UpdateAnalysis new_analysis
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
@@ -1248,7 +1244,7 @@ update_ msg m =
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
-           , SetAnalysis analysis
+           , UpdateAnalysis analysis
            , SetGlobalVariables globals
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs

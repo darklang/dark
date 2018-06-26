@@ -41,10 +41,12 @@ rpc : Model -> Focus -> RPCParams -> Cmd Msg
 rpc m focus params =
   rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) params
 
-getAnalysisRPC : Cmd Msg
-getAnalysisRPC =
+getAnalysisRPC : AnalysisParams -> Cmd Msg
+getAnalysisRPC params =
   let url = "/admin/api/get_analysis"
-      request = Http.post url Http.emptyBody decodeGetAnalysisRPC
+      payload = encodeAnalysisParams params
+      json = Http.jsonBody payload
+      request = Http.post url json decodeGetAnalysisRPC
   in Http.send GetAnalysisRPCCallback request
 
 saveTestRPC : Cmd Msg
@@ -220,6 +222,10 @@ encodeRPCParams params =
         |> JSE.list
       )
     ]
+
+encodeAnalysisParams : AnalysisParams -> JSE.Value
+encodeAnalysisParams params =
+  JSE.list (List.map encodeTLID params)
 
 encodeUserFunction : UserFunction -> JSE.Value
 encodeUserFunction uf =
