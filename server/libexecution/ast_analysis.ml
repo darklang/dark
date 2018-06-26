@@ -151,6 +151,7 @@ let rec sym_exec
              ~f:(fun v -> flatten_ff v ff)
            |> List.filter_map ~f:blank_to_content
            |> SymSet.of_list
+           |> SymSet.union st
          in
          sexe new_st body
 
