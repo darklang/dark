@@ -1276,6 +1276,9 @@ update_ msg m =
     GetAnalysisRPCCallback (Err (Http.NetworkError)) ->
       NoChange
 
+    GetAnalysisRPCCallback (Err (Http.BadStatus err)) ->
+      Error <| "Dark Client Get Analysis Error: " ++ err.status.message ++ " " ++ (toString err.status.code)
+
     GetAnalysisRPCCallback (Err err) as t ->
       Error <| "Dark Client GetAnalysis Error: unknown error: " ++ (toString t)
 
