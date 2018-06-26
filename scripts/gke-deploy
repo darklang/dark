@@ -11,9 +11,8 @@ LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'accou
 IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
 PROJECT="balmy-ground-195100"
 IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
-
-
-
+ZONE="us-west1"
+CLUSTER="darkcluster1"
 
 
 #########################
@@ -30,7 +29,7 @@ docker push $IMAGE
 #########################
 
 # get creds
-gcloud container clusters get-credentials projects/balmy-ground-195100/zones/us-west1/clusters/darkcluster1
+gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER --zone=$ZONE
 
 # env vars (replace existing configmap or make a new one)
 (kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark -o yaml --dry-run | kubectl replace -f -) ||  kubectl create configmap gke-dark-prod --from-env-file config/gke-builtwithdark
