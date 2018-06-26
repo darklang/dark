@@ -464,33 +464,11 @@ updateMod mod (m, cmd) =
         let nexecutingFunctions = m.executingFunctions ++ [(tlid, id)] in
         { m | executingFunctions = nexecutingFunctions } ! []
       ExecutingFunctionRPC tlid id ->
-        let (params, focus) = ({ ops = []
-                   , executableFns =
-                       [(tlid, id, Analysis.cursor m tlid)]
-                   , target = Just (tlid, id)
-                   }, FocusNoChange)
-            localM =
-              List.foldl (\call m ->
-                case call of
-                  SetHandler tlid pos h ->
-                    TL.upsert m
-                      { id = tlid
-                      , pos = pos
-                      , data = TLHandler h
-                      }
-                  SetFunction f ->
-                    Functions.upsert m f
-                  _ -> m) m params.ops
-
-            (withFocus, wfCmd) =
-              updateMod (Many [ AutocompleteMod ACReset
-                              , processFocus localM focus
-                              ])
-                        (localM, Cmd.none)
-        in
-        withFocus ! [wfCmd, RPC.rpc withFocus FocusNoChange params]
-      ExecutingFunctionComplete tlid id ->
-        let nexecutingFunctions = List.filter ((/=) (tlid, id)) m.executingFunctions in
+        let params = { function = (tlid, id, Analysis.cursor m tlid) } in
+        m ! [RPC.executeFunctionRPC params]
+      ExecutingFunctionComplete targets ->
+        let isComplete target = not <| List.member target targets
+            nexecutingFunctions = List.filter isComplete m.executingFunctions in
         { m | executingFunctions = nexecutingFunctions } ! []
       TweakModel fn ->
         fn m ! []
@@ -1228,11 +1206,6 @@ update_ msg m =
     -----------------
     RPCCallback focus extraMod calls
       (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
-      let executingFunctionsCallback =
-        case calls.target of
-          Just (tlid, id) -> ExecutingFunctionComplete tlid id
-          Nothing -> NoChange
-      in
       if focus == FocusNoChange
       then
         Many [ SetToplevels toplevels False
@@ -1242,7 +1215,6 @@ update_ msg m =
              , SetUnlockedDBs unlockedDBs
              , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
-             , executingFunctionsCallback
              ]
       else
         let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
@@ -1258,11 +1230,16 @@ update_ msg m =
                 , ClearError
                 , newState
                 , extraMod -- for testing, maybe more
-                , executingFunctionsCallback
                 ]
 
     SaveTestRPCCallback (Ok msg) ->
       Error <| "Success! " ++ msg
+
+    ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
+      Many [ SetSomeAnalysis new_analysis
+           , ExecutingFunctionComplete targets
+           ]
+
 
     GetAnalysisRPCCallback (Ok (analysis, globals, f404s, unlockedDBs)) ->
       Many [ TweakModel Sync.markResponseInModel
@@ -1290,6 +1267,9 @@ update_ msg m =
 
     SaveTestRPCCallback (Err err) ->
       Error <| "Error: " ++ (toString err)
+
+    (ExecuteFunctionRPCCallback _) as t ->
+      Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
 
     GetAnalysisRPCCallback (Err (Http.NetworkError)) ->
       NoChange
