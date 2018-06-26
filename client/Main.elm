@@ -1236,7 +1236,7 @@ update_ msg m =
       Error <| "Success! " ++ msg
 
     ExecuteFunctionRPCCallback (Ok (targets, new_analysis)) ->
-      Many [ SetSomeAnalysis new_analysis
+      Many [ UpdateAnalysis new_analysis
            , ExecutingFunctionComplete targets
            ]
 
