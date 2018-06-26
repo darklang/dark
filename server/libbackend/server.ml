@@ -298,10 +298,7 @@ let execute_function ~(host: string) body : (Cohttp.Header.t * string) =
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_execute_function_params body) in
     let exe_fn_ids = params.executable_fns in
-    let tlids = []
-                |> List.map ~f:Op.tlidsOf
-                |> List.concat
-                |> (@) (List.map exe_fn_ids ~f:Tuple.T3.get1)
+    let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1
     in
     let to_be_analyzed id = List.mem ~equal:(=) tlids id in
 
