@@ -9,8 +9,7 @@ type oplist = Op.op list [@@deriving yojson]
 type executable_fn_ids = (tlid * id * int) list
                     [@@deriving eq, show, yojson, sexp]
 
-type rpc_params = { ops: oplist
-                  ; executable_fns: executable_fns }
+type rpc_params = { ops: oplist }
                   [@@deriving yojson]
 
 type analysis_params = tlid list [@@deriving eq, show, yojson, sexp]
