@@ -66,8 +66,8 @@ let function_analysis
   let fn_ids =
     exe_fn_ids
     |> List.filter_map
-      ~f:(fun (tlid, id, cursor) ->
-          if tlid = f.tlid && cursor = 0
+      ~f:(fun (tlid, id, _) ->
+          if tlid = f.tlid
           then Some id
           else None)
   in
