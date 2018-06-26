@@ -41,6 +41,14 @@ rpc : Model -> Focus -> RPCParams -> Cmd Msg
 rpc m focus params =
   rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) params
 
+executeFunctionRPC : ExecuteFunctionRPCParams -> Cmd Msg
+executeFunctionRPC params =
+  let url = "/admin/api/execute_function"
+      payload = encodeExecuteFunctionRPCParams params
+      json = Http.jsonBody payload
+      request = Http.post url json decodeExecuteFunctionRPC
+  in Http.send ExecuteFunctionRPCCallback request
+
 getAnalysisRPC : AnalysisParams -> Cmd Msg
 getAnalysisRPC params =
   let url = "/admin/api/get_analysis"
@@ -220,6 +228,12 @@ encodeRPCParams params =
       , params.executableFns
         |> List.map (encodeTriple encodeTLID encodeID JSE.int)
         |> JSE.list
+encodeExecuteFunctionRPCParams : ExecuteFunctionRPCParams -> JSE.Value
+encodeExecuteFunctionRPCParams params =
+  let fns = [params.function] in
+  JSE.object
+    [ ("executable_fns"
+      , JSE.list (List.map (encodeTriple encodeTLID encodeID JSE.int) fns)
       )
     ]
 
@@ -690,6 +704,12 @@ decode404 =
     (JSD.index 2 JSD.string)
     (JSD.index 3 (JSD.list JSD.value))
 
+decodeExecuteFunctionTarget : JSD.Decoder (TLID, ID)
+decodeExecuteFunctionTarget =
+  JSD.map2 (,)
+    (JSD.index 0 decodeTLID)
+    (JSD.index 1 decodeID)
+
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
   JSDP.decode (,,,,)
@@ -706,3 +726,10 @@ decodeGetAnalysisRPC =
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
+
+
+decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
+decodeExecuteFunctionRPC =
+  JSDP.decode (,)
+  |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
+  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
