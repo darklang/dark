@@ -181,6 +181,8 @@ type alias RPCParams = { ops : List Op
                        , target: Maybe (TLID, ID)
                        }
 
+type alias AnalysisParams = List TLID
+
 
 -----------------------------
 -- Autocompletes
@@ -465,8 +467,7 @@ type Modification = Error String
                   | ClearHover ID
                   | Deselect
                   | SetToplevels (List Toplevel) Bool
-                  | SetAnalysis (List TLAResult)
-                  | SetSomeAnalysis (List TLAResult)
+                  | UpdateAnalysis (List TLAResult)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool
                   | SetUnlockedDBs (List TLID)

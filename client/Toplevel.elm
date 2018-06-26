@@ -20,6 +20,10 @@ import SpecHeaders
 import DB
 import Defaults
 
+all : Model -> List Toplevel
+all m =
+  m.toplevels ++ List.map (ufToTL m) m.userFunctions
+
 -------------------------
 -- Toplevel manipulation
 -------------------------
@@ -30,7 +34,7 @@ getTL m id =
 
 get : Model -> TLID -> Maybe Toplevel
 get m id =
-  let tls = (List.map (ufToTL m) m.userFunctions) ++ m.toplevels in
+  let tls = all m in
   LE.find (\tl -> tl.id == id) tls
 
 name : Toplevel -> String

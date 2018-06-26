@@ -293,38 +293,47 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     Event_queue.finalize execution_id ~status:`Err;
     raise e
 
-let get_analysis (host: string) : (Cohttp.Header.t * string) =
+let get_analysis (host: string) (body: string) : (Cohttp.Header.t * string) =
   let execution_id = Util.create_id () in
   try
-    let (t1, c) = time "1-load-saved-ops"
+    let (t1, tlids) = time "1-read-api-tlids"
+      (fun _ -> Api.to_analysis_params body) in
+    let to_be_analyzed id =
+      match tlids with
+      | [] -> true
+      | _ -> List.mem ~equal:(=) tlids id
+    in
+
+    let (t2, c) = time "2-load-saved-ops"
       (fun _ -> C.load host []) in
 
-    let (t2, f404s) = time "2-get-404s"
+    let (t3, f404s) = time "3-get-404s"
       (fun _ -> Analysis.get_404s !c) in
 
-    let (t3, hvals) = time "3-handler-analyses"
+    let (t4, hvals) = time "4-handler-analyses"
       (fun _ ->
          !c.toplevels
          |> List.filter_map ~f:TL.as_handler
+         |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
            ~f:(Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-analyses"
+    let (t5, fvals) = time "5-function-analyses"
       (fun _ ->
         !c.user_functions
         |> List.map
           ~f:(Analysis.function_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
-    let (t5, unlocked) = time "5-analyze-unlocked-dbs"
+    let (t6, unlocked) = time "6-analyze-unlocked-dbs"
       (fun _ -> Analysis.unlocked !c) in
 
-    let (t6, result) = time "6-to-frontend"
+    let (t7, result) = time "7-to-frontend"
       (fun _ -> Analysis.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t1; t2; t3; t4; t5; t6], result)
+  (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
@@ -409,7 +418,7 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers `OK response_body
   | "/admin/api/get_analysis" ->
-    let (resp_headers, response_body) = get_analysis host in
+    let (resp_headers, response_body) = get_analysis host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers `OK response_body
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
