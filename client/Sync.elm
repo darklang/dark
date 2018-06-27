@@ -50,9 +50,16 @@ toAnalyse m =
     Entering (Filling tlid _) -> [tlid]
     Dragging tlid _ _ _ -> [tlid]
     _ ->
-      let ids = List.map .id (Toplevel.all m) in
-      ids
-      |> LE.getAt ((Util.random ()) % (List.length ids))
-      |> Maybe.map (\e -> [e])
-      |> Maybe.withDefault []
+      let ids = List.map .id (Toplevel.all m)
+          index =
+            let length = List.length ids
+            in
+                if length > 0
+                then Just length
+                else Nothing
+      in
+          index
+          |> Maybe.andThen (\i -> LE.getAt i ids)
+          |> Maybe.map (\e -> [e])
+          |> Maybe.withDefault []
 
