@@ -373,11 +373,11 @@ let delete_all ~state (db: db) =
   Db.run
     ~name:"user_delete_all"
     "DELETE FROM user_data
-     WHERE account_id = %s
-     AND canvas_id = %s
-     AND table_tlid = %s
-     AND user_version = %s
-     AND dark_version = %s"
+     WHERE account_id = $1
+     AND canvas_id = $2
+     AND table_tlid = $3
+     AND user_version = $4
+     AND dark_version = $5"
     ~params:[ Uuid state.account_id
             ; Uuid state.canvas_id
             ; Int db.tlid
