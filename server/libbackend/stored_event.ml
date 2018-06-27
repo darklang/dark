@@ -41,12 +41,13 @@ let load_events (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : R
       AND module = $2
       AND path = $3
       AND modifier = $4
-    LIMIT 20"
+    ORDER BY timestamp DESC
+    LIMIT 10"
     ~params:[ Uuid canvas_id
             ; String module_
             ; String path
             ; String modifier]
-  |> List.map ~f:(function
+  |> List.rev_map ~f:(function
       | [dval; _ts] -> Dval.dval_of_json_string dval
       | _ -> Exception.internal "Bad DB format for stored_events")
 
