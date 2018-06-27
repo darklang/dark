@@ -275,7 +275,12 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
         |> List.map
           ~f:(fun o ->
               (match o with
-               | DObj m -> type_check_and_upsert_dependents ~state dep_table m |> DObj
+               | DObj m ->
+                 type_check_and_upsert_dependents ~state dep_table m
+                 |> fun o -> DvalMap.find o "id"
+                 |> (function
+                      | Some i -> i
+                      | None -> Exception.internal "upsert returned id-less object")
                | err -> Exception.client (type_error_msg table TObj err)))
         |> DList)
     ~state db obj
