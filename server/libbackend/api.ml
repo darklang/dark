@@ -6,14 +6,16 @@ open Types
 
 type oplist = Op.op list [@@deriving yojson]
 
-type executable_fns = (tlid * id * int) list
+type executable_fn_ids = (tlid * id * int) list
                     [@@deriving eq, show, yojson, sexp]
 
-type rpc_params = { ops: oplist
-                  ; executable_fns: executable_fns }
+type rpc_params = { ops: oplist }
                   [@@deriving yojson]
 
 type analysis_params = tlid list [@@deriving eq, show, yojson, sexp]
+
+type execute_function_params = { executable_fns: executable_fn_ids }
+                               [@@deriving yojson]
 
 let to_rpc_params (payload: string) : rpc_params =
   payload
@@ -27,6 +29,12 @@ let to_analysis_params (payload: string) : analysis_params =
   |> analysis_params_of_yojson
   |> Result.ok_or_failwith
 
+
+let to_execute_function_params (payload: string) : execute_function_params =
+  payload
+  |> Yojson.Safe.from_string
+  |> execute_function_params_of_yojson
+  |> Result.ok_or_failwith
 
 let causes_any_changes (ps: rpc_params) : bool =
   List.exists ~f:Op.has_effect ps.ops

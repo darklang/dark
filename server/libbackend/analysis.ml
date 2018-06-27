@@ -20,7 +20,7 @@ let all_tlids (c: canvas) : tlid list =
 (* Execution/analysis *)
 (* ------------------------- *)
 
-type executable_fn_id = (tlid * id * int)
+type executable_fn_id = (tlid * id * int) [@@deriving to_yojson]
 type analysis_result = tlid * Ast_analysis.analysis list
 
 let analysis_result_to_yojson (id, results) =
@@ -66,8 +66,8 @@ let function_analysis
   let fn_ids =
     exe_fn_ids
     |> List.filter_map
-      ~f:(fun (tlid, id, cursor) ->
-          if tlid = f.tlid && cursor = 0
+      ~f:(fun (tlid, id, _) ->
+          if tlid = f.tlid
           then Some id
           else None)
   in
@@ -134,6 +134,11 @@ type rpc_response =
   ; unlocked_dbs : tlid list (* replace *)
   } [@@deriving to_yojson]
 
+type execute_function_response =
+  { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
+  ; targets : executable_fn_id list
+  } [@@deriving to_yojson]
+
 
 let to_get_analysis_frontend (vals : analysis_result list)
       (unlocked : tlid list)
@@ -160,4 +165,10 @@ let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
   |> rpc_response_to_yojson
   |> Yojson.Safe.to_string ~std:true
 
-
+let to_execute_function_response_frontend (targets : executable_fn_id list) (vals : analysis_result list)
+  : string =
+  { new_analyses = vals
+  ; targets = targets
+  }
+  |> execute_function_response_to_yojson
+  |> Yojson.Safe.to_string ~std:true

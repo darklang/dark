@@ -96,6 +96,7 @@ type alias RPCResult = ( List Toplevel
                        , List GlobalVariable
                        , List UserFunction
                        , List TLID)
+type alias ExecuteFunctionRPCResult = (List (TLID, ID), List TLAResult)
 type alias GetAnalysisResult = ( List TLAResult
                                , List GlobalVariable
                                , List FourOhFour
@@ -118,6 +119,7 @@ type Msg
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
     | RPCCallback Focus Modification RPCParams (Result Http.Error RPCResult)
+    | ExecuteFunctionRPCCallback (Result Http.Error ExecuteFunctionRPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
     | LocationChange Navigation.Location
@@ -176,10 +178,9 @@ type Op
     | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind
     | SetExpr TLID ID Expr
 
-type alias RPCParams = { ops : List Op
-                       , executableFns : List (TLID, ID, Int)
-                       , target: Maybe (TLID, ID)
-                       }
+type alias RPCParams = { ops : List Op }
+
+type alias ExecuteFunctionRPCParams = { function: (TLID, ID, Int) }
 
 type alias AnalysisParams = List TLID
 
@@ -488,7 +489,8 @@ type Modification = Error String
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   | ExecutingFunctionBegan TLID ID
-                  | ExecutingFunctionComplete TLID ID
+                  | ExecutingFunctionRPC TLID ID
+                  | ExecutingFunctionComplete (List (TLID, ID))
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 
