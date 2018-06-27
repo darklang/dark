@@ -240,6 +240,8 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
         (match dv with
          | DID id ->
            find ~state dep_table id
+         | DNull -> (* allow nulls for now *)
+           DNull
          | err -> Exception.client (type_error_msg TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db state.dbs table in
@@ -262,6 +264,8 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
          (match DvalMap.find m "id" with
           | Some existing -> update ~state dep_table m; existing
           | None -> insert ~state dep_table m |> DID)
+       | DNull -> (* allow nulls for now *)
+         DNull
        | err -> Exception.client (type_error_msg TObj err)))
    ~has_many:(fun table dlist ->
         let dep_table = find_db state.dbs table in
