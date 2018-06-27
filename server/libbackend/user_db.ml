@@ -38,11 +38,13 @@ let dbs_as_exe_env (dbs: db list) : dval_map =
 (* ------------------------- *)
 (* actual DB stuff *)
 (* ------------------------- *)
-let type_error_msg tipe dv : string =
+let type_error_msg col tipe dv : string =
   "Expected a value of type "
   ^ (Dval.tipe_to_string tipe)
   ^ " but got a "
   ^ (Dval.tipename dv)
+  ^ " in column "
+  ^ col
 
 (* Turn db rows into list of string/type pairs - removes elements with
  * holes, as they won't have been put in the DB yet *)
@@ -209,7 +211,7 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
             has_many table any_list
           | (_, DNull) -> data (* allow nulls for now *)
           | (expected_type, value_of_actual_type) ->
-            Exception.client (type_error_msg expected_type value_of_actual_type)
+            Exception.client (type_error_msg key expected_type value_of_actual_type)
         )
       obj
   else
@@ -242,7 +244,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
            find ~state dep_table id
          | DNull -> (* allow nulls for now *)
            DNull
-         | err -> Exception.client (type_error_msg TID err)))
+         | err -> Exception.client (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db state.dbs table in
         let uuids =
@@ -250,7 +252,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             ~f:(fun id ->
                 (match id with
                   | DID i -> i
-                  | err -> Exception.client (type_error_msg TID err)))
+                  | err -> Exception.client (type_error_msg table TID err)))
             ids
         in
         find_many ~state dep_table uuids)
@@ -266,7 +268,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           | None -> insert ~state dep_table m |> DID)
        | DNull -> (* allow nulls for now *)
          DNull
-       | err -> Exception.client (type_error_msg TObj err)))
+       | err -> Exception.client (type_error_msg table TObj err)))
    ~has_many:(fun table dlist ->
         let dep_table = find_db state.dbs table in
         dlist
@@ -274,7 +276,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           ~f:(fun o ->
               (match o with
                | DObj m -> type_check_and_upsert_dependents ~state dep_table m |> DObj
-               | err -> Exception.client (type_error_msg TObj err)))
+               | err -> Exception.client (type_error_msg table TObj err)))
         |> DList)
     ~state db obj
 and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
