@@ -94,7 +94,9 @@ let state_for_analysis
     (tlid: tlid)
   : RTT.exec_state =
   let s = state_for ~c ~input_cursor ~execution_id ~exe_fn_ids ~env tlid in
-  { s with load_fn_result = Stored_function_result.load }
+  { s with load_fn_result = Stored_function_result.load
+         ; store_fn_result = Stored_function_result.store
+  }
 
 let state_for_execution
     ~(c: canvas)

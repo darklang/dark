@@ -41,6 +41,7 @@ let load (canvas_id, tlid, fnname, id) arglist
        AND fnname = $3
        AND id = $4
        AND hash = $5
+     ORDER BY timestamp DESC
        LIMIT 1"
     ~params:[ Db.Uuid canvas_id
             ; Db.Int tlid
