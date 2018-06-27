@@ -1429,28 +1429,22 @@ let fns : Lib.shortfn list = [
   (* ====================================== *)
   (* Date *)
   (* ====================================== *)
-  (* Different format than we use in postgres, this was useful for twitter *)
-  (* pns n = ["Date::parse"] *)
-  (* ins o = [] *)
-  (* ; p = [par "s" TStr] *)
-  (* ; r = TInt *)
-  (* ; d = "Parses a time string, and return the number of seconds since the epoch (midnight, Jan 1, 1970)" *)
-  (* ; f = InProcess *)
-  (*       (function *)
-  (*         | (_, [DStr s]) -> *)
-  (*             (try *)
-  (*               DInt (s *)
-  (*                     |> Unix.strptime ~fmt:"%a %b %d %H:%M:%S %z %Y" *)
-  (*                     |> Unix.timegm *)
-  (*                     |> int_of_float *)
-  (*                     ) *)
-  (*             with e -> raise (TypeError [DStr "Invalid date format"])) *)
-  (*         | args -> fail args) *)
-  (* ; pr = None *)
-  (* ; ps = true *)
-  (* } *)
-  (* ; *)
-  (*  *)
+  { pns = ["Date::parse"]
+  ; ins = []
+  ; p = [par "s" TStr]
+  ; r = TDate
+  ; d = "Parses a string representing a date in the ISO format and returns a Date"
+  ; f = InProcess
+        (function
+          | (_, [DStr s]) ->
+              (try
+                DDate (Dval.date_of_isostring s)
+              with e -> RT.error "Invalid date format")
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
   { pns = ["Date::now"]
   ; ins = []
