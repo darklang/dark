@@ -244,13 +244,14 @@ let erroR = pP ~level:`Error
 let fataL = pP ~level:`Fatal
 let succesS = pP ~level:`Success
 
-let log_exception ?bt (name: string) (e: exn) =
+let log_exception ?bt (name: string) (execution_id: Types.id) (e: exn) =
   let backtrace =
     match bt with
     | Some bt -> bt
     | None -> Exception.get_backtrace ()
   in
-  erroR ~bt:backtrace name ~params:["exception", Exception.to_string e]
+  erroR ~bt:backtrace name ~params:["exception", Exception.to_string e
+                                   ;"execution_id", dump execution_id]
 
 
 

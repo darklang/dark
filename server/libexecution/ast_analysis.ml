@@ -265,7 +265,7 @@ let rec exec ~(engine: engine)
          with e ->
            (* making the error local looks better than making the whole
             * thread fail. *)
-           Log.log_exception  "threaded_execution" e;
+           Log.log_exception  "threaded_execution" state.execution_id e;
            Dval.exception_to_dval e)
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
@@ -452,7 +452,7 @@ let rec exec ~(engine: engine)
       try
         value ()
       with e ->
-        Log.log_exception "exec_execution" e;
+        Log.log_exception "exec_execution" state.execution_id e;
         Dval.exception_to_dval e
   in
   trace expr execed_value st;
@@ -489,7 +489,9 @@ and call_fn ~(engine:engine) ~(state: exec_state)
       then
         Log.infO "executing unsafe result" ~params:[ "fn", fnname
                                                    ; "ctx", Log.dump engine.ctx
-                                                   ; "id", Log.dump id];
+                                                   ; "id", Log.dump id
+                                                   ; "execution_id", Log.dump state.execution_id
+                                                   ];
 
       let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
       let maybe_store_result result =
@@ -572,7 +574,9 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
   : (dval * dval_store) =
   Log.infO "Executing for intermediates"
     ~params:[ "tlid", show_tlid state.tlid
-            ; "exe_fn_ids", Log.dump state.exe_fn_ids ];
+            ; "exe_fn_ids", Log.dump state.exe_fn_ids
+            ; "execution_id", Log.dump state.execution_id
+            ];
   let value_store = Int.Table.create () in
   let engine = analysis_engine value_store in
   (exec ~engine ~state state.env ast, value_store)
@@ -590,7 +594,8 @@ let server_execution_engine : engine =
   }
 
 let execute state env expr : dval =
-  Log.infO "Executing for real" ~params:[ "tlid", show_tlid state.tlid ];
+  Log.infO "Executing for real" ~params:[ "tlid", show_tlid state.tlid
+                                        ; "execution_id", Log.dump state.execution_id];
   exec env expr
     ~engine:server_execution_engine
     ~state
@@ -630,7 +635,8 @@ let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
     analysis =
   Log.infO "Handler for analysis"
     ~params:[ "tlid", show_tlid state.tlid
-            ; "input", string_of_int state.input_cursor];
+            ; "input", string_of_int state.input_cursor
+            ; "execution_id", Log.dump state.execution_id];
   let default_env = with_defaults h state.env in
   let state = { state with env = default_env } in
   let traced_symbols =
@@ -645,7 +651,9 @@ let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
 
 let execute_function_for_analysis (state : exec_state) (f : user_fn) :
     analysis =
-  Log.infO "Function for analysis" ~data:(show_tlid state.tlid);
+  Log.infO "Function for analysis"
+    ~data:(show_tlid state.tlid)
+    ~params:["execution_id", Log.dump state.execution_id];
   let traced_symbols =
     symbolic_execute state.ff state.env f.ast in
   let (ast_value, traced_values) =
