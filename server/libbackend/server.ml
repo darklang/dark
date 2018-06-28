@@ -98,10 +98,16 @@ let get_ip_address ch : string =
   | `TCP (ip, port) -> Ipaddr.to_string ip
   | _ -> assert false
 
-let trace_header e_id =
-  ("X-Darklang-Execution-ID", Types.show_id e_id)
-
-let respond ?(resp_headers=Header.init ()) status (body: string) =
+let respond ?(resp_headers=Header.init ()) ~(execution_id: Types.id) status (body: string) =
+  let resp_headers =
+    Header.add resp_headers "X-Darklang-Execution-ID" (Log.dump execution_id)
+  in
+  Log.infO "response"
+    ~params:[ "execution_id", Log.dump execution_id
+            ; "headers", Log.dump resp_headers
+            ; "status", Log.dump status
+            ; "body", Log.dump body
+            ];
   S.respond_string ~status ~body ~headers:resp_headers ()
 
 (* -------------------------------------------- *)
@@ -126,10 +132,9 @@ let options_handler ~(execution_id: Types.id) (c: C.canvas) (req: CRequest.t) =
                      ; ("Access-Control-Allow-Origin"
                        , "*")
                      ; ("Access-Control-Allow-Headers"
-                       , allow_headers)
-                     ; trace_header execution_id]
+                       , allow_headers)]
   in
-  respond ~resp_headers:(Cohttp.Header.of_list resp_headers) `OK ""
+  respond ~resp_headers:(Cohttp.Header.of_list resp_headers) ~execution_id `OK ""
 
 
 let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(uri: Uri.t)
@@ -152,11 +157,11 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     PReq.from_request headers query body
     |> PReq.to_dval
     |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
-    let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
-    respond ~resp_headers `Not_found "404: No page matches"
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond ~resp_headers ~execution_id `Not_found "404: No page matches"
   | a :: b :: _ ->
-    let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
-    respond `Internal_server_error ~resp_headers
+    let resp_headers = Cohttp.Header.of_list [cors] in
+    respond `Internal_server_error ~resp_headers ~execution_id
       "500: More than one page matches"
   | [page] ->
     let route = Handler.event_name_for_exn page in
@@ -181,7 +186,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     let ff = fingerprint_user ip resp_headers in
     let session_headers = session_headers resp_headers ff in
     let state = Execution.state_for_execution ~c:!c
-        ~execution_id:(Util.create_id ()) ~env page.tlid in
+        ~execution_id ~env page.tlid in
     let result = Libexecution.Ast_analysis.execute_handler state page in
     let maybe_infer_headers resp_headers value =
       if List.Assoc.mem resp_headers ~equal:(=) "Content-Type"
@@ -223,24 +228,24 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
          in
          Event_queue.finalize state.execution_id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
-         let resp_headers = Cohttp.Header.of_list ([cors; trace_header execution_id]
+         let resp_headers = Cohttp.Header.of_list ([cors]
                                                    @ resp_headers
                                                    @ session_headers)
          in
-         respond ~resp_headers status body)
+         respond ~resp_headers ~execution_id status body)
     | _ ->
       Event_queue.finalize state.execution_id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let ct_headers =
         maybe_infer_headers [] result
       in
-      let resp_headers = Cohttp.Header.of_list ([cors; trace_header execution_id]
+      let resp_headers = Cohttp.Header.of_list ([cors]
                                                 @ ct_headers
                                                 @ session_headers)
       in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
-      respond ~resp_headers `OK body)
+      respond ~resp_headers ~execution_id `OK body)
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
@@ -394,13 +399,13 @@ let admin_ui_handler ~(debug:bool) () =
                                       then "-debug"
                                       else "")
 
-let save_test_handler host =
+let save_test_handler ~(execution_id: Types.id) host =
   let g = C.load host [] in
   let filename = C.save_test !g in
-  respond `OK ("Saved as: " ^ filename)
+  respond ~execution_id `OK ("Saved as: " ^ filename)
 
 
-let auth_then_handle req host handler =
+let auth_then_handle ~(execution_id: Types.id) req host handler =
   let path = req |> CRequest.uri |> Uri.path in
   if not (String.is_prefix ~prefix:"/admin" path)
   then
@@ -424,7 +429,7 @@ let auth_then_handle req host handler =
          then
            handler (Header.init ())
          else
-           respond `Unauthorized "Unauthorized")
+           respond ~execution_id `Unauthorized "Unauthorized")
     | _ ->
       let auth =
         req
@@ -443,11 +448,11 @@ let auth_then_handle req host handler =
            in
            handler headers
          else
-          respond `Unauthorized "Bad credentials")
+          respond ~execution_id `Unauthorized "Bad credentials")
       | None ->
         S.respond_need_auth ~auth:(`Basic "dark") ()
       | _ ->
-        respond `Unauthorized "Invalid session"
+        respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     (req: CRequest.t) req_headers =
@@ -458,47 +463,44 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   match Uri.path uri with
   | "/admin/api/rpc" ->
     let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
-    let resp_headers = Header.add_list resp_headers ["Content-type", utf8
-                                                    ; trace_header execution_id]
-    in
-    respond ~resp_headers `OK response_body
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers ~execution_id `OK response_body
   | "/admin/api/execute_function" ->
     let (resp_headers, response_body) = execute_function ~execution_id host body in
-    let resp_headers = Header.add_list resp_headers ["Content-type", utf8
-                                                    ; trace_header execution_id]
-    in
-    respond ~resp_headers `OK response_body
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers ~execution_id `OK response_body
   | "/admin/api/get_analysis" ->
     let (resp_headers, response_body) = get_analysis ~execution_id host body in
-    let resp_headers = Header.add_list resp_headers ["Content-type", utf8
-                                                    ; trace_header execution_id]
-    in
-    respond ~resp_headers `OK response_body
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers ~execution_id `OK response_body
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
-    respond `OK "Disembowelment"
+    respond ~execution_id `OK "Disembowelment"
   | "/admin/api/clear-benchmarking-data" ->
     Db.delete_benchmarking_data ();
-    respond `OK "Cleared"
+    respond ~execution_id `OK "Cleared"
   | "/admin/ui-debug" ->
     let%lwt body = admin_ui_handler ~debug:true () in
     respond
-      ~resp_headers:(Header.add_list text_plain_resp_headers [trace_header execution_id])
+      ~resp_headers:text_plain_resp_headers
+      ~execution_id
       `OK body
   | "/admin/ui" ->
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
-      ~resp_headers:(Header.add_list text_plain_resp_headers [trace_header execution_id])
+      ~resp_headers:text_plain_resp_headers
+      ~execution_id
       `OK body
   | "/admin/integration_test" ->
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
-      ~resp_headers:(Header.add_list text_plain_resp_headers [trace_header execution_id])
+      ~resp_headers:text_plain_resp_headers
+      ~execution_id
       `OK body
   | "/admin/api/save_test" ->
-    save_test_handler host
+    save_test_handler ~execution_id host
   | _ ->
-    respond `Not_found "Not found"
+    respond ~execution_id `Not_found "Not found"
 
 (* -------------------------------------------- *)
 (* The server *)
@@ -539,12 +541,11 @@ let server () =
           then real_err
           else "Dark Internal Error"
         in
-        let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
-        respond ~resp_headers `Internal_server_error user_err
+        let resp_headers = Cohttp.Header.of_list [cors] in
+        respond ~resp_headers ~execution_id `Internal_server_error user_err
       with e ->
         Rollbar.last_ditch e "handle_error" execution_id;
-        let resp_headers = Cohttp.Header.of_list [trace_header execution_id] in
-        respond ~resp_headers `Internal_server_error "unhandled error"
+        respond ~execution_id `Internal_server_error "unhandled error"
     in
 
 
@@ -582,10 +583,10 @@ let server () =
 
         match (Uri.path uri, host) with
         | (_, None) ->
-          respond `Not_found "Not found"
+          respond ~execution_id `Not_found "Not found"
         | ("/sitemap.xml", _)
         | ("/favicon.ico", _) ->
-         respond `OK ""
+         respond ~execution_id `OK ""
         | (p, _) when (String.is_prefix ~prefix:"/static/" p) ->
           static_handler uri
         | (p, Some host) ->
@@ -603,11 +604,11 @@ let server () =
       (* This seems like it should be moved closer to the admin handler,
        * but don't do that - that makes Lwt swallow our exceptions. *)
       | (_, Some host) ->
-         auth_then_handle req host handler
+         auth_then_handle ~execution_id req host handler
       | ("/", None) -> (* for GKE health check *)
-        respond `OK "Hello internal overlord"
+        respond ~execution_id `OK "Hello internal overlord"
       | (_, None) -> (* for GKE health check *)
-        respond `Not_found "Not found"
+        respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
 
   in

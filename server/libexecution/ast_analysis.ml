@@ -173,6 +173,7 @@ let rec sym_exec
   with
   | e ->
     let bt = Exception.get_backtrace () in
+    (* TODO: execution_id *)
     Log.erroR "exception_during_symexec" ~bt
       ~params:["exception", Exception.to_string e]
 
