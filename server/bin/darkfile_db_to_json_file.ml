@@ -10,5 +10,5 @@ let _ =
     | None ->
       failwith ("Can't read from DB for host: " ^ host)
   with e ->
-    Libbackend.Rollbar.last_ditch e "darkfile_db_to_json_file"
+    Libbackend.Rollbar.last_ditch e "darkfile_db_to_json_file" 0
 

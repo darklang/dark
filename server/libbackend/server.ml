@@ -518,7 +518,7 @@ let server () =
     let handle_error ~(include_internals:bool) (e:exn) =
       try
         let bt = Exception.get_backtrace () in
-        let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) in
+        let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) execution_id in
         let real_err =
           try
             match e with
@@ -542,7 +542,7 @@ let server () =
         let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
         respond ~resp_headers `Internal_server_error user_err
       with e ->
-        Rollbar.last_ditch e "handle_error";
+        Rollbar.last_ditch e "handle_error" execution_id;
         let resp_headers = Cohttp.Header.of_list [trace_header execution_id] in
         respond ~resp_headers `Internal_server_error "unhandled error"
     in
