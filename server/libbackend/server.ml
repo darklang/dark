@@ -98,6 +98,9 @@ let get_ip_address ch : string =
   | `TCP (ip, port) -> Ipaddr.to_string ip
   | _ -> assert false
 
+let trace_header e_id =
+  ("X-Darklang-Execution-ID", Types.show_id e_id)
+
 let respond ?(resp_headers=Header.init ()) status (body: string) =
   S.respond_string ~status ~body ~headers:resp_headers ()
 
@@ -106,7 +109,7 @@ let respond ?(resp_headers=Header.init ()) status (body: string) =
 (* -------------------------------------------- *)
 let cors = ("Access-Control-Allow-Origin", "*")
 
-let options_handler (c: C.canvas) (req: CRequest.t) =
+let options_handler ~(execution_id: Types.id) (c: C.canvas) (req: CRequest.t) =
   (*       allow (from the route matching) *)
   (*       Access-Control-Request-Method: POST  *)
   (* Access-Control-Request-Headers: X-PINGOTHER, Content-Type *)
@@ -123,12 +126,13 @@ let options_handler (c: C.canvas) (req: CRequest.t) =
                      ; ("Access-Control-Allow-Origin"
                        , "*")
                      ; ("Access-Control-Allow-Headers"
-                       , allow_headers)]
+                       , allow_headers)
+                     ; trace_header execution_id]
   in
   respond ~resp_headers:(Cohttp.Header.of_list resp_headers) `OK ""
 
 
-let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
+let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
   let c = C.load host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
@@ -143,15 +147,15 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
 
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
-    options_handler !c req
+    options_handler ~execution_id !c req
   | [] ->
     PReq.from_request headers query body
     |> PReq.to_dval
     |> Stored_event.store_event !c.id ("HTTP", Uri.path uri, verb) ;
-    let resp_headers = Cohttp.Header.of_list [cors] in
+    let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
     respond ~resp_headers `Not_found "404: No page matches"
   | a :: b :: _ ->
-    let resp_headers = Cohttp.Header.of_list [cors] in
+    let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
     respond `Internal_server_error ~resp_headers
       "500: More than one page matches"
   | [page] ->
@@ -219,7 +223,7 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
          in
          Event_queue.finalize state.execution_id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
-         let resp_headers = Cohttp.Header.of_list ([cors]
+         let resp_headers = Cohttp.Header.of_list ([cors; trace_header execution_id]
                                                    @ resp_headers
                                                    @ session_headers)
          in
@@ -230,15 +234,17 @@ let user_page_handler ~(host: string) ~(ip: string) ~(uri: Uri.t)
       let ct_headers =
         maybe_infer_headers [] result
       in
-      let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers @session_headers) in
+      let resp_headers = Cohttp.Header.of_list ([cors; trace_header execution_id]
+                                                @ ct_headers
+                                                @ session_headers)
+      in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
       respond ~resp_headers `OK body)
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
-let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
-  let execution_id = Util.create_id () in
+let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
@@ -292,8 +298,7 @@ let admin_rpc_handler ~(host: string) body : (Cohttp.Header.t * string) =
     Event_queue.finalize execution_id ~status:`Err;
     raise e
 
-let execute_function ~(host: string) body : (Cohttp.Header.t * string) =
-  let execution_id = Util.create_id () in
+let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_execute_function_params body) in
@@ -333,8 +338,7 @@ let execute_function ~(host: string) body : (Cohttp.Header.t * string) =
     Event_queue.finalize execution_id ~status:`Err;
     raise e
 
-let get_analysis (host: string) (body: string) : (Cohttp.Header.t * string) =
-  let execution_id = Util.create_id () in
+let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Cohttp.Header.t * string) =
   try
     let (t1, tlids) = time "1-read-api-tlids"
       (fun _ -> Api.to_analysis_params body) in
@@ -445,25 +449,30 @@ let auth_then_handle req host handler =
       | _ ->
         respond `Unauthorized "Invalid session"
 
-let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
+let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     (req: CRequest.t) req_headers =
   let text_plain_resp_headers =
     Header.init_with "Content-type" "text/html; charset=utf-8"
   in
   let utf8 = "application/json; charset=utf-8" in
-
   match Uri.path uri with
   | "/admin/api/rpc" ->
-    let (resp_headers, response_body) = admin_rpc_handler host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
+    let resp_headers = Header.add_list resp_headers ["Content-type", utf8
+                                                    ; trace_header execution_id]
+    in
     respond ~resp_headers `OK response_body
   | "/admin/api/execute_function" ->
-    let (resp_headers, response_body) = execute_function host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    let (resp_headers, response_body) = execute_function ~execution_id host body in
+    let resp_headers = Header.add_list resp_headers ["Content-type", utf8
+                                                    ; trace_header execution_id]
+    in
     respond ~resp_headers `OK response_body
   | "/admin/api/get_analysis" ->
-    let (resp_headers, response_body) = get_analysis host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    let (resp_headers, response_body) = get_analysis ~execution_id host body in
+    let resp_headers = Header.add_list resp_headers ["Content-type", utf8
+                                                    ; trace_header execution_id]
+    in
     respond ~resp_headers `OK response_body
   | "/admin/api/shutdown" when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
@@ -473,13 +482,19 @@ let admin_handler ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     respond `OK "Cleared"
   | "/admin/ui-debug" ->
     let%lwt body = admin_ui_handler ~debug:true () in
-    respond ~resp_headers:text_plain_resp_headers `OK body
+    respond
+      ~resp_headers:(Header.add_list text_plain_resp_headers [trace_header execution_id])
+      `OK body
   | "/admin/ui" ->
     let%lwt body = admin_ui_handler ~debug:false () in
-    respond ~resp_headers:text_plain_resp_headers `OK body
+    respond
+      ~resp_headers:(Header.add_list text_plain_resp_headers [trace_header execution_id])
+      `OK body
   | "/admin/integration_test" ->
     let%lwt body = admin_ui_handler ~debug:false () in
-    respond ~resp_headers:text_plain_resp_headers `OK body
+    respond
+      ~resp_headers:(Header.add_list text_plain_resp_headers [trace_header execution_id])
+      `OK body
   | "/admin/api/save_test" ->
     save_test_handler host
   | _ ->
@@ -498,6 +513,7 @@ let server () =
   let stop,stopper = Lwt.wait () in
 
   let callback (ch, conn) req body =
+    let execution_id = Util.create_id () in
 
     let handle_error ~(include_internals:bool) (e:exn) =
       try
@@ -516,18 +532,19 @@ let server () =
                "Dark Internal Error: " ^ Exn.to_string e
           with _ -> "UNHANDLED ERROR: real_err"
         in
-        Log.erroR real_err ~bt;
+        Log.erroR real_err ~bt ~params:["execution_id", Log.dump execution_id];
 
         let user_err =
           if include_internals
           then real_err
           else "Dark Internal Error"
         in
-        let resp_headers = Cohttp.Header.of_list [cors] in
+        let resp_headers = Cohttp.Header.of_list [cors; trace_header execution_id] in
         respond ~resp_headers `Internal_server_error user_err
       with e ->
         Rollbar.last_ditch e "handle_error";
-        respond `Internal_server_error "unhandled error"
+        let resp_headers = Cohttp.Header.of_list [trace_header execution_id] in
+        respond ~resp_headers `Internal_server_error "unhandled error"
     in
 
 
@@ -560,6 +577,7 @@ let server () =
                               |> CRequest.meth
                               |> Cohttp.Code.string_of_method
                   ; "uri", Uri.to_string uri
+                  ; "execution_id", Log.dump execution_id
                   ];
 
         match (Uri.path uri, host) with
@@ -574,11 +592,11 @@ let server () =
           if String.is_prefix ~prefix:"/admin/" p
           then
             try
-              admin_handler ~host ~uri ~body ~stopper req req_headers
+              admin_handler ~execution_id ~host ~uri ~body ~stopper req req_headers
             with e -> handle_error ~include_internals:true e
           else
             (* caught by a handle_error a bit lower *)
-            user_page_handler ~host ~ip ~uri ~body req
+            user_page_handler ~execution_id ~host ~ip ~uri ~body req
       in
 
       match (req |> CRequest.uri |> Uri.path, host) with
