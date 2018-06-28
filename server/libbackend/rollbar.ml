@@ -25,7 +25,7 @@ let exn_to_info (e: exn) : Yojson.Safe.json =
     Exception.exception_data_to_yojson e
   | _ -> `Null
 
-let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx)
+let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) (execution_id: Types.id)
   : Yojson.Safe.json =
   let message =
     let interior =
@@ -58,6 +58,7 @@ let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx)
         [("url", `String ("https:" ^ (req |> CRequest.uri |> Uri.to_string)))
         ;("method", `String (req |> CRequest.meth |> Cohttp.Code.string_of_method))
         ;("headers", `Assoc headers)
+        ;("execution_id", `String (Types.show_id execution_id))
         ;("body", `String body)
         ]
         |> fun r -> `Assoc r
@@ -67,22 +68,25 @@ let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx)
       ;("language", language)
       ;("framework", framework)
       ;("context", context)
+      ;("execution_id", `String (Types.show_id execution_id))
       ;("request", request)]
     | EventQueue ->
       [("body", message)
       ;("environment", env)
       ;("language", language)
       ;("framework", framework)
+      ;("execution_id", `String (Types.show_id execution_id))
       ;("context", context)]
-    | Other str -> []
+    | Other str ->
+      [("execution_id", `String (Types.show_id execution_id))]
   in
   payload
   |> fun p -> `Assoc p
 
-let create_request (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : Curl.t =
+let create_request (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) (execution_id: Types.id) : Curl.t =
   let body =
     [("access_token", `String Config.rollbar_server_access_token)
-    ;("data", error_to_payload e bt ctx)
+    ;("data", error_to_payload e bt ctx execution_id)
     ]
     |> fun b -> `Assoc b
     |> Yojson.Safe.to_string
@@ -112,19 +116,23 @@ let code_to_result (code: int) : result =
 (* Exported *)
 (* ------------------------- *)
 
-let report_lwt (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result Lwt.t =
+let report_lwt (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) (execution_id: Types.id) : result Lwt.t =
   begin try%lwt
     if (not Config.rollbar_enabled) then return `Disabled else
-    let c = create_request e bt ctx in
+    let c = create_request e bt ctx execution_id in
     begin try%lwt
       Curl_lwt.perform c
       >|= function
       | CURLE_OK -> `Success
       | other ->
-          Log.erroR "Rollbar err" ~data:(Curl.strerror other);
+          Log.erroR "Rollbar err"
+            ~data:(Curl.strerror other)
+            ~params:["execution_id", Log.dump execution_id];
           `Failure
     with err ->
-      Log.erroR "Rollbar err" ~data:(Log.dump err);
+      Log.erroR "Rollbar err"
+        ~data:(Log.dump err)
+        ~params:["execution_id", Log.dump execution_id];
       Lwt.fail err
     end[%lwt.finally Curl.cleanup c; return ()]
   with err ->
@@ -132,10 +140,10 @@ let report_lwt (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result Lwt.t 
     Lwt.fail err
   end
 
-let report (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result =
+let report (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) (execution_id: Types.id) : result =
   try
     if (not Config.rollbar_enabled) then `Disabled else
-    let c = create_request e bt ctx in
+    let c = create_request e bt ctx execution_id in
     Curl.perform c;
     let result = c
                |> Curl.get_responsecode
@@ -147,8 +155,8 @@ let report (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) : result =
     Caml.print_endline "UNHANDLED ERROR: rollbar.report";
     `Failure
 
-let last_ditch (e: exn) (name: string) : unit =
+let last_ditch (e: exn) (name: string) (execution_id: Types.id) : unit =
   (* Before anything else, get this flushed to logs *)
   Caml.print_endline ("UNHANDLED ERROR: " ^ name);
   let bt = Exception.get_backtrace () in
-  ignore (report e bt (Other "main"))
+  ignore (report e bt (Other "main") execution_id)

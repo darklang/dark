@@ -36,5 +36,5 @@ let init () =
       Libexecution.Log.infO "Libbackend" ~data:"Initialization Complete";
       has_inited := true;
   with e ->
-    Rollbar.last_ditch e "backend initialization"
+    Rollbar.last_ditch e "backend initialization" 0
 
