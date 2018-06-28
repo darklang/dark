@@ -627,7 +627,6 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
   |> DvalMap.of_alist_exn
 
 
-
 (* -------------------- *)
 (* Run full analyses *)
 (* -------------------- *)
