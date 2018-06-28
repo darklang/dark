@@ -11,7 +11,7 @@ module FF = Feature_flag
 type canvas = Canvas.canvas
 type executable_fn_id = (tlid * id * int)
 
-let initial_dval_map (c: canvas) : RTT.dval_map =
+let initial_env (c: canvas) : RTT.dval_map =
   c.toplevels
   |> TL.dbs
   |> User_db.dbs_as_env
@@ -23,20 +23,20 @@ let sample_event =
   RTT.DIncomplete
 
 let default_env (c: canvas) : RTT.dval_map =
-  initial_dval_map c
+  initial_env c
   |> RTT.DvalMap.set ~key:"request" ~data:sample_request
   |> RTT.DvalMap.set ~key:"event" ~data:sample_event
 
-let initial_envs (c: canvas) (h: Handler.handler)
+let initial_envs_for_handler (c: canvas) (h: Handler.handler)
   : RTT.dval_map list =
-  let initial_env = initial_dval_map c in
+  let init = initial_env c in
   let default =
      match Handler.module_type h with
      | `Http ->
-       RTT.DvalMap.set initial_env "request" sample_request
+       RTT.DvalMap.set init "request" sample_request
      | `Event ->
-       RTT.DvalMap.set initial_env "event" sample_event
-     | `Cron -> initial_env
+       RTT.DvalMap.set init "event" sample_event
+     | `Cron -> init
      | `Unknown -> default_env c
   in
   (match Handler.event_desc_for h with
@@ -50,14 +50,14 @@ let initial_envs (c: canvas) (h: Handler.handler)
         ~f:(fun e ->
             match Handler.module_type h with
             | `Http ->
-              let with_r = RTT.DvalMap.set initial_env "request" e in
+              let with_r = RTT.DvalMap.set init "request" e in
               let name = Handler.event_name_for_exn h in
               let bound = Http.bind_route_params_exn path name in
               Util.merge_left with_r bound
             | `Event ->
-              RTT.DvalMap.set initial_env "event" e
-            | `Cron  -> initial_env
-            | `Unknown -> initial_env (* can't happen *)
+              RTT.DvalMap.set init "event" e
+            | `Cron  -> init
+            | `Unknown -> init (* can't happen *)
         ))
 
 let state_for

@@ -71,7 +71,10 @@ let function_analysis
           then Some id
           else None)
   in
-  let env = Ast_analysis.environment_for_user_fn f in
+  let env =
+    Ast_analysis.environment_for_user_fn f
+    |> Util.merge_left (Execution.initial_env c)
+  in
   let state =
     Execution.state_for_analysis f.tlid
       ~c ~input_cursor:0 ~execution_id ~exe_fn_ids:fn_ids ~env
@@ -102,7 +105,7 @@ let handler_analysis
     Execution.state_for_analysis h.tlid
       ~c ~input_cursor:i ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
-  let envs = Execution.initial_envs c h in
+  let envs = Execution.initial_envs_for_handler c h in
   let values =
     List.mapi
       ~f:(fun i env ->
