@@ -131,13 +131,16 @@ find_many ~state db ids =
        AND dark_version = $2"
       (Db.escape (List (List.map ~f:(fun u -> Uuid u) ids)))
   in
-  Db.fetch
-    ~name:"find_many"
-    sql
-    ~params:[ Int db.version
-            ; Int current_dark_version]
-  |> List.map ~f:(to_obj ~state db)
-  |> DList
+  if List.is_empty ids
+  then DList []
+  else
+    Db.fetch
+      ~name:"find_many"
+      sql
+      ~params:[ Int db.version
+              ; Int current_dark_version]
+    |> List.map ~f:(to_obj ~state db)
+    |> DList
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
