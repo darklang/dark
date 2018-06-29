@@ -109,12 +109,12 @@ let blank_to_content (bo: 'a or_blank) : 'a option =
 
 
 let rec sym_exec
-    ~(ff: feature_flag)
     ~(trace: (expr -> sym_set -> unit))
+    (state: exec_state)
     (st: sym_set)
     (expr: expr)
   : unit =
-  let sexe = sym_exec ~trace ~ff in
+  let sexe = sym_exec ~trace state in
   try
     let _ =
       (match expr with
@@ -122,7 +122,7 @@ let rec sym_exec
        | Flagged (id, _, _, l, r) ->
          sexe st l;
          sexe st r;
-         sexe st (flatten_ff expr ff)
+         sexe st (flatten_ff expr state.ff)
 
        | Filled (_, Value s) -> ()
        | Filled (_, Variable name) -> ()
@@ -148,7 +148,7 @@ let rec sym_exec
          let new_st =
            vars
            |> List.map
-             ~f:(fun v -> flatten_ff v ff)
+             ~f:(fun v -> flatten_ff v state.ff)
            |> List.filter_map ~f:blank_to_content
            |> SymSet.of_list
            |> SymSet.union st
@@ -173,22 +173,23 @@ let rec sym_exec
   with
   | e ->
     let bt = Exception.get_backtrace () in
-    (* TODO: execution_id *)
     Log.erroR "exception_during_symexec" ~bt
-      ~params:["exception", Exception.to_string e]
+      ~params:["exception", Exception.to_string e
+              ;"execution_id", Log.dump state.execution_id
+              ]
 
 
-let symbolic_execute (ff: feature_flag) (init: symtable) (ast: expr) : sym_store =
+let symbolic_execute (state: exec_state) (ast: expr) : sym_store =
   let sym_store = Int.Table.create () in
   let trace expr st =
     Hashtbl.set sym_store ~key:(Ast.to_id expr) ~data:st
   in
   let init_set =
-    init
+    state.env
     |> Symtable.keys
     |> SymSet.of_list
   in
-  sym_exec ~trace ~ff init_set ast;
+  sym_exec ~trace state init_set ast;
   sym_store
 
 
@@ -640,7 +641,7 @@ let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
   let default_env = with_defaults h state.env in
   let state = { state with env = default_env } in
   let traced_symbols =
-    symbolic_execute state.ff state.env h.ast in
+    symbolic_execute state h.ast in
   let (ast_value, traced_values) =
     execute_saving_intermediates state h.ast in
   { ast_value = dval_to_livevalue ast_value
@@ -655,7 +656,7 @@ let execute_function_for_analysis (state : exec_state) (f : user_fn) :
     ~data:(show_tlid state.tlid)
     ~params:["execution_id", Log.dump state.execution_id];
   let traced_symbols =
-    symbolic_execute state.ff state.env f.ast in
+    symbolic_execute state f.ast in
   let (ast_value, traced_values) =
     execute_saving_intermediates state f.ast in
   { ast_value = dval_to_livevalue ast_value
