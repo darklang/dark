@@ -8,11 +8,19 @@ module FF = Feature_flag
 
 let dequeue_and_evaluate_all () : string =
   (* iterate all non-test canvases *)
+  let execution_id = Util.create_id () in
+  Log.infO "queue_worker"
+    ~data:"Worker starting"
+    ~params:["execution_id", Log.dump execution_id];
   let current_endpoints =
     Serialize.current_hosts ()
     |> List.filter ~f:(fun f -> not (Serialize.is_test f))
   in
-  let execution_id = Util.create_id () in
+  Log.infO "queue_worker"
+    ~data:"loaded canvases"
+    ~params:["execution_id", Log.dump execution_id
+            ;"number_of_canvases", string_of_int (List.length current_endpoints)
+            ];
   let results =
     current_endpoints
     |> List.filter_map
@@ -22,10 +30,13 @@ let dequeue_and_evaluate_all () : string =
           with
           | e ->
             let bt = Exception.get_backtrace () in
-            Log.erroR "Deserialization error" ~bt ~params:[ "host", endp
-                                                          ; "exn", Log.dump e
-                                                          ; "execution_id", Log.dump execution_id
-                                                          ];
+            Log.erroR "queue_worker"
+              ~data:"Deserialization error"
+              ~bt
+              ~params:[ "host", endp
+                      ; "exn", Log.dump e
+                      ; "execution_id", Log.dump execution_id
+                      ];
             let _ = Rollbar.report e bt EventQueue in
             None)
     |> List.map
@@ -37,6 +48,14 @@ let dequeue_and_evaluate_all () : string =
               |> TL.bg_handlers
               |> List.partition_tf ~f:Handler.is_cron
             in
+            Log.infO "queue_worker"
+              ~data:"executing canvas"
+              ~params:["execution_id", Log.dump execution_id
+                      ;"number_of_canvases", string_of_int (List.length current_endpoints)
+                      ;"host", endpoint
+                      ;"number_of_crons", string_of_int (List.length crons)
+                      ;"number_of_queues", string_of_int (List.length queues)
+                      ];
             let cron_results =
               List.filter_map crons
                ~f:(fun cr ->
@@ -56,6 +75,14 @@ let dequeue_and_evaluate_all () : string =
                     with
                     | e ->
                       let bt = Exception.get_backtrace () in
+                      Log.erroR "queue_worker"
+                        ~data:"cron execution error"
+                        ~bt
+                        ~params:["execution_id", Log.dump execution_id
+                                ;"host", endpoint
+                                ;"cron_id", Log.dump (cr.tlid)
+                                ;"exn", Log.dump e
+                                ];
                       let _  = Rollbar.report e bt EventQueue in
                       None)
             in
@@ -99,18 +126,31 @@ let dequeue_and_evaluate_all () : string =
           with
           | e ->
             let bt = Exception.get_backtrace () in
+            Log.erroR "queue_worker"
+              ~data:"queue execution error"
+              ~bt
+              ~params:["execution_id", Log.dump execution_id
+                      ;"host", endpoint
+                      ;"exn", Log.dump e
+                      ];
             let _  = Rollbar.report e bt EventQueue in
             Event_queue.finalize execution_id ~status:`Err;
             RTT.DError (Exn.to_string e)
         )
   in
-  results
-  |> List.filter
-    ~f:(fun r ->
-        match r with
-        | RTT.DIncomplete -> false
-        | _ -> true)
-  |> List.map
-    ~f:(Dval.dval_to_json_string)
-  |> String.concat
-    ~sep:", "
+  let report =
+    results
+    |> List.filter
+      ~f:(fun r ->
+          match r with
+          | RTT.DIncomplete -> false
+          | _ -> true)
+    |> List.map
+      ~f:(Dval.dval_to_json_string)
+    |> String.concat
+      ~sep:", "
+  in
+  Log.infO "queue_worker"
+    ~data:"Worker finished"
+    ~params:["execution_id", Log.dump execution_id];
+  report
