@@ -24,6 +24,7 @@ let dequeue_and_evaluate_all () : string =
             let bt = Exception.get_backtrace () in
             Log.erroR "Deserialization error" ~bt ~params:[ "host", endp
                                                           ; "exn", Log.dump e
+                                                          ; "execution_id", Log.dump execution_id
                                                           ];
             let _ = Rollbar.report e bt EventQueue in
             None)
