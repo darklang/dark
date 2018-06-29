@@ -7,7 +7,11 @@ echo "" | crontab -
 for name in ${@}; do
   if [[ $name == cron ]]; then
     TAB='*/1 * * * *'
-    line="$TAB sudo $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1"
+    if [[ $DARK_CONFIG_LOGGING_FORMAT == stackdriver ]]; then
+      line="$TAB sudo $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> /proc/1/fd/1 2>&1"
+    else
+      line="$TAB sudo $DARK_CONFIG_SCRIPTS_DIR/trigger_queue_workers >> $DARK_CONFIG_RUN_DIR/logs/cron.log 2>&1"
+    fi
     (crontab -l; echo "$line") | crontab -
   fi
 
