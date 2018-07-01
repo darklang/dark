@@ -51,18 +51,18 @@ let http_call (url: string) (query_params : (string * string list) list)
   let responsebuf = Buffer.create 16384 in
 
   (* uploads *)
-  let bodybuffer = ref body in
-  let putfn (count: int) : string =
-    let len = String.length !bodybuffer in
-    let this_body = !bodybuffer in
-    if count < len
-    then (bodybuffer := ""; this_body)
-    else
-      let result = String.sub ~pos:0 ~len:count this_body in
-      let save = String.sub ~pos:count ~len:(len-count) this_body in
-      bodybuffer := save;
-      result
-    in
+  (* let bodybuffer = ref body in *)
+  (* let putfn (count: int) : string = *)
+  (*   let len = String.length !bodybuffer in *)
+  (*   let this_body = !bodybuffer in *)
+  (*   if count < len *)
+  (*   then (bodybuffer := ""; this_body) *)
+  (*   else *)
+  (*     let result = String.sub ~pos:0 ~len:count this_body in *)
+  (*     let save = String.sub ~pos:count ~len:(len-count) this_body in *)
+  (*     bodybuffer := save; *)
+  (*     result *)
+  (*   in *)
 
   let responsefn str : int =
     Buffer.add_string responsebuf str;
@@ -96,16 +96,16 @@ let http_call (url: string) (query_params : (string * string list) list)
 
       (match verb with
        | PUT ->
-         C.set_readfunction c putfn;
-         C.set_upload c true;
+         C.set_postfields c body;
+         C.set_postfieldsize c (String.length body);
          C.set_put c true
        | POST ->
          C.set_post c true;
          C.set_postfields c body;
          C.set_postfieldsize c (String.length body)
        | PATCH ->
-         C.set_readfunction c putfn;
-         C.set_upload c true;
+         C.set_postfields c body;
+         C.set_postfieldsize c (String.length body);
          C.set_customrequest c "PATCH"
        | DELETE ->
          C.set_followlocation c false;

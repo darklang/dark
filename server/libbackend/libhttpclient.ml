@@ -77,6 +77,18 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["HttpClient::put"]
+  ; ins = []
+  ; p = params
+  ; r = TObj
+  ; d = "Make blocking HTTP PUT call to `uri`"
+  ; f = call Httpclient.PUT
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+
   { pns = ["HttpClient::get"]
   ; ins = []
   ; p = params
