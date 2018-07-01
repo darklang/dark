@@ -98,7 +98,7 @@ let http_call (url: string) (query_params : (string * string list) list)
        | PUT ->
          C.set_postfields c body;
          C.set_postfieldsize c (String.length body);
-         C.set_put c true
+         C.set_customrequest c "PUT"
        | POST ->
          C.set_post c true;
          C.set_postfields c body;
