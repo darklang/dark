@@ -133,6 +133,11 @@ let init () : unit =
     ; password = "me do"
     ; email = "zane@darklang.com"
     ; name = "Zane Shannon"};
+  upsert_admin
+    { username = "alice"
+    ; password = "descartes"
+    ; email = "alice@darklang.com"
+    ; name = "Alice Wong"};
   upsert_account
     { username = "dabblefox"
     ; password = "alk92''[ponvhi4"
