@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       app: bwd-app
-  replicas: 10
+  replicas: 12
   template:
     metadata:
       labels:
