@@ -78,7 +78,13 @@ let error_to_payload (e: exn) (bt: Exception.backtrace) (ctx: err_ctx) (executio
       ;("execution_id", `String (Types.show_id execution_id))
       ;("context", context)]
     | Other str ->
-      [("execution_id", `String (Types.show_id execution_id))]
+      [("body", message)
+      ;("environment", env)
+      ;("language", language)
+      ;("framework", framework)
+      ;("execution_id", `String (Types.show_id execution_id))
+      ;("context", context)
+      ]
   in
   payload
   |> fun p -> `Assoc p
