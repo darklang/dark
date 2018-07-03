@@ -371,6 +371,7 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
     let (t5, fvals) = time "5-function-analyses"
       (fun _ ->
         !c.user_functions
+        |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
         |> List.map
           ~f:(Analysis.function_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
