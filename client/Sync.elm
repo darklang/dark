@@ -54,7 +54,7 @@ toAnalyse m =
             let length = List.length ids
             in
                 if length > 0
-                then Just length
+                then Just ((Util.random ()) % length)
                 else Nothing
       in
           index
