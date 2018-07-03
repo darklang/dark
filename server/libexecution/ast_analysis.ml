@@ -24,7 +24,7 @@ let dval_to_livevalue (dv: dval) : livevalue =
   ; tipe = Dval.tipename dv
   ; json = dv
            |> Dval.dval_to_yojson ~livevalue:true
-           |> Yojson.Safe.pretty_to_string
+           |> Yojson.Safe.to_string
   ; exc = None
   }
 
