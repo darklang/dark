@@ -1339,6 +1339,7 @@ update_ msg m =
             }
       in
           RPC ([SetHandler anId aPos aHandler], FocusNothing)
+    _ -> NoChange
 
 enableTimers : Model -> Model
 enableTimers m =
