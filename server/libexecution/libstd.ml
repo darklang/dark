@@ -474,7 +474,7 @@ let fns : Lib.shortfn list = [
   ; ins = ["/"]
   ; p = [par "a" TFloat; par "b" TFloat]
   ; r = TFloat
-  ; d = "Divides two floats"
+  ; d = "Divide float `a` by float `b`"
   ; f = InProcess
         (function
           | (_, [DFloat a; DFloat b]) -> DFloat (a /. b)
@@ -484,6 +484,47 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Float::add"]
+  ; ins = []
+  ; p = [par "a" TFloat; par "b" TFloat]
+  ; r = TFloat
+  ; d = "Add float `a` to float `b`"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DFloat (a +. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Float::multiply"]
+  ; ins = []
+  ; p = [par "a" TFloat; par "b" TFloat]
+  ; r = TFloat
+  ; d = "Multiply float `a` by float `b`"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DFloat (a *. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Float::subtract"]
+  ; ins = []
+  ; p = [par "a" TFloat; par "b" TFloat]
+  ; r = TFloat
+  ; d = "Subtract float `b` from float `a`"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DFloat (a -. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
   { pns = ["Int::sum"]
   ; ins = []
