@@ -244,7 +244,20 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
         let dep_table = find_db state.dbs table in
         (match dv with
          | DID id ->
-           find ~state dep_table id
+           (* TODO: temporary, need to add this to coerce not found dependents to null. We should
+            * probably propagate the deletion to the owning records, but this is very much a symptom
+            * of modelling relationships parent->child rather than child->parent. child->parent
+            * seems hard with our single-table, json blob approach though *)
+           (try
+              find ~state dep_table id
+            with
+            | Exception.DarkException e as original->
+              (match e.tipe with
+               | DarkStorage ->
+                 DNull
+               | _ ->
+                 raise original)
+            | other -> raise other)
          | DNull -> (* allow nulls for now *)
            DNull
          | err -> Exception.client (type_error_msg table TID err)))
