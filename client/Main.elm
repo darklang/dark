@@ -1342,9 +1342,8 @@ update_ msg m =
       let center = findCenter m
         in Entry.submitOmniAction m center NewHTTPHandler
     CreateFunction ->
-      let ufun = (generateEmptyFunction (Refactor.generateFnName ()))
-      in
-        RPC ( [ SetFunction ufun ], FocusNothing )
+      let ufun = Refactor.generateEmptyFunction ()
+        in RPC ( [ SetFunction ufun ], FocusPageAndCursor (Fn ufun.tlid) m.cursorState )
     _ -> NoChange
 
 findCenter : Model -> Pos
@@ -1352,26 +1351,6 @@ findCenter m =
   case m.currentPage of
     Toplevels center -> center
     _ -> impossible ()
-
-generateEmptyFunction : String -> UserFunction
-generateEmptyFunction funcName =
-  let tlid = gtlid ()
-      params = [
-        { name = F (gid ()) "var"
-          , tipe = F (gid ()) TAny
-          , block_args = []
-          , optional = True
-          , description = ""
-        }
-      ]
-      metadata = {
-        name = F (gid ()) funcName
-        , parameters = params
-        , description = ""
-        , returnTipe = F (gid ()) TAny
-        , infix = False
-      }
-  in (UserFunction tlid metadata (Blank (gid ())))
 
 enableTimers : Model -> Model
 enableTimers m =
