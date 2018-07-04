@@ -149,6 +149,7 @@ type Msg
     | CreateRouteHandler
     | CreateDBTable
     | CreateFunction
+    | CreateFunctionBlock
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
