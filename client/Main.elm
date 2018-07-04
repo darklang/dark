@@ -1196,6 +1196,17 @@ update_ msg m =
     -------------------------
     -- Function Management
     ------------------------
+    CreateFunctionBlock ->
+      case m.cursorState of
+        Selecting tlid mId ->
+          let tl = TL.getTL m tlid in
+            case mId of
+              Nothing -> NoChange
+              Just id ->
+                let pd = TL.findExn tl id in
+                Refactor.extractFunction m tl pd
+        _ -> NoChange
+
     DeleteUserFunctionParameter uf upf ->
       let replacement = Functions.removeParameter uf upf
           newCalls = Refactor.removeFunctionParameter m uf upf
