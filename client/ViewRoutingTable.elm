@@ -179,7 +179,7 @@ viewGroup m (spacename, entries) =
                       ]
       routes = div "routes" (List.map entryHtml entries)
   in
-  section spacename entries routes
+  section spacename entries (if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing) routes
 
 viewRoutes : Model -> List (Html.Html Msg)
 viewRoutes m =
@@ -203,27 +203,32 @@ text class msg = span class [Html.text msg]
 div : String -> List (Html.Html Msg) -> Html.Html Msg
 div class subs = Html.div [Attrs.class class] subs
 
-header : String -> List a -> Html.Html Msg
-header name list =
+header : String -> List a -> Maybe Msg -> Html.Html Msg
+header name list addHandler =
   Html.summary
     [ Attrs.class "header" ]
     [ text "title" name
     , text "parens" "("
     , text "count" (list |> List.length |> toString)
-    , text "parens" ")"
+    , text "parens" ")",
+    case addHandler of
+        Just msg ->
+            link (fontAwesome "plus-circle") (msg)
+        Nothing ->
+            text "" ""
     ]
 
-section : String -> List a -> Html.Html Msg -> Html.Html Msg
-section name entries routes =
+section : String -> List a -> Maybe Msg -> Html.Html Msg -> Html.Html Msg
+section name entries addHandler routes =
   if List.length entries == 0
   then
     Html.div
       [ Attrs.class "routing-section empty"]
-      [ header name entries, routes]
+      [ header name entries addHandler, routes]
   else
     Html.details
       [ Attrs.class "routing-section"]
-      [ header name entries, routes]
+      [ header name entries addHandler, routes]
 
 link : Html.Html Msg -> Msg -> Html.Html Msg
 link content handler =
@@ -254,7 +259,7 @@ view404s m =
           , text "modifier" modifier
           ]
       routes = div "404s" (List.map fofHtml m.f404s)
-  in section "404s" m.f404s routes
+  in section "404s" m.f404s Nothing routes
 
 viewDBs : Model -> Html.Html Msg
 viewDBs m =
@@ -267,7 +272,7 @@ viewDBs m =
           [ span "name" [newLink pos "default-link" db.name]]
 
       routes = div "dbs" (List.map dbHtml dbs)
-  in section "DBs" dbs routes
+  in section "DBs" dbs (Just CreateDBTable) routes
 
 
 viewUserFunctions : Model -> Html.Html Msg
@@ -291,7 +296,7 @@ viewUserFunctions m =
 
       routes = div "fns" (List.map fnHtml fns)
   in
-      section "Functions" fns routes
+      section "Functions" fns (Just CreateFunction) routes
 
 
 
@@ -308,6 +313,3 @@ viewRoutingTable m =
                sections
 
   in placeHtml m (Viewport.toAbsolute m {vx=0, vy=0}) html
-
-
-

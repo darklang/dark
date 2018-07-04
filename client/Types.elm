@@ -146,6 +146,9 @@ type Msg
     | DataClick TLID Int MouseEvent
     | DataMouseEnter TLID Int MouseEvent
     | DataMouseLeave TLID Int MouseEvent
+    | CreateRouteHandler
+    | CreateDBTable
+    | CreateFunction
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -553,5 +556,3 @@ type alias FlagFunction = { name: String
                           , preview_execution_safe: Bool
                           , infix: Bool
                           }
-
-
