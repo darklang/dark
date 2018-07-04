@@ -272,7 +272,7 @@ viewDBs m =
           [ span "name" [newLink pos "default-link" db.name]]
 
       routes = div "dbs" (List.map dbHtml dbs)
-  in section "DBs" dbs (Just CreateDBTable) routes
+  in section "DBs" dbs Nothing routes
 
 
 viewUserFunctions : Model -> Html.Html Msg
