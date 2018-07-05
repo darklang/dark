@@ -918,6 +918,12 @@ freeVariables ast =
                                    case e of
                                      Let (F _ lhs) rhs body->
                                        Just (uses lhs body)
+                                     Lambda vars body ->
+                                       vars
+                                       |> List.filterMap B.toMaybe
+                                       |> List.map (\v -> uses v body)
+                                       |> List.concat
+                                       |> Just
                                      _ -> Nothing
                              _ -> Nothing)
                        |> List.concat
