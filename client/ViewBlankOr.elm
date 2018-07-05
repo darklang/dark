@@ -431,7 +431,7 @@ viewCreateFn =
   Html.div
     [
       Attrs.class "create-function"
-      , eventNoPropagation "click" (\_ -> CreateFunctionBlock)
+      , eventNoPropagation "click" (\_ -> ExtractFunction)
     ]
     [ fontAwesome "share-square" ]
 
