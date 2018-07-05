@@ -40,6 +40,7 @@ type alias ViewState =
   , tooWide: Bool
   , executingFunctions: List ID
   , tlCursors: TLCursors
+  , testVariants: List VariantTest
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -95,6 +96,7 @@ createVS m tl = { tl = tl
                 , executingFunctions = List.filter (\(tlid,id) -> tlid == tl.id) m.executingFunctions
                                        |> List.map (\(tlid,id) -> id)
                 , tlCursors = m.tlCursors
+                , testVariants = m.tests
                 }
 
 fontAwesome : String -> Html.Html Msg
@@ -251,4 +253,3 @@ approxNWidth ne =
       |> List.maximum
       |> Maybe.withDefault 0
       |> (+) 4 -- {  }
-
