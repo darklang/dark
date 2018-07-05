@@ -6,6 +6,7 @@ import List.Extra as LE
 import Types exposing (..)
 import RPC
 import Toplevel
+import Util
 
 markRequestInModel : Model -> Model
 markRequestInModel m =
