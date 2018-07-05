@@ -198,6 +198,11 @@ let init () : unit =
     ; password = "lkas;30mfa]]3f]"
     ; email = "ops@darklang.com"
     ; name = "Dark benchmarking"};
+  upsert_account
+    { username = "vlymar"
+    ; password = "theexpanse"
+    ; email = "victorslymar@gmail.com"
+    ; name = "Victor Lymar"};
 
 
 
