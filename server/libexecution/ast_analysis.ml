@@ -538,7 +538,17 @@ and call_fn ~(engine:engine) ~(state: exec_state)
 
 
   | UserCreated body ->
-    exec ~engine ~state args body
+    let args_with_dbs =
+      let db_dvals =
+        state.dbs
+        |> List.map ~f:(fun db -> (db.display_name, DDB db))
+        |> DvalMap.of_alist_exn
+      in
+      Util.merge_left
+        (db_dvals)
+        (args)
+    in
+    exec ~engine ~state args_with_dbs body
   | API f ->
       f args
       (* | TypeError args -> *)
