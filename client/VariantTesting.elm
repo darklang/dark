@@ -26,6 +26,7 @@ variantIsActive m vt = m.tests
 
 toVariantTest : (String, Bool) -> Maybe VariantTest
 toVariantTest s = case s of
+                    ("testExeIcon", useBolt ) -> Just (ExeIconVariation (if useBolt then "bolt" else "play") )
                     (_, False) -> Nothing
                     (test, _)  -> case (String.toLower test) of
                                     _              -> Nothing
@@ -35,6 +36,7 @@ toCSSClass vt =
   let test =
         case vt of
           StubVariant -> "stub"
+          ExeIconVariation icon -> "exe-" ++ icon
     -- _  -> "default" -- Please never do this, let the compiler tell you if you missed a variant
   in test ++ "-variant"
 
@@ -42,7 +44,8 @@ toCSSClass vt =
 uniqueTests : List VariantTest -> List VariantTest
 uniqueTests xs = xs
                |> LE.uniqueBy (\x -> case x of
-                                     StubVariant -> "SV") -- well this is lovely
+                                     StubVariant -> "SV"
+                                     _ -> "") -- well this is lovely
 
 
 splitOnEquals : String -> Maybe (String, Bool)
@@ -56,4 +59,3 @@ splitOnEquals s = if String.contains "=" s
                                        "false" -> Just (x, False)
                                        _       -> Nothing
                    else Nothing
-
