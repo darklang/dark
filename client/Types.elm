@@ -146,6 +146,10 @@ type Msg
     | DataClick TLID Int MouseEvent
     | DataMouseEnter TLID Int MouseEvent
     | DataMouseLeave TLID Int MouseEvent
+    | CreateRouteHandler
+    | CreateDBTable
+    | CreateFunction
+    | CreateFunctionBlock
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -236,7 +240,7 @@ type AutocompleteMod = ACSetQuery String
 -----------------------------
 -- AB tests
 -----------------------------
-type VariantTest = StubVariant
+type VariantTest = StubVariant | ExeIconVariation String
 
 -----------------------------
 -- View
@@ -553,5 +557,3 @@ type alias FlagFunction = { name: String
                           , preview_execution_safe: Bool
                           , infix: Bool
                           }
-
-

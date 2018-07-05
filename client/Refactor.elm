@@ -349,3 +349,23 @@ removeFunctionParameter m uf ufp =
   in
       transformFnCalls m uf fn
 
+generateEmptyFunction : () -> UserFunction
+generateEmptyFunction _ =
+  let funcName = generateFnName ()
+      tlid = gtlid ()
+      params = [
+          { name = F (gid ()) "var"
+            , tipe = F (gid ()) TAny
+            , block_args = []
+            , optional = True
+            , description = ""
+          }
+        ]
+      metadata = {
+        name = F (gid ()) funcName
+        , parameters = params
+        , description = ""
+        , returnTipe = F (gid ()) TAny
+        , infix = False
+      }
+  in (UserFunction tlid metadata (Blank (gid ())))

@@ -209,7 +209,7 @@ div vs configs content =
       editFnHtml = case editFn of
                      Just editFn ->
                        [viewEditFn editFn showFeatureFlag]
-                     Nothing -> []
+                     Nothing -> if showFeatureFlag then [viewCreateFn] else []
   in
     Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ computedValue)
 
@@ -426,6 +426,14 @@ viewFeatureFlag =
     , eventNoPropagation "click" (\_ -> StartFeatureFlag)]
     [ fontAwesome "flag"]
 
+viewCreateFn : Html.Html Msg
+viewCreateFn =
+  Html.div
+    [
+      Attrs.class "create-function"
+      , eventNoPropagation "click" (\_ -> CreateFunctionBlock)
+    ]
+    [ fontAwesome "share-square" ]
 
 viewEditFn : TLID -> Bool -> Html.Html Msg
 viewEditFn tlid hasFlagAlso =

@@ -951,6 +951,7 @@ update_ msg m =
                   Key.Tab -> Selection.selectNextToplevel m Nothing -- NB: see `stopKeys` in ui.html
                   _ -> NoChange
 
+
           Dragging _ _ _ _ -> NoChange
 
 
@@ -1195,6 +1196,17 @@ update_ msg m =
     -------------------------
     -- Function Management
     ------------------------
+    CreateFunctionBlock ->
+      case m.cursorState of
+        Selecting tlid mId ->
+          let tl = TL.getTL m tlid in
+            case mId of
+              Nothing -> NoChange
+              Just id ->
+                let pd = TL.findExn tl id in
+                Refactor.extractFunction m tl pd
+        _ -> NoChange
+
     DeleteUserFunctionParameter uf upf ->
       let replacement = Functions.removeParameter uf upf
           newCalls = Refactor.removeFunctionParameter m uf upf
@@ -1320,9 +1332,7 @@ update_ msg m =
       TweakModel (\m -> { m | visibility = vis })
 
     CreateHandlerFrom404 (space, path, modifier, _) ->
-      let center = case m.currentPage of
-                     Toplevels center -> center
-                     _ -> impossible ()
+      let center = findCenter m
           anId = gtlid ()
           aPos = center
           aHandler =
@@ -1339,6 +1349,19 @@ update_ msg m =
             }
       in
           RPC ([SetHandler anId aPos aHandler], FocusNothing)
+    CreateRouteHandler ->
+      let center = findCenter m
+        in Entry.submitOmniAction m center NewHTTPHandler
+    CreateFunction ->
+      let ufun = Refactor.generateEmptyFunction ()
+        in RPC ( [ SetFunction ufun ], FocusPageAndCursor (Fn ufun.tlid) m.cursorState )
+    _ -> NoChange
+
+findCenter : Model -> Pos
+findCenter m =
+  case m.currentPage of
+    Toplevels center -> center
+    _ -> impossible ()
 
 enableTimers : Model -> Model
 enableTimers m =

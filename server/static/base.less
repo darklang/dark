@@ -249,6 +249,10 @@ body #grid * {
       .count {
         font-weight: bold;
       }
+
+      .verb-link {
+        float: right;
+      }
     }
     &.empty .header {
       &::before {
@@ -258,6 +262,7 @@ body #grid * {
     }
 
     .verb-link {
+
       .default-link;
       &:link, &:visited {
         color: @grey2;
@@ -1015,6 +1020,12 @@ body #grid * {
 .feature-flag {
   position: absolute;
   right: -16px;
+  .right-button;
+}
+
+.create-function {
+  position: absolute;
+  right: -34px;
   .right-button;
 }
 

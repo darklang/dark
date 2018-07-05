@@ -62,4 +62,3 @@ toAnalyse m =
           |> Maybe.andThen (\i -> LE.getAt i ids)
           |> Maybe.map (\e -> [e])
           |> Maybe.withDefault []
-
