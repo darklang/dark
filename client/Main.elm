@@ -1196,7 +1196,7 @@ update_ msg m =
     -------------------------
     -- Function Management
     ------------------------
-    CreateFunctionBlock ->
+    ExtractFunction ->
       case m.cursorState of
         Selecting tlid mId ->
           let tl = TL.getTL m tlid in
@@ -1347,8 +1347,8 @@ update_ msg m =
                 }
               }
             }
-      in
-          RPC ([SetHandler anId aPos aHandler], FocusNothing)
+          in
+            RPC ([SetHandler anId aPos aHandler], FocusNothing)
     CreateRouteHandler ->
       let center = findCenter m
         in Entry.submitOmniAction m center NewHTTPHandler
@@ -1361,7 +1361,7 @@ findCenter : Model -> Pos
 findCenter m =
   case m.currentPage of
     Toplevels center -> center
-    _ -> impossible ()
+    _ -> initialPos
 
 enableTimers : Model -> Model
 enableTimers m =

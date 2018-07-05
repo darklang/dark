@@ -355,10 +355,10 @@ generateEmptyFunction _ =
       tlid = gtlid ()
       params = [
           { name = F (gid ()) "var"
-            , tipe = F (gid ()) TAny
-            , block_args = []
-            , optional = True
-            , description = ""
+          , tipe = F (gid ()) TAny
+          , block_args = []
+          , optional = True
+          , description = ""
           }
         ]
       metadata = {
