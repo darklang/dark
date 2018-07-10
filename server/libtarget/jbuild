@@ -4,4 +4,5 @@
   (wrapped false)
   (flags (:standard -no-keep-locs))
   (libraries (core_kernel))
-  (modules_without_implementation libtarget)))
+  (modules (libtarget))
+  (modules_without_implementation (libtarget))))

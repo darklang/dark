@@ -1,4 +1,3 @@
 let () =
-  print_endline "hello world ";
-  Libexecution.Analysis.init ();
+  Libfrontend.Init.init ();
   ()
