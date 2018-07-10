@@ -119,11 +119,6 @@ div vs configs content =
       thisID = getFirst (\a -> case a of
                                  WithID id -> Just id
                                  _ -> Nothing)
-      documentation = case thisID of
-        Just id ->
-          let d = placeHolderFor vs id Expr in
-          if String.length d > 0 then Just d else Nothing
-        Nothing -> Nothing
       clickAs = getFirst (\a -> case a of
                                   ClickSelectAs id -> Just id
                                   ClickSelect -> thisID
