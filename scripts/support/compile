@@ -97,6 +97,7 @@ def ocaml_build():
   global profile
   exes = " ".join([ "bin/main.exe"
                   , "bin/trigger_queue_workers.exe"
+                  , "bin/queue_worker.exe"
                   #  , "bin/darkjs.bc.js"
                   #  , "@darkjs"
                   ])

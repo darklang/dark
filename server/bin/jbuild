@@ -51,3 +51,15 @@
     (package dark)
   )
 )
+
+(executable
+  (
+    (name queue_worker)
+    (public_name queue_worker)
+    (modules queue_worker)
+    (flags (-warn-error (+A)))
+    (preprocess (pps (lwt.ppx)))
+    (libraries (libbackend core core_extended lwt.unix))
+    (package dark)
+  )
+)
