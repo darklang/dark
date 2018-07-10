@@ -2,4 +2,13 @@
 
 (library
  ((name libtarget_js)
-  (js_of_ocaml ((javascript_files (libtarget.js))))))
+
+  (js_of_ocaml
+    ((flags (+weak.js
+             +dynlink.js
+             +nat.js
+             +base/runtime.js
+             +core_kernel/runtime.js
+             +bin_prot/runtime.js
+             --runtime-only))
+    (javascript_files (libtarget.js))))))

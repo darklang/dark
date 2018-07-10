@@ -101,7 +101,7 @@ def ocaml_build():
                   #  , "bin/darkjs.bc.js"
                   #  , "@darkjs"
                   ])
-  build = "unbuffer jbuilder build --root server --dev -j 8 " + exes
+  build = "unbuffer jbuilder build --display=short --root server --dev -j 8 " + exes
   if profile:
     return run_backend(start, landmarks + build)
   else:
@@ -197,7 +197,7 @@ def mark(should, f):
   elif "test/test.ml" in f:
     should.ocaml_test = True
 
-  elif (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
+  elif (".mli" in f) or (".ml" in f) or ("jbuild" in f) or ("_tags" in f):
     should.ocaml_build = True
 
   # Web

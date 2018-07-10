@@ -17,7 +17,7 @@
     (public_name darkjs)
     (modules darkjs)
     (js_of_ocaml ((flags (--opt=1 --source-map --pretty +nat.js))))
-    (libraries (js_of_ocaml libexecution))
+    (libraries (js_of_ocaml libfrontend))
     (preprocess (pps (js_of_ocaml-ppx)))
     (package dark)
   )
