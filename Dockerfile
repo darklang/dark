@@ -203,6 +203,7 @@ ENV CAML_LD_LIBRARY_PATH "/home/dark/.opam/4.06.1/lib/stublibs"
 ENV MANPATH "/home/dark/.opam/4.06.1/man:"
 ENV PERL5LIB "/home/dark/.opam/4.06.1/lib/perl5"
 ENV OCAML_TOPLEVEL_PATH "/home/dark/.opam/4.06.1/lib/toplevel"
+ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
 #ENV OPAMDEBUG true
@@ -217,7 +218,7 @@ RUN opam install -y \
   conf-libev \
   lwt.3.3.0 \
   yojson.1.4.0 \
-  postgresql.4.3.0 \
+  postgresql.4.4.0 \
   ppx_deriving_yojson.3.1 \
   cohttp-lwt-unix.1.0.2 \
   ocurl.0.8.1 \

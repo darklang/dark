@@ -25,6 +25,9 @@ type param = Int of int
            | Null
            | List of param list (* only works for in-script params *)
 
+type result = TextResult
+            | BinaryResult
+
 let to_binary_bool param : bool =
   match param with
   | Binary _ -> true
@@ -101,10 +104,12 @@ let rec to_log param : string =
 (* ------------------------- *)
 (* All commands go through here, does logging and such *)
 (* ------------------------- *)
-let execute ~name ~op ~params ?subject
+let execute ~name ~op ~params ~result ?subject
     ~(f: ?params: string array ->
-      ?binary_params : bool array ->
-      string -> Postgresql.result)
+         ?binary_params : bool array ->
+         ?binary_result : bool ->
+         string ->
+         Postgresql.result)
     ~(r: Postgresql.result -> string * 'a)
     (sql : string) : 'a =
   let start = Unix.gettimeofday () in
@@ -112,6 +117,7 @@ let execute ~name ~op ~params ?subject
     let finish = Unix.gettimeofday () in
     (finish -. start) *. 1000.0
   in
+  let binary_result = result = BinaryResult in
   let binary_params =
     params
     |> List.map ~f:to_binary_bool
@@ -128,7 +134,7 @@ let execute ~name ~op ~params ?subject
     | None -> []
   in
   try
-    let res = f ~binary_params ~params:string_params sql in
+    let res = f ~binary_params ~binary_result ~params:string_params sql in
     (* Transform and log the result *)
     let (logr, result) = r res in
     let result_log =
@@ -167,15 +173,15 @@ let execute ~name ~op ~params ?subject
 (* ------------------------- *)
 (* SQL Commands *)
 (* ------------------------- *)
-let run ~(params: param list) ~(name:string) ?subject (sql: string) : unit =
-  execute ~op:"run" ~params ~name ?subject sql
+let run ~(params: param list) ?(result=TextResult) ~(name:string) ?subject (sql: string) : unit =
+  execute ~op:"run" ~params ~result ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Command_ok])
     ~r:(fun r -> ("", ()))
   |> ignore
 
-let fetch ~(params: param list) ~(name:string) ?subject (sql: string)
+let fetch ~(params: param list)  ?(result=TextResult) ~(name:string) ?subject (sql: string)
   : string list list =
-  execute ~op:"fetch" ~params ~name ?subject sql
+  execute ~op:"fetch" ~params ~result ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
           let result = res#get_all_lst in
@@ -183,9 +189,9 @@ let fetch ~(params: param list) ~(name:string) ?subject (sql: string)
           (length ^ " cols", result))
 
 
-let fetch_one ~(params: param list) ~(name:string) ?subject (sql: string)
+let fetch_one ~(params: param list) ?(result=TextResult) ~(name:string) ?subject (sql: string)
   : string list =
-  execute ~op:"fetch_one" ~params ~name ?subject sql
+  execute ~op:"fetch_one" ~params ~result ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
          match res#get_all_lst with
@@ -196,9 +202,9 @@ let fetch_one ~(params: param list) ~(name:string) ?subject (sql: string)
          | [] -> Exception.storage "Expected one result, got none"
          | _ -> Exception.storage "Expected exactly one result, got many")
 
-let fetch_one_option ~(params: param list) ~(name:string) ?subject (sql: string)
+let fetch_one_option ~(params: param list) ?(result=TextResult) ~(name:string) ?subject (sql: string)
   : string list option =
-  execute ~op:"fetch_one_option" ~params ~name ?subject sql
+  execute ~op:"fetch_one_option" ~params ~result ~name ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
           match res#get_all_lst with
@@ -212,7 +218,7 @@ let fetch_one_option ~(params: param list) ~(name:string) ?subject (sql: string)
 
 let exists ~(params: param list) ~(name:string) ?subject (sql: string)
   : bool =
-  execute ~op:"exists" ~params ~name ?subject sql
+  execute ~op:"exists" ~params ~name ~result:TextResult ?subject sql
     ~f:(conn#exec ~expect:[PG.Tuples_ok])
     ~r:(fun res ->
          match res#get_all_lst with
@@ -244,8 +250,9 @@ let load_oplists ~(host: string) ~(digest: string) : string option =
      WHERE host = $1
      AND digest = $2;"
     ~params:[String host; String digest]
+    ~result:BinaryResult
   |> Option.map ~f:List.hd_exn
-  |> Option.map ~f:Postgresql.unescape_bytea (* slow but what alternative? *)
+  (* |> Option.map ~f:Postgresql.unescape_bytea (* slow but what alternative? *) *)
 
 let load_json_oplists ~(host: string) : string option =
   fetch_one_option
