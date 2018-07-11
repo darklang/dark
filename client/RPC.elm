@@ -57,6 +57,12 @@ getAnalysisRPC params =
       request = Http.post url json decodeGetAnalysisRPC
   in Http.send GetAnalysisRPCCallback request
 
+initialLoadRPC : Focus -> Cmd Msg
+initialLoadRPC focus =
+  let url = "/admin/api/initial_load"
+      request = Http.post url Http.emptyBody decodeInitialLoadRPC
+  in Http.send (InitialLoadRPCCallback focus) request
+
 saveTestRPC : Cmd Msg
 saveTestRPC =
   let url = "/admin/api/save_test"
@@ -723,6 +729,16 @@ decodeGetAnalysisRPC =
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "404s" (JSD.list decode404)
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
+
+decodeInitialLoadRPC : JSD.Decoder InitialLoadResult
+decodeInitialLoadRPC =
+  JSDP.decode (,,,,)
+  |> JSDP.required "toplevels" (JSD.list decodeToplevel)
+  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
+  |> JSDP.required "global_varnames" (JSD.list JSD.string)
+  |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
+  |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
+
 
 
 decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult

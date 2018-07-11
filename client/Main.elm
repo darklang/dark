@@ -131,9 +131,8 @@ init {editorState, complete} location =
     if shouldRunIntegrationTest
     then m2 ! [ RPC.integrationRPC m integrationTestName
               , visibilityTask]
-    else m2 ! [ RPC.rpc m
+    else m2 ! [ RPC.initialLoadRPC
                   (FocusPageAndCursor page savedCursorState)
-                  RPC.emptyParams
               -- load the analysis even if the timers are off
               , RPC.getAnalysisRPC []
               , visibilityTask]
@@ -1248,6 +1247,20 @@ update_ msg m =
                 , extraMod -- for testing, maybe more
                 ]
 
+    InitialLoadRPCCallback focus
+      (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
+      let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
+          newState = processFocus m2 focus
+      in Many [ SetToplevels toplevels True
+              , UpdateAnalysis new_analysis
+              , SetGlobalVariables globals
+              , SetUserFunctions userFuncs True
+              , SetUnlockedDBs unlockedDBs
+              , AutocompleteMod ACReset
+              , ClearError
+              , newState
+              ]
+
     SaveTestRPCCallback (Ok msg) ->
       Error <| "Success! " ++ msg
 
@@ -1285,6 +1298,9 @@ update_ msg m =
       Error <| "Error: " ++ (toString err)
 
     (ExecuteFunctionRPCCallback _) as t ->
+      Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
+
+    (InitialLoadRPCCallback _ _) as t ->
       Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
 
     GetAnalysisRPCCallback (Err (Http.NetworkError)) ->

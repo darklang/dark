@@ -246,6 +246,8 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
       respond ~resp_headers ~execution_id `OK body)
+
+
 (* -------------------------------------------- *)
 (* Admin server *)
 (* -------------------------------------------- *)
@@ -262,9 +264,7 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
 
     let (t2, c) = time "2-load-saved-ops"
       (fun _ ->
-        if tlids = []
-        then C.load_all host params.ops
-        else C.load host tlids params.ops)
+        C.load host tlids params.ops)
     in
 
     let (t3, hvals) = time "3-handler-analyses"
@@ -304,6 +304,44 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
     raise e
+
+let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
+  try
+    let exe_fn_ids = [] in
+
+    let (t1, c) = time "2-load-saved-ops"
+      (fun _ ->
+        C.load_all host [])
+    in
+
+    let (t2, hvals) = time "3-handler-analyses"
+      (fun _ ->
+         !c.handlers
+         |> List.filter_map ~f:TL.as_handler
+         |> List.map
+           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
+    in
+
+    let (t3, fvals) = time "4-function-analyses"
+      (fun _ ->
+        !c.user_functions
+        |> List.map
+          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
+    in
+    let (t4, unlocked) = time "5-analyze-unlocked-dbs"
+      (fun _ -> Analysis.unlocked !c) in
+
+    let (t5, result) = time "6-to-frontend"
+      (fun _ -> Analysis.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
+
+  Event_queue.finalize execution_id ~status:`OK;
+  (server_timing [t1; t2; t3; t4; t5], result)
+  with
+  | e ->
+    Event_queue.finalize execution_id ~status:`Err;
+    raise e
+
+
 
 let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   try
@@ -458,6 +496,10 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   match Uri.path uri with
   | "/admin/api/rpc" ->
     let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
+    let resp_headers = Header.add resp_headers "Content-type" utf8 in
+    respond ~resp_headers ~execution_id `OK response_body
+  | "/admin/api/initial_load" ->
+    let (resp_headers, response_body) = initial_load ~execution_id host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers ~execution_id `OK response_body
   | "/admin/api/execute_function" ->
