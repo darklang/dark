@@ -58,6 +58,9 @@ upsert m tl =
   then { m | toplevels = m.toplevels ++ [tl] }
   else updated
 
+remove : Model -> Toplevel -> Model
+remove m tl =
+  { m | toplevels = List.filter ((/=) tl) m.toplevels }
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =

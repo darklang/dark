@@ -123,11 +123,11 @@ type Msg
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
-    | RPCCallback Focus Modification RPCParams (Result Http.Error RPCResult)
+    | RPCCallback Focus RPCParams (Result Http.Error RPCResult)
     | ExecuteFunctionRPCCallback (Result Http.Error ExecuteFunctionRPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
-    | InitialLoadRPCCallback Focus (Result Http.Error InitialLoadResult)
+    | InitialLoadRPCCallback Focus Modification (Result Http.Error InitialLoadResult)
     | LocationChange Navigation.Location
     | AddRandom
     | FinishIntegrationTest
@@ -477,7 +477,9 @@ type Modification = Error String
                   | SetHover ID
                   | ClearHover ID
                   | Deselect
+                  | RemoveToplevel Toplevel
                   | SetToplevels (List Toplevel) Bool
+                  | UpdateToplevels (List Toplevel) Bool
                   | UpdateAnalysis (List TLAResult)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool
