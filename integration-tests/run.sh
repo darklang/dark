@@ -74,11 +74,12 @@ function fetch_sql { psql -d proddb -t -c "$@"; }
 CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
 for cid in $CANVASES; do
-  SCRIPT+="DELETE FROM events where canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM stored_events where canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM function_results where canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM events WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM stored_events WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM function_results WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
-  SCRIPT+="DELETE FROM canvases where id = '$cid';";
+  SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
 done
 
 run_sql "$SCRIPT";
