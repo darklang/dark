@@ -39,7 +39,7 @@ postString url =
 
 rpc : Model -> Focus -> RPCParams -> Cmd Msg
 rpc m focus params =
-  rpc_ m "/admin/api/rpc" (RPCCallback focus NoChange) params
+  rpc_ m "/admin/api/rpc" (RPCCallback focus) params
 
 executeFunctionRPC : ExecuteFunctionRPCParams -> Cmd Msg
 executeFunctionRPC params =
@@ -61,7 +61,7 @@ initialLoadRPC : Focus -> Cmd Msg
 initialLoadRPC focus =
   let url = "/admin/api/initial_load"
       request = Http.post url Http.emptyBody decodeInitialLoadRPC
-  in Http.send (InitialLoadRPCCallback focus) request
+  in Http.send (InitialLoadRPCCallback focus NoChange) request
 
 saveTestRPC : Cmd Msg
 saveTestRPC =
@@ -79,10 +79,12 @@ opsParams ops =
 
 integrationRPC : Model -> String -> Cmd Msg
 integrationRPC m name =
-  rpc_ m
-    "/admin/api/rpc"
-    (RPCCallback FocusNothing (TriggerIntegrationTest name))
-    emptyParams
+  let url = "/admin/api/initial_load"
+      request = Http.post url Http.emptyBody decodeInitialLoadRPC
+  in Http.send
+      (InitialLoadRPCCallback FocusNothing (TriggerIntegrationTest name))
+      request
+
 
 decodePointerData : JSD.Decoder PointerData
 decodePointerData =

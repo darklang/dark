@@ -35,6 +35,7 @@ import Autocomplete as AC
 import Viewport
 import FeatureFlags
 import Functions
+import Toplevel
 import Window.Events exposing (onWindow)
 import VariantTesting exposing (parseVariantTestsFromQueryString)
 import Util
@@ -397,6 +398,9 @@ updateMod mod (m, cmd) =
         let m2 = { m | globals = globals } in
         processAutocompleteMods m2 [ ACRegenerate ]
 
+      RemoveToplevel tl ->
+        Toplevel.remove m tl ! []
+
       SetToplevels tls updateCurrent ->
         let m2 = { m | toplevels = tls }
             -- Bring back the TL being edited, so we don't lose work
@@ -415,6 +419,27 @@ updateMod mod (m, cmd) =
                      m2
         in
         processAutocompleteMods m3 [ ACRegenerate ]
+
+      UpdateToplevels tls updateCurrent ->
+        let m2 = List.foldl (flip Toplevel.upsert) m tls
+            -- Bring back the TL being edited, so we don't lose work
+            -- done since the API call.
+            m3 = case tlidOf m.cursorState of
+                   Just tlid ->
+                     if updateCurrent
+                     then m2
+                     else
+                       let tl = TL.getTL m tlid in
+                       case tl.data of
+                         TLDB _ -> TL.upsert m2 tl
+                         TLHandler _ -> TL.upsert m2 tl
+                         TLFunc f -> m2
+                   Nothing ->
+                     m2
+        in
+        processAutocompleteMods m3 [ ACRegenerate ]
+
+
 
       UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
@@ -1219,35 +1244,32 @@ update_ msg m =
     -----------------
     -- RPCs stuff
     -----------------
-    RPCCallback focus extraMod calls
-      (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
+    RPCCallback focus calls
+      (Ok (newToplevels, newAnalysis, globals, userFuncs, unlockedDBs)) ->
       if focus == FocusNoChange
       then
-        Many [ SetToplevels toplevels False
-             , UpdateAnalysis new_analysis
+        Many [ UpdateToplevels newToplevels False
+             , UpdateAnalysis newAnalysis
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
-             , extraMod -- for testing, maybe more
              , MakeCmd (Entry.focusEntry m)
              ]
       else
-        let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
+        let m2 = { m | toplevels = m.toplevels ++ newToplevels
+                     , userFunctions = userFuncs }
             newState = processFocus m2 focus
-        -- TODO: can make this much faster by only receiving things that
-        -- have been updated
-        in Many [ SetToplevels toplevels True
-                , UpdateAnalysis new_analysis
+        in Many [ UpdateToplevels newToplevels True
+                , UpdateAnalysis newAnalysis
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
                 , AutocompleteMod ACReset
                 , ClearError
                 , newState
-                , extraMod -- for testing, maybe more
                 ]
 
-    InitialLoadRPCCallback focus
+    InitialLoadRPCCallback focus extraMod
       (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
       let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
           newState = processFocus m2 focus
@@ -1258,6 +1280,7 @@ update_ msg m =
               , SetUnlockedDBs unlockedDBs
               , AutocompleteMod ACReset
               , ClearError
+              , extraMod -- for integration tests, maybe more
               , newState
               ]
 
@@ -1281,17 +1304,17 @@ update_ msg m =
     ------------------------
     -- plumbing
     ------------------------
-    RPCCallback _ _ _ (Err (Http.BadStatus error)) ->
+    RPCCallback _ _ (Err (Http.BadStatus error)) ->
       Error <| error.body
 
-    RPCCallback _ _ _ (Err (Http.NetworkError)) ->
+    RPCCallback _ _ (Err (Http.NetworkError)) ->
       Error <| "Network error: is the server running?"
 
-    RPCCallback _ _ _ (Err (Http.BadPayload err response)) ->
+    RPCCallback _ _ (Err (Http.BadPayload err response)) ->
       let { body } = response in
       Error <| "RPC decoding error: " ++ err ++ " in " ++ body
 
-    (RPCCallback _ _ _ _) as t ->
+    (RPCCallback _ _ _) as t ->
       Error <| "Dark Client Error: unknown error: " ++ (toString t)
 
     SaveTestRPCCallback (Err err) ->
@@ -1300,7 +1323,7 @@ update_ msg m =
     (ExecuteFunctionRPCCallback _) as t ->
       Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
 
-    (InitialLoadRPCCallback _ _) as t ->
+    (InitialLoadRPCCallback _ _ _) as t ->
       Error <| "Dark Client Execute Function Error: unknown error: " ++ (toString t)
 
     GetAnalysisRPCCallback (Err (Http.NetworkError)) ->
