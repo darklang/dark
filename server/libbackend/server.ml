@@ -147,10 +147,10 @@ let options_handler ~(execution_id: Types.id) (c: C.canvas) (req: CRequest.t) =
 
 let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
-  let c = C.load_all host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
+  let c = C.load_http host ~verb ~uri in
   let pages = C.pages_matching_route ~uri ~verb !c in
   let pages =
     if List.length pages > 1

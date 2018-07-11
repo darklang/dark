@@ -195,6 +195,28 @@ let load host tlids newops =
     };
   c
 
+let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
+  toplevellist =
+  let path = Uri.path uri in
+  List.filter handlers
+    ~f:(fun tl ->
+        match tl.data with
+        | Handler h ->
+          Handler.event_name_for h <> None
+          && Http.path_matches_route ~path:path (Handler.event_name_for_exn h)
+          && (match Handler.modifier_for h with
+              | Some m -> String.Caseless.equal m verb
+              (* we specifically want to allow handlers without method specifiers for now *)
+              | None -> true)
+        | _ -> false)
+
+
+let load_http host ~verb ~uri =
+  let c = create ~load:true host [] in
+  c := { !c with handlers = http_handlers ~uri ~verb !c.handlers };
+  c
+
+
 let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
