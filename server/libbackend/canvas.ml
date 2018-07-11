@@ -109,14 +109,17 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid -> remove_toplevel tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
-    | TLSavepoint _ -> ident
-    | DeprecatedSavepoint -> ident
-    | DeprecatedSavepoint2 _ -> ident
     | SetFunction user_fn ->
       upsert_function user_fn
-    | DeprecatedDeleteAll
-    | DeprecatedUndo | DeprecatedRedo
-    | UndoTL _ | RedoTL _ ->
+    | TLSavepoint _ -> ident
+    | DeprecatedSavepoint2 _ -> ident
+    | Deprecated0
+    | Deprecated1
+    | Deprecated2
+    | Deprecated3 ->
+      Exception.internal ("Deprecated ops shouldn't be here anymore! " ^ (Op.show_op op))
+    | UndoTL _
+    | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)

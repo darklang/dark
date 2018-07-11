@@ -252,10 +252,10 @@ let load_migratory_from_db ~digest host : Op.oplist option =
   | Some ops ->
     List.iter ops ~f:(fun op ->
         match op with
-        | DeprecatedSavepoint
-        | DeprecatedUndo
-        | DeprecatedRedo
-        | DeprecatedDeleteAll ->
+        | Deprecated0
+        | Deprecated1
+        | Deprecated2
+        | Deprecated3 ->
           Exception.internal "bad op" ~actual:(Op.show_op op)
         | _ -> ());
     ());
@@ -278,6 +278,7 @@ let search_and_load (host: string) : Op.oplist =
       [ load_migratory_from_db ~digest (* do not resave, it's a fork-bomb *)
       (* These are the only formats that exist in production, newest
        * first. *)
+      ; resave (load_binary_from_db ~digest:"50cfe9cc7ebe36ea830bd39f74b994da")
       ; resave (load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018")
       ; resave (load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da")
       ; resave (load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09")
