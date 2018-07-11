@@ -99,6 +99,13 @@ let get_ip_address ch : string =
   | `TCP (ip, port) -> Ipaddr.to_string ip
   | _ -> assert false
 
+let request_to_rollbar (body: string) (req: CRequest.t) : Libservice.Rollbar.request_data =
+  { body = body
+  ; headers = req |> CRequest.headers |> Cohttp.Header.to_list
+  ; url = req |> CRequest.uri |> Uri.to_string
+  ; http_method = req |> CRequest.meth |> Cohttp.Code.string_of_method
+  }
+
 let respond ?(resp_headers=Header.init ()) ~(execution_id: Types.id) status (body: string) =
   let resp_headers =
     Header.add resp_headers "X-Darklang-Execution-ID" (Log.dump execution_id)
@@ -561,7 +568,13 @@ let server () =
     let handle_error ~(include_internals:bool) (e:exn) =
       try
         let bt = Exception.get_backtrace () in
-        let%lwt _ = Rollbar.report_lwt e bt (Remote (req, body)) execution_id in
+        let%lwt _ =
+          Rollbar.report_lwt
+            e
+            bt
+            (Remote (request_to_rollbar body req))
+            (Types.show_id execution_id)
+        in
         let real_err =
           try
             match e with
@@ -585,7 +598,7 @@ let server () =
         let resp_headers = Cohttp.Header.of_list [cors] in
         respond ~resp_headers ~execution_id `Internal_server_error user_err
       with e ->
-        Rollbar.last_ditch e "handle_error" execution_id;
+        Rollbar.last_ditch e "handle_error" (Types.show_id execution_id);
         respond ~execution_id `Internal_server_error "unhandled error"
     in
 

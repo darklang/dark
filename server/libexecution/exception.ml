@@ -108,4 +108,19 @@ let user = raise_ UserCode
 let api = raise_ ExternalService
 let storage = raise_ DarkStorage
 
+let exn_to_string (e: exn) : string =
+  match e with
+  | DarkException e ->
+    "Dark " ^ (show_exception_tipe e.tipe) ^ " Err: " ^ e.short
+  | Yojson.Json_error msg ->
+    "Json Err: " ^ msg
+  | _ ->
+    "Unknown Err: " ^ Exn.to_string e
+
+let exn_to_info (e: exn) : Yojson.Safe.json =
+  match e with
+  | DarkException e ->
+    exception_data_to_yojson e
+  | _ -> `Null
+
 

@@ -115,20 +115,14 @@ let should_write_shape_data =
 (* Rollbar *)
 (* ------------------------- *)
 
-let rollbar_url =
-  "https://api.rollbar.com/api/1/item/"
-
-let rollbar_enabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
-let rollbar_environment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
 let rollbar_client_access_token =
   (* This is what the rollbar UI calls it *)
   match string "DARK_CONFIG_ROLLBAR_POST_CLIENT_ITEM" with
   | "none" -> None
   | item -> Some item
 
-let rollbar_server_access_token =
-  (* This is what the rollbar UI calls it *)
-  string "DARK_CONFIG_ROLLBAR_POST_SERVER_ITEM"
+let rollbar_enabled = Libservice.Config.rollbar_enabled
+let rollbar_environment = Libservice.Config.rollbar_environment
 
 let rollbar_js =
   match rollbar_client_access_token with
