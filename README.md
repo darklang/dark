@@ -67,6 +67,23 @@ Integration tests (on the gcp environment):
 
 Read me about integration testing in integration-tests/README.
 
+# Accessing the container
+
+- `./scripts/run-in-docker bash`
+
+# Accessing the local db
+
+- `./scripts/run-in-docker psql -d proddb`
+
+# Pull the prod db locally
+
+- `./scripts/replace-pg-from-gcp`
+
+This pulls all the data from gcp and puts it in a db named "postgres". In
+development, we usually run against a db called "proddb" (I know). You
+can switch to run against the "postgres" db by changing the
+DARK_CONFIG_DB_DBNAME variable in config/dev.
+
 
 # Config files
 
