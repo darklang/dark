@@ -171,10 +171,7 @@ let load = create ~load:true
 let init = create ~load:false
 
 let save (c : canvas) : unit =
-  Serialize.save_binary_to_db c.host c.ops;
-  let json = Serialize.json_unversioned_filename c.host in
-  let root = Serialize.root_of c.host in
-  ignore (File.convert_bin_to_json ~root c.host json)
+  Serialize.save c.host c.ops
 
 
 let save_test (c: canvas) : string =
