@@ -101,6 +101,11 @@ type alias GetAnalysisResult = ( List TLAResult
                                , List GlobalVariable
                                , List FourOhFour
                                , List TLID)
+type alias InitialLoadResult = ( List Toplevel
+                               , List TLAResult
+                               , List GlobalVariable
+                               , List UserFunction
+                               , List TLID)
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
@@ -122,6 +127,7 @@ type Msg
     | ExecuteFunctionRPCCallback (Result Http.Error ExecuteFunctionRPCResult)
     | SaveTestRPCCallback (Result Http.Error String)
     | GetAnalysisRPCCallback (Result Http.Error GetAnalysisResult)
+    | InitialLoadRPCCallback Focus (Result Http.Error InitialLoadResult)
     | LocationChange Navigation.Location
     | AddRandom
     | FinishIntegrationTest
