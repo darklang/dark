@@ -139,7 +139,7 @@ let options_handler ~(execution_id: Types.id) (c: C.canvas) (req: CRequest.t) =
 
 let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(uri: Uri.t)
     ~(body: string) (req: CRequest.t) =
-  let c = C.load host [] in
+  let c = C.load_all host [] in
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
@@ -259,16 +259,18 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
                 |> List.map ~f:Op.tlidsOf
                 |> List.concat
     in
-    let to_be_analyzed id = List.mem ~equal:(=) tlids id in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load host params.ops) in
+      (fun _ ->
+        if tlids = []
+        then C.load_all host params.ops
+        else C.load host tlids params.ops)
+    in
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
-         |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
            ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
@@ -276,7 +278,7 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
     let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
-        |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
+        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
         |> List.map
           ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
     in
@@ -307,19 +309,17 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_execute_function_params body) in
+
     let exe_fn_ids = params.executable_fns in
-    let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1
-    in
-    let to_be_analyzed id = List.mem ~equal:(=) tlids id in
+    let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1 in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load host []) in
+      (fun _ -> C.load host tlids []) in
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
-         |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
            ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
@@ -327,7 +327,7 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
     let (t4, fvals) = time "4-function-analyses"
       (fun _ ->
         !c.user_functions
-        |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
+        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
         |> List.map
           ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
     in
@@ -347,14 +347,9 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
   try
     let (t1, tlids) = time "1-read-api-tlids"
       (fun _ -> Api.to_analysis_params body) in
-    let to_be_analyzed id =
-      match tlids with
-      | [] -> true
-      | _ -> List.mem ~equal:(=) tlids id
-    in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load host []) in
+      (fun _ -> C.load host tlids []) in
 
     let (t3, f404s) = time "3-get-404s"
       (fun _ -> Analysis.get_404s !c) in
@@ -363,7 +358,6 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
       (fun _ ->
          !c.handlers
          |> List.filter_map ~f:TL.as_handler
-         |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
            ~f:(Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
@@ -371,7 +365,7 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
     let (t5, fvals) = time "5-function-analyses"
       (fun _ ->
         !c.user_functions
-        |> List.filter ~f:(fun f -> to_be_analyzed f.tlid)
+        |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
         |> List.map
           ~f:(Analysis.function_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
@@ -401,7 +395,7 @@ let admin_ui_handler ~(debug:bool) () =
                                       else "")
 
 let save_test_handler ~(execution_id: Types.id) host =
-  let g = C.load host [] in
+  let g = C.load_all host [] in
   let filename = C.save_test !g in
   respond ~execution_id `OK ("Saved as: " ^ filename)
 
