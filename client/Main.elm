@@ -994,7 +994,10 @@ update_ msg m =
     AutocompleteClick value ->
       case unwrapCursorState m.cursorState of
         Entering cursor ->
-          Entry.submit m cursor Entry.StayHere
+          let complete = m.complete
+              newcomplete = { complete | value = value }
+              newm = { m | complete = newcomplete } in
+          Entry.submit newm cursor Entry.StayHere
         _ -> NoChange
 
 
