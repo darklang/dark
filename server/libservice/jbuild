@@ -1,0 +1,12 @@
+(jbuild_version 1)
+
+(library
+  (
+    (name libservice)
+    (modes (native))
+    (flags (-warn-error (+A)))
+    (libraries (core batteries))
+  )
+)
+
+
