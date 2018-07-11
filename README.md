@@ -15,21 +15,19 @@
 
 # Deploy it to prod
 
-The GCP docs for what we use (a docker container in a Google Compute
-Engine instance) is at
-https://cloud.google.com/compute/docs/containers/deploying-containers.
+We're running in kubernetes on GKE.
 
 Build the production container (assumes that the build has succeeded):
 
-- `./scripts/run-in-docker ./scripts/gcp-build-container`
+- `./scripts/gcp-build-container`
 
 Run it locally (well, inside the dev container):
 
-- `./scripts/run-in-docker ./scripts/gcp-run-locally`
+- `./scripts/gcp-run-locally`
 
 Run integration tests on it:
 
-- `./scripts/run-in-docker ./integration-tests/run.sh --gcp`
+- `./integration-tests/run.sh --gcp`
 
 To deploy, you'll need `gcloud` installed:
 
@@ -46,15 +44,11 @@ user at start time.
 
 and then run:
 
-- `./scripts/run-in-docker ./script/gcp-deploy`
+- `./script/gke-deploy`
 
 If you still have authentication problems (eg. `denied: Unable to access the repository, please check that you have permission to access it.` from a GCR push),
 and you've confirmed that you've logged into gcloud and restarted your container, then check that you've accepted the invite to the Google Developer Project
 in your email. If you have and it's still not working, or you don't have an invitation, then ping Paul or Ian.
-
-To connect to the host via SSH (you can use regular docker commands from there):
-
-- `gcloud beta compute ssh instance-2`
 
 
 # Testing
@@ -65,11 +59,11 @@ To run unit tests:
 
 Integration tests (on the dev environment):
 
-- `./scripts/run-in-docker ./integration-tests/run.sh`
+- `./integration-tests/run.sh`
 
 Integration tests (on the gcp environment):
 
-- `./scripts/run-in-docker ./integration-tests/run.sh --gcp`
+- `./integration-tests/run.sh --gcp`
 
 Read me about integration testing in integration-tests/README.
 
@@ -176,7 +170,3 @@ npm dependencies are managed in development, bundled up via browserify, tracked 
 * Use the package in `server/src/main.js` or whatever
 * $`yarn build` manages `/server/static/bundle.js`
 
-# Notes on GCP
-
-- when you create a startup disk, it needs to be formatted. This could
-  be automated.
