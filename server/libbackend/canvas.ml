@@ -13,52 +13,69 @@ type canvas = { host : string
               ; owner : Uuidm.t
               ; id : Uuidm.t
               ; ops : Op.oplist
-              ; toplevels: toplevellist
+              ; handlers : toplevellist
+              ; dbs: toplevellist
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
 (* ------------------------- *)
 (* Toplevel *)
 (* ------------------------- *)
-let upsert_toplevel (tlid: tlid) (pos: pos) (data: TL.tldata) (c: canvas) : canvas =
-  let toplevel : TL.toplevel = { tlid = tlid
-                               ; pos = pos
-                               ; data = data} in
-  let tls = List.filter ~f:(fun x -> x.tlid <> toplevel.tlid) c.toplevels
+let upsert_tl (tlid: tlid) (pos: pos) (data: TL.tldata) (tls : toplevellist)
+  : toplevellist =
+  let tl : TL.toplevel =
+    { tlid = tlid
+    ; pos = pos
+    ; data = data}
   in
-  { c with toplevels = tls @ [toplevel] }
+  tls
+  |> List.filter ~f:(fun x -> x.tlid <> tl.tlid)
+  |> (@) [tl]
+
+let upsert_db tlid pos data c =
+  { c with dbs = upsert_tl tlid pos data c.dbs}
+
+let upsert_handler tlid pos data c =
+  { c with handlers = upsert_tl tlid pos data c.handlers}
 
 let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
-  let fns = List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions
-  in
+  let fns = List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions in
   { c with user_functions = fns @ [user_fn] }
 
-let remove_toplevel_by_id (tlid: tlid) (c: canvas) : canvas =
-  let tls =
-    List.filter
-      ~f:(fun x -> x.tlid <> tlid)
-      c.toplevels
-  in
-  { c with toplevels = tls }
+let remove_toplevel (tlid: tlid) (c: canvas) : canvas =
+  let handlers = List.filter ~f:(fun x -> x.tlid <> tlid) c.handlers in
+  let dbs = List.filter ~f:(fun x -> x.tlid <> tlid) c.dbs in
+  { c with handlers = handlers
+         ; dbs = dbs }
 
-let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (c:canvas) =
-  match List.find ~f:(fun t -> t.tlid = tlid) c.toplevels with
+let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (tls: toplevellist) =
+  match List.find ~f:(fun t -> t.tlid = tlid) tls with
   | Some tl ->
     let newtl = f tl in
-    upsert_toplevel newtl.tlid newtl.pos newtl.data c
+    upsert_tl newtl.tlid newtl.pos newtl.data tls
   | None ->
-    Exception.client "No toplevel for this ID"
+    tls
 
-let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
-  apply_to_toplevel ~f:(fun tl -> { tl with pos = pos }) tlid c
+let apply_to_all_toplevels ~(f:(TL.toplevel -> TL.toplevel)) (tlid:tlid) (c: canvas) : canvas =
+  { c with handlers = apply_to_toplevel ~f tlid c.handlers
+         ; dbs = apply_to_toplevel ~f tlid c.dbs }
 
 let apply_to_db ~(f:(RTT.DbT.db -> RTT.DbT.db)) (tlid: tlid) (c:canvas) : canvas =
   let tlf (tl: TL.toplevel) =
-    let data = match tl.data with
-               | TL.DB db -> TL.DB (f db)
-               | _ -> Exception.client "Provided ID is not for a DB"
-    in { tl with data = data }
-  in apply_to_toplevel tlid ~f:tlf c
+    let data =
+      match tl.data with
+      | TL.DB db -> TL.DB (f db)
+      | _ -> Exception.client "Provided ID is not for a DB"
+    in
+    { tl with data = data }
+  in { c with dbs = apply_to_toplevel tlid ~f:tlf c.dbs }
+
+
+let apply_to_handler  ~f tlid c =
+  { c with handlers = apply_to_toplevel ~f tlid c.handlers}
+
+let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
+  apply_to_all_toplevels ~f:(fun tl -> { tl with pos = pos }) tlid c
 
 (* ------------------------- *)
 (* Build *)
@@ -69,13 +86,13 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     !c |>
     match op with
     | SetHandler (tlid, pos, handler) ->
-      upsert_toplevel tlid pos (TL.Handler handler)
+      upsert_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
       if name = ""
       then Exception.client ("DB must have a name")
       else
         let db = User_db.create !c.host name tlid in
-        upsert_toplevel tlid pos (TL.DB db)
+        upsert_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(User_db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
@@ -89,8 +106,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | InitDBMigration (tlid, id, rbid, rfid, kind) ->
       apply_to_db ~f:(User_db.initialize_migration id rbid rfid kind) tlid
     | SetExpr (tlid, id, e) ->
-      apply_to_toplevel ~f:(TL.set_expr id e) tlid
-    | DeleteTL tlid -> remove_toplevel_by_id tlid
+      apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
+    | DeleteTL tlid -> remove_toplevel tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | TLSavepoint _ -> ident
     | DeprecatedSavepoint -> ident
@@ -160,7 +177,8 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
         ; owner = owner
         ; id = id
         ; ops = []
-        ; toplevels = []
+        ; handlers = []
+        ; dbs = []
         ; user_functions = []
         }
   in
@@ -194,7 +212,7 @@ let save_test (c: canvas) : string =
 
 let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
   let path = Uri.path uri in
-  c.toplevels
+  c.handlers
   |> TL.http_handlers
   |> List.filter
     ~f:(fun h -> Handler.event_name_for h <> None)
