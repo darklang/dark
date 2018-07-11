@@ -18,6 +18,7 @@
     (libraries (nocrypto
                 cstruct
                 base64
+                batteries
                 core))))
 
 (rule (copy# ${lib:libtarget:libtarget.mli} libtarget.mli))

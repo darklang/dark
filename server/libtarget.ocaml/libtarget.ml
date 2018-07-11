@@ -24,4 +24,5 @@ let date_to_sqlstring (d: Core_kernel.Time.t) : string =
 let date_of_sqlstring (str: string) : Core_kernel.Time.t =
   Core.Time.parse str ~fmt:"%Y-%m-%d %H:%M:%S" ~zone:Core.Time.Zone.utc
 
+let dump = Batteries.dump
 

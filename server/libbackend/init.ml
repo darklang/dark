@@ -33,7 +33,7 @@ let init () =
       Account.init ();
       Serialize.write_shape_data ();
 
-      Libexecution.Log.infO "Libbackend" ~data:"Initialization Complete";
+      Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete";
       has_inited := true;
   with e ->
     Rollbar.last_ditch e "backend initialization" 0

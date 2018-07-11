@@ -1,4 +1,5 @@
 open Core_kernel
+open Libcommon
 
 let has_inited : bool ref =
   ref false

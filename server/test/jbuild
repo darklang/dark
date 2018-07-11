@@ -4,7 +4,7 @@
   (
     (name test)
     (flags (-warn-error (+A)))
-    (libraries (libbackend alcotest junit junit_alcotest))
+    (libraries (libbackend libcommon alcotest junit junit_alcotest))
   )
 )
 
