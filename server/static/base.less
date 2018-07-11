@@ -594,6 +594,10 @@ body #grid * {
     .quote {
       display: inline-block;
     }
+    position: relative;
+    .computed-value-value {
+      bottom: 0px;
+    }
   }
 
   .quote {
@@ -805,6 +809,8 @@ body #grid * {
   cursor: default;
   background: @black2;
   color: @white3;
+  margin-left: 4px;
+  margin-right: 4px;
   width: auto;
 
   /* width: 96px; // keeps autocomplete appearing when Creating */
@@ -826,7 +832,6 @@ body #grid * {
       background: @selected-background;
       border: 0;
       margin: 0;
-      min-width: 8ch;
       padding: 0;
       position: relative;
       #entry-box {
@@ -875,12 +880,22 @@ body #grid * {
   }
 }
 
+.letvarname, .fieldname {
+  & > .entry {
+    margin-left: 0;
+    margin-right: 0;
+  }
+}
+
 .omnibox {
   // honestly couldnt tell you where this magic number comes from
   font-size: @code-font-size;
   margin-top: -9px;
   .string-entry {
     margin-top: -21px;
+  }
+  .entry form #search-container {
+    min-width: 8ch;
   }
 }
 
@@ -1067,11 +1082,11 @@ body #grid * {
   .value-error & {
     outline: 0.4px red dotted;
   }
+  .default;
   max-width: 100%;
   outline: 0.4px @green dotted;
   position: absolute;
   right: calc(~"100% + 20px");
-  .default;
   white-space: pre-wrap;
   width: max-content;
   word-break: break-all;
@@ -1140,15 +1155,6 @@ body #grid * {
     &.flag-right {
       margin-top: 50px;
     }
-    .computed-value {
-      &:before {
-        left: 100%;
-        right: auto;
-      }
-      &.selected[title]:after {
-        left: -100%;
-      }
-    }
   }
 
 }
@@ -1176,6 +1182,7 @@ body #grid * {
   form {
     #search-container {
       #entry-box {
+        min-width: 1px;
         z-index: 60;
       }
     }

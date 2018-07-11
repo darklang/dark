@@ -145,3 +145,23 @@ cacheClear : k -> ()
 cacheClear k =
   -- let _ = Debug.log "clearing cache" k in
   Native.Cache.clear k
+
+-- The view we see is different from the value representation in a few
+-- ways:
+-- - the start and end quotes are skipped
+-- - all other quotes are escaped
+transformToStringEntry : String -> String
+transformToStringEntry s_ =
+  -- the first time we won't have a closing quote so add it
+  let s = if String.endsWith "\"" s_ then s_ else s_ ++ "\"" in
+  s
+  |> String.dropLeft 1
+  |> String.dropRight 1
+  |> replace "\\\\\"" "\""
+
+transformFromStringEntry : String -> String
+transformFromStringEntry s =
+  let s2 = s
+           |> replace "\"" "\\\""
+  in
+  "\"" ++ s2 ++ "\""

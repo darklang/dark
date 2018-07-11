@@ -887,6 +887,7 @@ update_ msg m =
                               Many [ Select tlid (Just p)
                                    , AutocompleteMod ACReset]
                             else
+                              -- TODO: in this case, when filling a keyname on an object, nothing happens which is unexpected
                               RPC ( [ SetHandler tl.id tl.pos { h | ast = replacement}]
                                   , FocusNext tl.id Nothing)
                           _ ->

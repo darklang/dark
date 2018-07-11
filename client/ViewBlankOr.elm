@@ -119,7 +119,6 @@ div vs configs content =
       thisID = getFirst (\a -> case a of
                                  WithID id -> Just id
                                  _ -> Nothing)
-
       clickAs = getFirst (\a -> case a of
                                   ClickSelectAs id -> Just id
                                   ClickSelect -> thisID

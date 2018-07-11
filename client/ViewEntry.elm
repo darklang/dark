@@ -30,25 +30,6 @@ viewEntry m =
     _ ->
       []
 
--- The view we see is different from the value representation in a few
--- ways:
--- - the start and end quotes are skipped
--- - all other quotes are escaped
-transformToStringEntry : String -> String
-transformToStringEntry s_ =
-  -- the first time we won't have a closing quote so add it
-  let s = if String.endsWith "\"" s_ then s_ else s_ ++ "\"" in
-  s
-  |> String.dropLeft 1
-  |> String.dropRight 1
-  |> Util.replace "\\\\\"" "\""
-
-transformFromStringEntry : String -> String
-transformFromStringEntry s =
-  let s2 = s
-           |> Util.replace "\"" "\\\""
-  in
-  "\"" ++ s2 ++ "\""
 
 stringEntryHtml : Autocomplete -> StringEntryWidth -> Html.Html Msg
 stringEntryHtml ac width =
@@ -56,7 +37,7 @@ stringEntryHtml ac width =
       case width of -- max-width rules from CSS
         StringEntryNormalWidth -> 120
         StringEntryShortWidth -> 40
-      value = transformToStringEntry ac.value
+      value = Util.transformToStringEntry ac.value
       longestLineLength = value
                           |> String.split "\n"
                           |> List.map visualStringLength
@@ -75,7 +56,7 @@ stringEntryHtml ac width =
                  |> List.sum
       input =
         Html.textarea [ Attrs.id Defaults.entryID
-                      , Events.onInput (EntryInputMsg << transformFromStringEntry)
+                      , Events.onInput (EntryInputMsg << Util.transformFromStringEntry)
                       , Attrs.value value
                       , Attrs.spellcheck False
                       -- Stop other events firing

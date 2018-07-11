@@ -5,7 +5,6 @@ module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
 -- lib
 import Html
 import Html.Attributes as Attrs
-import String.Extra as SE
 import List.Extra as LE
 import Maybe.Extra as ME
 
@@ -19,6 +18,7 @@ import ViewBlankOr exposing (..)
 import ViewUtils exposing (..)
 import Runtime
 import SpecHeaders
+import Util exposing (transformToStringEntry)
 
 
 viewFieldName : BlankViewer String
@@ -150,7 +150,7 @@ viewNExpr d id vs config e =
           valu =
             -- TODO: remove
             if RT.isString v
-            then SE.unquote v
+            then transformToStringEntry v
             else v
           computedValue =
             if d == 0
