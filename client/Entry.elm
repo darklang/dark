@@ -520,4 +520,3 @@ validate tl pd value =
       Nothing
     PParamTipe _ ->
       v "[A-Z][a-z]*" "param type"
-
