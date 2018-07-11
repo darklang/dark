@@ -270,7 +270,8 @@ let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
     (host, digest, data)
     VALUES ($1, $2, $3)
     ON CONFLICT (host) DO UPDATE
-    SET data = $3;"
+    SET data = $3,
+        digest = $2;"
     ~params:[String host; String digest; String data]
 
 let all_oplists () : string list =
