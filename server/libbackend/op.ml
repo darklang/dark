@@ -11,10 +11,10 @@ type op = SetHandler of tlid * pos * Handler.handler
         | SetDBColType of tlid * id * string
         | DeleteTL of tlid
         | MoveTL of tlid * pos
-        | DeprecatedSavepoint
-        | DeprecatedDeleteAll
-        | DeprecatedUndo
-        | DeprecatedRedo
+        | Deprecated0
+        | Deprecated1
+        | Deprecated2
+        | Deprecated3
         | SetFunction of RuntimeT.user_fn
         | ChangeDBColName of tlid * id * string
         | ChangeDBColType of tlid * id * string
@@ -32,7 +32,10 @@ type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 let has_effect (op: op) : bool  =
   match op with
   | TLSavepoint _ -> false
-  | DeprecatedSavepoint -> false
+  | Deprecated0 -> false
+  | Deprecated1 -> false
+  | Deprecated2 -> false
+  | Deprecated3 -> false
   | DeprecatedSavepoint2 _ -> false
   | _ -> true
 
@@ -54,9 +57,9 @@ let tlidsOf (op: op) :  tlid list =
   | DeleteTL tlid -> [tlid]
   | MoveTL (tlid, _) -> [tlid]
   | SetFunction f -> [f.tlid]
-  | DeprecatedSavepoint -> []
-  | DeprecatedUndo -> []
-  | DeprecatedRedo -> []
-  | DeprecatedDeleteAll -> []
+  | Deprecated0
+  | Deprecated1
+  | Deprecated2
+  | Deprecated3 -> []
 
 
