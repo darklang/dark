@@ -81,6 +81,12 @@ viewTL m tl =
       isDB = case tl.data of
               TLDB _ -> True
               _ -> False
+      pos =
+        case m.currentPage of
+            Toplevels pos ->
+                tl.pos
+            Fn tLID ->
+                {x = 20, y = 20}
       html =
         if Just tl.id == tlidOf m.cursorState || isDB
         then
@@ -95,7 +101,7 @@ viewTL m tl =
               in
               result
    in
-   placeHtml m tl.pos html
+   placeHtml m pos html
 
 viewTL_ : Model -> TLID -> Html.Html Msg
 viewTL_ m tlid =
