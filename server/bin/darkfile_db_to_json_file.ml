@@ -4,7 +4,9 @@ let _ =
   try
     Libbackend.Init.init ();
     let host = Sys.argv.(1) in
-    match Libbackend.Serialize.load_binary_from_db host with
+    match Libbackend.Serialize.load_binary_from_db host
+            ~digest:Libbackend.Serialize.digest
+    with
     | Some ops ->
       Libbackend.Serialize.save_json_to_db host ops
     | None ->
