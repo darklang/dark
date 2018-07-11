@@ -44,7 +44,7 @@ let dequeue_and_evaluate_all () : string =
           try
             (* iterate all queues *)
             let crons, queues =
-              !c.toplevels
+              !c.handlers
               |> TL.bg_handlers
               |> List.partition_tf ~f:Handler.is_cron
             in
@@ -62,7 +62,7 @@ let dequeue_and_evaluate_all () : string =
                     try
                       if Cron.should_execute !c.id cr
                       then
-                        let dbs = TL.dbs !c.toplevels in
+                        let dbs = TL.dbs !c.dbs in
                         let env = User_db.dbs_as_exe_env dbs in
                         let state = Execution.state_for_execution ~c:!c cr.tlid
                             ~env ~execution_id
@@ -100,7 +100,7 @@ let dequeue_and_evaluate_all () : string =
                        | Some desc ->
                          Stored_event.store_event !c.id desc event.value
                        | None -> ());
-                       let dbs = TL.dbs !c.toplevels in
+                       let dbs = TL.dbs !c.dbs in
                        let dbs_env = User_db.dbs_as_exe_env (dbs) in
                        let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
                        let state = Execution.state_for_execution q.tlid

@@ -12,7 +12,7 @@ type canvas = Canvas.canvas
 type executable_fn_id = (tlid * id * int)
 
 let initial_env (c: canvas) : RTT.dval_map =
-  c.toplevels
+  c.dbs
   |> TL.dbs
   |> User_db.dbs_as_env
 
@@ -78,7 +78,7 @@ let state_for
   ; env
   ; fail_fn = None
   ; input_cursor
-  ; dbs = TL.dbs c.toplevels
+  ; dbs = TL.dbs c.dbs
   ; execution_id
   ; load_fn_result = Ast_analysis.load_nothing
   ; store_fn_result = Ast_analysis.store_nothing

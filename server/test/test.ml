@@ -45,9 +45,9 @@ let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
 
 let execute_ops (ops : Op.op list) : dval =
   let c = ops2c "test" ops in
-  let dbs = TL.dbs !c.toplevels in
+  let dbs = TL.dbs !c.dbs in
   let env = User_db.dbs_as_exe_env dbs in
-  let h = !c.toplevels
+  let h = !c.handlers
           |> TL.handlers
           |> List.hd_exn in
   let state = Execution.state_for_execution ~c:!c h.tlid
@@ -500,7 +500,7 @@ let t_cron_sanity () =
   clear_test_data ();
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c "test-cron_works" [hop h] in
-  let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
+  let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   let should_run =
     Cron.should_execute !c.id handler
   in
@@ -511,7 +511,7 @@ let t_cron_just_ran () =
   clear_test_data ();
   let h = daily_cron (ast_for "(+ 5 3)") in
   let c = ops2c "test-cron_works" [hop h] in
-  let handler = !c.toplevels |> TL.handlers |> List.hd_exn in
+  let handler = !c.handlers |> TL.handlers |> List.hd_exn in
   Cron.record_execution !c.id handler;
   let should_run =
     Cron.should_execute !c.id handler

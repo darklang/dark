@@ -167,7 +167,7 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     let route = Handler.event_name_for_exn page in
     let input = PReq.from_request headers query body in
     let bound = Http.bind_route_params_exn ~path:(Uri.path uri) ~route in
-    let dbs = TL.dbs !c.toplevels in
+    let dbs = TL.dbs !c.dbs in
     let dbs_env = User_db.dbs_as_exe_env (dbs) in
     (match (Handler.module_for page, Handler.modifier_for page) with
     | (Some m, Some mo) ->
@@ -266,7 +266,7 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
-         !c.toplevels
+         !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
@@ -317,7 +317,7 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
-         !c.toplevels
+         !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map
@@ -361,7 +361,7 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
 
     let (t4, hvals) = time "4-handler-analyses"
       (fun _ ->
-         !c.toplevels
+         !c.handlers
          |> List.filter_map ~f:TL.as_handler
          |> List.filter ~f:(fun h -> to_be_analyzed h.tlid)
          |> List.map

@@ -14,7 +14,7 @@ type canvas = Canvas.canvas
 (* Events *)
 (* ------------------------- *)
 let all_tlids (c: canvas) : tlid list =
-  List.map ~f:(fun tl -> tl.tlid) c.toplevels
+  List.map ~f:(fun tl -> tl.tlid) (c.dbs @ c.handlers)
 
 (* ------------------------- *)
 (* Execution/analysis *)
@@ -31,7 +31,7 @@ let global_vars (c: canvas) : string list =
   RTT.DvalMap.keys (Execution.default_env c)
 
 let unlocked (c: canvas) : tlid list =
-  c.toplevels
+  c.dbs
   |> TL.dbs
   |> User_db.unlocked c.id c.owner
   |> List.map ~f:(fun x -> x.tlid)
@@ -51,7 +51,7 @@ let get_404s (c: canvas) : SE.four_oh_four list =
     SE.list_events c.id
     |> List.filter
       ~f:(fun d ->
-          not (List.exists (TL.handlers c.toplevels)
+          not (List.exists (TL.handlers c.handlers)
                  ~f:(fun h -> match_desc h d)))
     |> List.map ~f:(fun d -> (d, SE.load_events c.id d))
   in
@@ -161,7 +161,7 @@ let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
   : string =
   { new_analyses = vals
   ; global_varnames = global_vars c
-  ; toplevels = c.toplevels
+  ; toplevels = c.dbs @ c.handlers
   ; user_functions = c.user_functions
   ; unlocked_dbs = unlocked
   }
