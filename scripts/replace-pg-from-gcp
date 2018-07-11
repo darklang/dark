@@ -6,7 +6,7 @@ set -euo pipefail
 NUMBER=$RANDOM
 FILENAME="sqldump_$NUMBER.gz"
 GSFILENAME=gs://replace-pg-from-gcp/$FILENAME
-LOGFILE="pgdump_$NUMBER.log"
+LOGFILE="sqldump_$NUMBER.log"
 
 ###########################
 echo "Exporting DB to $GSFILENAME "
@@ -24,6 +24,7 @@ echo "Loading DB (logging to $LOGFILE)"
 dropdb postgres
 createdb postgres
 
+# There are some permission statements for cloudsql that are not relevant
 gunzip --stdout $FILENAME | grep -v cloudsql | psql postgres > $LOGFILE
 
 ###########################
