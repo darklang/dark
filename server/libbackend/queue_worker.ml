@@ -26,7 +26,7 @@ let dequeue_and_evaluate_all () : string =
     |> List.filter_map
       ~f:(fun endp ->
           try
-            Some (endp, C.load endp []) (* serialization can fail, attempt first *)
+            Some (endp, C.load_all endp []) (* serialization can fail, attempt first *)
           with
           | e ->
             let bt = Exception.get_backtrace () in

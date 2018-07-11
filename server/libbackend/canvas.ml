@@ -185,7 +185,17 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
   add_ops c oldops newops;
   c
 
-let load = create ~load:true
+
+let load host tlids newops =
+  let c = create ~load:true host newops in
+  c :=
+    { !c with handlers =
+                List.filter !c.handlers
+                  ~f:(fun tl -> List.mem ~equal:(=) tlids tl.tlid)
+    };
+  c
+
+let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
 let save (c : canvas) : unit =
