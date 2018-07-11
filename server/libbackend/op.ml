@@ -20,9 +20,10 @@ type op = SetHandler of tlid * pos * Handler.handler
         | ChangeDBColType of tlid * id * string
         | UndoTL of tlid
         | RedoTL of tlid
-        | Savepoint of tlid list
+        | DeprecatedSavepoint2 of tlid list
         | InitDBMigration of tlid * id * id * id * RuntimeT.DbT.migration_kind
         | SetExpr of tlid * id * RuntimeT.expr
+        | TLSavepoint of tlid
         [@@deriving eq, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
@@ -30,8 +31,9 @@ type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 
 let has_effect (op: op) : bool  =
   match op with
-  | Savepoint _ -> false
+  | TLSavepoint _ -> false
   | DeprecatedSavepoint -> false
+  | DeprecatedSavepoint2 _ -> false
   | _ -> true
 
 let tlidsOf (op: op) :  tlid list =
@@ -45,7 +47,8 @@ let tlidsOf (op: op) :  tlid list =
   | ChangeDBColType (tlid, _, _) -> [tlid]
   | InitDBMigration (tlid, _, _, _, _) -> [tlid]
   | SetExpr (tlid, _, _) -> [tlid]
-  | Savepoint tlids -> tlids
+  | DeprecatedSavepoint2 tlids -> tlids
+  | TLSavepoint tlid -> [tlid]
   | UndoTL tlid -> [tlid]
   | RedoTL tlid -> [tlid]
   | DeleteTL tlid -> [tlid]

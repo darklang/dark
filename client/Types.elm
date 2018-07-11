@@ -173,7 +173,7 @@ type Op
     | SetDBColType TLID ID DBColType
     | DeleteTL TLID
     | MoveTL TLID Pos
-    | Savepoint (List TLID)
+    | TLSavepoint TLID
     | UndoTL TLID
     | RedoTL TLID
     | SetFunction UserFunction

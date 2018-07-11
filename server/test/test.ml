@@ -213,7 +213,7 @@ let execute (prog: string) : dval =
 
 let t_undo_fns () =
   clear_test_data ();
-  let n1 = Op.Savepoint [tlid] in
+  let n1 = Op.TLSavepoint tlid in
   let n2 = hop (handler (ast_for "(- _ _)")) in
   let n3 = hop (handler (ast_for "(- 3 _)")) in
   let n4 = hop (handler (ast_for "(- 3 4)")) in
@@ -246,7 +246,7 @@ let t_undo_fns () =
 let t_undo () =
   clear_test_data ();
   let ha ast = hop (handler ast) in
-  let sp = Op.Savepoint [tlid] in
+  let sp = Op.TLSavepoint tlid in
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
   let o1 = v "1" in
