@@ -98,24 +98,6 @@ viewNDarkType vs c d =
         [Attrs.class "type-object"]
         ([open] ++ nested ++ [close])
 
-
-isExeIconTest: VariantTest -> Bool
-isExeIconTest test =
-  case test of
-    ExeIconVariation _ -> True
-    _ -> False
-
-getExeIcon : List VariantTest -> String
-getExeIcon tests =
-  let filtered = List.filter isExeIconTest tests
-  in
-    case List.head filtered of
-      Nothing -> "cog"
-      Just vt ->
-        case vt of
-         ExeIconVariation icon -> icon
-         _ -> "cog"
-
 viewNVarBind : Viewer VarName
 viewNVarBind vs config f =
   text vs config f
@@ -255,7 +237,7 @@ viewNExpr d id vs config e =
           showButton = not fn.previewExecutionSafe
           buttonNeeded = not resultHasValue
           showExecuting = isExecuting vs id
-          exeIcon = getExeIcon vs.testVariants
+          exeIcon = "play"
 
           events = [ eventNoPropagation "click"
                      (\_ -> ExecuteFunctionButton vs.tl.id id)
