@@ -108,6 +108,11 @@ let load_binary_from_db ~digest (host: string) : Op.oplist option =
          * far. *)
         Core_extended.Bin_io_utils.of_line x Op.bin_oplist)
 
+let resave (f: string -> Op.oplist option) (host:string) : Op.oplist option =
+  f host
+  |> Option.map
+    ~f:(fun ops -> save host ops; ops)
+
 let deserialize_ordered
     (host : string)
     (descs : (string -> Op.oplist option) list)
@@ -184,22 +189,22 @@ let search_and_load (host: string) : Op.oplist =
   else
     let root = root_of host in
     deserialize_ordered host
-      [ load_binary_from_db ~digest
+      [ load_binary_from_db ~digest (* do not resave, it's a fork-bomb *)
       (* These are the only formats that exist in production, newest
        * first. *)
-      ; load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018"
-      ; load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da"
-      ; load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09"
-      ; load_binary_from_db ~digest:"769671393dbb637ce12686d4f98c2d75"
-      ; load_binary_from_db ~digest:"ec01527258fa0a757a4c5d98639c49c5"
-      ; load_binary_from_db ~digest:"70031445271577a297fd1c8910e02117"
-      ; load_binary_from_db ~digest:"cf19c8c21aec046d72a2107009682b24"
-      ; load_binary_from_db ~digest:"b08b8c99492f79853719a559678d56cb"
-      ; load_json_from_db
-      ; load_json_from_db ~preprocess:preprocess_deprecated_undo
-      ; load_json_from_db ~preprocess:preprocess_deprecated_savepoint2
-      ; load_json_from_disk ~root
-      ; load_deprecated_undo_json_from_disk ~root
+      ; resave (load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018")
+      ; resave (load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da")
+      ; resave (load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09")
+      ; resave (load_binary_from_db ~digest:"769671393dbb637ce12686d4f98c2d75")
+      ; resave (load_binary_from_db ~digest:"ec01527258fa0a757a4c5d98639c49c5")
+      ; resave (load_binary_from_db ~digest:"70031445271577a297fd1c8910e02117")
+      ; resave (load_binary_from_db ~digest:"cf19c8c21aec046d72a2107009682b24")
+      ; resave (load_binary_from_db ~digest:"b08b8c99492f79853719a559678d56cb")
+      ; resave (load_json_from_db)
+      ; resave (load_json_from_db ~preprocess:preprocess_deprecated_undo)
+      ; resave (load_json_from_db ~preprocess:preprocess_deprecated_savepoint2)
+      ; resave (load_json_from_disk ~root)
+      ; resave (load_deprecated_undo_json_from_disk ~root)
       ]
 
 let check_all_oplists () : unit =
