@@ -35,10 +35,70 @@ let json_file_hosts () : string list =
   |> List.map
     ~f:(String.chop_suffix_exn ~suffix:".json")
 
-let current_hosts () : string list =
-  (json_file_hosts () @ Db.all_oplists ())
-  |> List.dedup_and_sort
 
+(* ------------------------- *)
+(* oplists *)
+(* ------------------------- *)
+let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
+  Db.run
+    ~name:"save_oplists"
+    "INSERT INTO oplists
+    (host, digest, data)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (host, digest) DO UPDATE
+    SET data = $3;"
+    ~params:[String host; String digest; Binary data]
+
+
+
+let load_oplists ~(host: string) ~(digest: string) : string option =
+  (* https://www.postgresql.org/docs/9.6/static/datatype-binary.html
+   * Postgres advices us to parse the hex format. *)
+  Db.fetch_one_option
+    ~name:"load_oplists"
+    "SELECT data FROM oplists
+     WHERE host = $1
+     AND digest = $2;"
+    ~params:[String host; String digest]
+    ~result:BinaryResult
+  |> Option.map ~f:List.hd_exn
+
+let load_json_oplists ~(host: string) : string option =
+  Db.fetch_one_option
+    ~name:"load_json_oplists"
+    "SELECT data FROM json_oplists
+     WHERE host = $1"
+    ~params:[String host]
+  |> Option.map ~f:List.hd_exn
+
+let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
+  (* this is an upsert *)
+  Db.run
+    ~name:"save_json_oplists"
+    "INSERT INTO json_oplists
+    (host, digest, data)
+    VALUES ($1, $2, $3)
+    ON CONFLICT (host) DO UPDATE
+    SET data = $3,
+        digest = $2;"
+    ~params:[String host; String digest; String data]
+
+let all_oplists () : string list =
+  Db.fetch
+    ~name:"oplists"
+    "SELECT DISTINCT host FROM oplists
+     UNION
+     SELECT DISTINCT host FROM json_oplists"
+    ~params:[]
+  |> List.map ~f:List.hd_exn
+  |> List.filter ~f:(fun h ->
+      not (String.is_prefix ~prefix:"test-" h))
+
+
+
+(* ------------------------- *)
+(* loading and saving *)
+(* ------------------------- *)
 let load_json_from_disk ~root ?(preprocess=ident) (host:string) : Op.oplist option =
   Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
@@ -52,7 +112,7 @@ let load_json_from_db ?(preprocess=ident) (host:string) : Op.oplist option =
                                    ; "format", "json"
                                    ; "host", host];
   host
-  |> Db.load_json_oplists
+  |> load_json_oplists
   |> Option.map ~f:(fun ops_string ->
       ops_string
       |> preprocess
@@ -78,7 +138,7 @@ let save_json_to_db (host: string) (ops: Op.oplist) : unit =
   ops
   |> Op.oplist_to_yojson
   |> Yojson.Safe.to_string
-  |> Db.save_json_oplists ~host ~digest
+  |> save_json_oplists ~host ~digest
 
 let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
   Log.infO "serialization" ~params:[ "save_to", "db"
@@ -88,7 +148,7 @@ let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
   ops
   |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
   |> Bigstring.to_string
-  |> Db.save_oplists host digest
+  |> save_oplists host digest
 
 let save host ops : unit =
   save_binary_to_db host ops;
@@ -101,7 +161,7 @@ let load_binary_from_db ~digest (host: string) : Op.oplist option =
                                    ; "format", "binary"
                                    ; "digest", digest
                                    ; "host", host];
-  Db.load_oplists host digest
+  load_oplists host digest
   |> Option.map
     ~f:(fun x ->
         (* Supposedly, we're supposed to remove an ending \n that
@@ -114,37 +174,9 @@ let resave (f: string -> Op.oplist option) (host:string) : Op.oplist option =
   |> Option.map
     ~f:(fun ops -> save host ops; ops)
 
-let deserialize_ordered
-    (host : string)
-    (descs : (string -> Op.oplist option) list)
-    : Op.oplist =
-  (* try each in turn. If the file exists, try it, and return if
-    successful. If it fails, save the error and try the next one *)
-  let (result, errors) =
-    List.fold descs ~init:(None, [])
-      ~f:(fun (prev, errors) fn ->
-          match prev with
-          | Some r -> (prev, errors)
-          | None ->
-            (try
-               match fn host with
-               | Some oplist -> (Some oplist, errors)
-               | None -> (prev, errors)
-             with
-             | e ->
-               Log.erroR "deserialization" ~data:(Exn.to_string e);
-               (None, (errors @ [e]))))
-  in
-  match (result, errors) with
-  | (Some r, _) -> r
-  | (None, []) -> []
-  | (None, es) ->
-    let msgs =
-      List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex))
-        es
-    in
-    Exception.internal ~info:msgs ("storage errors with " ^ host)
-
+(* ------------------------- *)
+(* preprocessing *)
+(* ------------------------- *)
 let preprocess_deprecated_undo str =
   (* this mutates all lambdas in the source to
    * the new format as of 53f3fb82
@@ -177,6 +209,42 @@ let load_deprecated_undo_json_from_disk ~root =
   load_json_from_disk ~root ~preprocess:preprocess_deprecated_undo
 
 
+
+(* ------------------------- *)
+(* deserialing algorithm *)
+(* ------------------------- *)
+let deserialize_ordered
+    (host : string)
+    (descs : (string -> Op.oplist option) list)
+    : Op.oplist =
+  (* try each in turn. If the file exists, try it, and return if
+    successful. If it fails, save the error and try the next one *)
+  let (result, errors) =
+    List.fold descs ~init:(None, [])
+      ~f:(fun (prev, errors) fn ->
+          match prev with
+          | Some r -> (prev, errors)
+          | None ->
+            (try
+               match fn host with
+               | Some oplist -> (Some oplist, errors)
+               | None -> (prev, errors)
+             with
+             | e ->
+               Log.erroR "deserialization" ~data:(Exn.to_string e);
+               (None, (errors @ [e]))))
+  in
+  match (result, errors) with
+  | (Some r, _) -> r
+  | (None, []) -> []
+  | (None, es) ->
+    let msgs =
+      List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex))
+        es
+    in
+    Exception.internal ~info:msgs ("storage errors with " ^ host)
+
+
 let search_and_load (host: string) : Op.oplist =
   (* testfiles load and save from different directories *)
   if is_test host
@@ -207,6 +275,15 @@ let search_and_load (host: string) : Op.oplist =
       ; resave (load_json_from_disk ~root)
       ; resave (load_deprecated_undo_json_from_disk ~root)
       ]
+
+
+(* ------------------------- *)
+(* hosts *)
+(* ------------------------- *)
+
+let current_hosts () : string list =
+  (json_file_hosts () @ all_oplists ())
+  |> List.dedup_and_sort
 
 let check_all_oplists () : unit =
   current_hosts ()
