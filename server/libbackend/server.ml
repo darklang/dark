@@ -315,35 +315,18 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
 
 let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
   try
-    let exe_fn_ids = [] in
-
-    let (t1, c) = time "2-load-saved-ops"
+    let (t1, c) = time "1-load-saved-ops"
       (fun _ ->
-        C.load_all host [])
-    in
+        C.load_all host []) in
 
-    let (t2, hvals) = time "3-handler-analyses"
-      (fun _ ->
-         !c.handlers
-         |> List.filter_map ~f:TL.as_handler
-         |> List.map
-           ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
-    in
-
-    let (t3, fvals) = time "4-function-analyses"
-      (fun _ ->
-        !c.user_functions
-        |> List.map
-          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
-    in
-    let (t4, unlocked) = time "5-analyze-unlocked-dbs"
+    let (t2, unlocked) = time "2-analyze-unlocked-dbs"
       (fun _ -> Analysis.unlocked !c) in
 
-    let (t5, result) = time "6-to-frontend"
-      (fun _ -> Analysis.to_rpc_response_frontend !c (hvals @ fvals) unlocked) in
+    let (t3, result) = time "3-to-frontend"
+        (fun _ -> Analysis.to_rpc_response_frontend !c [] unlocked) in
 
   Event_queue.finalize execution_id ~status:`OK;
-  (server_timing [t1; t2; t3; t4; t5], result)
+  (server_timing [t1; t2; t3], result)
   with
   | e ->
     Event_queue.finalize execution_id ~status:`Err;
