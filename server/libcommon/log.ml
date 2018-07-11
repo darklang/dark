@@ -1,5 +1,11 @@
 open Core_kernel
 
+let string_replace ~search ~replace s =
+  String.Search_pattern.replace_all
+    ~in_:s
+    ~with_:replace
+    (String.Search_pattern.create search)
+
 (* ----------------- *)
 (* levels *)
 (* ----------------- *)
@@ -25,8 +31,6 @@ let level_to_length (level: level) : int =
   | `Debug -> 1000
   | `Success -> 50
   | `All -> 50
-
-
 
 let level_to_string (level: level) : string =
   match level with
@@ -139,12 +143,22 @@ let format_string ~level (str: string) =
     else str
   in
   (* escape newlines *)
-  let str = Util.string_replace "\n" "\\n" str in
+  let str =
+    string_replace
+      ~search:"\n"
+      ~replace:"\\n"
+      str
+  in
   (* escape quotes *)
   let str =
     if String.contains str '"'
-    then Util.string_replace "\"" "\\\"" str
-    else str
+    then
+      string_replace
+        ~search:"\""
+        ~replace:"\\\""
+        str
+    else
+      str
   in
   (* wrap in quotes *)
   let str =
@@ -154,13 +168,15 @@ let format_string ~level (str: string) =
   in
   str
 
+let dump = Libtarget.dump
+
 let print_console_log
-       ?(bt:Exception.backtrace option=None)
+       ?(bt:Caml.Printexc.raw_backtrace option=None)
        ~decorate ~level params : unit =
   let bt_param =
     match bt with
     | Some bt when not decorate ->
-      ["backtrace", Exception.backtrace_to_string  bt]
+      ["backtrace", Caml.Printexc.raw_backtrace_to_string  bt]
     | _ -> []
   in
   let color = if decorate then level_to_color level else "" in
@@ -185,9 +201,6 @@ let print_console_log
   | _ -> ()
 
 
-let dump (value:'a) : string =
-  Batteries.dump value
-
 let pP ?(data)
        ?(params:((string * string) list)=[])
        ?(bt:Caml.Printexc.raw_backtrace option)
@@ -203,7 +216,7 @@ let pP ?(data)
         | Some data -> ["data", data]
       in
 
-      let params = [ "name", (Util.string_replace " " "_" name)
+      let params = [ "name", (string_replace ~search:" " ~replace:"_" name)
                   (* operation time *)
                   (* timestamp *)
                   (* slow request *)
@@ -223,14 +236,14 @@ let pP ?(data)
 
 
 let inspecT
-    ?(f=Batteries.dump)
+    ?(f=dump)
     (name: string)
     (x : 'a)
   : unit =
   pP ~level:`Inspect name ~params:["data", f x]
 
 let inspect
-    ?(f=Batteries.dump)
+    ?(f=dump)
     (name: string)
     (x : 'a)
   : 'a =
@@ -244,15 +257,14 @@ let erroR = pP ~level:`Error
 let fataL = pP ~level:`Fatal
 let succesS = pP ~level:`Success
 
-let log_exception ?bt (name: string) (execution_id: Types.id) (e: exn) =
+let log_exception ?bt ?(pp=Exn.to_string) (name: string) (trace_id: string) (e: exn) =
   let backtrace =
     match bt with
     | Some bt -> bt
-    | None -> Exception.get_backtrace ()
+    | None -> Caml.Printexc.get_raw_backtrace ()
   in
-  erroR ~bt:backtrace name ~params:["exception", Exception.to_string e
-                                   ;"execution_id", dump execution_id]
-
+  erroR ~bt:backtrace name ~params:["exception", pp e
+                                   ;"execution_id", trace_id]
 
 
 (* ----------------- *)

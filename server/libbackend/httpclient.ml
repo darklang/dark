@@ -1,6 +1,7 @@
 (* Amazingly, the standard ocaml stuff for a http client is so shit we have to make our own shitty version *)
 open Core_kernel
 open Libexecution
+open Libcommon
 module C = Curl
 
 

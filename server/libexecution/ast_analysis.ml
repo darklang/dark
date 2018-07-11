@@ -1,4 +1,5 @@
 open Core_kernel
+open Libcommon
 
 open Types
 open Types.RuntimeT
@@ -267,7 +268,9 @@ let rec exec ~(engine: engine)
          with e ->
            (* making the error local looks better than making the whole
             * thread fail. *)
-           Log.log_exception  "threaded_execution" state.execution_id e;
+           Log.log_exception
+             ~pp:Exception.to_string
+             "threaded_execution" (Types.show_id state.execution_id) e;
            Dval.exception_to_dval e)
       (* If there's a hole, just run the computation straight through, as
        * if it wasn't there*)
@@ -454,7 +457,9 @@ let rec exec ~(engine: engine)
       try
         value ()
       with e ->
-        Log.log_exception "exec_execution" state.execution_id e;
+        Log.log_exception
+             ~pp:Exception.to_string
+             "exec_execution" (Types.show_id state.execution_id) e;
         Dval.exception_to_dval e
   in
   trace expr execed_value st;

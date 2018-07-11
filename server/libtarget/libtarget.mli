@@ -7,4 +7,5 @@ val date_to_isostring : Core_kernel.Time.t -> string
 val date_to_sqlstring : Core_kernel.Time.t -> string
 val date_of_sqlstring : string -> Core_kernel.Time.t
 
+val dump : 'a -> string
 
