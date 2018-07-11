@@ -244,6 +244,23 @@ let deserialize_ordered
     in
     Exception.internal ~info:msgs ("storage errors with " ^ host)
 
+(* Use this to migrate to the per-tlid version *)
+let load_migratory_from_db ~digest host : Op.oplist option =
+  let ops = load_binary_from_db ~digest host in
+  (match ops with
+  | None -> ()
+  | Some ops ->
+    List.iter ops ~f:(fun op ->
+        match op with
+        | DeprecatedSavepoint
+        | DeprecatedUndo
+        | DeprecatedRedo
+        | DeprecatedDeleteAll ->
+          Exception.internal "bad op" ~actual:(Op.show_op op)
+        | _ -> ());
+    ());
+  ops
+
 
 let search_and_load (host: string) : Op.oplist =
   (* testfiles load and save from different directories *)
@@ -258,7 +275,7 @@ let search_and_load (host: string) : Op.oplist =
   else
     let root = root_of host in
     deserialize_ordered host
-      [ load_binary_from_db ~digest (* do not resave, it's a fork-bomb *)
+      [ load_migratory_from_db ~digest (* do not resave, it's a fork-bomb *)
       (* These are the only formats that exist in production, newest
        * first. *)
       ; resave (load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018")
