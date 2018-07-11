@@ -1,16 +1,12 @@
 open Core
 open Lwt
-module CRequest = Cohttp_lwt_unix.Request
 
-type result = [`Success | `Failure | `Disabled]
-type err_ctx = Remote of CRequest.t * string
-             | EventQueue
-             | Other of string
-
+type result = Libservice.Rollbar.result
+type err_ctx = Libservice.Rollbar.err_ctx
 
 (* Reports an exn with a backtrace to Rollbar asynchronously *)
-val report_lwt : exn -> Libexecution.Exception.backtrace -> err_ctx -> Libexecution.Types.id -> result Lwt.t
-val report : exn -> Libexecution.Exception.backtrace -> err_ctx -> Libexecution.Types.id -> result
+val report_lwt : exn -> Caml.Printexc.raw_backtrace -> err_ctx -> string -> result Lwt.t
+val report : exn -> Caml.Printexc.raw_backtrace -> err_ctx -> string -> result
 
 (* Just in case *)
-val last_ditch : exn -> string -> Libexecution.Types.id -> unit
+val last_ditch : exn -> string -> string  -> unit

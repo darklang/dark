@@ -5,7 +5,8 @@
     (name libservice)
     (modes (native))
     (flags (-warn-error (+A)))
-    (libraries (core batteries))
+    (preprocess (pps (lwt.ppx)))
+    (libraries (libcommon core batteries lwt yojson curl curl.lwt))
   )
 )
 

@@ -8,5 +8,5 @@ let () =
     Libbackend.Init.init ();
     Libbackend.Server.run ()
   with e ->
-    Libbackend.Rollbar.last_ditch e "main" 0
+    Libbackend.Rollbar.last_ditch e "main" "no execution id"
 
