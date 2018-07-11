@@ -92,8 +92,9 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       apply_to_toplevel ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid -> remove_toplevel_by_id tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
-    | Savepoint _ -> ident
+    | TLSavepoint _ -> ident
     | DeprecatedSavepoint -> ident
+    | DeprecatedSavepoint2 _ -> ident
     | SetFunction user_fn ->
       upsert_function user_fn
     | DeprecatedDeleteAll

@@ -38,23 +38,28 @@ let current_hosts () : string list =
   (json_file_hosts () @ Db.all_oplists ())
   |> List.dedup_and_sort
 
-let load_json_from_disk ~root (host:string) : Op.oplist option =
+let load_json_from_disk ~root ?(preprocess=ident) (host:string) : Op.oplist option =
   Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
                                    ; "host", host];
   let filename = json_unversioned_filename host in
-  File.maybereadjsonfile ~root ~conv:Op.oplist_of_yojson filename
+  File.maybereadjsonfile ~root filename
+    ~conv:Op.oplist_of_yojson ~stringconv:preprocess
 
-let load_preprocessed_json_from_disk ~root
-    ~(preprocess:(string -> string))
-    (host:string) : Op.oplist option =
-  Log.infO "serialization" ~params:[ "load_from", "disk"
-                                   ; "format", "preprocessed_json"
+let load_json_from_db ?(preprocess=ident) (host:string) : Op.oplist option =
+  Log.infO "serialization" ~params:[ "load_from", "db"
+                                   ; "format", "json"
                                    ; "host", host];
-  let filename = json_unversioned_filename host in
-  File.maybereadjsonfile ~root ~stringconv:preprocess ~conv:Op.oplist_of_yojson filename
+  host
+  |> Db.load_json_oplists
+  |> Option.map ~f:(fun ops_string ->
+      ops_string
+      |> preprocess
+      |> Yojson.Safe.from_string
+      |> Op.oplist_of_yojson
+      |> Result.ok_or_failwith)
 
-let load_json_from_db (host:string) : Op.oplist option =
+let load_preprocessed_json_from_db (host:string) : Op.oplist option =
   Log.infO "serialization" ~params:[ "load_from", "db"
                                    ; "format", "json"
                                    ; "host", host];
@@ -124,7 +129,10 @@ let deserialize_ordered
                | Some oplist -> (Some oplist, errors)
                | None -> (prev, errors)
              with
-             | e -> (None, (errors @ [e])))) in
+             | e ->
+               Log.erroR "deserialization" ~data:(Exn.to_string e);
+               (None, (errors @ [e]))))
+  in
   match (result, errors) with
   | (Some r, _) -> r
   | (None, []) -> []
@@ -133,36 +141,39 @@ let deserialize_ordered
       List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex))
         es
     in
-    Log.erroR "deserialization" ~params:msgs;
     Exception.internal ~info:msgs ("storage errors with " ^ host)
 
-let load_deprecated_undo_json_from_disk =
-  load_preprocessed_json_from_disk
-    ~preprocess:(fun str ->
-        (* this mutates all lambdas in the source to
-         * the new format as of 53f3fb82
-         *
-          Safe because there's no other way [ "var" ] can
-         * appear in the source (as of now).
-         *)
-        let transform_lambda s =
-          let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
-          Re2.Regex.replace
-            ~f:(fun _ ->
-                Printf.sprintf
-                  "[ [\"Filled\", %i, \"var\"] ]"
-                  (Util.create_id ()))
-            regex
-            s
-          |> Result.ok
-          |> Option.value ~default:str
-        in
-        str
-        |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
-        |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
-        |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
-        |> transform_lambda
-      )
+let preprocess_deprecated_undo str =
+  (* this mutates all lambdas in the source to
+   * the new format as of 53f3fb82
+   *
+    Safe because there's no other way [ "var" ] can
+   * appear in the source (as of now).
+   *)
+  let transform_lambda s =
+    let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
+    Re2.Regex.replace
+      ~f:(fun _ ->
+          Printf.sprintf
+            "[ [\"Filled\", %i, \"var\"] ]"
+            (Util.create_id ()))
+      regex
+      s
+    |> Result.ok
+    |> Option.value ~default:str
+  in
+  str
+  |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
+  |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
+  |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
+  |> transform_lambda
+
+let preprocess_deprecated_savepoint2 str =
+  Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint2\"" str
+
+let load_deprecated_undo_json_from_disk ~root =
+  load_json_from_disk ~root ~preprocess:preprocess_deprecated_undo
+
 
 let search_and_load (host: string) : Op.oplist =
   (* testfiles load and save from different directories *)
@@ -180,6 +191,7 @@ let search_and_load (host: string) : Op.oplist =
       [ load_binary_from_db ~digest
       (* These are the only formats that exist in production, newest
        * first. *)
+      ; load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018"
       ; load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da"
       ; load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09"
       ; load_binary_from_db ~digest:"769671393dbb637ce12686d4f98c2d75"
@@ -188,7 +200,16 @@ let search_and_load (host: string) : Op.oplist =
       ; load_binary_from_db ~digest:"cf19c8c21aec046d72a2107009682b24"
       ; load_binary_from_db ~digest:"b08b8c99492f79853719a559678d56cb"
       ; load_json_from_db
+      ; load_json_from_db ~preprocess:preprocess_deprecated_undo
+      ; load_json_from_db ~preprocess:preprocess_deprecated_savepoint2
       ; load_json_from_disk ~root
       ; load_deprecated_undo_json_from_disk ~root
       ]
 
+let check_all_oplists () : unit =
+  current_hosts ()
+  |> List.map ~f:(fun host ->
+      match search_and_load host with
+      | [] -> Exception.internal "got nothing, expected something"
+      | _ -> ())
+  |> ignore

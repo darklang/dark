@@ -480,6 +480,8 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   | "/admin/api/clear-benchmarking-data" ->
     Db.delete_benchmarking_data ();
     respond ~execution_id `OK "Cleared"
+  | "/admin/api/save_test" ->
+    save_test_handler ~execution_id host
   | "/admin/ui-debug" ->
     let%lwt body = admin_ui_handler ~debug:true () in
     respond
@@ -498,8 +500,9 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ~resp_headers:text_plain_resp_headers
       ~execution_id
       `OK body
-  | "/admin/api/save_test" ->
-    save_test_handler ~execution_id host
+  | "/admin/check-all-oplists" ->
+    Serialize.check_all_oplists ();
+    respond ~execution_id `OK "Checked"
   | _ ->
     respond ~execution_id `Not_found "Not found"
 

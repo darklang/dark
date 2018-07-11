@@ -133,38 +133,38 @@ encodePointerData pd =
     PParamTipe msg ->
       ev "PParamTipe" [encodeBlankOr encodeTipe msg]
 
-tlidsOf : Op -> List TLID
-tlidsOf op =
+tlidOf : Op -> TLID
+tlidOf op =
   case op of
-    SetHandler tlid _ _ -> [tlid]
-    CreateDB tlid _ _ -> [tlid]
-    AddDBCol tlid _ _ -> [tlid]
-    SetDBColName tlid _ _ -> [tlid]
-    ChangeDBColName tlid _ _ -> [tlid]
-    SetDBColType tlid _ _ -> [tlid]
-    ChangeDBColType tlid _ _ -> [tlid]
-    InitDBMigration tlid _ _ _ _ -> [tlid]
-    Savepoint tlids -> tlids
-    UndoTL tlid -> [tlid]
-    RedoTL tlid -> [tlid]
-    DeleteTL tlid -> [tlid]
-    MoveTL tlid _ -> [tlid]
-    SetFunction f -> [f.tlid]
-    SetExpr tlid _ _ -> [tlid]
+    SetHandler tlid _ _ -> tlid
+    CreateDB tlid _ _ -> tlid
+    AddDBCol tlid _ _ -> tlid
+    SetDBColName tlid _ _ -> tlid
+    ChangeDBColName tlid _ _ -> tlid
+    SetDBColType tlid _ _ -> tlid
+    ChangeDBColType tlid _ _ -> tlid
+    InitDBMigration tlid _ _ _ _ -> tlid
+    TLSavepoint tlid -> tlid
+    UndoTL tlid -> tlid
+    RedoTL tlid -> tlid
+    DeleteTL tlid -> tlid
+    MoveTL tlid _ -> tlid
+    SetFunction f -> f.tlid
+    SetExpr tlid _ _ -> tlid
 
 encodeOps : List Op -> JSE.Value
 encodeOps ops =
   ops
-  |> (\cs ->
-        case cs of
-          [UndoTL _] -> cs
-          [RedoTL _] -> cs
-          [] -> cs
+  |> (\ops ->
+        case ops of
+          [UndoTL _] -> ops
+          [RedoTL _] -> ops
+          [] -> ops
           _ ->
-            let tlids = cs
-                        |> List.map tlidsOf
-                        |> List.concat in
-            Savepoint tlids :: cs)
+            let savepoints = ops
+                             |> List.map tlidOf
+                             |> List.map TLSavepoint
+            in savepoints ++ ops)
   |> List.map encodeOp
   |> JSE.list
 
@@ -210,8 +210,8 @@ encodeOp call =
           , encodeID rfid
           , encodeDBMigrationKind kind]
 
-      Savepoint tlids ->
-        ev "Savepoint" [JSE.list (List.map encodeTLID tlids)]
+      TLSavepoint tlid ->
+        ev "TLSavepoint" [encodeTLID tlid]
       UndoTL tlid -> ev "UndoTL" [encodeTLID tlid]
       RedoTL tlid -> ev "RedoTL" [encodeTLID tlid]
       DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid]

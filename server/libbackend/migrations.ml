@@ -76,6 +76,7 @@ let run () : unit =
 
   ()
 
+(* Used for integration tests *)
 let move_json_oplist_into_db () : unit =
   let hosts = Serialize.json_file_hosts () in
   List.iter hosts
