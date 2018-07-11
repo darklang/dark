@@ -59,18 +59,6 @@ let load_json_from_db ?(preprocess=ident) (host:string) : Op.oplist option =
       |> Op.oplist_of_yojson
       |> Result.ok_or_failwith)
 
-let load_preprocessed_json_from_db (host:string) : Op.oplist option =
-  Log.infO "serialization" ~params:[ "load_from", "db"
-                                   ; "format", "json"
-                                   ; "host", host];
-  host
-  |> Db.load_json_oplists
-  |> Option.map ~f:(fun ops_string ->
-      ops_string
-      |> Yojson.Safe.from_string
-      |> Op.oplist_of_yojson
-      |> Result.ok_or_failwith)
-
 let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
   Log.infO "serialization" ~params:[ "save_to", "disk"
                                    ; "format", "json"
@@ -84,6 +72,7 @@ let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
 let save_json_to_db (host: string) (ops: Op.oplist) : unit =
   Log.infO "serialization" ~params:[ "save_to", "db"
                                    ; "format", "json"
+                                   ; "digest", digest
                                    ; "host", host];
   ops
   |> Op.oplist_to_yojson
@@ -92,12 +81,19 @@ let save_json_to_db (host: string) (ops: Op.oplist) : unit =
 
 let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
   Log.infO "serialization" ~params:[ "save_to", "db"
-                                   ; "format", "disk"
+                                   ; "format", "binary"
+                                   ; "digest", digest
                                    ; "host", host];
   ops
   |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
   |> Bigstring.to_string
   |> Db.save_oplists host digest
+
+let save host ops : unit =
+  save_binary_to_db host ops;
+  ignore (File.convert_bin_to_json host)
+
+
 
 let load_binary_from_db ~digest (host: string) : Op.oplist option =
   Log.infO "serialization" ~params:[ "load_from", "db"

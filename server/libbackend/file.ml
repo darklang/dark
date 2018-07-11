@@ -117,13 +117,11 @@ let writejsonfile ~root ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
 (* ------------------- *)
 (* spawning *)
 (* ------------------- *)
-let convert_bin_to_json ~root (host: string) (outfile: string) =
-  let outfile = check_filename ~root ~mode:`Write outfile in
-
+let convert_bin_to_json (host: string) =
   (* Goes through execve, so never hits the shell *)
   Spawn.spawn
     ~prog:(Config.dir Config.Bin_root ^ "darkfile_db_to_json_file.exe")
-    ~argv:[""; host; outfile]
+    ~argv:[""; host]
     ()
 
 
