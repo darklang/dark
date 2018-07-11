@@ -31,14 +31,6 @@ val escape : param -> string
 val cast_expression_for : Types.RuntimeT.dval -> string option
 
 
-
-(* Saving canvases to the DB *)
-val save_oplists : host:string -> digest:string -> string -> unit
-val load_oplists : host:string -> digest:string -> string option
-val load_json_oplists : host:string -> string option
-val save_json_oplists : host:string -> digest:string -> string -> unit
-val all_oplists : unit -> string list
-
 (* Misc *)
 val delete_benchmarking_data : unit -> unit
 

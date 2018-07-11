@@ -227,65 +227,6 @@ let exists ~(params: param list) ~(name:string) ?subject (sql: string)
          | [] -> ("false", false)
          | _ -> Exception.storage "Unexpected result")
 
-(* ------------------------- *)
-(* oplists *)
-(* ------------------------- *)
-let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  run
-    ~name:"save_oplists"
-    "INSERT INTO oplists
-    (host, digest, data)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (host, digest) DO UPDATE
-    SET data = $3;"
-    ~params:[String host; String digest; Binary data]
-
-
-
-let load_oplists ~(host: string) ~(digest: string) : string option =
-  (* https://www.postgresql.org/docs/9.6/static/datatype-binary.html
-   * Postgres advices us to parse the hex format. *)
-  fetch_one_option
-    ~name:"load_oplists"
-    "SELECT data FROM oplists
-     WHERE host = $1
-     AND digest = $2;"
-    ~params:[String host; String digest]
-    ~result:BinaryResult
-  |> Option.map ~f:List.hd_exn
-  (* |> Option.map ~f:Postgresql.unescape_bytea (* slow but what alternative? *) *)
-
-let load_json_oplists ~(host: string) : string option =
-  fetch_one_option
-    ~name:"load_json_oplists"
-    "SELECT data FROM json_oplists
-     WHERE host = $1"
-    ~params:[String host]
-  |> Option.map ~f:List.hd_exn
-
-let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  (* this is an upsert *)
-  run
-    ~name:"save_json_oplists"
-    "INSERT INTO json_oplists
-    (host, digest, data)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (host) DO UPDATE
-    SET data = $3,
-        digest = $2;"
-    ~params:[String host; String digest; String data]
-
-let all_oplists () : string list =
-  fetch
-    ~name:"oplists"
-    "SELECT DISTINCT host FROM oplists
-     UNION
-     SELECT DISTINCT host FROM json_oplists"
-    ~params:[]
-  |> List.map ~f:List.hd_exn
-  |> List.filter ~f:(fun h ->
-      not (String.is_prefix ~prefix:"test-" h))
-
 let delete_benchmarking_data () : unit =
   run
     ~name:"delete_benchmarking_data"
