@@ -14,7 +14,6 @@ let persist_dir = absolute_dir "DARK_CONFIG_PERSIST_DIR"
 let root_dir = absolute_dir "DARK_CONFIG_ROOT_DIR"
 
 let server_dir = root_dir ^ "server/"
-let appdata_dir = persist_dir ^ "appdata/"
 let testdata_dir = server_dir ^ "test_appdata/"
 let testresult_dir = run_dir ^ "test_results/"
 let log_dir = run_dir ^ "logs/"
@@ -43,7 +42,6 @@ type root = Log
           | Testdata
           | Testresults
           | Bin_root
-          | Appdata
           | Swagger
           | Migrations
           | No_check
@@ -57,7 +55,6 @@ let dir root =
   | Webroot -> webroot_dir
   | Completed_test -> completed_test_dir
   | Bin_root -> bin_root_dir
-  | Appdata -> appdata_dir
   | Swagger -> swagger_dir
   | Testdata -> testdata_dir
   | Testresults -> testresult_dir

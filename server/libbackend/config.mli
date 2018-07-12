@@ -8,7 +8,6 @@ type root = Log
           | Testdata
           | Testresults
           | Bin_root
-          | Appdata
           | Swagger
           | Migrations
           | No_check
