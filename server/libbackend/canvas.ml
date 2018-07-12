@@ -125,6 +125,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
 let oplist2ops (oplist: Op.oplist) : (int * Op.oplist) list =
   oplist
   |> List.filter_map ~f:Op.tlidOf
+  |> List.stable_dedup
   |> List.map ~f:(fun tlid ->
       (tlid, List.filter oplist
          ~f:(fun op -> Op.tlidOf op = Some tlid)))
