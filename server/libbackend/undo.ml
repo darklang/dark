@@ -68,7 +68,7 @@ let preprocess (ops: Op.op list) : Op.op list =
             * possible to undo to a point with no Savepoints anymore *)
 
            let new_before =
-             List.filter before ~f:(fun o -> Op.tlidsOf o <> [tlid])
+             List.filter before ~f:(fun o -> Op.tlidOf o <> Some tlid)
            in
            let new_after = after
                            |> List.tl

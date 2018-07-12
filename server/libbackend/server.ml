@@ -263,12 +263,9 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
-    let exe_fn_ids = [] in
 
-    let tlids = params.ops
-                |> List.map ~f:Op.tlidsOf
-                |> List.concat
-    in
+    let exe_fn_ids = [] in
+    let tlids = List.filter_map ~f:Op.tlidOf params.ops in
 
     let (t2, c) = time "2-load-saved-ops"
       (fun _ ->
