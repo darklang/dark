@@ -61,14 +61,44 @@ let load_oplists ~(host: string) ~(digest: string) : string option =
     ~result:BinaryResult
   |> Option.map ~f:List.hd_exn
 
-let load_per_tlid_oplists ~(canvas_id: Uuidm.t) : string option =
-  Db.fetch_one_option
-    ~name:"load_oplists"
-    "SELECT data FROM toplevel_oplists
+let load_per_tlid_oplists ~(canvas_id: Uuidm.t) : (int * string) list =
+  Db.fetch
+    ~name:"load_per_tlid_oplists"
+    "SELECT data, tlid FROM toplevel_oplists
      WHERE canvas_id = $1"
     ~params:[Uuid canvas_id]
     ~result:BinaryResult
-  |> Option.map ~f:List.hd_exn
+  |> List.map
+    ~f:(fun results ->
+        match results with
+        | [tlid; data] ->
+          (int_of_string tlid, data)
+        | _ -> Exception.internal "Shape of per_tlid oplists")
+
+let save_toplevel_oplist ~tlid ~(ops:Op.oplist)
+    ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t) ~(name:string)
+    ~(module_: string) ~(modifier:string) (data:string)
+  : unit =
+  Db.run
+    ~name:"save per tlid oplist"
+    "INSERT INTO toplevel_oplists
+    (canvas_id, account_id, tlid, digest, name, module, modifier, data)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ON CONFLICT (canvas_id, tlid) DO UPDATE
+    SET account_id = $2,
+        digest = $4,
+        name = $5,
+        module = $6,
+        modifier = $7,
+        data = $8;"
+    ~params:[ Uuid canvas_id
+            ; Uuid account_id
+            ; Int tlid
+            ; String digest
+            ; String name
+            ; String module_
+            ; String modifier
+            ; Binary data]
 
 let load_json_oplists ~(host: string) : string option =
   Db.fetch_one_option
@@ -273,6 +303,10 @@ let load_migratory_from_db ~(host:string) ~(canvas_id: Uuidm.t) ()
 let load_and_combine_from_per_tlid_oplists ~(host:string)
     ~(canvas_id: Uuidm.t) () : Op.oplist option =
   None
+
+let save_from_per_tlid_oplists ~(host:string) ~(canvas_id: Uuidm.t)
+  (ops: Op.oplist) : unit =
+  ()
 
 
 let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =
