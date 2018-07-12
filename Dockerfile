@@ -73,6 +73,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       libpq-dev=9.6.9-0ubuntu0.17.10 \
       postgresql-9.6=9.6.9-0ubuntu0.17.10 \
       postgresql-client-9.6=9.6.9-0ubuntu0.17.10 \
+      postgresql-contrib-9.6=9.6.9-0ubuntu0.17.10 \
       chromium-browser \
       firefox \
       gnupg \
@@ -253,10 +254,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-RUN sudo apt-get update \
-    && sudo apt-get install -y \
-    postgresql-contrib-9.6=9.6.9-0ubuntu0.17.10
 
 ############################
 # Finish
