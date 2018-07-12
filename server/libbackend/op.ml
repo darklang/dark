@@ -20,7 +20,7 @@ type op = SetHandler of tlid * pos * Handler.handler
         | ChangeDBColType of tlid * id * string
         | UndoTL of tlid
         | RedoTL of tlid
-        | DeprecatedSavepoint2 of tlid list
+        | Deprecated4 of tlid list
         | InitDBMigration of tlid * id * id * id * RuntimeT.DbT.migration_kind
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
@@ -36,7 +36,7 @@ let has_effect (op: op) : bool  =
   | Deprecated1 -> false
   | Deprecated2 -> false
   | Deprecated3 -> false
-  | DeprecatedSavepoint2 _ -> false
+  | Deprecated4 _ -> false
   | _ -> true
 
 let tlidsOf (op: op) :  tlid list =
@@ -50,7 +50,6 @@ let tlidsOf (op: op) :  tlid list =
   | ChangeDBColType (tlid, _, _) -> [tlid]
   | InitDBMigration (tlid, _, _, _, _) -> [tlid]
   | SetExpr (tlid, _, _) -> [tlid]
-  | DeprecatedSavepoint2 tlids -> tlids
   | TLSavepoint tlid -> [tlid]
   | UndoTL tlid -> [tlid]
   | RedoTL tlid -> [tlid]
@@ -60,6 +59,7 @@ let tlidsOf (op: op) :  tlid list =
   | Deprecated0
   | Deprecated1
   | Deprecated2
-  | Deprecated3 -> []
+  | Deprecated3
+  | Deprecated4 _ -> []
 
 
