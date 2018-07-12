@@ -208,8 +208,6 @@ ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
 #ENV OPAMDEBUG true
-# This set of package number is very delicate.
-# https://github.com/mirleft/ocaml-nocrypto/issues/143
 RUN opam install -y \
   ppx_deriving.4.2.1 \
   core.v0.11.1  \
@@ -241,7 +239,8 @@ RUN opam install -y \
   junit.2.0 \
   js_of_ocaml.3.2.0 \
   js_of_ocaml-ppx.3.2.0 \
-  js_of_ocaml-lwt.3.2.0
+  js_of_ocaml-lwt.3.2.0 \
+  lambda-term.1.13
 
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 
