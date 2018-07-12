@@ -303,26 +303,6 @@ countFnUsage m name =
     )
   in List.length usedIn
 
-  -- let markedHandlers =
-  --   m.toplevels
-  --   |> List.filter (\tl ->
-  --     case TL.asHandler tl of
-  --       Just h ->
-  --         let astValue = B.asF h.ast
-  --         in case astValue of
-  --           Just (FnCall fnName _) -> fnName == name
-  --           Nothing ->
-  --         case h.ast of
-  --           F _ nexp ->
-  --             case nexp of
-  --               FnCall fnName _ ->
-  --                 fnName == name
-  --               _ -> False
-  --           _ -> False
-  --       Nothing -> False
-  --   )
-  -- in List.length markedHandlers
-
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
   let transformCallsInAst f ast old =

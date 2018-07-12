@@ -279,16 +279,16 @@ viewUserFunctions m =
               (\fn -> B.isF fn.metadata.name)
 
       fnLink fn =
-        Url.linkFor
-          (Fn fn.tlid Defaults.fnPos)
-          "default-link"
-          [Html.text
-            (let name = B.asF fn.metadata.name
-              in case name of
-                Just fnName -> fnName ++ "("++ (toString (countFnUsage m fnName)) ++")"
-                Nothing -> "should be filtered by here"
-            )
-          ]
+        let name = B.asF fn.metadata.name
+        in case name of
+          Just fnName ->
+            let useCount = countFnUsage m fnName
+            in Url.linkFor
+              (Fn fn.tlid Defaults.fnPos)
+              ("default-link" ++ (if useCount==0 then " unused" else ""))
+              [Html.text (fnName ++ "(" ++ (toString useCount) ++ ")")]
+          Nothing ->
+            Url.linkFor (Fn fn.tlid Defaults.fnPos) "default-link" [Html.text "should be filtered by here"]
 
       fnHtml fn =
         div "simple-route"
