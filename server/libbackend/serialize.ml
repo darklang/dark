@@ -185,8 +185,8 @@ let preprocess_deprecated_undo str =
    * appear in the source (as of now).
    *)
   let transform_lambda s =
-    let regex = Re2.Regex.create_exn "\\[ \"var\" \\]" in
-    Re2.Regex.replace
+    let regex = Re2.create_exn "\\[ \"var\" \\]" in
+    Re2.replace
       ~f:(fun _ ->
           Printf.sprintf
             "[ [\"Filled\", %i, \"var\"] ]"
@@ -304,7 +304,7 @@ let search_and_load (host: string) : Op.oplist =
 
 let current_hosts () : string list =
   (json_file_hosts () @ all_oplists ())
-  |> List.dedup_and_sort
+  |> List.dedup_and_sort ~compare
 
 let check_all_oplists () : unit =
   current_hosts ()

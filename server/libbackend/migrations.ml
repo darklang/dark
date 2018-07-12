@@ -57,7 +57,7 @@ let run_system_migration (name: string) (sql:string) : unit =
 
 let names () =
   File.lsdir ~root:Migrations ""
-  |> List.sort ~cmp:compare
+  |> List.sort ~compare
 
 let run () : unit =
   if not (is_initialized ())

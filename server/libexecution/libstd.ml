@@ -871,8 +871,8 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s]) ->
-            let re_compile = Re2.Regex.create_exn in
-            let re_replace = Re2.Regex.replace_exn in
+            let re_compile = Re2.create_exn in
+            let re_replace = Re2.replace_exn in
             let to_remove  = re_compile "[^\\w\\s$*_+~.()'\"!\\-:@]" in
             let trim = re_compile "^\\s+|\\s+$" in
             let spaces = re_compile "[-\\s]+" in
@@ -1004,7 +1004,7 @@ let fns : Lib.shortfn list = [
             (try
               DStr (B64.decode ~alphabet:B64.uri_safe_alphabet s)
             with
-            | Not_found ->
+            | Not_found_s _ | Caml.Not_found ->
               DStr (B64.decode ~alphabet:B64.default_alphabet s))
           | args -> fail args)
   ; pr = None
@@ -1347,7 +1347,7 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DList list]) ->
             list
-            |> List.sort ~cmp:compare_dval
+            |> List.sort ~compare:compare_dval
             |> DList
           | args -> fail args)
   ; pr = Some list_preview
@@ -1365,7 +1365,7 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DList list; DBlock fn]) ->
             list
-            |> List.sort ~cmp:(fun a b -> compare_dval (fn [a]) (fn [b]))
+            |> List.sort ~compare:(fun a b -> compare_dval (fn [a]) (fn [b]))
             |> DList
           | args -> fail args)
   ; pr = None

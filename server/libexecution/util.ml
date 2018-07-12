@@ -26,9 +26,9 @@ let random_string length =
  * it does. First elem of the list is the first capture, not the whole
  * match. *)
 let string_match ~(regex: string) (str: string) : string list Or_error.t =
-  let reg = Re2.Regex.create_exn (regex) in
+  let reg = Re2.create_exn (regex) in
   str
-  |> Re2.Regex.find_submatches reg
+  |> Re2.find_submatches reg
   |> Result.map ~f:Array.to_list
   |> Result.map ~f:List.tl_exn (* skip full match *)
   |> Result.map ~f:(List.map ~f:(Option.value ~default:""))
