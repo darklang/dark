@@ -246,20 +246,22 @@ let deserialize_ordered
 
 (* Use this to migrate to the per-tlid version *)
 let load_migratory_from_db ~digest host : Op.oplist option =
-  let ops = load_binary_from_db ~digest host in
-  (match ops with
-  | None -> ()
-  | Some ops ->
-    List.iter ops ~f:(fun op ->
-        match op with
-        | Deprecated0
-        | Deprecated1
-        | Deprecated2
-        | Deprecated3 ->
-          Exception.internal "bad op" ~actual:(Op.show_op op)
-        | _ -> ());
-    ());
-  ops
+  match load_binary_from_db ~digest host with
+  | Some original_ops ->
+    let ops =
+      original_ops
+      |> List.map
+        ~f:(fun op ->
+            match op with
+            | Op.DeprecatedSavepoint2 tlids ->
+              List.map tlids ~f:(fun tlid -> Op.TLSavepoint tlid)
+            | other -> [other])
+      |> List.concat
+    in
+    if ops <> original_ops
+    then save_binary_to_db host ops;
+    Some ops
+  | None -> None
 
 
 let search_and_load (host: string) : Op.oplist =
