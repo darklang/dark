@@ -221,26 +221,29 @@ let t_undo_fns () =
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
 
-  AT.check AT.int "undocount"
-  3 (Undo.undo_count !(ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u]).ops tlid);
+  let ops (c:C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
+
+  AT.check AT.int "undocount" 3
+    (Undo.undo_count
+       (ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u] |> ops) tlid);
 
   AT.check AT.bool "redoable" true
-    (Undo.is_redoable !(ops2c "test" [n1; n2; n3; n4; u]).ops tlid);
+    (Undo.is_redoable (ops2c "test" [n1; n2; n3; n4; u] |> ops) tlid);
   AT.check AT.bool "undoable" true
-    (Undo.is_undoable !(ops2c "test" [n1; n2; n3; n4]).ops tlid);
+    (Undo.is_undoable (ops2c "test" [n1; n2; n3; n4] |> ops) tlid);
 
 
   AT.check AT.bool "not redoable" false
-    (Undo.is_redoable !(ops2c "test" [n1; n2; n3; n4; u; r]).ops tlid);
+    (Undo.is_redoable (ops2c "test" [n1; n2; n3; n4; u; r] |> ops) tlid);
   AT.check AT.bool "not undoable" false
-    (Undo.is_undoable !(ops2c "test" [n1; n2; n3; n4; u]).ops tlid);
+    (Undo.is_undoable (ops2c "test" [n1; n2; n3; n4; u] |> ops) tlid);
 
 
-  let both = !(ops2c "test" [n1; n1; n2; n3; n4; u; r; u]).ops in
+  let both = ops2c "test" [n1; n1; n2; n3; n4; u; r; u] |> ops in
   AT.check AT.bool "both_undo" true (Undo.is_undoable both tlid);
   AT.check AT.bool "both_redo" true (Undo.is_redoable both tlid);
 
-  let neither = !(ops2c "test" [n2; n3; n4]).ops in
+  let neither = ops2c "test" [n2; n3; n4] |> ops in
   AT.check AT.bool "neither_undo" false (Undo.is_undoable neither tlid);
   AT.check AT.bool "neither_redo" false (Undo.is_redoable neither tlid)
 
