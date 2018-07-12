@@ -5,7 +5,7 @@
 
 set -euo pipefail
 
-BUCKET=gs://replace-pg-from-gcp
+BUCKET=gs://download-gcp-db
 
 ###########################
 echo "Creating bucket"
