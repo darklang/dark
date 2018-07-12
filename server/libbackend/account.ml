@@ -98,6 +98,13 @@ let auth_domain_for host : string =
   | d :: _ -> d
   | _ -> host
 
+let for_host (host:string) : Uuidm.t =
+  host
+  |> auth_domain_for
+  |> owner
+  |> fun o -> Option.value_exn ~message:("No owner found for host " ^ host) o
+
+
 
 let init_testing () : unit =
   upsert_account

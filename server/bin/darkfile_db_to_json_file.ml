@@ -4,8 +4,10 @@ let _ =
   try
     Libbackend.Init.init ();
     let host = Sys.argv.(1) in
-    match Libbackend.Serialize.load_binary_from_db host
-            ~digest:Libbackend.Serialize.digest
+    let owner = Libbackend.Account.for_host host in
+    let canvas_id = Libbackend.Serialize.fetch_canvas_id owner host in
+    match Libbackend.Serialize.load_binary_from_db ~host ~canvas_id
+            ~digest:Libbackend.Serialize.digest ()
     with
     | Some ops ->
       Libbackend.Serialize.save_json_to_db host ops

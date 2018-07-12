@@ -122,23 +122,6 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
-(* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
-let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
-  let sql =
-    Printf.sprintf
-      "SELECT canvas_id(%s, %s, %s)"
-      (Db.escape (Uuid (Util.create_uuid ())))
-      (Db.escape (Uuid owner))
-      (Db.escape (String host))
-  in
-  Db.fetch_one
-    ~name:"fetch_canvas_id"
-    sql
-    ~params:[]
-  |> List.hd_exn
-  |> Uuidm.of_string
-  |> Option.value_exn
-
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let reduced_ops = Undo.preprocess (oldops @ newops) in
   List.iter ~f:(fun op -> apply_op op c) reduced_ops;
@@ -155,30 +138,21 @@ let minimize (c : canvas) : canvas =
 (* ------------------------- *)
 (* Serialization *)
 (* ------------------------- *)
-let owner (host:string) : Uuidm.t =
-  host
-  |> Account.auth_domain_for
-  |> Account.owner
-  |> fun o ->
-       match o with
-       | Some owner -> owner
-       | None -> Exception.client ("No Canvas found for host " ^ host)
-
 
 let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+
   let oldops =
     if load
-    then Serialize.search_and_load host
+    then Serialize.search_and_load host canvas_id
     else []
   in
 
-  let owner = owner host in
-
-  let id = fetch_canvas_id owner host in
   let c =
     ref { host = host
         ; owner = owner
-        ; id = id
+        ; id = canvas_id
         ; ops = []
         ; handlers = []
         ; dbs = []
