@@ -12,7 +12,7 @@ type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
               ; owner : Uuidm.t
               ; id : Uuidm.t
-              ; ops : Op.oplist
+              ; ops : (tlid * Op.oplist) list
               ; handlers : toplevellist
               ; dbs: toplevellist
               ; user_functions: RTT.user_fn list
@@ -122,17 +122,33 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
+let oplist2ops (oplist: Op.oplist) : (int * Op.oplist) list =
+  oplist
+  |> List.filter_map ~f:Op.tlidOf
+  |> List.map ~f:(fun tlid ->
+      (tlid, List.filter oplist
+         ~f:(fun op -> Op.tlidOf op = Some tlid)))
+
+let ops2oplist (ops: (int * Op.oplist) list) : Op.oplist =
+  ops
+  |> List.unzip
+  |> Tuple.T2.get2
+  |> List.concat
+
+
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let reduced_ops = Undo.preprocess (oldops @ newops) in
   List.iter ~f:(fun op -> apply_op op c) reduced_ops;
-  c := { !c with ops = oldops @ newops }
+  c := { !c with ops = oplist2ops (oldops @ newops) }
 
 let minimize (c : canvas) : canvas =
-  let ops =
-    c.ops
-    |> Undo.preprocess
-    |> List.filter ~f:Op.has_effect
-  in { c with ops = ops }
+  (* TODO *)
+  (* let ops = *)
+  (*   c.ops *)
+  (*   |> Undo.preprocess *)
+  (*   |> List.filter ~f:Op.has_effect *)
+  (* in { c with ops = ops } *)
+  c
 
 
 (* ------------------------- *)
@@ -198,8 +214,7 @@ let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
 let save (c : canvas) : unit =
-  Serialize.save c.host c.ops
-
+  Serialize.save c.host (ops2oplist c.ops)
 
 let save_test (c: canvas) : string =
   let c = minimize c in
@@ -212,7 +227,7 @@ let save_test (c: canvas) : string =
                ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else host in
   let file = Serialize.json_unversioned_filename host in
-  Serialize.save_json_to_disk ~root:Testdata file c.ops;
+  Serialize.save_json_to_disk ~root:Testdata file (ops2oplist c.ops);
   file
 
 (* ------------------------- *)
