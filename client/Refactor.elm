@@ -268,6 +268,61 @@ renameFunction m old new =
       in
           newHandlers ++ newFunctions
 
+isFunctionInExpr: String -> Expr -> Bool
+isFunctionInExpr fnName expr =
+  let maybeNExpr = B.asF expr
+  in case maybeNExpr of
+    Nothing -> False
+    Just nExpr ->
+      case nExpr of
+        FnCall name list -> if name == fnName then True else List.any (isFunctionInExpr fnName) list
+        If ifExpr thenExpr elseExpr -> List.any (isFunctionInExpr fnName) [ifExpr, thenExpr, elseExpr]
+        Variable _ -> False
+        Let _ a b -> List.any (isFunctionInExpr fnName) [a, b]
+        Lambda _ ex -> isFunctionInExpr fnName ex
+        Value _ -> False
+        ObjectLiteral li ->
+          let valuesMap = List.map (\kv -> Tuple.second kv) li
+            in List.any (isFunctionInExpr fnName) valuesMap
+        ListLiteral li -> List.any (isFunctionInExpr fnName) li
+        Thread li -> List.any (isFunctionInExpr fnName) li
+        FieldAccess ex filed -> isFunctionInExpr fnName ex
+
+
+isHandlerUsingFunction : Handler -> String -> Bool
+isHandlerUsingFunction handler fnName = isFunctionInExpr fnName handler.ast
+
+countFnUsage : Model -> String -> Int
+countFnUsage m name =
+  let usedIn = m.toplevels
+    |> List.filter (\tl ->
+      case tl.data of
+        TLHandler h -> isHandlerUsingFunction h name
+        TLDB _ -> False
+        TLFunc f -> True
+    )
+  in List.length usedIn
+
+  -- let markedHandlers =
+  --   m.toplevels
+  --   |> List.filter (\tl ->
+  --     case TL.asHandler tl of
+  --       Just h ->
+  --         let astValue = B.asF h.ast
+  --         in case astValue of
+  --           Just (FnCall fnName _) -> fnName == name
+  --           Nothing ->
+  --         case h.ast of
+  --           F _ nexp ->
+  --             case nexp of
+  --               FnCall fnName _ ->
+  --                 fnName == name
+  --               _ -> False
+  --           _ -> False
+  --       Nothing -> False
+  --   )
+  -- in List.length markedHandlers
+
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
   let transformCallsInAst f ast old =

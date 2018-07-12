@@ -18,7 +18,7 @@ import Toplevel
 import ViewUtils exposing (..)
 import Url
 import Defaults
-
+import Refactor exposing (countFnUsage)
 
 
 type alias Entry = { name: Maybe String
@@ -282,9 +282,14 @@ viewUserFunctions m =
         Url.linkFor
           (Fn fn.tlid Defaults.fnPos)
           "default-link"
-          [Html.text (fn.metadata.name
-                      |> B.asF
-                      |> deMaybe "should be filtered by here")]
+          [Html.text
+            (let name = B.asF fn.metadata.name
+              in case name of
+                Just fnName -> fnName ++ "("++ (toString (countFnUsage m fnName)) ++")"
+                Nothing -> "should be filtered by here"
+            )
+          ]
+
       fnHtml fn =
         div "simple-route"
           [ span "name"
