@@ -12,6 +12,9 @@ val can_edit : auth_domain:string -> username:username -> bool
 (* For a host, what user do we expect *)
 val auth_domain_for : string -> string
 
+(* Get the owner of a host *)
+val for_host : string -> Uuidm.t
+
 (* get the id of the domain, for accounting/storage. Note that we need
  * this even for unauthenticated access, as all data and compute need a
  * Dark user to own them (pay for them, etc). *)

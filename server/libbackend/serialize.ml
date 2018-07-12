@@ -52,14 +52,21 @@ let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
 
 
 let load_oplists ~(host: string) ~(digest: string) : string option =
-  (* https://www.postgresql.org/docs/9.6/static/datatype-binary.html
-   * Postgres advices us to parse the hex format. *)
   Db.fetch_one_option
     ~name:"load_oplists"
     "SELECT data FROM oplists
      WHERE host = $1
      AND digest = $2;"
     ~params:[String host; String digest]
+    ~result:BinaryResult
+  |> Option.map ~f:List.hd_exn
+
+let load_per_tlid_oplists ~(canvas_id: Uuidm.t) : string option =
+  Db.fetch_one_option
+    ~name:"load_oplists"
+    "SELECT data FROM toplevel_oplists
+     WHERE canvas_id = $1"
+    ~params:[Uuid canvas_id]
     ~result:BinaryResult
   |> Option.map ~f:List.hd_exn
 
@@ -99,7 +106,8 @@ let all_oplists () : string list =
 (* ------------------------- *)
 (* loading and saving *)
 (* ------------------------- *)
-let load_json_from_disk ~root ?(preprocess=ident) (host:string) : Op.oplist option =
+let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
+    ~(canvas_id: Uuidm.t) () : Op.oplist option =
   Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
                                    ; "host", host];
@@ -107,7 +115,8 @@ let load_json_from_disk ~root ?(preprocess=ident) (host:string) : Op.oplist opti
   File.maybereadjsonfile ~root filename
     ~conv:Op.oplist_of_yojson ~stringconv:preprocess
 
-let load_json_from_db ?(preprocess=ident) (host:string) : Op.oplist option =
+let load_json_from_db ?(preprocess=ident) ~(host: string)
+    ~(canvas_id: Uuidm.t) () : Op.oplist option =
   Log.infO "serialization" ~params:[ "load_from", "db"
                                    ; "format", "json"
                                    ; "host", host];
@@ -156,7 +165,8 @@ let save host ops : unit =
 
 
 
-let load_binary_from_db ~digest (host: string) : Op.oplist option =
+let load_binary_from_db ~digest ~(host: string) ~(canvas_id: Uuidm.t) ()
+  : Op.oplist option =
   Log.infO "serialization" ~params:[ "load_from", "db"
                                    ; "format", "binary"
                                    ; "digest", digest
@@ -168,11 +178,6 @@ let load_binary_from_db ~digest (host: string) : Op.oplist option =
          * to_line helpfully adds, but that hasn't been a problem so
          * far. *)
         Core_extended.Bin_io_utils.of_line x Op.bin_oplist)
-
-let resave (f: string -> Op.oplist option) (host:string) : Op.oplist option =
-  f host
-  |> Option.map
-    ~f:(fun ops -> save host ops; ops)
 
 (* ------------------------- *)
 (* preprocessing *)
@@ -215,7 +220,8 @@ let load_deprecated_undo_json_from_disk ~root =
 (* ------------------------- *)
 let deserialize_ordered
     (host : string)
-    (descs : (string -> Op.oplist option) list)
+    (canvas_id : Uuidm.t)
+    (descs : (host:string -> canvas_id:Uuidm.t -> unit -> Op.oplist option) list)
     : Op.oplist =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
@@ -226,7 +232,7 @@ let deserialize_ordered
           | Some r -> (prev, errors)
           | None ->
             (try
-               match fn host with
+               match fn ~host ~canvas_id () with
                | Some oplist -> (Some oplist, errors)
                | None -> (prev, errors)
              with
@@ -258,49 +264,72 @@ let alert_on_deprecated_ops host (ops: Op.oplist) : unit =
 
 
 (* Use this to migrate to the per-tlid version *)
-let load_migratory_from_db ~digest host : Op.oplist option =
-  let ops = load_binary_from_db ~digest host in
+let load_migratory_from_db ~(host:string) ~(canvas_id: Uuidm.t) ()
+  : Op.oplist option =
+  let ops = load_binary_from_db ~digest ~host ~canvas_id () in
   Option.map ~f:(alert_on_deprecated_ops host) ops |> ignore;
   ops
 
+let load_and_combine_from_per_tlid_oplists ~(host:string)
+    ~(canvas_id: Uuidm.t) () : Op.oplist option =
+  None
 
-let search_and_load (host: string) : Op.oplist =
+
+let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =
   (* testfiles load and save from different directories *)
   if is_test host
   then
     (* when there are no oplists, read from disk. The test harnesses
      * clean up old oplists before running. *)
-    deserialize_ordered host
+    deserialize_ordered host canvas_id
       [ load_binary_from_db ~digest
-      ; load_json_from_disk ~root:Testdata
+      ; load_json_from_disk ~root:Testdata ~preprocess:ident
       ]
   else
     let root = root_of host in
-    deserialize_ordered host
-      [ load_migratory_from_db ~digest (* do not resave, it's a fork-bomb *)
+    deserialize_ordered host canvas_id
+      [ load_and_combine_from_per_tlid_oplists
+      ; load_migratory_from_db
       (* These are the only formats that exist in production, newest
        * first. *)
-      ; resave (load_binary_from_db ~digest:"58304561d23692e4e8559a6071de168d")
-      ; resave (load_binary_from_db ~digest:"50cfe9cc7ebe36ea830bd39f74b994da")
-      ; resave (load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018")
-      ; resave (load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da")
-      ; resave (load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09")
-      ; resave (load_binary_from_db ~digest:"769671393dbb637ce12686d4f98c2d75")
-      ; resave (load_binary_from_db ~digest:"ec01527258fa0a757a4c5d98639c49c5")
-      ; resave (load_binary_from_db ~digest:"70031445271577a297fd1c8910e02117")
-      ; resave (load_binary_from_db ~digest:"cf19c8c21aec046d72a2107009682b24")
-      ; resave (load_binary_from_db ~digest:"b08b8c99492f79853719a559678d56cb")
-      ; resave (load_json_from_db)
-      ; resave (load_json_from_db ~preprocess:preprocess_deprecated_undo)
-      ; resave (load_json_from_db ~preprocess:preprocess_deprecated_savepoint2)
-      ; resave (load_json_from_disk ~root)
-      ; resave (load_deprecated_undo_json_from_disk ~root)
+      ; load_binary_from_db ~digest:"58304561d23692e4e8559a6071de168d"
+      ; load_binary_from_db ~digest:"50cfe9cc7ebe36ea830bd39f74b994da"
+      ; load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018"
+      ; load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da"
+      ; load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09"
+      ; load_binary_from_db ~digest:"769671393dbb637ce12686d4f98c2d75"
+      ; load_binary_from_db ~digest:"ec01527258fa0a757a4c5d98639c49c5"
+      ; load_binary_from_db ~digest:"70031445271577a297fd1c8910e02117"
+      ; load_binary_from_db ~digest:"cf19c8c21aec046d72a2107009682b24"
+      ; load_binary_from_db ~digest:"b08b8c99492f79853719a559678d56cb"
+      ; load_json_from_db ~preprocess:ident
+      ; load_json_from_db ~preprocess:preprocess_deprecated_undo
+      ; load_json_from_db ~preprocess:preprocess_deprecated_savepoint2
+      ; load_json_from_disk ~root ~preprocess:ident
+      ; load_deprecated_undo_json_from_disk ~root
       ]
 
 
 (* ------------------------- *)
 (* hosts *)
 (* ------------------------- *)
+
+(* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
+let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
+  let sql =
+    Printf.sprintf
+      "SELECT canvas_id(%s, %s, %s)"
+      (Db.escape (Uuid (Util.create_uuid ())))
+      (Db.escape (Uuid owner))
+      (Db.escape (String host))
+  in
+  Db.fetch_one
+    ~name:"fetch_canvas_id"
+    sql
+    ~params:[]
+  |> List.hd_exn
+  |> Uuidm.of_string
+  |> Option.value_exn
 
 let current_hosts () : string list =
   (json_file_hosts () @ all_oplists ())
@@ -309,7 +338,9 @@ let current_hosts () : string list =
 let check_all_oplists () : unit =
   current_hosts ()
   |> List.map ~f:(fun host ->
-      match search_and_load host with
+      let owner = Account.for_host host in
+      let canvas_id = fetch_canvas_id owner host in
+      match search_and_load host canvas_id with
       | [] -> Exception.internal "got nothing, expected something"
       | _ -> ())
   |> ignore

@@ -25,8 +25,8 @@ let pos = {x=0;y=0}
 let execution_id = 6543
 
 let clear_test_data () : unit =
-  let owner = Canvas.owner "test" in
-  let canvas = Canvas.fetch_canvas_id owner "test" in
+  let owner = Account.for_host "test" in
+  let canvas = Serialize.fetch_canvas_id owner "test" in
   Db.run ~params:[Uuid canvas] ~name:"clear_events_test_data"
     "DELETE FROM events where canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_stored_events_test_data"
@@ -320,25 +320,32 @@ let t_derror_roundtrip () =
 
 let t_db_oplist_roundtrip () =
   clear_test_data ();
-  let host = "test_db_oplist_roundtrip" in
+  let host = "test-db_oplist_roundtrip" in
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
   let oplist = [ Op.UndoTL tlid
                ; Op.RedoTL tlid
                ; Op.UndoTL tlid
                ; Op.RedoTL tlid] in
   Serialize.save_binary_to_db host oplist;
-  match (Serialize.load_binary_from_db ~digest:Serialize.digest host) with
+  match (Serialize.load_binary_from_db ~digest:Serialize.digest
+           ~canvas_id ~host ()) with
   | Some ops ->
     check_oplist "db_oplist roundtrip" oplist ops
   | None -> AT.fail "nothing in db"
 
+
 let t_db_json_oplist_roundtrip () =
-  let host = "test_db_json_oplist_roundtrip" in
+  clear_test_data ();
+  let host = "test-db_json_oplist_roundtrip" in
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
   let oplist = [ Op.UndoTL tlid
                ; Op.RedoTL tlid
                ; Op.UndoTL tlid
                ; Op.RedoTL tlid] in
   Serialize.save_json_to_db host oplist;
-  match (Serialize.load_json_from_db host) with
+  match (Serialize.load_json_from_db ~host ~canvas_id ()) with
   | Some ops ->
     check_oplist "db_oplist roundtrip" oplist ops
   | None -> AT.fail "nothing in db"
@@ -382,9 +389,9 @@ module SE = Stored_event
 let t_stored_event_roundtrip () =
   clear_test_data ();
   let owner : Uuidm.t = Account.owner ~auth_domain:"test"
-                       |> fun x -> Option.value_exn x in
-  let id1 = Canvas.fetch_canvas_id owner "host" in
-  let id2 = Canvas.fetch_canvas_id owner "host2" in
+                        |> fun x -> Option.value_exn x in
+  let id1 = Serialize.fetch_canvas_id owner "host" in
+  let id2 = Serialize.fetch_canvas_id owner "host2" in
   SE.clear_events id1;
   SE.clear_events id2;
   let desc1 = ("HTTP", "/path", "GET") in
