@@ -22,7 +22,7 @@ gsutil cp $GSFILENAME .
 ###########################
 echo "Loading DB (logging to $LOGFILE)"
 ###########################
-dropdb $DB
+dropdb --if-exists $DB
 createdb $DB
 
 # There are some permission statements for cloudsql that are not relevant
