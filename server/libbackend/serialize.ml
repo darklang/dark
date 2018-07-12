@@ -20,21 +20,8 @@ let is_test (name: string) : bool =
   String.is_prefix ~prefix:"test_" name
   || String.is_prefix ~prefix:"test-" name
 
-let root_of (name: string): Config.root =
-  if is_test name
-  then Completed_test
-  else Appdata
-
 let json_unversioned_filename name =
   name ^ "." ^ "json"
-
-let json_file_hosts () : string list =
-  File.lsdir ~root:Appdata ""
-  |> List.filter
-    ~f:(String.is_suffix ~suffix:".json")
-  |> List.map
-    ~f:(String.chop_suffix_exn ~suffix:".json")
-
 
 (* ------------------------- *)
 (* oplists *)
@@ -320,26 +307,12 @@ let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =
       ; load_json_from_disk ~root:Testdata ~preprocess:ident
       ]
   else
-    let root = root_of host in
     deserialize_ordered host canvas_id
       [ load_migratory_from_db
       (* These are the only formats that exist in production, newest
        * first. *)
       ; load_binary_from_db ~digest:"58304561d23692e4e8559a6071de168d"
-      ; load_binary_from_db ~digest:"50cfe9cc7ebe36ea830bd39f74b994da"
-      ; load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018"
-      ; load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da"
-      ; load_binary_from_db ~digest:"a0116b0508392a51289f61722c761d09"
-      ; load_binary_from_db ~digest:"769671393dbb637ce12686d4f98c2d75"
-      ; load_binary_from_db ~digest:"ec01527258fa0a757a4c5d98639c49c5"
-      ; load_binary_from_db ~digest:"70031445271577a297fd1c8910e02117"
-      ; load_binary_from_db ~digest:"cf19c8c21aec046d72a2107009682b24"
-      ; load_binary_from_db ~digest:"b08b8c99492f79853719a559678d56cb"
       ; load_json_from_db ~preprocess:ident
-      ; load_json_from_db ~preprocess:preprocess_deprecated_undo
-      ; load_json_from_db ~preprocess:preprocess_deprecated_savepoint2
-      ; load_json_from_disk ~root ~preprocess:ident
-      ; load_deprecated_undo_json_from_disk ~root
       ]
 
 
@@ -358,8 +331,7 @@ let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   |> Option.value_exn
 
 let current_hosts () : string list =
-  (json_file_hosts () @ all_oplists ())
-  |> List.dedup_and_sort ~compare
+  all_oplists ()
 
 let check_all_oplists () : unit =
   current_hosts ()
