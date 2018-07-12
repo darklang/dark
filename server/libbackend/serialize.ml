@@ -322,8 +322,7 @@ let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =
   else
     let root = root_of host in
     deserialize_ordered host canvas_id
-      [ load_and_combine_from_per_tlid_oplists
-      ; load_migratory_from_db
+      [ load_migratory_from_db
       (* These are the only formats that exist in production, newest
        * first. *)
       ; load_binary_from_db ~digest:"58304561d23692e4e8559a6071de168d"
