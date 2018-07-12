@@ -19,7 +19,7 @@ let collect_params (params : (string * string) list) : string =
 
   (* Collecting parameters #2 - sorted*)
     (* TODO sort lexicographically? *)
-  |> List.sort ~cmp:(fun (a,_) (b,_) -> compare a b)
+  |> List.sort ~compare:(fun (a,_) (b,_) -> compare a b)
 
 
   (* Collecting parameters #3-6 - combining with a = *)
@@ -81,7 +81,7 @@ let oauth_params (secret: Secret.twitter_secret) url verb (args : dval_map) : (s
 
   [("oauth_signature", signature)]
   |> List.append initial_params
-  |> List.sort ~cmp:(fun (a,_) (b,_) -> compare a b)
+  |> List.sort ~compare:(fun (a,_) (b,_) -> compare a b)
 
 let oauth_header secret url verb (args: dval_map) : string =
   oauth_params secret url verb args

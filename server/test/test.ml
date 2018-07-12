@@ -177,16 +177,16 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
       f (Value value)
 
 let ast_for (ast: string) : expr =
-  let quotes = (Re2.Regex.create_exn "'(.*)'") in
+  let quotes = (Re2.create_exn "'(.*)'") in
   ast
   |> (fun s ->
     (* dunno whether it's a bug or just annoying, but we need to specify
      * quotes as \"\\\", so let's "'" instead. (The ocaml parser demands
      * we insert a " here smdh) *)
-      Re2.Regex.replace_exn quotes s
+      Re2.replace_exn quotes s
         ~f:(fun m ->
             "\"\\\""
-            ^ (Re2.Regex.Match.get_exn ~sub:(`Index 1) m)
+            ^ (Re2.Match.get_exn ~sub:(`Index 1) m)
             ^ "\\\"\""))
   |> Sexp.of_string
   (* |> (fun s -> *)
@@ -402,8 +402,8 @@ let t_stored_event_roundtrip () =
   let listed = SE.list_events id1 in
   AT.check
     (AT.list at_desc) "list host events"
-    (List.sort ~cmp:compare [desc1; desc2; desc3])
-    (List.sort ~cmp:compare listed);
+    (List.sort ~compare [desc1; desc2; desc3])
+    (List.sort ~compare listed);
 
   let loaded1 = SE.load_events id1 desc1 in
   AT.check at_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
