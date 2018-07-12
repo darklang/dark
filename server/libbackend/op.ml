@@ -39,27 +39,27 @@ let has_effect (op: op) : bool  =
   | Deprecated4 _ -> false
   | _ -> true
 
-let tlidsOf (op: op) :  tlid list =
+let tlidOf (op: op) : tlid option =
   match op with
-  | SetHandler (tlid, _, _) -> [tlid]
-  | CreateDB (tlid, _, _) -> [tlid]
-  | AddDBCol (tlid, _, _) -> [tlid]
-  | SetDBColName (tlid, _, _) -> [tlid]
-  | ChangeDBColName (tlid, _, _) -> [tlid]
-  | SetDBColType (tlid, _, _) -> [tlid]
-  | ChangeDBColType (tlid, _, _) -> [tlid]
-  | InitDBMigration (tlid, _, _, _, _) -> [tlid]
-  | SetExpr (tlid, _, _) -> [tlid]
-  | TLSavepoint tlid -> [tlid]
-  | UndoTL tlid -> [tlid]
-  | RedoTL tlid -> [tlid]
-  | DeleteTL tlid -> [tlid]
-  | MoveTL (tlid, _) -> [tlid]
-  | SetFunction f -> [f.tlid]
+  | SetHandler (tlid, _, _) -> Some tlid
+  | CreateDB (tlid, _, _) -> Some tlid
+  | AddDBCol (tlid, _, _) -> Some tlid
+  | SetDBColName (tlid, _, _) -> Some tlid
+  | ChangeDBColName (tlid, _, _) -> Some tlid
+  | SetDBColType (tlid, _, _) -> Some tlid
+  | ChangeDBColType (tlid, _, _) -> Some tlid
+  | InitDBMigration (tlid, _, _, _, _) -> Some tlid
+  | SetExpr (tlid, _, _) -> Some tlid
+  | TLSavepoint tlid -> Some tlid
+  | UndoTL tlid -> Some tlid
+  | RedoTL tlid -> Some tlid
+  | DeleteTL tlid -> Some tlid
+  | MoveTL (tlid, _) -> Some tlid
+  | SetFunction f -> Some f.tlid
   | Deprecated0
   | Deprecated1
   | Deprecated2
   | Deprecated3
-  | Deprecated4 _ -> []
+  | Deprecated4 _ -> None
 
 
