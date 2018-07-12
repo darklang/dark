@@ -244,24 +244,24 @@ let deserialize_ordered
     in
     Exception.internal ~info:msgs ("storage errors with " ^ host)
 
+let alert_on_deprecated_ops host (ops: Op.oplist) : unit =
+  List.iter ops ~f:(fun op ->
+    match op with
+    | Deprecated0
+    | Deprecated1
+    | Deprecated2
+    | Deprecated3
+    | Deprecated4 _ ->
+      Exception.internal "bad op" ~info:["host", host] ~actual:(Op.show_op op)
+    | _ -> ())
+
+
+
 (* Use this to migrate to the per-tlid version *)
 let load_migratory_from_db ~digest host : Op.oplist option =
-  match load_binary_from_db ~digest host with
-  | Some original_ops ->
-    let ops =
-      original_ops
-      |> List.map
-        ~f:(fun op ->
-            match op with
-            | Op.DeprecatedSavepoint2 tlids ->
-              List.map tlids ~f:(fun tlid -> Op.TLSavepoint tlid)
-            | other -> [other])
-      |> List.concat
-    in
-    if ops <> original_ops
-    then save_binary_to_db host ops;
-    Some ops
-  | None -> None
+  let ops = load_binary_from_db ~digest host in
+  Option.map ~f:(alert_on_deprecated_ops host) ops |> ignore;
+  ops
 
 
 let search_and_load (host: string) : Op.oplist =
@@ -280,6 +280,7 @@ let search_and_load (host: string) : Op.oplist =
       [ load_migratory_from_db ~digest (* do not resave, it's a fork-bomb *)
       (* These are the only formats that exist in production, newest
        * first. *)
+      ; resave (load_binary_from_db ~digest:"58304561d23692e4e8559a6071de168d")
       ; resave (load_binary_from_db ~digest:"50cfe9cc7ebe36ea830bd39f74b994da")
       ; resave (load_binary_from_db ~digest:"89fd08b4f5adf0f816f2603b99397018")
       ; resave (load_binary_from_db ~digest:"e7a6fac71750a911255315f6320970da")

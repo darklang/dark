@@ -6,15 +6,6 @@ open Types
 (* Undo *)
 (* ------------------------- *)
 
-let preprocess_deprecated2 (ops: Op.op list) : Op.op list =
-  ops
-  |> List.map ~f:(fun op ->
-      match op with
-      | DeprecatedSavepoint2 tlids ->
-        List.map ~f:(fun tlid -> Op.TLSavepoint tlid) tlids
-      | _ -> [op])
-  |> List.concat
-
 let preprocess (ops: Op.op list) : Op.op list =
 
   (* The client can add undopoints when it chooses. When we get an undo,
@@ -39,8 +30,6 @@ let preprocess (ops: Op.op list) : Op.op list =
    *   the undo and the *)
 
   ops
-  |> preprocess_deprecated2 (* Convert multi-tlid savepoint into single. *)
-
 
   (* Step 1: remove undo-redo pairs. We do by processing from the back,
    * adding each element onto the front *)
