@@ -146,7 +146,7 @@ RUN cd libsysconfcpus \
 USER postgres
 RUN /etc/init.d/postgresql start && \
     psql --command "CREATE USER dark WITH SUPERUSER PASSWORD 'eapnsdc';" && \
-    createdb -O dark proddb
+    createdb -O dark devdb
 
 # Adjust PostgreSQL configuration so that remote connections to the
 # database are possible.
