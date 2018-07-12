@@ -6,7 +6,15 @@
     (modes (native))
     (flags (-warn-error (+A)))
     (preprocess (pps (lwt.ppx)))
-    (libraries (libcommon core batteries lwt yojson curl curl.lwt))
+    (libraries (libcommon
+                core
+                batteries
+                lwt
+                yojson
+                curl
+                curl.lwt
+                cohttp.lwt
+                ))
   )
 )
 

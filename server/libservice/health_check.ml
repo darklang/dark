@@ -8,4 +8,4 @@ let run () =
   let callback _conn req body =
     Server.respond_string ~status:`OK ~body:"" ()
   in
-  Server.create ~mode:(`TCP (`Port Config.port)) (Server.make ~callback ())
+  Server.create ~mode:(`TCP (`Port Config.health_check_port)) (Server.make ~callback ())
