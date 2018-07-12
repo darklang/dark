@@ -16,7 +16,6 @@
                 ; note that libtarget.{ocaml,js} are not included here
                 libtarget
                 libcommon
-                batteries
                 core_kernel
                 uuidm
                 re2

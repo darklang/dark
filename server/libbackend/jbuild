@@ -20,7 +20,6 @@
     (libraries (libtarget_ocaml
                 libexecution
                 libservice
-                batteries
                 cohttp.lwt
                 core
                 core_extended

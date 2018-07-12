@@ -41,7 +41,7 @@ let select (id: id) (setting : int) (l: 'a or_blank) (r: 'a or_blank) ff : 'a or
     else l
   | RealKey str ->
     let sum = str
-              |> Batteries.String.to_list
+              |> String.to_list
               |> List.map ~f:Char.to_int
               |> List.reduce ~f:(+)
               |> Option.value ~default:0
