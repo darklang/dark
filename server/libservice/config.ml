@@ -10,3 +10,5 @@ let rollbar_url =
 
 let rollbar_enabled = bool "DARK_CONFIG_ROLLBAR_ENABLED"
 let rollbar_environment = string "DARK_CONFIG_ROLLBAR_ENVIRONMENT"
+
+let health_check_port = int "DARK_CONFIG_HEALTH_CHECK_PORT"
