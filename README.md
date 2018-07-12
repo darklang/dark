@@ -77,7 +77,7 @@ Read me about integration testing in integration-tests/README.
 
 # Pull the prod db locally
 
-- `./scripts/replace-pg-from-gcp`
+- `./scripts/download-gcp-db`
 
 This pulls all the data from gcp and puts it in a db named "postgres". In
 development, we usually run against a db called "devdb". You

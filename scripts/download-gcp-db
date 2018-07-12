@@ -5,8 +5,9 @@ set -euo pipefail
 
 NUMBER=$RANDOM
 FILENAME="sqldump_$NUMBER.gz"
-GSFILENAME=gs://replace-pg-from-gcp/$FILENAME
+GSFILENAME=gs://download-gcp-db/$FILENAME
 LOGFILE="sqldump_$NUMBER.log"
+DB=prodclone
 
 ###########################
 echo "Exporting DB to $GSFILENAME "
@@ -21,11 +22,11 @@ gsutil cp $GSFILENAME .
 ###########################
 echo "Loading DB (logging to $LOGFILE)"
 ###########################
-dropdb postgres
-createdb postgres
+dropdb $DB
+createdb $DB
 
 # There are some permission statements for cloudsql that are not relevant
-gunzip --stdout $FILENAME | grep -v cloudsql | psql postgres > $LOGFILE
+gunzip --stdout $FILENAME | grep -v cloudsql | psql $DB > $LOGFILE
 
 ###########################
 echo "Deleting dumpfiles ($GSFILENAME, $FILENAME)"
