@@ -246,7 +246,7 @@ type AutocompleteMod = ACSetQuery String
 -----------------------------
 -- AB tests
 -----------------------------
-type VariantTest = StubVariant | ExeIconVariation String
+type VariantTest = StubVariant
 
 -----------------------------
 -- View
