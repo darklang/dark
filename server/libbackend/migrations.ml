@@ -77,39 +77,10 @@ let run () : unit =
 
   ()
 
-(* Used for integration tests *)
-let move_json_oplist_into_db () : unit =
-  let hosts = Serialize.json_file_hosts () in
-  List.iter hosts
-    ~f:(fun host ->
-        try
-          let ops =
-            (try
-              (Serialize.load_json_from_disk ~root:Appdata host)
-            with e ->
-              (Serialize.load_deprecated_undo_json_from_disk
-                         ~root:Appdata host))
-          in
-          match ops with
-          | None ->
-            Log.erroR "Found a host but couldn't load it" ~data:host;
-          | Some o ->
-            Serialize.save_json_to_db host o;
-            let filename = Serialize.json_unversioned_filename host in
-            File.rm ~root:Appdata filename
-        with e ->
-          Log.erroR "Found an error while moving the oplist into the DB"
-            ~params:["host", host; "exn", Exn.to_string e])
-
-
-
-
 (* ------------------------- *)
 (* Initialization *)
 (* ------------------------- *)
 
 let init () : unit  =
-  if Config.postgres_settings.dbname <> "testdb"
-  then move_json_oplist_into_db ();
   run ()
 
