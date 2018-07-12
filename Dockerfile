@@ -212,25 +212,25 @@ RUN opam update
 # https://github.com/mirleft/ocaml-nocrypto/issues/143
 RUN opam install -y \
   ppx_deriving.4.2.1 \
-  core.v0.10.0  \
-  core_extended.v0.10.0  \
-  jbuilder.1.0+beta20 \
-  re2.v0.10.1 \
+  core.v0.11.1  \
+  core_extended.v0.11.0 \
+  dune.1.0.0 \
+  re2.v0.11.0 \
   conf-libev \
   lwt.3.3.0 \
-  yojson.1.4.0 \
+  yojson.1.4.1 \
   postgresql.4.4.0 \
   ppx_deriving_yojson.3.1 \
   cohttp-lwt-unix.1.0.2 \
   ocurl.0.8.1 \
   alcotest.0.8.3 \
-  merlin.3.0.5 \
-  utop.2.0.2 \
+  merlin.3.1.0 \
+  utop.2.1.0 \
   ocp-indent.1.6.1 \
   batteries.2.8.0 \
   landmarks.1.1 \
   cstruct.3.2.1 \
-  nocrypto.0.5.4 \
+  nocrypto.0.5.4-1 \
   uuidm.0.9.6 \
   session.0.4.0 \
   session-cohttp.0.4.0 \
@@ -239,9 +239,9 @@ RUN opam install -y \
   session-postgresql-lwt.0.4.0 \
   junit_alcotest.2.0 \
   junit.2.0 \
-  js_of_ocaml.3.1.0 \
-  js_of_ocaml-ppx.3.1.0 \
-  js_of_ocaml-lwt.3.1.0
+  js_of_ocaml.3.2.0 \
+  js_of_ocaml-ppx.3.2.0 \
+  js_of_ocaml-lwt.3.2.0
 
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 
