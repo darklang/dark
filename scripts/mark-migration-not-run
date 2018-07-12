@@ -4,5 +4,5 @@ set -euo pipefail
 
 NAME=$1
 
-psql -d proddb -c "DELETE FROM system_migrations WHERE name LIKE '%$NAME.sql';"
+psql -d devdb -c "DELETE FROM system_migrations WHERE name LIKE '%$NAME.sql';"
 
