@@ -13,4 +13,18 @@ let () =
             let bt = Libexecution.Exception.get_backtrace () in
             Libbackend.Rollbar.report_lwt e bt (EventQueue) (string_of_int execution_id) >>=
             fun _ -> fail e));
-  print_endline "lol"
+  let rec queue_worker () =
+    Lwt_unix.sleep 1.0 >>= fun _ ->
+    let result = Libbackend.Queue_worker.run () in
+    match result with
+    | Ok _ ->
+      queue_worker ()
+    | Error (bt, e) ->
+      Libcommon.Log.erroR "queue_worker"
+        ~data:"Uncaught error"
+        ~params:["execution_id", string_of_int execution_id
+                ;"exn", Libexecution.Exception.exn_to_string e];
+      Libbackend.Rollbar.report_lwt e bt (EventQueue) (string_of_int execution_id) >>= fun _ ->
+      queue_worker ()
+  in
+  Lwt_main.run (queue_worker ())
