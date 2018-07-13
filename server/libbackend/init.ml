@@ -31,9 +31,7 @@ let init ~run_side_effects =
       Httpclient.init ();
 
       if run_side_effects then
-        Migrations.init ();
-        Account.init ();
-        Serialize.write_shape_data ();
+        (Migrations.init (); Account.init (); Serialize.write_shape_data ());
 
       Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete";
       has_inited := true;
