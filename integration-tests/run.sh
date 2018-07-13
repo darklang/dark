@@ -67,9 +67,10 @@ rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${TEST_RESULTS_DIR}/integration_tests.*
 
 # Clear DBs
-function run_sql { psql -d devdb -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }
+DB="${DARK_CONFIG_DB_DBNAME}"
+function run_sql { psql -d $DB -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }
 
-function fetch_sql { psql -d devdb -t -c "$@"; }
+function fetch_sql { psql -d $DB -t -c "$@"; }
 
 CANVASES=$(fetch_sql "SELECT id FROM canvases WHERE substring(name, 0, 6)
 = 'test-';")
