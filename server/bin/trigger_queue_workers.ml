@@ -2,7 +2,7 @@ open Core_kernel
 
 let _ =
   try
-    Libbackend.Init.init ();
+    Libbackend.Init.init ~run_side_effects:false;
     Libbackend.Queue_worker.dequeue_and_evaluate_all ()
     |> Out_channel.print_endline
   with e ->

@@ -2,7 +2,7 @@ open Core_kernel
 open Lwt
 
 let () =
-  Libbackend.Init.init ();
+  Libbackend.Init.init ~run_side_effects:false;
   let execution_id = Libexecution.Util.create_id () in
   (* spin up health http server *)
   Lwt.async
