@@ -196,41 +196,6 @@ let load_binary_from_db ~digest ~(host: string) ~(canvas_id: Uuidm.t) ()
          * far. *)
         Core_extended.Bin_io_utils.of_line x Op.bin_oplist)
 
-(* ------------------------- *)
-(* preprocessing *)
-(* ------------------------- *)
-let preprocess_deprecated_undo str =
-  (* this mutates all lambdas in the source to
-   * the new format as of 53f3fb82
-   *
-    Safe because there's no other way [ "var" ] can
-   * appear in the source (as of now).
-   *)
-  let transform_lambda s =
-    let regex = Re2.create_exn "\\[ \"var\" \\]" in
-    Re2.replace
-      ~f:(fun _ ->
-          Printf.sprintf
-            "[ [\"Filled\", %i, \"var\"] ]"
-            (Util.create_id ()))
-      regex
-      s
-    |> Result.ok
-    |> Option.value ~default:str
-  in
-  str
-  |> Util.string_replace "\"Undo\"" "\"DeprecatedUndo\""
-  |> Util.string_replace "\"Redo\"" "\"DeprecatedRedo\""
-  |> Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint\""
-  |> transform_lambda
-
-let preprocess_deprecated_savepoint2 str =
-  Util.string_replace "\"Savepoint\"" "\"DeprecatedSavepoint2\"" str
-
-let load_deprecated_undo_json_from_disk ~root =
-  load_json_from_disk ~root ~preprocess:preprocess_deprecated_undo
-
-
 
 (* ------------------------- *)
 (* deserialing algorithm *)
