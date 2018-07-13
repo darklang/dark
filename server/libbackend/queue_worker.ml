@@ -82,5 +82,3 @@ let run execution_id : (unit, Exception.captured) Result.t =
         let bt = Exception.get_backtrace () in
         Error (bt, e)
   )
-
-let dequeue_and_evaluate_all () : string = ""
