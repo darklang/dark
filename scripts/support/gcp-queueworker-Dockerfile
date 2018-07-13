@@ -1,0 +1,4 @@
+FROM dark-gcp:latest
+ARG GIT_COMMIT
+ENV GIT_COMMIT ${GIT_COMMIT}
+CMD "./gcp-run-queueworker"

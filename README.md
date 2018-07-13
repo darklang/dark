@@ -19,7 +19,7 @@ We're running in kubernetes on GKE.
 
 Build the production container (assumes that the build has succeeded):
 
-- `./scripts/gcp-build-container`
+- `./scripts/gcp-build-containers`
 
 Run it locally (well, inside the dev container):
 

@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [[ -v DARK_CONFIG_RUNNING_IN_GKE ]]; then
+  sudo mkdir -p $DARK_CONFIG_RUN_DIR
+  sudo mkdir -p $DARK_CONFIG_PERSIST_DIR
+fi
+
+sudo chown dark $DARK_CONFIG_RUN_DIR
+sudo chown dark $DARK_CONFIG_PERSIST_DIR
+
+./scripts/support/write-config-file
+./scripts/support/create-app-directories
+
+echo "Starting queue worker"
+sudo --preserve-env ./bin/queueworker.exe
