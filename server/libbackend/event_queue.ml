@@ -12,6 +12,7 @@ type t = { id: int
          ; retries: int
          ; flag_context: feature_flag
          ; canvas_id: Uuidm.t
+         ; host: string
          ; space: string
          ; name: string
          }
@@ -47,23 +48,25 @@ let dequeue transaction : t option =
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
-      "SELECT id, value, retries, flag_context, canvas_id, space, name
-       FROM events
+      "SELECT e.id, e.value, e.retries, e.flag_context, e.canvas_id, c.name, e.space, e.name
+       FROM events AS e
+       JOIN canvases AS c ON e.canvas_id = c.id
        WHERE delay_until < CURRENT_TIMESTAMP
        AND status = 'new'
        ORDER BY id DESC, retries ASC
-       FOR UPDATE SKIP LOCKED
+       FOR UPDATE OF e SKIP LOCKED
        LIMIT 1"
      ~params:[]
   in
   match fetched with
   | None -> None
-  | Some [id; value; retries; flag_context; canvas_id; space; name] ->
+  | Some [id; value; retries; flag_context; canvas_id; host; space; name] ->
     Some { id = int_of_string id
          ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
          ; flag_context = FF.from_sql flag_context
          ; canvas_id = Uuidm.of_string canvas_id |> Option.value_exn ~message:("Bad UUID: " ^ canvas_id)
+         ; host = host
          ; space = space
          ; name = name
          }

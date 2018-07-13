@@ -192,9 +192,10 @@ let load_only ~tlids host (newops: Op.op list) : canvas ref =
 let load_http ~verb ~path host : canvas ref =
   load_from ~f:(Serialize.load_for_http ~path ~verb) host []
 
-let load_for_event event =
-  let c = load_all "ian-foo" [] in
-  c
+let load_for_event (event: Event_queue.t) =
+  (* TODO: slim down by event description once we can do that *)
+  load_all event.host []
+
 
 let serialize_only (tlids: tlid list) (c: canvas) : unit =
   let munge_name module_ n =
@@ -256,8 +257,6 @@ let save_tlids (c : canvas) (tlids: tlid list): unit =
 let save_all (c : canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
   save_tlids c tlids
-
-
 
 
 (* ------------------------- *)

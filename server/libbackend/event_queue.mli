@@ -12,6 +12,7 @@ type t = { id: int
          ; retries: int
          ; flag_context: RuntimeT.feature_flag
          ; canvas_id: Uuidm.t
+         ; host: string
          ; space: string
          ; name: string
          }
