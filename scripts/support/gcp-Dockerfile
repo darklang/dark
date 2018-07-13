@@ -15,7 +15,6 @@ RUN apt-get update \
       libcurl4-gnutls-dev \
       locales=2.26-0ubuntu2.1 \
       libpq-dev=9.6.9-0ubuntu0.17.10 \
-      cron \
       libev-dev=1:4.22-1 \
       sudo \
     && rm -rf /var/lib/apt/lists/*
