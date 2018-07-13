@@ -525,7 +525,7 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ~execution_id
       `OK body
   | "/admin/check-all-oplists" ->
-    Serialize.check_all_oplists ();
+    Canvas.check_all_oplists ();
     respond ~execution_id `OK "Checked"
   | _ ->
     respond ~execution_id `Not_found "Not found"

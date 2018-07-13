@@ -284,6 +284,8 @@ let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =
 (* ------------------------- *)
 (* hosts *)
 (* ------------------------- *)
+let current_hosts () : string list =
+  all_oplists ()
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
 let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
@@ -295,15 +297,5 @@ let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   |> Uuidm.of_string
   |> Option.value_exn
 
-let current_hosts () : string list =
-  all_oplists ()
 
-let check_all_oplists () : unit =
-  current_hosts ()
-  |> List.map ~f:(fun host ->
-      let owner = Account.for_host host in
-      let canvas_id = fetch_canvas_id owner host in
-      match search_and_load host canvas_id with
-      | [] -> Exception.internal "got nothing, expected something"
-      | _ -> ())
-  |> ignore
+
