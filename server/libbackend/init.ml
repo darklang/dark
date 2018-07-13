@@ -3,7 +3,7 @@ open Core_kernel
 let has_inited : bool ref =
   ref false
 
-let init () =
+let init ~run_side_effects =
   try
     if !has_inited
     then ()
@@ -29,9 +29,11 @@ let init () =
       (* Dark-specific stuff *)
       File.init ();
       Httpclient.init ();
-      Migrations.init ();
-      Account.init ();
-      Serialize.write_shape_data ();
+
+      if run_side_effects then
+        Migrations.init ();
+        Account.init ();
+        Serialize.write_shape_data ();
 
       Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete";
       has_inited := true;

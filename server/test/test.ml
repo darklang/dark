@@ -639,7 +639,7 @@ let suite =
   ]
 
 let () =
-  Libbackend.Init.init ();
+  Libbackend.Init.init ~run_side_effects:true;
   Log.set_level `All;
   Account.init_testing ();
 
