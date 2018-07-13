@@ -221,7 +221,6 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     | DResp (http, value) ->
       (match http with
        | Redirect url ->
-         Event_queue.finalize state.execution_id ~status:`OK;
          S.respond_redirect (Uri.of_string url) ()
        | Response (code, resp_headers) ->
          let body =
@@ -236,7 +235,6 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
          let resp_headers =
            maybe_infer_headers resp_headers value
          in
-         Event_queue.finalize state.execution_id ~status:`OK;
          let status = Cohttp.Code.status_of_code code in
          let resp_headers = Cohttp.Header.of_list ([cors]
                                                    @ resp_headers
@@ -244,7 +242,6 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
          in
          respond ~resp_headers ~execution_id status body)
     | _ ->
-      Event_queue.finalize state.execution_id ~status:`OK;
       let body = Dval.dval_to_pretty_json_string result in
       let ct_headers =
         maybe_infer_headers [] result
@@ -305,11 +302,9 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
         else ()
       ) in
 
-  Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with
   | e ->
-    Event_queue.finalize execution_id ~status:`Err;
     raise e
 
 let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.t * string) =
@@ -324,11 +319,9 @@ let initial_load ~(execution_id: Types.id) (host: string) body : (Cohttp.Header.
     let (t3, result) = time "3-to-frontend"
         (fun _ -> Analysis.to_rpc_response_frontend !c [] unlocked) in
 
-  Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3], result)
   with
   | e ->
-    Event_queue.finalize execution_id ~status:`Err;
     raise e
 
 
@@ -364,11 +357,9 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
       (fun _ ->
         Analysis.to_execute_function_response_frontend exe_fn_ids (hvals @ fvals)) in
 
-  Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5], result)
   with
   | e ->
-    Event_queue.finalize execution_id ~status:`Err;
     raise e
 
 let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Cohttp.Header.t * string) =
@@ -404,11 +395,9 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
     let (t7, result) = time "7-to-frontend"
       (fun _ -> Analysis.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
-  Event_queue.finalize execution_id ~status:`OK;
   (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with
   | e ->
-    Event_queue.finalize execution_id ~status:`Err;
     raise e
 
 

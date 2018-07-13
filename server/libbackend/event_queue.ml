@@ -6,10 +6,14 @@ open Types.RuntimeT
 
 module FF = Feature_flag
 
+type transaction = int
 type t = { id: int
          ; value: dval
          ; retries: int
          ; flag_context: feature_flag
+         ; canvas_id: Uuidm.t
+         ; space: string
+         ; name: string
          }
 
 let status_to_enum status : string =
@@ -18,21 +22,9 @@ let status_to_enum status : string =
   | `Err -> "error"
   | `Incomplete -> "error"
 
-let unlock_jobs (dequeuer: int) ~status : unit =
-  Db.run
-    ~name:"unlock_jobs"
-    "UPDATE \"events\"
-     SET status = $1
-     WHERE dequeued_by = $2
-       AND status = 'locked'"
-    ~params:[String (status_to_enum status); Int dequeuer]
-
 (* ------------------------- *)
 (* Public API *)
 (* ------------------------- *)
-
-let finalize (dequeuer: int) ~status : unit =
-  unlock_jobs ~status dequeuer
 
 let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
   Db.run
@@ -49,50 +41,61 @@ let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : un
              ; String (FF.to_sql state.ff)
              ]
 
-(* This should soon enough do something like:
- * https://github.com/chanks/que/blob/master/lib/que/sql.rb#L4
- * but multiple queries will do fine for now
- *)
-let dequeue ~(canvas:Uuidm.t) ~(account:Uuidm.t) (execution_id: int) (space: string) (name: string) : t option =
+let dequeue transaction : t option =
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
-      "SELECT id, value, retries, flag_context FROM events
-       WHERE space = $1
-         AND name = $2
-         AND status = 'new'
-         AND delay_until < CURRENT_TIMESTAMP
-         AND canvas_id = $3
-         AND account_id = $4
-       ORDER BY id DESC
-              , retries ASC
+      "SELECT id, value, retries, flag_context, canvas_id, space, name
+       FROM events
+       FOR UPDATE SKIP LOCKED
+       WHERE delay_until < CURRENT_TIMESTAMP
+       AND status = 'new'
+       ORDER BY id DESC, retries ASC
        LIMIT 1"
-      ~params:[ Db.String space
-              ; Db.String name
-              ; Db.Uuid canvas
-              ; Db.Uuid account]
+     ~params:[]
   in
   match fetched with
   | None -> None
-  | Some [id; value; retries; flag_context] ->
-    Db.run
-      ~name:"dequeue_update"
-      "UPDATE events
-      SET status = 'locked'
-        , dequeued_by = $1
-      WHERE id = $2"
-      ~params:[Int execution_id; String id];
+  | Some [id; value; retries; flag_context; canvas_id; space; name] ->
     Some { id = int_of_string id
          ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
          ; flag_context = FF.from_sql flag_context
+         ; canvas_id = Uuidm.of_string canvas_id |> Option.value_exn ~message:("Bad UUID: " ^ canvas_id)
+         ; space = space
+         ; name = name
          }
   | Some s ->
     Exception.internal
       ("Fetched seemingly impossible shape from Postgres"
        ^ ("[" ^ (String.concat ~sep:", " s) ^ "]"))
 
-let put_back (item: t) ~status : unit =
+let begin_transaction () =
+  let id = Util.create_id () in
+  let _ =
+    Db.run
+      ~name:"start_transaction"
+      ~params:[]
+      "BEGIN"
+  in
+  id
+
+let end_transaction t =
+  let _ =
+    Db.run
+      ~name:"end_transaction"
+      ~params:[]
+      "COMMIT"
+  in
+  ()
+
+let with_transaction f =
+  let transaction = begin_transaction () in
+  let result = f transaction in
+  end_transaction transaction;
+  result
+
+let put_back transaction (item: t) ~status : unit =
   match status with
   | `OK ->
     Db.run
@@ -128,8 +131,8 @@ let put_back (item: t) ~status : unit =
         WHERE id = $1"
         ~params:[Int item.id]
 
-let finish (item: t) : unit =
-  put_back ~status:`OK item
+let finish transaction (item: t) : unit =
+  put_back transaction ~status:`OK item
 
 
 

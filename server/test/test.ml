@@ -434,26 +434,26 @@ let t_stored_event_roundtrip () =
 
   ()
 
-module EQ = Event_queue
-let t_event_queue_roundtrip () =
-  clear_test_data ();
-  let dval = DInt 345 in
-  let exec_id = 147 in
-  let space = "TEST_SPACE" in
-  let name = "test_name" in
-  let c = ops2c "test-event_queue" [] in
-  let state = Execution.state_for_execution ~c:!c tlid
-      ~execution_id ~env:DvalMap.empty
-  in
-  EQ.enqueue state space name dval;
-  let v =
-    EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name
-    |> fun x -> Option.value_exn x
-  in
+(* module EQ = Event_queue *)
+(* let t_event_queue_roundtrip () = *)
+(*   clear_test_data (); *)
+(*   let dval = DInt 345 in *)
+(*   let exec_id = 147 in *)
+(*   let space = "TEST_SPACE" in *)
+(*   let name = "test_name" in *)
+(*   let c = ops2c "test-event_queue" [] in *)
+(*   let state = Execution.state_for_execution ~c:!c tlid *)
+(*       ~execution_id ~env:DvalMap.empty *)
+(*   in *)
+(*   EQ.enqueue state space name dval; *)
+(*   let v = *)
+(*     EQ.dequeue ~canvas:!c.id ~account:!c.owner exec_id space name *)
+(*     |> fun x -> Option.value_exn x *)
+(*   in *)
 
-  AT.check at_dval "v" v.value dval;
+(*   AT.check at_dval "v" v.value dval; *)
 
-  ()
+(*   () *)
 
 let t_bad_ssl_cert _ =
   check_exception "should get bad_ssl"
@@ -619,7 +619,7 @@ let suite =
   ; "int_add_works", `Quick, t_int_add_works
   ; "lambda_with_foreach", `Quick, t_lambda_with_foreach
   ; "stored_events", `Quick, t_stored_event_roundtrip
-  ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
+  (* ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip *)
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
   ; "http oplist roundtrip", `Quick, t_http_oplist_roundtrip
