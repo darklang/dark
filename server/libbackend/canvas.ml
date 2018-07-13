@@ -117,7 +117,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | Deprecated2
     | Deprecated3
     | Deprecated4 _ ->
-      Exception.internal ("Deprecated ops shouldn't be here anymore! " ^ (Op.show_op op))
+      Exception.internal ("Deprecated ops shouldn't be here anymore! " ^
+                          (Op.show_op op) ^ " in " ^ !c.host)
     | UndoTL _
     | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
@@ -230,6 +231,14 @@ let save_test (c: canvas) : string =
   let file = Serialize.json_unversioned_filename host in
   Serialize.save_json_to_disk ~root:Testdata file (ops2oplist c.ops);
   file
+
+let check_all_oplists () : unit =
+  Serialize.current_hosts ()
+  |> List.map ~f:(fun host ->
+      let c = load_all host [] in
+      save !c;
+      ())
+  |> ignore
 
 (* ------------------------- *)
 (* Routing *)
