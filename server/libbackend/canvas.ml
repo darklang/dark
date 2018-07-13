@@ -193,7 +193,7 @@ let load_http ~verb ~path host : canvas ref =
   load_from ~f:(Serialize.load_for_http ~path ~verb) host []
 
 let load_for_event event =
-  let c = create ~load:true "dabblefox-shelf" [] in
+  let c = create ~load:true "ian-foo" [] in
   c
 
 let serialize_only (tlids: tlid list) (c: canvas) : unit =

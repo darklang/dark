@@ -15,6 +15,7 @@ type t = { id: int
          ; space: string
          ; name: string
          }
+val to_event_desc : t -> Stored_event.event_desc
 
 
 val enqueue : RuntimeT.exec_state -> string -> string -> RuntimeT.dval -> unit

@@ -15,6 +15,8 @@ type t = { id: int
          ; space: string
          ; name: string
          }
+let to_event_desc t =
+  (t.space, t.name, "_") (* See Entry.elm *)
 
 let status_to_enum status : string =
   match status with
@@ -47,10 +49,10 @@ let dequeue transaction : t option =
       ~name:"dequeue_fetch"
       "SELECT id, value, retries, flag_context, canvas_id, space, name
        FROM events
-       FOR UPDATE SKIP LOCKED
        WHERE delay_until < CURRENT_TIMESTAMP
        AND status = 'new'
        ORDER BY id DESC, retries ASC
+       FOR UPDATE SKIP LOCKED
        LIMIT 1"
      ~params:[]
   in

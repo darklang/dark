@@ -15,7 +15,7 @@ let () =
             fun _ -> fail e));
   let rec queue_worker () =
     Lwt_unix.sleep 1.0 >>= fun _ ->
-    let result = Libbackend.Queue_worker.run () in
+    let result = Libbackend.Queue_worker.run execution_id in
     match result with
     | Ok _ ->
       queue_worker ()
