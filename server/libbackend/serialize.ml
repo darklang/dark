@@ -48,24 +48,30 @@ let load_oplists ~(host: string) ~(digest: string) : string option =
     ~result:BinaryResult
   |> Option.map ~f:List.hd_exn
 
-let load_per_tlid_oplists ~(canvas_id: Uuidm.t) : (int * string) list =
+let load_per_tlid_oplists (canvas_id: Uuidm.t) : string list =
   Db.fetch
     ~name:"load_per_tlid_oplists"
-    "SELECT data, tlid FROM toplevel_oplists
+    "SELECT data FROM toplevel_oplists
      WHERE canvas_id = $1"
     ~params:[Uuid canvas_id]
     ~result:BinaryResult
   |> List.map
     ~f:(fun results ->
         match results with
-        | [tlid; data] ->
-          (int_of_string tlid, data)
+        | [data] -> data
         | _ -> Exception.internal "Shape of per_tlid oplists")
 
-let save_toplevel_oplist ~tlid ~(ops:Op.oplist)
-    ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t) ~(name:string)
-    ~(module_: string) ~(modifier:string) (data:string)
+let save_toplevel_oplist
+    ~(tlid:Types.tlid) ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t)
+    ~(name:string option) ~(module_: string option)
+    ~(modifier:string option)
+    (ops:Op.oplist)
   : unit =
+  let string_option o =
+    match o with
+    | Some str -> Db.String str
+    | None -> Db.Null
+  in
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
@@ -82,10 +88,10 @@ let save_toplevel_oplist ~tlid ~(ops:Op.oplist)
             ; Uuid account_id
             ; Int tlid
             ; String digest
-            ; String name
-            ; String module_
-            ; String modifier
-            ; Binary data]
+            ; string_option name
+            ; string_option module_
+            ; string_option modifier
+            ; Binary (Op.oplist_to_string ops)]
 
 let load_json_oplists ~(host: string) : string option =
   Db.fetch_one_option
@@ -172,8 +178,7 @@ let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
                                    ; "digest", digest
                                    ; "host", host];
   ops
-  |> Core_extended.Bin_io_utils.to_line Op.bin_oplist
-  |> Bigstring.to_string
+  |> Op.oplist_to_string
   |> save_oplists host digest
 
 let save host ops : unit =
@@ -252,13 +257,17 @@ let load_migratory_from_db ~(host:string) ~(canvas_id: Uuidm.t) ()
   Option.map ~f:(alert_on_deprecated_ops host) ops |> ignore;
   ops
 
-let load_and_combine_from_per_tlid_oplists ~(host:string)
-    ~(canvas_id: Uuidm.t) () : Op.oplist option =
-  None
+let load_from_per_tlid_oplists ~(host:string)
+    ~(canvas_id: Uuidm.t) () : (int * Op.oplist) list =
 
-let save_from_per_tlid_oplists ~(host:string) ~(canvas_id: Uuidm.t)
-  (ops: Op.oplist) : unit =
-  ()
+  canvas_id
+  |> load_per_tlid_oplists
+  |> List.map ~f:(fun str ->
+      let ops = Op.oplist_of_string str in
+      (* there must be at least one op *)
+      let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
+      (tlid, ops))
+
 
 
 let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =

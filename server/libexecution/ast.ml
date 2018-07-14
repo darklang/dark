@@ -17,6 +17,13 @@ let is_blank (bo: 'a or_blank) : bool =
   | Blank _ -> true
   | _ -> false
 
+let rec blank_to_option (bo: 'a or_blank) : 'a option =
+  match bo with
+  | Blank _ -> None
+  | Filled (_, a) -> Some a
+  | Flagged (_, _, _, a, _)  -> blank_to_option a
+
+
 
 let to_id (expr: expr) : id =
   blank_to_id expr
