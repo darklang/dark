@@ -2,6 +2,41 @@ open Core_kernel
 open Libcommon
 open Libexecution
 
+(* We serialize oplists for each toplevel in the DB. This affect making
+ * changes to almost any fundamental type in Dark, so must be
+ * understood.
+ *
+ * The most important thing to understand is that if you make any change
+ * you'll need to do a data migration.
+ *
+ * The oplists for toplevels are stored in per-tlid oplists, serialized
+ * to binary. Since they're serialized to binary, they are not easily
+ * editable. As a result, we also serialize the entire canvas to json in
+ * the background. (We do the entire canvas rather than just individual
+ * toplevels as it seems less likely to fail, and it was easier in the
+ * first pass. It has significantly worse performance so we should
+ * change it later, perhaps once we gain more confidence in everything).
+ *
+ * To do a migration, first change the type - that's enough to create
+ * the new binary serialization functions. Then create a function to
+ * preprocess the json in the old format into the new format. That will
+ * allow live migrations without breaking customers who are currently
+ * using the site.
+ *
+ * Then you need to migrate the data - we didn't used to do this and it
+ * led to a lot of problems. All data should be in the same
+ * format (the `digest` field in the DB should tell us what format it
+ * is). Data is migrated by calling the /admin/check-all-oplists
+ * endpoint. You should check that it works locally first using
+ * scripts/download-gcp-db).
+ *
+ * (Note: at time of writing, the code isn't really set up to fully
+ * support what this comment describes, but it's close enough, and
+ * should be fully converted soon.)
+ *)
+
+
+
 let digest = Op.bin_shape_oplist
              |> Bin_prot.Shape.eval_to_digest_string
 
