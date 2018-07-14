@@ -240,6 +240,12 @@ let load_in_new_form host newops : canvas ref =
   add_ops c oldops newops;
   c
 
+let save_new_form_as_json (c: canvas) : unit =
+  c.ops
+  |> ops2oplist
+  |> Serialize.save_json_to_db c.host 
+
+
 let save_everything_in_new_form c : unit =
   let handler_metadata (h: Handler.handler) =
     ( h.tlid
