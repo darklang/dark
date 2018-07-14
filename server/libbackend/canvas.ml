@@ -109,7 +109,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | SetExpr (tlid, id, e) ->
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
     | DeleteTL tlid ->
-      remove_toplevel (Log.inspect "removingtl" tlid)
+      remove_toplevel tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | SetFunction user_fn ->
       upsert_function user_fn
