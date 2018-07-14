@@ -250,8 +250,7 @@ let save_everything_in_new_form c : unit =
         ~name:name ~module_:module_ ~modifier:modifier)
 
 let save (c : canvas) : unit =
-  save_everything_in_new_form c;
-  Serialize.save c.host (ops2oplist c.ops)
+  save_everything_in_new_form c
 
 
 
@@ -270,19 +269,7 @@ let save_test (c: canvas) : string =
   file
 
 let check_all_oplists () : unit =
-  Serialize.current_hosts ()
-  |> List.map ~f:(fun host ->
-      let c = load_all host [] in
-      save_everything_in_new_form !c;
-      let c2 = load_in_new_form host [] in
-      let sort l = List.sort l ~compare:(fun (tlid1, _) (tlid2, _) ->
-          compare tlid1 tlid2) in
-      let ops1 = !c.ops |> sort in
-      let ops2 = !c2.ops |> sort in
-      if ops1 <> ops2
-      then Exception.internal ("Not equal for host " ^ host);
-      ())
-  |> ignore
+  ()
 
 (* ------------------------- *)
 (* Routing *)
