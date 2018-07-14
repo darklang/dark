@@ -173,6 +173,6 @@ let last_ditch
     (execution_id: string)
   : unit =
   (* Before anything else, get this flushed to logs *)
-  Caml.print_endline ("UNHANDLED ERROR: " ^ name);
+  Caml.print_endline ("UNHANDLED ERROR: " ^ name ^ " - " ^ (pp e));
   let bt = Caml.Printexc.get_raw_backtrace () in
   ignore (report ~pp ~inspect e bt (Other "main") execution_id)
