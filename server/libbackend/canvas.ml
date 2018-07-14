@@ -217,9 +217,6 @@ let load_http host ~verb ~uri =
 let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
-let save (c : canvas) : unit =
-  Serialize.save c.host (ops2oplist c.ops)
-
 
 let load_in_new_form host newops : canvas ref =
   let owner = Account.for_host host in
@@ -266,6 +263,11 @@ let save_everything_in_new_form c : unit =
       Serialize.save_toplevel_oplist oplist
         ~tlid ~canvas_id:c.id ~account_id:c.owner
         ~name:name ~module_:module_ ~modifier:modifier)
+
+let save (c : canvas) : unit =
+  save_everything_in_new_form c;
+  Serialize.save c.host (ops2oplist c.ops)
+
 
 
 let save_test (c: canvas) : string =
