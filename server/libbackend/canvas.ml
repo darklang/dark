@@ -165,7 +165,8 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
 
   let oldops =
     if load
-    then Serialize.search_and_load host canvas_id
+    then Serialize.load_from_per_tlid_oplists ~host ~canvas_id ()
+         |> ops2oplist
     else []
   in
 
@@ -217,28 +218,6 @@ let load_http host ~verb ~uri =
 let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
-
-let load_in_new_form host newops : canvas ref =
-  let owner = Account.for_host host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
-
-  let oldops =
-    Serialize.load_from_per_tlid_oplists ~host ~canvas_id ()
-    |> ops2oplist
-  in
-
-  let c =
-    ref { host = host
-        ; owner = owner
-        ; id = canvas_id
-        ; ops = []
-        ; handlers = []
-        ; dbs = []
-        ; user_functions = []
-        }
-  in
-  add_ops c oldops newops;
-  c
 
 let save_new_form_as_json (c: canvas) : unit =
   c.ops
