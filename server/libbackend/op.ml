@@ -62,4 +62,12 @@ let tlidOf (op: op) : tlid option =
   | Deprecated3
   | Deprecated4 _ -> None
 
+let oplist_to_string (ops: op list) : string =
+  ops
+  |> Core_extended.Bin_io_utils.to_line bin_oplist
+  |> Bigstring.to_string
+
+let oplist_of_string (str:string) : op list =
+  Core_extended.Bin_io_utils.of_line str bin_oplist
+
 

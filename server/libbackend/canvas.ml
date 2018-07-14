@@ -1,5 +1,6 @@
 open Core_kernel
 open Libexecution
+open Libcommon
 
 open Util
 open Types
@@ -107,7 +108,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       apply_to_db ~f:(User_db.initialize_migration id rbid rfid kind) tlid
     | SetExpr (tlid, id, e) ->
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
-    | DeleteTL tlid -> remove_toplevel tlid
+    | DeleteTL tlid ->
+      remove_toplevel (Log.inspect "removingtl" tlid)
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | SetFunction user_fn ->
       upsert_function user_fn
@@ -218,6 +220,54 @@ let init = create ~load:false
 let save (c : canvas) : unit =
   Serialize.save c.host (ops2oplist c.ops)
 
+
+let load_in_new_form host newops : canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+
+  let oldops =
+    Serialize.load_from_per_tlid_oplists ~host ~canvas_id ()
+    |> ops2oplist
+  in
+
+  let c =
+    ref { host = host
+        ; owner = owner
+        ; id = canvas_id
+        ; ops = []
+        ; handlers = []
+        ; dbs = []
+        ; user_functions = []
+        }
+  in
+  add_ops c oldops newops;
+  c
+
+let save_everything_in_new_form c : unit =
+  let handler_metadata (h: Handler.handler) =
+    ( h.tlid
+    , ( Ast.blank_to_option h.spec.name
+      , Ast.blank_to_option h.spec.module_
+      , Ast.blank_to_option h.spec.modifier))
+  in
+  let hmeta =
+    c.handlers
+    |> Toplevel.handlers
+    |> List.map ~f:handler_metadata
+  in
+  let set = Int.Map.of_alist_exn hmeta in
+  (* Use ops rather than just set of toplevels, because toplevels may
+   * have been deleted, and therefore not appear. *)
+  List.iter c.ops ~f:(fun (tlid, oplist) ->
+      let (name, module_, modifier) =
+        Int.Map.find set tlid
+        |> Option.value ~default:(None, None, None)
+      in
+      Serialize.save_toplevel_oplist oplist
+        ~tlid ~canvas_id:c.id ~account_id:c.owner
+        ~name:name ~module_:module_ ~modifier:modifier)
+
+
 let save_test (c: canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
@@ -236,7 +286,14 @@ let check_all_oplists () : unit =
   Serialize.current_hosts ()
   |> List.map ~f:(fun host ->
       let c = load_all host [] in
-      save !c;
+      save_everything_in_new_form !c;
+      let c2 = load_in_new_form host [] in
+      let sort l = List.sort l ~compare:(fun (tlid1, _) (tlid2, _) ->
+          compare tlid1 tlid2) in
+      let ops1 = !c.ops |> sort in
+      let ops2 = !c2.ops |> sort in
+      if ops1 <> ops2
+      then Exception.internal ("Not equal for host " ^ host);
       ())
   |> ignore
 
