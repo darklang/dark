@@ -334,7 +334,7 @@ let t_db_oplist_roundtrip () =
   Serialize.save_toplevel_oplist oplist
     ~tlid ~canvas_id ~account_id:owner
     ~name:None ~module_:None ~modifier:None;
-  match (Serialize.load_from_per_tlid_oplists
+  match (Serialize.load_all_from_db
            ~canvas_id ~host ()) with
   | Some ops ->
     check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
