@@ -165,16 +165,17 @@ let all_oplists () : string list =
 (* loading and saving *)
 (* ------------------------- *)
 let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
-    ~(canvas_id: Uuidm.t) () : Op.oplist option =
+    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
   Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
                                    ; "host", host];
   let filename = json_unversioned_filename host in
   File.maybereadjsonfile ~root filename
     ~conv:Op.oplist_of_yojson ~stringconv:preprocess
+  |> Option.map ~f:Op.oplist2tlid_oplists
 
 let load_json_from_db ?(preprocess=ident) ~(host: string)
-    ~(canvas_id: Uuidm.t) () : Op.oplist option =
+    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
   Log.infO "serialization" ~params:[ "load_from", "db"
                                    ; "format", "json"
                                    ; "host", host];
@@ -185,56 +186,30 @@ let load_json_from_db ?(preprocess=ident) ~(host: string)
       |> preprocess
       |> Yojson.Safe.from_string
       |> Op.oplist_of_yojson
-      |> Result.ok_or_failwith)
+      |> Result.ok_or_failwith
+      |> Op.oplist2tlid_oplists)
 
-let save_json_to_disk ~root (filename: string) (ops: Op.oplist) : unit =
+let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
   Log.infO "serialization" ~params:[ "save_to", "disk"
                                    ; "format", "json"
                                    ; "filename", filename];
   ops
+  |> Op.tlid_oplists2oplist
   |> Op.oplist_to_yojson
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename
 
-let save_json_to_db (host: string) (ops: Op.oplist) : unit =
+let save_json_to_db (host: string) (ops: Op.tlid_oplists) : unit =
   Log.infO "serialization" ~params:[ "save_to", "db"
                                    ; "format", "json"
                                    ; "digest", digest
                                    ; "host", host];
   ops
+  |> Op.tlid_oplists2oplist
   |> Op.oplist_to_yojson
   |> Yojson.Safe.to_string
   |> save_json_oplists ~host ~digest
-
-let save_binary_to_db (host: string) (ops: Op.oplist) : unit =
-  Log.infO "serialization" ~params:[ "save_to", "db"
-                                   ; "format", "binary"
-                                   ; "digest", digest
-                                   ; "host", host];
-  ops
-  |> Op.oplist_to_string
-  |> save_oplists host digest
-
-let save host ops : unit =
-  save_binary_to_db host ops;
-  ignore (File.convert_bin_to_json host)
-
-
-
-let load_binary_from_db ~digest ~(host: string) ~(canvas_id: Uuidm.t) ()
-  : Op.oplist option =
-  Log.infO "serialization" ~params:[ "load_from", "db"
-                                   ; "format", "binary"
-                                   ; "digest", digest
-                                   ; "host", host];
-  load_oplists host digest
-  |> Option.map
-    ~f:(fun x ->
-        (* Supposedly, we're supposed to remove an ending \n that
-         * to_line helpfully adds, but that hasn't been a problem so
-         * far. *)
-        Core_extended.Bin_io_utils.of_line x Op.bin_oplist)
 
 
 (* ------------------------- *)
@@ -243,8 +218,9 @@ let load_binary_from_db ~digest ~(host: string) ~(canvas_id: Uuidm.t) ()
 let deserialize_ordered
     (host : string)
     (canvas_id : Uuidm.t)
-    (descs : (host:string -> canvas_id:Uuidm.t -> unit -> Op.oplist option) list)
-    : Op.oplist =
+    (descs :
+       (host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists option) list)
+    : Op.tlid_oplists =
   (* try each in turn. If the file exists, try it, and return if
     successful. If it fails, save the error and try the next one *)
   let (result, errors) =
@@ -272,29 +248,8 @@ let deserialize_ordered
     in
     Exception.internal ~info:msgs ("storage errors with " ^ host)
 
-let alert_on_deprecated_ops host (ops: Op.oplist) : unit =
-  List.iter ops ~f:(fun op ->
-    match op with
-    | Deprecated0
-    | Deprecated1
-    | Deprecated2
-    | Deprecated3
-    | Deprecated4 _ ->
-      Exception.internal "bad op" ~info:["host", host] ~actual:(Op.show_op op)
-    | _ -> ())
-
-
-
-(* Use this to migrate to the per-tlid version *)
-let load_migratory_from_db ~(host:string) ~(canvas_id: Uuidm.t) ()
-  : Op.oplist option =
-  let ops = load_binary_from_db ~digest ~host ~canvas_id () in
-  Option.map ~f:(alert_on_deprecated_ops host) ops |> ignore;
-  ops
-
 let load_from_per_tlid_oplists ~(host:string)
-    ~(canvas_id: Uuidm.t) () : (int * Op.oplist) list =
-
+    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
   canvas_id
   |> load_per_tlid_oplists
   |> List.map ~f:(fun str ->
@@ -302,25 +257,28 @@ let load_from_per_tlid_oplists ~(host:string)
       (* there must be at least one op *)
       let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
       (tlid, ops))
+  |> (fun ops ->
+        if ops = []
+        then None
+        else Some ops)
 
 
 
-let search_and_load (host: string) (canvas_id: Uuidm.t) : Op.oplist =
+
+let search_and_load (host: string) (canvas_id: Uuidm.t)
+  : Op.tlid_oplists =
   (* testfiles load and save from different directories *)
   if is_test host
   then
     (* when there are no oplists, read from disk. The test harnesses
      * clean up old oplists before running. *)
     deserialize_ordered host canvas_id
-      [ load_binary_from_db ~digest
+      [ load_from_per_tlid_oplists
       ; load_json_from_disk ~root:Testdata ~preprocess:ident
       ]
   else
     deserialize_ordered host canvas_id
-      [ load_migratory_from_db
-      (* These are the only formats that exist in production, newest
-       * first. *)
-      ; load_binary_from_db ~digest:"58304561d23692e4e8559a6071de168d"
+      [ load_from_per_tlid_oplists
       ; load_json_from_db ~preprocess:ident
       ]
 
