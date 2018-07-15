@@ -63,6 +63,7 @@ let at_dval = AT.testable
 let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
+let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 
 let handler ast : Handler.handler =
   { tlid = tlid
@@ -330,11 +331,13 @@ let t_db_oplist_roundtrip () =
                ; Op.RedoTL tlid
                ; Op.UndoTL tlid
                ; Op.RedoTL tlid] in
-  Serialize.save_binary_to_db host oplist;
-  match (Serialize.load_binary_from_db ~digest:Serialize.digest
+  Serialize.save_toplevel_oplist oplist
+    ~tlid ~canvas_id ~account_id:owner
+    ~name:None ~module_:None ~modifier:None;
+  match (Serialize.load_from_per_tlid_oplists
            ~canvas_id ~host ()) with
   | Some ops ->
-    check_oplist "db_oplist roundtrip" oplist ops
+    check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
   | None -> AT.fail "nothing in db"
 
 
@@ -343,14 +346,14 @@ let t_db_json_oplist_roundtrip () =
   let host = "test-db_json_oplist_roundtrip" in
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
-  let oplist = [ Op.UndoTL tlid
-               ; Op.RedoTL tlid
-               ; Op.UndoTL tlid
-               ; Op.RedoTL tlid] in
-  Serialize.save_json_to_db host oplist;
+  let oplists = [(tlid, [ Op.UndoTL tlid
+                       ; Op.RedoTL tlid
+                       ; Op.UndoTL tlid
+                       ; Op.RedoTL tlid])] in
+  Serialize.save_json_to_db host oplists;
   match (Serialize.load_json_from_db ~host ~canvas_id ()) with
   | Some ops ->
-    check_oplist "db_oplist roundtrip" oplist ops
+    check_tlid_oplists "db_oplist roundtrip" oplists ops
   | None -> AT.fail "nothing in db"
 
 

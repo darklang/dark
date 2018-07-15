@@ -28,6 +28,9 @@ type op = SetHandler of tlid * pos * Handler.handler
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
+type tlid_oplists = (Types.tlid * oplist) list
+                    [@@deriving eq, yojson, show, sexp, bin_io]
+
 
 let has_effect (op: op) : bool  =
   match op with
@@ -69,5 +72,19 @@ let oplist_to_string (ops: op list) : string =
 
 let oplist_of_string (str:string) : op list =
   Core_extended.Bin_io_utils.of_line str bin_oplist
+
+let oplist2tlid_oplists (oplist: oplist) : tlid_oplists =
+  oplist
+  |> List.map ~f:(fun op -> tlidOf op |> Option.value_exn)
+  |> List.stable_dedup
+  |> List.map ~f:(fun tlid ->
+      (tlid, List.filter oplist
+         ~f:(fun op -> tlidOf op = Some tlid)))
+
+let tlid_oplists2oplist (tos: tlid_oplists) : oplist =
+  tos
+  |> List.unzip
+  |> Tuple.T2.get2
+  |> List.concat
 
 

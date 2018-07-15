@@ -125,25 +125,11 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
-let oplist2ops (oplist: Op.oplist) : (int * Op.oplist) list =
-  oplist
-  |> List.filter_map ~f:Op.tlidOf
-  |> List.stable_dedup
-  |> List.map ~f:(fun tlid ->
-      (tlid, List.filter oplist
-         ~f:(fun op -> Op.tlidOf op = Some tlid)))
-
-let ops2oplist (ops: (int * Op.oplist) list) : Op.oplist =
-  ops
-  |> List.unzip
-  |> Tuple.T2.get2
-  |> List.concat
-
 
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let reduced_ops = Undo.preprocess (oldops @ newops) in
   List.iter ~f:(fun op -> apply_op op c) reduced_ops;
-  c := { !c with ops = oplist2ops (oldops @ newops) }
+  c := { !c with ops = Op.oplist2tlid_oplists (oldops @ newops) }
 
 let minimize (c : canvas) : canvas =
   (* TODO *)
@@ -165,8 +151,7 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
 
   let oldops =
     if load
-    then Serialize.load_from_per_tlid_oplists ~host ~canvas_id ()
-         |> ops2oplist
+    then Serialize.search_and_load host canvas_id
     else []
   in
 
@@ -180,7 +165,7 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
         ; user_functions = []
         }
   in
-  add_ops c oldops newops;
+  add_ops c (Op.tlid_oplists2oplist oldops) newops;
   c
 
 
@@ -219,9 +204,7 @@ let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
 let save_new_form_as_json (c: canvas) : unit =
-  c.ops
-  |> ops2oplist
-  |> Serialize.save_json_to_db c.host
+  Serialize.save_json_to_db c.host c.ops
 
 
 let save_everything_in_new_form c : unit =
@@ -249,7 +232,8 @@ let save_everything_in_new_form c : unit =
         ~name:name ~module_:module_ ~modifier:modifier)
 
 let save (c : canvas) : unit =
-  save_everything_in_new_form c
+  save_everything_in_new_form c;
+  ignore (File.convert_bin_to_json c.host)
 
 
 
@@ -264,11 +248,29 @@ let save_test (c: canvas) : string =
                ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else host in
   let file = Serialize.json_unversioned_filename host in
-  Serialize.save_json_to_disk ~root:Testdata file (ops2oplist c.ops);
+  Serialize.save_json_to_disk ~root:Testdata file c.ops;
   file
 
+let validate_op host op =
+  match op with
+  | Op.Deprecated0
+  | Op.Deprecated1
+  | Op.Deprecated2
+  | Op.Deprecated3
+  | Op.Deprecated4 _ ->
+    Exception.internal "bad op"
+      ~info:["host", host] ~actual:(Op.show_op op)
+  | _ -> ()
+
 let check_all_oplists () : unit =
-  ()
+  Serialize.current_hosts ()
+  |> List.iter ~f:(fun host ->
+      let owner = Account.for_host host in
+      let canvas_id = Serialize.fetch_canvas_id owner host in
+      let ops = Serialize.search_and_load host canvas_id
+                |> Op.tlid_oplists2oplist
+      in
+      List.iter ops ~f:(validate_op host))
 
 (* ------------------------- *)
 (* Routing *)
