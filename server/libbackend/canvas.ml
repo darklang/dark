@@ -216,7 +216,7 @@ let save_new_form_as_json (c: canvas) : unit =
   Serialize.save_json_to_db c.host c.ops
 
 
-let save_everything_in_new_form c : unit =
+let serialize_only (tlids: tlid list) (c: canvas) : unit =
   let handler_metadata (h: Handler.handler) =
     ( h.tlid
     , ( Ast.blank_to_option h.spec.name
@@ -232,16 +232,19 @@ let save_everything_in_new_form c : unit =
   (* Use ops rather than just set of toplevels, because toplevels may
    * have been deleted, and therefore not appear. *)
   List.iter c.ops ~f:(fun (tlid, oplist) ->
-      let (name, module_, modifier) =
-        Int.Map.find set tlid
-        |> Option.value ~default:(None, None, None)
-      in
-      Serialize.save_toplevel_oplist oplist
-        ~tlid ~canvas_id:c.id ~account_id:c.owner
-        ~name:name ~module_:module_ ~modifier:modifier)
+      if List.mem ~equal:(=) tlids tlid
+      then
+        let (name, module_, modifier) =
+          Int.Map.find set tlid
+          |> Option.value ~default:(None, None, None)
+        in
+        Serialize.save_toplevel_oplist oplist
+          ~tlid ~canvas_id:c.id ~account_id:c.owner
+          ~name:name ~module_:module_ ~modifier:modifier
+      else ())
 
 let save_tlids (c : canvas) (tlids: tlid list): unit =
-  save_everything_in_new_form c;
+  serialize_only tlids c;
   ignore (File.convert_bin_to_json c.host)
 
 
