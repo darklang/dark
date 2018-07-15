@@ -67,8 +67,10 @@ rm -Rf ${DARK_CONFIG_RUN_DIR}/screenshots/*
 rm -f ${TEST_RESULTS_DIR}/integration_tests.*
 
 # Clear DBs
+DBLOG="${DARK_CONFIG_RUN_DIR}/integration_db.log"
+echo "Clearing old DB data (logs in ${DBLOG})"
 DB="${DARK_CONFIG_DB_DBNAME}"
-function run_sql { psql -d $DB -c "$@" >> ${DARK_CONFIG_RUN_DIR}/integration_db.log 2>&1; }
+function run_sql { psql -d $DB -c "$@" >> "$DBLOG" 2>&1; }
 
 function fetch_sql { psql -d $DB -t -c "$@"; }
 
@@ -80,12 +82,11 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM function_results WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM user_data WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM cron_records WHERE canvas_id = '$cid';";
+  SCRIPT+="DELETE FROM toplevel_oplists WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
 done
 
 run_sql "$SCRIPT";
-
-echo "Clearing test data";
 run_sql "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
 run_sql "DELETE FROM json_oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
 
