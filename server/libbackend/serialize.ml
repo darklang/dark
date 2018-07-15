@@ -162,7 +162,7 @@ let all_oplists () : string list =
 
 
 (* ------------------------- *)
-(* loading and saving *)
+(* JSON *)
 (* ------------------------- *)
 let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
     ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
@@ -211,6 +211,27 @@ let save_json_to_db (host: string) (ops: Op.tlid_oplists) : unit =
   |> Yojson.Safe.to_string
   |> save_json_oplists ~host ~digest
 
+(* ------------------------- *)
+(* per-tlid oplists *)
+(* ------------------------- *)
+let load_from_per_tlid_oplists ~(host:string)
+    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
+  canvas_id
+  |> load_per_tlid_oplists
+  |> List.map ~f:(fun str ->
+      let ops = Op.oplist_of_string str in
+      (* there must be at least one op *)
+      let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
+      (tlid, ops))
+  |> (fun ops ->
+        if ops = []
+        then None
+        else Some ops)
+
+(* save is in canvas.ml *)
+
+
+
 
 (* ------------------------- *)
 (* deserialing algorithm *)
@@ -248,40 +269,22 @@ let deserialize_ordered
     in
     Exception.internal ~info:msgs ("storage errors with " ^ host)
 
-let load_from_per_tlid_oplists ~(host:string)
-    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
-  canvas_id
-  |> load_per_tlid_oplists
-  |> List.map ~f:(fun str ->
-      let ops = Op.oplist_of_string str in
-      (* there must be at least one op *)
-      let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
-      (tlid, ops))
-  |> (fun ops ->
-        if ops = []
-        then None
-        else Some ops)
-
-
+let load_from_backup ~host ~canvas_id ()
+    : Op.tlid_oplists option =
+  if is_test host
+  then
+    load_json_from_disk ~root:Testdata ~preprocess:ident
+      ~host ~canvas_id ()
+  else
+    load_json_from_db ~preprocess:ident ~host ~canvas_id ()
 
 
 let search_and_load (host: string) (canvas_id: Uuidm.t)
   : Op.tlid_oplists =
-  (* testfiles load and save from different directories *)
-  if is_test host
-  then
-    (* when there are no oplists, read from disk. The test harnesses
-     * clean up old oplists before running. *)
-    deserialize_ordered host canvas_id
-      [ load_from_per_tlid_oplists
-      ; load_json_from_disk ~root:Testdata ~preprocess:ident
-      ]
-  else
-    deserialize_ordered host canvas_id
-      [ load_from_per_tlid_oplists
-      ; load_json_from_db ~preprocess:ident
-      ]
-
+  deserialize_ordered host canvas_id
+    [ load_from_per_tlid_oplists
+    ; load_from_backup
+    ]
 
 (* ------------------------- *)
 (* hosts *)
