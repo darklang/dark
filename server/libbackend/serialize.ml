@@ -214,7 +214,7 @@ let save_json_to_db (host: string) (ops: Op.tlid_oplists) : unit =
 (* ------------------------- *)
 (* per-tlid oplists *)
 (* ------------------------- *)
-let load_from_per_tlid_oplists ~(host:string)
+let load_all_from_db ~(host:string)
     ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
   canvas_id
   |> load_per_tlid_oplists
@@ -281,8 +281,13 @@ let load_from_backup ~host ~canvas_id ()
 
 let search_and_load (host: string) (canvas_id: Uuidm.t)
   : Op.tlid_oplists =
+  (* This was the old way of doing a ton of deserializations and picking
+   * the right one. However, it became easier and more correct to do
+   * live migrations rather than layering things here, so this may end
+   * up being useless. Keeping it around in case it's needed for a while
+   * anyway. *)
   deserialize_ordered host canvas_id
-    [ load_from_per_tlid_oplists
+    [ load_all_from_db
     ; load_from_backup
     ]
 

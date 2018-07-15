@@ -152,11 +152,18 @@ let init (host: string) (ops: Op.op list): canvas ref =
 (* Loading/saving *)
 (* ------------------------- *)
 
-let load_all (host: string) (newops: Op.op list) : canvas ref =
+let load_from (host: string) (newops: Op.op list)
+  ~(fetch_fn: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists option)
+  ~(trim_fn: Op.tlid_oplists -> Op.tlid_oplists)
+  : canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
-  let oldops = Serialize.search_and_load host canvas_id in
-
+  let oldops =
+    match fetch_fn ~host ~canvas_id () with
+    | Some ops -> ops
+    | None -> Serialize.search_and_load host canvas_id
+              |> trim_fn
+  in
   let c =
     ref { host = host
         ; owner = owner
@@ -169,6 +176,9 @@ let load_all (host: string) (newops: Op.op list) : canvas ref =
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops;
   c
+
+let load_all = load_from ~fetch_fn:Serialize.load_all_from_db ~trim_fn:ident
+
 
 let load_only host tlids newops =
   let c = load_all host newops in
