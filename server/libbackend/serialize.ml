@@ -61,6 +61,20 @@ let json_unversioned_filename name =
 (* ------------------------- *)
 (* oplists *)
 (* ------------------------- *)
+let strs2tlid_oplists_option strs : Op.tlid_oplists option =
+  strs
+  |> List.map ~f:(fun str ->
+      let ops = Op.oplist_of_string str in
+      (* there must be at least one op *)
+      let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
+      (tlid, ops))
+  |> (fun ops ->
+        if ops = []
+        then None
+        else Some ops)
+
+
+
 let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
   Db.run
     ~name:"save_oplists"
@@ -95,6 +109,27 @@ let load_per_tlid_oplists (canvas_id: Uuidm.t) : string list =
         match results with
         | [data] -> data
         | _ -> Exception.internal "Shape of per_tlid oplists")
+
+let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
+    ~(tlids: Types.tlid list) () : Op.tlid_oplists option =
+  let tlid_params = tlids
+                    |> List.map ~f:Int.to_string
+                    |> String.concat ~sep:", "
+  in
+  Db.fetch
+    ~name:"load_only_for_tilds"
+    ("SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND (tlid = ANY('{" ^ tlid_params ^ "}'::bigint[])
+             OR tipe <> 'handler'::toplevel_type)")
+    ~params:[Db.Uuid canvas_id]
+    ~result:BinaryResult
+  |> List.map
+    ~f:(fun results ->
+        match results with
+        | [data] -> data
+        | _ -> Exception.internal "Shape of per_tlid oplists")
+  |> strs2tlid_oplists_option
 
 let save_toplevel_oplist
     ~(tlid:Types.tlid) ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t)
@@ -218,15 +253,7 @@ let load_all_from_db ~(host:string)
     ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
   canvas_id
   |> load_per_tlid_oplists
-  |> List.map ~f:(fun str ->
-      let ops = Op.oplist_of_string str in
-      (* there must be at least one op *)
-      let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
-      (tlid, ops))
-  |> (fun ops ->
-        if ops = []
-        then None
-        else Some ops)
+  |> strs2tlid_oplists_option
 
 (* save is in canvas.ml *)
 
