@@ -145,15 +145,10 @@ let minimize (c : canvas) : canvas =
 (* Serialization *)
 (* ------------------------- *)
 
-let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
+let load_all (host: string) (newops: Op.op list) : canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
-
-  let oldops =
-    if load
-    then Serialize.search_and_load host canvas_id
-    else []
-  in
+  let oldops = Serialize.search_and_load host canvas_id in
 
   let c =
     ref { host = host
@@ -168,9 +163,26 @@ let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
   add_ops c (Op.tlid_oplists2oplist oldops) newops;
   c
 
+let init (host: string) (ops: Op.op list): canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
 
-let load host tlids newops =
-  let c = create ~load:true host newops in
+  let c =
+    ref { host = host
+        ; owner = owner
+        ; id = canvas_id
+        ; ops = []
+        ; handlers = []
+        ; dbs = []
+        ; user_functions = []
+        }
+  in
+  add_ops c [] ops;
+  c
+
+
+let load_only host tlids newops =
+  let c = load_all host newops in
   c :=
     { !c with handlers =
                 List.filter !c.handlers
@@ -195,13 +207,10 @@ let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
 
 
 let load_http host ~verb ~uri =
-  let c = create ~load:true host [] in
+  let c = load_all host [] in
   c := { !c with handlers = http_handlers ~uri ~verb !c.handlers };
   c
 
-
-let load_all host newops = create ~load:true host newops
-let init = create ~load:false
 
 let save_new_form_as_json (c: canvas) : unit =
   Serialize.save_json_to_db c.host c.ops
@@ -231,7 +240,7 @@ let save_everything_in_new_form c : unit =
         ~tlid ~canvas_id:c.id ~account_id:c.owner
         ~name:name ~module_:module_ ~modifier:modifier)
 
-let save (c : canvas) : unit =
+let save_tlids (c : canvas) (tlids: tlid list): unit =
   save_everything_in_new_form c;
   ignore (File.convert_bin_to_json c.host)
 
