@@ -269,7 +269,7 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
 
     let (t2, c) = time "2-load-saved-ops"
       (fun _ ->
-        C.load_only host tlids params.ops)
+        C.load_only ~tlids host params.ops)
     in
 
     let (t3, hvals) = time "3-handler-analyses"
@@ -340,7 +340,7 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
     let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1 in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load_only host tlids []) in
+      (fun _ -> C.load_only ~tlids host []) in
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
@@ -375,7 +375,7 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
       (fun _ -> Api.to_analysis_params body) in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load_only host tlids []) in
+      (fun _ -> C.load_only ~tlids host []) in
 
     let (t3, f404s) = time "3-get-404s"
       (fun _ -> Analysis.get_404s !c) in

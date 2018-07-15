@@ -154,7 +154,7 @@ let init (host: string) (ops: Op.op list): canvas ref =
 
 let load_from (host: string) (newops: Op.op list)
   ~(fetch_fn: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists option)
-  ~(trim_fn: Op.tlid_oplists -> Op.tlid_oplists)
+  ~(trim_fn: canvas -> canvas)
   : canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
@@ -162,7 +162,6 @@ let load_from (host: string) (newops: Op.op list)
     match fetch_fn ~host ~canvas_id () with
     | Some ops -> ops
     | None -> Serialize.search_and_load host canvas_id
-              |> trim_fn
   in
   let c =
     ref { host = host
@@ -175,19 +174,24 @@ let load_from (host: string) (newops: Op.op list)
         }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops;
+  (* always run this to make sure it's consistent *)
+  c := trim_fn !c;
   c
 
 let load_all = load_from ~fetch_fn:Serialize.load_all_from_db ~trim_fn:ident
 
+let load_only_trim_fn tlids c =
+  { c with handlers =
+             List.filter c.handlers
+               ~f:(fun tl -> List.mem ~equal:(=) tlids tl.tlid)
+  }
 
-let load_only host tlids newops =
-  let c = load_all host newops in
-  c :=
-    { !c with handlers =
-                List.filter !c.handlers
-                  ~f:(fun tl -> List.mem ~equal:(=) tlids tl.tlid)
-    };
-  c
+let load_only ~tlids =
+  load_from
+    ~fetch_fn:(fun ~host ~canvas_id _ -> None)
+    (* ~fetch_fn:(Serialize.load_only_for_tlids ~tlids) *)
+    ~trim_fn:(load_only_trim_fn tlids)
+
 
 let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
   toplevellist =
