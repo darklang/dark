@@ -218,11 +218,32 @@ let load_http host ~verb ~uri =
 let load_all host newops = create ~load:true host newops
 let init = create ~load:false
 
+let load_in_old_form host newops : canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+
+  let oldops =
+    Serialize.search_and_load host canvas_id
+  in
+
+  let c =
+    ref { host = host
+        ; owner = owner
+        ; id = canvas_id
+        ; ops = []
+        ; handlers = []
+        ; dbs = []
+        ; user_functions = []
+        }
+  in
+  add_ops c oldops newops;
+  c
+
 
 let save_new_form_as_json (c: canvas) : unit =
   c.ops
   |> ops2oplist
-  |> Serialize.save_json_to_db c.host 
+  |> Serialize.save_json_to_db c.host
 
 
 let save_everything_in_new_form c : unit =
@@ -250,6 +271,7 @@ let save_everything_in_new_form c : unit =
         ~name:name ~module_:module_ ~modifier:modifier)
 
 let save (c : canvas) : unit =
+  Serialize.save c.host (ops2oplist c.ops);
   save_everything_in_new_form c
 
 
@@ -269,7 +291,17 @@ let save_test (c: canvas) : string =
   file
 
 let check_all_oplists () : unit =
-  ()
+  Serialize.current_hosts ()
+  |> List.iter ~f:(fun host ->
+      let c = load_all host [] in
+      let c2 = load_in_old_form host [] in
+      let sort l = List.sort l ~compare:(fun (tlid1, _) (tlid2, _) ->
+          compare tlid1 tlid2) in
+      let ops1 = !c.ops |> sort in
+      let ops2 = !c2.ops |> sort in
+      if ops1 <> ops2
+      then Exception.internal ("Not equal for host " ^ host);
+      ())
 
 (* ------------------------- *)
 (* Routing *)
