@@ -131,18 +131,25 @@ let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   List.iter ~f:(fun op -> apply_op op c) reduced_ops;
   c := { !c with ops = Op.oplist2tlid_oplists (oldops @ newops) }
 
-let minimize (c : canvas) : canvas =
-  (* TODO *)
-  (* let ops = *)
-  (*   c.ops *)
-  (*   |> Undo.preprocess *)
-  (*   |> List.filter ~f:Op.has_effect *)
-  (* in { c with ops = ops } *)
+let init (host: string) (ops: Op.op list): canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+
+  let c =
+    ref { host = host
+        ; owner = owner
+        ; id = canvas_id
+        ; ops = []
+        ; handlers = []
+        ; dbs = []
+        ; user_functions = []
+        }
+  in
+  add_ops c [] ops;
   c
 
-
 (* ------------------------- *)
-(* Serialization *)
+(* Loading/saving *)
 (* ------------------------- *)
 
 let load_all (host: string) (newops: Op.op list) : canvas ref =
@@ -162,24 +169,6 @@ let load_all (host: string) (newops: Op.op list) : canvas ref =
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops;
   c
-
-let init (host: string) (ops: Op.op list): canvas ref =
-  let owner = Account.for_host host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
-
-  let c =
-    ref { host = host
-        ; owner = owner
-        ; id = canvas_id
-        ; ops = []
-        ; handlers = []
-        ; dbs = []
-        ; user_functions = []
-        }
-  in
-  add_ops c [] ops;
-  c
-
 
 let load_only host tlids newops =
   let c = load_all host newops in
@@ -212,7 +201,7 @@ let load_http host ~verb ~uri =
   c
 
 
-let save_new_form_as_json (c: canvas) : unit =
+let save_as_json (c: canvas) : unit =
   Serialize.save_json_to_db c.host c.ops
 
 
@@ -248,6 +237,17 @@ let save_tlids (c : canvas) (tlids: tlid list): unit =
   ignore (File.convert_bin_to_json c.host)
 
 
+(* ------------------------- *)
+(* Testing/validation *)
+(* ------------------------- *)
+let minimize (c : canvas) : canvas =
+  (* TODO *)
+  (* let ops = *)
+  (*   c.ops *)
+  (*   |> Undo.preprocess *)
+  (*   |> List.filter ~f:Op.has_effect *)
+  (* in { c with ops = ops } *)
+  c
 
 let save_test (c: canvas) : string =
   let c = minimize c in
