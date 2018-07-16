@@ -205,6 +205,7 @@ let all_oplists () : string list =
   |> List.map ~f:List.hd_exn
   |> List.filter ~f:(fun h ->
       not (String.is_prefix ~prefix:"test-" h))
+  |> List.dedup_and_sort ~compare
 
 
 
