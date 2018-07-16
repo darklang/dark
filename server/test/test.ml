@@ -342,24 +342,6 @@ let t_db_oplist_roundtrip () =
   | None -> AT.fail "nothing in db"
 
 
-let t_db_json_oplist_roundtrip () =
-  clear_test_data ();
-  let host = "test-db_json_oplist_roundtrip" in
-  let owner = Account.for_host host in
-  let canvas_id = Serialize.fetch_canvas_id owner host in
-  let oplists = [(tlid, [ Op.UndoTL tlid
-                       ; Op.RedoTL tlid
-                       ; Op.UndoTL tlid
-                       ; Op.RedoTL tlid])] in
-  Serialize.save_json_to_db host oplists;
-  match (Serialize.load_json_from_db ~host ~canvas_id ()) with
-  | Some ops ->
-    check_tlid_oplists "db_oplist roundtrip" oplists ops
-  | None -> AT.fail "nothing in db"
-
-
-
-
 let t_case_insensitive_db_roundtrip () =
   clear_test_data ();
   let colname = "cOlUmNnAmE" in
@@ -621,7 +603,6 @@ let suite =
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
-  ; "db json oplist roundtrip", `Quick, t_db_json_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
   ; "DB case-insensitive roundtrip", `Quick,
     t_case_insensitive_db_roundtrip

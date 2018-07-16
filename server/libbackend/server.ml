@@ -519,6 +519,7 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ~execution_id
       `OK body
   | "/admin/integration_test" when Config.allow_test_routes ->
+    Canvas.load_and_resave_from_test_file host;
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
       ~resp_headers:text_plain_resp_headers
