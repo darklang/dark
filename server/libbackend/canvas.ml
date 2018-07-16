@@ -234,9 +234,14 @@ let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
 let load_http_trim_fn ~verb ~uri c =
   { c with handlers = http_handlers ~uri ~verb c.handlers }
 
-let load_http ~verb ~uri host : canvas ref =
+  (* # TODO data is in the wrong format. We need to convert the http path *)
+  (*   to something. However, there is no data in prod like this, so we *)
+  (*                                                should write a test for *)
+  (*                                                it. *)
+let load_http ~verb ~(uri: Uri.t) host : canvas ref =
+  let path = Uri.path uri in
   load_from
-    ~fetch_fn:(Serialize.load_all_from_db)
+    ~fetch_fn:(Serialize.load_for_http ~uri:path ~verb)
     ~trim_fn:(load_http_trim_fn ~verb ~uri)
     host []
 
