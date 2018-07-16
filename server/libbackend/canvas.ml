@@ -333,7 +333,7 @@ let validate_op host op =
       ~info:["host", host] ~actual:(Op.show_op op)
   | _ -> ()
 
-let check_all_oplists () : unit =
+let check_all_hosts () : unit =
   Serialize.current_hosts ()
   |> List.iter ~f:(fun host ->
       let c = load_all host [] in

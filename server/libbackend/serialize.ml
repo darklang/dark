@@ -193,21 +193,6 @@ let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
         digest = $2;"
     ~params:[String host; String digest; String data]
 
-let all_oplists () : string list =
-  Db.fetch
-    ~name:"oplists"
-    "SELECT DISTINCT host FROM oplists
-     UNION
-     SELECT DISTINCT host FROM json_oplists
-     UNION
-     SELECT DISTINCT name FROM canvases"
-    ~params:[]
-  |> List.map ~f:List.hd_exn
-  |> List.filter ~f:(fun h ->
-      not (String.is_prefix ~prefix:"test-" h))
-  |> List.dedup_and_sort ~compare
-
-
 
 (* ------------------------- *)
 (* JSON *)
@@ -335,7 +320,21 @@ let search_and_load (host: string) (canvas_id: Uuidm.t)
 (* hosts *)
 (* ------------------------- *)
 let current_hosts () : string list =
-  all_oplists ()
+  Db.fetch
+    ~name:"oplists"
+    "SELECT DISTINCT host FROM oplists
+     UNION
+     SELECT DISTINCT host FROM json_oplists
+     UNION
+     SELECT DISTINCT name FROM canvases"
+    ~params:[]
+  |> List.map ~f:List.hd_exn
+  |> List.filter ~f:(fun h ->
+      not (String.is_prefix ~prefix:"test-" h))
+  |> List.dedup_and_sort ~compare
+
+
+
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
 let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
