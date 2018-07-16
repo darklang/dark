@@ -197,7 +197,11 @@ let load_from (host: string) (newops: Op.op list)
   c := trim_fn !c;
   c
 
-let load_all = load_from ~fetch_fn:Serialize.load_all_from_db ~trim_fn:ident
+let load_all host (newops: Op.op list) : canvas ref =
+  load_from
+    ~fetch_fn:Serialize.load_all_from_db
+    ~trim_fn:ident
+    host newops
 
 let load_only_trim_fn tlids c =
   { c with handlers =
@@ -205,10 +209,11 @@ let load_only_trim_fn tlids c =
                ~f:(fun tl -> List.mem ~equal:(=) tlids tl.tlid)
   }
 
-let load_only ~tlids =
+let load_only ~tlids host (newops: Op.op list) : canvas ref =
   load_from
     ~fetch_fn:(Serialize.load_only_for_tlids ~tlids)
     ~trim_fn:(load_only_trim_fn tlids)
+    host newops
 
 
 let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
@@ -226,11 +231,14 @@ let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
               | None -> true)
         | _ -> false)
 
+let load_http_trim_fn ~verb ~uri c =
+  { c with handlers = http_handlers ~uri ~verb c.handlers }
 
-let load_http host ~verb ~uri =
-  let c = load_all host [] in
-  c := { !c with handlers = http_handlers ~uri ~verb !c.handlers };
-  c
+let load_http ~verb ~uri host : canvas ref =
+  load_from
+    ~fetch_fn:(Serialize.load_all_from_db)
+    ~trim_fn:(load_http_trim_fn ~verb ~uri)
+    host []
 
 
 let serialize_only (tlids: tlid list) (c: canvas) : unit =
@@ -344,10 +352,7 @@ let check_all_hosts () : unit =
 
       (* check ops *)
       List.iter (Op.tlid_oplists2oplist !c.ops)
-        ~f:(validate_op host);
-
-      (* resave to populate tipes *)
-      save_all !c;
+        ~f:(validate_op host)
     )
 
 (* ------------------------- *)
