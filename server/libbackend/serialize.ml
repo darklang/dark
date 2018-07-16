@@ -61,17 +61,13 @@ let json_unversioned_filename name =
 (* ------------------------- *)
 (* oplists *)
 (* ------------------------- *)
-let strs2tlid_oplists_option strs : Op.tlid_oplists option =
+let strs2tlid_oplists strs : Op.tlid_oplists =
   strs
   |> List.map ~f:(fun str ->
       let ops = Op.oplist_of_string str in
       (* there must be at least one op *)
       let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
       (tlid, ops))
-  |> (fun ops ->
-        if ops = []
-        then None
-        else Some ops)
 
 let load_per_tlid_oplists (canvas_id: Uuidm.t) : string list =
   Db.fetch
@@ -87,7 +83,7 @@ let load_per_tlid_oplists (canvas_id: Uuidm.t) : string list =
         | _ -> Exception.internal "Shape of per_tlid oplists")
 
 let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
-    ~(tlids: Types.tlid list) () : Op.tlid_oplists option =
+    ~(tlids: Types.tlid list) () : Op.tlid_oplists =
   let tlid_params = tlids
                     |> List.map ~f:Int.to_string
                     |> String.concat ~sep:", "
@@ -105,7 +101,7 @@ let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
         match results with
         | [data] -> data
         | _ -> Exception.internal "Shape of per_tlid oplists")
-  |> strs2tlid_oplists_option
+  |> strs2tlid_oplists
 
 let save_toplevel_oplist
     ~(tlid:Types.tlid) ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t)
@@ -154,7 +150,7 @@ let save_toplevel_oplist
 (* JSON *)
 (* ------------------------- *)
 let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
-    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
+    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists =
   Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
                                    ; "host", host];
@@ -162,6 +158,7 @@ let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
   File.maybereadjsonfile ~root filename
     ~conv:Op.oplist_of_yojson ~stringconv:preprocess
   |> Option.map ~f:Op.oplist2tlid_oplists
+  |> Option.value ~default:[]
 
 let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
   Log.infO "serialization" ~params:[ "save_to", "disk"
@@ -178,10 +175,10 @@ let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
 (* per-tlid oplists *)
 (* ------------------------- *)
 let load_all_from_db ~(host:string)
-    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
+    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists =
   canvas_id
   |> load_per_tlid_oplists
-  |> strs2tlid_oplists_option
+  |> strs2tlid_oplists
 
 (* save is in canvas.ml *)
 

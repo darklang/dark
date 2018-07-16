@@ -335,11 +335,8 @@ let t_db_oplist_roundtrip () =
     ~tlid ~canvas_id ~account_id:owner
     ~tipe:`Handler
     ~name:None ~module_:None ~modifier:None;
-  match (Serialize.load_all_from_db
-           ~canvas_id ~host ()) with
-  | Some ops ->
-    check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
-  | None -> AT.fail "nothing in db"
+  let ops = Serialize.load_all_from_db ~canvas_id ~host () in
+  check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
 
 
 let t_case_insensitive_db_roundtrip () =

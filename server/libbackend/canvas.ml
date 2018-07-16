@@ -171,16 +171,15 @@ let init (host: string) (ops: Op.op list): canvas ref =
 (* ------------------------- *)
 
 let load_from (host: string) (newops: Op.op list)
-  ~(fetch_fn: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists option)
+  ~(fetch_fn: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists)
   ~(trim_fn: canvas -> canvas)
   : canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
   let oldops =
     match fetch_fn ~host ~canvas_id () with
-    | Some ops -> ops
-    | None -> Serialize.load_all_from_db ~host ~canvas_id ()
-              |> Option.value_exn ~message:("No DB found for host: " ^ host)
+    | [] -> Serialize.load_all_from_db ~host ~canvas_id ()
+    | ops -> ops
   in
   let c =
     ref { host = host
@@ -208,7 +207,7 @@ let load_only_trim_fn tlids c =
 
 let load_only ~tlids =
   load_from
-    ~fetch_fn:(fun ~host ~canvas_id _ -> None)
+    ~fetch_fn:(fun ~host ~canvas_id _ -> [])
     (* ~fetch_fn:(Serialize.load_only_for_tlids ~tlids) *)
     ~trim_fn:(load_only_trim_fn tlids)
 
