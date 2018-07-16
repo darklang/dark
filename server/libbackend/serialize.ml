@@ -188,7 +188,9 @@ let all_oplists () : string list =
     ~name:"oplists"
     "SELECT DISTINCT host FROM oplists
      UNION
-     SELECT DISTINCT host FROM json_oplists"
+     SELECT DISTINCT host FROM json_oplists
+     UNION
+     SELECT DISTINCT name FROM canvases"
     ~params:[]
   |> List.map ~f:List.hd_exn
   |> List.filter ~f:(fun h ->
