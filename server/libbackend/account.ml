@@ -210,8 +210,11 @@ let init () : unit =
     ; password = "theexpanse"
     ; email = "victorslymar@gmail.com"
     ; name = "Victor Lymar"};
-
-
+  upsert_account
+    { username = "listo"
+    ; password = "GxBGXMBMkUoCakh8QpefmykJNMJdVe"
+    ; email = "c@cpo.is"
+    ; name = "Chase"};
 
   ()
 
