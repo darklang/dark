@@ -16,6 +16,7 @@ type canvas = { host : string
               ; ops : (tlid * Op.oplist) list
               ; handlers : toplevellist
               ; dbs: toplevellist
+              ; deleted: toplevellist
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
@@ -44,10 +45,26 @@ let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
   { c with user_functions = fns @ [user_fn] }
 
 let remove_toplevel (tlid: tlid) (c: canvas) : canvas =
-  let handlers = List.filter ~f:(fun x -> x.tlid <> tlid) c.handlers in
-  let dbs = List.filter ~f:(fun x -> x.tlid <> tlid) c.dbs in
+  let (oldh, handlers) =
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.handlers
+  in
+  let (olddb, dbs) =
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.dbs
+  in
+  let (olddel, deleted) =
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted
+  in
+
+  (* It's possible to delete something twice. Or more I guess. In that
+   * case, only keep the latest deleted toplevel. *)
+  let removed = oldh @ olddb @ olddel
+                |> List.hd
+                |> Option.value_map ~f:(fun x -> [x]) ~default:[]
+  in
   { c with handlers = handlers
-         ; dbs = dbs }
+         ; dbs = dbs
+         ; deleted = deleted @ removed
+  }
 
 let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (tls: toplevellist) =
   match List.find ~f:(fun t -> t.tlid = tlid) tls with
@@ -142,6 +159,7 @@ let init (host: string) (ops: Op.op list): canvas ref =
         ; ops = []
         ; handlers = []
         ; dbs = []
+        ; deleted = []
         ; user_functions = []
         }
   in
@@ -171,6 +189,7 @@ let load_from (host: string) (newops: Op.op list)
         ; handlers = []
         ; dbs = []
         ; user_functions = []
+        ; deleted = []
         }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops;
@@ -218,7 +237,6 @@ let load_http host ~verb ~uri =
 let save_as_json (c: canvas) : unit =
   Serialize.save_json_to_db c.host c.ops
 
-
 let serialize_only (tlids: tlid list) (c: canvas) : unit =
   let handler_metadata (h: Handler.handler) =
     ( h.tlid
@@ -231,24 +249,51 @@ let serialize_only (tlids: tlid list) (c: canvas) : unit =
     |> Toplevel.handlers
     |> List.map ~f:handler_metadata
   in
-  let set = Int.Map.of_alist_exn hmeta in
+  let routes = Int.Map.of_alist_exn hmeta in
+  let tipes_list =
+    (List.map c.handlers ~f:(fun h -> (h.tlid, `Handler)))
+    @ (List.map c.user_functions ~f:(fun f -> (f.tlid, `User_function)))
+    @ (List.map c.dbs ~f:(fun d -> (d.tlid, `DB)))
+    @ (List.map c.deleted ~f:(fun t ->
+        match t.data with
+        | Handler  _ -> (t.tlid, `Handler)
+        | DB _ -> (t.tlid, `DB)))
+  in
+  let tipes = Int.Map.of_alist_exn tipes_list in
+
   (* Use ops rather than just set of toplevels, because toplevels may
-   * have been deleted, and therefore not appear. *)
+   * have been deleted or undone, and therefore not appear, but it's
+   * important to record them. *)
   List.iter c.ops ~f:(fun (tlid, oplist) ->
+
+      (* Only save oplists that have been used. *)
       if List.mem ~equal:(=) tlids tlid
       then
         let (name, module_, modifier) =
-          Int.Map.find set tlid
+          Int.Map.find routes tlid
           |> Option.value ~default:(None, None, None)
+        in
+        let tipe = Int.Map.find tipes tlid
+                   (* If the user calls Undo enough, we might not know
+                    * the tipe here. In that case, set to handler cause
+                    * it won't be used anyway *)
+                   |> Option.value ~default:`Handler
         in
         Serialize.save_toplevel_oplist oplist
           ~tlid ~canvas_id:c.id ~account_id:c.owner
-          ~name:name ~module_:module_ ~modifier:modifier
+          ~name ~module_ ~modifier
+          ~tipe
       else ())
 
 let save_tlids (c : canvas) (tlids: tlid list): unit =
   serialize_only tlids c;
   ignore (File.convert_bin_to_json c.host)
+
+let save_all (c : canvas) : unit =
+  let tlids = List.map ~f:Tuple.T2.get1 c.ops in
+  save_tlids c tlids
+
+
 
 
 (* ------------------------- *)
@@ -291,12 +336,15 @@ let validate_op host op =
 let check_all_oplists () : unit =
   Serialize.current_hosts ()
   |> List.iter ~f:(fun host ->
-      let owner = Account.for_host host in
-      let canvas_id = Serialize.fetch_canvas_id owner host in
-      let ops = Serialize.search_and_load host canvas_id
-                |> Op.tlid_oplists2oplist
-      in
-      List.iter ops ~f:(validate_op host))
+      let c = load_all host [] in
+
+      (* check ops *)
+      List.iter (Op.tlid_oplists2oplist !c.ops)
+        ~f:(validate_op host);
+
+      (* resave to populate tipes *)
+      save_all !c;
+    )
 
 (* ------------------------- *)
 (* Routing *)
