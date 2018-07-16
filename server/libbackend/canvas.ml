@@ -207,8 +207,7 @@ let load_only_trim_fn tlids c =
 
 let load_only ~tlids =
   load_from
-    ~fetch_fn:(fun ~host ~canvas_id _ -> [])
-    (* ~fetch_fn:(Serialize.load_only_for_tlids ~tlids) *)
+    ~fetch_fn:(Serialize.load_only_for_tlids ~tlids)
     ~trim_fn:(load_only_trim_fn tlids)
 
 
