@@ -103,6 +103,31 @@ let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
         | _ -> Exception.internal "Shape of per_tlid oplists")
   |> strs2tlid_oplists
 
+let load_for_http ~host ~(canvas_id: Uuidm.t)
+    ~(uri: string) ~(verb: string) () : Op.tlid_oplists =
+  Db.fetch
+    ~name:"load_for_http"
+    (* The pattern `$2 like name` is deliberate, to leverage the DB's
+     * pattern matching to solve our routing. *)
+    ("SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND ((module = 'HTTP'
+              AND $2 like name
+              AND modifier = $3)
+              OR tipe <> 'handler'::toplevel_type)")
+    ~params:[ Db.Uuid canvas_id
+            ; String uri
+            ; String verb]
+    ~result:BinaryResult
+  |> List.map
+    ~f:(fun results ->
+        match results with
+        | [data] -> data
+        | _ -> Exception.internal "Shape of per_tlid oplists")
+  |> strs2tlid_oplists
+
+
+
 let save_toplevel_oplist
     ~(tlid:Types.tlid) ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t)
     ~(tipe)
