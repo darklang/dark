@@ -333,6 +333,7 @@ let t_db_oplist_roundtrip () =
                ; Op.RedoTL tlid] in
   Serialize.save_toplevel_oplist oplist
     ~tlid ~canvas_id ~account_id:owner
+    ~tipe:`Handler
     ~name:None ~module_:None ~modifier:None;
   match (Serialize.load_all_from_db
            ~canvas_id ~host ()) with

@@ -133,6 +133,7 @@ let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
 
 let save_toplevel_oplist
     ~(tlid:Types.tlid) ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t)
+    ~(tipe)
     ~(name:string option) ~(module_: string option)
     ~(modifier:string option)
     (ops:Op.oplist)
@@ -142,22 +143,31 @@ let save_toplevel_oplist
     | Some str -> Db.String str
     | None -> Db.Null
   in
+  let tipe_str =
+    match tipe with
+    | `DB -> "db"
+    | `Handler -> "handler"
+    | `User_function -> "user_function"
+  in
+
   Db.run
     ~name:"save per tlid oplist"
     "INSERT INTO toplevel_oplists
-    (canvas_id, account_id, tlid, digest, name, module, modifier, data)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    (canvas_id, account_id, tlid, digest, tipe, name, module, modifier, data)
+    VALUES ($1, $2, $3, $4, $5::toplevel_type, $6, $7, $8, $9)
     ON CONFLICT (canvas_id, tlid) DO UPDATE
     SET account_id = $2,
         digest = $4,
-        name = $5,
-        module = $6,
-        modifier = $7,
-        data = $8;"
+        tipe = $5::toplevel_type,
+        name = $6,
+        module = $7,
+        modifier = $8,
+        data = $9;"
     ~params:[ Uuid canvas_id
             ; Uuid account_id
             ; Int tlid
             ; String digest
+            ; String tipe_str
             ; string_option name
             ; string_option module_
             ; string_option modifier
