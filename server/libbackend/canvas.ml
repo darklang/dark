@@ -179,7 +179,8 @@ let load_from (host: string) (newops: Op.op list)
   let oldops =
     match fetch_fn ~host ~canvas_id () with
     | Some ops -> ops
-    | None -> Serialize.search_and_load host canvas_id
+    | None -> Serialize.load_all_from_db ~host ~canvas_id ()
+              |> Option.value_exn ~message:("No DB found for host: " ^ host)
   in
   let c =
     ref { host = host
@@ -234,9 +235,6 @@ let load_http host ~verb ~uri =
   c
 
 
-let save_as_json (c: canvas) : unit =
-  Serialize.save_json_to_db c.host c.ops
-
 let serialize_only (tlids: tlid list) (c: canvas) : unit =
   let handler_metadata (h: Handler.handler) =
     ( h.tlid
@@ -286,8 +284,7 @@ let serialize_only (tlids: tlid list) (c: canvas) : unit =
       else ())
 
 let save_tlids (c : canvas) (tlids: tlid list): unit =
-  serialize_only tlids c;
-  ignore (File.convert_bin_to_json c.host)
+  serialize_only tlids c
 
 let save_all (c : canvas) : unit =
   let tlids = List.map ~f:Tuple.T2.get1 c.ops in
@@ -299,6 +296,15 @@ let save_all (c : canvas) : unit =
 (* ------------------------- *)
 (* Testing/validation *)
 (* ------------------------- *)
+
+let load_and_resave_from_test_file (host: string) : unit =
+  let c = load_from host []
+      ~fetch_fn:(Serialize.load_json_from_disk
+                   ~root:Testdata ~preprocess:ident)
+      ~trim_fn:ident
+  in
+  save_all !c
+
 let minimize (c : canvas) : canvas =
   (* TODO *)
   (* let ops = *)

@@ -73,30 +73,6 @@ let strs2tlid_oplists_option strs : Op.tlid_oplists option =
         then None
         else Some ops)
 
-
-
-let save_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  Db.run
-    ~name:"save_oplists"
-    "INSERT INTO oplists
-    (host, digest, data)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (host, digest) DO UPDATE
-    SET data = $3;"
-    ~params:[String host; String digest; Binary data]
-
-
-
-let load_oplists ~(host: string) ~(digest: string) : string option =
-  Db.fetch_one_option
-    ~name:"load_oplists"
-    "SELECT data FROM oplists
-     WHERE host = $1
-     AND digest = $2;"
-    ~params:[String host; String digest]
-    ~result:BinaryResult
-  |> Option.map ~f:List.hd_exn
-
 let load_per_tlid_oplists (canvas_id: Uuidm.t) : string list =
   Db.fetch
     ~name:"load_per_tlid_oplists"
@@ -173,26 +149,6 @@ let save_toplevel_oplist
             ; string_option modifier
             ; Binary (Op.oplist_to_string ops)]
 
-let load_json_oplists ~(host: string) : string option =
-  Db.fetch_one_option
-    ~name:"load_json_oplists"
-    "SELECT data FROM json_oplists
-     WHERE host = $1"
-    ~params:[String host]
-  |> Option.map ~f:List.hd_exn
-
-let save_json_oplists ~(host: string) ~(digest: string) (data: string) : unit =
-  (* this is an upsert *)
-  Db.run
-    ~name:"save_json_oplists"
-    "INSERT INTO json_oplists
-    (host, digest, data)
-    VALUES ($1, $2, $3)
-    ON CONFLICT (host) DO UPDATE
-    SET data = $3,
-        digest = $2;"
-    ~params:[String host; String digest; String data]
-
 
 (* ------------------------- *)
 (* JSON *)
@@ -207,21 +163,6 @@ let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
     ~conv:Op.oplist_of_yojson ~stringconv:preprocess
   |> Option.map ~f:Op.oplist2tlid_oplists
 
-let load_json_from_db ?(preprocess=ident) ~(host: string)
-    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists option =
-  Log.infO "serialization" ~params:[ "load_from", "db"
-                                   ; "format", "json"
-                                   ; "host", host];
-  host
-  |> load_json_oplists
-  |> Option.map ~f:(fun ops_string ->
-      ops_string
-      |> preprocess
-      |> Yojson.Safe.from_string
-      |> Op.oplist_of_yojson
-      |> Result.ok_or_failwith
-      |> Op.oplist2tlid_oplists)
-
 let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
   Log.infO "serialization" ~params:[ "save_to", "disk"
                                    ; "format", "json"
@@ -232,17 +173,6 @@ let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename
-
-let save_json_to_db (host: string) (ops: Op.tlid_oplists) : unit =
-  Log.infO "serialization" ~params:[ "save_to", "db"
-                                   ; "format", "json"
-                                   ; "digest", digest
-                                   ; "host", host];
-  ops
-  |> Op.tlid_oplists2oplist
-  |> Op.oplist_to_yojson
-  |> Yojson.Safe.to_string
-  |> save_json_oplists ~host ~digest
 
 (* ------------------------- *)
 (* per-tlid oplists *)
@@ -255,66 +185,6 @@ let load_all_from_db ~(host:string)
 
 (* save is in canvas.ml *)
 
-
-
-
-(* ------------------------- *)
-(* deserialing algorithm *)
-(* ------------------------- *)
-let deserialize_ordered
-    (host : string)
-    (canvas_id : Uuidm.t)
-    (descs :
-       (host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists option) list)
-    : Op.tlid_oplists =
-  (* try each in turn. If the file exists, try it, and return if
-    successful. If it fails, save the error and try the next one *)
-  let (result, errors) =
-    List.fold descs ~init:(None, [])
-      ~f:(fun (prev, errors) fn ->
-          match prev with
-          | Some r -> (prev, errors)
-          | None ->
-            (try
-               match fn ~host ~canvas_id () with
-               | Some oplist -> (Some oplist, errors)
-               | None -> (prev, errors)
-             with
-             | e ->
-               Log.erroR "deserialization" ~data:(Exn.to_string e);
-               (None, (errors @ [e]))))
-  in
-  match (result, errors) with
-  | (Some r, _) -> r
-  | (None, []) -> []
-  | (None, es) ->
-    let msgs =
-      List.mapi ~f:(fun i ex -> (string_of_int i, Exn.to_string ex))
-        es
-    in
-    Exception.internal ~info:msgs ("storage errors with " ^ host)
-
-let load_from_backup ~host ~canvas_id ()
-    : Op.tlid_oplists option =
-  if is_test host
-  then
-    load_json_from_disk ~root:Testdata ~preprocess:ident
-      ~host ~canvas_id ()
-  else
-    load_json_from_db ~preprocess:ident ~host ~canvas_id ()
-
-
-let search_and_load (host: string) (canvas_id: Uuidm.t)
-  : Op.tlid_oplists =
-  (* This was the old way of doing a ton of deserializations and picking
-   * the right one. However, it became easier and more correct to do
-   * live migrations rather than layering things here, so this may end
-   * up being useless. Keeping it around in case it's needed for a while
-   * anyway. *)
-  deserialize_ordered host canvas_id
-    [ load_all_from_db
-    ; load_from_backup
-    ]
 
 (* ------------------------- *)
 (* hosts *)

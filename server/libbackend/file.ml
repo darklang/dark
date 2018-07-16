@@ -118,13 +118,6 @@ let writejsonfile ~root ~(conv: ('a -> Yojson.Safe.json)) ~(value:'a) filename
 (* ------------------- *)
 (* spawning *)
 (* ------------------- *)
-let convert_bin_to_json (host: string) =
-  (* Goes through execve, so never hits the shell *)
-  Spawn.spawn
-    ~prog:(Config.dir Config.Bin_root ^ "darkfile_db_to_json_file.exe")
-    ~argv:[""; host]
-    ()
-
 
 let init () =
   (* Spawn creates lots of child processes. When they finish, the OS
