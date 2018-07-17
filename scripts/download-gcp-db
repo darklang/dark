@@ -22,8 +22,12 @@ gsutil cp $GSFILENAME .
 ###########################
 echo "Loading DB (logging to $LOGFILE)"
 ###########################
-dropdb --if-exists $DB
-createdb $DB
+# Before we load, we need to clear the current DB. You can't just drop
+# the DB if something (eg the app) is connected. So this approximates it.
+psql -d $DB -c 'DROP TABLE IF EXISTS events, stored_events, function_results, user_data, cron_records, toplevel_oplists, canvases, accounts, session, system_migrations, json_oplists, oplists CASCADE;'
+psql -d $DB -c 'DROP FUNCTION IF EXISTS canvas_id(uuid, uuid, varchar(40)) CASCADE;'
+psql -d $DB -c 'DROP FUNCTION IF EXISTS trigger_set_timestamp() CASCADE;'
+psql -d $DB -c 'DROP TYPE IF EXISTS queue_status, toplevel_type CASCADE;'
 
 # There are some permission statements for cloudsql that are not relevant
 gunzip --stdout $FILENAME | grep -v cloudsql | psql $DB > $LOGFILE
