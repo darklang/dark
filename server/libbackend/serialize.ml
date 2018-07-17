@@ -45,7 +45,7 @@ let write_shape_data () =
 let is_test (name: string) : bool =
   String.is_prefix ~prefix:"test-" name
 
-let json_unversioned_filename name =
+let json_filename name =
   name ^ "." ^ "json"
 
 (* ------------------------- *)
@@ -159,7 +159,7 @@ let load_json_from_disk ~root ?(preprocess=ident) ~(host:string)
   Log.infO "serialization" ~params:[ "load", "disk"
                                    ; "format", "json"
                                    ; "host", host];
-  let filename = json_unversioned_filename host in
+  let filename = json_filename host in
   File.maybereadjsonfile ~root filename
     ~conv:Op.oplist_of_yojson ~stringconv:preprocess
   |> Option.map ~f:Op.oplist2tlid_oplists
