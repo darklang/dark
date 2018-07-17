@@ -641,7 +641,9 @@ let server () =
       | (_, Some host) ->
          auth_then_handle ~execution_id req host handler
       | ("/", None) -> (* for GKE health check *)
-        respond ~execution_id `OK "Hello internal overlord"
+        (match Dbconnection.status () with
+         | `Healthy -> respond ~execution_id `OK "Hello internal overlord"
+         | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
       | (_, None) -> (* for GKE health check *)
         respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
