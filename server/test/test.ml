@@ -83,6 +83,16 @@ let http_handler ast : Handler.handler =
            ; types = { input = b ()
                      ; output = b () }}}
 
+let http_route = "/some/vars/and/such"
+let http_route_handler : Handler.handler =
+  { tlid = tlid
+  ; ast = f (Value "5")
+  ; spec = { module_ = f "HTTP"
+           ; name = f "/some/:vars/:and/such"
+           ; modifier = f "GET"
+           ; types = { input = b ()
+                     ; output = b () }}}
+
 
 
 let daily_cron ast : Handler.handler =
@@ -337,6 +347,15 @@ let t_db_oplist_roundtrip () =
     ~name:None ~module_:None ~modifier:None;
   let ops = Serialize.load_all_from_db ~canvas_id ~host () in
   check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
+
+let t_http_oplist_roundtrip () =
+  clear_test_data ();
+  let host = "test-http_oplist_roundtrip" in
+  let oplist = [ Op.SetHandler (tlid, pos, http_route_handler) ] in
+  let c1 = Canvas.init host oplist in
+  Canvas.serialize_only [tlid] !c1;
+  let c2 = Canvas.load_http ~path:http_route ~verb:"GET" host in
+  check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
 let t_case_insensitive_db_roundtrip () =
@@ -600,6 +619,7 @@ let suite =
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
+  ; "http oplist roundtrip", `Quick, t_http_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
   ; "DB case-insensitive roundtrip", `Quick,
     t_case_insensitive_db_roundtrip
