@@ -63,24 +63,25 @@ let json_unversioned_filename name =
 (* ------------------------- *)
 let strs2tlid_oplists strs : Op.tlid_oplists =
   strs
+  |> List.map
+   ~f:(fun results ->
+       match results with
+       | [data] -> data
+       | _ -> Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
       let ops = Op.oplist_of_string str in
       (* there must be at least one op *)
       let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
       (tlid, ops))
 
-let load_per_tlid_oplists (canvas_id: Uuidm.t) : string list =
+let load_all_from_db ~host ~(canvas_id: Uuidm.t) () : Op.tlid_oplists =
   Db.fetch
     ~name:"load_per_tlid_oplists"
     "SELECT data FROM toplevel_oplists
      WHERE canvas_id = $1"
     ~params:[Uuid canvas_id]
     ~result:BinaryResult
-  |> List.map
-    ~f:(fun results ->
-        match results with
-        | [data] -> data
-        | _ -> Exception.internal "Shape of per_tlid oplists")
+  |> strs2tlid_oplists
 
 let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
     ~(tlids: Types.tlid list) () : Op.tlid_oplists =
@@ -96,15 +97,10 @@ let load_only_for_tlids ~host ~(canvas_id: Uuidm.t)
              OR tipe <> 'handler'::toplevel_type)")
     ~params:[Db.Uuid canvas_id]
     ~result:BinaryResult
-  |> List.map
-    ~f:(fun results ->
-        match results with
-        | [data] -> data
-        | _ -> Exception.internal "Shape of per_tlid oplists")
   |> strs2tlid_oplists
 
 let load_for_http ~host ~(canvas_id: Uuidm.t)
-    ~(uri: string) ~(verb: string) () : Op.tlid_oplists =
+    ~(path: string) ~(verb: string) () : Op.tlid_oplists =
   Db.fetch
     ~name:"load_for_http"
     (* The pattern `$2 like name` is deliberate, to leverage the DB's
@@ -116,16 +112,10 @@ let load_for_http ~host ~(canvas_id: Uuidm.t)
               AND modifier = $3)
               OR tipe <> 'handler'::toplevel_type)")
     ~params:[ Db.Uuid canvas_id
-            ; String uri
+            ; String path
             ; String verb]
     ~result:BinaryResult
-  |> List.map
-    ~f:(fun results ->
-        match results with
-        | [data] -> data
-        | _ -> Exception.internal "Shape of per_tlid oplists")
   |> strs2tlid_oplists
-
 
 
 let save_toplevel_oplist
@@ -199,11 +189,7 @@ let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
 (* ------------------------- *)
 (* per-tlid oplists *)
 (* ------------------------- *)
-let load_all_from_db ~(host:string)
-    ~(canvas_id: Uuidm.t) () : Op.tlid_oplists =
-  canvas_id
-  |> load_per_tlid_oplists
-  |> strs2tlid_oplists
+
 
 (* save is in canvas.ml *)
 

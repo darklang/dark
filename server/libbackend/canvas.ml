@@ -197,7 +197,7 @@ let load_only ~tlids host (newops: Op.op list) : canvas ref =
   load_from ~f:(Serialize.load_only_for_tlids ~tlids) host newops
 
 let load_http ~verb ~path host : canvas ref =
-  load_from ~f:(Serialize.load_for_http ~uri:path ~verb) host []
+  load_from ~f:(Serialize.load_for_http ~path ~verb) host []
 
 
 let serialize_only (tlids: tlid list) (c: canvas) : unit =
