@@ -319,29 +319,4 @@ let check_all_hosts () : unit =
         ~f:(validate_op host)
     )
 
-(* ------------------------- *)
-(* Routing *)
-(* ------------------------- *)
-
-let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
-  let path = Uri.path uri in
-  c.handlers
-  |> TL.http_handlers
-  |> List.filter
-    ~f:(fun h -> Handler.event_name_for h <> None)
-  |> List.filter
-    ~f:(fun h -> Http.path_matches_route ~path:path (Handler.event_name_for_exn h))
-  |> List.filter
-    ~f:(fun h ->
-      (match Handler.modifier_for h with
-        | Some m -> String.Caseless.equal m verb
-        (* we specifically want to allow handlers without method specifiers for now *)
-        | None -> true))
-  |> List.map
-    ~f:(fun h -> (Http.has_route_variables (Handler.event_name_for_exn h), h))
-
-let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
-  matching_routes ~uri ~verb c
-
-
 

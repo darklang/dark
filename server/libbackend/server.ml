@@ -151,12 +151,14 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
   let c = C.load_http host ~verb ~path:(Uri.path uri) in
-  let pages = C.pages_matching_route ~uri ~verb !c in
+  let pages = !c.handlers |> TL.http_handlers in
   let pages =
     if List.length pages > 1
-    then List.filter ~f:(fun (has_vars, _) -> not has_vars) pages
+    then List.filter pages
+        ~f:(fun h ->
+            not (Http.has_route_variables
+                   (Handler.event_name_for_exn h)))
     else pages in
-  let pages = List.map ~f:Tuple.T2.get2 pages in
 
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
