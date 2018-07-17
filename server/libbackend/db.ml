@@ -148,7 +148,7 @@ let execute ~name ~op ~params ~result ?subject
                               @ subject_log );
     result
 
-  with e  ->
+  with e ->
     let bt = Exception.get_backtrace () in
     let log_string =
       params
