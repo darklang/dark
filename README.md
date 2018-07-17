@@ -143,10 +143,8 @@ Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
 Oplists are versioned by the hash of the "shape" of their structure.
 If you change the structure of an Op (including the nested structure),
-then the binary version will no longer load.
-
-By default, the server will also save a json version in json_oplists. You can migrate this to the new version. Check out server/serialize.ml to see how it all works.
-
+then the binary version will no longer load. See serialize.ml for
+migrations.
 
 # Debugging ppx stuff
 
