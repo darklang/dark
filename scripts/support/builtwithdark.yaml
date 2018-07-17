@@ -19,6 +19,22 @@ spec:
           ports:
             - name: bwd-ctr-port
               containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            # Giving 2 minutes grace here, there's an outstanding k8s issue
+            # preventing you from specifying "start checking liveness after an
+            # ok from readiness", which is what you'd expect.
+            # https://github.com/kubernetes/kubernetes/issues/27114
+            initialDelaySeconds: 120
+            periodSeconds: 3
           envFrom:
             - configMapRef:
                 name: gke-dark-prod
