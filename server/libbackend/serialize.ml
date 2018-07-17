@@ -52,8 +52,7 @@ let write_shape_data () =
     ()
 
 let is_test (name: string) : bool =
-  String.is_prefix ~prefix:"test_" name
-  || String.is_prefix ~prefix:"test-" name
+  String.is_prefix ~prefix:"test-" name
 
 let json_unversioned_filename name =
   name ^ "." ^ "json"
