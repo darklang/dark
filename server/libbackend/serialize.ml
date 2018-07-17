@@ -2,7 +2,7 @@ open Core_kernel
 open Libcommon
 open Libexecution
 
-(* We serialize oplists for each toplevel in the DB. This affect making
+(* We serialize oplists for each toplevel in the DB. This affects making
  * changes to almost any fundamental type in Dark, so must be
  * understood.
  *
@@ -11,28 +11,19 @@ open Libexecution
  *
  * The oplists for toplevels are stored in per-tlid oplists, serialized
  * to binary. Since they're serialized to binary, they are not easily
- * editable. As a result, we also serialize the entire canvas to json in
- * the background. (We do the entire canvas rather than just individual
- * toplevels as it seems less likely to fail, and it was easier in the
- * first pass. It has significantly worse performance so we should
- * change it later, perhaps once we gain more confidence in everything).
+ * editable.
  *
- * To do a migration, first change the type - that's enough to create
- * the new binary serialization functions. Then create a function to
- * preprocess the json in the old format into the new format. That will
- * allow live migrations without breaking customers who are currently
- * using the site.
+ * To do a migration, first make a copy of the type, making sure it has
+ * a bin_prot serializer. That will allow you to read both the old and
+ * new formats from the DB, which will allow live migrations without
+ * breaking customers who are currently using the site.
  *
  * Then you need to migrate the data - we didn't used to do this and it
- * led to a lot of problems. All data should be in the same
- * format (the `digest` field in the DB should tell us what format it
- * is). Data is migrated by calling the /admin/check-all-oplists
- * endpoint. You should check that it works locally first using
- * scripts/download-gcp-db).
- *
- * (Note: at time of writing, the code isn't really set up to fully
- * support what this comment describes, but it's close enough, and
- * should be fully converted soon.)
+ * led to a lot of problems. All data should be in the same format (the
+ * `digest` field in the DB should tell us what format it is). Data is
+ * migrated by calling the /admin/check-all-oplists endpoint. You should
+ * check that it works locally first using scripts/download-gcp-db).
+ * Write the code to do the migration in Canvas.check_all_hosts.
  *)
 
 
@@ -184,14 +175,6 @@ let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
   |> Yojson.Safe.pretty_to_string
   |> (fun s -> s ^ "\n")
   |> File.writefile ~root filename
-
-(* ------------------------- *)
-(* per-tlid oplists *)
-(* ------------------------- *)
-
-
-(* save is in canvas.ml *)
-
 
 (* ------------------------- *)
 (* hosts *)
