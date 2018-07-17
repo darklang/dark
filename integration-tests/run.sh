@@ -85,10 +85,7 @@ for cid in $CANVASES; do
   SCRIPT+="DELETE FROM toplevel_oplists WHERE canvas_id = '$cid';";
   SCRIPT+="DELETE FROM canvases WHERE id = '$cid';";
 done
-
 run_sql "$SCRIPT";
-run_sql "DELETE FROM oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
-run_sql "DELETE FROM json_oplists WHERE SUBSTRING(host, 0, 6) = 'test-';";
 
 TEST_HOST="integration-tests:$PORT" \
   testcafe \
