@@ -287,14 +287,14 @@ let minimize (c : canvas) : canvas =
 let save_test (c: canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
-  let file = Serialize.json_unversioned_filename host in
+  let file = Serialize.json_filename host in
   let host = if File.file_exists ~root:Testdata file
              then
                host
                ^ "_"
                ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else host in
-  let file = Serialize.json_unversioned_filename host in
+  let file = Serialize.json_filename host in
   Serialize.save_json_to_disk ~root:Testdata file c.ops;
   file
 
