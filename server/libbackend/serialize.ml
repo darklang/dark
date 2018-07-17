@@ -195,13 +195,14 @@ let current_hosts () : string list =
 
 
 
-
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
 let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
   Db.fetch_one
     ~name:"fetch_canvas_id"
     "SELECT canvas_id($1, $2, $3)"
-    ~params:[Uuid (Util.create_uuid ()); Uuid owner; String host]
+    ~params:[ Uuid (Util.create_uuid ())
+            ; Uuid owner
+            ; String host]
   |> List.hd_exn
   |> Uuidm.of_string
   |> Option.value_exn
