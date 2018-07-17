@@ -171,16 +171,11 @@ let init (host: string) (ops: Op.op list): canvas ref =
 (* ------------------------- *)
 
 let load_from (host: string) (newops: Op.op list)
-  ~(fetch_fn: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists)
-  ~(trim_fn: canvas -> canvas)
+  ~(f: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists)
   : canvas ref =
   let owner = Account.for_host host in
   let canvas_id = Serialize.fetch_canvas_id owner host in
-  let oldops =
-    match fetch_fn ~host ~canvas_id () with
-    | [] -> Serialize.load_all_from_db ~host ~canvas_id ()
-    | ops -> ops
-  in
+  let oldops = f ~host ~canvas_id () in
   let c =
     ref { host = host
         ; owner = owner
@@ -193,63 +188,28 @@ let load_from (host: string) (newops: Op.op list)
         }
   in
   add_ops c (Op.tlid_oplists2oplist oldops) newops;
-  (* always run this to make sure it's consistent *)
-  c := trim_fn !c;
   c
 
 let load_all host (newops: Op.op list) : canvas ref =
-  load_from
-    ~fetch_fn:Serialize.load_all_from_db
-    ~trim_fn:ident
-    host newops
-
-let load_only_trim_fn tlids c =
-  { c with handlers =
-             List.filter c.handlers
-               ~f:(fun tl -> List.mem ~equal:(=) tlids tl.tlid)
-  }
+  load_from ~f:Serialize.load_all_from_db host newops
 
 let load_only ~tlids host (newops: Op.op list) : canvas ref =
-  load_from
-    ~fetch_fn:(Serialize.load_only_for_tlids ~tlids)
-    ~trim_fn:(load_only_trim_fn tlids)
-    host newops
+  load_from ~f:(Serialize.load_only_for_tlids ~tlids) host newops
 
-
-let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
-  toplevellist =
-  let path = Uri.path uri in
-  List.filter handlers
-    ~f:(fun tl ->
-        match tl.data with
-        | Handler h ->
-          Handler.event_name_for h <> None
-          && Http.path_matches_route ~path:path (Handler.event_name_for_exn h)
-          && (match Handler.modifier_for h with
-              | Some m -> String.Caseless.equal m verb
-              (* we specifically want to allow handlers without method specifiers for now *)
-              | None -> true)
-        | _ -> false)
-
-let load_http_trim_fn ~verb ~uri c =
-  { c with handlers = http_handlers ~uri ~verb c.handlers }
-
-  (* # TODO data is in the wrong format. We need to convert the http path *)
-  (*   to something. However, there is no data in prod like this, so we *)
-  (*                                                should write a test for *)
-  (*                                                it. *)
-let load_http ~verb ~(uri: Uri.t) host : canvas ref =
-  let path = Uri.path uri in
-  load_from
-    ~fetch_fn:(Serialize.load_for_http ~uri:path ~verb)
-    ~trim_fn:(load_http_trim_fn ~verb ~uri)
-    host []
+let load_http ~verb ~path host : canvas ref =
+  load_from ~f:(Serialize.load_for_http ~uri:path ~verb) host []
 
 
 let serialize_only (tlids: tlid list) (c: canvas) : unit =
+  let munge_name module_ n =
+    if Ast.blank_to_option module_ = Some "HTTP"
+    then Http.route_to_postgres_pattern n
+    else n
+  in
   let handler_metadata (h: Handler.handler) =
     ( h.tlid
     , ( Ast.blank_to_option h.spec.name
+        |> Option.map ~f:(munge_name h.spec.module_)
       , Ast.blank_to_option h.spec.module_
       , Ast.blank_to_option h.spec.modifier))
   in
@@ -309,10 +269,9 @@ let save_all (c : canvas) : unit =
 (* ------------------------- *)
 
 let load_and_resave_from_test_file (host: string) : unit =
-  let c = load_from host []
-      ~fetch_fn:(Serialize.load_json_from_disk
-                   ~root:Testdata ~preprocess:ident)
-      ~trim_fn:ident
+  let c =
+    load_from host []
+      ~f:(Serialize.load_json_from_disk ~root:Testdata ~preprocess:ident)
   in
   save_all !c
 
