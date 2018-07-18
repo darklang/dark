@@ -7,21 +7,27 @@ import Dict
 import Html
 import Html.Attributes as Attrs
 import Navigation
-import Maybe.Extra as ME
+-- import Maybe.Extra as ME
 
 
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
 import Functions
+import Defaults
+import Viewport
 
 
 urlFor : Page -> String
 urlFor page =
+  let posStr pos =
+    "x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
+  in
   case page of
     Toplevels pos ->
-      "#x=" ++ toString pos.x ++ "&y=" ++ toString pos.y
-    Fn tlid -> "#fn=" ++ toString (deTLID tlid)
+      "#" ++  posStr pos
+    Fn tlid pos ->
+      "#fn=" ++ toString (deTLID tlid) ++ "&" ++ posStr pos
 
 linkFor : Page -> String -> List (Html.Html Msg) -> Html.Html Msg
 linkFor page class content =
@@ -35,15 +41,13 @@ linkFor page class content =
 -- and update the browser url periodically.
 maybeUpdateScrollUrl : Model -> Modification
 maybeUpdateScrollUrl m =
-  case m.currentPage of
-    Toplevels pos ->
-      if pos /= m.urlState.lastPos
-      then
-        Many [ TweakModel (\m -> { m | urlState = {lastPos = pos}})
-             , MakeCmd (Navigation.modifyUrl (urlFor m.currentPage))
-             ]
-      else NoChange
-    _ -> NoChange
+  let pos = Viewport.pagePos m.currentPage in
+  if pos /= m.urlState.lastPos
+  then
+    Many [ TweakModel (\m -> { m | urlState = {lastPos = pos}})
+         , MakeCmd (Navigation.modifyUrl (urlFor m.currentPage))
+         ]
+  else NoChange
 
 
 parseLocation : Model -> Navigation.Location -> Maybe Page
@@ -62,7 +66,7 @@ parseLocation m loc =
         case (Dict.get "x" unstructured, Dict.get "y" unstructured) of
           (Just x, Just y) ->
             case (String.toInt x, String.toInt y) of
-              (Ok x, Ok y) -> Just (Toplevels { x = x, y = y })
+              (Ok x, Ok y) -> Just { x = x, y = y }
               _  -> Nothing
           _ -> Nothing
       editedFn =
@@ -70,21 +74,26 @@ parseLocation m loc =
           Just sid ->
             case String.toInt sid of
               Ok id ->
-                Just <| Fn (TLID id)
+                Just <|
+                  Fn (TLID id)
+                     (Maybe.withDefault Defaults.fnPos center)
               _ -> Nothing
           _ -> Nothing
   in
-  ME.or center editedFn
+  case (center, editedFn) of
+    (_, Just fn) -> editedFn
+    (Just pos, _) -> Just (Toplevels pos)
+    _ -> Nothing
 
 
 changeLocation : Model -> Navigation.Location -> Modification
 changeLocation m loc =
   let mPage = parseLocation m loc in
   case mPage of
-    Just (Fn id) ->
+    Just (Fn id pos) ->
       case Functions.find m id of
         Nothing -> Error "No function"
-        _ -> SetPage (Fn id)
+        _ -> SetPage (Fn id pos)
     Just page -> SetPage page
     _ -> NoChange
 

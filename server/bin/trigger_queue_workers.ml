@@ -6,6 +6,7 @@ let _ =
     Libbackend.Queue_worker.dequeue_and_evaluate_all ()
     |> Out_channel.print_endline
   with e ->
-    Libbackend.Rollbar.last_ditch e "trigger queue workers" "no execution id"
+    let bt = Libexecution.Exception.get_backtrace () in
+    Libbackend.Rollbar.last_ditch e ~bt "trigger queue workers" "no execution id"
 
 

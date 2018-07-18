@@ -36,5 +36,6 @@ let init () =
       Libcommon.Log.infO "Libbackend" ~data:"Initialization Complete";
       has_inited := true;
   with e ->
-    Rollbar.last_ditch e "backend initialization" "no execution id"
+    let bt = Libexecution.Exception.get_backtrace () in
+    Rollbar.last_ditch e ~bt "backend initialization" "no execution id"
 

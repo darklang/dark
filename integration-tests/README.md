@@ -28,10 +28,10 @@ Uses testcafe with headless-chrome:
 - https://devexpress.github.io/testcafe
 
 run.sh calls testcafe, which runs tests.js on headless-chrome in the
-container. Our testcafe tests load the server and get the test output
-from server/appdata. The client loads it, recognizes from the url that
-it's a test, then gets the testcode from IntegrationTest.elm and stores
-it in the model.
+container. Our testcafe tests load the server and get the test programs
+from server/test_appdata. The client loads it, recognizes from the url
+that it's a test, then gets the testcode from IntegrationTest.elm and
+stores it in the model.
 
 At the end of a test, the harness clicks the "finish integration test"
 button in the browser, which runs the testing function for the test

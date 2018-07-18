@@ -98,6 +98,13 @@ let auth_domain_for host : string =
   | d :: _ -> d
   | _ -> host
 
+let for_host (host:string) : Uuidm.t =
+  host
+  |> auth_domain_for
+  |> owner
+  |> fun o -> Option.value_exn ~message:("No owner found for host " ^ host) o
+
+
 
 let init_testing () : unit =
   upsert_account
@@ -138,6 +145,11 @@ let init () : unit =
     ; password = "descartes"
     ; email = "alice@darklang.com"
     ; name = "Alice Wong"};
+  upsert_account
+    { username = "lizzie"
+    ; password = "pHLoEmnAWHWWTuotLoCoPzt8CGbdze"
+    ; email = "_@lizzie.io"
+    ; name = "Lizzie Dixon"};
   upsert_account
     { username = "dabblefox"
     ; password = "alk92''[ponvhi4"
@@ -203,8 +215,11 @@ let init () : unit =
     ; password = "theexpanse"
     ; email = "victorslymar@gmail.com"
     ; name = "Victor Lymar"};
-
-
+  upsert_account
+    { username = "listo"
+    ; password = "GxBGXMBMkUoCakh8QpefmykJNMJdVe"
+    ; email = "c@cpo.is"
+    ; name = "Chase"};
 
   ()
 

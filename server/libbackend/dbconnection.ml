@@ -29,3 +29,18 @@ let rec rec_con depth =
 
 let conn = rec_con 0
 
+let status () =
+  try
+    match conn#status with
+    | Ok -> `Healthy
+    | Connection_started -> `Healthy
+    | Connection_made -> `Healthy
+    | Connection_awaiting_response -> `Healthy
+    | Connection_auth_ok -> `Healthy
+    | Connection_setenv -> `Healthy
+    | Connection_ssl_startup -> `Healthy
+    | Bad  -> `Disconnected
+  with
+  | e ->
+    `Disconnected
+

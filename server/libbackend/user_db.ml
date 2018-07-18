@@ -30,7 +30,11 @@ let find_db tables table_name : db =
 let dbs_as_env (dbs: db list) : dval_map =
   dbs
   |> List.map ~f:(fun (db: db) -> (db.display_name, DDB db))
-  |> DvalMap.of_alist_exn
+  |> function m ->
+        match DvalMap.of_alist m with
+        | `Ok r -> r
+        | `Duplicate_key name ->
+          Exception.client ("A DB named " ^ name ^ " already exists")
 
 let dbs_as_exe_env (dbs: db list) : dval_map =
   dbs_as_env dbs
@@ -58,20 +62,27 @@ let cols_for (db: db) : (string * tipe) list =
       None)
   |> fun l -> ("id", TID) :: l
 
+let dv_to_id col (dv: dval) : Uuidm.t =
+    match dv with
+    | DID id -> id
+    | DStr str -> (* This is what you get for accidentally
+                     implementating a dynamic language *)
+      let uuid =
+        match Uuidm.of_string str with
+        | Some id -> id
+        | None -> Exception.user (type_error_msg col TID dv)
+      in
+      uuid
+    | _ -> Exception.user (type_error_msg col TID dv)
+
+
 let query_for (col: string) (dv: dval) : string =
   if col = "id" (* the id is not stored in the jsonb *)
   then
-    match dv with
-    | DID id ->
-      Printf.sprintf
-        "AND id = %s"
-        (Db.escape (Uuid id))
-    | DStr str -> (* This is what you get for accidentally
-                     implementating a dynamic language *)
-      Printf.sprintf
-        "AND id = %s"
-        (Db.escape (Uuid (Uuidm.of_string str |> Option.value_exn)))
-    | _ -> Exception.client "Invalid id type"
+    let id = dv_to_id col dv in
+    Printf.sprintf
+      "AND id = %s"
+      (Db.escape (Uuid id))
   else
     Printf.sprintf
       "AND (data->%s)%s = %s" (* compare against json in a string *)
@@ -214,7 +225,7 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
             has_many table any_list
           | (_, DNull) -> data (* allow nulls for now *)
           | (expected_type, value_of_actual_type) ->
-            Exception.client (type_error_msg key expected_type value_of_actual_type)
+            Exception.user (type_error_msg key expected_type value_of_actual_type)
         )
       obj
   else
@@ -230,11 +241,11 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
     in
     match (String.Set.is_empty missing_keys, String.Set.is_empty extra_keys) with
     | (false, false) ->
-      Exception.client (missing_msg ^ " & " ^ extra_msg)
+      Exception.user (missing_msg ^ " & " ^ extra_msg)
     | (false, true) ->
-      Exception.client missing_msg
+      Exception.user missing_msg
     | (true, false) ->
-      Exception.client extra_msg
+      Exception.user extra_msg
     | (true, true) ->
       Exception.internal
         "Type checker error! Deduced expected and actual did not unify, but could not find any examples!"
@@ -243,15 +254,18 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
     ~belongs_to:(fun table dv ->
         let dep_table = find_db state.dbs table in
         (match dv with
-         | DID id ->
-           (* TODO: temporary, need to add this to coerce not found dependents to null. We should
-            * probably propagate the deletion to the owning records, but this is very much a symptom
-            * of modelling relationships parent->child rather than child->parent. child->parent
-            * seems hard with our single-table, json blob approach though *)
+         | DID _ | DStr _ ->
+           let id = dv_to_id table dv in
+           (* TODO: temporary, need to add this to coerce not found
+            * dependents to null. We should probably propagate the
+            * deletion to the owning records, but this is very much a
+            * symptom of modelling relationships parent->child rather
+            * than child->parent. child->parent seems hard with our
+            * single-table, json blob approach though *)
            (try
               find ~state dep_table id
             with
-            | Exception.DarkException e as original->
+            | Exception.DarkException e as original ->
               (match e.tipe with
                | DarkStorage ->
                  DNull
@@ -260,17 +274,10 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             | other -> raise other)
          | DNull -> (* allow nulls for now *)
            DNull
-         | err -> Exception.client (type_error_msg table TID err)))
+         | err -> Exception.user (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db state.dbs table in
-        let uuids =
-          List.map
-            ~f:(fun id ->
-                (match id with
-                  | DID i -> i
-                  | err -> Exception.client (type_error_msg table TID err)))
-            ids
-        in
+        let uuids = List.map ~f:(dv_to_id table) ids in
         find_many ~state dep_table uuids)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
@@ -284,7 +291,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           | None -> insert ~state dep_table m |> DID)
        | DNull -> (* allow nulls for now *)
          DNull
-       | err -> Exception.client (type_error_msg table TObj err)))
+       | err -> Exception.user (type_error_msg table TObj err)))
    ~has_many:(fun table dlist ->
         let dep_table = find_db state.dbs table in
         dlist
@@ -297,7 +304,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
                  |> (function
                       | Some i -> i
                       | None -> Exception.internal "upsert returned id-less object")
-               | err -> Exception.client (type_error_msg table TObj err)))
+               | err -> Exception.user (type_error_msg table TObj err)))
         |> DList)
     ~state db obj
 and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
@@ -318,11 +325,7 @@ and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
             ; DvalmapJsonb merged];
   id
 and update ~state db (vals: dval_map) =
-  let id =
-    match DvalMap.find_exn vals "id" with
-    | DID uuid -> uuid
-    | _ -> Exception.client "error, id should be a uuid"
-  in
+  let id = DvalMap.find_exn vals "id" |> dv_to_id db.display_name in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Db.run
     ~name:"user_update"
@@ -361,11 +364,7 @@ let fetch_all ~state (db: db) : dval =
   |> DList
 
 let delete ~state (db: db) (vals: dval_map) =
-  let id =
-    match DvalMap.find_exn vals "id" with
-    | DID uuid -> uuid
-    | _ -> Exception.client "error, id should be a uuid"
-  in
+  let id = DvalMap.find_exn vals "id" |> dv_to_id db.display_name in
   (* covered by composite PK index *)
   Db.run
     ~name:"user_delete"

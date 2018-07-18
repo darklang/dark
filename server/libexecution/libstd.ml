@@ -1029,10 +1029,14 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DStr s]) ->
             (try
-              DStr (B64.decode ~alphabet:B64.uri_safe_alphabet s)
-            with
-            | Not_found_s _ | Caml.Not_found ->
-              DStr (B64.decode ~alphabet:B64.default_alphabet s))
+               DStr (B64.decode ~alphabet:B64.uri_safe_alphabet s)
+             with
+             | Not_found_s _ | Caml.Not_found ->
+               (try
+                  DStr (B64.decode ~alphabet:B64.default_alphabet s)
+                with
+                | Not_found_s _ | Caml.Not_found ->
+                  DError "Not a valid base64 string"))
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -1096,7 +1100,7 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DInt l]) ->
             if l < 0
-            then Exception.client "l should be a positive integer"
+            then Exception.user "l should be a positive integer"
             else
               DStr (Util.random_string l)
           | args -> fail args)

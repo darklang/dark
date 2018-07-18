@@ -254,6 +254,12 @@ ENV TERM=xterm-256color
 # Quick hacks here, to avoid massive recompiles
 ######################
 
+# crcmod for gsutil
+RUN sudo apt-get update && sudo apt-get install -y gcc python-dev python-setuptools
+RUN sudo easy_install -U pip
+RUN sudo pip uninstall crcmod
+RUN sudo pip install -U crcmod
+
 ############################
 # Finish
 ############################
