@@ -169,10 +169,14 @@ let last_ditch
     ?(pp=Exn.to_string)
     ?(inspect=empty_inspect)
     (e: exn)
+    ~(bt: Caml.Printexc.raw_backtrace)
     (name: string)
     (execution_id: string)
   : unit =
   (* Before anything else, get this flushed to logs *)
   Caml.print_endline ("UNHANDLED ERROR: " ^ name ^ " - " ^ (pp e));
-  let bt = Caml.Printexc.get_raw_backtrace () in
-  ignore (report ~pp ~inspect e bt (Other "main") execution_id)
+  ignore (report ~pp ~inspect e bt (Other "main") execution_id);
+  Caml.print_endline (Caml.Printexc.raw_backtrace_to_string bt);
+  Caml.print_endline (Yojson.Safe.to_string (inspect e))
+
+

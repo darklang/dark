@@ -581,7 +581,8 @@ let server () =
         let resp_headers = Cohttp.Header.of_list [cors] in
         respond ~resp_headers ~execution_id `Internal_server_error user_err
       with e ->
-        Rollbar.last_ditch e "handle_error" (Types.show_id execution_id);
+        let bt = Exception.get_backtrace () in
+        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);
         respond ~execution_id `Internal_server_error "unhandled error"
     in
 
