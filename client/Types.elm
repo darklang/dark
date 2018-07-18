@@ -407,7 +407,7 @@ type alias FourOhFour = (String, String, String, List JSD.Value)
 
 type alias Name = String
 type Page = Toplevels Pos
-          | Fn TLID
+          | Fn TLID Pos
 
 -----------------------------
 -- Model
@@ -498,6 +498,7 @@ type Modification = Error String
                   | EndIntegrationTest
                   | SetCursorState CursorState
                   | SetPage Page
+                  | SetCenter Pos
                   | CopyToClipboard Clipboard
                   | SetCursor TLID Int
                   | ExecutingFunctionBegan TLID ID
