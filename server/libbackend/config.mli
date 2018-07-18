@@ -12,14 +12,6 @@ type root = Log
           | Migrations
           | No_check
 
-type postgres_config = { host: string
-                       ; dbname: string
-                       ; user: string
-                       ; password: string
-                       }
-
-val postgres_settings : postgres_config
-
 val dir : root -> string
 
 val port : int

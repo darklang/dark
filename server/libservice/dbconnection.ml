@@ -1,6 +1,5 @@
 open Core_kernel
 open Libcommon
-open Libexecution
 
 module PG = Postgresql
 

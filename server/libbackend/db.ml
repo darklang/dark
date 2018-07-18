@@ -8,7 +8,7 @@ module PG = Postgresql
 (* Escaping and such *)
 (* ------------------------- *)
 
-let conn = Dbconnection.conn
+let conn = Libservice.Dbconnection.conn
 
 let escape_single s = conn#escape_string s
 let escape_double s = Util.string_replace "\"" "\\\"" s
