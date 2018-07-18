@@ -17,6 +17,8 @@ module FF = Feature_flag
 module Handler = Handler
 module TL = Toplevel
 
+module Dbconnection = Libservice.Dbconnection
+
 (* ------------------------------- *)
 (* feature flags *)
 (* ------------------------------- *)

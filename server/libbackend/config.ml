@@ -133,25 +133,3 @@ let rollbar_js =
   | _ ->
     "{enabled:false}"
 
-(* -------------------- *)
-(* db *)
-(* -------------------- *)
-
-
-type postgres_config = { host: string
-                       ; dbname: string
-                       ; user: string
-                       ; password: string
-                       }
-
-let pghost = string "DARK_CONFIG_DB_HOST"
-let pgdbname = string "DARK_CONFIG_DB_DBNAME"
-let pguser = string "DARK_CONFIG_DB_USER"
-let pgpassword = password "DARK_CONFIG_DB_PASSWORD"
-
-let postgres_settings : postgres_config =
-  { host = pghost
-  ; dbname = pgdbname
-  ; user = pguser
-  ; password = pgpassword
-  }
