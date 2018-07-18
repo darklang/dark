@@ -8,6 +8,7 @@ FILENAME="sqldump_$NUMBER.gz"
 GSFILENAME=gs://download-gcp-db/$FILENAME
 LOGFILE="sqldump_$NUMBER.log"
 DB=prodclone
+TEMPDB=prodcloneclone
 
 ###########################
 echo "Exporting DB to $GSFILENAME "
@@ -20,17 +21,21 @@ echo "Downloading DB from $GSFILENAME"
 gsutil cp $GSFILENAME .
 
 ###########################
-echo "Loading DB (logging to $LOGFILE)"
+echo "Dropping existing DB $DB (killing existing connections)"
 ###########################
-# Before we load, we need to clear the current DB. You can't just drop
-# the DB if something (eg the app) is connected. So this approximates it.
-psql -d $DB -c 'DROP TABLE IF EXISTS events, stored_events, function_results, user_data, cron_records, toplevel_oplists, canvases, accounts, session, system_migrations, json_oplists, oplists CASCADE;'
-psql -d $DB -c 'DROP FUNCTION IF EXISTS canvas_id(uuid, uuid, varchar(40)) CASCADE;'
-psql -d $DB -c 'DROP FUNCTION IF EXISTS trigger_set_timestamp() CASCADE;'
-psql -d $DB -c 'DROP TYPE IF EXISTS queue_status, toplevel_type CASCADE;'
+dropdb --if-exists $TEMPDB
+createdb $TEMPDB
 
+###########################
+echo "Loading DB $TEMPDB (logging to $LOGFILE)"
+###########################
 # There are some permission statements for cloudsql that are not relevant
-gunzip --stdout $FILENAME | grep -v cloudsql | psql $DB > $LOGFILE
+gunzip --stdout $FILENAME | grep -v cloudsql | psql -d $TEMPDB > $LOGFILE
+
+###########################
+echo "Stopping procs, copying into $DB, restarting"
+###########################
+./scripts/reset-prodclone
 
 ###########################
 echo "Deleting dumpfiles ($GSFILENAME, $FILENAME)"
@@ -39,4 +44,4 @@ rm $FILENAME
 gsutil rm $GSFILENAME
 
 
-echo "Done"
+echo "Done. To reset `prodclone` again, run ./scripts/reset-prodclone"
