@@ -68,9 +68,14 @@ let query_for (col: string) (dv: dval) : string =
         (Db.escape (Uuid id))
     | DStr str -> (* This is what you get for accidentally
                      implementating a dynamic language *)
+      let uuid =
+        match Uuidm.of_string str with
+        | Some id -> Uuid id
+        | None -> Exception.user "ID is not a UUID"
+      in
       Printf.sprintf
         "AND id = %s"
-        (Db.escape (Uuid (Uuidm.of_string str |> Option.value_exn)))
+        (Db.escape uuid)
     | _ -> Exception.client "Invalid id type"
   else
     Printf.sprintf
