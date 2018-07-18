@@ -5,7 +5,6 @@ import Dict
 
 -- lib
 import Html
-import Html.Events as Events
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
@@ -319,40 +318,12 @@ viewBlankOr htmlFn isWithinFn pt vs c bo =
             [drawBlankInsideFlag id]
           _ -> recoverable ("nested flagging not allowed for now", bo) []
 
-      drawSetting ffID setting =
+      drawEndFeatureFlag ffID =
         Html.div
-          [Attrs.class "setting-slider" ]
-          [ Html.input
-              [ Attrs.type_ "range"
-              , Attrs.min "0"
-              , Attrs.max "100"
-              , Attrs.step "0.5"
-              , Attrs.value (toString setting)
-              , eventNoPropagation "click" NothingClick
-              , eventNoPropagation "mousedown" NothingClick
-              , Events.onWithOptions
-                  "mouseup"
-                  { stopPropagation = False, preventDefault = False }
-                  (decodeSliderInputEvent (\_ -> SliderChange ffID))
-              , Events.onWithOptions
-                  "input"
-                  { stopPropagation = False, preventDefault = False }
-                  (decodeSliderInputEvent (SliderMoving ffID))
-              ]
-              []
-          ]
-
-      drawEndFeatureFlag setting ffID =
-        let (actionClass, icon) =
-              if setting == 0 || setting == 100
-              then ("valid-action", "check")
-              else ("invalid-action", "times")
-        in
-        Html.div
-        [ Attrs.class (String.join " " ["end-ff", actionClass])
+        [ Attrs.class (String.join " " ["end-ff", "valid-action"])
         , Attrs.attribute "data-content" "Click to finalize and remove flag"
         , eventNoPropagation "click" (\_ -> EndFeatureFlag ffID)]
-        [ fontAwesome icon ]
+        [ fontAwesome "check" ]
 
       redFlag id =
         Html.div
@@ -363,16 +334,16 @@ viewBlankOr htmlFn isWithinFn pt vs c bo =
           [fontAwesome "flag"]
 
 
-      drawFlagged id msg setting l r =
-         if isSelectionWithin (Flagged id msg setting l r)
+      drawFlagged id msg cond l r =
+         if isSelectionWithin (Flagged id msg cond l r)
          then
            div vs
              [ wc "flagged shown"]
              (drawInFlag id (B.flattenFF bo) ++
               [ fontAwesome "flag"
               , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
-              , drawSetting id setting
-              , drawEndFeatureFlag setting id
+              , drawEndFeatureFlag id
+              , viewBlankOr htmlFn isWithinFn pt vs idConfigs (B.new ())
               , div vs [wc "flag-left nested-flag"]
                   [viewBlankOr htmlFn isWithinFn pt vs idConfigs l]
               , div vs [wc "flag-right nested-flag"]

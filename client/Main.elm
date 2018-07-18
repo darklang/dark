@@ -1218,15 +1218,6 @@ update_ msg m =
     EndFeatureFlag ffID ->
       FeatureFlags.end m ffID
 
-    SliderChange id ->
-      Many [ FeatureFlags.commitSlider m id
-           , TweakModel enableTimers ]
-
-    SliderMoving id value ->
-      Many [ TweakModel disableTimers
-           , FeatureFlags.updateSlider m id value
-           ]
-
     -------------------------
     -- Function Management
     ------------------------

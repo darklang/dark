@@ -57,7 +57,7 @@ flattenFF : BlankOr a -> BlankOr a
 flattenFF bo =
   case bo of
     Flagged _ _ setting a b ->
-      if setting >= 50
+      if False -- TODO: we need to know the actual result to display this correctly
       then b
       else a
     _ -> bo

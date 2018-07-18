@@ -118,8 +118,6 @@ type Msg
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress DarkKeyboardEvent
-    | SliderChange ID
-    | SliderMoving ID String
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
@@ -321,7 +319,7 @@ type BlankOr a = Blank ID
                | Flagged
                    ID
                    (BlankOr String)
-                   Int
+                   (Expr)
                    (BlankOr a)
                    (BlankOr a)
 
