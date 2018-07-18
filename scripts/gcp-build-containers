@@ -26,26 +26,26 @@ cp -Rf server/migrations/* $DIR/migrations/
 docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp:latest $DIR
 
 
-DIR=$(mktemp -d --suffix _gcp-qw-builddir)
+NDIR=$(mktemp -d --suffix _gcp-qw-builddir)
 
-cp scripts/support/gcp-queueworker-Dockerfile $DIR/Dockerfile
+cp scripts/support/gcp-queueworker-Dockerfile $NDIR/Dockerfile
 
-cp -f scripts/support/gcp-run-queueworker $DIR/
-cp -Rf server/templates $DIR/
-cp -Rf scripts $DIR/
+cp -f scripts/support/gcp-run-queueworker $NDIR/
+cp -Rf server/templates $NDIR/
+cp -Rf scripts $NDIR/
 
-mkdir -p $DIR/bin
-cp -f server/_build/default/bin/*.exe $DIR/bin/
+mkdir -p $NDIR/bin
+cp -f server/_build/default/bin/*.exe $NDIR/bin/
 
-mkdir -p $DIR/webroot
-cp -Rf server/static $DIR/webroot/
+mkdir -p $NDIR/webroot
+cp -Rf server/static $NDIR/webroot/
 
-mkdir -p $DIR/swagger
-cp -Rf server/swagger/*  $DIR/swagger/
+mkdir -p $NDIR/swagger
+cp -Rf server/swagger/*  $NDIR/swagger/
 
-mkdir -p $DIR/migrations
-cp -Rf server/migrations/* $DIR/migrations/
+mkdir -p $NDIR/migrations
+cp -Rf server/migrations/* $NDIR/migrations/
 
-docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp-qw:latest $DIR
+docker build --build-arg GIT_COMMIT=$(git rev-parse --short HEAD) -t dark-gcp-qw:latest $NDIR
 
 

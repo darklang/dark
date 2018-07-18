@@ -8,6 +8,12 @@ if [[ ! -z "${c}" ]]; then
   docker kill "${c}";
 fi
 
+case ${1:-server} in
+  "queue") IMAGE="dark-gcp-qw";;
+  "server") IMAGE="dark-gcp";;
+  *) IMAGE="dark-gcp";;
+esac
+
 ./scripts/support/create-dark-dev-network
 
 echo "Starting new container"
@@ -20,7 +26,6 @@ docker run \
   --env-file config/gcp-local \
   --mount type=bind,src=${HOST_PWD}/gcp-rundir,dst=/home/dark/gcp-rundir \
   --mount type=bind,src=${HOST_PWD}/gcp-persistdir,dst=/home/dark/gcp-persistdir \
-  dark-gcp:latest \
-  ${@}
+  $IMAGE:latest
 
 
