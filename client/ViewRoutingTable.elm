@@ -17,6 +17,7 @@ import Blank as B
 import Toplevel
 import ViewUtils exposing (..)
 import Url
+import Defaults
 
 
 
@@ -283,7 +284,7 @@ viewUserFunctions m =
 
       fnLink fn =
         Url.linkFor
-          (Fn fn.tlid)
+          (Fn fn.tlid Defaults.fnPos)
           "default-link"
           [Html.text (fn.metadata.name
                       |> B.asF

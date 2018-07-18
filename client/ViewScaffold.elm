@@ -37,7 +37,7 @@ viewButtons m =
           NoIntegrationTest -> []
       returnButton =
         case m.currentPage of
-          Fn _ ->
+          Fn _ _ ->
             [Url.linkFor
               (Toplevels m.urlState.lastPos)
               "specialButton default-link"

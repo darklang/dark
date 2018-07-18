@@ -55,7 +55,7 @@ viewCanvas m =
         asts =
           case m.currentPage of
             Toplevels _ -> List.map (viewTL m) m.toplevels
-            Fn tlid ->
+            Fn tlid _ ->
               case LE.find (\f -> f.tlid == tlid) m.userFunctions of
                 Just func -> [viewTL m (TL.ufToTL m func)]
                 Nothing -> List.map (viewTL m) m.toplevels -- TODO(ian): change to crash
@@ -64,11 +64,11 @@ viewCanvas m =
         axes =
           case m.currentPage of
             Toplevels _ -> [xaxis, yaxis]
-            Fn _ -> []
+            Fn _ _ -> []
         routing =
           case m.currentPage of
             Toplevels _ -> [ViewRoutingTable.viewRoutingTable m]
-            Fn _ -> []
+            Fn _ _ -> []
         allDivs = axes ++ routing ++ asts ++ entry
     in
         Html.div [Attrs.id "canvas"] allDivs
@@ -83,10 +83,12 @@ viewTL m tl =
               _ -> False
       pos =
         case m.currentPage of
-            Toplevels pos ->
-                tl.pos
-            Fn tLID ->
-                {x = 20, y = 20}
+            Toplevels _ ->
+              tl.pos
+            Fn tLID _ ->
+              -- the pos here is not where we draw the TL, but rather
+              -- where we position the fn.
+              {x = 20, y = 20}
       html =
         if Just tl.id == tlidOf m.cursorState || isDB
         then
