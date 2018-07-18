@@ -550,8 +550,35 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = true
   }
-  ;
+;
 
+{ pns = ["TFloat::lessThan"]
+; ins = []
+; p = [par "a" TFloat ; par "b" TFloat]
+; r = TBool
+; d = "Returns true if a is less than b"
+; f = InProcess
+      (function
+        | (_, [DFloat a; DFloat b]) -> DBool (a <. b)
+        | args -> fail args)
+; pr = None
+; ps = true
+}
+;
+
+{ pns = ["TFloat::lessThanOrEqualTo"]
+; ins = []
+; p = [par "a" TFloat ; par "b" TFloat]
+; r = TBool
+; d = "Returns true if a is less than b"
+; f = InProcess
+      (function
+        | (_, [DFloat a; DFloat b]) -> DBool (a <=. b)
+        | args -> fail args)
+; pr = None
+; ps = true
+}
+;
 
   (* ====================================== *)
   (* Any *)
