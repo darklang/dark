@@ -552,7 +552,7 @@ let fns : Lib.shortfn list = [
   }
 ;
 
-{ pns = ["TFloat::lessThan"]
+{ pns = ["Float::lessThan"]
 ; ins = []
 ; p = [par "a" TFloat ; par "b" TFloat]
 ; r = TBool
@@ -566,7 +566,7 @@ let fns : Lib.shortfn list = [
 }
 ;
 
-{ pns = ["TFloat::lessThanOrEqualTo"]
+{ pns = ["Float::lessThanOrEqualTo"]
 ; ins = []
 ; p = [par "a" TFloat ; par "b" TFloat]
 ; r = TBool
