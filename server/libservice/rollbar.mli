@@ -17,4 +17,5 @@ val report_lwt : ?pp:(exn -> string) -> ?inspect:(exn -> Yojson.Safe.json) -> ex
 val report : ?pp:(exn -> string) -> ?inspect:(exn -> Yojson.Safe.json) -> exn -> Caml.Printexc.raw_backtrace -> err_ctx -> string -> result
 
 (* Just in case *)
-val last_ditch : ?pp:(exn -> string) -> ?inspect:(exn -> Yojson.Safe.json) -> exn -> string -> string -> unit
+val last_ditch : ?pp:(exn -> string) -> ?inspect:(exn -> Yojson.Safe.json) -> exn -> bt: Caml.Printexc.raw_backtrace -> string -> string -> unit
+
