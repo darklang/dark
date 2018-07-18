@@ -58,25 +58,27 @@ let cols_for (db: db) : (string * tipe) list =
       None)
   |> fun l -> ("id", TID) :: l
 
-let query_for (col: string) (dv: dval) : string =
-  if col = "id" (* the id is not stored in the jsonb *)
-  then
+let dv_to_id col (dv: dval) : Uuidm.t =
     match dv with
-    | DID id ->
-      Printf.sprintf
-        "AND id = %s"
-        (Db.escape (Uuid id))
+    | DID id -> id
     | DStr str -> (* This is what you get for accidentally
                      implementating a dynamic language *)
       let uuid =
         match Uuidm.of_string str with
-        | Some id -> Uuid id
-        | None -> Exception.user "ID is not a UUID"
+        | Some id -> id
+        | None -> Exception.user (type_error_msg col TID dv)
       in
-      Printf.sprintf
-        "AND id = %s"
-        (Db.escape uuid)
-    | _ -> Exception.user "Invalid id type"
+      uuid
+    | _ -> Exception.user (type_error_msg col TID dv)
+
+
+let query_for (col: string) (dv: dval) : string =
+  if col = "id" (* the id is not stored in the jsonb *)
+  then
+    let id = dv_to_id col dv in
+    Printf.sprintf
+      "AND id = %s"
+      (Db.escape (Uuid id))
   else
     Printf.sprintf
       "AND (data->%s)%s = %s" (* compare against json in a string *)
@@ -248,7 +250,8 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
     ~belongs_to:(fun table dv ->
         let dep_table = find_db state.dbs table in
         (match dv with
-         | DID id ->
+         | DID _ | DStr _ ->
+           let id = dv_to_id table dv in
            (* TODO: temporary, need to add this to coerce not found
             * dependents to null. We should probably propagate the
             * deletion to the owning records, but this is very much a
@@ -258,7 +261,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
            (try
               find ~state dep_table id
             with
-            | Exception.DarkException e as original->
+            | Exception.DarkException e as original ->
               (match e.tipe with
                | DarkStorage ->
                  DNull
@@ -270,14 +273,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
          | err -> Exception.user (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db state.dbs table in
-        let uuids =
-          List.map
-            ~f:(fun id ->
-                (match id with
-                  | DID i -> i
-                  | err -> Exception.user (type_error_msg table TID err)))
-            ids
-        in
+        let uuids = List.map ~f:(dv_to_id table) ids in
         find_many ~state dep_table uuids)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
@@ -325,11 +321,7 @@ and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
             ; DvalmapJsonb merged];
   id
 and update ~state db (vals: dval_map) =
-  let id =
-    match DvalMap.find_exn vals "id" with
-    | DID uuid -> uuid
-    | _ -> Exception.user "id should be a uuid"
-  in
+  let id = DvalMap.find_exn vals "id" |> dv_to_id db.display_name in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Db.run
     ~name:"user_update"
@@ -368,11 +360,7 @@ let fetch_all ~state (db: db) : dval =
   |> DList
 
 let delete ~state (db: db) (vals: dval_map) =
-  let id =
-    match DvalMap.find_exn vals "id" with
-    | DID uuid -> uuid
-    | _ -> Exception.user "id should be a uuid"
-  in
+  let id = DvalMap.find_exn vals "id" |> dv_to_id db.display_name in
   (* covered by composite PK index *)
   Db.run
     ~name:"user_delete"
