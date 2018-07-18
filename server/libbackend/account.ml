@@ -145,6 +145,11 @@ let init () : unit =
     ; password = "descartes"
     ; email = "alice@darklang.com"
     ; name = "Alice Wong"};
+  upsert_admin
+    { username = "lizzie"
+    ; password = "pHLoEmnAWHWWTuotLoCoPzt8CGbdze"
+    ; email = "_@lizzie.io"
+    ; name = "Lizzie Dixon"};
   upsert_account
     { username = "dabblefox"
     ; password = "alk92''[ponvhi4"
