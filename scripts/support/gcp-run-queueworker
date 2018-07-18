@@ -14,4 +14,4 @@ sudo chown dark $DARK_CONFIG_PERSIST_DIR
 ./scripts/support/create-app-directories
 
 echo "Starting queue worker"
-sudo --preserve-env ./bin/queueworker.exe
+sudo --preserve-env ./bin/queue_worker.exe
