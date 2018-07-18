@@ -8,6 +8,7 @@ FILENAME="sqldump_$NUMBER.gz"
 GSFILENAME=gs://download-gcp-db/$FILENAME
 LOGFILE="sqldump_$NUMBER.log"
 DB=prodclone
+TEMPDB=prodcloneclone
 
 ###########################
 echo "Exporting DB to $GSFILENAME "
@@ -20,13 +21,21 @@ echo "Downloading DB from $GSFILENAME"
 gsutil cp $GSFILENAME .
 
 ###########################
-echo "Loading DB (logging to $LOGFILE)"
+echo "Dropping existing DB $DB (killing existing connections)"
 ###########################
-dropdb $DB
-createdb $DB
+dropdb --if-exists $TEMPDB
+createdb $TEMPDB
 
+###########################
+echo "Loading DB $TEMPDB (logging to $LOGFILE)"
+###########################
 # There are some permission statements for cloudsql that are not relevant
-gunzip --stdout $FILENAME | grep -v cloudsql | psql $DB > $LOGFILE
+gunzip --stdout $FILENAME | grep -v cloudsql | psql -d $TEMPDB > $LOGFILE
+
+###########################
+echo "Stopping procs, copying into $DB, restarting"
+###########################
+./scripts/reset-prodclone
 
 ###########################
 echo "Deleting dumpfiles ($GSFILENAME, $FILENAME)"
@@ -35,4 +44,4 @@ rm $FILENAME
 gsutil rm $GSFILENAME
 
 
-echo "Done"
+echo "Done. To reset `prodclone` again, run ./scripts/reset-prodclone"

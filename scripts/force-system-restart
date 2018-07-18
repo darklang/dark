@@ -1,0 +1,13 @@
+#! /bin/bash
+
+set -euo pipefail
+
+echo "Fetching credentials"
+gcloud container clusters get-credentials darkcluster1 --zone=us-west1
+
+echo "Force restarting all pods"
+kubectl get pods | grep bwd-deployment | awk '{print $1}' | xargs -i sh -c 'kubectl delete pod -o name {} && sleep 4'
+
+echo "All pods restarted -- please check dabblefox-shelf.builtwithdark.com/ping is returning HTTP 200 with body \"\""
+echo "If this did not resolve the incident, do not re-run immediately as it'll probably have no use."
+echo "Continue to monitor https://status.cloud.google.com/ for potential issues -- as Google might be having issues"

@@ -4,22 +4,24 @@ module Viewport exposing (..)
 import Defaults
 import Types exposing (..)
 
+pagePos : Page -> Pos
+pagePos page =
+  case page of
+    Toplevels pos -> pos
+    Fn _ pos -> pos
+
 toViewport : Model -> Pos -> VPos
 toViewport m pos =
-  let (default, center) =
-        case (Defaults.defaultModel |> .currentPage, m.currentPage) of
-          (Toplevels d, Toplevels c) -> (d,c)
-          _ -> ({x=0,y=0}, {x=0,y=0})
+  let default = pagePos (Defaults.defaultModel |> .currentPage)
+      center = pagePos m.currentPage
   in
   { vx = default.x + pos.x - center.x
   , vy = default.y + pos.y - center.y}
 
 toAbsolute : Model -> VPos -> Pos
 toAbsolute m pos =
-  let (default, center) =
-        case (Defaults.defaultModel |> .currentPage, m.currentPage) of
-          (Toplevels d, Toplevels c) -> (d,c)
-          _ -> ({x=0,y=0}, {x=0,y=0})
+  let default = pagePos (Defaults.defaultModel |> .currentPage)
+      center = pagePos m.currentPage
   in
   { x = pos.vx + center.x - default.x
   , y = pos.vy + center.y - default.y}
@@ -63,7 +65,6 @@ moveRight c =
 
 moveTo : Pos -> Modification
 moveTo pos =
-  SetPage (Toplevels pos)
-
+  SetCenter pos
 
 

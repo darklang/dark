@@ -1,5 +1,6 @@
 open Core_kernel
 open Libexecution
+open Libcommon
 
 open Util
 open Types
@@ -12,9 +13,10 @@ type toplevellist = TL.toplevel list [@@deriving eq, show, yojson]
 type canvas = { host : string
               ; owner : Uuidm.t
               ; id : Uuidm.t
-              ; ops : Op.oplist
+              ; ops : (tlid * Op.oplist) list
               ; handlers : toplevellist
               ; dbs: toplevellist
+              ; deleted: toplevellist
               ; user_functions: RTT.user_fn list
               } [@@deriving eq, show]
 
@@ -43,10 +45,26 @@ let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
   { c with user_functions = fns @ [user_fn] }
 
 let remove_toplevel (tlid: tlid) (c: canvas) : canvas =
-  let handlers = List.filter ~f:(fun x -> x.tlid <> tlid) c.handlers in
-  let dbs = List.filter ~f:(fun x -> x.tlid <> tlid) c.dbs in
+  let (oldh, handlers) =
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.handlers
+  in
+  let (olddb, dbs) =
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.dbs
+  in
+  let (olddel, deleted) =
+    List.partition_tf ~f:(fun x -> x.tlid = tlid) c.deleted
+  in
+
+  (* It's possible to delete something twice. Or more I guess. In that
+   * case, only keep the latest deleted toplevel. *)
+  let removed = oldh @ olddb @ olddel
+                |> List.hd
+                |> Option.value_map ~f:(fun x -> [x]) ~default:[]
+  in
   { c with handlers = handlers
-         ; dbs = dbs }
+         ; dbs = dbs
+         ; deleted = deleted @ removed
+  }
 
 let apply_to_toplevel ~(f:(TL.toplevel -> TL.toplevel)) (tlid: tlid) (tls: toplevellist) =
   match List.find ~f:(fun t -> t.tlid = tlid) tls with
@@ -89,7 +107,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       upsert_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
       if name = ""
-      then Exception.client ("DB must have a name")
+      then Exception.client "DB must have a name"
       else
         let db = User_db.create !c.host name tlid in
         upsert_db tlid pos (TL.DB db)
@@ -107,7 +125,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       apply_to_db ~f:(User_db.initialize_migration id rbid rfid kind) tlid
     | SetExpr (tlid, id, e) ->
       apply_to_all_toplevels ~f:(TL.set_expr id e) tlid
-    | DeleteTL tlid -> remove_toplevel tlid
+    | DeleteTL tlid ->
+      remove_toplevel tlid
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | SetFunction user_fn ->
       upsert_function user_fn
@@ -117,153 +136,187 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | Deprecated2
     | Deprecated3
     | Deprecated4 _ ->
-      Exception.internal ("Deprecated ops shouldn't be here anymore! " ^ (Op.show_op op))
+      Exception.internal ("Deprecated ops shouldn't be here anymore! " ^
+                          (Op.show_op op) ^ " in " ^ !c.host)
     | UndoTL _
     | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))
 
-(* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
-let fetch_canvas_id (owner:Uuidm.t) (host:string) : Uuidm.t =
-  let sql =
-    Printf.sprintf
-      "SELECT canvas_id(%s, %s, %s)"
-      (Db.escape (Uuid (Util.create_uuid ())))
-      (Db.escape (Uuid owner))
-      (Db.escape (String host))
-  in
-  Db.fetch_one
-    ~name:"fetch_canvas_id"
-    sql
-    ~params:[]
-  |> List.hd_exn
-  |> Uuidm.of_string
-  |> Option.value_exn
 
 let add_ops (c: canvas ref) (oldops: Op.op list) (newops: Op.op list) : unit =
   let reduced_ops = Undo.preprocess (oldops @ newops) in
   List.iter ~f:(fun op -> apply_op op c) reduced_ops;
-  c := { !c with ops = oldops @ newops }
+  c := { !c with ops = Op.oplist2tlid_oplists (oldops @ newops) }
 
-let minimize (c : canvas) : canvas =
-  let ops =
-    c.ops
-    |> Undo.preprocess
-    |> List.filter ~f:Op.has_effect
-  in { c with ops = ops }
+let init (host: string) (ops: Op.op list): canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
 
-
-(* ------------------------- *)
-(* Serialization *)
-(* ------------------------- *)
-let owner (host:string) : Uuidm.t =
-  host
-  |> Account.auth_domain_for
-  |> Account.owner
-  |> fun o ->
-       match o with
-       | Some owner -> owner
-       | None -> Exception.client ("No Canvas found for host " ^ host)
-
-
-let create ?(load=true) (host: string) (newops: Op.op list) : canvas ref =
-  let oldops =
-    if load
-    then Serialize.search_and_load host
-    else []
-  in
-
-  let owner = owner host in
-
-  let id = fetch_canvas_id owner host in
   let c =
     ref { host = host
         ; owner = owner
-        ; id = id
+        ; id = canvas_id
+        ; ops = []
+        ; handlers = []
+        ; dbs = []
+        ; deleted = []
+        ; user_functions = []
+        }
+  in
+  add_ops c [] ops;
+  c
+
+(* ------------------------- *)
+(* Loading/saving *)
+(* ------------------------- *)
+
+let load_from (host: string) (newops: Op.op list)
+  ~(f: host:string -> canvas_id:Uuidm.t -> unit -> Op.tlid_oplists)
+  : canvas ref =
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
+  let oldops = f ~host ~canvas_id () in
+  let c =
+    ref { host = host
+        ; owner = owner
+        ; id = canvas_id
         ; ops = []
         ; handlers = []
         ; dbs = []
         ; user_functions = []
+        ; deleted = []
         }
   in
-  add_ops c oldops newops;
+  add_ops c (Op.tlid_oplists2oplist oldops) newops;
   c
 
+let load_all host (newops: Op.op list) : canvas ref =
+  load_from ~f:Serialize.load_all_from_db host newops
 
-let load host tlids newops =
-  let c = create ~load:true host newops in
-  c :=
-    { !c with handlers =
-                List.filter !c.handlers
-                  ~f:(fun tl -> List.mem ~equal:(=) tlids tl.tlid)
-    };
+let load_only ~tlids host (newops: Op.op list) : canvas ref =
+  load_from ~f:(Serialize.load_only_for_tlids ~tlids) host newops
+
+let load_http ~verb ~path host : canvas ref =
+  load_from ~f:(Serialize.load_for_http ~path ~verb) host []
+
+
+let serialize_only (tlids: tlid list) (c: canvas) : unit =
+  let munge_name module_ n =
+    if Ast.blank_to_option module_ = Some "HTTP"
+    then Http.route_to_postgres_pattern n
+    else n
+  in
+  let handler_metadata (h: Handler.handler) =
+    ( h.tlid
+    , ( Ast.blank_to_option h.spec.name
+        |> Option.map ~f:(munge_name h.spec.module_)
+      , Ast.blank_to_option h.spec.module_
+      , Ast.blank_to_option h.spec.modifier))
+  in
+  let hmeta =
+    c.handlers
+    |> Toplevel.handlers
+    |> List.map ~f:handler_metadata
+  in
+  let routes = Int.Map.of_alist_exn hmeta in
+  let tipes_list =
+    (List.map c.handlers ~f:(fun h -> (h.tlid, `Handler)))
+    @ (List.map c.user_functions ~f:(fun f -> (f.tlid, `User_function)))
+    @ (List.map c.dbs ~f:(fun d -> (d.tlid, `DB)))
+    @ (List.map c.deleted ~f:(fun t ->
+        match t.data with
+        | Handler  _ -> (t.tlid, `Handler)
+        | DB _ -> (t.tlid, `DB)))
+  in
+  let tipes = Int.Map.of_alist_exn tipes_list in
+
+  (* Use ops rather than just set of toplevels, because toplevels may
+   * have been deleted or undone, and therefore not appear, but it's
+   * important to record them. *)
+  List.iter c.ops ~f:(fun (tlid, oplist) ->
+
+      (* Only save oplists that have been used. *)
+      if List.mem ~equal:(=) tlids tlid
+      then
+        let (name, module_, modifier) =
+          Int.Map.find routes tlid
+          |> Option.value ~default:(None, None, None)
+        in
+        let tipe = Int.Map.find tipes tlid
+                   (* If the user calls Undo enough, we might not know
+                    * the tipe here. In that case, set to handler cause
+                    * it won't be used anyway *)
+                   |> Option.value ~default:`Handler
+        in
+        Serialize.save_toplevel_oplist oplist
+          ~tlid ~canvas_id:c.id ~account_id:c.owner
+          ~name ~module_ ~modifier
+          ~tipe
+      else ())
+
+let save_tlids (c : canvas) (tlids: tlid list): unit =
+  serialize_only tlids c
+
+let save_all (c : canvas) : unit =
+  let tlids = List.map ~f:Tuple.T2.get1 c.ops in
+  save_tlids c tlids
+
+
+
+
+(* ------------------------- *)
+(* Testing/validation *)
+(* ------------------------- *)
+
+let load_and_resave_from_test_file (host: string) : unit =
+  let c =
+    load_from host []
+      ~f:(Serialize.load_json_from_disk ~root:Testdata ~preprocess:ident)
+  in
+  save_all !c
+
+let minimize (c : canvas) : canvas =
+  (* TODO *)
+  (* let ops = *)
+  (*   c.ops *)
+  (*   |> Undo.preprocess *)
+  (*   |> List.filter ~f:Op.has_effect *)
+  (* in { c with ops = ops } *)
   c
-
-let http_handlers ~(uri: Uri.t) ~(verb: string) (handlers : toplevellist) :
-  toplevellist =
-  let path = Uri.path uri in
-  List.filter handlers
-    ~f:(fun tl ->
-        match tl.data with
-        | Handler h ->
-          Handler.event_name_for h <> None
-          && Http.path_matches_route ~path:path (Handler.event_name_for_exn h)
-          && (match Handler.modifier_for h with
-              | Some m -> String.Caseless.equal m verb
-              (* we specifically want to allow handlers without method specifiers for now *)
-              | None -> true)
-        | _ -> false)
-
-
-let load_http host ~verb ~uri =
-  let c = create ~load:true host [] in
-  c := { !c with handlers = http_handlers ~uri ~verb !c.handlers };
-  c
-
-
-let load_all host newops = create ~load:true host newops
-let init = create ~load:false
-
-let save (c : canvas) : unit =
-  Serialize.save c.host c.ops
-
 
 let save_test (c: canvas) : string =
   let c = minimize c in
   let host = "test-" ^ c.host in
-  let file = Serialize.json_unversioned_filename host in
+  let file = Serialize.json_filename host in
   let host = if File.file_exists ~root:Testdata file
              then
                host
                ^ "_"
                ^ (Unix.gettimeofday () |> int_of_float |> string_of_int)
              else host in
-  let file = Serialize.json_unversioned_filename host in
+  let file = Serialize.json_filename host in
   Serialize.save_json_to_disk ~root:Testdata file c.ops;
   file
 
-(* ------------------------- *)
-(* Routing *)
-(* ------------------------- *)
+let validate_op host op =
+  match op with
+  | Op.Deprecated0
+  | Op.Deprecated1
+  | Op.Deprecated2
+  | Op.Deprecated3
+  | Op.Deprecated4 _ ->
+    Exception.internal "bad op"
+      ~info:["host", host] ~actual:(Op.show_op op)
+  | _ -> ()
 
-let matching_routes ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
-  let path = Uri.path uri in
-  c.handlers
-  |> TL.http_handlers
-  |> List.filter
-    ~f:(fun h -> Handler.event_name_for h <> None)
-  |> List.filter
-    ~f:(fun h -> Http.path_matches_route ~path:path (Handler.event_name_for_exn h))
-  |> List.filter
-    ~f:(fun h ->
-      (match Handler.modifier_for h with
-        | Some m -> String.Caseless.equal m verb
-        (* we specifically want to allow handlers without method specifiers for now *)
-        | None -> true))
-  |> List.map
-    ~f:(fun h -> (Http.has_route_variables (Handler.event_name_for_exn h), h))
+let check_all_hosts () : unit =
+  Serialize.current_hosts ()
+  |> List.iter ~f:(fun host ->
+      let c = load_all host [] in
 
-let pages_matching_route ~(uri: Uri.t) ~(verb: string) (c: canvas) : (bool * Handler.handler) list =
-  matching_routes ~uri ~verb c
-
+      (* check ops *)
+      List.iter (Op.tlid_oplists2oplist !c.ops)
+        ~f:(validate_op host)
+    )
 
 

@@ -25,6 +25,7 @@ import Url
 import ViewEntry
 import ViewUtils exposing (..)
 import ViewScaffold
+import Defaults
 
 
 type HtmlConfig =
@@ -444,6 +445,6 @@ viewEditFn tlid hasFlagAlso =
   Html.a
     [ Attrs.class "edit-fn"
     , Attrs.style [("right", rightOffset)]
-    , Attrs.href (Url.urlFor (Fn tlid))
+    , Attrs.href (Url.urlFor (Fn tlid Defaults.fnPos))
     ]
     [ fontAwesome "edit"]

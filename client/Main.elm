@@ -196,7 +196,7 @@ processFocus m focus =
                   TLHandler _ -> True
                   TLDB _ -> True
                   TLFunc _ -> False
-              Fn id ->
+              Fn id _ ->
                 tl.id == id
           (nextCursor, acTarget) =
             case cs of
@@ -369,6 +369,14 @@ updateMod mod (m, cmd) =
               let newM = { m | currentPage = page
                          , cursorState = Deselected }
               in newM ! closeBlanks newM
+
+      SetCenter center ->
+        case m.currentPage of
+          Toplevels pos ->
+            { m | currentPage = Toplevels center } ! []
+          Fn id pos ->
+            { m | currentPage = Fn id center } ! []
+
 
       Select tlid p ->
         let newM = { m | cursorState = Selecting tlid p } in
@@ -941,7 +949,7 @@ update_ msg m =
           Deselected ->
             -- Don't move viewport when editing fns
             case m.currentPage of
-              Fn _ -> NoChange
+              Fn _ _ -> NoChange
               Toplevels center ->
                 case event.keyCode of
                   Key.Enter -> Entry.createFindSpace m
@@ -1050,15 +1058,13 @@ update_ msg m =
 
 
     MouseWheel deltaCoords ->
-      case m.currentPage of
-        Toplevels center ->
-          let delta = case deltaCoords of
+      let pos = Viewport.pagePos m.currentPage
+          delta = case deltaCoords of
                         x::y::_ -> { x=x, y=y }
                         _ -> { x=0, y=0 }
-              dest = { x=center.x + delta.x, y=center.y + delta.y }
-          in
-          Viewport.moveTo dest
-        Fn _ -> NoChange
+          dest = { x=pos.x + delta.x, y=pos.y + delta.y }
+       in
+       Viewport.moveTo dest
 
     DataMouseEnter tlid idx _ ->
       SetHover <| tlCursorID tlid idx
@@ -1397,7 +1403,8 @@ update_ msg m =
         in Entry.submitOmniAction m center NewHTTPHandler
     CreateFunction ->
       let ufun = Refactor.generateEmptyFunction ()
-        in RPC ( [ SetFunction ufun ], FocusPageAndCursor (Fn ufun.tlid) m.cursorState )
+        in RPC ( [ SetFunction ufun ]
+               , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
     _ -> NoChange
 
 findCenter : Model -> Pos

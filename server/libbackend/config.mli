@@ -8,7 +8,6 @@ type root = Log
           | Testdata
           | Testresults
           | Bin_root
-          | Appdata
           | Swagger
           | Migrations
           | No_check
@@ -31,6 +30,7 @@ val log_level : Libcommon.Log.level
 val should_write_shape_data : bool
 
 val allow_server_shutdown : bool
+val allow_test_routes : bool
 
 val rollbar_enabled : bool
 val rollbar_environment : string

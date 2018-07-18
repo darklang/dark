@@ -8,5 +8,6 @@ let () =
     Libbackend.Init.init ();
     Libbackend.Server.run ()
   with e ->
-    Libbackend.Rollbar.last_ditch e "main" "no execution id"
+    let bt = Libexecution.Exception.get_backtrace () in
+    Libbackend.Rollbar.last_ditch e ~bt "main" "no execution id"
 

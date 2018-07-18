@@ -21,6 +21,9 @@ initialVPos = {vx=475, vy=325}
 initialPos : Pos
 initialPos = {x=475, y=325}
 
+fnPos : Pos
+fnPos = {x=0, y=0}
+
 moveSize : Int
 moveSize = 50
 

@@ -9,6 +9,16 @@ let split_uri_path (path: string) : string list =
   let subs = String.split ~on:'/' path in
   List.filter ~f:(fun x -> String.length x > 0) subs
 
+let route_to_postgres_pattern (route: string) : string =
+  route
+  |> split_uri_path
+  |> List.map ~f:(fun segment ->
+      if String.is_prefix ~prefix:":" segment
+      then "%%"
+      else segment)
+  |> String.concat ~sep:"/"
+  |> (^) "/"
+
 let path_matches_route ~(path: string) (route: string) : bool =
   let split_path = split_uri_path path in
   let split_route = split_uri_path route in
@@ -44,7 +54,7 @@ let sample_bound_route_params ~(route: string) : route_param_map =
 
 (* assumes route and path match *)
 let bind_route_params_exn ~(path: string) ~(route: string) : route_param_map =
-  if path_matches_route ~path:path route
+  if path_matches_route ~path route
   then
     let split_path = split_uri_path path in
     let pairs =

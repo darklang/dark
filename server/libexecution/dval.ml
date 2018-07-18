@@ -320,9 +320,9 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
   | `Null -> DNull
   | `String s -> DStr s
   | `List l -> DList (List.map ~f:dval_of_yojson_ l)
-  | `Variant v -> Exception.client "We dont use variants"
+  | `Variant v -> Exception.internal "We dont use variants"
   | `Intlit v -> DStr v
-  | `Tuple v -> Exception.client "We dont use tuples"
+  | `Tuple v -> Exception.internal "We dont use tuples"
   | `Assoc [("type", `String "resp"); ("value", `List [a;b])] ->
     DResp (Result.ok_or_failwith (dhttp_of_yojson a), dval_of_yojson_ b)
   | `Assoc [("type", `String tipe); ("value", `String v)] ->
@@ -334,9 +334,9 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" -> DError v
     | "incomplete" -> DIncomplete
     | "char" -> DChar (Char.of_string v)
-    | "db" -> Exception.client "Can't deserialize DBs"
-    | "block" -> Exception.client "Can't deserialize blocks"
-    | _ -> Exception.client ("Can't deserialize type: " ^ tipe)
+    | "db" -> Exception.user "Can't deserialize DBs"
+    | "block" -> Exception.user "Can't deserialize blocks"
+    | _ -> Exception.user ("Can't deserialize type: " ^ tipe)
     )
   | `Assoc alist ->
        DObj (List.fold_left alist

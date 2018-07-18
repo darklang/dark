@@ -25,8 +25,8 @@ let pos = {x=0;y=0}
 let execution_id = 6543
 
 let clear_test_data () : unit =
-  let owner = Canvas.owner "test" in
-  let canvas = Canvas.fetch_canvas_id owner "test" in
+  let owner = Account.for_host "test" in
+  let canvas = Serialize.fetch_canvas_id owner "test" in
   Db.run ~params:[Uuid canvas] ~name:"clear_events_test_data"
     "DELETE FROM events where canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_stored_events_test_data"
@@ -63,6 +63,7 @@ let at_dval = AT.testable
 let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
+let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 
 let handler ast : Handler.handler =
   { tlid = tlid
@@ -78,6 +79,16 @@ let http_handler ast : Handler.handler =
   ; ast = ast
   ; spec = { module_ = f "HTTP"
            ; name = f "/test"
+           ; modifier = f "GET"
+           ; types = { input = b ()
+                     ; output = b () }}}
+
+let http_route = "/some/vars/and/such"
+let http_route_handler : Handler.handler =
+  { tlid = tlid
+  ; ast = f (Value "5")
+  ; spec = { module_ = f "HTTP"
+           ; name = f "/some/:vars/:and/such"
            ; modifier = f "GET"
            ; types = { input = b ()
                      ; output = b () }}}
@@ -221,26 +232,29 @@ let t_undo_fns () =
   let u = Op.UndoTL tlid in
   let r = Op.RedoTL tlid in
 
-  AT.check AT.int "undocount"
-  3 (Undo.undo_count !(ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u]).ops tlid);
+  let ops (c:C.canvas ref) = !c.ops |> List.hd_exn |> Tuple.T2.get2 in
+
+  AT.check AT.int "undocount" 3
+    (Undo.undo_count
+       (ops2c "test" [n1; n1; n1; n1; n2; n3; n4; u; u; u] |> ops) tlid);
 
   AT.check AT.bool "redoable" true
-    (Undo.is_redoable !(ops2c "test" [n1; n2; n3; n4; u]).ops tlid);
+    (Undo.is_redoable (ops2c "test" [n1; n2; n3; n4; u] |> ops) tlid);
   AT.check AT.bool "undoable" true
-    (Undo.is_undoable !(ops2c "test" [n1; n2; n3; n4]).ops tlid);
+    (Undo.is_undoable (ops2c "test" [n1; n2; n3; n4] |> ops) tlid);
 
 
   AT.check AT.bool "not redoable" false
-    (Undo.is_redoable !(ops2c "test" [n1; n2; n3; n4; u; r]).ops tlid);
+    (Undo.is_redoable (ops2c "test" [n1; n2; n3; n4; u; r] |> ops) tlid);
   AT.check AT.bool "not undoable" false
-    (Undo.is_undoable !(ops2c "test" [n1; n2; n3; n4; u]).ops tlid);
+    (Undo.is_undoable (ops2c "test" [n1; n2; n3; n4; u] |> ops) tlid);
 
 
-  let both = !(ops2c "test" [n1; n1; n2; n3; n4; u; r; u]).ops in
+  let both = ops2c "test" [n1; n1; n2; n3; n4; u; r; u] |> ops in
   AT.check AT.bool "both_undo" true (Undo.is_undoable both tlid);
   AT.check AT.bool "both_redo" true (Undo.is_redoable both tlid);
 
-  let neither = !(ops2c "test" [n2; n3; n4]).ops in
+  let neither = ops2c "test" [n2; n3; n4] |> ops in
   AT.check AT.bool "neither_undo" false (Undo.is_undoable neither tlid);
   AT.check AT.bool "neither_redo" false (Undo.is_redoable neither tlid)
 
@@ -299,12 +313,15 @@ let t_int_add_works () =
   check_dval "int_add" (DInt 8) (execute "(+ 5 3)")
 
 let t_stdlib_works () =
-  check_dval "uniqueBy"
+  check_dval "uniqueBy1"
     (execute "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
     (DList [DInt 1; DInt 3; DInt 4]);
-  check_dval "uniqueBy"
+  check_dval "uniqueBy2"
     (execute "(List::uniqueBy (1 2 3 4) (\\x -> x))")
     (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
+  check_dval "base64decode"
+    (execute "(String::base64Decode 'random string')")
+    (DError "Not a valid base64 string");
   ()
 
 
@@ -320,30 +337,28 @@ let t_derror_roundtrip () =
 
 let t_db_oplist_roundtrip () =
   clear_test_data ();
-  let host = "test_db_oplist_roundtrip" in
+  let host = "test-db_oplist_roundtrip" in
+  let owner = Account.for_host host in
+  let canvas_id = Serialize.fetch_canvas_id owner host in
   let oplist = [ Op.UndoTL tlid
                ; Op.RedoTL tlid
                ; Op.UndoTL tlid
                ; Op.RedoTL tlid] in
-  Serialize.save_binary_to_db host oplist;
-  match (Serialize.load_binary_from_db ~digest:Serialize.digest host) with
-  | Some ops ->
-    check_oplist "db_oplist roundtrip" oplist ops
-  | None -> AT.fail "nothing in db"
+  Serialize.save_toplevel_oplist oplist
+    ~tlid ~canvas_id ~account_id:owner
+    ~tipe:`Handler
+    ~name:None ~module_:None ~modifier:None;
+  let ops = Serialize.load_all_from_db ~canvas_id ~host () in
+  check_tlid_oplists "db_oplist roundtrip" [(tlid, oplist)] ops
 
-let t_db_json_oplist_roundtrip () =
-  let host = "test_db_json_oplist_roundtrip" in
-  let oplist = [ Op.UndoTL tlid
-               ; Op.RedoTL tlid
-               ; Op.UndoTL tlid
-               ; Op.RedoTL tlid] in
-  Serialize.save_json_to_db host oplist;
-  match (Serialize.load_json_from_db host) with
-  | Some ops ->
-    check_oplist "db_oplist roundtrip" oplist ops
-  | None -> AT.fail "nothing in db"
-
-
+let t_http_oplist_roundtrip () =
+  clear_test_data ();
+  let host = "test-http_oplist_roundtrip" in
+  let oplist = [ Op.SetHandler (tlid, pos, http_route_handler) ] in
+  let c1 = Canvas.init host oplist in
+  Canvas.serialize_only [tlid] !c1;
+  let c2 = Canvas.load_http ~path:http_route ~verb:"GET" host in
+  check_tlid_oplists "http_oplist roundtrip" !c1.ops !c2.ops
 
 
 let t_case_insensitive_db_roundtrip () =
@@ -382,9 +397,9 @@ module SE = Stored_event
 let t_stored_event_roundtrip () =
   clear_test_data ();
   let owner : Uuidm.t = Account.owner ~auth_domain:"test"
-                       |> fun x -> Option.value_exn x in
-  let id1 = Canvas.fetch_canvas_id owner "host" in
-  let id2 = Canvas.fetch_canvas_id owner "host2" in
+                        |> fun x -> Option.value_exn x in
+  let id1 = Serialize.fetch_canvas_id owner "host" in
+  let id2 = Serialize.fetch_canvas_id owner "host2" in
   SE.clear_events id1;
   SE.clear_events id2;
   let desc1 = ("HTTP", "/path", "GET") in
@@ -607,13 +622,13 @@ let suite =
   ; "event_queue roundtrip", `Quick, t_event_queue_roundtrip
   ; "bad ssl cert", `Slow, t_bad_ssl_cert
   ; "db binary oplist roundtrip", `Quick, t_db_oplist_roundtrip
-  ; "db json oplist roundtrip", `Quick, t_db_json_oplist_roundtrip
+  ; "http oplist roundtrip", `Quick, t_http_oplist_roundtrip
   ; "derror roundtrip", `Quick, t_derror_roundtrip
   ; "DB case-insensitive roundtrip", `Quick,
     t_case_insensitive_db_roundtrip
   ; "Good error when inserting badly", `Quick,
     t_inserting_object_to_missing_col_gives_good_error
-  ; "Stdlib works", `Quick, t_stdlib_works
+  ; "Stdlib fns work", `Quick, t_stdlib_works
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
   ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data

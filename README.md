@@ -50,6 +50,20 @@ If you still have authentication problems (eg. `denied: Unable to access the rep
 and you've confirmed that you've logged into gcloud and restarted your container, then check that you've accepted the invite to the Google Developer Project
 in your email. If you have and it's still not working, or you don't have an invitation, then ping Paul or Ian.
 
+# Adding an account to the DB
+
+Accounts upserted to the database in the `init` function in `accounts.ml`.
+
+There are two types of accounts, admins and regular users.
+
+Regular users get access to canvases under their username only ie. a user with the username 'foo' gets access to foo-bar.builtwithdark.com, foo-foo.buildwithdark.com etc.  These can be given to anyone for user testing etc.
+
+Admins can do the above normally, and also access anyone's canvases. These should only be given to employees and contractors who have signed contracts.
+
+ Admins are added via `Account.upsert_admin` and regular users are added via `Account.upsert_account`. Both functions take an `Account.account` record as a parameter. To add a new user, add a call to one of the aforementioned functions in the body of the `init` function in accounts.ml.
+
+Please commit and push the change. You must build a new production container and deploy it for the new account
+to be usable on builtwithdark.com.
 
 # Testing
 
@@ -143,10 +157,8 @@ Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
 Oplists are versioned by the hash of the "shape" of their structure.
 If you change the structure of an Op (including the nested structure),
-then the binary version will no longer load.
-
-By default, the server will also save a json version in json_oplists. You can migrate this to the new version. Check out server/serialize.ml to see how it all works.
-
+then the binary version will no longer load. See serialize.ml for
+migrations.
 
 # Debugging ppx stuff
 

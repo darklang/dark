@@ -150,13 +150,15 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
   let verb = req |> CRequest.meth |> Cohttp.Code.string_of_method in
   let headers = req |> CRequest.headers |> Header.to_list in
   let query = req |> CRequest.uri |> Uri.query in
-  let c = C.load_http host ~verb ~uri in
-  let pages = C.pages_matching_route ~uri ~verb !c in
+  let c = C.load_http host ~verb ~path:(Uri.path uri) in
+  let pages = !c.handlers |> TL.http_handlers in
   let pages =
     if List.length pages > 1
-    then List.filter ~f:(fun (has_vars, _) -> not has_vars) pages
+    then List.filter pages
+        ~f:(fun h ->
+            not (Http.has_route_variables
+                   (Handler.event_name_for_exn h)))
     else pages in
-  let pages = List.map ~f:Tuple.T2.get2 pages in
 
   match pages with
   | [] when String.Caseless.equal verb "OPTIONS" ->
@@ -263,16 +265,13 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
   try
     let (t1, params) = time "1-read-api-ops"
       (fun _ -> Api.to_rpc_params body) in
-    let exe_fn_ids = [] in
 
-    let tlids = params.ops
-                |> List.map ~f:Op.tlidsOf
-                |> List.concat
-    in
+    let exe_fn_ids = [] in
+    let tlids = List.filter_map ~f:Op.tlidOf params.ops in
 
     let (t2, c) = time "2-load-saved-ops"
       (fun _ ->
-        C.load host tlids params.ops)
+        C.load_only ~tlids host params.ops)
     in
 
     let (t3, hvals) = time "3-handler-analyses"
@@ -302,7 +301,7 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
         (* work out the result before we save it, incase it has a
          stackoverflow or other crashing bug *)
         if Api.causes_any_changes params
-        then C.save !c
+        then C.save_tlids !c tlids
         else ()
       ) in
 
@@ -343,7 +342,7 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
     let tlids = List.map exe_fn_ids ~f:Tuple.T3.get1 in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load host tlids []) in
+      (fun _ -> C.load_only ~tlids host []) in
 
     let (t3, hvals) = time "3-handler-analyses"
       (fun _ ->
@@ -378,7 +377,7 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
       (fun _ -> Api.to_analysis_params body) in
 
     let (t2, c) = time "2-load-saved-ops"
-      (fun _ -> C.load host tlids []) in
+      (fun _ -> C.load_only ~tlids host []) in
 
     let (t3, f404s) = time "3-get-404s"
       (fun _ -> Analysis.get_404s !c) in
@@ -507,7 +506,7 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   | "/admin/api/clear-benchmarking-data" ->
     Db.delete_benchmarking_data ();
     respond ~execution_id `OK "Cleared"
-  | "/admin/api/save_test" ->
+  | "/admin/api/save_test" when Config.allow_test_routes ->
     save_test_handler ~execution_id host
   | "/admin/ui-debug" ->
     let%lwt body = admin_ui_handler ~debug:true () in
@@ -521,14 +520,15 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ~resp_headers:text_plain_resp_headers
       ~execution_id
       `OK body
-  | "/admin/integration_test" ->
+  | "/admin/integration_test" when Config.allow_test_routes ->
+    Canvas.load_and_resave_from_test_file host;
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
       ~resp_headers:text_plain_resp_headers
       ~execution_id
       `OK body
   | "/admin/check-all-oplists" ->
-    Serialize.check_all_oplists ();
+    Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
   | _ ->
     respond ~execution_id `Not_found "Not found"
@@ -581,7 +581,8 @@ let server () =
         let resp_headers = Cohttp.Header.of_list [cors] in
         respond ~resp_headers ~execution_id `Internal_server_error user_err
       with e ->
-        Rollbar.last_ditch e "handle_error" (Types.show_id execution_id);
+        let bt = Exception.get_backtrace () in
+        Rollbar.last_ditch e ~bt "handle_error" (Types.show_id execution_id);
         respond ~execution_id `Internal_server_error "unhandled error"
     in
 
@@ -643,7 +644,9 @@ let server () =
       | (_, Some host) ->
          auth_then_handle ~execution_id req host handler
       | ("/", None) -> (* for GKE health check *)
-        respond ~execution_id `OK "Hello internal overlord"
+        (match Dbconnection.status () with
+         | `Healthy -> respond ~execution_id `OK "Hello internal overlord"
+         | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
       | (_, None) -> (* for GKE health check *)
         respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e

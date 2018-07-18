@@ -9,4 +9,4 @@ val report_lwt : exn -> Caml.Printexc.raw_backtrace -> err_ctx -> string -> resu
 val report : exn -> Caml.Printexc.raw_backtrace -> err_ctx -> string -> result
 
 (* Just in case *)
-val last_ditch : exn -> string -> string  -> unit
+val last_ditch : exn -> bt:Caml.Printexc.raw_backtrace -> string -> string  -> unit
