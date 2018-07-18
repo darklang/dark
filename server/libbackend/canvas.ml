@@ -107,7 +107,7 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
       upsert_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
       if name = ""
-      then Exception.client ("DB must have a name")
+      then Exception.client "DB must have a name"
       else
         let db = User_db.create !c.host name tlid in
         upsert_db tlid pos (TL.DB db)

@@ -1069,7 +1069,7 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DInt l]) ->
             if l < 0
-            then Exception.client "l should be a positive integer"
+            then Exception.user "l should be a positive integer"
             else
               DStr (Util.random_string l)
           | args -> fail args)
