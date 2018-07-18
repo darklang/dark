@@ -163,7 +163,10 @@ let execute ~name ~op ~params ~result ?subject
       match e with
       | Postgresql.Error (Unexpected_status (_, msg, _)) -> msg
       | Postgresql.Error pge -> Postgresql.string_of_error pge
-      | pge -> (Exn.to_string pge)
+      | Exception.DarkException de ->
+        Log.erroR ~bt "Caught DarkException in DB, reraising";
+        Caml.Printexc.raise_with_backtrace e bt
+      | e -> Exception.exn_to_string e
     in
       Exception.storage
         msg
@@ -225,7 +228,7 @@ let exists ~(params: param list) ~(name:string) ?subject (sql: string)
          match res#get_all_lst with
          | [["1"]] -> ("true", true)
          | [] -> ("false", false)
-         | _ -> Exception.storage "Unexpected result")
+         | r -> Exception.storage "Unexpected result" ~actual:(Log.dump r))
 
 let delete_benchmarking_data () : unit =
   run
