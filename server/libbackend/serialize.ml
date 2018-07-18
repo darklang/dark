@@ -182,11 +182,7 @@ let save_json_to_disk ~root (filename: string) (ops: Op.tlid_oplists) : unit =
 let current_hosts () : string list =
   Db.fetch
     ~name:"oplists"
-    "SELECT DISTINCT host FROM oplists
-     UNION
-     SELECT DISTINCT host FROM json_oplists
-     UNION
-     SELECT DISTINCT name FROM canvases"
+     "SELECT DISTINCT name FROM canvases"
     ~params:[]
   |> List.map ~f:List.hd_exn
   |> List.filter ~f:(fun h ->
