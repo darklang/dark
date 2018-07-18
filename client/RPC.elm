@@ -11,6 +11,7 @@ import Json.Encode.Extra as JSEE
 -- lib
 
 -- dark
+import Blank as B
 import Types exposing (..)
 import Runtime as RT
 import Util
@@ -409,6 +410,25 @@ encodeSerializableEditor se =
     ]
 
 
+encodeBlankOr : (a -> JSE.Value) -> (BlankOr a) -> JSE.Value
+encodeBlankOr encoder v =
+  case v of
+    F (ID id) s ->
+      encodeVariant "Filled" [JSE.int id, encoder s]
+    Blank (ID id) ->
+      encodeVariant "Blank" [JSE.int id]
+    Flagged id msg s a b ->
+      encodeVariant
+        "Flagged"
+        [ encodeID id
+        , encodeBlankOr JSE.string msg
+        , encodeExpr s
+        , encodeBlankOr encoder a
+        , encodeBlankOr encoder b
+        ]
+
+
+
 decodeSerializableEditor : JSD.Decoder SerializableEditor
 decodeSerializableEditor =
   -- always make these optional so that we don't crash the page when we
@@ -748,3 +768,20 @@ decodeExecuteFunctionRPC =
   JSDP.decode (,)
   |> JSDP.required "targets" (JSD.list decodeExecuteFunctionTarget)
   |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
+
+
+decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
+decodeBlankOr d =
+  let db = JSD.lazy (\_ -> decodeBlankOr d)
+      -- TODOFF: fix cyclic bug
+      -- de = JSD.lazy (\_ -> decodeExpr)
+      -- de = JSD.lazy (\_ -> decodeBlankOr decodeNExpr)
+      de = JSD.lazy (\_ -> JSD.succeed (B.new ()))
+      ds = JSD.lazy (\_ -> decodeBlankOr JSD.string) in
+  decodeVariants
+  [ ("Filled", decodeVariant2 F decodeID d)
+  , ("Blank", decodeVariant1 Blank decodeID)
+  , ("Flagged", decodeVariant5 Flagged decodeID ds de db db)
+  ]
+
+
