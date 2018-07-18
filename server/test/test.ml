@@ -313,12 +313,15 @@ let t_int_add_works () =
   check_dval "int_add" (DInt 8) (execute "(+ 5 3)")
 
 let t_stdlib_works () =
-  check_dval "uniqueBy"
+  check_dval "uniqueBy1"
     (execute "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
     (DList [DInt 1; DInt 3; DInt 4]);
-  check_dval "uniqueBy"
+  check_dval "uniqueBy2"
     (execute "(List::uniqueBy (1 2 3 4) (\\x -> x))")
     (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
+  check_dval "base64decode"
+    (execute "(String::base64Decode 'random string')")
+    (DError "Not a valid base64 string");
   ()
 
 
@@ -625,7 +628,7 @@ let suite =
     t_case_insensitive_db_roundtrip
   ; "Good error when inserting badly", `Quick,
     t_inserting_object_to_missing_col_gives_good_error
-  ; "Stdlib works", `Quick, t_stdlib_works
+  ; "Stdlib fns work", `Quick, t_stdlib_works
   ; "Cron should run sanity", `Quick, t_cron_sanity
   ; "Cron just ran", `Quick, t_cron_just_ran
   ; "Roundtrip user_data into jsonb", `Quick, t_roundtrip_user_data
