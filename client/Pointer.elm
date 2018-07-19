@@ -106,9 +106,8 @@ toContent pd =
       case e of
         F _ (Value s) -> Just s
         F _ (Variable v) -> Just v
-        -- TODOFF: flatten this correctly
-        F _ (FeatureFlag _ _ l _) ->
-          toContent (PExpr l)
+        -- feature flags are ignore because you want to enter the
+        -- feature flag and this is how this is used.
         _ -> Nothing
     PEventModifier d -> bs2s d
     PEventName d -> bs2s d
