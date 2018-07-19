@@ -140,7 +140,8 @@ let rec sym_exec
        | Filled (_, FnCall (name, exprs)) ->
          List.iter ~f:(sexe st) exprs
 
-       | Filled (_, If (cond, ifbody, elsebody)) ->
+       | Filled (_, If (cond, ifbody, elsebody))
+       | Filled (_, FeatureFlag(_, cond, ifbody, elsebody)) ->
          sexe st cond;
          sexe st ifbody;
          sexe st elsebody
@@ -355,7 +356,8 @@ let rec exec ~(engine: engine)
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals
 
-     | Filled (id, If (cond, ifbody, elsebody)) ->
+     | Filled (id, If (cond, ifbody, elsebody))
+     | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
        (match ctx with
         | Preview ->
           (* In the case of a preview trace execution, we want the 'if' expression as

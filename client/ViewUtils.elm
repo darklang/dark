@@ -123,13 +123,6 @@ decodeClickEvent fn =
       |> JSDP.required "pageY" JSD.int
       |> JSDP.required "button" JSD.int
 
--- input fires all along the drag, while
-decodeSliderInputEvent : (String -> a) -> JSD.Decoder a
-decodeSliderInputEvent fn =
-  JSDP.decode fn
-  |> JSDP.requiredAt ["target", "value"] JSD.string
-
-
 
 placeHtml : Model -> Pos -> Html.Html Msg -> Html.Html Msg
 placeHtml m pos html =
@@ -171,10 +164,9 @@ widthInCh w =
 
 blankOrLength : BlankOr String -> Int
 blankOrLength b =
-  case B.flattenFF b of
+  case b of
     Blank _ -> 6
     F _ str -> String.length str
-    _ -> impossible "flat"
 
 visualStringLength : String -> Int
 visualStringLength string =
@@ -184,9 +176,8 @@ visualStringLength string =
 
 approxWidth : Expr -> Int
 approxWidth e =
-  case B.flattenFF e of
+  case e of
     Blank _ -> 6
-    Flagged _ _ _ _ _ -> impossible "flat"
     F _ ne -> approxNWidth ne
 
 approxNWidth : NExpr -> Int
@@ -253,3 +244,8 @@ approxNWidth ne =
       |> List.maximum
       |> Maybe.withDefault 0
       |> (+) 4 -- {  }
+
+    FeatureFlag msg cond a b ->
+      -- probably want both taking the same size
+      max (approxWidth a) (approxWidth b)
+      + 1 -- the flag

@@ -31,15 +31,40 @@ type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 type tlid_oplists = (Types.tlid * oplist) list
                     [@@deriving eq, yojson, show, sexp, bin_io]
 
+type expr = Types.RuntimeT.expr
+
+let rec has_deprecated_expr (expr: expr) : bool =
+  let throw_on_flagged (expr: expr) : expr =
+    match expr with
+    | Flagged _ -> failwith "flagged fail"
+    | e -> e
+  in
+  try
+    ignore (Ast.traverse ~f:throw_on_flagged expr);
+    false
+  with Failure _ ->
+    true
+
+
+let is_deprecated (op: op) : bool =
+  match op with
+  | Deprecated0
+  | Deprecated1
+  | Deprecated2
+  | Deprecated3
+  | Deprecated4 _ -> true
+  | SetExpr (_, _, expr) ->
+    has_deprecated_expr expr
+  | SetFunction (fn) ->
+    has_deprecated_expr fn.ast
+  | SetHandler (_, _, h) ->
+    has_deprecated_expr h.ast
+  | _ -> false
+
 
 let has_effect (op: op) : bool  =
   match op with
   | TLSavepoint _ -> false
-  | Deprecated0 -> false
-  | Deprecated1 -> false
-  | Deprecated2 -> false
-  | Deprecated3 -> false
-  | Deprecated4 _ -> false
   | _ -> true
 
 let tlidOf (op: op) : tlid option =

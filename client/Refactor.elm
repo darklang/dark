@@ -227,13 +227,11 @@ renameFunction m old new =
             (origName, calls) =
               case old.metadata.name of
                 Blank _ -> (Nothing, [])
-                Flagged _ _ _ _ _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
             newName =
               case new.metadata.name of
                 Blank _ -> Nothing
-                Flagged _ _ _ _ _ -> Nothing
                 F _ n -> Just n
         in
             case (origName, newName) of
@@ -288,7 +286,6 @@ transformFnCalls m uf f =
             (origName, calls) =
               case old.metadata.name of
                 Blank _ -> (Nothing, [])
-                Flagged _ _ _ _ _ -> (Nothing, [])
                 F _ n ->
                   (Just n, AST.allCallsToFn n ast |> List.map PExpr)
         in

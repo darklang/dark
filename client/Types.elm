@@ -118,8 +118,6 @@ type Msg
     | EntryInputMsg String
     | EntrySubmitMsg
     | GlobalKeyPress DarkKeyboardEvent
-    | SliderChange ID
-    | SliderMoving ID String
     | AutocompleteClick String
     | FocusEntry (Result Dom.Error ())
     | FocusAutocompleteItem (Result Dom.Error ())
@@ -142,7 +140,7 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
-    | EndFeatureFlag ID
+    | EndFeatureFlag ID Pick
     | DeleteUserFunctionParameter UserFunction UserFunctionParameter
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
@@ -253,6 +251,13 @@ type VariantTest = StubVariant
 -----------------------------
 type alias Class = String
 
+
+-----------------------------
+-- FeatureFlags
+-----------------------------
+type Pick = PickA
+          | PickB
+
 -----------------------------
 -- AST
 -----------------------------
@@ -278,6 +283,7 @@ type NExpr = If Expr Expr Expr
            | ListLiteral (List Expr)
            | Thread (List Expr)
            | FieldAccess Expr Field
+           | FeatureFlag (BlankOr String) Expr Expr Expr
 
 -----------------------------
 -- Pointers
@@ -318,12 +324,6 @@ type PointerType = VarBind
 
 type BlankOr a = Blank ID
                | F ID a
-               | Flagged
-                   ID
-                   (BlankOr String)
-                   Int
-                   (BlankOr a)
-                   (BlankOr a)
 
 type PointerOwner = POSpecHeader
                   | POAst
