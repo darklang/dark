@@ -6,7 +6,6 @@ module RTT = Types.RuntimeT
 module TL = Toplevel
 module PReq = Parsed_request
 module SE = Stored_event
-module FF = Feature_flag
 
 type canvas = Canvas.canvas
 type executable_fn_id = (tlid * id * int)

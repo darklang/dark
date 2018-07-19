@@ -4,7 +4,6 @@ open Types
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
 module RT = Runtime
-module FF = Feature_flag
 
 let is_complete (h: handler) : bool =
   match (h.spec.module_, h.spec.name, h.spec.modifier) with

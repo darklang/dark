@@ -4,7 +4,6 @@ open Types
 open Types.RuntimeT
 
 module RT = Runtime
-module FF = Feature_flag
 
 let blank_to_id (bo : 'a or_blank) : id =
   match bo with
