@@ -75,15 +75,11 @@ collapseHandlers tls =
              case h.spec.name of
                F _ s -> Just s
                Blank _ -> Nothing
-               Flagged _ _ _ _ _ ->
-                 impossible ("FF in spec name", h.spec.name)
          , prefix = []
          , verbs =
              case h.spec.modifier of
                F _ s -> [(s, pos)]
                Blank _ -> [("_", pos)]
-               Flagged _ _ _ _ _ ->
-                 impossible ("FF in spec modifier", h.spec.modifier)
          })
   |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
   |> LE.groupWhile (\a b -> a.name == b.name)

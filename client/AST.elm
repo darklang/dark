@@ -23,8 +23,6 @@ traverse : (Expr -> Expr) -> Expr -> Expr
 traverse fn expr =
   case expr of
     Blank _ -> expr
-    Flagged id msg setting l r ->
-      Flagged id msg setting (fn l) (fn r)
     F id nexpr ->
       F id
         (case nexpr of
@@ -55,7 +53,10 @@ traverse fn expr =
             |> ObjectLiteral
 
           ListLiteral elems ->
-            ListLiteral (List.map fn elems))
+            ListLiteral (List.map fn elems)
+
+          FeatureFlag msg cond a b ->
+            FeatureFlag msg (fn cond) (fn a) (fn b))
 
 
 -------------------------
@@ -96,9 +97,11 @@ listThreadBlanks expr =
           ListLiteral exprs ->
             rList exprs
 
+          FeatureFlag _ cond a b ->
+            r cond ++ r a ++ r b
+
   in case expr of
       Blank _ -> []
-      Flagged _ _ _ l r -> rList [l, r]
       F _ f -> rn f
 
 closeThreads : Expr -> Expr
@@ -287,13 +290,11 @@ wrapInThread : ID -> Expr -> Expr
 wrapInThread id expr =
   if B.toID expr == id
   then
-    case B.flattenFF expr of
+    case expr of
       F _ (Thread _) -> expr
       F _ _ -> B.newF (Thread [expr, B.new ()])
       Blank _ -> B.newF (Thread [expr])
       -- decide based on the displayed value, so flatten
-      Flagged _ _ _ _ _ ->
-        impossible expr
   else
     traverse (wrapInThread id) expr
 
@@ -370,9 +371,6 @@ children : Expr -> List PointerData
 children expr =
   case expr of
     Blank _ -> []
-    Flagged _ _ _ _ _ ->
-      -- only return the children of the shown expression
-      expr |> B.flattenFF |> children
     F _ nexpr ->
       case nexpr of
         Value _ -> []
@@ -395,6 +393,8 @@ children expr =
           |> List.concat
         ListLiteral elems ->
           List.map PExpr elems
+        FeatureFlag msg cond a b ->
+          [PFFMsg msg, PExpr cond, PExpr a, PExpr b]
 
 -- Look through an AST for the expr with the id, then return it's
 -- children.
@@ -407,9 +407,6 @@ childrenOf pid expr =
   else
   case expr of
     Blank _ -> []
-    Flagged _ _ _ _ _ ->
-      -- only return the children of the shown expression
-      expr |> B.flattenFF |> co
     F _ nexpr ->
       case nexpr of
         Value _ -> []
@@ -443,20 +440,21 @@ childrenOf pid expr =
           |> List.map co
           |> List.concat
 
+        FeatureFlag msg cond a b ->
+          co cond ++ co a ++ co b
+
 
 uses : VarName -> Expr -> List Expr
 uses var expr =
   let is_rebinding newbind =
         case newbind of
           Blank _ -> False
-          Flagged _ _ _ _ _ -> False
           F _ potential ->
             if potential == var then True else False
       u = uses var
   in
   case expr of
     Blank _ -> []
-    Flagged _ _ _ _ _ -> []
     F _ nexpr ->
       case nexpr of
         Value _ -> []
@@ -480,6 +478,8 @@ uses var expr =
           exprs |> List.map u |> List.concat
         ObjectLiteral pairs ->
           pairs |> List.map Tuple.second |> List.map u |> List.concat
+        FeatureFlag msg cond a b ->
+          List.concat [u cond, u a, u b]
 
 
 allCallsToFn : String -> Expr -> List Expr
@@ -512,7 +512,6 @@ ancestors id expr =
           case exp of
             Blank _ -> []
             -- no idea what to do here
-            Flagged _ _ _ _ _ -> expr |> B.flattenFF |> ancestors id
             F i nexpr ->
               case nexpr of
                 Value _ -> []
@@ -535,6 +534,10 @@ ancestors id expr =
                   pairs
                   |> List.map Tuple.second
                   |> reclist id expr walk
+                FeatureFlag msg cond a b ->
+                  reclist id exp walk [cond, a, b]
+
+
   in rec_ancestors id [] expr
 
 
@@ -573,13 +576,12 @@ parentOf_ eid expr =
     case expr of
       Blank _ -> Nothing
       -- not really sure what to do here
-      Flagged _ _ _ _ _ -> expr |> B.flattenFF |> parentOf_ eid
       F id nexpr ->
         case nexpr of
           Value _ -> Nothing
           Variable _ -> Nothing
           Let lhs rhs body ->
-            poList [body, rhs]
+            poList [rhs, body]
 
           If cond ifbody elsebody ->
             poList [cond, ifbody, elsebody]
@@ -605,13 +607,16 @@ parentOf_ eid expr =
             |> List.map Tuple.second
             |> poList
 
+          FeatureFlag msg cond a b ->
+            poList [cond, a, b]
+
 -- includes self
 siblings : PointerData -> Expr -> List PointerData
 siblings p expr =
   case parentOf_ (P.toID p) expr of
     Nothing -> [p]
     Just parent ->
-      case B.flattenFF parent of
+      case parent of
         F _ (If cond ifbody elsebody) ->
           List.map PExpr [cond, ifbody, elsebody]
 
@@ -637,8 +642,9 @@ siblings p expr =
           |> List.map (\(k,v) -> [PKey k, PExpr v])
           |> List.concat
         F _ (ListLiteral exprs) -> List.map PExpr exprs
+        F _ (FeatureFlag msg cond a b) ->
+          [PFFMsg msg] ++ List.map PExpr [cond, a, b]
         Blank _ -> [p]
-        Flagged _ _ _ _ _ -> [p]
 
 getValueParent : PointerData -> Expr -> Maybe PointerData
 getValueParent p expr =
@@ -672,7 +678,6 @@ allData expr =
   [e2ld expr] ++
   case expr of
     Blank _ -> []
-    Flagged _ msg  _ l r -> allData l ++ [PFFMsg msg] ++ allData r
     F _ nexpr ->
       case nexpr of
         Value v -> []
@@ -703,6 +708,9 @@ allData expr =
           pairs
           |> List.map (\(k,v) -> PKey k :: allData v)
           |> List.concat
+
+        FeatureFlag msg cond a b ->
+          [PFFMsg msg] ++ rl [cond, a, b]
 
 findExn : ID -> Expr -> PointerData
 findExn id expr =
@@ -737,7 +745,7 @@ replace_ search replacement parent expr =
   let r = replace_ search replacement (Just expr) -- expr is new parent
       sId = P.toID search
   in
-  if B.withinShallow expr sId
+  if B.toID expr == sId
   then
     case replacement of
       PExpr e ->
@@ -747,28 +755,29 @@ replace_ search replacement parent expr =
                 Just (F _ (Thread (first :: _))) ->
                   case e of
                     F id (FnCall fn (_ :: rest as args)) ->
-                      if B.withinShallow first sId
+                      if B.toID first == sId
                       then (F id (FnCall fn args))
                       else (F id (FnCall fn rest))
                     _ -> e
                 _ -> e
         in B.replace sId repl_ expr
-      PFFMsg newMsg -> B.replaceFFMsg sId newMsg expr
       _ -> recoverable ("cannot occur", replacement) expr
   else
     case (expr, replacement) of
+      (F id (FeatureFlag msg cond a b), PFFMsg newMsg) ->
+        if B.toID msg == sId
+        then F id (FeatureFlag newMsg cond a b)
+        else traverse r expr
       (F id (Let lhs rhs body), PVarBind replacement) ->
-        if B.withinShallow lhs sId
+        if B.toID lhs == sId
         then
           let replacementContent =
                 case replacement of
                   Blank _ -> Nothing
-                  Flagged _ _ _ _ _ -> Nothing
                   F _ var -> Just var
               orig =
                 case lhs of
                   Blank _ -> Nothing
-                  Flagged _ _ _ _ _ -> Nothing
                   F _ var -> Just var
               newBody =
                 let usesOf =
@@ -793,18 +802,16 @@ replace_ search replacement parent expr =
               F id (Let (B.replace sId replacement lhs) rhs newBody)
         else traverse r expr
       (F id (Lambda vars body), PVarBind replacement) ->
-        case LE.findIndex (\v -> B.withinShallow v sId) vars of
+        case LE.findIndex (\v -> B.toID v == sId) vars of
           Nothing -> traverse r expr
           Just i ->
             let replacementContent =
                     case replacement of
                       Blank _ -> Nothing
-                      Flagged _ _ _ _ _ -> Nothing
                       F _ var -> Just var
                 orig =
                   case LE.getAt i vars |> deMaybe "we somehow lost it?" of
                     Blank _ -> Nothing
-                    Flagged _ _ _ _ _ -> Nothing
                     F _ var -> Just var
                 newBody =
                   let usesInBody =
@@ -832,7 +839,7 @@ replace_ search replacement parent expr =
                 F id (Lambda newVars newBody)
 
       (F id (FieldAccess obj field), PField replacement) ->
-        if B.withinShallow field sId
+        if B.toID field == sId
         then F id (FieldAccess obj (B.replace sId replacement field))
         else traverse r expr
 
@@ -840,7 +847,7 @@ replace_ search replacement parent expr =
         pairs
         |> List.map (\(k,v) ->
           let newK =
-                if B.withinShallow k sId
+                if B.toID k == sId
                 then replacement
                 else k
           in
@@ -876,29 +883,27 @@ clone expr =
           ListLiteral exprs -> ListLiteral (cl exprs)
           ObjectLiteral pairs ->
             ObjectLiteral (List.map (\(k,v) -> (cString k, c v)) pairs)
+          FeatureFlag msg cond a b ->
+            FeatureFlag (cString msg) (c cond) (c a) (c b)
   in B.clone cNExpr expr
 
 isDefinitionOf : VarName -> Expr -> Bool
 isDefinitionOf var exp =
-  case B.flattenFF exp of
+  case exp of
     Blank _ -> False
-    Flagged _ _ _ _ _ -> False
     F id e ->
       case e of
         Let b _ _ ->
-          case B.flattenFF b of
+          case b of
             Blank _ -> False
-            Flagged _ _ _ _ _ -> False
             F _ vb ->
               vb == var
         Lambda vars _ ->
           vars
-          |> List.map B.flattenFF
           |> List.any
             (\v ->
               case v of
                 Blank _ -> False
-                Flagged _ _ _ _ _ -> False
                 F _ vb ->
                   vb == var)
         _ -> False
@@ -911,9 +916,8 @@ freeVariables ast =
                          (\n ->
                            case n of
                              PExpr boe ->
-                               case B.flattenFF boe of
+                               case boe of
                                  Blank _ -> Nothing
-                                 Flagged _ _ _ _ _ -> Nothing
                                  F id e as expr ->
                                    case e of
                                      Let (F _ lhs) rhs body->
@@ -936,9 +940,8 @@ freeVariables ast =
         (\n ->
           case n of
             PExpr boe ->
-              case B.flattenFF boe of
+              case boe of
                 Blank _ -> Nothing
-                Flagged _ _ _ _ _ -> Nothing
                 F id e ->
                   case e of
                     Variable name ->

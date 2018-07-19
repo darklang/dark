@@ -276,6 +276,7 @@ type NExpr = If Expr Expr Expr
            | ListLiteral (List Expr)
            | Thread (List Expr)
            | FieldAccess Expr Field
+           | FeatureFlag (BlankOr String) Expr Expr Expr
 
 -----------------------------
 -- Pointers
@@ -316,12 +317,6 @@ type PointerType = VarBind
 
 type BlankOr a = Blank ID
                | F ID a
-               | Flagged
-                   ID
-                   (BlankOr String)
-                   (Expr)
-                   (BlankOr a)
-                   (BlankOr a)
 
 type PointerOwner = POSpecHeader
                   | POAst

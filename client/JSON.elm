@@ -114,6 +114,27 @@ decodeID = JSD.map ID JSD.int
 
 decodeTLID : JSD.Decoder TLID
 decodeTLID = JSD.map TLID JSD.int
+
+------------------------------------
+-- Blanks
+------------------------------------
+encodeBlankOr : (a -> JSE.Value) -> (BlankOr a) -> JSE.Value
+encodeBlankOr encoder v =
+  case v of
+    F (ID id) s ->
+      encodeVariant "Filled" [JSE.int id, encoder s]
+    Blank (ID id) ->
+      encodeVariant "Blank" [JSE.int id]
+
+
+decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
+decodeBlankOr d =
+  decodeVariants
+  [ ("Filled", decodeVariant2 F decodeID d)
+  , ("Blank", decodeVariant1 Blank decodeID)
+  , ("Flagged", JSD.fail "feature flag in unflaggable location")
+  ]
+
 ------------------------------------
 -- Misc
 ------------------------------------

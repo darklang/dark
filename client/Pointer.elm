@@ -106,8 +106,9 @@ toContent pd =
       case e of
         F _ (Value s) -> Just s
         F _ (Variable v) -> Just v
-        Flagged _ _ _ _ _ ->
-          toContent (PExpr (B.flattenFF e))
+        -- TODOFF: flatten this correctly
+        F _ (FeatureFlag _ _ l _) ->
+          toContent (PExpr l)
         _ -> Nothing
     PEventModifier d -> bs2s d
     PEventName d -> bs2s d
