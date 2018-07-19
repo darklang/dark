@@ -95,15 +95,6 @@ type analysis_list = analysis list
 (* Symbolically gather varnames *)
 (* -------------------- *)
 
-let flatten_ff (bo: 'a or_blank) (ff: feature_flag) : 'a or_blank =
-  match bo with
-  | Flagged (id, msg, setting, l, r) ->
-      FF.select id setting l r ff
-  | _ -> bo
-
-let should_be_flat () =
-  Exception.internal "This blank_or should have been flattened"
-
 let blank_to_content (bo: 'a or_blank) : 'a option =
   match bo with
   | Filled (_, c) -> Some c
@@ -121,17 +112,11 @@ let rec sym_exec
     let _ =
       (match expr with
        | Blank _ -> ()
-       | Flagged (id, _, _, l, r) ->
-         sexe st l;
-         sexe st r;
-         sexe st (flatten_ff expr state.ff)
-
        | Filled (_, Value s) -> ()
        | Filled (_, Variable name) -> ()
 
        | Filled (_, Let (lhs, rhs, body)) ->
          let bound = match lhs with
-           | Flagged _ -> should_be_flat ()
            | Filled (_, name) ->
              sexe st rhs;
              SymSet.add st name
@@ -150,8 +135,6 @@ let rec sym_exec
        | Filled (_, Lambda (vars, body)) ->
          let new_st =
            vars
-           |> List.map
-             ~f:(fun v -> flatten_ff v state.ff)
            |> List.filter_map ~f:blank_to_content
            |> SymSet.of_list
            |> SymSet.union st
@@ -299,19 +282,6 @@ let rec exec ~(engine: engine)
     (match expr with
      | Blank id -> DIncomplete
 
-     | Flagged (id, msg, setting, l, r) ->
-       (* Only compute l & r in Preview to avoid production side-effects *)
-       (match ctx with
-        | Preview ->
-          let _ = exe st l in
-          let _ = exe st r in
-          ()
-        | _ -> ()
-       );
-
-       let v = flatten_ff expr state.ff in
-       exe st v
-
      | Filled (_, Let (lhs, rhs, body)) ->
        let bound = match lhs with
             | Filled (_, name) ->
@@ -319,7 +289,6 @@ let rec exec ~(engine: engine)
               trace_blank lhs data st;
               String.Map.set ~key:name ~data:data st
             | Blank _ -> st
-            | Flagged _ -> should_be_flat ()
        in exe bound body
 
      | Filled (_, Value s) ->
@@ -405,12 +374,7 @@ let rec exec ~(engine: engine)
 
        (* TODO: this will errror if the number of args and vars arent equal *)
        DBlock (fun args ->
-           let varnames =
-             vars
-             |> List.map
-               ~f:(fun v -> flatten_ff v state.ff)
-             |> List.filter_map ~f:blank_to_content
-           in
+           let varnames = List.filter_map ~f:blank_to_content vars in
            let bindings = Symtable.of_alist_exn (List.zip_exn varnames args) in
            let new_st = Util.merge_left bindings st in
            exe new_st body)
@@ -435,9 +399,8 @@ let rec exec ~(engine: engine)
        let obj = exe st e in
        (match obj with
         | DObj o ->
-          (match flatten_ff field state.ff with
+          (match field with
            | Blank _ -> DIncomplete
-           | Flagged _ -> should_be_flat ()
            | Filled (_, f) ->
              (match e with
               | Filled (_, Variable "request")

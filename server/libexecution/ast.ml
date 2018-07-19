@@ -10,7 +10,6 @@ let blank_to_id (bo : 'a or_blank) : id =
   match bo with
   | Filled (id, _) -> id
   | Blank (id) -> id
-  | Flagged (id, _, _, _, _) -> id
 
 let is_blank (bo: 'a or_blank) : bool =
   match bo with
@@ -21,7 +20,6 @@ let rec blank_to_option (bo: 'a or_blank) : 'a option =
   match bo with
   | Blank _ -> None
   | Filled (_, a) -> Some a
-  | Flagged (_, _, _, a, _)  -> blank_to_option a
 
 
 
@@ -32,8 +30,6 @@ let to_id (expr: expr) : id =
 let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
   match expr with
   | Blank _ -> expr
-  | Flagged (id, msg, setting, l, r) ->
-    Flagged (id, msg, setting, f l, f r)
   | Filled (id, nexpr) ->
     Filled (id,
             (match nexpr with

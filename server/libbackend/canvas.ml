@@ -131,13 +131,6 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | SetFunction user_fn ->
       upsert_function user_fn
     | TLSavepoint _ -> ident
-    | Deprecated0
-    | Deprecated1
-    | Deprecated2
-    | Deprecated3
-    | Deprecated4 _ ->
-      Exception.internal ("Deprecated ops shouldn't be here anymore! " ^
-                          (Op.show_op op) ^ " in " ^ !c.host)
     | UndoTL _
     | RedoTL _ ->
       Exception.internal ("This should have been preprocessed out! " ^ (Op.show_op op))

@@ -6,8 +6,11 @@ type tlid = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
 type host = string [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
-(* READ FOR WEIRD SHIT, including the definitions of id and or_blank *)
-include Types_bin_io_hack
+type id = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
+type id_list = id list [@@deriving eq, compare, show, yojson, sexp, bin_io]
+type 'a or_blank = Blank of id
+                 | Filled of id * 'a
+                 [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
 type tipe_ =
   | TAny (* extra type meaning anything *)
