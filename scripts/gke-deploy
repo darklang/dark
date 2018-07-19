@@ -51,7 +51,7 @@ kubectl apply -f scripts/support/cronchecker.yaml
 # deploy the image
 kubectl set image deployment/bwd-deployment bwd-ctr=$IMAGE
 kubectl set image deployment/qw-deployment qw-ctr=$QW_IMAGE
-kubectl set image deployment/qw-deployment qw-ctr=$CRON_IMAGE
+kubectl set image deployment/cron-deployment cron-ctr=$CRON_IMAGE
 
 #########################
 # Tell everyone else what's going on
