@@ -2,15 +2,12 @@ open Core
 open Libexecution
 open Types
 
-module FF = Feature_flag
-
 (* implementation deliberately hidden to prevent users accidentally
  * passing a variable that'll unify *)
 type transaction
 type t = { id: int
          ; value: RuntimeT.dval
          ; retries: int
-         ; flag_context: RuntimeT.feature_flag
          ; canvas_id: Uuidm.t
          ; host: string
          ; space: string

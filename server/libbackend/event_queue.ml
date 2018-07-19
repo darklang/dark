@@ -4,13 +4,10 @@ open Libexecution
 open Types
 open Types.RuntimeT
 
-module FF = Feature_flag
-
 type transaction = int
 type t = { id: int
          ; value: dval
          ; retries: int
-         ; flag_context: feature_flag
          ; canvas_id: Uuidm.t
          ; host: string
          ; space: string
@@ -35,22 +32,21 @@ let enqueue (state: exec_state) (space: string) (name: string) (modifier: string
     ~name:"enqueue"
      "INSERT INTO events
      (status, dequeued_by, canvas_id, account_id,
-      space, name, modifier, value, delay_until, flag_context)
-     VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)"
+      space, name, modifier, value, delay_until)
+     VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP)"
      ~params:[ Uuid state.canvas_id
              ; Uuid state.account_id
              ; String space
              ; String name
              ; String modifier
              ; DvalJson data
-             ; String (FF.to_sql state.ff)
              ]
 
 let dequeue transaction : t option =
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
-      "SELECT e.id, e.value, e.retries, e.flag_context, e.canvas_id, c.name, e.space, e.name, e.modifier
+      "SELECT e.id, e.value, e.retries, e.canvas_id, c.name, e.space, e.name, e.modifier
        FROM events AS e
        JOIN canvases AS c ON e.canvas_id = c.id
        WHERE delay_until < CURRENT_TIMESTAMP
@@ -62,11 +58,10 @@ let dequeue transaction : t option =
   in
   match fetched with
   | None -> None
-  | Some [id; value; retries; flag_context; canvas_id; host; space; name; modifier] ->
+  | Some [id; value; retries; canvas_id; host; space; name; modifier] ->
     Some { id = int_of_string id
          ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
-         ; flag_context = FF.from_sql flag_context
          ; canvas_id = Uuidm.of_string canvas_id |> Option.value_exn ~message:("Bad UUID: " ^ canvas_id)
          ; host = host
          ; space = space
