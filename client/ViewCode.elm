@@ -360,74 +360,6 @@ viewNExpr d id vs config e =
         ([open] ++ List.map pexpr pairs ++ [close])
 
     FeatureFlag msg cond a b ->
-      -- isSelectionWithin bo =
-      --   idOf vs.cursorState
-      --   |> Maybe.map (B.within bo isWithinFn)
-      --   |> Maybe.withDefault False
-
-      -- drawFilledInsideFlag id fill =
-      --   -- This may be complex and have nested blanks which are
-      --   -- selected, even though this is not a blank, so showEntry is
-      --   -- important.
-      --   let vs2 = { vs | showEntry = False } in
-      --   htmlFn vs2 [] fill
-
-      -- drawBlankInsideFlag id =
-      --   let vs2 = { vs | showEntry = False } in
-      --   div vs2
-      --     ([WithClass "blank"])
-      --     [Html.text (placeHolderFor vs id pt)]
-
-      -- drawInFlag id bo =
-      --   let vs2 = { vs | showEntry = False } in
-      --   case bo of
-      --     F fid fill  ->
-      --       [div vs2 [ DisplayValueOf fid
-      --               , ClickSelectAs id
-      --               , WithID id]
-      --          [drawFilledInsideFlag id fill]]
-      --     Blank id ->
-      --       [drawBlankInsideFlag id]
-      --     _ -> recoverable ("nested flagging not allowed for now", bo) []
-
-      -- drawEndFeatureFlag ffID =
-      --   Html.div
-      --   [ Attrs.class (String.join " " ["end-ff", "valid-action"])
-      --   , Attrs.attribute "data-content" "Click to finalize and remove flag"
-      --   , eventNoPropagation "click" (\_ -> EndFeatureFlag ffID)]
-      --   [ fontAwesome "check" ]
-
-      -- redFlag id =
-      --   Html.div
-      --     [ eventNoPropagation "click" (BlankOrClick vs.tlid id)
-      --     , eventNoPropagation "mousedown" (BlankOrClick vs.tlid id)
-      --     , eventNoPropagation "mouseup" (BlankOrClick vs.tlid id)
-      --     ]
-      --     [fontAwesome "flag"]
-
-
-      -- drawFlagged id msg cond l r =
-      --    if isSelectionWithin (Flagged id msg cond l r)
-      --    then
-      --      div vs
-      --        [ wc "flagged shown"]
-      --        (drawInFlag id (B.flattenFF bo) ++
-      --         [ fontAwesome "flag"
-      --         , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
-      --         , drawEndFeatureFlag id
-      --         , viewBlankOr htmlFn isWithinFn pt vs idConfigs (B.new ())
-      --         , div vs [wc "flag-left nested-flag"]
-      --             [viewBlankOr htmlFn isWithinFn pt vs idConfigs l]
-      --         , div vs [wc "flag-right nested-flag"]
-      --             [viewBlankOr htmlFn isWithinFn pt vs idConfigs r]
-      --         ])
-      --   else
-      --     Html.div
-      --       [Attrs.class "flagged hidden"]
-      --       (drawInFlag id (B.flattenFF bo) ++ [redFlag id])
-
-
-
       -- the desired css layouts are:
       -- no ff:
       --   .blank/expr
@@ -440,8 +372,24 @@ viewNExpr d id vs config e =
       --       etc
       --     .flag-right
       --       etc
+      let drawEndFeatureFlag ffID =
+            Html.div
+            [ Attrs.class (String.join " " ["end-ff", "valid-action"])
+            , Attrs.attribute "data-content" "Click to finalize and remove flag"
+            , eventNoPropagation "click" (\_ -> EndFeatureFlag ffID)]
+            [ fontAwesome "check" ]
+      in
+          div vs
+            [ wc "flagged shown"]
+            [ vExpr 0 a
+            , fontAwesome "flag"
+            , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
+            , drawEndFeatureFlag id
+            , vExpr 0 cond
+            , div vs [wc "flag-left nested-flag"] [vExpr 0 a]
+            , div vs [wc "flag-right nested-flag"] [vExpr 0 b]
+            ]
 
-      todo "implement feature flags"
 
 
 
