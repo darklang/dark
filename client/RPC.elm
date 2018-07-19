@@ -15,6 +15,7 @@ import Types exposing (..)
 import Runtime as RT
 import Util
 import JSON exposing (..)
+import Blank as B
 import Prelude exposing (..)
 
 rpc_ : Model -> String ->
@@ -311,7 +312,8 @@ encodeExpr expr =
         "Flagged"
         [ encodeID id
         , encodeBlankOr JSE.string msg
-        , encodeExpr c
+        , JSE.int 0
+        -- , encodeExpr c
         , encodeExpr l
         , encodeExpr r
         ]
@@ -481,8 +483,8 @@ decodeDarkType = decodeBlankOr decodeNDarkType
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
-  let convert id msg cond l r =
-        F id (FeatureFlag msg cond l r)
+  let convert id msg setting l r =
+        F id (FeatureFlag msg (B.newF (Value (toString setting))) l r)
       de = JSD.lazy (\_ -> decodeExpr)
       dn = JSD.lazy (\_ -> decodeNExpr)
       ds = decodeBlankOr JSD.string
@@ -490,7 +492,7 @@ decodeExpr =
   decodeVariants
   [ ("Filled", decodeVariant2 F decodeID dn)
   , ("Blank", decodeVariant1 Blank decodeID)
-  , ("Flagged", decodeVariant5 convert decodeID ds de de de)
+  , ("Flagged", decodeVariant5 convert decodeID ds JSD.int de de)
   ]
 
 
