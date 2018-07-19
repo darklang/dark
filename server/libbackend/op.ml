@@ -11,16 +11,11 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | SetDBColType of tlid * id * string
         | DeleteTL of tlid
         | MoveTL of tlid * pos
-        | Deprecated0
-        | Deprecated1
-        | Deprecated2
-        | Deprecated3
         | SetFunction of RuntimeT.user_fn
         | ChangeDBColName of tlid * id * string
         | ChangeDBColType of tlid * id * string
         | UndoTL of tlid
         | RedoTL of tlid
-        | Deprecated4 of tlid list
         | InitDBMigration of tlid * id * id * id * RuntimeT.DbT.migration_kind
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
@@ -33,34 +28,9 @@ type tlid_oplists = (tlid * oplist) list
 
 type expr = RuntimeT.expr
 
-let rec has_deprecated_expr (expr: expr) : bool =
-  let throw_on_flagged (expr: expr) : expr =
-    match expr with
-    | Flagged _ -> failwith "flagged fail"
-    | e -> e
-  in
-  try
-    ignore (Ast.traverse ~f:throw_on_flagged expr);
-    false
-  with Failure _ ->
-    true
-
 
 let is_deprecated (op: op) : bool =
-  match op with
-  | Deprecated0
-  | Deprecated1
-  | Deprecated2
-  | Deprecated3
-  | Deprecated4 _ -> true
-  | SetExpr (_, _, expr) ->
-    has_deprecated_expr expr
-  | SetFunction (fn) ->
-    has_deprecated_expr fn.ast
-  | SetHandler (_, _, h) ->
-    has_deprecated_expr h.ast
-  | _ -> false
-
+  false
 
 let has_effect (op: op) : bool  =
   match op with
@@ -84,11 +54,6 @@ let tlidOf (op: op) : tlid option =
   | DeleteTL tlid -> Some tlid
   | MoveTL (tlid, _) -> Some tlid
   | SetFunction f -> Some f.tlid
-  | Deprecated0
-  | Deprecated1
-  | Deprecated2
-  | Deprecated3
-  | Deprecated4 _ -> None
 
 let oplist_to_string (ops: op list) : string =
   ops
