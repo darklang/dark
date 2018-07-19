@@ -26,7 +26,7 @@ let rec blank_to_option (bo: 'a or_blank) : 'a option =
 let to_id (expr: expr) : id =
   blank_to_id expr
 
-
+(* Co-recursive. See example below. *)
 let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
   match expr with
   | Blank _ -> expr
@@ -63,6 +63,13 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
              | FeatureFlag (msg, cond, a, b) ->
                FeatureFlag (msg, f cond, f a, f b)
            ))
+
+(* Example usage of traverse. See also AST.elm *)
+let rec example_traversal expr =
+  match expr with
+  | Blank _ -> Filled (Util.create_id (), Value "\"example\"")
+  | expr -> traverse ~f:example_traversal expr
+
 
 let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
   let replace = set_expr ~search ~replacement in
