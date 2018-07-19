@@ -388,10 +388,16 @@ viewNExpr d id vs config e =
                 (\_ -> EndFeatureFlag id PickB)]
             [ fontAwesome "check" ]
 
+          condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
+          condResult =
+            case condValue of
+              Just (Ok lv) -> Runtime.isTrue lv.value
+              _ -> False
+
       in
           div vs
             [ wc "flagged shown"]
-            [ vExpr 0 a -- TODOFF: which to show?
+            [ vExpr 0 (if condResult then b else a)
             , fontAwesome "flag"
             , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
             , pickA
