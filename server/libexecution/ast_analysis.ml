@@ -3,6 +3,7 @@ open Libcommon
 
 open Types
 open Types.RuntimeT
+open Types.RuntimeT.HandlerT
 
 module RT = Runtime
 module FF = Feature_flag
@@ -612,14 +613,14 @@ let server_execution_engine : engine =
   ; ctx = Real
   }
 
-let execute state env expr : dval =
+let execute (state : exec_state) env expr : dval =
   Log.infO "Executing for real" ~params:[ "tlid", show_tlid state.tlid
                                         ; "execution_id", Log.dump state.execution_id];
   exec env expr
     ~engine:server_execution_engine
     ~state
 
-let handler_default_env (h: Handler.handler) : dval_map =
+let handler_default_env (h: handler) : dval_map =
   match Handler.event_name_for h with
   | Some n ->
     n
@@ -628,10 +629,10 @@ let handler_default_env (h: Handler.handler) : dval_map =
     |> DvalMap.of_alist_exn
   | None -> DvalMap.empty
 
-let with_defaults (h: Handler.handler) (env: symtable) : symtable =
+let with_defaults (h: handler) (env: symtable) : symtable =
   Util.merge_left env (handler_default_env h)
 
-let execute_handler (state: exec_state) (h: Handler.handler) : dval =
+let execute_handler (state: exec_state) (h: handler) : dval =
   let env = with_defaults h state.env in
   execute state env h.ast
 
@@ -649,7 +650,7 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
 (* Run full analyses *)
 (* -------------------- *)
 
-let execute_handler_for_analysis (state : exec_state) (h : Handler.handler) :
+let execute_handler_for_analysis (state : exec_state) (h : handler) :
     analysis =
   Log.infO "Handler for analysis"
     ~params:[ "tlid", show_tlid state.tlid

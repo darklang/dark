@@ -206,7 +206,7 @@ let serialize_only (tlids: tlid list) (c: canvas) : unit =
     then Http.route_to_postgres_pattern n
     else n
   in
-  let handler_metadata (h: Handler.handler) =
+  let handler_metadata (h: RTT.HandlerT.handler) =
     ( h.tlid
     , ( Ast.blank_to_option h.spec.name
         |> Option.map ~f:(munge_name h.spec.module_)
