@@ -1115,6 +1115,14 @@ body #grid * {
     position: absolute;
     left: 100% + 10px;
 
+    i.fa {
+      color: @grey3;
+
+      &:hover {
+        color: @white1;
+      }
+    }
+
     .row {
       display: block;
       margin-top: 18px;
@@ -1131,7 +1139,7 @@ body #grid * {
       width: 100%;
 
       .flag-name {
-        width: 70%;
+        width: 60%;
       }
 
       .actions {
@@ -1139,11 +1147,6 @@ body #grid * {
 
         i.fa {
           margin-left: 4px;
-          color: @grey3;
-
-          &:hover {
-            color: @white1;
-          }
         }
       }
     }
@@ -1159,8 +1162,16 @@ body #grid * {
 
       .cond-expr {
         display: inline-block;
+        min-width: 200px;
         width: 50%;
 
+        .icon {
+          margin-left: 6px;
+        }
+
+        .expr-block {
+          display: block;
+        }
       }
     }
   }
