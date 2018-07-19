@@ -5,7 +5,6 @@ open Libexecution
 module RTT = Types.RuntimeT
 module C = Canvas
 module TL = Toplevel
-module FF = Feature_flag
 
 let run execution_id : (unit, Exception.captured) Result.t =
   Log.infO "queue_worker"

@@ -5,7 +5,6 @@ open Libexecution
 open Lib
 open Types.RuntimeT
 module RT = Runtime
-module FF = Feature_flag
 
 
 let fns : Lib.shortfn list = [

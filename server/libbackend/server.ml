@@ -13,65 +13,10 @@ module C = Canvas
 open Libexecution
 module PReq = Parsed_request
 module RTT = Types.RuntimeT
-module FF = Feature_flag
 module Handler = Handler
 module TL = Toplevel
 
 module Dbconnection = Libservice.Dbconnection
-
-(* ------------------------------- *)
-(* feature flags *)
-(* ------------------------------- *)
-
-let is_browser headers : bool =
-  headers
-  |> fun hs -> Cohttp.Header.get hs "user-agent"
-  |> Option.value ~default:""
-  |> String.is_substring ~substring:"Mozilla"
-
-let session_headers headers (ff: RTT.feature_flag) : Cookie.cookie list =
-  if is_browser headers
-  then
-    (FF.session_name, FF.to_session_string ff)
-    |> Cookie.Set_cookie_hdr.make
-    |> Cookie.Set_cookie_hdr.serialize
-    |> fun x -> [x]
-  else
-    []
-
-let fingerprint_user ip headers : RTT.feature_flag =
-  (* We want to do the absolute minimal fingerprinting to allow users
-   * get roughly the same set of feature flags on each request, while
-   * preserving user privacy. *)
-
-  if is_browser headers
-  then
-    (* If they're a browser user, just use a session, and if they dont
-     * have one, create a new one. *)
-    let session = headers
-                |> Cookie.Cookie_hdr.extract
-                |> List.find ~f:(fun (n,_) -> n = FF.session_name)
-    in
-    match session with
-    | Some (_, value) -> value |> FF.make
-    | None -> FF.generate ()
-
-  else
-    (* If they're an API user, fingerprint off as many stable headers as
-     * possible (ignore things with dates, urls, etc). In the future,
-     * give them a header with an ID that they can opt into as well. *)
-    let usable = ["user-agent"; "accept-encoding"; "accept-language";
-                  "keep-alive"; "connection"; "accept"] in
-    headers
-    |> Cohttp.Header.to_list
-    |> List.filter ~f:(fun (k,v) -> List.mem ~equal:(=) usable k)
-    |> List.map ~f:Tuple.T2.get2
-    |> (@) [ip]
-    |> String.concat
-    |> Crypto.hash
-    |> FF.make
-
-
 
 (* ------------------------------- *)
 (* utils *)
@@ -194,9 +139,6 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
     let env = Util.merge_left bound dbs_env in
     let env = Map.set ~key:"request" ~data:(PReq.to_dval input) env in
 
-    let resp_headers = CRequest.headers req in
-    let ff = fingerprint_user ip resp_headers in
-    let session_headers = session_headers resp_headers ff in
     let state = Execution.state_for_execution ~c:!c
         ~execution_id ~env page.tlid in
     let result = Libexecution.Ast_analysis.execute_handler state page in
@@ -234,24 +176,16 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
            else
              Dval.dval_to_pretty_json_string value
          in
-         let resp_headers =
-           maybe_infer_headers resp_headers value
-         in
+         let resp_headers = maybe_infer_headers resp_headers value in
          let status = Cohttp.Code.status_of_code code in
          let resp_headers = Cohttp.Header.of_list ([cors]
-                                                   @ resp_headers
-                                                   @ session_headers)
+                                                   @ resp_headers)
          in
          respond ~resp_headers ~execution_id status body)
     | _ ->
       let body = Dval.dval_to_pretty_json_string result in
-      let ct_headers =
-        maybe_infer_headers [] result
-      in
-      let resp_headers = Cohttp.Header.of_list ([cors]
-                                                @ ct_headers
-                                                @ session_headers)
-      in
+      let ct_headers = maybe_infer_headers [] result in
+      let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
       (* for demonstrations sake, let's return 200 Okay when
        * no HTTP response object is returned *)
       respond ~resp_headers ~execution_id `OK body)
