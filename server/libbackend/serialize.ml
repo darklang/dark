@@ -66,6 +66,19 @@ let try_multiple ~(fs: ('a -> 'b) list) (value: 'a) : 'b =
 
 
 (* ------------------------- *)
+(* convert from deprecated *)
+(* ------------------------- *)
+open Types
+open Types.RuntimeT
+
+let read_and_convert_deprecated str : Op.oplist =
+  str
+  |> Deprecated_op_flagged.oplist_of_string
+  |> Deprecated_op_flagged.oplist_to_yojson
+  |> Op.oplist_of_yojson
+  |> Result.ok_or_failwith
+
+(* ------------------------- *)
 (* oplists *)
 (* ------------------------- *)
 let strs2tlid_oplists strs : Op.tlid_oplists =
@@ -76,7 +89,10 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
        | [data] -> data
        | _ -> Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
-      let ops : Op.oplist = try_multiple str ~fs:[ Op.oplist_of_string ] in
+      let ops : Op.oplist = try_multiple str
+          ~fs:[ Op.oplist_of_string
+              ; read_and_convert_deprecated ]
+      in
       (* there must be at least one op *)
       let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
       (tlid, ops))
