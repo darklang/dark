@@ -4,7 +4,7 @@ open Types
 
 
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
-type op = SetHandler of tlid * pos * Handler.handler
+type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | CreateDB of tlid * pos * string
         | AddDBCol of tlid * id * id
         | SetDBColName of tlid * id * string
@@ -28,10 +28,10 @@ type op = SetHandler of tlid * pos * Handler.handler
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
-type tlid_oplists = (Types.tlid * oplist) list
+type tlid_oplists = (tlid * oplist) list
                     [@@deriving eq, yojson, show, sexp, bin_io]
 
-type expr = Types.RuntimeT.expr
+type expr = RuntimeT.expr
 
 let rec has_deprecated_expr (expr: expr) : bool =
   let throw_on_flagged (expr: expr) : expr =

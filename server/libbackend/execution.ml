@@ -27,7 +27,7 @@ let default_env (c: canvas) : RTT.dval_map =
   |> RTT.DvalMap.set ~key:"request" ~data:sample_request
   |> RTT.DvalMap.set ~key:"event" ~data:sample_event
 
-let initial_envs_for_handler (c: canvas) (h: Handler.handler)
+let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
   : RTT.dval_map list =
   let init = initial_env c in
   let default =
