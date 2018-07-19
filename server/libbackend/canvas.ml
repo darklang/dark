@@ -304,43 +304,15 @@ let validate_op host op =
     Exception.internal "bad op"
       ~info:["host", host] ~actual:(Op.show_op op)
 
-open Types
-open Types.RuntimeT
-
-let convert_flagged_expr expr =
-  match expr with
-  | Flagged (id, msg, _, a, b) ->
-    Filled (id, (FeatureFlag (msg, Blank (Util.create_id ()), a, b)))
-  | e -> e
-
-let convert_flagged_ast (expr: expr) : expr =
-  Ast.traverse ~f:convert_flagged_expr expr
-
-let convert_flagged (op: Op.op) : (Op.op) =
-  match op with
-  | Op.SetExpr (tlid, id, expr) ->
-    Op.SetExpr (tlid, id, convert_flagged_ast expr)
-  | Op.SetFunction (fn) ->
-    Op.SetFunction ({ fn with ast = convert_flagged_ast fn.ast})
-  | Op.SetHandler (tlid, pos, h) ->
-    Op.SetHandler (tlid, pos, { h with ast = convert_flagged_ast h.ast})
-  | op -> op
 
 let check_all_hosts () : unit =
   let hosts = Serialize.current_hosts () in
 
+  (* Just convert from the old format to the new one *)
   List.iter hosts
     ~f:(fun host ->
       let c = load_all host [] in
-
-      let new_ops =
-        !c.ops
-        |> Op.tlid_oplists2oplist
-        |> List.map ~f:(convert_flagged)
-        |> Op.oplist2tlid_oplists
-      in
-      let newc = { !c with ops = new_ops } in
-      save_all newc);
+      save_all !c);
 
   List.iter hosts
     ~f:(fun host ->
