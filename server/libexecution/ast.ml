@@ -63,6 +63,9 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
 
              | ObjectLiteral pairs ->
                ObjectLiteral (List.map ~f:(fun (k, v) -> (k, f v)) pairs)
+
+             | FeatureFlag (msg, cond, a, b) ->
+               FeatureFlag (msg, f cond, f a, f b)
            ))
 
 let rec set_expr ~(search: id) ~(replacement: expr) (expr: expr) : expr =
