@@ -17,7 +17,8 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [data; DStr space; DStr name]) ->
-            Event_queue.enqueue state space name data;
+            (* See Entry.elm for the "_" *)
+            Event_queue.enqueue state space name "_" data;
             data
           | args -> fail args)
   ; pr = None
