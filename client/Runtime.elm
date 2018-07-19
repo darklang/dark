@@ -24,10 +24,18 @@ isFloat : String -> Bool
 isFloat s = String.toFloat s |> Util.resultIsOk
 
 isString : String -> Bool
-isString s = String.startsWith "\"" s && String.endsWith "\"" s
+isString s =
+  String.startsWith "\"" s
+  && String.endsWith "\"" s
+
+isTrue : String -> Bool
+isTrue s = String.toLower s == "true"
+
+isFalse : String -> Bool
+isFalse s = String.toLower s == "false"
 
 isBool : String -> Bool
-isBool s = String.toLower s == "true" || String.toLower s == "false"
+isBool s = isTrue s || isFalse s
 
 isChar : String -> Bool
 isChar s =
