@@ -99,7 +99,7 @@ def initialize():
   random.seed(0)
   # The benchmarks read from disk, so add an op first so that it
   # moves to the DB.
-  get('/admin/api/clear-benchmarking-data')
+  post('/admin/api/clear-benchmarking-data')
   post('/admin/api/rpc', json=createDB())
 
 # Starting point, just do 10 analysis requests and see what we get.
