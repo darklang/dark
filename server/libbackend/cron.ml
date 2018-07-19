@@ -132,7 +132,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                     ~params:["execution_id", Log.dump execution_id
                             ;"host", endp
                             ;"tlid", string_of_int cr.tlid
-                            ;"event name", name
+                            ;"event_name", name
                             ];
               )
             crons;
