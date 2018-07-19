@@ -44,4 +44,4 @@ rm $FILENAME
 gsutil rm $GSFILENAME
 
 
-echo "Done. To reset `prodclone` again, run ./scripts/reset-prodclone"
+echo "Done. To reset prodclone again, run ./scripts/reset-prodclone"
