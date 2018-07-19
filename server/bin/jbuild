@@ -55,9 +55,9 @@
 
 (executable
   (
-    (name cron_event_emitter)
-    (public_name cron_event_emitter)
-    (modules cron_event_emitter)
+    (name cron_checker)
+    (public_name cron_checker)
+    (modules cron_checker)
     (flags (-warn-error (+A)))
     (libraries (libbackend core lwt.unix lwt.ppx))
     (preprocess (pps (lwt.ppx)))
