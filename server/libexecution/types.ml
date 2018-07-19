@@ -34,17 +34,6 @@ type tipe_ =
   | TDbList of tipe_
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
-module SpecTypes = struct
-  type n_dark_type = Empty
-                   | Any
-                   | String
-                   | Int
-                   | Obj of (string or_blank * dark_type ) list
-                   [@@deriving eq, compare, show, yojson, sexp, bin_io]
-  and dark_type = n_dark_type or_blank
-                  [@@deriving eq, compare, show, yojson, sexp, bin_io]
-end
-
 module RuntimeT = struct
   type fnname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type fieldname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
@@ -95,6 +84,35 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
               ; active_migration : db_migration option
               } [@@deriving eq, compare, show, yojson, sexp, bin_io]
   end
+
+  module HandlerT = struct
+
+    type n_dark_type = Empty
+                     | Any
+                     | String
+                     | Int
+                     | Obj of (string or_blank * dark_type ) list
+                     [@@deriving eq, compare, show, yojson, sexp, bin_io]
+    and dark_type = n_dark_type or_blank
+                    [@@deriving eq, compare, show, yojson, sexp, bin_io]
+
+    type spec_types = { input : dark_type
+                      ; output : dark_type
+                      } [@@deriving eq, show, yojson, sexp, bin_io]
+
+
+    type spec = { module_ : string or_blank [@key "module"]
+                ; name : string or_blank
+                ; modifier : string or_blank
+                ; types : spec_types
+                } [@@deriving eq, show, yojson, sexp, bin_io]
+
+    type handler = { tlid: tlid
+                   ; ast: expr
+                   ; spec : spec
+                   } [@@deriving eq, show, yojson, sexp, bin_io]
+  end
+
 
   (* ------------------------ *)
   (* Dvals*)

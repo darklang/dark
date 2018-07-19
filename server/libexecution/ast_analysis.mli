@@ -48,5 +48,5 @@ val load_nothing :
 val environment_for_user_fn : Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
 val execute_function_for_analysis : Types.RuntimeT.exec_state -> Types.RuntimeT.user_fn -> analysis
 
-val execute_handler_for_analysis : Types.RuntimeT.exec_state -> Handler.handler -> analysis
-val execute_handler : Types.RuntimeT.exec_state -> Handler.handler -> Types.RuntimeT.dval
+val execute_handler_for_analysis : Types.RuntimeT.exec_state -> Types.RuntimeT.HandlerT.handler -> analysis
+val execute_handler : Types.RuntimeT.exec_state -> Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.dval

@@ -86,7 +86,7 @@ let handler_analysis
     ~(exe_fn_ids : executable_fn_id list)
     ~(execution_id: id)
     (c: canvas)
-    (h : Handler.handler)
+    (h : RTT.HandlerT.handler)
   : analysis_result
    =
   Log.infO "handler_analysis"
