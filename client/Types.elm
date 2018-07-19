@@ -140,7 +140,7 @@ type Msg
     | PageVisibilityChange PageVisibility.Visibility
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
-    | EndFeatureFlag ID
+    | EndFeatureFlag ID Pick
     | DeleteUserFunctionParameter UserFunction UserFunctionParameter
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
@@ -250,6 +250,13 @@ type VariantTest = StubVariant
 -- View
 -----------------------------
 type alias Class = String
+
+
+-----------------------------
+-- FeatureFlags
+-----------------------------
+type Pick = PickA
+          | PickB
 
 -----------------------------
 -- AST
