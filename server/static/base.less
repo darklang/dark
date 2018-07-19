@@ -1100,16 +1100,71 @@ body #grid * {
   }
 }
 
+.expr-label {
+  color: @grey2;
+  font-style: italic;
+  font-size: 88%;
+}
+
 .flagged {
   .fa-flag {
     color: @red;
     font-size: 8px;
   }
 
-  .setting-slider {
-    position: absolute;
-    left: 110%;
+  .feature-flag-modal {
     margin-top: -10px;
+    position: absolute;
+    left: 100% + 10px;
+
+    .row {
+      display: block;
+      margin-top: 18px;
+      width: 100%;
+      padding: 0 8px;
+
+      &:first {
+        margin-top: 0;
+      }
+    }
+
+    .title-bar {
+      display: block;
+      width: 100%;
+
+      .flag-name {
+        width: 70%;
+      }
+
+      .actions {
+        width: 30%;
+
+        i.fa {
+          margin-left: 4px;
+          color: @grey3;
+
+          &:hover {
+            color: @white1;
+          }
+        }
+      }
+    }
+
+    .condition {
+      .expr-label {
+        display: block;
+      }
+    }
+
+    .expressions {
+      width: 100%;
+
+      .cond-expr {
+        display: inline-block;
+        width: 50%;
+
+      }
+    }
   }
 
   .end-ff {
@@ -1133,11 +1188,7 @@ body #grid * {
   .hidden {
     background-color: blue;
   }
-  .flag-message {
-    margin-top: -10px;
-    position: absolute;
-    left: 100% + 10px;
-  }
+
   .feature-flag {
     display: none;
   }

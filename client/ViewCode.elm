@@ -372,21 +372,34 @@ viewNExpr d id vs config e =
       --       etc
       --     .flag-right
       --       etc
-      let pickA =
+      let exprLabel msg =
+        Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
+
+          pickA icon =
             Html.div
-            [ Attrs.class "end-ff pick-a"
-            , Attrs.attribute "data-content" "Cancel feature flag"
+            [ Attrs.attribute "data-content" "Cancel feature flag"
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickA)]
-            [ fontAwesome "times" ]
+            [ fontAwesome icon ]
 
           pickB =
             Html.div
-            [ Attrs.class "end-ff pick-b"
-            , Attrs.attribute "data-content" "Pick new version"
+            [ Attrs.attribute "data-content" "Pick new version"
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickB)]
             [ fontAwesome "check" ]
+
+          hideModal =
+            Html.div
+            []
+            [ fontAwesome "minus-square" ]
+
+          titleBar = Html.div [ Attrs.class "row title-bar" ] [
+            viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
+            , Html.div [Attrs.class "actions"] [
+             pickA "times"
+             ]
+            ]
 
           condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
           condResult =
@@ -394,20 +407,40 @@ viewNExpr d id vs config e =
               Just (Ok lv) -> Runtime.isTrue lv.value
               _ -> False
 
-      in
-          div vs
-            [ wc "flagged shown"]
-            [ vExpr 0 (if condResult then b else a)
-            , fontAwesome "flag"
-            , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
-            , pickA
-            , pickB
-            , vExpr 0 cond
-            , div vs [wc "flag-left nested-flag"] [vExpr 0 a]
-            , div vs [wc "flag-right nested-flag"] [vExpr 0 b]
+          blockCondition =
+            Html.div
+            [ Attrs.class "row condition" ]
+            [
+              exprLabel "Flag condition (when to use new code)"
+              , vExpr 0 cond
             ]
 
+          expressions =
+            Html.div
+            [ Attrs.class "row expressions" ]
+            [
+              div vs [wc "cond-expr a"] [
+                exprLabel "Current Expression"
+                , pickA "check"
+                , vExpr 0 a
+              ]
+              , div vs [wc "cond-expr b"] [
+                exprLabel "New Expression"
+                ,vExpr 0 b
+              ]
+            ]
 
+    in
+      div vs
+        [ wc "flagged shown"]
+        [ vExpr 0 (if condResult then b else a)
+        , fontAwesome "flag"
+        , Html.div [Attrs.class "feature-flag-modal"] [
+            titleBar
+            , blockCondition
+            , expressions
+          ]
+        ]
 
 
 isExecuting : ViewState -> ID -> Bool
