@@ -1,6 +1,6 @@
 open Core_kernel
 open Libexecution
-open Types
+open Deprecated_types_flagged
 
 
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
@@ -31,20 +31,10 @@ type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 type tlid_oplists = (tlid * oplist) list
                     [@@deriving eq, yojson, show, sexp, bin_io]
 
-type expr = RuntimeT.expr
+type expr = Deprecated_types_flagged.RuntimeT.expr
 
 let rec has_deprecated_expr (expr: expr) : bool =
-  let throw_on_flagged (expr: expr) : expr =
-    match expr with
-    | Flagged _ -> failwith "flagged fail"
-    | e -> e
-  in
-  try
-    ignore (Ast.traverse ~f:throw_on_flagged expr);
-    false
-  with Failure _ ->
-    true
-
+  false
 
 let is_deprecated (op: op) : bool =
   match op with
@@ -60,6 +50,70 @@ let is_deprecated (op: op) : bool =
   | SetHandler (_, _, h) ->
     has_deprecated_expr h.ast
   | _ -> false
+
+open RuntimeT
+
+let convert_flagged_expr expr =
+  match expr with
+  | Flagged (id, msg, _, a, b) ->
+    Filled (id, (FeatureFlag (msg, Blank (Util.create_id ()), a, b)))
+  | e -> e
+
+let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
+  let r = traverse ~f in
+  let new_expr =
+    match expr with
+    | Blank _ -> expr
+    | Flagged (id, msg, setting, a, b) ->
+      Flagged (id, msg, setting, r a, r b)
+    | Filled (id, nexpr) ->
+      Filled (id,
+              match nexpr with
+               | Value _ -> nexpr
+               | Variable _ -> nexpr
+
+               | Let (lhs, rhs, body) ->
+                 Let (lhs, r rhs, r body)
+
+               | If (cond, ifbody, elsebody) ->
+                 If (r cond, r ifbody, r elsebody)
+
+               | FnCall (name, exprs) ->
+                 FnCall (name, List.map ~f:r exprs)
+
+               | Lambda (vars, lexpr) ->
+                 Lambda (vars, r lexpr)
+
+               | Thread exprs ->
+                 Thread (List.map ~f:r exprs)
+
+               | FieldAccess (obj, field) ->
+                 FieldAccess (r obj, field)
+
+               | ListLiteral exprs ->
+                 ListLiteral (List.map ~f:r exprs)
+
+               | ObjectLiteral pairs ->
+                 ObjectLiteral (List.map ~f:(fun (k, v) -> (k, r v)) pairs)
+
+               | FeatureFlag (msg, cond, a, b) ->
+                 FeatureFlag (msg, r cond, r a, r b)
+             )
+  in
+  f new_expr
+
+let convert_flagged_ast (expr: RuntimeT.expr) : expr =
+  traverse ~f:convert_flagged_expr expr
+
+let convert_flagged (op: op) : (op) =
+  match op with
+  | SetExpr (tlid, id, expr) ->
+    SetExpr (tlid, id, convert_flagged_ast expr)
+  | SetFunction (fn) ->
+    SetFunction ({ fn with ast = convert_flagged_ast fn.ast})
+  | SetHandler (tlid, pos, h) ->
+    SetHandler (tlid, pos, { h with ast = convert_flagged_ast h.ast })
+  | op -> op
 
 
 let has_effect (op: op) : bool  =

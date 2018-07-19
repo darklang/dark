@@ -48,16 +48,18 @@ let is_test (name: string) : bool =
 let json_filename name =
   name ^ "." ^ "json"
 
-let try_multiple ~(fs: ('a -> 'b) list) (value: 'a) : 'b =
+let try_multiple ~(fs: (string * ('a -> 'b)) list) (value: 'a) : 'b =
   let result =
     List.fold_left ~init:None fs
-      ~f:(fun result f ->
+      ~f:(fun result (name, f) ->
           match result with
           | Some r -> result
           | None ->
             try
               Some (f value)
             with e ->
+              let bt = Exception.get_backtrace () in
+              Log.debuG ~bt name ~data:(Exception.exn_to_string e);
               None)
   in
   match result with
@@ -68,12 +70,11 @@ let try_multiple ~(fs: ('a -> 'b) list) (value: 'a) : 'b =
 (* ------------------------- *)
 (* convert from deprecated *)
 (* ------------------------- *)
-open Types
-open Types.RuntimeT
 
 let read_and_convert_deprecated str : Op.oplist =
   str
   |> Deprecated_op_flagged.oplist_of_string
+  |> List.map ~f:Deprecated_op_flagged.convert_flagged
   |> Deprecated_op_flagged.oplist_to_yojson
   |> Op.oplist_of_yojson
   |> Result.ok_or_failwith
@@ -90,8 +91,8 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
        | _ -> Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
       let ops : Op.oplist = try_multiple str
-          ~fs:[ Op.oplist_of_string
-              ; read_and_convert_deprecated ]
+          ~fs:[ "oplist", Op.oplist_of_string
+              ; "read_and_convert", read_and_convert_deprecated ]
       in
       (* there must be at least one op *)
       let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
