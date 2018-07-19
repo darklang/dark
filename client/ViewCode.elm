@@ -377,14 +377,16 @@ viewNExpr d id vs config e =
 
           pickA icon =
             Html.div
-            [ Attrs.attribute "data-content" "Cancel feature flag"
+            [ Attrs.class "icon"
+              , Attrs.attribute "data-content" "Cancel feature flag"
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickA)]
             [ fontAwesome icon ]
 
           pickB =
             Html.div
-            [ Attrs.attribute "data-content" "Pick new version"
+            [ Attrs.class "icon"
+              , Attrs.attribute "data-content" "Pick new version"
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickB)]
             [ fontAwesome "check" ]
@@ -397,7 +399,8 @@ viewNExpr d id vs config e =
           titleBar = Html.div [ Attrs.class "row title-bar" ] [
             viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
             , Html.div [Attrs.class "actions"] [
-             pickA "times"
+              pickA "trash"
+              , fontAwesome "minus-square"
              ]
             ]
 
@@ -415,19 +418,21 @@ viewNExpr d id vs config e =
               , vExpr 0 cond
             ]
 
+          exprBlock lbl act exp =
+            Html.div
+            [ Attrs.class "cond-expr" ]
+            [
+              exprLabel lbl
+              , act
+              , div vs [wc "expr-block"] [vExpr 0 exp]
+            ]
+
           expressions =
             Html.div
             [ Attrs.class "row expressions" ]
             [
-              div vs [wc "cond-expr a"] [
-                exprLabel "Current Expression"
-                , pickA "check"
-                , vExpr 0 a
-              ]
-              , div vs [wc "cond-expr b"] [
-                exprLabel "New Expression"
-                ,vExpr 0 b
-              ]
+              exprBlock "Current Expression" (pickA "check") a
+              , exprBlock "New Expression" pickB b
             ]
 
     in
