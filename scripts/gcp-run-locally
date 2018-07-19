@@ -11,6 +11,7 @@ fi
 case ${1:-server} in
   "queue") IMAGE="dark-gcp-qw";;
   "server") IMAGE="dark-gcp";;
+  "cron") IMAGE="dark-gcp-cron";;
   *) IMAGE="dark-gcp";;
 esac
 

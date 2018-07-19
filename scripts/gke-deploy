@@ -10,9 +10,11 @@ ENVIRONMENT=production
 LOCAL_USERNAME=`cat ~/.config/gcloud/configurations/config_default | grep 'account' | awk '{print $3}' | awk -F "@" '{print $1}'`
 IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
 QW_IMAGE_ID=$(docker images dark-gcp-qw -q | head -n 1)
+CRON_IMAGE_ID=$(docker images dark-gcp-cron -q | head -n 1)
 PROJECT="balmy-ground-195100"
 IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
 QW_IMAGE="gcr.io/$PROJECT/dark-prod-qw:$QW_IMAGE_ID"
+CRON_IMAGE="gcr.io/$PROJECT/dark-prod-cron:$CRON_IMAGE_ID"
 ZONE="us-west1"
 CLUSTER="darkcluster1"
 
@@ -23,9 +25,11 @@ CLUSTER="darkcluster1"
 echo "Deploying container to GCP"
 docker tag dark-gcp:latest $IMAGE
 docker tag dark-gcp-qw:latest $QW_IMAGE
+docker tag dark-gcp-cron:latest $CRON_IMAGE
 docker-credential-gcr configure-docker
 docker push $IMAGE
 docker push $QW_IMAGE
+docker push $CRON_IMAGE
 
 
 #########################
@@ -42,10 +46,12 @@ gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters
 # make sure deployment matches current understanding
 kubectl apply -f scripts/support/builtwithdark.yaml
 kubectl apply -f scripts/support/queueworker.yaml
+kubectl apply -f scripts/support/cronchecker.yaml
 
 # deploy the image
 kubectl set image deployment/bwd-deployment bwd-ctr=$IMAGE
 kubectl set image deployment/qw-deployment qw-ctr=$QW_IMAGE
+kubectl set image deployment/qw-deployment qw-ctr=$CRON_IMAGE
 
 #########################
 # Tell everyone else what's going on
