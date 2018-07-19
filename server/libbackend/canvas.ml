@@ -299,15 +299,10 @@ let save_test (c: canvas) : string =
   file
 
 let validate_op host op =
-  match op with
-  | Op.Deprecated0
-  | Op.Deprecated1
-  | Op.Deprecated2
-  | Op.Deprecated3
-  | Op.Deprecated4 _ ->
+  if Op.is_deprecated op
+  then
     Exception.internal "bad op"
       ~info:["host", host] ~actual:(Op.show_op op)
-  | _ -> ()
 
 let check_all_hosts () : unit =
   Serialize.current_hosts ()
