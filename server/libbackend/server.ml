@@ -479,57 +479,60 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
     (req: CRequest.t) req_headers =
+  let verb = req |> CRequest.meth in
   let text_plain_resp_headers =
     Header.init_with "Content-type" "text/html; charset=utf-8"
   in
   let utf8 = "application/json; charset=utf-8" in
-  match Uri.path uri with
-  | "/admin/api/rpc" ->
+  match (verb, Uri.path uri) with
+  | (`POST, "/admin/api/rpc") ->
     let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers ~execution_id `OK response_body
-  | "/admin/api/initial_load" ->
+  | (`POST, "/admin/api/initial_load") ->
     let (resp_headers, response_body) = initial_load ~execution_id host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers ~execution_id `OK response_body
-  | "/admin/api/execute_function" ->
+  | (`POST, "/admin/api/execute_function") ->
     let (resp_headers, response_body) = execute_function ~execution_id host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers ~execution_id `OK response_body
-  | "/admin/api/get_analysis" ->
+  | (`POST, "/admin/api/get_analysis") ->
     let (resp_headers, response_body) = get_analysis ~execution_id host body in
     let resp_headers = Header.add resp_headers "Content-type" utf8 in
     respond ~resp_headers ~execution_id `OK response_body
-  | "/admin/api/shutdown" when Config.allow_server_shutdown ->
+  | (`POST, "/admin/api/shutdown") when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond ~execution_id `OK "Disembowelment"
-  | "/admin/api/clear-benchmarking-data" ->
+  | (`POST, "/admin/api/clear-benchmarking-data") ->
     Db.delete_benchmarking_data ();
     respond ~execution_id `OK "Cleared"
-  | "/admin/api/save_test" when Config.allow_test_routes ->
+  | (`POST, "/admin/api/save_test") when Config.allow_test_routes ->
     save_test_handler ~execution_id host
-  | "/admin/ui-debug" ->
+  | (`GET, "/admin/ui-debug") ->
     let%lwt body = admin_ui_handler ~debug:true () in
     respond
       ~resp_headers:text_plain_resp_headers
       ~execution_id
       `OK body
-  | "/admin/ui" ->
+  | (`GET, "/admin/ui") ->
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
       ~resp_headers:text_plain_resp_headers
       ~execution_id
       `OK body
-  | "/admin/integration_test" when Config.allow_test_routes ->
+  | (`GET, "/admin/integration_test") when Config.allow_test_routes ->
     Canvas.load_and_resave_from_test_file host;
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
       ~resp_headers:text_plain_resp_headers
       ~execution_id
       `OK body
-  | "/admin/check-all-oplists" ->
+  | (`POST, "/admin/check-all-oplists") ->
     Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
+  | (`GET, "/admin/check-all-oplists") ->
+    respond ~execution_id `OK "<html><body><form action='/admin/check-all-oplists' method='post'><input type='submit' value='Check all oplists'></form></body></html>"
   | _ ->
     respond ~execution_id `Not_found "Not found"
 

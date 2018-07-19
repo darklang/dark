@@ -183,7 +183,7 @@ the preprocessed version.
 - make compilation and run use OCAML_LANDMARKS="auto,format=json,output=profile.json,allocation", in scripts/support/compile (enable the `profile` global)
 - rm server/_build
 - run the builder
-- refresh the page 10 times, then go to localhost:8000/admin/api/shutdown (shuts
+- refresh the page 10 times, then post to localhost:8000/admin/api/shutdown (shuts
   down the server and saves the profiling info)
   - if the time is all spent in twitter, delete server/profile.json and
     try again
