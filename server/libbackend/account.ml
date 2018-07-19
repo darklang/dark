@@ -145,6 +145,11 @@ let init () : unit =
     ; password = "descartes"
     ; email = "alice@darklang.com"
     ; name = "Alice Wong"};
+  upsert_admin
+    { username = "jonathan"
+    ; password = "jonathan"
+    ; email = "jonathan.laurent@cs.cmu.edu"
+    ; name = "Jonathan Laurent"};
   upsert_account
     { username = "lizzie"
     ; password = "pHLoEmnAWHWWTuotLoCoPzt8CGbdze"
