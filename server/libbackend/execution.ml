@@ -106,3 +106,11 @@ let state_for_execution
   : RTT.exec_state =
   let s = state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env tlid in
   { s with store_fn_result = Stored_function_result.store }
+
+let state_for_enqueue
+  ~(c: canvas)
+  ~(execution_id: int)
+  (tlid: tlid)
+  : RTT.exec_state =
+  state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env:RTT.DvalMap.empty tlid
+

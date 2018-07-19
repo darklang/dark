@@ -10,6 +10,7 @@ type result = [`Success | `Failure | `Disabled]
 
 type err_ctx = Remote of request_data
              | EventQueue
+             | CronChecker
              | Other of string
 
 (* Reports an exn with a backtrace to Rollbar asynchronously *)

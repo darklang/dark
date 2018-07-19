@@ -13,6 +13,7 @@ type request_data = { body: string
 
 type err_ctx = Remote of request_data
              | EventQueue
+             | CronChecker
              | Other of string
 
 let error_to_payload ~pp ~inspect (e: exn) (bt: Caml.Printexc.raw_backtrace) (ctx: err_ctx) (execution_id: string)
@@ -30,6 +31,7 @@ let error_to_payload ~pp ~inspect (e: exn) (bt: Caml.Printexc.raw_backtrace) (ct
     match ctx with
     | Remote _ -> `String "server"
     | EventQueue -> `String "event queue worker"
+    | CronChecker -> `String "cron event emitter"
     | Other str -> `String str
   in
   let env = `String Config.rollbar_environment in
@@ -58,7 +60,7 @@ let error_to_payload ~pp ~inspect (e: exn) (bt: Caml.Printexc.raw_backtrace) (ct
       ;("context", context)
       ;("execution_id", `String execution_id)
       ;("request", request)]
-    | EventQueue ->
+    | EventQueue | CronChecker ->
       [("body", message)
       ;("environment", env)
       ;("language", language)
