@@ -65,7 +65,7 @@ let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
 
-let handler ast : Handler.handler =
+let handler ast : HandlerT.handler =
   { tlid = tlid
   ; ast = ast
   ; spec = { module_ = b ()
@@ -74,7 +74,7 @@ let handler ast : Handler.handler =
            ; types = { input = b ()
                      ; output = b () }}}
 
-let http_handler ast : Handler.handler =
+let http_handler ast : HandlerT.handler =
   { tlid = tlid
   ; ast = ast
   ; spec = { module_ = f "HTTP"
@@ -84,7 +84,7 @@ let http_handler ast : Handler.handler =
                      ; output = b () }}}
 
 let http_route = "/some/vars/and/such"
-let http_route_handler : Handler.handler =
+let http_route_handler : HandlerT.handler =
   { tlid = tlid
   ; ast = f (Value "5")
   ; spec = { module_ = f "HTTP"
@@ -95,7 +95,7 @@ let http_route_handler : Handler.handler =
 
 
 
-let daily_cron ast : Handler.handler =
+let daily_cron ast : HandlerT.handler =
   { tlid = tlid
   ; ast = ast
   ; spec = { module_ = f "CRON"

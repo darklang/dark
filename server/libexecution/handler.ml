@@ -2,25 +2,9 @@ open Core_kernel
 
 open Types
 open Types.RuntimeT
-open Types.SpecTypes
+open Types.RuntimeT.HandlerT
 module RT = Runtime
 module FF = Feature_flag
-
-type spec_types = { input : dark_type
-                  ; output : dark_type
-                  } [@@deriving eq, show, yojson, sexp, bin_io]
-
-
-type spec = { module_ : string Types.or_blank [@key "module"]
-            ; name : string Types.or_blank
-            ; modifier : string Types.or_blank
-            ; types : spec_types
-            } [@@deriving eq, show, yojson, sexp, bin_io]
-
-type handler = { tlid: Types.tlid
-               ; ast: expr
-               ; spec : spec
-               } [@@deriving eq, show, yojson, sexp, bin_io]
 
 let is_complete (h: handler) : bool =
   match (h.spec.module_, h.spec.name, h.spec.modifier) with

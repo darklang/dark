@@ -2,8 +2,10 @@ open Core_kernel
 
 module RT = Runtime
 open Types
+open Types.RuntimeT
+open Types.RuntimeT.HandlerT
 
-type tldata = Handler of Handler.handler
+type tldata = Handler of handler
             | DB of RuntimeT.DbT.db
             [@@deriving eq, show, yojson]
 
@@ -14,7 +16,7 @@ type toplevel = { tlid: id
 
 type toplevel_list = toplevel list [@@deriving eq, show, yojson]
 
-let as_handler (tl: toplevel) : Handler.handler option =
+let as_handler (tl: toplevel) : handler option =
   match tl.data with
   | Handler h -> Some h
   | _ -> None
@@ -24,15 +26,15 @@ let as_db (tl: toplevel) : RuntimeT.DbT.db option =
   | DB db -> Some db
   | _ -> None
 
-let http_handlers (tls: toplevel_list) : Handler.handler list =
+let http_handlers (tls: toplevel_list) : handler list =
   tls
   |> List.filter_map ~f:as_handler
   |> List.filter ~f:Handler.is_http
 
-let handlers (tls: toplevel_list) : Handler.handler list =
+let handlers (tls: toplevel_list) : handler list =
   List.filter_map ~f:as_handler tls
 
-let bg_handlers (tls: toplevel_list) : Handler.handler list =
+let bg_handlers (tls: toplevel_list) : handler list =
   tls
   |> List.filter_map ~f:as_handler
   |> List.filter ~f:(fun x -> x |> Handler.is_http |> not)
