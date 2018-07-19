@@ -124,8 +124,9 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                 then
                   let exec_state = Execution.state_for_enqueue !c execution_id cr.tlid in
                   let space = Handler.module_for_exn cr in
-                  let name =  Handler.event_name_for_exn cr in
-                  Event_queue.enqueue exec_state space name DNull;
+                  let name = Handler.event_name_for_exn cr in
+                  let modifier = Handler.modifier_for_exn cr in
+                  Event_queue.enqueue exec_state space name modifier DNull;
                   record_execution !c.id cr;
                   Log.infO "cron_checker"
                     ~data:"enqueued event"
@@ -133,6 +134,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                             ;"host", endp
                             ;"tlid", string_of_int cr.tlid
                             ;"event_name", name
+                            ;"cron_freq", modifier
                             ];
               )
             crons;

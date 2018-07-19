@@ -15,9 +15,10 @@ type t = { id: int
          ; host: string
          ; space: string
          ; name: string
+         ; modifier: string
          }
 let to_event_desc t =
-  (t.space, t.name, "_") (* See Entry.elm *)
+  (t.space, t.name, t.modifier)
 
 let status_to_enum status : string =
   match status with
@@ -29,17 +30,18 @@ let status_to_enum status : string =
 (* Public API *)
 (* ------------------------- *)
 
-let enqueue (state: exec_state) (space: string) (name: string) (data: dval) : unit =
+let enqueue (state: exec_state) (space: string) (name: string) (modifier: string) (data: dval) : unit =
   Db.run
     ~name:"enqueue"
      "INSERT INTO events
      (status, dequeued_by, canvas_id, account_id,
-      space, name, value, delay_until, flag_context)
-     VALUES ('new', NULL, $1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6)"
+      space, name, modifier, value, delay_until, flag_context)
+     VALUES ('new', NULL, $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, $7)"
      ~params:[ Uuid state.canvas_id
              ; Uuid state.account_id
              ; String space
              ; String name
+             ; String modifier
              ; DvalJson data
              ; String (FF.to_sql state.ff)
              ]
@@ -48,7 +50,7 @@ let dequeue transaction : t option =
   let fetched =
     Db.fetch_one_option
       ~name:"dequeue_fetch"
-      "SELECT e.id, e.value, e.retries, e.flag_context, e.canvas_id, c.name, e.space, e.name
+      "SELECT e.id, e.value, e.retries, e.flag_context, e.canvas_id, c.name, e.space, e.name, e.modifier
        FROM events AS e
        JOIN canvases AS c ON e.canvas_id = c.id
        WHERE delay_until < CURRENT_TIMESTAMP
@@ -60,7 +62,7 @@ let dequeue transaction : t option =
   in
   match fetched with
   | None -> None
-  | Some [id; value; retries; flag_context; canvas_id; host; space; name] ->
+  | Some [id; value; retries; flag_context; canvas_id; host; space; name; modifier] ->
     Some { id = int_of_string id
          ; value = Dval.dval_of_json_string value
          ; retries = int_of_string retries
@@ -69,6 +71,7 @@ let dequeue transaction : t option =
          ; host = host
          ; space = space
          ; name = name
+         ; modifier = modifier
          }
   | Some s ->
     Exception.internal

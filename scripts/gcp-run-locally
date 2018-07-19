@@ -21,9 +21,8 @@ echo "Starting new container"
 docker run \
   --rm \
   -it \
-  -p 9000:80 \
   --network dark-dev-net \
-  --name dark-local-gcp \
+  --name $IMAGE-local \
   --env-file config/gcp-local \
   --mount type=bind,src=${HOST_PWD}/gcp-rundir,dst=/home/dark/gcp-rundir \
   --mount type=bind,src=${HOST_PWD}/gcp-persistdir,dst=/home/dark/gcp-persistdir \

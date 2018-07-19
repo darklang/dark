@@ -15,11 +15,12 @@ type t = { id: int
          ; host: string
          ; space: string
          ; name: string
+         ; modifier: string
          }
 val to_event_desc : t -> Stored_event.event_desc
 
 
-val enqueue : RuntimeT.exec_state -> string -> string -> RuntimeT.dval -> unit
+val enqueue : RuntimeT.exec_state -> string -> string -> string -> RuntimeT.dval -> unit
 
 val with_transaction : (transaction -> (unit, Exception.captured) Result.t) -> (unit, Exception.captured) Result.t
 val dequeue : transaction -> t option
