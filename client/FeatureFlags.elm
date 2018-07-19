@@ -15,11 +15,13 @@ toFlagged msgId expr =
     _ ->
       F (gid ()) (FeatureFlag (Blank msgId) (B.new ()) expr (B.new ()))
 
-fromFlagged : Expr -> Expr
-fromFlagged expr =
+fromFlagged : Pick -> Expr -> Expr
+fromFlagged pick expr =
   case expr of
-    F id (FeatureFlag msg cond a b) ->
-      a -- TODO: how to decide
+    F _ (FeatureFlag _ _ a b) ->
+      case pick of
+        PickA -> a
+        PickB -> b
     _ -> impossible ("cant convert flagged to flagged", expr)
 
 start : Model -> Modification
@@ -37,14 +39,14 @@ start m =
            , FocusExact tl.id msgId)
     _ -> NoChange
 
-end : Model -> ID -> Modification
-end m id =
+end : Model -> ID -> Pick -> Modification
+end m id pick =
   case tlidOf (unwrapCursorState m.cursorState) of
     Nothing -> NoChange
-    Just tlid->
+    Just tlid ->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
-          newPd = P.exprmap fromFlagged pd
+          newPd = P.exprmap (fromFlagged pick) pd
           newTL = TL.replace pd newPd tl
       in
       RPC ([SetHandler tl.id tl.pos

@@ -1215,8 +1215,8 @@ update_ msg m =
     StartFeatureFlag ->
       FeatureFlags.start m
 
-    EndFeatureFlag ffID ->
-      FeatureFlags.end m ffID
+    EndFeatureFlag id pick ->
+      FeatureFlags.end m id pick
 
     -------------------------
     -- Function Management

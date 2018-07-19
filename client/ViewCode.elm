@@ -367,24 +367,35 @@ viewNExpr d id vs config e =
       -- after click
       --   .flagged
       --     .message
-      --     .setting
+      --     .cond
       --     .flag-left
       --       etc
       --     .flag-right
       --       etc
-      let drawEndFeatureFlag ffID =
+      let pickA =
             Html.div
-            [ Attrs.class (String.join " " ["end-ff", "valid-action"])
-            , Attrs.attribute "data-content" "Click to finalize and remove flag"
-            , eventNoPropagation "click" (\_ -> EndFeatureFlag ffID)]
+            [ Attrs.class "end-ff pick-a"
+            , Attrs.attribute "data-content" "Cancel feature flag"
+            , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickA)]
+            [ fontAwesome "times" ]
+
+          pickB =
+            Html.div
+            [ Attrs.class "end-ff pick-b"
+            , Attrs.attribute "data-content" "Pick new version"
+            , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickB)]
             [ fontAwesome "check" ]
+
       in
           div vs
             [ wc "flagged shown"]
-            [ vExpr 0 a
+            [ vExpr 0 a -- TODOFF: which to show?
             , fontAwesome "flag"
             , viewText FFMsg vs (wc "flag-message" :: idConfigs) msg
-            , drawEndFeatureFlag id
+            , pickA
+            , pickB
             , vExpr 0 cond
             , div vs [wc "flag-left nested-flag"] [vExpr 0 a]
             , div vs [wc "flag-right nested-flag"] [vExpr 0 b]

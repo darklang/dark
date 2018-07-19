@@ -1116,7 +1116,7 @@ body #grid * {
     position: absolute;
     left: 165%;
     margin-top: -9px;
-    &.valid-action {
+    &.pick-b {
       color: @green;
 
       &:hover {
@@ -1124,8 +1124,9 @@ body #grid * {
         cursor: pointer;
       }
     }
-    &.invalid-action {
+    &.pick-a {
       color: @red;
+      margin-left: -20px;
     }
   }
 
@@ -1136,10 +1137,6 @@ body #grid * {
     margin-top: -10px;
     position: absolute;
     left: 100% + 10px;
-  }
-  .setting-slider {
-    margin-top: 30px;
-    position: absolute;
   }
   .feature-flag {
     display: none;
