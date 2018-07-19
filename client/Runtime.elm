@@ -30,7 +30,10 @@ isBool : String -> Bool
 isBool s = String.toLower s == "true" || String.toLower s == "false"
 
 isChar : String -> Bool
-isChar s = String.length s == 3 && String.startsWith s "\'" && String.endsWith s "\'"
+isChar s =
+  String.length s == 3
+  && String.startsWith s "\'"
+  && String.endsWith s "\'"
 
 isNull : String -> Bool
 isNull s = String.toLower s == "null"
