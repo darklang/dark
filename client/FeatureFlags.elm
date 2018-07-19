@@ -7,19 +7,20 @@ import Toplevel as TL
 import Pointer as P
 import Blank as B
 
-toFlagged : ID -> BlankOr a -> BlankOr a
-toFlagged msgId bo =
-  case bo of
-    Flagged _ _ _ _ _ ->
-      impossible ("cant convert flagged to flagged", bo)
-    _ -> Flagged (gid()) (Blank msgId) (B.new ()) bo (B.new ())
+toFlagged : ID -> Expr -> Expr
+toFlagged msgId expr =
+  case expr of
+    F id (FeatureFlag _ _ _ _) ->
+      impossible ("cant convert flagged to flagged", expr)
+    _ ->
+      F (gid ()) (FeatureFlag (Blank msgId) (B.new ()) expr (B.new ()))
 
-fromFlagged : BlankOr a -> BlankOr a
-fromFlagged bo =
-  case bo of
-    Flagged _ _ setting a b ->
+fromFlagged : Expr -> Expr
+fromFlagged expr =
+  case expr of
+    F id (FeatureFlag msg cond a b) ->
       a -- TODO: how to decide
-    _ -> impossible ("cant convert flagged to flagged", bo)
+    _ -> impossible ("cant convert flagged to flagged", expr)
 
 start : Model -> Modification
 start m =
@@ -28,10 +29,7 @@ start m =
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
           msgId = gid ()
-          newPd = pd
-                  |> P.strmap (\_ a -> toFlagged msgId a)
-                  |> P.dtmap (toFlagged msgId)
-                  |> P.exprmap (toFlagged msgId)
+          newPd = P.exprmap (toFlagged msgId) pd
           newTL = TL.replace pd newPd tl
       in
       RPC ([SetHandler tl.id tl.pos
@@ -46,10 +44,7 @@ end m id =
     Just tlid->
       let tl = TL.getTL m tlid
           pd = TL.findExn tl id
-          newPd = pd
-                  |> P.strmap (\_ a -> fromFlagged a)
-                  |> P.dtmap fromFlagged
-                  |> P.exprmap fromFlagged
+          newPd = P.exprmap fromFlagged pd
           newTL = TL.replace pd newPd tl
       in
       RPC ([SetHandler tl.id tl.pos

@@ -23,12 +23,7 @@ spaceOf hs =
   in
     case hs.module_ of
       Blank _ -> HSEmpty
-      Flagged _ _ _ _ _ as ff ->
-        case B.flattenFF ff of
-          F _ s -> spaceOfStr s
-          _ -> HSOther
-      F _ s ->
-        spaceOfStr s
+      F _ s -> spaceOfStr s
 
 visibleModifier : HandlerSpec -> Bool
 visibleModifier hs =

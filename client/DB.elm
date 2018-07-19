@@ -45,9 +45,7 @@ hasCol db name =
         (\(colname,_) ->
           case colname of
             Blank _ -> False
-            F _ n -> name == n
-            Flagged _ _ _ _ _ ->
-              impossible ("no flags allowed in DBs", colname))
+            F _ n -> name == n)
 
 isLocked : Model -> TLID -> Bool
 isLocked m tlid =
