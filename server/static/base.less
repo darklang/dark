@@ -93,14 +93,21 @@ body #grid * {
 }
 
 #buttons {
-  bottom: 0;
-  left: 0px;
   position: absolute;
+  bottom: 0;
+  left: 0;
   width: 100%;
-  background-color: @black1;
 
   .specialButton {
-    margin-right: 4px;
+    margin-right: 8px;
+    padding: 4px;
+    background-color: @black2;
+
+    &:hover, &:active {
+      color: @green;
+      background-color: @grey1;
+    }
+
     &#integrationTestSignal {
       display: inline-block;
     }
@@ -1111,9 +1118,16 @@ body #grid * {
   }
 
   .feature-flag-modal {
-    margin-top: -10px;
+    @vertical-spacing: 20px;
+    @horizontal-padding: 8px;
+    @icon-spacing: 6px;
+
     position: absolute;
     left: 100% + 10px;
+    margin-top: -10px;
+    background-color: @black1;
+    border: 1px solid @black2;
+    box-sizing: border-box;
 
     i.fa {
       color: @grey3;
@@ -1125,11 +1139,12 @@ body #grid * {
 
     .row {
       display: block;
-      margin-top: 18px;
+      margin-top: @vertical-spacing;
       width: 100%;
-      padding: 0 8px;
+      padding: 0 @horizontal-padding;
+      box-sizing: border-box;
 
-      &:first {
+      &:first-child {
         margin-top: 0;
       }
     }
@@ -1137,6 +1152,8 @@ body #grid * {
     .title-bar {
       display: block;
       width: 100%;
+      background-color: @black2;
+      padding: 4px @horizontal-padding;
 
       .flag-name {
         width: 60%;
@@ -1144,9 +1161,11 @@ body #grid * {
 
       .actions {
         width: 30%;
+        text-align: right;
+        float: right;
 
         i.fa {
-          margin-left: 4px;
+          margin-left: @icon-spacing;
         }
       }
     }
@@ -1159,18 +1178,24 @@ body #grid * {
 
     .expressions {
       width: 100%;
+      margin-bottom: @vertical-spacing;
 
       .cond-expr {
         display: inline-block;
         min-width: 200px;
         width: 50%;
+        vertical-align: top;
+        padding: 0 @horizontal-padding;
+        box-sizing: border-box;
 
         .icon {
-          margin-left: 6px;
+          margin-left: @icon-spacing;
         }
 
         .expr-block {
           display: block;
+          width: auto;
+          overflow-x: hidden;
         }
       }
     }
