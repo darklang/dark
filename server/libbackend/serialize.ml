@@ -140,6 +140,16 @@ let load_for_http ~host ~(canvas_id: Uuidm.t)
     ~result:BinaryResult
   |> strs2tlid_oplists
 
+let load_for_cron ~host ~(canvas_id: Uuidm.t) () : Op.tlid_oplists =
+  Db.fetch
+    ~name:"load_for_cron"
+    ("SELECT data FROM toplevel_oplists
+      WHERE canvas_id = $1
+        AND module = 'CRON'")
+    ~params:[Db.Uuid canvas_id]
+    ~result:BinaryResult
+  |> strs2tlid_oplists
+
 
 let save_toplevel_oplist
     ~(tlid:Types.tlid) ~(canvas_id: Uuidm.t) ~(account_id: Uuidm.t)

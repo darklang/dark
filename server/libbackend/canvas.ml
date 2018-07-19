@@ -192,6 +192,9 @@ let load_only ~tlids host (newops: Op.op list) : canvas ref =
 let load_http ~verb ~path host : canvas ref =
   load_from ~f:(Serialize.load_for_http ~path ~verb) host []
 
+let load_cron host : canvas ref =
+  load_from ~f:Serialize.load_for_cron host []
+
 let load_for_event (event: Event_queue.t) =
   (* TODO: slim down by event description once we can do that *)
   load_all event.host []

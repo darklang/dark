@@ -3,6 +3,8 @@ open Libexecution
 open Types.RuntimeT
 open Types.RuntimeT.HandlerT
 
+module Log = Libcommon.Log
+
 let last_ran_at (canvas_id: Uuidm.t) (h: handler) : Time.t option =
   Db.fetch_one_option
     ~name:"last_ran_at"
@@ -72,4 +74,73 @@ let record_execution (canvas_id: Uuidm.t) (h: handler) : unit =
     VALUES ($1, $2)"
     ~params:[Int h.tlid; Uuid canvas_id]
     ~name:"Cron.record_execution"
+
+let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
+  Log.infO "cron_checker"
+    ~data:"Cron check starting"
+    ~params:["execution_id", Log.dump execution_id];
+  let current_endpoints =
+    Serialize.current_hosts ()
+    |> List.filter ~f:(fun f -> not (Serialize.is_test f))
+  in
+  try
+    current_endpoints
+    |> List.filter_map
+      ~f:(fun endp ->
+          try
+            Some (endp, Canvas.load_cron endp) (* serialization can fail, attempt first *)
+          with
+          | e ->
+            let bt = Exception.get_backtrace () in
+            Log.erroR "cron_checker"
+              ~data:"Deserialization error"
+              ~bt
+              ~params:[ "host", endp
+                      ; "exn", Log.dump e
+                      ; "execution_id", Log.dump execution_id
+                      ];
+            let _ = Rollbar.report e bt CronChecker in
+            None)
+    |> List.iter
+         ~f:(fun (endp, c) ->
+          let crons =
+            !c.handlers
+            |> List.filter_map
+              ~f:Toplevel.as_handler
+            |> List.filter
+              ~f:Handler.is_complete
+            |> List.filter
+              ~f:Handler.is_cron
+          in
+          Log.infO "cron_checker"
+              ~data:"checking canvas"
+              ~params:["execution_id", Log.dump execution_id
+                      ;"host", endp
+                      ;"number_of_crons", string_of_int (List.length crons)
+                      ];
+          List.iter
+            ~f:(fun cr ->
+                if should_execute !c.id cr
+                then
+                  let exec_state = Execution.state_for_enqueue !c execution_id cr.tlid in
+                  let space = Handler.module_for_exn cr in
+                  let name =  Handler.event_name_for_exn cr in
+                  Event_queue.enqueue exec_state space name DNull;
+                  record_execution !c.id cr;
+                  Log.infO "cron_checker"
+                    ~data:"enqueued event"
+                    ~params:["execution_id", Log.dump execution_id
+                            ;"host", endp
+                            ;"tlid", string_of_int cr.tlid
+                            ;"event name", name
+                            ];
+              )
+            crons;
+        )
+    |> Ok
+  with
+  | e ->
+    let bt = Exception.get_backtrace () in
+    Error (bt, e)
+
 

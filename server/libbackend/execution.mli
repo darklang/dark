@@ -31,3 +31,9 @@ val state_for_execution :
   tlid ->
   RTT.exec_state
 
+val state_for_enqueue :
+  c : canvas ->
+  execution_id : int ->
+  tlid ->
+  RTT.exec_state
+
