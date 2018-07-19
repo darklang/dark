@@ -24,24 +24,22 @@ import Util exposing (transformToStringEntry)
 viewFieldName : BlankViewer String
 viewFieldName vs c f =
   let configs = c ++ [ClickSelectAs (B.toID f)] ++ withFeatureFlag vs f in
-  viewBlankOr viewNFieldName B.shallowWithinFn Field vs configs f
+  viewBlankOr viewNFieldName Field vs configs f
 
 viewVarBind : BlankViewer String
 viewVarBind vs c v =
   let configs = idConfigs ++ c in
-  viewBlankOr viewNVarBind B.shallowWithinFn VarBind vs configs v
+  viewBlankOr viewNVarBind VarBind vs configs v
 
 viewKey : BlankViewer String
 viewKey vs c k =
   let configs = idConfigs ++ c in
-  viewBlankOr viewNVarBind B.shallowWithinFn Key vs configs k
+  viewBlankOr viewNVarBind Key vs configs k
 
 viewDarkType : BlankViewer NDarkType
 viewDarkType vs c dt =
-  let configs = idConfigs ++ c
-      withinFn = B.shallowWithinFn -- wrong but it'll do for now
-  in
-  viewBlankOr viewNDarkType withinFn DarkType vs configs dt
+  let configs = idConfigs ++ c in
+  viewBlankOr viewNDarkType DarkType vs configs dt
 
 viewExpr : Int -> BlankViewer NExpr
 viewExpr depth vs c e =
@@ -55,7 +53,7 @@ viewExpr depth vs c e =
                 ++ widthClass
       id = B.toID e
   in
-  viewBlankOr (viewNExpr depth id) AST.within Expr vs configs e
+  viewBlankOr (viewNExpr depth id) Expr vs configs e
 
 viewEventName : BlankViewer String
 viewEventName vs c v =
@@ -361,6 +359,88 @@ viewNExpr d id vs config e =
       n (wc "object" :: mo :: dv :: config)
         ([open] ++ List.map pexpr pairs ++ [close])
 
+    FeatureFlag msg cond a b ->
+      -- the desired css layouts are:
+      -- no ff:
+      --   .blank/expr
+      --     .feature-flag (only if selected)
+      -- after click
+      --   .flagged
+      --     .message
+      --     .cond
+      --     .flag-left
+      --       etc
+      --     .flag-right
+      --       etc
+      let exprLabel msg =
+        Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
+
+          pickA icon =
+            Html.div
+            [ Attrs.attribute "data-content" "Cancel feature flag"
+            , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickA)]
+            [ fontAwesome icon ]
+
+          pickB =
+            Html.div
+            [ Attrs.attribute "data-content" "Pick new version"
+            , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickB)]
+            [ fontAwesome "check" ]
+
+          hideModal =
+            Html.div
+            []
+            [ fontAwesome "minus-square" ]
+
+          titleBar = Html.div [ Attrs.class "row title-bar" ] [
+            viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
+            , Html.div [Attrs.class "actions"] [
+             pickA "times"
+             ]
+            ]
+
+          condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
+          condResult =
+            case condValue of
+              Just (Ok lv) -> Runtime.isTrue lv.value
+              _ -> False
+
+          blockCondition =
+            Html.div
+            [ Attrs.class "row condition" ]
+            [
+              exprLabel "Flag condition (when to use new code)"
+              , vExpr 0 cond
+            ]
+
+          expressions =
+            Html.div
+            [ Attrs.class "row expressions" ]
+            [
+              div vs [wc "cond-expr a"] [
+                exprLabel "Current Expression"
+                , pickA "check"
+                , vExpr 0 a
+              ]
+              , div vs [wc "cond-expr b"] [
+                exprLabel "New Expression"
+                ,vExpr 0 b
+              ]
+            ]
+
+    in
+      div vs
+        [ wc "flagged shown"]
+        [ vExpr 0 (if condResult then b else a)
+        , fontAwesome "flag"
+        , Html.div [Attrs.class "feature-flag-modal"] [
+            titleBar
+            , blockCondition
+            , expressions
+          ]
+        ]
 
 
 isExecuting : ViewState -> ID -> Bool

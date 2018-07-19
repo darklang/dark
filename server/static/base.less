@@ -1040,7 +1040,8 @@ body #grid * {
 
 .create-function {
   position: absolute;
-  right: -34px;
+  right: -18px;
+  top: 32px;
   .right-button;
 }
 
@@ -1099,23 +1100,78 @@ body #grid * {
   }
 }
 
+.expr-label {
+  color: @grey2;
+  font-style: italic;
+  font-size: 88%;
+}
+
 .flagged {
   .fa-flag {
     color: @red;
     font-size: 8px;
   }
 
-  .setting-slider {
-    position: absolute;
-    left: 110%;
+  .feature-flag-modal {
     margin-top: -10px;
+    position: absolute;
+    left: 100% + 10px;
+
+    .row {
+      display: block;
+      margin-top: 18px;
+      width: 100%;
+      padding: 0 8px;
+
+      &:first {
+        margin-top: 0;
+      }
+    }
+
+    .title-bar {
+      display: block;
+      width: 100%;
+
+      .flag-name {
+        width: 70%;
+      }
+
+      .actions {
+        width: 30%;
+
+        i.fa {
+          margin-left: 4px;
+          color: @grey3;
+
+          &:hover {
+            color: @white1;
+          }
+        }
+      }
+    }
+
+    .condition {
+      .expr-label {
+        display: block;
+      }
+    }
+
+    .expressions {
+      width: 100%;
+
+      .cond-expr {
+        display: inline-block;
+        width: 50%;
+
+      }
+    }
   }
 
   .end-ff {
     position: absolute;
     left: 165%;
     margin-top: -9px;
-    &.valid-action {
+    &.pick-b {
       color: @green;
 
       &:hover {
@@ -1123,23 +1179,16 @@ body #grid * {
         cursor: pointer;
       }
     }
-    &.invalid-action {
+    &.pick-a {
       color: @red;
+      margin-left: -20px;
     }
   }
 
   .hidden {
     background-color: blue;
   }
-  .flag-message {
-    margin-top: -10px;
-    position: absolute;
-    left: 100% + 10px;
-  }
-  .setting-slider {
-    margin-top: 30px;
-    position: absolute;
-  }
+
   .feature-flag {
     display: none;
   }

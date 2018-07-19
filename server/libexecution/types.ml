@@ -70,6 +70,7 @@ module RuntimeT = struct
              | FieldAccess of expr * field
              | ObjectLiteral of (key * expr) list
              | ListLiteral of expr list
+             | FeatureFlag of (string or_blank) * expr * expr * expr
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 

@@ -346,14 +346,12 @@ enter : Model -> TLID -> ID -> Modification
 enter m tlid id =
   let tl = TL.getTL m tlid
       pd = TL.findExn tl id
-      -- if it's a FF, enter a side of it, not the thing itself
-      flat = P.exprmap (B.flattenFF) pd
   in
   if TL.getChildrenOf tl pd /= []
   then selectDownLevel m tlid (Just id)
   else
     let enterMods =
-          Many [ Enter (Filling tlid (P.toID flat))
+          Many [ Enter (Filling tlid id)
                , AutocompleteMod (ACSetQuery (P.toContent pd |> Maybe.withDefault ""))
           ]
     in

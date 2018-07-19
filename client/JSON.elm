@@ -100,38 +100,6 @@ decodeVariants decoders =
         JSD.fail <| "Got " ++ str ++ ", expected one of " ++ nameStr)
 
 
-
-------------------------------------
--- Blanks
-------------------------------------
-
-encodeBlankOr : (a -> JSE.Value) -> (BlankOr a) -> JSE.Value
-encodeBlankOr encoder v =
-  case v of
-    F (ID id) s ->
-      encodeVariant "Filled" [JSE.int id, encoder s]
-    Blank (ID id) ->
-      encodeVariant "Blank" [JSE.int id]
-    Flagged id msg s a b ->
-      encodeVariant
-        "Flagged"
-        [ encodeID id
-        , encodeBlankOr JSE.string msg
-        , JSE.int s
-        , encodeBlankOr encoder a
-        , encodeBlankOr encoder b
-        ]
-
-decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
-decodeBlankOr d =
-  let db = JSD.lazy (\_ -> decodeBlankOr d)
-      ds = JSD.lazy (\_ -> decodeBlankOr JSD.string) in
-  decodeVariants
-  [ ("Filled", decodeVariant2 F decodeID d)
-  , ("Blank", decodeVariant1 Blank decodeID)
-  , ("Flagged", decodeVariant5 Flagged decodeID ds JSD.int db db)
-  ]
-
 ------------------------------------
 -- IDs
 ------------------------------------
@@ -146,6 +114,27 @@ decodeID = JSD.map ID JSD.int
 
 decodeTLID : JSD.Decoder TLID
 decodeTLID = JSD.map TLID JSD.int
+
+------------------------------------
+-- Blanks
+------------------------------------
+encodeBlankOr : (a -> JSE.Value) -> (BlankOr a) -> JSE.Value
+encodeBlankOr encoder v =
+  case v of
+    F (ID id) s ->
+      encodeVariant "Filled" [JSE.int id, encoder s]
+    Blank (ID id) ->
+      encodeVariant "Blank" [JSE.int id]
+
+
+decodeBlankOr : JSD.Decoder a -> JSD.Decoder (BlankOr a)
+decodeBlankOr d =
+  decodeVariants
+  [ ("Filled", decodeVariant2 F decodeID d)
+  , ("Blank", decodeVariant1 Blank decodeID)
+  , ("Flagged", JSD.fail "feature flag in unflaggable location")
+  ]
+
 ------------------------------------
 -- Misc
 ------------------------------------
