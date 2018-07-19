@@ -298,11 +298,19 @@ viewBlankOr htmlFn pt vs c bo =
       let id = B.toID bo in
       if id == thisID && vs.showEntry
       then
-        let allowStringEntry = if pt == Expr then StringEntryAllowed else StringEntryNotAllowed
-            stringEntryWidth = if vs.tooWide then StringEntryShortWidth else StringEntryNormalWidth
+        let allowStringEntry =
+              if pt == Expr
+              then StringEntryAllowed
+              else StringEntryNotAllowed
+            stringEntryWidth =
+              if vs.tooWide
+              then StringEntryShortWidth
+              else StringEntryNormalWidth
             placeholder = placeHolderFor vs id pt
         in
-            div vs c [ViewEntry.entryHtml allowStringEntry stringEntryWidth placeholder vs.ac]
+            div vs c
+              [ ViewEntry.entryHtml
+                  allowStringEntry stringEntryWidth placeholder vs.ac]
       else thisText
     _ -> thisText
 
