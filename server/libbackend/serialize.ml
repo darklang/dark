@@ -48,6 +48,23 @@ let is_test (name: string) : bool =
 let json_filename name =
   name ^ "." ^ "json"
 
+let try_multiple ~(fs: ('a -> 'b) list) (value: 'a) : 'b =
+  let result =
+    List.fold_left ~init:None fs
+      ~f:(fun result f ->
+          match result with
+          | Some r -> result
+          | None ->
+            try
+              Some (f value)
+            with e ->
+              None)
+  in
+  match result with
+  | Some r -> r
+  | None -> Exception.internal "No fn worked"
+
+
 (* ------------------------- *)
 (* oplists *)
 (* ------------------------- *)
@@ -59,7 +76,7 @@ let strs2tlid_oplists strs : Op.tlid_oplists =
        | [data] -> data
        | _ -> Exception.internal "Shape of per_tlid oplists")
   |> List.map ~f:(fun str ->
-      let ops = Op.oplist_of_string str in
+      let ops : Op.oplist = try_multiple str ~fs:[ Op.oplist_of_string ] in
       (* there must be at least one op *)
       let tlid = ops |> List.hd_exn |> Op.tlidOf |> Option.value_exn in
       (tlid, ops))
