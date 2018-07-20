@@ -561,7 +561,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
       result
 
 
-  | UserCreated body ->
+  | UserCreated (tlid, body) ->
     let args_with_dbs =
       let db_dvals =
         state.dbs
@@ -572,7 +572,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (db_dvals)
         (args)
     in
-    state.store_fn_arguments (state.canvas_id, state.tlid) args;
+    state.store_fn_arguments (state.canvas_id, tlid) args;
     exec ~engine ~state args_with_dbs body
 
 
