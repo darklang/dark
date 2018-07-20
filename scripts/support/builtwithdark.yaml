@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: bwd-ctr
-          image: "gcr.io/balmy-ground-195100/dark-prod:latest"
+          image: "gcr.io/balmy-ground-195100/dark-gcp:latest"
           ports:
             - name: bwd-ctr-port
               containerPort: 80

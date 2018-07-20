@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: qw-ctr
-          image: "gcr.io/balmy-ground-195100/dark-prod-qw:latest"
+          image: "gcr.io/balmy-ground-195100/dark-gcp-qw:latest"
           readinessProbe:
             httpGet:
               path: /
