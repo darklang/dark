@@ -120,7 +120,7 @@ jobs:
 
       # TODO: This fails by timing out during the upload to gcr. Skip
       # for now.
-      - run: scripts/run-in-docker scripts/gcp-deploy
+      - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
 
       # # For now, we do integration tests after the deploy. If they work
       # # above, then it works. This needs more work but I'm stopping here
