@@ -620,6 +620,14 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
   let engine = analysis_engine value_store in
   (exec ~engine ~state state.env ast, value_store)
 
+let input_values st =
+  st
+  |> Map.to_alist
+  |> List.filter ~f:(fun (k,v) -> Dval.tipe_of v <> TDB)
+  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
+
+
+
 (* -------------------- *)
 (* Environments *)
 (* -------------------- *)
@@ -683,6 +691,7 @@ let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) :
 (* Run full analyses *)
 (* -------------------- *)
 
+
 let execute_handler_for_analysis (state : exec_state) (h : handler) :
     analysis =
   Log.infO "Handler for analysis"
@@ -698,16 +707,7 @@ let execute_handler_for_analysis (state : exec_state) (h : handler) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values =
-      let request =
-        DvalMap.find state.env "request"
-        |> Option.map ~f:(fun v -> ("request", dval_to_livevalue v))
-      in
-      let event =
-        DvalMap.find state.env "event"
-        |> Option.map ~f:(fun v -> ("event", dval_to_livevalue v))
-      in
-      List.filter_map ~f:ident [request; event]
+  ; input_values = input_values state.env
   }
 
 let execute_user_fn_for_analysis (state : exec_state) (f : user_fn) :
@@ -722,5 +722,5 @@ let execute_user_fn_for_analysis (state : exec_state) (f : user_fn) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = symtable_to_sym_list state.env
+  ; input_values = input_values state.env
   }
