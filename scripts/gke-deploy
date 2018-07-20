@@ -13,6 +13,18 @@ ZONE="us-west1"
 CLUSTER="darkcluster1"
 
 
+IMAGE_LATEST="gcr.io/$PROJECT/dark-prod:latest"
+QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-prod-qw:latest"
+CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-prod-cron:latest"
+
+docker-credential-gcr configure-docker
+docker pull $IMAGE_LATEST
+docker pull $QW_IMAGE_LATEST
+docker pull $CRON_IMAGE_LATEST
+
+#########################
+# Tell Kubernetes what to do
+#########################
 IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
 QW_IMAGE_ID=$(docker images dark-gcp-qw -q | head -n 1)
 CRON_IMAGE_ID=$(docker images dark-gcp-cron -q | head -n 1)
@@ -20,14 +32,6 @@ IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
 QW_IMAGE="gcr.io/$PROJECT/dark-prod-qw:$QW_IMAGE_ID"
 CRON_IMAGE="gcr.io/$PROJECT/dark-prod-cron:$CRON_IMAGE_ID"
 
-docker-credential-gcr configure-docker
-docker pull $IMAGE
-docker pull $QW_IMAGE
-docker pull $CRON_IMAGE
-
-#########################
-# Tell Kubernetes what to do
-#########################
 
 # get creds
 gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER --zone=$ZONE
