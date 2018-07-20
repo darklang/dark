@@ -69,7 +69,7 @@ let get_404s (c: canvas) : SE.four_oh_four list =
                ~f:(fun h -> match_event h e)))
   |> List.map ~f:(fun e -> (e, SE.load_events c.id e))
 
-let function_analysis
+let user_fn_analysis
     ~(exe_fn_ids: executable_fn_id list)
     ~(execution_id: id)
     (c: canvas)
@@ -157,7 +157,7 @@ type execute_function_response =
   } [@@deriving to_yojson]
 
 
-let to_get_analysis_frontend (vals : analysis_result list)
+let to_getanalysis_frontend (vals : analysis_result list)
       (unlocked : tlid list)
       (f404s: SE.four_oh_four list)
       (c : canvas) : string =
