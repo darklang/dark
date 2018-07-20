@@ -19,9 +19,9 @@ CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
 # Deploy Docker image
 #########################
 echo "Deploying container to GCP"
-docker tag $IMAGE_LATEST $IMAGE
-docker tag $QW_IMAGE_LATEST $QW_IMAGE
-docker tag $CRON_IMAGE_LATEST $CRON_IMAGE
+docker tag dark-gcp:latest $IMAGE
+docker tag dark-gcp-qw:latest $QW_IMAGE
+docker tag dark-gcp-cron:latest $CRON_IMAGE
 docker-credential-gcr configure-docker
 docker push $IMAGE
 docker push $IMAGE_LATEST
