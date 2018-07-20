@@ -15,10 +15,12 @@ CRON_IMAGE="gcr.io/$PROJECT/dark-gcp-cron:$CRON_IMAGE_ID"
 IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
 QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-qw:latest"
 CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
+
 #########################
 # Deploy Docker image
 #########################
-echo "Deploying container to GCP"
+
+echo "Deploying container to GCR"
 docker tag dark-gcp:latest $IMAGE
 docker tag dark-gcp-qw:latest $QW_IMAGE
 docker tag dark-gcp-cron:latest $CRON_IMAGE

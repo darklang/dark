@@ -12,15 +12,10 @@ PROJECT="balmy-ground-195100"
 ZONE="us-west1"
 CLUSTER="darkcluster1"
 
-
-IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
-QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-qw:latest"
-CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
-
-docker-credential-gcr configure-docker
-docker pull $IMAGE_LATEST
-docker pull $QW_IMAGE_LATEST
-docker pull $CRON_IMAGE_LATEST
+## Only fetch if we haven't just built, which we do on CI
+if [[ ! -v CI ]]; then
+  . ./scripts/gcp-fetch-latest-containers
+fi
 
 #########################
 # Tell Kubernetes what to do

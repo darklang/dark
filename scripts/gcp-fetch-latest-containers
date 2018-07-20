@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+set -x
+
+
+#################################
+# Fetch latest containers from GCR
+#################################
+
+echo "Fetching latest containers from GCR"
+
+IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
+QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-qw:latest"
+CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
+
+docker-credential-gcr configure-docker
+docker pull $IMAGE_LATEST
+docker pull $QW_IMAGE_LATEST
+docker pull $CRON_IMAGE_LATEST
