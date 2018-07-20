@@ -440,7 +440,7 @@ viewNExpr d id vs config e =
         [ wc "flagged shown"]
         [ vExpr 0 (if condResult then b else a)
         , fontAwesome "flag"
-        , Html.div [Attrs.class "feature-flag-modal"] [
+        , Html.div [Attrs.class "feature-flag"] [
             titleBar
             , blockCondition
             , expressions
