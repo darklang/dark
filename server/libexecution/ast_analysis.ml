@@ -572,7 +572,11 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (db_dvals)
         (args)
     in
-    state.store_fn_arguments (state.canvas_id, tlid) args;
+
+    let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids tlid in
+    if engine.ctx = Real || fn_clicked
+    then state.store_fn_arguments (state.canvas_id, tlid) args;
+
     exec ~engine ~state args_with_dbs body
 
 
