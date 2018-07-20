@@ -1513,7 +1513,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a new Date `seconds` seconds after `d`"
   ; f = InProcess
         (function
-          | (_, [DDate d; DInt s]) -> DDate (Time.add d (Time.Span.of_int_sec s))
+          | (_, [DDate d; DInt s]) ->
+            DDate (Time.add d (Time.Span.of_int_sec s))
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -1528,7 +1529,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns a new Date `seconds` seconds before `d`"
   ; f = InProcess
         (function
-          | (_, [DDate d; DInt s]) -> DDate (Time.add d (Time.Span.of_int_sec s))
+          | (_, [DDate d; DInt s]) ->
+            DDate (Time.sub d (Time.Span.of_int_sec s))
           | args -> fail args)
   ; pr = None
   ; ps = true
