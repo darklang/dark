@@ -22,6 +22,9 @@ echo "Deploying container to GCP"
 docker tag dark-gcp:latest $IMAGE
 docker tag dark-gcp-qw:latest $QW_IMAGE
 docker tag dark-gcp-cron:latest $CRON_IMAGE
+docker tag dark-gcp:latest $IMAGE_LATEST
+docker tag dark-gcp-qw:latest $QW_IMAGE_LATEST
+docker tag dark-gcp-cron:latest $CRON_IMAGE_LATEST
 docker-credential-gcr configure-docker
 docker push $IMAGE
 docker push $IMAGE_LATEST
