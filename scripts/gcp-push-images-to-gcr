@@ -9,18 +9,23 @@ PROJECT="balmy-ground-195100"
 IMAGE_ID=$(docker images dark-gcp -q | head -n 1)
 QW_IMAGE_ID=$(docker images dark-gcp-qw -q | head -n 1)
 CRON_IMAGE_ID=$(docker images dark-gcp-cron -q | head -n 1)
-IMAGE="gcr.io/$PROJECT/dark-prod:$IMAGE_ID"
-QW_IMAGE="gcr.io/$PROJECT/dark-prod-qw:$QW_IMAGE_ID"
-CRON_IMAGE="gcr.io/$PROJECT/dark-prod-cron:$CRON_IMAGE_ID"
-
+IMAGE="gcr.io/$PROJECT/dark-gcp:$IMAGE_ID"
+QW_IMAGE="gcr.io/$PROJECT/dark-gcp-qw:$QW_IMAGE_ID"
+CRON_IMAGE="gcr.io/$PROJECT/dark-gcp-cron:$CRON_IMAGE_ID"
+IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
+QW_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-qw:latest"
+CRON_IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp-cron:latest"
 #########################
 # Deploy Docker image
 #########################
 echo "Deploying container to GCP"
-docker tag dark-gcp:latest $IMAGE
-docker tag dark-gcp-qw:latest $QW_IMAGE
-docker tag dark-gcp-cron:latest $CRON_IMAGE
+docker tag $IMAGE_LATEST $IMAGE
+docker tag $QW_IMAGE_LATEST $QW_IMAGE
+docker tag $CRON_IMAGE_LATEST $CRON_IMAGE
 docker-credential-gcr configure-docker
 docker push $IMAGE
+docker push $IMAGE_LATEST
 docker push $QW_IMAGE
+docker push $QW_IMAGE_LATEST
 docker push $CRON_IMAGE
+docker push $CRON_IMAGE_LATEST
