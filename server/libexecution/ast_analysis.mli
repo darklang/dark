@@ -34,13 +34,13 @@ type analysis_list = analysis list
 (* Functions *)
 (* ----------------- *)
 
-val store_nothing :
+val store_no_results :
   Types.RuntimeT.function_desc ->
   Types.RuntimeT.dval list ->
   Types.RuntimeT.dval ->
   unit
 
-val load_nothing :
+val load_no_results:
   Types.RuntimeT.function_desc ->
   Types.RuntimeT.dval list ->
   (Types.RuntimeT.dval * Time.t) option
@@ -76,4 +76,13 @@ val execute_userfn :
   Types.id ->
   Types.RuntimeT.dval list ->
   Types.RuntimeT.dval
+
+val store_no_arguments :
+  Types.RuntimeT.user_fn_desc ->
+  Types.RuntimeT.dval_map ->
+  unit
+
+val load_no_arguments :
+  Types.RuntimeT.user_fn_desc ->
+  (Types.RuntimeT.dval_map * Time.t) list
 

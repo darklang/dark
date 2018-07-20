@@ -309,6 +309,12 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                         dval list ->
                         dval ->
                         unit
+                    ; load_fn_arguments :
+                        user_fn_desc -> (dval_map * Time.t) list
+                    ; store_fn_arguments :
+                        user_fn_desc ->
+                        dval_map ->
+                        unit
                     ; fail_fn : (?msg : string -> unit -> dval) option
                     }
 

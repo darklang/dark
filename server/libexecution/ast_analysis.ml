@@ -184,8 +184,10 @@ let symbolic_execute (state: exec_state) (ast: expr) : sym_store =
 (* -------------------- *)
 
 (* For exec_state *)
-let load_nothing _ _ = None
-let store_nothing _ _ _ = ()
+let load_no_results _ _ = None
+let store_no_results _ _ _ = ()
+let load_no_arguments _ = []
+let store_no_arguments _ _ = ()
 
 type engine =
   { trace : expr -> dval -> symtable -> unit
@@ -570,6 +572,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (db_dvals)
         (args)
     in
+    state.store_fn_arguments (state.canvas_id, state.tlid) args;
     exec ~engine ~state args_with_dbs body
 
 
