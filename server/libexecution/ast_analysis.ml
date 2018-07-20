@@ -707,7 +707,7 @@ let execute_handler_for_analysis (state : exec_state) (h : handler) :
       List.filter_map ~f:ident [request; event]
   }
 
-let execute_function_for_analysis (state : exec_state) (f : user_fn) :
+let execute_user_fn_for_analysis (state : exec_state) (f : user_fn) :
     analysis =
   Log.infO "Function for analysis"
     ~data:(show_tlid state.tlid)

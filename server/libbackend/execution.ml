@@ -59,6 +59,13 @@ let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
             | `Unknown -> init (* can't happen *)
         ))
 
+let initial_envs_for_user_fn (c: canvas) (fn: RTT.user_fn)
+  : RTT.dval_map list =
+  let init = initial_env c in
+  Stored_function_arguments.load (c.id, fn.tlid)
+  |> List.map ~f:(fun (m, _ts) -> Util.merge_left init m)
+
+
 let state_for
     ~(c: canvas)
     ~(execution_id: int)

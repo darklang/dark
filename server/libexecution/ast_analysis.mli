@@ -49,7 +49,7 @@ val environment_for_user_fn :
   Types.RuntimeT.user_fn ->
   Types.RuntimeT.dval_map
 
-val execute_function_for_analysis :
+val execute_user_fn_for_analysis :
   Types.RuntimeT.exec_state ->
   Types.RuntimeT.user_fn ->
   analysis
