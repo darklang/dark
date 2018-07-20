@@ -383,6 +383,8 @@ viewNExpr d id vs config e =
                 (\_ -> EndFeatureFlag id PickA)]
             [ fontAwesome icon ]
 
+          boxWidth = ((max (approxWidth a) (approxWidth b)) * 2) + 50
+
           pickB =
             Html.div
             [ Attrs.class "icon"
@@ -440,7 +442,12 @@ viewNExpr d id vs config e =
         [ wc "flagged shown"]
         [ vExpr 0 (if condResult then b else a)
         , fontAwesome "flag"
-        , Html.div [Attrs.class "feature-flag"] [
+        , Html.div
+          [
+            Attrs.class "feature-flag"
+            , Attrs.style [("min-width", (toString boxWidth) ++ "px")]
+          ]
+          [
             titleBar
             , blockCondition
             , expressions
