@@ -1179,13 +1179,17 @@ body #grid * {
     .expressions {
       width: 100%;
       margin-bottom: @vertical-spacing;
+      display: inline-flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      align-content: stretch;
 
       .cond-expr {
         display: inline-block;
+        align-self: flex-start;
         min-width: 200px;
-        width: 50%;
         vertical-align: top;
-        padding: 0 @horizontal-padding;
         box-sizing: border-box;
 
         .icon {
@@ -1195,7 +1199,6 @@ body #grid * {
         .expr-block {
           display: block;
           width: auto;
-          overflow-x: hidden;
         }
       }
     }
