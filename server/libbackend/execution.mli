@@ -14,6 +14,8 @@ val initial_env : canvas -> RTT.dval_map
 val default_env : canvas -> RTT.dval_map
 val initial_envs_for_handler : canvas -> RTT.HandlerT.handler -> RTT.dval_map list
 
+val initial_envs_for_user_fn : canvas -> RTT.user_fn -> RTT.dval_map list
+
 val state_for_analysis :
   c : canvas ->
   input_cursor : int ->

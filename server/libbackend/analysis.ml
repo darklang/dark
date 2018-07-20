@@ -75,23 +75,25 @@ let function_analysis
     (c: canvas)
     (f: RTT.user_fn)
   : analysis_result =
-  let fn_ids =
-    exe_fn_ids
-    |> List.filter_map
-      ~f:(fun (tlid, id, _) ->
-          if tlid = f.tlid
+  let fn_ids i =
+    List.filter_map exe_fn_ids
+      ~f:(fun (tlid, id, cursor) ->
+          if tlid = f.tlid && i = cursor
           then Some id
           else None)
   in
-  let env =
-    Ast_analysis.environment_for_user_fn f
-    |> Util.merge_left (Execution.initial_env c)
-  in
-  let state =
+  let state i env : RTT.exec_state =
     Execution.state_for_analysis f.tlid
-      ~c ~input_cursor:0 ~execution_id ~exe_fn_ids:fn_ids ~env
+      ~c ~input_cursor:i ~exe_fn_ids:(fn_ids i) ~execution_id ~env
   in
-  (f.tlid, [Ast_analysis.execute_function_for_analysis state f])
+  let envs = Execution.initial_envs_for_user_fn c f in
+  let values =
+    List.mapi
+      ~f:(fun i env ->
+          Ast_analysis.execute_user_fn_for_analysis (state i env) f)
+      envs
+  in
+  (f.tlid, values)
 
 let handler_analysis
     ~(exe_fn_ids : executable_fn_id list)
