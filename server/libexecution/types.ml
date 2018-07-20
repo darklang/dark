@@ -321,7 +321,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   type funcimpl = InProcess of (exec_state * dval list -> dval)
                 | API of (dval_map -> dval)
-                | UserCreated of expr
+                | UserCreated of (tlid * expr)
 
   (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
@@ -371,7 +371,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
       ; description = uf.metadata.description
       ; preview_execution_safe = false
       ; preview = None
-      ; func = UserCreated uf.ast
+      ; func = UserCreated (uf.tlid, uf.ast)
       } |> Some
     | _ -> None
 end
