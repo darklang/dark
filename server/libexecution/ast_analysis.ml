@@ -627,7 +627,16 @@ let execute_handler_for_analysis (state : exec_state) (h : handler) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = symtable_to_sym_list state.env
+  ; input_values =
+      let request =
+        DvalMap.find state.env "request"
+        |> Option.map ~f:(fun v -> ("request", dval_to_livevalue v))
+      in
+      let event =
+        DvalMap.find state.env "event"
+        |> Option.map ~f:(fun v -> ("event", dval_to_livevalue v))
+      in
+      List.filter_map ~f:ident [request; event]
   }
 
 let execute_function_for_analysis (state : exec_state) (f : user_fn) :
@@ -642,6 +651,6 @@ let execute_function_for_analysis (state : exec_state) (f : user_fn) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = symtable_to_sym_list state.env
+  ; input_values = []
   }
 
