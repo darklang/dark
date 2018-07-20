@@ -369,17 +369,25 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "db" -> Exception.user "Can't deserialize DBs"
     | "block" -> Exception.user "Can't deserialize blocks"
     | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
-    | _ -> Exception.user ("Can't deserialize type: " ^ tipe)
-    )
+    | _ -> Exception.user ("Can't deserialize type: " ^ tipe))
+  | `Assoc _ -> DObj (dvalmap_of_yojson json)
+and dvalmap_of_yojson (json: Yojson.Safe.json) : dval_map =
+  match json with
   | `Assoc alist ->
-       DObj (List.fold_left alist
-               ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
-               ~init:DvalMap.empty)
+    (List.fold_left alist
+       ~f:(fun m (k,v) -> DvalMap.set m k (dval_of_yojson_ v))
+       ~init:DvalMap.empty)
+  | _ -> Exception.internal "Not a json object"
 
 let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
   Result.Ok (dval_of_yojson_ json)
 
-let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.json =
+let rec dvalmap_to_yojson ?(redact=true) (dvalmap: dval_map) : Yojson.Safe.json =
+  dvalmap
+  |> DvalMap.to_alist
+  |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson ~redact v))
+  |> (fun a -> `Assoc a)
+and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value =
     if livevalue
@@ -397,10 +405,7 @@ let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Sa
   | DNull -> `Null
   | DStr s -> `String s
   | DList l -> `List (List.map l (dval_to_yojson ~redact))
-  | DObj o -> o
-              |> DvalMap.to_alist
-              |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson ~redact v))
-              |> (fun a -> `Assoc a)
+  | DObj o -> dvalmap_to_yojson o
 
   (* opaque types *)
   | DBlock _ | DIncomplete ->

@@ -290,6 +290,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
 
   type function_desc = Uuidm.t * tlid * string * id
+  type user_fn_desc = Uuidm.t * tlid
 
   type exec_state = { tlid: tlid
                     ; canvas_id : Uuidm.t
