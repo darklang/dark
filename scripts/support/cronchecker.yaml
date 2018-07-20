@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: cron-ctr
-          image: "gcr.io/balmy-ground-195100/dark-prod-cron:latest"
+          image: "gcr.io/balmy-ground-195100/dark-gcp-cron:latest"
           readinessProbe:
             httpGet:
               path: /
