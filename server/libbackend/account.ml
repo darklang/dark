@@ -225,6 +225,11 @@ let init () : unit =
     ; password = "GxBGXMBMkUoCakh8QpefmykJNMJdVe"
     ; email = "c@cpo.is"
     ; name = "Chase"};
+  upsert_account
+    { username = "gracey"
+    ; password = "wilson"
+    ; email = "gracey.wilson@students.olin.edu"
+    ; name = "Gracey Wilson"};
 
   ()
 
