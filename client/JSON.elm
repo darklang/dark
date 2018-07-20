@@ -132,7 +132,6 @@ decodeBlankOr d =
   decodeVariants
   [ ("Filled", decodeVariant2 F decodeID d)
   , ("Blank", decodeVariant1 Blank decodeID)
-  , ("Flagged", JSD.fail "feature flag in unflaggable location")
   ]
 
 ------------------------------------
