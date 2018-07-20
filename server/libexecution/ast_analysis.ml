@@ -722,5 +722,5 @@ let execute_user_fn_for_analysis (state : exec_state) (f : user_fn) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = []
+  ; input_values = symtable_to_sym_list state.env
   }
