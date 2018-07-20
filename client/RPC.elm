@@ -15,8 +15,8 @@ import Types exposing (..)
 import Runtime as RT
 import Util
 import JSON exposing (..)
-import Blank as B
-import Prelude exposing (..)
+-- import Blank as B
+-- import Prelude exposing (..)
 
 rpc_ : Model -> String ->
  (RPCParams -> Result Http.Error RPCResult -> Msg) ->
@@ -306,19 +306,7 @@ encodeUserFunctionParameter p =
 
 encodeExpr : Expr -> JSE.Value
 encodeExpr expr =
-  case expr of
-    F id (FeatureFlag msg c l r) ->
-      encodeVariant
-        "Flagged"
-        [ encodeID id
-        , encodeBlankOr JSE.string msg
-        , JSE.int 0
-        -- , encodeExpr c
-        , encodeExpr l
-        , encodeExpr r
-        ]
-    _ ->
-      encodeBlankOr encodeNExpr expr
+  encodeBlankOr encodeNExpr expr
 
 encodeNExpr : NExpr -> JSE.Value
 encodeNExpr expr =
@@ -350,8 +338,8 @@ encodeNExpr expr =
       ev "ObjectLiteral" [(List.map encoder pairs) |> JSE.list ]
     ListLiteral elems ->
       ev "ListLiteral" [JSE.list (List.map e elems)]
-    FeatureFlag _ _ _ _ ->
-      impossible "should be handled by encodeExpr"
+    FeatureFlag msg cond a b ->
+      ev "FeatureFlag" [encodeBlankOr JSE.string msg, e cond, e a, e b]
 
 
 
@@ -483,16 +471,10 @@ decodeDarkType = decodeBlankOr decodeNDarkType
 
 decodeExpr : JSD.Decoder Expr
 decodeExpr =
-  let convert id msg setting l r =
-        F id (FeatureFlag msg (B.newF (Value (toString setting))) l r)
-      de = JSD.lazy (\_ -> decodeExpr)
-      dn = JSD.lazy (\_ -> decodeNExpr)
-      ds = decodeBlankOr JSD.string
-  in
+  let dn = JSD.lazy (\_ -> decodeNExpr) in
   decodeVariants
   [ ("Filled", decodeVariant2 F decodeID dn)
   , ("Blank", decodeVariant1 Blank decodeID)
-  , ("Flagged", decodeVariant5 convert decodeID ds JSD.int de de)
   ]
 
 
@@ -521,6 +503,7 @@ decodeNExpr =
                             (JSD.list (decodePair
                                          (decodeBlankOr JSD.string)
                                          de)))
+    , ("FeatureFlag", dv4 FeatureFlag (decodeBlankOr JSD.string) de de de)
     ]
 
 decodeLiveValue : JSD.Decoder LiveValue
