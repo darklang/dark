@@ -562,6 +562,10 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
+
+    &.feature-flag {
+      display: none;
+    }
   }
 
   .value-error {
@@ -1033,6 +1037,7 @@ body #grid * {
 }
 
 .feature-flag {
+  display: none;
   position: absolute;
   right: -16px;
   .right-button;
@@ -1041,7 +1046,6 @@ body #grid * {
 .create-function {
   position: absolute;
   right: -18px;
-  top: 32px;
   .right-button;
 }
 
