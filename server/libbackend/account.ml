@@ -336,6 +336,36 @@ let init () : unit =
     ; password = "humad"
     ; email = "humadshah@umass.edu"
     ; name = "humad shah"};
+  upsert_account
+    { username = "sean"
+    ; password = "sean"
+    ; email = "seandermanyang@gmail.com"
+    ; name = "sean derman"};
+  upsert_account
+    { username = "asheesh"
+    ; password = "asheesh"
+    ; email = "asheeshchopra11@gmail.com"
+    ; name = "asheesh chopra"};
+  upsert_account
+    { username = "sajid"
+    ; password = "sajid"
+    ; email = "sajsay6@yahoo.com"
+    ; name = "Sajid Sayeed"};
+  upsert_account
+    { username = "raj"
+    ; password = "raj"
+    ; email = "raj.sinhaii@hotmail.com"
+    ; name = "Raj Sinha"};
+  upsert_account
+    { username = "juan"
+    ; password = "juan"
+    ; email = "jddonneys@gmail.com"
+    ; name = "Juan Diego Donneys"};
+  upsert_account
+    { username = "tim"
+    ; password = "tim"
+    ; email = "tchang2017@gmail.com"
+    ; name = "Tim Chang"};
 
   ()
 
