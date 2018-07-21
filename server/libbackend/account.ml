@@ -296,6 +296,26 @@ let init () : unit =
     ; password = "thais"
     ; email = "gonzo424@gmail.com"
     ; name = "Thais Gonzalez"};
+  upsert_account
+    { username = "diego"
+    ; password = "diego"
+    ; email = "dibarra@uchicago.edu"
+    ; name = "Diego Ibarra"};
+  upsert_account
+    { username = "liam"
+    ; password = "liam"
+    ; email = "ldtrampota@gmail.com"
+    ; name = "Liam Trampota"};
+  upsert_account
+    { username = "kitan"
+    ; password = "kitan"
+    ; email = "kitgarcia@ucdavis.edu"
+    ; name = "Kitan Garcia"};
+  upsert_account
+    { username = "rahul"
+    ; password = "rahul"
+    ; email = "mail4rp@gmail.com"
+    ; name = "rahul prasad"};
 
   ()
 
