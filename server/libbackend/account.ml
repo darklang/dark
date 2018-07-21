@@ -316,6 +316,26 @@ let init () : unit =
     ; password = "rahul"
     ; email = "mail4rp@gmail.com"
     ; name = "rahul prasad"};
+  upsert_account
+    { username = "perry"
+    ; password = "perry"
+    ; email = "perry.ya@nyu.edu"
+    ; name = "perry ya"};
+  upsert_account
+    { username = "howard"
+    ; password = "howard"
+    ; email = "chonghorizons@gmail.com"
+    ; name = "howard chong"};
+  upsert_account
+    { username = "quoc"
+    ; password = "quoc"
+    ; email = "qnguyen6@binghamton.edu"
+    ; name = "quoc nguyen"};
+  upsert_account
+    { username = "humad"
+    ; password = "humad"
+    ; email = "humadshah@umass.edu"
+    ; name = "humad shah"};
 
   ()
 
