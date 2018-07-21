@@ -230,6 +230,72 @@ let init () : unit =
     ; password = "wilson"
     ; email = "gracey.wilson@students.olin.edu"
     ; name = "Gracey Wilson"};
+  (* horizons hackathon people *)
+  upsert_account
+    { username = "jaroslav"
+    ; password = "jaroslav"
+    ; email = "jaroslav.tran@gmail.com"
+    ; name = "Jaroslav Tran"};
+  upsert_account
+    { username = "owen"
+    ; password = "owen"
+    ; email = "owenzhang76@gmail.com"
+    ; name = "Owen Zhang"};
+  upsert_account
+    { username = "abraham"
+    ; password = "abraham"
+    ; email = "abraham.hamidi01@gmail.com"
+    ; name = "Abraham Hamidi"};
+  upsert_account
+    { username = "lydia"
+    ; password = "lydia"
+    ; email = "xinglydia@gmail.com"
+    ; name = "Lydia Xing"};
+  upsert_account
+    { username = "ronil"
+    ; password = "ronil"
+    ; email = "ronil.awale@gmail.com"
+    ; name = "Ronil Awale"};
+  upsert_account
+    { username = "sarayu"
+    ; password = "sarayu"
+    ; email = "sarayu@namineni.com"
+    ; name = "Sarayu Namineni"};
+  upsert_account
+    { username = "kahuang"
+    ; password = "kahuang"
+    ; email = "kahuang@ucdavis.edu"
+    ; name = "Kahuang"};
+  upsert_account
+    { username = "mike"
+    ; password = "mike"
+    ; email = "mikesun20@gmail.com"
+    ; name = "Mike Sun"};
+  upsert_account
+    { username = "amit"
+    ; password = "amit"
+    ; email = "amitsant.2000@gmail.com"
+    ; name = "Amit Sant"};
+  upsert_account
+    { username = "rohankanchana"
+    ; password = "rohankanchana"
+    ; email = "rohankanchana@gmail.com"
+    ; name = "rohankanchana"};
+  upsert_account
+    { username = "kyra"
+    ; password = "kyra"
+    ; email = "kyraskraft@gmail.com"
+    ; name = "Kyra Kraft"};
+  upsert_account
+    { username = "david"
+    ; password = "david"
+    ; email = "davidrusarm@gmail.com"
+    ; name = "David Storozhenko"};
+  upsert_account
+    { username = "thais"
+    ; password = "thais"
+    ; email = "gonzo424@gmail.com"
+    ; name = "Thais Gonzalez"};
 
   ()
 
