@@ -119,7 +119,8 @@ jobs:
               --key-file /home/dark/app/gcloud-service-key.json
 
       - run: scripts/run-in-docker scripts/gcp-push-images-to-gcr
-      - run: scripts/run-in-docker scripts/gke-deploy
+      # TODO: disable til we fix connection draining
+      # - run: scripts/run-in-docker scripts/gke-deploy
 
       # # For now, we do integration tests after the deploy. If they work
       # # above, then it works. This needs more work but I'm stopping here
