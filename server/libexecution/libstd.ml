@@ -302,7 +302,6 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-
   { pns = ["Int::greaterThan"]
   ; ins = [">"]
   ; p = [par "a" TInt ; par "b" TInt]
@@ -317,6 +316,19 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Int::greaterThanOrEqualTo"]
+  ; ins = [">="]
+  ; p = [par "a" TInt ; par "b" TInt]
+  ; r = TBool
+  ; d = "Returns true if a is greater than or equal to b"
+  ; f = InProcess
+        (function
+          | (_, [DInt a; DInt b]) -> DBool (a >= b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
   { pns = ["Int::lessThan"]
   ; ins = ["<"]
@@ -345,22 +357,6 @@ let fns : Lib.shortfn list = [
   ; ps = true
   }
   ;
-
-
-  { pns = ["Int::greaterThanOrEqualTo"]
-  ; ins = [">="]
-  ; p = [par "a" TInt ; par "b" TInt]
-  ; r = TBool
-  ; d = "Returns true if a is greater than or equal to b"
-  ; f = InProcess
-        (function
-          | (_, [DInt a; DInt b]) -> DBool (a >= b)
-          | args -> fail args)
-  ; pr = None
-  ; ps = true
-  }
-  ;
-
 
   { pns = ["Int::random"]
   ; ins = []
@@ -550,35 +546,63 @@ let fns : Lib.shortfn list = [
   ; pr = None
   ; ps = true
   }
-;
+  ;
 
-{ pns = ["Float::lessThan"]
-; ins = []
-; p = [par "a" TFloat ; par "b" TFloat]
-; r = TBool
-; d = "Returns true if a is less than b"
-; f = InProcess
-      (function
-        | (_, [DFloat a; DFloat b]) -> DBool (a <. b)
-        | args -> fail args)
-; pr = None
-; ps = true
-}
-;
+  { pns = ["Float::greaterThan"]
+  ; ins = []
+  ; p = [par "a" TFloat ; par "b" TFloat]
+  ; r = TBool
+  ; d = "Returns true if a is greater than b"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DBool (a >. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
-{ pns = ["Float::lessThanOrEqualTo"]
-; ins = []
-; p = [par "a" TFloat ; par "b" TFloat]
-; r = TBool
-; d = "Returns true if a is less than b"
-; f = InProcess
-      (function
-        | (_, [DFloat a; DFloat b]) -> DBool (a <=. b)
-        | args -> fail args)
-; pr = None
-; ps = true
-}
-;
+  { pns = ["Float::greaterThanOrEqualTo"]
+  ; ins = []
+  ; p = [par "a" TFloat ; par "b" TFloat]
+  ; r = TBool
+  ; d = "Returns true if a is greater than b"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DBool (a >=. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Float::lessThan"]
+  ; ins = []
+  ; p = [par "a" TFloat ; par "b" TFloat]
+  ; r = TBool
+  ; d = "Returns true if a is less than b"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DBool (a <. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Float::lessThanOrEqualTo"]
+  ; ins = []
+  ; p = [par "a" TFloat ; par "b" TFloat]
+  ; r = TBool
+  ; d = "Returns true if a is less than b"
+  ; f = InProcess
+        (function
+          | (_, [DFloat a; DFloat b]) -> DBool (a <=. b)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
   (* ====================================== *)
   (* Any *)
@@ -1567,6 +1591,21 @@ let fns : Lib.shortfn list = [
   ; p = [par "d1" TDate; par "d2" TDate]
   ; r = TBool
   ; d = "Returns whetheer `d1` < ` d2`"
+  ; f = InProcess
+        (function
+          | (_, [DDate d1; DDate d2]) ->
+            DBool (Time.(<) d1 d2)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Date::greaterThan"]
+  ; ins = ["Date::>"]
+  ; p = [par "d1" TDate; par "d2" TDate]
+  ; r = TBool
+  ; d = "Returns whetheer `d1` > ` d2`"
   ; f = InProcess
         (function
           | (_, [DDate d1; DDate d2]) ->
