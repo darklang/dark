@@ -360,18 +360,6 @@ viewNExpr d id vs config e =
         ([open] ++ List.map pexpr pairs ++ [close])
 
     FeatureFlag msg cond a b ->
-      -- the desired css layouts are:
-      -- no ff:
-      --   .blank/expr
-      --     .feature-flag (only if selected)
-      -- after click
-      --   .flagged
-      --     .message
-      --     .cond
-      --     .flag-left
-      --       etc
-      --     .flag-right
-      --       etc
       let exprLabel msg =
         Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
 
@@ -382,8 +370,6 @@ viewNExpr d id vs config e =
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickA)]
             [ fontAwesome icon ]
-
-          boxWidth = ((max (approxWidth a) (approxWidth b)) * 2) + 50
 
           pickB =
             Html.div
@@ -445,7 +431,6 @@ viewNExpr d id vs config e =
         , Html.div
           [
             Attrs.class "feature-flag"
-            , Attrs.style [("min-width", (toString boxWidth) ++ "px")]
           ]
           [
             titleBar
