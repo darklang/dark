@@ -17,19 +17,8 @@
 
 We're running in kubernetes on GKE.
 
-Build the production container (assumes that the build has succeeded):
-
-- `./scripts/gcp-build-containers`
-
-Run it locally (well, inside the dev container):
-
-- `./scripts/gcp-run-locally`
-
-Run integration tests on it:
-
-- `./integration-tests/run.sh --gcp`
-
-To deploy, you'll need `gcloud` installed:
+The production containers build and push to the registry as part of our CI build.
+To deploy the latest container to Kubernetes, you'll need `gcloud` installed:
 
 - `curl -s https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-192.0.0-darwin-x86_64.tar.gz | tar xz && ./google-cloud-sdk/install.sh`.
 
@@ -45,6 +34,24 @@ user at start time.
 and then run:
 
 - `./script/gke-deploy`
+
+If you want to play with the production containers locally:
+
+Build the production container (assumes that the build has succeeded):
+
+- `./scripts/gcp-build-containers`
+
+Run it locally (well, inside the dev container):
+
+- `./scripts/gcp-run-locally`
+
+Run integration tests on it:
+
+- `./integration-tests/run.sh --gcp`
+
+Push it to Google Cloud Registry
+
+- `./scripts/gcp-push-images-to-gcr`
 
 If you still have authentication problems (eg. `denied: Unable to access the repository, please check that you have permission to access it.` from a GCR push),
 and you've confirmed that you've logged into gcloud and restarted your container, then check that you've accepted the invite to the Google Developer Project
