@@ -579,15 +579,21 @@ let server () =
          | `Healthy -> respond ~execution_id `OK "Hello internal overlord"
          | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
       | ("/pkill", None) -> (* for GKE graceful termination *)
-        if !shutdown
+        if !shutdown (* note: this is a ref, not a boolean `not` *)
         then
           (shutdown := true;
-           (* k8s gives us 30s, let's try to be done earlier *)
-           Lwt_unix.sleep 20.0 >>= fun _ ->
+           Log.infO "shutdown"
+             ~data:"Received shutdown request - shutting down"
+             ~params:["execution_id", string_of_int execution_id];
+           (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
+           Lwt_unix.sleep 28.0 >>= fun _ ->
            Lwt.wakeup stopper ();
            respond ~execution_id `OK "Terminated")
         else
-          respond ~execution_id `OK "Terminated"
+          (Log.infO "shutdown"
+             ~data:"Received redundant shutdown request - already shutting down"
+             ~params:["execution_id", string_of_int execution_id];
+           respond ~execution_id `OK "Terminated")
       | (_, None) -> (* for GKE health check *)
         respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
