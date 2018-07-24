@@ -21,6 +21,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
           Ok ()
         | Some event ->
           let c = Canvas.load_for_event event in
+          let host = !c.host in
           let desc = Event_queue.to_event_desc event in
           Stored_event.store_event !c.id desc event.value;
           let h =
@@ -35,6 +36,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
              Log.infO "queue_worker"
                ~data:"No handler for event"
                ~params:["execution_id", Log.dump execution_id
+                       ;"host", host
                        ;"event", Log.dump desc];
              Event_queue.put_back transaction event `Incomplete;
              Ok ()
@@ -43,7 +45,8 @@ let run execution_id : (unit, Exception.captured) Result.t =
                ~data:"Executing handler for event"
                ~params:["execution_id", Log.dump execution_id
                        ;"event", Log.dump desc
-                       ; "handler_id", Log.dump h.tlid];
+                       ;"host", host
+                       ;"handler_id", Log.dump h.tlid];
              let dbs = TL.dbs !c.dbs in
              let dbs_env = User_db.dbs_as_exe_env (dbs) in
              let env = Map.set ~key:"event" ~data:(event.value) dbs_env in
@@ -56,6 +59,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
                   ~data:"Got DIncomplete when executing handler"
                   ~params:["execution_id", Log.dump execution_id
                           ;"event", Log.dump desc
+                          ;"host", host
                           ;"handler_id", Log.dump h.tlid
                           ];
                 Event_queue.put_back transaction event ~status:`Incomplete
@@ -64,6 +68,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
                   ~data:"Got DError when executing handler"
                   ~params:["execution_id", Log.dump execution_id
                           ;"event", Log.dump desc
+                          ;"host", host
                           ;"handler_id", Log.dump h.tlid
                           ];
                 Event_queue.put_back transaction event ~status:`Err
@@ -71,6 +76,7 @@ let run execution_id : (unit, Exception.captured) Result.t =
                 Log.infO "queue_worker"
                   ~data:"Successful execution"
                   ~params:["execution_id", Log.dump execution_id
+                          ;"host", host
                           ;"event", Log.dump desc
                           ;"handler_id", Log.dump h.tlid
                           ];
