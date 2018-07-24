@@ -19,8 +19,7 @@ open Db
 let current_dark_version = 0
 
 let find_db (tables: db list) (table_name: string) : db option =
-  List.find tables
-    ~f:(fun (d : db) -> d.name = String.capitalize table_name)
+  List.find tables ~f:(fun d -> d.name = table_name)
 
 let find_db_exn (tables: db list) (table_name: string) : db =
   find_db tables table_name
