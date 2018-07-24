@@ -43,6 +43,7 @@ type Tipe = TInt
           | TDate
           | TTitle
           | TUrl
+          | TPassword
           | TBelongsTo String
           | THasMany String
           | TDbList Tipe
