@@ -125,15 +125,11 @@ let rec sym_exec
        | Filled (_, FnCall (name, exprs)) ->
          List.iter ~f:(sexe st) exprs
 
-       | Filled (_, If (cond, ifbody, elsebody)) ->
+       | Filled (_, If (cond, ifbody, elsebody))
+       | Filled (_, FeatureFlag(_, cond, elsebody, ifbody)) ->
          sexe st cond;
          sexe st ifbody;
-         sexe st elsebody
-
-       | Filled (_, FeatureFlag(_, cond, ifbody, elsebody)) ->
-         sexe st cond;
          sexe st elsebody;
-         sexe st ifbody;
 
        | Filled (_, Lambda (vars, body)) ->
          let new_st =
@@ -276,7 +272,7 @@ let rec exec ~(engine: engine)
 
   in
 
-  let evalCond (cond: expr) (ifbody: expr) (elsebody: expr) : dval =
+  (* let evalCond (cond: expr) (ifbody: expr) (elsebody: expr) : dval =
     match ctx with
     | Preview ->
       (* In the case of a preview trace execution, we want the 'if' expression as
@@ -308,7 +304,7 @@ let rec exec ~(engine: engine)
        | DIncomplete -> DIncomplete
        | DError _ -> DIncomplete
        | _ -> exe st ifbody)
-  in
+  in *)
 
   let ignoreError e =
     match e with
@@ -362,10 +358,39 @@ let rec exec ~(engine: engine)
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals
-     | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
-       evalCond cond elsebody ifbody
+     | Filled (id, FeatureFlag (_, cond, elsebody, ifbody))
      | Filled (id, If (cond, ifbody, elsebody)) ->
-       evalCond cond ifbody elsebody
+       (match ctx with
+        | Preview ->
+          (* In the case of a preview trace execution, we want the 'if' expression as
+           * a whole to evaluate to its correct value -- but we also want preview values
+           * for _all_ sides of the if *)
+          (match (exe st cond) with
+           | DBool false | DNull ->
+             (* execute the positive side just for the side-effect *)
+             let _ = exe st ifbody in
+             exe st elsebody
+           | DIncomplete ->
+             let _ = exe st ifbody in
+             let _ = exe st elsebody in
+             DIncomplete
+           | DError _ ->
+             let _ = exe st ifbody in
+             let _ = exe st elsebody in
+             DIncomplete
+           | _ ->
+             (* execute the negative side just for the side-effect *)
+             let _ = exe st elsebody in
+             exe st ifbody)
+        | Real ->
+          (* In the case of a 'real' evaluation, we shouldn't do unneccessary work and
+           * as such should follow the proper evaluation semantics *)
+          (match (exe st cond) with
+           (* only false and 'null' are falsey *)
+           | DBool false | DNull -> exe st elsebody
+           | DIncomplete -> DIncomplete
+           | DError _ -> DIncomplete
+           | _ -> exe st ifbody))
      | Filled (id, Lambda (vars, body)) ->
        if ctx = Preview
        then
