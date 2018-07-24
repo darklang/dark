@@ -268,14 +268,17 @@ renameFunction m old new =
       in
           newHandlers ++ newFunctions
 
-isFunctionInExpr: String -> Expr -> Bool
+isFunctionInExpr : String -> Expr -> Bool
 isFunctionInExpr fnName expr =
   let maybeNExpr = B.asF expr
   in case maybeNExpr of
     Nothing -> False
     Just nExpr ->
       case nExpr of
-        FnCall name list -> if name == fnName then True else List.any (isFunctionInExpr fnName) list
+        FnCall name list ->
+          if name == fnName
+            then True
+            else List.any (isFunctionInExpr fnName) list
         If ifExpr thenExpr elseExpr -> List.any (isFunctionInExpr fnName) [ifExpr, thenExpr, elseExpr]
         Variable _ -> False
         Let _ a b -> List.any (isFunctionInExpr fnName) [a, b]
@@ -283,7 +286,7 @@ isFunctionInExpr fnName expr =
         Value _ -> False
         ObjectLiteral li ->
           let valuesMap = List.map (\kv -> Tuple.second kv) li
-            in List.any (isFunctionInExpr fnName) valuesMap
+          in List.any (isFunctionInExpr fnName) valuesMap
         ListLiteral li -> List.any (isFunctionInExpr fnName) li
         Thread li -> List.any (isFunctionInExpr fnName) li
         FieldAccess ex filed -> isFunctionInExpr fnName ex
@@ -298,12 +301,12 @@ isHandlerUsingFunction handler fnName = isFunctionInExpr fnName handler.ast
 
 countFnUsage : Model -> String -> Int
 countFnUsage m name =
-  let usedIn = m.toplevels
+  let usedIn = TL.all m
     |> List.filter (\tl ->
       case tl.data of
         TLHandler h -> isHandlerUsingFunction h name
         TLDB _ -> False
-        TLFunc f -> True
+        TLFunc f -> isFunctionInExpr name f.ast
     )
   in List.length usedIn
 
