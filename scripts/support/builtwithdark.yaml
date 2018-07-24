@@ -22,7 +22,8 @@ spec:
           lifecycle:
             preStop:
               httpGet:
-                path: /pkill
+                # ???? https://github.com/kubernetes/kubernetes/issues/56770
+                path: pkill
                 port: 80
           readinessProbe:
             httpGet:
