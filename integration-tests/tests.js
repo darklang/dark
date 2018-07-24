@@ -247,7 +247,7 @@ test('no_request_global_in_non_http_space', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "NOT_HTTP_SPACE", slow)
     .pressKey("enter")
-    .typeText("#entry-box", "req")
+    .typeText("#entry-box", "request")
     .expect(acHighlighted("Http::badRequest")).ok()
     .pressKey("enter")
 });
@@ -670,5 +670,3 @@ test('object_literals_work', async t => {
     .pressKey("tab")
     .pressKey("tab") // End right after it
 })
-
-
