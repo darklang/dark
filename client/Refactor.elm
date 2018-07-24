@@ -295,16 +295,12 @@ isFunctionInExpr fnName expr =
           (isFunctionInExpr fnName a) ||
           (isFunctionInExpr fnName b)
 
-
-isHandlerUsingFunction : Handler -> String -> Bool
-isHandlerUsingFunction handler fnName = isFunctionInExpr fnName handler.ast
-
 countFnUsage : Model -> String -> Int
 countFnUsage m name =
   let usedIn = TL.all m
     |> List.filter (\tl ->
       case tl.data of
-        TLHandler h -> isHandlerUsingFunction h name
+        TLHandler h -> isFunctionInExpr name h.ast
         TLDB _ -> False
         TLFunc f -> isFunctionInExpr name f.ast
     )
