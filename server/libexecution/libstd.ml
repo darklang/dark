@@ -1556,7 +1556,6 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-
   { pns = ["Date::add"]
   ; ins = []
   ; p = [par "d" TDate; par "seconds" TInt]
@@ -1586,26 +1585,26 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["Date::lessThan"]
-  ; ins = ["Date::<"]
+  { pns = ["Date::greaterThan"]
+  ; ins = ["Date::>"]
   ; p = [par "d1" TDate; par "d2" TDate]
   ; r = TBool
-  ; d = "Returns whetheer `d1` < ` d2`"
+  ; d = "Returns whether `d1` > ` d2`"
   ; f = InProcess
         (function
           | (_, [DDate d1; DDate d2]) ->
-            DBool (Time.(<) d1 d2)
+            DBool (Time.(>) d1 d2)
           | args -> fail args)
   ; pr = None
   ; ps = true
   }
   ;
 
-  { pns = ["Date::greaterThan"]
-  ; ins = ["Date::>"]
+  { pns = ["Date::lessThan"]
+  ; ins = ["Date::<"]
   ; p = [par "d1" TDate; par "d2" TDate]
   ; r = TBool
-  ; d = "Returns whetheer `d1` > ` d2`"
+  ; d = "Returns whether `d1` < ` d2`"
   ; f = InProcess
         (function
           | (_, [DDate d1; DDate d2]) ->
@@ -1634,8 +1633,6 @@ let fns : Lib.shortfn list = [
   ; ps = true
   }
   ;
-
-
 
 
   (* ====================================== *)
