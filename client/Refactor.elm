@@ -287,6 +287,10 @@ isFunctionInExpr fnName expr =
         ListLiteral li -> List.any (isFunctionInExpr fnName) li
         Thread li -> List.any (isFunctionInExpr fnName) li
         FieldAccess ex filed -> isFunctionInExpr fnName ex
+        FeatureFlag _ cond a b ->
+          (isFunctionInExpr fnName cond) ||
+          (isFunctionInExpr fnName a) ||
+          (isFunctionInExpr fnName b)
 
 
 isHandlerUsingFunction : Handler -> String -> Bool
