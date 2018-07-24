@@ -19,6 +19,11 @@ spec:
           ports:
             - name: bwd-ctr-port
               containerPort: 80
+          lifecycle:
+            preStop:
+              httpGet:
+                path: /pkill
+                port: 80
           readinessProbe:
             httpGet:
               path: /

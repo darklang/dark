@@ -23,6 +23,8 @@ module Dbconnection = Libservice.Dbconnection
 (* ------------------------------- *)
 type timing_header = string * float * string
 
+let shutdown = ref false
+
 let server_timing (times: timing_header list) =
   times
   |> List.map ~f:(fun (name, time, desc) ->
@@ -475,6 +477,7 @@ let server () =
 
   let callback (ch, conn) req body =
     let execution_id = Util.create_id () in
+    if !shutdown then respond ~execution_id `Service_unavailable "Shutting down" else
 
     let handle_error ~(include_internals:bool) (e:exn) =
       try
@@ -575,6 +578,16 @@ let server () =
         (match Dbconnection.status () with
          | `Healthy -> respond ~execution_id `OK "Hello internal overlord"
          | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+      | ("/pkill", None) -> (* for GKE graceful termination *)
+        if !shutdown
+        then
+          (shutdown := true;
+           (* k8s gives us 30s, let's try to be done earlier *)
+           Lwt_unix.sleep 20.0 >>= fun _ ->
+           Lwt.wakeup stopper ();
+           respond ~execution_id `OK "Terminated")
+        else
+          respond ~execution_id `OK "Terminated"
       | (_, None) -> (* for GKE health check *)
         respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
