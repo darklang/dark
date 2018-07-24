@@ -100,10 +100,16 @@ Read me about integration testing in integration-tests/README.
 
 - `./scripts/download-gcp-db`
 
-This pulls all the data from gcp and puts it in a db named "postgres". In
-development, we usually run against a db called "devdb". You
-can switch to run against the "prodclone" db by changing the
-DARK_CONFIG_DB_DBNAME variable in config/dev.
+This pulls all the data from gcp and puts it in a db named "prodclone".
+
+Access it:
+
+- `./scripts/builder --compile --watch [etc] --prodclone`
+
+You can reset the clone to a pristine production clone (at the time of
+download) with:
+
+- `./scripts/reset-prodclone`
 
 
 # Config files

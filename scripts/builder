@@ -63,11 +63,21 @@ do
   esac
 done
 
+ENV="dev"
+for i in "$@"
+do
+  case $i in
+    --prodclone)
+    ENV="dev_prodclone"
+    ;;
+  esac
+done
 if [ -v CI ]; then
-  ENV_FILE="config/circleci"
-else
-  ENV_FILE="config/dev"
+  ENV="circleci"
 fi
+
+ENV_FILE="config/$ENV"
+
 echo "Using env: $ENV_FILE"
 
 POLL_FREQ=
