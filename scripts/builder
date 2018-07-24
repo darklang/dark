@@ -19,8 +19,21 @@ fi
 # --------------
 # --------------
 echo "watching for local changes"
-mkdir -p rundir/logs
-scripts/support/reload-browser > rundir/logs/browser.log 2>&1 &
+RELOAD_BROWSER=""
+for i in "$@"
+do
+  case $i in
+      --watch)
+	  RELOAD_BROWSER=true
+    ;;
+  esac
+done
+
+if [ -n "$RELOAD_BROWSER" ]; then
+    echo "Starting the browser reload script"
+    mkdir -p rundir/logs
+    scripts/support/reload-browser > rundir/logs/browser.log 2>&1 &
+fi
 
 # --------------
 # Conduit
@@ -37,6 +50,7 @@ fi
 # --------------
 # Mounts
 # --------------
+
 if [ -v CI ]; then
   # see "copy in data" in .circleci/config.yml
   MOUNTS="--volumes-from vols"
@@ -66,7 +80,14 @@ for i in "$@"
 do
   case $i in
     --watch)
-    FSWATCH="fswatch --event-flag-separator=, -r * -x "
+    FSWATCH="fswatch --event-flag-separator=, -r * -x"
+
+    # Added b/c otherwise --watch infinite-loops on Linux.
+    # May be okay on OS X, haven't tried.
+    case "$(uname -s)" in
+      Linux*) FSWATCH+=" --event=Updated --event=Created"
+        ;;
+    esac
     ;;
   esac
 done
@@ -129,4 +150,3 @@ $FSWATCH | docker run \
              -w /home/dark/app \
              dark \
              scripts/support/build-server "${@}"
-
