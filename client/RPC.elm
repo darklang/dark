@@ -603,7 +603,7 @@ decodeDBMigration =
 decodeDB : JSD.Decoder DB
 decodeDB =
   let toDB name cols version old active =
-      {name = name
+      { name = name
       , cols = cols
       , version = version
       , oldMigrations = old
@@ -611,7 +611,7 @@ decodeDB =
       }
   in
   JSDP.decode toDB
-  |> JSDP.required "display_name" JSD.string
+  |> JSDP.required "name" JSD.string
   |> JSDP.required "cols" (JSD.list
                             (decodePair
                               (decodeBlankOr JSD.string)

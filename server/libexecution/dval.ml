@@ -152,7 +152,7 @@ let as_string (dv : dval) : string =
   | DDate d -> d |> isostring_of_date
   | DTitle t -> t
   | DUrl url -> url
-  | DDB db -> db.display_name
+  | DDB db -> db.name
   | DError msg -> msg
   | _ -> "<" ^ (dv |> tipename) ^ ">"
 
@@ -227,7 +227,7 @@ let rec to_livevalue_repr (dv : dval) : string =
 (* Not for external consumption *)
 let rec to_internal_repr (dv : dval) : string =
   match dv with
-  | DDB db -> "<db: " ^ db.display_name ^ ">"
+  | DDB db -> "<db: " ^ db.name ^ ">"
   | dv when is_stringable dv -> to_simple_repr dv
   | _ -> to_repr ~reprfn:to_internal_repr dv
 
@@ -380,7 +380,7 @@ let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
   | DResp (h, hdv) ->
     wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
 
-  | DDB db -> wrap_user_str db.display_name
+  | DDB db -> wrap_user_str db.name
   | DID id -> wrap_user_str (Uuidm.to_string id)
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title

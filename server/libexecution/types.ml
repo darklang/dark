@@ -80,7 +80,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                         [@@deriving eq, compare, show, yojson, sexp, bin_io]
     type db = { tlid: tlid
               ; host: string
-              ; display_name: string
+              ; name: string
               ; cols: col list
               ; version: int
               ; old_migrations : db_migration list
