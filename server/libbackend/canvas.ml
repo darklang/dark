@@ -95,6 +95,16 @@ let apply_to_handler  ~f tlid c =
 let move_toplevel (tlid: tlid) (pos: pos) (c: canvas) : canvas =
   apply_to_all_toplevels ~f:(fun tl -> { tl with pos = pos }) tlid c
 
+let create_db (c: canvas) (name: string) (tlid: tlid) : RTT.DbT.db =
+  if name = ""
+  then Exception.client "DB must have a name";
+
+  if User_db.find_db (TL.dbs c.dbs) name <> None
+  then Exception.client ("DB named " ^ name ^ " already exists");
+
+  User_db.create c.host name tlid
+
+
 (* ------------------------- *)
 (* Build *)
 (* ------------------------- *)
@@ -106,11 +116,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | SetHandler (tlid, pos, handler) ->
       upsert_handler tlid pos (TL.Handler handler)
     | CreateDB (tlid, pos, name) ->
-      if name = ""
-      then Exception.client "DB must have a name"
-      else
-        let db = User_db.create !c.host name tlid in
-        upsert_db tlid pos (TL.DB db)
+      let db = create_db !c name tlid in
+      upsert_db tlid pos (TL.DB db)
     | AddDBCol (tlid, colid, typeid) ->
       apply_to_db ~f:(User_db.add_col colid typeid) tlid
     | SetDBColName (tlid, id, name) ->
