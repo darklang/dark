@@ -29,6 +29,9 @@ val initialize_migration : id -> id -> id -> DbT.migration_kind -> DbT.db -> DbT
 val unlocked : Uuidm.t -> Uuidm.t -> DbT.db list -> DbT.db list
 val db_locked : DbT.db -> bool
 
+val find_db : DbT.db list -> string -> DbT.db option
+val find_db_exn : DbT.db list -> string -> DbT.db
+
 (* DBs as values for execution *)
 val dbs_as_env : DbT.db list -> dval_map
 val dbs_as_exe_env : DbT.db list -> dval_map

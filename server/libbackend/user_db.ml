@@ -18,11 +18,15 @@ open Db
  *)
 let current_dark_version = 0
 
-let find_db tables table_name : db =
-  tables
-  |> List.find
+let find_db (tables: db list) (table_name: string) : db option =
+  List.find tables
     ~f:(fun (d : db) -> d.name = String.capitalize table_name)
+
+let find_db_exn (tables: db list) (table_name: string) : db =
+  find_db tables table_name
   |> Option.value_exn ~message:("table not found " ^ table_name)
+
+
 
 (* ------------------------- *)
 (* frontend stuff *)
@@ -252,7 +256,7 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
 and type_check_and_fetch_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
-        let dep_table = find_db state.dbs table in
+        let dep_table = find_db_exn state.dbs table in
         (match dv with
          | DID _ | DStr _ ->
            let id = dv_to_id table dv in
@@ -276,14 +280,14 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
            DNull
          | err -> Exception.user (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
-        let dep_table = find_db state.dbs table in
+        let dep_table = find_db_exn state.dbs table in
         let uuids = List.map ~f:(dv_to_id table) ids in
         find_many ~state dep_table uuids)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
     ~belongs_to:(fun table dv ->
-      let dep_table = find_db state.dbs table in
+      let dep_table = find_db_exn state.dbs table in
       (match dv with
        | DObj m ->
          (match DvalMap.find m "id" with
@@ -293,7 +297,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
          DNull
        | err -> Exception.user (type_error_msg table TObj err)))
    ~has_many:(fun table dlist ->
-        let dep_table = find_db state.dbs table in
+        let dep_table = find_db_exn state.dbs table in
         dlist
         |> List.map
           ~f:(fun o ->
