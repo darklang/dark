@@ -278,27 +278,38 @@ viewUserFunctions m =
             |> List.filter
               (\fn -> B.isF fn.metadata.name)
 
-      fnLink fn =
-        let name = B.asF fn.metadata.name
-        in case name of
-          Just fnName ->
-            let useCount = countFnUsage m fnName
-            in Url.linkFor
-              (Fn fn.tlid Defaults.fnPos)
-              ("default-link" ++ (if useCount==0 then " unused" else ""))
-              [Html.text (fnName ++ "(" ++ (toString useCount) ++ ")")]
-          Nothing ->
-            Url.linkFor (Fn fn.tlid Defaults.fnPos) "default-link" [Html.text "should be filtered by here"]
+      fnLink fn ec tx =
+        Url.linkFor
+          (Fn fn.tlid Defaults.fnPos)
+          (String.join " " (["default-link"] ++ ec))
+          [Html.text tx]
+
+      fnNamedLink fn name =
+        let useCount = countFnUsage m name
+        in if useCount == 0
+          then
+            [
+              span "name" [ fnLink fn ["unused"] name ]
+              , fontAwesome "minus-circle"
+            ]
+          else
+            [ span "name" [
+              fnLink fn [] (name ++ " (" ++ (toString useCount) ++ ")" )
+            ]]
 
       fnHtml fn =
-        div "simple-route"
-          [ span "name"
-            [ fnLink fn]
-          ]
+        div "simple-route" (
+          let fnName = B.asF fn.metadata.name
+          in case fnName of
+            Just name -> fnNamedLink fn name
+            Nothing ->
+              [ span "name"
+                [ fnLink fn [] "should be filtered by here" ]
+              ]
+          )
 
       routes = div "fns" (List.map fnHtml fns)
-  in
-      section "Functions" fns (Just CreateFunction) routes
+  in section "Functions" fns (Just CreateFunction) routes
 
 
 

@@ -279,17 +279,23 @@ isFunctionInExpr fnName expr =
           if name == fnName
             then True
             else List.any (isFunctionInExpr fnName) list
-        If ifExpr thenExpr elseExpr -> List.any (isFunctionInExpr fnName) [ifExpr, thenExpr, elseExpr]
+        If ifExpr thenExpr elseExpr ->
+          List.any (isFunctionInExpr fnName) [ifExpr, thenExpr, elseExpr]
         Variable _ -> False
-        Let _ a b -> List.any (isFunctionInExpr fnName) [a, b]
-        Lambda _ ex -> isFunctionInExpr fnName ex
+        Let _ a b ->
+          List.any (isFunctionInExpr fnName) [a, b]
+        Lambda _ ex ->
+          isFunctionInExpr fnName ex
         Value _ -> False
         ObjectLiteral li ->
-          let valuesMap = List.map (\kv -> Tuple.second kv) li
+          let valuesMap = List.map Tuple.second li
           in List.any (isFunctionInExpr fnName) valuesMap
-        ListLiteral li -> List.any (isFunctionInExpr fnName) li
-        Thread li -> List.any (isFunctionInExpr fnName) li
-        FieldAccess ex filed -> isFunctionInExpr fnName ex
+        ListLiteral li ->
+          List.any (isFunctionInExpr fnName) li
+        Thread li ->
+          List.any (isFunctionInExpr fnName) li
+        FieldAccess ex filed ->
+          isFunctionInExpr fnName ex
         FeatureFlag _ cond a b ->
           (isFunctionInExpr fnName cond) ||
           (isFunctionInExpr fnName a) ||
