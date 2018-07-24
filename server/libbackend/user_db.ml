@@ -21,7 +21,7 @@ let current_dark_version = 0
 let find_db tables table_name : db =
   tables
   |> List.find
-    ~f:(fun (d : db) -> d.display_name = String.capitalize table_name)
+    ~f:(fun (d : db) -> d.name = String.capitalize table_name)
   |> Option.value_exn ~message:("table not found " ^ table_name)
 
 (* ------------------------- *)
@@ -29,7 +29,7 @@ let find_db tables table_name : db =
 (* ------------------------- *)
 let dbs_as_env (dbs: db list) : dval_map =
   dbs
-  |> List.map ~f:(fun (db: db) -> (db.display_name, DDB db))
+  |> List.map ~f:(fun (db: db) -> (db.name, DDB db))
   |> function m ->
         match DvalMap.of_alist m with
         | `Ok r -> r
@@ -325,7 +325,7 @@ and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
             ; DvalmapJsonb merged];
   id
 and update ~state db (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" |> dv_to_id db.display_name in
+  let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Db.run
     ~name:"user_update"
@@ -364,7 +364,7 @@ let fetch_all ~state (db: db) : dval =
   |> DList
 
 let delete ~state (db: db) (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" |> dv_to_id db.display_name in
+  let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
   (* covered by composite PK index *)
   Db.run
     ~name:"user_delete"
@@ -453,7 +453,7 @@ let unlocked canvas_id account_id (dbs: db list) : db list =
 let create (host:host) (name:string) (id: tlid) : db =
   { tlid = id
   ; host = host
-  ; display_name = name
+  ; name = name
   ; cols = []
   ; version = 0
   ; old_migrations = []
@@ -501,7 +501,7 @@ let initialize_migration id rbid rfid kind (db : db) =
   if Option.is_some db.active_migration
   then
     Exception.internal
-      ("Attempted to init a migration for a table with an active one: " ^ db.display_name);
+      ("Attempted to init a migration for a table with an active one: " ^ db.name);
   match kind with
   | ChangeColType ->
     let new_migration =
