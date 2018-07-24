@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+
+DOCKER_MACHINE="${1+}"
+if [ -z "$DOCKER_MACHINE" ]; then
+    DOCKER_MACHINE=dark-engine
+fi
+
+while true; do
+    LINES=()
+    # get the first line
+    # (do it this way so we block when there's no activity)
+    read LINE
+    LINES+=("$LINE")
+    # read further lines (debouncing a little)
+    while read -t 0.5 LINE; do
+	LINES+=("$LINE")
+    done
+    for l in "${LINES[@]}"; do
+	echo "$l"
+    done | cut -d " " -f 1 | sort | uniq | while read f; do
+	docker-machine scp -q -r -d "$f" "$DOCKER_MACHINE:$f"
+    done
+    # pass it on to the next thing in the chain
+    for l in "${LINES[@]}"; do
+	echo $l
+    done | sort | uniq
+done

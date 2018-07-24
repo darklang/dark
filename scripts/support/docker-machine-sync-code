@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+DOCKER_MACHINE="${1+}"
+if [ -z "$DOCKER_MACHINE" ]; then
+    DOCKER_MACHINE=dark-engine
+fi
+
+
+# sync (= copy, lol) this dir and conduit-frontend over
+# todo this sucks
+C_F="../conduit-frontend"
+docker-machine ssh "$DOCKER_MACHINE" sudo mkdir -p "$(pwd)"
+docker-machine ssh "$DOCKER_MACHINE" sudo mkdir -p "$(pwd)/$C_F"
+docker-machine ssh "$DOCKER_MACHINE" sudo chown -R docker "$(pwd)"
+docker-machine ssh "$DOCKER_MACHINE" sudo chown -R docker "$(pwd)/$C_F"
+
+docker-machine scp -q -r -d "$(pwd)/" "$DOCKER_MACHINE:$(pwd)/"
+docker-machine scp -q -r -d "$(pwd)/$C_F" "$DOCKER_MACHINE:$(pwd)/$C_F"
