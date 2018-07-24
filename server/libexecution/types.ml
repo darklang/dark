@@ -31,6 +31,7 @@ type tipe_ =
   | TDate
   | TTitle
   | TUrl
+  | TPassword
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
@@ -167,6 +168,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DDate of time
     | DTitle of string
     | DUrl of string
+    | DPassword of string
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 
