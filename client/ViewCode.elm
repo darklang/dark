@@ -365,7 +365,7 @@ viewNExpr d id vs config e =
 
           pickA icon =
             Html.div
-            [ Attrs.class "icon"
+            [ Attrs.class "icon pick-a"
               , Attrs.attribute "data-content" "Cancel feature flag"
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickA)]
@@ -373,7 +373,7 @@ viewNExpr d id vs config e =
 
           pickB =
             Html.div
-            [ Attrs.class "icon"
+            [ Attrs.class "icon pick-b"
               , Attrs.attribute "data-content" "Pick new version"
             , eventNoPropagation "click"
                 (\_ -> EndFeatureFlag id PickB)]

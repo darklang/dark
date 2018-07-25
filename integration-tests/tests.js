@@ -551,49 +551,46 @@ test('nochange_for_failed_paste', async t => {
     .pressKey("ctrl+v")
 });
 
-// test('feature_flag_works', async t => {
-//   await t
-//     // Create an empty let
-//     .pressKey("enter")
-//     .typeText("#entry-box", "let")
-//     .pressKey("enter")
-//     .typeText("#entry-box", "var")
-//     .pressKey("enter")
-//     .pressKey("esc")
-//     .pressKey("shift+up")
+test('feature_flag_works', async t => {
+  await t
+    // Create an empty let
+    .pressKey("enter")
+    .typeText("#entry-box", "let")
+    .pressKey("enter")
+    .typeText("#entry-box", "a")
+    .pressKey("enter")
+    .typeText("#entry-box", "13")
+    .pressKey("enter")
+    .pressKey("down")
+    .pressKey("esc")
 
-//     // Click feature name
-//     .click('.feature-flag .fa-flag')
+    // Click feature name
+    .click('.expr-actions .flag')
 
-//     // Name it
-//     .typeText("#entry-box", "my_flag", slow)
+    // Name it
+    .doubleClick(Selector('.flag-name'))
+    .typeText("#entry-box", "myflag")
+    .pressKey("enter")
 
-//     // Create the alternative
-//     .pressKey("tab")
-//     .typeText("#entry-box", "let")
-//     .pressKey("tab")
-//     .typeText("#entry-box", "v")
-//     .pressKey("tab")
-//     .typeText("#entry-box", "6")
-//     .pressKey("tab")
-//     .typeText("#entry-box", "v")
-//     .pressKey("enter")
+    // Set condition
+    .typeText("#entry-box", "Int::greaterThan")
+    .pressKey("enter")
+    .typeText("#entry-box", "a")
+    .pressKey("enter")
+    .typeText("#entry-box", "10")
+    .pressKey("enter")
 
-//     // go to the let-hole in the FF lhs
-//     .pressKey("tab")
-//     .pressKey("tab")
-//     .pressKey("tab")
+    // Case A
+    .typeText("#entry-box", "\"", slow)
+    .typeText("#entry-box", "A")
+    .pressKey("enter")
 
-//     // should be selecting the last v now.
-//     .expect(Selector('.flag-left .letvarname .blankOr').hasClass("selected")).eql(true)
+    // Case B
+    .typeText("#entry-box", "\"", slow)
+    .typeText("#entry-box", "B")
+    .pressKey("enter")
 
-//     // move the slider to pick the other thing
-//     .drag('.setting-slider > input', 1000, 0)
-
-//     // Finish
-//     .click('.feature-flag .fa-check')
-
-// });
+});
 
 test('simple_tab_ordering', async t => {
   await t
