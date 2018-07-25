@@ -1245,9 +1245,11 @@ update_ msg m =
           RPC ([SetFunction replacement] ++ newCalls, FocusNext uf.tlid Nothing)
 
     DeleteUserFunction uf ->
-      let newFns = m.userFunctions
-        |> List.filter (\f -> f.tlid /= uf.tlid)
-      in SetUserFunctions newFns True
+      RPC ([DeleteFunction uf], FocusNothing)
+      -- RPC ([DeleteTL uf.tlid], FocusNothing)
+      -- let newFns = m.userFunctions
+      --   |> List.filter (\f -> f.tlid /= uf.tlid)
+      -- in SetUserFunctions newFns True
 
     -----------------
     -- RPCs stuff
