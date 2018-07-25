@@ -290,7 +290,7 @@ viewUserFunctions m =
           then
             [
               span "name" [ fnLink fn ["unused"] name ]
-              , fontAwesome "minus-circle"
+              , link (fontAwesome "minus-circle") (DeleteUserFunction fn)
             ]
           else
             [ span "name" [
