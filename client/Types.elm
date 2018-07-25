@@ -158,6 +158,7 @@ type Msg
     | CreateDBTable
     | CreateFunction
     | ExtractFunction
+    | DeleteUserFunction UserFunction
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
