@@ -16,6 +16,12 @@ spec:
       containers:
         - name: qw-ctr
           image: "gcr.io/balmy-ground-195100/dark-gcp-qw:latest"
+          lifecycle:
+            preStop:
+              httpGet:
+                # ???? https://github.com/kubernetes/kubernetes/issues/56770
+                path: pkill
+                port: 80
           readinessProbe:
             httpGet:
               path: /
@@ -67,9 +73,9 @@ spec:
 
         - name: cloudsql-proxy
           image: gcr.io/cloudsql-docker/gce-proxy:1.11
-          command: ["/cloud_sql_proxy",
-                    "-instances=balmy-ground-195100:us-west1:dark-west=tcp:5432",
-                    "-credential_file=/secrets/cloudsql/credentials.json"]
+          command: ["/bin/sh",
+                    "-c",
+                    "/cloud_sql_proxy -dir=/cloudsql -instances=balmy-ground-195100:us-west1:dark-west=tcp:5432 -credential_file=/secrets/cloudsql/credentials.json"]
           volumeMounts:
             - name: cloudsql-instance-credentials
               mountPath: /secrets/cloudsql
