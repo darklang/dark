@@ -44,6 +44,10 @@ let upsert_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
   let fns = List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions in
   { c with user_functions = fns @ [user_fn] }
 
+let remove_function (user_fn: RuntimeT.user_fn) (c: canvas) : canvas =
+  let fns = List.filter ~f:(fun x -> x.tlid <> user_fn.tlid) c.user_functions in
+  { c with user_functions = fns }
+
 let remove_toplevel (tlid: tlid) (c: canvas) : canvas =
   let (oldh, handlers) =
     List.partition_tf ~f:(fun x -> x.tlid = tlid) c.handlers
@@ -130,6 +134,8 @@ let apply_op (op : Op.op) (c : canvas ref) : unit =
     | MoveTL (tlid, pos) -> move_toplevel tlid pos
     | SetFunction user_fn ->
       upsert_function user_fn
+    | DeleteFunction user_fn ->
+      remove_function user_fn
     | TLSavepoint _ -> ident
     | UndoTL _
     | RedoTL _ ->
@@ -318,5 +324,3 @@ let check_all_hosts () : unit =
       (* check ops *)
       List.iter (Op.tlid_oplists2oplist !c.ops)
         ~f:(validate_op host))
-
-

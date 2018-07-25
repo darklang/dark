@@ -186,6 +186,7 @@ type Op
     | UndoTL TLID
     | RedoTL TLID
     | SetFunction UserFunction
+    | DeleteFunction UserFunction
     | ChangeDBColName TLID ID DBColName
     | ChangeDBColType TLID ID DBColType
     | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind
