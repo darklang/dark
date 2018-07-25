@@ -1726,10 +1726,9 @@ let fns : Lib.shortfn list = [
   ; d = "Hash a password String into a Password"
   ; f = InProcess
         (function
-         | (_, [DStr s]) -> DPassword s
+         | (_, [DStr s]) -> DPassword (Bytes.of_string s)
          (* TODO actually hash this*)
          (* TODO salts *)
-         (* TODO store the hash type *)
          | args -> fail args)
   ; pr = None
   ; ps = true
