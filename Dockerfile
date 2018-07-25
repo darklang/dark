@@ -91,6 +91,7 @@ RUN DEBIAN_FRONTEND=noninteractive \
       ruby \
       kubectl \
       python3-pip \
+      libsodium-dev \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -240,7 +241,8 @@ RUN opam install -y \
   js_of_ocaml.3.2.0 \
   js_of_ocaml-ppx.3.2.0 \
   js_of_ocaml-lwt.3.2.0 \
-  lambda-term.1.13
+  lambda-term.1.13 \
+  sodium.0.6.0
 
 # RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 
