@@ -28,6 +28,8 @@ then authenticate with gcloud:
 
 (Note: you might need to restart your shell for gcloud to appear in your $PATH, or run `exec $SHELL`)
 
+Troubleshooting: if the above is hanging, you can pass `--no-launch-browser` to `gcloud auth login` to have a CLI based workflow.
+
 You should restart your development container at this point, as it pulls in your currently authenticated
 user at start time.
 
