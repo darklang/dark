@@ -1716,4 +1716,39 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  (* ====================================== *)
+  (* Password *)
+  (* ====================================== *)
+  { pns = ["Password::hash"]
+  ; ins = []
+  ; p = [par "pw" TStr]
+  ; r = TPassword
+  ; d = "Hash a password String into a Password"
+  ; f = InProcess
+        (function
+         | (_, [DStr s]) -> DPassword s
+         (* TODO actually hash this*)
+         (* TODO salts *)
+         (* TODO store the hash type *)
+         | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
+  { pns = ["Password::check"]
+  ; ins = []
+  ; p = [par "existingpwr" TPassword; par "rawpw" TStr]
+  ; r = TBool
+  ; d = "Check whether a Password matches a raw password safely."
+  ; f = InProcess
+        (function
+         (* TODO actually hash this, compare in a way that doesn't leak timing info *)
+         (* TODO salts *)
+         | (_, [DPassword existingpw; DStr rawpw]) -> DBool false
+         | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 ]
