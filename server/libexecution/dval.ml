@@ -339,7 +339,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" -> DError v
     | "incomplete" -> DIncomplete
     | "char" -> DChar (Char.of_string v)
-    | "password" -> DPassword v
+    | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
     | "db" -> Exception.user "Can't deserialize DBs"
     | "block" -> Exception.user "Can't deserialize blocks"
     | _ -> Exception.user ("Can't deserialize type: " ^ tipe)
@@ -393,7 +393,7 @@ let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Sa
   | DDate date -> wrap_user_str (isostring_of_date date)
   | DPassword hashed -> if redact
                        then wrap_user_type `Null
-                       else wrap_user_str hashed
+                       else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
 
 let is_json_primitive (dv: dval) : bool =
   match dv with

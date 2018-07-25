@@ -168,7 +168,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DDate of time
     | DTitle of string
     | DUrl of string
-    | DPassword of string
+    | DPassword of Bytes.t
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 
