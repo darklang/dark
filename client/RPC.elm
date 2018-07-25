@@ -160,7 +160,7 @@ tlidOf op =
     DeleteTL tlid -> tlid
     MoveTL tlid _ -> tlid
     SetFunction f -> f.tlid
-    DeleteFunction f -> f.tlid
+    DeleteFunction tlid -> tlid
     SetExpr tlid _ _ -> tlid
 
 encodeOps : List Op -> JSE.Value
@@ -228,7 +228,7 @@ encodeOp call =
       DeleteTL tlid -> ev "DeleteTL" [encodeTLID tlid]
       MoveTL tlid pos -> ev "MoveTL" [encodeTLID tlid, encodePos pos]
       SetFunction uf -> ev "SetFunction" [encodeUserFunction uf]
-      DeleteFunction uf -> ev "DeleteFunction" [encodeUserFunction uf]
+      DeleteFunction tlid -> ev "DeleteFunction" [encodeTLID tlid]
       SetExpr tlid id e ->
         ev "SetExpr" [encodeTLID tlid, encodeID id, encodeExpr e]
 
