@@ -625,6 +625,18 @@ let t_dval_of_yojson_doesnt_care_about_order () =
         }")
 
 
+let t_password_hashing_and_checking_works () =
+  let oplist = [ "(let password 'password'
+                    (Password::check (Password::hash password)
+                      password))"
+                 |> ast_for
+                 |> handler
+                 |> hop
+               ] in
+  check_dval "A `Password::hash'd string `Password::check's against itself."
+    (execute_ops oplist)
+    (DBool true)
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
@@ -651,6 +663,8 @@ let suite =
   ; "Analysis not empty", `Quick, t_analysis_not_empty
   ; "Parsing JSON to DVals doesn't care about key order", `Quick,
     t_dval_of_yojson_doesnt_care_about_order
+  ; "End-user password hashing and checking works", `Quick,
+    t_password_hashing_and_checking_works
   ]
 
 let () =
