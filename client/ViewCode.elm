@@ -365,7 +365,11 @@ viewNExpr d id vs config e =
         Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
 
           isExpanded =
-            let mv = Dict.get (deID id) vs.featureFlags
+            let fid =
+                  case msg of
+                    Blank mid -> mid
+                    F mid _ -> mid
+                mv = Dict.get (deID fid) vs.featureFlags
             in case mv of
               Just b -> b
               Nothing -> True

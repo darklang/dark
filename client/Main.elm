@@ -509,9 +509,11 @@ updateMod mod (m, cmd) =
       -- applied from left to right
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
       ToggleNamedFF name id is ->
-        (FeatureFlags.updateVisibility m name id is) ! []
+        let newM = (FeatureFlags.updateVisibility m name id is)
+        in newM ! (closeBlanks newM)
       ToggleUnnamedFF id is ->
-        (FeatureFlags.updateVisibility m "" id is) ! []
+        let newM = (FeatureFlags.updateVisibility m "" id is)
+        in newM ! (closeBlanks newM)
   in
     (newm, Cmd.batch [cmd, newcmd])
 
@@ -1223,10 +1225,7 @@ update_ msg m =
       FeatureFlags.end m id pick
     
     ToggleFeatureFlag bs is ->
-      Many [
-        FeatureFlags.toggle m bs is
-        , UpdateToplevels m.toplevels True
-      ]
+      FeatureFlags.toggle m bs is
 
     -------------------------
     -- Function Management
