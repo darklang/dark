@@ -440,7 +440,14 @@ and call_fn ~(engine:engine) ~(state: exec_state)
       ~f:(fun x ->
           match x with
           | DIncomplete -> true
-          | DError _ -> true
+          (* HACK: going to hardcode this special case because I don't trust myself
+           * to enumerate the consequences of making all DErrors `complete`. In general
+           * we have an 'incomplete problem', especially intersecting with production
+           * errors. it seems to me that it is something with simply side-step with
+           * a proper type-system so I hope this small hack is enough to tide
+           * us over relatively safely until then *)
+          | DError _ when String.Caseless.equal fnname "Bool::isError" -> false
+          | DError _  -> true
           | _ -> false)
   in
 
