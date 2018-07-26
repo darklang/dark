@@ -313,7 +313,8 @@ let tipe_to_yojson (t: tipe) : Yojson.Safe.json =
   `String (t |> tipe_to_string |> String.lowercase)
 
 let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
-  match json with
+  (* sort so this isn't key-order-dependent. *)
+  match Yojson.Safe.sort json with
   | `Int i -> DInt i
   | `Float f -> DFloat f
   | `Bool b -> DBool b

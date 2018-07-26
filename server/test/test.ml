@@ -611,6 +611,19 @@ let t_analysis_not_empty () =
      |> Tuple.T2.get2
      |> List.length)
 
+let t_dval_of_yojson_doesnt_care_about_order () =
+  check_dval "dval_of_json_string doesn't care about key order"
+    (Dval.dval_of_json_string
+       "{
+         \"type\": \"url\",
+         \"value\": \"https://example.com\"
+        }")
+    (Dval.dval_of_json_string
+       "{
+         \"value\": \"https://example.com\",
+         \"type\": \"url\"
+        }")
+
 
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
@@ -636,6 +649,8 @@ let suite =
   ; "Nulls allowed in DB", `Quick, t_nulls_allowed_in_db
   ; "Nulls for missing column", `Quick, t_nulls_added_to_missing_column
   ; "Analysis not empty", `Quick, t_analysis_not_empty
+  ; "Parsing JSON to DVals doesn't care about key order", `Quick,
+    t_dval_of_yojson_doesnt_care_about_order
   ]
 
 let () =
