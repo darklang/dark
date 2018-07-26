@@ -734,7 +734,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "check" TAny;]
   ; r = TBool
-  ; d = "Ignores the first param and returns the 2nd."
+  ; d = "Returns true if the `check` parameter is null"
   ; f = InProcess
         (function
           | (_, [value]) ->
