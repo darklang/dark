@@ -747,6 +747,23 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Bool::isError"]
+  ; ins = []
+  ; p = [par "check" TAny;]
+  ; r = TBool
+  ; d = "Returns true if the `check` parameter is an error"
+  ; f = InProcess
+        (function
+          | (_, [value]) ->
+            (match value with
+             | DError _ -> DBool true
+             | _ -> DBool false)
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   (* ====================================== *)
   (* String *)
   (* ====================================== *)
