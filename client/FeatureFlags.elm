@@ -1,5 +1,8 @@
 module FeatureFlags exposing (..)
 
+-- built-in
+import Dict
+
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
@@ -53,4 +56,25 @@ end m id pick =
                        (newTL |> TL.asHandler |> deMaybe "FF.end") ]
            , FocusExact tl.id (P.toID newPd))
 
+toggle : Model -> BlankOr String -> Bool -> Modification
+toggle m name is =
+  case name of
+    Blank id ->
+      ToggleUnnamedFF id is
+    F id str -> ToggleNamedFF str id is
 
+updateVisibility : Model -> String -> ID -> Bool -> Model
+updateVisibility m name nid is =
+  let id = deID nid
+      fm = Dict.get name m.featureFlags
+  in case fm of
+    Just meta ->
+      { m |
+        featureFlags = Dict.insert name {
+          meta | instances =  Dict.insert id is meta.instances
+        } m.featureFlags
+      }
+    Nothing ->
+      let instances = Dict.singleton id is
+          meta = FlagMeta (B.new ()) instances
+      in { m | featureFlags = Dict.insert name meta m.featureFlags }
