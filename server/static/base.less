@@ -566,6 +566,11 @@ body #grid * {
     &.feature-flag {
       display: none;
     }
+
+    &.computed-value-value {
+      display: none;
+    }
+
   }
 
   .value-error {
@@ -649,6 +654,12 @@ body #grid * {
   .atom {
     margin-left: 4px;
     margin-right: 4px;
+
+    &.selected {
+      .computed-value-value {
+        display: inline-block;
+      }
+    }
   }
 
   .atom.fieldaccessop {
@@ -708,6 +719,12 @@ body #grid * {
         i {
           animation: a 0.75s infinite linear;
         }
+      }
+    }
+
+    &.selected {
+      .computed-value-value {
+        display: inline-block;
       }
     }
   }
@@ -881,6 +898,12 @@ body #grid * {
         color: @grey2;
       }
     }
+  }
+}
+
+.letvarname.selected + .letbind.computed-value {
+  .computed-value-value {
+    display: inline-block;
   }
 }
 
@@ -1079,11 +1102,9 @@ body #grid * {
   .right-button;
 }
 
-.computed-value {
-  // position: relative;
-}
-
 .computed-value-value {
+  display: none;
+
   .value-error & {
     outline: 0.4px red dotted;
   }

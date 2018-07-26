@@ -60,12 +60,10 @@ viewHandler vs h =
   in
   case selectedValue of
     Just selectedValue ->
-      [ Html.div
+      [
+       Html.div
           [Attrs.class "view-data live-view-selection-active"]
-          [ Html.div
-              [Attrs.class "selected-value"]
-              [Html.text selectedValue.value]
-          , Html.ul
+          [ Html.ul
               [Attrs.class "request-cursor"]
               requestEls
           ]
