@@ -142,6 +142,7 @@ type Msg
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
     | EndFeatureFlag ID Pick
+    | ToggleFeatureFlag (BlankOr String) Bool
     | DeleteUserFunctionParameter UserFunction UserFunctionParameter
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
@@ -258,6 +259,14 @@ type alias Class = String
 -----------------------------
 type Pick = PickA
           | PickB
+
+type alias FlagsVS = Dict Int Bool
+
+type alias FlagMeta = {
+    condition: Expr
+    , instances: FlagsVS
+}
+type alias AllFlags = Dict String FlagMeta
 
 -----------------------------
 -- AST
@@ -450,6 +459,7 @@ type alias Model = { error : Maybe String
                    -- be condused with cursorState, which is the code
                    -- that is currently selected.)
                    , tlCursors: TLCursors
+                   , featureFlags: AllFlags
                    }
 
 -- Values that we serialize
@@ -505,6 +515,8 @@ type Modification = Error String
                   | ExecutingFunctionBegan TLID ID
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
+                  | ToggleNamedFF String ID Bool
+                  | ToggleUnnamedFF ID Bool
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

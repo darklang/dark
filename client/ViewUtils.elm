@@ -1,6 +1,7 @@
 module ViewUtils exposing (..)
 
 -- builtin
+import Dict
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
 
@@ -41,6 +42,7 @@ type alias ViewState =
   , executingFunctions: List ID
   , tlCursors: TLCursors
   , testVariants: List VariantTest
+  , featureFlags: FlagsVS
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -97,6 +99,10 @@ createVS m tl = { tl = tl
                                        |> List.map (\(tlid,id) -> id)
                 , tlCursors = m.tlCursors
                 , testVariants = m.tests
+                , featureFlags =
+                  let all = Dict.values m.featureFlags
+                      vs = List.map (\fm -> fm.instances) all
+                  in List.foldl Dict.union Dict.empty vs
                 }
 
 fontAwesome : String -> Html.Html Msg

@@ -1,6 +1,7 @@
 module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
 
 -- builtin
+import Dict
 
 -- lib
 import Html
@@ -363,6 +364,12 @@ viewNExpr d id vs config e =
       let exprLabel msg =
         Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
 
+          isExpanded =
+            let mv = Dict.get (deID id) vs.featureFlags
+            in case mv of
+              Just b -> b
+              Nothing -> True
+
           pickA icon =
             Html.div
             [ Attrs.class "icon pick-a"
@@ -381,22 +388,25 @@ viewNExpr d id vs config e =
 
           hideModal =
             Html.div
-            []
+            [
+              Attrs.attribute "data-content" "Hide ff details"
+              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag msg False)
+            ]
             [ fontAwesome "minus-square" ]
 
-          titleBar = Html.div [ Attrs.class "row title-bar" ] [
-            viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
-            , Html.div [Attrs.class "actions"] [
-              pickA "trash"
-              , fontAwesome "minus-square"
-             ]
+          titleBar = Html.div [ Attrs.class ("row title-bar" )]
+            [ viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
+              , Html.div [Attrs.class "actions"] [
+                pickA "trash"
+                , hideModal
+              ]
             ]
 
           condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
           condResult =
             case condValue of
               Just (Ok lv) -> Runtime.isTrue lv.value
-              _ -> False
+              _ -> True
 
           blockCondition =
             Html.div
@@ -430,7 +440,7 @@ viewNExpr d id vs config e =
         , fontAwesome "flag"
         , Html.div
           [
-            Attrs.class "feature-flag"
+            Attrs.class ("feature-flag" ++ (if isExpanded then " expanded" else ""))
           ]
           [
             titleBar
