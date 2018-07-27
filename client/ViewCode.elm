@@ -374,21 +374,23 @@ viewNExpr d id vs config e =
               Just b -> b
               Nothing -> True
 
-          pickA icon =
+          pickA =
             Html.div
-            [ Attrs.class "icon pick-a"
+            [ Attrs.class "icon pick-a parameter-btn info"
               , Attrs.attribute "data-content" "Cancel feature flag"
-            , eventNoPropagation "click"
-                (\_ -> EndFeatureFlag id PickA)]
-            [ fontAwesome icon ]
+              , Attrs.title "Close feature flag and USE CURRENT EXPRESSION"
+              , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickA)
+            ] [ fontAwesome "check" ]
 
           pickB =
             Html.div
-            [ Attrs.class "icon pick-b"
+            [ Attrs.class "icon pick-b parameter-btn info"
               , Attrs.attribute "data-content" "Pick new version"
-            , eventNoPropagation "click"
-                (\_ -> EndFeatureFlag id PickB)]
-            [ fontAwesome "check" ]
+              , Attrs.title "Close feature flag and USE NEW EXPRESSION"
+              , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickB)
+            ] [ fontAwesome "check" ]
 
           hideModal =
             Html.div
@@ -439,7 +441,7 @@ viewNExpr d id vs config e =
             Html.div
             [ Attrs.class "row expressions" ]
             [
-              exprBlock "Current Expression" (pickA "check") a
+              exprBlock "Current Expression" pickA a
               , exprBlock "New Expression" pickB b
             ]
 
