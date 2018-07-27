@@ -3,6 +3,7 @@ module ViewUtils exposing (..)
 -- builtin
 import Json.Decode as JSD
 import Json.Decode.Pipeline as JSDP
+import Dict
 
 -- lib
 import Html

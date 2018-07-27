@@ -41,12 +41,6 @@ html {
   color: @grey3;
 }
 
-.show-computed-value() {
-  .computed-value-value {
-    display: inline-block;
-  }
-}
-
 body {
   .default;
   height: 100%;
@@ -573,10 +567,6 @@ body #grid * {
       display: none;
     }
 
-    &.computed-value-value {
-      display: none;
-    }
-
   }
 
   .value-error {
@@ -608,9 +598,6 @@ body #grid * {
     margin: 0;
     .quote {
       display: inline-block;
-    }
-    .computed-value-value {
-      bottom: 30px;
     }
   }
 
@@ -660,10 +647,6 @@ body #grid * {
   .atom {
     margin-left: 4px;
     margin-right: 4px;
-
-    &.selected {
-      .show-computed-value();
-    }
   }
 
   .atom.fieldaccessop {
@@ -724,10 +707,6 @@ body #grid * {
           animation: a 0.75s infinite linear;
         }
       }
-    }
-
-    &.selected {
-      .show-computed-value();
     }
   }
 
@@ -903,19 +882,11 @@ body #grid * {
   }
 }
 
-.letvarname.selected + .letbind.computed-value {
-  .show-computed-value();
-}
-
 .letvarname, .fieldname {
   & > .entry {
     margin-left: 0;
     margin-right: 0;
   }
-}
-
-.ifexpr.selected {
-  .show-computed-value();
 }
 
 .omnibox {
@@ -1107,7 +1078,6 @@ body #grid * {
 }
 
 .computed-value-value {
-  display: none;
 
   .value-error & {
     outline: 0.4px red dotted;
