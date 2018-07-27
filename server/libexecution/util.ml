@@ -87,3 +87,19 @@ let charset (headers: (string * string) list)
 
 
 
+(* ------------------- *)
+(* html *)
+(* ------------------- *)
+let html_escape (html : string) : string =
+  String.concat_map html
+    (fun c -> match c with
+             '<' -> "&lt;"
+           | '>' -> "&gt;"
+           | '&' -> "&amp;"
+           (* include these for html-attribute-escaping
+              even though they're not strictly necessary
+              for html-escaping proper. *)
+           | '"' -> "&quot;"
+           (* &apos; doesn't work in IE.... *)
+           | '\'' -> "&#x27;"
+           | _ -> String.of_char c)
