@@ -41,6 +41,12 @@ html {
   color: @grey3;
 }
 
+.show-computed-value() {
+  .computed-value-value {
+    display: inline-block;
+  }
+}
+
 body {
   .default;
   height: 100%;
@@ -656,9 +662,7 @@ body #grid * {
     margin-right: 4px;
 
     &.selected {
-      .computed-value-value {
-        display: inline-block;
-      }
+      .show-computed-value();
     }
   }
 
@@ -723,9 +727,7 @@ body #grid * {
     }
 
     &.selected {
-      .computed-value-value {
-        display: inline-block;
-      }
+      .show-computed-value();
     }
   }
 
@@ -902,9 +904,7 @@ body #grid * {
 }
 
 .letvarname.selected + .letbind.computed-value {
-  .computed-value-value {
-    display: inline-block;
-  }
+  .show-computed-value();
 }
 
 .letvarname, .fieldname {
@@ -912,6 +912,10 @@ body #grid * {
     margin-left: 0;
     margin-right: 0;
   }
+}
+
+.ifexpr.selected {
+  .show-computed-value();
 }
 
 .omnibox {
