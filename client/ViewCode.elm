@@ -396,14 +396,20 @@ viewNExpr d id vs config e =
               Attrs.attribute "data-content" "Hide ff details"
               , eventNoPropagation "click" (\_ -> ToggleFeatureFlag msg False)
             ]
-            [ fontAwesome "minus-square" ]
+            [ fontAwesome "minus" ]
+          
+          expandModal =
+            Html.div
+            [
+              Attrs.attribute "data-content" "Show ff details"
+              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag msg True)
+            ]
+            [ fontAwesome "flag" ]
 
           titleBar = Html.div [ Attrs.class ("row title-bar" )]
             [ viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
-              , Html.div [Attrs.class "actions"] [
-                pickA "trash"
-                , hideModal
-              ]
+              , Html.div [Attrs.class "actions"]
+              [ if isExpanded then hideModal else expandModal ]
             ]
 
           condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
@@ -444,7 +450,7 @@ viewNExpr d id vs config e =
         , fontAwesome "flag"
         , Html.div
           [
-            Attrs.class ("feature-flag" ++ (if isExpanded then " expanded" else ""))
+            Attrs.class ("feature-flag" ++ (if isExpanded then " expand" else ""))
           ]
           [
             titleBar
