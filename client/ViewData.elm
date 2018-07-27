@@ -63,7 +63,10 @@ viewHandler vs h =
       [
        Html.div
           [Attrs.class "view-data live-view-selection-active"]
-          [ Html.ul
+          [ Html.div
+              [Attrs.class "selected-value"]
+              [Html.text selectedValue.value]
+            , Html.ul
               [Attrs.class "request-cursor"]
               requestEls
           ]
