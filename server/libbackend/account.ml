@@ -366,6 +366,11 @@ let init () : unit =
     ; password = "tim"
     ; email = "tchang2017@gmail.com"
     ; name = "Tim Chang"};
+  upsert_account
+    { username = "jen"
+    ; password = "aprahamian"
+    ; email = "j.aprahamian@gmail.com"
+    ; name = "Jen Aprahamian"};
 
   ()
 
