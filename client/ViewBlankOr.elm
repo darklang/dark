@@ -150,29 +150,30 @@ div vs configs content =
       computedValueData = Maybe.andThen value computedValueAs
       hoverdata = Maybe.andThen value hoverAs
 
-      (computedValueClasses, computedValue) =
-        if incomplete
-          || (Just vs.tlid) /= tlidOf vs.cursorState
-        then
-          ([], [])
-        else
-          case computedValueData of
-            Nothing -> ([], [])
-            Just (Ok lv) ->
-              ( ["computed-value"]
-              , [ Html.div
-                    [Attrs.class "computed-value-value"]
-                    [Html.text lv.value]
-                ])
-            Just (Err err) ->
-              ( ["computed-value computed-value-error"]
-              , [ Html.div
-                    [Attrs.class "computed-value-value"]
-                    [ViewScaffold.viewError (Just err)]
-                ])
-
       selected = thisID == selectedID
                  && ME.isJust thisID
+
+      selectedValue =
+        case vs.cursorState of
+          Selecting tlid (Just (ID id)) ->
+            Dict.get id vs.lvs
+          _ -> Nothing
+      
+      selectedComputedValue =
+        case selectedValue of
+          Just sv ->
+          if selected then
+            [
+              Html.div
+                [Attrs.class "computed-value"]
+                [Html.div
+                  [Attrs.class "computed-value-value"]
+                  [Html.text sv.value]
+                ]
+            ]
+          else []
+          Nothing -> []
+
       mouseover = mouseoverAs == vs.hovering
                                  && ME.isJust mouseoverAs
       incomplete =
@@ -186,7 +187,6 @@ div vs configs content =
                  _ -> []
       allClasses = classes
                   ++ idAttr
-                  ++ computedValueClasses
                   ++ (if selected then ["selected"] else [])
                   ++ (if mouseover then ["mouseovered"] else [])
                   ++ (if incomplete then ["incomplete"] else [])
@@ -210,7 +210,7 @@ div vs configs content =
                        [viewEditFn editFn showFeatureFlag]
                      Nothing -> if showFeatureFlag then [viewCreateFn] else []
   in
-    Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ computedValue)
+    Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ selectedComputedValue)
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
