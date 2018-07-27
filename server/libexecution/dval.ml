@@ -43,6 +43,7 @@ let rec tipe_to_string t : string =
   | TBelongsTo s -> s
   | THasMany s -> "[" ^ s ^ "]"
   | TDbList tipe -> "[" ^ (tipe_to_string tipe) ^ "]"
+  | TPassword -> "Password"
 
 let rec tipe_of_string str : tipe =
   match String.lowercase str with
@@ -67,6 +68,7 @@ let rec tipe_of_string str : tipe =
   | "date" -> TDate
   | "title" -> TTitle
   | "url" -> TUrl
+  | "password" -> TPassword
   | _ -> (* otherwise *)
     if String.is_prefix str "["  && String.is_suffix str "]"
     then
@@ -85,6 +87,7 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "float" -> TDbList TFloat
   | "bool" -> TDbList TBool
   | "boolean" -> TDbList TBool
+  | "password" -> TDbList TPassword
   | "obj" -> Exception.internal "todo"
   | "block" -> Exception.internal "todo"
   | "incomplete" -> Exception.internal "todo"
@@ -116,6 +119,7 @@ let tipe_of (dv : dval) : tipe =
   | DDate _ -> TDate
   | DTitle _ -> TTitle
   | DUrl _ -> TUrl
+  | DPassword _ -> TPassword
 
 
 let tipename (dv: dval) : string =
@@ -171,7 +175,7 @@ let is_stringable (dv : dval) : bool =
   match dv with
   | DBlock _ | DIncomplete | DError _
   | DID _ | DDate _ | DTitle _ | DUrl _
-  | DDB _ -> true
+  | DPassword _ | DDB _ -> true
   |  _ -> is_primitive dv
 
 (* A simple representation, showing primitives as their expected literal
@@ -335,6 +339,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "error" -> DError v
     | "incomplete" -> DIncomplete
     | "char" -> DChar (Char.of_string v)
+    | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
     | "db" -> Exception.user "Can't deserialize DBs"
     | "block" -> Exception.user "Can't deserialize blocks"
     | _ -> Exception.user ("Can't deserialize type: " ^ tipe)
@@ -347,7 +352,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
 let dval_of_yojson (json : Yojson.Safe.json) : (dval, string) result =
   Result.Ok (dval_of_yojson_ json)
 
-let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
+let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.json =
   let tipe = dv |> tipe_of |> tipe_to_yojson in
   let wrap_user_type value =
     if livevalue
@@ -364,10 +369,10 @@ let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
   | DBool b -> `Bool b
   | DNull -> `Null
   | DStr s -> `String s
-  | DList l -> `List (List.map l dval_to_yojson)
+  | DList l -> `List (List.map l (dval_to_yojson ~redact))
   | DObj o -> o
               |> DvalMap.to_alist
-              |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson v))
+              |> List.map ~f:(fun (k,v) -> (k, dval_to_yojson ~redact v))
               |> (fun a -> `Assoc a)
 
   (* opaque types *)
@@ -379,13 +384,16 @@ let rec dval_to_yojson ?(livevalue=false) (dv : dval) : Yojson.Safe.json =
   | DError msg -> wrap_user_str msg
 
   | DResp (h, hdv) ->
-    wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson hdv])
+    wrap_user_type (`List [ dhttp_to_yojson h ; dval_to_yojson ~redact hdv])
 
   | DDB db -> wrap_user_str db.name
   | DID id -> wrap_user_str (Uuidm.to_string id)
   | DUrl url -> wrap_user_str url
   | DTitle title -> wrap_user_str title
   | DDate date -> wrap_user_str (isostring_of_date date)
+  | DPassword hashed -> if redact
+                       then wrap_user_type `Null
+                       else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
 
 let is_json_primitive (dv: dval) : bool =
   match dv with
@@ -393,8 +401,8 @@ let is_json_primitive (dv: dval) : bool =
   (* everything else is a list, an actual object, or a wrapped object *)
   | _ -> false
 
-let dval_to_json_string (v: dval) : string =
-  v |> dval_to_yojson |> Yojson.Safe.to_string
+let dval_to_json_string ?(redact=true) (v: dval) : string =
+  v |> dval_to_yojson ~redact |> Yojson.Safe.to_string
 
 let dval_of_json_string (s: string) : dval =
   s
@@ -402,14 +410,14 @@ let dval_of_json_string (s: string) : dval =
   |> dval_of_yojson
   |> Result.ok_or_failwith
 
-let dval_to_pretty_json_string (v: dval) : string =
-  v |> dval_to_yojson |> Yojson.Safe.pretty_to_string
+let dval_to_pretty_json_string ?(redact=true) (v: dval) : string =
+  v |> dval_to_yojson ~redact |> Yojson.Safe.pretty_to_string
 
-let dvalmap_to_string (m:dval_map) : string =
-  DObj m |> dval_to_yojson |> Yojson.Safe.to_string
+let dvalmap_to_string ?(redact=true) (m:dval_map) : string =
+  DObj m |> dval_to_yojson ~redact |> Yojson.Safe.to_string
 
-let dvallist_to_string (l:dval list) : string =
-  DList l |> dval_to_yojson |> Yojson.Safe.to_string
+let dvallist_to_string ?(redact=true) (l:dval list) : string =
+  DList l |> dval_to_yojson ~redact |> Yojson.Safe.to_string
 
 
 

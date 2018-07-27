@@ -25,7 +25,8 @@
                 ppx_deriving.std
                 ppx_deriving_yojson
                 ppx_deriving_yojson.runtime
-                ppx_sexp_conv))
+                ppx_sexp_conv
+                sodium))
   )
 )
 

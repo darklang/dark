@@ -167,6 +167,9 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
      let args = List.map ~f:to_pair rest in
      f (ObjectLiteral args))
 
+  | Sexp.List [Sexp.Atom "."; obj; Sexp.Atom field] ->
+     f (FieldAccess (ast_for_ obj, f field))
+
   (* lists *)
   | Sexp.List args ->
     f (ListLiteral (List.map ~f:ast_for_ args))
@@ -625,6 +628,71 @@ let t_dval_of_yojson_doesnt_care_about_order () =
         }")
 
 
+let t_password_hashing_and_checking_works () =
+  let oplist = [ "(let password 'password'
+                    (Password::check (Password::hash password)
+                      password))"
+                 |> ast_for
+                 |> handler
+                 |> hop
+               ] in
+  check_dval "A `Password::hash'd string `Password::check's against itself."
+    (execute_ops oplist)
+    (DBool true)
+
+let t_password_hash_db_roundtrip () =
+  let ast =
+    ast_for "(let pw (Password::hash 'password')
+               (let _ (DB::insert (obj (password pw)) Passwords)
+                 (let fetched (. (List::head (DB::fetchAll Passwords)) password)
+                   (pw fetched))))" in
+  let oplist = [ Op.CreateDB (dbid, pos, "Passwords")
+               ; Op.AddDBCol (dbid, 11, 12)
+               ; Op.SetDBColName (dbid, 11, "password")
+               ; Op.SetDBColType (dbid, 12, "Password")
+               ; hop (handler ast)
+               ] in
+  AT.check AT.int "A `Password::hash'd string can get stored in and retrieved \
+                    from a user database."
+    0 (match execute_ops oplist with
+         DList [p1; p2;] -> compare_dval p1 p2
+       | _ -> 1)
+
+
+let t_passwords_dont_serialize () =
+  let password = DPassword (Bytes.of_string "x") in
+  AT.check AT.bool "Passwords don't serialize by default"
+    true
+    (let serialized = password
+                      |> Dval.dval_to_yojson (* ~redact:true by default *)
+                      |> Yojson.Safe.sort in
+     match serialized with
+       `Assoc [("type", `String "password");
+               ("value", `Null)] -> true
+      |_ -> false)
+
+let t_passwords_serialize () =
+  let password = DPassword (Bytes.of_string "x") in
+  AT.check (AT.option AT.string) "Passwords serialize if you turn off redaction "
+    (Some "x")
+    (let serialized = password
+                      |> Dval.dval_to_yojson ~redact:false
+                      |> Yojson.Safe.sort in
+     match serialized with
+       `Assoc [("type", `String "password");
+               ("value", `String x)] -> Some (B64.decode x)
+      |_ -> None)
+
+let t_password_json_round_trip_forwards () =
+  let password = DPassword (Bytes.of_string "x") in
+  AT.check at_dval "Passwords serialize and deserialize if there's no redaction."
+    password (password |> Dval.dval_to_json_string ~redact:false |> Dval.dval_of_json_string)
+
+let t_password_json_round_trip_backwards () =
+  let json = "x" |> Bytes.of_string |> (fun p -> DPassword p) |> Dval.dval_to_json_string ~redact:false in
+  AT.check AT.string "Passwords deserialize and serialize if there's no redaction."
+    json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
@@ -651,6 +719,16 @@ let suite =
   ; "Analysis not empty", `Quick, t_analysis_not_empty
   ; "Parsing JSON to DVals doesn't care about key order", `Quick,
     t_dval_of_yojson_doesnt_care_about_order
+  ; "End-user password hashing and checking works", `Quick,
+    t_password_hashing_and_checking_works
+  ; "Password hashes can be stored in and retrieved from the DB", `Quick,
+     t_password_hash_db_roundtrip
+  ; "Passwords don't serialize by default", `Quick, t_passwords_dont_serialize
+  ; "Passwords serialize if you turn off redaction", `Quick, t_passwords_serialize
+  ; "Passwords serialize and deserialize if there's no redaction.", `Quick,
+    t_password_json_round_trip_forwards
+  ; "Passwords deserialize and serialize if there's no redaction.", `Quick,
+    t_password_json_round_trip_backwards
   ]
 
 let () =

@@ -531,6 +531,7 @@ generateFromModel m a =
                   , "Title"
                   , "Url"
                   , "Date"
+                  , "Password"
                   ]
                     dbs =
                       m.toplevels
