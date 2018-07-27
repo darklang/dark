@@ -693,6 +693,16 @@ let t_password_json_round_trip_backwards () =
   AT.check AT.string "Passwords deserialize and serialize if there's no redaction."
     json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
 
+let t_html_escaping () =
+  let oplist = [ "(String::htmlEscape 'test<>&\\\"\\\'')"
+                 |> ast_for
+                 |> handler
+                 |> hop
+               ] in
+  check_dval "html escaping works"
+    (execute_ops oplist)
+    (DStr "test&lt;&gt;&amp;&quot;&#x27;")
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
@@ -729,6 +739,7 @@ let suite =
     t_password_json_round_trip_forwards
   ; "Passwords deserialize and serialize if there's no redaction.", `Quick,
     t_password_json_round_trip_backwards
+  ; "HTML escaping works reasonably", `Quick, t_html_escaping
   ]
 
 let () =
