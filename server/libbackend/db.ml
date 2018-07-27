@@ -76,8 +76,8 @@ let to_sql param : string =
   | Uuid uuid -> Uuidm.to_string uuid
   | Binary str -> str (* the to_binary_bool handled this *)
   | Secret str -> str
-  | DvalJson dv -> Dval.dval_to_json_string dv
-  | DvalmapJsonb dvm -> Dval.dvalmap_to_string dvm
+  | DvalJson dv -> Dval.dval_to_json_string ~redact:false dv
+  | DvalmapJsonb dvm -> Dval.dvalmap_to_string ~redact:false dvm
   | Null -> Postgresql.null
   | List _ -> Exception.internal "Cannot pass List to be escaped"
 

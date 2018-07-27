@@ -82,6 +82,7 @@ tipe2str t =
     TDate -> "Date"
     TTitle -> "Title"
     TUrl -> "Url"
+    TPassword -> "Password"
     TBelongsTo s -> s
     THasMany s -> "[" ++ s ++ "]"
     TDbList a -> "[" ++ (tipe2str a) ++ "]"
@@ -97,6 +98,7 @@ str2tipe t =
           "float" -> TFloat
           "bool" -> TBool
           "boolean" -> TBool
+          "password" -> TPassword
           "null" -> todo "not implemented yet"
           "any" -> todo "not implemented yet"
           "list" -> todo "not implemented yet"
@@ -127,6 +129,7 @@ str2tipe t =
   "datastore" -> TDB
   "date" -> TDate
   "error" -> TError
+  "password" -> TPassword
   other ->
     if String.startsWith "[" other && String.endsWith "]" other
     then
