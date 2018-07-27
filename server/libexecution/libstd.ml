@@ -1151,6 +1151,22 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["String::htmlEscape"]
+  ; ins = []
+  ; p = [par "html" TStr]
+  ; r = TStr
+  ; d = "Escape an untrusted string in order to include it safely in HTML output."
+  ; f = InProcess
+          (function
+           | (_, [DStr s]) -> DStr (Util.html_escape s)
+           | args -> fail args)
+  ; pr = None
+  ; ps = false
+  }
+  ;
+
+
+
   (* ====================================== *)
   (* List *)
   (* ====================================== *)
