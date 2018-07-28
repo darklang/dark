@@ -11,7 +11,7 @@ echo "Stopping procs, copying into $DB, restarting"
 ###########################
 killall psql || true
 killall main.exe || true
-dropdb $DB
+dropdb $DB --if-exists
 createdb -T $TEMPDB $DB
 scripts/support/runserver
 
