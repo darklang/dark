@@ -10,6 +10,8 @@ set -x
 # Fetch latest containers from GCR
 #################################
 
+PROJECT="$1"
+
 echo "Fetching latest containers from GCR"
 
 IMAGE_LATEST="gcr.io/$PROJECT/dark-gcp:latest"
