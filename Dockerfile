@@ -92,6 +92,9 @@ RUN DEBIAN_FRONTEND=noninteractive \
       kubectl \
       python3-pip \
       libsodium-dev \
+      gcc \
+      python-dev \
+      python-setuptools \
       && apt-get clean \
       && rm -rf /var/lib/apt/lists/*
 
@@ -177,7 +180,6 @@ RUN echo "address=/localhost/127.0.0.1" > /etc/dnsmasq.d/dnsmasq-localhost.conf
 ############################
 RUN pip3 install requests
 
-
 ############################
 # Google cloud
 ############################
@@ -189,6 +191,12 @@ RUN curl -sSL "https://github.com/GoogleCloudPlatform/docker-credential-gcr/rele
 
 RUN docker-credential-gcr config --token-source="gcloud"
 
+# crcmod for gsutil
+# apt-get install is done above
+# RUN sudo apt-get update && sudo apt-get install -y gcc python-dev python-setuptools
+RUN easy_install -U pip
+RUN pip uninstall crcmod
+RUN pip install -U crcmod
 
 
 ############################
@@ -209,6 +217,7 @@ ENV FORCE_OCAML_UPDATE 0
 RUN opam update
 
 #ENV OPAMDEBUG true
+# RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 RUN opam install -y \
   ppx_deriving.4.2.1 \
   core.v0.11.1  \
@@ -244,7 +253,6 @@ RUN opam install -y \
   lambda-term.1.13 \
   sodium.0.6.0
 
-# RUN opam install tls.0.8.0 # breaks build, hence specific packages below
 
 ############################
 # Environment
@@ -255,12 +263,6 @@ ENV TERM=xterm-256color
 ######################
 # Quick hacks here, to avoid massive recompiles
 ######################
-
-# crcmod for gsutil
-RUN sudo apt-get update && sudo apt-get install -y gcc python-dev python-setuptools
-RUN sudo easy_install -U pip
-RUN sudo pip uninstall crcmod
-RUN sudo pip install -U crcmod
 
 ############################
 # Finish
