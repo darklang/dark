@@ -8,3 +8,4 @@ persistdir
 gcp-rundir
 gcp-persistdir
 gcp-builddir
+sqldump*.gz
