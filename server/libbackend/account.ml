@@ -67,14 +67,15 @@ let is_admin ~username : bool =
     ~params:[String username]
 
 let valid_user ~(username:username) ~(password:string) : bool =
-  Db.exists
-    ~name:"valid_user"
-    ~subject:username
-    "SELECT 1 from accounts
-      WHERE accounts.username = $1
-        AND accounts.password = $2"
-    ~params:[String username; Secret password]
-
+  match Db.fetch_one_option
+          ~name:"valid_user"
+          ~subject:username
+          "SELECT password from accounts
+           WHERE accounts.username = $1"
+          ~params:[String username] with
+    None -> false
+  | Some [db_password] -> password = db_password
+  | _ -> false
 
 let can_edit ~(auth_domain:string) ~(username:username) : bool =
   String.Caseless.equal username auth_domain
