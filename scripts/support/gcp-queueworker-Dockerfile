@@ -17,6 +17,7 @@ RUN apt-get update \
       libpq-dev=9.6.9-0ubuntu0.17.10 \
       libev-dev=1:4.22-1 \
       sudo \
+      libsodium-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Locales
