@@ -3,6 +3,8 @@ open Libexecution
 
 open Types
 
+module Hash = Sodium.Password_hash.Bytes
+
 type username = string
 
 type account = { username: username
@@ -74,7 +76,10 @@ let valid_user ~(username:username) ~(password:string) : bool =
            WHERE accounts.username = $1"
           ~params:[String username] with
     None -> false
-  | Some [db_password] -> password = db_password
+  | Some [db_password] -> password
+                         |> Bytes.of_string
+                         |> Hash.wipe_to_password
+                         |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
   | _ -> false
 
 let can_edit ~(auth_domain:string) ~(username:username) : bool =
@@ -111,6 +116,11 @@ let init_testing () : unit =
   upsert_account
     { username = "test"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
+                 |> Bytes.of_string
+                 |> Hash.wipe_to_password
+                 |> Hash.hash_password Sodium.Password_hash.interactive
+                 |> Bytes.to_string
+                 |> B64.encode
     ; email = "test@darklang.com"
     ; name = "Dark OCaml Tests"}
 
