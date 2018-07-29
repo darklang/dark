@@ -200,6 +200,7 @@ type alias AnalysisParams = List TLID
 -- Autocompletes
 -----------------------------
 type alias Autocomplete = { functions : List Function
+                          , admin : Bool -- flagging hack
                           , completions : List (List AutocompleteItem)
                           , allCompletions : List AutocompleteItem
                           , index : Int

@@ -127,17 +127,28 @@ compareSuggestionWithActual a actual =
 ----------------------------
 
 empty : Autocomplete
-empty = init []
+empty = init [] False
 
-init : List Function -> Autocomplete
-init functions = { functions = functions
-                 , completions = [[],[],[],[]]
-                 , allCompletions = []
-                 , index = -1
-                 , value = ""
-                 , tipe = Nothing
-                 , target = Nothing
-                 }
+nonAdminFunctions : List Function -> List Function
+nonAdminFunctions fns =
+  List.filter (\fn -> not (Util.reExactly ".*_v1" fn.name)) fns
+
+init : List Function -> Bool -> Autocomplete
+init fns isAdmin =
+  let functions =
+        if isAdmin
+        then fns
+        else nonAdminFunctions fns
+  in
+  { functions = functions
+  , admin = isAdmin
+  , completions = [[],[],[],[]]
+  , allCompletions = []
+  , index = -1
+  , value = ""
+  , tipe = Nothing
+  , target = Nothing
+  }
 
 reset : Model -> Autocomplete -> Autocomplete
 reset m a =
@@ -151,7 +162,7 @@ reset m a =
           (\f -> not (List.member f.name (List.map .name userFunctionMetadata)))
         |> List.append userFunctionMetadata
   in
-      init functions |> regenerate m
+      init functions a.admin |> regenerate m
 
 numCompletions : Autocomplete -> Int
 numCompletions a =
