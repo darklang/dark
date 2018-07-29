@@ -19,8 +19,8 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DObj o; DStr s]) ->
             (match DvalMap.find o s with
-             | Some d -> d
-             | None -> DNull)
+             | Some d -> DOption (OptJust d)
+             | None -> DOption OptNothing)
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -39,8 +39,8 @@ let fns : Lib.shortfn list = [
         (function
           | (_, [DList l]) ->
             (match List.hd l with
-             | Some dv -> dv
-             | None -> DNull)
+             | Some dv -> DOption (OptJust dv)
+             | None -> DOption OptNothing)
 
           | args -> fail args)
   ; pr = None
@@ -55,8 +55,8 @@ let fns : Lib.shortfn list = [
   ; d = "Returns the last item in the list as an option"
   ; f = InProcess
         (function
-          | (_, [DList []]) -> DNull
-          | (_, [DList l]) -> List.last_exn l
+          | (_, [DList []]) -> DOption OptNothing
+          | (_, [DList l]) -> DOption (OptJust (List.last_exn l))
           | args -> fail args)
   ; pr = None
   ; ps = true
