@@ -54,6 +54,7 @@ defaultModel = { error = Nothing
                , lastMod = NoChange
                -- this is awkward, but avoids circular deps
                , complete = { functions = []
+                            , admin = False
                             , completions = [[],[],[],[]]
                             , allCompletions = []
                             , index = -1
