@@ -45,6 +45,7 @@ let rec tipe_to_string t : string =
   | TDbList tipe -> "[" ^ (tipe_to_string tipe) ^ "]"
   | TPassword -> "Password"
   | TUuid -> "UUID"
+  | TOption -> "Option"
 
 let rec tipe_of_string str : tipe =
   match String.lowercase str with
@@ -103,7 +104,7 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "url" -> Exception.internal "todo"
   | table -> THasMany table
 
-let tipe_of (dv : dval) : tipe =
+let rec tipe_of (dv : dval) : tipe =
   match dv with
   | DInt _ -> TInt
   | DFloat _ -> TFloat
@@ -124,6 +125,7 @@ let tipe_of (dv : dval) : tipe =
   | DUrl _ -> TUrl
   | DPassword _ -> TPassword
   | DUuid _ -> TUuid
+  | DOption _ -> TOption
 
 
 let tipename (dv: dval) : string =
@@ -401,6 +403,10 @@ let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Sa
                        then wrap_user_type `Null
                        else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
   | DUuid uuid -> wrap_user_str (Uuidm.to_string uuid)
+  | DOption opt ->
+    match opt with
+    | OptNothing -> wrap_user_type `Null
+    | OptJust dv -> wrap_user_type (dval_to_yojson ~redact ~livevalue dv)
 
 let is_json_primitive (dv: dval) : bool =
   match dv with

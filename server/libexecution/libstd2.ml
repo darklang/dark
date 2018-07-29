@@ -13,8 +13,8 @@ let fns : Lib.shortfn list = [
   { pns = ["Dict::get_v1"]
   ; ins = []
   ; p = [par "dict" TObj; par "key" TStr]
-  ; r = TAny
-  ; d = "Looks up `key` in object `dict` and returns the value if found, and Error otherwise"
+  ; r = TOption
+  ; d = "Looks up `key` in object `dict` and returns an option"
   ; f = InProcess
         (function
           | (_, [DObj o; DStr s]) ->
@@ -33,8 +33,8 @@ let fns : Lib.shortfn list = [
   { pns = ["List::head_v1"]
   ; ins = []
   ; p = [par "list" TList]
-  ; r = TAny
-  ; d = ""
+  ; r = TOption
+  ; d = "Fetches the head of the list and returns an option"
   ; f = InProcess
         (function
           | (_, [DList l]) ->
@@ -51,8 +51,8 @@ let fns : Lib.shortfn list = [
   { pns = ["List::last_v1"]
   ; ins = []
   ; p = [par "list" TList]
-  ; r = TAny
-  ; d = ""
+  ; r = TOption
+  ; d = "Returns the last item in the list as an option"
   ; f = InProcess
         (function
           | (_, [DList []]) -> DNull

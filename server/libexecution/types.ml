@@ -40,6 +40,7 @@ type tipe_ =
   | TDbList of tipe_
   | TPassword
   | TUuid
+  | TOption
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -164,6 +165,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   module DvalMap = String.Map
   type dval_map = dval DvalMap.t [@opaque]
+  and optionT = OptJust of dval
+              | OptNothing
   and dval =
     (* basic types  *)
     | DInt of int
@@ -188,6 +191,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DUrl of string
     | DPassword of Bytes.t
     | DUuid of uuid
+    | DOption of optionT
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 
