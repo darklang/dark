@@ -89,6 +89,14 @@ let can_edit ~(auth_domain:string) ~(username:username) : bool =
 let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password
 
+let hash_password password
+  = password
+    |> Bytes.of_string
+    |> Hash.wipe_to_password
+    |> Hash.hash_password Sodium.Password_hash.interactive
+    |> Bytes.to_string
+    |> B64.encode
+
 let owner ~(auth_domain:string) : Uuidm.t option =
   Db.fetch_one_option
     ~name:"owner"
@@ -116,13 +124,8 @@ let init_testing () : unit =
   upsert_account
     { username = "test"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
-                 |> Bytes.of_string
-                 |> Hash.wipe_to_password
-                 |> Hash.hash_password Sodium.Password_hash.interactive
-                 |> Bytes.to_string
-                 |> B64.encode
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"}
+    ; name = "Dark OCaml Tests"} ;;
 
 let init () : unit =
   init_testing ();
