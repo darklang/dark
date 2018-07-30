@@ -367,10 +367,10 @@ replace p replacement tl =
     PDarkType _ -> specTypeReplace ()
     PDarkTypeField _ -> specTypeReplace ()
     PDBColType tipe ->
-      tl
+      astReplace ()
       -- SetDBColType tl.id id (tipe |> B.toMaybe |> deMaybe "replace - tipe")
     PDBColName name ->
-      tl
+      astReplace ()
       -- SetDBColName tl.id id (name |> B.toMaybe |> deMaybe "replace - name")
     PFFMsg bo ->
       let h = ha ()
