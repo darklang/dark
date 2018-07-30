@@ -76,7 +76,10 @@ let valid_user ~(username:username) ~(password:string) : bool =
            WHERE accounts.username = $1"
           ~params:[String username] with
     None -> false
-  | Some [db_password] -> password
+  (* Temporarily allow passwords that either equal what's in
+     the database, or that hash to what's in the database. *)
+  | Some [db_password] -> password = db_password
+                         || password
                          |> Bytes.of_string
                          |> Hash.wipe_to_password
                          |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
@@ -125,7 +128,13 @@ let init_testing () : unit =
     { username = "test"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"} ;;
+    ; name = "Dark OCaml Tests"};
+
+  upsert_account
+    { username = "test-hashed"
+    ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; email = "test@darklang.com"
+    ; name = "Dark OCaml Tests with Hashed Password"};;
 
 let init () : unit =
   init_testing ();
