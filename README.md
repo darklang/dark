@@ -214,3 +214,27 @@ npm dependencies are managed in development, bundled up via browserify, tracked 
 * Use the package in `server/src/main.js` or whatever
 * $`yarn build` manages `/server/static/bundle.js`
 
+# Important canvases
+
+This is a list of customers and canvases which matter at the moment. If a canvas is causing us problems but is not listed, one option is to ignore or possibly even delete it. Canvases listed below are important and should never be deleted and should definitely always be migrated and handled with care:
+
+- dabblefox-shelf
+- dabblefox-news
+- dabblefox-temp
+- gracey
+- ian-httpbin
+- paul-slackermuse
+
+I'm not sure about the following?
+- dabblefox-7-11?
+- dabblefox-asdf
+- ellen-battery
+- ellen-battery2
+- ellen-battery3
+- ian-badreads
+- ian-badreads1
+- ian-onecalendar
+- tom
+- mike-brickbreaker
+- rohankanchana-brickbreaker
+
