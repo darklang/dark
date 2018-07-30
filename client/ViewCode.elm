@@ -365,11 +365,7 @@ viewNExpr d id vs config e =
         Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
 
           isExpanded =
-            let fid =
-                  case msg of
-                    Blank mid -> mid
-                    F mid _ -> mid
-                mv = Dict.get (deID fid) vs.featureFlags
+            let mv = Dict.get (deID id) vs.featureFlags
             in case mv of
               Just b -> b
               Nothing -> True
@@ -396,7 +392,7 @@ viewNExpr d id vs config e =
             Html.div
             [
               Attrs.attribute "data-content" "Hide ff details"
-              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag msg False)
+              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag id False)
             ]
             [ fontAwesome "minus" ]
           
@@ -404,7 +400,7 @@ viewNExpr d id vs config e =
             Html.div
             [
               Attrs.attribute "data-content" "Show ff details"
-              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag msg True)
+              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag id True)
             ]
             [ fontAwesome "flag" ]
 
@@ -418,7 +414,7 @@ viewNExpr d id vs config e =
           condResult =
             case condValue of
               Just (Ok lv) -> Runtime.isTrue lv.value
-              _ -> True
+              _ -> False
 
           blockCondition =
             Html.div

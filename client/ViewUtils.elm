@@ -99,10 +99,7 @@ createVS m tl = { tl = tl
                                        |> List.map (\(tlid,id) -> id)
                 , tlCursors = m.tlCursors
                 , testVariants = m.tests
-                , featureFlags =
-                  let all = Dict.values m.featureFlags
-                      vs = List.map (\fm -> fm.instances) all
-                  in List.foldl Dict.union Dict.empty vs
+                , featureFlags = m.featureFlags
                 }
 
 fontAwesome : String -> Html.Html Msg
