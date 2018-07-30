@@ -483,17 +483,19 @@ feature_flag_works : Model -> TestResult
 feature_flag_works m =
   let ast = onlyHandler m |> .ast in
   case ast of
-    F id
+    F _
       (Let
-         (F _ "v")
-         (F _ (Value "6"))
-         (F _ (Variable "v"))) ->
-           case m.cursorState of
-             Selecting _ sid ->
-               if Just id == sid
-               then pass
-               else fail (ast, m.cursorState, id)
-             _ -> fail (ast, m.cursorState, id)
+        (F _ "a")
+        (F _ (Value "13"))
+        (F _ (FeatureFlag
+          (F _ "myflag")
+          (F _ (FnCall "Int::greaterThan" ([F _ (Variable "a"), F _ (Value "10")])))
+          (F _ (Value "\"A\""))
+          (F _ (Value "\"B\""))
+          )
+        )
+      )
+      -> pass
     _ -> fail (ast, m.cursorState)
 
 simple_tab_ordering : Model -> TestResult
@@ -607,4 +609,3 @@ object_literals_work m =
             PEventName _ -> pass
             other -> fail (m.cursorState, other)
     other -> fail other
-

@@ -82,4 +82,5 @@ defaultModel = { error = Nothing
                , cursorState = Deselected
                , executingFunctions = []
                , tlCursors = Dict.empty
+               , featureFlags = Dict.empty
                }

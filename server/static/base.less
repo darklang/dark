@@ -93,14 +93,21 @@ body #grid * {
 }
 
 #buttons {
-  bottom: 0;
-  left: 0px;
   position: absolute;
+  bottom: 0;
+  left: 0;
   width: 100%;
-  background-color: @black1;
 
   .specialButton {
-    margin-right: 4px;
+    margin-right: 8px;
+    padding: 4px;
+    background-color: @black2;
+
+    &:hover, &:active {
+      color: @green;
+      background-color: @grey1;
+    }
+
     &#integrationTestSignal {
       display: inline-block;
     }
@@ -562,11 +569,6 @@ body #grid * {
   div {
     .layout-inline;
     vertical-align: top;
-
-    &.feature-flag {
-      display: none;
-    }
-
   }
 
   .value-error {
@@ -1034,17 +1036,16 @@ body #grid * {
   }
 }
 
-.feature-flag {
-  display: none;
+.expr-actions {
   position: absolute;
-  right: -16px;
-  .right-button;
-}
+  right: -20px;
+  top: 50%;
+  width: 16px;
 
-.create-function {
-  position: absolute;
-  right: -18px;
-  .right-button;
+  i.fa {
+    .right-button;
+    display: block;
+  }
 }
 
 .parameter-btn {
@@ -1066,6 +1067,21 @@ body #grid * {
         position: absolute;
         left: 100% + 10px;
         color: @red;
+        width: max-content;
+      }
+    }
+  }
+
+  &.info {
+    color: lighten(@grey1, 20%);
+
+    &:hover {
+      &:after {
+        content: attr(title);
+        position: absolute;
+        left: 0;
+        top: -20px;
+        color: @blue;
         width: max-content;
       }
     }
@@ -1105,46 +1121,95 @@ body #grid * {
   font-size: 88%;
 }
 
+@vertical-spacing: 20px;
+@horizontal-padding: 8px;
+@icon-spacing: 6px;
+
 .flagged {
   .fa-flag {
     color: @red;
     font-size: 8px;
   }
 
-  .feature-flag-modal {
-    margin-top: -10px;
+  .feature-flag {
     position: absolute;
-    left: 100% + 10px;
+    left: 88%;
+    margin-top: 0;
+    background-color: transparent;
+    border-style: solid;
+    border-color: @black2;
+    border-width: 0;
+    box-sizing: border-box;
+
+    i.fa {
+      color: @grey3;
+
+      &:hover {
+        color: @white1;
+      }
+    }
+
+    &.expand {
+      border-width: 1px;
+      left: calc(100% + 10px);
+      margin-top: -10px;
+      background-color: @black1;
+
+      .row {
+        display: block;
+      }
+
+      .row.expressions {
+        display: inline-flex;
+      }
+
+      .row.title-bar {
+        background-color: @black2;
+
+        .actions {
+          float: right;
+          margin-right: 0;
+        }
+      }
+
+    }
 
     .row {
-      display: block;
-      margin-top: 18px;
+      display: none;
+      margin-top: @vertical-spacing;
       width: 100%;
-      padding: 0 8px;
+      padding: 0 @horizontal-padding;
+      box-sizing: border-box;
 
-      &:first {
+      &:first-child {
         margin-top: 0;
       }
+
     }
 
     .title-bar {
       display: block;
+      min-width: 150px;
       width: 100%;
+      background-color: transparent;
+      padding: 4px @horizontal-padding;
 
       .flag-name {
-        width: 70%;
+        width: 60%;
       }
 
       .actions {
         width: 30%;
+        float: left;
+        text-align: right;
+        margin-right: 2px;
 
         i.fa {
-          margin-left: 4px;
-          color: @grey3;
-
-          &:hover {
-            color: @white1;
-          }
+          margin-left: @icon-spacing;
+        }
+        
+        i.fa.fa-flag {
+          font-size: 12px;
         }
       }
     }
@@ -1157,11 +1222,27 @@ body #grid * {
 
     .expressions {
       width: 100%;
+      margin-bottom: @vertical-spacing;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      justify-content: space-between;
+      align-content: stretch;
 
       .cond-expr {
         display: inline-block;
-        width: 50%;
+        align-self: flex-start;
+        min-width: 200px;
+        vertical-align: top;
+        box-sizing: border-box;
 
+        .icon {
+          margin-left: @icon-spacing;
+        }
+
+        .expr-block {
+          display: block;
+          width: auto;
+        }
       }
     }
   }
@@ -1188,8 +1269,11 @@ body #grid * {
     background-color: blue;
   }
 
-  .feature-flag {
-    display: none;
+  .expr-actions {
+
+    .flag {
+      display: none;
+    }
   }
   .nested-flag {
 

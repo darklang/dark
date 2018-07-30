@@ -126,10 +126,10 @@ let rec sym_exec
          List.iter ~f:(sexe st) exprs
 
        | Filled (_, If (cond, ifbody, elsebody))
-       | Filled (_, FeatureFlag(_, cond, ifbody, elsebody)) ->
+       | Filled (_, FeatureFlag(_, cond, elsebody, ifbody)) ->
          sexe st cond;
          sexe st ifbody;
-         sexe st elsebody
+         sexe st elsebody;
 
        | Filled (_, Lambda (vars, body)) ->
          let new_st =
@@ -324,7 +324,6 @@ let rec exec ~(engine: engine)
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals
-
      | Filled (id, If (cond, ifbody, elsebody))
      | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
        (match ctx with
@@ -358,7 +357,6 @@ let rec exec ~(engine: engine)
            | DIncomplete -> DIncomplete
            | DError _ -> DIncomplete
            | _ -> exe st ifbody))
-
      | Filled (id, Lambda (vars, body)) ->
        if ctx = Preview
        then
@@ -660,4 +658,3 @@ let execute_function_for_analysis (state : exec_state) (f : user_fn) :
   ; available_varnames = traced_symbols
   ; input_values = []
   }
-

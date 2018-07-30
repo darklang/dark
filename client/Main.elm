@@ -508,6 +508,7 @@ updateMod mod (m, cmd) =
         processAutocompleteMods m [mod]
       -- applied from left to right
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
+
   in
     (newm, Cmd.batch [cmd, newcmd])
 
@@ -1217,6 +1218,9 @@ update_ msg m =
 
     EndFeatureFlag id pick ->
       FeatureFlags.end m id pick
+    
+    ToggleFeatureFlag id is ->
+      FeatureFlags.toggle m id is
 
     -------------------------
     -- Function Management
