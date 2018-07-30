@@ -105,7 +105,7 @@ jobs:
 
 
       - run: scripts/run-in-docker scripts/gcp-build-containers
-      - run: scripts/run-in-docker scripts/deploy-from-circle
+      - run: scripts/deploy-from-circle
 
       # # For now, we do integration tests after the deploy. If they work
       # # above, then it works. This needs more work but I'm stopping here
