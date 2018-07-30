@@ -85,7 +85,7 @@ test('enter_changes_state', async t => {
 test('field_access', async t => {
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req")
+    .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
@@ -103,7 +103,7 @@ test('field_access_closes', async t => {
 
   await t
     .pressKey("enter")
-    .typeText("#entry-box", "req")
+    .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
@@ -120,11 +120,11 @@ test('field_access_pipes', async t => {
   await t
     .pressKey("enter")
 
-    .typeText("#entry-box", "req")
+    .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
-    .typeText("#entry-box", "bo")
+    .typeText("#entry-box", "bo", slow)
     .expect(acHighlighted("body")).ok()
     .pressKey("shift+enter")
     ;
@@ -134,7 +134,7 @@ test('field_access_nested', async t => {
   await t
     .pressKey("enter")
 
-    .typeText("#entry-box", "req")
+    .typeText("#entry-box", "req", slow)
     .expect(acHighlighted("request")).ok()
     .typeText("#entry-box", ".")
 
@@ -573,7 +573,7 @@ test('feature_flag_works', async t => {
     .pressKey("enter")
 
     // Set condition
-    .typeText("#entry-box", "Int::greaterThan")
+    .typeText("#entry-box", "Int::greaterThan", slow)
     .pressKey("enter")
     .typeText("#entry-box", "a")
     .pressKey("enter")
@@ -581,12 +581,12 @@ test('feature_flag_works', async t => {
     .pressKey("enter")
 
     // Case A
-    .typeText("#entry-box", "\"", slow)
+    .typeText("#entry-box", "\"")
     .typeText("#entry-box", "A")
     .pressKey("enter")
 
     // Case B
-    .typeText("#entry-box", "\"", slow)
+    .typeText("#entry-box", "\"")
     .typeText("#entry-box", "B")
     .pressKey("enter")
 
