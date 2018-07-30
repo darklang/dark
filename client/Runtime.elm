@@ -82,6 +82,7 @@ tipe2str t =
     TDate -> "Date"
     TTitle -> "Title"
     TUrl -> "Url"
+    TOption -> "Option"
     TPassword -> "Password"
     TUuid -> "UUID"
     TBelongsTo s -> s
@@ -102,6 +103,7 @@ str2tipe t =
           "password" -> TPassword
           "id" -> TID
           "uuid" -> TUuid
+          "option" -> TOption
           "null" -> todo "not implemented yet"
           "any" -> todo "not implemented yet"
           "list" -> todo "not implemented yet"
@@ -132,6 +134,7 @@ str2tipe t =
   "datastore" -> TDB
   "date" -> TDate
   "error" -> TError
+  "option" -> TOption
   "password" -> TPassword
   "id" -> TID
   "uuid" -> TUuid

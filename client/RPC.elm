@@ -294,6 +294,7 @@ encodeTipe t =
         TDbList a -> ev "TDbList" [encodeTipe a]
         TPassword -> ev "TPassword" []
         TUuid -> ev "TUuid" []
+        TOption -> ev "TOption" []
 
 encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
 encodeUserFunctionParameter p =
@@ -669,6 +670,7 @@ decodeTipe =
       ,("THasMany", dv1 THasMany JSD.string)
       ,("TDbList", dv1 TDbList (JSD.lazy (\_ -> decodeTipe)))
       ,("TPassword", dv0 TPassword)
+      ,("TOption", dv0 TOption)
       ]
 
 decodeUserFunctionParameter : JSD.Decoder UserFunctionParameter
