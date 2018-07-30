@@ -23,7 +23,6 @@ import Toplevel
 import Url
 import ViewEntry
 import ViewUtils exposing (..)
-import ViewScaffold
 import Defaults
 
 
@@ -209,8 +208,13 @@ div vs configs content =
                      Just editFn ->
                        [viewEditFn editFn showFeatureFlag]
                      Nothing -> if showFeatureFlag then [viewCreateFn] else []
+      rightSideHtml =
+        Html.div
+        [Attrs.class "expr-actions"]
+        (featureFlagHtml ++ editFnHtml)
   in
-    Html.div attrs (content ++ featureFlagHtml ++ editFnHtml ++ selectedComputedValue)
+    Html.div attrs (content ++ [rightSideHtml]  ++ selectedComputedValue)
+
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
 type alias BlankViewer a = Viewer (BlankOr a)
@@ -318,17 +322,15 @@ viewBlankOr htmlFn pt vs c bo =
 viewFeatureFlag : Html.Html Msg
 viewFeatureFlag =
   Html.div
-    [ Attrs.class "feature-flag"
-    , eventNoPropagation "click" (\_ -> StartFeatureFlag)]
+    [ Attrs.class "flag"
+    , eventNoPropagation "click" (\_ -> StartFeatureFlag) ]
     [ fontAwesome "flag"]
 
 viewCreateFn : Html.Html Msg
 viewCreateFn =
   Html.div
-    [
-      Attrs.class "create-function"
-      , eventNoPropagation "click" (\_ -> ExtractFunction)
-    ]
+    [ Attrs.class "exfun"
+    , eventNoPropagation "click" (\_ -> ExtractFunction) ]
     [ fontAwesome "share-square" ]
 
 viewEditFn : TLID -> Bool -> Html.Html Msg

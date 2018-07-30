@@ -41,6 +41,7 @@ type alias ViewState =
   , executingFunctions: List ID
   , tlCursors: TLCursors
   , testVariants: List VariantTest
+  , featureFlags: FlagsVS
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -97,6 +98,7 @@ createVS m tl = { tl = tl
                                        |> List.map (\(tlid,id) -> id)
                 , tlCursors = m.tlCursors
                 , testVariants = m.tests
+                , featureFlags = m.featureFlags
                 }
 
 fontAwesome : String -> Html.Html Msg

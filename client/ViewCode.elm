@@ -1,6 +1,7 @@
 module ViewCode exposing (viewExpr, viewDarkType, viewHandler)
 
 -- builtin
+import Dict
 
 -- lib
 import Html
@@ -360,45 +361,53 @@ viewNExpr d id vs config e =
         ([open] ++ List.map pexpr pairs ++ [close])
 
     FeatureFlag msg cond a b ->
-      -- the desired css layouts are:
-      -- no ff:
-      --   .blank/expr
-      --     .feature-flag (only if selected)
-      -- after click
-      --   .flagged
-      --     .message
-      --     .cond
-      --     .flag-left
-      --       etc
-      --     .flag-right
-      --       etc
       let exprLabel msg =
         Html.label [ Attrs.class "expr-label" ] [ Html.text msg ]
 
-          pickA icon =
+          isExpanded =
+            let mv = Dict.get (deID id) vs.featureFlags
+            in case mv of
+              Just b -> b
+              Nothing -> True
+
+          pickA =
             Html.div
-            [ Attrs.attribute "data-content" "Cancel feature flag"
-            , eventNoPropagation "click"
-                (\_ -> EndFeatureFlag id PickA)]
-            [ fontAwesome icon ]
+            [ Attrs.class "icon pick-a parameter-btn info"
+              , Attrs.attribute "data-content" "Cancel feature flag"
+              , Attrs.title "Close feature flag and USE CURRENT EXPRESSION"
+              , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickA)
+            ] [ fontAwesome "check" ]
 
           pickB =
             Html.div
-            [ Attrs.attribute "data-content" "Pick new version"
-            , eventNoPropagation "click"
-                (\_ -> EndFeatureFlag id PickB)]
-            [ fontAwesome "check" ]
+            [ Attrs.class "icon pick-b parameter-btn info"
+              , Attrs.attribute "data-content" "Pick new version"
+              , Attrs.title "Close feature flag and USE NEW EXPRESSION"
+              , eventNoPropagation "click"
+                (\_ -> EndFeatureFlag id PickB)
+            ] [ fontAwesome "check" ]
 
           hideModal =
             Html.div
-            []
-            [ fontAwesome "minus-square" ]
+            [
+              Attrs.attribute "data-content" "Hide ff details"
+              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag id False)
+            ]
+            [ fontAwesome "minus" ]
+          
+          expandModal =
+            Html.div
+            [
+              Attrs.attribute "data-content" "Show ff details"
+              , eventNoPropagation "click" (\_ -> ToggleFeatureFlag id True)
+            ]
+            [ fontAwesome "flag" ]
 
-          titleBar = Html.div [ Attrs.class "row title-bar" ] [
-            viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
-            , Html.div [Attrs.class "actions"] [
-             pickA "times"
-             ]
+          titleBar = Html.div [ Attrs.class ("row title-bar" )]
+            [ viewText FFMsg vs (wc "flag-name" :: idConfigs) msg
+              , Html.div [Attrs.class "actions"]
+              [ if isExpanded then hideModal else expandModal ]
             ]
 
           condValue = ViewBlankOr.getLiveValue vs.lvs (B.toID cond)
@@ -415,19 +424,21 @@ viewNExpr d id vs config e =
               , vExpr 0 cond
             ]
 
+          exprBlock lbl act exp =
+            Html.div
+            [ Attrs.class "cond-expr" ]
+            [
+              exprLabel lbl
+              , act
+              , div vs [wc "expr-block"] [vExpr 0 exp]
+            ]
+
           expressions =
             Html.div
             [ Attrs.class "row expressions" ]
             [
-              div vs [wc "cond-expr a"] [
-                exprLabel "Current Expression"
-                , pickA "check"
-                , vExpr 0 a
-              ]
-              , div vs [wc "cond-expr b"] [
-                exprLabel "New Expression"
-                ,vExpr 0 b
-              ]
+              exprBlock "Current Expression" pickA a
+              , exprBlock "New Expression" pickB b
             ]
 
     in
@@ -435,7 +446,11 @@ viewNExpr d id vs config e =
         [ wc "flagged shown"]
         [ vExpr 0 (if condResult then b else a)
         , fontAwesome "flag"
-        , Html.div [Attrs.class "feature-flag-modal"] [
+        , Html.div
+          [
+            Attrs.class ("feature-flag" ++ (if isExpanded then " expand" else ""))
+          ]
+          [
             titleBar
             , blockCondition
             , expressions

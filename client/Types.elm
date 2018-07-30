@@ -142,6 +142,7 @@ type Msg
     | PageFocusChange PageVisibility.Visibility
     | StartFeatureFlag
     | EndFeatureFlag ID Pick
+    | ToggleFeatureFlag ID Bool
     | DeleteUserFunctionParameter UserFunction UserFunctionParameter
     | BlankOrClick TLID ID MouseEvent
     | BlankOrDoubleClick TLID ID MouseEvent
@@ -258,6 +259,11 @@ type alias Class = String
 -----------------------------
 type Pick = PickA
           | PickB
+
+type alias FFIntID = Int
+type alias FFIsExpanded = Bool
+
+type alias FlagsVS = Dict FFIntID FFIsExpanded
 
 -----------------------------
 -- AST
@@ -450,6 +456,7 @@ type alias Model = { error : Maybe String
                    -- be condused with cursorState, which is the code
                    -- that is currently selected.)
                    , tlCursors: TLCursors
+                   , featureFlags: FlagsVS
                    }
 
 -- Values that we serialize

@@ -1,5 +1,8 @@
 module FeatureFlags exposing (..)
 
+-- built-in
+import Dict
+
 -- dark
 import Types exposing (..)
 import Prelude exposing (..)
@@ -53,4 +56,9 @@ end m id pick =
                        (newTL |> TL.asHandler |> deMaybe "FF.end") ]
            , FocusExact tl.id (P.toID newPd))
 
-
+toggle : Model -> ID ->  Bool -> Modification
+toggle m id isExpanded =
+  TweakModel (\m -> {
+    m | featureFlags = Dict.insert (deID id) isExpanded m.featureFlags
+  })
+  
