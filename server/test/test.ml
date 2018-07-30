@@ -703,6 +703,23 @@ let t_html_escaping () =
     (execute_ops oplist)
     (DStr "test&lt;&gt;&amp;&quot;&#x27;")
 
+let t_curl_file_urls () =
+  AT.check (AT.option AT.string) "aaa"
+    (* Before we limited the protocols for curl, .info.error was "",
+       since Httpclient.http_call checked for a 2xx HTTP code. But the file
+       contents ended up in the error message. Now we've restricted the URL
+       protocols, so we get CURLE_UNSUPPORTED_PROTOCOL before a request
+       is even sent. *)
+    (Some "CURLE_UNSUPPORTED_PROTOCOL")
+    (try
+       ignore (Httpclient.http_call "file://localhost/etc/passwd"
+                 [] Httpclient.GET [] "");
+       None
+     with
+       Exception.DarkException i -> List.Assoc.find i.info ~equal:(=) "error"
+     | _ -> None)
+
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
@@ -740,6 +757,7 @@ let suite =
   ; "Passwords deserialize and serialize if there's no redaction.", `Quick,
     t_password_json_round_trip_backwards
   ; "HTML escaping works reasonably", `Quick, t_html_escaping
+  ; "Dark code can't curl file:// urls", `Quick, t_curl_file_urls
   ]
 
 let () =

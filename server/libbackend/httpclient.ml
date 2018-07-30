@@ -94,6 +94,10 @@ let http_call (url: string) (query_params : (string * string list) list)
       C.set_writefunction c responsefn;
       C.set_httpheader c headers;
       C.set_headerfunction c headerfn;
+      (* Don't let users curl to e.g. file://; just HTTP and HTTPs. *)
+      C.set_protocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS;];
+      (* Seems like redirects can be used to get around the above list... *)
+      C.set_redirprotocols c [C.CURLPROTO_HTTP; C.CURLPROTO_HTTPS;];
 
       (match verb with
        | PUT ->
