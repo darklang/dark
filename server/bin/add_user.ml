@@ -1,6 +1,6 @@
 open Core_kernel
-module Hash = Sodium.Password_hash.Bytes
 module Util = Libexecution.Util
+module Account = Libbackend.Account
 
 let usage () =
   Format.printf "Usage: %s [--prompt-for-password]\n" Sys.argv.(0);
@@ -31,13 +31,7 @@ let () =
   in
   let name = prompt "Name: " in
   let email = prompt "Email: " in
-  let hashed = password
-               |> Bytes.of_string
-               |> Hash.wipe_to_password
-               |> Hash.hash_password Sodium.Password_hash.interactive
-               |> Bytes.to_string
-               |> B64.encode in
-
+  let hashed = Account.hash_password password in
   (* print out the new entry for account.ml *)
   Format.printf "
   (* This user's password is as follows: %s

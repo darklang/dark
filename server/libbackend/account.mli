@@ -6,6 +6,9 @@ type username = string
 (* validate username/password of a Dark user *)
 val authenticate : username:username -> password:string -> bool
 
+(* hash a password to the format expected in account documents. *)
+val hash_password : string -> string
+
 (* can username edit auth_domain, in admin/ui *)
 val can_edit : auth_domain:string -> username:username -> bool
 
