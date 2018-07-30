@@ -229,6 +229,11 @@ viewNExpr d id vs config e =
                      not (Runtime.isIncomplete val
                          || Runtime.isError val)
 
+          ropArrow =
+            if fn.returnTipe == TOption
+            then Html.node "rop-arrow" [] []
+            else Html.div [] []
+
           paramsComplete = List.all (isComplete << B.toID) allExprs
           resultHasValue = isComplete id
 
@@ -275,7 +280,7 @@ viewNExpr d id vs config e =
           fnDiv parens =
             n
               [wc "op", wc name, ComputedValueAs id]
-              (fnname parens :: button)
+              (fnname parens :: ropArrow :: button)
       in
       case (fn.infix, exprs, fn.parameters) of
         (True, [first, second], [p1, p2]) ->

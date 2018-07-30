@@ -75,6 +75,21 @@
 
        document.title = window.location.hostname.split('.')[0] + " - Dark";
 
+       // https://github.com/ohanhi/elm-ement/blob/master/index.html
+       var RopArrowProto = Object.create(HTMLElement.prototype);
+       RopArrowProto.attachedCallback = function () {
+         console.log("attached");
+       }
+       RopArrowProto.createdCallback = function () {
+         console.log("created");
+       }
+       RopArrowProto.attributeChangedCallback = function (attr, _, val) {
+         console.log("attribute_changed");
+         console.log(attr);
+         console.log(val);
+       }
+       var RopArrow = document.registerElement('rop-arrow', { prototype: RopArrowProto });
+
     </script>
   </body>
 </html>
