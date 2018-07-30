@@ -23,7 +23,6 @@ import Toplevel
 import Url
 import ViewEntry
 import ViewUtils exposing (..)
-import ViewScaffold
 import Defaults
 
 
