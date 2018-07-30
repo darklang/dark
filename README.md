@@ -224,6 +224,7 @@ This is a list of customers and canvases which matter at the moment. If a canvas
 - gracey
 - ian-httpbin
 - paul-slackermuse
+- listo
 
 I'm not sure about the following?
 - dabblefox-7-11?
@@ -237,4 +238,5 @@ I'm not sure about the following?
 - tom
 - mike-brickbreaker
 - rohankanchana-brickbreaker
+- listo-altitude
 
