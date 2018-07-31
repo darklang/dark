@@ -78,8 +78,7 @@ let valid_user ~(username:username) ~(password:string) : bool =
     None -> false
   (* Temporarily allow passwords that either equal what's in
      the database, or that hash to what's in the database. *)
-  | Some [db_password] -> password = db_password
-                         || password
+  | Some [db_password] -> password
                          |> Bytes.of_string
                          |> Hash.wipe_to_password
                          |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
@@ -125,16 +124,16 @@ let for_host (host:string) : Uuidm.t =
 
 let init_testing () : unit =
   upsert_account
-    { username = "test"
+    { username = "test-unhashed"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"};
+    ; name = "Dark OCaml Tests with Unhashed Password"};
 
   upsert_account
-    { username = "test-hashed"
+    { username = "test"
     ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests with Hashed Password"};;
+    ; name = "Dark OCaml Tests"};;
 
 let init () : unit =
   init_testing ();
