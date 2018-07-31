@@ -58,6 +58,10 @@ upsert m tl =
   then { m | toplevels = m.toplevels ++ [tl] }
   else updated
 
+upsertAll : Model -> List Toplevel -> Model
+upsertAll m tls =
+  List.foldl (flip upsert) m tls
+
 remove : Model -> Toplevel -> Model
 remove m tl =
   { m | toplevels = List.filter ((/=) tl) m.toplevels }
