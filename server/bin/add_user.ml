@@ -29,8 +29,8 @@ let () =
                  then prompt "Password: "
                  else Util.random_string 16
   in
-  let name = prompt "Name: " in
   let email = prompt "Email: " in
+  let name = prompt "Name: " in
   let hashed = Account.hash_password password in
   (* print out the new entry for account.ml *)
   Format.printf "
