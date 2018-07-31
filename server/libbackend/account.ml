@@ -3,6 +3,8 @@ open Libexecution
 
 open Types
 
+module Hash = Sodium.Password_hash.Bytes
+
 type username = string
 
 type account = { username: username
@@ -67,14 +69,21 @@ let is_admin ~username : bool =
     ~params:[String username]
 
 let valid_user ~(username:username) ~(password:string) : bool =
-  Db.exists
-    ~name:"valid_user"
-    ~subject:username
-    "SELECT 1 from accounts
-      WHERE accounts.username = $1
-        AND accounts.password = $2"
-    ~params:[String username; Secret password]
-
+  match Db.fetch_one_option
+          ~name:"valid_user"
+          ~subject:username
+          "SELECT password from accounts
+           WHERE accounts.username = $1"
+          ~params:[String username] with
+    None -> false
+  (* Temporarily allow passwords that either equal what's in
+     the database, or that hash to what's in the database. *)
+  | Some [db_password] -> password = db_password
+                         || password
+                         |> Bytes.of_string
+                         |> Hash.wipe_to_password
+                         |> Hash.verify_password_hash (Bytes.of_string (B64.decode db_password))
+  | _ -> false
 
 let can_edit ~(auth_domain:string) ~(username:username) : bool =
   String.Caseless.equal username auth_domain
@@ -82,6 +91,14 @@ let can_edit ~(auth_domain:string) ~(username:username) : bool =
 
 let authenticate ~(username:username) ~(password:string) : bool =
   valid_user ~username ~password
+
+let hash_password password
+  = password
+    |> Bytes.of_string
+    |> Hash.wipe_to_password
+    |> Hash.hash_password Sodium.Password_hash.interactive
+    |> Bytes.to_string
+    |> B64.encode
 
 let owner ~(auth_domain:string) : Uuidm.t option =
   Db.fetch_one_option
@@ -111,7 +128,13 @@ let init_testing () : unit =
     { username = "test"
     ; password = "fVm2CUePzGKCwoEQQdNJktUQ"
     ; email = "test@darklang.com"
-    ; name = "Dark OCaml Tests"}
+    ; name = "Dark OCaml Tests"};
+
+  upsert_account
+    { username = "test-hashed"
+    ; password = hash_password "fVm2CUePzGKCwoEQQdNJktUQ"
+    ; email = "test@darklang.com"
+    ; name = "Dark OCaml Tests with Hashed Password"};;
 
 let init () : unit =
   init_testing ();

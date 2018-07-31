@@ -13,6 +13,17 @@
 
 (executable
   (
+    (name add_user)
+    (public_name add_user)
+    (modules add_user)
+    (flags (-warn-error (+A)))
+    (libraries (libbackend sodium))
+    (package dark)
+  )
+)
+
+(executable
+  (
     (name darkjs)
     (public_name darkjs)
     (modules darkjs)
