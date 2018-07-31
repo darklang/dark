@@ -25,6 +25,8 @@ type timing_header = string * float * string
 
 let shutdown = ref false
 
+let ready = ref false
+
 let server_timing (times: timing_header list) =
   times
   |> List.map ~f:(fun (name, time, desc) ->
@@ -585,7 +587,18 @@ let server () =
          auth_then_handle ~execution_id req host handler
       | ("/", None) -> (* for GKE health check *)
         (match Dbconnection.status () with
-         | `Healthy -> respond ~execution_id `OK "Hello internal overlord"
+         | `Healthy ->
+           if !ready
+           then
+             respond ~execution_id `OK "Hello internal overlord"
+           else
+             begin
+               (* exception here caught by handle_error *)
+               Canvas.check_tier_one_hosts ();
+               Log.infO "All canvases loaded";
+               ready := true;
+               respond ~execution_id `OK "Hello internal overlord"
+             end
          | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
       | ("/pkill", None) -> (* for GKE graceful termination *)
         if !shutdown (* note: this is a ref, not a boolean `not` *)
