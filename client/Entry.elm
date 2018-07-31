@@ -320,8 +320,10 @@ submit m cursor action =
           then Select tlid (Just id)
           else if B.isBlank ct
           then
-            wrapID [ SetDBColType tlid id value
-                   , AddDBCol tlid (gid ()) (gid ())]
+            RPC ([
+                SetDBColType tlid id value
+                , AddDBCol tlid (gid ()) (gid ())
+              ], FocusNothing)
           else
             wrapID [ ChangeDBColType tlid id value]
 
