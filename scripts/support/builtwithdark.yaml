@@ -132,3 +132,16 @@ spec:
   podSelector:
     matchLabels:
       app: bwd-app
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: bwd-tls-ingress
+  annotations:
+        kubernetes.io/ingress.global-static-ip-name: "bwd-tls-ip"
+spec:
+  backend:
+    serviceName: bwd-nodeport
+    servicePort: 80
+  tls:
+    - secretName: bwd-tls
