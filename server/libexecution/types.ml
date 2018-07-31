@@ -12,6 +12,8 @@ type 'a or_blank = Blank of id
                  | Filled of id * 'a
                  [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
+(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
+(* add to the bottom *)
 type tipe_ =
   | TAny (* extra type meaning anything *)
   | TInt
@@ -31,12 +33,13 @@ type tipe_ =
   | TDate
   | TTitle
   | TUrl
-  | TPassword
   (* Storage related hackery *)
   | TBelongsTo of string
   | THasMany of string
   | TDbList of tipe_
+  | TPassword
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
+(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
 module RuntimeT = struct
   type fnname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
