@@ -83,7 +83,8 @@
          var target = document.querySelector(".sidebar-box");
          const targetPos = target.getBoundingClientRect();
          const sourcePos = source.getBoundingClientRect();
-         const x2 = targetPos.right - sourcePos.right;
+         const arrowHeadLength = 12;
+         const x2 = targetPos.right - sourcePos.right - arrowHeadLength;
          const x1 = x2 / 3;
 
          var arrowRight = document.querySelector("rop-arrow > svg > path");

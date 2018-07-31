@@ -242,15 +242,29 @@ viewNExpr d id vs config e =
                       , SA.strokeWidth "1.5px"
                       , SA.d "M 0,0 z"
                       , VirtualDom.attribute "opacity" "0.3"
+                      , SA.markerEnd "url(#arrow)"
 
                       ]
                       []
+                  head = Svg.defs
+                           []
+                           [ Svg.marker
+                             [ SA.id "arrow"
+                             , SA.markerWidth "10"
+                             , SA.markerHeight "10"
+                             , SA.refX "0"
+                             , SA.refY "3"
+                             , SA.orient "auto"
+                             , SA.markerUnits "strokeWidth"
+                             ]
+                             [ Svg.path [SA.d "M0,0 L0,6 L9,3 z", SA.fill "#f00" ] []]
+                           ]
                   svg =
                     Svg.svg
                       [
                         SA.style "position: absolute"
                       ]
-                      [line]
+                      [line, head]
               in
               Html.node "rop-arrow" [] [svg]
 
