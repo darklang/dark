@@ -232,6 +232,16 @@ let current_hosts () : string list =
       not (String.is_prefix ~prefix:"test-" h))
   |> List.dedup_and_sort ~compare
 
+let tier_one_hosts () : string list =
+  [ "dabblefox-shelf"
+  ; "dabblefox-news"
+  ; "dabblefox-temp"
+  ; "gracey"
+  ; "ian-httpbin"
+  ; "paul-slackermuse"
+  ; "listo"
+  ]
+
 
 
 (* https://stackoverflow.com/questions/15939902/is-select-or-insert-in-a-function-prone-to-race-conditions/15950324#15950324 *)
