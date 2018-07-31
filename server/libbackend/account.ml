@@ -394,6 +394,12 @@ let init () : unit =
     ; password = "aprahamian"
     ; email = "j.aprahamian@gmail.com"
     ; name = "Jen Aprahamian"};
+  upsert_account
+    { username = "ross"
+    ; password ="campbell"
+    ; email = "ross.campbell.ucsd@gmail.com"
+    ; name = "Ross Campbell"
+    };
 
   ()
 
