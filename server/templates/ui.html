@@ -77,16 +77,17 @@
 
        // https://github.com/ohanhi/elm-ement/blob/master/index.html
        var RopArrowProto = Object.create(HTMLElement.prototype);
+
        RopArrowProto.attachedCallback = function () {
-         console.log("attached");
+         var source = document.querySelector(".op");
+         var target = document.querySelector(".sidebar-box");
+
+         var arrowRight = document.querySelector("rop-arrow > svg > path");
+         arrowRight.setAttribute("d", "M 0,20 C 0,30 100,30 300,20");
        }
        RopArrowProto.createdCallback = function () {
-         console.log("created");
        }
        RopArrowProto.attributeChangedCallback = function (attr, _, val) {
-         console.log("attribute_changed");
-         console.log(attr);
-         console.log(val);
        }
        var RopArrow = document.registerElement('rop-arrow', { prototype: RopArrowProto });
 

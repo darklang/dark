@@ -8,6 +8,9 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
+import Svg
+import VirtualDom
+import Svg.Attributes as SA
 
 -- dark
 import Types exposing (..)
@@ -230,9 +233,26 @@ viewNExpr d id vs config e =
                          || Runtime.isError val)
 
           ropArrow =
-            if fn.returnTipe == TOption
-            then Html.node "rop-arrow" [] []
-            else Html.div [] []
+            if fn.returnTipe /= TOption
+            then Html.div [] []
+            else
+              let line =
+                    Svg.path
+                      [ SA.stroke "red"
+                      , SA.strokeWidth "1.5px"
+                      , SA.d "M 0,0 z"
+                      , VirtualDom.attribute "opacity" "0.3"
+
+                      ]
+                      []
+                  svg =
+                    Svg.svg
+                      [
+                        SA.style "position: absolute"
+                      ]
+                      [line]
+              in
+              Html.node "rop-arrow" [] [svg]
 
           paramsComplete = List.all (isComplete << B.toID) allExprs
           resultHasValue = isComplete id
