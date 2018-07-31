@@ -98,6 +98,7 @@ def ocaml_build():
   exes = " ".join([ "bin/main.exe"
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
+                  , "bin/add_user.exe"
                   #  , "bin/darkjs.bc.js"
                   #  , "@darkjs"
                   ])

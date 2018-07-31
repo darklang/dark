@@ -719,6 +719,13 @@ let t_curl_file_urls () =
        Exception.DarkException i -> List.Assoc.find i.info ~equal:(=) "error"
      | _ -> None)
 
+let t_authenticate_user () =
+  AT.check AT.bool "Account.authenticate_user works for the test user"
+    true
+    (Account.authenticate "test" "fVm2CUePzGKCwoEQQdNJktUQ"
+     && Account.authenticate "test-hashed" "fVm2CUePzGKCwoEQQdNJktUQ"
+     && not (Account.authenticate "test" "no")
+     && not (Account.authenticate "test-hashed" "no"))
 
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
@@ -758,6 +765,8 @@ let suite =
     t_password_json_round_trip_backwards
   ; "HTML escaping works reasonably", `Quick, t_html_escaping
   ; "Dark code can't curl file:// urls", `Quick, t_curl_file_urls
+  ; "Account.authenticate_user works when it should", `Quick,
+    t_authenticate_user
   ]
 
 let () =
