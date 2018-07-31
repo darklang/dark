@@ -261,8 +261,8 @@ viewNExpr d id vs config e =
                            ]
                   svg =
                     Svg.svg
-                      [
-                        SA.style "position: absolute"
+                      [ Attrs.style [ ("position", "absolute")
+                                    , ("margin-top", "-10px")]
                       ]
                       [line, head]
               in
