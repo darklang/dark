@@ -139,266 +139,265 @@ let init () : unit =
   init_testing ();
   upsert_admin
     { username = "ian"
-    ; password = "look"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOXd2R3BSYW54Y3llYmdRdU1EMHdUdyRNN1ljWVFQdDk0S29nM1EyM1Q2cHFRZDRlMk9VM3lDTmpreUZ2NGIva1o4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ian@darklang.com"
     ; name = "Ian Connolly"};
   upsert_admin
     { username = "paul"
-    ; password = "what"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcEQxWXBLOG1aVStnUUJUYXdKZytkQSR3TWFXb1hHOER1UzVGd2NDYzRXQVc3RlZGN0VYdVpnMndvZEJ0QnY1bkdJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "paul@darklang.com"
     ; name = "Paul Biggar"};
   upsert_admin
     { username = "ellen"
-    ; password = "you"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcHcxNmRhelJaTGNrYXhZV1psLytXdyRpUHJ1V1NQV2xya1RDZjRDbGlwNTkyaC9tSlZvaTVWSTliRlp0c2xrVmg0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ellen@darklang.com"
     ; name = "Ellen Chisa"};
   upsert_admin
     { username = "stefi"
-    ; password = "made"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkKzIyM3lwOWU4ZzdvOVFWN1RtbnpYQSQ2b0VsdTBLU0JzendBR3FDb1FUQVoyVGNlcERDaUZ4OE9haFRWbzZMTk9VAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "stefi@darklang.com"
     ; name = "Stefi Petit"};
   upsert_admin
     { username = "zane"
-    ; password = "me do"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkUThFd2wrNW1vRTlSWUFzK1VpOWVxQSQ3NWwyNXFKZ2RWdzFqOEhuRDZsaGJGQkVGVFRFQzRwYlZkTlpPOUVHRlhrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "zane@darklang.com"
     ; name = "Zane Shannon"};
   upsert_admin
     { username = "alice"
-    ; password = "descartes"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVGllNGtJT3kyMVFjL1dGUnhScC9PdyROMnp1ZVZnczhIcjl0ODZEREN2VFBYMVNHOE1Za1plSUZCSWFzck9aR1J3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "alice@darklang.com"
     ; name = "Alice Wong"};
   upsert_admin
     { username = "jonathan"
-    ; password = "jonathan"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEka05jYURTWEdadENHSjhLODBvMDAzZyRuOTFUcGlHZ0NkQ0M0MVZEUGVaVms4M0t2S0RYR0pwaUxxUS9VNjhZbHJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "jonathan.laurent@cs.cmu.edu"
     ; name = "Jonathan Laurent"};
   upsert_account
     { username = "lizzie"
-    ; password = "pHLoEmnAWHWWTuotLoCoPzt8CGbdze"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTNueDFWQUFYRWpLMjJGclcwMjU2ZyRYVDQxUGtGNnYyM1E4L0MrSUZITlNXNi8wUGN4TFdEbkRMZ0xVdHN2bHJZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "_@lizzie.io"
     ; name = "Lizzie Dixon"};
   upsert_account
     { username = "dabblefox"
-    ; password = "alk92''[ponvhi4"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkREVrTlVRYlFoMXFwOG9DeTNCQ3hNQSRvM0M1c2VNSkpCclE1dUhVWXdhT21mcFNqRytNQm1SM1hhMTBTRVQwWnEwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "daniel@dabblefox.com"
     ; name = "Daniel Clayson"};
   upsert_account
     { username = "lee"
-    ; password = "klma923wels92l{]as]"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWlZyMnMrWTNNMDgweDYrckY5a2JVUSRqUWZLdTdvQjcwRXQveFdxQStjNzlCYXJLcFplMkNuVnFxaHJvS0RYZnlBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "lee@ledwards.com"
     ; name = "Lee Edwards"};
   upsert_account
     { username = "alexey"
-    ; password =  "sd][3[mlvkm9034j09"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTFVqQ1lFM2MyS2ZMNXF2aHVaMWkzdyRldGpXS2tzZUw1LzJ1dzExVDV1TnBQaGNmcVBtcDR2cE1YTEdXZ3Y5ZHQ0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "me@alexey.ch"
     ; name = "Alexey Klochay"};
   upsert_account
     { username = "steve"
-    ; password = "fUt;re0vcodes"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkME1MVk5yNmM4VTVHaGFWZ083ajdaQSQ5ajZmNXFub0RDTENGOGdzZnZ5Slc5ZHVCTlFvMVFpMmdLTldObkIxaGVZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "steveykrouse@gmail.com"
     ; name = "Steve Krouse"};
   upsert_account
     { username = "tom"
-    ; password = "ksef[1=s;dier]2"
-    ; email = "tmrudick@gmail.com"
-    ; name = "Tom Rudick"};
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEka0RPbmhlUnpCVVpPUXB0UC9YSzZXdyQ4OTJsY29MOURRb3FhWFVkcnJhbEFhZG5EOUI2Myt1WHhpclR2ZnVjUnJBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "Tom Rudick"
+    ; name = "tmrudick@gmail.com"};
   upsert_account
     { username = "justin"
-    ; password = "kasdf91-=3rm492"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkM2lvSFBobHI2eTQzVTY5NzYyUTNWQSRWWVREY0IveStyRGVUVXlQTDczd1pGT1U4OXNnUHRldFpFeG1xenA3OUpJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "justinc474@gmail.com"
     ; name = "Justin Cowperthwaite"};
   upsert_account
     { username = "jakub"
-    ; password = "239a,we[weefjfie"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWDUvbmovcFhZOWVFSkpZZFZVc1RlZyRONGhOVVFSL0F4bWtCRlBxU2NYU1pLbkF1SG5iUVh2Zkg3UnIxMjltcks0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "jakub.jurovych@gmail.com"
     ; name = "Jakub Jurovych"};
   upsert_account
     { username = "pvh"
-    ; password = "skli93df;fl4is,"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSjJ5Z2JINlllTnBOd3c2bnlXTk9YZyRxbWgzYTFWaE9oQUVkYXZOMXBIYWtqT1pTV1VnNnZ6TXBpNUJHMUlHUkcwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "pvh@pvh.ca"
     ; name = "Peter Van Hardenberg"};
-   upsert_account
+  upsert_account
     { username = "mmcgrana"
-    ; password = "sjklmdvn4;s;[s;2[d"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkUnhCWmNRTEhBcW1lblN0UEVBN2NDUSQyNXJUWlV2WXhqNVlub2twNUh4ekIyMzdMMnF0eUdCK0lkU29kOW1jMUQ4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "mmcgrana@gmail.com"
     ; name = "Mark McGranaghan"};
   upsert_account
     { username = "darksingleinstance"
-    ; password = "jas902ksd]23dl49v"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkNnMxZzdUbjhDVEVZZTJBd1R3Q0JqUSQydWVtZ0tQMkVuOGRzeFhGdHB2V3YybzdTWm9ZUzIzQ0pyV3dUdkUwMHJZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Dark Single Instance"};
   upsert_account
     { username = "builtwithdark"
-    ; password = "jas902ksd]23dl49v"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMUdwN0luSFJEbllrMGw5dnR1NTBzdyRMazhVSUdOZU9tTm5SMVFwbDRHUGs3VHdzRXQwbTQ5QUFTdjJQdlZpd1pjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Built with Dark"};
   upsert_account
     { username = "benchmarking"
-    ; password = "lkas;30mfa]]3f]"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkdS9vQml2Uy9pa2ZnUlFEeHYvcVhJdyQxcVNNenExVnE2THdWMElVKyswNDRWbEpsYmk3d1NZaFZySzNXUEIwRkw4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "Dark benchmarking"};
   upsert_account
     { username = "vlymar"
-    ; password = "theexpanse"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSUFaZGN0R0ZlZlF2bkluZ2l5VDFiQSRlL3NuRmRwWHdsT2VabHAvZngzelB3aVR4MnJ2clEza0p1dko5cEZjTTRjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "victorslymar@gmail.com"
     ; name = "Victor Lymar"};
   upsert_account
     { username = "listo"
-    ; password = "GxBGXMBMkUoCakh8QpefmykJNMJdVe"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkL2FRRk05WkZ5bjg0WnNSS3dHeEZrZyQzbzJCbmpZUGFnc1I2bUZsYTFkaXNvb003T1J4cnlyYzhJclBEaE9uV2dzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "c@cpo.is"
     ; name = "Chase"};
   upsert_account
     { username = "gracey"
-    ; password = "wilson"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVmlGVjV5VDhFZnpJM01GN2RMdUpYdyRZeVlIOHBXaDR5ekZpSXNZUllDV21GUC9GdlQxeThML1krOE1ZeDYzbUhzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "gracey.wilson@students.olin.edu"
     ; name = "Gracey Wilson"};
   (* horizons hackathon people *)
   upsert_account
     { username = "jaroslav"
-    ; password = "jaroslav"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkaHdmNGhuQnJ1alI2MThWT2hKbFVmQSRUZ1pIL2J6dTFudXpLSU1XZDFrVDVIVVRpYTZpZUs5eTJUTEJWaTBCZ2Z3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "jaroslav.tran@gmail.com"
     ; name = "Jaroslav Tran"};
   upsert_account
     { username = "owen"
-    ; password = "owen"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSnp0SlVKaHg1N0xjRERWd0N5bDU5USRhajBPOEw2STIycmtYUU9uQkRIL2VlbG5aOE82enRxTlcveHNBSEZhdmVJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "owenzhang76@gmail.com"
     ; name = "Owen Zhang"};
   upsert_account
     { username = "abraham"
-    ; password = "abraham"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkL0dxU0pXUjFLbGsyTE5wSTlUSmFDZyQyVFVPeUx6bld6WUNMTFV3WEJnaFlvaWZWVmt4ZDlNUHppb2pLb0FMY2tjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "abraham.hamidi01@gmail.com"
     ; name = "Abraham Hamidi"};
   upsert_account
     { username = "lydia"
-    ; password = "lydia"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSVlId3hDT2p2RlJHTkl4LzVObUlQdyQ1M1ZINmJSbUpvRXRCWnJHM3lMM0NzYTlGNk1VRzVIQ1VEYVhUTG9UUmtJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "xinglydia@gmail.com"
     ; name = "Lydia Xing"};
-  upsert_account
+upsert_account
     { username = "ronil"
-    ; password = "ronil"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkWTRERW5DL0VBSjNwTUNMZnJMVUZ3dyRnT09ZS29FZUJkd1g4K0o0VU9jR3k0aDFMYzBXRjVDR1RnVytNS2pOb1RNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ronil.awale@gmail.com"
     ; name = "Ronil Awale"};
   upsert_account
     { username = "sarayu"
-    ; password = "sarayu"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRkdwZ1grVkJ0V0hINm1YK08vVS90dyRNYklDZVZhblVoa2RRd3BtRVArd29wNzJId0YwZzlWK1VvL0tkbk1UWXBzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sarayu@namineni.com"
     ; name = "Sarayu Namineni"};
   upsert_account
     { username = "kahuang"
-    ; password = "kahuang"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkQk9EeGUwK29oUytvUlMydi9sc3huQSR4ZVVZN2tUUjNvR21SVVp6ZTRKRlJmZVVLOEFDUllxbTNtbDRlbzJxNExNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "kahuang@ucdavis.edu"
     ; name = "Kahuang"};
   upsert_account
     { username = "mike"
-    ; password = "mike"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTVB3UUJvNVptNFl1YXhmYUxCOHhMQSRRS0M1SWpNTFh6bUVHdk1RYnIyVzBOZThtRzFUandWN3VBQ1VVbzBkbklZAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "mikesun20@gmail.com"
     ; name = "Mike Sun"};
   upsert_account
     { username = "amit"
-    ; password = "amit"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSndkMHVOWjlybGpwQlVSL2hzVElXUSQvbFpxWEwxV3JKNVQzVVUwdldXenRUOGVPdW9hZUp6THRZQTA5UzZQbmxFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "amitsant.2000@gmail.com"
     ; name = "Amit Sant"};
   upsert_account
     { username = "rohankanchana"
-    ; password = "rohankanchana"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkUXNLVnVFZzNDOGRNclZ2eFBJalo1USR3YzI3cUg4R3ZqOFpnSGZWRktDLzFSSnRBVW0rYVFYb3RxSVNSRDcxWlFBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "rohankanchana@gmail.com"
     ; name = "rohankanchana"};
   upsert_account
     { username = "kyra"
-    ; password = "kyra"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkb0hjUTRKbXBNTm1kNnFKbUJYWDM0USRnVkpwWGFBdzVicUxwWDVOdWIvdVBNaTBZM0llWXhjL0o3cFJVRE1mUDdVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "kyraskraft@gmail.com"
     ; name = "Kyra Kraft"};
   upsert_account
     { username = "david"
-    ; password = "david"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSjhBYlMzMkVVT1pweS9Kd2o4K20wUSQyOFVuMWJaRVZ6dUt2N2tXbUt2bHRtYzJsZkxWckxLNkZ2TFR3cmx4WEswAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "davidrusarm@gmail.com"
     ; name = "David Storozhenko"};
   upsert_account
     { username = "thais"
-    ; password = "thais"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkK0pXOEhGYjBBenJuaWp6WktuMytTdyRuN201SjUxUTQ0T3hOSno4NHZ0cmtkVWMyeGJQU1EvdEIvdy9UWHpvbGdVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "gonzo424@gmail.com"
     ; name = "Thais Gonzalez"};
   upsert_account
     { username = "diego"
-    ; password = "diego"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkM2dDOVV0d3RWVGtWM2RydEJ3Nm9xZyQrRUNDamFUUXJ4QnNSS2VBTEtjcG1vSWRFWmliWS9VMHFSRmNuNlBmV1Y0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "dibarra@uchicago.edu"
     ; name = "Diego Ibarra"};
   upsert_account
     { username = "liam"
-    ; password = "liam"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkZ1RhOUZoSFRiS0M1OFdmd3FCazlHdyRYVFZBVjFQZHVZeUE4SVNWa1BGanFWVTdKYnpPeUZrOHlUZHV2OG5vTzNBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ldtrampota@gmail.com"
     ; name = "Liam Trampota"};
   upsert_account
     { username = "kitan"
-    ; password = "kitan"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkaUVSNGJWQUdscFF3UGxQSGxURHhnQSRMOGZnTkZob0dQK1pSZThKY2dhTzhGa0ltSjVldHhrTzduNkF5MGwwcURFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "kitgarcia@ucdavis.edu"
     ; name = "Kitan Garcia"};
   upsert_account
     { username = "rahul"
-    ; password = "rahul"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkVk54d2FHazZyRXNqSkNPMUtRMWFYZyRYbUhpNGV5dFQ0d1JvMDI5WElEYUw0TEhyRlNmeHN4UlhlSFdjY29XS1BzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "mail4rp@gmail.com"
     ; name = "rahul prasad"};
   upsert_account
     { username = "perry"
-    ; password = "perry"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkS0NocjlReHNtWEhsV0wwVXY5RnJ3ZyRUQmFQcGFaOFlXQ3R5ZDNDaWFBbzhDRVIxYkwzb1Q1M1BISU81ZytXaVlnAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "perry.ya@nyu.edu"
     ; name = "perry ya"};
   upsert_account
     { username = "howard"
-    ; password = "howard"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkNmF3OFF0SHZkY1JlRVQ5S1ZHM3BtZyQweklWdjMvS21GOHRBdHBITUNxb3Ntb1l6VVVjOFYzVTZET0tsS0ZDL0tvAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "chonghorizons@gmail.com"
     ; name = "howard chong"};
   upsert_account
     { username = "quoc"
-    ; password = "quoc"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcVI4Q1VhWFZrOExVejNrWnFPeW5odyROL3JseEh3NmdWMFlLMTFLamwwcVN3b2N4VXlXK2F5SUJwQzV3VXpmVXVNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "qnguyen6@binghamton.edu"
     ; name = "quoc nguyen"};
   upsert_account
     { username = "humad"
-    ; password = "humad"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkdWNhK1BLZHpkSXBCNEEyd0VmUjhEUSRVM3RJUDk0VTBRQ0tzM3NNUVJrWnMyYVkxNDdOTGZxYjNzeEl5WHhLaDc0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "humadshah@umass.edu"
     ; name = "humad shah"};
   upsert_account
     { username = "sean"
-    ; password = "sean"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkR0ZRcXhjRHB0Q01lamhUU3FSOGo0dyQvekIxVjNONTNrNmE4eGdoV0dpYVN1SHJQbU42OGxhQjhsS2VQV1dMY2dBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "seandermanyang@gmail.com"
     ; name = "sean derman"};
   upsert_account
     { username = "asheesh"
-    ; password = "asheesh"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkSGppdHVnOVBjb2FFejRvVmFOMkhFdyR5Z203Q3dIUFNybTZXaUQ4RnYrcmFCOHRJUnVhbFpQVFVud0txQmo4K0w0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "asheeshchopra11@gmail.com"
     ; name = "asheesh chopra"};
   upsert_account
     { username = "sajid"
-    ; password = "sajid"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkK2VNdk9QenBOclVZb0dwajd0cG1PQSQwSG9RZUlOckZmM3hReHNTUTV5a3B1Y1RGdU5ROXBYR21GSkRLeW9KQXNNAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "sajsay6@yahoo.com"
     ; name = "Sajid Sayeed"};
   upsert_account
     { username = "raj"
-    ; password = "raj"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkUThWT051VzBLanJiVnN4M3BhQVlpdyRGbGRYbllVbVVMYVh4OEF1aVp4QWlMK0JBVUgxeU9QQmJ4RTBTUk5yWGtjAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "raj.sinhaii@hotmail.com"
     ; name = "Raj Sinha"};
   upsert_account
     { username = "juan"
-    ; password = "juan"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkRmVEaitDMjc4ZnIraytGMnhoT05IQSRBZ0tMd2UyaS9BU093L0dkMmdZVGc4ajRPRHdsTlhWOEFtMjVRKzhsQlNrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "jddonneys@gmail.com"
     ; name = "Juan Diego Donneys"};
   upsert_account
     { username = "tim"
-    ; password = "tim"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkcFhsLzhvQXJybjl5MFJVeEU0bWZ0dyRLZ1JpQUNMZm4xaG45TldWWnl6d2k1Ym1LYWNEZFJqaVlmMmRhZyt1aVFVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "tchang2017@gmail.com"
     ; name = "Tim Chang"};
   upsert_account
     { username = "jen"
-    ; password = "aprahamian"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkMWZ4MlNBc0tzOUNOYllMWEpSczBCUSRYMXZ3cEgrbVM3cUM4NWZhSEdMaklobUpjNDk0QVpQenhpbFRDdm1zZWlBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "j.aprahamian@gmail.com"
     ; name = "Jen Aprahamian"};
   upsert_account
     { username = "ross"
-    ; password ="campbell"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOGdyN0J6QnpQSWF4S21DdFVzT2tZZyRIZHFlUG9ydnpLSzlHZlB3VWRDN2VmN3NJZit2WGpWRDNod0pDS0xKSCtVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ross.campbell.ucsd@gmail.com"
-    ; name = "Ross Campbell"
-    };
+    ; name = "Ross Campbell"};
 
   ()
 
