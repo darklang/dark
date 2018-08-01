@@ -429,7 +429,7 @@ updateMod mod (m, cmd) =
         processAutocompleteMods m3 [ ACRegenerate ]
 
       UpdateToplevels tls updateCurrent ->
-        let m2 = List.foldl (flip Toplevel.upsert) m tls
+        let m2 = TL.upsertAll m tls
             -- Bring back the TL being edited, so we don't lose work
             -- done since the API call.
             m3 = case tlidOf m.cursorState of
@@ -1257,9 +1257,9 @@ update_ msg m =
              , MakeCmd (Entry.focusEntry m)
              ]
       else
-        let m2 = { m | toplevels = m.toplevels ++ newToplevels
-                     , userFunctions = userFuncs }
-            newState = processFocus m2 focus
+        let m2 = TL.upsertAll m newToplevels
+            m3 = { m2 | userFunctions = userFuncs }
+            newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateAnalysis newAnalysis
                 , SetGlobalVariables globals
