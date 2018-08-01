@@ -516,7 +516,9 @@ viewHandler : ViewState -> Handler -> List (Html.Html Msg)
 viewHandler vs h =
   let ast = Html.div
               [ Attrs.class "ast"]
-              [viewExpr 0 vs [] h.ast]
+              [ Html.div
+                [ Attrs.class "rop-rail"]
+                [ viewExpr 0 vs [] h.ast ]]
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of
