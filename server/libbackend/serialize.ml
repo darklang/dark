@@ -240,6 +240,7 @@ let tier_one_hosts () : string list =
   ; "ian-httpbin"
   ; "paul-slackermuse"
   ; "listo"
+  ; "ellen-battery2"
   ]
 
 
