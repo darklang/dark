@@ -139,7 +139,7 @@ viewTL_ m tlid =
           _ -> []
       class =
         [ selected
-        , toString (deTLID tl.id)
+        , "tl-" ++ toString (deTLID tl.id)
         , "toplevel"
         , "cursor-" ++ (toString (Analysis.cursor m tl.id))
         ]
