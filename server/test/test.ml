@@ -732,14 +732,14 @@ let t_uuid_db_roundtrip () =
   clear_test_data ();
   let ast =
     ast_for "(let i (Uuid::generate)
-               (let _ (DB::insert (obj (uuid i)) Ids)
-                 (let fetched (. (List::head (DB::fetchAll Ids)) uuid)
+               (let _ (DB::insert (obj (uu i)) Ids)
+                 (let fetched (. (List::head (DB::fetchAll Ids)) uu)
                    (i fetched))))"
   in
   let oplist = [ Op.CreateDB (dbid, pos, "Ids")
                ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, "uuid")
-               ; Op.SetDBColType (dbid, 12, "ID")
+               ; Op.SetDBColName (dbid, 11, "uu")
+               ; Op.SetDBColType (dbid, 12, "UUID")
                ; hop (handler ast)
                ] in
   AT.check AT.int "A generated UUID can round-trip from the DB"

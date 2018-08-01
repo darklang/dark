@@ -44,6 +44,7 @@ type Tipe = TInt
           | TTitle
           | TUrl
           | TPassword
+          | TUuid
           | TBelongsTo String
           | THasMany String
           | TDbList Tipe
