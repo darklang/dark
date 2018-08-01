@@ -75,27 +75,39 @@
 
        document.title = window.location.hostname.split('.')[0] + " - Dark";
 
-       // https://github.com/ohanhi/elm-ement/blob/master/index.html
-       var RopArrowProto = Object.create(HTMLElement.prototype);
+       class RopArrow extends HTMLElement {
+         constructor() {
+           super();
+         }
+         update() {
+           var tlid = this.getAttribute("tlid");
+           var target = document.querySelector(".sidebar-box > .tl-" + tlid);
+           if(target) {
+             const targetPos = target.getBoundingClientRect();
+             const sourcePos = this.getBoundingClientRect();
+             const arrowHeadLength = 12;
+             const x2 = targetPos.right - sourcePos.left - arrowHeadLength;
+             const x1 = x2 / 3;
 
-       RopArrowProto.attachedCallback = function () {
-         var source = document.querySelector(".op");
-         var target = document.querySelector(".sidebar-box");
-         const targetPos = target.getBoundingClientRect();
-         const sourcePos = source.getBoundingClientRect();
-         const arrowHeadLength = 12;
-         const x2 = targetPos.right - sourcePos.right - arrowHeadLength;
-         const x1 = x2 / 3;
+             var arrowRight = document.querySelector("rop-arrow > svg > path");
+             var svg = document.querySelector("rop-arrow > svg");
+             svg.setAttribute("width", x2 + arrowHeadLength);
 
-         var arrowRight = document.querySelector("rop-arrow > svg > path");
-         var d = "M 0,15 C 0,0 " + x1 + ",0 " + x2 + ",15";
-         arrowRight.setAttribute("d", d);
+             var d = "M 0,15 C 0,0 " + x1 + ",0 " + x2 + ",15";
+             arrowRight.setAttribute("d", d);
+           }
+         }
+         connectedCallback() {
+           this.update();
+         }
+         static get observedAttributes() {
+           return ['update'];
+         }
+         attributeChangedCallback(attr, _, val) {
+           this.update();
+         }
        }
-       RopArrowProto.createdCallback = function () {
-       }
-       RopArrowProto.attributeChangedCallback = function (attr, _, val) {
-       }
-       var RopArrow = document.registerElement('rop-arrow', { prototype: RopArrowProto });
+       window.customElements.define('rop-arrow', RopArrow);
 
     </script>
   </body>

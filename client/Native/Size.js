@@ -50,7 +50,7 @@ var _user$project$Native_Size = {
       return _elm_lang$core$Native_List.fromArray(results);
     }
 
-    let tls = document.getElementsByClassName("toplevel " + tlid);
+    let tls = document.getElementsByClassName("toplevel tl-" + tlid);
     if (tls.length != 1) {
       console.log(tls);
       throw ("Couldn't find toplevel: " + tlid);

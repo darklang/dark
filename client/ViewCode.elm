@@ -243,7 +243,6 @@ viewNExpr d id vs config e =
                       , SA.d "M 0,0 z"
                       , VirtualDom.attribute "opacity" "0.3"
                       , SA.markerEnd "url(#arrow)"
-
                       ]
                       []
                   head = Svg.defs
@@ -257,16 +256,27 @@ viewNExpr d id vs config e =
                              , SA.orient "auto"
                              , SA.markerUnits "strokeWidth"
                              ]
-                             [ Svg.path [SA.d "M0,0 L0,6 L9,3 z", SA.fill "#f00" ] []]
+                             [ Svg.path [ SA.d "M0,0 L0,6 L9,3 z"
+                                        , SA.fill "#f00"
+                                        ]
+                                        []
+                             ]
                            ]
                   svg =
                     Svg.svg
                       [ Attrs.style [ ("position", "absolute")
-                                    , ("margin-top", "-10px")]
+                                    , ("margin-top", "-10px")
+                                    , ("fill", "none")
+                                    ]
                       ]
                       [line, head]
               in
-              Html.node "rop-arrow" [] [svg]
+              Html.node
+                "rop-arrow"
+                -- Force the rop-webcomponent to update to fix the size
+                [ VirtualDom.attribute "update" (Util.random () |> toString)
+                , VirtualDom.attribute "tlid" (toString (deTLID vs.tl.id))]
+                [svg]
 
           paramsComplete = List.all (isComplete << B.toID) allExprs
           resultHasValue = isComplete id
