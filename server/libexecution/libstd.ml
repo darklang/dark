@@ -1164,6 +1164,25 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["String::toUUID"]
+  ; ins = []
+  ; p = [par "uuid" TStr]
+  ; r = TID
+  ; d = "Parse a UUID of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX from \
+         the input `uuid` string"
+  ; f = InProcess
+          (function
+           | (_, [DStr s]) ->
+             (match Uuidm.of_string s with
+              | Some id -> DID id
+              | None ->
+                Exception.user
+                  "`uuid` parameter was not of form XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX")
+           | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
 
 
   (* ====================================== *)
@@ -1732,4 +1751,19 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["Uuid::generate"]
+  ; ins = []
+  ; p = []
+  ; r = TID
+  ; d = "Generate a new UUID v4 according to RFC 4122"
+  ; f = InProcess
+        (function
+         | (_, []) -> DID (Uuidm.v `V4)
+         | args -> fail args)
+  ; pr = None
+  (* similarly to Date::now, it's not particularly fun for this to change
+   * when live programming *)
+  ; ps = false
+  }
+  ;
 ]

@@ -99,6 +99,7 @@ str2tipe t =
           "bool" -> TBool
           "boolean" -> TBool
           "password" -> TPassword
+          "id" -> TID
           "null" -> todo "not implemented yet"
           "any" -> todo "not implemented yet"
           "list" -> todo "not implemented yet"
@@ -130,6 +131,7 @@ str2tipe t =
   "date" -> TDate
   "error" -> TError
   "password" -> TPassword
+  "id" -> TID
   other ->
     if String.startsWith "[" other && String.endsWith "]" other
     then
