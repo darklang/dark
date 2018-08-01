@@ -222,6 +222,7 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
           | (TList, DList _) -> data
           | (TDbList _, DList _) -> data
           | (TPassword, DPassword _) -> data
+          | (TUuid, DUuid _) -> data
           | (TBelongsTo table, any_dval) ->
             (* the belongs_to function needs to type check any_dval *)
             belongs_to table any_dval

@@ -38,6 +38,7 @@ type tipe_ =
   | THasMany of string
   | TDbList of tipe_
   | TPassword
+  | TUuid
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
 (* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
 
@@ -180,6 +181,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DTitle of string
     | DUrl of string
     | DPassword of Bytes.t
+    | DUuid of uuid
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 

@@ -83,6 +83,7 @@ tipe2str t =
     TTitle -> "Title"
     TUrl -> "Url"
     TPassword -> "Password"
+    TUuid -> "UUID"
     TBelongsTo s -> s
     THasMany s -> "[" ++ s ++ "]"
     TDbList a -> "[" ++ (tipe2str a) ++ "]"
@@ -100,6 +101,7 @@ str2tipe t =
           "boolean" -> TBool
           "password" -> TPassword
           "id" -> TID
+          "uuid" -> TUuid
           "null" -> todo "not implemented yet"
           "any" -> todo "not implemented yet"
           "list" -> todo "not implemented yet"
@@ -132,6 +134,7 @@ str2tipe t =
   "error" -> TError
   "password" -> TPassword
   "id" -> TID
+  "uuid" -> TUuid
   other ->
     if String.startsWith "[" other && String.endsWith "]" other
     then
