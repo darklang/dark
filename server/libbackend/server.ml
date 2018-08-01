@@ -409,6 +409,15 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   let verb = req |> CRequest.meth in
   let text_plain_resp_headers =
     Header.init_with "Content-type" "text/html; charset=utf-8"
+    |> (fun h -> Header.add h "Content-security-policy"
+                   (* Don't allow any other websites to put this in an iframe;
+                      this prevents "clickjacking" attacks.
+                      https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+                      It would be nice to use CSP to limit where we can load scripts etc from,
+                      but right now we load from CDNs, <script> tags, etc. So the only thing
+                      we could do is script-src: 'unsafe-inline', which doesn't offer us
+                      any additional security. *)
+                "frame-ancestors 'none';")
   in
   let utf8 = "application/json; charset=utf-8" in
   match (verb, Uri.path uri) with
