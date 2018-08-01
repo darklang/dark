@@ -18,6 +18,7 @@ let init ~run_side_effects =
                  @ Libevent.fns
                  @ Libhttp.fns
                  @ Libhttpclient.fns
+                 @ Libcrypto.fns
                  (* @ Libtwitter.fns  *)
       in
 
