@@ -532,6 +532,7 @@ generateFromModel m a =
                   , "Url"
                   , "Date"
                   , "Password"
+                  , "UUID"
                   ]
                     dbs =
                       m.toplevels
