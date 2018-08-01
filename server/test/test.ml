@@ -136,6 +136,7 @@ let is_fn name =
   || name = "=="
   || name = "dissoc"
   || name = "assoc"
+  || name = "toString"
   || String.is_substring ~substring:"::" name
 
 let rec ast_for_ (sexp : Sexp.t) : expr =
@@ -727,6 +728,38 @@ let t_authenticate_user () =
      && not (Account.authenticate "test" "no")
      && not (Account.authenticate "test-hashed" "no"))
 
+let t_uuid_db_roundtrip () =
+  clear_test_data ();
+  let ast =
+    ast_for "(let i (Uuid::generate)
+               (let _ (DB::insert (obj (uuid i)) Ids)
+                 (let fetched (. (List::head (DB::fetchAll Ids)) uuid)
+                   (i fetched))))"
+  in
+  let oplist = [ Op.CreateDB (dbid, pos, "Ids")
+               ; Op.AddDBCol (dbid, 11, 12)
+               ; Op.SetDBColName (dbid, 11, "uuid")
+               ; Op.SetDBColType (dbid, 12, "ID")
+               ; hop (handler ast)
+               ] in
+  AT.check AT.int "A generated UUID can round-trip from the DB"
+    0 (match execute_ops oplist with
+         DList [p1; p2;] -> compare_dval p1 p2
+       | _ -> 1)
+
+let t_uuid_string_roundtrip () =
+  let ast =
+    ast_for "(let i (Uuid::generate)
+               (let s (toString i)
+                 (let parsed (String::toUUID s)
+                   (i parsed))))"
+  in
+  let oplist = [ hop (handler ast) ] in
+  AT.check AT.int "A generated id can round-trip"
+    0 (match execute_ops oplist with
+         DList [p1; p2;] -> compare_dval p1 p2
+       | _ -> 1)
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
@@ -767,6 +800,8 @@ let suite =
   ; "Dark code can't curl file:// urls", `Quick, t_curl_file_urls
   ; "Account.authenticate_user works when it should", `Quick,
     t_authenticate_user
+  ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
+  ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
   ]
 
 let () =

@@ -88,13 +88,13 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "bool" -> TDbList TBool
   | "boolean" -> TDbList TBool
   | "password" -> TDbList TPassword
+  | "id" -> TDbList TID
   | "obj" -> Exception.internal "todo"
   | "block" -> Exception.internal "todo"
   | "incomplete" -> Exception.internal "todo"
   | "error" -> Exception.internal "todo"
   | "response" -> Exception.internal "todo"
   | "datastore" -> Exception.internal "todo"
-  | "id" -> Exception.internal "todo"
   | "date" -> Exception.internal "todo"
   | "title" -> Exception.internal "todo"
   | "url" -> Exception.internal "todo"
