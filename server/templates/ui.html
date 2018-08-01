@@ -81,7 +81,7 @@
          }
          update() {
            var tlid = this.getAttribute("tlid");
-           var target = document.querySelector(".sidebar-box > .tl-" + tlid);
+           var target = document.querySelector(".tl-" + tlid + " .rop-rail");
            if(target) {
              const targetPos = target.getBoundingClientRect();
              const sourcePos = this.getBoundingClientRect();
