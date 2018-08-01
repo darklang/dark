@@ -39,6 +39,7 @@
                 session
                 session-postgresql-lwt
                 session-cohttp-lwt
+                sodium
                 threads
                 uutf
                 yojson
