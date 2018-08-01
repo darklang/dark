@@ -139,8 +139,16 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
   (* TODO SPLIT: what is the format vs Core's Uuid.Stable.V1 *)
   type uuid = Uuidm.t [@opaque][@@deriving show, eq, compare]
-  let uuid_of_sexp s = failwith "TODO"
-  let sexp_of_uuid s = failwith "TODO"
+
+  let uuid_of_sexp st =
+    match st with
+    | Sexp.Atom s ->
+      Option.value_exn
+        ~message:"failure uuid_of_sexp"
+        (Uuidm.of_string s)
+    | _ -> failwith "failure uuid_of_sexp"
+  let sexp_of_uuid u = Sexp.Atom (Uuidm.to_string u)
+
   type time = Time.Stable.With_utc_sexp.V2.t
               [@opaque]
               [@@deriving compare, sexp, show]
