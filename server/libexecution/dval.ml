@@ -44,6 +44,7 @@ let rec tipe_to_string t : string =
   | THasMany s -> "[" ^ s ^ "]"
   | TDbList tipe -> "[" ^ (tipe_to_string tipe) ^ "]"
   | TPassword -> "Password"
+  | TUuid -> "UUID"
 
 let rec tipe_of_string str : tipe =
   match String.lowercase str with
@@ -69,6 +70,7 @@ let rec tipe_of_string str : tipe =
   | "title" -> TTitle
   | "url" -> TUrl
   | "password" -> TPassword
+  | "uuid" -> TUuid
   | _ -> (* otherwise *)
     if String.is_prefix str "["  && String.is_suffix str "]"
     then
@@ -88,13 +90,14 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "bool" -> TDbList TBool
   | "boolean" -> TDbList TBool
   | "password" -> TDbList TPassword
+  | "id" -> TDbList TID
+  | "uuid" -> TDbList TUuid
   | "obj" -> Exception.internal "todo"
   | "block" -> Exception.internal "todo"
   | "incomplete" -> Exception.internal "todo"
   | "error" -> Exception.internal "todo"
   | "response" -> Exception.internal "todo"
   | "datastore" -> Exception.internal "todo"
-  | "id" -> Exception.internal "todo"
   | "date" -> Exception.internal "todo"
   | "title" -> Exception.internal "todo"
   | "url" -> Exception.internal "todo"
@@ -120,6 +123,7 @@ let tipe_of (dv : dval) : tipe =
   | DTitle _ -> TTitle
   | DUrl _ -> TUrl
   | DPassword _ -> TPassword
+  | DUuid _ -> TUuid
 
 
 let tipename (dv: dval) : string =
@@ -158,6 +162,7 @@ let as_string (dv : dval) : string =
   | DUrl url -> url
   | DDB db -> db.name
   | DError msg -> msg
+  | DUuid uuid -> Uuidm.to_string uuid
   | _ -> "<" ^ (dv |> tipename) ^ ">"
 
 let as_literal (dv : dval) : string =
@@ -175,7 +180,7 @@ let is_stringable (dv : dval) : bool =
   match dv with
   | DBlock _ | DIncomplete | DError _
   | DID _ | DDate _ | DTitle _ | DUrl _
-  | DPassword _ | DDB _ -> true
+  | DPassword _ | DDB _ | DUuid _ -> true
   |  _ -> is_primitive dv
 
 (* A simple representation, showing primitives as their expected literal
@@ -342,6 +347,7 @@ let rec dval_of_yojson_ (json : Yojson.Safe.json) : dval =
     | "password" -> v |> B64.decode |> Bytes.of_string |> DPassword
     | "db" -> Exception.user "Can't deserialize DBs"
     | "block" -> Exception.user "Can't deserialize blocks"
+    | "uuid" -> DUuid (Uuidm.of_string v |> Option.value_exn)
     | _ -> Exception.user ("Can't deserialize type: " ^ tipe)
     )
   | `Assoc alist ->
@@ -394,6 +400,7 @@ let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Sa
   | DPassword hashed -> if redact
                        then wrap_user_type `Null
                        else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
+  | DUuid uuid -> wrap_user_str (Uuidm.to_string uuid)
 
 let is_json_primitive (dv: dval) : bool =
   match dv with

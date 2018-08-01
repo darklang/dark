@@ -293,6 +293,7 @@ encodeTipe t =
         THasMany s -> ev "THasMany" [JSE.string s]
         TDbList a -> ev "TDbList" [encodeTipe a]
         TPassword -> ev "TPassword" []
+        TUuid -> ev "TUuid" []
 
 encodeUserFunctionParameter : UserFunctionParameter -> JSE.Value
 encodeUserFunctionParameter p =
