@@ -589,16 +589,26 @@ let server () =
         (match Dbconnection.status () with
          | `Healthy ->
            if !ready
+           then begin
+             Log.infO "Liveness check found unready service, returning unavailable";
+             respond ~execution_id `Service_unavailable "Service not ready"
+           end
+           else
+             respond ~execution_id `OK "Hello internal overlord"
+         | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+      | ("/ready", None) ->
+        (match Dbconnection.status () with
+         | `Healthy ->
+           if !ready
            then
              respond ~execution_id `OK "Hello internal overlord"
-           else
-             begin
-               (* exception here caught by handle_error *)
-               Canvas.check_tier_one_hosts ();
-               Log.infO "All canvases loaded";
-               ready := true;
-               respond ~execution_id `OK "Hello internal overlord"
-             end
+           else begin
+             (* exception here caught by handle_error *)
+             Canvas.check_tier_one_hosts ();
+             Log.infO "All canvases loaded correctly - Service ready";
+             ready := true;
+             respond ~execution_id `OK "Hello internal overlord"
+           end
          | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
       | ("/pkill", None) -> (* for GKE graceful termination *)
         if !shutdown (* note: this is a ref, not a boolean `not` *)
