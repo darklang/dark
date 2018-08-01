@@ -588,7 +588,7 @@ let server () =
       | ("/", None) -> (* for GKE health check *)
         (match Dbconnection.status () with
          | `Healthy ->
-           if !ready
+           if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
            then begin
              Log.infO "Liveness check found unready service, returning unavailable";
              respond ~execution_id `Service_unavailable "Service not ready"
