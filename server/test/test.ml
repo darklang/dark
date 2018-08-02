@@ -629,15 +629,14 @@ let t_dval_of_yojson_doesnt_care_about_order () =
 
 
 let t_password_hashing_and_checking_works () =
-  let oplist = [ "(let password 'password'
-                    (Password::check (Password::hash password)
-                      password))"
-                 |> ast_for
-                 |> handler
-                 |> hop
-               ] in
+  let result =
+    execute
+      "(let password 'password'
+                      (Password::check (Password::hash password)
+                        password))"
+  in
   check_dval "A `Password::hash'd string `Password::check's against itself."
-    (execute_ops oplist)
+    result
     (DBool true)
 
 let t_password_hash_db_roundtrip () =
@@ -694,13 +693,8 @@ let t_password_json_round_trip_backwards () =
     json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
 
 let t_html_escaping () =
-  let oplist = [ "(String::htmlEscape 'test<>&\\\"\\\'')"
-                 |> ast_for
-                 |> handler
-                 |> hop
-               ] in
   check_dval "html escaping works"
-    (execute_ops oplist)
+    (execute "(String::htmlEscape 'test<>&\\\"\\\'')")
     (DStr "test&lt;&gt;&amp;&quot;&#x27;")
 
 let t_curl_file_urls () =
