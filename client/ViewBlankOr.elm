@@ -103,16 +103,39 @@ getLiveValue lvs (ID id) =
 
 
 
+viewLiveValue : ViewState -> List (Html.Html Msg)
+viewLiveValue vs =
+  let cursorID =
+        case vs.cursorState of
+          Selecting _ (Just id) -> Just id
+          Entering (Filling _ id) -> Just id
+          _ -> Nothing
+
+      cursorLiveValue =
+        case vs.cursorState of
+          Selecting tlid (Just (ID id)) ->
+            Dict.get id vs.lvs
+          Entering (Filling tlid (ID id)) ->
+            Dict.get id vs.lvs
+          _ -> Nothing
+  in
+      case cursorLiveValue of
+        Just sv->
+          [
+            Html.div
+              [Attrs.class "computed-value"]
+              [Html.div
+                [Attrs.class "computed-value-value"]
+                [Html.text sv.value]
+              ]
+          ]
+        _ -> []
 
 -- Create a Html.div for this ID, incorporating all ID-related data,
 -- such as whether it's selected, appropriate events, mouseover, etc.
 div : ViewState -> List HtmlConfig -> List (Html.Html Msg) -> Html.Html Msg
 div vs configs content =
-  let selectedID = case vs.cursorState of
-                     Selecting _ (Just id) -> Just id
-                     _ -> Nothing
-
-      getFirst fn = configs |> List.filterMap fn |> List.head
+  let getFirst fn = configs |> List.filterMap fn |> List.head
 
       -- Extract config
       thisID = getFirst (\a -> case a of
@@ -146,35 +169,23 @@ div vs configs content =
 
       value = getLiveValue vs.lvs
 
+      selectedID =
+        case vs.cursorState of
+          Selecting _ (Just id) -> Just id
+          _ -> Nothing
+
+      selected =
+        thisID == selectedID && ME.isJust thisID
+
+      liveValueHtml =
+        if selected then viewLiveValue vs else []
+
       computedValueData = Maybe.andThen value computedValueAs
       hoverdata = Maybe.andThen value hoverAs
 
-      selected = thisID == selectedID
-                 && ME.isJust thisID
+      mouseover =
+        mouseoverAs == vs.hovering && ME.isJust mouseoverAs
 
-      selectedValue =
-        case vs.cursorState of
-          Selecting tlid (Just (ID id)) ->
-            Dict.get id vs.lvs
-          _ -> Nothing
-      
-      selectedComputedValue =
-        case selectedValue of
-          Just sv ->
-          if selected then
-            [
-              Html.div
-                [Attrs.class "computed-value"]
-                [Html.div
-                  [Attrs.class "computed-value-value"]
-                  [Html.text sv.value]
-                ]
-            ]
-          else []
-          Nothing -> []
-
-      mouseover = mouseoverAs == vs.hovering
-                                 && ME.isJust mouseoverAs
       incomplete =
         case computedValueData of
           Nothing -> False
@@ -213,7 +224,7 @@ div vs configs content =
         [Attrs.class "expr-actions"]
         (featureFlagHtml ++ editFnHtml)
   in
-    Html.div attrs (content ++ [rightSideHtml]  ++ selectedComputedValue)
+    Html.div attrs (content ++ [rightSideHtml]  ++ liveValueHtml)
 
 
 type alias Viewer a = ViewState -> List HtmlConfig -> a -> Html.Html Msg
@@ -313,8 +324,8 @@ viewBlankOr htmlFn pt vs c bo =
             placeholder = placeHolderFor vs id pt
         in
             div vs c
-              [ ViewEntry.entryHtml
-                  allowStringEntry stringEntryWidth placeholder vs.ac]
+              ([ ViewEntry.entryHtml
+                  allowStringEntry stringEntryWidth placeholder vs.ac] ++ (viewLiveValue vs))
       else thisText
     _ -> thisText
 
