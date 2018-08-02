@@ -143,6 +143,11 @@ let is_fn name =
   || name = "assoc"
   || String.is_substring ~substring:"::" name
 
+let b_or_f (name: string) : string or_blank =
+  match name with
+  | "_" -> b ()
+  | name -> f name
+
 let rec ast_for_ (sexp : Sexp.t) : expr =
   match sexp with
   (* fncall *)
@@ -157,14 +162,26 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* let *)
   | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
-    f (Let (f var, ast_for_ value, ast_for_ body))
+    f (Let (b_or_f var, ast_for_ value, ast_for_ body))
+
+  (* if *)
+  | Sexp.List [Sexp.Atom "if"; cond; ifbody; elsebody] ->
+    f (If (ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
+
+  (* feature-flag *)
+  | Sexp.List [Sexp.Atom "flag"; Sexp.Atom name; cond; ifbody; elsebody] ->
+    f (FeatureFlag (b_or_f name, ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
+
+  (* thread *)
+  | Sexp.List (Sexp.Atom "|" :: exprs) ->
+    f (Thread (List.map exprs ~f:ast_for_))
 
   (* objects *)
   | Sexp.List (Sexp.Atom "obj" :: rest) ->
     (let to_pair pair =
        match pair with
        | Sexp.List [Sexp.Atom key; value] ->
-         (f key, ast_for_ value )
+         (b_or_f key, ast_for_ value )
        | x ->
          Log.infO "pair" ~data:(Log.dump pair);
          failwith "invalid"
@@ -173,7 +190,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
      f (ObjectLiteral args))
 
   | Sexp.List [Sexp.Atom "."; obj; Sexp.Atom field] ->
-     f (FieldAccess (ast_for_ obj, f field))
+     f (FieldAccess (ast_for_ obj, b_or_f field))
 
   (* lists *)
   | Sexp.List args ->
