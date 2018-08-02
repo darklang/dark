@@ -697,6 +697,15 @@ let t_password_json_round_trip_backwards () =
   AT.check AT.string "Passwords deserialize and serialize if there's no redaction."
     json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
 
+let t_incomplete_propagation () =
+  AT.check at_dval "Incompletes stripped from lists"
+    (DList [DInt 5; DInt 6])
+    (execute "(5 6 (List::head _))");
+  AT.check at_dval "Blanks stripped from lists"
+    (DList [DInt 5; DInt 6])
+    (execute "(5 6 _)");
+  ()
+
 let t_html_escaping () =
   check_dval "html escaping works"
     (execute "(String::htmlEscape 'test<>&\\\"\\\'')")
@@ -762,6 +771,7 @@ let suite =
     t_password_json_round_trip_forwards
   ; "Passwords deserialize and serialize if there's no redaction.", `Quick,
     t_password_json_round_trip_backwards
+  ; "Incompletes propagate correctly", `Quick, t_incomplete_propagation
   ; "HTML escaping works reasonably", `Quick, t_html_escaping
   ; "Dark code can't curl file:// urls", `Quick, t_curl_file_urls
   ; "Account.authenticate_user works when it should", `Quick,
