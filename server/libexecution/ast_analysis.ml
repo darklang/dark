@@ -277,6 +277,15 @@ let rec exec ~(engine: engine)
     | DError _ -> DIncomplete
     | _ -> e in
 
+  let filter_incomplete (dval: dval option) : dval option =
+    (* when building up expressing, dont accidentally get
+    * incompletes in it *)
+    match dval with
+    | Some DIncomplete -> None
+    | _ -> dval
+  in
+
+
   let value _ =
     (match expr with
      | Blank id -> DIncomplete
@@ -299,7 +308,7 @@ let rec exec ~(engine: engine)
          ~f:(function
              | Blank _ -> None
              | v -> Some (exe st v)
-            )
+                    |> filter_incomplete)
        |> DList
 
      | Filled (_, ObjectLiteral pairs) ->
