@@ -724,9 +724,9 @@ let t_authenticate_user () =
   AT.check AT.bool "Account.authenticate_user works for the test user"
     true
     (Account.authenticate "test" "fVm2CUePzGKCwoEQQdNJktUQ"
-     && Account.authenticate "test-hashed" "fVm2CUePzGKCwoEQQdNJktUQ"
+     && not (Account.authenticate "test-unhashed" "fVm2CUePzGKCwoEQQdNJktUQ")
      && not (Account.authenticate "test" "no")
-     && not (Account.authenticate "test-hashed" "no"))
+     && not (Account.authenticate "test-unhashed" "no"))
 
 let t_uuid_db_roundtrip () =
   clear_test_data ();
