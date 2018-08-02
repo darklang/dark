@@ -54,7 +54,12 @@ let execute_ops (ops : Op.op list) : dval =
   let state = Execution.state_for_execution ~c:!c h.tlid
       ~execution_id ~env
   in
-  Ast_analysis.execute_handler state h
+  try
+    Ast_analysis.execute_handler state h
+  with e ->
+    Exception.reraise_after e (fun bt ->
+      print_endline (Exception.to_string e);
+      print_endline (Exception.backtrace_to_string bt))
 
 
 let at_dval = AT.testable
