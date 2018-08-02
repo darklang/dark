@@ -55,11 +55,13 @@ if [[ -v CI ]]; then
   SPEED=0.4
 fi
 # Set up test reporters for CircleCI
-TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results/"
+TEST_RESULTS_DIR="${DARK_CONFIG_RUN_DIR}/test_results"
+TEST_RESULTS_JSON="${TEST_RESULTS_DIR}/integration_tests.json"
+TEST_RESULTS_XML="${TEST_RESULTS_DIR}/integration_tests.xml"
 mkdir -p "${TEST_RESULTS_DIR}"
 REPORTERS=spec
-REPORTERS+=,json:${TEST_RESULTS_DIR}/integration_tests.json
-REPORTERS+=,xunit:${TEST_RESULTS_DIR}/integration_tests.xml
+REPORTERS+=,json:${TEST_RESULTS_JSON}
+REPORTERS+=,xunit:${TEST_RESULTS_XML}
 
 echo "Clearing old test files"
 rm -f ${DARK_CONFIG_RUN_DIR}/completed_tests/*
@@ -101,3 +103,7 @@ TEST_HOST="integration-tests:$PORT" \
     --test-grep "$PATTERN" \
     "chrome:headless" \
     integration-tests/tests.js 2> ${DARK_CONFIG_RUN_DIR}/integration_error.log
+
+# Fix xunit output for CircleCI flaky-tests stats
+
+sed -i 's/ (screenshots: .*)"/"/' ${TEST_RESULTS_XML}
