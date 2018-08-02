@@ -1,5 +1,6 @@
 open Core_kernel
 
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type pos = { x:int; y:int }[@@deriving eq, compare, show, yojson, sexp, bin_io]
 
 type tlid = int [@@deriving eq, compare, show, yojson, sexp, bin_io]
@@ -11,9 +12,9 @@ type id_list = id list [@@deriving eq, compare, show, yojson, sexp, bin_io]
 type 'a or_blank = Blank of id
                  | Filled of id * 'a
                  [@@deriving eq, compare, show, yojson, sexp, bin_io]
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
-(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
-(* add to the bottom *)
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type tipe_ =
   | TAny (* extra type meaning anything *)
   | TInt
@@ -39,9 +40,10 @@ type tipe_ =
   | TDbList of tipe_
   | TPassword
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
-(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 module RuntimeT = struct
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type fnname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type fieldname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type varname = string [@@deriving eq, compare, yojson, show, sexp, bin_io]
@@ -69,19 +71,22 @@ module RuntimeT = struct
              | FeatureFlag of (string or_blank) * expr * expr * expr
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module DbT = struct
     type col = string or_blank * tipe_ or_blank
-              [@@deriving eq, compare, show, yojson, sexp, bin_io]
+              [@@deriving eq, compare, show, yojson, sexp]
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type migration_kind = ChangeColType
                           [@@deriving eq, compare, show, yojson, sexp, bin_io]
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
     type db_migration = { starting_version : int
                         ; kind : migration_kind
                         ; rollforward : expr
                         ; rollback : expr
                         ; target : id
                         }
-                        [@@deriving eq, compare, show, yojson, sexp, bin_io]
+                        [@@deriving eq, compare, show, yojson, sexp]
     type db = { tlid: tlid
               ; host: string
               ; name: string
@@ -89,11 +94,12 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
               ; version: int
               ; old_migrations : db_migration list
               ; active_migration : db_migration option
-              } [@@deriving eq, compare, show, yojson, sexp, bin_io]
+              } [@@deriving eq, compare, show, yojson, sexp]
   end
 
   module HandlerT = struct
 
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
     type n_dark_type = Empty
                      | Any
                      | String
@@ -118,6 +124,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                    ; ast: expr
                    ; spec : spec
                    } [@@deriving eq, show, yojson, sexp, bin_io]
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
   end
 
 
@@ -175,7 +182,9 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type tipe = tipe_ [@@deriving eq, show, yojson, sexp, bin_io]
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
   module TipeMap = String.Map
   type tipe_map = tipe String.Map.t
@@ -191,6 +200,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   type context = Preview
                | Real [@@deriving eq, show, yojson]
 
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
   type param = { name: string
                ; tipe: tipe
                ; block_args : string list
@@ -204,18 +214,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                    ; optional : bool
                    ; description : string
                    } [@@deriving eq, show, yojson, sexp, bin_io]
-
-  let ufn_param_to_param p : param option =
-    match (p.name, p.tipe) with
-    | (Filled (_, n), Filled (_, t)) ->
-       { name = n
-       ; tipe = t
-       ; block_args = p.block_args
-       ; optional = p.optional
-       ; description = p.description
-       } |> Some
-    | _ -> None
-
   type ufn_metadata = { name : string or_blank
                       ; parameters : ufn_param list
                       ; return_type : tipe or_blank
@@ -227,6 +225,8 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                  ; metadata : ufn_metadata
                  ; ast:  expr
                  } [@@deriving eq, show, yojson, sexp, bin_io]
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
+
 
   type function_desc = Uuidm.t * tlid * string * id
 
@@ -265,6 +265,17 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
             ; func : funcimpl
             ; preview_execution_safe : bool
             }
+
+  let ufn_param_to_param (p : ufn_param) : param option =
+    match (p.name, p.tipe) with
+    | (Filled (_, n), Filled (_, t)) ->
+       { name = n
+       ; tipe = t
+       ; block_args = p.block_args
+       ; optional = p.optional
+       ; description = p.description
+       } |> Some
+    | _ -> None
 
   let user_fn_to_fn uf : fn option =
     let name =
