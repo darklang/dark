@@ -185,12 +185,17 @@ let user_page_handler ~(execution_id: Types.id) ~(host: string) ~(ip: string) ~(
          in
          respond ~resp_headers ~execution_id status body)
     | _ ->
-      let body = Dval.dval_to_pretty_json_string result in
-      let ct_headers = maybe_infer_headers [] result in
-      let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
-      (* for demonstrations sake, let's return 200 Okay when
-       * no HTTP response object is returned *)
-      respond ~resp_headers ~execution_id `OK body)
+      (match result with
+      | DIncomplete ->
+        respond ~execution_id `Internal_server_error
+          "Program error: program was incomplete"
+      | _ ->
+        let body = Dval.dval_to_pretty_json_string result in
+        let ct_headers = maybe_infer_headers [] result in
+        let resp_headers = Cohttp.Header.of_list ([cors] @ ct_headers) in
+        (* for demonstrations sake, let's return 200 Okay when
+         * no HTTP response object is returned *)
+        respond ~resp_headers ~execution_id `OK body))
 
 
 (* -------------------------------------------- *)
