@@ -211,11 +211,11 @@ let ast_for (ast: string) : expr =
   (* |> (fun s -> *)
   (*       let b = Buffer.create 16000 in *)
   (*       Sexp.to_buffer_hum b s; *)
-  (*       Log.pP "buf:" (Buffer.contents b); *)
+  (*       Log.inspecT "buf" (Buffer.contents b); *)
   (*       s *)
      (* ) *)
   |> ast_for_
-  (* |> Log.pp ~f:show_expr "expr" *)
+  |> Log.inspect ~f:show_expr "expr"
 
 let execute (prog: string) : dval =
   prog
