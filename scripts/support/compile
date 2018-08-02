@@ -99,10 +99,16 @@ def ocaml_build():
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
-                  #  , "bin/darkjs.bc.js"
-                  #  , "@darkjs"
+                  , "bin/darkjs.bc.js"
+                  , "@darkjs"
                   ])
-  build = "unbuffer dune build --display=short --root server -j 8 " + exes
+
+  # This is a temporary hack to force dune's "direct compilation" mode.
+  # Indeed, separate compilation takes forever here for some reason.
+  # See "http://jbuilder.readthedocs.io/en/latest/jsoo.html".
+  force_direct_compilation = "--profile release"
+
+  build = "unbuffer dune build --display=short --root server -j 8 " + force_direct_compilation + exes
   if profile:
     return run_backend(start, landmarks + build)
   else:
