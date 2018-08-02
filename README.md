@@ -186,13 +186,6 @@ You can also disable the polling (ans consequently the building):
 
 Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
-# Versioning oplists
-
-Oplists are versioned by the hash of the "shape" of their structure.
-If you change the structure of an Op (including the nested structure),
-then the binary version will no longer load. See serialize.ml for
-migrations.
-
 # Debugging ppx stuff
 
 PPX is an ocaml preprocessor we use. The ppx libraries are all pretty
@@ -232,3 +225,6 @@ npm dependencies are managed in development, bundled up via browserify, tracked 
 * Use the package in `server/src/main.js` or whatever
 * $`yarn build` manages `/server/static/bundle.js`
 
+# Important docs which we believe are up-to-date:
+
+- docs/oplist-serialization.md
