@@ -124,6 +124,13 @@ download) with:
 
 - `./scripts/reset-prodclone`
 
+And access it directly with:
+
+- `./scripts/run-in-docker psql -d prodclone`
+
+You can also access the real DB in production:
+
+- `./scripts/gcp-prod`
 
 # Config files
 
