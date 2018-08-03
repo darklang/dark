@@ -1184,6 +1184,21 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["String::isSubstring"]
+  ; ins = []
+  ; p = [par "searchingFor" TStr; par "lookingIn" TStr]
+  ; r = TBool
+  ; d = "Checks if `lookingIn` contains `searchingFor`"
+  ; f = InProcess
+          (function
+            | (_, [DStr needle; DStr haystack]) ->
+              DBool (String.is_substring ~substring:needle haystack)
+           | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
 
   (* ====================================== *)
   (* List *)
