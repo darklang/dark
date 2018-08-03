@@ -184,7 +184,7 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
          (b_or_f key, ast_for_ value )
        | x ->
          Log.infO "pair" ~data:(Log.dump pair);
-         failwith "invalid"
+         failwith "invalid pair when creating obj"
      in
      let args = List.map ~f:to_pair rest in
      f (ObjectLiteral args))
@@ -715,12 +715,39 @@ let t_password_json_round_trip_backwards () =
     json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
 
 let t_incomplete_propagation () =
+  AT.check at_dval "Fn with incomplete return incomplete"
+    DIncomplete
+    (execute "(List::head _)");
   AT.check at_dval "Incompletes stripped from lists"
     (DList [DInt 5; DInt 6])
     (execute "(5 6 (List::head _))");
   AT.check at_dval "Blanks stripped from lists"
     (DList [DInt 5; DInt 6])
     (execute "(5 6 _)");
+  AT.check at_dval "Blanks stripped from objects"
+    (DObj (DvalMap.of_alist_exn ["m", DInt 5; "n", DInt 6]))
+    (execute "(obj (i _) (m 5) (j (List::head _)) (n 6))");
+  AT.check at_dval "incomplete if conds are incomplete"
+    DIncomplete
+    (execute "(if _ 5 6)");
+  AT.check at_dval "blanks in threads are ignored"
+    (DInt 8)
+    (execute "(| 5 _ (+ 3))");
+  AT.check at_dval "incomplete in the middle of a thread is skipped"
+    (DInt 8)
+    (execute "(| 5 (+ _) (+ 3))");
+  AT.check at_dval "incomplete at the end of a thread is skipped"
+    (DInt 5)
+    (execute "(| 5 (+ _))");
+  AT.check at_dval "empty thread is incomplete"
+    DIncomplete
+    (execute "(|)");
+  AT.check at_dval "incomplete obj in field access is incomplete"
+    DIncomplete
+    (execute "(. (List::head _) field)");
+  AT.check at_dval "incomplete name in field access is incomplete"
+    DIncomplete
+    (execute "(. (obj (i 5)) _)");
   ()
 
 let t_html_escaping () =
