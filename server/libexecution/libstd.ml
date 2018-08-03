@@ -1184,11 +1184,11 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["String::is_substring"]
+  { pns = ["String::isSubstring"]
   ; ins = []
-  ; p = [par "searching_for" TStr; par "looking_in" TStr]
+  ; p = [par "searchingFor" TStr; par "lookingIn" TStr]
   ; r = TBool
-  ; d = "Checks if `looking_in` contains `searching_for`"
+  ; d = "Checks if `lookingIn` contains `searchingFor`"
   ; f = InProcess
           (function
             | (_, [DStr needle; DStr haystack]) ->
