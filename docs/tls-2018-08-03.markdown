@@ -1,0 +1,157 @@
+# TLS Configuration, 2018/08/03
+
+To make HTTPs work I (Lizzie, <_@lizzie.io>) needed to do four things:
+
+* Generate a certificate and store it as a "TLS secret" in Kubernetes.
+* Create a static IP in Google cloud.
+* Created a new Ingress in Kubernetes using the TLS secret and IP.
+* Switch over DNS.
+
+I created the certificate in with Comodo CA
+(<https://www.comodoca.com/>). It's a two-year wildcard
+certificate. It cost $229/year. Paul and I have the credentials for
+our account on Comodo CA's website.
+
+After putting in payment details it prompted us for a Certificate
+Signing Request.  I created the Certificate Signing Request by
+creating the following configuration file:
+
+```
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+prompt=no
+
+[req_distinguished_name]
+C=US
+ST=California
+L=San Francisco
+O=Dark Inc
+CN=*.builtwithdark.com
+[ v3_req ]
+
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = builtwithdark.com
+```
+
+(The `subjectAltName` bit is important, since we want a wildcard cert
+for `*.builtwithdark.com` that also works with `builtwithdark.com`.)
+
+Then I actually created the Certificate Signing Request with ```
+openssl req -new -sha256 -newkey rsa:2048 -nodes -keyout
+builtwithdark.com.key -out builtwithdark.com.csr -config
+builtwithdark.com.cnf ```
+
+This creates two files: `builtwithdark.com.key`, a new 2048-bit RSA
+key (please don't lose this, it's important), and
+`builtwithdark.com.csr`, the Certificate Signing Request. Then you can
+copy-paste the text of the CSR into the Certificate Authority's
+webpage.
+
+Next you have to prove ownership over the domain. Paul and I tried to
+do it with Cloudflare DNS but it was tricky because Cloudflare has
+some weird restrictions about where you can CNAME to. We realized we
+could use the "text file" challenge instead. That was easy to do by
+logging into <http://builtwithdark.builtwithdark.com/admin/ui> and
+adding a route responding at the path they asked for. It looked like
+this:
+
+```
+/.well-known/pki-validation/3DDCB20FE60956090A312AA36B1A9E0E.txt HTTP GET
+Http::respondWithHtml
+"82EF68C568D5B84C00FE816EFED8F86A371CB21C79ED340AFC0C6144F06E55A8
+comodoca.com"
+200
+```
+
+They emailed ops@darklang.com, the email address I signed up with,
+with a zip file containing a lot of `.crt` files. Unfortunately none
+of these are the actual certificate you can use to serve files on
+`builtwithdark.com`; you need to concatenate them all, for the full
+chain of trust.
+
+```
+cat STAR_builtwithdark_com.crt  COMODORSADomainValidationSecureServerCA.crt COMODORSAAddTrustCA.crt AddTrustExternalCARoot.crt > builtwithdark.com.crt
+```
+
+Now you can upload this `crt` file and the `key` file to a Kubernetes
+secret, so that it will be used by an HTTPs-enabled `Ingress`.
+
+```
+kubectl create secret tls bwd-tls --cert=builtwithdark.com.crt --key=builtwithdark.com.key
+```
+
+If it's already been created (which it has) you can use this snippet instead:
+
+```
+CERT="$(sudo base64 -w 0 builtwithdark.com.crt)"
+KEY="$(sudo base64 -w 0 builtwithdark.com.key)"
+kubectl get secret bwd-tls -o json \
+    | jq '.data["tls.crt"] = "'"$CERT"'" | .data["tls.key"] = "'"$KEY"'"' \
+    | kubectl replace -f -
+```
+
+Next I created a static IP in Google cloud with
+
+```
+gcloud compute addresses create bwd-tls-ip --global
+```
+
+You can see that IP (and the others) at
+https://console.cloud.google.com/networking/addresses/list?project=balmy-ground-195100. It's
+`35.227.208.117`.
+
+
+Then you need to actually create a Kubernetes Ingress pointing to the
+static IP we generated and the TLS secret we just created. For me,
+that looked like
+
+```
+kubectl create -f - <<EOF
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: bwd-tls-ingress
+  annotations:
+        kubernetes.io/ingress.global-static-ip-name: "bwd-tls-ip"
+spec:
+  backend:
+    serviceName: bwd-nodeport
+    servicePort: 80
+  tls:
+    - secretName: bwd-tls
+EOF
+```
+
+(This is now in `builtwithdark.yaml`, so you shouldn't have to do it again.)
+
+Changes to the ingress seem to take a while to propagate. After this
+is all done you can confirm that it works before switching the DNS
+over in three ways: one, by using `--resolve` in `curl`:
+
+```
+curl -l --resolve lizzie.builtwithdark.com:443:35.227.208.117 https://builtwithdark.com
+```
+
+or by using `openssl s_client` (make sure it says `Verification: OK`)
+
+```
+openssl s_client -connect 35.227.208.117:443 -servername builtwithdark.com <<<""
+```
+
+or by editing your `/etc/hosts` to resolve `builtwithdark.com` to
+`35.227.208.117` and using your browser:
+
+```
+35.227.208.117  builtwithdark.com
+35.227.208.117  lizzie.builtwithdark.com
+```
+
+Once you've confirmed that it works consistently you can switch over
+the DNS. In order to do this, you log into our DNS provider's (i.e., as of now,
+Cloudflare's) web UI and switch the `A` records for
+`builtwithdark.com` and `*.builtwithdark.com` to `35.227.208.117`.
