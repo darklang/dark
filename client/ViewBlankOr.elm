@@ -105,13 +105,7 @@ getLiveValue lvs (ID id) =
 
 viewLiveValue : ViewState -> List (Html.Html Msg)
 viewLiveValue vs =
-  let cursorID =
-        case vs.cursorState of
-          Selecting _ (Just id) -> Just id
-          Entering (Filling _ id) -> Just id
-          _ -> Nothing
-
-      cursorLiveValue =
+  let cursorLiveValue =
         case vs.cursorState of
           Selecting tlid (Just (ID id)) ->
             Dict.get id vs.lvs
