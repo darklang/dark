@@ -302,6 +302,11 @@ let validate_op host op =
     Exception.internal "bad op"
       ~info:["host", host] ~actual:(Op.show_op op)
 
+(* just load, don't save *)
+let check_tier_one_hosts () : unit =
+  let hosts = Serialize.tier_one_hosts () in
+  List.iter hosts
+    ~f:(fun host -> let _ = load_all host [] in ())
 
 let check_all_hosts () : unit =
   let hosts = Serialize.current_hosts () in
