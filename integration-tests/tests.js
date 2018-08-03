@@ -213,7 +213,7 @@ test('varbinds_are_editable', async t => {
 
 test('editing_does_not_deselect', async t => {
   await t
-    .doubleClick(".ast > .blankOr > .letrhs > .blankOr")
+    .doubleClick(".ast .blankOr > .letrhs > .blankOr")
     .click("#entry-box")
 });
 
