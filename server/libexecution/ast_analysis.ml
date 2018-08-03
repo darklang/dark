@@ -122,7 +122,8 @@ let rec sym_exec
            | Blank _ -> st
          in sexe bound body
 
-       | Filled (_, FnCall (name, exprs)) ->
+       | Filled (_, FnCall (name, exprs))
+       | Filled (_, FnCallSendToRail (name, exprs)) ->
          List.iter ~f:(sexe st) exprs
 
        | Filled (_, If (cond, ifbody, elsebody))
@@ -328,6 +329,7 @@ let rec exec ~(engine: engine)
           DError ("There is no variable named: " ^ name)
         | Some result -> ignoreError result)
 
+     | Filled (id, FnCallSendToRail (name, exprs))
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals
