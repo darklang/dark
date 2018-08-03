@@ -283,12 +283,14 @@ let rec exec ~(engine: engine)
      | Blank id -> DIncomplete
 
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound = match lhs with
-            | Filled (_, name) ->
-              let data = exe st rhs in
-              trace_blank lhs data st;
-              String.Map.set ~key:name ~data:data st
-            | Blank _ -> st
+       let bound =
+         let data = exe st rhs in
+         trace_blank lhs data st;
+         match lhs with
+         | Filled (_, name) ->
+           String.Map.set ~key:name ~data:data st
+         | Blank _ ->
+           st
        in exe bound body
 
      | Filled (_, Value s) ->
