@@ -174,7 +174,7 @@ viewNExpr d id vs config e =
       , n [wc "elsebody"] [vExpr 0 elsebody]
       ]
 
-    FnCall name exprs _ ->
+    FnCall name exprs sendToRail ->
       let width = approxNWidth e
           viewTooWideArg name d e =
             Html.div
@@ -233,7 +233,7 @@ viewNExpr d id vs config e =
                          || Runtime.isError val)
 
           ropArrow =
-            if fn.returnTipe /= TOption
+            if sendToRail == NoRail
             then Html.div [] []
             else
               let line =
