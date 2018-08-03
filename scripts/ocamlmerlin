@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# A script to run ocamlmerlin within the container. This exists because Emacs
+# needs an executable name, and doesn't allow you to say `run-in-docker
+# ocamlmerlin`.
+
 script=$(basename $0)
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
