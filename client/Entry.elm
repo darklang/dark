@@ -63,8 +63,9 @@ createFunction m name =
   in
     case fn of
       Just function ->
+        let r = if function.returnTipe == TOption then Rail else NoRail in
         Just <|
-          B.newF (FnCall name (blanks (List.length function.parameters)) NoRail)
+          B.newF (FnCall name (blanks (List.length function.parameters)) r)
       Nothing -> Nothing
 
 submitOmniAction : Model -> Pos -> OmniAction -> Modification
