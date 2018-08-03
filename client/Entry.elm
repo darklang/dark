@@ -64,7 +64,7 @@ createFunction m name =
     case fn of
       Just function ->
         Just <|
-          B.newF (FnCall name (blanks (List.length function.parameters)))
+          B.newF (FnCall name (blanks (List.length function.parameters)) NoRail)
       Nothing -> Nothing
 
 submitOmniAction : Model -> Pos -> OmniAction -> Modification

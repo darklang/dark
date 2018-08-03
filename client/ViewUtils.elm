@@ -206,7 +206,7 @@ approxNWidth ne =
       |> max (approxWidth ifbody + 2) -- indent
       |> max (approxWidth elsebody + 2) -- indent
 
-    FnCall name exprs ->
+    FnCall name exprs _ ->
       let sizes = exprs
                   |> List.map approxWidth
                   |> List.map ((+) 1) -- the space in between

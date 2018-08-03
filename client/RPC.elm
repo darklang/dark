@@ -316,9 +316,14 @@ encodeNExpr expr =
   let e = encodeExpr
       ev = encodeVariant in
   case expr of
-    FnCall n exprs ->
-      ev "FnCall" [ JSE.string n
-                  , JSE.list (List.map e exprs)]
+    FnCall n exprs r ->
+      if r == Rail
+      then
+        ev "FnCallSendToRail" [ JSE.string n
+                              , JSE.list (List.map e exprs)]
+      else
+        ev "FnCall" [ JSE.string n
+                    , JSE.list (List.map e exprs)]
 
     Let lhs rhs body ->
       ev "Let" [ encodeBlankOr JSE.string lhs
@@ -496,7 +501,8 @@ decodeNExpr =
     [ ("Let", dv3 Let (decodeBlankOr JSD.string) de de)
     , ("Value", dv1 Value JSD.string)
     , ("If", dv3 If de de de)
-    , ("FnCall", dv2 FnCall JSD.string (JSD.list de))
+    , ("FnCall", dv2 (\a b -> FnCall a b NoRail) JSD.string (JSD.list de))
+    , ("FnCallSendToRail", dv2 (\a b -> FnCall a b Rail) JSD.string (JSD.list de))
     , ("Lambda", dv2 Lambda (JSD.list (decodeBlankOr JSD.string)) de)
     , ("Variable", dv1 Variable JSD.string)
     , ("Thread", dv1 Thread (JSD.list de))

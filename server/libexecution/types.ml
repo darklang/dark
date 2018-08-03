@@ -71,6 +71,10 @@ module RuntimeT = struct
              | ObjectLiteral of (key * expr) list
              | ListLiteral of expr list
              | FeatureFlag of (string or_blank) * expr * expr * expr
+             (* it's like this, instead of a bool on fncall, to avoid a
+              * migration because we don't know how this is going to work
+              * in the end. *)
+             | FnCallSendToRail of fnname * expr list
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)

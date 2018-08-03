@@ -174,7 +174,7 @@ viewNExpr d id vs config e =
       , n [wc "elsebody"] [vExpr 0 elsebody]
       ]
 
-    FnCall name exprs ->
+    FnCall name exprs _ ->
       let width = approxNWidth e
           viewTooWideArg name d e =
             Html.div

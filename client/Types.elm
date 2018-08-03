@@ -283,8 +283,9 @@ type alias Key = BlankOr KeyName
 type alias LambdaParameter = BlankOr VarName
 
 type alias Expr = BlankOr NExpr
+type SendToRail = Rail | NoRail
 type NExpr = If Expr Expr Expr
-           | FnCall FnName (List Expr)
+           | FnCall FnName (List Expr) SendToRail
            | Variable VarName
            | Let VarBind Expr Expr
            | Lambda (List LambdaParameter) Expr
