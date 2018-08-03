@@ -138,7 +138,6 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   let equal_block _ _ _ = false
   let compare_block _ _ _ = -1
 
-  (* TODO SPLIT: what is the format vs Core's Uuid.Stable.V1 *)
   type uuid = Uuidm.t [@opaque][@@deriving show, eq, compare]
 
   let uuid_of_sexp st =
