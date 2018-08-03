@@ -115,20 +115,3 @@ spec:
   backend:
     serviceName: bwd-nodeport
     servicePort: 80
----
-apiVersion: extensions/v1beta1
-kind: NetworkPolicy
-metadata:
-  name: bwd-network-policy
-spec:
-  policyTypes:
-  - Egress
-  egress:
-  - to:
-    - ipBlock:
-        cidr: 0.0.0.0/0
-        except:
-        - 169.254.0.0/16
-  podSelector:
-    matchLabels:
-      app: bwd-app
