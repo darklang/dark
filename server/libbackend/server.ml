@@ -407,38 +407,40 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
         respond ~execution_id `Unauthorized "Invalid session"
 
 let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
-    (req: CRequest.t) req_headers =
+    (req: CRequest.t) resp_headers =
   let verb = req |> CRequest.meth in
-  let text_plain_resp_headers =
-    Header.init_with "Content-type" "text/html; charset=utf-8"
-    |> (fun h -> Header.add h "Content-security-policy"
-                   (* Don't allow any other websites to put this in an iframe;
-                      this prevents "clickjacking" attacks.
-                      https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
-                      It would be nice to use CSP to limit where we can load scripts etc from,
-                      but right now we load from CDNs, <script> tags, etc. So the only thing
-                      we could do is script-src: 'unsafe-inline', which doesn't offer us
-                      any additional security. *)
-                "frame-ancestors 'none';")
+  let json_hdrs hdrs =
+    Header.add_list resp_headers
+      (hdrs
+       |> Header.to_list
+       |> List.cons ("Content-type",  "application/json; charset=utf-8"))
   in
-  let utf8 = "application/json; charset=utf-8" in
+  let html_hdrs =
+    Header.add_list resp_headers
+      [ ("Content-type", "text/html; charset=utf-8")
+      (* Don't allow any other websites to put this in an iframe;
+         this prevents "clickjacking" at tacks.
+         https://www.owasp.org/index.php/Clickjacking_Defense_Cheat_Sheet#Content-Security-Policy:_frame-ancestors_Examples
+         It would be nice to use CSP to limit where we can load scripts etc from,
+         but right now we load from CDNs, <script> tags, etc. So the only thing
+         we could do is script-src: 'unsafe-inline', which doesn't offer us
+         any additional security. *)
+      ; ("Content-security-policy", "frame-ancestors 'none';")
+      ]
+  in
   match (verb, Uri.path uri) with
   | (`POST, "/admin/api/rpc") ->
     let (resp_headers, response_body) = admin_rpc_handler ~execution_id host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
-    respond ~resp_headers ~execution_id `OK response_body
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
   | (`POST, "/admin/api/initial_load") ->
     let (resp_headers, response_body) = initial_load ~execution_id host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
-    respond ~resp_headers ~execution_id `OK response_body
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
   | (`POST, "/admin/api/execute_function") ->
     let (resp_headers, response_body) = execute_function ~execution_id host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
-    respond ~resp_headers ~execution_id `OK response_body
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
   | (`POST, "/admin/api/get_analysis") ->
     let (resp_headers, response_body) = get_analysis ~execution_id host body in
-    let resp_headers = Header.add resp_headers "Content-type" utf8 in
-    respond ~resp_headers ~execution_id `OK response_body
+    respond ~resp_headers:(json_hdrs resp_headers) ~execution_id `OK response_body
   | (`POST, "/admin/api/shutdown") when Config.allow_server_shutdown ->
     Lwt.wakeup stopper ();
     respond ~execution_id `OK "Disembowelment"
@@ -450,20 +452,20 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
   | (`GET, "/admin/ui-debug") ->
     let%lwt body = admin_ui_handler ~debug:true () in
     respond
-      ~resp_headers:text_plain_resp_headers
+      ~resp_headers:html_hdrs
       ~execution_id
       `OK body
   | (`GET, "/admin/ui") ->
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
-      ~resp_headers:text_plain_resp_headers
+      ~resp_headers:html_hdrs
       ~execution_id
       `OK body
   | (`GET, "/admin/integration_test") when Config.allow_test_routes ->
     Canvas.load_and_resave_from_test_file host;
     let%lwt body = admin_ui_handler ~debug:false () in
     respond
-      ~resp_headers:text_plain_resp_headers
+      ~resp_headers:html_hdrs
       ~execution_id
       `OK body
   | (`POST, "/admin/check-all-oplists") ->
@@ -547,7 +549,7 @@ let server () =
               | _ -> None)
       in
 
-      let handler req_headers =
+      let handler resp_headers =
         let ip = get_ip_address ch in
         let uri = req |> CRequest.uri in
 
@@ -573,7 +575,7 @@ let server () =
           if String.is_prefix ~prefix:"/admin/" p
           then
             try
-              admin_handler ~execution_id ~host ~uri ~body ~stopper req req_headers
+              admin_handler ~execution_id ~host ~uri ~body ~stopper req resp_headers
             with e -> handle_error ~include_internals:true e
           else
             (* caught by a handle_error a bit lower *)
