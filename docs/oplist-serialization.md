@@ -33,6 +33,7 @@ If you make a change to anything with uses `[@@deriving bin_io]`, you need to ma
     migration. Check git history for how to do it.
 
   - We automatically validate the oplists for important canvases on deployment.
+    See Libbackend.Serialize.tier_one_hosts
 
   - After deploying a serialization change, go through the conversion process
     to bring all oplists to the latest version. Just go to
