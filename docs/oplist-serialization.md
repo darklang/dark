@@ -2,9 +2,6 @@
 
 Oplists are versioned by the hash of the "shape" of their structure.
 If you change the structure of an Op then the binary version will no longer load.
-This includes changes to
-
-## tl;dr
 
 If you make a change to anything with uses `[@@deriving bin_io]`, you need to make sure of the following:
 
@@ -33,14 +30,13 @@ If you make a change to anything with uses `[@@deriving bin_io]`, you need to ma
     - `select distinct digest from toplevel_oplists;`
 
   - If you change the format of the oplists in a weird way, you need to write a
-    migration.
+    migration. Check git history for how to do it.
 
-  - We automatically validate the oplists for important canvases on deployment
+  - We automatically validate the oplists for important canvases on deployment.
 
   - After deploying a serialization change, go through the conversion process
     to bring all oplists to the latest version. Just go to
     https://builtwithdark.com/admin/check-all-oplists and click the button.
-
 
 
 
