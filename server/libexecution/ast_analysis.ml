@@ -277,17 +277,20 @@ let rec exec ~(engine: engine)
     | DError _ -> DIncomplete
     | _ -> e in
 
+
   let value _ =
     (match expr with
      | Blank id -> DIncomplete
 
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound = match lhs with
-            | Filled (_, name) ->
-              let data = exe st rhs in
-              trace_blank lhs data st;
-              String.Map.set ~key:name ~data:data st
-            | Blank _ -> st
+       let bound =
+         let data = exe st rhs in
+         trace_blank lhs data st;
+         match lhs with
+         | Filled (_, name) ->
+           String.Map.set ~key:name ~data:data st
+         | Blank _ ->
+           st
        in exe bound body
 
      | Filled (_, Value s) ->
@@ -298,8 +301,10 @@ let rec exec ~(engine: engine)
        |> List.filter_map
          ~f:(function
              | Blank _ -> None
-             | v -> Some (exe st v)
-            )
+             | v ->
+               match exe st v with
+               | DIncomplete -> None (* ignore unfinished subexpr *)
+               | dv -> Some dv)
        |> DList
 
      | Filled (_, ObjectLiteral pairs) ->
@@ -308,7 +313,9 @@ let rec exec ~(engine: engine)
          ~f:(function
              | (Filled (_, k), v) ->
                let expr = exe st v in
-               Some (k, expr)
+               (match expr with
+                | DIncomplete -> None (* ignore unfinished subexpr *)
+                | _ -> Some (k, expr))
              | (_, v) ->
                let _ = exe st v in
                None
@@ -387,7 +394,9 @@ let rec exec ~(engine: engine)
               ~f:(fun results nxt ->
                   let previous = List.hd_exn results in
                   let value = inject_param_and_execute st previous nxt in
-                  value :: results
+                  match value with
+                  | DIncomplete -> results (* let execution through *)
+                  | _ -> value :: results
                 ) es
           in
           List.hd_exn results

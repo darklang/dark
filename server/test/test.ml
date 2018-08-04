@@ -54,7 +54,12 @@ let execute_ops (ops : Op.op list) : dval =
   let state = Execution.state_for_execution ~c:!c h.tlid
       ~execution_id ~env
   in
-  Ast_analysis.execute_handler state h
+  try
+    Ast_analysis.execute_handler state h
+  with e ->
+    Exception.reraise_after e (fun bt ->
+      print_endline (Exception.to_string e);
+      print_endline (Exception.backtrace_to_string bt))
 
 
 let at_dval = AT.testable
@@ -139,6 +144,11 @@ let is_fn name =
   || name = "toString"
   || String.is_substring ~substring:"::" name
 
+let b_or_f (name: string) : string or_blank =
+  match name with
+  | "_" -> b ()
+  | name -> f name
+
 let rec ast_for_ (sexp : Sexp.t) : expr =
   match sexp with
   (* fncall *)
@@ -153,23 +163,35 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
 
   (* let *)
   | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
-    f (Let (f var, ast_for_ value, ast_for_ body))
+    f (Let (b_or_f var, ast_for_ value, ast_for_ body))
+
+  (* if *)
+  | Sexp.List [Sexp.Atom "if"; cond; ifbody; elsebody] ->
+    f (If (ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
+
+  (* feature-flag *)
+  | Sexp.List [Sexp.Atom "flag"; Sexp.Atom name; cond; ifbody; elsebody] ->
+    f (FeatureFlag (b_or_f name, ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
+
+  (* thread *)
+  | Sexp.List (Sexp.Atom "|" :: exprs) ->
+    f (Thread (List.map exprs ~f:ast_for_))
 
   (* objects *)
   | Sexp.List (Sexp.Atom "obj" :: rest) ->
     (let to_pair pair =
        match pair with
        | Sexp.List [Sexp.Atom key; value] ->
-         (f key, ast_for_ value )
+         (b_or_f key, ast_for_ value )
        | x ->
          Log.infO "pair" ~data:(Log.dump pair);
-         failwith "invalid"
+         failwith "invalid pair when creating obj"
      in
      let args = List.map ~f:to_pair rest in
      f (ObjectLiteral args))
 
   | Sexp.List [Sexp.Atom "."; obj; Sexp.Atom field] ->
-     f (FieldAccess (ast_for_ obj, f field))
+     f (FieldAccess (ast_for_ obj, b_or_f field))
 
   (* lists *)
   | Sexp.List args ->
@@ -207,11 +229,11 @@ let ast_for (ast: string) : expr =
   (* |> (fun s -> *)
   (*       let b = Buffer.create 16000 in *)
   (*       Sexp.to_buffer_hum b s; *)
-  (*       Log.pP "buf:" (Buffer.contents b); *)
+  (*       Log.inspecT "buf" (Buffer.contents b); *)
   (*       s *)
      (* ) *)
   |> ast_for_
-  (* |> Log.pp ~f:show_expr "expr" *)
+  |> Log.inspect ~f:show_expr "expr"
 
 let execute (prog: string) : dval =
   prog
@@ -630,15 +652,14 @@ let t_dval_of_yojson_doesnt_care_about_order () =
 
 
 let t_password_hashing_and_checking_works () =
-  let oplist = [ "(let password 'password'
-                    (Password::check (Password::hash password)
-                      password))"
-                 |> ast_for
-                 |> handler
-                 |> hop
-               ] in
+  let result =
+    execute
+      "(let password 'password'
+                      (Password::check (Password::hash password)
+                        password))"
+  in
   check_dval "A `Password::hash'd string `Password::check's against itself."
-    (execute_ops oplist)
+    result
     (DBool true)
 
 let t_password_hash_db_roundtrip () =
@@ -694,14 +715,45 @@ let t_password_json_round_trip_backwards () =
   AT.check AT.string "Passwords deserialize and serialize if there's no redaction."
     json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
 
+let t_incomplete_propagation () =
+  AT.check at_dval "Fn with incomplete return incomplete"
+    DIncomplete
+    (execute "(List::head _)");
+  AT.check at_dval "Incompletes stripped from lists"
+    (DList [DInt 5; DInt 6])
+    (execute "(5 6 (List::head _))");
+  AT.check at_dval "Blanks stripped from lists"
+    (DList [DInt 5; DInt 6])
+    (execute "(5 6 _)");
+  AT.check at_dval "Blanks stripped from objects"
+    (DObj (DvalMap.of_alist_exn ["m", DInt 5; "n", DInt 6]))
+    (execute "(obj (i _) (m 5) (j (List::head _)) (n 6))");
+  AT.check at_dval "incomplete if conds are incomplete"
+    DIncomplete
+    (execute "(if _ 5 6)");
+  AT.check at_dval "blanks in threads are ignored"
+    (DInt 8)
+    (execute "(| 5 _ (+ 3))");
+  AT.check at_dval "incomplete in the middle of a thread is skipped"
+    (DInt 8)
+    (execute "(| 5 (+ _) (+ 3))");
+  AT.check at_dval "incomplete at the end of a thread is skipped"
+    (DInt 5)
+    (execute "(| 5 (+ _))");
+  AT.check at_dval "empty thread is incomplete"
+    DIncomplete
+    (execute "(|)");
+  AT.check at_dval "incomplete obj in field access is incomplete"
+    DIncomplete
+    (execute "(. (List::head _) field)");
+  AT.check at_dval "incomplete name in field access is incomplete"
+    DIncomplete
+    (execute "(. (obj (i 5)) _)");
+  ()
+
 let t_html_escaping () =
-  let oplist = [ "(String::htmlEscape 'test<>&\\\"\\\'')"
-                 |> ast_for
-                 |> handler
-                 |> hop
-               ] in
   check_dval "html escaping works"
-    (execute_ops oplist)
+    (execute "(String::htmlEscape 'test<>&\\\"\\\'')")
     (DStr "test&lt;&gt;&amp;&quot;&#x27;")
 
 let t_curl_file_urls () =
@@ -796,6 +848,7 @@ let suite =
     t_password_json_round_trip_forwards
   ; "Passwords deserialize and serialize if there's no redaction.", `Quick,
     t_password_json_round_trip_backwards
+  ; "Incompletes propagate correctly", `Quick, t_incomplete_propagation
   ; "HTML escaping works reasonably", `Quick, t_html_escaping
   ; "Dark code can't curl file:// urls", `Quick, t_curl_file_urls
   ; "Account.authenticate_user works when it should", `Quick,
