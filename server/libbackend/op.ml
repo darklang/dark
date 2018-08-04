@@ -3,7 +3,7 @@ open Libexecution
 open Types
 
 
-(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
+(* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
 type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | CreateDB of tlid * pos * string
         | AddDBCol of tlid * id * id
@@ -20,7 +20,7 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
         [@@deriving eq, yojson, show, sexp, bin_io]
-(* DO NOT CHANGE THE ORDER ON THESE!!!! IT WILL BREAK THE SERIALIZER *)
+(* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
 type oplist = op list [@@deriving eq, yojson, show, sexp, bin_io]
 type tlid_oplists = (tlid * oplist) list
