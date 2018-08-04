@@ -488,6 +488,35 @@ let static_handler uri =
   S.respond_file ~fname ()
 
 
+(* Proxies that terminate HTTPs should give us X-Forwarded-Proto: http
+   or X-Forwarded-Proto: https.
+
+   Return the URI, adding the scheme to the URI if there is an X-Forwarded-Proto. *)
+let with_x_forwarded_proto req =
+  match Header.get (CRequest.headers req) "X-Forwarded-Proto" with
+  | Some proto -> Uri.with_scheme
+                   (CRequest.uri req)
+                   (Some proto)
+  | None -> CRequest.uri req
+
+let redirect_to uri =
+  let proto = uri
+              |> Uri.scheme
+              |> Option.value ~default:"" in
+  let parts = uri
+              |> Uri.host
+              |> Option.value ~default:""
+              |> (fun h -> String.split h '.')
+  in
+  match (proto, parts) with
+  | ("http", ["builtwithdark"; "com"; ])
+  | ("http", [_; "builtwithdark"; "com"; ]) ->
+     (* If it's http and on a domain that can be served with https,
+        we want to redirect to the same url but with the scheme
+        replaced by "https". *)
+     Some "https" |> Uri.with_scheme uri |> Some
+  | _ -> None
+
 let server () =
   let stop,stopper = Lwt.wait () in
 
@@ -591,55 +620,56 @@ let server () =
             (* caught by a handle_error a bit lower *)
             user_page_handler ~execution_id ~host ~ip ~uri ~body req
       in
-
-      match (req |> CRequest.uri |> Uri.path, host) with
-      (* This seems like it should be moved closer to the admin handler,
-       * but don't do that - that makes Lwt swallow our exceptions. *)
-      | (_, Some host) ->
-         auth_then_handle ~execution_id req host handler
-      | ("/", None) -> (* for GKE health check *)
-        (match Dbconnection.status () with
-         | `Healthy ->
-           if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
-           then begin
-             Log.infO "Liveness check found unready service, returning unavailable";
-             respond ~execution_id `Service_unavailable "Service not ready"
-           end
-           else
-             respond ~execution_id `OK "Hello internal overlord"
-         | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
-      | ("/ready", None) ->
-        (match Dbconnection.status () with
-         | `Healthy ->
-           if !ready
-           then
-             respond ~execution_id `OK "Hello internal overlord"
-           else begin
-             (* exception here caught by handle_error *)
-             Canvas.check_tier_one_hosts ();
-             Log.infO "All canvases loaded correctly - Service ready";
-             ready := true;
-             respond ~execution_id `OK "Hello internal overlord"
-           end
-         | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
-      | ("/pkill", None) -> (* for GKE graceful termination *)
-        if !shutdown (* note: this is a ref, not a boolean `not` *)
-        then
-          (shutdown := true;
-           Log.infO "shutdown"
-             ~data:"Received shutdown request - shutting down"
-             ~params:["execution_id", string_of_int execution_id];
-           (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
-           Lwt_unix.sleep 28.0 >>= fun _ ->
-           Lwt.wakeup stopper ();
-           respond ~execution_id `OK "Terminated")
-        else
-          (Log.infO "shutdown"
-             ~data:"Received redundant shutdown request - already shutting down"
-             ~params:["execution_id", string_of_int execution_id];
-           respond ~execution_id `OK "Terminated")
-      | (_, None) -> (* for GKE health check *)
-        respond ~execution_id `Not_found "Not found"
+      match redirect_to (with_x_forwarded_proto req) with
+      | Some x -> S.respond_redirect ~uri:x ()
+      | _ -> match (req |> CRequest.uri |> Uri.path, host) with
+            (* This seems like it should be moved closer to the admin handler,
+             * but don't do that - that makes Lwt swallow our exceptions. *)
+            | (_, Some host) ->
+               auth_then_handle ~execution_id req host handler
+            | ("/", None) -> (* for GKE health check *)
+               (match Dbconnection.status () with
+                | `Healthy ->
+                   if (not !ready) (* ie. liveness check has found a service with 2 minutes of failing readiness checks *)
+                   then begin
+                       Log.infO "Liveness check found unready service, returning unavailable";
+                       respond ~execution_id `Service_unavailable "Service not ready"
+                     end
+                   else
+                     respond ~execution_id `OK "Hello internal overlord"
+                | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+            | ("/ready", None) ->
+               (match Dbconnection.status () with
+                | `Healthy ->
+                   if !ready
+                   then
+                     respond ~execution_id `OK "Hello internal overlord"
+                   else begin
+                       (* exception here caught by handle_error *)
+                       Canvas.check_tier_one_hosts ();
+                       Log.infO "All canvases loaded correctly - Service ready";
+                       ready := true;
+                       respond ~execution_id `OK "Hello internal overlord"
+                     end
+                | `Disconnected -> respond ~execution_id `Service_unavailable "Sorry internal overlord")
+            | ("/pkill", None) -> (* for GKE graceful termination *)
+               if !shutdown (* note: this is a ref, not a boolean `not` *)
+               then
+                 (shutdown := true;
+                  Log.infO "shutdown"
+                    ~data:"Received shutdown request - shutting down"
+                    ~params:["execution_id", string_of_int execution_id];
+                  (* k8s gives us 30 seconds, so ballpark 2s for overhead *)
+                  Lwt_unix.sleep 28.0 >>= fun _ ->
+                  Lwt.wakeup stopper ();
+                  respond ~execution_id `OK "Terminated")
+               else
+                 (Log.infO "shutdown"
+                    ~data:"Received redundant shutdown request - already shutting down"
+                    ~params:["execution_id", string_of_int execution_id];
+                  respond ~execution_id `OK "Terminated")
+            | (_, None) -> (* for GKE health check *)
+               respond ~execution_id `Not_found "Not found"
     with e -> handle_error ~include_internals:false e
 
   in

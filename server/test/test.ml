@@ -812,6 +812,26 @@ let t_uuid_string_roundtrip () =
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
+let t_redirect_to () =
+  AT.check (AT.list (AT.option AT.string)) "redirect_to works"
+    (List.map
+       ~f:(fun x -> x |> Uri.of_string |> Server.redirect_to |> Option.map ~f:Uri.to_string)
+       [ "http://example.com"
+       ; "http://builtwithdark.com"
+       ; "https://builtwithdark.com"
+       ; "http://test.builtwithdark.com"
+       ; "https://test.builtwithdark.com"
+       ; "http://test.builtwithdark.com/x/y?z=a"
+       ])
+    [ None
+    ; Some "https://builtwithdark.com"
+    ; None
+    ; Some "https://test.builtwithdark.com"
+    ; None
+    ; Some "https://test.builtwithdark.com/x/y?z=a"
+    ]
+
+
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
   ; "undo", `Quick, t_undo
@@ -855,6 +875,7 @@ let suite =
     t_authenticate_user
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
+  ; "Server.redirect_to works", `Quick, t_redirect_to
   ]
 
 let () =
