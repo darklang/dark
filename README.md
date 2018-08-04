@@ -17,27 +17,9 @@
 
 We're running in kubernetes on GKE.
 
-The production containers build and push to the registry as part of our CI build.
-To deploy the latest container to Kubernetes, you'll need `gcloud` installed:
+The production containers are deployed as part of the CI build on master.
 
-- `curl -s https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-192.0.0-darwin-x86_64.tar.gz | tar xz && ./google-cloud-sdk/install.sh`.
-
-then authenticate with gcloud:
-
-- `gcloud auth login`
-
-(Note: you might need to restart your shell for gcloud to appear in your $PATH, or run `exec $SHELL`)
-
-Troubleshooting: if the above is hanging, you can pass `--no-launch-browser` to `gcloud auth login` to have a CLI based workflow.
-
-You should restart your development container at this point, as it pulls in your currently authenticated
-user at start time.
-
-and then run:
-
-- `./script/gke-deploy`
-
-If you want to play with the production containers locally:
+## How to build production containers
 
 Build the production container (assumes that the build has succeeded):
 
@@ -51,13 +33,42 @@ Run integration tests on it:
 
 - `./integration-tests/run.sh --gcp`
 
-Push it to Google Cloud Registry
+## How to deploy manually.
+
+You'll need `gcloud` installed:
+
+- `curl -s https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-192.0.0-darwin-x86_64.tar.gz | tar xz && ./google-cloud-sdk/install.sh`.
+
+then authenticate with gcloud:
+
+- `gcloud auth login`
+
+(Note: you might need to restart your shell for gcloud to appear in your $PATH,
+or run `exec $SHELL`)
+
+You should restart your development container at this point, as it pulls in
+your currently authenticated user at start time.
+
+Push the production container to Google Cloud Registry:
 
 - `./scripts/gcp-push-images-to-gcr`
 
-If you still have authentication problems (eg. `denied: Unable to access the repository, please check that you have permission to access it.` from a GCR push),
-and you've confirmed that you've logged into gcloud and restarted your container, then check that you've accepted the invite to the Google Developer Project
-in your email. If you have and it's still not working, or you don't have an invitation, then ping Paul or Ian.
+Trigger the deploy:
+
+- `./script/gke-deploy`
+
+## Troubleshooting GCP/GKE:
+
+If gcloud auth is hanging, you can pass `--no-launch-browser` to `gcloud auth login` to have a CLI based workflow.
+
+If you have authentication problems (eg. `denied: Unable to access the
+repository, please check that you have permission to access it.` from a GCR
+push), and you've confirmed that you've logged into gcloud and restarted your
+container, then check that you've accepted the invite to the Google Developer
+Project in your email. If you have and it's still not working, or you don't
+have an invitation, then ping Paul or Ian.
+
+
 
 # Adding an account to the DB
 
@@ -113,6 +124,13 @@ download) with:
 
 - `./scripts/reset-prodclone`
 
+And access it directly with:
+
+- `./scripts/run-in-docker psql -d prodclone`
+
+You can also access the real DB in production:
+
+- `./scripts/gcp-prod`
 
 # Config files
 
@@ -168,13 +186,6 @@ You can also disable the polling (ans consequently the building):
 
 Go to `http://localhost:8000/admin/ui-debug` instead of `/admin/ui`.
 
-# Versioning oplists
-
-Oplists are versioned by the hash of the "shape" of their structure.
-If you change the structure of an Op (including the nested structure),
-then the binary version will no longer load. See serialize.ml for
-migrations.
-
 # Debugging ppx stuff
 
 PPX is an ocaml preprocessor we use. The ppx libraries are all pretty
@@ -214,3 +225,6 @@ npm dependencies are managed in development, bundled up via browserify, tracked 
 * Use the package in `server/src/main.js` or whatever
 * $`yarn build` manages `/server/static/bundle.js`
 
+# Important docs which we believe are up-to-date:
+
+- docs/oplist-serialization.md
