@@ -241,6 +241,8 @@ let tier_one_hosts () : string list =
   ; "paul-slackermuse"
   ; "listo"
   ; "ellen-battery2"
+  ; "mike-brickbreaker"
+  ; "rohankanchana-brickbreaker"
   ]
 
 
