@@ -542,13 +542,20 @@ let server () =
         |> Option.bind
           ~f:(fun host ->
               match String.split host '.' with
-              | ["localhost"] -> Some "localhost"
+              (* For production *)
               | ["darksingleinstance"; "com"] -> Some "darksingleinstance"
               | ["builtwithdark"; "com"] -> Some "builtwithdark"
-              | [a; "integration-tests"] -> Some a
-              | [a; "localhost"] -> Some a
               | [a; "darksingleinstance"; "com"] -> Some a
               | [a; "builtwithdark"; "com"] -> Some a
+
+              (* For customers *)
+              | [a; "dabblefox"; "com"] -> Some ("dabblefox-" ^ a)
+
+              (* For development and testing *)
+              | ["localhost"] -> Some "localhost"
+              | [a; "integration-tests"] -> Some a
+              | [a; "localhost"] -> Some a
+
               | _ -> None)
       in
 
