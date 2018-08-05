@@ -46,6 +46,7 @@ let rec tipe_to_string t : string =
   | TPassword -> "Password"
   | TUuid -> "UUID"
   | TOption -> "Option"
+  | TErrorRail -> "ErrorRail"
 
 let rec tipe_of_string str : tipe =
   match String.lowercase str with
@@ -72,6 +73,7 @@ let rec tipe_of_string str : tipe =
   | "url" -> TUrl
   | "password" -> TPassword
   | "uuid" -> TUuid
+  | "errorrail" -> TErrorRail
   | _ -> (* otherwise *)
     if String.is_prefix str "["  && String.is_suffix str "]"
     then
@@ -126,6 +128,7 @@ let rec tipe_of (dv : dval) : tipe =
   | DPassword _ -> TPassword
   | DUuid _ -> TUuid
   | DOption _ -> TOption
+  | DErrorRail _ -> TErrorRail (* Users should not be aware of this *)
 
 
 let tipename (dv: dval) : string =
@@ -406,9 +409,10 @@ let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Sa
                        else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
   | DUuid uuid -> wrap_user_str (Uuidm.to_string uuid)
   | DOption opt ->
-    match opt with
-    | OptNothing -> wrap_user_type `Null
-    | OptJust dv -> wrap_user_type (dval_to_yojson ~redact ~livevalue dv)
+    (match opt with
+     | OptNothing -> wrap_user_type `Null
+     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact ~livevalue dv))
+  | DErrorRail _ -> wrap_user_type `Null
 
 let is_json_primitive (dv: dval) : bool =
   match dv with

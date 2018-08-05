@@ -193,6 +193,14 @@ type engine =
   ; ctx : context
 }
 
+let on_error_rail (dvals : dval list) : dval option =
+  (* if there is an errorrail, return it, else none *)
+  List.fold_left dvals ~init:None
+    ~f:(fun result dval ->
+        match result, dval with
+        | None, (DErrorRail _) -> Some dval
+        | _ -> None)
+
 let rec exec ~(engine: engine)
              ~(state: exec_state)
              (st: symtable)
@@ -322,14 +330,22 @@ let rec exec ~(engine: engine)
                None
            )
        |> Dval.to_dobj
-
      | Filled (_, Variable name) ->
        (match Symtable.find st name with
         | None ->
           DError ("There is no variable named: " ^ name)
         | Some result -> ignoreError result)
 
-     | Filled (id, FnCallSendToRail (name, exprs))
+     | Filled (id, FnCallSendToRail (name, exprs)) ->
+       let argvals = List.map ~f:(exe st) exprs in
+       let result = call name id argvals in
+       (match result with
+        | DOption (OptJust v) -> v
+        (* While we shouldn't have anything else, it's possible at the
+         * moment probably, so with the goal of "you know it's what you
+         * expected", other things should go on the error rail. *)
+        | other -> DErrorRail other)
+
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals
@@ -470,61 +486,64 @@ and call_fn ~(engine:engine) ~(state: exec_state)
                   |> List.map ~f:(fun (p: param) -> p.name)
                   |> List.map ~f:(DvalMap.find_exn args) in
 
-    if paramsIncomplete arglist
-    then DIncomplete
-    else
-      let executing_unsafe = not fn.preview_execution_safe
-                             && (List.mem ~equal:(=) state.exe_fn_ids id
-                                 || engine.ctx = Real)
-      in
-      if executing_unsafe
-      then
-        Log.infO "executing unsafe result" ~params:[ "fn", fnname
-                                                   ; "ctx", Log.dump engine.ctx
-                                                   ; "id", Log.dump id
-                                                   ; "execution_id", Log.dump state.execution_id
-                                                   ];
-
-      let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
-      let maybe_store_result result =
+    (match on_error_rail arglist with
+    | Some dv -> dv
+    | None ->
+      if paramsIncomplete arglist
+      then DIncomplete
+      else
+        let executing_unsafe = not fn.preview_execution_safe
+                               && (List.mem ~equal:(=) state.exe_fn_ids id
+                                   || engine.ctx = Real)
+        in
         if executing_unsafe
-          (* TODO: add an execution ID here so that multiple requests
-           * with the same parameter (from a user) don't pollute old
-           * requests. *)
-        then state.store_fn_result sfr_desc arglist result
-        else ();
-      in
+        then
+          Log.infO "executing unsafe result" ~params:[ "fn", fnname
+                                                     ; "ctx", Log.dump engine.ctx
+                                                     ; "id", Log.dump id
+                                                     ; "execution_id", Log.dump state.execution_id
+                                                     ];
 
-      let state =
-        { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
-      in
+        let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
+        let maybe_store_result result =
+          if executing_unsafe
+            (* TODO: add an execution ID here so that multiple requests
+             * with the same parameter (from a user) don't pollute old
+             * requests. *)
+          then state.store_fn_result sfr_desc arglist result
+          else ();
+        in
 
-      let result =
-        (try
-           match engine.ctx with
-           | Real ->
-             f (state, arglist)
-           | Preview ->
-             if fn.preview_execution_safe || executing_unsafe
-             then f (state, arglist)
-             else
-               (match state.load_fn_result sfr_desc arglist with
-                | Some (result, _ts) -> result
-                | _ -> DIncomplete)
-         with
-         | e ->
-           (* After the rethrow, this gets eventually caught then shown
-            * to the user as a Dark Internal Exception. It's an internal
-            * exception because we didn't anticipate the problem, give
-            * it a nice error message, etc. It'll appear in Rollbar as
-            * "Unknown Err".  *)
-           Exception.reraise_after e
-             (fun bt ->
-               maybe_store_result (Dval.exception_to_dval e);
-             ))
-      in
-      maybe_store_result result;
-      result
+        let state =
+          { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
+        in
+
+        let result =
+          (try
+             match engine.ctx with
+             | Real ->
+               f (state, arglist)
+             | Preview ->
+               if fn.preview_execution_safe || executing_unsafe
+               then f (state, arglist)
+               else
+                 (match state.load_fn_result sfr_desc arglist with
+                  | Some (result, _ts) -> result
+                  | _ -> DIncomplete)
+           with
+           | e ->
+             (* After the rethrow, this gets eventually caught then shown
+              * to the user as a Dark Internal Exception. It's an internal
+              * exception because we didn't anticipate the problem, give
+              * it a nice error message, etc. It'll appear in Rollbar as
+              * "Unknown Err".  *)
+             Exception.reraise_after e
+               (fun bt ->
+                 maybe_store_result (Dval.exception_to_dval e);
+               ))
+        in
+        maybe_store_result result;
+        result)
 
 
   | UserCreated body ->

@@ -41,6 +41,7 @@ type tipe_ =
   | TPassword
   | TUuid
   | TOption
+  | TErrorRail
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -196,6 +197,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DPassword of Bytes.t
     | DUuid of uuid
     | DOption of optionT
+    | DErrorRail of dval
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 
