@@ -64,7 +64,6 @@ let cols_for (db: db) : (string * tipe) list =
       Some (name, tipe)
     | _ ->
       None)
-  |> fun l -> ("id", TID) :: l
 
 let dv_to_id col (dv: dval) : Uuidm.t =
     match dv with
@@ -79,21 +78,13 @@ let dv_to_id col (dv: dval) : Uuidm.t =
       uuid
     | _ -> Exception.user (type_error_msg col TID dv)
 
-
 let query_for (col: string) (dv: dval) : string =
-  if col = "id" (* the id is not stored in the jsonb *)
-  then
-    let id = dv_to_id col dv in
-    Printf.sprintf
-      "AND id = %s"
-      (Db.escape (Uuid id))
-  else
-    Printf.sprintf
-      "AND (data->%s)%s = %s" (* compare against json in a string *)
-      (Db.escape (String col))
-      (Db.cast_expression_for dv
-       |> Option.value ~default:"")
-      (Db.escape (DvalJson dv))
+  Printf.sprintf
+    "AND (data->%s)%s = %s" (* compare against json in a string *)
+    (Db.escape (String col))
+    (Db.cast_expression_for dv
+     |> Option.value ~default:"")
+    (Db.escape (DvalJson dv))
 
 let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   let conds =
@@ -103,7 +94,7 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   in
   let sql =
     Printf.sprintf
-      "SELECT id, data
+      "SELECT data
        FROM user_data
        WHERE table_tlid = $1
        AND user_version = $2
@@ -123,56 +114,16 @@ and
 fetch_by ~state db (col: string) (dv: dval) : dval =
   fetch_by_many ~state db [(col, dv)]
 and
-find ~state db id  =
-  Db.fetch_one
-    ~name:"find"
-    "SELECT DISTINCT id, data
-     FROM user_data
-     WHERE id = $1
-     AND user_version = $2
-     AND dark_version = $3"
-    ~params:[ Uuid id
-            ; Int db.version
-            ; Int current_dark_version]
-  |> to_obj ~state db
-and
-find_many ~state db ids =
-  let sql =
-    Printf.sprintf
-      "SELECT DISTINCT id, data
-       FROM user_data
-       WHERE id IN (%s)
-       AND user_version = $1
-       AND dark_version = $2"
-      (Db.escape (List (List.map ~f:(fun u -> Uuid u) ids)))
-  in
-  if List.is_empty ids
-  then DList []
-  else
-    Db.fetch
-      ~name:"find_many"
-      sql
-      ~params:[ Int db.version
-              ; Int current_dark_version]
-    |> List.map ~f:(to_obj ~state db)
-    |> DList
-and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)
 to_obj ~state db (db_strings : string list)
   : dval =
   match db_strings with
-  | [id; obj] ->
-    let p_id =
-      id |> Uuidm.of_string |> Option.value_exn |> DID
-    in
+  | [obj] ->
     let p_obj =
       match Dval.dval_of_json_string obj with
       | DObj o -> o
       | x -> Exception.internal ("failed format, expected DObj got: " ^ (obj))
-    in
-    let merged =
-      Map.set ~key:"id" ~data:p_id p_obj
     in
     (* <HACK>: because it's hard to migrate at the moment, we need to
      * have default values when someone adds a col. We can remove this
@@ -183,7 +134,7 @@ to_obj ~state db (db_strings : string list)
         |> List.map ~f:(fun (k, _) -> (k, DNull))
         |> DvalMap.of_alist_exn
     in
-    let merged = Util.merge_left merged default_keys in
+    let merged = Util.merge_left p_obj default_keys in
     (* </HACK> *)
 
     let type_checked =
@@ -195,14 +146,10 @@ and type_check_and_map_dependents ~belongs_to ~has_many ~state (db: db) (obj: dv
   let cols = cols_for db |> TipeMap.of_alist_exn in
   let tipe_keys = cols
                   |> TipeMap.keys
-                  |> List.filter
-                    ~f:(fun k -> not (String.Caseless.equal k "id"))
                   |> String.Set.of_list
   in
   let obj_keys = obj
                  |> DvalMap.keys
-                 |> List.filter
-                   ~f:(fun k -> not (String.Caseless.equal k "id"))
                  |> String.Set.of_list
   in
   let same_keys = String.Set.equal tipe_keys obj_keys in
@@ -261,7 +208,6 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
         let dep_table = find_db_exn state.dbs table in
         (match dv with
          | DID _ | DStr _ ->
-           let id = dv_to_id table dv in
            (* TODO: temporary, need to add this to coerce not found
             * dependents to null. We should probably propagate the
             * deletion to the owning records, but this is very much a
@@ -269,7 +215,10 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             * than child->parent. child->parent seems hard with our
             * single-table, json blob approach though *)
            (try
-              find ~state dep_table id
+              fetch_by ~state dep_table "id" dv
+              |> function
+                DList l -> List.hd_exn l
+                | _ -> Exception.internal "bad fetch"
             with
             | Exception.DarkException e as original ->
               (match e.tipe with
@@ -283,8 +232,14 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
          | err -> Exception.user (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db_exn state.dbs table in
-        let uuids = List.map ~f:(dv_to_id table) ids in
-        find_many ~state dep_table uuids)
+        ids
+        |> List.map
+          ~f:(fun id ->
+              (match fetch_by ~state dep_table "id" id with
+                | DList xs -> xs
+                | _ -> Exception.internal "bad fetch from deprecated has many"))
+        |> List.concat
+        |> DList)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
@@ -314,7 +269,6 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
         |> DList)
     ~state db obj
 and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
-  (* TODO: what if it has an id already *)
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Db.run
@@ -354,7 +308,7 @@ and update ~state db (vals: dval_map) =
 let fetch_all ~state (db: db) : dval =
   Db.fetch
     ~name:"fetch_all"
-    "SELECT id, data
+    "SELECT data
      FROM user_data
      WHERE table_tlid = $1
      AND account_id = $2
