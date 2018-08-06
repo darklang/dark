@@ -804,15 +804,14 @@ let t_uuid_db_roundtrip () =
        | _ -> 1)
 
 let t_uuid_string_roundtrip () =
-  let ast =
-    ast_for "(let i (Uuid::generate)
+  let result =
+    execute "(let i (Uuid::generate)
                (let s (toString i)
                  (let parsed (String::toUUID s)
                    (i parsed))))"
   in
-  let oplist = [ hop (handler ast) ] in
   AT.check AT.int "A generated id can round-trip"
-    0 (match execute_ops oplist with
+    0 (match result with
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
