@@ -469,16 +469,29 @@ and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argva
     |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
     |> DvalMap.of_alist_exn
   in
-  let result = exec_fn ~engine ~state name id fn args in
-  if send_to_rail
-  then
-    (match result with
-     | DOption (OptJust v) -> v
-     (* There should only be DOptions here, but hypothetically we got
-      * something else, they would go on the error rail too.  *)
-     | other -> DErrorRail other)
-  else result
-       (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
+
+  let unwrap_from_errorrail (dv : dval) =
+    match dv with
+    | DErrorRail dv -> dv
+    | other -> other
+  in
+
+  match on_error_rail (DvalMap.data args) with
+  | Some er -> er
+  | None ->
+    let result = exec_fn ~engine ~state name id fn args
+                 |> unwrap_from_errorrail
+    in
+    if send_to_rail
+    then
+      (match result with
+       | DOption (OptJust v) -> v
+       (* There should only be DOptions here, but hypothetically we got
+        * something else, they would go on the error rail too.  *)
+       | other -> DErrorRail other)
+    else
+      result
+
 and exec_fn ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
@@ -504,60 +517,57 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
                   |> List.map ~f:(fun (p: param) -> p.name)
                   |> List.map ~f:(DvalMap.find_exn args) in
 
-    (match on_error_rail arglist with
-    | Some dv -> dv
-    | None ->
-      if paramsIncomplete arglist
-      then DIncomplete
-      else
-        let executing_unsafe = not fn.preview_execution_safe
-                               && (List.mem ~equal:(=) state.exe_fn_ids id
-                                   || engine.ctx = Real)
-        in
+    if paramsIncomplete arglist
+    then DIncomplete
+    else
+      let executing_unsafe = not fn.preview_execution_safe
+                             && (List.mem ~equal:(=) state.exe_fn_ids id
+                                 || engine.ctx = Real)
+      in
+      if executing_unsafe
+      then
+        Log.infO "executing unsafe result" ~params:[ "fn", fnname
+                                                   ; "ctx", Log.dump engine.ctx
+                                                   ; "id", Log.dump id
+                                                   ; "execution_id", Log.dump state.execution_id
+                                                   ];
+
+      let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
+      let maybe_store_result result =
         if executing_unsafe
-        then
-          Log.infO "executing unsafe result" ~params:[ "fn", fnname
-                                                     ; "ctx", Log.dump engine.ctx
-                                                     ; "id", Log.dump id
-                                                     ; "execution_id", Log.dump state.execution_id
-                                                     ];
+          (* TODO: add an execution ID here so that multiple requests
+           * with the same parameter (from a user) don't pollute old
+           * requests. *)
+        then state.store_fn_result sfr_desc arglist result
+        else ();
+      in
 
-        let sfr_desc = (state.canvas_id, state.tlid, fnname, id) in
-        let maybe_store_result result =
-          if executing_unsafe
-            (* TODO: add an execution ID here so that multiple requests
-             * with the same parameter (from a user) don't pollute old
-             * requests. *)
-          then state.store_fn_result sfr_desc arglist result
-          else ();
-        in
+      let state =
+        { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
+      in
 
-        let state =
-          { state with fail_fn = Some (Lib.fail_fn fnname fn arglist) }
-        in
-
-        let result =
-          (try
-             if engine.ctx = Real || fn.preview_execution_safe || executing_unsafe
-             then f (state, arglist)
-             else
-               (match state.load_fn_result sfr_desc arglist with
-                | Some (result, _ts) -> result
-                | _ -> DIncomplete)
-           with
-           | e ->
-             (* After the rethrow, this gets eventually caught then shown
-              * to the user as a Dark Internal Exception. It's an internal
-              * exception because we didn't anticipate the problem, give
-              * it a nice error message, etc. It'll appear in Rollbar as
-              * "Unknown Err".  *)
-             Exception.reraise_after e
-               (fun bt ->
-                 maybe_store_result (Dval.exception_to_dval e);
-               ))
-        in
-        maybe_store_result result;
-        result)
+      let result =
+        (try
+           if engine.ctx = Real || fn.preview_execution_safe || executing_unsafe
+           then f (state, arglist)
+           else
+             (match state.load_fn_result sfr_desc arglist with
+              | Some (result, _ts) -> result
+              | _ -> DIncomplete)
+         with
+         | e ->
+           (* After the rethrow, this gets eventually caught then shown
+            * to the user as a Dark Internal Exception. It's an internal
+            * exception because we didn't anticipate the problem, give
+            * it a nice error message, etc. It'll appear in Rollbar as
+            * "Unknown Err".  *)
+           Exception.reraise_after e
+             (fun bt ->
+               maybe_store_result (Dval.exception_to_dval e);
+             ))
+      in
+      maybe_store_result result;
+      result
 
 
   | UserCreated body ->
@@ -572,6 +582,8 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (args)
     in
     exec ~engine ~state args_with_dbs body
+
+
   | API f ->
       f args
       (* | TypeError args -> *)
@@ -663,7 +675,10 @@ let execute_ast (state : exec_state) env expr : dval =
 
 let execute_handler (state: exec_state) (h: handler) : dval =
   let env = with_defaults h state.env in
-  execute_ast state env h.ast
+  let result = execute_ast state env h.ast in
+  match result with
+  | DErrorRail dv -> dv
+  | dv -> dv
 
 let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) : dval =
   call_fn name id args false
