@@ -154,29 +154,29 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
   | Sexp.List (Sexp.Atom fnname :: args) when is_fn fnname ->
     f (FnCall (fnname, (List.map args ~f:ast_for_)))
 
-  (* blocks *)
+  (* blocks (\\x -> (List::head [])) *)
   | Sexp.List (Sexp.Atom fnname :: Sexp.Atom "->" :: [body])
     when String.is_prefix ~prefix:"\\" fnname ->
     let var = String.lstrip ~drop:((=) '\\') fnname in
     f (Lambda ([f var], (ast_for_ body)))
 
-  (* let *)
+  (* let: (let a 1 2) *)
   | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
     f (Let (b_or_f var, ast_for_ value, ast_for_ body))
 
-  (* if *)
+  (* if: (if a 1 2) *)
   | Sexp.List [Sexp.Atom "if"; cond; ifbody; elsebody] ->
     f (If (ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
 
-  (* feature-flag *)
+  (* feature-flag: (flag a 1 2) *)
   | Sexp.List [Sexp.Atom "flag"; Sexp.Atom name; cond; ifbody; elsebody] ->
     f (FeatureFlag (b_or_f name, ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
 
-  (* thread *)
+  (* thread: (| 5 (+ 4) (+ 3))  *)
   | Sexp.List (Sexp.Atom "|" :: exprs) ->
     f (Thread (List.map exprs ~f:ast_for_))
 
-  (* objects *)
+  (* objects: (obj (a 4) (b 6)) *)
   | Sexp.List (Sexp.Atom "obj" :: rest) ->
     (let to_pair pair =
        match pair with
@@ -189,14 +189,15 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
      let args = List.map ~f:to_pair rest in
      f (ObjectLiteral args))
 
+  (* field access: (. (obj (a 5)) a) *)
   | Sexp.List [Sexp.Atom "."; obj; Sexp.Atom field] ->
      f (FieldAccess (ast_for_ obj, b_or_f field))
 
-  (* lists *)
+  (* lists: (5 6) *)
   | Sexp.List args ->
     f (ListLiteral (List.map ~f:ast_for_ args))
 
-  (* blanks *)
+  (* blanks: (let _ _ _) *)
   | Sexp.Atom "_" -> b()
 
   (* literals / variables *)
