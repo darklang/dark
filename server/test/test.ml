@@ -150,9 +150,20 @@ let b_or_f (name: string) : string or_blank =
   | "_" -> b ()
   | name -> f name
 
+let rail2fnname name : string =
+  String.slice name 1 0
+
+let is_send_to_rail (name: string) : bool =
+  String.is_prefix ~prefix:"`" name
+  && name |> rail2fnname |> is_fn
+
 let rec ast_for_ (sexp : Sexp.t) : expr =
   match sexp with
-  (* fncall *)
+  (* SendToRail: (`List::head []) *)
+  | Sexp.List (Sexp.Atom fnname :: args) when is_send_to_rail fnname ->
+    f (FnCallSendToRail (rail2fnname fnname, (List.map args ~f:ast_for_)))
+
+  (* fncall: (List::add 1 2) *)
   | Sexp.List (Sexp.Atom fnname :: args) when is_fn fnname ->
     f (FnCall (fnname, (List.map args ~f:ast_for_)))
 
@@ -838,6 +849,34 @@ let t_redirect_to () =
     ; Some "https://test.builtwithdark.com/x/y?z=a"
     ]
 
+let t_errorrail_simple () =
+  check_dval "rail"
+    (DErrorRail (DOption OptNothing))
+    (execute "(`List::head_v1 [])");
+  check_dval "no rail"
+    (DOption OptNothing)
+    (execute "(List::head_v1 [])");
+  check_dval "no rail deeply nested"
+    (DInt 8)
+    (execute "(| (5)
+                 (`List::head_v1)
+                 (+ 3)
+                 (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+              )");
+  check_dval "to rail deeply nested"
+    (DErrorRail (DOption OptNothing))
+    (execute "(| ()
+                 (`List::head_v1)
+                 (+ 3)
+                 (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+              )");
+  ()
+
+let t_errorrail_toplevel () =
+  ()
+
+let t_errorrail_userfn () =
+  ()
 
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
@@ -883,6 +922,9 @@ let suite =
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
   ; "Server.redirect_to works", `Quick, t_redirect_to
+  ; "Errorrail simple", `Quick, t_errorrail_simple
+  ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
+  ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ]
 
 let () =
