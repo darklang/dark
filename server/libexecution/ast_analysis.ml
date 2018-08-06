@@ -193,13 +193,13 @@ type engine =
   ; ctx : context
 }
 
+let is_errorrail e =
+  match e with
+    | DErrorRail _ -> true
+    | _ -> false
+
 let on_error_rail (dvals : dval list) : dval option =
-  (* if there is an errorrail, return it, else none *)
-  List.fold_left dvals ~init:None
-    ~f:(fun result dval ->
-        match result, dval with
-        | None, (DErrorRail _) -> Some dval
-        | _ -> None)
+  List.find dvals ~f:is_errorrail
 
 let rec exec ~(engine: engine)
              ~(state: exec_state)
@@ -281,26 +281,24 @@ let rec exec ~(engine: engine)
 
   in
 
-  let ignoreError e =
-    match e with
-    | DError _ -> DIncomplete
-    | _ -> e in
-
-
   let value _ =
     (match expr with
      | Blank id -> DIncomplete
 
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound =
-         let data = exe st rhs in
-         trace_blank lhs data st;
-         match lhs with
-         | Filled (_, name) ->
-           String.Map.set ~key:name ~data:data st
-         | Blank _ ->
-           st
-       in exe bound body
+       let data = exe st rhs in
+       (match data with
+        | DErrorRail _ -> data
+        | _ ->
+          trace_blank lhs data st;
+          let bound =
+            (match lhs with
+            | Filled (_, name) ->
+              String.Map.set ~key:name ~data:data st
+            | Blank _ ->
+              st)
+          in
+          exe bound body)
 
      | Filled (_, Value s) ->
        Dval.parse s
@@ -314,7 +312,9 @@ let rec exec ~(engine: engine)
                match exe st v with
                | DIncomplete -> None (* ignore unfinished subexpr *)
                | dv -> Some dv)
-       |> DList
+       |> fun l ->
+            on_error_rail l
+            |> Option.value ~default:(DList l)
 
      | Filled (_, ObjectLiteral pairs) ->
        pairs
@@ -329,26 +329,31 @@ let rec exec ~(engine: engine)
                let _ = exe st v in
                None
            )
-       |> Dval.to_dobj
+       |> fun ps ->
+          ps
+          |> List.map ~f:Tuple.T2.get2
+          |> on_error_rail
+          |> Option.value ~default:(Dval.to_dobj ps)
+
      | Filled (_, Variable name) ->
        (match Symtable.find st name with
-        | None ->
-          DError ("There is no variable named: " ^ name)
-        | Some result -> ignoreError result)
+        | None -> DError ("There is no variable named: " ^ name)
+        | Some (DError _) -> DIncomplete
+        | Some other -> other)
 
      | Filled (id, FnCallSendToRail (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        let result = call name id argvals in
        (match result with
         | DOption (OptJust v) -> v
-        (* While we shouldn't have anything else, it's possible at the
-         * moment probably, so with the goal of "you know it's what you
-         * expected", other things should go on the error rail. *)
+        (* There should only be DOptions here, but hypothetically we got
+         * something else, they would go on the error rail too.  *)
         | other -> DErrorRail other)
 
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
        call name id argvals
+
      | Filled (id, If (cond, ifbody, elsebody))
      | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
        (match ctx with
@@ -369,6 +374,10 @@ let rec exec ~(engine: engine)
              let _ = exe st ifbody in
              let _ = exe st elsebody in
              DIncomplete
+           | DErrorRail _ as er ->
+             let _ = exe st ifbody in
+             let _ = exe st elsebody in
+             er
            | _ ->
              (* execute the negative side just for the side-effect *)
              let _ = exe st elsebody in
@@ -380,6 +389,7 @@ let rec exec ~(engine: engine)
            (* only false and 'null' are falsey *)
            | DBool false | DNull -> exe st elsebody
            | DIncomplete -> DIncomplete
+           | DErrorRail _ as er -> er
            | DError _ -> DIncomplete
            | _ -> exe st ifbody))
      | Filled (id, Lambda (vars, body)) ->
@@ -394,7 +404,7 @@ let rec exec ~(engine: engine)
          let _ = exe fake_st body in ()
        else ();
 
-       (* TODO: this will errror if the number of args and vars arent equal *)
+       (* TODO: this will error if the number of args and vars arent equal *)
        DBlock (fun args ->
            let varnames = List.filter_map ~f:blank_to_content vars in
            let bindings = Symtable.of_alist_exn (List.zip_exn varnames args) in
@@ -406,19 +416,16 @@ let rec exec ~(engine: engine)
        (match exprs with
         | e :: es ->
           let fst = exe st e in
-          let results =
-            List.fold_left
-              ~init:[fst]
-              ~f:(fun results nxt ->
-                  let previous = List.hd_exn results in
-                  let value = inject_param_and_execute st previous nxt in
-                  match value with
-                  | DIncomplete -> results (* let execution through *)
-                  | _ -> value :: results
-                ) es
-          in
-          List.hd_exn results
+          List.fold_left es
+            ~init:fst
+            ~f:(fun previous nxt ->
+                let result = inject_param_and_execute st previous nxt in
+                match result with
+                | DIncomplete -> previous (* let execution through *)
+                (* DErrorRail is handled by inject_param_and_execute *)
+                | _ -> result)
         | [] -> DIncomplete)
+
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
        let result =
@@ -438,6 +445,7 @@ let rec exec ~(engine: engine)
                     | None -> DNull)))
           | DIncomplete -> DIncomplete
           | DError _ -> DIncomplete
+          | DErrorRail _ -> obj
           | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
         in
         trace_blank field result st;
