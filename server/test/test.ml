@@ -133,10 +133,12 @@ let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
   in
   AT.check (AT.option AT.string) msg None e
 
-let is_fn name =
+let is_fn (name: string) : bool =
   (* quick hack *)
   name = "+"
   || name = "-"
+  || name = ">"
+  || name = "<"
   || name = "=="
   || name = "dissoc"
   || name = "assoc"
@@ -207,6 +209,8 @@ let rec ast_for_ (sexp : Sexp.t) : expr =
     && value <> "{}"
     && value <> "[]"
     && not (String.Caseless.equal value "null")
+    && not (String.Caseless.equal value "true")
+    && not (String.Caseless.equal value "false")
     && not (String.is_prefix ~prefix:"\"" value)
     then
       f (Variable value)
