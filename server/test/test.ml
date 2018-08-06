@@ -34,7 +34,11 @@ let clear_test_data () : unit =
   Db.run ~params:[Uuid canvas] ~name:"clear_function_results_test_data"
     "DELETE FROM function_results where canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_user_data_test_data"
-    "DELETE FROM user_data WHERE canvas_id = $1";
+    "DELETE FROM user_data where canvas_id = $1";
+  Db.run ~params:[Uuid canvas] ~name:"clear_cron_records_test_data"
+    "DELETE FROM cron_records where canvas_id = $1";
+  Db.run ~params:[Uuid canvas] ~name:"clear_toplevel_oplists_test_data"
+    "DELETE FROM toplevel_oplists WHERE canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = $1";
   ()
@@ -54,12 +58,7 @@ let execute_ops (ops : Op.op list) : dval =
   let state = Execution.state_for_execution ~c:!c h.tlid
       ~execution_id ~env
   in
-  try
-    Ast_analysis.execute_handler state h
-  with e ->
-    Exception.reraise_after e (fun bt ->
-      print_endline (Exception.to_string e);
-      print_endline (Exception.backtrace_to_string bt))
+  Ast_analysis.execute_handler state h
 
 
 let at_dval = AT.testable
@@ -815,7 +814,11 @@ let t_uuid_string_roundtrip () =
 let t_redirect_to () =
   AT.check (AT.list (AT.option AT.string)) "redirect_to works"
     (List.map
-       ~f:(fun x -> x |> Uri.of_string |> Server.redirect_to |> Option.map ~f:Uri.to_string)
+       ~f:(fun x ->
+           x
+           |> Uri.of_string
+           |> Server.redirect_to
+           |> Option.map ~f:Uri.to_string)
        [ "http://example.com"
        ; "http://builtwithdark.com"
        ; "https://builtwithdark.com"
@@ -883,8 +886,21 @@ let () =
   Log.set_level `All;
   Account.init_testing ();
 
+  let wrap f =
+    fun () ->
+      try
+        f ()
+      with e ->
+        Exception.reraise_after e (fun bt ->
+          print_endline (Exception.to_string e);
+          print_endline (Exception.backtrace_to_string bt))
+  in
+  let wrapped_suite =
+    List.map suite ~f:(fun (n, m, t) -> (n, m, wrap t))
+  in
+
   let (suite, exit) =
-    Junit_alcotest.run_and_report "suite" ["tests", suite] in
+    Junit_alcotest.run_and_report "suite" ["tests", wrapped_suite] in
   let report = Junit.make [suite] in
   File.mkdir ~root:Testresults "";
   let file = File.check_filename ~mode:`Write ~root:Testresults "backend.xml" in
