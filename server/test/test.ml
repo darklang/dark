@@ -34,7 +34,11 @@ let clear_test_data () : unit =
   Db.run ~params:[Uuid canvas] ~name:"clear_function_results_test_data"
     "DELETE FROM function_results where canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_user_data_test_data"
-    "DELETE FROM user_data WHERE canvas_id = $1";
+    "DELETE FROM user_data where canvas_id = $1";
+  Db.run ~params:[Uuid canvas] ~name:"clear_cron_records_test_data"
+    "DELETE FROM cron_records where canvas_id = $1";
+  Db.run ~params:[Uuid canvas] ~name:"clear_toplevel_oplists_test_data"
+    "DELETE FROM toplevel_oplists WHERE canvas_id = $1";
   Db.run ~params:[Uuid canvas] ~name:"clear_canvases_test_data"
     "DELETE FROM canvases where id = $1";
   ()
