@@ -538,16 +538,12 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
 
         let result =
           (try
-             match engine.ctx with
-             | Real ->
-               f (state, arglist)
-             | Preview ->
-               if fn.preview_execution_safe || executing_unsafe
-               then f (state, arglist)
-               else
-                 (match state.load_fn_result sfr_desc arglist with
-                  | Some (result, _ts) -> result
-                  | _ -> DIncomplete)
+             if engine.ctx = Real || fn.preview_execution_safe || executing_unsafe
+             then f (state, arglist)
+             else
+               (match state.load_fn_result sfr_desc arglist with
+                | Some (result, _ts) -> result
+                | _ -> DIncomplete)
            with
            | e ->
              (* After the rethrow, this gets eventually caught then shown
