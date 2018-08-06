@@ -810,7 +810,11 @@ let t_uuid_string_roundtrip () =
 let t_redirect_to () =
   AT.check (AT.list (AT.option AT.string)) "redirect_to works"
     (List.map
-       ~f:(fun x -> x |> Uri.of_string |> Server.redirect_to |> Option.map ~f:Uri.to_string)
+       ~f:(fun x ->
+           x
+           |> Uri.of_string
+           |> Server.redirect_to
+           |> Option.map ~f:Uri.to_string)
        [ "http://example.com"
        ; "http://builtwithdark.com"
        ; "https://builtwithdark.com"
