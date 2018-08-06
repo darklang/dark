@@ -14,16 +14,9 @@ module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
 
-let fid = Util.create_id
-let v str = Filled (fid (), Value str)
-let b () = Blank (fid ())
-let f a = Filled (fid (), a)
-let fncall (a,b) = f (FnCall (a,b))
-let tlid = 7
-let dbid = 89
-let pos = {x=0;y=0}
-let execution_id = 6543
-
+(* ------------------- *)
+(* Misc fns *)
+(* ------------------- *)
 let clear_test_data () : unit =
   let owner = Account.for_host "test" in
   let canvas = Serialize.fetch_canvas_id owner "test" in
@@ -43,25 +36,10 @@ let clear_test_data () : unit =
     "DELETE FROM canvases where id = $1";
   ()
 
-let ast_for = Expr_dsl.ast_for
 
-
-
-let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
-  C.init host ops
-
-let execute_ops (ops : Op.op list) : dval =
-  let c = ops2c "test" ops in
-  let dbs = TL.dbs !c.dbs in
-  let env = User_db.dbs_as_exe_env dbs in
-  let h = !c.handlers
-          |> TL.handlers
-          |> List.hd_exn in
-  let state = Execution.state_for_execution ~c:!c h.tlid
-      ~execution_id ~env
-  in
-  Ast_analysis.execute_handler state h
-
+(* ------------------- *)
+(* Test fns *)
+(* ------------------- *)
 
 let at_dval = AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
@@ -70,6 +48,44 @@ let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
+let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
+  let e =
+    try
+      let r = f () in
+      Log.erroR "result" ~data:(Dval.to_repr r);
+      Some "no exception"
+    with
+    | Exception.DarkException ed ->
+      if check ed
+      then None
+      else
+        (Log.erroR "check failed" ~data:(Log.dump ed);
+        Some "Check failed")
+    | e ->
+      let bt = Backtrace.Exn.most_recent () in
+      let msg = Exn.to_string e in
+      print_endline (Backtrace.to_string bt);
+      Log.erroR "different exception" ~data:msg;
+      Some "different exception"
+  in
+  AT.check (AT.option AT.string) msg None e
+
+
+(* ------------------- *)
+(* Set up test data *)
+(* ------------------- *)
+
+let fid = Util.create_id
+let v str = Filled (fid (), Value str)
+let b () = Blank (fid ())
+let f a = Filled (fid (), a)
+let fncall (a,b) = f (FnCall (a,b))
+let tlid = 7
+let dbid = 89
+let pos = {x=0;y=0}
+let execution_id = 6543
+
+let ast_for = Expr_dsl.ast_for
 
 let handler ast : HandlerT.handler =
   { tlid = tlid
@@ -99,8 +115,6 @@ let http_route_handler : HandlerT.handler =
            ; types = { input = b ()
                      ; output = b () }}}
 
-
-
 let daily_cron ast : HandlerT.handler =
   { tlid = tlid
   ; ast = ast
@@ -113,27 +127,23 @@ let daily_cron ast : HandlerT.handler =
 let hop h =
   Op.SetHandler (tlid, pos, h)
 
-let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
-  let e =
-    try
-      let r = f () in
-      Log.erroR "result" ~data:(Dval.to_repr r);
-      Some "no exception"
-    with
-    | Exception.DarkException ed ->
-      if check ed
-      then None
-      else
-        (Log.erroR "check failed" ~data:(Log.dump ed);
-        Some "Check failed")
-    | e ->
-      let bt = Backtrace.Exn.most_recent () in
-      let msg = Exn.to_string e in
-      print_endline (Backtrace.to_string bt);
-      Log.erroR "different exception" ~data:msg;
-      Some "different exception"
+(* ------------------- *)
+(* Execution *)
+(* ------------------- *)
+let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
+  C.init host ops
+
+let execute_ops (ops : Op.op list) : dval =
+  let c = ops2c "test" ops in
+  let dbs = TL.dbs !c.dbs in
+  let env = User_db.dbs_as_exe_env dbs in
+  let h = !c.handlers
+          |> TL.handlers
+          |> List.hd_exn in
+  let state = Execution.state_for_execution ~c:!c h.tlid
+      ~execution_id ~env
   in
-  AT.check (AT.option AT.string) msg None e
+  Ast_analysis.execute_handler state h
 
 let execute (prog: string) : dval =
   prog
@@ -762,6 +772,12 @@ let t_errorrail_toplevel () =
 
 let t_errorrail_userfn () =
   ()
+
+
+
+(* ------------------- *)
+(* Test setup *)
+(* ------------------- *)
 
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
