@@ -201,6 +201,11 @@ let is_errorrail e =
 let on_error_rail (dvals : dval list) : dval option =
   List.find dvals ~f:is_errorrail
 
+let should_send_to_rail (expr: nexpr) : bool =
+  match expr with
+  | FnCallSendToRail _ -> true
+  | _ -> false
+
 let rec exec ~(engine: engine)
              ~(state: exec_state)
              (st: symtable)
@@ -211,7 +216,7 @@ let rec exec ~(engine: engine)
   let trace = engine.trace in
   let trace_blank = engine.trace_blank in
 
-  let call (name: string) (id: id) (argvals: dval list) : dval =
+  let call (name: string) (id: id) (argvals: dval list) (send_to_rail: bool) : dval =
     let fn = Libs.get_fn_exn state.user_fns name in
     (* equalize length *)
     let expected_length = List.length fn.parameters in
@@ -230,7 +235,17 @@ let rec exec ~(engine: engine)
       |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
       |> DvalMap.of_alist_exn
     in
-    call_fn ~engine ~state name id fn args
+    let result = call_fn ~engine ~state name id fn args in
+    if send_to_rail
+    then
+      (match result with
+       | DOption (OptJust v) -> v
+       (* There should only be DOptions here, but hypothetically we got
+        * something else, they would go on the error rail too.  *)
+       | other -> DErrorRail other)
+    else result
+
+
     (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
   in
   (* This is a super hacky way to inject params as the result of
@@ -255,9 +270,11 @@ let rec exec ~(engine: engine)
         (match result with
          | DBlock blk -> blk [param]
          | _ -> DIncomplete)
-      | Filled (id, FnCall (name, exprs)) ->
+      | Filled (id, (FnCall (name, exprs) as fncall))
+      | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
+        let send_to_rail = should_send_to_rail fncall in
         (try
-           call name id (param :: (List.map ~f:(exe st) exprs))
+           call name id (param :: (List.map ~f:(exe st) exprs)) send_to_rail
          with e ->
            (* making the error local looks better than making the whole
             * thread fail. *)
@@ -343,16 +360,11 @@ let rec exec ~(engine: engine)
 
      | Filled (id, FnCallSendToRail (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
-       let result = call name id argvals in
-       (match result with
-        | DOption (OptJust v) -> v
-        (* There should only be DOptions here, but hypothetically we got
-         * something else, they would go on the error rail too.  *)
-        | other -> DErrorRail other)
+       call name id argvals true
 
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
-       call name id argvals
+       call name id argvals false
 
      | Filled (id, If (cond, ifbody, elsebody))
      | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
