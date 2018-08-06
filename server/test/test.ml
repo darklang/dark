@@ -54,12 +54,7 @@ let execute_ops (ops : Op.op list) : dval =
   let state = Execution.state_for_execution ~c:!c h.tlid
       ~execution_id ~env
   in
-  try
-    Ast_analysis.execute_handler state h
-  with e ->
-    Exception.reraise_after e (fun bt ->
-      print_endline (Exception.to_string e);
-      print_endline (Exception.backtrace_to_string bt))
+  Ast_analysis.execute_handler state h
 
 
 let at_dval = AT.testable
@@ -883,8 +878,21 @@ let () =
   Log.set_level `All;
   Account.init_testing ();
 
+  let wrap f =
+    fun () ->
+      try
+        f ()
+      with e ->
+        Exception.reraise_after e (fun bt ->
+          print_endline (Exception.to_string e);
+          print_endline (Exception.backtrace_to_string bt))
+  in
+  let wrapped_suite =
+    List.map suite ~f:(fun (n, m, t) -> (n, m, wrap t))
+  in
+
   let (suite, exit) =
-    Junit_alcotest.run_and_report "suite" ["tests", suite] in
+    Junit_alcotest.run_and_report "suite" ["tests", wrapped_suite] in
   let report = Junit.make [suite] in
   File.mkdir ~root:Testresults "";
   let file = File.check_filename ~mode:`Write ~root:Testresults "backend.xml" in
