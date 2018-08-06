@@ -128,22 +128,41 @@ let daily_cron ast : HandlerT.handler =
 let hop h =
   Op.SetHandler (tlid, pos, h)
 
+let user_fn name params ast : user_fn =
+  { tlid = tlid
+  ; ast = ast
+  ; metadata = { name = b ()
+               ; parameters = List.map params
+                                ~f:(fun p ->
+                                      { name = f p
+                                      ; tipe = f TAny
+                                      ; block_args = []
+                                      ; optional = false
+                                      ; description = "test"})
+               ; return_type = f TAny
+               ; description = "test user fn"
+               ; infix = false}}
+
+
+
 (* ------------------- *)
 (* Execution *)
 (* ------------------- *)
 let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
   C.init host ops
 
-let execute_ops (ops : Op.op list) : dval =
+let test_execution_data ops =
   let c = ops2c "test" ops in
   let dbs = TL.dbs !c.dbs in
   let env = User_db.dbs_as_exe_env dbs in
+  let state = Execution.state_for_execution ~c:!c tlid ~execution_id ~env in
+  (c, state, env)
+
+let execute_ops (ops : Op.op list) : dval =
+  let (c, state, env) = test_execution_data ops in
   let h = !c.handlers
           |> TL.handlers
           |> List.hd_exn in
-  let state = Execution.state_for_execution ~c:!c h.tlid
-      ~execution_id ~env
-  in
   Ast_analysis.execute_handler state h
 
 let exec_handler ?(ops=[]) (prog: string) : dval =
@@ -155,10 +174,15 @@ let exec_handler ?(ops=[]) (prog: string) : dval =
   |> fun h -> execute_ops (ops @ [h])
 
 let exec_ast (prog: string) : dval =
-  exec_handler prog
+  let (c, state, env) = test_execution_data [] in
+  Ast_analysis.execute_ast state env (ast_for prog)
 
 let exec_userfn (prog: string) : dval =
-  exec_handler prog
+  let name = "test_function" in
+  let ast = ast_for prog in
+  let fn = user_fn name [] ast in
+  let (c, state, env) = test_execution_data [SetFunction fn] in
+  Ast_analysis.execute_userfn state name 0 []
 
 
 

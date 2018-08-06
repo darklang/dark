@@ -212,42 +212,11 @@ let rec exec ~(engine: engine)
              (expr: expr)
   : dval =
   let exe = exec ~engine ~state in
+  let call = call_fn ~engine ~state in
   let ctx = engine.ctx in
   let trace = engine.trace in
   let trace_blank = engine.trace_blank in
 
-  let call (name: string) (id: id) (argvals: dval list) (send_to_rail: bool) : dval =
-    let fn = Libs.get_fn_exn state.user_fns name in
-    (* equalize length *)
-    let expected_length = List.length fn.parameters in
-    let actual_length = List.length argvals in
-    let argvals =
-      if expected_length = actual_length
-      then argvals
-      else
-        let actual = Printf.sprintf "%d arguments" actual_length in
-        let expected = Printf.sprintf "%d arguments" expected_length in
-        Exception.internal ~actual ~expected
-            ("Incorrect number of args in fncall to " ^ name)
-    in
-    let args =
-      fn.parameters
-      |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
-      |> DvalMap.of_alist_exn
-    in
-    let result = call_fn ~engine ~state name id fn args in
-    if send_to_rail
-    then
-      (match result with
-       | DOption (OptJust v) -> v
-       (* There should only be DOptions here, but hypothetically we got
-        * something else, they would go on the error rail too.  *)
-       | other -> DErrorRail other)
-    else result
-
-
-    (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
-  in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
    *
@@ -478,10 +447,39 @@ let rec exec ~(engine: engine)
   in
   trace expr execed_value st;
   execed_value
-  (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
-  (*                                  Sexp.to_string) *)
+  (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
+  (* |> Sexp.to_string) *)
 
-and call_fn ~(engine:engine) ~(state: exec_state)
+and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argvals: dval list) (send_to_rail: bool) : dval =
+  let fn = Libs.get_fn_exn state.user_fns name in
+  (* equalize length *)
+  let expected_length = List.length fn.parameters in
+  let actual_length = List.length argvals in
+  let argvals =
+    if expected_length = actual_length
+    then argvals
+    else
+      let actual = Printf.sprintf "%d arguments" actual_length in
+      let expected = Printf.sprintf "%d arguments" expected_length in
+      Exception.internal ~actual ~expected
+          ("Incorrect number of args in fncall to " ^ name)
+  in
+  let args =
+    fn.parameters
+    |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
+    |> DvalMap.of_alist_exn
+  in
+  let result = exec_fn ~engine ~state name id fn args in
+  if send_to_rail
+  then
+    (match result with
+     | DOption (OptJust v) -> v
+     (* There should only be DOptions here, but hypothetically we got
+      * something else, they would go on the error rail too.  *)
+     | other -> DErrorRail other)
+  else result
+       (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
+and exec_fn ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
   let paramsIncomplete args =
@@ -623,24 +621,8 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
   (exec ~engine ~state state.env ast, value_store)
 
 (* -------------------- *)
-(* Execution *)
+(* Environments *)
 (* -------------------- *)
-
-(* no tracing when running in prod *)
-let server_execution_engine : engine =
-  let empty_trace _ _ _ = () in
-  { trace = empty_trace
-  ; trace_blank = empty_trace
-  ; ctx = Real
-  }
-
-let execute (state : exec_state) env expr : dval =
-  Log.infO "Executing for real" ~params:[ "tlid", show_tlid state.tlid
-                                        ; "execution_id", Log.dump state.execution_id];
-  exec env expr
-    ~engine:server_execution_engine
-    ~state
-
 let handler_default_env (h: handler) : dval_map =
   match Handler.event_name_for h with
   | Some n ->
@@ -653,10 +635,6 @@ let handler_default_env (h: handler) : dval_map =
 let with_defaults (h: handler) (env: symtable) : symtable =
   Util.merge_left env (handler_default_env h)
 
-let execute_handler (state: exec_state) (h: handler) : dval =
-  let env = with_defaults h state.env in
-  execute state env h.ast
-
 let environment_for_user_fn (ufn: user_fn) : dval_map =
   let param_to_dval (p: param) : dval =
     DIncomplete (* TODO(ian): we should trace these correctly *)
@@ -666,6 +644,34 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
   |> DvalMap.of_alist_exn
 
+
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
+
+(* no tracing when running in prod *)
+let server_execution_engine : engine =
+  let empty_trace _ _ _ = () in
+  { trace = empty_trace
+  ; trace_blank = empty_trace
+  ; ctx = Real
+  }
+
+let execute_ast (state : exec_state) env expr : dval =
+  Log.infO "Executing for real"
+    ~params:[ "tlid", show_tlid state.tlid
+            ; "execution_id", Log.dump state.execution_id];
+  exec env expr
+    ~engine:server_execution_engine
+    ~state
+
+let execute_handler (state: exec_state) (h: handler) : dval =
+  let env = with_defaults h state.env in
+  execute_ast state env h.ast
+
+let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) : dval =
+  call_fn name id args false
+    ~engine:server_execution_engine ~state
 
 (* -------------------- *)
 (* Run full analyses *)
