@@ -131,7 +131,7 @@ let hop h =
 let user_fn name params ast : user_fn =
   { tlid = tlid
   ; ast = ast
-  ; metadata = { name = b ()
+  ; metadata = { name = f name
                ; parameters = List.map params
                                 ~f:(fun p ->
                                       { name = f p
@@ -870,9 +870,9 @@ let suite =
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
   ; "Server.redirect_to works", `Quick, t_redirect_to
-  (* ; "Errorrail simple", `Quick, t_errorrail_simple *)
-  (* ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel *)
-  (* ; "Errorrail works in user_function", `Quick, t_errorrail_userfn *)
+  ; "Errorrail simple", `Quick, t_errorrail_simple
+  ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
+  ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ]
 
 let () =
