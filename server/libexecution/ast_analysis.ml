@@ -193,7 +193,7 @@ type engine =
   ; ctx : context
 }
 
-let on_error_rail (dvals : dval list) : dval option =
+let find_derrorrail (dvals : dval list) : dval option =
   List.find dvals ~f:Dval.is_errorrail
 
 let should_send_to_rail (expr: nexpr) : bool =
@@ -294,7 +294,7 @@ let rec exec ~(engine: engine)
                | DIncomplete -> None (* ignore unfinished subexpr *)
                | dv -> Some dv)
        |> fun l ->
-            on_error_rail l
+            find_derrorrail l
             |> Option.value ~default:(DList l)
 
      | Filled (_, ObjectLiteral pairs) ->
@@ -313,7 +313,7 @@ let rec exec ~(engine: engine)
        |> fun ps ->
           ps
           |> List.map ~f:Tuple.T2.get2
-          |> on_error_rail
+          |> find_derrorrail
           |> Option.value ~default:(Dval.to_dobj ps)
 
      | Filled (_, Variable name) ->
@@ -465,7 +465,7 @@ and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argva
     |> DvalMap.of_alist_exn
   in
 
-  match on_error_rail (DvalMap.data args) with
+  match find_derrorrail (DvalMap.data args) with
   | Some er -> er
   | None ->
     let result = exec_fn ~engine ~state name id fn args
