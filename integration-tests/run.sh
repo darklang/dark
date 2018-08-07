@@ -89,6 +89,7 @@ for cid in $CANVASES; do
 done
 run_sql "$SCRIPT";
 
+set +e # Dont fail immediately so that the sed is run
 TEST_HOST="integration-tests:$PORT" \
   testcafe \
     --selector-timeout 50 \
@@ -105,5 +106,4 @@ TEST_HOST="integration-tests:$PORT" \
     integration-tests/tests.js 2> ${DARK_CONFIG_RUN_DIR}/integration_error.log
 
 # Fix xunit output for CircleCI flaky-tests stats
-
 sed -i 's/ (screenshots: .*)"/"/' ${TEST_RESULTS_XML}
