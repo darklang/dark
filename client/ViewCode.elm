@@ -111,6 +111,52 @@ viewNFieldName vs config f =
 depthString : Int -> String
 depthString n = "precedence-" ++ (toString n)
 
+viewRopArrow : ViewState -> Html.Html Msg
+viewRopArrow vs =
+  let line =
+        Svg.path
+          [ SA.stroke "red"
+          , SA.strokeWidth "1.5px"
+          , SA.d "M 0,0 z"
+          , VirtualDom.attribute "opacity" "0.3"
+          , SA.markerEnd "url(#arrow)"
+          ]
+          []
+      head = Svg.defs
+               []
+               [ Svg.marker
+                 [ SA.id "arrow"
+                 , SA.markerWidth "10"
+                 , SA.markerHeight "10"
+                 , SA.refX "0"
+                 , SA.refY "3"
+                 , SA.orient "auto"
+                 , SA.markerUnits "strokeWidth"
+                 ]
+                 [ Svg.path [ SA.d "M0,0 L0,6 L9,3 z"
+                            , SA.fill "#f00"
+                            ]
+                            []
+                 ]
+               ]
+      svg =
+        Svg.svg
+          [ Attrs.style [ ("position", "absolute")
+                        , ("margin-top", "-10px")
+                        , ("fill", "none")
+                        ]
+          ]
+          [line, head]
+  in
+  Html.node
+    "rop-arrow"
+    -- Force the rop-webcomponent to update to fix the size
+    [ VirtualDom.attribute "update" (Util.random () |> toString)
+    , VirtualDom.attribute "tlid" (toString (deTLID vs.tl.id))]
+    [svg]
+
+
+
 viewNExpr : Int -> ID -> Viewer NExpr
 viewNExpr d id vs config e =
   let vExpr d = viewExpr d vs []
@@ -235,48 +281,7 @@ viewNExpr d id vs config e =
           ropArrow =
             if sendToRail == NoRail
             then Html.div [] []
-            else
-              let line =
-                    Svg.path
-                      [ SA.stroke "red"
-                      , SA.strokeWidth "1.5px"
-                      , SA.d "M 0,0 z"
-                      , VirtualDom.attribute "opacity" "0.3"
-                      , SA.markerEnd "url(#arrow)"
-                      ]
-                      []
-                  head = Svg.defs
-                           []
-                           [ Svg.marker
-                             [ SA.id "arrow"
-                             , SA.markerWidth "10"
-                             , SA.markerHeight "10"
-                             , SA.refX "0"
-                             , SA.refY "3"
-                             , SA.orient "auto"
-                             , SA.markerUnits "strokeWidth"
-                             ]
-                             [ Svg.path [ SA.d "M0,0 L0,6 L9,3 z"
-                                        , SA.fill "#f00"
-                                        ]
-                                        []
-                             ]
-                           ]
-                  svg =
-                    Svg.svg
-                      [ Attrs.style [ ("position", "absolute")
-                                    , ("margin-top", "-10px")
-                                    , ("fill", "none")
-                                    ]
-                      ]
-                      [line, head]
-              in
-              Html.node
-                "rop-arrow"
-                -- Force the rop-webcomponent to update to fix the size
-                [ VirtualDom.attribute "update" (Util.random () |> toString)
-                , VirtualDom.attribute "tlid" (toString (deTLID vs.tl.id))]
-                [svg]
+            else viewRopArrow vs
 
           paramsComplete = List.all (isComplete << B.toID) allExprs
           resultHasValue = isComplete id
@@ -444,7 +449,7 @@ viewNExpr d id vs config e =
               , eventNoPropagation "click" (\_ -> ToggleFeatureFlag id False)
             ]
             [ fontAwesome "minus" ]
-          
+
           expandModal =
             Html.div
             [
