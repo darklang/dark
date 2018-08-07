@@ -193,13 +193,8 @@ type engine =
   ; ctx : context
 }
 
-let is_errorrail e =
-  match e with
-    | DErrorRail _ -> true
-    | _ -> false
-
 let on_error_rail (dvals : dval list) : dval option =
-  List.find dvals ~f:is_errorrail
+  List.find dvals ~f:Dval.is_errorrail
 
 let should_send_to_rail (expr: nexpr) : bool =
   match expr with
@@ -470,17 +465,11 @@ and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argva
     |> DvalMap.of_alist_exn
   in
 
-  let unwrap_from_errorrail (dv : dval) =
-    match dv with
-    | DErrorRail dv -> dv
-    | other -> other
-  in
-
   match on_error_rail (DvalMap.data args) with
   | Some er -> er
   | None ->
     let result = exec_fn ~engine ~state name id fn args
-                 |> unwrap_from_errorrail
+                 |> Dval.unwrap_from_errorrail
     in
     if send_to_rail
     then
