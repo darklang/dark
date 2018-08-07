@@ -403,23 +403,27 @@ let rec exec ~(engine: engine)
         | [] -> DIncomplete)
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
-       (match obj with
-        | DObj o ->
-          (match field with
-           | Blank _ -> DIncomplete
-           | Filled (_, f) ->
-             (match e with
-              | Filled (_, Variable "request")
-                when ctx = Preview
-                  && equal_dval obj (PReq.to_dval PReq.sample_request) ->
-                DIncomplete
-              | _ ->
-                (match Map.find o f with
-                  | Some v -> v
-                  | None -> DNull)))
-        | DIncomplete -> DIncomplete
-        | DError _ -> DIncomplete
-        | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
+       let result =
+         (match obj with
+          | DObj o ->
+            (match field with
+             | Blank _ -> DIncomplete
+             | Filled (_, f) ->
+               (match e with
+                | Filled (_, Variable "request")
+                  when ctx = Preview
+                    && equal_dval obj (PReq.to_dval PReq.sample_request) ->
+                  DIncomplete
+                | _ ->
+                  (match Map.find o f with
+                    | Some v -> v
+                    | None -> DNull)))
+          | DIncomplete -> DIncomplete
+          | DError _ -> DIncomplete
+          | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
+        in
+        trace_blank field result st;
+        result
     ) in
   (* Only catch if we're tracing *)
   let execed_value =
