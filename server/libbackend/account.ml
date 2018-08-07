@@ -398,6 +398,10 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkOGdyN0J6QnpQSWF4S21DdFVzT2tZZyRIZHFlUG9ydnpLSzlHZlB3VWRDN2VmN3NJZit2WGpWRDNod0pDS0xKSCtVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ross.campbell.ucsd@gmail.com"
     ; name = "Ross Campbell"};
-
+  upsert_account
+    { username = "www"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTHhZV0RvZEFvVVBJdmVJeWdTS3E1ZyQ2ejJFV3lJUDgvdTBnMjZ1R0JRaVhEQWZHSHNSU0RNSVRUazAwL2dBUytrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "ops@darklang.com"
+    ; name = "WWW user"};
   ()
 
