@@ -526,6 +526,9 @@ updateMod mod (m, cmd) =
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
         { m | executingFunctions = nexecutingFunctions } ! []
+      UpdateToplevel tl ->
+        let m2 = TL.upsert m tl
+        in m2 ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -1461,6 +1464,14 @@ update_ msg m =
       let ufun = Refactor.generateEmptyFunction ()
         in RPC ( [ SetFunction ufun ]
                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
+    LockHandler tlid isLocked ->
+      let tl = TL.getTL m tlid
+      in case tl.data of
+        TLHandler h ->
+          let uh = { h | isLocked = isLocked }
+              newTl = { tl | data = TLHandler uh }
+          in UpdateToplevel newTl
+        _ -> NoChange
     _ -> NoChange
 
 findCenter : Model -> Pos
