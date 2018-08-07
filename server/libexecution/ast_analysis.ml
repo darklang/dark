@@ -666,7 +666,10 @@ let execute_handler (state: exec_state) (h: handler) : dval =
   let env = with_defaults h state.env in
   let result = execute_ast state env h.ast in
   match result with
-  | DErrorRail dv -> dv
+  | DErrorRail (DOption OptNothing) ->
+    DResp ((Response (404, []), DStr "Not found"))
+  | DErrorRail _ ->
+    DResp ((Response (500, []), DStr "Invalid conversion from errorrail"))
   | dv -> dv
 
 let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) : dval =
