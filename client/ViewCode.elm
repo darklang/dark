@@ -554,7 +554,11 @@ viewHandler vs h =
       
       lock =
         Html.div
-          [ Attrs.classList [("handler-lock", True), ("is-locked", h.isLocked)] ]
+          [ 
+            Attrs.classList [("handler-lock", True), ("is-locked", h.isLocked)]
+            , eventNoPropagation "click"
+                (\_ -> LockHandler vs.tlid (not h.isLocked))
+          ]
           [ fontAwesome (if h.isLocked then "lock" else "lock-open") ]
 
       header =

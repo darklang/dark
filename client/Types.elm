@@ -157,6 +157,7 @@ type Msg
     | ExtractFunction
     | DeleteUserFunction TLID
     | RestoreToplevel TLID
+    | LockHandler TLID Bool
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -367,8 +368,8 @@ type HandlerSpace = HSHTTP
                   | HSEmpty
 
 type alias Handler = { ast : Expr
-                     , spec : HandlerSpec
                      , isLocked: Bool
+                     , spec : HandlerSpec
                      }
 
 type alias DBName = String
