@@ -667,3 +667,13 @@ test('object_literals_work', async t => {
     .pressKey("tab")
     .pressKey("tab") // End right after it
 })
+
+test('rename_function', async t => {
+  await t
+    .click(Selector('.fnname'))
+    .click(Selector('.fa-edit'))
+    .click(Selector('.fn-name-content'))
+    .pressKey('backspace')
+    .typeText('#entry-box', 'hello', slow)
+    .pressKey('enter')
+})

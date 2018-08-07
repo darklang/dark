@@ -334,6 +334,10 @@ delete m tlid mId =
             TLHandler h -> RPC ([SetHandler tlid tl.pos h], focus)
             TLFunc f -> RPC ([SetFunction f], focus)
             TLDB _ -> impossible ("pointer type mismatch", newTL.data, pd)
+        FnName ->
+          Many [ Enter (Filling tlid id)
+               , AutocompleteMod (ACSetQuery "")
+               ]
         _ ->
           let newTL = TL.delete tl pd newID in
           case newTL.data of
