@@ -142,6 +142,7 @@ viewRopArrow vs =
       svg =
         Svg.svg
           [ Attrs.style [ ("position", "absolute")
+                        , ("pointer-events", "none") -- don't eat clicks
                         , ("margin-top", "-10px")
                         , ("fill", "none")
                         ]
