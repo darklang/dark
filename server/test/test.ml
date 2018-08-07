@@ -780,17 +780,20 @@ let t_redirect_to () =
 let t_errorrail_simple () =
   check_dval "rail"
     (DErrorRail (DOption OptNothing))
-    (exec_ast "(`List::head_v1 [])");
+    (exec_ast "(`List::last_v1 [])");
+
   check_dval "no rail"
     (DOption OptNothing)
-    (exec_ast "(List::head_v1 [])");
+    (exec_ast "(Dict::get_v1 {} 'i')");
+
   check_dval "no rail deeply nested"
     (DInt 8)
     (exec_ast "(| (5)
-                 (`List::head_v1)
-                 (+ 3)
-                 (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-              )");
+                  (`List::head_v1)
+                  (+ 3)
+                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+               )");
+
   check_dval "to rail deeply nested"
     (DErrorRail (DOption OptNothing))
     (exec_ast "(| ()
@@ -804,20 +807,20 @@ let t_errorrail_toplevel () =
   check_dval "toplevel unwraps"
     (DOption OptNothing)
     (exec_handler "(| ()
-                     (`List::head_v1)
-                     (+ 3)
-                     (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-                   )");
+                      (`List::head_v1)
+                      (+ 3)
+                      (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+                    )");
   ()
 
 let t_errorrail_userfn () =
   check_dval "userfn unwraps"
     (DOption OptNothing)
     (exec_userfn "(| ()
-                    (`List::head_v1)
-                    (+ 3)
-                    (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
-                  )");
+                     (`List::head_v1)
+                     (+ 3)
+                     (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+                   )");
   ()
 
 
