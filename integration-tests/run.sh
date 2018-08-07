@@ -105,5 +105,9 @@ TEST_HOST="integration-tests:$PORT" \
     "chrome:headless" \
     integration-tests/tests.js 2> ${DARK_CONFIG_RUN_DIR}/integration_error.log
 
+RESULT=$?
+
 # Fix xunit output for CircleCI flaky-tests stats
 sed -i 's/ (screenshots: .*)"/"/' ${TEST_RESULTS_XML}
+
+exit $RESULT
