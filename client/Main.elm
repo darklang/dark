@@ -1450,6 +1450,7 @@ update_ msg m =
                 , output = B.new ()
                 }
               }
+            , isLocked = False
             }
       in
         RPC ([SetHandler anId aPos aHandler], FocusNothing)

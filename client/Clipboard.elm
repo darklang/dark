@@ -93,7 +93,7 @@ newFromClipboard m pos =
               PExpr exp -> exp
               _ -> Blank.new ()
       spec = Entry.newHandlerSpec ()
-      handler = { ast = ast, spec = spec }
+      handler = { ast = ast, spec = spec, isLocked = False }
   in
       RPC ([SetHandler nid pos handler], FocusNext nid Nothing)
 

@@ -368,6 +368,7 @@ type HandlerSpace = HSHTTP
 
 type alias Handler = { ast : Expr
                      , spec : HandlerSpec
+                     , isLocked: Bool
                      }
 
 type alias DBName = String

@@ -551,11 +551,19 @@ viewHandler vs h =
         if SpecHeaders.visibleModifier h.spec
         then viewEventModifier vs [wc "modifier"] h.spec.modifier
         else Html.div [] []
+      
+      lock =
+        Html.div
+          [ Attrs.classList [("handler-lock", True), ("is-locked", h.isLocked)] ]
+          [ fontAwesome (if h.isLocked then "lock" else "lock-open") ]
+
       header =
         Html.div
           [Attrs.class "spec-header"]
           [ viewEventName vs [wc "name"] h.spec.name
           , (Html.div [] externalLink)
           , viewEventSpace vs [wc "module"] h.spec.module_
-          , modifier]
+          , modifier
+          , lock
+          ]
   in [header, ast]
