@@ -36,26 +36,38 @@ let unlocked (c: canvas) : tlid list =
   |> User_db.unlocked c.id c.owner
   |> List.map ~f:(fun x -> x.tlid)
 
+
+
 let get_404s (c: canvas) : SE.four_oh_four list =
-  let match_desc h d : bool =
-    let (space, path, modifier) = d in
-    match Handler.event_desc_for h with
-    | Some (h_space, h_path, h_modifier) ->
-      Http.path_matches_route ~path h_path
-      && h_modifier = modifier
-      && h_space = space
-    | None -> false
+  let events = SE.list_events c.id in
+  let handlers =
+    Db.fetch
+      ~name:"get_404s"
+      ("SELECT module, name, modifier FROM toplevel_oplists
+        WHERE canvas_id = $1
+          AND module IS NOT NULL
+          AND name IS NOT NULL
+          AND modifier IS NOT NULL
+          AND tipe = 'handler'::toplevel_type")
+      ~params:[ Db.Uuid c.id]
+    |> List.map ~f:(function
+                    | [modu; n; modi] -> (modu, n, modi)
+                    | _ -> Exception.internal "Bad DB format for get404s")
+  in
+  let match_event h e : bool =
+    let (space, path, modifier) = e in
+    let (h_space, h_path, h_modifier) = h in
+    Http.path_matches_route ~path h_path
+    && h_modifier = modifier
+    && h_space = space
   in
 
-  let unused_descs =
-    SE.list_events c.id
-    |> List.filter
-      ~f:(fun d ->
-          not (List.exists (TL.handlers c.handlers)
-                 ~f:(fun h -> match_desc h d)))
-    |> List.map ~f:(fun d -> (d, SE.load_events c.id d))
-  in
-  unused_descs
+  events
+  |> List.filter
+    ~f:(fun e ->
+        not (List.exists handlers
+               ~f:(fun h -> match_event h e)))
+  |> List.map ~f:(fun e -> (e, SE.load_events c.id e))
 
 let function_analysis
     ~(exe_fn_ids: executable_fn_id list)
