@@ -804,14 +804,20 @@ let t_errorrail_simple () =
   ()
 
 let t_errorrail_toplevel () =
-  check_dval "toplevel unwraps"
-    (DOption OptNothing)
+  check_dval "Errorrail goes to 404"
+    (DResp (Response (404, []), DStr "Not found"))
     (exec_handler "(| ()
                       (`List::head_v1)
                       (+ 3)
                       (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
                     )");
+
+  check_dval "No errorrail goes to option"
+    (DOption OptNothing)
+    (exec_handler "(List::head_v1 [])");
   ()
+
+
 
 let t_errorrail_userfn () =
   check_dval "userfn unwraps"
