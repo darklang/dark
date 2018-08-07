@@ -11,16 +11,7 @@ let b () = Blank (Util.create_id ())
 let f a = Filled (Util.create_id (), a)
 
 let is_fn (name: string) : bool =
-  (* quick hack *)
-  name = "+"
-  || name = "-"
-  || name = ">"
-  || name = "<"
-  || name = "=="
-  || name = "dissoc"
-  || name = "assoc"
-  || name = "toString"
-  || String.is_substring ~substring:"::" name
+  Libs.get_fn ~user_fns:[] name <> None
 
 let b_or_f (name: string) : string or_blank =
   match name with
