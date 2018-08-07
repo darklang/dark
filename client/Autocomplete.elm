@@ -131,7 +131,7 @@ empty = init [] False
 
 nonAdminFunctions : List Function -> List Function
 nonAdminFunctions fns =
-  List.filter (\fn -> not (Util.reExactly ".*_v1" fn.name)) fns
+  fns
 
 init : List Function -> Bool -> Autocomplete
 init fns isAdmin =

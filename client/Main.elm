@@ -118,7 +118,7 @@ init {editorState, complete} location =
         |> SE.replace ":8000" ""
         |> SE.replace ":9000" ""
 
-      isAdmin = Util.reExactly "paul.*" location.hostname
+      isAdmin = False
 
       builtins =
         List.map flag2function complete
