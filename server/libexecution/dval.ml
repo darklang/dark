@@ -405,7 +405,7 @@ and dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Safe.j
   | DNull -> `Null
   | DStr s -> `String s
   | DList l -> `List (List.map l (dval_to_yojson ~redact))
-  | DObj o -> dvalmap_to_yojson o
+  | DObj o -> dvalmap_to_yojson ~redact o
 
   (* opaque types *)
   | DBlock _ | DIncomplete ->
