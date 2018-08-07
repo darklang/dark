@@ -9,6 +9,7 @@ import Mouse
 import Time exposing (Time)
 import PageVisibility
 import Json.Decode as JSD
+import Set exposing (Set)
 
 -- libs
 import Keyboard.Event exposing (KeyboardEvent)
@@ -463,6 +464,7 @@ type alias Model = { error : Maybe String
                    -- that is currently selected.)
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
+                   , pinnedLiveValues : Set Int -- represents ID
                    }
 
 -- Values that we serialize
@@ -520,6 +522,7 @@ type Modification = Error String
                   | ExecutingFunctionBegan TLID ID
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
+                  | SetLiveValuePinned Bool ID
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 
