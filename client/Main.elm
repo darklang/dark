@@ -118,11 +118,13 @@ init {editorState, complete} location =
         |> SE.replace ":8000" ""
         |> SE.replace ":9000" ""
 
+      isAdmin = False
+
       builtins =
         List.map flag2function complete
 
       m2 = { m | builtInFunctions = builtins
-               , complete = AC.init builtins
+               , complete = AC.init builtins isAdmin
                , tests = tests
                , toplevels = []
                , currentPage = page

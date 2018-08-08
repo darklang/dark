@@ -35,8 +35,8 @@ traverse fn expr =
           If cond ifbody elsebody ->
             If (fn cond) (fn ifbody) (fn elsebody)
 
-          FnCall name exprs ->
-            FnCall name (List.map fn exprs)
+          FnCall name exprs r ->
+            FnCall name (List.map fn exprs) r
 
           Lambda vars lexpr ->
             Lambda vars (fn lexpr)
@@ -76,7 +76,7 @@ listThreadBlanks expr =
           Variable name -> []
 
           Let lhs rhs body -> r rhs ++ r body
-          FnCall name exprs -> rList exprs
+          FnCall name exprs _ -> rList exprs
           Lambda vars body -> r body
           FieldAccess obj _ -> r obj
 
@@ -113,7 +113,7 @@ closeThreads expr =
             case exprs of
               [] -> False
               [e] -> False
-              (F _ (FnCall _ _ ) :: _) -> False
+              (F _ (FnCall _ _ _) :: _) -> False
               _ -> True
           newExprs = List.filter B.isF exprs
                      |> List.map closeThreads
@@ -121,12 +121,12 @@ closeThreads expr =
             case newExprs of
               -- if an fncall moved into the first slot, we need to add a
               -- blank in front.
-              F id (FnCall name args) :: rest ->
+              F id (FnCall name args r) :: rest ->
                 if addBlank
                 then
-                  [F id (FnCall name (B.new () :: args))] ++ rest
+                  [F id (FnCall name (B.new () :: args) r)] ++ rest
                 else
-                  [F id (FnCall name args)] ++ rest
+                  [F id (FnCall name args r)] ++ rest
               _ -> newExprs
       in
       case adjusted of
@@ -343,7 +343,7 @@ getParamIndex expr id =
       inThread = grandparentIsThread expr parent
   in
   case parent of
-    Just (F _ (FnCall name args)) ->
+    Just (F _ (FnCall name args _)) ->
       args
       |> LE.findIndex (\a -> B.toID a == id)
       |> Maybe.map
@@ -377,7 +377,7 @@ children expr =
         Variable _ -> []
         If cond ifbody elsebody ->
           [PExpr cond, PExpr ifbody, PExpr elsebody]
-        FnCall name exprs ->
+        FnCall name exprs _ ->
           List.map PExpr exprs
         Lambda vars lexpr ->
           (List.map PVarBind vars) ++ [PExpr lexpr]
@@ -417,7 +417,7 @@ childrenOf pid expr =
         If cond ifbody elsebody ->
           co cond ++ co ifbody ++ co elsebody
 
-        FnCall name exprs ->
+        FnCall name exprs _ ->
           List.map co exprs |> List.concat
 
         Lambda vars lexpr ->
@@ -464,7 +464,7 @@ uses var expr =
           if is_rebinding lhs then [] else List.concat [u rhs, u body]
         If cond ifbody elsebody ->
           List.concat [u cond, u ifbody, u elsebody]
-        FnCall name exprs ->
+        FnCall name exprs _ ->
           exprs |> List.map u |> List.concat
         Lambda vars lexpr ->
           if List.any is_rebinding vars
@@ -489,9 +489,9 @@ allCallsToFn s e =
   |> List.filterMap
     (\pd ->
       case pd of
-        PExpr (F id (FnCall name params)) ->
+        PExpr (F id (FnCall name params r)) ->
           if name == s
-          then Just (F id (FnCall name params))
+          then Just (F id (FnCall name params r))
           else Nothing
         _ -> Nothing)
 
@@ -520,7 +520,7 @@ ancestors id expr =
                   reclist id exp walk [rhs, body]
                 If cond ifbody elsebody ->
                   reclist id exp walk [cond, ifbody, elsebody]
-                FnCall name exprs ->
+                FnCall name exprs _ ->
                   reclist id exp walk exprs
                 Lambda vars lexpr ->
                   rec id exp walk lexpr
@@ -586,7 +586,7 @@ parentOf_ eid expr =
           If cond ifbody elsebody ->
             poList [cond, ifbody, elsebody]
 
-          FnCall name exprs ->
+          FnCall name exprs _ ->
             poList exprs
 
           Lambda vars lexpr ->
@@ -623,7 +623,7 @@ siblings p expr =
         F _ (Let lhs rhs body) ->
           [ PVarBind lhs, PExpr rhs, PExpr body]
 
-        F _ (FnCall name exprs) ->
+        F _ (FnCall name exprs _) ->
           List.map PExpr exprs
 
         F _ (Lambda vars lexpr) ->
@@ -689,7 +689,7 @@ allData expr =
         If cond ifbody elsebody ->
           rl [cond, ifbody, elsebody]
 
-        FnCall name exprs ->
+        FnCall name exprs _ ->
           rl exprs
 
         Lambda vars body ->
@@ -754,10 +754,10 @@ replace_ search replacement parent expr =
                 -- if pasting it into a thread, make the shape fit
                 Just (F _ (Thread (first :: _))) ->
                   case e of
-                    F id (FnCall fn (_ :: rest as args)) ->
+                    F id (FnCall fn (_ :: rest as args) r) ->
                       if B.toID first == sId
-                      then (F id (FnCall fn args))
-                      else (F id (FnCall fn rest))
+                      then (F id (FnCall fn args r))
+                      else (F id (FnCall fn rest r))
                     _ -> e
                 _ -> e
         in B.replace sId repl_ expr
@@ -874,7 +874,7 @@ clone expr =
         case nexpr of
           Let lhs rhs body -> Let (cString lhs) (c rhs) (c body)
           If cond ifbody elsebody -> If (c cond) (c ifbody) (c elsebody)
-          FnCall name exprs -> FnCall name (cl exprs)
+          FnCall name exprs r -> FnCall name (cl exprs) r
           Lambda vars body -> Lambda (List.map cString vars) (c body)
           Thread exprs -> Thread (cl exprs)
           FieldAccess obj field -> FieldAccess (c obj) (cString field)

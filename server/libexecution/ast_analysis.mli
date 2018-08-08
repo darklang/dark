@@ -45,8 +45,35 @@ val load_nothing :
   Types.RuntimeT.dval list ->
   (Types.RuntimeT.dval * Time.t) option
 
-val environment_for_user_fn : Types.RuntimeT.user_fn -> Types.RuntimeT.dval_map
-val execute_function_for_analysis : Types.RuntimeT.exec_state -> Types.RuntimeT.user_fn -> analysis
+val environment_for_user_fn :
+  Types.RuntimeT.user_fn ->
+  Types.RuntimeT.dval_map
 
-val execute_handler_for_analysis : Types.RuntimeT.exec_state -> Types.RuntimeT.HandlerT.handler -> analysis
-val execute_handler : Types.RuntimeT.exec_state -> Types.RuntimeT.HandlerT.handler -> Types.RuntimeT.dval
+val execute_function_for_analysis :
+  Types.RuntimeT.exec_state ->
+  Types.RuntimeT.user_fn ->
+  analysis
+
+val execute_handler_for_analysis :
+  Types.RuntimeT.exec_state ->
+  Types.RuntimeT.HandlerT.handler ->
+  analysis
+
+val execute_handler :
+  Types.RuntimeT.exec_state ->
+  Types.RuntimeT.HandlerT.handler ->
+  Types.RuntimeT.dval
+
+val execute_ast :
+  Types.RuntimeT.exec_state ->
+  Types.RuntimeT.dval_map ->
+  Types.RuntimeT.expr ->
+  Types.RuntimeT.dval
+
+val execute_userfn :
+  Types.RuntimeT.exec_state ->
+  string ->
+  Types.id ->
+  Types.RuntimeT.dval list ->
+  Types.RuntimeT.dval
+

@@ -86,7 +86,7 @@ withEditFn vs v =
   if idOf vs.cursorState == Just (B.toID v)
   then
     case v of
-      F _ (FnCall name _) ->
+      F _ (FnCall name _ _) ->
         case LE.find (Functions.sameName name) vs.ufns of
           Just fn -> [WithEditFn fn.tlid]
           _ -> []

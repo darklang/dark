@@ -168,7 +168,7 @@ pipe_within_let m =
       (F _ (Value "3"))
       (F _ (Thread
         [ F _ (Variable "value")
-        , F _ (FnCall "assoc" [Blank _, Blank _])])) ->
+        , F _ (FnCall "assoc" [Blank _, Blank _] _)])) ->
       pass
     e ->
       fail e
@@ -221,7 +221,7 @@ editing_request_edits_request m =
 autocomplete_highlights_on_partial_match : Model -> TestResult
 autocomplete_highlights_on_partial_match m =
   case onlyExpr m of
-    FnCall "Int::add" _ -> pass
+    FnCall "Int::add" _ _ -> pass
     e -> fail e
 
 
@@ -229,7 +229,7 @@ no_request_global_in_non_http_space : Model -> TestResult
 no_request_global_in_non_http_space m =
   case onlyExpr m of
     -- this might change but this is the answer for now.
-    FnCall "Http::badRequest" _ -> pass
+    FnCall "Http::badRequest" _ _ -> pass
     -- Blank _ -> pass
     e -> fail e
 
@@ -245,7 +245,7 @@ hover_values_for_varnames m =
 pressing_up_doesnt_return_to_start : Model -> TestResult
 pressing_up_doesnt_return_to_start m =
   case onlyExpr m of
-    FnCall "Char::toASCIIChar" _ -> pass
+    FnCall "Char::toASCIIChar" _ _ -> pass
     e -> fail e
 
 deleting_selects_the_blank : Model -> TestResult
@@ -258,7 +258,7 @@ deleting_selects_the_blank m =
 right_number_of_blanks : Model -> TestResult
 right_number_of_blanks m =
   case onlyExpr m of
-    FnCall "assoc" [Blank _, Blank _, Blank _] -> pass
+    FnCall "assoc" [Blank _, Blank _, Blank _] _ -> pass
     e -> fail e
 
 ellen_hello_world_demo : Model -> TestResult
@@ -330,15 +330,17 @@ case_sensitivity m =
                      [ F _ (Value "{}")
                      , F _ (FnCall "assoc"
                              [ F _ (Value "\"cOlUmNnAmE\"")
-                             , F _ (Value "\"some value\"")])
+                             , F _ (Value "\"some value\"")]
+                             _)
                      , F _ (FnCall "DB::insert"
-                             [F _ (Variable "TestUnicode")])
+                             [F _ (Variable "TestUnicode")]
+                             _)
                        ]) -> pass
 
                    F id (Thread
                      [ F _ (Variable "TestUnicode")
-                     , F _ (FnCall "DB::fetchAll" [])
-                     , F _ (FnCall "List::head" [])
+                     , F _ (FnCall "DB::fetchAll" [] _)
+                     , F _ (FnCall "List::head" [] _)
                      , F _ (Lambda [F _ "var"]
                              (F _ (FieldAccess
                                      (F _ (Variable "var"))
@@ -446,9 +448,9 @@ paste_right_number_of_blanks m =
     case tl.data of
       TLHandler {ast} ->
         case ast of
-          F _ (Thread [_, F _ (FnCall "-" [Blank _])]) ->
+          F _ (Thread [_, F _ (FnCall "-" [Blank _] _)]) ->
             pass
-          F _ (FnCall "-" [Blank _, Blank _]) ->
+          F _ (FnCall "-" [Blank _, Blank _] _) ->
             pass -- ignore this TL
           _ -> fail ast
       _ -> fail ("Shouldn't be other handlers here", tl.data))
@@ -458,7 +460,7 @@ paste_right_number_of_blanks m =
 paste_keeps_focus : Model -> TestResult
 paste_keeps_focus m =
   case onlyExpr m of
-    FnCall "+" [F _ (Value "3"), F id (Value "3")] as fn ->
+    FnCall "+" [F _ (Value "3"), F id (Value "3")] _ as fn ->
       case m.cursorState of
         Selecting _ sid ->
           if Just id == sid
@@ -488,12 +490,13 @@ feature_flag_works m =
         (F _ "a")
         (F _ (Value "13"))
         (F _ (FeatureFlag
-          (F _ "myflag")
-          (F _ (FnCall "Int::greaterThan" ([F _ (Variable "a"), F _ (Value "10")])))
-          (F _ (Value "\"A\""))
-          (F _ (Value "\"B\""))
-          )
-        )
+               (F _ "myflag")
+               (F _ (FnCall "Int::greaterThan"
+                      [ F _ (Variable "a")
+                      , F _ (Value "10")]
+                      _))
+               (F _ (Value "\"A\""))
+               (F _ (Value "\"B\""))))
       )
       -> pass
     _ -> fail (ast, m.cursorState)
@@ -531,7 +534,9 @@ variable_extraction m =
               (Let
                 (F _ "new_variable")
                 (F _ (FnCall "+"
-                        ([F _ (Variable "foo"), F _ (Variable "bar")])))
+                        [ F _ (Variable "foo")
+                        , F _ (Variable "bar")]
+                        _))
                 (F _
                   (Let
                     (F _ "baz")

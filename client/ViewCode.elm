@@ -8,6 +8,9 @@ import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
 import Maybe.Extra as ME
+import Svg
+import VirtualDom
+import Svg.Attributes as SA
 
 -- dark
 import Types exposing (..)
@@ -108,6 +111,53 @@ viewNFieldName vs config f =
 depthString : Int -> String
 depthString n = "precedence-" ++ (toString n)
 
+viewRopArrow : ViewState -> Html.Html Msg
+viewRopArrow vs =
+  let line =
+        Svg.path
+          [ SA.stroke "red"
+          , SA.strokeWidth "1.5px"
+          , SA.d "M 0,0 z"
+          , VirtualDom.attribute "opacity" "0.3"
+          , SA.markerEnd "url(#arrow)"
+          ]
+          []
+      head = Svg.defs
+               []
+               [ Svg.marker
+                 [ SA.id "arrow"
+                 , SA.markerWidth "10"
+                 , SA.markerHeight "10"
+                 , SA.refX "0"
+                 , SA.refY "3"
+                 , SA.orient "auto"
+                 , SA.markerUnits "strokeWidth"
+                 ]
+                 [ Svg.path [ SA.d "M0,0 L0,6 L9,3 z"
+                            , SA.fill "#f00"
+                            ]
+                            []
+                 ]
+               ]
+      svg =
+        Svg.svg
+          [ Attrs.style [ ("position", "absolute")
+                        , ("pointer-events", "none") -- don't eat clicks
+                        , ("margin-top", "-10px")
+                        , ("fill", "none")
+                        ]
+          ]
+          [line, head]
+  in
+  Html.node
+    "rop-arrow"
+    -- Force the rop-webcomponent to update to fix the size
+    [ VirtualDom.attribute "update" (Util.random () |> toString)
+    , VirtualDom.attribute "tlid" (toString (deTLID vs.tl.id))]
+    [svg]
+
+
+
 viewNExpr : Int -> ID -> Viewer NExpr
 viewNExpr d id vs config e =
   let vExpr d = viewExpr d vs []
@@ -171,7 +221,7 @@ viewNExpr d id vs config e =
       , n [wc "elsebody"] [vExpr 0 elsebody]
       ]
 
-    FnCall name exprs ->
+    FnCall name exprs sendToRail ->
       let width = approxNWidth e
           viewTooWideArg name d e =
             Html.div
@@ -229,6 +279,11 @@ viewNExpr d id vs config e =
                      not (Runtime.isIncomplete val
                          || Runtime.isError val)
 
+          ropArrow =
+            if sendToRail == NoRail
+            then Html.div [] []
+            else viewRopArrow vs
+
           paramsComplete = List.all (isComplete << B.toID) allExprs
           resultHasValue = isComplete id
 
@@ -275,7 +330,7 @@ viewNExpr d id vs config e =
           fnDiv parens =
             n
               [wc "op", wc name, ComputedValueAs id]
-              (fnname parens :: button)
+              (fnname parens :: ropArrow :: button)
       in
       case (fn.infix, exprs, fn.parameters) of
         (True, [first, second], [p1, p2]) ->
@@ -395,7 +450,7 @@ viewNExpr d id vs config e =
               , eventNoPropagation "click" (\_ -> ToggleFeatureFlag id False)
             ]
             [ fontAwesome "minus" ]
-          
+
           expandModal =
             Html.div
             [
@@ -467,7 +522,9 @@ viewHandler : ViewState -> Handler -> List (Html.Html Msg)
 viewHandler vs h =
   let ast = Html.div
               [ Attrs.class "ast"]
-              [viewExpr 0 vs [] h.ast]
+              [ Html.div
+                [ Attrs.class "rop-rail"]
+                [ viewExpr 0 vs [] h.ast ]]
 
       externalLink =
         case (h.spec.modifier, h.spec.name) of

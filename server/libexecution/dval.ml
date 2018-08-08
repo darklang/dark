@@ -45,6 +45,8 @@ let rec tipe_to_string t : string =
   | TDbList tipe -> "[" ^ (tipe_to_string tipe) ^ "]"
   | TPassword -> "Password"
   | TUuid -> "UUID"
+  | TOption -> "Option"
+  | TErrorRail -> "ErrorRail"
 
 let rec tipe_of_string str : tipe =
   match String.lowercase str with
@@ -71,6 +73,7 @@ let rec tipe_of_string str : tipe =
   | "url" -> TUrl
   | "password" -> TPassword
   | "uuid" -> TUuid
+  | "errorrail" -> TErrorRail
   | _ -> (* otherwise *)
     if String.is_prefix str "["  && String.is_suffix str "]"
     then
@@ -103,7 +106,7 @@ and parse_list_tipe (list_tipe : string) : tipe =
   | "url" -> Exception.internal "todo"
   | table -> THasMany table
 
-let tipe_of (dv : dval) : tipe =
+let rec tipe_of (dv : dval) : tipe =
   match dv with
   | DInt _ -> TInt
   | DFloat _ -> TFloat
@@ -124,6 +127,8 @@ let tipe_of (dv : dval) : tipe =
   | DUrl _ -> TUrl
   | DPassword _ -> TPassword
   | DUuid _ -> TUuid
+  | DOption _ -> TOption
+  | DErrorRail _ -> TErrorRail (* Users should not be aware of this *)
 
 
 let tipename (dv: dval) : string =
@@ -222,6 +227,9 @@ let rec to_repr ?(pp=true) ?(open_="<") ?(close_=">")
           "{ " ^ inl ^
           (String.concat ~sep:("," ^ inl) strs)
           ^ nl ^ "}"
+    | DOption OptNothing -> "Nothing"
+    | DOption (OptJust dv) -> "Some " ^ (to_repr_ indent pp dv)
+    | DErrorRail dv -> "ErrorRail: " ^ (to_repr_ indent pp dv)
     | _ -> failwith ("printing an unprintable value:" ^ to_simple_repr dv)
     in to_repr_ 0 pp dv
 
@@ -294,6 +302,19 @@ let to_string_pairs dv : (string * string) list =
 
 let to_dobj (pairs: (string*dval) list) : dval =
   DObj (DvalMap.of_alist_exn pairs)
+
+let is_errorrail e =
+  match e with
+    | DErrorRail _ -> true
+    | _ -> false
+
+let unwrap_from_errorrail (dv : dval) =
+  match dv with
+  | DErrorRail dv -> dv
+  | other -> other
+
+
+
 
 (* ------------------------- *)
 (* Obj Functions *)
@@ -401,6 +422,11 @@ let rec dval_to_yojson ?(livevalue=false) ?(redact=true) (dv : dval) : Yojson.Sa
                        then wrap_user_type `Null
                        else hashed |> Bytes.to_string |> B64.encode |> wrap_user_str
   | DUuid uuid -> wrap_user_str (Uuidm.to_string uuid)
+  | DOption opt ->
+    (match opt with
+     | OptNothing -> wrap_user_type `Null
+     | OptJust dv -> wrap_user_type (dval_to_yojson ~redact ~livevalue dv))
+  | DErrorRail _ -> wrap_user_type `Null
 
 let is_json_primitive (dv: dval) : bool =
   match dv with
