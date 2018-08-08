@@ -52,7 +52,7 @@ viewInputs vs =
     in
     viewInput vs.tl.id idx value isActive isHover result.astValue.tipe
   in
-  List.indexedMap resultToHtml <| List.reverse vs.results
+  List.indexedMap resultToHtml vs.results
 
 
 viewData : ViewState -> List (Html.Html Msg)
