@@ -87,6 +87,24 @@ wrap m tl p wl =
                   ,focus)
         _ -> NoChange
 
+toggleOnRail : Model -> Toplevel -> PointerData -> Modification
+toggleOnRail m tl p =
+  let new =
+    case p of
+      PExpr (F id (FnCall name exprs Rail)) ->
+        PExpr (F id (FnCall name exprs NoRail))
+      PExpr (F id (FnCall name exprs NoRail)) ->
+        PExpr (F id (FnCall name exprs Rail))
+      _ -> p
+  in
+      if p == new
+      then NoChange
+      else
+        let newtl = TL.replace p new tl in
+        RPC (TL.toOp newtl, FocusSame)
+
+
+
 extractVariable : Model -> Toplevel -> PointerData -> Modification
 extractVariable m tl p =
   let extractVarInAst e ast  =
