@@ -521,6 +521,7 @@ type Modification = Error String
                   | ExecutingFunctionBegan TLID ID
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
+                  | SetLockedHandlers (List TLID)
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

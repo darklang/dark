@@ -11,6 +11,7 @@ import Json.Encode as JSE
 import Defaults
 import RPC
 import Types exposing (..)
+import Toplevel as TL
 
 fromString : Maybe String -> SerializableEditor
 fromString json =
@@ -42,3 +43,16 @@ model2editor m =
   , cursorState = m.cursorState
   , lockedHandlers = m.lockedHandlers
   }
+
+updateLockedHandlers : TLID -> Bool -> Model -> Modification
+updateLockedHandlers tlid lockHandler m =
+  let tl = TL.getTL m tlid
+  in case tl.data of
+    TLHandler _ ->
+    let lockedList =
+      if lockHandler then
+        tlid :: m.lockedHandlers
+      else
+        List.filter (\t -> t /= tlid) m.lockedHandlers
+    in SetLockedHandlers lockedList
+    _ -> NoChange

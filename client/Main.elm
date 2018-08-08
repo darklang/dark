@@ -526,6 +526,8 @@ updateMod mod (m, cmd) =
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
         { m | executingFunctions = nexecutingFunctions } ! []
+      SetLockedHandlers locked ->
+        { m | lockedHandlers = locked } ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -1461,16 +1463,7 @@ update_ msg m =
         in RPC ( [ SetFunction ufun ]
                , FocusPageAndCursor (Fn ufun.tlid Defaults.fnPos) m.cursorState)
     LockHandler tlid isLocked ->
-      let tl = TL.getTL m tlid
-      in case tl.data of
-        TLHandler _ ->
-          let lockedList =
-            if isLocked then
-              tlid :: m.lockedHandlers
-            else
-              List.filter (\t -> t /= tlid) m.lockedHandlers
-          in TweakModel (updateLockedHandlers lockedList)
-        _ -> NoChange
+      Editor.updateLockedHandlers tlid isLocked m
     _ -> NoChange
 
 findCenter : Model -> Pos
@@ -1491,9 +1484,6 @@ toggleTimers : Model -> Model
 toggleTimers m =
   { m | timersEnabled = not m.timersEnabled }
 
-updateLockedHandlers : List TLID -> Model -> Model
-updateLockedHandlers l m =
-  { m | lockedHandlers = l }
 
 -----------------------
 -- SUBSCRIPTIONS
