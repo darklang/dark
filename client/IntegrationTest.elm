@@ -57,6 +57,7 @@ trigger test_name =
     "editing_goes_to_next_with_tab" -> editing_goes_to_next_with_tab
     "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
     "object_literals_work" -> object_literals_work
+    "rename_function" -> rename_function
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -614,3 +615,10 @@ object_literals_work m =
             PEventName _ -> pass
             other -> fail (m.cursorState, other)
     other -> fail other
+
+rename_function : Model -> TestResult
+rename_function m =
+  case (onlyExpr m) of
+    FnCall "hello" _ -> pass
+    other -> fail other
+

@@ -1,0 +1,47 @@
+[
+  [ "TLSavepoint", 180770093 ],
+  [
+    "SetHandler",
+    180770093,
+    { "x": 560, "y": 237 },
+    {
+      "tlid": 180770093,
+      "ast": [ "Filled", 3981133572, [ "FnCall", "fn_2173672243", [] ] ],
+      "spec": {
+        "module": [ "Blank", 1013789043 ],
+        "name": [ "Blank", 1686646085 ],
+        "modifier": [ "Blank", 1312698291 ],
+        "types": {
+          "input": [ "Filled", 1985365542, [ "Any" ] ],
+          "output": [ "Filled", 2118262029, [ "Any" ] ]
+        }
+      }
+    }
+  ],
+  [ "TLSavepoint", 2296485551 ],
+  [
+    "SetFunction",
+    {
+      "tlid": 2296485551,
+      "metadata": {
+        "name": [ "Filled", 12399029, "fn_2173672243" ],
+        "parameters": [],
+        "return_type": [ "Filled", 4137008247, [ "TAny" ] ],
+        "description": "",
+        "infix": false
+      },
+      "ast": [
+        "Filled",
+        1894833988,
+        [
+          "FnCall",
+          "+",
+          [
+            [ "Filled", 1001241551, [ "Value", "5" ] ],
+            [ "Filled", 540981105, [ "Value", "5" ] ]
+          ]
+        ]
+      ]
+    }
+  ]
+]
