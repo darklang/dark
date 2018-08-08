@@ -526,9 +526,6 @@ updateMod mod (m, cmd) =
         let isComplete target = not <| List.member target targets
             nexecutingFunctions = List.filter isComplete m.executingFunctions in
         { m | executingFunctions = nexecutingFunctions } ! []
-      UpdateToplevel tl ->
-        let m2 = TL.upsert m tl
-        in m2 ! []
       TweakModel fn ->
         fn m ! []
       AutocompleteMod mod ->
@@ -1466,10 +1463,13 @@ update_ msg m =
     LockHandler tlid isLocked ->
       let tl = TL.getTL m tlid
       in case tl.data of
-        TLHandler h ->
-          let uh = { h | isLocked = isLocked }
-              newTl = { tl | data = TLHandler uh }
-          in UpdateToplevel newTl
+        TLHandler _ ->
+          let lockedList =
+            if isLocked then
+              tlid :: m.lockedHandlers
+            else
+              List.filter (\t -> t /= tlid) m.lockedHandlers
+          in TweakModel (updateLockedHandlers lockedList)
         _ -> NoChange
     _ -> NoChange
 
@@ -1491,6 +1491,9 @@ toggleTimers : Model -> Model
 toggleTimers m =
   { m | timersEnabled = not m.timersEnabled }
 
+updateLockedHandlers : List TLID -> Model -> Model
+updateLockedHandlers l m =
+  { m | lockedHandlers = l }
 
 -----------------------
 -- SUBSCRIPTIONS
