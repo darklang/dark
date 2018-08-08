@@ -819,10 +819,6 @@ update_ msg m =
                          , MakeCmd (Entry.focusEntry m)
                          ]
                   else NoChange
-                _ -> NoChange
-            else if event.ctrlKey
-            then
-              case event.keyCode of
                 Key.V ->
                   case cursor of
                     Creating pos -> Clipboard.newFromClipboard m pos
@@ -1220,7 +1216,7 @@ update_ msg m =
 
     EndFeatureFlag id pick ->
       FeatureFlags.end m id pick
-    
+
     ToggleFeatureFlag id is ->
       FeatureFlags.toggle m id is
 
