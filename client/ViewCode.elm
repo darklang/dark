@@ -499,7 +499,7 @@ viewNExpr d id vs config e =
     in
       div vs
         [ wc "flagged shown"]
-        [ vExpr 0 (if condResult then b else a)
+        [ viewExpr 0 { vs | showEntry = False } [] (if condResult then b else a)
         , fontAwesome "flag"
         , Html.div
           [
