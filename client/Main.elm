@@ -11,7 +11,6 @@ import Keyboard.Key as Key
 import Navigation
 import Mouse
 import PageVisibility
-import Set exposing (Set)
 import String
 -- import List.Extra as LE
 import String.Extra as SE
@@ -534,10 +533,6 @@ updateMod mod (m, cmd) =
         fn m ! []
       AutocompleteMod mod ->
         processAutocompleteMods m [mod]
-      SetLiveValuePinned True theID ->
-        { m | pinnedLiveValues = Set.insert (deID theID) m.pinnedLiveValues } ! []
-      SetLiveValuePinned False theID ->
-        { m | pinnedLiveValues = Set.remove (deID theID) m.pinnedLiveValues } ! []
       -- applied from left to right
       Many mods -> List.foldl updateMod (m, Cmd.none) mods
 
