@@ -47,7 +47,7 @@ let load_events (canvas_id: Uuidm.t) ((module_, path, modifier): event_desc) : R
             ; String module_
             ; String path
             ; String modifier]
-  |> List.rev_map ~f:(function
+  |> List.map ~f:(function
       | [dval; _ts] -> Dval.dval_of_json_string dval
       | _ -> Exception.internal "Bad DB format for stored_events")
 

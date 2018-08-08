@@ -387,7 +387,7 @@ let t_stored_event_roundtrip () =
     (List.sort ~compare listed);
 
   let loaded1 = SE.load_events id1 desc1 in
-  check_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
+  check_dval_list "load GET events" [DStr "2"; DStr "1"] loaded1;
 
   let loaded2 = SE.load_events id1 desc3 in
   check_dval_list "load POST events" [DStr "3"] loaded2;
