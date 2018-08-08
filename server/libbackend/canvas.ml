@@ -311,12 +311,6 @@ let check_tier_one_hosts () : unit =
 let check_all_hosts () : unit =
   let hosts = Serialize.current_hosts () in
 
-  (* Just convert from the old format to the new one *)
-  List.iter hosts
-    ~f:(fun host ->
-      let c = load_all host [] in
-      save_all !c);
-
   List.iter hosts
     ~f:(fun host ->
       let c = load_all host [] in

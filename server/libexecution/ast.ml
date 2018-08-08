@@ -44,6 +44,9 @@ let rec traverse ~(f: expr -> expr) (expr:expr) : expr =
              | FnCall (name, exprs) ->
                FnCall (name, List.map ~f exprs)
 
+             | FnCallSendToRail (name, exprs) ->
+               FnCallSendToRail (name, List.map ~f exprs)
+
              | Lambda (vars, lexpr) ->
                Lambda (vars, f lexpr)
 

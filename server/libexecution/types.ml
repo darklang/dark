@@ -40,6 +40,8 @@ type tipe_ =
   | TDbList of tipe_
   | TPassword
   | TUuid
+  | TOption
+  | TErrorRail
   [@@deriving eq, compare, show, yojson, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -70,6 +72,10 @@ module RuntimeT = struct
              | ObjectLiteral of (key * expr) list
              | ListLiteral of expr list
              | FeatureFlag of (string or_blank) * expr * expr * expr
+             (* it's like this, instead of a bool on fncall, to avoid a
+              * migration because we don't know how this is going to work
+              * in the end. *)
+             | FnCallSendToRail of fnname * expr list
   [@@deriving eq, compare, yojson, show, sexp, bin_io]
 and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
@@ -161,9 +167,53 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
               [@@deriving compare, sexp, show]
   let equal_time t1 t2 = t1 = t2
 
+  (* Special types:
+     DIncomplete:
 
+       A DIncomplete represents incomplete computation, whose source is
+       always a Blank. When the code runs into a blank, it must return
+       incomplete because the code is not finished. An incomplete value
+       results in a 500 because it is a developer error.
+
+       Propagating DIncompletes is straightforward: any computation
+       relying on an incomplete must itself be incomplete.
+
+       Some examples:
+       - calling a function with an incomplete as a parameter in an
+         incomplete function call.
+       - an if statement with an incomplete in the cond must be incomplete.
+
+       But computation that doesn't rely on the incomplete value can
+       ignore it:
+
+       - an if statement which with a blank in the ifbody and a
+         complete expression in the elsebody will execute just fine if
+         cond is false. It has not hit any part of the program that is
+         being worked on.
+
+       - a list with blanks in it can just ignore the blanks.
+       - an incomplete in a list should be filtered out, because the
+         program has not been completed, and so that list entry just
+         doesn't "exist" yet.
+       - incompletes in keys or values of objects cause the entire row
+         to be ignored.
+
+    DErrorRail:
+      A DErrorRail represents a value which has been sent over to the
+      errorrail. Because the computation is happening on the errorrail,
+      no other computation occurs.
+
+      In all cases, we can consider it equivalent to goto
+      end_of_function.
+
+      - an if with an derrorrail in an subexpression is a derrorrail
+      - a list containing a derrorrail is a derrorail
+
+  *)
   module DvalMap = String.Map
   type dval_map = dval DvalMap.t [@opaque]
+  and optionT = OptJust of dval
+              | OptNothing
   and dval =
     (* basic types  *)
     | DInt of int
@@ -175,10 +225,11 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     (* compound types *)
     | DList of dval list
     | DObj of dval_map
-    (* special types *)
+    (* special types - see notes above *)
     | DIncomplete
     | DError of string
     | DBlock of dval block
+    | DErrorRail of dval
     (* user types: awaiting a better type system *)
     | DResp of (dhttp * dval)
     | DDB of DbT.db
@@ -188,6 +239,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
     | DUrl of string
     | DPassword of Bytes.t
     | DUuid of uuid
+    | DOption of optionT
     [@@deriving show, sexp, eq, compare]
   type dval_list = dval list [@@deriving show]
 

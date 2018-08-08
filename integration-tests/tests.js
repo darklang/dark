@@ -213,7 +213,7 @@ test('varbinds_are_editable', async t => {
 
 test('editing_does_not_deselect', async t => {
   await t
-    .doubleClick(".ast > .blankOr > .letrhs > .blankOr")
+    .doubleClick(".ast .blankOr > .letrhs > .blankOr")
     .click("#entry-box")
 });
 
@@ -281,7 +281,7 @@ test('deleting_selects_the_blank', async t => {
     .pressKey("enter")
     .typeText("#entry-box", "5")
     .pressKey("enter")
-    .click(".ast")
+    .click(".ast .value")
     .pressKey("delete")
     .typeText("#entry-box", "6")
     .pressKey("enter")

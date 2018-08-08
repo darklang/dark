@@ -170,7 +170,7 @@ extractFunction m tl p =
           paramExprs =
             List.map (\(_, name) -> F (gid ()) (Variable name)) freeVars
           replacement =
-            PExpr (F (gid ()) (FnCall name paramExprs))
+            PExpr (F (gid ()) (FnCall name paramExprs NoRail))
           h =
             deMaybe
             "PointerData is a PExpr and isValidID for this TL"
@@ -215,8 +215,8 @@ renameFunction m old new =
         let transformCall newName old =
               let transformExpr name old =
                     case old of
-                      F id (FnCall _ params) ->
-                        F id (FnCall name params)
+                      F id (FnCall _ params r) ->
+                        F id (FnCall name params r)
                       _ ->
                         old
               in
@@ -274,8 +274,8 @@ transformFnCalls m uf f =
         let transformCall old =
               let transformExpr old =
                     case old of
-                      F id (FnCall name params) ->
-                        F id (f (FnCall name params))
+                      F id (FnCall name params r) ->
+                        F id (f (FnCall name params r))
                       _ ->
                         old
               in
@@ -327,8 +327,8 @@ addNewFunctionParameter : Model -> UserFunction -> List Op
 addNewFunctionParameter m old =
   let fn e =
         case e of
-          FnCall name params ->
-            FnCall name (params ++ [B.new ()])
+          FnCall name params r ->
+            FnCall name (params ++ [B.new ()]) r
           _ -> e
   in
       transformFnCalls m old fn
@@ -340,8 +340,8 @@ removeFunctionParameter m uf ufp =
         |> deMaybe "tried to remove parameter that does not exist in function"
       fn e =
         case e of
-          FnCall name params ->
-            FnCall name (LE.removeAt indexInList params)
+          FnCall name params r ->
+            FnCall name (LE.removeAt indexInList params) r
           _ -> e
   in
       transformFnCalls m uf fn

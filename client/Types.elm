@@ -45,6 +45,7 @@ type Tipe = TInt
           | TUrl
           | TPassword
           | TUuid
+          | TOption
           | TBelongsTo String
           | THasMany String
           | TDbList Tipe
@@ -200,6 +201,7 @@ type alias AnalysisParams = List TLID
 -- Autocompletes
 -----------------------------
 type alias Autocomplete = { functions : List Function
+                          , admin : Bool -- flagging hack
                           , completions : List (List AutocompleteItem)
                           , allCompletions : List AutocompleteItem
                           , index : Int
@@ -281,8 +283,9 @@ type alias Key = BlankOr KeyName
 type alias LambdaParameter = BlankOr VarName
 
 type alias Expr = BlankOr NExpr
+type SendToRail = Rail | NoRail
 type NExpr = If Expr Expr Expr
-           | FnCall FnName (List Expr)
+           | FnCall FnName (List Expr) SendToRail
            | Variable VarName
            | Let VarBind Expr Expr
            | Lambda (List LambdaParameter) Expr

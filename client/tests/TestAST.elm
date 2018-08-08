@@ -62,7 +62,7 @@ all =
 
     , test "replacing a function in a thread works" <|
         expectOk <|
-          let replacement = B.newF (FnCall "+" [B.new (), B.new ()])
+          let replacement = B.newF (FnCall "+" [B.new (), B.new ()] NoRail)
               orig = B.new ()
               result =
                 AST.replace
@@ -82,11 +82,11 @@ all =
           let threaded = B.newF (
                            Thread [ B.new ()
                                   , B.new ()
-                                  , F (ID 6) (FnCall "+" [Blank (ID 5)])
+                                  , F (ID 6) (FnCall "+" [Blank (ID 5)] NoRail)
                                   , B.new ()])
           in
             case AST.closeThreads threaded of
-              F (ID 6) (FnCall "+" [Blank _, Blank (ID 5)]) -> pass
+              F (ID 6) (FnCall "+" [Blank _, Blank (ID 5)] NoRail) -> pass
               r -> fail r
 
     , test "don't readd the argument if it was already in the right place" <|
@@ -94,7 +94,8 @@ all =
         let fn = B.newF
                    (FnCall "+"
                      [ B.newF (Value "3")
-                     , B.newF (Value "5")])
+                     , B.newF (Value "5")]
+                     NoRail)
             open = B.newF
                      (Thread
                        [ fn

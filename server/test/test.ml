@@ -14,16 +14,9 @@ module TL = Toplevel
 module Map = Map.Poly
 module AT = Alcotest
 
-let fid = Util.create_id
-let v str = Filled (fid (), Value str)
-let b () = Types.Blank (fid ())
-let f a = Types.Filled (fid (), a)
-let fncall (a,b) = f (FnCall (a,b))
-let tlid = 7
-let dbid = 89
-let pos = {x=0;y=0}
-let execution_id = 6543
-
+(* ------------------- *)
+(* Misc fns *)
+(* ------------------- *)
 let clear_test_data () : unit =
   let owner = Account.for_host "test" in
   let canvas = Serialize.fetch_canvas_id owner "test" in
@@ -44,30 +37,56 @@ let clear_test_data () : unit =
   ()
 
 
-
-let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
-  C.init host ops
-
-let execute_ops (ops : Op.op list) : dval =
-  let c = ops2c "test" ops in
-  let dbs = TL.dbs !c.dbs in
-  let env = User_db.dbs_as_exe_env dbs in
-  let h = !c.handlers
-          |> TL.handlers
-          |> List.hd_exn in
-  let state = Execution.state_for_execution ~c:!c h.tlid
-      ~execution_id ~env
-  in
-  Ast_analysis.execute_handler state h
-
+(* ------------------- *)
+(* Test fns *)
+(* ------------------- *)
 
 let at_dval = AT.testable
     (fun fmt dv -> Fmt.pf fmt "%s" (Dval.to_repr dv))
     (fun a b -> compare_dval a b = 0)
 let at_dval_list = AT.list at_dval
 let check_dval = AT.check at_dval
+let check_dval_list = AT.check (AT.list at_dval)
 let check_oplist = AT.check (AT.of_pp Op.pp_oplist)
 let check_tlid_oplists = AT.check (AT.of_pp Op.pp_tlid_oplists)
+let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
+  let e =
+    try
+      let r = f () in
+      Log.erroR "result" ~data:(Dval.to_repr r);
+      Some "no exception"
+    with
+    | Exception.DarkException ed ->
+      if check ed
+      then None
+      else
+        (Log.erroR "check failed" ~data:(Log.dump ed);
+        Some "Check failed")
+    | e ->
+      let bt = Backtrace.Exn.most_recent () in
+      let msg = Exn.to_string e in
+      print_endline (Backtrace.to_string bt);
+      Log.erroR "different exception" ~data:msg;
+      Some "different exception"
+  in
+  AT.check (AT.option AT.string) msg None e
+
+
+(* ------------------- *)
+(* Set up test data *)
+(* ------------------- *)
+
+let fid = Util.create_id
+let v str = Filled (fid (), Value str)
+let b () = Blank (fid ())
+let f a = Filled (fid (), a)
+let fncall (a,b) = f (FnCall (a,b))
+let tlid = 7
+let dbid = 89
+let pos = {x=0;y=0}
+let execution_id = 6543
+
+let ast_for = Expr_dsl.ast_for
 
 let handler ast : HandlerT.handler =
   { tlid = tlid
@@ -97,8 +116,6 @@ let http_route_handler : HandlerT.handler =
            ; types = { input = b ()
                      ; output = b () }}}
 
-
-
 let daily_cron ast : HandlerT.handler =
   { tlid = tlid
   ; ast = ast
@@ -111,136 +128,63 @@ let daily_cron ast : HandlerT.handler =
 let hop h =
   Op.SetHandler (tlid, pos, h)
 
-let check_exception ?(check=(fun _ -> true)) ~(f:unit -> dval) msg =
-  let e =
-    try
-      let r = f () in
-      Log.erroR "result" ~data:(Dval.to_repr r);
-      Some "no exception"
-    with
-    | Exception.DarkException ed ->
-      if check ed
-      then None
-      else
-        (Log.erroR "check failed" ~data:(Log.dump ed);
-        Some "Check failed")
-    | e ->
-      let bt = Backtrace.Exn.most_recent () in
-      let msg = Exn.to_string e in
-      print_endline (Backtrace.to_string bt);
-      Log.erroR "different exception" ~data:msg;
-      Some "different exception"
-  in
-  AT.check (AT.option AT.string) msg None e
+let user_fn name params ast : user_fn =
+  { tlid = tlid
+  ; ast = ast
+  ; metadata = { name = f name
+               ; parameters = List.map params
+                                ~f:(fun p ->
+                                      { name = f p
+                                      ; tipe = f TAny
+                                      ; block_args = []
+                                      ; optional = false
+                                      ; description = "test"})
+               ; return_type = f TAny
+               ; description = "test user fn"
+               ; infix = false}}
 
-let is_fn name =
-  (* quick hack *)
-  name = "+"
-  || name = "-"
-  || name = "=="
-  || name = "dissoc"
-  || name = "assoc"
-  || name = "toString"
-  || String.is_substring ~substring:"::" name
 
-let b_or_f (name: string) : string or_blank =
-  match name with
-  | "_" -> b ()
-  | name -> f name
 
-let rec ast_for_ (sexp : Sexp.t) : expr =
-  match sexp with
-  (* fncall *)
-  | Sexp.List (Sexp.Atom fnname :: args) when is_fn fnname ->
-    f (FnCall (fnname, (List.map args ~f:ast_for_)))
+(* ------------------- *)
+(* Execution *)
+(* ------------------- *)
+let ops2c (host: string) (ops: Op.op list) : C.canvas ref =
+  C.init host ops
 
-  (* blocks *)
-  | Sexp.List (Sexp.Atom fnname :: Sexp.Atom "->" :: [body])
-    when String.is_prefix ~prefix:"\\" fnname ->
-    let var = String.lstrip ~drop:((=) '\\') fnname in
-    f (Lambda ([f var], (ast_for_ body)))
+let test_execution_data ops =
+  let c = ops2c "test" ops in
+  let dbs = TL.dbs !c.dbs in
+  let env = User_db.dbs_as_exe_env dbs in
+  let state = Execution.state_for_execution ~c:!c tlid ~execution_id ~env in
+  (c, state, env)
 
-  (* let *)
-  | Sexp.List [Sexp.Atom "let"; Sexp.Atom var; value; body] ->
-    f (Let (b_or_f var, ast_for_ value, ast_for_ body))
+let execute_ops (ops : Op.op list) : dval =
+  let (c, state, env) = test_execution_data ops in
+  let h = !c.handlers
+          |> TL.handlers
+          |> List.hd_exn in
+  Ast_analysis.execute_handler state h
 
-  (* if *)
-  | Sexp.List [Sexp.Atom "if"; cond; ifbody; elsebody] ->
-    f (If (ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
-
-  (* feature-flag *)
-  | Sexp.List [Sexp.Atom "flag"; Sexp.Atom name; cond; ifbody; elsebody] ->
-    f (FeatureFlag (b_or_f name, ast_for_ cond, ast_for_ ifbody, ast_for_ elsebody))
-
-  (* thread *)
-  | Sexp.List (Sexp.Atom "|" :: exprs) ->
-    f (Thread (List.map exprs ~f:ast_for_))
-
-  (* objects *)
-  | Sexp.List (Sexp.Atom "obj" :: rest) ->
-    (let to_pair pair =
-       match pair with
-       | Sexp.List [Sexp.Atom key; value] ->
-         (b_or_f key, ast_for_ value )
-       | x ->
-         Log.infO "pair" ~data:(Log.dump pair);
-         failwith "invalid pair when creating obj"
-     in
-     let args = List.map ~f:to_pair rest in
-     f (ObjectLiteral args))
-
-  | Sexp.List [Sexp.Atom "."; obj; Sexp.Atom field] ->
-     f (FieldAccess (ast_for_ obj, b_or_f field))
-
-  (* lists *)
-  | Sexp.List args ->
-    f (ListLiteral (List.map ~f:ast_for_ args))
-
-  (* blanks *)
-  | Sexp.Atom "_" -> b()
-
-  (* literals / variables *)
-  | Sexp.Atom value ->
-    if int_of_string_opt value = None
-    && float_of_string_opt value = None
-    && value <> "{}"
-    && value <> "[]"
-    && not (String.Caseless.equal value "null")
-    && not (String.is_prefix ~prefix:"\"" value)
-    then
-      f (Variable value)
-    else
-      f (Value value)
-
-let ast_for (ast: string) : expr =
-  let quotes = (Re2.create_exn "'(.*)'") in
-  ast
-  |> (fun s ->
-    (* dunno whether it's a bug or just annoying, but we need to specify
-     * quotes as \"\\\", so let's "'" instead. (The ocaml parser demands
-     * we insert a " here smdh) *)
-      Re2.replace_exn quotes s
-        ~f:(fun m ->
-            "\"\\\""
-            ^ (Re2.Match.get_exn ~sub:(`Index 1) m)
-            ^ "\\\"\""))
-  |> Sexp.of_string
-  (* |> (fun s -> *)
-  (*       let b = Buffer.create 16000 in *)
-  (*       Sexp.to_buffer_hum b s; *)
-  (*       Log.inspecT "buf" (Buffer.contents b); *)
-  (*       s *)
-     (* ) *)
-  |> ast_for_
-  |> Log.inspect ~f:show_expr "expr"
-
-let execute (prog: string) : dval =
+let exec_handler ?(ops=[]) (prog: string) : dval =
   prog
   |> ast_for
   (* |> Log.pp ~f:show_expr *)
   |> handler
   |> hop
-  |> fun h -> execute_ops [h]
+  |> fun h -> execute_ops (ops @ [h])
+
+let exec_ast (prog: string) : dval =
+  let (c, state, env) = test_execution_data [] in
+  Ast_analysis.execute_ast state env (ast_for prog)
+
+let exec_userfn (prog: string) : dval =
+  let name = "test_function" in
+  let ast = ast_for prog in
+  let fn = user_fn name [] ast in
+  let (c, state, env) = test_execution_data [SetFunction fn] in
+  Ast_analysis.execute_userfn state name 0 []
+
+
 
 
 
@@ -326,26 +270,26 @@ let t_undo () =
 
 let t_inserting_object_to_missing_col_gives_good_error () =
   clear_test_data ();
-  let createDB = Op.CreateDB (dbid, pos, "TestDB") in
-  let insert = ast_for "(DB::insert (obj (col (obj))) TestDB)" in
-  let f = fun () -> execute_ops [createDB; hop (handler insert)] in
   let check = fun (de: Exception.exception_data) ->
     de.short = "Found but did not expect: [col]" in
-  check_exception "should get good error" ~check ~f
+  check_exception "should get good error" ~check
+    ~f:(fun () ->
+      exec_handler "(DB::insert (obj (col (obj))) TestDB)"
+        ~ops:[Op.CreateDB (dbid, pos, "TestDB")])
 
 let t_int_add_works () =
   (* Couldn't call Int::add *)
-  check_dval "int_add" (DInt 8) (execute "(+ 5 3)")
+  check_dval "int_add" (DInt 8) (exec_ast "(+ 5 3)")
 
 let t_stdlib_works () =
   check_dval "uniqueBy1"
-    (execute "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
+    (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> (Int::divide x 2)))")
     (DList [DInt 1; DInt 3; DInt 4]);
   check_dval "uniqueBy2"
-    (execute "(List::uniqueBy (1 2 3 4) (\\x -> x))")
+    (exec_ast "(List::uniqueBy (1 2 3 4) (\\x -> x))")
     (DList [DInt 1; DInt 2; DInt 3; DInt 4]);
   check_dval "base64decode"
-    (execute "(String::base64Decode 'random string')")
+    (exec_ast "(String::base64Decode 'random string')")
     (DError "Not a valid base64 string");
   ()
 
@@ -390,19 +334,17 @@ let t_case_insensitive_db_roundtrip () =
   clear_test_data ();
   let colname = "cOlUmNnAmE" in
   let value = DStr "some value" in
+  let ops = [ Op.CreateDB (dbid, pos, "TestUnicode")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, colname)
+            ; Op.SetDBColType (dbid, 12, "Str")]
+  in
   let ast =
-    ast_for
       "(let _
             (DB::insert (obj (cOlUmNnAmE 'some value')) TestUnicode)
             (DB::fetchAll TestUnicode))"
   in
-  let oplist = [ Op.CreateDB (dbid, pos, "TestUnicode")
-               ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, colname)
-               ; Op.SetDBColType (dbid, 12, "Str")
-               ; hop (handler ast) ]
-  in
-  match execute_ops oplist with
+  match exec_handler ~ops ast with
   | DList [DObj v] ->
     AT.(check bool) "matched" true
       (List.mem ~equal:(=) (DvalMap.data v) value)
@@ -412,11 +354,11 @@ let t_case_insensitive_db_roundtrip () =
 
 
 let t_lambda_with_foreach () =
-  let r = execute
-      "(String::foreach 'some string'
-         (\\var -> (Char::toUppercase var)))"
-  in
-  check_dval "lambda_wit_foreach" r (DStr "SOME STRING")
+  check_dval "lambda_wit_foreach"
+    (DStr "SOME STRING")
+    (exec_ast
+       "(String::foreach 'some string'
+          (\\var -> (Char::toUppercase var)))")
 
 module SE = Stored_event
 let t_stored_event_roundtrip () =
@@ -437,7 +379,6 @@ let t_stored_event_roundtrip () =
   SE.store_event id2 desc2 (DStr "3");
 
   let at_desc = AT.of_pp SE.pp_event_desc in
-  let at_dval_list = AT.list at_dval in
 
   let listed = SE.list_events id1 in
   AT.check
@@ -446,16 +387,16 @@ let t_stored_event_roundtrip () =
     (List.sort ~compare listed);
 
   let loaded1 = SE.load_events id1 desc1 in
-  AT.check at_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
+  check_dval_list "load GET events" [DStr "1"; DStr "2"] loaded1;
 
   let loaded2 = SE.load_events id1 desc3 in
-  AT.check at_dval_list "load POST events" [DStr "3"] loaded2;
+  check_dval_list "load POST events" [DStr "3"] loaded2;
 
   let loaded3 = SE.load_events id2 desc3 in
-  AT.check at_dval_list "load no host2 events" [] loaded3;
+  check_dval_list "load no host2 events" [] loaded3;
 
   let loaded4 = SE.load_events id2 desc2 in
-  AT.check at_dval_list "load host2 events" [DStr "3"] loaded4;
+  check_dval_list "load host2 events" [DStr "3"] loaded4;
 
   ()
 
@@ -476,14 +417,14 @@ let t_stored_event_roundtrip () =
 (*     |> fun x -> Option.value_exn x *)
 (*   in *)
 
-(*   AT.check at_dval "v" v.value dval; *)
+(*   check_dval "v" v.value dval; *)
 
 (*   () *)
 
 let t_bad_ssl_cert _ =
   check_exception "should get bad_ssl"
     ~f:(fun () ->
-        execute
+        exec_ast
           "(HttpClient::get 'https://self-signed.badssl.com' {} {} {})")
 
 
@@ -563,21 +504,20 @@ let t_cron_just_ran () =
 
 let t_roundtrip_user_data () =
   clear_test_data ();
-  let ast =
-    ast_for "(let v 'lasd;04mr'
-        (let old (DB::insert (obj (x v)) MyDB)
-        (let new (DB::fetchOneBy v 'x' MyDB)
-        (== old new))))"
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
   in
-  let oplist = [ Op.CreateDB (dbid, pos, "MyDB")
-               ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, "x")
-               ; Op.SetDBColType (dbid, 12, "Str")
-               ; hop (handler ast)
-               ] in
+  let ast = "(let v 'lasd;04mr'
+               (let old (DB::insert (obj (x v)) MyDB)
+               (let new (DB::fetchOneBy v 'x' MyDB)
+               (== old new))))"
+  in
   check_dval "equal_after_roundtrip"
-    (execute_ops oplist)
     (DBool true)
+    (exec_handler ~ops ast)
 
 let t_escape_pg_escaping () =
   AT.check AT.string "no quotes" "asdd" (Db.escape_single "asdd");
@@ -589,41 +529,37 @@ let t_escape_pg_escaping () =
   ()
 
 let t_nulls_allowed_in_db () =
-  let ast =
-    ast_for "(let old (DB::insert (obj (x null)) MyDB)
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
+  in
+  let ast = "(let old (DB::insert (obj (x null)) MyDB)
                (let new (DB::fetchOneBy null 'x' MyDB)
                  (== old new)))"
   in
-  let oplist = [ Op.CreateDB (dbid, pos, "MyDB")
-               ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, "x")
-               ; Op.SetDBColType (dbid, 12, "Str")
-               ; hop (handler ast)
-               ] in
   check_dval "equal_after_roundtrip"
-    (execute_ops oplist)
     (DBool true)
+    (exec_handler ~ops ast)
 
 let t_nulls_added_to_missing_column () =
   (* Test for the hack that columns get null in all rows to start *)
   clear_test_data ();
-  let ast = ast_for "(DB::insert (obj (x 'v')) MyDB)"
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")]
   in
-  let oplist = [ Op.CreateDB (dbid, pos, "MyDB")
-               ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, "x")
-               ; Op.SetDBColType (dbid, 12, "Str")
-               ; hop (handler ast)
-               ] in
-  ignore (execute_ops oplist);
-  let ast = ast_for "(dissoc (List::head (DB::fetchAll MyDB)) 'id')" in
-  let oplist = oplist @ [ Op.AddDBCol (dbid, 13, 14)
-                        ; Op.SetDBColName (dbid, 13, "y")
-                        ; Op.SetDBColType (dbid, 14, "Str")
-                        ; hop (handler ast) ] in
+  ignore (exec_handler ~ops "(DB::insert (obj (x 'v')) MyDB)");
 
-  check_dval "equal_after_fetchall" (execute_ops oplist)
+  let ops = ops @ [ Op.AddDBCol (dbid, 13, 14)
+                  ; Op.SetDBColName (dbid, 13, "y")
+                  ; Op.SetDBColType (dbid, 14, "Str")]
+  in
+  check_dval "equal_after_fetchall"
     (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))
+    (exec_handler ~ops "(dissoc (List::head (DB::fetchAll MyDB)) 'id')")
 
 let t_analysis_not_empty () =
   clear_test_data ();
@@ -651,31 +587,28 @@ let t_dval_of_yojson_doesnt_care_about_order () =
 
 
 let t_password_hashing_and_checking_works () =
-  let result =
-    execute
-      "(let password 'password'
-                      (Password::check (Password::hash password)
-                        password))"
+  let ast = "(let password 'password'
+               (Password::check (Password::hash password)
+               password))"
   in
   check_dval "A `Password::hash'd string `Password::check's against itself."
-    result
+    (exec_ast ast)
     (DBool true)
 
 let t_password_hash_db_roundtrip () =
-  let ast =
-    ast_for "(let pw (Password::hash 'password')
+  let ops = [ Op.CreateDB (dbid, pos, "Passwords")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "password")
+            ; Op.SetDBColType (dbid, 12, "Password")]
+  in
+  let ast = "(let pw (Password::hash 'password')
                (let _ (DB::insert (obj (password pw)) Passwords)
                  (let fetched (. (List::head (DB::fetchAll Passwords)) password)
-                   (pw fetched))))" in
-  let oplist = [ Op.CreateDB (dbid, pos, "Passwords")
-               ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, "password")
-               ; Op.SetDBColType (dbid, 12, "Password")
-               ; hop (handler ast)
-               ] in
-  AT.check AT.int "A `Password::hash'd string can get stored in and retrieved \
-                    from a user database."
-    0 (match execute_ops oplist with
+                   (pw fetched))))"
+  in
+  AT.check AT.int
+    "A Password::hash'd string can get stored in and retrieved from a user database."
+    0 (match exec_handler ~ops ast with
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
@@ -706,54 +639,66 @@ let t_passwords_serialize () =
 
 let t_password_json_round_trip_forwards () =
   let password = DPassword (Bytes.of_string "x") in
-  AT.check at_dval "Passwords serialize and deserialize if there's no redaction."
-    password (password |> Dval.dval_to_json_string ~redact:false |> Dval.dval_of_json_string)
+  check_dval
+    "Passwords serialize and deserialize if there's no redaction."
+    password
+    (password
+     |> Dval.dval_to_json_string ~redact:false
+     |> Dval.dval_of_json_string)
 
 let t_password_json_round_trip_backwards () =
-  let json = "x" |> Bytes.of_string |> (fun p -> DPassword p) |> Dval.dval_to_json_string ~redact:false in
-  AT.check AT.string "Passwords deserialize and serialize if there's no redaction."
-    json (json |> Dval.dval_of_json_string |> Dval.dval_to_json_string ~redact:false)
+  let json = "x"
+      |> Bytes.of_string
+      |> fun p -> DPassword p
+      |> Dval.dval_to_json_string ~redact:false
+  in
+  AT.check AT.string
+    "Passwords deserialize and serialize if there's no redaction."
+    json
+    (json
+     |> Dval.dval_of_json_string
+     |> Dval.dval_to_json_string ~redact:false)
 
 let t_incomplete_propagation () =
-  AT.check at_dval "Fn with incomplete return incomplete"
+  check_dval "Fn with incomplete return incomplete"
     DIncomplete
-    (execute "(List::head _)");
-  AT.check at_dval "Incompletes stripped from lists"
+    (exec_ast "(List::head _)");
+  check_dval "Incompletes stripped from lists"
     (DList [DInt 5; DInt 6])
-    (execute "(5 6 (List::head _))");
-  AT.check at_dval "Blanks stripped from lists"
+    (exec_ast "(5 6 (List::head _))");
+  check_dval "Blanks stripped from lists"
     (DList [DInt 5; DInt 6])
-    (execute "(5 6 _)");
-  AT.check at_dval "Blanks stripped from objects"
+    (exec_ast "(5 6 _)");
+  check_dval "Blanks stripped from objects"
     (DObj (DvalMap.of_alist_exn ["m", DInt 5; "n", DInt 6]))
-    (execute "(obj (i _) (m 5) (j (List::head _)) (n 6))");
-  AT.check at_dval "incomplete if conds are incomplete"
+    (exec_ast "(obj (i _) (m 5) (j (List::head _)) (n 6))");
+  check_dval "incomplete if conds are incomplete"
     DIncomplete
-    (execute "(if _ 5 6)");
-  AT.check at_dval "blanks in threads are ignored"
+    (exec_ast "(if _ 5 6)");
+  check_dval "blanks in threads are ignored"
     (DInt 8)
-    (execute "(| 5 _ (+ 3))");
-  AT.check at_dval "incomplete in the middle of a thread is skipped"
+    (exec_ast "(| 5 _ (+ 3))");
+  check_dval "incomplete in the middle of a thread is skipped"
     (DInt 8)
-    (execute "(| 5 (+ _) (+ 3))");
-  AT.check at_dval "incomplete at the end of a thread is skipped"
+    (exec_ast "(| 5 (+ _) (+ 3))");
+  check_dval "incomplete at the end of a thread is skipped"
     (DInt 5)
-    (execute "(| 5 (+ _))");
-  AT.check at_dval "empty thread is incomplete"
+    (exec_ast "(| 5 (+ _))");
+  check_dval "empty thread is incomplete"
     DIncomplete
-    (execute "(|)");
-  AT.check at_dval "incomplete obj in field access is incomplete"
+    (exec_ast "(|)");
+  check_dval "incomplete obj in field access is incomplete"
     DIncomplete
-    (execute "(. (List::head _) field)");
-  AT.check at_dval "incomplete name in field access is incomplete"
+    (exec_ast "(. (List::head _) field)");
+  check_dval "incomplete name in field access is incomplete"
     DIncomplete
-    (execute "(. (obj (i 5)) _)");
+    (exec_ast "(. (obj (i 5)) _)");
   ()
 
 let t_html_escaping () =
   check_dval "html escaping works"
-    (execute "(String::htmlEscape 'test<>&\\\"\\\'')")
     (DStr "test&lt;&gt;&amp;&quot;&#x27;")
+    (exec_ast "(String::htmlEscape 'test<>&\\\"\\\'')")
 
 let t_curl_file_urls () =
   AT.check (AT.option AT.string) "aaa"
@@ -781,33 +726,31 @@ let t_authenticate_user () =
 
 let t_uuid_db_roundtrip () =
   clear_test_data ();
-  let ast =
-    ast_for "(let i (Uuid::generate)
+  let ops = [ Op.CreateDB (dbid, pos, "Ids")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "uu")
+            ; Op.SetDBColType (dbid, 12, "UUID")
+            ]
+  in
+  let ast = "(let i (Uuid::generate)
                (let _ (DB::insert (obj (uu i)) Ids)
                  (let fetched (. (List::head (DB::fetchAll Ids)) uu)
                    (i fetched))))"
   in
-  let oplist = [ Op.CreateDB (dbid, pos, "Ids")
-               ; Op.AddDBCol (dbid, 11, 12)
-               ; Op.SetDBColName (dbid, 11, "uu")
-               ; Op.SetDBColType (dbid, 12, "UUID")
-               ; hop (handler ast)
-               ] in
   AT.check AT.int "A generated UUID can round-trip from the DB"
-    0 (match execute_ops oplist with
-         DList [p1; p2;] -> compare_dval p1 p2
-       | _ -> 1)
+    0
+    (match exec_handler ~ops ast with
+     | DList [p1; p2;] -> compare_dval p1 p2
+     | _ -> 1)
 
 let t_uuid_string_roundtrip () =
-  let ast =
-    ast_for "(let i (Uuid::generate)
+  let ast = "(let i (Uuid::generate)
                (let s (toString i)
                  (let parsed (String::toUUID s)
                    (i parsed))))"
   in
-  let oplist = [ hop (handler ast) ] in
   AT.check AT.int "A generated id can round-trip"
-    0 (match execute_ops oplist with
+    0 (match exec_ast ast with
          DList [p1; p2;] -> compare_dval p1 p2
        | _ -> 1)
 
@@ -834,6 +777,63 @@ let t_redirect_to () =
     ; Some "https://test.builtwithdark.com/x/y?z=a"
     ]
 
+let t_errorrail_simple () =
+  check_dval "rail"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(`List::last_v1 [])");
+
+  check_dval "no rail"
+    (DOption OptNothing)
+    (exec_ast "(Dict::get_v1 {} 'i')");
+
+  check_dval "no rail deeply nested"
+    (DInt 8)
+    (exec_ast "(| (5)
+                  (`List::head_v1)
+                  (+ 3)
+                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+               )");
+
+  check_dval "to rail deeply nested"
+    (DErrorRail (DOption OptNothing))
+    (exec_ast "(| ()
+                  (`List::head_v1)
+                  (+ 3)
+                  (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+               )");
+  ()
+
+let t_errorrail_toplevel () =
+  check_dval "Errorrail goes to 404"
+    (DResp (Response (404, []), DStr "Not found"))
+    (exec_handler "(| ()
+                      (`List::head_v1)
+                      (+ 3)
+                      (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+                    )");
+
+  check_dval "No errorrail goes to option"
+    (DOption OptNothing)
+    (exec_handler "(List::head_v1 [])");
+  ()
+
+
+
+let t_errorrail_userfn () =
+  check_dval "userfn unwraps"
+    (DOption OptNothing)
+    (exec_userfn "(| ()
+                     (`List::head_v1)
+                     (+ 3)
+                     (\\x -> (if (> (+ x 4) 1) x (+ 1 x)))
+                   )");
+  ()
+
+
+
+(* ------------------- *)
+(* Test setup *)
+(* ------------------- *)
 
 let suite =
   [ "hmac signing works", `Quick, t_hmac_signing
@@ -879,6 +879,9 @@ let suite =
   ; "UUIDs round-trip to the DB", `Quick, t_uuid_db_roundtrip
   ; "UUIDs round-trip to/from strings", `Quick, t_uuid_string_roundtrip
   ; "Server.redirect_to works", `Quick, t_redirect_to
+  ; "Errorrail simple", `Quick, t_errorrail_simple
+  ; "Errorrail works in toplevel", `Quick, t_errorrail_toplevel
+  ; "Errorrail works in user_function", `Quick, t_errorrail_userfn
   ]
 
 let () =

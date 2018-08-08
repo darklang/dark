@@ -122,7 +122,8 @@ let rec sym_exec
            | Blank _ -> st
          in sexe bound body
 
-       | Filled (_, FnCall (name, exprs)) ->
+       | Filled (_, FnCall (name, exprs))
+       | Filled (_, FnCallSendToRail (name, exprs)) ->
          List.iter ~f:(sexe st) exprs
 
        | Filled (_, If (cond, ifbody, elsebody))
@@ -192,38 +193,25 @@ type engine =
   ; ctx : context
 }
 
+let find_derrorrail (dvals : dval list) : dval option =
+  List.find dvals ~f:Dval.is_errorrail
+
+let should_send_to_rail (expr: nexpr) : bool =
+  match expr with
+  | FnCallSendToRail _ -> true
+  | _ -> false
+
 let rec exec ~(engine: engine)
              ~(state: exec_state)
              (st: symtable)
              (expr: expr)
   : dval =
   let exe = exec ~engine ~state in
+  let call = call_fn ~engine ~state in
   let ctx = engine.ctx in
   let trace = engine.trace in
   let trace_blank = engine.trace_blank in
 
-  let call (name: string) (id: id) (argvals: dval list) : dval =
-    let fn = Libs.get_fn_exn state.user_fns name in
-    (* equalize length *)
-    let expected_length = List.length fn.parameters in
-    let actual_length = List.length argvals in
-    let argvals =
-      if expected_length = actual_length
-      then argvals
-      else
-        let actual = Printf.sprintf "%d arguments" actual_length in
-        let expected = Printf.sprintf "%d arguments" expected_length in
-        Exception.internal ~actual ~expected
-            ("Incorrect number of args in fncall to " ^ name)
-    in
-    let args =
-      fn.parameters
-      |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
-      |> DvalMap.of_alist_exn
-    in
-    call_fn ~engine ~state name id fn args
-    (* |> Log.pp ~f:Types.RuntimeT.show_dval "call result" *)
-  in
   (* This is a super hacky way to inject params as the result of
    * pipelining using the `Thread` construct
    *
@@ -246,9 +234,11 @@ let rec exec ~(engine: engine)
         (match result with
          | DBlock blk -> blk [param]
          | _ -> DIncomplete)
-      | Filled (id, FnCall (name, exprs)) ->
+      | Filled (id, (FnCall (name, exprs) as fncall))
+      | Filled (id, (FnCallSendToRail (name, exprs) as fncall)) ->
+        let send_to_rail = should_send_to_rail fncall in
         (try
-           call name id (param :: (List.map ~f:(exe st) exprs))
+           call name id (param :: (List.map ~f:(exe st) exprs)) send_to_rail
          with e ->
            (* making the error local looks better than making the whole
             * thread fail. *)
@@ -272,26 +262,24 @@ let rec exec ~(engine: engine)
 
   in
 
-  let ignoreError e =
-    match e with
-    | DError _ -> DIncomplete
-    | _ -> e in
-
-
   let value _ =
     (match expr with
      | Blank id -> DIncomplete
 
      | Filled (_, Let (lhs, rhs, body)) ->
-       let bound =
-         let data = exe st rhs in
-         trace_blank lhs data st;
-         match lhs with
-         | Filled (_, name) ->
-           String.Map.set ~key:name ~data:data st
-         | Blank _ ->
-           st
-       in exe bound body
+       let data = exe st rhs in
+       (match data with
+        | DErrorRail _ -> data
+        | _ ->
+          trace_blank lhs data st;
+          let bound =
+            (match lhs with
+            | Filled (_, name) ->
+              String.Map.set ~key:name ~data:data st
+            | Blank _ ->
+              st)
+          in
+          exe bound body)
 
      | Filled (_, Value s) ->
        Dval.parse s
@@ -305,7 +293,9 @@ let rec exec ~(engine: engine)
                match exe st v with
                | DIncomplete -> None (* ignore unfinished subexpr *)
                | dv -> Some dv)
-       |> DList
+       |> fun l ->
+            find_derrorrail l
+            |> Option.value ~default:(DList l)
 
      | Filled (_, ObjectLiteral pairs) ->
        pairs
@@ -320,17 +310,26 @@ let rec exec ~(engine: engine)
                let _ = exe st v in
                None
            )
-       |> Dval.to_dobj
+       |> fun ps ->
+          ps
+          |> List.map ~f:Tuple.T2.get2
+          |> find_derrorrail
+          |> Option.value ~default:(Dval.to_dobj ps)
 
      | Filled (_, Variable name) ->
        (match Symtable.find st name with
-        | None ->
-          DError ("There is no variable named: " ^ name)
-        | Some result -> ignoreError result)
+        | None -> DError ("There is no variable named: " ^ name)
+        | Some (DError _) -> DIncomplete
+        | Some other -> other)
+
+     | Filled (id, FnCallSendToRail (name, exprs)) ->
+       let argvals = List.map ~f:(exe st) exprs in
+       call name id argvals true
 
      | Filled (id, FnCall (name, exprs)) ->
        let argvals = List.map ~f:(exe st) exprs in
-       call name id argvals
+       call name id argvals false
+
      | Filled (id, If (cond, ifbody, elsebody))
      | Filled (id, FeatureFlag (_, cond, ifbody, elsebody)) ->
        (match ctx with
@@ -351,6 +350,10 @@ let rec exec ~(engine: engine)
              let _ = exe st ifbody in
              let _ = exe st elsebody in
              DIncomplete
+           | DErrorRail _ as er ->
+             let _ = exe st ifbody in
+             let _ = exe st elsebody in
+             er
            | _ ->
              (* execute the negative side just for the side-effect *)
              let _ = exe st elsebody in
@@ -362,6 +365,7 @@ let rec exec ~(engine: engine)
            (* only false and 'null' are falsey *)
            | DBool false | DNull -> exe st elsebody
            | DIncomplete -> DIncomplete
+           | DErrorRail _ as er -> er
            | DError _ -> DIncomplete
            | _ -> exe st ifbody))
      | Filled (id, Lambda (vars, body)) ->
@@ -376,7 +380,7 @@ let rec exec ~(engine: engine)
          let _ = exe fake_st body in ()
        else ();
 
-       (* TODO: this will errror if the number of args and vars arent equal *)
+       (* TODO: this will error if the number of args and vars arent equal *)
        DBlock (fun args ->
            let varnames = List.filter_map ~f:blank_to_content vars in
            let bindings = Symtable.of_alist_exn (List.zip_exn varnames args) in
@@ -388,19 +392,16 @@ let rec exec ~(engine: engine)
        (match exprs with
         | e :: es ->
           let fst = exe st e in
-          let results =
-            List.fold_left
-              ~init:[fst]
-              ~f:(fun results nxt ->
-                  let previous = List.hd_exn results in
-                  let value = inject_param_and_execute st previous nxt in
-                  match value with
-                  | DIncomplete -> results (* let execution through *)
-                  | _ -> value :: results
-                ) es
-          in
-          List.hd_exn results
+          List.fold_left es
+            ~init:fst
+            ~f:(fun previous nxt ->
+                let result = inject_param_and_execute st previous nxt in
+                match result with
+                | DIncomplete -> previous (* let execution through *)
+                (* DErrorRail is handled by inject_param_and_execute *)
+                | _ -> result)
         | [] -> DIncomplete)
+
      | Filled (id, FieldAccess (e, field)) ->
        let obj = exe st e in
        let result =
@@ -420,6 +421,7 @@ let rec exec ~(engine: engine)
                     | None -> DNull)))
           | DIncomplete -> DIncomplete
           | DError _ -> DIncomplete
+          | DErrorRail _ -> obj
           | x -> DError ("Can't access field of non-object: " ^ (Dval.to_repr x)))
         in
         trace_blank field result st;
@@ -440,10 +442,46 @@ let rec exec ~(engine: engine)
   in
   trace expr execed_value st;
   execed_value
-  (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv |> *)
-  (*                                  Sexp.to_string) *)
+  (* |> Log.pp "execed" ~f:(fun dv -> sexp_of_dval dv *)
+  (* |> Sexp.to_string) *)
 
-and call_fn ~(engine:engine) ~(state: exec_state)
+and call_fn ~(engine:engine) ~(state: exec_state) (name: string) (id: id) (argvals: dval list) (send_to_rail: bool) : dval =
+  let fn = Libs.get_fn_exn state.user_fns name in
+  (* equalize length *)
+  let expected_length = List.length fn.parameters in
+  let actual_length = List.length argvals in
+  let argvals =
+    if expected_length = actual_length
+    then argvals
+    else
+      let actual = Printf.sprintf "%d arguments" actual_length in
+      let expected = Printf.sprintf "%d arguments" expected_length in
+      Exception.internal ~actual ~expected
+          ("Incorrect number of args in fncall to " ^ name)
+  in
+  let args =
+    fn.parameters
+    |> List.map2_exn ~f:(fun dv (p: param) -> (p.name, dv)) argvals
+    |> DvalMap.of_alist_exn
+  in
+
+  match find_derrorrail (DvalMap.data args) with
+  | Some er -> er
+  | None ->
+    let result = exec_fn ~engine ~state name id fn args
+                 |> Dval.unwrap_from_errorrail
+    in
+    if send_to_rail
+    then
+      (match result with
+       | DOption (OptJust v) -> v
+       (* There should only be DOptions here, but hypothetically we got
+        * something else, they would go on the error rail too.  *)
+       | other -> DErrorRail other)
+    else
+      result
+
+and exec_fn ~(engine:engine) ~(state: exec_state)
     (fnname: string) (id: id) (fn: fn) (args: dval_map) : dval =
 
   let paramsIncomplete args =
@@ -499,16 +537,12 @@ and call_fn ~(engine:engine) ~(state: exec_state)
 
       let result =
         (try
-           match engine.ctx with
-           | Real ->
-             f (state, arglist)
-           | Preview ->
-             if fn.preview_execution_safe || executing_unsafe
-             then f (state, arglist)
-             else
-               (match state.load_fn_result sfr_desc arglist with
-                | Some (result, _ts) -> result
-                | _ -> DIncomplete)
+           if engine.ctx = Real || fn.preview_execution_safe || executing_unsafe
+           then f (state, arglist)
+           else
+             (match state.load_fn_result sfr_desc arglist with
+              | Some (result, _ts) -> result
+              | _ -> DIncomplete)
          with
          | e ->
            (* After the rethrow, this gets eventually caught then shown
@@ -537,6 +571,8 @@ and call_fn ~(engine:engine) ~(state: exec_state)
         (args)
     in
     exec ~engine ~state args_with_dbs body
+
+
   | API f ->
       f args
       (* | TypeError args -> *)
@@ -582,24 +618,8 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
   (exec ~engine ~state state.env ast, value_store)
 
 (* -------------------- *)
-(* Execution *)
+(* Environments *)
 (* -------------------- *)
-
-(* no tracing when running in prod *)
-let server_execution_engine : engine =
-  let empty_trace _ _ _ = () in
-  { trace = empty_trace
-  ; trace_blank = empty_trace
-  ; ctx = Real
-  }
-
-let execute (state : exec_state) env expr : dval =
-  Log.infO "Executing for real" ~params:[ "tlid", show_tlid state.tlid
-                                        ; "execution_id", Log.dump state.execution_id];
-  exec env expr
-    ~engine:server_execution_engine
-    ~state
-
 let handler_default_env (h: handler) : dval_map =
   match Handler.event_name_for h with
   | Some n ->
@@ -612,10 +632,6 @@ let handler_default_env (h: handler) : dval_map =
 let with_defaults (h: handler) (env: symtable) : symtable =
   Util.merge_left env (handler_default_env h)
 
-let execute_handler (state: exec_state) (h: handler) : dval =
-  let env = with_defaults h state.env in
-  execute state env h.ast
-
 let environment_for_user_fn (ufn: user_fn) : dval_map =
   let param_to_dval (p: param) : dval =
     DIncomplete (* TODO(ian): we should trace these correctly *)
@@ -625,6 +641,40 @@ let environment_for_user_fn (ufn: user_fn) : dval_map =
   |> List.map ~f:(fun f -> (f.name, param_to_dval f))
   |> DvalMap.of_alist_exn
 
+
+(* -------------------- *)
+(* Execution *)
+(* -------------------- *)
+
+(* no tracing when running in prod *)
+let server_execution_engine : engine =
+  let empty_trace _ _ _ = () in
+  { trace = empty_trace
+  ; trace_blank = empty_trace
+  ; ctx = Real
+  }
+
+let execute_ast (state : exec_state) env expr : dval =
+  Log.infO "Executing for real"
+    ~params:[ "tlid", show_tlid state.tlid
+            ; "execution_id", Log.dump state.execution_id];
+  exec env expr
+    ~engine:server_execution_engine
+    ~state
+
+let execute_handler (state: exec_state) (h: handler) : dval =
+  let env = with_defaults h state.env in
+  let result = execute_ast state env h.ast in
+  match result with
+  | DErrorRail (DOption OptNothing) ->
+    DResp ((Response (404, []), DStr "Not found"))
+  | DErrorRail _ ->
+    DResp ((Response (500, []), DStr "Invalid conversion from errorrail"))
+  | dv -> dv
+
+let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) : dval =
+  call_fn name id args false
+    ~engine:server_execution_engine ~state
 
 (* -------------------- *)
 (* Run full analyses *)
