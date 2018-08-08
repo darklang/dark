@@ -619,6 +619,6 @@ object_literals_work m =
 rename_function : Model -> TestResult
 rename_function m =
   case (onlyExpr m) of
-    FnCall "hello" _ -> pass
+    FnCall "hello" _ _ -> pass
     other -> fail other
 
