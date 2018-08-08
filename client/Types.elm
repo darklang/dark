@@ -368,7 +368,6 @@ type HandlerSpace = HSHTTP
                   | HSEmpty
 
 type alias Handler = { ast : Expr
-                     , isLocked: Bool
                      , spec : HandlerSpec
                      }
 
