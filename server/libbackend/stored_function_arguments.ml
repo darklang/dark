@@ -17,7 +17,7 @@ let store (canvas_id, tlid) args =
     ~params:[ Uuid canvas_id
             ; Int tlid
             ; String (args
-                      |> Dval.dvalmap_to_yojson
+                      |> Dval.dvalmap_to_yojson ~redact:false
                       |> Yojson.Safe.to_string)
             ]
 
