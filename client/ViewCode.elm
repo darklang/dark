@@ -555,7 +555,10 @@ viewHandler vs h =
       lock =
         Html.div
           [ 
-            Attrs.classList [("handler-lock", True), ("is-locked", vs.handlerLocked)]
+            Attrs.classList [
+              ("handler-lock", True)
+              , ("is-locked", vs.handlerLocked)
+            ]
             , eventNoPropagation "click"
                 (\_ -> LockHandler vs.tlid (not vs.handlerLocked))
           ]
