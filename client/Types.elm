@@ -462,12 +462,14 @@ type alias Model = { error : Maybe String
                    -- that is currently selected.)
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
+                   , lockedHandlers: List TLID
                    }
 
 -- Values that we serialize
 type alias SerializableEditor = { clipboard : Maybe PointerData
                                 , timersEnabled : Bool
                                 , cursorState : CursorState
+                                , lockedHandlers: List TLID
                                 }
 
 -----------------------------
