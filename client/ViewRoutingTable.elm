@@ -18,7 +18,7 @@ import Toplevel
 import ViewUtils exposing (..)
 import Url
 import Defaults
-
+import Refactor exposing (countFnUsage)
 
 
 type alias Entry = { name: Maybe String
@@ -278,22 +278,38 @@ viewUserFunctions m =
             |> List.filter
               (\fn -> B.isF fn.metadata.name)
 
-      fnLink fn =
+      fnLink fn isUsed text =
         Url.linkFor
           (Fn fn.tlid Defaults.fnPos)
-          "default-link"
-          [Html.text (fn.metadata.name
-                      |> B.asF
-                      |> deMaybe "should be filtered by here")]
+          (if isUsed then "default-link" else "default-link unused")
+          [Html.text text]
+
+      fnNamedLink fn name =
+        let useCount = countFnUsage m name
+        in if useCount == 0
+          then
+            [ span "name" [ fnLink fn False name ]
+              , link
+                (fontAwesome "minus-circle")
+                (DeleteUserFunction fn.tlid)
+            ]
+          else
+            let countedName = name ++ " (" ++ (toString useCount) ++ ")"
+            in [ span "name" [fnLink fn True countedName] ]
+
       fnHtml fn =
-        div "simple-route"
-          [ span "name"
-            [ fnLink fn]
-          ]
+        div "simple-route" (
+          let fnName = B.asF fn.metadata.name
+          in case fnName of
+            Just name -> fnNamedLink fn name
+            Nothing ->
+              [ span "name"
+                [ fnLink fn True "should be filtered by here" ]
+              ]
+          )
 
       routes = div "fns" (List.map fnHtml fns)
-  in
-      section "Functions" fns (Just CreateFunction) routes
+  in section "Functions" fns (Just CreateFunction) routes
 
 
 
