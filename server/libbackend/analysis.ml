@@ -142,11 +142,17 @@ type get_analysis_response =
   ; fofs : SE.four_oh_four list [@key "404s"]
   } [@@deriving to_yojson]
 
+(* Toplevel deletion:
+ * The server announces that a toplevel is deleted by it appearing in
+ * deleted_toplevels. The server announces it is no longer deleted by it
+ * appearing in toplevels again. *)
+
 (* A subset of responses to be merged in *)
 type rpc_response =
   { new_analyses: analysis_result list (* merge: overwrite existing analyses *)
   ; global_varnames : string list (* replace *)
   ; toplevels : TL.toplevel_list (* replace *)
+  ; deleted_toplevels : TL.toplevel_list (* replace, see note above *)
   ; user_functions : RTT.user_fn list (* replace *)
   ; unlocked_dbs : tlid list (* replace *)
   } [@@deriving to_yojson]
@@ -176,6 +182,7 @@ let to_rpc_response_frontend (c : canvas) (vals : analysis_result list)
   { new_analyses = vals
   ; global_varnames = global_vars c
   ; toplevels = c.dbs @ c.handlers
+  ; deleted_toplevels = c.deleted
   ; user_functions = c.user_functions
   ; unlocked_dbs = unlocked
   }
