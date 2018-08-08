@@ -85,7 +85,6 @@ submitOmniAction m pos action =
           handler = { ast = B.new()
                     , spec = { spec | module_ = B.newF "HTTP"
                                     , name = Blank next}
-                    , isLocked = False
                     }
       in
           RPC ([ SetHandler tlid pos handler
@@ -97,7 +96,6 @@ submitOmniAction m pos action =
           handler = { ast = B.new()
                     , spec = { spec | module_ = B.newF name
                                     , name = Blank next}
-                    , isLocked = False
                     }
       in
           RPC ([ SetHandler tlid pos handler
@@ -110,7 +108,6 @@ submitOmniAction m pos action =
                     , spec = { spec | name = B.newF route
                                     , module_ = B.newF "HTTP"
                                     , modifier = Blank next}
-                    , isLocked = False
                     }
       in
           RPC ([ SetHandler tlid pos handler
@@ -240,7 +237,6 @@ submit m cursor action =
                                      }
                                      { ast = newAst
                                      , spec = newHandlerSpec ()
-                                     , isLocked = False
                                      }
             in RPC ([op], focus)
       in

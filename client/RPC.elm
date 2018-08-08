@@ -579,7 +579,7 @@ decodeHandlerSpec =
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
-  let toHandler ast spec = {ast = ast, spec = spec, isLocked = False } in
+  let toHandler ast spec = {ast = ast, spec = spec} in
   JSDP.decode toHandler
   |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
