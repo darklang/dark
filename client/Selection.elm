@@ -309,7 +309,8 @@ delete m tlid mId =
       let tl = TL.getTL m tlid in
       case tl.data of
         TLHandler h ->
-          if h.isLocked then NoChange
+          if List.member tlid m.lockedHandlers
+          then NoChange
           else Many [
             RemoveToplevel tl
             , RPC ([DeleteTL tlid], FocusNothing)

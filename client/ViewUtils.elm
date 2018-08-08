@@ -42,6 +42,7 @@ type alias ViewState =
   , tlCursors: TLCursors
   , testVariants: List VariantTest
   , featureFlags: FlagsVS
+  , handlerLocked : Bool
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -99,6 +100,7 @@ createVS m tl = { tl = tl
                 , tlCursors = m.tlCursors
                 , testVariants = m.tests
                 , featureFlags = m.featureFlags
+                , handlerLocked = List.member tl.id m.lockedHandlers
                 }
 
 fontAwesome : String -> Html.Html Msg
