@@ -275,7 +275,7 @@ isFunctionInExpr fnName expr =
     Nothing -> False
     Just nExpr ->
       case nExpr of
-        FnCall name list ->
+        FnCall name list _ ->
           if name == fnName
             then True
             else List.any (isFunctionInExpr fnName) list
