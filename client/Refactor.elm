@@ -268,6 +268,50 @@ renameFunction m old new =
       in
           newHandlers ++ newFunctions
 
+isFunctionInExpr : String -> Expr -> Bool
+isFunctionInExpr fnName expr =
+  let maybeNExpr = B.asF expr
+  in case maybeNExpr of
+    Nothing -> False
+    Just nExpr ->
+      case nExpr of
+        FnCall name list _ ->
+          if name == fnName
+            then True
+            else List.any (isFunctionInExpr fnName) list
+        If ifExpr thenExpr elseExpr ->
+          List.any (isFunctionInExpr fnName) [ifExpr, thenExpr, elseExpr]
+        Variable _ -> False
+        Let _ a b ->
+          List.any (isFunctionInExpr fnName) [a, b]
+        Lambda _ ex ->
+          isFunctionInExpr fnName ex
+        Value _ -> False
+        ObjectLiteral li ->
+          let valuesMap = List.map Tuple.second li
+          in List.any (isFunctionInExpr fnName) valuesMap
+        ListLiteral li ->
+          List.any (isFunctionInExpr fnName) li
+        Thread li ->
+          List.any (isFunctionInExpr fnName) li
+        FieldAccess ex filed ->
+          isFunctionInExpr fnName ex
+        FeatureFlag _ cond a b ->
+          (isFunctionInExpr fnName cond) ||
+          (isFunctionInExpr fnName a) ||
+          (isFunctionInExpr fnName b)
+
+countFnUsage : Model -> String -> Int
+countFnUsage m name =
+  let usedIn = TL.all m
+    |> List.filter (\tl ->
+      case tl.data of
+        TLHandler h -> isFunctionInExpr name h.ast
+        TLDB _ -> False
+        TLFunc f -> isFunctionInExpr name f.ast
+    )
+  in List.length usedIn
+
 transformFnCalls : Model -> UserFunction -> (NExpr -> NExpr) -> List Op
 transformFnCalls m uf f =
   let transformCallsInAst f ast old =

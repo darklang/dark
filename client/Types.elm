@@ -158,6 +158,7 @@ type Msg
     | CreateDBTable
     | CreateFunction
     | ExtractFunction
+    | DeleteUserFunction TLID
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -185,6 +186,7 @@ type Op
     | UndoTL TLID
     | RedoTL TLID
     | SetFunction UserFunction
+    | DeleteFunction TLID
     | ChangeDBColName TLID ID DBColName
     | ChangeDBColType TLID ID DBColType
     | InitDBMigration TLID ID RollbackID RollforwardID DBMigrationKind

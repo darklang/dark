@@ -19,6 +19,7 @@ type op = SetHandler of tlid * pos * RuntimeT.HandlerT.handler
         | InitDBMigration of tlid * id * id * id * RuntimeT.DbT.migration_kind
         | SetExpr of tlid * id * RuntimeT.expr
         | TLSavepoint of tlid
+        | DeleteFunction of tlid
         [@@deriving eq, yojson, show, sexp, bin_io]
 (* DO NOT CHANGE ABOVE WITHOUT READING docs/oplist-serialization.md *)
 
@@ -54,6 +55,7 @@ let tlidOf (op: op) : tlid option =
   | DeleteTL tlid -> Some tlid
   | MoveTL (tlid, _) -> Some tlid
   | SetFunction f -> Some f.tlid
+  | DeleteFunction tlid -> Some tlid
 
 let oplist_to_string (ops: op list) : string =
   ops
@@ -76,5 +78,3 @@ let tlid_oplists2oplist (tos: tlid_oplists) : oplist =
   |> List.unzip
   |> Tuple.T2.get2
   |> List.concat
-
-
