@@ -224,12 +224,12 @@ let admin_rpc_handler ~(execution_id: Types.id) (host: string) body : (Cohttp.He
            ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-analyses"
+    let (t4, fvals) = time "4-user-fn-analyses"
       (fun _ ->
         !c.user_functions
         |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
         |> List.map
-          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
+          ~f:(Analysis.user_fn_analysis ~exe_fn_ids ~execution_id !c))
     in
     let (t5, unlocked) = time "5-analyze-unlocked-dbs"
       (fun _ -> Analysis.unlocked !c) in
@@ -290,12 +290,12 @@ let execute_function ~(execution_id: Types.id) (host: string) body : (Cohttp.Hea
            ~f:(Analysis.handler_analysis ~exe_fn_ids ~execution_id !c))
     in
 
-    let (t4, fvals) = time "4-function-analyses"
+    let (t4, fvals) = time "4-user-fn-analyses"
       (fun _ ->
         !c.user_functions
         |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
         |> List.map
-          ~f:(Analysis.function_analysis ~exe_fn_ids ~execution_id !c))
+          ~f:(Analysis.user_fn_analysis ~exe_fn_ids ~execution_id !c))
     in
 
     let (t5, result) = time "5-to-frontend"
@@ -326,19 +326,19 @@ let get_analysis ~(execution_id: Types.id) (host: string) (body: string) : (Coht
            ~f:(Analysis.handler_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
-    let (t5, fvals) = time "5-function-analyses"
+    let (t5, fvals) = time "5-user-fn-analyses"
       (fun _ ->
         !c.user_functions
         |> List.filter ~f:(fun f -> List.mem ~equal:(=) tlids f.tlid)
         |> List.map
-          ~f:(Analysis.function_analysis ~exe_fn_ids:[] ~execution_id !c))
+          ~f:(Analysis.user_fn_analysis ~exe_fn_ids:[] ~execution_id !c))
     in
 
     let (t6, unlocked) = time "6-analyze-unlocked-dbs"
       (fun _ -> Analysis.unlocked !c) in
 
     let (t7, result) = time "7-to-frontend"
-      (fun _ -> Analysis.to_get_analysis_frontend (hvals @ fvals) unlocked f404s !c) in
+      (fun _ -> Analysis.to_getanalysis_frontend (hvals @ fvals) unlocked f404s !c) in
 
   (server_timing [t1; t2; t3; t4; t5; t6; t7], result)
   with

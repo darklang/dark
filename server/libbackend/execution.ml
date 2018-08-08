@@ -59,6 +59,13 @@ let initial_envs_for_handler (c: canvas) (h: RTT.HandlerT.handler)
             | `Unknown -> init (* can't happen *)
         ))
 
+let initial_envs_for_user_fn (c: canvas) (fn: RTT.user_fn)
+  : RTT.dval_map list =
+  let init = initial_env c in
+  Stored_function_arguments.load (c.id, fn.tlid)
+  |> List.map ~f:(fun (m, _ts) -> Util.merge_left init m)
+
+
 let state_for
     ~(c: canvas)
     ~(execution_id: int)
@@ -78,8 +85,10 @@ let state_for
   ; input_cursor
   ; dbs = TL.dbs c.dbs
   ; execution_id
-  ; load_fn_result = Ast_analysis.load_nothing
-  ; store_fn_result = Ast_analysis.store_nothing
+  ; load_fn_result = Ast_analysis.load_no_results
+  ; store_fn_result = Ast_analysis.store_no_results
+  ; load_fn_arguments = Ast_analysis.load_no_arguments
+  ; store_fn_arguments = Ast_analysis.store_no_arguments
   ;
   }
 
@@ -94,6 +103,8 @@ let state_for_analysis
   let s = state_for ~c ~input_cursor ~execution_id ~exe_fn_ids ~env tlid in
   { s with load_fn_result = Stored_function_result.load
          ; store_fn_result = Stored_function_result.store
+         ; load_fn_arguments = Stored_function_arguments.load
+         ; store_fn_arguments = Stored_function_arguments.store
   }
 
 let state_for_execution
@@ -103,7 +114,9 @@ let state_for_execution
     (tlid: tlid)
   : RTT.exec_state =
   let s = state_for ~c ~execution_id ~input_cursor:0 ~exe_fn_ids:[] ~env tlid in
-  { s with store_fn_result = Stored_function_result.store }
+  { s with store_fn_result = Stored_function_result.store
+         ; store_fn_arguments = Stored_function_arguments.store
+  }
 
 let state_for_enqueue
   ~(c: canvas)

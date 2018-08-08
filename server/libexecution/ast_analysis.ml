@@ -184,8 +184,10 @@ let symbolic_execute (state: exec_state) (ast: expr) : sym_store =
 (* -------------------- *)
 
 (* For exec_state *)
-let load_nothing _ _ = None
-let store_nothing _ _ _ = ()
+let load_no_results _ _ = None
+let store_no_results _ _ _ = ()
+let load_no_arguments _ = []
+let store_no_arguments _ _ = ()
 
 type engine =
   { trace : expr -> dval -> symtable -> unit
@@ -559,7 +561,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
       result
 
 
-  | UserCreated body ->
+  | UserCreated (tlid, body) ->
     let args_with_dbs =
       let db_dvals =
         state.dbs
@@ -570,6 +572,11 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (db_dvals)
         (args)
     in
+
+    let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids id in
+    if engine.ctx = Real || fn_clicked
+    then state.store_fn_arguments (state.canvas_id, tlid) args;
+
     exec ~engine ~state args_with_dbs body
 
 
@@ -616,6 +623,14 @@ let execute_saving_intermediates (state : exec_state) (ast: expr)
   let value_store = Int.Table.create () in
   let engine = analysis_engine value_store in
   (exec ~engine ~state state.env ast, value_store)
+
+let input_values st =
+  st
+  |> Map.to_alist
+  |> List.filter ~f:(fun (k,v) -> Dval.tipe_of v <> TDB)
+  |> List.map ~f:(Tuple.T2.map_snd ~f:dval_to_livevalue)
+
+
 
 (* -------------------- *)
 (* Environments *)
@@ -680,6 +695,7 @@ let execute_userfn (state: exec_state) (name:string) (id:id) (args: dval list) :
 (* Run full analyses *)
 (* -------------------- *)
 
+
 let execute_handler_for_analysis (state : exec_state) (h : handler) :
     analysis =
   Log.infO "Handler for analysis"
@@ -695,19 +711,10 @@ let execute_handler_for_analysis (state : exec_state) (h : handler) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values =
-      let request =
-        DvalMap.find state.env "request"
-        |> Option.map ~f:(fun v -> ("request", dval_to_livevalue v))
-      in
-      let event =
-        DvalMap.find state.env "event"
-        |> Option.map ~f:(fun v -> ("event", dval_to_livevalue v))
-      in
-      List.filter_map ~f:ident [request; event]
+  ; input_values = input_values state.env
   }
 
-let execute_function_for_analysis (state : exec_state) (f : user_fn) :
+let execute_user_fn_for_analysis (state : exec_state) (f : user_fn) :
     analysis =
   Log.infO "Function for analysis"
     ~data:(show_tlid state.tlid)
@@ -719,5 +726,5 @@ let execute_function_for_analysis (state : exec_state) (f : user_fn) :
   { ast_value = dval_to_livevalue ast_value
   ; live_values = traced_values
   ; available_varnames = traced_symbols
-  ; input_values = []
+  ; input_values = input_values state.env
   }

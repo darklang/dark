@@ -290,6 +290,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
 
 
   type function_desc = Uuidm.t * tlid * string * id
+  type user_fn_desc = Uuidm.t * tlid
 
   type exec_state = { tlid: tlid
                     ; canvas_id : Uuidm.t
@@ -308,13 +309,19 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
                         dval list ->
                         dval ->
                         unit
+                    ; load_fn_arguments :
+                        user_fn_desc -> (dval_map * Time.t) list
+                    ; store_fn_arguments :
+                        user_fn_desc ->
+                        dval_map ->
+                        unit
                     ; fail_fn : (?msg : string -> unit -> dval) option
                     }
 
 
   type funcimpl = InProcess of (exec_state * dval list -> dval)
                 | API of (dval_map -> dval)
-                | UserCreated of expr
+                | UserCreated of (tlid * expr)
 
   (* TODO: merge fn and user_fn *)
   type fn = { prefix_names : string list
@@ -364,7 +371,7 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
       ; description = uf.metadata.description
       ; preview_execution_safe = false
       ; preview = None
-      ; func = UserCreated uf.ast
+      ; func = UserCreated (uf.tlid, uf.ast)
       } |> Some
     | _ -> None
 end

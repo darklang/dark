@@ -51,6 +51,5 @@ let load (canvas_id, tlid, fnname, id) arglist
   |> Option.map ~f:(function
       | [dval; ts] ->
         (Dval.dval_of_json_string dval, Dval.date_of_sqlstring ts)
-      | _ -> Exception.internal "Bad DB format for stored_functions")
-
+      | _ -> Exception.internal "Bad DB format for stored_functions_results.load")
 
