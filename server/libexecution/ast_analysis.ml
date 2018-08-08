@@ -573,7 +573,7 @@ and exec_fn ~(engine:engine) ~(state: exec_state)
         (args)
     in
 
-    let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids tlid in
+    let fn_clicked = List.mem ~equal:(=) state.exe_fn_ids id in
     if engine.ctx = Real || fn_clicked
     then state.store_fn_arguments (state.canvas_id, tlid) args;
 
