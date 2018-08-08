@@ -95,6 +95,7 @@ type TimerAction = RefreshAnalysis
 
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
+                       , List Toplevel -- deleted
                        , List TLAResult
                        , List GlobalVariable
                        , List UserFunction
@@ -104,11 +105,7 @@ type alias GetAnalysisResult = ( List TLAResult
                                , List GlobalVariable
                                , List FourOhFour
                                , List TLID)
-type alias InitialLoadResult = ( List Toplevel
-                               , List TLAResult
-                               , List GlobalVariable
-                               , List UserFunction
-                               , List TLID)
+type alias InitialLoadResult = RPCResult
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
@@ -399,7 +396,6 @@ type alias Toplevel = { id : TLID
                       , data : TLData
                       }
 
-
 -----------------------------
 -- Analysis
 -----------------------------
@@ -446,6 +442,7 @@ type alias Model = { error : Maybe String
                    , currentPage : Page
                    , hovering : List ID
                    , toplevels : List Toplevel
+                   , deletedToplevels : List Toplevel
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
