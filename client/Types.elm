@@ -491,6 +491,8 @@ type Modification = Error String
                   | RemoveToplevel Toplevel
                   | SetToplevels (List Toplevel) Bool
                   | UpdateToplevels (List Toplevel) Bool
+                  | SetDeletedToplevels (List Toplevel)
+                  | UpdateDeletedToplevels (List Toplevel)
                   | UpdateAnalysis (List TLAResult)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool
