@@ -1268,7 +1268,12 @@ update_ msg m =
     -- RPCs stuff
     -----------------
     RPCCallback focus calls
-      (Ok (newToplevels, newAnalysis, globals, userFuncs, unlockedDBs)) ->
+      (Ok ( newToplevels
+          , newDeletedToplevels
+          , newAnalysis
+          , globals
+          , userFuncs
+          , unlockedDBs)) ->
       if focus == FocusNoChange
       then
         Many [ UpdateToplevels newToplevels False
@@ -1293,7 +1298,12 @@ update_ msg m =
                 ]
 
     InitialLoadRPCCallback focus extraMod
-      (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
+      (Ok ( toplevels
+          , deletedToplevels
+          , new_analysis
+          , globals
+          , userFuncs
+          , unlockedDBs)) ->
       let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True

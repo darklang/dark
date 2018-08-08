@@ -68,6 +68,7 @@ defaultModel = { error = Nothing
                , hovering = []
                , tests = []
                , toplevels = []
+               , deletedToplevels = []
                , analysis = []
                , globals = []
                , f404s = []
