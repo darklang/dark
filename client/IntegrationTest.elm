@@ -58,6 +58,7 @@ trigger test_name =
     "editing_starts_a_thread_with_shift_enter" -> editing_starts_a_thread_with_shift_enter
     "object_literals_work" -> object_literals_work
     "rename_function" -> rename_function
+    "sending_to_rail_works" -> sending_to_rail_works
     n -> Debug.crash ("Test " ++ n ++ " not added to IntegrationTest.trigger")
 
 pass : TestResult
@@ -622,3 +623,9 @@ rename_function m =
     FnCall "hello" _ _ -> pass
     other -> fail other
 
+sending_to_rail_works : Model -> TestResult
+sending_to_rail_works m =
+  let ast = onlyHandler m |> .ast in
+  case ast of
+    F _ (FnCall "List::head_v1" _ NoRail) -> pass
+    _ -> fail ast

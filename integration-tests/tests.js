@@ -677,3 +677,15 @@ test('rename_function', async t => {
     .typeText('#entry-box', 'hello', slow)
     .pressKey('enter')
 })
+
+test('sending_to_rail_works', async t => {
+  await t
+    .pressKey("enter")
+    .pressKey("enter")
+    .typeText("#entry-box", "List::head_v1", slow)
+    .pressKey("enter")
+    .pressKey("esc")
+    .pressKey("shift+up")
+    .pressKey("alt+e")
+})
+
