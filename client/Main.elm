@@ -801,6 +801,16 @@ update_ msg m =
                       Refactor.wrap m tl pd WIfThen
                 else
                   NoChange
+              Key.E ->
+                if event.altKey
+                then
+                  case mId of
+                    Nothing -> NoChange
+                    Just id ->
+                      let pd = TL.findExn tl id in
+                      Refactor.toggleOnRail m tl pd
+                else
+                  NoChange
               _ -> NoChange
 
           Entering cursor ->
@@ -844,6 +854,17 @@ update_ msg m =
                       Entry.submit m cursor Entry.StartThread
                 Creating _ ->
                   Entry.submit m cursor Entry.StartThread
+            else if event.altKey
+            then
+              case event.keyCode of
+                Key.E ->
+                  case cursor of
+                    Creating pos -> NoChange
+                    Filling tlid id ->
+                      let tl = TL.getTL m tlid
+                          pd = TL.findExn tl id in
+                      Refactor.toggleOnRail m tl pd
+                _ -> NoChange
             else
               case event.keyCode of
                 Key.Spacebar ->  -- NB: see `stopKeys` in ui.html
@@ -1220,7 +1241,7 @@ update_ msg m =
 
     EndFeatureFlag id pick ->
       FeatureFlags.end m id pick
-    
+
     ToggleFeatureFlag id is ->
       FeatureFlags.toggle m id is
 

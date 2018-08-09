@@ -131,6 +131,15 @@ isHTTPHandler tl =
   |> spaceOf
   |> (==) (Just HSHTTP)
 
+toOp : Toplevel -> List Op
+toOp tl =
+  case tl.data of
+    TLHandler h ->
+      [SetHandler tl.id tl.pos h]
+    TLFunc fn ->
+      [SetFunction fn]
+    _ -> impossible "This isn't how database ops work"
+
 -------------------------
 -- Generic
 -------------------------
