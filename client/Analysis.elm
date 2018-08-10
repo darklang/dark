@@ -60,7 +60,6 @@ setCursor m tlid cursor =
 getLiveValuesDict : Model -> TLID -> LVDict
 getLiveValuesDict m tlid =
   getAnalysisResults m tlid
-  |> List.reverse
   |> LE.getAt (cursor m tlid)
   |> Maybe.map .liveValues
   |> Maybe.withDefault (Dict.empty)
@@ -80,7 +79,6 @@ getTipeOf m tlid id =
 getAvailableVarnamesDict : Model -> TLID -> AVDict
 getAvailableVarnamesDict m tlid =
   getAnalysisResults m tlid
-  |> List.reverse
   |> LE.getAt (cursor m tlid)
   |> Maybe.map .availableVarnames
   |> Maybe.withDefault (Dict.empty)
