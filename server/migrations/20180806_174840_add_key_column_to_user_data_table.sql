@@ -1,0 +1,6 @@
+ALTER TABLE user_data
+ADD COLUMN key TEXT NOT NULL DEFAULT '';
+
+UPDATE user_data SET key = id::text;
+
+ALTER TABLE user_data ALTER COLUMN key DROP DEFAULT

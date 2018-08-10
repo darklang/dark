@@ -15,6 +15,7 @@ let init ~run_side_effects =
 
       (* libexecution *)
       let libs = Libdb.fns
+                 @ Libdb2.fns
                  @ Libevent.fns
                  @ Libhttp.fns
                  @ Libhttpclient.fns
