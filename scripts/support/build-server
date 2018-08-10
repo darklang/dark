@@ -141,6 +141,7 @@ def main():
       global run_tests
       run_tests = True
 
+  run_or_fail("sudo chown dark:dark server/_build")
   run_or_fail("scripts/support/write-config-file")
   run_or_fail("scripts/support/allow-docker-access")
   if compile:
