@@ -1,6 +1,8 @@
 # How to build and run
 
 - Install Docker for Mac
+  - Set it to use 4 CPUs and 2GB of RAM
+    - More than that significantly increases build time
 - Install Homebrew for Mac from https://brew.sh/
 - Run `brew install bash`
 - Run `brew install fswatch`
