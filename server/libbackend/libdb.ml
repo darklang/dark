@@ -30,7 +30,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "val" TObj; par "table" TDB]
   ; r = TObj
-  ; d = "Insert `val` into `table`"
+  ; d = "DEPRECATED: Insert `val` into `table`"
   ; f = InProcess
         (function
           | (state, [DObj value; DDB db]) ->
@@ -52,7 +52,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "value" TObj; par "table" TDB]
   ; r = TNull
-  ; d = "Delete `value` from `table`"
+  ; d = "DEPRECATED: Delete `value` from `table`"
   ; f = InProcess
         (function
           | (state, [DObj vals; DDB db]) ->
@@ -74,7 +74,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "table" TDB]
   ; r = TNull
-  ; d = "Delete everything from `table`"
+  ; d = "DEPRECATED: Delete everything from `table`"
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
@@ -92,7 +92,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "value" TObj; par "table" TDB]
   ; r = TNull
-  ; d = "Update `table` value which has the same ID as `value`"
+  ; d = "DEPRECATED: Update `table` value which has the same ID as `value`"
   ; f = InProcess
         (function
           | (state, [DObj vals; DDB db]) ->
@@ -108,7 +108,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TList
-  ; d = "Fetch all the values in `table` whose `field` is `value`"
+  ; d = "DEPRECATED: Fetch all the values in `table` whose `field` is `value`"
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
@@ -134,7 +134,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "value" TAny; par "field" TStr; par "table" TDB]
   ; r = TAny
-  ; d = "Fetch exactly one value in `table` whose `field` is `value`"
+  ; d = "DEPRECATED: Fetch exactly one value in `table` whose `field` is `value`"
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
@@ -155,7 +155,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "spec" TObj; par "table" TDB]
   ; r = TList
-  ; d = "Fetch all the values from `table` which have the same fields and values that `spec` has"
+  ; d = "DEPRECATED: Fetch all the values from `table` which have the same fields and values that `spec` has"
   ; f = InProcess
         (function
           | (state, [DObj map; DDB db]) ->
@@ -185,7 +185,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "spec" TObj; par "table" TDB]
   ; r = TAny
-  ; d = "Fetch exactly one value from `table`, which have the samea fields and values that `spec` has"
+  ; d = "DEPRECATED: Fetch exactly one value from `table`, which have the samea fields and values that `spec` has"
   ; f = InProcess
         (function
           | (state, [DObj map; DDB db]) ->
@@ -211,7 +211,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "table" TDB]
   ; r = TList
-  ; d = "Fetch all the values in `table`"
+  ; d = "DEPRECATED: Fetch all the values in `table`"
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
@@ -239,7 +239,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "table" TDB]
   ; r = TList
-  ; d = "Fetch all the keys in `table`"
+  ; d = "DEPRECATED: Fetch all the keys in `table`"
   ; f = InProcess
         (function
           | (_, [DDB db]) ->
@@ -256,7 +256,7 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "table" TDB]
   ; r = TObj
-  ; d = "Fetch all the values in `table`"
+  ; d = "DEPRECATED: Fetch all the values in `table`"
   ; f = InProcess
         (function
           | (_, [DDB db]) ->
