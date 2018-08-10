@@ -1149,8 +1149,8 @@ body #grid * {
 
   .feature-flag {
     position: absolute;
-    left: 88%;
-    margin-top: 0;
+    left: calc(~"100% - 32px");
+    margin-top: -8px;
     background-color: transparent;
     border-style: solid;
     border-color: @black2;
@@ -1168,7 +1168,6 @@ body #grid * {
     &.expand {
       border-width: 1px;
       left: calc(100% + 10px);
-      margin-top: -10px;
       background-color: @black1;
 
       .row {
@@ -1259,6 +1258,10 @@ body #grid * {
           display: block;
           width: auto;
         }
+      }
+
+      .expr-actions {
+        display: none;
       }
     }
   }
