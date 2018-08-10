@@ -99,9 +99,10 @@ def ocaml_build():
                   , "bin/queue_worker.exe"
                   , "bin/cron_checker.exe"
                   , "bin/add_user.exe"
-                  , "bin/darkjs.bc.js"
-                  , "@darkjs"
                   ])
+
+  if os.environ.get("CI"):
+    exes += " bin/darkjs.bc.js @darkjs"
 
   # This is a temporary hack to force dune's "direct compilation" mode.
   # Indeed, separate compilation takes forever here for some reason.
