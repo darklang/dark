@@ -171,8 +171,10 @@ viewGroup (spacename, entries) =
         div "handler" [ div "name"
                           (  List.map (text "prefix") e.prefix
                           ++ [Html.text (def e.name)])
-                      , externalLink e
-                      , span "verbs" (verbs e)
+                      , div "extra"
+                         [ span "verbs" (verbs e)
+                         , externalLink e
+                         ]
                       ]
       routes = div "routes" (List.map entryHtml entries)
   in
