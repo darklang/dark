@@ -263,9 +263,9 @@ view404s f404s  =
       fofHtml (space, path, modifier, values) =
         div "fof"
           [ text "path" path
-          , thelink (space, path, modifier, values)
-          , text "space" space
+          , (if space == "HTTP" then text "" "" else text "space" space)
           , text "modifier" modifier
+          , thelink (space, path, modifier, values)
           ]
       routes = div "404s" (List.map fofHtml f404s)
   in section "404s" f404s Nothing routes
