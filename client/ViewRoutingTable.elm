@@ -194,7 +194,7 @@ viewDeletedTLs tls =
       h = header "Deleted" tls Nothing
   in
   Html.details
-    [ Attrs.class "routing-section" ]
+    [ Attrs.class "routing-section deleted" ]
     ([ h ] ++ routes ++ [dbs])
 
 
