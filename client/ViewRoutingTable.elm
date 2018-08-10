@@ -146,11 +146,12 @@ ordering a b =
       then LT
       else compare a b
 
-viewGroup : (String, List Entry) -> Html.Html Msg
-viewGroup (spacename, entries) =
+viewGroup : ShowLink -> ShowUndo -> (String, List Entry) -> Html.Html Msg
+viewGroup showLink showUndo (spacename, entries) =
   let def s = Maybe.withDefault missingEventRouteDesc s
       externalLink h =
-        if List.member "GET" (List.map Tuple.first h.verbs)
+        if showLink == ShowLink
+           && List.member "GET" (List.map Tuple.first h.verbs)
         then
           case h.name of
             Just n ->
@@ -184,9 +185,11 @@ viewGroup (spacename, entries) =
   section spacename entries (if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing) routes
 
 type CollapseVerbs = CollapseVerbs | DontCollapseVerbs
+type ShowLink = ShowLink | DontShowLink
+type ShowUndo = ShowUndo | DontShowUndo
 
-viewRoutes : List Toplevel -> CollapseVerbs -> List (Html.Html Msg)
-viewRoutes tls collapse =
+viewRoutes : List Toplevel -> CollapseVerbs -> ShowLink -> ShowUndo -> List (Html.Html Msg)
+viewRoutes tls collapse showLink showUndo =
   tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
@@ -196,11 +199,11 @@ viewRoutes tls collapse =
        then List.map (T2.map collapseByVerb) entries
        else entries)
   |> List.map (T2.map prefixify)
-  |> List.map viewGroup
+  |> List.map (viewGroup showLink showUndo)
 
 viewDeletedTLs : List Toplevel -> Html.Html Msg
 viewDeletedTLs tls =
-  let routes = viewRoutes tls DontCollapseVerbs
+  let routes = viewRoutes tls DontCollapseVerbs DontShowLink ShowUndo
       dbs = viewDBs tls
       h = header "Deleted" tls Nothing
   in
@@ -339,7 +342,7 @@ viewUserFunctions m =
 
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
-  let sections = viewRoutes m.toplevels CollapseVerbs
+  let sections = viewRoutes m.toplevels CollapseVerbs ShowLink DontShowUndo
                  ++ [viewDBs m.toplevels]
                  ++ [view404s m.f404s]
                  ++ [viewUserFunctions m]
