@@ -286,6 +286,7 @@ viewDBs tls =
   let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
+            |> List.sortBy (\(_, db) -> db.name)
 
       dbHtml (pos, db) =
         div "simple-route"
