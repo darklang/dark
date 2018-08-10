@@ -59,10 +59,8 @@ splitBySpace tls =
 
 
 
-
-
-collapseHandlers : List Toplevel -> List Entry
-collapseHandlers tls =
+tl2entry : List Toplevel -> List Entry
+tl2entry tls =
   tls
   |> List.filterMap
       (\tl ->
@@ -82,6 +80,10 @@ collapseHandlers tls =
                Blank _ -> [("_", pos)]
          })
   |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
+
+collapseByVerb : List Entry -> List Entry
+collapseByVerb es =
+  es
   |> LE.groupWhile (\a b -> a.name == b.name)
   |> List.map (List.foldr (\curr list ->
                    if curr.name == Nothing
@@ -95,6 +97,7 @@ collapseHandlers tls =
                          in new :: rest
                 ) [])
   |> List.concat
+
 
 prefixify : List Entry -> List Entry
 prefixify hs =
@@ -180,18 +183,24 @@ viewGroup (spacename, entries) =
   in
   section spacename entries (if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing) routes
 
-viewRoutes : List Toplevel -> List (Html.Html Msg)
-viewRoutes tls =
+type CollapseVerbs = CollapseVerbs | DontCollapseVerbs
+
+viewRoutes : List Toplevel -> CollapseVerbs -> List (Html.Html Msg)
+viewRoutes tls collapse =
   tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
-  |> List.map (T2.map collapseHandlers)
+  |> List.map (T2.map tl2entry)
+  |> (\entries ->
+       if collapse == CollapseVerbs
+       then List.map (T2.map collapseByVerb) entries
+       else entries)
   |> List.map (T2.map prefixify)
   |> List.map viewGroup
 
 viewDeletedTLs : List Toplevel -> Html.Html Msg
 viewDeletedTLs tls =
-  let routes = viewRoutes tls
+  let routes = viewRoutes tls DontCollapseVerbs
       dbs = viewDBs tls
       h = header "Deleted" tls Nothing
   in
@@ -329,7 +338,7 @@ viewUserFunctions m =
 
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
-  let sections = viewRoutes m.toplevels
+  let sections = viewRoutes m.toplevels CollapseVerbs
                  ++ [viewDBs m.toplevels]
                  ++ [view404s m.f404s]
                  ++ [viewUserFunctions m]
