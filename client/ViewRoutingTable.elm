@@ -189,16 +189,13 @@ viewRoutes tls =
 
 viewDeletedTLs : List Toplevel -> Html.Html Msg
 viewDeletedTLs tls =
-  tls
-  |> splitBySpace
-  |> List.sortWith (\(a,_) (b,_) -> ordering a b)
-  |> List.map (T2.map collapseHandlers)
-  |> List.map (T2.map prefixify)
-  |> List.map viewGroup
-  |> \groups ->
-       let html = Html.div [] groups in
-       section "Deleted" tls Nothing html
-
+  let routes = viewRoutes tls
+      dbs = viewDBs tls
+      h = header "Deleted" tls Nothing
+  in
+  Html.details
+    [ Attrs.class "routing-section" ]
+    ([ h ] ++ routes ++ [dbs])
 
 
 
@@ -258,10 +255,10 @@ newLink pos classes name =
     classes
     [Html.text name]
 
-view404s : Model -> Html.Html Msg
-view404s m =
+view404s : List FourOhFour -> Html.Html Msg
+view404s f404s  =
   let thelink fof =
-      link (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
+        link (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
 
       fofHtml (space, path, modifier, values) =
         div "fof"
@@ -270,12 +267,12 @@ view404s m =
           , text "space" space
           , text "modifier" modifier
           ]
-      routes = div "404s" (List.map fofHtml m.f404s)
-  in section "404s" m.f404s Nothing routes
+      routes = div "404s" (List.map fofHtml f404s)
+  in section "404s" f404s Nothing routes
 
-viewDBs : Model -> Html.Html Msg
-viewDBs m =
-  let dbs = m.toplevels
+viewDBs : List Toplevel -> Html.Html Msg
+viewDBs tls =
+  let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
 
@@ -331,8 +328,8 @@ viewUserFunctions m =
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
   let sections = viewRoutes m.toplevels
-                 ++ [viewDBs m]
-                 ++ [view404s m]
+                 ++ [viewDBs m.toplevels]
+                 ++ [view404s m.f404s]
                  ++ [viewUserFunctions m]
                  ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
