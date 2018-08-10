@@ -143,8 +143,8 @@ ordering a b =
       then LT
       else compare a b
 
-viewGroup : Model -> (String, List Entry) -> Html.Html Msg
-viewGroup m (spacename, entries) =
+viewGroup : (String, List Entry) -> Html.Html Msg
+viewGroup (spacename, entries) =
   let def s = Maybe.withDefault missingEventRouteDesc s
       externalLink h =
         if List.member "GET" (List.map Tuple.first h.verbs)
@@ -178,14 +178,29 @@ viewGroup m (spacename, entries) =
   in
   section spacename entries (if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing) routes
 
-viewRoutes : Model -> List (Html.Html Msg)
-viewRoutes m =
-  m.toplevels
+viewRoutes : List Toplevel -> List (Html.Html Msg)
+viewRoutes tls =
+  tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
   |> List.map (T2.map collapseHandlers)
   |> List.map (T2.map prefixify)
-  |> List.map (viewGroup m)
+  |> List.map viewGroup
+
+viewDeletedTLs : List Toplevel -> Html.Html Msg
+viewDeletedTLs tls =
+  tls
+  |> splitBySpace
+  |> List.sortWith (\(a,_) (b,_) -> ordering a b)
+  |> List.map (T2.map collapseHandlers)
+  |> List.map (T2.map prefixify)
+  |> List.map viewGroup
+  |> \groups ->
+       let html = Html.div [] groups in
+       section "Deleted" tls Nothing html
+
+
+
 
 
 ----------------------------------
@@ -315,10 +330,11 @@ viewUserFunctions m =
 
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
-  let sections = viewRoutes m
+  let sections = viewRoutes m.toplevels
                  ++ [viewDBs m]
                  ++ [view404s m]
                  ++ [viewUserFunctions m]
+                 ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
