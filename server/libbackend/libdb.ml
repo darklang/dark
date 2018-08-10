@@ -5,6 +5,24 @@ open Lib
 open Runtime
 open Types.RuntimeT
 
+let coerce_key_value_pair_to_legacy_object pair =
+  let id =
+    (match List.hd_exn pair with
+     | DStr s ->
+       (match Uuidm.of_string s with
+        | Some id -> DID id
+        | None -> DStr s)
+     | _ ->
+       Exception.internal "Error with backport; bad type for key")
+  in
+  let value =
+    (match List.last_exn pair with
+     | DObj o -> o
+     | _ ->
+       Exception.internal "bad format from fetch; expected object")
+  in
+  DObj (Map.set ~key:"id" ~data:id value)
+
 
 let fns : Lib.shortfn list = [
 
@@ -16,8 +34,14 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj value; DDB db]) ->
-            let id = User_db.insert state db value in
-            DObj (Map.set value "id" (DID id))
+            let key = Util.create_uuid () in
+            let _ =
+              User_db.insert
+                ~state
+                ~upsert:false
+                db (Uuidm.to_string key) value
+            in
+            DObj (Map.set value "id" (DID key))
           | args -> fail args)
   ; pr = None
   ; ps = false
@@ -32,7 +56,12 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj vals; DDB db]) ->
-            User_db.delete state db vals;
+            let key =
+              match Map.find_exn vals "id" with
+              | DID id -> Uuidm.to_string id
+              | _ -> Exception.internal "expected a UUID` at magic `id` field in deprecated delete"
+            in
+            User_db.delete state db key;
             DNull
           | args -> fail args)
   ; pr = None
@@ -83,7 +112,18 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
-            User_db.fetch_by state db field value
+            (match User_db.fetch_by state db field value with
+             | DList pairs ->
+               pairs
+               |> List.map
+                 ~f:(function
+                     | DList pair ->
+                       coerce_key_value_pair_to_legacy_object pair
+                     | _ ->
+                        Exception.internal
+                          "bad format from internal fetch, unable to coerce to legacy format")
+               |> DList
+             | _ -> Exception.internal "bad fetch in legacy fetchBy")
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -100,8 +140,10 @@ let fns : Lib.shortfn list = [
           | (state, [value; DStr field; DDB db]) ->
             let result = User_db.fetch_by state db field value in
             (match result with
-             | DList (x :: xs) -> x
-               (* TODO(ian): Maybe/Option *)
+             | DList (x :: xs) ->
+               (match x with
+                | DList pair -> coerce_key_value_pair_to_legacy_object pair
+                | _ -> Exception.internal "bad fetch")
              | _ -> DNull)
           | args -> fail args)
   ; pr = None
@@ -120,6 +162,19 @@ let fns : Lib.shortfn list = [
             map
             |> DvalMap.to_alist
             |> User_db.fetch_by_many state db
+            |>
+            (function
+              | DList pairs ->
+                pairs
+                |> List.map
+                  ~f:(function
+                      | DList pair ->
+                        coerce_key_value_pair_to_legacy_object pair
+                      | _ ->
+                        Exception.internal
+                          "bad format from internal fetch, unable to coerce to legacy format")
+                |> DList
+              | _ -> Exception.internal "bad fetch in legacy fetchBy")
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -138,7 +193,10 @@ let fns : Lib.shortfn list = [
               User_db.fetch_by_many state db (DvalMap.to_alist map)
             in
             (match result with
-             | DList (x :: xs) -> x
+             | DList (x :: xs) ->
+               (match x with
+                | DList pair -> coerce_key_value_pair_to_legacy_object pair
+                | _ -> Exception.internal "bad fetch")
                (* TODO(ian): Maybe/Option *)
              | _ -> DNull)
           | args -> fail args)
@@ -157,7 +215,20 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            User_db.fetch_all state db
+            (match User_db.fetch_all state db with
+             | DList pairs ->
+               pairs
+               |> List.map
+                 ~f:(function
+                     | DList pair ->
+                       coerce_key_value_pair_to_legacy_object pair
+                     | _ ->
+                        Exception.internal
+                          "bad format from internal fetch, unable to coerce to legacy format")
+               |> DList
+             | _ ->
+               Exception.internal
+                 "bad format from internal fetch, unable to coerce to legacy format")
           | args -> fail args)
   ; pr = None
   ; ps = true

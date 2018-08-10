@@ -94,7 +94,7 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
   in
   let sql =
     Printf.sprintf
-      "SELECT data
+      "SELECT key, data
        FROM user_data
        WHERE table_tlid = $1
        AND user_version = $2
@@ -108,7 +108,12 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
     ~params:[ ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
-  |> List.map ~f:(to_obj ~state db)
+  |> List.map
+    ~f:(fun return_val ->
+        match return_val with
+        (* TODO(ian): change `to_obj` to just take a string *)
+        | [key; data] -> DList [DStr key; to_obj ~state db [data]]
+        | _ -> Exception.internal "bad format received in fetch_all")
   |> DList
 and
 fetch_by ~state db (col: string) (dv: dval) : dval =
@@ -249,7 +254,10 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
        | DObj m ->
          (match DvalMap.find m "id" with
           | Some existing -> update ~state dep_table m; existing
-          | None -> insert ~state dep_table m |> DID)
+          | None ->
+            let key = Util.create_uuid () in
+            let _  = insert ~state dep_table (key |> Uuidm.to_string) m in
+            DID key)
        | DNull -> (* allow nulls for now *)
          DNull
        | err -> Exception.user (type_error_msg table TObj err)))
@@ -268,23 +276,28 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
                | err -> Exception.user (type_error_msg table TObj err)))
         |> DList)
     ~state db obj
-and insert ~state (db: db) (vals: dval_map) : Uuidm.t =
+and insert ~state ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
+  let query =
+    "INSERT into user_data
+     (id, account_id, canvas_id, table_tlid, user_version, dark_version, key, data)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)"
+    |> fun s -> if upsert then (s ^ " ON CONFLICT UPDATE") else s
+  in
   Db.run
     ~name:"user_insert"
-    "INSERT into user_data
-     (id, account_id, canvas_id, table_tlid, user_version, dark_version, data)
-     VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb)"
+    query
     ~params:[ Uuid id
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version
+            ; String key
             ; DvalmapJsonb merged];
   id
-and update ~state db (vals: dval_map) =
+and update ~state db (vals: dval_map) = (* deprecated: unneccessary in new world *)
   let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
   let merged = type_check_and_upsert_dependents ~state db vals in
   Db.run
@@ -305,10 +318,30 @@ and update ~state db (vals: dval_map) =
             ; Int db.version
             ; Int current_dark_version]
 
+let fetch_by_key ~state (db: db) (key: string) : dval =
+  Db.fetch_one
+    ~name:"find_by_key"
+    "SELECT data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     AND key = $6"
+    ~params:[ Int db.tlid
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.version
+            ; Int current_dark_version
+            ; String key
+            ]
+  |> to_obj ~state db
+
 let fetch_all ~state (db: db) : dval =
   Db.fetch
     ~name:"fetch_all"
-    "SELECT data
+    "SELECT key, data
      FROM user_data
      WHERE table_tlid = $1
      AND account_id = $2
@@ -320,22 +353,26 @@ let fetch_all ~state (db: db) : dval =
             ; Uuid state.canvas_id
             ; Int db.version
             ; Int current_dark_version]
-  |> List.map ~f:(to_obj ~state db)
+  |> List.map
+    ~f:(fun return_val ->
+        match return_val with
+        (* TODO(ian): change `to_obj` to just take a string *)
+        | [key; data] -> DList [DStr key; to_obj ~state db [data]]
+        | _ -> Exception.internal "bad format received in fetch_all")
   |> DList
 
-let delete ~state (db: db) (vals: dval_map) =
-  let id = DvalMap.find_exn vals "id" |> dv_to_id db.name in
+let delete ~state (db: db) (key: string) =
   (* covered by composite PK index *)
   Db.run
     ~name:"user_delete"
     "DELETE FROM user_data
-     WHERE id = $1
+     WHERE key = $1
      AND account_id = $2
      AND canvas_id = $3
      AND table_tlid = $4
      AND user_version = $5
      AND dark_version = $6"
-    ~params:[ Uuid id
+    ~params:[ String key
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; ID db.tlid
