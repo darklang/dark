@@ -481,11 +481,14 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ~resp_headers:html_hdrs
       ~execution_id
       `OK body
+  | (`POST, "/admin/ops/migrate-all-canvases") ->
+    Canvas.migrate_all_hosts ();
+    respond ~execution_id `OK "Checked"
   | (`POST, "/admin/ops/check-all-canvases") ->
     Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
   | (`GET, "/admin/ops/check-all-canvases") ->
-    respond ~execution_id `OK "<html><body><form action='/admin/ops/check-all-canvases' method='post'><input type='submit' value='Check all canvases></form></body></html>"
+    respond ~execution_id `OK "<html><body><form action='/admin/ops/check-all-canvases' method='post'><input type='submit' value='Check all canvases></form><form action='/admin/ops/migrate-all-canvases' method='post'><input type='submit' value='Migrate all canvases></form></body></html>"
   | _ ->
     respond ~execution_id `Not_found "Not found"
 

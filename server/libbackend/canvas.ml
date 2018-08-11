@@ -324,3 +324,48 @@ let check_all_hosts () : unit =
       (* check ops *)
       List.iter (Op.tlid_oplists2oplist !c.ops)
         ~f:(validate_op host))
+
+let remove_dtdeprecated op =
+  match op with
+  | Op.SetHandler (htlid, pos,
+      { tlid; ast; spec =
+                    { module_
+                    ; name
+                    ; modifier
+                    ; types = { input = Filled (iid, _)
+                              ; output = Filled (oid, _)
+                              }
+                    }
+     }) ->
+      Op.SetHandler (htlid, pos,
+        { tlid
+        ; ast
+        ; spec = { module_
+                 ; name
+                 ; modifier
+                 ; types = { input = Blank iid
+                           ; output = Blank oid }}})
+  | _ -> op
+
+
+let migrate_all_hosts () : unit =
+  let hosts = Serialize.current_hosts () in
+
+  List.iter hosts
+    ~f:(fun host ->
+      let c = load_all host [] in
+
+      (* check ops *)
+      List.iter (Op.tlid_oplists2oplist !c.ops)
+        ~f:(validate_op host);
+
+      let new_ops =
+        (Op.tlid_oplists2oplist !c.ops)
+        |> List.map ~f:remove_dtdeprecated
+        |> Op.oplist2tlid_oplists
+      in
+      c := { !c with ops = new_ops};
+      save_all !c);
+
+  ()
+
