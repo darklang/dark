@@ -123,7 +123,7 @@ let put_back transaction (item: t) ~status : unit =
         ~name:"put_back_Err>=2"
         "UPDATE events
         SET status = 'error'
-        WHERE id = $2"
+        WHERE id = $1"
         ~params:[Int item.id]
   | `Incomplete ->
       Db.run
