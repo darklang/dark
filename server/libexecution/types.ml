@@ -107,17 +107,14 @@ and expr = nexpr or_blank [@@deriving eq, compare, yojson, show, sexp, bin_io]
   module HandlerT = struct
 
 (* DO NOT CHANGE BELOW WITHOUT READING docs/oplist-serialization.md *)
-    type n_dark_type = Empty
-                     | Any
-                     | String
-                     | Int
-                     | Obj of (string or_blank * dark_type ) list
-                     [@@deriving eq, compare, show, yojson, sexp, bin_io]
-    and dark_type = n_dark_type or_blank
-                    [@@deriving eq, compare, show, yojson, sexp, bin_io]
+    type n_dtdeprecated = Empty
+                        | Any
+                        [@@deriving eq, compare, show, yojson, sexp, bin_io]
+    and dtdeprecated = n_dtdeprecated or_blank
+                       [@@deriving eq, compare, show, yojson, sexp, bin_io]
 
-    type spec_types = { input : dark_type
-                      ; output : dark_type
+    type spec_types = { input : dtdeprecated
+                      ; output : dtdeprecated
                       } [@@deriving eq, show, yojson, sexp, bin_io]
 
 
