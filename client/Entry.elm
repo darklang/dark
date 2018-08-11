@@ -49,8 +49,8 @@ newHandlerSpec : () -> HandlerSpec
 newHandlerSpec _ = { module_ = B.new ()
                    , name = B.new ()
                    , modifier = B.new ()
-                   , types = { input = F (gid ()) DTAny
-                             , output = F (gid ()) DTAny
+                   , types = { input = B.new ()
+                             , output = B.new ()
                              }
                    }
 
