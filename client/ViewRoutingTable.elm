@@ -273,7 +273,6 @@ buttonLink : Html.Html Msg -> Msg -> Html.Html Msg
 buttonLink content handler =
   Html.a
     [ eventNoPropagation "mouseup" (\_ -> handler)
-    , Attrs.href ""
     , Attrs.class "button-link"
     ]
     [ content ]
