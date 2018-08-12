@@ -312,10 +312,14 @@ delete m tlid mId =
                             , RPC ([DeleteTL tlid], FocusNothing)
                             , Deselect
                             ]
-        TLDB _ -> Many [ RemoveToplevel tl
-                       , RPC ([DeleteTL tlid], FocusNothing)
-                       , Deselect
-                       ]
+        TLDB _ ->
+          if DB.isLocked m tlid
+          then NoChange
+          else
+            Many [ RemoveToplevel tl
+                 , RPC ([DeleteTL tlid], FocusNothing)
+                 , Deselect
+                 ]
         TLFunc _ -> Error ("Cannot delete functions!")
     Just id ->
       let newID = gid ()
