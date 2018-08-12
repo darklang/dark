@@ -156,6 +156,7 @@ type Msg
     | CreateFunction
     | ExtractFunction
     | DeleteUserFunction TLID
+    | RestoreToplevel TLID
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData

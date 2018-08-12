@@ -24,6 +24,7 @@ import Refactor exposing (countFnUsage)
 type alias Entry = { name: Maybe String
                    , prefix: List String
                    , verbs: List (String, Pos)
+                   , tlid: TLID
                    }
 
 missingEventSpaceDesc : String
@@ -65,10 +66,10 @@ tl2entry tls =
   |> List.filterMap
       (\tl ->
         case TL.asHandler tl of
-          Just h -> Just (tl.pos, h)
+          Just h -> Just (tl.pos, tl.id, h)
           Nothing -> Nothing)
   |> List.map
-       (\(pos, h) ->
+       (\(pos, tlid, h) ->
          { name =
              case h.spec.name of
                F _ s -> Just s
@@ -78,6 +79,7 @@ tl2entry tls =
              case h.spec.modifier of
                F _ s -> [(s, pos)]
                Blank _ -> [("_", pos)]
+         , tlid = tlid
          })
   |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
 
@@ -146,6 +148,10 @@ ordering a b =
       then LT
       else compare a b
 
+undoButton : TLID -> Html.Html Msg
+undoButton tlid =
+  buttonLink (text "undo" "Restore") (RestoreToplevel tlid)
+
 viewGroup : ShowLink -> ShowUndo -> (String, List Entry) -> Html.Html Msg
 viewGroup showLink showUndo (spacename, entries) =
   let def s = Maybe.withDefault missingEventRouteDesc s
@@ -166,23 +172,33 @@ viewGroup showLink showUndo (spacename, entries) =
         else
           Html.div [] []
 
+
+      head = List.head entries |> deMaybe "viewGroupElem"
+
       verbs e =
         e.verbs
         |> List.map
           (\(verb, pos) -> tlLink pos "verb-link" verb)
         |> List.intersperse (Html.text ",")
       entryHtml e =
-        div "handler" [ div "name"
+        div "handler" ([ div "name"
                           (  List.map (text "prefix") e.prefix
                           ++ [Html.text (def e.name)])
-                      , div "extra"
+                       , div "extra"
                          [ span "verbs" (verbs e)
                          , externalLink e
                          ]
-                      ]
+                       ]
+                       ++ (if showUndo == ShowUndo
+                           then [undoButton e.tlid]
+                           else []))
       routes = div "routes" (List.map entryHtml entries)
+      distinctEntries = entries
+                        |> List.map .verbs
+                        |> List.concat
+      button = if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing
   in
-  section spacename entries (if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing) routes
+  section spacename distinctEntries button routes
 
 type CollapseVerbs = CollapseVerbs | DontCollapseVerbs
 type ShowLink = ShowLink | DontShowLink
@@ -204,7 +220,7 @@ viewRoutes tls collapse showLink showUndo =
 viewDeletedTLs : List Toplevel -> Html.Html Msg
 viewDeletedTLs tls =
   let routes = viewRoutes tls DontCollapseVerbs DontShowLink ShowUndo
-      dbs = viewDBs tls
+      dbs = viewRestorableDBs tls
       h = header "Deleted" tls Nothing
   in
   Html.details
@@ -303,6 +319,20 @@ viewDBs tls =
       dbHtml (pos, db) =
         div "simple-route"
           [ span "name" [tlLink pos "default-link" db.name]]
+
+      routes = div "dbs" (List.map dbHtml dbs)
+  in section "DBs" dbs Nothing routes
+
+viewRestorableDBs : List Toplevel -> Html.Html Msg
+viewRestorableDBs tls =
+  let dbs = tls
+            |> List.filter (\tl -> TL.asDB tl /= Nothing)
+            |> List.map (\tl -> (tl.pos, tl.id, TL.asDB tl |> deMaybe "asDB"))
+            |> List.sortBy (\(_, _, db) -> db.name)
+
+      dbHtml (pos, tlid, db) =
+        div "simple-route"
+          [ text "name" db.name, undoButton tlid ]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes

@@ -1286,6 +1286,9 @@ update_ msg m =
     DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusNothing)
 
+    RestoreToplevel tlid ->
+      RPC ([UndoTL tlid], FocusSame)
+
     -----------------
     -- RPCs stuff
     -----------------
