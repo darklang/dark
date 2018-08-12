@@ -6,6 +6,7 @@ module ViewRoutingTable exposing (viewRoutingTable)
 import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
+import Maybe.Extra as ME
 import Tuple2 as T2
 
 -- dark
@@ -148,9 +149,12 @@ ordering a b =
       then LT
       else compare a b
 
-undoButton : TLID -> Html.Html Msg
-undoButton tlid =
-  buttonLink (text "undo" "Restore") (RestoreToplevel tlid)
+undoButton : TLID -> Page -> Html.Html Msg
+undoButton tlid page =
+  buttonLink
+    (text "undo" "Restore")
+    (RestoreToplevel tlid)
+    (Just page)
 
 viewGroup : ShowLink -> ShowUndo -> (String, List Entry) -> Html.Html Msg
 viewGroup showLink showUndo (spacename, entries) =
@@ -172,15 +176,17 @@ viewGroup showLink showUndo (spacename, entries) =
         else
           Html.div [] []
 
-
-      head = List.head entries |> deMaybe "viewGroupElem"
-
       verbs e =
         e.verbs
         |> List.map
           (\(verb, pos) -> tlLink pos "verb-link" verb)
         |> List.intersperse (Html.text ",")
       entryHtml e =
+        let pos = e.verbs
+                  |> List.head
+                  |> deMaybe "viewGroup/entryHtml"
+                  |> Tuple.second
+        in
         div "handler" ([ div "name"
                           (  List.map (text "prefix") e.prefix
                           ++ [Html.text (def e.name)])
@@ -190,7 +196,7 @@ viewGroup showLink showUndo (spacename, entries) =
                          ]
                        ]
                        ++ (if showUndo == ShowUndo
-                           then [undoButton e.tlid]
+                           then [undoButton e.tlid (Toplevels pos)]
                            else []))
       routes = div "routes" (List.map entryHtml entries)
       distinctEntries = entries
@@ -255,7 +261,7 @@ header name list addHandler =
     , text "parens" ")",
     case addHandler of
         Just msg ->
-            buttonLink (fontAwesome "plus-circle") (msg)
+            buttonLink (fontAwesome "plus-circle") msg Nothing
         Nothing ->
             text "" ""
     ]
@@ -272,12 +278,19 @@ section name entries addHandler routes =
       [ Attrs.class "routing-section"]
       [ header name entries addHandler, routes]
 
-buttonLink : Html.Html Msg -> Msg -> Html.Html Msg
-buttonLink content handler =
+buttonLink : Html.Html Msg -> Msg -> Maybe Page -> Html.Html Msg
+buttonLink content handler page =
+  let href = page
+             |> Maybe.map (\p -> Attrs.href (Url.urlFor p))
+             |> ME.toList
+      event = case page of
+                Nothing -> eventNoDefault "click" (\_ -> handler)
+                Just _ -> eventNoPropagation "click" (\_ -> handler)
+  in
   Html.a
-    [ eventNoDefault "click" (\_ -> handler)
-    , Attrs.class "button-link"
-    ]
+    ([ event
+     , Attrs.class "button-link"
+     ] ++ href)
     [ content ]
 
 tlLink : Pos -> String -> String -> Html.Html Msg
@@ -299,7 +312,10 @@ fnLink fn isUsed text =
 view404s : List FourOhFour -> Html.Html Msg
 view404s f404s  =
   let thelink fof =
-        buttonLink (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
+        buttonLink
+          (fontAwesome "plus-circle")
+          (CreateHandlerFrom404 fof)
+          Nothing
 
       fofHtml (space, path, modifier, values) =
         div "fof"
@@ -334,7 +350,7 @@ viewRestorableDBs tls =
 
       dbHtml (pos, tlid, db) =
         div "simple-route"
-          [ text "name" db.name, undoButton tlid ]
+          [ text "name" db.name, undoButton tlid (Toplevels pos)]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
@@ -354,6 +370,7 @@ viewUserFunctions m =
               , buttonLink
                   (fontAwesome "minus-circle")
                   (DeleteUserFunction fn.tlid)
+                  Nothing
             ]
           else
             let countedName = name ++ " (" ++ (toString useCount) ++ ")"
