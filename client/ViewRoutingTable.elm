@@ -196,7 +196,10 @@ viewGroup showLink showUndo (spacename, entries) =
       distinctEntries = entries
                         |> List.map .verbs
                         |> List.concat
-      button = if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing
+      button = if spacename == "HTTP"
+                  && showUndo /= ShowUndo
+               then (Just CreateRouteHandler)
+               else Nothing
   in
   section spacename distinctEntries button routes
 
