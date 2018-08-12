@@ -152,6 +152,8 @@ port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
+port requestAnalysis : String -> Cmd msg
+port receiveAnalysis : (String -> msg) -> Sub msg
 
 -----------------------
 -- updates
@@ -524,6 +526,13 @@ updateMod mod (m, cmd) =
 
 
 
+      RequestAnalysis tls ->
+        let param = tls
+                    |> List.map .id
+                    |> RPC.encodeAnalysisParams
+                    |> JSE.encode 0
+        in
+        m ! [ requestAnalysis param ]
 
       UpdateAnalysis tlars ->
         let m2 = { m | analysis = Analysis.replace m.analysis tlars } in
@@ -1389,7 +1398,7 @@ update_ msg m =
       then
         Many [ UpdateToplevels newToplevels False
              , UpdateDeletedToplevels newDeletedToplevels
-             , UpdateAnalysis newAnalysis
+             , RequestAnalysis newToplevels
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
              , SetUnlockedDBs unlockedDBs
@@ -1401,7 +1410,7 @@ update_ msg m =
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
                 , UpdateDeletedToplevels newDeletedToplevels
-                , UpdateAnalysis newAnalysis
+                , RequestAnalysis newToplevels
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
                 , SetUnlockedDBs unlockedDBs
@@ -1421,7 +1430,7 @@ update_ msg m =
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
               , SetDeletedToplevels deletedToplevels
-              , UpdateAnalysis new_analysis
+              , RequestAnalysis toplevels
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
               , SetUnlockedDBs unlockedDBs
@@ -1447,6 +1456,10 @@ update_ msg m =
            , Set404s f404s
            , SetUnlockedDBs unlockedDBs
            ]
+
+    ReceiveAnalysis str ->
+      let _ = Debug.log "received analysis" str in
+      NoChange
 
     ------------------------
     -- plumbing
@@ -1601,4 +1614,5 @@ subscriptions m =
                  , timers
                  , visibility
                  , onError
-                 , mousewheelSubs])
+                 , mousewheelSubs
+                 , [receiveAnalysis ReceiveAnalysis]])

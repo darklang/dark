@@ -60,11 +60,16 @@
 
        elmapp.ports.setStorage.subscribe(function(editorState) {
          window.localStorage.setItem('editorState', editorState);
-       })
+       });
+
+       elmapp.ports.requestAnalysis.subscribe(function(data) {
+         console.log("Requested analysis: " + data);
+         elmapp.ports.receiveAnalysis.send("Finished analysis: " + data);
+       });
 
        elmapp.ports.sendRollbar.subscribe(function(obj) {
          window.Rollbar.error(obj.message, obj.url, null, null, obj.custom);
-       })
+       });
 
        window.onerror = function (msg, url, line, col, error) {
          window.Rollbar.error(msg, error);
