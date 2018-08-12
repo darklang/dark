@@ -169,7 +169,7 @@ viewGroup showLink showUndo (spacename, entries) =
       verbs e =
         e.verbs
         |> List.map
-          (\(verb, pos) -> newLink pos "verb-link" verb)
+          (\(verb, pos) -> tlLink pos "verb-link" verb)
         |> List.intersperse (Html.text ",")
       entryHtml e =
         div "handler" [ div "name"
@@ -236,7 +236,7 @@ header name list addHandler =
     , text "parens" ")",
     case addHandler of
         Just msg ->
-            link (fontAwesome "plus-circle") (msg)
+            buttonLink (fontAwesome "plus-circle") (msg)
         Nothing ->
             text "" ""
     ]
@@ -253,26 +253,35 @@ section name entries addHandler routes =
       [ Attrs.class "routing-section"]
       [ header name entries addHandler, routes]
 
-link : Html.Html Msg -> Msg -> Html.Html Msg
-link content handler =
+buttonLink : Html.Html Msg -> Msg -> Html.Html Msg
+buttonLink content handler =
   Html.a
     [ eventNoPropagation "mouseup" (\_ -> handler)
     , Attrs.href ""
-    , Attrs.class "verb-link"
+    , Attrs.class "button-link"
     ]
     [ content ]
 
-newLink : Pos -> String -> String -> Html.Html Msg
-newLink pos classes name =
+tlLink : Pos -> String -> String -> Html.Html Msg
+tlLink pos class name =
   Url.linkFor
     (Toplevels pos)
-    classes
+    class
     [Html.text name]
+
+fnLink : UserFunction -> Bool -> String -> Html.Html Msg
+fnLink fn isUsed text =
+  Url.linkFor
+    (Fn fn.tlid Defaults.fnPos)
+    (if isUsed then "default-link" else "default-link unused")
+    [Html.text text]
+
+
 
 view404s : List FourOhFour -> Html.Html Msg
 view404s f404s  =
   let thelink fof =
-        link (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
+        buttonLink (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
 
       fofHtml (space, path, modifier, values) =
         div "fof"
@@ -293,7 +302,7 @@ viewDBs tls =
 
       dbHtml (pos, db) =
         div "simple-route"
-          [ span "name" [newLink pos "default-link" db.name]]
+          [ span "name" [tlLink pos "default-link" db.name]]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
@@ -305,20 +314,14 @@ viewUserFunctions m =
             |> List.filter
               (\fn -> B.isF fn.metadata.name)
 
-      fnLink fn isUsed text =
-        Url.linkFor
-          (Fn fn.tlid Defaults.fnPos)
-          (if isUsed then "default-link" else "default-link unused")
-          [Html.text text]
-
       fnNamedLink fn name =
         let useCount = countFnUsage m name
         in if useCount == 0
           then
             [ span "name" [ fnLink fn False name ]
-              , link
-                (fontAwesome "minus-circle")
-                (DeleteUserFunction fn.tlid)
+              , buttonLink
+                  (fontAwesome "minus-circle")
+                  (DeleteUserFunction fn.tlid)
             ]
           else
             let countedName = name ++ " (" ++ (toString useCount) ++ ")"
