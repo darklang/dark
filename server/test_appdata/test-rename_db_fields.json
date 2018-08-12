@@ -38,8 +38,8 @@
         "name": [ "Filled", 2346022184, "/add" ],
         "modifier": [ "Filled", 3443293404, "POST" ],
         "types": {
-          "input": [ "Filled", 2568929832, [ "Any" ] ],
-          "output": [ "Filled", 171689706, [ "Any" ] ]
+          "input": [ "Blank", 2568929832 ],
+          "output": [ "Blank", 171689706 ]
         }
       }
     }
