@@ -54,16 +54,17 @@ replaceInType pd replacement dt =
 
 allData : DarkType -> List PointerData
 allData t =
-  let nested =
-        case t of
-          F _ (DTObj ts) ->
-            ts
-            |> List.map (\(n, dt) -> PDarkTypeField n :: allData dt)
-            |> List.concat
-          _ -> []
-  in
-  PDarkType t :: nested
-
+  []
+  -- let nested =
+  --       case t of
+  --         F _ (DTObj ts) ->
+  --           ts
+  --           |> List.map (\(n, dt) -> PDarkTypeField n :: allData dt)
+  --           |> List.concat
+  --         _ -> []
+  -- in
+  -- PDarkType t :: nested
+  --
 
 -- recurse until we find ID, then return the children
 childrenOf : ID -> DarkType -> List PointerData
