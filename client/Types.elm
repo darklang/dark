@@ -159,6 +159,7 @@ type Msg
     | DeleteUserFunction TLID
     | RestoreToplevel TLID
     | LockHandler TLID Bool
+    | ReceiveAnalysis String
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -511,6 +512,7 @@ type Modification = DisplayAndReportHttpError String Http.Error
                   | SetDeletedToplevels (List Toplevel)
                   | UpdateDeletedToplevels (List Toplevel)
                   | UpdateAnalysis (List TLAResult)
+                  | RequestAnalysis (List Toplevel)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool
                   | SetUnlockedDBs (List TLID)
