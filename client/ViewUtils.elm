@@ -112,6 +112,15 @@ eventNoPropagation event constructor =
     { stopPropagation = True, preventDefault = False}
     (decodeClickEvent constructor)
 
+eventNoDefault : String -> (MouseEvent -> Msg) -> Html.Attribute Msg
+eventNoDefault event constructor =
+  Events.onWithOptions
+    event
+    { stopPropagation = False, preventDefault = True}
+    (decodeClickEvent constructor)
+
+
+
 nothingMouseEvent : String -> Html.Attribute Msg
 nothingMouseEvent name = eventNoPropagation name NothingClick
 

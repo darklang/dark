@@ -275,7 +275,7 @@ section name entries addHandler routes =
 buttonLink : Html.Html Msg -> Msg -> Html.Html Msg
 buttonLink content handler =
   Html.a
-    [ eventNoPropagation "mouseup" (\_ -> handler)
+    [ eventNoDefault "click" (\_ -> handler)
     , Attrs.class "button-link"
     ]
     [ content ]
