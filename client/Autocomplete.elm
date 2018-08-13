@@ -558,18 +558,12 @@ generateFromModel m a =
                   , "Password"
                   , "UUID"
                   ]
-                    dbs =
-                      m.toplevels
-                      |> TL.dbs
-                      |> List.map .name
-                    simple =
-                      builtins ++ dbs
                     compound =
                       List.map
                         (\s -> "[" ++ s ++ "]")
-                        simple
+                        builtins
                 in
-                    simple ++ compound
+                    builtins ++ compound
 
               DarkType ->
                 [ "Any"
