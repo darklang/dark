@@ -979,10 +979,10 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (_, [DStr s; DStr sep]) ->
-            let split = (Str.split (Str.regexp_string sep) s)
-            in split
-               |> List.map ~f:(fun str -> DStr str)
-               |> DList
+            s
+            |> Libtarget.string_split ~sep
+            |> List.map ~f:(fun str -> DStr str)
+            |> DList
           | args -> fail args)
   ; pr = None
   ; ps = true

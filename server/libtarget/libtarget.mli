@@ -9,3 +9,4 @@ val date_of_sqlstring : string -> Core_kernel.Time.t
 
 val dump : 'a -> string
 
+val string_split : sep:string -> string -> string list
