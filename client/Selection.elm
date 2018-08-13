@@ -16,6 +16,7 @@ import Analysis
 import Pointer as P
 import Blank as B
 import Util
+import ViewUtils exposing (isLocked)
 
 -------------------------------
 -- Cursors
@@ -309,8 +310,7 @@ delete m tlid mId =
       let tl = TL.getTL m tlid in
       case tl.data of
         TLHandler h ->
-          if List.member tlid m.lockedHandlers
-          then NoChange
+          if isLocked tlid m then NoChange
           else Many [
             RemoveToplevel tl
             , RPC ([DeleteTL tlid], FocusNothing)

@@ -100,7 +100,7 @@ createVS m tl = { tl = tl
                 , tlCursors = m.tlCursors
                 , testVariants = m.tests
                 , featureFlags = m.featureFlags
-                , handlerLocked = List.member tl.id m.lockedHandlers
+                , handlerLocked = isLocked tl.id m
                 }
 
 fontAwesome : String -> Html.Html Msg
@@ -262,3 +262,6 @@ approxNWidth ne =
       -- probably want both taking the same size
       max (approxWidth a) (approxWidth b)
       + 1 -- the flag
+
+isLocked: TLID -> Model -> Bool
+isLocked tlid m = List.member tlid m.lockedHandlers
