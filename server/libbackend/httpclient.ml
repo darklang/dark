@@ -8,6 +8,42 @@ module C = Curl
 type verb = GET | POST | PUT | PATCH | DELETE | HEAD | OPTIONS [@@deriving show]
 type headers = string list [@@deriving show]
 
+(* Given ~regex, return Err if it doesn't match, or list of captures if
+ * it does. First elem of the list is the first capture, not the whole
+ * match. *)
+let string_match ~(regex: string) (str: string) : string list Or_error.t =
+  let reg = Re2.create_exn (regex) in
+  str
+  |> Re2.find_submatches reg
+  |> Result.map ~f:Array.to_list
+  |> Result.map ~f:List.tl_exn (* skip full match *)
+  |> Result.map ~f:(List.map ~f:(Option.value ~default:""))
+
+let charset (headers: (string * string) list)
+  : [> `Latin1 | `Other | `Utf8] =
+  let canonicalize s =
+    s
+    |> String.strip
+    |> String.lowercase
+  in
+  headers
+  |> List.map ~f:(Tuple.T2.map_fst ~f:canonicalize)
+  |> List.map ~f:(Tuple.T2.map_snd ~f:canonicalize)
+  |> List.filter_map
+    ~f:(function
+        | ("content-type",v) ->
+          (match string_match ~regex:".*;\\s*charset=(.*)$" v with
+           | Result.Ok (["utf-8"]) -> Some `Utf8
+           | Result.Ok (["utf8"]) -> Some `Utf8
+           | Result.Ok (["us-ascii"]) -> Some `Latin1 (* should work *)
+           | Result.Ok (["iso-8859-1"]) -> Some `Latin1
+           | Result.Ok (["iso_8859-1"]) -> Some `Latin1
+           | Result.Ok (["latin1"]) -> Some `Latin1
+           | _ -> None)
+        | _ -> None)
+  |> List.hd
+  |> Option.value ~default:`Other
+
 (* Servers should default to ISO-8859-1 (aka Latin-1) if nothing
  * provided. We ask for UTF-8, but might not get it. If we get
  * ISO-8859-1 we can transcode it using Uutf. Uutf supports more recent
@@ -127,14 +163,14 @@ let http_call (url: string) (query_params : (string * string list) list)
 
       (* If we get a redirect back, then we may see the content-type
        * header twice. Fortunately, because we push headers to the front
-       * above, and take the first in Util.charset, we get the right
+       * above, and take the first in charset, we get the right
        * answer. Whew. To do this correctly, we'd have to implement our
        * own follow logic which would clear the header ref, which seems
        * straightforward in theory but likely not practice.
        * Alternatively, we could clear the headers ref when we receive a
        * new `ok` header. *)
       let responsebody =
-        if (Util.charset !result_headers = `Latin1)
+        if (charset !result_headers = `Latin1)
         then recode_latin1 (Buffer.contents responsebuf)
         else Buffer.contents responsebuf
       in
