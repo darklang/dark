@@ -101,8 +101,7 @@ def ocaml_build():
                   , "bin/add_user.exe"
                   ])
 
-  if os.environ.get("CI"):
-    exes += " bin/darkjs.bc.js @darkjs"
+  exes += " bin/darkjs.bc.js @darkjs"
 
   # This is a temporary hack to force dune's "direct compilation" mode.
   # Indeed, separate compilation takes forever here for some reason.
