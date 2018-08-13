@@ -1,4 +1,5 @@
 open Libexecution
+open Types.RuntimeT
 
 module Analysis = Libexecution.Ast_analysis
 
@@ -26,7 +27,7 @@ let state env : Libexecution.Types.RuntimeT.exec_state =
 
 let perform_analysis (str : string) : string =
   let env = Libexecution.Types.RuntimeT.DvalMap.empty in
-  Libexecution.Ast_analysis.execute_ast (state env) env (Blank 0)
+  Libexecution.Ast_analysis.execute_ast (state env) env (Filled (0, (Value "5")))
   |> Dval.dval_to_json_string
 
 
