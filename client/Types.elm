@@ -157,6 +157,7 @@ type Msg
     | ExtractFunction
     | DeleteUserFunction TLID
     | RestoreToplevel TLID
+    | LockHandler TLID Bool
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -461,12 +462,14 @@ type alias Model = { error : Maybe String
                    -- that is currently selected.)
                    , tlCursors: TLCursors
                    , featureFlags: FlagsVS
+                   , lockedHandlers: List TLID
                    }
 
 -- Values that we serialize
 type alias SerializableEditor = { clipboard : Maybe PointerData
                                 , timersEnabled : Bool
                                 , cursorState : CursorState
+                                , lockedHandlers: List TLID
                                 }
 
 -----------------------------
@@ -518,6 +521,7 @@ type Modification = Error String
                   | ExecutingFunctionBegan TLID ID
                   | ExecutingFunctionRPC TLID ID
                   | ExecutingFunctionComplete (List (TLID, ID))
+                  | SetLockedHandlers (List TLID)
                   -- designed for one-off small changes
                   | TweakModel (Model -> Model)
 

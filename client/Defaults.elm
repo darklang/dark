@@ -37,6 +37,7 @@ defaultEditor : SerializableEditor
 defaultEditor = { clipboard = Nothing
                 , timersEnabled = True
                 , cursorState = Deselected
+                , lockedHandlers = []
                 }
 
 defaultSyncState : SyncState
@@ -85,4 +86,5 @@ defaultModel = { error = Nothing
                , executingFunctions = []
                , tlCursors = Dict.empty
                , featureFlags = Dict.empty
+               , lockedHandlers = []
                }

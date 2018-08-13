@@ -421,6 +421,7 @@ encodeSerializableEditor se =
     [ ("clipboard", JSEE.maybe encodePointerData se.clipboard)
     , ("timersEnabled", JSE.bool se.timersEnabled)
     , ("cursorState", encodeCursorState se.cursorState)
+    , ("lockedHandlers",  JSE.list (List.map (\id -> encodeTLID id) se.lockedHandlers))
     ]
 
 
@@ -432,6 +433,7 @@ decodeSerializableEditor =
   |> JSDP.optional "clipboard" (JSD.maybe decodePointerData) Nothing
   |> JSDP.optional "timersEnabled" JSD.bool True
   |> JSDP.optional "cursorState" decodeCursorState Deselected
+  |> JSDP.optional "lockedHandlers" (JSD.list decodeTLID) []
 
 
 
@@ -579,7 +581,7 @@ decodeHandlerSpec =
 
 decodeHandler : JSD.Decoder Handler
 decodeHandler =
-  let toHandler ast spec = {ast = ast, spec = spec } in
+  let toHandler ast spec = {ast = ast, spec = spec} in
   JSDP.decode toHandler
   |> JSDP.required "ast" decodeExpr
   |> JSDP.required "spec" decodeHandlerSpec
