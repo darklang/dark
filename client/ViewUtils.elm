@@ -42,6 +42,7 @@ type alias ViewState =
   , tlCursors: TLCursors
   , testVariants: List VariantTest
   , featureFlags: FlagsVS
+  , handlerLocked : Bool
   }
 
 createVS : Model -> Toplevel -> ViewState
@@ -99,6 +100,7 @@ createVS m tl = { tl = tl
                 , tlCursors = m.tlCursors
                 , testVariants = m.tests
                 , featureFlags = m.featureFlags
+                , handlerLocked = isLocked tl.id m
                 }
 
 fontAwesome : String -> Html.Html Msg
@@ -260,3 +262,6 @@ approxNWidth ne =
       -- probably want both taking the same size
       max (approxWidth a) (approxWidth b)
       + 1 -- the flag
+
+isLocked: TLID -> Model -> Bool
+isLocked tlid m = List.member tlid m.lockedHandlers

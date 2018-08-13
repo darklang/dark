@@ -16,6 +16,7 @@ import Analysis
 import Pointer as P
 import Blank as B
 import Util
+import ViewUtils exposing (isLocked)
 
 -------------------------------
 -- Cursors
@@ -308,18 +309,17 @@ delete m tlid mId =
     Nothing ->
       let tl = TL.getTL m tlid in
       case tl.data of
-        TLHandler _ -> Many [ RemoveToplevel tl
-                            , RPC ([DeleteTL tlid], FocusNothing)
-                            , Deselect
-                            ]
-        TLDB _ ->
-          if DB.isLocked m tlid
-          then NoChange
-          else
-            Many [ RemoveToplevel tl
-                 , RPC ([DeleteTL tlid], FocusNothing)
-                 , Deselect
-                 ]
+        TLHandler h ->
+          if isLocked tlid m then NoChange
+          else Many [
+            RemoveToplevel tl
+            , RPC ([DeleteTL tlid], FocusNothing)
+            , Deselect
+          ]
+        TLDB _ -> Many [ RemoveToplevel tl
+                      , RPC ([DeleteTL tlid], FocusNothing)
+                      , Deselect
+                      ]
         TLFunc _ -> Error ("Cannot delete functions!")
     Just id ->
       let newID = gid ()
