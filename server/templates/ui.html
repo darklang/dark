@@ -64,8 +64,10 @@
 
        elmapp.ports.requestAnalysis.subscribe(function(data) {
          console.log("Requested analysis: " + data);
-         elmapp.ports.receiveAnalysis.send("Finished analysis: " + data);
-       });
+         console.log(typeof(data));
+         var result = darkAnalysis.performAnalysis(data);
+         elmapp.ports.receiveAnalysis.send("Finished analysis: " + result);
+       })
 
        elmapp.ports.sendRollbar.subscribe(function(obj) {
          window.Rollbar.error(obj.message, obj.url, null, null, obj.custom);
