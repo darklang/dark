@@ -343,6 +343,32 @@ let fetch_by_key ~state (db: db) (key: string) : dval =
             ]
   |> to_obj ~state db
 
+let fetch_many_by_key ~state (db: db) (keys: string list) : dval =
+  Db.fetch
+    ~name:"fetch_many_by_key"
+    "SELECT key, data
+     FROM user_data
+     WHERE table_tlid = $1
+     AND account_id = $2
+     AND canvas_id = $3
+     AND user_version = $4
+     AND dark_version = $5
+     AND key IN ($6)"
+    ~params:[ Int db.tlid
+            ; Uuid state.account_id
+            ; Uuid state.canvas_id
+            ; Int db.version
+            ; Int current_dark_version
+            ; List (List.map ~f:(fun s -> String s) keys)
+            ]
+  |> List.map
+    ~f:(fun return_val ->
+        match return_val with
+        (* TODO(ian): change `to_obj` to just take a string *)
+        | [key; data] -> DList [DStr key; to_obj ~state db [data]]
+        | _ -> Exception.internal "bad format received in fetch_all")
+  |> DList
+
 let fetch_all ~state (db: db) : dval =
   Db.fetch
     ~name:"fetch_all"

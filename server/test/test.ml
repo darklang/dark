@@ -934,6 +934,24 @@ let t_db_set_does_upsert () =
     (DBool true)
     (exec_handler ~ops ast)
 
+let t_db_get_many_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, 11, 12)
+            ; Op.SetDBColName (dbid, 11, "x")
+            ; Op.SetDBColType (dbid, 12, "Str")
+            ]
+  in
+  let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
+              (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
+               (let results (DB::fetchAll_v1 MyDB)
+                (== (('one' one) ('two' two)) results))))"
+  in
+  check_dval "equal_after_roundtrip"
+    (DBool true)
+    (exec_handler ~ops ast)
+
+
 
 
 (* ------------------- *)
@@ -992,6 +1010,7 @@ let suite =
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_works
   ; "DB::set_v1 upsets", `Quick, t_db_new_query_works
+  ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
   ]
 
 let () =
