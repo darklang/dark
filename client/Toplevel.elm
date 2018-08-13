@@ -50,30 +50,46 @@ name tl =
       "Func: "
       ++ (f.metadata.name |> B.toMaybe |> Maybe.withDefault "")
 
+upsertByTLID : List Toplevel -> Toplevel -> List Toplevel
+upsertByTLID tls tl =
+  (removeByTLID tls [tl]) ++ [tl]
 
 upsert : Model -> Toplevel -> Model
 upsert m tl =
-  let updated = update m tl.id (\_ -> tl) in
-  if Nothing == LE.find (\thisTl -> thisTl.id == tl.id) updated.toplevels
-  then { m | toplevels = m.toplevels ++ [tl] }
-  else updated
+  { m | toplevels = upsertByTLID m.toplevels tl }
+
+upsertAllByTLID : List Toplevel -> List Toplevel -> List Toplevel
+upsertAllByTLID tls new =
+  List.foldl (flip upsertByTLID) tls new
 
 upsertAll : Model -> List Toplevel -> Model
 upsertAll m tls =
   List.foldl (flip upsert) m tls
 
+containsByTLID : List Toplevel -> Toplevel -> Bool
+containsByTLID tls elem =
+  LE.find (\tl -> tl.id == elem.id) tls /= Nothing
+
+removeByTLID : List Toplevel -> List Toplevel -> List Toplevel
+removeByTLID origTls toBeRemoved =
+  List.filter
+    (\origTl -> not (containsByTLID toBeRemoved origTl))
+    origTls
+
 remove : Model -> Toplevel -> Model
 remove m tl =
-  { m | toplevels = List.filter ((/=) tl) m.toplevels }
+  { m | toplevels = removeByTLID m.toplevels [tl] }
+
+updateByTLID : List Toplevel -> TLID -> (Toplevel -> Toplevel) -> List Toplevel
+updateByTLID tls tlid f =
+  tls
+  |> List.map (\t -> if t.id /= tlid
+                     then t
+                     else f t)
 
 update : Model -> TLID -> (Toplevel -> Toplevel) -> Model
 update m tlid f =
-  let mapped = m.toplevels
-               |> List.map (\t -> if t.id /= tlid
-                                  then t
-                                  else f t)
-  in
-  { m | toplevels = mapped }
+  { m | toplevels = updateByTLID m.toplevels tlid f }
 
 move : TLID -> Int -> Int -> Model -> Model
 move tlid xOffset yOffset m = update m tlid (moveTL xOffset yOffset)

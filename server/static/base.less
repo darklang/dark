@@ -257,7 +257,7 @@ body #grid * {
         font-weight: bold;
       }
 
-      .verb-link {
+      .verb-link, .button-link {
         float: right;
       }
     }
@@ -267,10 +267,18 @@ body #grid * {
         font-weight: bold;
       }
     }
+    &.deleted > .routing-section {
+      margin-left: 10px;
+    }
 
-    .verb-link {
+    .button-link {
+      cursor: pointer;
+    }
+
+    .verb-link, .button-link {
 
       .default-link;
+      color: @grey2;
       &:link, &:visited {
         color: @grey2;
       }
@@ -1222,7 +1230,7 @@ body #grid * {
         i.fa {
           margin-left: @icon-spacing;
         }
-        
+
         i.fa.fa-flag {
           font-size: 12px;
         }

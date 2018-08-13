@@ -744,8 +744,9 @@ decodeExecuteFunctionTarget =
 
 decodeRPC : JSD.Decoder RPCResult
 decodeRPC =
-  JSDP.decode (,,,,)
+  JSDP.decode (,,,,,)
   |> JSDP.required "toplevels" (JSD.list decodeToplevel)
+  |> JSDP.required "deleted_toplevels" (JSD.list decodeToplevel)
   |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
   |> JSDP.required "global_varnames" (JSD.list JSD.string)
   |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
@@ -760,15 +761,7 @@ decodeGetAnalysisRPC =
   |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
 
 decodeInitialLoadRPC : JSD.Decoder InitialLoadResult
-decodeInitialLoadRPC =
-  JSDP.decode (,,,,)
-  |> JSDP.required "toplevels" (JSD.list decodeToplevel)
-  |> JSDP.required "new_analyses" (JSD.list decodeTLAResult)
-  |> JSDP.required "global_varnames" (JSD.list JSD.string)
-  |> JSDP.required "user_functions" (JSD.list decodeUserFunction)
-  |> JSDP.required "unlocked_dbs" (JSD.list decodeTLID)
-
-
+decodeInitialLoadRPC = decodeRPC
 
 decodeExecuteFunctionRPC : JSD.Decoder ExecuteFunctionRPCResult
 decodeExecuteFunctionRPC =

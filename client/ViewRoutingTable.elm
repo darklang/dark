@@ -6,6 +6,7 @@ module ViewRoutingTable exposing (viewRoutingTable)
 import Html
 import Html.Attributes as Attrs
 import List.Extra as LE
+import Maybe.Extra as ME
 import Tuple2 as T2
 
 -- dark
@@ -24,6 +25,7 @@ import Refactor exposing (countFnUsage)
 type alias Entry = { name: Maybe String
                    , prefix: List String
                    , verbs: List (String, Pos)
+                   , tlid: TLID
                    }
 
 missingEventSpaceDesc : String
@@ -59,18 +61,16 @@ splitBySpace tls =
 
 
 
-
-
-collapseHandlers : List Toplevel -> List Entry
-collapseHandlers tls =
+tl2entry : List Toplevel -> List Entry
+tl2entry tls =
   tls
   |> List.filterMap
       (\tl ->
         case TL.asHandler tl of
-          Just h -> Just (tl.pos, h)
+          Just h -> Just (tl.pos, tl.id, h)
           Nothing -> Nothing)
   |> List.map
-       (\(pos, h) ->
+       (\(pos, tlid, h) ->
          { name =
              case h.spec.name of
                F _ s -> Just s
@@ -80,8 +80,13 @@ collapseHandlers tls =
              case h.spec.modifier of
                F _ s -> [(s, pos)]
                Blank _ -> [("_", pos)]
+         , tlid = tlid
          })
   |> List.sortBy (\c -> Maybe.withDefault "ZZZZZZ" c.name)
+
+collapseByVerb : List Entry -> List Entry
+collapseByVerb es =
+  es
   |> LE.groupWhile (\a b -> a.name == b.name)
   |> List.map (List.foldr (\curr list ->
                    if curr.name == Nothing
@@ -95,6 +100,7 @@ collapseHandlers tls =
                          in new :: rest
                 ) [])
   |> List.concat
+
 
 prefixify : List Entry -> List Entry
 prefixify hs =
@@ -143,11 +149,19 @@ ordering a b =
       then LT
       else compare a b
 
-viewGroup : Model -> (String, List Entry) -> Html.Html Msg
-viewGroup m (spacename, entries) =
+undoButton : TLID -> Page -> Html.Html Msg
+undoButton tlid page =
+  buttonLink
+    (text "undo" "Restore")
+    (RestoreToplevel tlid)
+    (Just page)
+
+viewGroup : ShowLink -> ShowUndo -> (String, List Entry) -> Html.Html Msg
+viewGroup showLink showUndo (spacename, entries) =
   let def s = Maybe.withDefault missingEventRouteDesc s
       externalLink h =
-        if List.member "GET" (List.map Tuple.first h.verbs)
+        if showLink == ShowLink
+           && List.member "GET" (List.map Tuple.first h.verbs)
         then
           case h.name of
             Just n ->
@@ -165,27 +179,64 @@ viewGroup m (spacename, entries) =
       verbs e =
         e.verbs
         |> List.map
-          (\(verb, pos) -> newLink pos "verb-link" verb)
+          (\(verb, pos) -> tlLink pos "verb-link" verb)
         |> List.intersperse (Html.text ",")
       entryHtml e =
-        div "handler" [ div "name"
+        let pos = e.verbs
+                  |> List.head
+                  |> deMaybe "viewGroup/entryHtml"
+                  |> Tuple.second
+        in
+        div "handler" ([ div "name"
                           (  List.map (text "prefix") e.prefix
                           ++ [Html.text (def e.name)])
-                      , externalLink e
-                      , span "verbs" (verbs e)
-                      ]
+                       , div "extra"
+                         [ span "verbs" (verbs e)
+                         , externalLink e
+                         ]
+                       ]
+                       ++ (if showUndo == ShowUndo
+                           then [undoButton e.tlid (Toplevels pos)]
+                           else []))
       routes = div "routes" (List.map entryHtml entries)
+      distinctEntries = entries
+                        |> List.map .verbs
+                        |> List.concat
+      button = if spacename == "HTTP"
+                  && showUndo /= ShowUndo
+               then (Just CreateRouteHandler)
+               else Nothing
   in
-  section spacename entries (if spacename == "HTTP" then (Just CreateRouteHandler) else Nothing) routes
+  section spacename distinctEntries button routes
 
-viewRoutes : Model -> List (Html.Html Msg)
-viewRoutes m =
-  m.toplevels
+type CollapseVerbs = CollapseVerbs | DontCollapseVerbs
+type ShowLink = ShowLink | DontShowLink
+type ShowUndo = ShowUndo | DontShowUndo
+
+viewRoutes : List Toplevel -> CollapseVerbs -> ShowLink -> ShowUndo -> List (Html.Html Msg)
+viewRoutes tls collapse showLink showUndo =
+  tls
   |> splitBySpace
   |> List.sortWith (\(a,_) (b,_) -> ordering a b)
-  |> List.map (T2.map collapseHandlers)
+  |> List.map (T2.map tl2entry)
+  |> (\entries ->
+       if collapse == CollapseVerbs
+       then List.map (T2.map collapseByVerb) entries
+       else entries)
   |> List.map (T2.map prefixify)
-  |> List.map (viewGroup m)
+  |> List.map (viewGroup showLink showUndo)
+
+viewDeletedTLs : List Toplevel -> Html.Html Msg
+viewDeletedTLs tls =
+  let routes = viewRoutes tls DontCollapseVerbs DontShowLink ShowUndo
+      dbs = viewRestorableDBs tls
+      h = header "Deleted" tls Nothing
+  in
+  Html.details
+    [ Attrs.class "routing-section deleted" ]
+    ([ h ] ++ routes ++ [dbs])
+
+
 
 
 ----------------------------------
@@ -210,7 +261,7 @@ header name list addHandler =
     , text "parens" ")",
     case addHandler of
         Just msg ->
-            link (fontAwesome "plus-circle") (msg)
+            buttonLink (fontAwesome "plus-circle") msg Nothing
         Nothing ->
             text "" ""
     ]
@@ -227,46 +278,79 @@ section name entries addHandler routes =
       [ Attrs.class "routing-section"]
       [ header name entries addHandler, routes]
 
-link : Html.Html Msg -> Msg -> Html.Html Msg
-link content handler =
+buttonLink : Html.Html Msg -> Msg -> Maybe Page -> Html.Html Msg
+buttonLink content handler page =
+  let href = page
+             |> Maybe.map (\p -> Attrs.href (Url.urlFor p))
+             |> ME.toList
+      event = case page of
+                Nothing -> eventNoDefault "click" (\_ -> handler)
+                Just _ -> eventNoPropagation "click" (\_ -> handler)
+  in
   Html.a
-    [ eventNoPropagation "mouseup" (\_ -> handler)
-    , Attrs.href ""
-    , Attrs.class "verb-link"
-    ]
+    ([ event
+     , Attrs.class "button-link"
+     ] ++ href)
     [ content ]
 
-newLink : Pos -> String -> String -> Html.Html Msg
-newLink pos classes name =
+tlLink : Pos -> String -> String -> Html.Html Msg
+tlLink pos class name =
   Url.linkFor
     (Toplevels pos)
-    classes
+    class
     [Html.text name]
 
-view404s : Model -> Html.Html Msg
-view404s m =
+fnLink : UserFunction -> Bool -> String -> Html.Html Msg
+fnLink fn isUsed text =
+  Url.linkFor
+    (Fn fn.tlid Defaults.fnPos)
+    (if isUsed then "default-link" else "default-link unused")
+    [Html.text text]
+
+
+
+view404s : List FourOhFour -> Html.Html Msg
+view404s f404s  =
   let thelink fof =
-      link (fontAwesome "plus-circle") (CreateHandlerFrom404 fof)
+        buttonLink
+          (fontAwesome "plus-circle")
+          (CreateHandlerFrom404 fof)
+          Nothing
 
       fofHtml (space, path, modifier, values) =
         div "fof"
           [ text "path" path
-          , thelink (space, path, modifier, values)
-          , text "space" space
+          , (if space == "HTTP" then text "" "" else text "space" space)
           , text "modifier" modifier
+          , thelink (space, path, modifier, values)
           ]
-      routes = div "404s" (List.map fofHtml m.f404s)
-  in section "404s" m.f404s Nothing routes
+      routes = div "404s" (List.map fofHtml f404s)
+  in section "404s" f404s Nothing routes
 
-viewDBs : Model -> Html.Html Msg
-viewDBs m =
-  let dbs = m.toplevels
+viewDBs : List Toplevel -> Html.Html Msg
+viewDBs tls =
+  let dbs = tls
             |> List.filter (\tl -> TL.asDB tl /= Nothing)
             |> List.map (\tl -> (tl.pos, TL.asDB tl |> deMaybe "asDB"))
+            |> List.sortBy (\(_, db) -> db.name)
 
       dbHtml (pos, db) =
         div "simple-route"
-          [ span "name" [newLink pos "default-link" db.name]]
+          [ span "name" [tlLink pos "default-link" db.name]]
+
+      routes = div "dbs" (List.map dbHtml dbs)
+  in section "DBs" dbs Nothing routes
+
+viewRestorableDBs : List Toplevel -> Html.Html Msg
+viewRestorableDBs tls =
+  let dbs = tls
+            |> List.filter (\tl -> TL.asDB tl /= Nothing)
+            |> List.map (\tl -> (tl.pos, tl.id, TL.asDB tl |> deMaybe "asDB"))
+            |> List.sortBy (\(_, _, db) -> db.name)
+
+      dbHtml (pos, tlid, db) =
+        div "simple-route"
+          [ text "name" db.name, undoButton tlid (Toplevels pos)]
 
       routes = div "dbs" (List.map dbHtml dbs)
   in section "DBs" dbs Nothing routes
@@ -278,20 +362,15 @@ viewUserFunctions m =
             |> List.filter
               (\fn -> B.isF fn.metadata.name)
 
-      fnLink fn isUsed text =
-        Url.linkFor
-          (Fn fn.tlid Defaults.fnPos)
-          (if isUsed then "default-link" else "default-link unused")
-          [Html.text text]
-
       fnNamedLink fn name =
         let useCount = countFnUsage m name
         in if useCount == 0
           then
             [ span "name" [ fnLink fn False name ]
-              , link
-                (fontAwesome "minus-circle")
-                (DeleteUserFunction fn.tlid)
+              , buttonLink
+                  (fontAwesome "minus-circle")
+                  (DeleteUserFunction fn.tlid)
+                  Nothing
             ]
           else
             let countedName = name ++ " (" ++ (toString useCount) ++ ")"
@@ -315,10 +394,11 @@ viewUserFunctions m =
 
 viewRoutingTable : Model -> Html.Html Msg
 viewRoutingTable m =
-  let sections = viewRoutes m
-                 ++ [viewDBs m]
-                 ++ [view404s m]
+  let sections = viewRoutes m.toplevels CollapseVerbs ShowLink DontShowUndo
+                 ++ [viewDBs m.toplevels]
+                 ++ [view404s m.f404s]
                  ++ [viewUserFunctions m]
+                 ++ [viewDeletedTLs m.deletedToplevels]
       html = Html.div
                [ Attrs.class "viewing-table"
                , nothingMouseEvent "mouseup"
