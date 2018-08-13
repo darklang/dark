@@ -38,6 +38,31 @@ let fns : Lib.shortfn list = [
   }
   ;
 
+  { pns = ["DB::getMany_v1"]
+  ; ins = []
+  ; p = [par "keys" TList; par "table" TDB]
+  ; r = TList
+  ; d = "Finds many values in `table` by `keys, returning a [[key, value]] list of lists"
+  ; f = InProcess
+        (function
+          | (state, [DList keys; DDB db]) ->
+            let skeys =
+              List.map
+                ~f:(function
+                    | DStr s -> s
+                    | t ->
+                      Exception.user
+                        "Expected a string, got: "
+                        ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
+                keys
+            in
+            User_db.fetch_many_by_key state db skeys
+          | args -> fail args)
+  ; pr = None
+  ; ps = true
+  }
+  ;
+
   { pns = ["DB::delete_v1"]
   ; ins = []
   ; p = [par "key" TStr; par "table" TDB]
