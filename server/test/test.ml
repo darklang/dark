@@ -94,10 +94,13 @@ let f a = Filled (fid (), a)
 let fncall (a,b) = f (FnCall (a,b))
 let tlid = Int63.of_int 7
 let dbid = Int63.of_int 89
+let dbid2 = Int63.of_int 189
 let colnameid = Int63.of_int 11
 let coltypeid = Int63.of_int 12
 let colnameid2 = Int63.of_int 13
 let coltypeid2 = Int63.of_int 14
+let colnameid3 = Int63.of_int 15
+let coltypeid3 = Int63.of_int 16
 let pos = {x=0;y=0}
 let execution_id = Int63.of_int 6542
 
@@ -859,9 +862,9 @@ let t_nothing () =
 let t_db_write_deprecated_read_new () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   (* DID and DUUID deliberately do not unify, but we don't want to break
@@ -880,9 +883,9 @@ let t_db_write_deprecated_read_new () =
 let t_db_read_deprecated_write_new_duuid () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let new_write (DB::set_v1 (obj (x 'foo')) (toString (Uuid::generate)) MyDB)
@@ -900,12 +903,12 @@ let t_db_read_deprecated_write_new_duuid () =
 let t_db_new_query_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
-            ; Op.AddDBCol (dbid, 13, 14)
-            ; Op.SetDBColName (dbid, 13, "y")
-            ; Op.SetDBColType (dbid, 14, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.AddDBCol (dbid, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid2, "y")
+            ; Op.SetDBColType (dbid, coltypeid2, "Str")
             ]
   in
   let ast = "(let dontfind (DB::set_v1 (obj (x 'foo') (y 'bar')) 'hello' MyDB)
@@ -920,9 +923,9 @@ let t_db_new_query_works () =
 let t_db_set_does_upsert () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
             ]
   in
   let ast = "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
@@ -937,9 +940,9 @@ let t_db_set_does_upsert () =
 let t_db_get_many_works () =
   clear_test_data ();
   let ops = [ Op.CreateDB (dbid, pos, "MyDB")
-            ; Op.AddDBCol (dbid, 11, 12)
-            ; Op.SetDBColName (dbid, 11, "x")
-            ; Op.SetDBColType (dbid, 12, "Str")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid2)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid2, "Str")
             ]
   in
   let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
@@ -951,7 +954,37 @@ let t_db_get_many_works () =
     (DBool true)
     (exec_handler ~ops ast)
 
-
+let t_db_deprecated_belongs_to_works () =
+  clear_test_data ();
+  let ops = [ Op.CreateDB (dbid, pos, "MyDB")
+            ; Op.AddDBCol (dbid, colnameid, coltypeid)
+            ; Op.SetDBColName (dbid, colnameid, "x")
+            ; Op.SetDBColType (dbid, coltypeid, "Str")
+            ; Op.CreateDB (dbid2, pos, "SecondDB")
+            ; Op.AddDBCol (dbid2, colnameid2, coltypeid2)
+            ; Op.SetDBColName (dbid2, colnameid2, "y")
+            ; Op.SetDBColType (dbid2, coltypeid2, "Int")
+            ; Op.AddDBCol (dbid, colnameid3, coltypeid3)
+            ; Op.SetDBColName (dbid, colnameid3, "relation")
+            ; Op.SetDBColType (dbid, coltypeid3, "SecondDB")
+            ]
+  in
+  let ast = "(let oldin (DB::insert (obj (x 'foo') (relation (obj (y 4)))) MyDB)
+               (List::head (DB::fetchAll MyDB)))"
+  in
+  let result = exec_handler ~ops ast in
+  ignore (Log.inspect "result" result);
+  AT.check AT.int
+  "Deprecated BelongsTo works"
+  0 (match result with
+     | DObj o ->
+       (match (DvalMap.find o "x", DvalMap.find o "relation") with
+        | (Some (DStr "foo"), Some (DObj inner)) ->
+          (match (DvalMap.find inner "y") with
+           | Some (DInt 4) -> 0
+           | _ -> 1)
+        | _ -> 1)
+     | _ -> 1)
 
 
 (* ------------------- *)
@@ -1009,8 +1042,9 @@ let suite =
   ; "New DB code can read old writes", `Quick, t_db_write_deprecated_read_new
   ; "Old DB code can read new writes with UUID key", `Quick, t_db_read_deprecated_write_new_duuid
   ; "New query function works", `Quick, t_db_new_query_works
-  ; "DB::set_v1 upsets", `Quick, t_db_new_query_works
+  ; "DB::set_v1 upserts", `Quick, t_db_new_query_works
   ; "DB::getMany_v1 works", `Quick, t_db_get_many_works
+  ; "Deprecated BelongsTo works", `Quick, t_db_deprecated_belongs_to_works
   ]
 
 let () =

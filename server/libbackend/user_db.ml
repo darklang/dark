@@ -220,10 +220,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             * than child->parent. child->parent seems hard with our
             * single-table, json blob approach though *)
            (try
-              fetch_by ~state dep_table "id" dv
-              |> function
-                DList l -> List.hd_exn l
-                | _ -> Exception.internal "bad fetch"
+              fetch_by_key ~state dep_table (dv |> dv_to_id "key" |> Uuidm.to_string)
             with
             | Exception.DarkException e as original ->
               (match e.tipe with
@@ -237,14 +234,12 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
          | err -> Exception.user (type_error_msg table TID err)))
     ~has_many:(fun table ids ->
         let dep_table = find_db_exn state.dbs table in
-        ids
-        |> List.map
-          ~f:(fun id ->
-              (match fetch_by ~state dep_table "id" id with
-                | DList xs -> xs
-                | _ -> Exception.internal "bad fetch from deprecated has many"))
-        |> List.concat
-        |> DList)
+        let skeys =
+          List.map
+            ~f:(fun i -> i |> dv_to_id "has_many key" |> Uuidm.to_string)
+            ids
+        in
+        fetch_many_by_key ~state dep_table skeys)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
@@ -256,7 +251,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           | Some existing -> update ~state dep_table m; existing
           | None ->
             let key = Util.create_uuid () in
-            let _  = insert ~state dep_table (key |> Uuidm.to_string) m in
+            ignore (insert ~state ~upsert:false dep_table (key |> Uuidm.to_string) m);
             DID key)
        | DNull -> (* allow nulls for now *)
          DNull
@@ -322,8 +317,7 @@ and update ~state db (vals: dval_map) = (* deprecated: unneccessary in new world
             ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
-
-let fetch_by_key ~state (db: db) (key: string) : dval =
+and fetch_by_key ~state (db: db) (key: string) : dval =
   Db.fetch_one
     ~name:"find_by_key"
     "SELECT data
@@ -334,7 +328,7 @@ let fetch_by_key ~state (db: db) (key: string) : dval =
      AND user_version = $4
      AND dark_version = $5
      AND key = $6"
-    ~params:[ Int db.tlid
+    ~params:[ ID db.tlid
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; Int db.version
@@ -342,8 +336,7 @@ let fetch_by_key ~state (db: db) (key: string) : dval =
             ; String key
             ]
   |> to_obj ~state db
-
-let fetch_many_by_key ~state (db: db) (keys: string list) : dval =
+and fetch_many_by_key ~state (db: db) (keys: string list) : dval =
   Db.fetch
     ~name:"fetch_many_by_key"
     "SELECT key, data
@@ -354,7 +347,7 @@ let fetch_many_by_key ~state (db: db) (keys: string list) : dval =
      AND user_version = $4
      AND dark_version = $5
      AND key IN ($6)"
-    ~params:[ Int db.tlid
+    ~params:[ ID db.tlid
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; Int db.version
