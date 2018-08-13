@@ -95,6 +95,7 @@ type TimerAction = RefreshAnalysis
 
 type alias GlobalVariable = String
 type alias RPCResult = ( List Toplevel
+                       , List Toplevel -- deleted
                        , List TLAResult
                        , List GlobalVariable
                        , List UserFunction
@@ -104,11 +105,7 @@ type alias GetAnalysisResult = ( List TLAResult
                                , List GlobalVariable
                                , List FourOhFour
                                , List TLID)
-type alias InitialLoadResult = ( List Toplevel
-                               , List TLAResult
-                               , List GlobalVariable
-                               , List UserFunction
-                               , List TLID)
+type alias InitialLoadResult = RPCResult
 type Msg
     = GlobalClick MouseEvent
     | NothingClick MouseEvent
@@ -159,6 +156,7 @@ type Msg
     | CreateFunction
     | ExtractFunction
     | DeleteUserFunction TLID
+    | RestoreToplevel TLID
 
 type alias Predecessor = Maybe PointerData
 type alias Successor = Maybe PointerData
@@ -399,7 +397,6 @@ type alias Toplevel = { id : TLID
                       , data : TLData
                       }
 
-
 -----------------------------
 -- Analysis
 -----------------------------
@@ -446,6 +443,7 @@ type alias Model = { error : Maybe String
                    , currentPage : Page
                    , hovering : List ID
                    , toplevels : List Toplevel
+                   , deletedToplevels : List Toplevel
                    , analysis : List TLAResult
                    , globals : List GlobalVariable
                    , f404s : List FourOhFour
@@ -494,6 +492,8 @@ type Modification = Error String
                   | RemoveToplevel Toplevel
                   | SetToplevels (List Toplevel) Bool
                   | UpdateToplevels (List Toplevel) Bool
+                  | SetDeletedToplevels (List Toplevel)
+                  | UpdateDeletedToplevels (List Toplevel)
                   | UpdateAnalysis (List TLAResult)
                   | SetGlobalVariables (List GlobalVariable)
                   | SetUserFunctions (List UserFunction) Bool

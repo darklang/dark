@@ -427,8 +427,10 @@ updateMod mod (m, cmd) =
                          TLFunc f -> m2
                    Nothing ->
                      m2
+            m4 = { m3 | deletedToplevels =
+                          TL.removeByTLID m3.deletedToplevels tls }
         in
-        processAutocompleteMods m3 [ ACRegenerate ]
+        processAutocompleteMods m4 [ ACRegenerate ]
 
       UpdateToplevels tls updateCurrent ->
         let m2 = TL.upsertAll m tls
@@ -446,8 +448,28 @@ updateMod mod (m, cmd) =
                          TLFunc f -> m2
                    Nothing ->
                      m2
+            m4 = { m3 | deletedToplevels =
+                          TL.removeByTLID m3.deletedToplevels tls }
         in
-        processAutocompleteMods m3 [ ACRegenerate ]
+        processAutocompleteMods m4 [ ACRegenerate ]
+
+      UpdateDeletedToplevels dtls ->
+        let m2 = { m | deletedToplevels =
+                         TL.upsertAllByTLID m.deletedToplevels dtls
+                     , toplevels = TL.removeByTLID m.toplevels dtls
+                 }
+        in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+      SetDeletedToplevels dtls ->
+        let m2 = { m | deletedToplevels = dtls
+                     , toplevels = TL.removeByTLID m.toplevels dtls
+                 }
+        in
+        processAutocompleteMods m2 [ ACRegenerate ]
+
+
+
 
 
 
@@ -1264,14 +1286,23 @@ update_ msg m =
     DeleteUserFunction tlid ->
       RPC ([DeleteFunction tlid], FocusNothing)
 
+    RestoreToplevel tlid ->
+      RPC ([UndoTL tlid], FocusSame)
+
     -----------------
     -- RPCs stuff
     -----------------
     RPCCallback focus calls
-      (Ok (newToplevels, newAnalysis, globals, userFuncs, unlockedDBs)) ->
+      (Ok ( newToplevels
+          , newDeletedToplevels
+          , newAnalysis
+          , globals
+          , userFuncs
+          , unlockedDBs)) ->
       if focus == FocusNoChange
       then
         Many [ UpdateToplevels newToplevels False
+             , UpdateDeletedToplevels newDeletedToplevels
              , UpdateAnalysis newAnalysis
              , SetGlobalVariables globals
              , SetUserFunctions userFuncs False
@@ -1283,6 +1314,7 @@ update_ msg m =
             m3 = { m2 | userFunctions = userFuncs }
             newState = processFocus m3 focus
         in Many [ UpdateToplevels newToplevels True
+                , UpdateDeletedToplevels newDeletedToplevels
                 , UpdateAnalysis newAnalysis
                 , SetGlobalVariables globals
                 , SetUserFunctions userFuncs True
@@ -1293,10 +1325,16 @@ update_ msg m =
                 ]
 
     InitialLoadRPCCallback focus extraMod
-      (Ok (toplevels, new_analysis, globals, userFuncs, unlockedDBs)) ->
+      (Ok ( toplevels
+          , deletedToplevels
+          , new_analysis
+          , globals
+          , userFuncs
+          , unlockedDBs)) ->
       let m2 = { m | toplevels = toplevels, userFunctions = userFuncs }
           newState = processFocus m2 focus
       in Many [ SetToplevels toplevels True
+              , SetDeletedToplevels deletedToplevels
               , UpdateAnalysis new_analysis
               , SetGlobalVariables globals
               , SetUserFunctions userFuncs True
