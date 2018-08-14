@@ -403,5 +403,10 @@ upsert_account
     ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkTHhZV0RvZEFvVVBJdmVJeWdTS3E1ZyQ2ejJFV3lJUDgvdTBnMjZ1R0JRaVhEQWZHSHNSU0RNSVRUazAwL2dBUytrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
     ; email = "ops@darklang.com"
     ; name = "WWW user"};
+  upsert_account
+    { username = "elliot"
+    ; password = "JGFyZ29uMmkkdj0xOSRtPTMyNzY4LHQ9NCxwPTEkV1BrajJVWTd0eG1BYzFYd21NMHo5ZyRCcGFuOVBUSDZyRHBzenRybVZSOWF0ZUVZKytRY29uU2x6SjVjc3dvdERrAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    ; email = "elliot@venturemedias.com"
+    ; name = "Elliot Nash"};
   ()
 
