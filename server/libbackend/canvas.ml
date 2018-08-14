@@ -311,7 +311,7 @@ let validate_op host op =
 let check_tier_one_hosts () : unit =
   let hosts = Serialize.tier_one_hosts () in
   List.iter hosts
-    ~f:(fun host -> let _ = load_all host [] in ())
+    ~f:(fun host -> ignore (load_all host []))
 
 let check_all_hosts () : unit =
   let hosts = Serialize.current_hosts () in
