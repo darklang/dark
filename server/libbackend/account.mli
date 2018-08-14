@@ -11,7 +11,7 @@ val authenticate : username:username -> password:string -> bool
 (* hash a password to the format expected in account documents. *)
 val hash_password : string -> string
 
-(* can username edit auth_domain, in admin/ui *)
+(* get the permissions that username has in authdomain *)
 val get_permissions : auth_domain:string -> username:username -> unit -> permissions
 
 (* For a host, what user do we expect *)
