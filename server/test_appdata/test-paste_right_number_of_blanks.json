@@ -29,8 +29,8 @@
         "name": [ "Blank", 970157869 ],
         "modifier": [ "Blank", 3156506510 ],
         "types": {
-          "input": [ "Filled", 3719422855, [ "Any" ] ],
-          "output": [ "Filled", 1293943927, [ "Any" ] ]
+          "input": [ "Blank", 3719422855 ],
+          "output": [ "Blank", 1293943927 ]
         }
       }
     }
@@ -55,8 +55,8 @@
         "name": [ "Blank", 537191515 ],
         "modifier": [ "Blank", 149567067 ],
         "types": {
-          "input": [ "Filled", 1645640118, [ "Any" ] ],
-          "output": [ "Filled", 981592675, [ "Any" ] ]
+          "input": [ "Blank", 1645640118 ],
+          "output": [ "Blank", 981592675 ]
         }
       }
     }
