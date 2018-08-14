@@ -99,7 +99,8 @@ let fns : Lib.shortfn list = [
   ; ins = []
   ; p = [par "spec" TObj; par "table" TDB]
   ; r = TList
-  ; d = "Fetch all the values from `table` which have the same fields and values that `spec` has"
+  ; d = "Fetch all the values from `table` which have the same fields and values that `spec` has
+        , returning a [[key, value]] list of lists"
   ; f = InProcess
         (function
           | (state, [DObj map; DDB db]) ->
