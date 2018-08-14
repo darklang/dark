@@ -12,8 +12,8 @@
         "name": [ "Blank", 1686646085 ],
         "modifier": [ "Blank", 1312698291 ],
         "types": {
-          "input": [ "Filled", 1985365542, [ "Any" ] ],
-          "output": [ "Filled", 2118262029, [ "Any" ] ]
+          "input": [ "Blank", 1985365542 ],
+          "output": [ "Blank", 2118262029 ]
         }
       }
     }
