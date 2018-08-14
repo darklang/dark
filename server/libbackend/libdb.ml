@@ -35,7 +35,7 @@ let fetch_by_field ~state fieldname fieldvalue db =
             ("Expected an ID or a String at 'id' but got: "
             ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)))
     in
-    User_db.fetch_by_key state db skey
+    User_db.get state db skey
   else
     User_db.fetch_by state db fieldname fieldvalue
 

@@ -220,7 +220,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             * than child->parent. child->parent seems hard with our
             * single-table, json blob approach though *)
            (try
-              fetch_by_key ~state dep_table (dv |> dv_to_id "key" |> Uuidm.to_string)
+              get ~state dep_table (dv |> dv_to_id "key" |> Uuidm.to_string)
             with
             | Exception.DarkException e as original ->
               (match e.tipe with
@@ -239,7 +239,7 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             ~f:(fun i -> i |> dv_to_id "has_many key" |> Uuidm.to_string)
             ids
         in
-        fetch_many_by_key ~state dep_table skeys)
+        get_many ~state dep_table skeys)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
@@ -317,9 +317,9 @@ and update ~state db (vals: dval_map) = (* deprecated: unneccessary in new world
             ; ID db.tlid
             ; Int db.version
             ; Int current_dark_version]
-and fetch_by_key ~state (db: db) (key: string) : dval =
+and get ~state (db: db) (key: string) : dval =
   Db.fetch_one
-    ~name:"find_by_key"
+    ~name:"get"
     "SELECT data
      FROM user_data
      WHERE table_tlid = $1
@@ -336,9 +336,9 @@ and fetch_by_key ~state (db: db) (key: string) : dval =
             ; String key
             ]
   |> to_obj ~state db
-and fetch_many_by_key ~state (db: db) (keys: string list) : dval =
+and get_many ~state (db: db) (keys: string list) : dval =
   Db.fetch
-    ~name:"fetch_many_by_key"
+    ~name:"get_many"
     "SELECT key, data
      FROM user_data
      WHERE table_tlid = $1
@@ -359,7 +359,7 @@ and fetch_many_by_key ~state (db: db) (keys: string list) : dval =
         match return_val with
         (* TODO(ian): change `to_obj` to just take a string *)
         | [key; data] -> DList [DStr key; to_obj ~state db [data]]
-        | _ -> Exception.internal "bad format received in fetch_all")
+        | _ -> Exception.internal "bad format received in get_many")
   |> DList
 
 let get_all ~state (db: db) : dval =

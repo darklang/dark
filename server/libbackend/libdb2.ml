@@ -31,7 +31,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DStr key; DDB db]) ->
-            User_db.fetch_by_key state db key
+            User_db.get state db key
           | args -> fail args)
   ; pr = None
   ; ps = true
@@ -56,7 +56,7 @@ let fns : Lib.shortfn list = [
                         ^ (t |> Dval.tipe_of |> Dval.tipe_to_string))
                 keys
             in
-            User_db.fetch_many_by_key state db skeys
+            User_db.get_many state db skeys
           | args -> fail args)
   ; pr = None
   ; ps = true
