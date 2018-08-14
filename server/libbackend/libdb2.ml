@@ -112,7 +112,7 @@ let fns : Lib.shortfn list = [
   }
   ;
 
-  { pns = ["DB::fetchAll_v1"]
+  { pns = ["DB::getAll_v1"]
   ; ins = []
   ; p = [par "table" TDB]
   ; r = TList
@@ -121,7 +121,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            User_db.fetch_all state db
+            User_db.get_all state db
           | args -> fail args)
   ; pr = None
   ; ps = true

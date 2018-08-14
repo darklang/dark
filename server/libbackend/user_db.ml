@@ -362,9 +362,9 @@ and fetch_many_by_key ~state (db: db) (keys: string list) : dval =
         | _ -> Exception.internal "bad format received in fetch_all")
   |> DList
 
-let fetch_all ~state (db: db) : dval =
+let get_all ~state (db: db) : dval =
   Db.fetch
-    ~name:"fetch_all"
+    ~name:"get_all"
     "SELECT key, data
      FROM user_data
      WHERE table_tlid = $1
@@ -382,7 +382,7 @@ let fetch_all ~state (db: db) : dval =
         match return_val with
         (* TODO(ian): change `to_obj` to just take a string *)
         | [key; data] -> DList [DStr key; to_obj ~state db [data]]
-        | _ -> Exception.internal "bad format received in fetch_all")
+        | _ -> Exception.internal "bad format received in get_all")
   |> DList
 
 let delete ~state (db: db) (key: string) =
