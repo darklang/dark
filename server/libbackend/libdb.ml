@@ -52,7 +52,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj value; DDB db]) ->
             let key = Util.create_uuid () in
             ignore
-              (User_db.insert
+              (User_db.set
                  ~state
                  ~upsert:false
                  db (Uuidm.to_string key) value);
