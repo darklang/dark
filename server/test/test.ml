@@ -576,7 +576,7 @@ let t_nulls_added_to_missing_column () =
   in
   check_dval "equal_after_fetchall"
     (DList [DStr "i"; (DObj (DvalMap.of_alist_exn ["x", DStr "v"; "y", DNull]))])
-    (exec_handler ~ops "(List::head (DB::fetchAll_v1 MyDB))")
+    (exec_handler ~ops "(List::head (DB::getAll_v1 MyDB))")
 
 let t_analysis_not_empty () =
   clear_test_data ();
@@ -930,7 +930,7 @@ let t_db_set_does_upsert () =
   in
   let ast = "(let old (DB::set_v1 (obj (x 'foo')) 'hello' MyDB)
                (let new (DB::set_v1 (obj (x 'bar')) 'hello' MyDB)
-                (let results (DB::fetchAll_v1 MyDB)
+                (let results (DB::getAll_v1 MyDB)
                  (== (('hello' new)) results))))"
   in
   check_dval "equal_after_roundtrip"
@@ -947,7 +947,7 @@ let t_db_get_many_works () =
   in
   let ast = "(let one (DB::set_v1 (obj (x 'foo')) 'one' MyDB)
               (let two (DB::set_v1 (obj (x 'bar')) 'two' MyDB)
-               (let results (DB::fetchAll_v1 MyDB)
+               (let results (DB::getAll_v1 MyDB)
                 (== (('one' one) ('two' two)) results))))"
   in
   check_dval "equal_after_roundtrip"

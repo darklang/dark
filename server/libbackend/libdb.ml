@@ -231,7 +231,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DDB db]) ->
-            (match User_db.fetch_all state db with
+            (match User_db.get_all state db with
              | DList pairs ->
                pairs
                |> List.map
