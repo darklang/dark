@@ -1,3 +1,5 @@
+open Core_kernel
+
 open Libexecution
 open Types.RuntimeT
 
@@ -26,8 +28,15 @@ let state env : Libexecution.Types.RuntimeT.exec_state =
   }
 
 let perform_analysis (str : string) : string =
-  let env = Libexecution.Types.RuntimeT.DvalMap.empty in
-  Libexecution.Ast_analysis.execute_ast (state env) env (Filled (0, (Value "5")))
-  |> Dval.dval_to_json_string
+  let env = DvalMap.empty in
+  let handler =
+    str
+    |> Yojson.Safe.from_string
+    |> HandlerT.handler_of_yojson
+    |> Result.ok_or_failwith
+  in
+  Ast_analysis.execute_handler_for_analysis (state env) handler
+  |> Ast_analysis.analysis_to_yojson
+  |> Yojson.Safe.to_string
 
 

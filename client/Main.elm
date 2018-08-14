@@ -152,8 +152,8 @@ port mousewheel : ((List Int) -> msg) -> Sub msg
 port displayError : (String -> msg) -> Sub msg
 port setStorage : String -> Cmd a
 port sendRollbar : JSD.Value -> Cmd a
-port requestAnalysis : String -> Cmd msg
-port receiveAnalysis : (String -> msg) -> Sub msg
+port requestAnalysis : JSE.Value -> Cmd msg
+port receiveAnalysis : (JSE.Value -> msg) -> Sub msg
 
 -----------------------
 -- updates
@@ -528,9 +528,9 @@ updateMod mod (m, cmd) =
 
       RequestAnalysis tls ->
         let param = tls
-                    |> List.map .id
-                    |> RPC.encodeAnalysisParams
-                    |> JSE.encode 0
+                    |> List.filterMap TL.asHandler
+                    |> List.map RPC.encodeHandler
+                    |> JSE.list
         in
         m ! [ requestAnalysis param ]
 
@@ -1457,9 +1457,11 @@ update_ msg m =
            , SetUnlockedDBs unlockedDBs
            ]
 
-    ReceiveAnalysis str ->
-      let _ = Debug.log "received analysis" str in
-      NoChange
+    ReceiveAnalysis json ->
+      let analysis = JSD.decodeValue (JSD.list RPC.decodeTLAResult) json in
+      case analysis of
+        Ok analysis -> UpdateAnalysis analysis
+        Err str -> DisplayError str
 
     ------------------------
     -- plumbing
