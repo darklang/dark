@@ -364,10 +364,28 @@ let save_test_handler ~(execution_id: Types.id) host =
 
 let auth_then_handle ~(execution_id: Types.id) req host handler =
   let path = req |> CRequest.uri |> Uri.path in
+  let headers = req |> CRequest.headers in
   if not (String.is_prefix ~prefix:"/admin" path)
   then
     handler (Header.init ())
   else
+    let run_handler ~auth_domain ~username headers =
+      let permission = Account.get_permissions ~auth_domain ~username () in
+      let permission_needed =
+        if (String.is_prefix ~prefix:"/admin/ops/" path)
+        then `Operations
+        else if (String.is_prefix ~prefix:"/admin" path)
+        then `Edit
+        else `None
+      in
+      match (permission_needed, permission) with
+      | (_, Account.CanAccessOperations)
+      | (`None, _)
+      | (`Edit, Account.CanEdit) ->
+        handler headers
+      | _ -> respond ~execution_id `Unauthorized "Unauthorized"
+    in
+
     (* only handle auth for admin routes *)
     (* let users use their domain as a prefix for scratch work *)
     let auth_domain = Account.auth_domain_for host in
@@ -381,29 +399,19 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
              (Auth.Session.clear_hdrs Auth.Session.cookie_key)) in
         S.respond_redirect ~headers ~uri:(Uri.of_string "/admin/ui") ())
       else
-        (let username = Auth.Session.username_for session in
-         if Account.can_edit ~auth_domain ~username
-         then
-           handler (Header.init ())
-         else
-           respond ~execution_id `Unauthorized "Unauthorized")
+        let username = Auth.Session.username_for session in
+        run_handler ~auth_domain ~username (Header.init ())
     | _ ->
-      let auth =
-        req
-        |> CRequest.headers
-        |> Header.get_authorization
-      in
-      match auth with
+      match Header.get_authorization headers with
       | (Some (`Basic (username, password))) ->
         (if Account.authenticate ~username ~password
-            && Account.can_edit ~auth_domain ~username
          then
            let%lwt session = Auth.Session.new_for_username username in
            let headers =
              Header.of_list
                (Auth.Session.to_cookie_hdrs Auth.Session.cookie_key session)
            in
-           handler headers
+           run_handler ~auth_domain ~username headers
          else
           respond ~execution_id `Unauthorized "Bad credentials")
       | None ->
@@ -411,8 +419,8 @@ let auth_then_handle ~(execution_id: Types.id) req host handler =
       | _ ->
         respond ~execution_id `Unauthorized "Invalid session"
 
-let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper ~(body: string)
-    (req: CRequest.t) resp_headers =
+let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopper
+  ~(body: string) (req: CRequest.t) resp_headers =
   let verb = req |> CRequest.meth in
   let json_hdrs hdrs =
     Header.add_list resp_headers
@@ -473,11 +481,11 @@ let admin_handler ~(execution_id: Types.id) ~(host: string) ~(uri: Uri.t) ~stopp
       ~resp_headers:html_hdrs
       ~execution_id
       `OK body
-  | (`POST, "/admin/check-all-oplists") ->
+  | (`POST, "/admin/ops/check-all-canvases") ->
     Canvas.check_all_hosts ();
     respond ~execution_id `OK "Checked"
-  | (`GET, "/admin/check-all-oplists") ->
-    respond ~execution_id `OK "<html><body><form action='/admin/check-all-oplists' method='post'><input type='submit' value='Check all oplists'></form></body></html>"
+  | (`GET, "/admin/ops/check-all-canvases") ->
+    respond ~execution_id `OK "<html><body><form action='/admin/ops/check-all-canvases' method='post'><input type='submit' value='Check all canvases></form></body></html>"
   | _ ->
     respond ~execution_id `Not_found "Not found"
 
