@@ -6,22 +6,18 @@ open Runtime
 open Types.RuntimeT
 
 let coerce_key_value_pair_to_legacy_object pair =
-  let id =
-    (match List.hd_exn pair with
-     | DStr s ->
-       (match Uuidm.of_string s with
-        | Some id -> DID id
-        | None -> DStr s)
-     | _ ->
-       Exception.internal "Error with backport; bad type for key")
-  in
-  let value =
-    (match List.last_exn pair with
-     | DObj o -> o
-     | _ ->
-       Exception.internal "bad format from fetch; expected object")
-  in
-  DObj (Map.set ~key:"id" ~data:id value)
+  match pair with
+  | [DStr s; DObj o] ->
+    let id =
+      (match Uuidm.of_string s with
+      | Some id -> DID id
+      | None -> DStr s)
+    in
+    DObj (Map.set ~key:"id" ~data:id o)
+  | err ->
+    Exception.internal
+      ("Unexpected shape, unable to coerce to legacy format: "
+       ^ (Libcommon.Log.dump err))
 
 let fetch_by_field ~state fieldname fieldvalue db =
   if fieldname = "id"
