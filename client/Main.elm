@@ -1533,6 +1533,7 @@ update_ msg m =
                 , output = B.new ()
                 }
               }
+            , tlid = anId
             }
       in
         RPC ([SetHandler anId aPos aHandler], FocusNothing)
