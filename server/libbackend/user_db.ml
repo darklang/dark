@@ -251,7 +251,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           | Some existing -> update ~state dep_table m; existing
           | None ->
             let key = Util.create_uuid () in
-            ignore (insert ~state ~upsert:false dep_table (key |> Uuidm.to_string) m);
+            ignore (set ~state ~upsert:false dep_table (key |> Uuidm.to_string) m);
             DID key)
        | DNull -> (* allow nulls for now *)
          DNull
@@ -271,7 +271,7 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
                | err -> Exception.user (type_error_msg table TObj err)))
         |> DList)
     ~state db obj
-and insert ~state ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
+and set ~state ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
   let id = Util.create_uuid () in
   let merged = type_check_and_upsert_dependents ~state db vals in
   let query =
@@ -286,7 +286,7 @@ and insert ~state ~upsert (db: db) (key: string) (vals: dval_map) : Uuidm.t =
       s
   in
   Db.run
-    ~name:"user_insert"
+    ~name:"user_set"
     query
     ~params:[ Uuid id
             ; Uuid state.account_id
