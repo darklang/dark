@@ -75,22 +75,19 @@ let dequeue transaction : t option =
 
 let begin_transaction () =
   let id = Util.create_id () in
-  let _ =
-    Db.run
-      ~name:"start_transaction"
-      ~params:[]
-      "BEGIN"
-  in
+  ignore
+    (Db.run
+       ~name:"start_transaction"
+       ~params:[]
+       "BEGIN");
   id
 
 let end_transaction t =
-  let _ =
-    Db.run
+  ignore
+    (Db.run
       ~name:"end_transaction"
       ~params:[]
-      "COMMIT"
-  in
-  ()
+      "COMMIT")
 
 let with_transaction f =
   let transaction = begin_transaction () in

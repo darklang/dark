@@ -23,6 +23,22 @@ let coerce_key_value_pair_to_legacy_object pair =
   in
   DObj (Map.set ~key:"id" ~data:id value)
 
+let fetch_by_field ~state fieldname fieldvalue db =
+  if fieldname = "id"
+  then
+    let skey =
+      (match fieldvalue with
+        | DID id -> Uuidm.to_string id
+        | DStr s -> s
+        | x ->
+          Exception.user
+            ("Expected an ID or a String at 'id' but got: "
+            ^ (x |> Dval.tipe_of |> Dval.tipe_to_string)))
+    in
+    User_db.fetch_by_key state db skey
+  else
+    User_db.fetch_by state db fieldname fieldvalue
+
 
 let fns : Lib.shortfn list = [
 
@@ -35,12 +51,11 @@ let fns : Lib.shortfn list = [
         (function
           | (state, [DObj value; DDB db]) ->
             let key = Util.create_uuid () in
-            let _ =
-              User_db.insert
-                ~state
-                ~upsert:false
-                db (Uuidm.to_string key) value
-            in
+            ignore
+              (User_db.insert
+                 ~state
+                 ~upsert:false
+                 db (Uuidm.to_string key) value);
             DObj (Map.set value "id" (DID key))
           | args -> fail args)
   ; pr = None
@@ -112,7 +127,8 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
-            (match User_db.fetch_by state db field value with
+            let result = fetch_by_field ~state field value db in
+            (match result with
              | DList pairs ->
                pairs
                |> List.map
@@ -138,7 +154,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [value; DStr field; DDB db]) ->
-            let result = User_db.fetch_by state db field value in
+            let result = fetch_by_field ~state field value db in
             (match result with
              | DList (x :: xs) ->
                (match x with

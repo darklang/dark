@@ -15,7 +15,7 @@ let fns : Lib.shortfn list = [
   ; f = InProcess
         (function
           | (state, [DObj value; DStr key; DDB db]) ->
-            let _ = User_db.insert ~state ~upsert:true db key value in
+            ignore (User_db.insert ~state ~upsert:true db key value);
             DObj value
           | args -> fail args)
   ; pr = None

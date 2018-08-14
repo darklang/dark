@@ -78,8 +78,7 @@ let writefile ~root (f: string) (str: string) : unit =
   let f = check_filename ~root ~mode:`Write f in
   let flags = [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] in
   Unix.with_file ~perm:0o600 ~mode:flags f
-    ~f:(fun desc ->
-        let _ = Unix.write desc ~buf:(Bytes.of_string str) in ())
+    ~f:(fun desc -> ignore (Unix.write desc ~buf:(Bytes.of_string str)))
 
 let log_to_file ~(filename: string) (value: string)  : 'a =
   writefile ~root:Log filename value;
