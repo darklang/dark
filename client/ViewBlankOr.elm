@@ -305,21 +305,24 @@ viewBlankOr htmlFn pt vs c bo =
   case vs.cursorState of
     Entering (Filling _ thisID) ->
       let id = B.toID bo in
-      if id == thisID && vs.showEntry
+      if id == thisID
       then
-        let allowStringEntry =
-              if pt == Expr
-              then StringEntryAllowed
-              else StringEntryNotAllowed
-            stringEntryWidth =
-              if vs.tooWide
-              then StringEntryShortWidth
-              else StringEntryNormalWidth
-            placeholder = placeHolderFor vs id pt
-        in
-            div vs c
-              ([ ViewEntry.entryHtml
-                  allowStringEntry stringEntryWidth placeholder vs.ac] ++ (viewLiveValue vs))
+        if vs.showEntry
+        then
+          let allowStringEntry =
+                if pt == Expr
+                then StringEntryAllowed
+                else StringEntryNotAllowed
+              stringEntryWidth =
+                if vs.tooWide
+                then StringEntryShortWidth
+                else StringEntryNormalWidth
+              placeholder = placeHolderFor vs id pt
+          in
+              div vs c
+                ([ ViewEntry.entryHtml
+                    allowStringEntry stringEntryWidth placeholder vs.ac] ++ (viewLiveValue vs))
+        else Html.text vs.ac.value
       else thisText
     _ -> thisText
 
