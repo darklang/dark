@@ -37,7 +37,7 @@ let fetch_by_field ~state fieldname fieldvalue db =
     in
     User_db.get state db skey
   else
-    User_db.fetch_by state db fieldname fieldvalue
+    User_db.query_by_one state db fieldname fieldvalue
 
 
 let fns : Lib.shortfn list = [
@@ -177,7 +177,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj map; DDB db]) ->
             map
             |> DvalMap.to_alist
-            |> User_db.fetch_by_many state db
+            |> User_db.query state db
             |>
             (function
               | DList pairs ->
@@ -206,7 +206,7 @@ let fns : Lib.shortfn list = [
         (function
           | (state, [DObj map; DDB db]) ->
             let result =
-              User_db.fetch_by_many state db (DvalMap.to_alist map)
+              User_db.query state db (DvalMap.to_alist map)
             in
             (match result with
              | DList (x :: xs) ->

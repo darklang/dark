@@ -86,7 +86,7 @@ let query_for (col: string) (dv: dval) : string =
      |> Option.value ~default:"")
     (Db.escape (DvalJson dv))
 
-let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
+let rec query ~state db (pairs:(string*dval) list) : dval =
   let conds =
     pairs
     |> List.map ~f:(fun (k,v) -> query_for k v)
@@ -116,8 +116,8 @@ let rec fetch_by_many ~state db (pairs:(string*dval) list) : dval =
         | _ -> Exception.internal "bad format received in fetch_all")
   |> DList
 and
-fetch_by ~state db (col: string) (dv: dval) : dval =
-  fetch_by_many ~state db [(col, dv)]
+query_by_one ~state db (col: string) (dv: dval) : dval =
+  query ~state db [(col, dv)]
 and
 (* PG returns lists of strings. This converts them to types using the
  * row info provided *)

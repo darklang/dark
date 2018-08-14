@@ -105,7 +105,7 @@ let fns : Lib.shortfn list = [
           | (state, [DObj map; DDB db]) ->
             map
             |> DvalMap.to_alist
-            |> User_db.fetch_by_many state db
+            |> User_db.query state db
           | args -> fail args)
   ; pr = None
   ; ps = true
