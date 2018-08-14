@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+. ./scripts/support/assert-in-container $0 $@
+
+set -euo pipefail
+
+PROJECT="balmy-ground-195100"
+ZONE="us-west1"
+CLUSTER="darkcluster1"
+
+gcloud container clusters get-credentials projects/$PROJECT/zones/$ZONE/clusters/$CLUSTER --zone=$ZONE
