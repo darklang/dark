@@ -24,7 +24,35 @@ let find_db (tables: db list) (table_name: string) : db option =
 
 let find_db_exn (tables: db list) (table_name: string) : db =
   find_db tables table_name
-  |> Option.value_exn ~message:("table not found " ^ table_name)
+  |> Option.value_exn ~message:("table not found " ^ table_name ^ " in tables: " ^ (Libcommon.Log.dump tables))
+
+let coerce_key_value_pair_to_legacy_object pair =
+  match pair with
+  | [DStr s; DObj o] ->
+    let id =
+      (match Uuidm.of_string s with
+      | Some id -> DID id
+      | None -> DStr s)
+    in
+    DObj (Map.set ~key:"id" ~data:id o)
+  | err ->
+    Exception.internal
+      ("Unexpected shape, unable to coerce to legacy format: "
+       ^ (Libcommon.Log.dump err))
+
+let coerce_dlist_of_kv_pairs_to_legacy_object dv =
+  match dv with
+  | DList pairs ->
+    pairs
+    |> List.map
+      ~f:(function
+          | DList pair ->
+            coerce_key_value_pair_to_legacy_object pair
+          | _ ->
+            Exception.internal
+              "bad format from internal fetch, unable to coerce to legacy format")
+    |> DList
+  | _ -> Exception.internal "bad fetch"
 
 
 
@@ -239,7 +267,8 @@ and type_check_and_fetch_dependents ~state db obj : dval_map =
             ~f:(fun i -> i |> dv_to_id "has_many key" |> Uuidm.to_string)
             ids
         in
-        get_many ~state dep_table skeys)
+        let result = get_many ~state dep_table skeys in
+        coerce_dlist_of_kv_pairs_to_legacy_object result)
     ~state db obj
 and type_check_and_upsert_dependents ~state db obj : dval_map =
   type_check_and_map_dependents
@@ -263,11 +292,12 @@ and type_check_and_upsert_dependents ~state db obj : dval_map =
           ~f:(fun o ->
               (match o with
                | DObj m ->
-                 type_check_and_upsert_dependents ~state dep_table m
-                 |> fun o -> DvalMap.find o "id"
-                 |> (function
-                      | Some i -> i
-                      | None -> Exception.internal "upsert returned id-less object")
+                (match DvalMap.find m "id" with
+                  | Some existing -> update ~state dep_table m; existing
+                  | None ->
+                    let key = Util.create_uuid () in
+                    ignore (set ~state ~upsert:false dep_table (key |> Uuidm.to_string) m);
+                    DID key)
                | err -> Exception.user (type_error_msg table TObj err)))
         |> DList)
     ~state db obj
@@ -346,13 +376,14 @@ and get_many ~state (db: db) (keys: string list) : dval =
      AND canvas_id = $3
      AND user_version = $4
      AND dark_version = $5
-     AND key IN ($6)"
+     AND key = ANY (string_to_array($6, $7)::text[])"
     ~params:[ ID db.tlid
             ; Uuid state.account_id
             ; Uuid state.canvas_id
             ; Int db.version
             ; Int current_dark_version
             ; List (List.map ~f:(fun s -> String s) keys)
+            ; String Db.array_separator
             ]
   |> List.map
     ~f:(fun return_val ->

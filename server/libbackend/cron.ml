@@ -99,7 +99,7 @@ let check_all_canvases execution_id : (unit, Exception.captured) Result.t =
                       ; "exn", Log.dump e
                       ; "execution_id", Log.dump execution_id
                       ];
-            ignore (Rollbar.report e bt CronChecker (string_of_int execution_id));
+            ignore (Rollbar.report e bt CronChecker (Log.dump execution_id));
             None)
     |> List.iter
          ~f:(fun (endp, c) ->
