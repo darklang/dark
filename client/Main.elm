@@ -406,8 +406,12 @@ updateMod mod (m, cmd) =
         m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
 
       SelectCommand tlid mId ->
-        let newM = { m | cursorState = SelectingCommand tlid mId } in
-        newM ! (closeBlanks newM ++ [Entry.focusEntry newM])
+        let m2 = { m | cursorState = SelectingCommand tlid mId }
+            (m3, acCmd) = processAutocompleteMods m2
+                            [ ACEnableCommandMode
+                            , ACRegenerate ]
+        in
+        m3 ! (closeBlanks m3 ++ [acCmd, Entry.focusEntry m3])
 
 
       SetGlobalVariables globals ->
@@ -1045,9 +1049,9 @@ update_ msg m =
           SelectingCommand tlid mId ->
             case event.keyCode of
               Key.Escape ->
-                Select tlid mId
+                Commands.endCommandExecution m tlid mId
               Key.Enter ->
-                Commands.executeCommand m tlid mId m.complete.value
+                Commands.executeCommand m tlid mId (AC.highlighted m.complete)
               _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange

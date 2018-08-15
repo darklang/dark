@@ -148,6 +148,7 @@ init fns isAdmin =
   , value = ""
   , tipe = Nothing
   , target = Nothing
+  , isCommandMode = False
   }
 
 reset : Model -> Autocomplete -> Autocomplete
@@ -232,7 +233,16 @@ update m mod a =
      ACSelectUp -> selectUp a
      ACSetTarget target -> setTarget m target a
      ACRegenerate -> regenerate m a
+     ACEnableCommandMode -> enableCommandMode m a
   )
+
+------------------------------------
+-- Commands
+------------------------------------
+enableCommandMode : Model -> Autocomplete -> Autocomplete
+enableCommandMode m a =
+  let new = Debug.log "enable" True in
+  { a | isCommandMode = new }
 
 ------------------------------------
 -- Dynamic Items
@@ -587,12 +597,20 @@ generateFromModel m a =
           List.map ACKeyword [KLet, KIf, KLambda]
         else
           []
+      regular =
+        List.map ACExtra extras
+        ++ List.map ACVariable varnames
+        ++ keywords
+        ++ functions
+        ++ fields
+
+      commands =
+        [ACCommand "test"]
     in
-    List.map ACExtra extras
-    ++ List.map ACVariable varnames
-    ++ keywords
-    ++ functions
-    ++ fields
+        if a.isCommandMode
+        then commands
+        else regular
+
 
 asName : AutocompleteItem -> String
 asName aci =
@@ -601,6 +619,7 @@ asName aci =
     ACField name -> name
     ACVariable name -> name
     ACExtra name -> name
+    ACCommand name -> (":" ++ name)
     ACLiteral lit -> lit
     ACOmniAction ac ->
       case ac of
@@ -626,6 +645,7 @@ asTypeString item =
     ACField _ -> "field"
     ACVariable _ -> "variable"
     ACExtra _ -> ""
+    ACCommand _ -> ""
     ACLiteral lit ->
       let tipe = lit |> RT.tipeOf |> RT.tipe2str in
       tipe ++ " literal"

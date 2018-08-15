@@ -210,6 +210,7 @@ type alias Autocomplete = { functions : List Function
                           , value : String
                           , target : Maybe (TLID, PointerData)
                           , tipe : Maybe Tipe
+                          , isCommandMode : Bool
                           }
 
 type StringEntryPermission = StringEntryAllowed
@@ -235,6 +236,7 @@ type AutocompleteItem = ACFunction Function
                       | ACLiteral Literal
                       | ACOmniAction OmniAction
                       | ACKeyword Keyword
+                      | ACCommand String
 
 type alias Target = (TLID, PointerData)
 type AutocompleteMod = ACSetQuery String
@@ -244,6 +246,7 @@ type AutocompleteMod = ACSetQuery String
                      | ACSelectUp
                      | ACSetTarget (Maybe Target)
                      | ACRegenerate
+                     | ACEnableCommandMode
                      -- | ACFilterByParamType Tipe NodeList
 
 
