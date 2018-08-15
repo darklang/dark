@@ -990,10 +990,7 @@ update_ msg m =
                 Key.Up -> AutocompleteMod ACSelectUp -- NB: see `stopKeys` in ui.html
                 Key.Down -> AutocompleteMod ACSelectDown -- NB: see `stopKeys` in ui.html
                 Key.Right ->
-                  let sp = AC.sharedPrefix m.complete in
-                  if sp == "" then NoChange
-                  else
-                    AutocompleteMod <| ACSetQuery sp
+                  AC.selectSharedPrefix m.complete
                 Key.Backspace ->
                   case cursor of
                     Filling tlid id ->
@@ -1052,6 +1049,18 @@ update_ msg m =
                 Commands.endCommandExecution m tlid mId
               Key.Enter ->
                 Commands.executeCommand m tlid mId (AC.highlighted m.complete)
+              Key.P ->
+                if event.ctrlKey
+                then AutocompleteMod ACSelectUp
+                else NoChange
+              Key.N ->
+                if event.ctrlKey
+                then AutocompleteMod ACSelectDown
+                else NoChange
+              Key.Up -> AutocompleteMod ACSelectUp -- NB: see `stopKeys` in ui.html
+              Key.Down -> AutocompleteMod ACSelectDown -- NB: see `stopKeys` in ui.html
+              Key.Right -> AC.selectSharedPrefix m.complete
+
               _ -> NoChange
 
           Dragging _ _ _ _ -> NoChange

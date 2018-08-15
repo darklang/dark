@@ -24,3 +24,14 @@ endCommandExecution m tlid mId =
     [ AutocompleteMod ACReset
     , Select tlid mId
     ]
+
+
+commands : List String
+commands =
+  [ "extract-function"
+  , "extract-variable"
+  , "add-let-above"
+  , "wrap-in-if-condition"
+  , "wrap-in-if-then"
+  , "wrap-in-if-body"
+  ]
