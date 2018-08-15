@@ -29,7 +29,7 @@ let () =
         Lwt.return ()
     | Error (bt, e) ->
       Libcommon.Log.erroR "queue_worker"
-        ~data:"Uncaught error"
+        ~data:"Unhandled exception bubbled to queue worker"
         ~params:["execution_id", string_of_int execution_id
                 ;"exn", Libexecution.Exception.exn_to_string e];
       Libbackend.Rollbar.report_lwt e bt (EventQueue) (string_of_int execution_id) >>= fun _ ->
